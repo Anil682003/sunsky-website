@@ -1,16 +1,66 @@
-# React + Vite
+# Sunsky Website
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+Customer-facing booking portal for the Sunsky travel agency platform. End users browse and book travel products (flights, hotels, transfers, packages, insurance, car rentals, visas, cruises) from this application. The companion admin panel is located at `D:\sunskyadmin`.
 
-Currently, two official plugins are available:
+## Tech Stack
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+- **React 19** + **Vite**
+- **CSS Modules** (no external UI libraries)
+- **Redux Toolkit** for state management
+- **Lucide React** for icons
+- **Axios** via a centralized `axiosInstance` for API calls
+- Custom hooks built on a generic `useApi` pattern
 
-## React Compiler
+## Design System
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+- Primary accent: amber/gold `#f5a51e`
+- Clean whites and light grays for backgrounds
+- Consistent border-radius and shadow tokens
+- European-style currency formatting
+- 36px height alignment for filter/search bars
 
-## Expanding the ESLint configuration
+## Development Approach
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+- **Frontend-first** — all screens built with static inline mock data before any API integration
+- API integration phase deferred until all frontend modules are complete
+- No external UI component libraries — everything is custom with CSS Modules
+- `console.log` placeholders where API calls will eventually go
+
+## Relationship to SunskyAdmin
+
+| Concern | SunskyAdmin (`D:\sunskyadmin`) | sunsky-website (this repo) |
+|---|---|---|
+| Audience | Travel agency staff | End customers |
+| Purpose | Manage bookings, finance, docs, travelers | Browse & book travel products |
+| Backend | Express.js + MySQL (Sequelize) | Same backend API |
+
+## Getting Started
+
+```bash
+npm install
+npm run dev
+```
+
+## Project Structure (planned)
+
+```
+src/
+  assets/
+  components/       # Shared UI components
+  pages/            # Route-level page components
+  store/            # Redux slices
+  hooks/            # Custom useApi-based hooks
+  services/         # axiosInstance + API service files
+  styles/           # Global CSS / design tokens
+```
+
+## Modules (planned)
+
+1. Home / Landing page
+2. Search & Results
+3. Product Detail pages (Flight, Hotel, Package, etc.)
+4. Booking Flow (multi-step wizard)
+5. Traveler Details
+6. Payment
+7. Booking Confirmation
+8. User Account (login, register, booking history)
