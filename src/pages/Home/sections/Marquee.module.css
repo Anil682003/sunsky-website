@@ -1,0 +1,17 @@
+.wrap {
+  background:linear-gradient(135deg,var(--dark) 0%,var(--dark2) 100%);
+  padding:16px 0; overflow:hidden;
+  border-bottom:1px solid rgba(255,255,255,0.04);
+}
+.track {
+  display:flex; gap:60px; white-space:nowrap;
+  animation:marqueeAnim 30s linear infinite;
+}
+.item {
+  display:flex; align-items:center; gap:10px;
+  color:rgba(255,255,255,0.4); font-size:13px;
+  font-weight:600; letter-spacing:1px; text-transform:uppercase; flex-shrink:0;
+}
+.dot { width:6px; height:6px; border-radius:50%; background:var(--sun-gold); opacity:0.5; }
+
+@media(max-width:768px) { .wrap { display:none; } }
