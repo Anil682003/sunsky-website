@@ -1,6 +1,10 @@
+import { Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import styles from './Hero.module.css';
 
 export default function Hero() {
+  const { isAuthenticated } = useSelector((s) => s.auth);
+
   return (
     <section className={styles.hero}>
       <div className={styles.bg} />
@@ -69,6 +73,25 @@ export default function Hero() {
             Search
           </button>
         </div>
+
+        {!isAuthenticated && (
+          <div className={styles.memberStrip}>
+            <div className={styles.memberAvatars}>
+              {['🧑‍✈️','👩','🧑‍💼','👩‍🎨','🧑'].map((e, i) => (
+                <span key={i} className={styles.memberAvatar}>{e}</span>
+              ))}
+            </div>
+            <span className={styles.memberText}>
+              Join <strong>10,000+</strong> members — unlock member-only prices
+            </span>
+            <Link to="/register" className={styles.memberCta}>
+              Join free
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+            </Link>
+            <span className={styles.memberOr}>or</span>
+            <Link to="/login" className={styles.memberSignIn}>Sign in</Link>
+          </div>
+        )}
       </div>
 
       <div className={styles.scrollIndicator}>
