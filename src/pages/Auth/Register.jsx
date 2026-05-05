@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import lightLogo from '../../assets/light-logo.png';
 import styles from './Register.module.css';
 
 const INDUSTRIES = [
@@ -203,11 +204,7 @@ export default function Register() {
 
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
-          <div className={styles.logoIcon}>
-            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2" strokeLinecap="round">
-              <circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
-            </svg>
-          </div>
+          <img src={lightLogo} alt="SunSky" className={styles.logoImg} />
           <div className={styles.logoText}>Sun<span>Sky</span></div>
         </Link>
 

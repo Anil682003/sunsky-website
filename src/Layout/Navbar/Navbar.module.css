@@ -19,17 +19,11 @@
   display: flex; align-items: center; gap: 10px;
   text-decoration: none; flex-shrink: 0;
 }
-.logoIcon {
-  width: 36px; height: 36px; border-radius: 10px;
-  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
-  display: flex; align-items: center; justify-content: center;
-  box-shadow: var(--shadow-glow);
-  transition: box-shadow 0.3s;
+.logoImg {
+  width: 36px; height: 36px; object-fit: contain;
+  transition: opacity 0.3s;
 }
-.logoIcon:hover { box-shadow: 0 6px 28px rgba(255,159,28,0.55); }
-.logoIconDark {
-  box-shadow: 0 4px 18px rgba(255,159,28,0.3);
-}
+.logoImg:hover { opacity: 0.85; }
 .logoText {
   font-family: 'Sora', sans-serif; font-size: 22px;
   font-weight: 800; letter-spacing: -0.5px;
