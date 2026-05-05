@@ -72,7 +72,6 @@ export default function Hero() {
       </div>
 
       <div className={styles.scrollIndicator}>
-        <span>Scroll</span>
         <div className={styles.scrollLine} />
       </div>
     </section>

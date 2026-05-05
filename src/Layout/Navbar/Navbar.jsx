@@ -2,6 +2,7 @@ import { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
+import logo from '../../assets/image.png';
 import styles from './Navbar.module.css';
 
 const NAV_LINKS = [
@@ -33,6 +34,7 @@ export default function Navbar() {
   return (
     <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!isHome ? styles.solid : ''}`}>
       <div className={styles.logo} onClick={() => navigate('/')}>
+        <img src={logo} alt="Sunsky" className={`${styles.logoImg} ${dark ? styles.logoImgDark : styles.logoImgLight}`} />
         <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
           Sunsky
         </span>

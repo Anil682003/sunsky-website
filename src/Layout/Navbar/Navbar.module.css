@@ -12,7 +12,10 @@
   padding: 14px 52px;
 }
 
-.logo { cursor: pointer; }
+.logo { cursor: pointer; display:flex; align-items:center; gap:10px; }
+.logoImg { width:38px; height:38px; object-fit:contain; transition: filter 0.4s; }
+.logoImgLight { filter: brightness(0) invert(1); }
+.logoImgDark  { filter: none; }
 .logoText { font-family:'Sora',sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; transition:color 0.4s; }
 .logoLight { color:#fff; }
 .logoDark  { color:var(--dark); }
