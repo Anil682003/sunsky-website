@@ -47,22 +47,6 @@ export default function Login() {
             Your next unforgettable journey is just a sign-in away. Thousands of destinations, one seamless experience.
           </p>
         </div>
-        <div className={styles.statsRow}>
-          <div className={styles.statItem}>
-            <span className={styles.statNum}>10K+</span>
-            <span className={styles.statLabel}>Travellers</span>
-          </div>
-          <div className={styles.statDivider} />
-          <div className={styles.statItem}>
-            <span className={styles.statNum}>120+</span>
-            <span className={styles.statLabel}>Destinations</span>
-          </div>
-          <div className={styles.statDivider} />
-          <div className={styles.statItem}>
-            <span className={styles.statNum}>4.9★</span>
-            <span className={styles.statLabel}>Rated</span>
-          </div>
-        </div>
       </div>
 
       {/* Right form panel */}

@@ -17,7 +17,7 @@ export default function Hero() {
       <div className={styles.content}>
         <div className={styles.badge}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
-          Discover 10,000+ holidays worldwide
+          Holidays at guaranteed best prices
         </div>
 
         <h1 className={styles.title}>
@@ -76,13 +76,8 @@ export default function Hero() {
 
         {!isAuthenticated && (
           <div className={styles.memberStrip}>
-            <div className={styles.memberAvatars}>
-              {['🧑‍✈️','👩','🧑‍💼','👩‍🎨','🧑'].map((e, i) => (
-                <span key={i} className={styles.memberAvatar}>{e}</span>
-              ))}
-            </div>
             <span className={styles.memberText}>
-              Join <strong>10,000+</strong> members — unlock member-only prices
+              Create an account for member-only prices
             </span>
             <Link to="/register" className={styles.memberCta}>
               Register
