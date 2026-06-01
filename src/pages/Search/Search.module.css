@@ -6,7 +6,7 @@
   padding: 14px 32px;
 }
 .summaryInner {
-  max-width: 1440px; margin: 0 auto;
+   margin: 0 auto;
   display: flex; align-items: center; justify-content: space-between;
   gap: 16px; flex-wrap: wrap;
 }
@@ -28,7 +28,7 @@
   padding: 8px 14px; border-radius: var(--r-sm);
   border: 1.5px solid #e2eaf5; background: var(--white);
   font-size: 13px; font-weight: 600; color: var(--text);
-  cursor: pointer; outline: none;
+  cursor: pointer; outline: none; transition: border-color 0.2s;
 }
 .sortSelect:focus { border-color: var(--blue-ocean); }
 .mobileFilterBtn {
@@ -36,11 +36,13 @@
   padding: 9px 18px; border-radius: var(--r-full);
   border: 1.5px solid #e2eaf5; background: var(--white);
   font-size: 13px; font-weight: 600; color: var(--text);
+  cursor: pointer; transition: all 0.2s;
 }
+.mobileFilterBtn:hover { border-color: var(--blue-ocean); background: #f0f6ff; }
 
 /* ── Main layout ── */
 .main {
-  max-width: 1440px; margin: 0 auto;
+   margin: 0 auto;
   padding: 24px 32px 80px;
   display: flex; gap: 28px;
 }
@@ -59,7 +61,7 @@
 .filterCard {
   background: var(--white); border-radius: var(--r-lg);
   border: 1px solid #eef3fb;
-  box-shadow: 0 1px 3px rgba(15,40,100,0.04);
+  box-shadow: 0 2px 8px rgba(15,40,100,0.04);
   overflow: hidden;
 }
 
@@ -129,13 +131,13 @@
   display: flex; background: var(--white);
   border-radius: var(--r-xl); overflow: hidden;
   border: 1px solid #eef3fb;
-  box-shadow: 0 1px 3px rgba(15,40,100,0.04);
+  box-shadow: 0 2px 8px rgba(15,40,100,0.04);
   transition: all 0.4s var(--ease);
   position: relative;
   animation: fadeUp 0.6s var(--ease) both;
 }
 .resultCard:hover {
-  box-shadow: 0 16px 48px rgba(15,40,100,0.1);
+  box-shadow: 0 20px 60px rgba(15,40,100,0.12);
   transform: translateY(-4px);
   border-color: transparent;
 }
@@ -143,24 +145,36 @@
 /* Card image */
 .rcImg { width: 320px; flex-shrink: 0; position: relative; overflow: hidden; }
 .rcImg img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.7s var(--ease); }
-.resultCard:hover .rcImg img { transform: scale(1.08); }
+.resultCard:hover .rcImg img { transform: scale(1.06); }
+.rcImgOverlay {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 40%, rgba(7,14,31,0.4) 100%);
+  pointer-events: none;
+}
+.rcImgInfo {
+  position: absolute; bottom: 14px; left: 14px;
+  display: flex; align-items: center; gap: 4px;
+}
 .rcBadge {
   position: absolute; top: 14px; left: 14px;
-  padding: 5px 12px; border-radius: var(--r-full);
-  background: rgba(255,255,255,0.88); backdrop-filter: blur(8px);
+  padding: 6px 12px; border-radius: var(--r-full);
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
   font-size: 11px; font-weight: 700; color: var(--blue-deep);
   display: flex; align-items: center; gap: 5px;
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 .rcHeart {
   position: absolute; top: 14px; right: 14px;
   width: 38px; height: 38px; border-radius: 50%;
-  background: rgba(255,255,255,0.88); backdrop-filter: blur(8px);
+  background: rgba(255,255,255,0.92); backdrop-filter: blur(8px);
   display: flex; align-items: center; justify-content: center;
   color: #94a3bf; cursor: pointer;
   transition: all 0.25s cubic-bezier(0.175,0.885,0.32,1.275);
+  box-shadow: 0 2px 8px rgba(0,0,0,0.08);
 }
 .rcHeart:hover { color: var(--coral); transform: scale(1.15); }
 .rcHeartLiked { color: var(--coral); }
+.rcStars { display: flex; gap: 2px; color: var(--sun-gold); }
 
 /* Card content */
 .rcContent {
@@ -171,6 +185,7 @@
   display: flex; align-items: flex-start; justify-content: space-between;
   gap: 16px; margin-bottom: 10px;
 }
+.rcTopLeft { min-width: 0; }
 .rcName {
   font-family: 'Sora', sans-serif; font-size: 18px;
   font-weight: 700; color: var(--dark); line-height: 1.2;
@@ -179,8 +194,6 @@
   font-size: 13px; color: var(--text-sec);
   margin-top: 4px; display: flex; align-items: center; gap: 4px;
 }
-.rcStars { display: flex; gap: 2px; margin-top: 6px; }
-.rcStar { color: var(--sun-gold); font-size: 14px; }
 .rcReview { display: flex; align-items: center; gap: 10px; flex-shrink: 0; }
 .rcScore {
   width: 42px; height: 42px; border-radius: var(--r-sm);
@@ -197,37 +210,43 @@
 .rcAmenity {
   display: inline-flex; align-items: center; gap: 5px;
   padding: 4px 10px; border-radius: var(--r-full);
-  background: #d1fae5; color: #10b981;
+  background: #ecfdf5; color: #059669;
   font-size: 11.5px; font-weight: 600;
 }
 
 /* Trip details */
 .rcTrip {
-  display: flex; flex-wrap: wrap; gap: 12px;
-  margin-top: auto; padding-top: 12px;
+  display: flex; flex-wrap: wrap; gap: 14px;
+  margin-top: auto; padding-top: 14px;
   border-top: 1px solid #eef3fb;
 }
-.rcTripItem { font-size: 12px; color: var(--text-sec); display: flex; align-items: center; gap: 5px; }
+.rcTripItem {
+  font-size: 12.5px; color: var(--text-sec);
+  display: flex; align-items: center; gap: 5px;
+}
 
 /* Price & CTA */
 .rcPriceBox {
   display: flex; align-items: flex-end; justify-content: space-between;
-  margin-top: 14px; gap: 16px;
+  margin-top: 16px; gap: 16px;
 }
-.rcPriceLabel { font-size: 11px; color: #94a3bf; }
+.rcPriceInfo { display: flex; flex-direction: column; }
+.rcPriceLabel { font-size: 11px; color: #94a3bf; margin-bottom: 2px; }
 .rcPrice {
-  font-family: 'Sora', sans-serif; font-size: 26px;
+  font-family: 'Sora', sans-serif; font-size: 28px;
   font-weight: 800; color: var(--dark); line-height: 1;
 }
 .rcPrice span { font-size: 14px; font-weight: 500; color: var(--text-sec); }
 .rcCta {
-  padding: 13px 32px; border-radius: var(--r-full);
+  padding: 14px 34px; border-radius: var(--r-full);
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
-  color: var(--dark); font-family: 'Sora', sans-serif;
+  color: #fff; font-family: 'Sora', sans-serif;
   font-size: 14px; font-weight: 700;
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 4px 16px rgba(255,159,28,0.3);
   transition: all 0.3s var(--ease);
   white-space: nowrap; position: relative; overflow: hidden;
+  display: inline-flex; align-items: center; gap: 8px;
+  border: none; cursor: pointer;
 }
 .rcCta::before {
   content: ''; position: absolute; inset: 0;
@@ -235,7 +254,7 @@
   transform: translateX(-120%); transition: transform 0.5s;
 }
 .rcCta:hover::before { transform: translateX(120%); }
-.rcCta:hover { transform: translateY(-2px); box-shadow: 0 8px 28px rgba(255,159,28,0.4); }
+.rcCta:hover { transform: translateY(-2px); box-shadow: 0 10px 32px rgba(255,159,28,0.45); }
 
 /* ── Skeleton ── */
 .skeletonCard {
@@ -287,6 +306,7 @@
   width: 36px; height: 36px; border-radius: 50%;
   display: flex; align-items: center; justify-content: center;
   color: var(--text-sec); transition: all 0.2s;
+  border: none; background: none; cursor: pointer;
 }
 .drawerClose:hover { background: #e8f1ff; color: var(--blue-deep); }
 .drawerBody { padding: 16px 20px; }
@@ -305,7 +325,7 @@
   .rcImg { width: 100%; height: 200px; }
   .rcContent { padding: 16px; }
   .rcPriceBox { flex-wrap: wrap; }
-  .rcCta { width: 100%; text-align: center; justify-content: center; display: flex; }
+  .rcCta { width: 100%; text-align: center; justify-content: center; }
   .skeletonCard { flex-direction: column; height: auto; }
   .skeletonImg { width: 100%; height: 180px; }
 }

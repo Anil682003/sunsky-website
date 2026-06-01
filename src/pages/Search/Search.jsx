@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import styles from './Search.module.css';
 
 const MOCK_HOTELS = [
@@ -16,6 +16,20 @@ const SORT_OPTIONS = ['Most Booked','Price: Low to High','Price: High to Low','R
 const DURATION_OPTIONS = ['6 days','7 days','8 days','9 days','10 days'];
 const ACCOM_TYPES = ['Hotel','Resort','Apartment','Bungalow'];
 const FACILITIES = ['WiFi','Pool','Air Conditioning','Restaurant','Spa / Wellness','Fitness'];
+
+const Icon = ({ d, size = 14, sw = 1.8 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round"><path d={d}/></svg>
+);
+
+const StarIcon = ({ size = 13 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none">
+    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+  </svg>
+);
+
+const CheckIcon = () => (
+  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+);
 
 function FilterSection({ title, defaultOpen, children }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -41,7 +55,6 @@ function FilterCheck({ label, checked, onChange }) {
 
 export default function Search() {
   const [params] = useSearchParams();
-  const navigate = useNavigate();
 
   const destination = params.get('destination') || '';
   const date = params.get('date') || '';
@@ -59,10 +72,10 @@ export default function Search() {
     setLoading(true);
     const timer = setTimeout(() => {
       let sorted = [...MOCK_HOTELS];
-      if (sort === 'Price: Low to High') sorted.sort((a,b) => a.price - b.price);
-      if (sort === 'Price: High to Low') sorted.sort((a,b) => b.price - a.price);
-      if (sort === 'Rating') sorted.sort((a,b) => b.score - a.score);
-      if (sort === 'Stars') sorted.sort((a,b) => b.stars - a.stars);
+      if (sort === 'Price: Low to High') sorted.sort((a, b) => a.price - b.price);
+      if (sort === 'Price: High to Low') sorted.sort((a, b) => b.price - a.price);
+      if (sort === 'Rating') sorted.sort((a, b) => b.score - a.score);
+      if (sort === 'Stars') sorted.sort((a, b) => b.stars - a.stars);
       setHotels(sorted);
       setLoading(false);
     }, 800);
@@ -83,42 +96,34 @@ export default function Search() {
         <FilterCheck label="Include flight" checked onChange={() => {}} />
         <FilterCheck label="Own transport" checked={false} onChange={() => {}} />
       </FilterSection>
-
       <FilterSection title="Travel Duration" defaultOpen>
         {DURATION_OPTIONS.map((d) => (
           <FilterCheck key={d} label={d} checked={d === duration} onChange={() => {}} />
         ))}
       </FilterSection>
-
       <FilterSection title="Board Type" defaultOpen={false}>
         {BOARD_TYPES.map((b) => (
           <FilterCheck key={b} label={b} checked={b === 'All Inclusive'} onChange={() => {}} />
         ))}
       </FilterSection>
-
       <FilterSection title="Price Range" defaultOpen>
         <input type="range" className={styles.filterRange} min="200" max="3000" defaultValue="1500" />
-        <div className={styles.filterRangeLabels}>
-          <span>€200</span><span>€1,500</span><span>€3,000</span>
-        </div>
+        <div className={styles.filterRangeLabels}><span>€200</span><span>€1,500</span><span>€3,000</span></div>
       </FilterSection>
-
       <FilterSection title="Hotel Stars" defaultOpen={false}>
         <div className={styles.filterStars}>
           {STAR_OPTIONS.map((s) => (
             <button key={s} className={`${styles.filterStarBtn} ${s >= 4 ? styles.filterStarActive : ''}`}>
-              ⭐ {s}
+              <StarIcon size={12} /> {s}
             </button>
           ))}
         </div>
       </FilterSection>
-
       <FilterSection title="Accommodation Type" defaultOpen={false}>
         {ACCOM_TYPES.map((a) => (
           <FilterCheck key={a} label={a} checked={a === 'Hotel'} onChange={() => {}} />
         ))}
       </FilterSection>
-
       <FilterSection title="Facilities" defaultOpen={false}>
         {FACILITIES.map((f) => (
           <FilterCheck key={f} label={f} checked={f === 'WiFi' || f === 'Pool'} onChange={() => {}} />
@@ -147,14 +152,14 @@ export default function Search() {
               {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
             </select>
             <button className={styles.mobileFilterBtn} onClick={() => setDrawerOpen(true)}>
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>
               Filters
             </button>
           </div>
         </div>
       </div>
 
-      {/* Main content */}
+      {/* Main */}
       <div className={styles.main}>
         <aside className={styles.sidebar}>
           <div className={styles.filterCard}>{sidebar}</div>
@@ -163,26 +168,28 @@ export default function Search() {
         <section className={styles.results}>
           <div className={styles.resultsList}>
             {loading ? (
-              <>
-                {[1,2].map((i) => (
-                  <div key={i} className={styles.skeletonCard}>
-                    <div className={styles.skeletonImg} />
-                    <div className={styles.skeletonBody}>
-                      <div className={`${styles.skeletonLine} ${styles.skW60}`} />
-                      <div className={`${styles.skeletonLine} ${styles.skW40}`} />
-                      <div className={`${styles.skeletonLine} ${styles.skW80}`} />
-                      <div className={`${styles.skeletonLine} ${styles.skW80}`} />
-                      <div className={`${styles.skeletonLine} ${styles.skW30}`} />
-                    </div>
+              [1, 2, 3].map((i) => (
+                <div key={i} className={styles.skeletonCard}>
+                  <div className={styles.skeletonImg} />
+                  <div className={styles.skeletonBody}>
+                    <div className={`${styles.skeletonLine} ${styles.skW60}`} />
+                    <div className={`${styles.skeletonLine} ${styles.skW40}`} />
+                    <div className={`${styles.skeletonLine} ${styles.skW80}`} />
+                    <div className={`${styles.skeletonLine} ${styles.skW80}`} />
+                    <div className={`${styles.skeletonLine} ${styles.skW30}`} />
                   </div>
-                ))}
-              </>
+                </div>
+              ))
             ) : (
               hotels.map((h, i) => (
-                <div key={h.id} className={styles.resultCard} style={{ animationDelay: `${i * 0.08}s` }}>
+                <div key={h.id} className={styles.resultCard} style={{ animationDelay: `${i * 0.06}s` }}>
                   <div className={styles.rcImg}>
                     <img src={h.img} alt={h.name} loading="lazy" />
-                    <div className={styles.rcBadge}>🔥 {h.badge}</div>
+                    <div className={styles.rcImgOverlay} />
+                    <div className={styles.rcBadge}>
+                      <Icon d="M13 10V3L4 14h7v7l9-11h-7z" size={12} sw={2} />
+                      {h.badge}
+                    </div>
                     <div
                       className={`${styles.rcHeart} ${liked[h.id] ? styles.rcHeartLiked : ''}`}
                       onClick={() => toggleLike(h.id)}
@@ -191,19 +198,22 @@ export default function Search() {
                         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z"/>
                       </svg>
                     </div>
+                    <div className={styles.rcImgInfo}>
+                      <div className={styles.rcStars}>
+                        {Array.from({ length: h.stars }).map((_, j) => (
+                          <StarIcon key={j} size={12} />
+                        ))}
+                      </div>
+                    </div>
                   </div>
+
                   <div className={styles.rcContent}>
                     <div className={styles.rcTop}>
-                      <div>
-                        <div className={styles.rcName}>{h.name}</div>
+                      <div className={styles.rcTopLeft}>
+                        <h3 className={styles.rcName}>{h.name}</h3>
                         <div className={styles.rcLocation}>
-                          <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                          <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z M12 13a3 3 0 100-6 3 3 0 000 6z" size={13} sw={1.6} />
                           {h.loc}
-                        </div>
-                        <div className={styles.rcStars}>
-                          {Array.from({ length: h.stars }).map((_, j) => (
-                            <span key={j} className={styles.rcStar}>★</span>
-                          ))}
                         </div>
                       </div>
                       <div className={styles.rcReview}>
@@ -214,23 +224,44 @@ export default function Search() {
                         <div className={styles.rcScore}>{h.score}</div>
                       </div>
                     </div>
+
                     <div className={styles.rcAmenities}>
                       {h.amenities.map((a) => (
-                        <span key={a} className={styles.rcAmenity}>✔ {a}</span>
+                        <span key={a} className={styles.rcAmenity}>
+                          <CheckIcon />
+                          {a}
+                        </span>
                       ))}
                     </div>
+
                     <div className={styles.rcTrip}>
-                      <span className={styles.rcTripItem}>📅 {date || 'Flexible'}</span>
-                      <span className={styles.rcTripItem}>✈️ From {destination || 'Any'}</span>
-                      <span className={styles.rcTripItem}>🚌 {h.transfer}</span>
-                      <span className={styles.rcTripItem}>🍽️ {h.board}</span>
+                      <span className={styles.rcTripItem}>
+                        <Icon d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" size={13} sw={1.6} />
+                        {date || 'Flexible dates'}
+                      </span>
+                      <span className={styles.rcTripItem}>
+                        <Icon d="M22 2L2 8.67l7.2 3.47L16 5 9.33 11.8 12.8 19z" size={13} sw={1.6} />
+                        {destination || 'Any departure'}
+                      </span>
+                      <span className={styles.rcTripItem}>
+                        <Icon d="M5 13l4 4L19 7" size={13} sw={2} />
+                        {h.transfer}
+                      </span>
+                      <span className={styles.rcTripItem}>
+                        <Icon d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3" size={13} sw={1.6} />
+                        {h.board}
+                      </span>
                     </div>
+
                     <div className={styles.rcPriceBox}>
-                      <div>
+                      <div className={styles.rcPriceInfo}>
                         <div className={styles.rcPriceLabel}>per person from</div>
                         <div className={styles.rcPrice}>€{h.price} <span>p.p.</span></div>
                       </div>
-                      <button className={styles.rcCta}>View Deal →</button>
+                      <button className={styles.rcCta}>
+                        View Deal
+                        <Icon d="M5 12h14M12 5l7 7-7 7" size={14} sw={2.2} />
+                      </button>
                     </div>
                   </div>
                 </div>

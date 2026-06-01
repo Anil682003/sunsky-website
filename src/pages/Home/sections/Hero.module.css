@@ -2,7 +2,13 @@
   position:relative; min-height:100vh;
   display:flex; flex-direction:column;
   align-items:center; justify-content:center;
-  overflow:hidden; background:var(--dark);
+  background:var(--dark);
+  z-index:2;
+}
+.heroBg {
+  position:absolute; inset:0;
+  overflow:hidden;
+  z-index:0;
 }
 .bg {
   position:absolute; inset:-10%;
@@ -37,7 +43,7 @@
 }
 .content {
   position:relative; z-index:2;
-  text-align:center; padding:0 24px; width:100%;
+  text-align:center; padding:80px 24px 0; width:100%;
 }
 .badge {
   display:inline-flex; align-items:center; gap:10px;
@@ -67,6 +73,49 @@
   animation:fadeUp 0.9s var(--ease) 0.5s both;
 }
 
+/* Mode tabs */
+.modeTabs {
+  display:flex; gap:0; margin-bottom:16px;
+  justify-content:center;
+  animation:fadeUp 0.95s var(--ease) 0.58s both;
+}
+.modeTab {
+  padding:12px 36px;
+  font-family:'Sora',sans-serif;
+  font-size:14px; font-weight:700;
+  color:rgba(255,255,255,0.55);
+  background:rgba(255,255,255,0.04);
+  border:1px solid rgba(255,255,255,0.08);
+  cursor:pointer;
+  transition:all 0.35s var(--ease);
+  position:relative;
+  letter-spacing:0.3px;
+  display:flex; align-items:center; gap:8px;
+}
+.modeTab:first-child {
+  border-radius:var(--r-lg) 0 0 var(--r-lg);
+  border-right:none;
+}
+.modeTab:last-child {
+  border-radius:0 var(--r-lg) var(--r-lg) 0;
+}
+.modeTab:hover {
+  color:rgba(255,255,255,0.8);
+  background:rgba(255,255,255,0.08);
+}
+.modeTabActive {
+  background:linear-gradient(135deg,rgba(255,159,28,0.2),rgba(255,209,102,0.12));
+  border-color:rgba(255,159,28,0.35);
+  color:#fff;
+}
+.modeTabActive::after {
+  content:'';
+  position:absolute; bottom:-1px; left:20%; right:20%;
+  height:2px;
+  background:linear-gradient(90deg,var(--sun-orange),var(--sun-gold));
+  border-radius:2px;
+}
+
 /* Search bar */
 .searchBarWrap {
   position:relative;
@@ -89,6 +138,7 @@
   flex:1; display:flex; align-items:center; gap:14px;
   padding:16px 22px; border-radius:var(--r-lg);
   cursor:pointer; transition:all 0.3s; min-width:0;
+  position:relative;
 }
 .sf:hover { background:rgba(255,255,255,0.08); }
 .sfActive { background:rgba(255,255,255,0.12); }
@@ -96,7 +146,23 @@
 .sfText { display:flex; flex-direction:column; align-items:flex-start; min-width:0; }
 .sfLabel { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:rgba(255,255,255,0.5); }
 .sfValue { font-size:14px; color:rgba(255,255,255,0.88); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sfInput {
+  font-size:14px; color:rgba(255,255,255,0.88); font-weight:500;
+  background:none; border:none; outline:none; padding:0; width:100%;
+  font-family:inherit;
+}
+.sfInput::placeholder { color:rgba(255,255,255,0.4); }
+.sfInput[type="date"] { color-scheme:dark; }
+.sfInput[type="date"]::-webkit-calendar-picker-indicator {
+  filter:invert(0.7);
+  cursor:pointer;
+  opacity:0.6;
+}
 .sfDivider { width:1px; height:40px; background:rgba(255,255,255,0.08); flex-shrink:0; }
+.hiddenDateInput {
+  position:absolute; width:0; height:0; opacity:0; pointer-events:none;
+  border:none; padding:0; margin:0;
+}
 .searchBtn {
   background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
   border-radius:var(--r-lg); padding:18px 40px;
@@ -328,6 +394,203 @@
   animation:slideUp 1.8s ease-in-out infinite;
 }
 
+/* Flights Search Panel */
+.flightsWrap {
+  width:100%;
+  max-width:1300px;
+  margin:0 auto;
+  animation:fadeUp 0.5s var(--ease);
+}
+
+/* Trip Type Row */
+.tripTypeRow {
+  display:flex; align-items:center; gap:24px;
+  margin-bottom:14px;
+  padding:0 4px;
+}
+.tripTypeOpt {
+  display:flex; align-items:center; gap:8px;
+  cursor:pointer; font-size:13px; font-weight:600;
+  color:rgba(255,255,255,0.6);
+  transition:color 0.2s;
+  background:none; border:none; padding:0;
+  font-family:inherit;
+}
+.tripTypeOpt:hover { color:rgba(255,255,255,0.85); }
+.tripTypeOptActive { color:#fff; }
+.tripRadio {
+  width:18px; height:18px;
+  border-radius:50%;
+  border:2px solid rgba(255,255,255,0.3);
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.25s;
+  flex-shrink:0;
+}
+.tripTypeOptActive .tripRadio {
+  border-color:var(--sun-gold);
+  background:var(--sun-gold);
+}
+.tripTypeOptActive .tripRadio::after {
+  content:'';
+  width:7px; height:7px;
+  border-radius:50%;
+  background:var(--dark);
+}
+.tripTypeDivider {
+  width:1px; height:20px;
+  background:rgba(255,255,255,0.12);
+}
+.directCheck {
+  display:flex; align-items:center; gap:8px;
+  cursor:pointer; font-size:13px; font-weight:500;
+  color:rgba(255,255,255,0.5);
+  transition:color 0.2s;
+  background:none; border:none; padding:0;
+  font-family:inherit;
+}
+.directCheck:hover { color:rgba(255,255,255,0.8); }
+.directCheckActive { color:rgba(255,255,255,0.8); }
+.directCb {
+  width:17px; height:17px;
+  border-radius:5px;
+  border:2px solid rgba(255,255,255,0.25);
+  display:flex; align-items:center; justify-content:center;
+  transition:all 0.25s;
+  flex-shrink:0;
+}
+.directCheckActive .directCb {
+  border-color:var(--sun-gold);
+  background:var(--sun-gold);
+}
+
+/* Flight Search Card */
+.flightSearchCard {
+  background:rgba(255,255,255,0.08);
+  backdrop-filter:blur(32px) saturate(150%);
+  -webkit-backdrop-filter:blur(32px) saturate(150%);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:var(--r-xl);
+  padding:10px;
+  display:flex; align-items:center; gap:2px;
+  box-shadow:0 30px 80px rgba(0,0,0,0.35), inset 0 1px 0 rgba(255,255,255,0.08);
+  transition:all 0.4s var(--ease);
+  margin-bottom:10px;
+}
+.flightSearchCard:hover {
+  border-color:rgba(255,255,255,0.2);
+}
+.flightSwapBtn {
+  width:36px; height:36px;
+  border-radius:50%;
+  background:rgba(255,255,255,0.06);
+  border:1px solid rgba(255,255,255,0.1);
+  display:flex; align-items:center; justify-content:center;
+  color:rgba(255,255,255,0.6);
+  cursor:pointer;
+  transition:all 0.3s var(--ease);
+  flex-shrink:0;
+}
+.flightSwapBtn:hover {
+  background:rgba(255,255,255,0.12);
+  color:#fff;
+  transform:rotate(180deg);
+}
+.returnDateField { transition:opacity 0.3s, max-width 0.3s; overflow:hidden; }
+.returnDateFieldHidden { opacity:0.3; max-width:0; padding:0; overflow:hidden; pointer-events:none; }
+
+/* Flight dropdown (positioned below the flight card) */
+.flightDropdown {
+  position:relative;
+  margin-top:6px;
+  background:rgba(15,25,50,0.95);
+  backdrop-filter:blur(24px);
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:var(--r-lg);
+  padding:20px 24px;
+  box-shadow:0 20px 60px rgba(0,0,0,0.5);
+  animation:scaleIn 0.2s var(--ease) both;
+  z-index:10;
+}
+.airportCode {
+  margin-left:auto;
+  font-size:12px;
+  font-weight:700;
+  color:rgba(255,255,255,0.35);
+  letter-spacing:1px;
+  font-family:'Sora',sans-serif;
+}
+.travSub {
+  display:block;
+  font-size:12px;
+  color:rgba(255,255,255,0.4);
+  font-weight:400;
+  margin-top:2px;
+}
+.classDivider {
+  width:100%;
+  height:1px;
+  background:rgba(255,255,255,0.08);
+  margin:16px 0 12px;
+}
+.classTitle {
+  display:block;
+  font-size:11px;
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:1px;
+  color:rgba(255,255,255,0.5);
+  margin-bottom:10px;
+}
+.classGrid {
+  display:flex;
+  flex-wrap:wrap;
+  gap:8px;
+}
+.classPill {
+  padding:9px 18px;
+  border-radius:var(--r-full);
+  border:1px solid rgba(255,255,255,0.15);
+  background:rgba(255,255,255,0.05);
+  color:rgba(255,255,255,0.85);
+  font-size:13px;
+  cursor:pointer;
+  transition:all 0.2s;
+}
+.classPill:hover {
+  background:rgba(255,255,255,0.1);
+}
+.classPillActive {
+  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
+  border-color:transparent;
+  color:#fff;
+  font-weight:600;
+}
+
+/* Add Flight Card (multi-city) */
+.addFlightCard {
+  background:rgba(255,255,255,0.04);
+  border:2px dashed rgba(255,255,255,0.12);
+  border-radius:var(--r-xl);
+  padding:20px;
+  display:flex;
+  align-items:center;
+  gap:2px;
+  cursor:pointer;
+  transition:all 0.3s var(--ease);
+  margin-bottom:10px;
+}
+.addFlightCard:hover {
+  border-color:rgba(255,255,255,0.25);
+  background:rgba(255,255,255,0.06);
+}
+.addFlightLabel {
+  font-family:'Sora',sans-serif;
+  font-size:14px; font-weight:700;
+  color:rgba(255,255,255,0.4);
+  text-transform:uppercase;
+  letter-spacing:1px;
+}
+
 @keyframes scaleIn {
   from { opacity:0; transform:translateY(-8px) scale(0.97); }
   to { opacity:1; transform:translateY(0) scale(1); }
@@ -340,4 +603,9 @@
   .searchBtn { width:100%; justify-content:center; padding:16px; }
   .title { letter-spacing:-0.5px; }
   .destGrid { grid-template-columns:1fr; }
+  .modeTab { padding:10px 20px; font-size:13px; }
+  .tripTypeRow { gap:12px; flex-wrap:wrap; }
+  .flightSearchCard { flex-direction:column; border-radius:var(--r-lg); padding:16px; gap:0; }
+  .flightSwapBtn { margin:4px auto; }
+  .addFlightCard { flex-direction:column; border-radius:var(--r-lg); padding:16px; gap:0; }
 }

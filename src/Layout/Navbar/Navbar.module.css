@@ -5,9 +5,10 @@
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
   transition: all 0.45s var(--ease);
+  background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 60%, transparent 100%);
 }
 .scrolled, .solid {
-  background: rgba(255,255,255,0.92);
+  background: rgba(255,255,255,0.92) !important;
   backdrop-filter: blur(28px) saturate(180%);
   -webkit-backdrop-filter: blur(28px) saturate(180%);
   box-shadow: 0 1px 0 rgba(31,79,216,0.06), var(--shadow-md);
@@ -33,26 +34,25 @@
 .logoDark  { color: var(--dark); }
 .logoAccent { color: var(--sun-orange); }
 
-/* ── Nav links ── */
-.links { display: flex; align-items: center; gap: 36px; flex: 1; justify-content: center; }
-.link {
-  font-size: 13.5px; font-weight: 600; letter-spacing: 0.2px;
-  cursor: pointer; position: relative; transition: all 0.3s;
-  white-space: nowrap; padding: 4px 0;
+/* ── Trust strip ── */
+.trustStrip {
+  display: flex; align-items: center; gap: 16px;
+  flex: 1; justify-content: center;
 }
-.link::after {
-  content: ''; position: absolute; bottom: -4px; left: 0;
-  width: 0; height: 2px; border-radius: 2px;
-  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
-  transition: width 0.35s var(--ease);
+.trustItem {
+  display: flex; align-items: center; gap: 6px;
+  font-size: 11.5px; font-weight: 600; letter-spacing: 0.5px;
+  text-transform: uppercase; white-space: nowrap;
+  transition: color 0.4s;
 }
-.link:hover::after, .linkActive::after { width: 100%; }
-.linkLight { color: rgba(255,255,255,0.82); }
-.linkLight:hover { color: #fff; }
-.linkDark  { color: var(--text-sec); }
-.linkDark:hover { color: var(--dark); }
-.linkActive.linkLight { color: #fff; }
-.linkActive.linkDark  { color: var(--dark); }
+.trustLight { color: rgba(255,255,255,0.5); }
+.trustDark { color: var(--text-light); }
+.trustDot {
+  width: 3px; height: 3px; border-radius: 50%;
+  flex-shrink: 0; transition: background 0.4s;
+}
+.trustDotLight { background: rgba(255,255,255,0.25); }
+.trustDotDark { background: rgba(0,0,0,0.15); }
 
 /* ── Auth area ── */
 .authArea { display: flex; align-items: center; flex-shrink: 0; }
@@ -259,9 +259,8 @@
 .mobileLogout:hover { background: rgba(255,107,107,0.06); }
 
 /* ── Responsive ── */
-@media (max-width: 1100px) { .links { gap: 24px; } }
 @media (max-width: 900px) {
-  .links { display: none; }
+  .trustStrip { display: none; }
   .authArea { display: none; }
   .hamburger { display: block; }
   .nav { padding: 16px 24px; }
