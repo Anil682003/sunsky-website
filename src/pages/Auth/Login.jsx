@@ -21,7 +21,7 @@ export default function Login() {
     e.preventDefault();
     setLoading(true);
     try {
-      const res = await axiosInstance.post('/public/auth/login', { email, password });
+      const res = await axiosInstance.post('/public/auth/login', { email, password, rememberMe });
       const { accessToken, refreshToken, user } = res.data.data;
       if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
       dispatch(loginSuccess({ user, accessToken }));
