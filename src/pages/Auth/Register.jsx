@@ -1,7 +1,11 @@
-import { useState } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import lightLogo from '../../assets/light-logo.png';
 import styles from './Register.module.css';
+import axiosInstance from '../../services/axiosInstance';
+import { loginSuccess } from '../../store/slices/authSlice';
+import { useToast } from '../../context/ToastContext';
 
 const INDUSTRIES = [
   'Airline','Corporate Travel','Event Management','Government',
@@ -16,6 +20,61 @@ const LANGUAGES = [
   { value:'de', label:'Deutsch' },
 ];
 const PAYMENT_TERMS = ['0 days','7 days','14 days','30 days','45 days','60 days'];
+
+const PHONE_CODES = [
+  { code:'32',  flag:'🇧🇪', name:'Belgium' },
+  { code:'31',  flag:'🇳🇱', name:'Netherlands' },
+  { code:'33',  flag:'🇫🇷', name:'France' },
+  { code:'49',  flag:'🇩🇪', name:'Germany' },
+  { code:'44',  flag:'🇬🇧', name:'United Kingdom' },
+  { code:'1',   flag:'🇺🇸', name:'US / Canada' },
+  { code:'34',  flag:'🇪🇸', name:'Spain' },
+  { code:'39',  flag:'🇮🇹', name:'Italy' },
+  { code:'351', flag:'🇵🇹', name:'Portugal' },
+  { code:'41',  flag:'🇨🇭', name:'Switzerland' },
+  { code:'43',  flag:'🇦🇹', name:'Austria' },
+  { code:'352', flag:'🇱🇺', name:'Luxembourg' },
+  { code:'353', flag:'🇮🇪', name:'Ireland' },
+  { code:'45',  flag:'🇩🇰', name:'Denmark' },
+  { code:'46',  flag:'🇸🇪', name:'Sweden' },
+  { code:'47',  flag:'🇳🇴', name:'Norway' },
+  { code:'358', flag:'🇫🇮', name:'Finland' },
+  { code:'48',  flag:'🇵🇱', name:'Poland' },
+  { code:'420', flag:'🇨🇿', name:'Czech Republic' },
+  { code:'36',  flag:'🇭🇺', name:'Hungary' },
+  { code:'30',  flag:'🇬🇷', name:'Greece' },
+  { code:'40',  flag:'🇷🇴', name:'Romania' },
+  { code:'359', flag:'🇧🇬', name:'Bulgaria' },
+  { code:'385', flag:'🇭🇷', name:'Croatia' },
+  { code:'386', flag:'🇸🇮', name:'Slovenia' },
+  { code:'7',   flag:'🇷🇺', name:'Russia' },
+  { code:'380', flag:'🇺🇦', name:'Ukraine' },
+  { code:'90',  flag:'🇹🇷', name:'Turkey' },
+  { code:'971', flag:'🇦🇪', name:'UAE' },
+  { code:'966', flag:'🇸🇦', name:'Saudi Arabia' },
+  { code:'91',  flag:'🇮🇳', name:'India' },
+  { code:'92',  flag:'🇵🇰', name:'Pakistan' },
+  { code:'880', flag:'🇧🇩', name:'Bangladesh' },
+  { code:'94',  flag:'🇱🇰', name:'Sri Lanka' },
+  { code:'86',  flag:'🇨🇳', name:'China' },
+  { code:'81',  flag:'🇯🇵', name:'Japan' },
+  { code:'82',  flag:'🇰🇷', name:'South Korea' },
+  { code:'60',  flag:'🇲🇾', name:'Malaysia' },
+  { code:'65',  flag:'🇸🇬', name:'Singapore' },
+  { code:'66',  flag:'🇹🇭', name:'Thailand' },
+  { code:'62',  flag:'🇮🇩', name:'Indonesia' },
+  { code:'63',  flag:'🇵🇭', name:'Philippines' },
+  { code:'84',  flag:'🇻🇳', name:'Vietnam' },
+  { code:'61',  flag:'🇦🇺', name:'Australia' },
+  { code:'64',  flag:'🇳🇿', name:'New Zealand' },
+  { code:'55',  flag:'🇧🇷', name:'Brazil' },
+  { code:'52',  flag:'🇲🇽', name:'Mexico' },
+  { code:'27',  flag:'🇿🇦', name:'South Africa' },
+  { code:'20',  flag:'🇪🇬', name:'Egypt' },
+  { code:'212', flag:'🇲🇦', name:'Morocco' },
+  { code:'216', flag:'🇹🇳', name:'Tunisia' },
+  { code:'213', flag:'🇩🇿', name:'Algeria' },
+];
 
 const PRIVATE_STEPS = [
   { key:'personal', label:'Personal' },
@@ -38,14 +97,129 @@ function getPasswordStrength(pw) {
   return s;
 }
 
+// Stable component — defined outside Register to prevent React unmount on re-render
+function Field({ label, placeholder, type = 'text', full, span2, required, select, options, value, onChange }) {
+  return (
+    <div className={`${styles.field} ${full ? styles.fieldFull : ''} ${span2 ? styles.fieldSpan2 : ''}`}>
+      <label className={styles.fieldLabel}>{label}{required && ' *'}</label>
+      {select ? (
+        <select className={styles.fieldSelect} value={value} onChange={onChange}>
+          <option value="">{placeholder}</option>
+          {options.map(o => typeof o === 'string'
+            ? <option key={o} value={o}>{o}</option>
+            : <option key={o.value} value={o.value}>{o.label}</option>
+          )}
+        </select>
+      ) : (
+        <input
+          className={styles.fieldInput}
+          type={type}
+          placeholder={placeholder}
+          value={value}
+          onChange={onChange}
+        />
+      )}
+    </div>
+  );
+}
+
+// Searchable phone code picker + number input — defined outside Register
+function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChange, required, full, span2 }) {
+  const [open, setOpen] = useState(false);
+  const [search, setSearch] = useState('');
+  const wrapRef = useRef(null);
+
+  useEffect(() => {
+    const onMouse = (e) => { if (wrapRef.current && !wrapRef.current.contains(e.target)) setOpen(false); };
+    const onKey   = (e) => { if (e.key === 'Escape') setOpen(false); };
+    document.addEventListener('mousedown', onMouse);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onMouse);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, []);
+
+  const q = search.toLowerCase().replace(/^\+/, '');
+  const filtered = PHONE_CODES.filter(c =>
+    c.name.toLowerCase().includes(q) || c.code.startsWith(q)
+  );
+  const selected = PHONE_CODES.find(c => c.code === codeValue) || PHONE_CODES[0];
+
+  return (
+    <div className={`${styles.field} ${full ? styles.fieldFull : ''} ${span2 ? styles.fieldSpan2 : ''}`}>
+      <label className={styles.fieldLabel}>{label}{required && ' *'}</label>
+      <div className={styles.phoneRow} ref={wrapRef}>
+        <button
+          type="button"
+          className={styles.phoneCodeBtn}
+          onClick={() => { setOpen(o => !o); setSearch(''); }}
+        >
+          <span>{selected.flag}</span>
+          <span>+{selected.code}</span>
+          <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            <path d="M6 9l6 6 6-6"/>
+          </svg>
+        </button>
+
+        {open && (
+          <div className={styles.phoneDropdown}>
+            <div className={styles.phoneSearchWrap}>
+              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+              </svg>
+              <input
+                className={styles.phoneSearch}
+                placeholder="Search country or code…"
+                value={search}
+                onChange={e => setSearch(e.target.value)}
+                autoFocus
+              />
+            </div>
+            <div className={styles.phoneList}>
+              {filtered.map(c => (
+                <button
+                  key={c.code}
+                  type="button"
+                  className={`${styles.phoneOption} ${c.code === codeValue ? styles.phoneOptionActive : ''}`}
+                  onClick={() => { onCodeChange(c.code); setOpen(false); setSearch(''); }}
+                >
+                  <span>{c.flag}</span>
+                  <span className={styles.phoneOptionName}>{c.name}</span>
+                  <span className={styles.phoneOptionCode}>+{c.code}</span>
+                </button>
+              ))}
+              {filtered.length === 0 && (
+                <div className={styles.phoneNoResult}>No results</div>
+              )}
+            </div>
+          </div>
+        )}
+
+        <input
+          className={styles.phoneNumber}
+          type="tel"
+          placeholder="470 123 456"
+          value={numberValue}
+          onChange={onNumberChange}
+        />
+      </div>
+    </div>
+  );
+}
+
 export default function Register() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { showToast } = useToast();
   const [type, setType] = useState('private');
   const [step, setStep] = useState(0);
   const [agreed, setAgreed] = useState(false);
+  const [loading, setLoading] = useState(false);
 
   const [prv, setPrv] = useState({
-    firstName:'', lastName:'', email:'', phone:'',
+    firstName:'', lastName:'', email:'',
+    phoneCode:'32', phone:'',
     dateOfBirth:'', gender:'', nationality:'',
     preferredLanguage:'', street:'', city:'',
     postalCode:'', country:'', password:'',
@@ -57,64 +231,77 @@ export default function Register() {
     postalCode:'', country:'',
     invoiceEmail:'', invoicingAddress:'', paymentTerms:'',
     primaryContactFirstName:'', primaryContactLastName:'',
-    primaryContactEmail:'', primaryContactPhone:'',
+    primaryContactEmail:'',
+    primaryContactPhoneCode:'32', primaryContactPhone:'',
     primaryContactRole:'', preferredLanguage:'',
     password:'',
   });
 
-  const data = type === 'private' ? prv : pro;
+  const data    = type === 'private' ? prv : pro;
   const setData = type === 'private' ? setPrv : setPro;
-  const update = (k, v) => setData(prev => ({ ...prev, [k]: v }));
+  const set     = (k) => (e) => setData(prev => ({ ...prev, [k]: e.target.value }));
+  const setCode = (k) => (v)  => setData(prev => ({ ...prev, [k]: v }));
+
   const strength = getPasswordStrength(data.password);
-  const steps = type === 'private' ? PRIVATE_STEPS : PRO_STEPS;
-  const isLast = step === steps.length - 1;
+  const steps    = type === 'private' ? PRIVATE_STEPS : PRO_STEPS;
+  const isLast   = step === steps.length - 1;
   const handleTypeSwitch = (t) => { setType(t); setStep(0); };
 
-  const F = ({ name, label, placeholder, type: t = 'text', full, span2, required, select, options }) => (
-    <div className={`${styles.field} ${full ? styles.fieldFull : ''} ${span2 ? styles.fieldSpan2 : ''}`}>
-      <label className={styles.fieldLabel}>{label}{required && ' *'}</label>
-      {select ? (
-        <select className={styles.fieldSelect} value={data[name]} onChange={e => update(name, e.target.value)}>
-          <option value="">{placeholder}</option>
-          {options.map(o => typeof o === 'string'
-            ? <option key={o} value={o}>{o}</option>
-            : <option key={o.value} value={o.value}>{o.label}</option>
-          )}
-        </select>
-      ) : (
-        <input className={styles.fieldInput} type={t} placeholder={placeholder} value={data[name]} onChange={e => update(name, e.target.value)} />
-      )}
-    </div>
-  );
+  const handleRegister = async () => {
+    setLoading(true);
+    try {
+      // Build E.164 phone(s) from code + local number
+      const { password, phoneCode, primaryContactPhoneCode, ...fields } = data;
+
+      if (type === 'private' && fields.phone !== undefined) {
+        const num = fields.phone.replace(/\D/g, '').replace(/^0+/, '');
+        fields.phone = `+${phoneCode}${num}`;
+      }
+      if (type === 'professional' && fields.primaryContactPhone !== undefined) {
+        const num = fields.primaryContactPhone.replace(/\D/g, '').replace(/^0+/, '');
+        fields.primaryContactPhone = `+${primaryContactPhoneCode}${num}`;
+      }
+
+      const res = await axiosInstance.post('/public/auth/register', { type, password, ...fields });
+      const { accessToken, refreshToken, user } = res.data.data;
+      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+      dispatch(loginSuccess({ user, accessToken }));
+      navigate('/account/bookings');
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Registration failed. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const renderPrivateStep = () => {
     switch (step) {
       case 0: return (
         <>
-          <F name="firstName" label="First Name" placeholder="John" required />
-          <F name="lastName" label="Last Name" placeholder="Doe" required />
-          <F name="email" label="Email" placeholder="john@example.com" type="email" required />
-          <F name="phone" label="Phone" placeholder="+32 470 123 456" type="tel" required />
-          <F name="dateOfBirth" label="Date of Birth" type="date" />
-          <F name="gender" label="Gender" placeholder="Select" select options={[
+          <Field label="First Name" placeholder="John" value={data.firstName} onChange={set('firstName')} required />
+          <Field label="Last Name" placeholder="Doe" value={data.lastName} onChange={set('lastName')} required />
+          <Field label="Email" placeholder="john@example.com" type="email" value={data.email} onChange={set('email')} required />
+          <PhoneField label="Phone" codeValue={data.phoneCode} numberValue={data.phone} onCodeChange={setCode('phoneCode')} onNumberChange={set('phone')} required />
+          <Field label="Date of Birth" type="date" value={data.dateOfBirth} onChange={set('dateOfBirth')} />
+          <Field label="Gender" placeholder="Select" select value={data.gender} onChange={set('gender')} options={[
             { value:'MALE', label:'Male' }, { value:'FEMALE', label:'Female' },
             { value:'OTHER', label:'Other' }, { value:'PREFER_NOT_TO_SAY', label:'Prefer not to say' },
           ]} />
-          <F name="nationality" label="Nationality" placeholder="e.g. Belgian" required />
-          <F name="preferredLanguage" label="Language" placeholder="Select" select options={LANGUAGES} required />
+          <Field label="Nationality" placeholder="e.g. Belgian" value={data.nationality} onChange={set('nationality')} required />
+          <Field label="Language" placeholder="Select" select value={data.preferredLanguage} onChange={set('preferredLanguage')} options={LANGUAGES} required />
         </>
       );
       case 1: return (
         <>
-          <F name="street" label="Street" placeholder="Rue de la Loi 16" full />
-          <F name="city" label="City" placeholder="Brussels" />
-          <F name="postalCode" label="Postal Code" placeholder="1000" />
-          <F name="country" label="Country" placeholder="Belgium" />
+          <Field label="Street" placeholder="Rue de la Loi 16" full value={data.street} onChange={set('street')} />
+          <Field label="City" placeholder="Brussels" value={data.city} onChange={set('city')} />
+          <Field label="Postal Code" placeholder="1000" value={data.postalCode} onChange={set('postalCode')} />
+          <Field label="Country" placeholder="Belgium" value={data.country} onChange={set('country')} />
         </>
       );
       case 2: return (
         <>
-          <F name="password" label="Password" placeholder="Min. 8 characters" type="password" full required />
+          <Field label="Password" placeholder="Min. 8 characters" type="password" full value={data.password} onChange={set('password')} required />
           <div className={styles.strengthBar}>
             {[1,2,3,4].map(i => <div key={i} className={`${styles.strengthSeg} ${strength >= i ? styles[`filled${i}`] : ''}`} />)}
           </div>
@@ -140,37 +327,37 @@ export default function Register() {
     switch (step) {
       case 0: return (
         <>
-          <F name="tradingName" label="Trading Name" placeholder="SunSky Travel BV" required />
-          <F name="legalName" label="Legal Name" placeholder="SunSky Travel BV" required />
-          <F name="vatNumber" label="VAT Number" placeholder="BE0477.123.456" required />
-          <F name="industry" label="Industry" placeholder="Select industry" select options={INDUSTRIES} required />
-          <F name="website" label="Website" placeholder="https://example.com" required />
-          <F name="country" label="Country" placeholder="Belgium" required />
-          <F name="street" label="Street" placeholder="Rue de la Loi 16" span2 />
-          <F name="city" label="City" placeholder="Brussels" />
-          <F name="postalCode" label="Postal Code" placeholder="1000" />
+          <Field label="Trading Name" placeholder="SunSky Travel BV" value={data.tradingName} onChange={set('tradingName')} required />
+          <Field label="Legal Name" placeholder="SunSky Travel BV" value={data.legalName} onChange={set('legalName')} required />
+          <Field label="VAT Number" placeholder="BE0477.123.456" value={data.vatNumber} onChange={set('vatNumber')} required />
+          <Field label="Industry" placeholder="Select industry" select value={data.industry} onChange={set('industry')} options={INDUSTRIES} required />
+          <Field label="Website" placeholder="https://example.com" value={data.website} onChange={set('website')} required />
+          <Field label="Country" placeholder="Belgium" value={data.country} onChange={set('country')} required />
+          <Field label="Street" placeholder="Rue de la Loi 16" span2 value={data.street} onChange={set('street')} />
+          <Field label="City" placeholder="Brussels" value={data.city} onChange={set('city')} />
+          <Field label="Postal Code" placeholder="1000" value={data.postalCode} onChange={set('postalCode')} />
         </>
       );
       case 1: return (
         <>
-          <F name="invoiceEmail" label="Invoice Email" placeholder="billing@company.com" type="email" span2 required />
-          <F name="paymentTerms" label="Payment Terms" placeholder="Select terms" select options={PAYMENT_TERMS} />
-          <F name="invoicingAddress" label="Invoicing Address (if different)" placeholder="Full invoicing address" full />
+          <Field label="Invoice Email" placeholder="billing@company.com" type="email" span2 value={data.invoiceEmail} onChange={set('invoiceEmail')} required />
+          <Field label="Payment Terms" placeholder="Select terms" select value={data.paymentTerms} onChange={set('paymentTerms')} options={PAYMENT_TERMS} />
+          <Field label="Invoicing Address (if different)" placeholder="Full invoicing address" full value={data.invoicingAddress} onChange={set('invoicingAddress')} />
         </>
       );
       case 2: return (
         <>
-          <F name="primaryContactFirstName" label="First Name" placeholder="Jane" required />
-          <F name="primaryContactLastName" label="Last Name" placeholder="Smith" required />
-          <F name="primaryContactRole" label="Role / Title" placeholder="e.g. Travel Manager" />
-          <F name="primaryContactEmail" label="Email" placeholder="jane@company.com" type="email" required />
-          <F name="primaryContactPhone" label="Phone" placeholder="+32 470 123 456" type="tel" required />
-          <F name="preferredLanguage" label="Language" placeholder="Select" select options={LANGUAGES} />
+          <Field label="First Name" placeholder="Jane" value={data.primaryContactFirstName} onChange={set('primaryContactFirstName')} required />
+          <Field label="Last Name" placeholder="Smith" value={data.primaryContactLastName} onChange={set('primaryContactLastName')} required />
+          <Field label="Role / Title" placeholder="e.g. Travel Manager" value={data.primaryContactRole} onChange={set('primaryContactRole')} />
+          <Field label="Email" placeholder="jane@company.com" type="email" value={data.primaryContactEmail} onChange={set('primaryContactEmail')} required />
+          <PhoneField label="Phone" codeValue={data.primaryContactPhoneCode} numberValue={data.primaryContactPhone} onCodeChange={setCode('primaryContactPhoneCode')} onNumberChange={set('primaryContactPhone')} required />
+          <Field label="Language" placeholder="Select" select value={data.preferredLanguage} onChange={set('preferredLanguage')} options={LANGUAGES} />
         </>
       );
       case 3: return (
         <>
-          <F name="password" label="Password" placeholder="Min. 8 characters" type="password" full required />
+          <Field label="Password" placeholder="Min. 8 characters" type="password" full value={data.password} onChange={set('password')} required />
           <div className={styles.strengthBar}>
             {[1,2,3,4].map(i => <div key={i} className={`${styles.strengthSeg} ${strength >= i ? styles[`filled${i}`] : ''}`} />)}
           </div>
@@ -239,7 +426,6 @@ export default function Register() {
 
       <div className={styles.formPanel}>
         <div className={styles.card}>
-          {/* Fixed header */}
           <div className={styles.cardHead}>
             <div className={styles.cardHeader}>
               <h1 className={styles.cardTitle}>Create your account</h1>
@@ -274,14 +460,12 @@ export default function Register() {
             </div>
           </div>
 
-          {/* Scrollable body */}
           <div className={styles.cardBody}>
             <div className={styles.formGrid} key={`${type}-${step}`}>
               {type === 'private' ? renderPrivateStep() : renderProStep()}
             </div>
           </div>
 
-          {/* Fixed footer */}
           <div className={styles.cardFoot}>
             <div className={styles.navRow}>
               {step > 0 ? (
@@ -291,9 +475,9 @@ export default function Register() {
                 </button>
               ) : <div />}
               {isLast ? (
-                <button className={styles.submitBtn} disabled={!agreed}>
+                <button className={styles.submitBtn} disabled={!agreed || loading} onClick={handleRegister}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
-                  Create {type === 'private' ? 'Account' : 'Business Account'}
+                  {loading ? 'Creating account…' : `Create ${type === 'private' ? 'Account' : 'Business Account'}`}
                 </button>
               ) : (
                 <button className={styles.nextBtn} onClick={() => setStep(step + 1)}>
