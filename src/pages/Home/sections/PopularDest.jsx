@@ -1,6 +1,6 @@
 import styles from './PopularDest.module.css';
 
-const CARDS = [
+const FALLBACK_CARDS = [
   { title:'Distant Destinations', count:'480+ holidays', colorClass:'blue',
     icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>,
     links:['Bali','Thailand','Maldives','Sri Lanka','Mexico','Dominican Republic'] },
@@ -21,22 +21,38 @@ const CARDS = [
     links:['May Holidays','Summer Holidays','Autumn Break','Christmas Travel','Winter Sun'] },
 ];
 
-export default function PopularDest() {
+const COLOR_CLASSES = ['blue','gold','coral','teal','purple','green'];
+
+export default function PopularDest({ cms }) {
+  const sh = cms?.sectionHeaders?.popularDest;
+  const tag      = sh?.tag      || '🗺 Browse';
+  const title    = sh?.title    || 'Most popular destinations';
+  const subtitle = sh?.subtitle || 'Browse our most searched and booked travel categories.';
+
+  const cards = (cms?.popularDestinationGroups?.length > 0)
+    ? cms.popularDestinationGroups.map((g, i) => ({
+        title:      g.title,
+        count:      g.count,
+        colorClass: COLOR_CLASSES[i % COLOR_CLASSES.length],
+        links:      Array.isArray(g.links) ? g.links : [],
+      }))
+    : FALLBACK_CARDS;
+
   return (
     <div className={styles.sectionAlt}>
       <div className={styles.section}>
         <div className={styles.header}>
           <div>
-            <div className={styles.tag}>🗺 Browse</div>
-            <h2 className={styles.title}>Most <span className={`${styles.accent} ${styles.script}`}>popular</span> destinations</h2>
-            <p className={styles.sub}>Browse our most searched and booked travel categories.</p>
+            <div className={styles.tag}>{tag}</div>
+            <h2 className={styles.title}>{title}</h2>
+            <p className={styles.sub}>{subtitle}</p>
           </div>
         </div>
         <div className={styles.grid}>
-          {CARDS.map((c, i) => (
+          {cards.map((c, i) => (
             <div key={i} className={`${styles.card} ${styles[`card${i+1}`]}`}>
               <div className={styles.cardHead}>
-                <div className={`${styles.icon} ${styles[c.colorClass]}`}>{c.icon}</div>
+                {c.icon && <div className={`${styles.icon} ${styles[c.colorClass]}`}>{c.icon}</div>}
                 <div>
                   <div className={styles.cardTitle}>{c.title}</div>
                   <div className={styles.cardCount}>{c.count}</div>

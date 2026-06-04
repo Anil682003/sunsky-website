@@ -1,14 +1,14 @@
 import { useEffect, useRef, useState } from 'react';
 import styles from './Stats.module.css';
 
-const STATS = [
-  { end:10000,  suffix:'K+', label:'Holidays Worldwide',  display:'10K+' },
-  { end:2000000,suffix:'M+', label:'Happy Travelers',     display:'2M+' },
-  { end:150,    suffix:'+',  label:'Destinations',        display:'150+' },
-  { end:48,     suffix:'',   label:'Travel Awards',       display:'48' },
+const FALLBACK_STATS = [
+  { value:'10K+', label:'Holidays Worldwide' },
+  { value:'2M+',  label:'Happy Travelers' },
+  { value:'150+', label:'Destinations' },
+  { value:'48',   label:'Travel Awards' },
 ];
 
-export default function Stats() {
+export default function Stats({ cms }) {
   const ref = useRef(null);
   const [vis, setVis] = useState(false);
 
@@ -18,12 +18,14 @@ export default function Stats() {
     return () => obs.disconnect();
   }, []);
 
+  const stats = (cms?.stats?.length > 0) ? cms.stats : FALLBACK_STATS;
+
   return (
     <div className={styles.dark} ref={ref}>
       <div className={styles.strip}>
-        {STATS.map((s) => (
-          <div key={s.label} className={styles.item}>
-            <div className={`${styles.number} ${vis ? styles.pop : ''}`}>{s.display}</div>
+        {stats.map((s, i) => (
+          <div key={i} className={styles.item}>
+            <div className={`${styles.number} ${vis ? styles.pop : ''}`}>{s.value || s.display}</div>
             <div className={styles.label}>{s.label}</div>
           </div>
         ))}

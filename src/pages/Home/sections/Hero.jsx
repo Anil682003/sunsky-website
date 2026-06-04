@@ -2,16 +2,17 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import styles from './Hero.module.css';
+import axiosInstance from '../../../services/axiosInstance';
 
-const DESTINATIONS = [
-  { label: 'Egypt, Red Sea', icon: '🇪🇬' },
-  { label: 'Turkey, Antalya', icon: '🇹🇷' },
-  { label: 'Greece, Crete', icon: '🇬🇷' },
-  { label: 'Spain, Canary Islands', icon: '🇪🇸' },
-  { label: 'Maldives', icon: '🇲🇻' },
-  { label: 'Thailand, Phuket', icon: '🇹🇭' },
-  { label: 'Morocco, Marrakech', icon: '🇲🇦' },
-  { label: 'Portugal, Algarve', icon: '🇵🇹' },
+const POPULAR_DESTINATIONS = [
+  { label: 'Hurghada, Egypt', icon: '🇪🇬' },
+  { label: 'Antalya, Turkey', icon: '🇹🇷' },
+  { label: 'Heraklion, Greece', icon: '🇬🇷' },
+  { label: 'Tenerife, Spain', icon: '🇪🇸' },
+  { label: 'Male, Maldives', icon: '🇲🇻' },
+  { label: 'Phuket, Thailand', icon: '🇹🇭' },
+  { label: 'Marrakech, Morocco', icon: '🇲🇦' },
+  { label: 'Faro, Portugal', icon: '🇵🇹' },
 ];
 const DURATIONS = ['3 days','5 days','6 days','7 days','8 days','10 days','14 days'];
 
@@ -39,9 +40,38 @@ const FLIGHT_DESTINATIONS = [
 
 const CABIN_CLASSES = ['Economy', 'Premium Economy', 'Business', 'First'];
 
+// Splits a title string and wraps the word "sun" in the script-font span.
+// Falls back to the hardcoded JSX if no CMS title has loaded yet.
+function renderHeroTitle(raw, scriptClass) {
+  if (!raw) return null;
+  const parts = raw.split(/\b(sun)\b/i);
+  return parts.map((p, i) =>
+    p.toLowerCase() === 'sun' ? <span key={i} className={scriptClass}>{p}</span> : p
+  );
+}
+
 export default function Hero() {
   const { isAuthenticated } = useSelector((s) => s.auth);
   const navigate = useNavigate();
+
+  // CMS content — defaults are the current hardcoded values, replaced once API responds
+  const [cmsBadge, setCmsBadge]       = useState('Holidays at guaranteed best prices');
+  const [cmsTitle, setCmsTitle]       = useState('');
+  const [cmsSubtitle, setCmsSubtitle] = useState('Sun-soaked beaches, vibrant cities, and hidden gems — all at the best guaranteed prices.');
+  const [cmsSearchBtn, setCmsSearchBtn] = useState('Search');
+
+  useEffect(() => {
+    axiosInstance.get('/cms/layout/homepage-config')
+      .then((res) => {
+        const hero = res.data.data?.homepageConfig?.hero;
+        if (!hero) return;
+        if (hero.badgeText)        setCmsBadge(hero.badgeText);
+        if (hero.title)            setCmsTitle(hero.title);
+        if (hero.subtitle)         setCmsSubtitle(hero.subtitle);
+        if (hero.searchButtonText) setCmsSearchBtn(hero.searchButtonText);
+      })
+      .catch(() => {});
+  }, []);
 
   const [searchMode, setSearchMode] = useState('package');
   const [destination, setDestination] = useState('');
@@ -64,6 +94,37 @@ export default function Hero() {
   const [multiFrom, setMultiFrom] = useState('');
   const [multiTo, setMultiTo] = useState('');
   const [multiDate, setMultiDate] = useState('');
+
+  const [destSearch, setDestSearch]   = useState('');
+  const [destResults, setDestResults] = useState([]);
+  const [destLoading, setDestLoading] = useState(false);
+  const destInputRef = useRef(null);
+
+  useEffect(() => {
+    if (!destSearch.trim()) { setDestResults([]); return; }
+    setDestLoading(true);
+    const timer = setTimeout(async () => {
+      try {
+        const res = await axiosInstance.get(`/geo/cities?search=${encodeURIComponent(destSearch)}&active=true&limit=8`);
+        setDestResults(res.data.data || []);
+      } catch {
+        setDestResults([]);
+      } finally {
+        setDestLoading(false);
+      }
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [destSearch]);
+
+  // Auto-focus search input when destination dropdown opens
+  useEffect(() => {
+    if (openField === 'destination') {
+      setTimeout(() => destInputRef.current?.focus(), 50);
+    } else {
+      setDestSearch('');
+      setDestResults([]);
+    }
+  }, [openField]);
 
   const searchBarRef = useRef(null);
   const flightsRef = useRef(null);
@@ -127,15 +188,18 @@ export default function Hero() {
       <div className={styles.content}>
         <div className={styles.badge}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
-          Holidays at guaranteed best prices
+          {cmsBadge}
         </div>
 
         <h1 className={styles.title}>
-          Where will you<br />chase the <span className={styles.script}>sun</span>?
+          {cmsTitle
+            ? renderHeroTitle(cmsTitle, styles.script)
+            : <>Where will you<br />chase the <span className={styles.script}>sun</span>?</>
+          }
         </h1>
 
         <p className={styles.subtitle}>
-          Sun-soaked beaches, vibrant cities, and hidden gems — all at the best guaranteed prices.
+          {cmsSubtitle}
         </p>
 
         <div className={styles.modeTabs}>
@@ -220,24 +284,76 @@ export default function Hero() {
             </div>
             <button className={styles.searchBtn} onClick={handleSearch}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              Search
+              {cmsSearchBtn}
             </button>
           </div>
 
           {openField === 'destination' && (
             <div className={styles.dropdown}>
-              <div className={styles.destGrid}>
-                {DESTINATIONS.map((d) => (
-                  <div
-                    key={d.label}
-                    className={`${styles.destItem} ${destination === d.label ? styles.destItemActive : ''}`}
-                    onClick={() => { setDestination(d.label); setOpenField(null); }}
-                  >
-                    <span>{d.icon}</span>
-                    <span>{d.label}</span>
-                  </div>
-                ))}
+              {/* Search input */}
+              <div className={styles.destSearchWrap}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.45 }}>
+                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
+                </svg>
+                <input
+                  ref={destInputRef}
+                  className={styles.destSearchInput}
+                  placeholder="Search destinations…"
+                  value={destSearch}
+                  onChange={e => setDestSearch(e.target.value)}
+                  onClick={e => e.stopPropagation()}
+                />
+                {destLoading && (
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.45, animation: 'spin 0.8s linear infinite' }}>
+                    <path d="M21 12a9 9 0 11-6.219-8.56"/>
+                  </svg>
+                )}
               </div>
+
+              {/* API results */}
+              {destResults.length > 0 && (
+                <div className={styles.destList}>
+                  {destResults.map(city => (
+                    <div
+                      key={city.id}
+                      className={`${styles.destListItem} ${destination === `${city.name}, ${city.countryName}` ? styles.destItemActive : ''}`}
+                      onClick={() => { setDestination(`${city.name}, ${city.countryName}`); setOpenField(null); }}
+                    >
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ opacity: 0.45, flexShrink: 0 }}>
+                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+                      </svg>
+                      <div className={styles.destListText}>
+                        <span className={styles.destListCity}>{city.name}</span>
+                        <span className={styles.destListCountry}>{city.countryName}</span>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {/* No results message */}
+              {destSearch.trim() && !destLoading && destResults.length === 0 && (
+                <div className={styles.destNoResult}>No destinations found for "{destSearch}"</div>
+              )}
+
+              {/* Popular picks (shown when search is empty) */}
+              {!destSearch.trim() && (
+                <>
+                  <div className={styles.destPopularLabel}>Popular destinations</div>
+                  <div className={styles.destGrid}>
+                    {POPULAR_DESTINATIONS.map((d) => (
+                      <div
+                        key={d.label}
+                        className={`${styles.destItem} ${destination === d.label ? styles.destItemActive : ''}`}
+                        onClick={() => { setDestination(d.label); setOpenField(null); }}
+                      >
+                        <span>{d.icon}</span>
+                        <span>{d.label}</span>
+                      </div>
+                    ))}
+                  </div>
+                </>
+              )}
             </div>
           )}
 
@@ -428,7 +544,7 @@ export default function Hero() {
 
             <button className={styles.searchBtn} onClick={handleFlightSearch}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              Search
+              {cmsSearchBtn}
             </button>
           </div>
 
