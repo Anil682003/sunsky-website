@@ -281,6 +281,18 @@
 .skW80 { width: 80%; height: 12px; }
 .skW30 { width: 30%; height: 36px; margin-top: auto; }
 
+/* ── No results state ── */
+.noResults {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 12px; padding: 80px 24px; text-align: center;
+  color: var(--text-sec, #6b7fa3);
+}
+.noResults h3 {
+  font-family: 'Sora', sans-serif; font-size: 18px; font-weight: 700;
+  color: var(--blue-deep, #0f2864); margin: 0;
+}
+.noResults p { font-size: 14px; margin: 0; }
+
 /* ── Mobile filter drawer ── */
 .drawerOverlay {
   position: fixed; inset: 0; z-index: 200;

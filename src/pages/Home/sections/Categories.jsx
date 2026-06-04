@@ -1,6 +1,6 @@
 import styles from './Categories.module.css';
 
-const CATS = [
+const FALLBACK_CATS = [
   { title:'Sun Vacations', count:'2,430+ holidays', img:'https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=600&q=80',
     icon:<svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> },
   { title:'City Trips', count:'890+ destinations', img:'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80',
@@ -17,23 +17,30 @@ const ArrowIcon = () => (
   </svg>
 );
 
-export default function Categories() {
+export default function Categories({ cms }) {
+  const sh = cms?.sectionHeaders?.categories;
+  const tag      = sh?.tag      || '✦ Explore';
+  const title    = sh?.title    || 'Something for everyone';
+  const subtitle = sh?.subtitle || 'Find the perfect holiday that suits your travel style and budget.';
+
+  const cats = (cms?.categories?.length > 0) ? cms.categories : FALLBACK_CATS;
+
   return (
     <div className={styles.sectionAlt}>
       <div className={styles.section}>
         <div className={styles.header}>
           <div>
-            <div className={styles.tag}>✦ Explore</div>
-            <h2 className={styles.title}>Something for <span className={styles.accent}>everyone</span></h2>
-            <p className={styles.sub}>Find the perfect holiday that suits your travel style and budget.</p>
+            <div className={styles.tag}>{tag}</div>
+            <h2 className={styles.title}>{title}</h2>
+            <p className={styles.sub}>{subtitle}</p>
           </div>
         </div>
         <div className={styles.grid}>
-          {CATS.map((c, i) => (
+          {cats.map((c, i) => (
             <div key={i} className={styles.card}>
-              <img src={c.img} alt={c.title} loading="lazy" />
+              <img src={c.img || c.imageUrl} alt={c.title} loading="lazy" />
               <div className={styles.overlay}>
-                <div className={styles.icon}>{c.icon}</div>
+                {c.icon && <div className={styles.icon}>{c.icon}</div>}
                 <div className={styles.cardTitle}>{c.title}</div>
                 <div className={styles.cardCount}>{c.count}</div>
               </div>
