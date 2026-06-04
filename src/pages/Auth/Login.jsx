@@ -1,17 +1,36 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useDispatch } from 'react-redux';
 import styles from './Login.module.css';
+import axiosInstance from '../../services/axiosInstance';
+import { loginSuccess } from '../../store/slices/authSlice';
+import { useToast } from '../../context/ToastContext';
 
 export default function Login() {
   const navigate = useNavigate();
+  const dispatch = useDispatch();
+  const { showToast } = useToast();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(false);
   const [focused, setFocused] = useState('');
+  const [loading, setLoading] = useState(false);
 
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
+    setLoading(true);
+    try {
+      const res = await axiosInstance.post('/public/auth/login', { email, password, rememberMe });
+      const { accessToken, refreshToken, user } = res.data.data;
+      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+      dispatch(loginSuccess({ user, accessToken }));
+      navigate('/account/bookings');
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Login failed. Please try again.', 'error');
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
@@ -153,8 +172,8 @@ export default function Login() {
               </div>
 
               {/* Submit */}
-              <button className={styles.submitBtn} type="submit">
-                <span>Sign In</span>
+              <button className={styles.submitBtn} type="submit" disabled={loading}>
+                <span>{loading ? 'Signing in…' : 'Sign In'}</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
                 </svg>
