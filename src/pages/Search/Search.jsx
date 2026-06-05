@@ -1,59 +1,32 @@
 import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styles from './Search.module.css';
-import axiosInstance from '../../services/axiosInstance';
 
-// ── Board code → label ───────────────────────────────────────────────────────
+const CONTRACTS_API = '/cache-api';
+
 const BOARD_LABELS = {
   AI: 'All Inclusive', TI: 'All Inclusive+', FB: 'Full Board',
   HB: 'Half Board',   BB: 'Bed & Breakfast', RO: 'Room Only',
+  SC: 'Self Catering',
 };
 
-// ── ISO country code → name (common travel destinations) ────────────────────
-const COUNTRY_NAMES = {
-  ES: 'Spain',    GR: 'Greece',       TR: 'Turkey',    EG: 'Egypt',
-  TH: 'Thailand', MV: 'Maldives',     MA: 'Morocco',   PT: 'Portugal',
-  IT: 'Italy',    FR: 'France',       MT: 'Malta',     HR: 'Croatia',
-  CY: 'Cyprus',   TN: 'Tunisia',      AE: 'UAE',       MX: 'Mexico',
-  DO: 'Dominican Republic',           CU: 'Cuba',      ID: 'Indonesia',
-  IN: 'India',    LK: 'Sri Lanka',    VN: 'Vietnam',   JP: 'Japan',
-  DE: 'Germany',  GB: 'United Kingdom', NL: 'Netherlands', BE: 'Belgium',
-  US: 'USA',      BR: 'Brazil',       ZA: 'South Africa', KE: 'Kenya',
-};
-
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80';
-const BOARD_FILTER_OPTIONS = ['All Inclusive', 'Half Board', 'Bed & Breakfast', 'Room Only'];
-const STAR_OPTIONS = [5, 4, 3, 2];
-const SORT_OPTIONS = ['Most Booked', 'Rating', 'Stars'];
-const DURATION_OPTIONS = ['6 days', '7 days', '8 days', '9 days', '10 days'];
-const ACCOM_TYPES = ['Hotel', 'Resort', 'Apartment', 'Bungalow'];
-const FACILITIES = ['WiFi', 'Pool', 'Air Conditioning', 'Restaurant', 'Spa / Wellness', 'Fitness'];
+const BOARD_FILTER_OPTIONS = ['All Inclusive', 'Half Board', 'Bed & Breakfast', 'Room Only', 'Self Catering'];
+const SORT_OPTIONS = ['Price: Low to High', 'Price: High to Low'];
 const BADGES = ['Top Pick', 'Popular Choice', 'Top Rated', 'Best Value', 'Recommended'];
+const FALLBACK_IMG = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80';
+const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-const toTitle = (s) =>
-  s?.replace(/\w\S*/g, (t) => t.charAt(0).toUpperCase() + t.slice(1).toLowerCase()) || '';
-
-const getBoardLabel = (boards) => {
-  if (!boards?.length) return null;
-  for (const c of ['AI', 'TI', 'FB', 'HB', 'BB', 'RO']) {
-    if (boards.includes(c)) return BOARD_LABELS[c];
-  }
-  return BOARD_LABELS[boards[0]] || boards[0];
+const getBoardLabel = (code) => BOARD_LABELS[code] || code;
+const getBoardTags  = (code) => (BOARD_LABELS[code] ? [BOARD_LABELS[code]] : [code]).filter(Boolean);
+const fmtDate = (iso) => {
+  if (!iso) return '';
+  const [, m, d] = iso.split('-');
+  return `${parseInt(d)} ${MONTHS[parseInt(m) - 1]}`;
 };
 
-const getBoardTags = (boards) =>
-  (boards || []).map((c) => BOARD_LABELS[c] || c).filter(Boolean).slice(0, 4);
-
-// ── Shared UI components ─────────────────────────────────────────────────────
 const Icon = ({ d, size = 14, sw = 1.8 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
     <path d={d} />
-  </svg>
-);
-
-const StarIcon = ({ size = 13 }) => (
-  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" stroke="none">
-    <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z" />
   </svg>
 );
 
@@ -87,140 +60,285 @@ function FilterCheck({ label, checked, onChange }) {
   );
 }
 
-// ── Main component ────────────────────────────────────────────────────────────
 export default function Search() {
   const [params] = useSearchParams();
 
-  const destination = params.get('destination') || '';
-  const date        = params.get('date')        || '';
-  const duration    = params.get('duration')    || '7 days';
-  const adults      = params.get('adults')      || '2';
-  const children    = params.get('children')    || '0';
+  const destCode         = params.get('destination')      || '';
+  const destinationLabel = params.get('destinationLabel') || destCode;
 
-  const [sort, setSort]             = useState('Most Booked');
-  const [loading, setLoading]       = useState(true);
-  const [hotels, setHotels]         = useState([]);
-  const [liked, setLiked]           = useState({});
-  const [drawerOpen, setDrawerOpen] = useState(false);
-  const [starFilter, setStarFilter] = useState([]);
+  const defaultCheckIn  = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]; })();
+  const defaultCheckOut = (() => { const d = new Date(); d.setDate(d.getDate() + 37); return d.toISOString().split('T')[0]; })();
+
+  const initCheckIn  = params.get('checkIn')  || defaultCheckIn;
+  const initCheckOut = params.get('checkOut') || defaultCheckOut;
+  const initAdults   = params.get('adults')   || '2';
+  const initChildren = params.get('children') || '0';
+
+  // Sidebar draft state (not yet fetched)
+  const [localCheckIn,  setLocalCheckIn]  = useState(initCheckIn);
+  const [localCheckOut, setLocalCheckOut] = useState(initCheckOut);
+  const [localAdults,   setLocalAdults]   = useState(parseInt(initAdults));
+  const [localChildren, setLocalChildren] = useState(parseInt(initChildren));
+
+  // Committed params that drive the API fetch
+  const [fetchParams, setFetchParams] = useState({
+    checkIn: initCheckIn, checkOut: initCheckOut,
+    adults: initAdults, children: initChildren,
+  });
+
+  const [sort, setSort]               = useState('Price: Low to High');
+  const [loading, setLoading]         = useState(true);
+  const [hotels, setHotels]           = useState([]);
+  const [allHotels, setAllHotels]     = useState([]);
+  const [nights, setNights]           = useState(0);
+  const [liked, setLiked]             = useState({});
+  const [drawerOpen, setDrawerOpen]   = useState(false);
   const [boardFilter, setBoardFilter] = useState([]);
+  const [classFilter, setClassFilter] = useState([]);
 
-  // ── Fetch hotels from /api/hotels when destination or filters change ────────
+  // Price range filter
+  const [maxPriceAvail,  setMaxPriceAvail]  = useState(5000);
+  const [priceMaxFilter, setPriceMaxFilter] = useState(999999);
+
+  // Fetch from contracts API
   useEffect(() => {
-    // destination comes as "City, Country" from the typeahead — use the city part
-    const citySearch = destination.split(',')[0]?.trim();
-    if (!citySearch) {
+    if (!destCode) {
       setHotels([]);
+      setAllHotels([]);
       setLoading(false);
       return;
     }
 
     setLoading(true);
 
-    const sortMap = {
-      'Stars':      { sortBy: 'category', sortOrder: 'DESC' },
-      'Rating':     { sortBy: 'ranking',  sortOrder: 'ASC'  },
-      'Most Booked':{ sortBy: 'ranking',  sortOrder: 'ASC'  },
-    };
-    const { sortBy, sortOrder } = sortMap[sort] || { sortBy: 'ranking', sortOrder: 'ASC' };
+    const qs = new URLSearchParams({
+      destination:        destCode,
+      checkIn:            fetchParams.checkIn,
+      checkOut:           fetchParams.checkOut,
+      adults:             fetchParams.adults,
+      children:           fetchParams.children,
+      rooms:              '1',
+      limit:              '50',
+      source:             'combined',
+      maxAdultsPerRoom:   fetchParams.adults,
+      maxChildrenPerRoom: fetchParams.children,
+    });
 
-    axiosInstance
-      .get('/hotels', {
-        params: { search: citySearch, status: 'active', limit: 40, sortBy, sortOrder },
-      })
-      .then((res) => {
-        let data = (res.data.data || []).map((h, i) => ({
-          id:        h.id,
-          name:      toTitle(h.name),
-          loc:       [toTitle(h.city), COUNTRY_NAMES[h.countryCode] || h.countryCode].filter(Boolean).join(', '),
-          stars:     h.stars || 0,
-          img:       h.primaryImage || FALLBACK_IMG,
-          boards:    h.boards,
-          board:     getBoardLabel(h.boards),
-          boardTags: getBoardTags(h.boards),
-          badge:     BADGES[i % BADGES.length],
-        }));
+    const fullUrl = `${CONTRACTS_API}/contracts/cheapest?${qs.toString()}`;
+    console.log('[Search] Calling contracts API:', fullUrl);
 
-        // Client-side filters
-        if (starFilter.length > 0) {
-          data = data.filter((h) => starFilter.includes(h.stars));
-        }
-        if (boardFilter.length > 0) {
-          data = data.filter((h) =>
-            h.boards?.some((b) => boardFilter.includes(BOARD_LABELS[b]))
-          );
+    fetch(fullUrl)
+      .then((r) => r.json())
+      .then(async (data) => {
+        const results    = data.results || [];
+        const nightCount = data.nights  || 0;
+        setNights(nightCount);
+
+        // Group by hotelCode — keep cheapest contract per hotel
+        const hotelMap = new Map();
+        for (const c of results) {
+          const existing = hotelMap.get(c.hotelCode);
+          if (!existing || c.totalAmount < existing.totalAmount) {
+            hotelMap.set(c.hotelCode, c);
+          }
         }
 
-        setHotels(data);
+        const contracts  = [...hotelMap.values()];
+        const hotelCodes = contracts.map((c) => c.hotelCode);
+
+        // Fetch real hotel names, images, stars in bulk
+        let infoMap = {};
+        try {
+          const infoRes = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
+            method:  'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body:    JSON.stringify({ hotelCodes }),
+          });
+          if (infoRes.ok) {
+            const infoData = await infoRes.json();
+            for (const info of (infoData?.data ?? [])) {
+              infoMap[String(info.hotelCode)] = info;
+            }
+          }
+        } catch (e) {
+          console.warn('[Search] Hotel bulk info failed:', e);
+        }
+
+        const mapped = contracts.map((c, i) => {
+          const info    = infoMap[String(c.hotelCode)];
+          const images  = (info?.images ?? []).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+          const imgUrl  = images[0]?.url || FALLBACK_IMG;
+          return {
+            id:           c.hotelCode,
+            hotelCode:    c.hotelCode,
+            name:         info?.name ?? c.hotelName ?? `Hotel ${c.hotelCode}`,
+            stars:        info?.stars ?? null,
+            board:        getBoardLabel(c.board),
+            boardCode:    c.board,
+            boardTags:    getBoardTags(c.board),
+            roomType:     c.roomType,
+            characteristic: c.characteristic,
+            classification: c.classification,
+            contractName: c.contractName,
+            totalAmount:  c.totalAmount,
+            currency:     c.currency,
+            nightlyBreakdown: c.nightlyBreakdown || [],
+            badge:        BADGES[i % BADGES.length],
+            img:          imgUrl,
+            loc:          destinationLabel,
+          };
+        });
+
+        // Compute price range for slider
+        if (mapped.length > 0) {
+          const max     = Math.max(...mapped.map((h) => h.totalAmount));
+          const rounded = Math.ceil(max / 100) * 100;
+          setMaxPriceAvail(rounded);
+          setPriceMaxFilter(rounded);
+        }
+
+        setAllHotels(mapped);
         setLoading(false);
       })
-      .catch(() => {
-        setHotels([]);
+      .catch((err) => {
+        console.error('[Search] Contracts API error:', err);
+        setAllHotels([]);
         setLoading(false);
       });
-  }, [destination, sort, starFilter, boardFilter]);
+  }, [destCode, fetchParams]);
+
+  // Client-side filter + sort
+  useEffect(() => {
+    let data = [...allHotels];
+
+    if (boardFilter.length > 0) {
+      data = data.filter((h) => boardFilter.includes(h.board));
+    }
+    if (classFilter.length > 0) {
+      data = data.filter((h) => classFilter.includes(h.classification));
+    }
+    data = data.filter((h) => h.totalAmount <= priceMaxFilter);
+
+    if (sort === 'Price: High to Low') {
+      data.sort((a, b) => b.totalAmount - a.totalAmount);
+    } else {
+      data.sort((a, b) => a.totalAmount - b.totalAmount);
+    }
+
+    setHotels(data);
+  }, [allHotels, boardFilter, classFilter, priceMaxFilter, sort]);
 
   const toggleLike  = (id) => setLiked((prev) => ({ ...prev, [id]: !prev[id] }));
-  const toggleStar  = (s)  => setStarFilter((prev) => prev.includes(s) ? prev.filter((x) => x !== s) : [...prev, s]);
   const toggleBoard = (b)  => setBoardFilter((prev) => prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]);
+  const toggleClass = (c)  => setClassFilter((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
+
+  const applySearch = () => {
+    setFetchParams({
+      checkIn:  localCheckIn,
+      checkOut: localCheckOut,
+      adults:   String(localAdults),
+      children: String(localChildren),
+    });
+  };
 
   const chips = [];
-  if (destination) chips.push(destination);
-  if (date) chips.push(date);
-  if (duration) chips.push(duration);
-  chips.push(`${adults} Adult${adults !== '1' ? 's' : ''}${children !== '0' ? `, ${children} Child${children !== '1' ? 'ren' : ''}` : ''}`);
+  if (destinationLabel) chips.push(destinationLabel);
+  if (fetchParams.checkIn)  chips.push(fmtDate(fetchParams.checkIn));
+  if (fetchParams.checkOut) chips.push(fmtDate(fetchParams.checkOut));
+  if (nights > 0) chips.push(`${nights} nights`);
+  chips.push(`${fetchParams.adults} Adult${fetchParams.adults !== '1' ? 's' : ''}${fetchParams.children !== '0' ? `, ${fetchParams.children} Child${fetchParams.children !== '1' ? 'ren' : ''}` : ''}`);
 
-  // ── Sidebar (shared between desktop + mobile drawer) ──────────────────────
   const sidebar = (
     <>
-      <FilterSection title="Transport Type" defaultOpen>
-        <FilterCheck label="Include flight" checked onChange={() => {}} />
-        <FilterCheck label="Own transport" checked={false} onChange={() => {}} />
+      {/* Dates & Guests — re-calls API */}
+      <FilterSection title="Dates & Guests" defaultOpen>
+        <div className={styles.dateGroup}>
+          <label className={styles.dateLabel}>Check-in</label>
+          <input
+            type="date"
+            className={styles.dateInput}
+            value={localCheckIn}
+            min={new Date().toISOString().split('T')[0]}
+            onChange={(e) => setLocalCheckIn(e.target.value)}
+          />
+        </div>
+        <div className={styles.dateGroup}>
+          <label className={styles.dateLabel}>Check-out</label>
+          <input
+            type="date"
+            className={styles.dateInput}
+            value={localCheckOut}
+            min={localCheckIn || new Date().toISOString().split('T')[0]}
+            onChange={(e) => setLocalCheckOut(e.target.value)}
+          />
+        </div>
+        <div className={styles.guestRow}>
+          <span className={styles.guestLabel}>Adults</span>
+          <div className={styles.guestCounter}>
+            <button className={styles.guestBtn} onClick={() => setLocalAdults((a) => Math.max(1, a - 1))}>−</button>
+            <span className={styles.guestNum}>{localAdults}</span>
+            <button className={styles.guestBtn} onClick={() => setLocalAdults((a) => Math.min(9, a + 1))}>+</button>
+          </div>
+        </div>
+        <div className={styles.guestRow}>
+          <span className={styles.guestLabel}>Children</span>
+          <div className={styles.guestCounter}>
+            <button className={styles.guestBtn} onClick={() => setLocalChildren((c) => Math.max(0, c - 1))}>−</button>
+            <span className={styles.guestNum}>{localChildren}</span>
+            <button className={styles.guestBtn} onClick={() => setLocalChildren((c) => Math.min(6, c + 1))}>+</button>
+          </div>
+        </div>
+        <button className={styles.applyBtn} onClick={applySearch}>
+          <Icon d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" size={13} sw={2.2} />
+          Search
+        </button>
       </FilterSection>
-      <FilterSection title="Travel Duration" defaultOpen>
-        {DURATION_OPTIONS.map((d) => (
-          <FilterCheck key={d} label={d} checked={d === duration} onChange={() => {}} />
-        ))}
+
+      {/* Price Range — client-side */}
+      <FilterSection title="Price Range" defaultOpen>
+        <div className={styles.priceSliderWrap}>
+          <input
+            type="range"
+            className={styles.filterRange}
+            min={0}
+            max={maxPriceAvail}
+            step={50}
+            value={Math.min(priceMaxFilter, maxPriceAvail)}
+            onChange={(e) => setPriceMaxFilter(Number(e.target.value))}
+          />
+          <div className={styles.priceSliderLabels}>
+            <span>0</span>
+            <span className={styles.priceSliderCurrent}>
+              Up to {allHotels[0]?.currency || 'EUR'} {Math.min(priceMaxFilter, maxPriceAvail).toLocaleString()}
+            </span>
+            <span>{maxPriceAvail.toLocaleString()}</span>
+          </div>
+        </div>
       </FilterSection>
-      <FilterSection title="Board Type" defaultOpen={false}>
+
+      {/* Board Type — client-side */}
+      <FilterSection title="Board Type" defaultOpen>
         {BOARD_FILTER_OPTIONS.map((b) => (
           <FilterCheck key={b} label={b} checked={boardFilter.includes(b)} onChange={() => toggleBoard(b)} />
         ))}
       </FilterSection>
-      <FilterSection title="Hotel Stars" defaultOpen={false}>
-        <div className={styles.filterStars}>
-          {STAR_OPTIONS.map((s) => (
-            <button
-              key={s}
-              className={`${styles.filterStarBtn} ${starFilter.includes(s) ? styles.filterStarActive : ''}`}
-              onClick={() => toggleStar(s)}
-            >
-              <StarIcon size={12} /> {s}
-            </button>
-          ))}
-        </div>
-      </FilterSection>
-      <FilterSection title="Accommodation Type" defaultOpen={false}>
-        {ACCOM_TYPES.map((a) => (
-          <FilterCheck key={a} label={a} checked={a === 'Hotel'} onChange={() => {}} />
-        ))}
-      </FilterSection>
-      <FilterSection title="Facilities" defaultOpen={false}>
-        {FACILITIES.map((f) => (
-          <FilterCheck key={f} label={f} checked={false} onChange={() => {}} />
-        ))}
+
+      {/* Rate Type — client-side */}
+      <FilterSection title="Rate Type" defaultOpen={false}>
+        <FilterCheck label="Refundable (NOR)"     checked={classFilter.includes('NOR')} onChange={() => toggleClass('NOR')} />
+        <FilterCheck label="Non-Refundable (NRF)" checked={classFilter.includes('NRF')} onChange={() => toggleClass('NRF')} />
       </FilterSection>
     </>
   );
 
   return (
     <div className={styles.page}>
-      {/* ── Summary bar ─────────────────────────────────────────────────────── */}
+      {/* Summary bar */}
       <div className={styles.summaryBar}>
         <div className={styles.summaryInner}>
           <div className={styles.summaryLeft}>
             <div className={styles.summaryCount}>
-              <span>{loading ? '…' : hotels.length}</span> Hotels Found
+              <span>{loading ? '…' : hotels.length}</span> Results Found
             </div>
             <div className={styles.chips}>
               {chips.map((c) => <div key={c} className={styles.chip}>{c}</div>)}
@@ -240,7 +358,7 @@ export default function Search() {
         </div>
       </div>
 
-      {/* ── Main layout ─────────────────────────────────────────────────────── */}
+      {/* Main layout */}
       <div className={styles.main}>
         <aside className={styles.sidebar}>
           <div className={styles.filterCard}>{sidebar}</div>
@@ -256,23 +374,30 @@ export default function Search() {
                     <div className={`${styles.skeletonLine} ${styles.skW60}`} />
                     <div className={`${styles.skeletonLine} ${styles.skW40}`} />
                     <div className={`${styles.skeletonLine} ${styles.skW80}`} />
-                    <div className={`${styles.skeletonLine} ${styles.skW80}`} />
                     <div className={`${styles.skeletonLine} ${styles.skW30}`} />
                   </div>
                 </div>
               ))
+            ) : !destCode ? (
+              <div className={styles.noResults}>
+                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
+                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+                </svg>
+                <h3>Select a destination</h3>
+                <p>Use the search form to find available holidays.</p>
+              </div>
             ) : hotels.length === 0 ? (
               <div className={styles.noResults}>
                 <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
                   <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
                 </svg>
-                <h3>No hotels found</h3>
-                <p>Try a different destination or adjust your filters.</p>
+                <h3>No results found</h3>
+                <p>Try a different destination, dates, or adjust your filters.</p>
               </div>
             ) : (
               hotels.map((h, i) => (
                 <div key={h.id} className={styles.resultCard} style={{ animationDelay: `${i * 0.06}s` }}>
-                  {/* ── Image column ─────────────────────────────────────── */}
+                  {/* Image column */}
                   <div className={styles.rcImg}>
                     <img src={h.img} alt={h.name} loading="lazy" />
                     <div className={styles.rcImgOverlay} />
@@ -288,18 +413,21 @@ export default function Search() {
                         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
                       </svg>
                     </div>
-                    <div className={styles.rcImgInfo}>
-                      <div className={styles.rcStars}>
-                        {Array.from({ length: h.stars }).map((_, j) => <StarIcon key={j} size={12} />)}
-                      </div>
-                    </div>
+                    {h.classification === 'NRF' && (
+                      <div className={styles.rcNrfChip}>Non-Refundable</div>
+                    )}
                   </div>
 
-                  {/* ── Content column ───────────────────────────────────── */}
+                  {/* Content column */}
                   <div className={styles.rcContent}>
                     <div className={styles.rcTop}>
                       <div className={styles.rcTopLeft}>
                         <h3 className={styles.rcName}>{h.name}</h3>
+                        {h.stars > 0 && (
+                          <div className={styles.rcStars}>
+                            {'★'.repeat(Math.min(h.stars, 5))}
+                          </div>
+                        )}
                         <div className={styles.rcLocation}>
                           <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z M12 13a3 3 0 100-6 3 3 0 000 6z" size={13} sw={1.6} />
                           {h.loc}
@@ -307,40 +435,59 @@ export default function Search() {
                       </div>
                     </div>
 
-                    {/* Board types as amenity tags */}
                     {h.boardTags.length > 0 && (
                       <div className={styles.rcAmenities}>
                         {h.boardTags.map((b) => (
                           <span key={b} className={styles.rcAmenity}>
-                            <CheckIcon />
-                            {b}
+                            <CheckIcon />{b}
                           </span>
                         ))}
+                        {h.roomType && (
+                          <span className={styles.rcAmenity}>
+                            <CheckIcon />{h.roomType}
+                          </span>
+                        )}
                       </div>
                     )}
 
+                    {/* Trip details */}
                     <div className={styles.rcTrip}>
-                      {date && (
-                        <span className={styles.rcTripItem}>
+                      {fetchParams.checkIn && (
+                        <div className={styles.rcTripDates}>
                           <Icon d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" size={13} sw={1.6} />
-                          {date}
+                          <span>{fmtDate(fetchParams.checkIn)}</span>
+                          <span className={styles.rcTripSep}>→</span>
+                          <span>{fmtDate(fetchParams.checkOut)}</span>
+                        </div>
+                      )}
+                      {nights > 0 && (
+                        <span className={styles.rcTripPill}>
+                          <Icon d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" size={11} sw={2} />
+                          {nights} nights
                         </span>
                       )}
-                      <span className={styles.rcTripItem}>
-                        <Icon d="M5 13l4 4L19 7" size={13} sw={2} />
-                        Transfer available
+                      <span className={`${styles.rcTripPill} ${styles.rcTripTransfer}`}>
+                        <Icon d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3M13 17l4 4 4-4M17 21v-9" size={11} sw={2} />
+                        Transfer incl.
                       </span>
-                      {h.board && (
-                        <span className={styles.rcTripItem}>
-                          <Icon d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8zM6 1v3M10 1v3M14 1v3" size={13} sw={1.6} />
-                          {h.board}
-                        </span>
-                      )}
                     </div>
 
+                    {/* Price + CTA */}
                     <div className={styles.rcPriceBox}>
                       <div className={styles.rcPriceInfo}>
-                        <div className={styles.rcPriceLabel}>Contact us for pricing</div>
+                        <div className={styles.rcPriceAmount}>
+                          <span className={styles.rcPriceCcy}>{h.currency}</span>
+                          {h.totalAmount?.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        </div>
+                        <div className={styles.rcPriceMeta}>
+                          Total price
+                          {nights > 0 && (
+                            <> · <strong>{h.currency} {(h.totalAmount / nights).toFixed(2)}</strong>/night</>
+                          )}
+                        </div>
+                        {h.contractName && (
+                          <span className={styles.rcContractBadge}>{h.contractName}</span>
+                        )}
                       </div>
                       <button className={styles.rcCta}>
                         View Deal
@@ -355,7 +502,7 @@ export default function Search() {
         </section>
       </div>
 
-      {/* ── Mobile filter drawer ─────────────────────────────────────────────── */}
+      {/* Mobile filter drawer */}
       {drawerOpen && (
         <>
           <div className={styles.drawerOverlay} onClick={() => setDrawerOpen(false)} />

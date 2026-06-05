@@ -214,6 +214,8 @@
   color:rgba(255,255,255,0.85);
   font-size:14px;
   border:1px solid transparent;
+  min-width:0;
+  overflow:hidden;
 }
 .destItem:hover {
   background:rgba(255,255,255,0.08);
@@ -221,6 +223,26 @@
 .destItemActive {
   border-color:var(--sun-orange);
   background:rgba(255,159,28,0.1);
+}
+.destItemLabel {
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  min-width:0;
+  flex:1;
+}
+.destCode {
+  flex-shrink:0;
+  min-width:36px;
+  padding:3px 6px;
+  background:rgba(255,255,255,0.1);
+  border-radius:4px;
+  font-size:10px;
+  font-weight:700;
+  letter-spacing:0.5px;
+  color:rgba(255,255,255,0.65);
+  text-align:center;
+  font-family:'Sora',sans-serif;
 }
 
 /* Date dropdown */

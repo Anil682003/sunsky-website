@@ -5,14 +5,14 @@ import styles from './Hero.module.css';
 import axiosInstance from '../../../services/axiosInstance';
 
 const POPULAR_DESTINATIONS = [
-  { label: 'Hurghada, Egypt', icon: '🇪🇬' },
-  { label: 'Antalya, Turkey', icon: '🇹🇷' },
-  { label: 'Heraklion, Greece', icon: '🇬🇷' },
-  { label: 'Tenerife, Spain', icon: '🇪🇸' },
-  { label: 'Male, Maldives', icon: '🇲🇻' },
-  { label: 'Phuket, Thailand', icon: '🇹🇭' },
-  { label: 'Marrakech, Morocco', icon: '🇲🇦' },
-  { label: 'Faro, Portugal', icon: '🇵🇹' },
+  { code: 'HRG', label: 'Hurghada, Egypt',    icon: '🇪🇬' },
+  { code: 'AYT', label: 'Antalya, Turkey',    icon: '🇹🇷' },
+  { code: 'HER', label: 'Heraklion, Greece',  icon: '🇬🇷' },
+  { code: 'TFS', label: 'Tenerife, Spain',    icon: '🇪🇸' },
+  { code: 'MLE', label: 'Male, Maldives',     icon: '🇲🇻' },
+  { code: 'HKT', label: 'Phuket, Thailand',   icon: '🇹🇭' },
+  { code: 'RAK', label: 'Marrakech, Morocco', icon: '🇲🇦' },
+  { code: 'FAO', label: 'Faro, Portugal',     icon: '🇵🇹' },
 ];
 const DURATIONS = ['3 days','5 days','6 days','7 days','8 days','10 days','14 days'];
 
@@ -75,6 +75,7 @@ export default function Hero() {
 
   const [searchMode, setSearchMode] = useState('package');
   const [destination, setDestination] = useState('');
+  const [destinationCode, setDestinationCode] = useState('');
   const [date, setDate] = useState('');
   const [duration, setDuration] = useState('7 days');
   const [adults, setAdults] = useState(2);
@@ -123,6 +124,7 @@ export default function Hero() {
     } else {
       setDestSearch('');
       setDestResults([]);
+      // keep destinationCode if user already selected one
     }
   }, [openField]);
 
@@ -151,7 +153,23 @@ export default function Hero() {
   };
 
   const handleSearch = () => {
-    navigate(`/search?destination=${encodeURIComponent(destination)}&date=${date}&duration=${encodeURIComponent(duration)}&adults=${adults}&children=${children}`);
+    const daysMatch = duration.match(/(\d+)/);
+    const nights = daysMatch ? parseInt(daysMatch[1]) : 7;
+    let checkOut = '';
+    if (date) {
+      const d = new Date(date + 'T00:00:00');
+      d.setDate(d.getDate() + nights);
+      checkOut = d.toISOString().split('T')[0];
+    }
+    const qs = new URLSearchParams({
+      destination:      destinationCode || destination,
+      destinationLabel: destination,
+      checkIn:          date || '',
+      checkOut:         checkOut || '',
+      adults:           String(adults),
+      children:         String(children),
+    });
+    navigate(`/search?${qs.toString()}`);
   };
 
   const handleFlightSearch = () => {
@@ -310,22 +328,27 @@ export default function Hero() {
                 )}
               </div>
 
-              {/* API results */}
+              {/* API results — same 2-column grid as popular destinations */}
               {destResults.length > 0 && (
-                <div className={styles.destList}>
+                <div className={styles.destGrid}>
                   {destResults.map(city => (
                     <div
                       key={city.id}
-                      className={`${styles.destListItem} ${destination === `${city.name}, ${city.countryName}` ? styles.destItemActive : ''}`}
-                      onClick={() => { setDestination(`${city.name}, ${city.countryName}`); setOpenField(null); }}
+                      className={`${styles.destItem} ${destinationCode === city.code ? styles.destItemActive : ''}`}
+                      onClick={() => {
+                        const label = city.code ? `${city.name} (${city.code})` : `${city.name}, ${city.countryName}`;
+                        setDestination(label);
+                        setDestinationCode(city.code || '');
+                        setOpenField(null);
+                      }}
                     >
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ opacity: 0.45, flexShrink: 0 }}>
-                        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-                      </svg>
-                      <div className={styles.destListText}>
-                        <span className={styles.destListCity}>{city.name}</span>
-                        <span className={styles.destListCountry}>{city.countryName}</span>
-                      </div>
+                      {city.code
+                        ? <span className={styles.destCode}>{city.code}</span>
+                        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ opacity: 0.45, flexShrink: 0 }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                      }
+                      <span className={styles.destItemLabel}>
+                        {city.name}{city.code ? ` (${city.code})` : `, ${city.countryName}`}
+                      </span>
                     </div>
                   ))}
                 </div>
@@ -343,12 +366,12 @@ export default function Hero() {
                   <div className={styles.destGrid}>
                     {POPULAR_DESTINATIONS.map((d) => (
                       <div
-                        key={d.label}
-                        className={`${styles.destItem} ${destination === d.label ? styles.destItemActive : ''}`}
-                        onClick={() => { setDestination(d.label); setOpenField(null); }}
+                        key={d.code}
+                        className={`${styles.destItem} ${destinationCode === d.code ? styles.destItemActive : ''}`}
+                        onClick={() => { setDestination(d.label); setDestinationCode(d.code); setOpenField(null); }}
                       >
-                        <span>{d.icon}</span>
-                        <span>{d.label}</span>
+                        <span style={{ flexShrink: 0 }}>{d.icon}</span>
+                        <span className={styles.destItemLabel}>{d.label}</span>
                       </div>
                     ))}
                   </div>
