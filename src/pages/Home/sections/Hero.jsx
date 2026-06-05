@@ -5,14 +5,14 @@ import styles from './Hero.module.css';
 import axiosInstance from '../../../services/axiosInstance';
 
 const POPULAR_DESTINATIONS = [
-  { code: 'HRG', label: 'Hurghada, Egypt',    icon: '🇪🇬' },
-  { code: 'AYT', label: 'Antalya, Turkey',    icon: '🇹🇷' },
-  { code: 'HER', label: 'Heraklion, Greece',  icon: '🇬🇷' },
-  { code: 'TFS', label: 'Tenerife, Spain',    icon: '🇪🇸' },
-  { code: 'MLE', label: 'Male, Maldives',     icon: '🇲🇻' },
-  { code: 'HKT', label: 'Phuket, Thailand',   icon: '🇹🇭' },
-  { code: 'RAK', label: 'Marrakech, Morocco', icon: '🇲🇦' },
-  { code: 'FAO', label: 'Faro, Portugal',     icon: '🇵🇹' },
+  { code: 'HRG', label: 'Hurghada, Egypt'    },
+  { code: 'AYT', label: 'Antalya, Turkey'    },
+  { code: 'HER', label: 'Heraklion, Greece'  },
+  { code: 'TFS', label: 'Tenerife, Spain'    },
+  { code: 'MLE', label: 'Male, Maldives'     },
+  { code: 'HKT', label: 'Phuket, Thailand'   },
+  { code: 'RAK', label: 'Marrakech, Morocco' },
+  { code: 'FAO', label: 'Faro, Portugal'     },
 ];
 const DURATIONS = ['3 days','5 days','6 days','7 days','8 days','10 days','14 days'];
 
@@ -243,14 +243,22 @@ export default function Hero() {
           <div className={styles.searchBar}>
             <div
               className={`${styles.sf} ${openField === 'destination' ? styles.sfActive : ''}`}
-              onClick={() => toggleField('destination')}
+              onClick={() => { if (openField !== 'destination') setOpenField('destination'); }}
             >
               <span className={styles.sfIcon}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Destination</span>
-                <span className={styles.sfValue}>{destination || 'Where to?'}</span>
+                <input
+                  ref={destInputRef}
+                  className={styles.sfInput}
+                  placeholder="Where to?"
+                  value={openField === 'destination' ? destSearch : destination}
+                  onChange={(e) => { setDestSearch(e.target.value); setOpenField('destination'); }}
+                  onFocus={() => setOpenField('destination')}
+                  onClick={(e) => e.stopPropagation()}
+                />
               </div>
             </div>
             <div className={styles.sfDivider} />
@@ -308,26 +316,6 @@ export default function Hero() {
 
           {openField === 'destination' && (
             <div className={styles.dropdown}>
-              {/* Search input */}
-              <div className={styles.destSearchWrap}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.45 }}>
-                  <circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/>
-                </svg>
-                <input
-                  ref={destInputRef}
-                  className={styles.destSearchInput}
-                  placeholder="Search destinations…"
-                  value={destSearch}
-                  onChange={e => setDestSearch(e.target.value)}
-                  onClick={e => e.stopPropagation()}
-                />
-                {destLoading && (
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" style={{ flexShrink: 0, opacity: 0.45, animation: 'spin 0.8s linear infinite' }}>
-                    <path d="M21 12a9 9 0 11-6.219-8.56"/>
-                  </svg>
-                )}
-              </div>
-
               {/* API results — same 2-column grid as popular destinations */}
               {destResults.length > 0 && (
                 <div className={styles.destGrid}>
@@ -370,7 +358,7 @@ export default function Hero() {
                         className={`${styles.destItem} ${destinationCode === d.code ? styles.destItemActive : ''}`}
                         onClick={() => { setDestination(d.label); setDestinationCode(d.code); setOpenField(null); }}
                       >
-                        <span style={{ flexShrink: 0 }}>{d.icon}</span>
+                        <span className={styles.destCode}>{d.code}</span>
                         <span className={styles.destItemLabel}>{d.label}</span>
                       </div>
                     ))}
