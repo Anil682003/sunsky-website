@@ -6,7 +6,24 @@ import mainLogo from '../../assets/main-logo.png';
 import lightLogo from '../../assets/light-logo.png';
 import styles from './Navbar.module.css';
 
-const NAV_LINKS = [];
+const SERVICES = [
+  {
+    label: 'Holidays', path: '/', match: ['/', '/results'],
+    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>,
+  },
+  {
+    label: 'Flights', path: '/flights', match: ['/flights'],
+    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>,
+  },
+  {
+    label: 'Hotels', path: '/hotels', match: ['/hotels'],
+    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/><path d="M9 9h1M9 13h1M9 17h1"/></svg>,
+  },
+  {
+    label: 'Transfers', path: '/transfers', match: ['/transfers'],
+    icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v10a2 2 0 01-2 2h-1"/><path d="M12 15l5 6H7l5-6z"/></svg>,
+  },
+];
 
 function getInitials(user) {
   if (!user) return 'U';
@@ -26,6 +43,8 @@ export default function Navbar() {
   const dropRef = useRef(null);
 
   const isHome = location.pathname === '/';
+  // Pages with a dark hero band — navbar starts transparent and blends in
+  const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout';
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -39,7 +58,7 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const dark = !isHome || scrolled;
+  const dark = !overHero || scrolled;
 
   const handleLogout = () => {
     dispatch(logout());
@@ -49,7 +68,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!isHome ? styles.solid : ''}`}>
+    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
 
       {/* Logo */}
       <Link to="/" className={styles.logo}>
@@ -62,29 +81,6 @@ export default function Navbar() {
           Sun<span className={styles.logoAccent}>Sky</span>
         </span>
       </Link>
-
-      {/* Desktop service strip */}
-      <div className={styles.trustStrip}>
-        <div className={`${styles.trustItem} ${dark ? styles.trustDark : styles.trustLight}`}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2"/></svg>
-          Holidays
-        </div>
-        <div className={`${styles.trustDot} ${dark ? styles.trustDotDark : styles.trustDotLight}`} />
-        <div className={`${styles.trustItem} ${dark ? styles.trustDark : styles.trustLight}`}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-          Flights
-        </div>
-        <div className={`${styles.trustDot} ${dark ? styles.trustDotDark : styles.trustDotLight}`} />
-        <div className={`${styles.trustItem} ${dark ? styles.trustDark : styles.trustLight}`}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/><path d="M9 9h1M9 13h1M9 17h1"/></svg>
-          Hotels
-        </div>
-        <div className={`${styles.trustDot} ${dark ? styles.trustDotDark : styles.trustDotLight}`} />
-        <div className={`${styles.trustItem} ${dark ? styles.trustDark : styles.trustLight}`}>
-          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v10a2 2 0 01-2 2h-1"/><path d="M12 15l5 6H7l5-6z"/></svg>
-          Transfers
-        </div>
-      </div>
 
       {/* Desktop auth buttons */}
       <div className={styles.authArea}>
@@ -145,13 +141,18 @@ export default function Navbar() {
               to="/login"
               className={`${styles.signInBtn} ${dark ? styles.signInDark : styles.signInLight}`}
             >
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+              </svg>
               Sign In
             </Link>
             <Link to="/register" className={styles.registerBtn}>
               Register
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <path d="M5 12h14M12 5l7 7-7 7"/>
-              </svg>
+              <span className={styles.registerArrow}>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M5 12h14M12 5l7 7-7 7"/>
+                </svg>
+              </span>
             </Link>
           </div>
         )}
@@ -178,12 +179,13 @@ export default function Navbar() {
       {mobileOpen && (
         <div className={styles.mobile}>
           <div className={styles.mobileLinks}>
-            {NAV_LINKS.map((l) => (
+            {SERVICES.map((l) => (
               <button
                 key={l.path}
-                className={`${styles.mobileLink} ${location.pathname === l.path ? styles.mobileLinkActive : ''}`}
+                className={`${styles.mobileLink} ${l.match.includes(location.pathname) ? styles.mobileLinkActive : ''}`}
                 onClick={() => { navigate(l.path); setMobileOpen(false); }}
               >
+                {l.icon}
                 {l.label}
               </button>
             ))}

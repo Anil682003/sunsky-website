@@ -1,5 +1,6 @@
 import Home from '../pages/Home/Home';
-import Search from '../pages/Search/Search';
+import Results from '../pages/Results/Results';
+import HotelDetail from '../pages/HotelDetail/HotelDetail';
 import Packages from '../pages/Packages/Packages';
 import Flights from '../pages/Flights/Flights';
 import Hotels from '../pages/Hotels/Hotels';
@@ -12,6 +13,8 @@ import Account from '../pages/Account/Account';
 import MyBookings from '../pages/Account/MyBookings';
 import Profile from '../pages/Account/Profile';
 import AccountSettings from '../pages/Account/AccountSettings';
+import Checkout from '../pages/Checkout/Checkout';
+import HotelVoucher from '../pages/Voucher/HotelVoucher';
 import BookingFlow from '../pages/Booking/BookingFlow';
 import BookingDetail from '../pages/Booking/BookingDetail';
 import BookingConfirmation from '../pages/Booking/BookingConfirmation';
@@ -27,13 +30,20 @@ export const publicRoutes = [
 export const routes = [
   // Public pages
   { path: '/',           component: Home,      layout: true, protected: false },
-  { path: '/search',     component: Search,    layout: true, protected: false },
+  { path: '/results',    component: Results,   layout: true, protected: false },
+  { path: '/hotel/:hotelCode', component: HotelDetail, layout: true, protected: false },
   { path: '/packages',   component: Packages,  layout: true, protected: false },
   { path: '/flights',    component: Flights,   layout: true, protected: false },
   { path: '/hotels',     component: Hotels,    layout: true, protected: false },
   { path: '/transfers',  component: Transfers, layout: true, protected: false },
   { path: '/about',      component: About,     layout: true, protected: false },
   { path: '/contact',    component: Contact,   layout: true, protected: false },
+
+  // Checkout (guest checkout allowed — customer details are asked when not signed in)
+  { path: '/checkout',   component: Checkout,  layout: true, protected: false },
+
+  // Hotel voucher — standalone printable document (no navbar/footer)
+  { path: '/voucher',    component: HotelVoucher, layout: false, protected: false },
 
   // Account (protected)
   { path: '/account',           component: Account,         layout: true, protected: true },

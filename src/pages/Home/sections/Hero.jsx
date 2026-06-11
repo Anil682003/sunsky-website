@@ -169,7 +169,7 @@ export default function Hero() {
       adults:           String(adults),
       children:         String(children),
     });
-    navigate(`/search?${qs.toString()}`);
+    navigate(`/results?${qs.toString()}`);
   };
 
   const handleFlightSearch = () => {

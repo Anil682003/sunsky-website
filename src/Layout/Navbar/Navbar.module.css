@@ -1,69 +1,62 @@
 /* ── Base nav ── */
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-  padding: 20px 52px;
+  padding: 18px 40px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
   transition: all 0.45s var(--ease);
   background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 60%, transparent 100%);
 }
 .scrolled, .solid {
-  background: rgba(255,255,255,0.92) !important;
-  backdrop-filter: blur(28px) saturate(180%);
-  -webkit-backdrop-filter: blur(28px) saturate(180%);
-  box-shadow: 0 1px 0 rgba(31,79,216,0.06), var(--shadow-md);
-  padding: 12px 52px;
+  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,250,255,0.88)) !important;
+  backdrop-filter: blur(30px) saturate(190%);
+  -webkit-backdrop-filter: blur(30px) saturate(190%);
+  box-shadow: 0 10px 36px rgba(15,40,100,0.08);
+  padding: 11px 40px;
 }
 
 /* ── Logo ── */
 .logo {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 11px;
   text-decoration: none; flex-shrink: 0;
 }
 .logoImg {
-  width: 36px; height: 36px; object-fit: contain;
-  transition: opacity 0.3s;
+  width: 38px; height: 38px; object-fit: contain;
+  transition: transform 0.4s var(--ease-spring);
 }
-.logoImg:hover { opacity: 0.85; }
+.logo:hover .logoImg { transform: rotate(-8deg) scale(1.08); }
 .logoText {
-  font-family: 'Sora', sans-serif; font-size: 22px;
-  font-weight: 800; letter-spacing: -0.5px;
+  font-family: 'Sora', sans-serif; font-size: 23px;
+  font-weight: 800; letter-spacing: -0.6px;
   transition: color 0.4s;
 }
 .logoLight { color: #fff; }
 .logoDark  { color: var(--dark); }
-.logoAccent { color: var(--sun-orange); }
+.logoAccent {
+  background: linear-gradient(115deg, var(--sun-orange), var(--sun-gold));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
 
-/* ── Trust strip ── */
-.trustStrip {
-  display: flex; align-items: center; gap: 16px;
-  flex: 1; justify-content: center;
+/* ── Bottom hairline (solid bar) ── */
+.scrolled::after, .solid::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: 0;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(31,79,216,0.18) 25%, rgba(95,168,255,0.28) 50%, rgba(31,79,216,0.18) 75%, transparent);
+  pointer-events: none;
 }
-.trustItem {
-  display: flex; align-items: center; gap: 6px;
-  font-size: 11.5px; font-weight: 600; letter-spacing: 0.5px;
-  text-transform: uppercase; white-space: nowrap;
-  transition: color 0.4s;
-}
-.trustLight { color: rgba(255,255,255,0.5); }
-.trustDark { color: var(--text-light); }
-.trustDot {
-  width: 3px; height: 3px; border-radius: 50%;
-  flex-shrink: 0; transition: background 0.4s;
-}
-.trustDotLight { background: rgba(255,255,255,0.25); }
-.trustDotDark { background: rgba(0,0,0,0.15); }
 
 /* ── Auth area ── */
 .authArea { display: flex; align-items: center; flex-shrink: 0; }
 .authBtns { display: flex; align-items: center; gap: 10px; }
 
 .signInBtn {
-  padding: 9px 20px; border-radius: var(--r-full);
+  padding: 10px 20px; border-radius: var(--r-full);
   font-size: 13.5px; font-weight: 700; font-family: 'Sora', sans-serif;
   transition: all 0.3s var(--ease); white-space: nowrap;
-  text-decoration: none; display: inline-flex; align-items: center;
+  text-decoration: none; display: inline-flex; align-items: center; gap: 7px;
 }
+.signInBtn svg { opacity: 0.75; }
 .signInLight {
   color: rgba(255,255,255,0.88);
   border: 1.5px solid rgba(255,255,255,0.28);
@@ -87,25 +80,35 @@
 }
 
 .registerBtn {
-  padding: 10px 22px; border-radius: var(--r-full);
+  padding: 7px 7px 7px 22px; border-radius: var(--r-full);
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
   color: #fff; font-size: 13.5px; font-weight: 700;
   font-family: 'Sora', sans-serif;
-  box-shadow: var(--shadow-glow);
+  box-shadow: 0 6px 20px rgba(255,159,28,0.32);
   transition: all 0.35s var(--ease);
   position: relative; overflow: hidden;
-  display: inline-flex; align-items: center; gap: 7px;
+  display: inline-flex; align-items: center; gap: 10px;
   text-decoration: none; white-space: nowrap;
 }
 .registerBtn::before {
   content: ''; position: absolute; inset: 0;
-  background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.25) 50%, transparent 70%);
+  background: linear-gradient(135deg, transparent 30%, rgba(255,255,255,0.3) 50%, transparent 70%);
   transform: translateX(-100%); transition: transform 0.6s;
 }
 .registerBtn:hover::before { transform: translateX(100%); }
 .registerBtn:hover {
   transform: translateY(-2px);
-  box-shadow: 0 14px 40px rgba(255,159,28,0.55);
+  box-shadow: 0 14px 38px rgba(255,159,28,0.5);
+}
+.registerArrow {
+  width: 28px; height: 28px; border-radius: 50%;
+  background: rgba(255,255,255,0.24);
+  display: flex; align-items: center; justify-content: center;
+  transition: transform 0.3s var(--ease), background 0.3s;
+}
+.registerBtn:hover .registerArrow {
+  background: rgba(255,255,255,0.34);
+  transform: translateX(2px);
 }
 
 /* ── User avatar dropdown ── */
@@ -214,12 +217,15 @@
 }
 .mobileLinks { display: flex; flex-direction: column; }
 .mobileLink {
+  display: flex; align-items: center; gap: 12px;
   padding: 13px 16px; font-size: 15px; font-weight: 600;
   color: var(--text); border-radius: var(--r-sm); text-align: left;
   transition: background 0.2s;
 }
+.mobileLink svg { color: var(--blue-deep); }
 .mobileLink:hover { background: var(--blue-bg); }
-.mobileLinkActive { color: var(--sun-orange); }
+.mobileLinkActive { background: var(--blue-light); color: var(--blue-deep); }
+.mobileLinkActive svg { color: var(--blue-deep); }
 .mobileDivider { height: 1px; background: rgba(0,0,0,0.06); margin: 8px 0; }
 .mobileAuth { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
 .mobileUser {
@@ -260,7 +266,6 @@
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  .trustStrip { display: none; }
   .authArea { display: none; }
   .hamburger { display: block; }
   .nav { padding: 16px 24px; }
