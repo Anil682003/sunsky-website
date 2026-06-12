@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import styles from './Search.module.css';
 
-const CONTRACTS_API = '/cache-api';
+const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'http://91.134.71.79:3001';
 
 const BOARD_LABELS = {
   AI: 'All Inclusive', TI: 'All Inclusive+', FB: 'Full Board',
