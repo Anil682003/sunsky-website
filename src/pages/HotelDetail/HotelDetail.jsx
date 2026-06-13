@@ -41,11 +41,11 @@ const TAB_ICON = {
 /* ── static demo data (from the design) ── */
 const TABS = ['Prices', 'Information', 'Facilities', 'Weather', 'Map', 'Reviews'];
 const FILTERS = [
-  { label: 'Departure date', val: 'Thu, 19 March 2026' },
-  { label: 'Travelling company', val: '4 persons' },
-  { label: 'Care (Meals)', val: 'No preference' },
-  { label: 'Transport', val: 'All airports' },
-  { label: 'Duration', val: '6–10 days' },
+  { label: 'Departure date', val: 'Thu, 19 March 2026', icon: ICON.cal },
+  { label: 'Travelling company', val: '4 persons', icon: ICON.users },
+  { label: 'Care (Meals)', val: 'No preference', icon: ICON.board },
+  { label: 'Transport', val: 'All airports', icon: ICON.plane },
+  { label: 'Duration', val: '6–10 days', icon: ICON.moon },
 ];
 const DURATIONS = ['6 days', '7 days', '8 days', '9 days', '10 days'];
 const PRICE_DAYS = [
@@ -57,6 +57,8 @@ const PRICE_DAYS = [
   { day: 'Saturday', date: '21 Mar.', price: 382, orig: 415, nights: 7 },
   { day: 'Sunday', date: '22 Mar.', price: 398, orig: 430, nights: 7 },
 ];
+const PRICE_MIN = Math.min(...PRICE_DAYS.map((p) => p.price));
+const PRICE_MAX = Math.max(...PRICE_DAYS.map((p) => p.price));
 const FLIGHTS = [
   { outDate: 'Fri 10 Apr. 2026', outAirline: 'ARKEFLY', outDep: '07:00', outArr: '11:50', outDur: '3h 50m', outFrom: 'Amsterdam (Schiphol)', outTo: 'Antalya Intl', retDate: 'Wed 15 Apr. 2026', retAirline: 'TRANSAVIA', retDep: '12:45', retArr: '16:00', retDur: '4h 15m', retFrom: 'Antalya Intl', retTo: 'Amsterdam (Schiphol)' },
   { outDate: 'Fri 10 Apr. 2026', outAirline: 'ARKEFLY', outDep: '07:00', outArr: '11:50', outDur: '3h 50m', outFrom: 'Amsterdam (Schiphol)', outTo: 'Antalya Intl', retDate: 'Wed 15 Apr. 2026', retAirline: 'ARKEFLY', retDep: '22:45', retArr: '02:10', retDur: '4h 25m', retFrom: 'Antalya Intl', retTo: 'Amsterdam (Schiphol)', warning: 'Note: you arrive on Thursday.' },
@@ -359,21 +361,28 @@ export default function HotelDetail() {
 
             {/* ── PRICES ── */}
             <div className={`tp${activeTab === 'Prices' ? ' act' : ''}`}>
-              <div className="section-title">{ICON.cal} Compare the lowest prices</div>
+              <div className="section-title"><span className="st-step">1</span> Compare the lowest prices</div>
 
               <div className="filter-bar">
-                {FILTERS.map((f) => (
-                  <div className="filter-item" key={f.label}>
-                    <div className="filter-label">{f.label}</div>
-                    <select className="filter-val"><option>{f.val}</option></select>
+                <div className="filter-fields">
+                  {FILTERS.map((f) => (
+                    <div className="filter-item" key={f.label}>
+                      <span className="fi-ico">{f.icon}</span>
+                      <div className="fi-body">
+                        <div className="filter-label">{f.label}</div>
+                        <select className="filter-val"><option>{f.val}</option></select>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+                <div className="filter-foot">
+                  <span className="filter-foot-label">Exact duration</span>
+                  <div className="dur-chips">
+                    {DURATIONS.map((d, i) => (
+                      <button key={d} className={`dur-chip${selectedDur === i ? ' act' : ''}`} onClick={() => setSelectedDur(i)}>{d}</button>
+                    ))}
                   </div>
-                ))}
-              </div>
-
-              <div className="dur-chips" style={{ marginBottom: 20 }}>
-                {DURATIONS.map((d, i) => (
-                  <button key={d} className={`dur-chip${selectedDur === i ? ' act' : ''}`} onClick={() => setSelectedDur(i)}>{d}</button>
-                ))}
+                </div>
               </div>
 
               <div className="price-boxes">
@@ -386,7 +395,7 @@ export default function HotelDetail() {
                     <div className="pb-from">from</div>
                     <div className="pb-price">€{p.price}</div>
                     <div className="pb-nights">{p.nights} days</div>
-                    <div className="pb-radio" />
+                    <div className="pb-bar"><span style={{ height: `${Math.round(35 + 65 * ((p.price - PRICE_MIN) / ((PRICE_MAX - PRICE_MIN) || 1)))}%` }} /></div>
                   </div>
                 ))}
               </div>
@@ -407,7 +416,7 @@ export default function HotelDetail() {
 
               {/* Flights */}
               <div className="flight-section reveal">
-                <div className="section-title">{ICON.plane} Your flights</div>
+                <div className="section-title"><span className="st-step">2</span> Your flights</div>
                 <div className="flight-note">We have selected the cheapest flight for you:</div>
                 {FLIGHTS.map((f, i) => (
                   <FlightCard key={i} f={f} selected={selectedFlight === i} onSelect={() => setSelectedFlight(i)} />
@@ -428,7 +437,7 @@ export default function HotelDetail() {
 
               {/* Rooms */}
               <div className="room-section reveal">
-                <div className="section-title">{ICON.bed} Choose your room</div>
+                <div className="section-title"><span className="st-step">3</span> Choose your room</div>
                 {STAYS.map((stay) => (
                   <div className="stay-block" key={stay.stayNum}>
                     <div className="stay-header">
@@ -483,32 +492,37 @@ export default function HotelDetail() {
 
               {/* Overview */}
               <div className="overview-section reveal">
-                <div className="section-title">{ICON.shield} Overview of your holiday</div>
+                <div className="section-title"><span className="st-step">4</span> Overview of your holiday</div>
                 <div className="overview-card">
                   <div className="overview-head">
+                    <div className="overview-head-main">
                     <div className="overview-hotel">{hotelName}</div>
                     <div className="overview-stars">{'★'.repeat(Math.min(stars, 5))}</div>
                     <div className="overview-loc">{ICON.pin} {locLabel}</div>
                     <div className="overview-dates">{ICON.cal} Friday 10 April 2026 - Wednesday 15 April 2026 <span style={{ color: 'var(--text-light)' }}>({nights} nights)</span></div>
+                    </div>
+                    <div className="overview-score"><b>★</b> 9.3 · Fantastic</div>
                   </div>
                   <div className="overview-body">
-                    <div className="overview-row"><span className="overview-row-label">{ICON.users} 4 × {ccy}361 p.p.</span><span className="overview-row-val">{ccy} 1,444</span></div>
-                    <div className="overview-row"><span className="overview-row-label">{ICON.shield} SGR Guarantee Fund</span><span className="overview-row-val">{ccy} 20</span></div>
-                    <div className="overview-row"><span className="overview-row-label">{ICON.noTransfer} Transfer not included</span><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>—</span></div>
+                    <div className="overview-row"><span className="overview-row-label">{ICON.users} 4 × {ccy}361 p.p.</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 1,444</span></div>
+                    <div className="overview-row"><span className="overview-row-label">{ICON.shield} SGR Guarantee Fund</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 20</span></div>
+                    <div className="overview-row"><span className="overview-row-label">{ICON.noTransfer} Transfer not included</span><span className="overview-leader" /><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>—</span></div>
                     <div className="overview-extras">
                       <div className="overview-extra">{ICON.check} No booking fees</div>
                       <div className="overview-extra">{ICON.check} Hand luggage included</div>
                     </div>
                   </div>
                   <div className="overview-total"><span className="overview-total-label">Total for 4 people</span><span className="overview-total-val">{ccy}1,424</span></div>
-                  <div className="overview-deposit">At this low price, no deposit is possible.</div>
+                  <div className="overview-deposit">{ICON.info} At this low price, no deposit is possible.</div>
                   <div className="overview-book-wrap">
                     <button className="overview-book-btn" onClick={goCheckout}>Now book {ICON.arrow}</button>
                   </div>
                   <div className="overview-spot-costs">
-                    <div className="overview-spot-costs-label">Not included, pay on the spot:</div>
-                    <div className="overview-spot-cost">{ccy} 20,00</div>
-                    <div className="overview-spot-cost">{ccy} 20,00</div>
+                    <div className="overview-spot-costs-label">{ICON.tag} Not included — pay on the spot</div>
+                    <div className="overview-spot-list">
+                      <span className="overview-spot-cost">{ccy} 20,00</span>
+                      <span className="overview-spot-cost">{ccy} 20,00</span>
+                    </div>
                   </div>
                   <div className="overview-urgency"><div className="overview-urgency-text">{ICON.clock} You now have the lowest price. It can change quickly.</div></div>
                 </div>
@@ -535,7 +549,7 @@ export default function HotelDetail() {
 
             {/* ── FACILITIES ── */}
             <div className={`tp${activeTab === 'Facilities' ? ' act' : ''}`}>
-              <h3 className="hd" style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 className="section-title">
                 <S sw={2}><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></S> Hotel Facilities
               </h3>
               <div className="fg">
@@ -551,7 +565,7 @@ export default function HotelDetail() {
 
             {/* ── WEATHER ── */}
             <div className={`tp${activeTab === 'Weather' ? ' act' : ''}`}>
-              <h3 className="hd" style={{ fontSize: 16, fontWeight: 700, marginBottom: 16, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <h3 className="section-title">
                 {TAB_ICON.Weather} Climate
               </h3>
               <div className="ws">
@@ -614,6 +628,7 @@ export default function HotelDetail() {
               <div className="bkp">
                 <div className="bkpl">per person from</div>
                 <div className="bkpr hd">{ccy}{ppPrice} <span>p.p.</span></div>
+                <div className="bkp-total">{ccy}{(hotel?.totalAmount ? Math.round(hotel.totalAmount) : ppPrice * 2).toLocaleString('en-GB')} total · 2 adults</div>
               </div>
               <div className="bkd">
                 <div className="bkdi"><span className="bkdk">{ICON.cal}</span>Wed 06 May — Wed 13 May 2026</div>
@@ -624,6 +639,7 @@ export default function HotelDetail() {
               </div>
               <div className="bkcw">
                 <button className="bkc" onClick={goCheckout}>Check price {ICON.arrow}</button>
+                <div className="bkc-note">{ICON.check} Free cancellation · {ICON.check} Instant confirmation</div>
               </div>
             </div>
           </aside>
