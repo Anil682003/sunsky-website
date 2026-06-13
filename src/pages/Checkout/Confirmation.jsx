@@ -110,6 +110,7 @@ export default function Confirmation({
   const [copied, setCopied] = useState(false);
   const rootRef = useRef(null);
 
+  const isFlight = booking.kind === 'flight';
   const money = (n) => `${ccy}${Math.round(n).toLocaleString('en-US')}`;
   const animPaid = useCountUp(pricing.total);
 
@@ -263,9 +264,11 @@ export default function Confirmation({
             <div className="ckc-ticket-body">
               <div className="ckc-ticket-chips">
                 <span className="ckc-chip">{ICON.cal} {booking.dateLabel}</span>
-                <span className="ckc-chip">{ICON.moon} {booking.nights} nights</span>
+                {isFlight
+                  ? <span className="ckc-chip">{ICON.plane} {booking.loc}</span>
+                  : <span className="ckc-chip">{ICON.moon} {booking.nights} nights</span>}
                 <span className="ckc-chip">{ICON.users} {pricing.pax} {pricing.pax === 1 ? 'traveller' : 'travellers'}</span>
-                <span className="ckc-chip">{ICON.board} {booking.board}</span>
+                {!isFlight && <span className="ckc-chip">{ICON.board} {booking.board}</span>}
               </div>
               {booking.flight && (
                 <div className="ckc-ticket-flights">
@@ -276,19 +279,23 @@ export default function Confirmation({
                     </div>
                     <span className="ckc-leg-meta">{booking.flight.outFrom} → {booking.flight.outTo} · {booking.flight.outAirline} · {booking.flight.outDate}</span>
                   </div>
-                  <div className="ckc-leg">
-                    <span className="ckc-leg-dir ret">RET</span>
-                    <div className="ckc-leg-route">
-                      <b>{booking.flight.retDep}</b><span className="ckc-leg-line"><i className="ckc-leg-plane ret">{ICON.plane}</i></span><b>{booking.flight.retArr}</b>
+                  {booking.flight.retDep && (
+                    <div className="ckc-leg">
+                      <span className="ckc-leg-dir ret">RET</span>
+                      <div className="ckc-leg-route">
+                        <b>{booking.flight.retDep}</b><span className="ckc-leg-line"><i className="ckc-leg-plane ret">{ICON.plane}</i></span><b>{booking.flight.retArr}</b>
+                      </div>
+                      <span className="ckc-leg-meta">{booking.flight.retFrom} → {booking.flight.retTo} · {booking.flight.retAirline} · {booking.flight.retDate}</span>
                     </div>
-                    <span className="ckc-leg-meta">{booking.flight.retFrom} → {booking.flight.retTo} · {booking.flight.retAirline} · {booking.flight.retDate}</span>
-                  </div>
+                  )}
                 </div>
               )}
-              <div className="ckc-ticket-room">
-                {ICON.bed}
-                <div><b>{booking.room}</b><span>{booking.meal} · included in price</span></div>
-              </div>
+              {!isFlight && (
+                <div className="ckc-ticket-room">
+                  {ICON.bed}
+                  <div><b>{booking.room}</b><span>{booking.meal} · included in price</span></div>
+                </div>
+              )}
             </div>
           </div>
 
@@ -308,7 +315,7 @@ export default function Confirmation({
         {/* ═══ ACTIONS ═══ */}
         <div className="ckc-actions ckc-reveal">
           <button className="ckc-act primary" onClick={() => navigate('/account/bookings')}>{ICON.arrow} View my bookings</button>
-          <button className="ckc-act" onClick={openVoucher}>{ICON.download} Download voucher</button>
+          {!isFlight && <button className="ckc-act" onClick={openVoucher}>{ICON.download} Download voucher</button>}
           <button className="ckc-act" onClick={() => showToast('Holiday added to your calendar!', 'success')}>{ICON.calPlus} Add to calendar</button>
           <button className="ckc-act ghost" onClick={() => navigate('/')}>Back to home</button>
         </div>

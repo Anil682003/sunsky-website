@@ -3,6 +3,7 @@ import Results from '../pages/Results/Results';
 import HotelDetail from '../pages/HotelDetail/HotelDetail';
 import Packages from '../pages/Packages/Packages';
 import Flights from '../pages/Flights/Flights';
+import FlightDetail from '../pages/FlightDetail/FlightDetail';
 import Hotels from '../pages/Hotels/Hotels';
 import Transfers from '../pages/Transfers/Transfers';
 import About from '../pages/About/About';
@@ -34,6 +35,7 @@ export const routes = [
   { path: '/hotel/:hotelCode', component: HotelDetail, layout: true, protected: false },
   { path: '/packages',   component: Packages,  layout: true, protected: false },
   { path: '/flights',    component: Flights,   layout: true, protected: false },
+  { path: '/flights/:id', component: FlightDetail, layout: true, protected: false },
   { path: '/hotels',     component: Hotels,    layout: true, protected: false },
   { path: '/transfers',  component: Transfers, layout: true, protected: false },
   { path: '/about',      component: About,     layout: true, protected: false },

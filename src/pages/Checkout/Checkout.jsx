@@ -208,6 +208,7 @@ export default function Checkout() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const booking = state?.booking || FALLBACK_BOOKING;
+  const isFlight = booking.kind === 'flight';
   const { isAuthenticated, user } = useSelector((s) => s.auth);
   const ccy = booking.currency || '€';
   const paneRef = useRef(null);
@@ -454,7 +455,7 @@ export default function Checkout() {
             <div className="ck-hero-left">
               <div className="ck-eyebrow">{ICON.lock} Secure checkout</div>
               <h1 className="ck-title hd">Complete your booking</h1>
-              <p className="ck-hero-sub">You're moments away from {booking.hotelName} — {booking.loc.split(',')[0]}</p>
+              <p className="ck-hero-sub">You're moments away from {isFlight ? 'your flight' : booking.hotelName} — {(booking.loc || '').split(',')[0]}</p>
             </div>
             <div className="ck-hero-badges">
               <span className="ck-hbadge">{ICON.shieldCheck} SGR guaranteed</span>
@@ -1038,9 +1039,11 @@ export default function Checkout() {
               <div className="ck-sum-body">
                 <div className="ck-sum-chips">
                   <span className="ck-sum-chip">{ICON.cal} {booking.dateLabel}</span>
-                  <span className="ck-sum-chip">{ICON.moon} {booking.nights} nights</span>
+                  {isFlight
+                    ? <span className="ck-sum-chip">{ICON.plane} {booking.loc}</span>
+                    : <span className="ck-sum-chip">{ICON.moon} {booking.nights} nights</span>}
                   <span className="ck-sum-chip">{ICON.users} {pax} {pax === 1 ? 'traveller' : 'travellers'}</span>
-                  <span className="ck-sum-chip">{ICON.board} {booking.board}</span>
+                  {!isFlight && <span className="ck-sum-chip">{ICON.board} {booking.board}</span>}
                 </div>
 
                 {booking.flight && (
@@ -1052,26 +1055,32 @@ export default function Checkout() {
                         <span className="ck-sum-leg-time">{booking.flight.outDep} → {booking.flight.outArr}</span>
                         <span className="ck-sum-leg-route">{booking.flight.outFrom.split(' ')[0]} – {booking.flight.outTo.split(' ')[0]}</span>
                       </div>
-                      <div className="ck-sum-leg">
-                        <span className="ck-sum-leg-dir ret">RET</span>
-                        <span className="ck-sum-leg-time">{booking.flight.retDep} → {booking.flight.retArr}</span>
-                        <span className="ck-sum-leg-route">{booking.flight.retFrom.split(' ')[0]} – {booking.flight.retTo.split(' ')[0]}</span>
-                      </div>
+                      {booking.flight.retDep && (
+                        <div className="ck-sum-leg">
+                          <span className="ck-sum-leg-dir ret">RET</span>
+                          <span className="ck-sum-leg-time">{booking.flight.retDep} → {booking.flight.retArr}</span>
+                          <span className="ck-sum-leg-route">{booking.flight.retFrom.split(' ')[0]} – {booking.flight.retTo.split(' ')[0]}</span>
+                        </div>
+                      )}
                     </div>
                   </>
                 )}
 
-                <div className="ck-sum-sec">{ICON.bed} Room & board</div>
-                <div className="ck-sum-room">
-                  <span>{booking.room}</span>
-                  <small>{booking.meal} · included in price</small>
-                </div>
+                {!isFlight && (
+                  <>
+                    <div className="ck-sum-sec">{ICON.bed} Room & board</div>
+                    <div className="ck-sum-room">
+                      <span>{booking.room}</span>
+                      <small>{booking.meal} · included in price</small>
+                    </div>
+                  </>
+                )}
 
                 <div className="ck-sum-sec">{ICON.card} Price breakdown</div>
                 <div className="ck-sum-rows">
                   <div className="ck-sum-row"><span>{pax} × {money(booking.ppPrice)} p.p.</span><b>{money(base)}</b></div>
                   {roomExtraTotal > 0 && <div className="ck-sum-row"><span>Room upgrade</span><b>{money(roomExtraTotal)}</b></div>}
-                  <div className="ck-sum-row"><span>SGR Guarantee Fund</span><b>{money(SGR_FEE)}</b></div>
+                  <div className="ck-sum-row"><span>{isFlight ? 'Booking & service fee' : 'SGR Guarantee Fund'}</span><b>{money(SGR_FEE)}</b></div>
                   {insAmount > 0 && (
                     <div className="ck-sum-row ck-sum-row-ins" key={insurance}>
                       <span>{ICON.shieldCheck} {selIns?.name}</span><b>{money(insAmount)}</b>
