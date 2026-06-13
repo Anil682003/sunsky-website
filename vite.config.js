@@ -7,7 +7,7 @@ export default defineConfig({
     port: process.env.PORT ? Number(process.env.PORT) : 5173,
     proxy: {
       '/cache-api': {
-        target: 'http://91.134.71.79:3001',
+        target: 'https://cache.holidaybooking.be',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/cache-api/, ''),
       },
