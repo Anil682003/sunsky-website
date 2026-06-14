@@ -1,10 +1,8 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
 import lightLogo from '../../assets/light-logo.png';
 import styles from './Register.module.css';
-import axiosInstance from '../../services/axiosInstance';
-import { loginSuccess } from '../../store/slices/authSlice';
+import { useRegister } from '../../api';
 import { useToast } from '../../context/ToastContext';
 
 const INDUSTRIES = [
@@ -210,12 +208,11 @@ function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChang
 
 export default function Register() {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const { showToast } = useToast();
+  const { execute: register, loading } = useRegister();
   const [type, setType] = useState('private');
   const [step, setStep] = useState(0);
   const [agreed, setAgreed] = useState(false);
-  const [loading, setLoading] = useState(false);
 
   const [prv, setPrv] = useState({
     firstName:'', lastName:'', email:'',
@@ -248,9 +245,7 @@ export default function Register() {
   const handleTypeSwitch = (t) => { setType(t); setStep(0); };
 
   const handleRegister = async () => {
-    setLoading(true);
     try {
-      // Build E.164 phone(s) from code + local number
       const { password, phoneCode, primaryContactPhoneCode, ...fields } = data;
 
       if (type === 'private' && fields.phone !== undefined) {
@@ -262,15 +257,9 @@ export default function Register() {
         fields.primaryContactPhone = `+${primaryContactPhoneCode}${num}`;
       }
 
-      const res = await axiosInstance.post('/public/auth/register', { type, password, ...fields });
-      const { accessToken, refreshToken, user } = res.data.data;
-      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
-      dispatch(loginSuccess({ user, accessToken }));
-      navigate('/account/bookings');
+      await register({ type, password, ...fields });
     } catch (err) {
       showToast(err.response?.data?.message || 'Registration failed. Please try again.', 'error');
-    } finally {
-      setLoading(false);
     }
   };
 

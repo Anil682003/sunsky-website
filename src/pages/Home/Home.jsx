@@ -1,5 +1,4 @@
-import { useState, useEffect } from 'react';
-import axiosInstance from '../../services/axiosInstance';
+import { useHomepageConfig } from '../../api';
 import Hero from './sections/Hero';
 import Marquee from './sections/Marquee';
 import Categories from './sections/Categories';
@@ -12,15 +11,7 @@ import Trust from './sections/Trust';
 import Newsletter from './sections/Newsletter';
 
 export default function Home() {
-  const [cms, setCms] = useState(null);
-
-  useEffect(() => {
-    axiosInstance.get('/cms/layout/homepage-config')
-      .then((res) => {
-        if (res.data?.success) setCms(res.data.data.homepageConfig);
-      })
-      .catch(() => {});
-  }, []);
+  const { data: cms } = useHomepageConfig();
 
   return (
     <>
