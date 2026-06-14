@@ -80,6 +80,8 @@ export default function Hero() {
   const [duration, setDuration] = useState('7 days');
   const [adults, setAdults] = useState(2);
   const [children, setChildren] = useState(0);
+  const [rooms, setRooms] = useState(1);
+  const [childrenDobs, setChildrenDobs] = useState([]);
   const [openField, setOpenField] = useState(null);
 
   const [tripType, setTripType] = useState('roundtrip');
@@ -152,6 +154,31 @@ export default function Hero() {
     setOpenField((prev) => (prev === field ? null : field));
   };
 
+  const todayISO = new Date().toISOString().split('T')[0];
+
+  // keep one date-of-birth slot per child
+  const setChildrenCount = (next) => {
+    const n = Math.max(0, Math.min(6, next));
+    setChildren(n);
+    setChildrenDobs((prev) => {
+      const arr = prev.slice(0, n);
+      while (arr.length < n) arr.push('');
+      return arr;
+    });
+  };
+  const updateChildDob = (i, val) =>
+    setChildrenDobs((prev) => prev.map((d, idx) => (idx === i ? val : d)));
+  const ageFromDob = (dob) => {
+    if (!dob) return null;
+    const b = new Date(dob + 'T00:00:00');
+    if (isNaN(b.getTime())) return null;
+    const ref = date ? new Date(date + 'T00:00:00') : new Date();
+    let a = ref.getFullYear() - b.getFullYear();
+    const m = ref.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && ref.getDate() < b.getDate())) a -= 1;
+    return a >= 0 ? a : 0;
+  };
+
   const handleSearch = () => {
     const daysMatch = duration.match(/(\d+)/);
     const nights = daysMatch ? parseInt(daysMatch[1]) : 7;
@@ -168,8 +195,11 @@ export default function Hero() {
       checkOut:         checkOut || '',
       adults:           String(adults),
       children:         String(children),
+      rooms:            String(rooms),
     });
-    navigate(`/search?${qs.toString()}`);
+    const childAges = childrenDobs.map(ageFromDob).filter((a) => a != null);
+    if (childAges.length) qs.set('childAges', childAges.join(','));
+    navigate(`/results?${qs.toString()}`);
   };
 
   const handleFlightSearch = () => {
@@ -181,7 +211,7 @@ export default function Hero() {
     toSetter(fromVal);
   };
 
-  const travelersLabel = `${adults} adult${adults > 1 ? 's' : ''}${children > 0 ? `, ${children} child${children > 1 ? 'ren' : ''}` : ''}`;
+  const travelersLabel = `${adults} adult${adults > 1 ? 's' : ''}${children > 0 ? `, ${children} child${children > 1 ? 'ren' : ''}` : ''} · ${rooms} room${rooms > 1 ? 's' : ''}`;
 
   const flightTotalTravelers = flightAdults + flightChildren + flightInfants;
   const flightTravelersLabel = `${flightTotalTravelers} Traveller${flightTotalTravelers > 1 ? 's' : ''}, ${cabinClass}`;
@@ -387,7 +417,7 @@ export default function Hero() {
           {openField === 'travelers' && (
             <div className={styles.dropdown}>
               <div className={styles.travRow}>
-                <span className={styles.travLabel}>Adults</span>
+                <span className={styles.travLabel}>Adults <small className={styles.travHint}>18+</small></span>
                 <div className={styles.stepper}>
                   <button className={styles.stepperBtn} onClick={() => setAdults((v) => Math.max(1, v - 1))}>−</button>
                   <span className={styles.stepperCount}>{adults}</span>
@@ -395,13 +425,46 @@ export default function Hero() {
                 </div>
               </div>
               <div className={styles.travRow}>
-                <span className={styles.travLabel}>Children</span>
+                <span className={styles.travLabel}>Children <small className={styles.travHint}>0–17</small></span>
                 <div className={styles.stepper}>
-                  <button className={styles.stepperBtn} onClick={() => setChildren((v) => Math.max(0, v - 1))}>−</button>
+                  <button className={styles.stepperBtn} onClick={() => setChildrenCount(children - 1)}>−</button>
                   <span className={styles.stepperCount}>{children}</span>
-                  <button className={styles.stepperBtn} onClick={() => setChildren((v) => Math.min(6, v + 1))}>+</button>
+                  <button className={styles.stepperBtn} onClick={() => setChildrenCount(children + 1)}>+</button>
                 </div>
               </div>
+              <div className={styles.travRow}>
+                <span className={styles.travLabel}>Rooms</span>
+                <div className={styles.stepper}>
+                  <button className={styles.stepperBtn} onClick={() => setRooms((v) => Math.max(1, v - 1))}>−</button>
+                  <span className={styles.stepperCount}>{rooms}</span>
+                  <button className={styles.stepperBtn} onClick={() => setRooms((v) => Math.min(8, v + 1))}>+</button>
+                </div>
+              </div>
+
+              {children > 0 && (
+                <div className={styles.travDobs}>
+                  <span className={styles.travDobsTitle}>Children's date of birth</span>
+                  {childrenDobs.map((dob, i) => {
+                    const age = ageFromDob(dob);
+                    return (
+                      <div className={styles.travDobRow} key={i}>
+                        <span className={styles.travDobLabel}>
+                          Child {i + 1}{age != null ? <em className={styles.travDobAge}>{age} yr{age === 1 ? '' : 's'}</em> : ''}
+                        </span>
+                        <input
+                          type="date"
+                          className={styles.travDobInput}
+                          value={dob}
+                          max={todayISO}
+                          onChange={(e) => updateChildDob(i, e.target.value)}
+                        />
+                      </div>
+                    );
+                  })}
+                  <span className={styles.travDobHint}>Children's ages help us price rooms &amp; flights correctly.</span>
+                </div>
+              )}
+
               <button className={styles.doneBtn} onClick={() => setOpenField(null)}>Done</button>
             </div>
           )}

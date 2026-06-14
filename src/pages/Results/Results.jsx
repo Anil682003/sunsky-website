@@ -1,8 +1,8 @@
 import { useState, useEffect } from 'react';
-import { useSearchParams } from 'react-router-dom';
-import styles from './Search.module.css';
+import { useSearchParams, useNavigate } from 'react-router-dom';
+import styles from './Results.module.css';
 
-const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'http://91.134.71.79:3001';
+const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 
 const BOARD_LABELS = {
   AI: 'All Inclusive', TI: 'All Inclusive+', FB: 'Full Board',
@@ -55,13 +55,14 @@ function FilterCheck({ label, checked, onChange }) {
   return (
     <label className={styles.filterCheck}>
       <input type="checkbox" checked={checked} onChange={onChange} />
-      {label}
+      <span>{label}</span>
     </label>
   );
 }
 
-export default function Search() {
+export default function Results() {
   const [params] = useSearchParams();
+  const navigate = useNavigate();
 
   const destCode         = params.get('destination')      || '';
   const destinationLabel = params.get('destinationLabel') || destCode;
@@ -73,6 +74,8 @@ export default function Search() {
   const initCheckOut = params.get('checkOut') || defaultCheckOut;
   const initAdults   = params.get('adults')   || '2';
   const initChildren = params.get('children') || '0';
+  const initRooms    = params.get('rooms')    || '1';
+  const childAges    = params.get('childAges') || '';
 
   // Sidebar draft state (not yet fetched)
   const [localCheckIn,  setLocalCheckIn]  = useState(initCheckIn);
@@ -83,7 +86,7 @@ export default function Search() {
   // Committed params that drive the API fetch
   const [fetchParams, setFetchParams] = useState({
     checkIn: initCheckIn, checkOut: initCheckOut,
-    adults: initAdults, children: initChildren,
+    adults: initAdults, children: initChildren, rooms: initRooms,
   });
 
   const [sort, setSort]               = useState('Price: Low to High');
@@ -111,21 +114,23 @@ export default function Search() {
 
     setLoading(true);
 
+    const roomsN = Math.max(1, parseInt(fetchParams.rooms, 10) || 1);
     const qs = new URLSearchParams({
       destination:        destCode,
       checkIn:            fetchParams.checkIn,
       checkOut:           fetchParams.checkOut,
       adults:             fetchParams.adults,
       children:           fetchParams.children,
-      rooms:              '1',
+      rooms:              String(roomsN),
       limit:              '50',
       source:             'combined',
-      maxAdultsPerRoom:   fetchParams.adults,
-      maxChildrenPerRoom: fetchParams.children,
+      maxAdultsPerRoom:   String(Math.ceil((parseInt(fetchParams.adults, 10) || 1) / roomsN)),
+      maxChildrenPerRoom: String(Math.ceil((parseInt(fetchParams.children, 10) || 0) / roomsN)),
     });
+    if (childAges) qs.set('childAges', childAges);
 
     const fullUrl = `${CONTRACTS_API}/contracts/cheapest?${qs.toString()}`;
-    console.log('[Search] Calling contracts API:', fullUrl);
+    console.log('[Results] Calling contracts API:', fullUrl);
 
     fetch(fullUrl)
       .then((r) => r.json())
@@ -161,7 +166,7 @@ export default function Search() {
             }
           }
         } catch (e) {
-          console.warn('[Search] Hotel bulk info failed:', e);
+          console.warn('[Results] Hotel bulk info failed:', e);
         }
 
         const mapped = contracts.map((c, i) => {
@@ -201,7 +206,7 @@ export default function Search() {
         setLoading(false);
       })
       .catch((err) => {
-        console.error('[Search] Contracts API error:', err);
+        console.error('[Results] Contracts API error:', err);
         setAllHotels([]);
         setLoading(false);
       });
@@ -233,20 +238,34 @@ export default function Search() {
   const toggleClass = (c)  => setClassFilter((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
 
   const applySearch = () => {
-    setFetchParams({
+    setFetchParams((prev) => ({
+      ...prev,
       checkIn:  localCheckIn,
       checkOut: localCheckOut,
       adults:   String(localAdults),
       children: String(localChildren),
-    });
+    }));
   };
 
-  const chips = [];
-  if (destinationLabel) chips.push(destinationLabel);
-  if (fetchParams.checkIn)  chips.push(fmtDate(fetchParams.checkIn));
-  if (fetchParams.checkOut) chips.push(fmtDate(fetchParams.checkOut));
-  if (nights > 0) chips.push(`${nights} nights`);
-  chips.push(`${fetchParams.adults} Adult${fetchParams.adults !== '1' ? 's' : ''}${fetchParams.children !== '0' ? `, ${fetchParams.children} Child${fetchParams.children !== '1' ? 'ren' : ''}` : ''}`);
+  const guestSummary = `${fetchParams.adults} Adult${fetchParams.adults !== '1' ? 's' : ''}${fetchParams.children !== '0' ? `, ${fetchParams.children} Child${fetchParams.children !== '1' ? 'ren' : ''}` : ''}`;
+
+  const heroChips = [];
+  if (fetchParams.checkIn && fetchParams.checkOut) {
+    heroChips.push({
+      icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
+      text: `${fmtDate(fetchParams.checkIn)} — ${fmtDate(fetchParams.checkOut)}`,
+    });
+  }
+  if (nights > 0) {
+    heroChips.push({
+      icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z',
+      text: `${nights} nights`,
+    });
+  }
+  heroChips.push({
+    icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+    text: guestSummary,
+  });
 
   const sidebar = (
     <>
@@ -290,7 +309,7 @@ export default function Search() {
         </div>
         <button className={styles.applyBtn} onClick={applySearch}>
           <Icon d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" size={13} sw={2.2} />
-          Search
+          Update Search
         </button>
       </FilterSection>
 
@@ -305,6 +324,7 @@ export default function Search() {
             step={50}
             value={Math.min(priceMaxFilter, maxPriceAvail)}
             onChange={(e) => setPriceMaxFilter(Number(e.target.value))}
+            style={{ '--fill': `${(Math.min(priceMaxFilter, maxPriceAvail) / (maxPriceAvail || 1)) * 100}%` }}
           />
           <div className={styles.priceSliderLabels}>
             <span>0</span>
@@ -333,23 +353,84 @@ export default function Search() {
 
   return (
     <div className={styles.page}>
-      {/* Summary bar */}
-      <div className={styles.summaryBar}>
-        <div className={styles.summaryInner}>
-          <div className={styles.summaryLeft}>
-            <div className={styles.summaryCount}>
-              <span>{loading ? '…' : hotels.length}</span> Results Found
-            </div>
-            <div className={styles.chips}>
-              {chips.map((c) => <div key={c} className={styles.chip}>{c}</div>)}
-            </div>
+      {/* Hero header */}
+      <header className={styles.hero}>
+        <div className={styles.heroGlow} />
+        <div className={styles.heroGlow2} />
+        <div className={styles.heroGrid} />
+        <svg className={styles.heroFlight} viewBox="0 0 600 200" fill="none" aria-hidden="true">
+          <path
+            className={styles.flightPath}
+            d="M10 160 Q 220 30 590 70"
+            stroke="rgba(255,255,255,0.3)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray="2 12"
+          />
+          <g className={styles.flightPlane}>
+            <path d="M0 8L22 0l-7.5 18-3.5-6.5L0 8z" fill="rgba(255,255,255,0.9)" transform="translate(-11,-9)" />
+          </g>
+        </svg>
+        <span className={styles.twinkle} style={{ top: '24%', left: '38%' }} />
+        <span className={styles.twinkle} style={{ top: '58%', left: '55%', animationDelay: '1.2s' }} />
+        <span className={styles.twinkle} style={{ top: '18%', left: '72%', animationDelay: '2.1s' }} />
+        <span className={styles.twinkle} style={{ top: '64%', left: '86%', animationDelay: '0.6s' }} />
+        <div className={styles.heroInner}>
+          <div className={styles.breadcrumb}>
+            <span>Home</span>
+            <span className={styles.bcSep}>·</span>
+            <span>Holidays</span>
+            <span className={styles.bcSep}>·</span>
+            <span className={styles.bcActive}>{destinationLabel || 'Results'}</span>
           </div>
-          <div className={styles.summaryRight}>
-            <select className={styles.sortSelect} value={sort} onChange={(e) => setSort(e.target.value)}>
-              {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
-            </select>
+          <h1 className={styles.heroTitle}>
+            {destinationLabel ? (
+              <>Stays in <em>{destinationLabel}</em></>
+            ) : (
+              'Find your perfect stay'
+            )}
+          </h1>
+          <div className={styles.heroChips}>
+            {heroChips.map((c) => (
+              <span key={c.text} className={styles.heroChip}>
+                <Icon d={c.icon} size={13} sw={1.8} />
+                {c.text}
+              </span>
+            ))}
+          </div>
+        </div>
+        <div className={styles.heroWave}>
+          <svg viewBox="0 0 1440 60" preserveAspectRatio="none">
+            <path d="M0,30 C240,60 480,0 720,20 C960,40 1200,10 1440,35 L1440,60 L0,60 Z" fill="currentColor" />
+          </svg>
+        </div>
+      </header>
+
+      {/* Toolbar */}
+      <div className={styles.toolbar}>
+        <div className={styles.toolbarInner}>
+          <div className={styles.resultCount}>
+            {loading ? (
+              <span className={styles.countSearching}>
+                <span className={styles.countPulse} />
+                Searching the best deals…
+              </span>
+            ) : (
+              <><strong>{hotels.length}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found</>
+            )}
+          </div>
+          <div className={styles.toolbarRight}>
+            <div className={styles.sortWrap}>
+              <span className={styles.sortLabel}>
+                <Icon d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4" size={14} sw={2} />
+                Sort
+              </span>
+              <select className={styles.sortSelect} value={sort} onChange={(e) => setSort(e.target.value)}>
+                {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+              </select>
+            </div>
             <button className={styles.mobileFilterBtn} onClick={() => setDrawerOpen(true)}>
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
               </svg>
               Filters
@@ -361,7 +442,13 @@ export default function Search() {
       {/* Main layout */}
       <div className={styles.main}>
         <aside className={styles.sidebar}>
-          <div className={styles.filterCard}>{sidebar}</div>
+          <div className={styles.filterCard}>
+            <div className={styles.filterCardHead}>
+              <Icon d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" size={15} sw={2} />
+              <h2>Filters</h2>
+            </div>
+            {sidebar}
+          </div>
         </aside>
 
         <section className={styles.results}>
@@ -376,43 +463,52 @@ export default function Search() {
                     <div className={`${styles.skeletonLine} ${styles.skW80}`} />
                     <div className={`${styles.skeletonLine} ${styles.skW30}`} />
                   </div>
+                  <div className={styles.skeletonRail}>
+                    <div className={`${styles.skeletonLine} ${styles.skRail1}`} />
+                    <div className={`${styles.skeletonLine} ${styles.skRail2}`} />
+                  </div>
                 </div>
               ))
             ) : !destCode ? (
               <div className={styles.noResults}>
-                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-                  <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
-                </svg>
+                <div className={styles.noResultsIcon}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+                  </svg>
+                </div>
                 <h3>Select a destination</h3>
                 <p>Use the search form to find available holidays.</p>
               </div>
             ) : hotels.length === 0 ? (
               <div className={styles.noResults}>
-                <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round">
-                  <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
-                </svg>
+                <div className={styles.noResultsIcon}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                    <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
+                  </svg>
+                </div>
                 <h3>No results found</h3>
                 <p>Try a different destination, dates, or adjust your filters.</p>
               </div>
             ) : (
               hotels.map((h, i) => (
-                <div key={h.id} className={styles.resultCard} style={{ animationDelay: `${i * 0.06}s` }}>
+                <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i, 8) * 0.07}s` }}>
                   {/* Image column */}
                   <div className={styles.rcImg}>
                     <img src={h.img} alt={h.name} loading="lazy" />
                     <div className={styles.rcImgOverlay} />
                     <div className={styles.rcBadge}>
-                      <Icon d="M13 10V3L4 14h7v7l9-11h-7z" size={12} sw={2} />
+                      <Icon d="M13 10V3L4 14h7v7l9-11h-7z" size={11} sw={2} />
                       {h.badge}
                     </div>
-                    <div
+                    <button
                       className={`${styles.rcHeart} ${liked[h.id] ? styles.rcHeartLiked : ''}`}
                       onClick={() => toggleLike(h.id)}
+                      aria-label="Save to favourites"
                     >
-                      <svg width="18" height="18" viewBox="0 0 24 24" fill={liked[h.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill={liked[h.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
                       </svg>
-                    </div>
+                    </button>
                     {h.classification === 'NRF' && (
                       <div className={styles.rcNrfChip}>Non-Refundable</div>
                     )}
@@ -420,19 +516,16 @@ export default function Search() {
 
                   {/* Content column */}
                   <div className={styles.rcContent}>
-                    <div className={styles.rcTop}>
-                      <div className={styles.rcTopLeft}>
-                        <h3 className={styles.rcName}>{h.name}</h3>
-                        {h.stars > 0 && (
-                          <div className={styles.rcStars}>
-                            {'★'.repeat(Math.min(h.stars, 5))}
-                          </div>
-                        )}
-                        <div className={styles.rcLocation}>
-                          <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z M12 13a3 3 0 100-6 3 3 0 000 6z" size={13} sw={1.6} />
-                          {h.loc}
-                        </div>
+                    {h.stars > 0 && (
+                      <div className={styles.rcStars}>
+                        {'★'.repeat(Math.min(h.stars, 5))}
+                        <span className={styles.rcStarLabel}>{Math.min(h.stars, 5)}-star hotel</span>
                       </div>
+                    )}
+                    <h3 className={styles.rcName}>{h.name}</h3>
+                    <div className={styles.rcLocation}>
+                      <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z M12 13a3 3 0 100-6 3 3 0 000 6z" size={13} sw={1.6} />
+                      {h.loc}
                     </div>
 
                     {h.boardTags.length > 0 && (
@@ -471,31 +564,40 @@ export default function Search() {
                         Transfer incl.
                       </span>
                     </div>
+                  </div>
 
-                    {/* Price + CTA */}
-                    <div className={styles.rcPriceBox}>
-                      <div className={styles.rcPriceInfo}>
-                        <div className={styles.rcPriceAmount}>
-                          <span className={styles.rcPriceCcy}>{h.currency}</span>
-                          {h.totalAmount?.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                        </div>
-                        <div className={styles.rcPriceMeta}>
-                          Total price
-                          {nights > 0 && (
-                            <> · <strong>{h.currency} {(h.totalAmount / nights).toFixed(2)}</strong>/night</>
-                          )}
-                        </div>
-                        {h.contractName && (
-                          <span className={styles.rcContractBadge}>{h.contractName}</span>
-                        )}
+                  {/* Price rail */}
+                  <div className={styles.rcPriceRail}>
+                    <div className={styles.rcPriceTop}>
+                      {h.contractName && (
+                        <span className={styles.rcContractBadge}>{h.contractName}</span>
+                      )}
+                    </div>
+                    <div className={styles.rcPriceInfo}>
+                      <span className={styles.rcPriceLabel}>
+                        Total{nights > 0 ? ` · ${nights} nights` : ''}
+                      </span>
+                      <div className={styles.rcPriceAmount}>
+                        <span className={styles.rcPriceCcy}>{h.currency}</span>
+                        {h.totalAmount?.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                       </div>
-                      <button className={styles.rcCta}>
+                      {nights > 0 && (
+                        <div className={styles.rcPriceMeta}>
+                          <strong>{h.currency} {(h.totalAmount / nights).toFixed(2)}</strong> / night
+                        </div>
+                      )}
+                      <button
+                        className={styles.rcCta}
+                        onClick={() => navigate(`/hotel/${h.hotelCode}`, {
+                          state: { hotel: h, nights, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut },
+                        })}
+                      >
                         View Deal
                         <Icon d="M5 12h14M12 5l7 7-7 7" size={14} sw={2.2} />
                       </button>
                     </div>
                   </div>
-                </div>
+                </article>
               ))
             )}
           </div>
