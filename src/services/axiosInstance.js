@@ -21,7 +21,7 @@ axiosInstance.interceptors.response.use(
   async (error) => {
     const original = error.config;
 
-    const isAuthEndpoint = original.url?.includes('/public/auth/');
+    const isAuthEndpoint = original.url?.includes('/website/auth/');
     if (error.response?.status === 401 && !original._retried && !isAuthEndpoint) {
       original._retried = true;
 
@@ -36,7 +36,7 @@ axiosInstance.interceptors.response.use(
       try {
         if (!refreshPromise) {
           refreshPromise = axios
-            .post(`${axiosInstance.defaults.baseURL}/public/auth/refresh`, { refreshToken })
+            .post(`${axiosInstance.defaults.baseURL}/website/auth/refresh`, { refreshToken })
             .finally(() => { refreshPromise = null; });
         }
 

@@ -1,5 +1,4 @@
-import { useEffect, useState } from 'react';
-import axiosInstance from '../../services/axiosInstance';
+import { useMyBookings } from '../../api';
 
 const fmt = (n) => `€${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
@@ -11,16 +10,8 @@ const STATUS_COLORS = {
 };
 
 export default function MyBookings() {
-  const [bookings, setBookings] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    axiosInstance.get('/public/bookings')
-      .then((res) => setBookings(res.data.data || []))
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load bookings'))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: bookings, loading, error } = useMyBookings();
+  const bookingList = bookings ?? [];
 
   if (loading) return <div style={s.center}>Loading your bookings…</div>;
   if (error)   return <div style={{ ...s.center, color: '#dc2626' }}>{error}</div>;
@@ -29,14 +20,14 @@ export default function MyBookings() {
     <div style={s.page}>
       <h2 style={s.heading}>My Bookings</h2>
 
-      {bookings.length === 0 ? (
+      {bookingList.length === 0 ? (
         <div style={s.empty}>
           <div style={s.emptyIcon}>✈️</div>
           <p style={s.emptyText}>You have no bookings yet.</p>
         </div>
       ) : (
         <div style={s.list}>
-          {bookings.map((b) => {
+          {bookingList.map((b) => {
             const statusStyle = STATUS_COLORS[b.bookingStatus] || STATUS_COLORS.Draft;
             const balance = parseFloat(b.balanceAmount || 0);
             return (

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import styles from './Hero.module.css';
-import axiosInstance from '../../../services/axiosInstance';
+import { useHomepageConfig, useCitySearch } from '../../../api';
 
 const POPULAR_DESTINATIONS = [
   { code: 'HRG', label: 'Hurghada, Egypt'    },
@@ -54,24 +54,21 @@ export default function Hero() {
   const { isAuthenticated } = useSelector((s) => s.auth);
   const navigate = useNavigate();
 
-  // CMS content — defaults are the current hardcoded values, replaced once API responds
-  const [cmsBadge, setCmsBadge]       = useState('Holidays at guaranteed best prices');
-  const [cmsTitle, setCmsTitle]       = useState('');
-  const [cmsSubtitle, setCmsSubtitle] = useState('Sun-soaked beaches, vibrant cities, and hidden gems — all at the best guaranteed prices.');
+  const { data: cmsConfig } = useHomepageConfig();
+
+  const [cmsBadge, setCmsBadge]         = useState('Holidays at guaranteed best prices');
+  const [cmsTitle, setCmsTitle]         = useState('');
+  const [cmsSubtitle, setCmsSubtitle]   = useState('Sun-soaked beaches, vibrant cities, and hidden gems — all at the best guaranteed prices.');
   const [cmsSearchBtn, setCmsSearchBtn] = useState('Search');
 
   useEffect(() => {
-    axiosInstance.get('/cms/layout/homepage-config')
-      .then((res) => {
-        const hero = res.data.data?.homepageConfig?.hero;
-        if (!hero) return;
-        if (hero.badgeText)        setCmsBadge(hero.badgeText);
-        if (hero.title)            setCmsTitle(hero.title);
-        if (hero.subtitle)         setCmsSubtitle(hero.subtitle);
-        if (hero.searchButtonText) setCmsSearchBtn(hero.searchButtonText);
-      })
-      .catch(() => {});
-  }, []);
+    const hero = cmsConfig?.hero;
+    if (!hero) return;
+    if (hero.badgeText)        setCmsBadge(hero.badgeText);
+    if (hero.title)            setCmsTitle(hero.title);
+    if (hero.subtitle)         setCmsSubtitle(hero.subtitle);
+    if (hero.searchButtonText) setCmsSearchBtn(hero.searchButtonText);
+  }, [cmsConfig]);
 
   const [searchMode, setSearchMode] = useState('package');
   const [destination, setDestination] = useState('');
@@ -98,24 +95,14 @@ export default function Hero() {
   const [multiTo, setMultiTo] = useState('');
   const [multiDate, setMultiDate] = useState('');
 
-  const [destSearch, setDestSearch]   = useState('');
-  const [destResults, setDestResults] = useState([]);
-  const [destLoading, setDestLoading] = useState(false);
+  const [destSearch, setDestSearch] = useState('');
+  const { execute: searchCities, data: destResultsData, loading: destLoading, reset: resetCities } = useCitySearch();
+  const destResults = destResultsData ?? [];
   const destInputRef = useRef(null);
 
   useEffect(() => {
-    if (!destSearch.trim()) { setDestResults([]); return; }
-    setDestLoading(true);
-    const timer = setTimeout(async () => {
-      try {
-        const res = await axiosInstance.get(`/geo/cities?search=${encodeURIComponent(destSearch)}&active=true&limit=8`);
-        setDestResults(res.data.data || []);
-      } catch {
-        setDestResults([]);
-      } finally {
-        setDestLoading(false);
-      }
-    }, 300);
+    if (!destSearch.trim()) { resetCities(); return; }
+    const timer = setTimeout(() => searchCities(destSearch), 300);
     return () => clearTimeout(timer);
   }, [destSearch]);
 
@@ -125,7 +112,7 @@ export default function Hero() {
       setTimeout(() => destInputRef.current?.focus(), 50);
     } else {
       setDestSearch('');
-      setDestResults([]);
+      resetCities();
       // keep destinationCode if user already selected one
     }
   }, [openField]);
