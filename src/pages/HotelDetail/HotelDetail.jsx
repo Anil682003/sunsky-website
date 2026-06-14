@@ -1,6 +1,22 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
+import axiosInstance from '../../services/axiosInstance';
 import './HotelDetail.css';
+
+const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
+const DEFAULT_ORIGIN = 'BRU'; // departure airport used for the live flight search
+const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
+const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+const calDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WK[d.getDay()]; };
+const calDate = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? iso : `${d.getDate()} ${MO[d.getMonth()]}`; };
+const addDaysISO = (iso, n) => { const d = new Date(iso + 'T00:00:00'); if (isNaN(d.getTime())) return iso; d.setDate(d.getDate() + n); return d.toISOString().split('T')[0]; };
+const fmtTime = (s) => {
+  if (!s) return '';
+  const d = new Date(s);
+  if (!isNaN(d.getTime())) return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
+  const m = String(s).match(/(\d{1,2}):(\d{2})/);
+  return m ? `${m[1].padStart(2, '0')}:${m[2]}` : String(s);
+};
 
 /* ── tiny SVG helper ── */
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -169,6 +185,7 @@ export default function HotelDetail() {
   const { state } = useLocation();
   const navigate = useNavigate();
   const hotel = state?.hotel || null;
+  const info  = state?.info || null;            // full bulk record (images, description, facilities)
   const pageRef = useRef(null);
 
   // Header / booking facts pulled from the clicked result, with demo fallbacks
@@ -179,7 +196,21 @@ export default function HotelDetail() {
   const ccy = currency === 'EUR' ? '€' : currency;
   const nights = state?.nights || 7;
   const ppPrice = hotel?.totalAmount ? Math.round(hotel.totalAmount / 2) : 765;
-  const images = [hotel?.img || GALLERY[0], ...GALLERY.slice(1)];
+
+  // real photos from the bulk hotel record (fallback to demo gallery)
+  const realImages = Array.isArray(info?.images) && info.images.length
+    ? [...info.images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999)).map((im) => im.url).filter(Boolean)
+    : null;
+  const images = realImages && realImages.length ? realImages.slice(0, 30) : [hotel?.img || GALLERY[0], ...GALLERY.slice(1)];
+  const photoCount = realImages?.length || 48;
+
+  // search context (for the live calendar + availability calls)
+  const destination  = state?.destination || '';
+  const baseCheckIn  = state?.checkIn || '';
+  const baseCheckOut = state?.checkOut || '';
+  const sAdults   = String(state?.adults ?? '2');
+  const sChildren = String(state?.children ?? '0');
+  const sRooms    = String(state?.rooms ?? '1');
 
   const [activeTab, setActiveTab] = useState('Prices');
   const [saved, setSaved] = useState(false);
@@ -196,6 +227,12 @@ export default function HotelDetail() {
   // selected room index per stay; meal index per `${stay}-${room}`
   const [selectedRoom, setSelectedRoom] = useState({ 1: 0, 2: 0 });
   const [selectedMeal, setSelectedMeal] = useState({ '1-0': 1, '2-0': 1 });
+
+  // live data: 7-day calendar + per-day availability
+  const [calData, setCalData]       = useState(null);   // [{date, price, currency, isLowest}]
+  const [calLoading, setCalLoading] = useState(false);
+  const [liveRooms, setLiveRooms]   = useState(null);   // {loading?|error?|rooms[]|cheapest}
+  const [liveFlights, setLiveFlights] = useState(null); // {loading?|error?|flights[]|cheapest}
 
   // scroll-reveal
   useEffect(() => {
@@ -242,7 +279,70 @@ export default function HotelDetail() {
   const toggleExpand = (id) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
   const toggleSidebar = (key) => setSidebarChecked((p) => ({ ...p, [key]: !p[key] }));
 
-  const pd = selectedPrice != null ? PRICE_DAYS[selectedPrice] : null;
+  // ── 7-day price calendar ──
+  useEffect(() => {
+    if (!hotelCode || !destination || !baseCheckIn || !baseCheckOut) { setCalData(null); return; }
+    setCalLoading(true);
+    const roomsN = Math.max(1, parseInt(sRooms, 10) || 1);
+    const qs = new URLSearchParams({
+      hotelCode: String(hotelCode), destination, checkIn: baseCheckIn, checkOut: baseCheckOut,
+      adults: sAdults, children: sChildren, rooms: String(roomsN), source: 'combined',
+      maxAdultsPerRoom: String(Math.ceil((parseInt(sAdults, 10) || 1) / roomsN)),
+      maxChildrenPerRoom: String(Math.ceil((parseInt(sChildren, 10) || 0) / roomsN)),
+    });
+    let cancelled = false;
+    fetch(`${CONTRACTS_API}/contracts/hotel-price-calendar?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled) setCalData(Array.isArray(j?.calendar) ? j.calendar : []); })
+      .catch(() => { if (!cancelled) setCalData([]); })
+      .finally(() => { if (!cancelled) setCalLoading(false); });
+    return () => { cancelled = true; };
+  }, [hotelCode, destination, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms]);
+
+  // calendar drives the price boxes; fall back to the demo set when no live data
+  const usingLive = Array.isArray(calData) && calData.length > 0;
+  const priceDays = usingLive
+    ? calData.map((c) => ({ iso: c.date, day: calDay(c.date), date: calDate(c.date), price: Math.round(c.price), currency: c.currency || 'EUR', lowest: !!c.isLowest, nights }))
+    : PRICE_DAYS;
+  const pMin = priceDays.length ? Math.min(...priceDays.map((p) => p.price)) : 0;
+  const pMax = priceDays.length ? Math.max(...priceDays.map((p) => p.price)) : 1;
+  const pd = selectedPrice != null ? priceDays[selectedPrice] : null;
+
+  // ── select a day → fetch live hotel + flight availability ──
+  const selectDay = (i) => {
+    setSelectedPrice(i);
+    const day = priceDays[i];
+    if (!usingLive || !day?.iso || !hotelCode || !destination) { setLiveRooms(null); setLiveFlights(null); return; }
+    const checkin = day.iso;
+    const checkout = addDaysISO(day.iso, nights);
+
+    setLiveRooms({ loading: true });
+    axiosInstance.post('/hotel-availability/search', {
+      hotelCode: String(hotelCode), checkin, checkout, adults: Number(sAdults) || 2, children: Number(sChildren) || 0,
+    }).then(({ data }) => {
+      const hb = data?.results?.hotelbeds, dn = data?.results?.diana;
+      const rooms = [
+        ...((hb?.rooms) || []).map((r) => ({ ...r, supplier: 'Hotelbeds' })),
+        ...((dn?.rooms) || []).map((r) => ({ ...r, supplier: 'Diana' })),
+      ].map((r) => ({
+        name: r.roomName || 'Room', board: r.boardName || r.boardCode || '',
+        price: r.net ?? r.price ?? null, currency: r.currency || 'EUR', supplier: r.supplier,
+        refundable: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies.length === 0 : undefined,
+      })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
+      setLiveRooms({ rooms, cheapest: data?.results?.cheapest || null });
+    }).catch((e) => setLiveRooms({ error: e?.response?.data?.message || e?.message || 'Could not load live room prices' }));
+
+    setLiveFlights({ loading: true });
+    axiosInstance.post('/flight-availability/search', {
+      from: DEFAULT_ORIGIN, to: destination, depdate: checkin, retdate: checkout,
+      adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
+    }).then(({ data }) => {
+      const flights = (data?.results?.airtuerk?.flights || []).map((f) => ({
+        totalPrice: f.totalPrice, currency: f.currency || 'EUR', legs: f.legs || [], stops: f.stops,
+      }));
+      setLiveFlights({ flights, cheapest: data?.results?.cheapest || null });
+    }).catch((e) => setLiveFlights({ error: e?.response?.data?.message || e?.message || 'Could not load live flights' }));
+  };
 
   const goReviews = () => {
     setActiveTab('Reviews');
@@ -332,14 +432,14 @@ export default function HotelDetail() {
                 <img src={images[0]} alt={hotelName} fetchPriority="high" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
               </div>
-              {GALLERY.slice(1).map((src, i) => (
+              {images.slice(1, 5).map((src, i) => (
                 <div className="gi" key={i} onClick={() => setLightbox(i + 1)}>
                   <img src={src} alt={`${hotelName} ${i + 2}`} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                  {i === 1 && <span className="gi-more">+45</span>}
+                  {i === 3 && photoCount > 5 && <span className="gi-more">+{photoCount - 5}</span>}
                   <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
                 </div>
               ))}
-              <button className="ga" onClick={() => setLightbox(0)}>{ICON.gallery} View all 48 photos</button>
+              <button className="ga" onClick={() => setLightbox(0)}>{ICON.gallery} View all {photoCount} photos</button>
             </div>
           </div>
         </div>
@@ -385,60 +485,131 @@ export default function HotelDetail() {
                 </div>
               </div>
 
-              <div className="price-boxes">
-                {PRICE_DAYS.map((p, i) => (
-                  <div key={i}
-                    className={`price-box${p.lowest ? ' lowest' : ''}${selectedPrice === i ? ' selected' : ''}`}
-                    onClick={() => setSelectedPrice(i)}>
-                    <div className="pb-day">{p.day.substring(0, 3)}</div>
-                    <div className="pb-date">{p.date}</div>
-                    <div className="pb-from">from</div>
-                    <div className="pb-price">€{p.price}</div>
-                    <div className="pb-nights">{p.nights} days</div>
-                    <div className="pb-bar"><span style={{ height: `${Math.round(35 + 65 * ((p.price - PRICE_MIN) / ((PRICE_MAX - PRICE_MIN) || 1)))}%` }} /></div>
-                  </div>
-                ))}
-              </div>
+              {calLoading && !usingLive ? (
+                <div className="price-boxes">
+                  {[0, 1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="price-box pb-skel" />)}
+                </div>
+              ) : (
+                <div className="price-boxes">
+                  {priceDays.map((p, i) => (
+                    <div key={p.iso || i}
+                      className={`price-box${p.lowest ? ' lowest' : ''}${selectedPrice === i ? ' selected' : ''}`}
+                      onClick={() => selectDay(i)}>
+                      <div className="pb-day">{(p.day || '').substring(0, 3)}</div>
+                      <div className="pb-date">{p.date}</div>
+                      <div className="pb-from">from</div>
+                      <div className="pb-price">€{p.price}</div>
+                      <div className="pb-nights">{p.nights} {p.nights === 1 ? 'night' : 'nights'}</div>
+                      <div className="pb-bar"><span style={{ height: `${Math.round(35 + 65 * ((p.price - pMin) / ((pMax - pMin) || 1)))}%` }} /></div>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               <div className={`avail-banner${pd ? ' show' : ''}`}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 <div>
                   <div className="avail-text">Your holiday is available!</div>
-                  <div className="avail-sub">{pd && `Best deal from Weeze — ${pd.day} ${pd.date} (${pd.nights} days)`}</div>
+                  <div className="avail-sub">{pd && `Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}</div>
                 </div>
                 <div className="avail-price">
-                  <div className="avail-price-label">price p.p.</div>
-                  <div className="avail-price-old">{pd && `€ ${pd.orig}`}</div>
+                  <div className="avail-price-label">from</div>
+                  {pd?.orig ? <div className="avail-price-old">€ {pd.orig}</div> : null}
                   <div className="avail-price-val"><small>€</small>{pd?.price}</div>
-                  <div className="avail-you-low">You have the lowest price</div>
+                  <div className="avail-you-low">{pd?.lowest ? 'Lowest price for these dates' : 'Live price'}</div>
                 </div>
               </div>
 
               {/* Flights */}
               <div className="flight-section reveal">
                 <div className="section-title"><span className="st-step">2</span> Your flights</div>
-                <div className="flight-note">We have selected the cheapest flight for you:</div>
-                {FLIGHTS.map((f, i) => (
-                  <FlightCard key={i} f={f} selected={selectedFlight === i} onSelect={() => setSelectedFlight(i)} />
-                ))}
-                <button className="show-more-flights" onClick={() => setModalOpen(true)}>{ICON.plane} Show more flights</button>
-                <div className="alt-airports">
-                  <div className="alt-airports-label">Or flying from another airport?</div>
-                  <div className="alt-airport-chips">
-                    {ALT_AIRPORTS.map((a) => (
-                      <div className="alt-chip" key={a.name}>
-                        <div className="alt-chip-name">{a.name}</div>
-                        <div className="alt-chip-price">{a.extra}</div>
-                      </div>
+                {liveFlights ? (
+                  liveFlights.loading ? (
+                    <div className="live-loading"><span className="live-spin" /> Checking live flight prices…</div>
+                  ) : liveFlights.error ? (
+                    <div className="live-error">{ICON.warn} {liveFlights.error}</div>
+                  ) : liveFlights.flights?.length ? (
+                    <>
+                      <div className="flight-note">Live fares from {DEFAULT_ORIGIN} for your selected dates:</div>
+                      {liveFlights.flights.slice(0, 6).map((f, i) => (
+                        <div key={i} className={`flight-card${selectedFlight === i ? ' selected' : ''}`}>
+                          <div className="live-legs">
+                            {f.legs.map((leg, li) => (
+                              <div key={li} className="live-leg">
+                                <span className="live-leg-air">{leg.airline} {leg.flightNumber}</span>
+                                <span className="live-leg-route">{leg.from} → {leg.to}</span>
+                                <span className="live-leg-time">{fmtTime(leg.departure)} – {fmtTime(leg.arrival)}</span>
+                                {leg.duration ? <span className="live-leg-dur">{leg.duration}</span> : null}
+                              </div>
+                            ))}
+                          </div>
+                          <div className="flight-bottom">
+                            <span className="flight-incl">{ICON.check} {f.stops === 0 ? 'Direct' : `${f.stops} stop${f.stops > 1 ? 's' : ''}`}</span>
+                            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
+                              <b className="live-price">€{Math.round(f.totalPrice)}</b>
+                              {selectedFlight === i
+                                ? <span className="flight-selected-badge">{ICON.check} Selected</span>
+                                : <button className="flight-select-btn" onClick={() => setSelectedFlight(i)}>Select</button>}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </>
+                  ) : (
+                    <div className="live-empty">{ICON.plane} No live flights found for these dates.</div>
+                  )
+                ) : (
+                  <>
+                    <div className="flight-note">We have selected the cheapest flight for you:</div>
+                    {FLIGHTS.map((f, i) => (
+                      <FlightCard key={i} f={f} selected={selectedFlight === i} onSelect={() => setSelectedFlight(i)} />
                     ))}
-                  </div>
-                </div>
+                    <button className="show-more-flights" onClick={() => setModalOpen(true)}>{ICON.plane} Show more flights</button>
+                    <div className="alt-airports">
+                      <div className="alt-airports-label">Or flying from another airport?</div>
+                      <div className="alt-airport-chips">
+                        {ALT_AIRPORTS.map((a) => (
+                          <div className="alt-chip" key={a.name}>
+                            <div className="alt-chip-name">{a.name}</div>
+                            <div className="alt-chip-price">{a.extra}</div>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* Rooms */}
               <div className="room-section reveal">
                 <div className="section-title"><span className="st-step">3</span> Choose your room</div>
-                {STAYS.map((stay) => (
+                {liveRooms ? (
+                  liveRooms.loading ? (
+                    <div className="live-loading"><span className="live-spin" /> Checking live room availability…</div>
+                  ) : liveRooms.error ? (
+                    <div className="live-error">{ICON.warn} {liveRooms.error}</div>
+                  ) : liveRooms.rooms?.length ? (
+                    <div className="stay-block">
+                      <div className="stay-header"><div className="stay-icon">{ICON.bed}</div><div className="stay-title">Available rooms <span className="stay-guests">(live prices)</span></div></div>
+                      {liveRooms.rooms.slice(0, 8).map((rm, ri) => {
+                        const isSel = selectedRoom.live === ri;
+                        return (
+                          <div key={ri} className={`room-option${isSel ? ' selected' : ''}`} onClick={() => setSelectedRoom((p) => ({ ...p, live: ri }))}>
+                            <div className="room-radio" />
+                            <div className="room-info">
+                              <div className="room-name">{rm.name}</div>
+                              <div className="room-cap">{[rm.board, rm.supplier, rm.refundable === true ? 'Refundable' : null].filter(Boolean).join(' · ')}</div>
+                            </div>
+                            <div className="room-price">€{Math.round(rm.price)}</div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  ) : (
+                    <div className="live-empty">{ICON.bed} No live rooms found for these dates.</div>
+                  )
+                ) : (
+                  STAYS.map((stay) => (
                   <div className="stay-block" key={stay.stayNum}>
                     <div className="stay-header">
                       <div className="stay-icon">{ICON.bed}</div>
@@ -487,7 +658,8 @@ export default function HotelDetail() {
                       );
                     })}
                   </div>
-                ))}
+                  ))
+                )}
               </div>
 
               {/* Overview */}

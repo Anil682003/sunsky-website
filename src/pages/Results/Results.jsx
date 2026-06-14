@@ -1,8 +1,15 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import styles from './Results.module.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
+const PAGE_SIZE = 20;
+
+const bestImg = (images, fallback) => {
+  if (!Array.isArray(images) || images.length === 0) return fallback;
+  const sorted = [...images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+  return sorted[0]?.url || fallback;
+};
 
 const BOARD_LABELS = {
   AI: 'All Inclusive', TI: 'All Inclusive+', FB: 'Full Board',
@@ -103,6 +110,13 @@ export default function Results() {
   const [maxPriceAvail,  setMaxPriceAvail]  = useState(5000);
   const [priceMaxFilter, setPriceMaxFilter] = useState(999999);
 
+  // infinite scroll + lazy hotel-info paging
+  const [infoMap, setInfoMap]         = useState({});
+  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const infoLoadingRef = useRef(new Set());
+  const sentinelRef    = useRef(null);
+
   // Fetch from contracts API
   useEffect(() => {
     if (!destCode) {
@@ -149,50 +163,28 @@ export default function Results() {
         }
 
         const contracts  = [...hotelMap.values()];
-        const hotelCodes = contracts.map((c) => c.hotelCode);
 
-        // Fetch real hotel names, images, stars in bulk
-        let infoMap = {};
-        try {
-          const infoRes = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
-            method:  'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body:    JSON.stringify({ hotelCodes }),
-          });
-          if (infoRes.ok) {
-            const infoData = await infoRes.json();
-            for (const info of (infoData?.data ?? [])) {
-              infoMap[String(info.hotelCode)] = info;
-            }
-          }
-        } catch (e) {
-          console.warn('[Results] Hotel bulk info failed:', e);
-        }
-
-        const mapped = contracts.map((c, i) => {
-          const info    = infoMap[String(c.hotelCode)];
-          const images  = (info?.images ?? []).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-          const imgUrl  = images[0]?.url || FALLBACK_IMG;
-          return {
-            id:           c.hotelCode,
-            hotelCode:    c.hotelCode,
-            name:         info?.name ?? c.hotelName ?? `Hotel ${c.hotelCode}`,
-            stars:        info?.stars ?? null,
-            board:        getBoardLabel(c.board),
-            boardCode:    c.board,
-            boardTags:    getBoardTags(c.board),
-            roomType:     c.roomType,
-            characteristic: c.characteristic,
-            classification: c.classification,
-            contractName: c.contractName,
-            totalAmount:  c.totalAmount,
-            currency:     c.currency,
-            nightlyBreakdown: c.nightlyBreakdown || [],
-            badge:        BADGES[i % BADGES.length],
-            img:          imgUrl,
-            loc:          destinationLabel,
-          };
-        });
+        // Base list from contracts only — real names/images/stars are loaded
+        // lazily, 20 at a time, as the user scrolls (see info-paging effect).
+        const mapped = contracts.map((c, i) => ({
+          id:           c.hotelCode,
+          hotelCode:    c.hotelCode,
+          name:         c.hotelName ?? `Hotel ${c.hotelCode}`,
+          stars:        null,
+          board:        getBoardLabel(c.board),
+          boardCode:    c.board,
+          boardTags:    getBoardTags(c.board),
+          roomType:     c.roomType,
+          characteristic: c.characteristic,
+          classification: c.classification,
+          contractName: c.contractName,
+          totalAmount:  c.totalAmount,
+          currency:     c.currency,
+          nightlyBreakdown: c.nightlyBreakdown || [],
+          badge:        BADGES[i % BADGES.length],
+          img:          FALLBACK_IMG,
+          loc:          destinationLabel,
+        }));
 
         // Compute price range for slider
         if (mapped.length > 0) {
@@ -202,6 +194,9 @@ export default function Results() {
           setPriceMaxFilter(rounded);
         }
 
+        setInfoMap({});
+        infoLoadingRef.current = new Set();
+        setVisibleCount(PAGE_SIZE);
         setAllHotels(mapped);
         setLoading(false);
       })
@@ -232,6 +227,70 @@ export default function Results() {
 
     setHotels(data);
   }, [allHotels, boardFilter, classFilter, priceMaxFilter, sort]);
+
+  // Reset the visible window whenever the filtered set changes
+  useEffect(() => {
+    setVisibleCount(PAGE_SIZE);
+  }, [boardFilter, classFilter, priceMaxFilter, sort, allHotels]);
+
+  // Lazily load real hotel info (name/images/stars) for the visible slice, in pages
+  useEffect(() => {
+    const slice = hotels.slice(0, visibleCount);
+    const need = slice
+      .map((h) => String(h.hotelCode))
+      .filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code));
+    if (need.length === 0) return;
+
+    need.forEach((c) => infoLoadingRef.current.add(c));
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
+          method:  'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body:    JSON.stringify({ hotelCodes: need }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          const add = {};
+          for (const info of (data?.data ?? [])) add[String(info.hotelCode)] = info;
+          if (!cancelled && Object.keys(add).length) setInfoMap((prev) => ({ ...prev, ...add }));
+        }
+      } catch (e) {
+        console.warn('[Results] Hotel info page failed:', e);
+      } finally {
+        need.forEach((c) => infoLoadingRef.current.delete(c));
+      }
+    })();
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotels, visibleCount]);
+
+  // Infinite scroll — reveal the next page as the sentinel nears the viewport
+  useEffect(() => {
+    if (loading || loadingMore || visibleCount >= hotels.length) return;
+    const nearBottom = () => {
+      const el = sentinelRef.current;
+      if (el) return el.getBoundingClientRect().top <= window.innerHeight + 320;
+      const doc = document.documentElement;
+      return doc.scrollHeight - (window.scrollY + window.innerHeight) < 600;
+    };
+    const maybeLoad = () => {
+      if (!nearBottom()) return;
+      setLoadingMore(true);
+      setTimeout(() => {
+        setVisibleCount((v) => Math.min(v + PAGE_SIZE, hotels.length));
+        setLoadingMore(false);
+      }, 450);
+    };
+    window.addEventListener('scroll', maybeLoad, { passive: true });
+    window.addEventListener('resize', maybeLoad);
+    maybeLoad(); // in case the first page already fits without scrolling
+    return () => {
+      window.removeEventListener('scroll', maybeLoad);
+      window.removeEventListener('resize', maybeLoad);
+    };
+  }, [visibleCount, hotels.length, loading, loadingMore]);
 
   const toggleLike  = (id) => setLiked((prev) => ({ ...prev, [id]: !prev[id] }));
   const toggleBoard = (b)  => setBoardFilter((prev) => prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]);
@@ -490,11 +549,19 @@ export default function Results() {
                 <p>Try a different destination, dates, or adjust your filters.</p>
               </div>
             ) : (
-              hotels.map((h, i) => (
-                <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i, 8) * 0.07}s` }}>
+              hotels.slice(0, visibleCount).map((h, i) => {
+                const info      = infoMap[String(h.hotelCode)];
+                const dispName  = info?.name?.trim() || h.name;
+                const dispStars = info?.stars ?? h.stars;
+                const dispImg   = info ? bestImg(info.images, FALLBACK_IMG) : h.img;
+                const infoReady = !!info;
+                return (
+                <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
                   {/* Image column */}
                   <div className={styles.rcImg}>
-                    <img src={h.img} alt={h.name} loading="lazy" />
+                    {infoReady
+                      ? <img src={dispImg} alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
+                      : <div className={styles.rcImgSkel} />}
                     <div className={styles.rcImgOverlay} />
                     <div className={styles.rcBadge}>
                       <Icon d="M13 10V3L4 14h7v7l9-11h-7z" size={11} sw={2} />
@@ -516,13 +583,15 @@ export default function Results() {
 
                   {/* Content column */}
                   <div className={styles.rcContent}>
-                    {h.stars > 0 && (
+                    {dispStars > 0 && (
                       <div className={styles.rcStars}>
-                        {'★'.repeat(Math.min(h.stars, 5))}
-                        <span className={styles.rcStarLabel}>{Math.min(h.stars, 5)}-star hotel</span>
+                        {'★'.repeat(Math.min(dispStars, 5))}
+                        <span className={styles.rcStarLabel}>{Math.min(dispStars, 5)}-star hotel</span>
                       </div>
                     )}
-                    <h3 className={styles.rcName}>{h.name}</h3>
+                    {infoReady
+                      ? <h3 className={styles.rcName}>{dispName}</h3>
+                      : <div className={`${styles.rcNameSkel} ${styles.skeletonLine}`} />}
                     <div className={styles.rcLocation}>
                       <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z M12 13a3 3 0 100-6 3 3 0 000 6z" size={13} sw={1.6} />
                       {h.loc}
@@ -589,7 +658,17 @@ export default function Results() {
                       <button
                         className={styles.rcCta}
                         onClick={() => navigate(`/hotel/${h.hotelCode}`, {
-                          state: { hotel: h, nights, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut },
+                          state: {
+                            hotel: { ...h, name: dispName, stars: dispStars, img: dispImg },
+                            info,
+                            destination: destCode,
+                            nights,
+                            checkIn: fetchParams.checkIn,
+                            checkOut: fetchParams.checkOut,
+                            adults: fetchParams.adults,
+                            children: fetchParams.children,
+                            rooms: fetchParams.rooms,
+                          },
                         })}
                       >
                         View Deal
@@ -598,7 +677,16 @@ export default function Results() {
                     </div>
                   </div>
                 </article>
-              ))
+                );
+              })
+            )}
+
+            {/* Infinite-scroll sentinel + activity indicator */}
+            {!loading && hotels.length > 0 && visibleCount < hotels.length && (
+              <div ref={sentinelRef} className={styles.loadMore}>
+                <span className={styles.loadMoreSpin} />
+                Loading more stays…
+              </div>
             )}
           </div>
         </section>
