@@ -74,6 +74,8 @@ export default function Results() {
   const initCheckOut = params.get('checkOut') || defaultCheckOut;
   const initAdults   = params.get('adults')   || '2';
   const initChildren = params.get('children') || '0';
+  const initRooms    = params.get('rooms')    || '1';
+  const childAges    = params.get('childAges') || '';
 
   // Sidebar draft state (not yet fetched)
   const [localCheckIn,  setLocalCheckIn]  = useState(initCheckIn);
@@ -84,7 +86,7 @@ export default function Results() {
   // Committed params that drive the API fetch
   const [fetchParams, setFetchParams] = useState({
     checkIn: initCheckIn, checkOut: initCheckOut,
-    adults: initAdults, children: initChildren,
+    adults: initAdults, children: initChildren, rooms: initRooms,
   });
 
   const [sort, setSort]               = useState('Price: Low to High');
@@ -112,18 +114,20 @@ export default function Results() {
 
     setLoading(true);
 
+    const roomsN = Math.max(1, parseInt(fetchParams.rooms, 10) || 1);
     const qs = new URLSearchParams({
       destination:        destCode,
       checkIn:            fetchParams.checkIn,
       checkOut:           fetchParams.checkOut,
       adults:             fetchParams.adults,
       children:           fetchParams.children,
-      rooms:              '1',
+      rooms:              String(roomsN),
       limit:              '50',
       source:             'combined',
-      maxAdultsPerRoom:   fetchParams.adults,
-      maxChildrenPerRoom: fetchParams.children,
+      maxAdultsPerRoom:   String(Math.ceil((parseInt(fetchParams.adults, 10) || 1) / roomsN)),
+      maxChildrenPerRoom: String(Math.ceil((parseInt(fetchParams.children, 10) || 0) / roomsN)),
     });
+    if (childAges) qs.set('childAges', childAges);
 
     const fullUrl = `${CONTRACTS_API}/contracts/cheapest?${qs.toString()}`;
     console.log('[Results] Calling contracts API:', fullUrl);
@@ -234,12 +238,13 @@ export default function Results() {
   const toggleClass = (c)  => setClassFilter((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
 
   const applySearch = () => {
-    setFetchParams({
+    setFetchParams((prev) => ({
+      ...prev,
       checkIn:  localCheckIn,
       checkOut: localCheckOut,
       adults:   String(localAdults),
       children: String(localChildren),
-    });
+    }));
   };
 
   const guestSummary = `${fetchParams.adults} Adult${fetchParams.adults !== '1' ? 's' : ''}${fetchParams.children !== '0' ? `, ${fetchParams.children} Child${fetchParams.children !== '1' ? 'ren' : ''}` : ''}`;

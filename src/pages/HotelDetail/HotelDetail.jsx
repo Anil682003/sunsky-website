@@ -638,7 +638,7 @@ export default function HotelDetail() {
                 <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nights} nights</div>
               </div>
               <div className="bkcw">
-                <button className="bkc" onClick={goCheckout}>Check price {ICON.arrow}</button>
+                <button className="bkc" onClick={goCheckout}>Book Now {ICON.arrow}</button>
                 <div className="bkc-note">{ICON.check} Free cancellation · {ICON.check} Instant confirmation</div>
               </div>
             </div>
