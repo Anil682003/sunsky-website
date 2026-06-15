@@ -1,35 +1,25 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { useDispatch } from 'react-redux';
 import styles from './Login.module.css';
-import axiosInstance from '../../services/axiosInstance';
-import { loginSuccess } from '../../store/slices/authSlice';
+import { useLogin } from '../../api';
 import { useToast } from '../../context/ToastContext';
 
 export default function Login() {
   const navigate = useNavigate();
-  const dispatch = useDispatch();
   const { showToast } = useToast();
+  const { execute: login, loading } = useLogin();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(false);
   const [focused, setFocused] = useState('');
-  const [loading, setLoading] = useState(false);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setLoading(true);
     try {
-      const res = await axiosInstance.post('/public/auth/login', { email, password, rememberMe: remember });
-      const { accessToken, refreshToken, user } = res.data.data;
-      if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
-      dispatch(loginSuccess({ user, accessToken }));
-      navigate('/account/bookings');
+      await login({ email, password, rememberMe: remember });
     } catch (err) {
       showToast(err.response?.data?.message || 'Login failed. Please try again.', 'error');
-    } finally {
-      setLoading(false);
     }
   };
 

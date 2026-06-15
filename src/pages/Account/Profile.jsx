@@ -1,7 +1,4 @@
-import { useEffect, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import axiosInstance from '../../services/axiosInstance';
-import { updateUser } from '../../store/slices/authSlice';
+import { useMe } from '../../api';
 
 const Field = ({ label, value }) => (
   <div style={s.field}>
@@ -11,20 +8,7 @@ const Field = ({ label, value }) => (
 );
 
 export default function Profile() {
-  const dispatch = useDispatch();
-  const [profile, setProfile] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  useEffect(() => {
-    axiosInstance.get('/public/auth/me')
-      .then((res) => {
-        setProfile(res.data.data);
-        dispatch(updateUser({ name: res.data.data.name, email: res.data.data.email }));
-      })
-      .catch((err) => setError(err.response?.data?.message || 'Failed to load profile'))
-      .finally(() => setLoading(false));
-  }, []);
+  const { data: profile, loading, error } = useMe();
 
   if (loading) return <div style={s.center}>Loading profile…</div>;
   if (error)   return <div style={{ ...s.center, color: '#dc2626' }}>{error}</div>;
