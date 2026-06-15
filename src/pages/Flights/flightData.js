@@ -178,6 +178,73 @@ export function generateFlights(ctx) {
   return list;
 }
 
+/* Map a raw Airtürk flight (from /flight-availability/search) to the card shape
+   used across the flight results + detail screens. Defensive about datetime
+   formats and roundtrip leg splitting. */
+export function mapAirtuerkFlight(af, ctx, idx) {
+  const segs = Array.isArray(af?.legs) ? af.legs.filter(Boolean) : [];
+  if (!segs.length) return null;
+  const toCode = (ctx.to.code || '').toUpperCase();
+  const colorFor = (code) => AIRLINES.find((a) => a.code === code)?.color || '#1f4fd8';
+  const nameFor  = (code) => AIRLINES.find((a) => a.code === code)?.name || code || 'Airline';
+  const timeOf = (s) => { const d = new Date(s); if (!isNaN(d.getTime())) return `${pad(d.getHours())}:${pad(d.getMinutes())}`; const m = String(s).match(/(\d{1,2}):(\d{2})/); return m ? `${pad(Number(m[1]))}:${m[2]}` : '--:--'; };
+  const dayOf  = (s) => { const d = new Date(s); return isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 86400000); };
+  const durBetween = (a, b) => { const da = new Date(a), db = new Date(b); if (isNaN(da.getTime()) || isNaN(db.getTime())) return null; const mins = Math.round((db - da) / 60000); return mins > 0 ? mins : null; };
+
+  let outSegs = segs, retSegs = [];
+  if (ctx.tripType === 'roundtrip' && segs.length > 1) {
+    let splitIdx = segs.findIndex((s) => (s.to || '').toUpperCase() === toCode);
+    if (splitIdx < 0 || splitIdx >= segs.length - 1) splitIdx = Math.floor(segs.length / 2) - 1;
+    outSegs = segs.slice(0, splitIdx + 1);
+    retSegs = segs.slice(splitIdx + 1);
+  }
+
+  const buildLeg = (ls, depDateISO, fromFb, toFb) => {
+    if (!ls.length) return null;
+    const a = ls[0], b = ls[ls.length - 1];
+    const depDay = dayOf(a.departure), arrDay = dayOf(b.arrival);
+    const dayOffset = (depDay != null && arrDay != null) ? Math.max(0, arrDay - depDay) : 0;
+    let durMin = durBetween(a.departure, b.arrival);
+    if (durMin == null) durMin = ls.reduce((s, x) => s + (Number(x.duration) || 0), 0) || null;
+    const stops = ls.length - 1;
+    return {
+      airline: nameFor(a.airline), airlineCode: a.airline || '--', color: colorFor(a.airline),
+      flightNo: `${a.airline || ''} ${a.flightNumber || ''}`.trim(),
+      aircraft: '',
+      depTime: timeOf(a.departure), arrTime: timeOf(b.arrival), arrDay: dayOffset,
+      fromCode: a.from || fromFb.code, toCode: b.to || toFb.code,
+      fromCity: a.from || fromFb.city, toCity: b.to || toFb.city,
+      fromName: a.from || fromFb.name, toName: b.to || toFb.name,
+      fromTerminal: '', toTerminal: '',
+      depDateISO: depDateISO || ctx.depISO,
+      durMin: durMin || 0, durLabel: durMin ? `${Math.floor(durMin / 60)}h ${pad(durMin % 60)}m` : '—',
+      stops, stopsLabel: stops === 0 ? 'Non-stop' : `${stops} Stop${stops > 1 ? 's' : ''}`,
+      layover: null,
+    };
+  };
+
+  const out = buildLeg(outSegs, ctx.depISO, ctx.from, ctx.to);
+  const ret = retSegs.length ? buildLeg(retSegs, ctx.retISO, ctx.to, ctx.from) : null;
+  const price = Math.round(Number(af.totalPrice) || 0);
+  return {
+    id: `air-${ctx.from.code}-${ctx.to.code}-${idx + 1}`,
+    out, ret, price, origPrice: price,
+    currency: af.currency || 'EUR', cabin: ctx.cabin, pax: ctx.pax,
+    tripType: ctx.tripType, totalMin: (out?.durMin || 0) + (ret?.durMin || 0),
+    badge: '', live: true,
+  };
+}
+
+/* Assign Cheapest / Fastest badges across a mapped set (mutates in place). */
+export function badgeFlights(list) {
+  if (!list.length) return list;
+  const cheapest = list.reduce((a, b) => (b.price < a.price ? b : a));
+  cheapest.badge = 'Cheapest';
+  const fastest = list.reduce((a, b) => (b.totalMin < a.totalMin ? b : a));
+  if (fastest !== cheapest && !fastest.badge) fastest.badge = 'Fastest';
+  return list;
+}
+
 /* Build a price breakdown + fare facts from a flight (used by detail + checkout). */
 export function fareBreakdown(flight) {
   const pax = flight.pax || 1;

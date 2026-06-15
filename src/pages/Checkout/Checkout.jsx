@@ -1,8 +1,27 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { loadStripe } from '@stripe/stripe-js';
+import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
+import axiosInstance from '../../services/axiosInstance';
 import Confirmation from './Confirmation';
 import './Checkout.css';
+
+const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
+const STRIPE_AVAILABLE = !!STRIPE_PK && !STRIPE_PK.includes('REPLACE');
+console.log('Stripe public key:', STRIPE_PK, 'Stripe available:', STRIPE_AVAILABLE);
+const stripePromise = (STRIPE_PK && !STRIPE_PK.includes('REPLACE')) ? loadStripe(STRIPE_PK) : null;
+
+const STRIPE_ELEMENT_STYLE = {
+  base: {
+    fontSize: '14px',
+    color: '#1a2744',
+    fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
+    '::placeholder': { color: '#94a3bf' },
+    lineHeight: '22px',
+  },
+  invalid: { color: '#ef4444', iconColor: '#ef4444' },
+};
 
 /* ── tiny SVG helper (same pattern as HotelDetail) ── */
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -204,7 +223,7 @@ const emptyTraveller = () => ({
 });
 
 /* ════════════════════════════════════════════════════════ */
-export default function Checkout() {
+function CheckoutContent({ stripe, elements }) {
   const { state } = useLocation();
   const navigate = useNavigate();
   const booking = state?.booking || FALLBACK_BOOKING;
@@ -246,6 +265,8 @@ export default function Checkout() {
   const [payMethod, setPayMethod] = useState('card');
   const [card, setCard] = useState({ name: '', number: '', expiry: '', cvc: '' });
   const [cvcFocus, setCvcFocus] = useState(false);
+  const [stripeBrand, setStripeBrand] = useState('');
+  const [stripeReady, setStripeReady] = useState({ number: false, expiry: false, cvc: false });
   const [idealBank, setIdealBank] = useState('');
   const [billingSame, setBillingSame] = useState(true);
   const [agree, setAgree] = useState(false);
@@ -358,11 +379,17 @@ export default function Checkout() {
     const e = {};
     if (payMethod === 'card') {
       if (!card.name.trim()) e['card.name'] = 'Cardholder name is required';
-      const digits = card.number.replace(/\D/g, '');
-      const need = detectBrand(card.number) === 'amex' ? 15 : 16;
-      if (digits.length < need) e['card.number'] = 'Enter a valid card number';
-      if (!expiryOk(card.expiry)) e['card.expiry'] = 'Invalid expiry';
-      if (card.cvc.replace(/\D/g, '').length < 3) e['card.cvc'] = 'Invalid CVC';
+      if (stripe) {
+        if (!stripeReady.number) e['card.number'] = 'Enter a valid card number';
+        if (!stripeReady.expiry) e['card.expiry'] = 'Enter a valid expiry date';
+        if (!stripeReady.cvc) e['card.cvc'] = 'Enter a valid CVC';
+      } else {
+        const digits = card.number.replace(/\D/g, '');
+        const need = detectBrand(card.number) === 'amex' ? 15 : 16;
+        if (digits.length < need) e['card.number'] = 'Enter a valid card number';
+        if (!expiryOk(card.expiry)) e['card.expiry'] = 'Invalid expiry';
+        if (card.cvc.replace(/\D/g, '').length < 3) e['card.cvc'] = 'Invalid CVC';
+      }
     }
     if (payMethod === 'ideal' && !idealBank) e.idealBank = 'Please choose your bank';
     if (!agree) e.agree = 'Please accept the booking conditions to continue';
@@ -395,16 +422,116 @@ export default function Checkout() {
   };
   const back = () => { setDir(-1); setStep((s) => Math.max(0, s - 1)); };
 
-  const pay = () => {
+  /* Booking flow: create → Stripe PaymentIntent → confirm card → record payment → supplier confirm. */
+  const pay = async () => {
     const e = validatePayment();
     if (Object.keys(e).filter((k) => e[k]).length) return flashErrors(e);
     setErrors({});
     setPaying(true);
-    setTimeout(() => {
-      setPaying(false);
-      setBookingRef(`SSK-${Date.now().toString(36).toUpperCase().slice(-6)}`);
+    try {
+      const customer = customerType === 'professional'
+        ? {
+            type: 'professional',
+            tradingName: pro.tradingName, legalName: pro.legalName, vatNumber: pro.vatNumber,
+            industry: pro.industry, website: pro.website || undefined,
+            preferredLanguage: pro.preferredLanguage || 'en',
+            address: { street: pro.street, houseNumber: pro.houseNumber, boxNumber: pro.boxNumber, city: pro.city, postalCode: pro.postalCode, country: pro.country },
+            primaryContact: { firstName: pro.primaryContactFirstName, lastName: pro.primaryContactLastName, phone: pro.primaryContactPhone, contactEmail: pro.primaryContactEmail || undefined, role: pro.primaryContactRole || undefined, hasContactEmail: pro.hasContactEmail },
+            invoicing: { hasInvoiceEmail: pro.hasInvoiceEmail, invoiceEmail: pro.invoiceEmail || undefined, paymentTerms: pro.paymentTerms || undefined, invoicingAddress: pro.invoicingAddress || undefined },
+          }
+        : {
+            type: 'private',
+            firstName: priv.firstName, lastName: priv.lastName,
+            dateOfBirth: priv.dateOfBirth || undefined,
+            gender: priv.gender || undefined,
+            nationality: priv.nationality,
+            preferredLanguage: priv.preferredLanguage || 'en',
+            hasEmail: priv.hasEmail, email: priv.hasEmail ? priv.email : undefined,
+            phone: priv.phone,
+            address: { street: priv.street, houseNumber: priv.houseNumber, boxNumber: priv.boxNumber, city: priv.city, postalCode: priv.postalCode, country: priv.country },
+          };
+
+      const passengers = travellers.map((t, i) => ({
+        title: t.title || undefined, firstName: t.firstName, lastName: t.lastName,
+        gender: t.gender || undefined, dateOfBirth: t.dateOfBirth,
+        passportNumber: t.passportNumber || undefined, passportExpiry: t.passportExpiry || undefined,
+        nationality: t.nationality || undefined, isLead: i === 0,
+      }));
+
+      const api = booking.api || {};
+      const hotelPayload = api.hotel || null;
+      const flightPayload = api.flight || null;
+      const insurancePayload = (selIns && selIns.id !== 'none' && insAmount > 0)
+        ? { type: selIns.id, label: selIns.name, price: insAmount } : null;
+      const contactPhone = customerType === 'professional' ? pro.primaryContactPhone : priv.phone;
+
+      // Step 1 — create the booking
+      const createRes = await axiosInstance.post('/website/online-bookings', {
+        mode: 'test',
+        currency: ccy === '€' ? 'EUR' : ccy,
+        customer,
+        hotel: hotelPayload || undefined,
+        flight: flightPayload || undefined,
+        insurance: insurancePayload || undefined,
+        passengers,
+        contact: { phone: contactPhone },
+      });
+
+      const created = createRes.data?.data || createRes.data || {};
+      const bookingId = created.bookingId;
+      const ref = created.bookingReference;
+      if (!bookingId) throw new Error('Booking could not be created');
+
+      let paidViaStripe = false;
+      if (stripe && elements) {
+        try {
+          // Step 2 — create Stripe PaymentIntent
+          const intentRes = await axiosInstance.post(`/website/online-bookings/${bookingId}/create-payment-intent`);
+          const { clientSecret } = intentRes.data?.data || {};
+          if (!clientSecret) throw new Error('Could not initialize payment');
+
+          // Step 3 — confirm card payment with Stripe
+          const cardEl = elements.getElement(CardNumberElement);
+          const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: {
+              card: cardEl,
+              billing_details: {
+                name: card.name || undefined,
+                email: customerEmail || undefined,
+              },
+            },
+          });
+          if (error) throw new Error(error.message);
+          if (paymentIntent.status !== 'succeeded') throw new Error('Payment was not completed');
+
+          // Step 4 — record payment on backend
+          await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, {
+            paymentIntentId: paymentIntent.id,
+          });
+          paidViaStripe = true;
+        } catch (stripeErr) {
+          console.warn('[Checkout] Stripe flow failed, falling back to test payment:', stripeErr?.response?.data?.message || stripeErr.message);
+        }
+      }
+      if (!paidViaStripe) {
+        await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, { mode: 'test' });
+      }
+
+      // Step 5 — reserve with suppliers + confirm (non-fatal)
+      try {
+        await axiosInstance.post(`/website/online-bookings/${bookingId}/confirm`, { mode: 'test' });
+      } catch (confErr) {
+        console.warn('[Checkout] confirm step failed:', confErr?.response?.data?.message || confErr.message);
+      }
+
+      setBookingRef(ref || `SSK-${Date.now().toString(36).toUpperCase().slice(-6)}`);
       setPaid(true);
-    }, 2200);
+    } catch (err) {
+      const msg = err?.response?.data?.message || err?.message || 'Payment failed. Please try again.';
+      flashErrors({ submit: msg });
+    } finally {
+      setPaying(false);
+    }
   };
 
   const brand = detectBrand(card.number);
@@ -920,21 +1047,21 @@ export default function Checkout() {
                               <span className="ck-cc-chip" />
                               <S size={26} sw={1.6}><path d="M5 12.55a11 11 0 0114.08 0" /><path d="M8.53 16.11a6 6 0 016.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></S>
                             </div>
-                            <div className="ck-cc-num">{card.number || '•••• •••• •••• ••••'}</div>
+                            <div className="ck-cc-num">{stripe ? '•••• •••• •••• ••••' : (card.number || '•••• •••• •••• ••••')}</div>
                             <div className="ck-cc-bottom">
                               <div><small>Card holder</small><span>{card.name || 'YOUR NAME'}</span></div>
-                              <div><small>Expires</small><span>{card.expiry || 'MM/YY'}</span></div>
-                              <div className={`ck-cc-brand ${brand}`}>
-                                {brand === 'visa' && 'VISA'}
-                                {brand === 'mastercard' && <span className="ck-mc"><b /><b /></span>}
-                                {brand === 'amex' && 'AMEX'}
-                                {brand === 'discover' && 'DISC'}
+                              <div><small>Expires</small><span>{stripe ? '••/••' : (card.expiry || 'MM/YY')}</span></div>
+                              <div className={`ck-cc-brand ${stripe ? stripeBrand : brand}`}>
+                                {(stripe ? stripeBrand : brand) === 'visa' && 'VISA'}
+                                {(stripe ? stripeBrand : brand) === 'mastercard' && <span className="ck-mc"><b /><b /></span>}
+                                {(stripe ? stripeBrand : brand) === 'amex' && 'AMEX'}
+                                {(stripe ? stripeBrand : brand) === 'discover' && 'DISC'}
                               </div>
                             </div>
                           </div>
                           <div className="ck-cc-back">
                             <div className="ck-cc-mag" />
-                            <div className="ck-cc-sig"><span>{card.cvc || 'CVC'}</span></div>
+                            <div className="ck-cc-sig"><span>{stripe ? '•••' : (card.cvc || 'CVC')}</span></div>
                             <div className="ck-cc-back-note">Your CVC is the 3–4 digit code on the back of your card</div>
                           </div>
                         </div>
@@ -944,27 +1071,65 @@ export default function Checkout() {
                         <Field label="Cardholder name" req err={errors['card.name']}>
                           <input className="ck-input" value={card.name} onChange={(e) => { setCard((c) => ({ ...c, name: e.target.value.toUpperCase() })); setErrors((er) => ({ ...er, 'card.name': undefined })); }} placeholder="NAME ON CARD" />
                         </Field>
-                        <Field label="Card number" req err={errors['card.number']}>
-                          <div className="ck-input-ico">
-                            <input className="ck-input" inputMode="numeric" value={card.number}
-                              onChange={(e) => { const b = detectBrand(e.target.value); setCard((c) => ({ ...c, number: formatCardNum(e.target.value, b) })); setErrors((er) => ({ ...er, 'card.number': undefined })); }}
-                              placeholder="1234 5678 9012 3456" />
-                            <span className="ck-input-brand">{brand ? brand.toUpperCase().slice(0, 4) : ICON.card}</span>
-                          </div>
-                        </Field>
-                        <div className="ck-row">
-                          <Field label="Expiry date" req err={errors['card.expiry']}>
-                            <input className="ck-input" inputMode="numeric" value={card.expiry}
-                              onChange={(e) => { setCard((c) => ({ ...c, expiry: formatExpiry(e.target.value) })); setErrors((er) => ({ ...er, 'card.expiry': undefined })); }}
-                              placeholder="MM/YY" maxLength={5} />
-                          </Field>
-                          <Field label="CVC" req err={errors['card.cvc']}>
-                            <input className="ck-input" inputMode="numeric" value={card.cvc}
-                              onFocus={() => setCvcFocus(true)} onBlur={() => setCvcFocus(false)}
-                              onChange={(e) => { setCard((c) => ({ ...c, cvc: e.target.value.replace(/\D/g, '').slice(0, 4) })); setErrors((er) => ({ ...er, 'card.cvc': undefined })); }}
-                              placeholder="123" maxLength={4} />
-                          </Field>
-                        </div>
+                        {stripe ? (
+                          <>
+                            <Field label="Card number" req err={errors['card.number']}>
+                              <div className="ck-input ck-stripe-el">
+                                <CardNumberElement options={{ style: STRIPE_ELEMENT_STYLE, showIcon: true }}
+                                  onChange={(e) => {
+                                    setStripeBrand(e.brand === 'unknown' ? '' : e.brand);
+                                    setStripeReady((r) => ({ ...r, number: e.complete }));
+                                    setErrors((er) => ({ ...er, 'card.number': e.error ? e.error.message : undefined }));
+                                  }} />
+                              </div>
+                            </Field>
+                            <div className="ck-row">
+                              <Field label="Expiry date" req err={errors['card.expiry']}>
+                                <div className="ck-input ck-stripe-el">
+                                  <CardExpiryElement options={{ style: STRIPE_ELEMENT_STYLE }}
+                                    onChange={(e) => {
+                                      setStripeReady((r) => ({ ...r, expiry: e.complete }));
+                                      setErrors((er) => ({ ...er, 'card.expiry': e.error ? e.error.message : undefined }));
+                                    }} />
+                                </div>
+                              </Field>
+                              <Field label="CVC" req err={errors['card.cvc']}>
+                                <div className="ck-input ck-stripe-el">
+                                  <CardCvcElement options={{ style: STRIPE_ELEMENT_STYLE }}
+                                    onFocus={() => setCvcFocus(true)} onBlur={() => setCvcFocus(false)}
+                                    onChange={(e) => {
+                                      setStripeReady((r) => ({ ...r, cvc: e.complete }));
+                                      setErrors((er) => ({ ...er, 'card.cvc': e.error ? e.error.message : undefined }));
+                                    }} />
+                                </div>
+                              </Field>
+                            </div>
+                          </>
+                        ) : (
+                          <>
+                            <Field label="Card number" req err={errors['card.number']}>
+                              <div className="ck-input-ico">
+                                <input className="ck-input" inputMode="numeric" value={card.number}
+                                  onChange={(e) => { const b = detectBrand(e.target.value); setCard((c) => ({ ...c, number: formatCardNum(e.target.value, b) })); setErrors((er) => ({ ...er, 'card.number': undefined })); }}
+                                  placeholder="1234 5678 9012 3456" />
+                                <span className="ck-input-brand">{brand ? brand.toUpperCase().slice(0, 4) : ICON.card}</span>
+                              </div>
+                            </Field>
+                            <div className="ck-row">
+                              <Field label="Expiry date" req err={errors['card.expiry']}>
+                                <input className="ck-input" inputMode="numeric" value={card.expiry}
+                                  onChange={(e) => { setCard((c) => ({ ...c, expiry: formatExpiry(e.target.value) })); setErrors((er) => ({ ...er, 'card.expiry': undefined })); }}
+                                  placeholder="MM/YY" maxLength={5} />
+                              </Field>
+                              <Field label="CVC" req err={errors['card.cvc']}>
+                                <input className="ck-input" inputMode="numeric" value={card.cvc}
+                                  onFocus={() => setCvcFocus(true)} onBlur={() => setCvcFocus(false)}
+                                  onChange={(e) => { setCard((c) => ({ ...c, cvc: e.target.value.replace(/\D/g, '').slice(0, 4) })); setErrors((er) => ({ ...er, 'card.cvc': undefined })); }}
+                                  placeholder="123" maxLength={4} />
+                              </Field>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   )}
@@ -1000,6 +1165,10 @@ export default function Checkout() {
                     </Check>
                     {errors.agree && <div className="ck-errmsg" style={{ marginLeft: 30 }}>{errors.agree}</div>}
                   </div>
+
+                  {errors.submit && (
+                    <div className="ck-submit-err">{ICON.ban} {errors.submit}</div>
+                  )}
 
                   <div className="ck-secure-row">
                     <span className="ck-stripe-badge">Powered by <b>stripe</b></span>
@@ -1123,4 +1292,23 @@ export default function Checkout() {
       </div>
     </div>
   );
+}
+
+function CheckoutWithStripe() {
+  const stripe = useStripe();
+  const elements = useElements();
+  return <CheckoutContent stripe={stripe} elements={elements} />;
+}
+
+export default function Checkout() {
+
+  console.log('Stripe public key:', STRIPE_PK, 'Stripe available:', STRIPE_AVAILABLE);
+  if (stripePromise) {
+    return (
+      <Elements stripe={stripePromise} options={{ locale: 'en' }}>
+        <CheckoutWithStripe />
+      </Elements>
+    );
+  }
+  return <CheckoutContent stripe={null} elements={null} />;
 }

@@ -1,7 +1,8 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import './Flights.css';
-import { buildContext, generateFlights, paxLabel, fmtDateShort } from './flightData';
+import axiosInstance from '../../services/axiosInstance';
+import { buildContext, generateFlights, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights } from './flightData';
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
@@ -96,7 +97,10 @@ export default function Flights() {
   const navigate = useNavigate();
 
   const ctx = useMemo(() => buildContext(params), [params]);
-  const allFlights = useMemo(() => generateFlights(ctx), [ctx]);
+  const generated = useMemo(() => generateFlights(ctx), [ctx]);
+  const [apiFlights, setApiFlights] = useState(null); // null = not loaded; [] = none/failed
+  const live = Array.isArray(apiFlights) && apiFlights.length > 0;
+  const allFlights = live ? apiFlights : generated;
 
   const priceBounds = useMemo(() => {
     const ps = allFlights.map((f) => f.price);
@@ -120,10 +124,23 @@ export default function Flights() {
 
   // reset price ceiling whenever the route/search changes
   useEffect(() => { setMaxPrice(priceBounds.max); }, [priceBounds.max]);
+  // Live flights from the Airtürk availability API; fall back to sample results.
   useEffect(() => {
+    if (!ctx.from?.code || !ctx.to?.code || !ctx.depISO) { setApiFlights(null); setLoading(false); return; }
     setLoading(true);
-    const t = setTimeout(() => setLoading(false), 600);
-    return () => clearTimeout(t);
+    let cancelled = false;
+    axiosInstance.post('/flight-availability/search', {
+      from: ctx.from.code, to: ctx.to.code, depdate: ctx.depISO,
+      retdate: ctx.tripType === 'roundtrip' ? ctx.retISO : undefined,
+      adults: ctx.adults, children: ctx.children, infants: ctx.infants,
+    }).then(({ data }) => {
+      if (cancelled) return;
+      const raw = data?.results?.airtuerk?.flights || [];
+      const mapped = badgeFlights(raw.map((af, i) => mapAirtuerkFlight(af, ctx, i)).filter(Boolean));
+      setApiFlights(mapped);
+    }).catch(() => { if (!cancelled) setApiFlights([]); })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
   }, [ctx]);
 
   const toggle = (setter) => (key) => setter((prev) => {

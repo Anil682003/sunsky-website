@@ -17,6 +17,8 @@ const fmtTime = (s) => {
   const m = String(s).match(/(\d{1,2}):(\d{2})/);
   return m ? `${m[1].padStart(2, '0')}:${m[2]}` : String(s);
 };
+const fmtDur = (min) => { const m = Number(min); if (!m || m <= 0) return ''; return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`; };
+const fmtDateLong = (s) => { if (!s) return ''; const d = new Date(s); if (isNaN(d.getTime())) return ''; return `${WK[d.getDay()]} ${d.getDate()} ${MO[d.getMonth()]}. ${d.getFullYear()}`; };
 
 /* ── tiny SVG helper ── */
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -55,7 +57,7 @@ const TAB_ICON = {
 };
 
 /* ── static demo data (from the design) ── */
-const TABS = ['Prices', 'Information', 'Facilities', 'Weather', 'Map', 'Reviews'];
+const TABS = ['Prices', 'Information', 'Facilities' /*, 'Weather', 'Map', 'Reviews' */];
 const FILTERS = [
   { label: 'Departure date', val: 'Thu, 19 March 2026', icon: ICON.cal },
   { label: 'Travelling company', val: '4 persons', icon: ICON.users },
@@ -143,7 +145,9 @@ const GALLERY = [
 
 /* ── Flight card sub-component ── */
 function FlightCard({ f, selected, onSelect }) {
-  const Leg = ({ dir, date, airline, dep, arr, dur, from, to }) => (
+  const [expanded, setExpanded] = useState(false);
+
+  const Leg = ({ dir, date, airline, dep, arr, dur, from, to, stopsLabel }) => (
     <div className="flight-leg">
       <div className="flight-leg-dir">{dir}</div>
       <div className="flight-leg-date">{date}</div>
@@ -153,22 +157,66 @@ function FlightCard({ f, selected, onSelect }) {
         <div className="flight-path">
           <div className="flight-duration">{dur}</div>
           <div className="flight-line" />
-          <div className="flight-direct">Direct flight</div>
+          <div className="flight-direct">{stopsLabel || 'Direct flight'}</div>
         </div>
         <div className="flight-time">{arr}</div>
       </div>
       <div className="flight-airports"><span className="flight-airport">{from}</span><span className="flight-airport">{to}</span></div>
     </div>
   );
+
+  const layoverMin = (a, b) => {
+    if (!a?.arrival || !b?.departure) return null;
+    const da = new Date(a.arrival), db = new Date(b.departure);
+    if (isNaN(da) || isNaN(db)) return null;
+    const m = Math.round((db - da) / 60000);
+    return m > 0 ? m : null;
+  };
+
+  const renderTimeline = (legs, label, date) => {
+    if (!legs?.length) return null;
+    return (
+      <div className="fd-journey">
+        <div className="fd-dir"><span className="fd-dir-label">{label}</span><span className="fd-dir-date">{date}</span></div>
+        {legs.map((leg, i) => (
+          <div key={i} className="fd-seg-wrap">
+            {i > 0 && (() => {
+              const lay = layoverMin(legs[i - 1], leg);
+              return lay ? <div className="fd-layover"><span className="fd-lay-icon">{ICON.clock}</span> {fmtDur(lay)} layover in {leg.from}</div> : null;
+            })()}
+            <div className="fd-segment">
+              <div className="fd-seg-timeline">
+                <div className="fd-dot" />
+                <div className="fd-line" />
+                <div className="fd-dot" />
+              </div>
+              <div className="fd-seg-body">
+                <div className="fd-seg-row"><span className="fd-seg-airport">{leg.from}</span><span className="fd-seg-time">{fmtTime(leg.departure)}</span></div>
+                <div className="fd-seg-meta"><span className="fd-seg-air">{leg.airline} {leg.flightNumber}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
+                <div className="fd-seg-row"><span className="fd-seg-airport">{leg.to}</span><span className="fd-seg-time">{fmtTime(leg.arrival)}</span></div>
+              </div>
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  };
+
+  const paxLabel = (t) => t === 'ADT' ? 'Adult' : t === 'CHD' ? 'Child' : 'Infant';
+  const hasDetails = f.outLegs?.length > 0 || f.fareBreakdown?.length > 0;
+
   return (
-    <div className={`flight-card${selected ? ' selected' : ''}`}>
+    <div className={`flight-card${selected ? ' selected' : ''}${expanded ? ' expanded' : ''}`}>
       <div className="flight-row">
-        <Leg dir="Outbound" date={f.outDate} airline={f.outAirline} dep={f.outDep} arr={f.outArr} dur={f.outDur} from={f.outFrom} to={f.outTo} />
-        <Leg dir="Return" date={f.retDate} airline={f.retAirline} dep={f.retDep} arr={f.retArr} dur={f.retDur} from={f.retFrom} to={f.retTo} />
+        <Leg dir="Outbound" date={f.outDate} airline={f.outAirline} dep={f.outDep} arr={f.outArr} dur={f.outDur} from={f.outFrom} to={f.outTo} stopsLabel={f.outStops} />
+        {(f.retDep || f.retDate) && <Leg dir="Return" date={f.retDate} airline={f.retAirline} dep={f.retDep} arr={f.retArr} dur={f.retDur} from={f.retFrom} to={f.retTo} stopsLabel={f.retStops} />}
       </div>
       <div className="flight-bottom">
-        <button className="flight-details-btn">View details</button>
+        {hasDetails
+          ? <button className="flight-details-btn" onClick={(e) => { e.stopPropagation(); setExpanded((x) => !x); }}>{expanded ? 'Hide details' : 'View details'}</button>
+          : <button className="flight-details-btn">View details</button>}
         <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
+          {f.price != null && <b className="live-price">€{f.price}</b>}
           <span className="flight-incl">{ICON.check} Including</span>
           {selected
             ? <div className="flight-selected-badge">{ICON.check} Selected</div>
@@ -176,6 +224,32 @@ function FlightCard({ f, selected, onSelect }) {
         </div>
       </div>
       {f.warning && <div className="flight-warning">{ICON.warn} {f.warning}</div>}
+
+      {expanded && hasDetails && (
+        <div className="fd-panel">
+          <div className="fd-journeys">
+            {renderTimeline(f.outLegs, 'Outbound', f.outDate)}
+            {renderTimeline(f.retLegs, 'Return', f.retDate)}
+          </div>
+          {f.fareBreakdown?.length > 0 && (
+            <div className="fd-fare">
+              <div className="fd-fare-title">{ICON.tag} Fare breakdown</div>
+              {f.fareBreakdown.map((fb, i) => (
+                <div key={i} className="fd-fare-row">
+                  <span className="fd-fare-pax">{fb.quantity} × {paxLabel(fb.paxType)}</span>
+                  <span className="fd-fare-calc">€{Number(fb.basePrice).toFixed(2)} + €{Number(fb.tax).toFixed(2)} tax</span>
+                  <span className="fd-fare-pp">€{Number(fb.totalPerPax).toFixed(2)} /pp</span>
+                  <span className="fd-fare-sub">€{Number(fb.subtotal).toFixed(2)}</span>
+                </div>
+              ))}
+              <div className="fd-fare-total">
+                <span>Total</span>
+                <span>€{Number(f.rawPrice || f.price || 0).toFixed(2)}</span>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }
@@ -188,6 +262,7 @@ export default function HotelDetail() {
   const info  = state?.info || null;            // full bulk record (images, description, facilities)
   const pageRef = useRef(null);
 
+  console.log('HotelDetail state:', state);
   // Header / booking facts pulled from the clicked result, with demo fallbacks
   const hotelName = hotel?.name || 'Cavo Vezal';
   const stars = hotel?.stars || 5;
@@ -308,65 +383,164 @@ export default function HotelDetail() {
   const pMax = priceDays.length ? Math.max(...priceDays.map((p) => p.price)) : 1;
   const pd = selectedPrice != null ? priceDays[selectedPrice] : null;
 
-  // ── select a day → fetch live hotel + flight availability ──
-  const selectDay = (i) => {
-    setSelectedPrice(i);
-    const day = priceDays[i];
-    if (!usingLive || !day?.iso || !hotelCode || !destination) { setLiveRooms(null); setLiveFlights(null); return; }
-    const checkin = day.iso;
-    const checkout = addDaysISO(day.iso, nights);
+  // live selection → live price shown in the Book Now card / mobile bar / checkout
+  const liveRoom = liveRooms?.rooms?.length ? liveRooms.rooms[selectedRoom.live ?? 0] : null;
+  const liveFlight = liveFlights?.flights?.length ? liveFlights.flights[selectedFlight] : null;
+  const liveTotal = liveRoom ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
+  const displayTotal = liveTotal != null ? liveTotal : (hotel?.totalAmount ? Math.round(hotel.totalAmount) : ppPrice * 2);
 
-    setLiveRooms({ loading: true });
-    axiosInstance.post('/hotel-availability/search', {
-      hotelCode: String(hotelCode), checkin, checkout, adults: Number(sAdults) || 2, children: Number(sChildren) || 0,
-    }).then(({ data }) => {
-      const hb = data?.results?.hotelbeds, dn = data?.results?.diana;
-      const rooms = [
-        ...((hb?.rooms) || []).map((r) => ({ ...r, supplier: 'Hotelbeds' })),
-        ...((dn?.rooms) || []).map((r) => ({ ...r, supplier: 'Diana' })),
-      ].map((r) => ({
-        name: r.roomName || 'Room', board: r.boardName || r.boardCode || '',
-        price: r.net ?? r.price ?? null, currency: r.currency || 'EUR', supplier: r.supplier,
-        refundable: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies.length === 0 : undefined,
-      })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
-      setLiveRooms({ rooms, cheapest: data?.results?.cheapest || null });
-    }).catch((e) => setLiveRooms({ error: e?.response?.data?.message || e?.message || 'Could not load live room prices' }));
-
+  // ── shared flight fetch (used on mount + day-click) ──
+  const fetchFlights = (checkin, checkout) => {
+    if (!destination) { setLiveFlights(null); return; }
     setLiveFlights({ loading: true });
     axiosInstance.post('/flight-availability/search', {
       from: DEFAULT_ORIGIN, to: destination, depdate: checkin, retdate: checkout,
       adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
     }).then(({ data }) => {
-      const flights = (data?.results?.airtuerk?.flights || []).map((f) => ({
-        totalPrice: f.totalPrice, currency: f.currency || 'EUR', legs: f.legs || [], stops: f.stops,
-      }));
+      console.log('[Detail] flight-availability response', data?.results);
+      const raw = data?.results?.airtuerk?.flights || [];
+      const origin = DEFAULT_ORIGIN.toUpperCase();
+      const outbound = [], inbound = [];
+      raw.forEach((f) => {
+        const legs = f.legs || [];
+        if (!legs.length) return;
+        if ((legs[0].from || '').toUpperCase() === origin) outbound.push(f);
+        else if ((legs[legs.length - 1].to || '').toUpperCase() === origin) inbound.push(f);
+      });
+      let flights = [];
+      if (outbound.length && inbound.length) {
+        for (const ob of outbound) {
+          for (const ib of inbound) {
+            flights.push({
+              totalPrice: (ob.totalPrice || 0) + (ib.totalPrice || 0),
+              currency: ob.currency || 'EUR',
+              outLegs: ob.legs || [], retLegs: ib.legs || [],
+              stops: Math.max((ob.legs || []).length - 1, (ib.legs || []).length - 1),
+              fareBreakdown: [...(ob.fareBreakdown || []), ...(ib.fareBreakdown || [])],
+              offerKey: ob.offerKey || ib.offerKey || null,
+            });
+          }
+        }
+        flights.sort((a, b) => a.totalPrice - b.totalPrice);
+      } else {
+        flights = raw.map((f) => ({
+          totalPrice: f.totalPrice || 0, currency: f.currency || 'EUR',
+          outLegs: f.legs || [], retLegs: [], stops: (f.legs || []).length - 1,
+          fareBreakdown: f.fareBreakdown || [], offerKey: f.offerKey || f.key || null,
+        }));
+      }
+      setSelectedFlight(0);
       setLiveFlights({ flights, cheapest: data?.results?.cheapest || null });
     }).catch((e) => setLiveFlights({ error: e?.response?.data?.message || e?.message || 'Could not load live flights' }));
   };
 
-  const goReviews = () => {
-    setActiveTab('Reviews');
-    setTimeout(() => pageRef.current?.querySelector('.tw')?.scrollIntoView({ behavior: 'smooth', block: 'start' }), 60);
+  // ── fetch flights on mount using dates from results screen ──
+  useEffect(() => {
+    if (baseCheckIn && destination) fetchFlights(baseCheckIn, baseCheckOut);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // ── select a day → fetch live hotel + flight availability ──
+  const selectDay = (i) => {
+    setSelectedPrice(i);
+    const day = priceDays[i];
+    const checkin = day?.iso || baseCheckIn;
+    const checkout = checkin ? addDaysISO(checkin, nights) : '';
+    console.log('[Detail] day clicked → live availability', { hotelCode, destination, checkin, checkout });
+    if (!hotelCode || !checkin) { setLiveRooms(null); setLiveFlights(null); return; }
+
+    // Live hotel rooms
+    setLiveRooms({ loading: true });
+    axiosInstance.post('/hotel-availability/search', {
+      hotelCode: String(hotelCode), checkin, checkout, adults: Number(sAdults) || 2, children: Number(sChildren) || 0,
+    }).then(({ data }) => {
+      console.log('[Detail] hotel-availability response', data?.results);
+      const hb = data?.results?.hotelbeds, dn = data?.results?.diana;
+      const dianaHotelId = dn?.dianaHotelId ?? dn?.hotelId ?? null;
+      const rooms = [
+        ...((hb?.rooms) || []).map((r) => ({ ...r, supplier: 'hotelbeds' })),
+        ...((dn?.rooms) || []).map((r) => ({ ...r, supplier: 'diana', dianaHotelId })),
+      ].map((r) => ({
+        name: r.roomName || 'Room', board: r.boardName || r.boardCode || '',
+        price: r.sellingRate ?? r.net ?? r.price ?? null, currency: r.currency || 'EUR', supplier: r.supplier,
+        refundable: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies.length === 0 : undefined,
+        cancellation: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies : [],
+        rateKey: r.rateKey || null, roomCode: r.roomCode || null, boardCode: r.boardCode || null,
+        net: r.net ?? null, dianaHotelId: r.dianaHotelId || null,
+      })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
+      setSelectedRoom((p) => ({ ...p, live: 0 }));
+      setLiveRooms({ rooms, cheapest: data?.results?.cheapest || null });
+    }).catch((e) => setLiveRooms({ error: e?.response?.data?.message || e?.message || 'Could not load live room prices' }));
+
+    // Live flights
+    fetchFlights(checkin, checkout);
   };
+
+  // goReviews removed — Reviews tab commented out for now
 
   // hand the full selection over to the checkout screen
   const goCheckout = () => {
-    const roomIdx = selectedRoom[1] ?? 0;
-    const room = ROOM_TYPES[roomIdx];
-    const meal = MEAL_PLANS[selectedMeal[`1-${roomIdx}`] ?? 1];
-    const flight = FLIGHTS[selectedFlight] || FLIGHTS[0];
+    const useLive = liveTotal != null;
+    const pax = Number(sAdults) || 2;
+    const checkin = pd?.iso || baseCheckIn;
+    const checkout = pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut;
+    const total = useLive ? liveTotal : (hotel?.totalAmount ? Math.round(hotel.totalAmount) : ppPrice * pax);
+    const perPerson = Math.max(1, Math.round(total / pax));
+
+    const staticRoom = ROOM_TYPES[selectedRoom[1] ?? 0];
+    const staticMeal = MEAL_PLANS[selectedMeal[`1-${selectedRoom[1] ?? 0}`] ?? 1];
+    const roomName = useLive ? liveRoom.name : staticRoom.name;
+    const board = useLive ? (liveRoom.board || hotel?.board || 'All inclusive') : (hotel?.board || 'All inclusive');
+
+    const outLg = liveFlight?.outLegs || [];
+    const retLg = liveFlight?.retLegs || [];
+    const allLegs = [...outLg, ...retLg];
+    const dispFlight = (useLive && liveFlight && allLegs.length)
+      ? {
+          outDep: fmtTime(outLg[0]?.departure), outArr: fmtTime(outLg[outLg.length - 1]?.arrival),
+          outFrom: outLg[0]?.from || DEFAULT_ORIGIN, outTo: outLg[outLg.length - 1]?.to || destination,
+          outDate: pd?.date, outAirline: outLg[0]?.airline,
+          ...(retLg.length ? {
+            retDep: fmtTime(retLg[0]?.departure), retArr: fmtTime(retLg[retLg.length - 1]?.arrival),
+            retFrom: retLg[0]?.from, retTo: retLg[retLg.length - 1]?.to,
+            retDate: calDate(checkout), retAirline: retLg[0]?.airline,
+          } : {}),
+        }
+      : (FLIGHTS[selectedFlight] || FLIGHTS[0]);
+
+    const dateLabel = useLive
+      ? `${pd?.date} — ${calDate(checkout)}`
+      : `${dispFlight.outDate.replace('.', '')} — ${dispFlight.retDate.replace('.', '')}`;
+
     navigate('/checkout', {
       state: {
         booking: {
           hotelCode, hotelName, stars: Math.min(stars, 5), loc: locLabel,
-          img: images[0], board: hotel?.board || 'All inclusive',
-          nights, adults: 2, currency: ccy,
-          ppPrice: pd?.price ?? ppPrice, origPrice: pd?.orig ?? null,
-          dateLabel: `${flight.outDate.replace('.', '')} — ${flight.retDate.replace('.', '')}`,
-          flight,
-          room: room.name,
-          roomExtra: room.included ? 0 : Number((room.extra || '0').replace(/[^\d]/g, '')),
-          meal: meal.name, mealPrice: meal.price,
+          img: images[0], board,
+          nights, adults: pax, currency: ccy,
+          ppPrice: useLive ? perPerson : (pd?.price ?? ppPrice), origPrice: useLive ? null : (pd?.orig ?? null),
+          dateLabel,
+          flight: dispFlight,
+          room: roomName,
+          roomExtra: 0,
+          meal: useLive ? (liveRoom.board || 'Room only') : staticMeal.name,
+          mealPrice: useLive ? 0 : staticMeal.price,
+          // ── payload for the backend Online-booking create call ──
+          api: {
+            hotel: {
+              hotelCode: String(hotelCode), hotelName, checkin, checkout, nights,
+              room: roomName, supplier: useLive ? (liveRoom.supplier || 'hotelbeds') : 'hotelbeds',
+              // identifiers the supplier reservation needs (from the live availability response)
+              rateKey: useLive ? (liveRoom.rateKey || null) : null,
+              roomCode: useLive ? (liveRoom.roomCode || null) : null,
+              boardCode: useLive ? (liveRoom.boardCode || null) : null,
+              dianaHotelId: useLive ? (liveRoom.dianaHotelId || null) : null,
+              price: useLive ? Math.round(liveRoom.price) : total, currency: ccy,
+            },
+            flight: (useLive && liveFlight)
+              ? { from: DEFAULT_ORIGIN, to: destination, depdate: checkin, retdate: checkout, price: Math.round(liveFlight.totalPrice), currency: ccy, legs: allLegs, fareBreakdown: liveFlight.fareBreakdown || [], offerKey: liveFlight.offerKey || null, tripType: retLg.length ? 'roundtrip' : 'oneway', supplier: 'airtuerk' }
+              : null,
+          },
         },
       },
     });
@@ -410,21 +584,12 @@ export default function HotelDetail() {
                 <span className="sd-chip">{ICON.users} 2 adults</span>
                 <span className="sd-chip sd-chip-price">{ICON.tag} from {ccy}{ppPrice} p.p.</span>
               </div>
-              <button className="sd-hero-rating" onClick={goReviews} aria-label="Jump to guest reviews">
-                <span className="sd-hc-score">9.3</span>
-                <span className="sd-hc-meta">
-                  <span className="sd-hc-label">Fantastic</span>
-                  <span className="sd-hc-sub">247 reviews</span>
-                </span>
-                <span className="sd-hc-divider" />
-                <span className="sd-hc-trust">
-                  <span className="sd-hc-item">{ICON.check} Free cancellation</span>
-                  <span className="sd-hc-item">{ICON.check} No booking fees</span>
-                  <span className="sd-hc-item">{ICON.check} Best price guarantee</span>
-                  <span className="sd-hc-item">{ICON.check} Instant confirmation</span>
-                </span>
-                <span className="sd-hc-go">{ICON.arrow}</span>
-              </button>
+              <div className="sd-hero-trust">
+                <span className="sd-hc-item">{ICON.check} Free cancellation</span>
+                <span className="sd-hc-item">{ICON.check} No booking fees</span>
+                <span className="sd-hc-item">{ICON.check} Best price guarantee</span>
+                <span className="sd-hc-item">{ICON.check} Instant confirmation</span>
+              </div>
             </div>
 
             <div className="sd-hero-photos">
@@ -509,20 +674,35 @@ export default function HotelDetail() {
               <div className={`avail-banner${pd ? ' show' : ''}`}>
                 <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                 <div>
-                  <div className="avail-text">Your holiday is available!</div>
-                  <div className="avail-sub">{pd && `Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}</div>
+                  <div className="avail-text">
+                    {liveRooms?.loading ? 'Checking live availability…'
+                      : liveRooms?.error ? 'Showing estimated price'
+                      : liveRoom ? 'Your holiday is available!'
+                      : 'Your holiday is available!'}
+                  </div>
+                  <div className="avail-sub">
+                    {pd && `Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}
+                    {liveRoom ? ` · ${liveRoom.supplier}` : ''}
+                  </div>
                 </div>
                 <div className="avail-price">
-                  <div className="avail-price-label">from</div>
-                  {pd?.orig ? <div className="avail-price-old">€ {pd.orig}</div> : null}
-                  <div className="avail-price-val"><small>€</small>{pd?.price}</div>
-                  <div className="avail-you-low">{pd?.lowest ? 'Lowest price for these dates' : 'Live price'}</div>
+                  <div className="avail-price-label">{liveRoom ? 'live price' : 'from'}</div>
+                  <div className="avail-price-val">
+                    {liveRooms?.loading
+                      ? <span className="avail-spin" />
+                      : <><small>€</small>{liveRoom ? Math.round(liveRoom.price) : pd?.price}</>}
+                  </div>
+                  <div className="avail-you-low">
+                    {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'night' : 'nights'}`
+                      : liveRooms?.error ? 'Live price unavailable — estimate shown'
+                      : (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')}
+                  </div>
                 </div>
               </div>
 
               {/* Flights */}
               <div className="flight-section reveal">
-                <div className="section-title"><span className="st-step">2</span> Your flights</div>
+                <div className="section-title"><span className="st-step">3</span> Your flights</div>
                 {liveFlights ? (
                   liveFlights.loading ? (
                     <div className="live-loading"><span className="live-spin" /> Checking live flight prices…</div>
@@ -531,29 +711,27 @@ export default function HotelDetail() {
                   ) : liveFlights.flights?.length ? (
                     <>
                       <div className="flight-note">Live fares from {DEFAULT_ORIGIN} for your selected dates:</div>
-                      {liveFlights.flights.slice(0, 6).map((f, i) => (
-                        <div key={i} className={`flight-card${selectedFlight === i ? ' selected' : ''}`}>
-                          <div className="live-legs">
-                            {f.legs.map((leg, li) => (
-                              <div key={li} className="live-leg">
-                                <span className="live-leg-air">{leg.airline} {leg.flightNumber}</span>
-                                <span className="live-leg-route">{leg.from} → {leg.to}</span>
-                                <span className="live-leg-time">{fmtTime(leg.departure)} – {fmtTime(leg.arrival)}</span>
-                                {leg.duration ? <span className="live-leg-dur">{leg.duration}</span> : null}
-                              </div>
-                            ))}
-                          </div>
-                          <div className="flight-bottom">
-                            <span className="flight-incl">{ICON.check} {f.stops === 0 ? 'Direct' : `${f.stops} stop${f.stops > 1 ? 's' : ''}`}</span>
-                            <div style={{ display: 'flex', gap: 12, alignItems: 'center' }}>
-                              <b className="live-price">€{Math.round(f.totalPrice)}</b>
-                              {selectedFlight === i
-                                ? <span className="flight-selected-badge">{ICON.check} Selected</span>
-                                : <button className="flight-select-btn" onClick={() => setSelectedFlight(i)}>Select</button>}
-                            </div>
-                          </div>
-                        </div>
-                      ))}
+                      {liveFlights.flights.slice(0, 6).map((f, i) => {
+                        const oF = f.outLegs[0], oL = f.outLegs[f.outLegs.length - 1];
+                        const rF = f.retLegs[0], rL = f.retLegs[f.retLegs.length - 1];
+                        const oStops = Math.max(0, f.outLegs.length - 1);
+                        const rStops = Math.max(0, f.retLegs.length - 1);
+                        const cardData = {
+                          outDate: fmtDateLong(oF?.departure), outAirline: `${oF?.airline || ''} ${oF?.flightNumber || ''}`.trim(),
+                          outDep: fmtTime(oF?.departure), outArr: fmtTime(oL?.arrival),
+                          outDur: fmtDur(f.outLegs.reduce((s, l) => s + (Number(l.duration) || 0), 0)),
+                          outFrom: oF?.from || '', outTo: oL?.to || '',
+                          outStops: oStops === 0 ? 'Direct flight' : `${oStops} stop${oStops > 1 ? 's' : ''}`,
+                          retDate: rF ? fmtDateLong(rF.departure) : '', retAirline: rF ? `${rF.airline || ''} ${rF.flightNumber || ''}`.trim() : '',
+                          retDep: fmtTime(rF?.departure), retArr: fmtTime(rL?.arrival),
+                          retDur: f.retLegs.length ? fmtDur(f.retLegs.reduce((s, l) => s + (Number(l.duration) || 0), 0)) : '',
+                          retFrom: rF?.from || '', retTo: rL?.to || '',
+                          retStops: rStops === 0 ? 'Direct flight' : `${rStops} stop${rStops > 1 ? 's' : ''}`,
+                          price: Math.round(f.totalPrice), rawPrice: f.totalPrice,
+                          outLegs: f.outLegs, retLegs: f.retLegs, fareBreakdown: f.fareBreakdown,
+                        };
+                        return <FlightCard key={i} f={cardData} selected={selectedFlight === i} onSelect={() => setSelectedFlight(i)} />;
+                      })}
                     </>
                   ) : (
                     <div className="live-empty">{ICON.plane} No live flights found for these dates.</div>
@@ -580,9 +758,10 @@ export default function HotelDetail() {
                 )}
               </div>
 
-              {/* Rooms */}
-              <div className="room-section reveal">
-                <div className="section-title"><span className="st-step">3</span> Choose your room</div>
+              {/* Rooms — live availability, revealed only after a date is picked */}
+              {selectedPrice != null && (
+              <div className="room-section reveal vis">
+                <div className="section-title"><span className="st-step">2</span> Choose your room</div>
                 {liveRooms ? (
                   liveRooms.loading ? (
                     <div className="live-loading"><span className="live-spin" /> Checking live room availability…</div>
@@ -598,7 +777,14 @@ export default function HotelDetail() {
                             <div className="room-radio" />
                             <div className="room-info">
                               <div className="room-name">{rm.name}</div>
-                              <div className="room-cap">{[rm.board, rm.supplier, rm.refundable === true ? 'Refundable' : null].filter(Boolean).join(' · ')}</div>
+                              <div className="room-cap">{[rm.board, rm.supplier].filter(Boolean).join(' · ')}</div>
+                              {rm.cancellation?.length > 0 ? (
+                                <div className="room-cancel room-cancel-nr">
+                                  {ICON.warn} Non-refundable — cancel before {(() => { const d = new Date(rm.cancellation[0].from); return isNaN(d.getTime()) ? rm.cancellation[0].from : `${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`; })()} or pay €{Number(rm.cancellation[0].amount).toFixed(0)} penalty
+                                </div>
+                              ) : rm.refundable === true ? (
+                                <div className="room-cancel room-cancel-free">{ICON.check} Free cancellation</div>
+                              ) : null}
                             </div>
                             <div className="room-price">€{Math.round(rm.price)}</div>
                           </div>
@@ -661,6 +847,7 @@ export default function HotelDetail() {
                   ))
                 )}
               </div>
+              )}
 
               {/* Overview */}
               <div className="overview-section reveal">
@@ -673,7 +860,7 @@ export default function HotelDetail() {
                     <div className="overview-loc">{ICON.pin} {locLabel}</div>
                     <div className="overview-dates">{ICON.cal} Friday 10 April 2026 - Wednesday 15 April 2026 <span style={{ color: 'var(--text-light)' }}>({nights} nights)</span></div>
                     </div>
-                    <div className="overview-score"><b>★</b> 9.3 · Fantastic</div>
+                    {/* overview-score removed — no real review data yet */}
                   </div>
                   <div className="overview-body">
                     <div className="overview-row"><span className="overview-row-label">{ICON.users} 4 × {ccy}361 p.p.</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 1,444</span></div>
@@ -703,39 +890,222 @@ export default function HotelDetail() {
 
             {/* ── INFORMATION ── */}
             <div className={`tp${activeTab === 'Information' ? ' act' : ''}`}>
-              <div className="ds reveal">
-                <h3>{ICON.info} General</h3>
-                <div className={`dt${expanded.d1 ? ' exp' : ''}`}>
-                  {hotelName} is a stunning adults-only boutique hotel nestled on the pristine shores of {locLabel}. This exclusive retreat combines contemporary luxury with the natural beauty of the sea, offering guests an unparalleled holiday experience. The hotel features elegant rooms with sea views, a world-class infinity pool overlooking crystal-clear waters, and a gourmet restaurant serving authentic Mediterranean cuisine.
+              {/* About card */}
+              <div className="inf-card reveal">
+                <div className="inf-card-header">
+                  <div className="inf-card-icon">{ICON.info}</div>
+                  <h3 className="inf-card-title">About {hotelName}</h3>
                 </div>
-                <span className="rm" onClick={() => toggleExpand('d1')}>{expanded.d1 ? 'Show less ↑' : 'Read more ↓'}</span>
-              </div>
-              <div className="ds reveal">
-                <h3>{ICON.pin} Location &amp; Surroundings</h3>
-                <div className={`dt${expanded.d2 ? ' exp' : ''}`}>
-                  Located just 15 minutes from the international airport, this hotel enjoys a privileged position on the coast. Famous beaches are a short trip away, while the charming town centre is 10 km north. Nearby attractions include scenic caves, coves, and protected nesting grounds.
+                <div className={`inf-desc${expanded.d1 ? ' exp' : ''}`}>
+                  {info?.description || `${hotelName} is a stunning boutique hotel nestled on the pristine shores of ${locLabel}. This retreat combines contemporary luxury with natural beauty, offering guests an unparalleled holiday experience.`}
                 </div>
-                <span className="rm" onClick={() => toggleExpand('d2')}>{expanded.d2 ? 'Show less ↑' : 'Read more ↓'}</span>
+                {((info?.description?.length || 0) > 200 || !info?.description) && (
+                  <button className="inf-read-more" onClick={() => toggleExpand('d1')}>
+                    {expanded.d1 ? 'Show less' : 'Read more'}
+                    <S size={14} sw={2.5}><path d={expanded.d1 ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
+                  </button>
+                )}
               </div>
+
+              {/* Quick stats tiles */}
+              {(() => {
+                const facLoc = (info?.facilities || []).filter((f) => f.facilityGroupName === 'Location');
+                const year = facLoc.find((f) => f.facilityName === 'Year of construction');
+                const reno = facLoc.find((f) => f.facilityName === 'Year of most recent renovation');
+                const floors = facLoc.find((f) => f.facilityName === 'Number of floors (main building)');
+                const totalRooms = facLoc.find((f) => f.facilityName === 'Total number of rooms');
+                const stats = [
+                  year?.number && { icon: ICON.cal, label: 'Built', value: year.number },
+                  reno?.number && { icon: <S sw={2}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></S>, label: 'Renovated', value: reno.number },
+                  floors?.number && { icon: <S sw={2}><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="12" y1="3" x2="12" y2="21" /></S>, label: 'Floors', value: floors.number },
+                  totalRooms?.number && { icon: ICON.bed, label: 'Total rooms', value: totalRooms.number },
+                  { icon: <S sw={2}><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></S>, label: 'Category', value: `${Math.min(stars, 5)}-Star` },
+                  { icon: ICON.board, label: 'Board', value: hotel?.board || 'All inclusive' },
+                ].filter(Boolean);
+                return stats.length > 0 && (
+                  <div className="inf-stats reveal">
+                    {stats.map((s, i) => (
+                      <div className="inf-stat" key={i}>
+                        <div className="inf-stat-icon">{s.icon}</div>
+                        <div className="inf-stat-label">{s.label}</div>
+                        <div className="inf-stat-value">{s.value}</div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              })()}
+
+              {/* Location card */}
+              {(info?.address || info?.city) && (
+                <div className="inf-card reveal">
+                  <div className="inf-card-header">
+                    <div className="inf-card-icon inf-card-icon--loc">{ICON.pin}</div>
+                    <h3 className="inf-card-title">Location & Address</h3>
+                  </div>
+                  <div className="inf-loc-body">
+                    {info?.latitude && info?.longitude && (
+                      <div className="inf-minimap">
+                        <iframe
+                          title="Hotel location"
+                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(info.longitude) - 0.008},${Number(info.latitude) - 0.006},${Number(info.longitude) + 0.008},${Number(info.latitude) + 0.006}&layer=mapnik&marker=${info.latitude},${info.longitude}`}
+                        />
+                      </div>
+                    )}
+                    <div className="inf-loc-details">
+                      {info.address && (
+                        <div className="inf-loc-row">
+                          <div className="inf-loc-icon">{ICON.pin}</div>
+                          <div><div className="inf-loc-lbl">Address</div><div className="inf-loc-val">{info.address}</div></div>
+                        </div>
+                      )}
+                      {info.city && (
+                        <div className="inf-loc-row">
+                          <div className="inf-loc-icon"><S sw={2}><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></S></div>
+                          <div><div className="inf-loc-lbl">City / Region</div><div className="inf-loc-val">{info.city}</div></div>
+                        </div>
+                      )}
+                      {info.latitude && (
+                        <div className="inf-loc-row">
+                          <div className="inf-loc-icon"><S sw={2}><polygon points="3 11 22 2 13 21 11 13 3 11" /></S></div>
+                          <div><div className="inf-loc-lbl">Coordinates</div><div className="inf-loc-val">{Number(info.latitude).toFixed(4)}° N, {Number(info.longitude).toFixed(4)}° E</div></div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Contact card */}
+              {info?.phones?.length > 0 && (
+                <div className="inf-card reveal">
+                  <div className="inf-card-header">
+                    <div className="inf-card-icon inf-card-icon--contact"><S sw={2}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></S></div>
+                    <h3 className="inf-card-title">Contact</h3>
+                  </div>
+                  <div className="inf-contacts">
+                    {info.phones.map((p, i) => {
+                      const type = p.phoneType === 'PHONEBOOKING' ? 'Booking' : p.phoneType === 'PHONEHOTEL' ? 'Hotel' : p.phoneType === 'FAXNUMBER' ? 'Fax' : 'Phone';
+                      const iconEl = p.phoneType === 'FAXNUMBER'
+                        ? <S sw={2}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V2H8v5" /><line x1="6" y1="13" x2="6.01" y2="13" /></S>
+                        : <S sw={2}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></S>;
+                      return (
+                        <div className="inf-contact-card" key={i}>
+                          <div className="inf-contact-icon">{iconEl}</div>
+                          <div className="inf-contact-type">{type}</div>
+                          <div className="inf-contact-number">{p.phoneNumber}</div>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
+              )}
+
+              {/* Room types card */}
+              {info?.rooms?.length > 0 && (
+                <div className="inf-card reveal">
+                  <div className="inf-card-header">
+                    <div className="inf-card-icon inf-card-icon--room">{ICON.bed}</div>
+                    <h3 className="inf-card-title">Room Types</h3>
+                    <span className="inf-card-count">{info.rooms.length} types</span>
+                  </div>
+                  <div className="inf-room-grid">
+                    {info.rooms.map((rm, i) => (
+                      <div className="inf-room-tile" key={i}>
+                        <div className="inf-room-badge">{rm.roomCode}</div>
+                        <div className="inf-room-guests">
+                          <S size={14} sw={2}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></S>
+                          {rm.minPax}–{rm.maxPax} guests
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </div>
+              )}
             </div>
 
             {/* ── FACILITIES ── */}
             <div className={`tp${activeTab === 'Facilities' ? ' act' : ''}`}>
-              <h3 className="section-title">
-                <S sw={2}><path d="M3 9l9-7 9 7v11a2 2 0 01-2 2H5a2 2 0 01-2-2z" /><polyline points="9 22 9 12 15 12 15 22" /></S> Hotel Facilities
-              </h3>
-              <div className="fg">
-                {FACILITIES.map((f) => (
-                  <div className="fi" key={f}><div className="fk">{FAC_ICON[f] || ICON.check}</div>{f}</div>
-                ))}
-                {showAllFac && MORE_FACILITIES.map((f, i) => (
-                  <div className="fi" key={f} style={{ animation: `sdFadeUp .4s var(--ease) ${i * 0.06}s both` }}><div className="fk">{ICON.check}</div>{f}</div>
-                ))}
-              </div>
-              {!showAllFac && <span className="fm" onClick={() => setShowAllFac(true)}>Show all 32 facilities →</span>}
+              {info?.facilities?.length > 0 ? (() => {
+                const groups = {};
+                const skipGroups = ['Location', 'Methods of payment'];
+                info.facilities.forEach((f) => {
+                  if (skipGroups.includes(f.facilityGroupName)) return;
+                  const g = f.facilityGroupName || 'Other';
+                  if (!groups[g]) groups[g] = [];
+                  groups[g].push(f);
+                });
+                const entries = Object.entries(groups);
+                const shown = showAllFac ? entries : entries.slice(0, 5);
+                return <>
+                  <div className="fac-header reveal">
+                    <div className="inf-card-icon">{TAB_ICON.Facilities}</div>
+                    <div>
+                      <h3 className="inf-card-title">Hotel Facilities</h3>
+                      <div className="fac-subtitle">{entries.length} categories · {info.facilities.filter((f) => !skipGroups.includes(f.facilityGroupName)).length} amenities</div>
+                    </div>
+                  </div>
+                  {shown.map(([group, items]) => (
+                    <div className="fac-card reveal" key={group}>
+                      <div className="fac-card-head">
+                        <div className="fac-card-dot" />
+                        <span className="fac-card-name">{group}</span>
+                        <span className="fac-card-count">{items.length}</span>
+                      </div>
+                      <div className="fac-card-items">
+                        {items.map((f, i) => (
+                          <div className={`fac-item${f.isPaid ? ' fac-item--paid' : ''}`} key={i}>
+                            <div className="fac-item-icon">{ICON.check}</div>
+                            <span className="fac-item-name">{f.facilityName}{f.number ? ` (${f.number})` : ''}</span>
+                            {f.isPaid && <span className="fac-item-badge">Paid</span>}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                  {!showAllFac && entries.length > 5 && (
+                    <button className="fac-show-all" onClick={() => setShowAllFac(true)}>
+                      Show all {entries.length} categories
+                      <S size={14} sw={2.5}><path d="M6 9l6 6 6-6" /></S>
+                    </button>
+                  )}
+                  {showAllFac && entries.length > 5 && (
+                    <button className="fac-show-all" onClick={() => setShowAllFac(false)}>
+                      Show less
+                      <S size={14} sw={2.5}><path d="M18 15l-6-6-6 6" /></S>
+                    </button>
+                  )}
+                </>;
+              })() : (
+                <>
+                  <div className="fac-header reveal">
+                    <div className="inf-card-icon">{TAB_ICON.Facilities}</div>
+                    <div>
+                      <h3 className="inf-card-title">Hotel Facilities</h3>
+                      <div className="fac-subtitle">{FACILITIES.length + MORE_FACILITIES.length} amenities</div>
+                    </div>
+                  </div>
+                  <div className="fac-card reveal">
+                    <div className="fac-card-items">
+                      {FACILITIES.map((f) => (
+                        <div className="fac-item" key={f}>
+                          <div className="fac-item-icon">{FAC_ICON[f] || ICON.check}</div>
+                          <span className="fac-item-name">{f}</span>
+                        </div>
+                      ))}
+                      {showAllFac && MORE_FACILITIES.map((f, i) => (
+                        <div className="fac-item" key={f} style={{ animation: `sdFadeUp .4s var(--ease) ${i * 0.06}s both` }}>
+                          <div className="fac-item-icon">{ICON.check}</div>
+                          <span className="fac-item-name">{f}</span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                  {!showAllFac && <button className="fac-show-all" onClick={() => setShowAllFac(true)}>Show all facilities <S size={14} sw={2.5}><path d="M6 9l6 6 6-6" /></S></button>}
+                </>
+              )}
             </div>
 
-            {/* ── WEATHER ── */}
+            {/* ── WEATHER (commented out for now) ──
             <div className={`tp${activeTab === 'Weather' ? ' act' : ''}`}>
               <h3 className="section-title">
                 {TAB_ICON.Weather} Climate
@@ -751,16 +1121,30 @@ export default function HotelDetail() {
                 ))}
               </div>
             </div>
+            */}
 
-            {/* ── MAP ── */}
+            {/* ── MAP (commented out for now) ──
             <div className={`tp${activeTab === 'Map' ? ' act' : ''}`}>
-              <div className="mc">
-                <div className="mp"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="1.5" strokeLinecap="round" className="mpin"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg></div>
-                <div className="mi"><span className="ml">{ICON.pin} {locLabel}</span><button className="mb">View on map</button></div>
+              {info?.latitude && info?.longitude ? (
+                <iframe
+                  className="map-embed"
+                  title="Hotel location"
+                  src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(info.longitude) - 0.01},${Number(info.latitude) - 0.008},${Number(info.longitude) + 0.01},${Number(info.latitude) + 0.008}&layer=mapnik&marker=${info.latitude},${info.longitude}`}
+                  style={{ width: '100%', height: 400, border: 'none', borderRadius: 16 }}
+                />
+              ) : (
+                <div className="mc">
+                  <div className="mp"><svg width="48" height="48" viewBox="0 0 24 24" fill="none" stroke="var(--blue)" strokeWidth="1.5" strokeLinecap="round" className="mpin"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg></div>
+                  <div className="mi"><span className="ml">{ICON.pin} {locLabel}</span></div>
+                </div>
+              )}
+              <div className="map-address">
+                {ICON.pin} {info?.address ? `${info.address}, ${info?.city || ''}` : locLabel}
               </div>
             </div>
+            */}
 
-            {/* ── REVIEWS ── */}
+            {/* ── REVIEWS (commented out for now) ──
             <div className={`tp${activeTab === 'Reviews' ? ' act' : ''}`}>
               <div className="rs reveal">
                 <div className="rb">9.3</div>
@@ -788,19 +1172,21 @@ export default function HotelDetail() {
                 ))}
               </div>
             </div>
+            */}
           </div>
 
           {/* Booking sidebar */}
           <aside>
             <div className="bk">
-              <div className="bkr">
-                <div className="bks">9.3</div>
-                <div><div className="bkl hd">Fantastic</div><div className="bkn">247 reviews</div></div>
-              </div>
+              {/* bkr review score removed — no real review data yet */}
               <div className="bkp">
-                <div className="bkpl">per person from</div>
-                <div className="bkpr hd">{ccy}{ppPrice} <span>p.p.</span></div>
-                <div className="bkp-total">{ccy}{(hotel?.totalAmount ? Math.round(hotel.totalAmount) : ppPrice * 2).toLocaleString('en-GB')} total · 2 adults</div>
+                <div className="bkpl">{liveTotal != null ? `live price · ${pd?.day} ${pd?.date}` : 'per person from'}</div>
+                <div className="bkpr hd">{ccy}{liveTotal != null ? liveTotal.toLocaleString('en-GB') : ppPrice} {liveTotal == null && <span>p.p.</span>}</div>
+                <div className="bkp-total">
+                  {liveTotal != null
+                    ? `${liveRoom ? 'Room' : ''}${liveRoom && liveFlight ? ' + flight' : liveFlight ? 'Flight' : ''} · ${sAdults} ${Number(sAdults) === 1 ? 'adult' : 'adults'}`
+                    : `${ccy}${displayTotal.toLocaleString('en-GB')} total · 2 adults`}
+                </div>
               </div>
               <div className="bkd">
                 <div className="bkdi"><span className="bkdk">{ICON.cal}</span>Wed 06 May — Wed 13 May 2026</div>
@@ -821,8 +1207,8 @@ export default function HotelDetail() {
       {/* Mobile sticky bar */}
       <div className="mbar">
         <div className="mbi">
-          <div className="mbp"><small>per person from</small>{ccy}{ppPrice}</div>
-          <button className="mbc" onClick={goCheckout}>Check price →</button>
+          <div className="mbp"><small>{liveTotal != null ? 'live total' : 'per person from'}</small>{ccy}{liveTotal != null ? liveTotal.toLocaleString('en-GB') : ppPrice}</div>
+          <button className="mbc" onClick={goCheckout}>{liveTotal != null ? 'Book now' : 'Check price'} →</button>
         </div>
       </div>
 

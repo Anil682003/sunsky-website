@@ -152,6 +152,21 @@ export default function FlightDetail() {
           retAirline: flight.ret.airline, retDate: fmtDateShort(flight.ret.depDateISO),
         } : {}),
       },
+      // ── payload for the backend Online-booking create call ──
+      api: {
+        flight: {
+          from: flight.out.fromCode, to: flight.out.toCode,
+          depdate: flight.out.depDateISO, retdate: isRound ? flight.ret.depDateISO : undefined,
+          price: Math.round(fb.total), currency: 'EUR',
+          tripType: isRound ? 'roundtrip' : 'oneway', supplier: 'Airtuerk',
+          legs: [flight.out, isRound ? flight.ret : null].filter(Boolean).map((leg) => ({
+            from: leg.fromCode, to: leg.toCode,
+            departure: `${leg.depDateISO}T${(leg.depTime || '00:00')}:00`,
+            arrival: `${shiftDate(leg.depDateISO, leg.arrDay || 0)}T${(leg.arrTime || '00:00')}:00`,
+            airline: leg.airlineCode, flightNumber: (leg.flightNo || '').split(' ')[1] || '', duration: leg.durMin || 0,
+          })),
+        },
+      },
     };
     navigate('/checkout', { state: { booking } });
   };
