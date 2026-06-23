@@ -466,8 +466,9 @@ function CheckoutContent({ stripe, elements }) {
       const contactPhone = customerType === 'professional' ? pro.primaryContactPhone : priv.phone;
 
       // Step 1 — create the booking
+      const paymentMode = import.meta.env.VITE_PAYMENT_MODE || 'test';
       const createRes = await axiosInstance.post('/website/online-bookings', {
-        mode: 'test',
+        mode: paymentMode,
         currency: ccy === '€' ? 'EUR' : ccy,
         customer,
         hotel: hotelPayload || undefined,
@@ -484,42 +485,40 @@ function CheckoutContent({ stripe, elements }) {
 
       let paidViaStripe = false;
       if (stripe && elements) {
-        try {
-          // Step 2 — create Stripe PaymentIntent
-          const intentRes = await axiosInstance.post(`/website/online-bookings/${bookingId}/create-payment-intent`);
-          const { clientSecret } = intentRes.data?.data || {};
-          if (!clientSecret) throw new Error('Could not initialize payment');
+        // Step 2 — create Stripe PaymentIntent
+        const intentRes = await axiosInstance.post(`/website/online-bookings/${bookingId}/create-payment-intent`);
+        const { clientSecret } = intentRes.data?.data || {};
+        if (!clientSecret) throw new Error('Could not initialize payment');
 
-          // Step 3 — confirm card payment with Stripe
-          const cardEl = elements.getElement(CardNumberElement);
-          const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-            payment_method: {
-              card: cardEl,
-              billing_details: {
-                name: card.name || undefined,
-                email: customerEmail || undefined,
-              },
+        // Step 3 — confirm card payment with Stripe
+        // Card declines and authentication failures must propagate to the user, not fall through to dummy payment.
+        const cardEl = elements.getElement(CardNumberElement);
+        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+          payment_method: {
+            card: cardEl,
+            billing_details: {
+              name: card.name || undefined,
+              email: customerEmail || undefined,
             },
-          });
-          if (error) throw new Error(error.message);
-          if (paymentIntent.status !== 'succeeded') throw new Error('Payment was not completed');
+          },
+        });
+        if (error) throw new Error(error.message);
+        if (paymentIntent.status !== 'succeeded') throw new Error('Payment was not completed');
 
-          // Step 4 — record payment on backend
-          await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, {
-            paymentIntentId: paymentIntent.id,
-          });
-          paidViaStripe = true;
-        } catch (stripeErr) {
-          console.warn('[Checkout] Stripe flow failed, falling back to test payment:', stripeErr?.response?.data?.message || stripeErr.message);
-        }
+        // Step 4 — record payment on backend
+        await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, {
+          paymentIntentId: paymentIntent.id,
+        });
+        paidViaStripe = true;
       }
       if (!paidViaStripe) {
+        if (paymentMode === 'live') throw new Error('Payment could not be processed. Please try again.');
         await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, { mode: 'test' });
       }
 
       // Step 5 — reserve with suppliers + confirm (non-fatal)
       try {
-        await axiosInstance.post(`/website/online-bookings/${bookingId}/confirm`, { mode: 'test' });
+        await axiosInstance.post(`/website/online-bookings/${bookingId}/confirm`, { mode: paymentMode });
       } catch (confErr) {
         console.warn('[Checkout] confirm step failed:', confErr?.response?.data?.message || confErr.message);
       }
