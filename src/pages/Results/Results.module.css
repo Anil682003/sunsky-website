@@ -580,6 +580,11 @@
   animation: rcSpin 0.7s linear infinite; flex-shrink: 0;
 }
 @keyframes rcSpin { to { transform: rotate(360deg); } }
+.endOfResults {
+  text-align: center; padding: 28px 0 12px;
+  font-size: 13px; font-weight: 600; color: var(--text-sec);
+  border-top: 1px solid #eef3fb; margin-top: 8px;
+}
 .skW80 { width: 80%; height: 12px; }
 .skW30 { width: 35%; height: 26px; margin-top: auto; }
 .skRail1 { width: 70%; height: 26px; }
