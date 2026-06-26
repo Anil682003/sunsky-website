@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import styles from './Results.module.css';
 
@@ -89,6 +89,7 @@ export default function Results() {
   const [localCheckOut, setLocalCheckOut] = useState(initCheckOut);
   const [localAdults,   setLocalAdults]   = useState(parseInt(initAdults));
   const [localChildren, setLocalChildren] = useState(parseInt(initChildren));
+  const [localRooms,    setLocalRooms]    = useState(parseInt(initRooms));
 
   // Committed params that drive the API fetch
   const [fetchParams, setFetchParams] = useState({
@@ -98,6 +99,8 @@ export default function Results() {
 
   const [sort, setSort]               = useState('Price: Low to High');
   const [loading, setLoading]         = useState(true);
+  const [fetchingMore, setFetchingMore] = useState(false);
+  const [hasMore, setHasMore]         = useState(true);
   const [hotels, setHotels]           = useState([]);
   const [allHotels, setAllHotels]     = useState([]);
   const [nights, setNights]           = useState(0);
@@ -110,102 +113,185 @@ export default function Results() {
   const [maxPriceAvail,  setMaxPriceAvail]  = useState(5000);
   const [priceMaxFilter, setPriceMaxFilter] = useState(999999);
 
-  // infinite scroll + lazy hotel-info paging
+  // Lazy hotel-info loading
   const [infoMap, setInfoMap]         = useState({});
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
-  const [loadingMore, setLoadingMore] = useState(false);
   const infoLoadingRef = useRef(new Set());
   const sentinelRef    = useRef(null);
 
-  // Fetch from contracts API
+  // Pagination state tracked in refs to avoid stale closures in async callbacks
+  const paginationRef  = useRef({ page: 1, hasMore: true, fetching: false });
+  const seenCodesRef   = useRef(new Set());
+
+  // Fetch params ref so loadMore always sees latest values
+  const fetchParamsRef    = useRef(fetchParams);
+  const destCodeRef       = useRef(destCode);
+  const childAgesRef      = useRef(childAges);
+  const destLabelRef      = useRef(destinationLabel);
+  useEffect(() => { fetchParamsRef.current = fetchParams; },    [fetchParams]);
+  useEffect(() => { destCodeRef.current    = destCode; },       [destCode]);
+  useEffect(() => { childAgesRef.current   = childAges; },      [childAges]);
+  useEffect(() => { destLabelRef.current   = destinationLabel; }, [destinationLabel]);
+
+  const buildQS = (fp, dc, ca, page) => {
+    const roomsN = Math.max(1, parseInt(fp.rooms, 10) || 1);
+    const qs = new URLSearchParams({
+      destination:        dc,
+      checkIn:            fp.checkIn,
+      checkOut:           fp.checkOut,
+      adults:             fp.adults,
+      children:           fp.children,
+      rooms:              String(roomsN),
+      limit:              String(PAGE_SIZE),
+      page:               String(page),
+      source:             'combined',
+      maxAdultsPerRoom:   String(Math.ceil((parseInt(fp.adults, 10) || 1) / roomsN)),
+      maxChildrenPerRoom: String(Math.ceil((parseInt(fp.children, 10) || 0) / roomsN)),
+    });
+    if (ca) qs.set('childAges', ca);
+    return qs.toString();
+  };
+
+  const mapContract = (c, label, badgeIdx) => ({
+    id:           c.hotelCode,
+    hotelCode:    c.hotelCode,
+    name:         c.hotelName ?? `Hotel ${c.hotelCode}`,
+    stars:        null,
+    board:        getBoardLabel(c.board),
+    boardCode:    c.board,
+    boardTags:    getBoardTags(c.board),
+    roomType:     c.roomType,
+    characteristic: c.characteristic,
+    classification: c.classification,
+    contractName: c.contractName,
+    totalAmount:  c.totalAmount,
+    currency:     c.currency,
+    nightlyBreakdown: c.nightlyBreakdown || [],
+    badge:        BADGES[badgeIdx % BADGES.length],
+    img:          FALLBACK_IMG,
+    loc:          label,
+  });
+
+  // Initial fetch — resets everything when search params change
   useEffect(() => {
     if (!destCode) {
-      setHotels([]);
       setAllHotels([]);
+      setHasMore(false);
       setLoading(false);
       return;
     }
 
     setLoading(true);
+    setAllHotels([]);
+    setHasMore(true);
+    setInfoMap({});
+    setPriceMaxFilter(999999);
+    setMaxPriceAvail(5000);
+    infoLoadingRef.current = new Set();
+    seenCodesRef.current   = new Set();
+    paginationRef.current  = { page: 1, hasMore: true, fetching: true };
 
-    const roomsN = Math.max(1, parseInt(fetchParams.rooms, 10) || 1);
-    const qs = new URLSearchParams({
-      destination:        destCode,
-      checkIn:            fetchParams.checkIn,
-      checkOut:           fetchParams.checkOut,
-      adults:             fetchParams.adults,
-      children:           fetchParams.children,
-      rooms:              String(roomsN),
-      limit:              '50',
-      source:             'combined',
-      maxAdultsPerRoom:   String(Math.ceil((parseInt(fetchParams.adults, 10) || 1) / roomsN)),
-      maxChildrenPerRoom: String(Math.ceil((parseInt(fetchParams.children, 10) || 0) / roomsN)),
-    });
-    if (childAges) qs.set('childAges', childAges);
+    const url = `${CONTRACTS_API}/contracts/cheapest?${buildQS(fetchParams, destCode, childAges, 1)}`;
+    console.log('[Results] Initial fetch:', url);
 
-    const fullUrl = `${CONTRACTS_API}/contracts/cheapest?${qs.toString()}`;
-    console.log('[Results] Calling contracts API:', fullUrl);
-
-    fetch(fullUrl)
+    let cancelled = false;
+    fetch(url)
       .then((r) => r.json())
-      .then(async (data) => {
+      .then((data) => {
+        if (cancelled) return;
         const results    = data.results || [];
         const nightCount = data.nights  || 0;
         setNights(nightCount);
 
-        // Group by hotelCode — keep cheapest contract per hotel
-        const hotelMap = new Map();
+        const seen   = seenCodesRef.current;
+        const mapped = [];
         for (const c of results) {
-          const existing = hotelMap.get(c.hotelCode);
-          if (!existing || c.totalAmount < existing.totalAmount) {
-            hotelMap.set(c.hotelCode, c);
+          if (!seen.has(c.hotelCode)) {
+            seen.add(c.hotelCode);
+            mapped.push(mapContract(c, destinationLabel, mapped.length));
           }
         }
 
-        const contracts  = [...hotelMap.values()];
-
-        // Base list from contracts only — real names/images/stars are loaded
-        // lazily, 20 at a time, as the user scrolls (see info-paging effect).
-        const mapped = contracts.map((c, i) => ({
-          id:           c.hotelCode,
-          hotelCode:    c.hotelCode,
-          name:         c.hotelName ?? `Hotel ${c.hotelCode}`,
-          stars:        null,
-          board:        getBoardLabel(c.board),
-          boardCode:    c.board,
-          boardTags:    getBoardTags(c.board),
-          roomType:     c.roomType,
-          characteristic: c.characteristic,
-          classification: c.classification,
-          contractName: c.contractName,
-          totalAmount:  c.totalAmount,
-          currency:     c.currency,
-          nightlyBreakdown: c.nightlyBreakdown || [],
-          badge:        BADGES[i % BADGES.length],
-          img:          FALLBACK_IMG,
-          loc:          destinationLabel,
-        }));
-
-        // Compute price range for slider
         if (mapped.length > 0) {
           const max     = Math.max(...mapped.map((h) => h.totalAmount));
           const rounded = Math.ceil(max / 100) * 100;
-          setMaxPriceAvail(rounded);
-          setPriceMaxFilter(rounded);
+          setMaxPriceAvail((prev) => Math.max(prev, rounded));
         }
 
-        setInfoMap({});
-        infoLoadingRef.current = new Set();
-        setVisibleCount(PAGE_SIZE);
+        // Use the API's own hasMore flag; fall back to result count check
+        const more = data.hasMore ?? (results.length >= PAGE_SIZE);
+        paginationRef.current = { page: 2, hasMore: more, fetching: false };
+        setHasMore(more);
         setAllHotels(mapped);
         setLoading(false);
       })
       .catch((err) => {
+        if (cancelled) return;
         console.error('[Results] Contracts API error:', err);
         setAllHotels([]);
+        setHasMore(false);
         setLoading(false);
+        paginationRef.current = { page: 1, hasMore: false, fetching: false };
       });
+
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [destCode, fetchParams]);
+
+  // Load next page from API
+  const loadMore = useCallback(() => {
+    const pg = paginationRef.current;
+    if (!pg.hasMore || pg.fetching) return;
+
+    paginationRef.current = { ...pg, fetching: true };
+    setFetchingMore(true);
+
+    const fp  = fetchParamsRef.current;
+    const dc  = destCodeRef.current;
+    const ca  = childAgesRef.current;
+    const lbl = destLabelRef.current;
+    const url = `${CONTRACTS_API}/contracts/cheapest?${buildQS(fp, dc, ca, pg.page)}`;
+    console.log('[Results] Load more (page=' + pg.page + '):', url);
+
+    fetch(url)
+      .then((r) => r.json())
+      .then((data) => {
+        const results = data.results || [];
+        const seen    = seenCodesRef.current;
+
+        // Dedup OUTSIDE the state updater: seen.add() is a mutation, and React
+        // StrictMode double-invokes updater functions in dev — doing it inside
+        // would make the 2nd invocation see the codes already added and append
+        // nothing, wiping the new page. Build the new items here (once), then
+        // append with a pure updater.
+        const newCards = [];
+        for (const c of results) {
+          if (!seen.has(c.hotelCode)) {
+            seen.add(c.hotelCode);
+            newCards.push(c);
+          }
+        }
+
+        if (newCards.length > 0) {
+          setAllHotels((prev) => [
+            ...prev,
+            ...newCards.map((c, i) => mapContract(c, lbl, prev.length + i)),
+          ]);
+          const newMax = Math.max(...newCards.map((r) => r.totalAmount));
+          setMaxPriceAvail((prev) => Math.max(prev, Math.ceil(newMax / 100) * 100));
+        }
+
+        const more = data.hasMore ?? (results.length >= PAGE_SIZE);
+        paginationRef.current = { page: pg.page + 1, hasMore: more, fetching: false };
+        setHasMore(more);
+        setFetchingMore(false);
+      })
+      .catch((err) => {
+        console.error('[Results] Load more error:', err);
+        paginationRef.current = { ...paginationRef.current, fetching: false };
+        setFetchingMore(false);
+      });
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Client-side filter + sort
   useEffect(() => {
@@ -228,15 +314,9 @@ export default function Results() {
     setHotels(data);
   }, [allHotels, boardFilter, classFilter, priceMaxFilter, sort]);
 
-  // Reset the visible window whenever the filtered set changes
+  // Lazily load real hotel info (name/images/stars) for all visible hotels
   useEffect(() => {
-    setVisibleCount(PAGE_SIZE);
-  }, [boardFilter, classFilter, priceMaxFilter, sort, allHotels]);
-
-  // Lazily load real hotel info (name/images/stars) for the visible slice, in pages
-  useEffect(() => {
-    const slice = hotels.slice(0, visibleCount);
-    const need = slice
+    const need = hotels
       .map((h) => String(h.hotelCode))
       .filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code));
     if (need.length === 0) return;
@@ -257,40 +337,30 @@ export default function Results() {
           if (!cancelled && Object.keys(add).length) setInfoMap((prev) => ({ ...prev, ...add }));
         }
       } catch (e) {
-        console.warn('[Results] Hotel info page failed:', e);
+        console.warn('[Results] Hotel info bulk failed:', e);
       } finally {
         need.forEach((c) => infoLoadingRef.current.delete(c));
       }
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotels, visibleCount]);
+  }, [hotels]);
 
-  // Infinite scroll — reveal the next page as the sentinel nears the viewport
+  // Infinite scroll — IntersectionObserver on sentinel.
+  // Re-runs when allHotels.length changes so it reconnects after each page
+  // load and fires immediately if the sentinel is still in view (short page).
   useEffect(() => {
-    if (loading || loadingMore || visibleCount >= hotels.length) return;
-    const nearBottom = () => {
-      const el = sentinelRef.current;
-      if (el) return el.getBoundingClientRect().top <= window.innerHeight + 320;
-      const doc = document.documentElement;
-      return doc.scrollHeight - (window.scrollY + window.innerHeight) < 600;
-    };
-    const maybeLoad = () => {
-      if (!nearBottom()) return;
-      setLoadingMore(true);
-      setTimeout(() => {
-        setVisibleCount((v) => Math.min(v + PAGE_SIZE, hotels.length));
-        setLoadingMore(false);
-      }, 450);
-    };
-    window.addEventListener('scroll', maybeLoad, { passive: true });
-    window.addEventListener('resize', maybeLoad);
-    maybeLoad(); // in case the first page already fits without scrolling
-    return () => {
-      window.removeEventListener('scroll', maybeLoad);
-      window.removeEventListener('resize', maybeLoad);
-    };
-  }, [visibleCount, hotels.length, loading, loadingMore]);
+    if (loading || !hasMore) return;
+    const el = sentinelRef.current;
+    if (!el) return;
+
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) loadMore(); },
+      { rootMargin: '400px' }
+    );
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [loading, hasMore, allHotels.length, loadMore]);
 
   const toggleLike  = (id) => setLiked((prev) => ({ ...prev, [id]: !prev[id] }));
   const toggleBoard = (b)  => setBoardFilter((prev) => prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]);
@@ -303,6 +373,7 @@ export default function Results() {
       checkOut: localCheckOut,
       adults:   String(localAdults),
       children: String(localChildren),
+      rooms:    String(localRooms),
     }));
   };
 
@@ -353,7 +424,7 @@ export default function Results() {
         <div className={styles.guestRow}>
           <span className={styles.guestLabel}>Adults</span>
           <div className={styles.guestCounter}>
-            <button className={styles.guestBtn} onClick={() => setLocalAdults((a) => Math.max(1, a - 1))}>−</button>
+            <button className={styles.guestBtn} onClick={() => setLocalAdults((a) => { const n = Math.max(1, a - 1); setLocalRooms((r) => Math.min(r, n)); return n; })}>−</button>
             <span className={styles.guestNum}>{localAdults}</span>
             <button className={styles.guestBtn} onClick={() => setLocalAdults((a) => Math.min(9, a + 1))}>+</button>
           </div>
@@ -364,6 +435,14 @@ export default function Results() {
             <button className={styles.guestBtn} onClick={() => setLocalChildren((c) => Math.max(0, c - 1))}>−</button>
             <span className={styles.guestNum}>{localChildren}</span>
             <button className={styles.guestBtn} onClick={() => setLocalChildren((c) => Math.min(6, c + 1))}>+</button>
+          </div>
+        </div>
+        <div className={styles.guestRow}>
+          <span className={styles.guestLabel}>Rooms</span>
+          <div className={styles.guestCounter}>
+            <button className={styles.guestBtn} onClick={() => setLocalRooms((r) => Math.max(1, r - 1))}>−</button>
+            <span className={styles.guestNum}>{localRooms}</span>
+            <button className={styles.guestBtn} onClick={() => setLocalRooms((r) => Math.min(localAdults, r + 1))}>+</button>
           </div>
         </div>
         <button className={styles.applyBtn} onClick={applySearch}>
@@ -475,7 +554,7 @@ export default function Results() {
                 Searching the best deals…
               </span>
             ) : (
-              <><strong>{hotels.length}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found</>
+              <><strong>{hotels.length}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found{hasMore ? '+' : ''}</>
             )}
           </div>
           <div className={styles.toolbarRight}>
@@ -549,7 +628,7 @@ export default function Results() {
                 <p>Try a different destination, dates, or adjust your filters.</p>
               </div>
             ) : (
-              hotels.slice(0, visibleCount).map((h, i) => {
+              hotels.map((h, i) => {
                 const info      = infoMap[String(h.hotelCode)];
                 const dispName  = info?.name?.trim() || h.name;
                 const dispStars = info?.stars ?? h.stars;
@@ -681,11 +760,19 @@ export default function Results() {
               })
             )}
 
-            {/* Infinite-scroll sentinel + activity indicator */}
-            {!loading && hotels.length > 0 && visibleCount < hotels.length && (
-              <div ref={sentinelRef} className={styles.loadMore}>
+            {/* Invisible sentinel — IntersectionObserver anchor, always present while more pages exist */}
+            {!loading && hasMore && <div ref={sentinelRef} style={{ height: '1px' }} />}
+            {/* Spinner — only shown while a page fetch is actually in flight */}
+            {!loading && fetchingMore && (
+              <div className={styles.loadMore}>
                 <span className={styles.loadMoreSpin} />
                 Loading more stays…
+              </div>
+            )}
+            {/* End of results — no more pages to load */}
+            {!loading && !hasMore && hotels.length > 0 && (
+              <div className={styles.endOfResults}>
+                You’ve reached the end — all {hotels.length} stays shown
               </div>
             )}
           </div>

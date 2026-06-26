@@ -1,111 +1,78 @@
-# Sunsky Website
+# SunSky Website — Frontend
 
-Customer-facing booking portal for the Sunsky travel platform. Public users browse travel products, register/login, and manage their bookings. The companion admin panel lives at `D:\sunsky-freelance\sunsky-admin`.
+B2C travel booking website for hotel packages and flights. Built with React + Vite.
+
+**Live:** [holidaybooking.be](https://holidaybooking.be)  
+**Admin:** [admin.holidaybooking.be](https://admin.holidaybooking.be)
+
+---
 
 ## Tech Stack
 
-| Layer | Choice |
-|---|---|
-| Framework | React 19 + Vite |
-| Routing | React Router v7 |
-| State | Redux Toolkit (`authSlice`) |
-| HTTP | Axios — centralized `axiosInstance` with auto token refresh |
+| Layer | Technology |
+|-------|-----------|
+| Framework | React 18 + Vite |
+| State | Redux Toolkit |
+| Routing | React Router v6 |
+| Payments | Stripe (`@stripe/react-stripe-js`) |
+| HTTP | Axios |
 | Icons | Lucide React |
-| Styling | CSS Modules — no external UI libraries |
-
-## Design Tokens
-
-- Primary accent: `#f5a51e` (amber/gold)
-- Backgrounds: white + light grays
-- Currency: European format (`€1.234,56`)
-- Input height: 36px alignment
+| Styles | CSS Modules |
 
 ---
 
 ## Getting Started
 
+### Prerequisites
+- Node.js 18+
+- npm
+
+### Install & Run
+
 ```bash
 npm install
-npm run dev        # http://localhost:5173
+npm run dev
 ```
 
-### Environment variable (optional)
+Dev server runs at **http://localhost:5173**
 
-Create a `.env` file in the project root to override the API URL:
-
-```env
-VITE_API_URL=http://localhost:5000/api
-```
-
-The `axiosInstance` defaults to `http://localhost:5000/api` if this variable is not set.
-To point at the production server instead, update `src/utils/ip.js`:
-
-```js
-// src/utils/ip.js
-export const BASE_URL = 'http://91.134.71.79:5000/api';   // production
-// export const BASE_URL = 'http://localhost:5000/api';    // local
-```
-
----
-
-## Relationship to sunsky-admin Backend
-
-The website shares the **same backend** as the admin panel. All customer-facing endpoints live under the `/api/public/` namespace.
-
-| Concern | sunsky-admin | sunsky-website |
-|---|---|---|
-| Audience | Agency staff (Super Admin / Admin / Employee) | End customers |
-| Role hierarchy level | 1, 2, 3 | 4 (Customer) |
-| Auth endpoint prefix | `/api/auth/` | `/api/public/auth/` |
-| Booking type created | `offline` | `online` |
-| Booking visibility | All bookings | Own bookings only |
-
-> **Important:** The backend rejects logins from non-customer accounts on `/api/public/auth/login` and vice versa on `/api/auth/login`.
-
----
-
-## Before Running — One-time Backend Setup
-
-Run the customer role seed script **once** on the backend:
+### Build for Production
 
 ```bash
-node backend/scripts/seed-customer-role.mjs
+npm run build       # outputs to /dist
+npm run preview     # preview the production build locally
 ```
-
-This inserts the `customer` role (hierarchyLevel 4) into the `roles` table. Registration will fail with a 500 error if this is skipped.
 
 ---
 
-## Authentication Flow
+## Environment Variables
 
-```
-Register (/register)
-  → POST /api/public/auth/register
-  → { type: 'private'|'professional', ...fields, password }
-  → Creates users record + private_customers or professional_customers record
-  → Returns { accessToken, refreshToken, user }
-  → Auto-login → navigate to /account/bookings
+Create a `.env` file in the project root:
 
-Login (/login)
-  → POST /api/public/auth/login
-  → { email, password }
-  → Returns { accessToken, refreshToken, user }
-  → Stored in localStorage + Redux
+```env
+# Backend API (local dev)
+VITE_API_URL=http://localhost:5000/api
 
-Token Refresh (automatic)
-  → axiosInstance intercepts 401 responses
-  → POST /api/public/auth/refresh with stored refreshToken
-  → Retries original request with new accessToken
-  → On refresh failure → clears storage → redirect to /login
+# Hotel contracts cache API
+VITE_CACHE_API_URL=https://cache.holidaybooking.be
+
+# Stripe public key
+VITE_STRIPE_PUBLIC_KEY=pk_test_...
+
+# Payment mode: 'test' or 'live'
+VITE_PAYMENT_MODE=test
 ```
 
-### Token storage
+For production, set these in `.env.production`:
 
-| Key | Value |
-|---|---|
-| `localStorage.accessToken` | JWT access token (24h expiry) |
-| `localStorage.refreshToken` | JWT refresh token (7 days) |
-| `localStorage.user` | Serialized user object (Redux persistence) |
+```env
+VITE_API_URL=https://admin.holidaybooking.be/api
+VITE_CACHE_API_URL=https://cache.holidaybooking.be
+VITE_STRIPE_PUBLIC_KEY=pk_live_...
+VITE_PAYMENT_MODE=live
+```
+
+> **Never commit `.env.production` with live Stripe keys to git.**
 
 ---
 
@@ -113,113 +80,166 @@ Token Refresh (automatic)
 
 ```
 src/
-  assets/               # Images, logos
-  components/           # Shared UI components
-    ProtectedRoute.jsx  # Redirects to /login if not authenticated
-    PublicRoute.jsx     # Redirects to /account if already authenticated
-  hooks/
-    useApi.js           # Generic { data, loading, error, execute } hook
-  pages/
-    Auth/
-      Login.jsx         # → POST /api/public/auth/login
-      Register.jsx      # → POST /api/public/auth/register (private + professional)
-    Account/
-      MyBookings.jsx    # → GET /api/public/bookings
-      Profile.jsx       # → GET /api/public/auth/me
-      AccountSettings.jsx
-      Account.jsx
-    Home/               # Landing page + sections
-    Search/
-    Flights/
-    Hotels/
-    Packages/
-    Transfers/
-    Booking/
-      BookingFlow.jsx
-      BookingDetail.jsx
-      BookingConfirmation.jsx
-  routes/
-    AppRouter.jsx       # Route rendering with Suspense + layout wrapping
-    routes.config.jsx   # Route definitions (public / protected / layout flags)
-  services/
-    axiosInstance.js    # Axios with Bearer token injection + 401 auto-refresh
-  store/
-    index.js
-    slices/authSlice.js # loginSuccess / logout / updateUser actions
-  utils/
-    ip.js               # BASE_URL + UPLOAD_BASE_URL constants
+├── pages/
+│   ├── Home/              # Landing page + Hero search
+│   │   └── sections/      # Hero, Destinations, Hotels, etc.
+│   ├── Results/           # Hotel search results (infinite scroll)
+│   ├── HotelDetail/       # Hotel detail + room/flight selection
+│   ├── Flights/           # Flights-only search results
+│   ├── FlightDetail/      # Flight detail + booking
+│   ├── Checkout/          # Multi-step checkout + Stripe payment
+│   │   └── Confirmation   # Post-booking confirmation page
+│   ├── Voucher/           # Hotel voucher (printable)
+│   ├── Account/           # My Bookings, Profile, Settings
+│   ├── Auth/              # Login, Register
+│   └── Booking/           # Booking detail view
+├── components/            # Shared UI components
+├── store/                 # Redux store + slices (auth, etc.)
+├── services/              # Axios instance + API helpers
+└── App.jsx                # Routes
 ```
 
 ---
 
-## API Endpoints Used
+## Key Flows
 
-### Public (no auth required)
-| Method | Endpoint | Used in |
-|---|---|---|
-| POST | `/api/public/auth/register` | Register.jsx |
-| POST | `/api/public/auth/login` | Login.jsx |
-| POST | `/api/public/auth/refresh` | axiosInstance (auto) |
+### Hotel Package Booking
+```
+Home (Hero search)
+  → /results          (browse + filter hotels, infinite scroll)
+  → /hotel/:id        (select room, flight, dates)
+  → /checkout         (customer info → insurance → payment)
+  → /confirmation     (booking confirmed + voucher)
+```
 
-### Customer (requires Bearer token + customer role)
-| Method | Endpoint | Used in |
-|---|---|---|
-| GET | `/api/public/auth/me` | Profile.jsx |
-| POST | `/api/public/auth/logout` | (logout action) |
-| GET | `/api/public/bookings` | MyBookings.jsx |
-| GET | `/api/public/bookings/:ref` | BookingDetail.jsx |
+### Flights Only
+```
+Home (Flights tab in Hero)
+  → /flights          (search results from Airtuerk)
+  → /flight/:id       (select outbound + return leg)
+  → /checkout         (same checkout flow)
+```
 
-### Shared / read-only (no auth, served from admin backend)
-| Prefix | Purpose |
-|---|---|
-| `/api/cms/` | CMS pages, FAQs |
-| `/api/geo/` | Countries, destinations, zones |
-| `/api/flights/` | Flight product data |
-| `/api/hotels/` | Hotel product data |
-
----
-
-## Customer Types
-
-Registration supports two account types, each stored in a separate DB table:
-
-| Type | DB Table | Code prefix | Form steps |
-|---|---|---|---|
-| Private | `private_customers` | `CUST-PRV-xxxxx` | Personal → Address → Security |
-| Professional | `professional_customers` | `CUST-PRO-xxxxx` | Company → Invoicing → Contact → Security |
-
-Both are linked to the `users` table by email.
+### User Account
+```
+/login  or  /register
+  → /account/bookings   (list of user's bookings)
+  → /account/profile    (user details)
+```
 
 ---
 
-## Route Map
+## APIs
 
-| Path | Auth | Page |
-|---|---|---|
-| `/` | No | Home |
-| `/search` | No | Search results |
-| `/flights` | No | Flights listing |
-| `/hotels` | No | Hotels listing |
-| `/packages` | No | Packages listing |
-| `/transfers` | No | Transfers listing |
-| `/about` | No | About page |
-| `/contact` | No | Contact page |
-| `/login` | No (public only) | Login form |
-| `/register` | No (public only) | Registration wizard |
-| `/account` | Yes | Account dashboard |
-| `/account/bookings` | Yes | My bookings list |
-| `/account/profile` | Yes | Profile + customer details |
-| `/account/settings` | Yes | Account settings |
-| `/booking/new` | Yes | New booking flow |
-| `/booking/:ref` | Yes | Booking detail |
-| `/booking/:ref/confirmation` | Yes | Booking confirmation |
+| API | Base URL | Purpose |
+|-----|----------|---------|
+| Backend | `VITE_API_URL` | Bookings, auth, payments, admin |
+| Cache API | `VITE_CACHE_API_URL` | Hotel contracts + cheapest pricing |
+| Stripe | (SDK) | Card payment processing |
+
+### Key Endpoints Used
+
+```
+POST   /website/online-bookings                        # Create booking
+POST   /website/online-bookings/:id/create-payment-intent
+POST   /website/online-bookings/:id/payment
+POST   /website/online-bookings/:id/confirm
+GET    /website/my-bookings                            # User's bookings (auth required)
+
+GET    /contracts/cheapest?destination=AYT&page=1     # Hotel results (paginated)
+POST   /hotels/bulk                                    # Hotel info batch fetch
+
+POST   /hotel-availability/search                      # Live room pricing
+POST   /flight-availability/search                     # Airtuerk live flights
+```
 
 ---
 
-## Key Implementation Notes
+## Payment Modes
 
-- The `axiosInstance` auto-refreshes expired tokens — no manual token handling needed in components.
-- `ProtectedRoute` reads `isAuthenticated` from Redux; unauthenticated users are redirected to `/login`.
-- After registration the user is auto-logged-in (tokens returned immediately) and redirected to `/account/bookings`.
-- Booking `balanceAmount = grandTotal − paidAmount` is computed server-side and returned in the API response.
-- All monetary amounts are in EUR and formatted with `€` prefix, 2 decimal places.
+| Mode | Behaviour |
+|------|-----------|
+| `test` | Uses test Stripe key; dummy payment allowed if Stripe unavailable |
+| `live` | Uses live Stripe key; real card required; no dummy fallback |
+
+Switch via `VITE_PAYMENT_MODE` in the env file.
+
+---
+
+## Pending Tasks
+
+### Feature Status
+
+| Feature | Status | Notes |
+|---------|--------|-------|
+| Hotel search (Results page) | Working | Infinite scroll with page-based pagination |
+| Hotel detail / room selection | Working | Room pricing via live availability API |
+| Hotel + flight package booking | Working | End-to-end, Stripe payment |
+| Flights-only booking (Airtuerk) | Partial | Search works; end-to-end booking not verified |
+| User registration / login | Working | JWT auth, Redux store |
+| My Bookings page | Partial | List loads; no detail click-through |
+| Voucher download | Not Done | UI placeholder only |
+| Admin panel (sunsky-admin) | Partial | See separate repo |
+
+---
+
+### Critical Bugs (P0 / P1)
+
+| # | Issue | File | Line | Priority |
+|---|-------|------|------|----------|
+| 1 | One-way flight crash — `retDate.replace()` called on undefined | `HotelDetail.jsx` | ~513 | P0 |
+| 2 | Departure airport hardcoded to `BRU` (Brussels) — not dynamic from search | `HotelDetail.jsx` | 7 | P0 |
+| 3 | Supplier reference hardcoded as `'77-4446011'` on confirmation + voucher | `Confirmation.jsx:167`, `HotelVoucher.jsx:39` | — | P1 |
+| 4 | Hotel contact details hardcoded (phone/fax/email/website) | `Confirmation.jsx` | 190–194 | P1 |
+| 5 | Flights "From" dropdown limited to hardcoded UK airports only | `Hero.jsx` | 19–28 | P1 |
+| 6 | Rooms count not updated in Results sidebar re-search | `Results.jsx` | — | P1 |
+
+### Medium Priority (P2)
+
+| # | Issue | Notes |
+|---|-------|-------|
+| 7 | No individual booking detail view from My Bookings | Needs `/account/bookings/:id` route |
+| 8 | Voucher PDF download from My Bookings | Not implemented |
+| 9 | Flights-only end-to-end test via Airtuerk | Booking flow untested |
+| 10 | Live Stripe payment end-to-end test | Test mode works; live mode not verified |
+
+### Server / Production Tasks
+
+| # | Task |
+|---|------|
+| 11 | Run `recalculateBookingTotals.js --id 4 --apply` on prod to fix grandTotal=0 for booking 4 |
+| 12 | Run `patchCountryNames.js` on prod to fill null country names |
+| 13 | Update `CORS_ORIGIN` env var on production server |
+| 14 | Pricing Overview section in admin panel (3-row, 12-card dashboard) |
+
+### Estimated Timeline
+
+| Phase | Tasks | Estimate |
+|-------|-------|----------|
+| P0 Bug fixes | Items 1–2 | 1–2 days |
+| P1 Bug fixes | Items 3–6 | 2–3 days |
+| Flights-only E2E | Item 9 | 1–2 days |
+| My Bookings detail | Items 7–8 | 2–3 days |
+| Production server fixes | Items 11–14 | 1 day |
+| QA + live payment test | Item 10 | 1–2 days |
+| **Total** | | **~8–13 days** |
+
+---
+
+## Related Repositories
+
+| Repo | Purpose |
+|------|---------|
+| `sunsky-admin` | Admin panel (booking management, finance, suppliers) |
+| `sunsky-admin/backend` | Node.js API server |
+
+---
+
+## Scripts
+
+```bash
+npm run dev       # Start dev server (localhost:5173)
+npm run build     # Production build → /dist
+npm run preview   # Preview production build
+npm run lint      # ESLint check
+```

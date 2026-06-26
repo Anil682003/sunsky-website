@@ -508,9 +508,11 @@ export default function HotelDetail() {
         }
       : (FLIGHTS[selectedFlight] || FLIGHTS[0]);
 
+    const outLabel = dispFlight.outDate?.replace('.', '') || '';
+    const retLabel = dispFlight.retDate?.replace('.', '') || '';
     const dateLabel = useLive
       ? `${pd?.date} — ${calDate(checkout)}`
-      : `${dispFlight.outDate.replace('.', '')} — ${dispFlight.retDate.replace('.', '')}`;
+      : (retLabel ? `${outLabel} — ${retLabel}` : outLabel);
 
     navigate('/checkout', {
       state: {
