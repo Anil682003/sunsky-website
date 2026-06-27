@@ -231,6 +231,12 @@ export function mapAirtuerkFlight(af, ctx, idx) {
     out, ret, price, origPrice: price,
     currency: af.currency || 'EUR', cabin: ctx.cabin, pax: ctx.pax,
     tripType: ctx.tripType, totalMin: (out?.durMin || 0) + (ret?.durMin || 0),
+    // Opaque Airtuerk bookable key(s) — required by the live reservation flow.
+    // Round trips carry two keys (outbound + return); one-way carries one.
+    flightKey: af.flightKey || null,
+    flightKeys: Array.isArray(af.flightKeys) && af.flightKeys.length
+      ? af.flightKeys
+      : (af.flightKey ? [af.flightKey] : []),
     badge: '', live: true,
   };
 }

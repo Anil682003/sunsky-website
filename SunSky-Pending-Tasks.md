@@ -68,6 +68,59 @@ The website can already create a complete test booking (hotel + flight package) 
 
 ---
 
+## 4a. Flights / Airtuerk Reservation
+
+| # | Issue | Notes | Status |
+|---|-------|-------|--------|
+| A | Live Airtuerk reservation (real PNR) | Implemented `reserveLive()`: `basket/create` → `booking/create` → PNR, using verified request/response contracts from real saved Airtuerk samples | 🟡 Implemented — **not yet live-verified** |
+| B | Confirm/reservation failures were swallowed after payment | Now surfaced: a failed reservation flags the booking as "pending finalisation" instead of silently showing full confirmation | ✅ Fixed |
+| C | Airtuerk credentials hardcoded in source | Moved to env vars with the existing values as fallback (`AIRTUERK_USERNAME/PASSWORD/BASIC_AUTH/BASE_URL`) | ✅ Fixed |
+| D | `rejectUnauthorized: false` (TLS) | Left as-is (mirrors working search service); review before go-live | ⬜ Open |
+
+### Fix notes (Flights)
+
+- **A** 🟡 — The real reservation flow is wired end-to-end:
+  - **Search** ([airtuerk.service.js](../sunsky-admin/backend/website/flight-availability/services/airtuerk.service.js)) now returns the opaque bookable `flightKey` per option.
+  - **Frontend** carries `flightKey` through the flight mapping ([flightData.js](src/pages/Flights/flightData.js)) into the booking payload as `flightKeys` ([FlightDetail.jsx](src/pages/FlightDetail/FlightDetail.jsx)).
+  - **Booking create** stores `flightKeys` in `productDetails`; **confirm** passes them (+ trip type, passenger counts, lead contact, sales amount) to the reservation service.
+  - **Reservation** ([flightReservation.service.js](../sunsky-admin/backend/website/services/flightReservation.service.js)): `basket/create` (FlightKeys + passengers) → `basketKey`, then `booking/create` (basketKey + contact + SalesAmount) → `pnr`. Response validated against `{ pnr, errorCode, hasProblem }`.
+  - **⚠️ Gated for safety:** the live path runs only when `mode !== 'test'` **AND** env `AIRTUERK_RESERVATION_LIVE === 'true'`. Until that flag is set, it still simulates — so production keeps simulating until a supervised first real booking is done. **This has NOT been tested against the live Airtuerk API (would issue a real PNR/ticket).** First real booking must be supervised; verify the `booking/create` response shape and whether a separate ticket-number retrieval is needed.
+
+---
+
+## 4b. Test Run — Flights-only Booking (2026-06-27, local)
+
+**Scenario:** Flights-only round-trip MAN → SAW, 30 Jun – 6 Jul, 2 adults (Deepak Sarkar lead + Rohit Patil), All-in protection insurance, test mode.
+
+**Result:** Booking **id 62 / ORD-000049** created and **Confirmed** end-to-end.
+
+### ✅ Worked
+- `POST /online-bookings` → created Flight (€491) + Insurance (€85) products, both travellers saved as ADT.
+- `POST /create-payment-intent` → returned `STRIPE_NOT_CONFIGURED` (expected locally) → frontend **test dummy-pay fallback** now handles this and proceeds.
+- `POST /payment` (dummy) → marked Paid.
+- `POST /confirm` → Airtuerk reservation **simulated**: PNR `86PF3L`, supplierReference `AIRTUERK-86PF3L`, ticket numbers issued for both travellers, product + booking status → **Confirmed**.
+- Confirmation screen rendered correctly (PNR, travellers, payment summary, "what happens next").
+
+### ✅ Bug fixed — booking total mismatch (backend vs UI)
+- **Was:** UI charged €1,087 (2 × €491 + €20 fee + €85) but backend recorded **€576** — off by €511.
+- **Root cause:** (1) the flight price was the **per-person** fare scaled by the *search-time* pax (`fareBreakdown.total = flight.price × flight.pax`, pax=1) instead of the actual travellers entered at checkout; (2) the **€20 SGR/booking fee** was never sent to the backend.
+- **Fix:**
+  - Frontend ([Checkout.jsx](src/pages/Checkout/Checkout.jsx)) now sends the flight line total based on **actual travellers** (`base + roomExtraTotal` for flights-only; package payloads already carry full totals and are untouched), and passes `serviceFee` (SGR_FEE).
+  - Backend ([onlineBooking.controller.js](../sunsky-admin/backend/website/controllers/onlineBooking.controller.js)) adds `serviceFee` to `grandTotal` and records it as a booking `adjustment`.
+  - Result for this scenario: grandTotal = 982 + 85 + 20 = **€1,087**, matching the UI. | Status: ✅ **Fixed**
+
+### ✅ Bug fixed — round-trip return leg (SAW → AYT)
+- **Was:** round-trip results showed a wrong return leg and carried only one `flightKey`.
+- **Root cause:** Airtuerk returns **separate direction groups** (outbound `from→to`, return `to→from`); the backend search **flattened** them, so each result was one-way and the frontend faked an out/return split.
+- **Fix:** [airtuerk.service.js](../sunsky-admin/backend/website/flight-availability/services/airtuerk.service.js) now **pairs** outbound + return options into complete itineraries — combined legs, summed price, and **`flightKeys: [outboundKey, returnKey]`**. One-way is unchanged (flat list, single-element `flightKeys`). Frontend ([flightData.js](src/pages/Flights/flightData.js), [FlightDetail.jsx](src/pages/FlightDetail/FlightDetail.jsx)) carries the `flightKeys` array through to the booking. | Status: ✅ **Fixed**
+
+> ⚠️ Round-trip pairing assumes the supplier price is additive (outbound fare + return fare). Verify against a real **priced** round-trip Airtuerk response before live use (the probe used for the structure returned `isSuccess:false` for the test dates, so prices weren't sampled).
+
+### ℹ️ Note
+- `flightKeys` are now populated for **both** one-way (1 key) and round-trip (2 keys), so the live reservation path has what it needs. (The earlier booking 62 has empty `flightKeys` since it predates this fix.)
+
+---
+
 ## 5. Estimated Timeline
 
 | Phase | Tasks | Estimate |

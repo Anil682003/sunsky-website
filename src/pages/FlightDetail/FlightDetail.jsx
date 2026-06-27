@@ -159,6 +159,11 @@ export default function FlightDetail() {
           depdate: flight.out.depDateISO, retdate: isRound ? flight.ret.depDateISO : undefined,
           price: Math.round(fb.total), currency: 'EUR',
           tripType: isRound ? 'roundtrip' : 'oneway', supplier: 'Airtuerk',
+          // Opaque Airtuerk bookable key(s) needed for live reservation (basket/create).
+          // One-way → 1 key; round trip → 2 keys (outbound + return).
+          flightKeys: Array.isArray(flight.flightKeys) && flight.flightKeys.length
+            ? flight.flightKeys
+            : [flight.flightKey].filter(Boolean),
           legs: [flight.out, isRound ? flight.ret : null].filter(Boolean).map((leg) => ({
             from: leg.fromCode, to: leg.toCode,
             departure: `${leg.depDateISO}T${(leg.depTime || '00:00')}:00`,

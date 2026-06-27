@@ -104,6 +104,7 @@ export default function Confirmation({
   booking, bookingRef, travellers, customerType, priv, pro,
   insurance, insAmount, holderIsLead, holder,
   payMethod, card, idealBank, pricing, ccy,
+  reservationPending = false,
 }) {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -231,11 +232,19 @@ export default function Confirmation({
               <path className="ckc-check-tick" d="M30 50l13 13 24-27" />
             </svg>
           </div>
-          <h1 className="ckc-title hd">Booking confirmed!</h1>
-          <p className="ckc-sub">
-            Pack your bags{lead.firstName ? `, ${lead.firstName}` : ''} — <b>{destination}</b> is calling
-            {daysToGo ? <> in only <b>{daysToGo} days</b></> : ''}! ☀️
-          </p>
+          <h1 className="ckc-title hd">{reservationPending ? 'Payment received!' : 'Booking confirmed!'}</h1>
+          {reservationPending ? (
+            <p className="ckc-sub">
+              Thanks{lead.firstName ? `, ${lead.firstName}` : ''} — your payment for <b>{destination}</b> went through.
+              We’re finalising the reservation with the airline now and will email your confirmation &amp; tickets
+              shortly. Your booking reference is below.
+            </p>
+          ) : (
+            <p className="ckc-sub">
+              Pack your bags{lead.firstName ? `, ${lead.firstName}` : ''} — <b>{destination}</b> is calling
+              {daysToGo ? <> in only <b>{daysToGo} days</b></> : ''}! ☀️
+            </p>
+          )}
           <div className="ckc-ref-row">
             <button className={`ckc-ref${copied ? ' copied' : ''}`} onClick={copyRef} title="Copy booking reference">
               <span className="ckc-ref-label">Booking reference</span>
