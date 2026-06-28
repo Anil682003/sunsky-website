@@ -1,6 +1,9 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
+import { useSelector } from 'react-redux';
 import axiosInstance from '../../services/axiosInstance';
+import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
+import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -290,6 +293,31 @@ export default function HotelDetail() {
   const [activeTab, setActiveTab] = useState('Prices');
   const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState({});
+  const isAuth = useSelector((s) => s.auth?.isAuthenticated);
+  const { showToast } = useToast();
+
+  // Reflect whether this hotel is already in the user's favourites.
+  useEffect(() => {
+    if (!isAuth || !hotelCode) return;
+    let active = true;
+    fetchFavouriteCodes().then((set) => { if (active) setSaved(set.has(String(hotelCode))); });
+    return () => { active = false; };
+  }, [isAuth, hotelCode]);
+
+  const handleSave = () => {
+    if (!isAuth) { showToast('Sign in to save favourites', 'info'); navigate('/login'); return; }
+    const was = saved;
+    setSaved(!was); // optimistic
+    const req = was
+      ? removeFavourite(hotelCode)
+      : addFavourite({ hotelCode, hotelName, destination: locLabel, stars, imageUrl: images[0] });
+    req
+      .then(() => showToast(was ? 'Removed from favourites' : 'Saved to favourites', 'success'))
+      .catch(() => {
+        setSaved(was); // revert on failure
+        showToast('Couldn’t update favourites. Please try again.', 'error');
+      });
+  };
   const [selectedDur, setSelectedDur] = useState(1);
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [selectedFlight, setSelectedFlight] = useState(0);
@@ -565,7 +593,7 @@ export default function HotelDetail() {
             </div>
             <div className="hha">
               <button className="hhb">{ICON.share} Share</button>
-              <button className={`hhb${saved ? ' saved' : ''}`} onClick={() => setSaved((s) => !s)}>
+              <button className={`hhb${saved ? ' saved' : ''}`} onClick={handleSave}>
                 {ICON.heart} {saved ? 'Saved' : 'Save'}
               </button>
             </div>

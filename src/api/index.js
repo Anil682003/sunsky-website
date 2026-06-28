@@ -1,6 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import useApi from '../hooks/useApi';
+import axiosInstance from '../services/axiosInstance';
 import { loginSuccess, updateUser } from '../store/slices/authSlice';
 import { ENDPOINTS } from './endpoints';
 
@@ -42,6 +43,38 @@ export const useMyBookings = () =>
     immediate: true,
     transformResponse: (res) => res?.data ?? [],
   });
+
+// Single booking detail by reference (e.g. ORD-000049)
+export const useBooking = (ref) =>
+  useApi(ENDPOINTS.bookingByRef(ref || '_'), {
+    immediate: !!ref,
+    transformResponse: (res) => res?.data ?? null,
+  });
+
+// Favourites — list (immediate) for the Favourites page
+export const useFavourites = () =>
+  useApi(ENDPOINTS.favourites, {
+    immediate: true,
+    transformResponse: (res) => res?.data ?? [],
+  });
+
+// Imperative helpers for the heart / save toggles (used across many cards).
+export const addFavourite = (payload) =>
+  axiosInstance.post(ENDPOINTS.favourites, payload);
+
+export const removeFavourite = (hotelCode) =>
+  axiosInstance.delete(ENDPOINTS.favouriteByCode(hotelCode));
+
+// Fetch just the set of favourited hotelCodes (to mark hearts as filled).
+export const fetchFavouriteCodes = async () => {
+  try {
+    const res = await axiosInstance.get(ENDPOINTS.favourites);
+    const list = res?.data?.data ?? [];
+    return new Set(list.map((f) => String(f.hotelCode)));
+  } catch {
+    return new Set();
+  }
+};
 
 export const useHomepageConfig = () =>
   useApi(ENDPOINTS.homepageConfig, {
