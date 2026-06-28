@@ -1,72 +1,118 @@
+import { Link } from 'react-router-dom';
 import { useMyBookings } from '../../api';
+import styles from './MyBookings.module.css';
 
 const fmt = (n) => `€${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
 const STATUS_COLORS = {
-  Confirmed: { bg: '#d1fae5', color: '#065f46' },
-  Pending:   { bg: '#fef3c7', color: '#92400e' },
-  Cancelled: { bg: '#fee2e2', color: '#991b1b' },
-  Draft:     { bg: '#f3f4f6', color: '#374151' },
+  Confirmed: { bg: '#d1fae5', color: '#065f46', accent: '#10b981' },
+  Pending:   { bg: '#fef3c7', color: '#92400e', accent: '#f59e0b' },
+  Cancelled: { bg: '#fee2e2', color: '#991b1b', accent: '#ef4444' },
+  Draft:     { bg: '#eef2f7', color: '#475569', accent: '#94a3b8' },
 };
+
+// Payment chip derived from amounts — always available, even if the list API
+// doesn't return a booking status.
+function paymentChip(paid, balance, total) {
+  if (total > 0 && balance <= 0) return { label: 'Paid', bg: '#d1fae5', color: '#065f46' };
+  if (paid > 0)                  return { label: 'Part-paid', bg: '#dbeafe', color: '#1e40af' };
+  return { label: 'Unpaid', bg: '#fee2e2', color: '#991b1b' };
+}
+
+// Pick an icon from the product summary.
+function productIcon(summary = '') {
+  const s = summary.toLowerCase();
+  if (s.includes('flight') && s.includes('hotel')) return '🧳';
+  if (s.includes('flight')) return '✈️';
+  if (s.includes('hotel')) return '🏨';
+  return '🎫';
+}
 
 export default function MyBookings() {
   const { data: bookings, loading, error } = useMyBookings();
   const bookingList = bookings ?? [];
 
-  if (loading) return <div style={s.center}>Loading your bookings…</div>;
-  if (error)   return <div style={{ ...s.center, color: '#dc2626' }}>{error}</div>;
+  if (loading) return <div className={styles.page}><div className={styles.center}>Loading your bookings…</div></div>;
+  if (error)   return <div className={styles.page}><div className={styles.center} style={{ color: '#dc2626' }}>{error}</div></div>;
 
   return (
-    <div style={s.page}>
-      <h2 style={s.heading}>My Bookings</h2>
+    <div className={styles.page}>
+      <header className={styles.header}>
+        <h1 className={styles.title}>My Bookings</h1>
+        <p className={styles.subtitle}>
+          {bookingList.length
+            ? `${bookingList.length} ${bookingList.length === 1 ? 'trip' : 'trips'} on your account`
+            : 'Your trips will appear here once you book.'}
+        </p>
+      </header>
 
       {bookingList.length === 0 ? (
-        <div style={s.empty}>
-          <div style={s.emptyIcon}>✈️</div>
-          <p style={s.emptyText}>You have no bookings yet.</p>
+        <div className={styles.empty}>
+          <div className={styles.emptyIcon}>✈️</div>
+          <h3 className={styles.emptyTitle}>No bookings yet</h3>
+          <p className={styles.emptyText}>Find your next sun-soaked getaway and it’ll show up right here.</p>
+          <Link to="/" className={styles.emptyBtn}>Start exploring</Link>
         </div>
       ) : (
-        <div style={s.list}>
+        <div className={styles.list}>
           {bookingList.map((b) => {
-            const statusStyle = STATUS_COLORS[b.bookingStatus] || STATUS_COLORS.Draft;
-            const balance = parseFloat(b.balanceAmount || 0);
+            const total   = parseFloat(b.grandTotal || 0);
+            const paid    = parseFloat(b.paidAmount || 0);
+            const balance = parseFloat(b.balanceAmount != null ? b.balanceAmount : total - paid);
+            const st      = STATUS_COLORS[b.bookingStatus] || STATUS_COLORS.Draft;
+            const pay     = paymentChip(paid, balance, total);
+
             return (
-              <div key={b.id} style={s.card}>
-                <div style={s.cardTop}>
-                  <div>
-                    <div style={s.ref}>{b.bookingReference}</div>
-                    {b.productSummary && <div style={s.summary}>{b.productSummary}</div>}
+              <div key={b.id} className={styles.card}>
+                <span className={styles.accent} style={{ background: st.accent }} />
+
+                <div className={styles.cardTop}>
+                  <div className={styles.refWrap}>
+                    <div className={styles.icon}>{productIcon(b.productSummary)}</div>
+                    <div style={{ minWidth: 0 }}>
+                      <div className={styles.ref}>{b.bookingReference}</div>
+                      <div className={styles.summary}>
+                        {b.productSummary
+                          || (b.startDate
+                                ? `Departing ${new Date(b.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}`
+                                : 'Booking details')}
+                      </div>
+                    </div>
                   </div>
-                  <span style={{ ...s.badge, background: statusStyle.bg, color: statusStyle.color }}>
-                    {b.bookingStatus}
-                  </span>
+
+                  <div className={styles.chips}>
+                    {b.bookingStatus && (
+                      <span className={styles.badge} style={{ background: st.bg, color: st.color }}>
+                        {b.bookingStatus}
+                      </span>
+                    )}
+                    <span className={styles.badge} style={{ background: pay.bg, color: pay.color }}>
+                      {pay.label}
+                    </span>
+                  </div>
                 </div>
 
-                <div style={s.meta}>
-                  {b.startDate && (
-                    <div style={s.metaItem}>
-                      <span style={s.metaLabel}>Departure</span>
-                      <span style={s.metaValue}>{new Date(b.startDate).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}</span>
-                    </div>
-                  )}
-                  <div style={s.metaItem}>
-                    <span style={s.metaLabel}>Total</span>
-                    <span style={s.metaValue}>{fmt(b.grandTotal)}</span>
+                <div className={styles.priceStrip}>
+                  <div className={styles.priceCell}>
+                    <span className={styles.priceLabel}>Total</span>
+                    <span className={styles.priceValue}>{fmt(total)}</span>
                   </div>
-                  <div style={s.metaItem}>
-                    <span style={s.metaLabel}>Paid</span>
-                    <span style={{ ...s.metaValue, color: '#059669' }}>{fmt(b.paidAmount)}</span>
+                  <div className={styles.priceCell}>
+                    <span className={styles.priceLabel}>Paid</span>
+                    <span className={`${styles.priceValue} ${styles.paid}`}>{fmt(paid)}</span>
                   </div>
-                  <div style={s.metaItem}>
-                    <span style={s.metaLabel}>Balance due</span>
-                    <span style={{ ...s.metaValue, color: balance > 0 ? '#dc2626' : '#059669', fontWeight: 700 }}>
+                  <div className={styles.priceCell}>
+                    <span className={styles.priceLabel}>Balance due</span>
+                    <span className={`${styles.priceValue} ${balance > 0 ? styles.dueOwed : styles.dueOk}`}>
                       {fmt(balance)}
                     </span>
                   </div>
                 </div>
 
-                <div style={s.cardFoot}>
-                  <span style={s.date}>Booked {new Date(b.createdAt).toLocaleDateString('en-GB')}</span>
+                <div className={styles.foot}>
+                  <span className={styles.booked}>
+                    Booked {new Date(b.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
+                  </span>
                 </div>
               </div>
             );
@@ -76,24 +122,3 @@ export default function MyBookings() {
     </div>
   );
 }
-
-const s = {
-  page:      { padding: '32px 24px', maxWidth: 860, margin: '0 auto' },
-  heading:   { fontSize: 22, fontWeight: 700, color: '#0f172a', marginBottom: 24 },
-  center:    { textAlign: 'center', padding: '60px 0', color: '#64748b', fontSize: 15 },
-  empty:     { textAlign: 'center', padding: '60px 0' },
-  emptyIcon: { fontSize: 48, marginBottom: 12 },
-  emptyText: { color: '#64748b', fontSize: 15 },
-  list:      { display: 'flex', flexDirection: 'column', gap: 16 },
-  card:      { background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12, padding: '20px 24px', boxShadow: '0 1px 4px rgba(0,0,0,.04)' },
-  cardTop:   { display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: 16 },
-  ref:       { fontSize: 15, fontWeight: 700, color: '#0f172a', marginBottom: 2 },
-  summary:   { fontSize: 13, color: '#64748b' },
-  badge:     { padding: '3px 10px', borderRadius: 20, fontSize: 11, fontWeight: 700, whiteSpace: 'nowrap' },
-  meta:      { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: '12px 20px', paddingBottom: 14, borderBottom: '1px solid #f1f5f9' },
-  metaItem:  { display: 'flex', flexDirection: 'column', gap: 2 },
-  metaLabel: { fontSize: 11, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: 0.5 },
-  metaValue: { fontSize: 14, fontWeight: 600, color: '#1e293b' },
-  cardFoot:  { paddingTop: 12 },
-  date:      { fontSize: 12, color: '#94a3b8' },
-};
