@@ -131,6 +131,9 @@ const FALLBACK_BOOKING = {
 };
 
 const SGR_FEE = 20;
+// Earliest selectable passport-expiry date (tomorrow). Computed at module load so it
+// isn't an impure call during render; the strict future-date check still runs on submit.
+const MIN_PASSPORT_EXPIRY = new Date(Date.now() + 86400000).toISOString().split('T')[0];
 
 /* ════════ helpers ════════ */
 const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || '');
@@ -273,6 +276,9 @@ function CheckoutContent({ stripe, elements }) {
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [bookingRef, setBookingRef] = useState('');
+  // True when payment succeeded but the supplier reservation/confirm step failed —
+  // the booking needs manual finalisation rather than being shown as fully confirmed.
+  const [reservationPending, setReservationPending] = useState(false);
 
   const [errors, setErrors] = useState({});
 
@@ -460,7 +466,14 @@ function CheckoutContent({ stripe, elements }) {
 
       const api = booking.api || {};
       const hotelPayload = api.hotel || null;
-      const flightPayload = api.flight || null;
+      // Flight price must reflect the ACTUAL travellers entered at checkout, not the
+      // search-time pax count. For a flights-only booking the flight line total is
+      // (per-person price × travellers) + any per-person extras = `base + roomExtraTotal`.
+      // For packages the flight/hotel payloads already carry their own full totals, so
+      // we leave them untouched.
+      const flightPayload = api.flight
+        ? { ...api.flight, price: hotelPayload ? api.flight.price : (base + roomExtraTotal) }
+        : null;
       const insurancePayload = (selIns && selIns.id !== 'none' && insAmount > 0)
         ? { type: selIns.id, label: selIns.name, price: insAmount } : null;
       const contactPhone = customerType === 'professional' ? pro.primaryContactPhone : priv.phone;
@@ -474,6 +487,9 @@ function CheckoutContent({ stripe, elements }) {
         hotel: hotelPayload || undefined,
         flight: flightPayload || undefined,
         insurance: insurancePayload || undefined,
+        // Booking & service fee (SGR) shown to the customer — recorded on the booking
+        // so the stored grand total matches what was charged.
+        serviceFee: SGR_FEE,
         passengers,
         contact: { phone: contactPhone },
       });
@@ -485,42 +501,60 @@ function CheckoutContent({ stripe, elements }) {
 
       let paidViaStripe = false;
       if (stripe && elements) {
-        // Step 2 — create Stripe PaymentIntent
-        const intentRes = await axiosInstance.post(`/website/online-bookings/${bookingId}/create-payment-intent`);
-        const { clientSecret } = intentRes.data?.data || {};
-        if (!clientSecret) throw new Error('Could not initialize payment');
+        // Step 2 — create Stripe PaymentIntent.
+        // In TEST mode, if the server has no Stripe configured (STRIPE_NOT_CONFIGURED),
+        // fall back to the dummy-pay path instead of blocking the booking. In LIVE mode
+        // this must surface as a real error — never silently fake a payment.
+        let clientSecret;
+        try {
+          const intentRes = await axiosInstance.post(`/website/online-bookings/${bookingId}/create-payment-intent`);
+          clientSecret = intentRes.data?.data?.clientSecret;
+        } catch (intentErr) {
+          const code = intentErr?.response?.data?.errorCode;
+          if (paymentMode !== 'live' && code === 'STRIPE_NOT_CONFIGURED') {
+            console.warn('[Checkout] Stripe not configured — using test dummy-pay fallback.');
+          } else {
+            throw intentErr;
+          }
+        }
 
-        // Step 3 — confirm card payment with Stripe
-        // Card declines and authentication failures must propagate to the user, not fall through to dummy payment.
-        const cardEl = elements.getElement(CardNumberElement);
-        const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-          payment_method: {
-            card: cardEl,
-            billing_details: {
-              name: card.name || undefined,
-              email: customerEmail || undefined,
+        if (clientSecret) {
+          // Step 3 — confirm card payment with Stripe
+          // Card declines and authentication failures must propagate to the user, not fall through to dummy payment.
+          const cardEl = elements.getElement(CardNumberElement);
+          const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+            payment_method: {
+              card: cardEl,
+              billing_details: {
+                name: card.name || undefined,
+                email: customerEmail || undefined,
+              },
             },
-          },
-        });
-        if (error) throw new Error(error.message);
-        if (paymentIntent.status !== 'succeeded') throw new Error('Payment was not completed');
+          });
+          if (error) throw new Error(error.message);
+          if (paymentIntent.status !== 'succeeded') throw new Error('Payment was not completed');
 
-        // Step 4 — record payment on backend
-        await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, {
-          paymentIntentId: paymentIntent.id,
-        });
-        paidViaStripe = true;
+          // Step 4 — record payment on backend
+          await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, {
+            paymentIntentId: paymentIntent.id,
+          });
+          paidViaStripe = true;
+        }
       }
       if (!paidViaStripe) {
         if (paymentMode === 'live') throw new Error('Payment could not be processed. Please try again.');
         await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, { mode: 'test' });
       }
 
-      // Step 5 — reserve with suppliers + confirm (non-fatal)
+      // Step 5 — reserve with suppliers + confirm.
+      // Payment has already succeeded here, so a confirm failure must NOT look like a
+      // payment failure — but it also must NOT be silently hidden. We flag the booking
+      // as "pending finalisation" so the success screen tells the customer the truth.
       try {
         await axiosInstance.post(`/website/online-bookings/${bookingId}/confirm`, { mode: paymentMode });
       } catch (confErr) {
-        console.warn('[Checkout] confirm step failed:', confErr?.response?.data?.message || confErr.message);
+        console.error('[Checkout] confirm/reservation step failed:', confErr?.response?.data?.message || confErr.message);
+        setReservationPending(true);
       }
 
       setBookingRef(ref || `SSK-${Date.now().toString(36).toUpperCase().slice(-6)}`);
@@ -562,6 +596,7 @@ function CheckoutContent({ stripe, elements }) {
         idealBank={idealBank}
         pricing={{ base, roomExtraTotal, sgr: SGR_FEE, total, pax }}
         ccy={ccy}
+        reservationPending={reservationPending}
       />
     );
   }
@@ -918,7 +953,13 @@ function CheckoutContent({ stripe, elements }) {
                                 <input className="ck-input" value={t.passportNumber} onChange={(e) => setT(i, 'passportNumber')(e.target.value)} placeholder="EH123456" maxLength={30} />
                               </Field>
                               <Field label="Passport expiry" err={errors[`t${i}.passportExpiry`]}>
-                                <input className="ck-input" type="date" value={t.passportExpiry} onChange={(e) => setT(i, 'passportExpiry')(e.target.value)} />
+                                <input
+                                  className="ck-input"
+                                  type="date"
+                                  value={t.passportExpiry}
+                                  min={MIN_PASSPORT_EXPIRY}
+                                  onChange={(e) => setT(i, 'passportExpiry')(e.target.value)}
+                                />
                               </Field>
                             </div>
                           </div>
