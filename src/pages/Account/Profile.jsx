@@ -77,8 +77,9 @@ export default function Profile() {
 }
 
 const s = {
-  page:         { padding: '32px 24px', maxWidth: 760, margin: '0 auto' },
-  center:       { textAlign: 'center', padding: '60px 0', color: '#64748b', fontSize: 15 },
+  /* top padding clears the fixed navbar (~74px) + breathing room */
+  page:         { padding: '104px 24px 72px', maxWidth: 760, margin: '0 auto' },
+  center:       { textAlign: 'center', padding: '140px 0 60px', color: '#64748b', fontSize: 15 },
   header:       { display: 'flex', alignItems: 'center', gap: 20, marginBottom: 32, padding: '20px 24px', background: '#fff', border: '1px solid #e2e8f0', borderRadius: 12 },
   avatar:       { width: 56, height: 56, borderRadius: '50%', background: 'linear-gradient(135deg,#f5a51e,#f97316)', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 22, fontWeight: 800, flexShrink: 0 },
   name:         { fontSize: 18, fontWeight: 700, color: '#0f172a', marginBottom: 2 },
