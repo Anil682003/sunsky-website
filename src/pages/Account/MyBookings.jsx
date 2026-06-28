@@ -63,7 +63,7 @@ export default function MyBookings() {
             const pay     = paymentChip(paid, balance, total);
 
             return (
-              <div key={b.id} className={styles.card}>
+              <Link key={b.id} to={`/account/bookings/${b.bookingReference}`} className={styles.card}>
                 <span className={styles.accent} style={{ background: st.accent }} />
 
                 <div className={styles.cardTop}>
@@ -113,8 +113,9 @@ export default function MyBookings() {
                   <span className={styles.booked}>
                     Booked {new Date(b.createdAt).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' })}
                   </span>
+                  <span className={styles.view}>View details →</span>
                 </div>
-              </div>
+              </Link>
             );
           })}
         </div>

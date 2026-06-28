@@ -1,5 +1,8 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSelector } from 'react-redux';
+import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
+import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -105,6 +108,21 @@ export default function Results() {
   const [allHotels, setAllHotels]     = useState([]);
   const [nights, setNights]           = useState(0);
   const [liked, setLiked]             = useState({});
+  const isAuth = useSelector((s) => s.auth?.isAuthenticated);
+  const { showToast } = useToast();
+
+  // Load the user's existing favourites so saved hotels show a filled heart.
+  useEffect(() => {
+    if (!isAuth) return;
+    let active = true;
+    fetchFavouriteCodes().then((set) => {
+      if (!active) return;
+      const obj = {};
+      set.forEach((code) => { obj[code] = true; });
+      setLiked(obj);
+    });
+    return () => { active = false; };
+  }, [isAuth]);
   const [drawerOpen, setDrawerOpen]   = useState(false);
   const [boardFilter, setBoardFilter] = useState([]);
   const [classFilter, setClassFilter] = useState([]);
@@ -362,7 +380,18 @@ export default function Results() {
     return () => observer.disconnect();
   }, [loading, hasMore, allHotels.length, loadMore]);
 
-  const toggleLike  = (id) => setLiked((prev) => ({ ...prev, [id]: !prev[id] }));
+  const toggleLike = (hotelCode, snapshot) => {
+    if (!isAuth) { showToast('Sign in to save favourites', 'info'); navigate('/login'); return; }
+    const wasLiked = !!liked[hotelCode];
+    setLiked((prev) => ({ ...prev, [hotelCode]: !wasLiked }));   // optimistic
+    const req = wasLiked ? removeFavourite(hotelCode) : addFavourite(snapshot);
+    req
+      .then(() => showToast(wasLiked ? 'Removed from favourites' : 'Added to favourites', 'success'))
+      .catch(() => {
+        setLiked((prev) => ({ ...prev, [hotelCode]: wasLiked })); // revert on failure
+        showToast('Couldn’t update favourites. Please try again.', 'error');
+      });
+  };
   const toggleBoard = (b)  => setBoardFilter((prev) => prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]);
   const toggleClass = (c)  => setClassFilter((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
 
@@ -648,7 +677,13 @@ export default function Results() {
                     </div>
                     <button
                       className={`${styles.rcHeart} ${liked[h.id] ? styles.rcHeartLiked : ''}`}
-                      onClick={() => toggleLike(h.id)}
+                      onClick={() => toggleLike(h.hotelCode, {
+                        hotelCode: h.hotelCode,
+                        hotelName: dispName,
+                        destination: h.loc,
+                        stars: dispStars || null,
+                        imageUrl: infoReady ? dispImg : null,
+                      })}
                       aria-label="Save to favourites"
                     >
                       <svg width="17" height="17" viewBox="0 0 24 24" fill={liked[h.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round">

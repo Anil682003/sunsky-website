@@ -12,6 +12,8 @@ import Login from '../pages/Auth/Login';
 import Register from '../pages/Auth/Register';
 import Account from '../pages/Account/Account';
 import MyBookings from '../pages/Account/MyBookings';
+import AccountBookingDetail from '../pages/Account/BookingDetail';
+import Favourites from '../pages/Account/Favourites';
 import Profile from '../pages/Account/Profile';
 import AccountSettings from '../pages/Account/AccountSettings';
 import Checkout from '../pages/Checkout/Checkout';
@@ -50,6 +52,8 @@ export const routes = [
   // Account (protected)
   { path: '/account',           component: Account,         layout: true, protected: true },
   { path: '/account/bookings',  component: MyBookings,      layout: true, protected: true },
+  { path: '/account/bookings/:ref', component: AccountBookingDetail, layout: true, protected: true },
+  { path: '/account/favourites', component: Favourites,     layout: true, protected: true },
   { path: '/account/profile',   component: Profile,         layout: true, protected: true },
   { path: '/account/settings',  component: AccountSettings, layout: true, protected: true },
 

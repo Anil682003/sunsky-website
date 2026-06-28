@@ -7,6 +7,11 @@ export const ENDPOINTS = {
 
   // Bookings
   myBookings:      '/website/bookings',
+  bookingByRef:    (ref) => `/website/bookings/${encodeURIComponent(ref)}`,
+
+  // Favourites
+  favourites:      '/website/favourites',
+  favouriteByCode: (code) => `/website/favourites/${encodeURIComponent(code)}`,
 
   // CMS
   homepageConfig:  '/cms/layout/homepage-config',
