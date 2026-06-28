@@ -20,8 +20,8 @@ function paymentChip(paid, balance, total) {
 }
 
 // Pick an icon from the product summary.
-function productIcon(summary = '') {
-  const s = summary.toLowerCase();
+function productIcon(summary) {
+  const s = (summary || '').toLowerCase();
   if (s.includes('flight') && s.includes('hotel')) return '🧳';
   if (s.includes('flight')) return '✈️';
   if (s.includes('hotel')) return '🏨';
