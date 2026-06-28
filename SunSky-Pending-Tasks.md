@@ -68,6 +68,26 @@ The website can already create a complete test booking (hotel + flight package) 
 
 ---
 
+## 4c. Server-side Price Validation (anti-tampering) — ✅ Implemented
+
+**Problem:** `createOnlineBooking` trusted client-supplied prices (`flight.price`, `hotel.price`, `insurance.price`, `serviceFee`) and wrote them straight to the DB. A client could edit the request (DevTools/curl) and book/charge €10 instead of €500.
+
+**Fix:** new [priceValidation.service.js](../sunsky-admin/backend/website/services/priceValidation.service.js) re-prices every component **server-side** before the booking is stored; on mismatch beyond a small tolerance (max €1 or 1%) the create is rejected with **HTTP 409 `PRICE_CHANGED`** (surfaced to the user on the payment step).
+
+| Component | Re-price source | Status |
+|-----------|-----------------|--------|
+| Flight | `api/flight/price` (authoritative supplier total for the booked `flightKeys`) | ✅ Enforced |
+| Hotel (Hotelbeds) | `checkRates(rateKey)` — authoritative re-price of the exact booked rate | ✅ Enforced |
+| Hotel (Diana) | re-search by region + match a room at (≈) the booked price; reject if client price is below every real room | 🟡 Best-effort (Diana has no per-rate-key / checkrates API) |
+| Insurance | computed from SunSky's own catalog (never trust client) | ✅ Enforced |
+| SGR / booking fee | fixed SunSky charge, server-set (€20) | ✅ Enforced |
+
+**Enforcement policy:** insurance + fee are always enforced (no supplier dependency). For flight/hotel, if the supplier returns a price it's enforced; if it **can't** be re-priced (no keys / supplier unavailable): **live → reject**, **test → warn + allow** (so local testing isn't blocked). Stored prices use the **server** values, not the client's.
+
+> ⚠️ **Not yet live-verified.** Flight re-price hits real `api/flight/price`; Hotelbeds re-price hits real `checkrates`. Run a real flight + hotel(Hotelbeds) booking and confirm both pass within tolerance before go-live. Diana stays best-effort (no rate-key re-price exists in their API) — catches gross under-pricing but not exact-rate validation.
+
+---
+
 ## 4a. Flights / Airtuerk Reservation
 
 | # | Issue | Notes | Status |
