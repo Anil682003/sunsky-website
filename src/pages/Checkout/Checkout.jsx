@@ -8,8 +8,6 @@ import Confirmation from './Confirmation';
 import './Checkout.css';
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
-const STRIPE_AVAILABLE = !!STRIPE_PK && !STRIPE_PK.includes('REPLACE');
-console.log('Stripe public key:', STRIPE_PK, 'Stripe available:', STRIPE_AVAILABLE);
 const stripePromise = (STRIPE_PK && !STRIPE_PK.includes('REPLACE')) ? loadStripe(STRIPE_PK) : null;
 
 const STRIPE_ELEMENT_STYLE = {
@@ -231,6 +229,7 @@ function CheckoutContent({ stripe, elements }) {
   const navigate = useNavigate();
   const booking = state?.booking || FALLBACK_BOOKING;
   const isFlight = booking.kind === 'flight';
+  const isTransfer = booking.kind === 'transfer';
   const { isAuthenticated, user } = useSelector((s) => s.auth);
   const ccy = booking.currency || '€';
   const paneRef = useRef(null);
@@ -282,20 +281,20 @@ function CheckoutContent({ stripe, elements }) {
 
   const [errors, setErrors] = useState({});
 
-  /* ── price lock countdown ── */
-  const [secsLeft, setSecsLeft] = useState(20 * 60);
-  useEffect(() => {
-    const id = setInterval(() => setSecsLeft((s) => (s > 0 ? s - 1 : 0)), 1000);
-    return () => clearInterval(id);
-  }, []);
-  const mm = String(Math.floor(secsLeft / 60)).padStart(2, '0');
-  const ss = String(secsLeft % 60).padStart(2, '0');
+  /* No fake "price hold" countdown — nothing is actually locked server-side.
+     The sidebar shows an honest live-pricing note instead. */
 
   /* ── pricing ── */
   const pax = travellers.length;
-  const base = booking.ppPrice * pax;
+  // Transfers are priced PER VEHICLE (the rate covers the whole party), so the
+  // base is the fixed total — never multiplied by the traveller count.
+  const base = isTransfer ? booking.ppPrice : booking.ppPrice * pax;
   const roomExtraTotal = (booking.roomExtra || 0) * pax;
-  const subtotal = base + roomExtraTotal + SGR_FEE;
+  // Package add-on: a transfer attached to a hotel/flight booking is its own
+  // per-vehicle line. (For a transfer-only booking it's already in `base`.)
+  const transferTotal = !isTransfer && booking.api?.transfer
+    ? Math.round(Number(booking.api.transfer.price) || 0) : 0;
+  const subtotal = base + roomExtraTotal + transferTotal + SGR_FEE;
   const insAmount = useMemo(() => {
     const ins = INSURANCES.find((i) => i.id === insurance);
     if (!ins || ins.id === 'none') return 0;
@@ -330,7 +329,9 @@ function CheckoutContent({ stripe, elements }) {
     setErrors((e) => ({ ...e, [`t${i}.${k}`]: undefined }));
   };
 
-  const addTraveller = () => { if (pax < 9) setTravellers((ts) => [...ts, emptyTraveller()]); };
+  // Transfers: the vehicle has a hard passenger capacity from the supplier.
+  const paxCap = isTransfer ? Math.min(booking.maxPax || 9, 9) : 9;
+  const addTraveller = () => { if (pax < paxCap) setTravellers((ts) => [...ts, emptyTraveller()]); };
   const removeTraveller = (i) => {
     if (pax <= 1) return;
     setTravellers((ts) => ts.filter((_, ti) => ti !== i));
@@ -474,6 +475,9 @@ function CheckoutContent({ stripe, elements }) {
       const flightPayload = api.flight
         ? { ...api.flight, price: hotelPayload ? api.flight.price : (base + roomExtraTotal) }
         : null;
+      // Transfer price is per vehicle — fixed regardless of the traveller count.
+      // The backend independently re-prices it via transfer availability.
+      const transferPayload = api.transfer || null;
       const insurancePayload = (selIns && selIns.id !== 'none' && insAmount > 0)
         ? { type: selIns.id, label: selIns.name, price: insAmount } : null;
       const contactPhone = customerType === 'professional' ? pro.primaryContactPhone : priv.phone;
@@ -486,6 +490,7 @@ function CheckoutContent({ stripe, elements }) {
         customer,
         hotel: hotelPayload || undefined,
         flight: flightPayload || undefined,
+        transfer: transferPayload || undefined,
         insurance: insurancePayload || undefined,
         // Booking & service fee (SGR) shown to the customer — recorded on the booking
         // so the stored grand total matches what was charged.
@@ -519,26 +524,50 @@ function CheckoutContent({ stripe, elements }) {
         }
 
         if (clientSecret) {
-          // Step 3 — confirm card payment with Stripe
-          // Card declines and authentication failures must propagate to the user, not fall through to dummy payment.
-          const cardEl = elements.getElement(CardNumberElement);
-          const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
-            payment_method: {
-              card: cardEl,
-              billing_details: {
-                name: card.name || undefined,
-                email: customerEmail || undefined,
-              },
-            },
-          });
-          if (error) throw new Error(error.message);
-          if (paymentIntent.status !== 'succeeded') throw new Error('Payment was not completed');
+          // Where the customer returns after a redirect-based method (Bancontact /
+          // iDEAL / PayPal). Stripe appends payment_intent & redirect_status; we add
+          // bookingId + mode so the return page can finalise payment + supplier confirm.
+          const returnUrl = `${window.location.origin}/checkout/return`
+            + `?bookingId=${encodeURIComponent(bookingId)}&mode=${encodeURIComponent(paymentMode)}`;
+          const payerName = (customerType === 'private'
+            ? `${priv.firstName} ${priv.lastName}`
+            : (pro.tradingName || `${pro.primaryContactFirstName} ${pro.primaryContactLastName}`)).trim();
+          const billing_details = { name: payerName || card.name || undefined, email: customerEmail || undefined };
 
-          // Step 4 — record payment on backend
-          await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, {
-            paymentIntentId: paymentIntent.id,
-          });
-          paidViaStripe = true;
+          if (payMethod === 'card') {
+            // Card: no redirect — confirm inline, then record the payment here.
+            // Card declines / authentication failures must propagate to the user.
+            const cardEl = elements.getElement(CardNumberElement);
+            const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+              payment_method: { card: cardEl, billing_details },
+            });
+            if (error) throw new Error(error.message);
+            if (paymentIntent.status !== 'succeeded') throw new Error('Payment was not completed');
+            await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, {
+              paymentIntentId: paymentIntent.id,
+            });
+            paidViaStripe = true;
+          } else {
+            // Redirect methods: Stripe sends the customer to the bank / PayPal and
+            // back to returnUrl, where payment + supplier confirm are finalised. On a
+            // successful redirect the browser navigates away and the code below never runs.
+            let res;
+            if (payMethod === 'bancontact') {
+              res = await stripe.confirmBancontactPayment(clientSecret, { payment_method: { billing_details }, return_url: returnUrl });
+            } else if (payMethod === 'ideal') {
+              res = await stripe.confirmIdealPayment(clientSecret, { payment_method: { billing_details }, return_url: returnUrl });
+            } else if (payMethod === 'paypal') {
+              res = await stripe.confirmPayPalPayment(clientSecret, { return_url: returnUrl });
+            } else {
+              throw new Error('Unsupported payment method');
+            }
+            // Only reached if Stripe could NOT start the redirect (setup/validation error).
+            if (res?.error) throw new Error(res.error.message);
+            return; // redirect in progress; finally{} resets the button
+          }
+        } else if (payMethod !== 'card') {
+          // Redirect methods require a real Stripe PaymentIntent (no dummy fallback).
+          throw new Error('This payment method is temporarily unavailable. Please pay by card.');
         }
       }
       if (!paidViaStripe) {
@@ -594,7 +623,7 @@ function CheckoutContent({ stripe, elements }) {
         payMethod={payMethod}
         card={card}
         idealBank={idealBank}
-        pricing={{ base, roomExtraTotal, sgr: SGR_FEE, total, pax }}
+        pricing={{ base, roomExtraTotal, transferTotal, sgr: SGR_FEE, total, pax }}
         ccy={ccy}
         reservationPending={reservationPending}
       />
@@ -616,12 +645,12 @@ function CheckoutContent({ stripe, elements }) {
             <div className="ck-hero-left">
               <div className="ck-eyebrow">{ICON.lock} Secure checkout</div>
               <h1 className="ck-title hd">Complete your booking</h1>
-              <p className="ck-hero-sub">You're moments away from {isFlight ? 'your flight' : booking.hotelName} — {(booking.loc || '').split(',')[0]}</p>
+              <p className="ck-hero-sub">You're moments away from {isFlight ? 'your flight' : isTransfer ? 'your transfer' : booking.hotelName} — {(booking.loc || '').split(',')[0]}</p>
             </div>
             <div className="ck-hero-badges">
               <span className="ck-hbadge">{ICON.shieldCheck} SGR guaranteed</span>
               <span className="ck-hbadge">{ICON.lock} 256-bit SSL</span>
-              <span className="ck-hbadge">{ICON.check} Free cancellation 24h</span>
+              <span className="ck-hbadge">{ICON.check} Instant confirmation</span>
             </div>
           </div>
         </div>
@@ -967,8 +996,11 @@ function CheckoutContent({ stripe, elements }) {
                       );
                     })}
 
-                    {pax < 9 && (
+                    {pax < paxCap && (
                       <button className="ck-add-trav" onClick={addTraveller}>{ICON.plus} Add another traveller</button>
+                    )}
+                    {isTransfer && pax >= paxCap && (
+                      <div className="ck-hint" style={{ marginTop: 8 }}>This vehicle seats a maximum of {paxCap} passengers.</div>
                     )}
                   </section>
                 </>
@@ -981,7 +1013,7 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-ico">{ICON.shield}</div>
                     <div className="ck-card-titles">
                       <h2 className="ck-card-title hd">Protect your holiday</h2>
-                      <p className="ck-card-sub">87% of our travellers add insurance — cancel or get help abroad without losing money</p>
+                      <p className="ck-card-sub">Optional cover — cancel or get help abroad without losing money</p>
                     </div>
                   </div>
 
@@ -1222,7 +1254,7 @@ function CheckoutContent({ stripe, elements }) {
               <div className="ck-navbtns">
                 {step > 0
                   ? <button className="ck-back-btn" onClick={back}>{ICON.arrowL} Back</button>
-                  : <button className="ck-back-btn" onClick={() => navigate(-1)}>{ICON.arrowL} Back to hotel</button>}
+                  : <button className="ck-back-btn" onClick={() => navigate(-1)}>{ICON.arrowL} {isFlight ? 'Back to flight' : isTransfer ? 'Back to transfers' : 'Back to hotel'}</button>}
                 <button className={`ck-next-btn${paying ? ' busy' : ''}`} onClick={ctaAction} disabled={paying}>
                   {paying
                     ? <><span className="ck-spin" /> Processing payment…</>
@@ -1248,12 +1280,32 @@ function CheckoutContent({ stripe, elements }) {
               <div className="ck-sum-body">
                 <div className="ck-sum-chips">
                   <span className="ck-sum-chip">{ICON.cal} {booking.dateLabel}</span>
-                  {isFlight
-                    ? <span className="ck-sum-chip">{ICON.plane} {booking.loc}</span>
-                    : <span className="ck-sum-chip">{ICON.moon} {booking.nights} nights</span>}
+                  {isFlight && <span className="ck-sum-chip">{ICON.plane} {booking.loc}</span>}
+                  {isTransfer && <span className="ck-sum-chip">{ICON.pin} {booking.transfer?.type === 'SHARED' ? 'Shared' : 'Private'} transfer</span>}
+                  {!isFlight && !isTransfer && <span className="ck-sum-chip">{ICON.moon} {booking.nights} nights</span>}
                   <span className="ck-sum-chip">{ICON.users} {pax} {pax === 1 ? 'traveller' : 'travellers'}</span>
-                  {!isFlight && <span className="ck-sum-chip">{ICON.board} {booking.board}</span>}
+                  {!isFlight && !isTransfer && <span className="ck-sum-chip">{ICON.board} {booking.board}</span>}
                 </div>
+
+                {booking.transfer && (
+                  <>
+                    <div className="ck-sum-sec">{ICON.pin} Transfer</div>
+                    <div className="ck-sum-flight">
+                      <div className="ck-sum-leg">
+                        <span className="ck-sum-leg-dir">OUT</span>
+                        <span className="ck-sum-leg-time">{booking.transfer.time || ''}</span>
+                        <span className="ck-sum-leg-route">{booking.transfer.from} → {booking.transfer.to}</span>
+                      </div>
+                      {booking.transfer.retDate && (
+                        <div className="ck-sum-leg">
+                          <span className="ck-sum-leg-dir ret">RET</span>
+                          <span className="ck-sum-leg-time" />
+                          <span className="ck-sum-leg-route">{booking.transfer.retDate}</span>
+                        </div>
+                      )}
+                    </div>
+                  </>
+                )}
 
                 {booking.flight && (
                   <>
@@ -1275,7 +1327,7 @@ function CheckoutContent({ stripe, elements }) {
                   </>
                 )}
 
-                {!isFlight && (
+                {!isFlight && !isTransfer && (
                   <>
                     <div className="ck-sum-sec">{ICON.bed} Room & board</div>
                     <div className="ck-sum-room">
@@ -1287,8 +1339,11 @@ function CheckoutContent({ stripe, elements }) {
 
                 <div className="ck-sum-sec">{ICON.card} Price breakdown</div>
                 <div className="ck-sum-rows">
-                  <div className="ck-sum-row"><span>{pax} × {money(booking.ppPrice)} p.p.</span><b>{money(base)}</b></div>
+                  {isTransfer
+                    ? <div className="ck-sum-row"><span>Transfer (per vehicle, up to {booking.maxPax || pax} pax)</span><b>{money(base)}</b></div>
+                    : <div className="ck-sum-row"><span>{pax} × {money(booking.ppPrice)} p.p.</span><b>{money(base)}</b></div>}
                   {roomExtraTotal > 0 && <div className="ck-sum-row"><span>Room upgrade</span><b>{money(roomExtraTotal)}</b></div>}
+                  {transferTotal > 0 && <div className="ck-sum-row"><span>Airport transfer (per vehicle)</span><b>{money(transferTotal)}</b></div>}
                   <div className="ck-sum-row"><span>{isFlight ? 'Booking & service fee' : 'SGR Guarantee Fund'}</span><b>{money(SGR_FEE)}</b></div>
                   {insAmount > 0 && (
                     <div className="ck-sum-row ck-sum-row-ins" key={insurance}>
@@ -1305,15 +1360,13 @@ function CheckoutContent({ stripe, elements }) {
                   <span className="ck-sum-total-val hd">{ccy}{animTotal.toLocaleString('en-US')}</span>
                 </div>
 
-                <div className={`ck-countdown${secsLeft === 0 ? ' over' : secsLeft < 120 ? ' low' : ''}`}>
+                <div className="ck-countdown">
                   {ICON.clock}
-                  {secsLeft > 0
-                    ? <>We're holding this price for <b>{mm}:{ss}</b></>
-                    : <>Price hold expired — prices may update</>}
+                  <>Prices are live and are only final once your payment completes</>
                 </div>
 
                 <div className="ck-trust">
-                  <span className="ck-trust-item">{ICON.check} Free cancellation within 24h</span>
+                  <span className="ck-trust-item">{ICON.check} Secure Stripe payment</span>
                   <span className="ck-trust-item">{ICON.check} Instant confirmation by email</span>
                   <span className="ck-trust-item">{ICON.check} SGR & travel guarantee protected</span>
                 </div>
@@ -1341,8 +1394,6 @@ function CheckoutWithStripe() {
 }
 
 export default function Checkout() {
-
-  console.log('Stripe public key:', STRIPE_PK, 'Stripe available:', STRIPE_AVAILABLE);
   if (stripePromise) {
     return (
       <Elements stripe={stripePromise} options={{ locale: 'en' }}>

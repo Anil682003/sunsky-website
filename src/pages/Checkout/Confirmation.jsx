@@ -48,41 +48,6 @@ const ageType = (dob) => {
   return a < 2 ? { code: 'INF', label: 'Infant' } : a < 12 ? { code: 'CHD', label: 'Child' } : { code: 'ADT', label: 'Adult' };
 };
 
-/* deterministic faux-QR from the booking reference (decorative only) */
-const seedFrom = (str) => {
-  let h = 2166136261;
-  for (const c of str) { h ^= c.charCodeAt(0); h = Math.imul(h, 16777619); }
-  return () => {
-    h = Math.imul(h ^ (h >>> 15), 2246822507);
-    h = Math.imul(h ^ (h >>> 13), 3266489909);
-    return ((h ^= h >>> 16) >>> 0) / 4294967296;
-  };
-};
-function FauxQR({ value }) {
-  const cells = useMemo(() => {
-    const rnd = seedFrom(value || 'SSK');
-    const n = 21, out = [];
-    const inFinder = (x, y) => (x < 7 && y < 7) || (x > n - 8 && y < 7) || (x < 7 && y > n - 8);
-    for (let y = 0; y < n; y++) for (let x = 0; x < n; x++) {
-      if (!inFinder(x, y) && rnd() > 0.52) out.push([x, y]);
-    }
-    return out;
-  }, [value]);
-  const F = ({ x, y }) => (
-    <g>
-      <rect x={x} y={y} width="7" height="7" fill="currentColor" />
-      <rect x={x + 1} y={y + 1} width="5" height="5" fill="#fff" />
-      <rect x={x + 2} y={y + 2} width="3" height="3" fill="currentColor" />
-    </g>
-  );
-  return (
-    <svg className="ckc-qr" viewBox="0 0 21 21" shapeRendering="crispEdges" aria-hidden="true">
-      {cells.map(([x, y]) => <rect key={`${x}-${y}`} x={x} y={y} width="1" height="1" fill="currentColor" />)}
-      <F x={0} y={0} /><F x={14} y={0} /><F x={0} y={14} />
-    </svg>
-  );
-}
-
 /* eased count-up for the paid amount */
 function useCountUp(target, dur = 1100, delay = 600) {
   const [v, setV] = useState(0);
@@ -112,6 +77,7 @@ export default function Confirmation({
   const rootRef = useRef(null);
 
   const isFlight = booking.kind === 'flight';
+  const isTransfer = booking.kind === 'transfer';
   const money = (n) => `${ccy}${Math.round(n).toLocaleString('en-US')}`;
   const animPaid = useCountUp(pricing.total);
 
@@ -156,6 +122,33 @@ export default function Confirmation({
     }
   };
 
+  /* Real "Add to calendar": generates and downloads an .ics file built from the
+     booking's machine-readable dates (the old button only showed a fake toast). */
+  const downloadIcs = () => {
+    const start = booking.api?.hotel?.checkin
+      || booking.api?.flight?.depdate
+      || booking.api?.transfer?.outbound?.slice(0, 10);
+    const end = booking.api?.hotel?.checkout || booking.api?.flight?.retdate || start;
+    if (!start) { showToast('Trip dates unavailable for this booking', 'info'); return; }
+    const d8 = (iso) => iso.replaceAll('-', '');
+    const endNext = (() => { const d = new Date(`${end}T00:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
+    const ics = [
+      'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SunSky//Booking//EN', 'BEGIN:VEVENT',
+      `UID:${bookingRef}@sunskytravel.com`,
+      `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
+      `DTSTART;VALUE=DATE:${d8(start)}`,
+      `DTEND;VALUE=DATE:${d8(endNext)}`,
+      `SUMMARY:SunSky trip — ${(booking.hotelName || 'Your booking').replace(/[,;]/g, ' ')}`,
+      `DESCRIPTION:Booking reference ${bookingRef}`,
+      'END:VEVENT', 'END:VCALENDAR',
+    ].join('\r\n');
+    const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
+    const a = document.createElement('a');
+    a.href = url; a.download = `sunsky-${bookingRef}.ics`; a.click();
+    URL.revokeObjectURL(url);
+    showToast('Calendar file downloaded', 'success');
+  };
+
   /* build a hotel-voucher payload from this booking and open the printable voucher */
   const openVoucher = () => {
     const stripDay = (s) => (s || '').replace(/^[A-Za-z]+\s/, '').replace('.', '');
@@ -165,7 +158,9 @@ export default function Confirmation({
       state: {
         voucher: {
           reference: bookingRef,
-          supplierRef: '77-4446011',
+          // The supplier reference isn't returned to the browser yet — never show
+          // an invented one on a legal document.
+          supplierRef: '—',
           bookingDate: new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'long', year: 'numeric' }),
           status: 'Confirmed',
           hotel: { name: booking.hotelName, stars: Math.min(booking.stars, 5), location: booking.loc },
@@ -185,13 +180,14 @@ export default function Confirmation({
             label: 'ROOM 1', type: booking.room,
             occupancy: `${adt} ${adt === 1 ? 'Adult' : 'Adults'}${chd > 0 ? ` + ${chd} ${chd === 1 ? 'Child' : 'Children'}` : ''}`,
             board: booking.meal || booking.board, status: 'Confirmed',
-            confirmation: `R${String(Math.abs(bookingRef.split('').reduce((a, c) => a + c.charCodeAt(0), 0) * 7919)).padStart(9, '0').slice(0, 9)}`,
+            // No fabricated per-room confirmation number — the booking reference
+            // is the customer's proof until supplier refs are surfaced.
+            confirmation: bookingRef,
             assigned: travellers.map((t) => `${t.firstName} ${t.lastName}`),
           }],
           contact: {
+            // Only data we actually have — no placeholder hotel phone/fax/email.
             address: [booking.loc],
-            telephone: '+90 216 510 04 04', fax: '+90 216 510 04 08',
-            email: 'reservations@hotel.com', website: 'www.hotel.com',
           },
           stay: { checkInTime: '14:00', checkOutTime: '12:00', earlyCheckIn: 'Subject to availability', lateCheckOut: 'Subject to availability' },
           important: [
@@ -273,12 +269,30 @@ export default function Confirmation({
             <div className="ckc-ticket-body">
               <div className="ckc-ticket-chips">
                 <span className="ckc-chip">{ICON.cal} {booking.dateLabel}</span>
-                {isFlight
-                  ? <span className="ckc-chip">{ICON.plane} {booking.loc}</span>
-                  : <span className="ckc-chip">{ICON.moon} {booking.nights} nights</span>}
+                {isFlight && <span className="ckc-chip">{ICON.plane} {booking.loc}</span>}
+                {isTransfer && <span className="ckc-chip">{ICON.pin} {booking.transfer?.type === 'SHARED' ? 'Shared' : 'Private'} transfer</span>}
+                {!isFlight && !isTransfer && <span className="ckc-chip">{ICON.moon} {booking.nights} nights</span>}
                 <span className="ckc-chip">{ICON.users} {pricing.pax} {pricing.pax === 1 ? 'traveller' : 'travellers'}</span>
-                {!isFlight && <span className="ckc-chip">{ICON.board} {booking.board}</span>}
+                {!isFlight && !isTransfer && <span className="ckc-chip">{ICON.board} {booking.board}</span>}
               </div>
+              {booking.transfer && (
+                <div className="ckc-ticket-flights">
+                  <div className="ckc-leg">
+                    <span className="ckc-leg-dir">OUT</span>
+                    <div className="ckc-leg-route">
+                      <b>{booking.transfer.time || ''}</b><span className="ckc-leg-line"><i className="ckc-leg-plane">{ICON.pin}</i></span><b>{booking.transfer.vehicle || ''}</b>
+                    </div>
+                    <span className="ckc-leg-meta">{booking.transfer.from} → {booking.transfer.to}{booking.transfer.date ? ` · ${booking.transfer.date}` : ''}</span>
+                  </div>
+                  {booking.transfer.retDate && (
+                    <div className="ckc-leg">
+                      <span className="ckc-leg-dir ret">RET</span>
+                      <div className="ckc-leg-route"><b>Return transfer</b></div>
+                      <span className="ckc-leg-meta">{booking.transfer.to} → {booking.transfer.from} · {booking.transfer.retDate}</span>
+                    </div>
+                  )}
+                </div>
+              )}
               {booking.flight && (
                 <div className="ckc-ticket-flights">
                   <div className="ckc-leg">
@@ -299,7 +313,7 @@ export default function Confirmation({
                   )}
                 </div>
               )}
-              {!isFlight && (
+              {!isFlight && !isTransfer && (
                 <div className="ckc-ticket-room">
                   {ICON.bed}
                   <div><b>{booking.room}</b><span>{booking.meal} · included in price</span></div>
@@ -315,17 +329,17 @@ export default function Confirmation({
               <span className="ckc-stub-method">{ICON.card} {payLabel}</span>
               <span className="ckc-stub-date">{paidOn}</span>
             </div>
-            <FauxQR value={bookingRef} />
+            {/* no decorative QR — it wasn't scannable and invited confusion */}
             <span className="ckc-stub-ref hd">{bookingRef}</span>
-            <span className="ckc-stub-hint">Show this at check-in</span>
+            <span className="ckc-stub-hint">Your booking reference</span>
           </div>
         </div>
 
         {/* ═══ ACTIONS ═══ */}
         <div className="ckc-actions ckc-reveal">
           <button className="ckc-act primary" onClick={() => navigate('/account/bookings')}>{ICON.arrow} View my bookings</button>
-          {!isFlight && <button className="ckc-act" onClick={openVoucher}>{ICON.download} Download voucher</button>}
-          <button className="ckc-act" onClick={() => showToast('Holiday added to your calendar!', 'success')}>{ICON.calPlus} Add to calendar</button>
+          {!isFlight && !isTransfer && <button className="ckc-act" onClick={openVoucher}>{ICON.download} Download voucher</button>}
+          <button className="ckc-act" onClick={downloadIcs}>{ICON.calPlus} Add to calendar</button>
           <button className="ckc-act ghost" onClick={() => navigate('/')}>Back to home</button>
         </div>
 
@@ -400,8 +414,11 @@ export default function Confirmation({
           <section className="ckc-card ckc-reveal">
             <div className="ckc-card-head"><span className="ckc-card-ico">{ICON.card}</span><h3 className="hd">Payment summary</h3></div>
             <div className="ckc-kv">
-              <div className="ckc-kv-row"><span>{pricing.pax} × {money(booking.ppPrice)} p.p.</span><b>{money(pricing.base)}</b></div>
+              {isTransfer
+                ? <div className="ckc-kv-row"><span>Transfer (per vehicle)</span><b>{money(pricing.base)}</b></div>
+                : <div className="ckc-kv-row"><span>{pricing.pax} × {money(booking.ppPrice)} p.p.</span><b>{money(pricing.base)}</b></div>}
               {pricing.roomExtraTotal > 0 && <div className="ckc-kv-row"><span>Room upgrade</span><b>{money(pricing.roomExtraTotal)}</b></div>}
+              {pricing.transferTotal > 0 && <div className="ckc-kv-row"><span>Airport transfer (per vehicle)</span><b>{money(pricing.transferTotal)}</b></div>}
               <div className="ckc-kv-row"><span>SGR Guarantee Fund</span><b>{money(pricing.sgr)}</b></div>
               {insAmount > 0 && <div className="ckc-kv-row"><span>{insurance?.name}</span><b>{money(insAmount)}</b></div>}
               <div className="ckc-kv-row total"><span>Paid with {payLabel}</span><b>{money(pricing.total)}</b></div>
@@ -431,7 +448,7 @@ export default function Confirmation({
             <span>Our travel experts are here 7 days a week.</span>
           </div>
           <div className="ckc-help-links">
-            <span className="ckc-help-item">{ICON.phone} +32 2 123 45 67</span>
+            <span className="ckc-help-item">{ICON.phone} +32 2 808 60 68</span>
             <span className="ckc-help-item">{ICON.mail} help@sunsky.travel</span>
           </div>
         </div>

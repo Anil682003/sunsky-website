@@ -16,15 +16,17 @@ const POPULAR_DESTINATIONS = [
 ];
 const DURATIONS = ['3 days','5 days','6 days','7 days','8 days','10 days','14 days'];
 
+// Departure airports for the Belgian/Benelux market (the platform's flight
+// searches depart from this region — the old list was 8 UK airports).
 const AIRPORTS = [
-  { code: 'LHR', label: 'London Heathrow', country: '🇬🇧' },
-  { code: 'LGW', label: 'London Gatwick', country: '🇬🇧' },
-  { code: 'MAN', label: 'Manchester', country: '🇬🇧' },
-  { code: 'BHX', label: 'Birmingham', country: '🇬🇧' },
-  { code: 'EDI', label: 'Edinburgh', country: '🇬🇧' },
-  { code: 'BRS', label: 'Bristol', country: '🇬🇧' },
-  { code: 'STN', label: 'London Stansted', country: '🇬🇧' },
-  { code: 'LTN', label: 'London Luton', country: '🇬🇧' },
+  { code: 'BRU', label: 'Brussels Airport', country: '🇧🇪' },
+  { code: 'CRL', label: 'Brussels South Charleroi', country: '🇧🇪' },
+  { code: 'ANR', label: 'Antwerp', country: '🇧🇪' },
+  { code: 'OST', label: 'Ostend-Bruges', country: '🇧🇪' },
+  { code: 'LGG', label: 'Liège', country: '🇧🇪' },
+  { code: 'AMS', label: 'Amsterdam Schiphol', country: '🇳🇱' },
+  { code: 'EIN', label: 'Eindhoven', country: '🇳🇱' },
+  { code: 'LIL', label: 'Lille', country: '🇫🇷' },
 ];
 
 const FLIGHT_DESTINATIONS = [
