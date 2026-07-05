@@ -734,7 +734,7 @@
 .sd .price-boxes { margin-bottom:48px; }
 .sd .avail-banner { margin-bottom:48px; }
 .sd .avail-banner.show { margin-top:-24px; }
-.sd .flight-section, .sd .room-section { margin-bottom:56px; }
+.sd .flight-section, .sd .room-section, .sd .transfer-section { margin-bottom:56px; }
 .sd .stay-block { margin-bottom:32px; }
 .sd .ds { margin-bottom:40px; }
 
@@ -860,8 +860,9 @@
 .sd .live-leg-dur { margin-left:auto; font-size:11px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
 .sd .live-price { font-family:'Sora',sans-serif; font-size:18px; font-weight:800; color:var(--dark); letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
 
-/* Prices tab: rooms sit above flights, overview stays last */
+/* Prices tab: rooms sit above flights, transfer follows flights, overview stays last */
 .sd .tp.act { display:flex; flex-direction:column; }
 .sd .room-section { order:1; }
 .sd .flight-section { order:2; }
-.sd .overview-section { order:3; }
+.sd .transfer-section { order:3; margin-bottom:38px; }
+.sd .overview-section { order:4; }

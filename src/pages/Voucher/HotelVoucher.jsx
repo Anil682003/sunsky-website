@@ -260,26 +260,36 @@ export default function HotelVoucher() {
                 <span className="hv-irow-label">Address</span>
                 <span className="hv-irow-val">{v.contact.address.map((l) => <span key={l} className="hv-addr-line">{l}</span>)}</span>
               </div>
-              <div className="hv-irow">
-                <span className="hv-irow-ico">{ICON.phone}</span>
-                <span className="hv-irow-label">Telephone</span>
-                <span className="hv-irow-val">{v.contact.telephone}</span>
-              </div>
-              <div className="hv-irow">
-                <span className="hv-irow-ico">{ICON.fax}</span>
-                <span className="hv-irow-label">Fax</span>
-                <span className="hv-irow-val">{v.contact.fax}</span>
-              </div>
-              <div className="hv-irow">
-                <span className="hv-irow-ico">{ICON.mail}</span>
-                <span className="hv-irow-label">Email</span>
-                <a className="hv-irow-val hv-link" href={`mailto:${v.contact.email}`}>{v.contact.email}</a>
-              </div>
-              <div className="hv-irow">
-                <span className="hv-irow-ico">{ICON.globe}</span>
-                <span className="hv-irow-label">Website</span>
-                <a className="hv-irow-val hv-link" href={`https://${v.contact.website}`} target="_blank" rel="noreferrer">{v.contact.website}</a>
-              </div>
+              {/* contact rows render only when the data really exists — live
+                  bookings don't yet carry the hotel's phone/fax/email */}
+              {v.contact.telephone && (
+                <div className="hv-irow">
+                  <span className="hv-irow-ico">{ICON.phone}</span>
+                  <span className="hv-irow-label">Telephone</span>
+                  <span className="hv-irow-val">{v.contact.telephone}</span>
+                </div>
+              )}
+              {v.contact.fax && (
+                <div className="hv-irow">
+                  <span className="hv-irow-ico">{ICON.fax}</span>
+                  <span className="hv-irow-label">Fax</span>
+                  <span className="hv-irow-val">{v.contact.fax}</span>
+                </div>
+              )}
+              {v.contact.email && (
+                <div className="hv-irow">
+                  <span className="hv-irow-ico">{ICON.mail}</span>
+                  <span className="hv-irow-label">Email</span>
+                  <a className="hv-irow-val hv-link" href={`mailto:${v.contact.email}`}>{v.contact.email}</a>
+                </div>
+              )}
+              {v.contact.website && (
+                <div className="hv-irow">
+                  <span className="hv-irow-ico">{ICON.globe}</span>
+                  <span className="hv-irow-label">Website</span>
+                  <a className="hv-irow-val hv-link" href={`https://${v.contact.website}`} target="_blank" rel="noreferrer">{v.contact.website}</a>
+                </div>
+              )}
             </div>
             <div className="hv-info-col">
               <div className="hv-info-sub">Stay Information</div>

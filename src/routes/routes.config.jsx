@@ -17,6 +17,7 @@ import Favourites from '../pages/Account/Favourites';
 import Profile from '../pages/Account/Profile';
 import AccountSettings from '../pages/Account/AccountSettings';
 import Checkout from '../pages/Checkout/Checkout';
+import CheckoutReturn from '../pages/Checkout/CheckoutReturn';
 import HotelVoucher from '../pages/Voucher/HotelVoucher';
 import BookingFlow from '../pages/Booking/BookingFlow';
 import BookingDetail from '../pages/Booking/BookingDetail';
@@ -45,6 +46,8 @@ export const routes = [
 
   // Checkout (guest checkout allowed — customer details are asked when not signed in)
   { path: '/checkout',   component: Checkout,  layout: true, protected: false },
+  // Return page for redirect payments (Bancontact / iDEAL / PayPal)
+  { path: '/checkout/return', component: CheckoutReturn, layout: true, protected: false },
 
   // Hotel voucher — standalone printable document (no navbar/footer)
   { path: '/voucher',    component: HotelVoucher, layout: false, protected: false },

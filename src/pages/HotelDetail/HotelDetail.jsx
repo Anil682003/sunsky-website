@@ -268,7 +268,9 @@ export default function HotelDetail() {
   console.log('HotelDetail state:', state);
   // Header / booking facts pulled from the clicked result, with demo fallbacks
   const hotelName = hotel?.name || 'Cavo Vezal';
-  const stars = hotel?.stars || 5;
+  // Never invent a rating: unknown star data renders NO stars (the old `|| 5`
+  // fallback showed budget hotels as "5-star").
+  const stars = Number(hotel?.stars) || 0;
   const locLabel = hotel?.loc ? `${hotel.loc}` : 'Greece, Zakynthos, Agios Sostis';
   const currency = hotel?.currency || '€';
   const ccy = currency === 'EUR' ? '€' : currency;
@@ -289,6 +291,8 @@ export default function HotelDetail() {
   const sAdults   = String(state?.adults ?? '2');
   const sChildren = String(state?.children ?? '0');
   const sRooms    = String(state?.rooms ?? '1');
+  // children's ages (csv) — HotelBeds requires an age per child for availability
+  const sChildAges = String(state?.childAges ?? '');
 
   const [activeTab, setActiveTab] = useState('Prices');
   const [saved, setSaved] = useState(false);
@@ -336,6 +340,10 @@ export default function HotelDetail() {
   const [calLoading, setCalLoading] = useState(false);
   const [liveRooms, setLiveRooms]   = useState(null);   // {loading?|error?|rooms[]|cheapest}
   const [liveFlights, setLiveFlights] = useState(null); // {loading?|error?|flights[]|cheapest}
+  // airport→hotel transfer add-on: everything is derived from the page context
+  // (airport = flight-search destination, hotel = this page's HotelBeds/ATLAS code)
+  const [liveTransfers, setLiveTransfers] = useState(null); // {loading?|error?|services[]}
+  const [selectedTransfer, setSelectedTransfer] = useState(-1); // -1 = no transfer (opt-in)
 
   // scroll-reveal
   useEffect(() => {
@@ -414,8 +422,29 @@ export default function HotelDetail() {
   // live selection → live price shown in the Book Now card / mobile bar / checkout
   const liveRoom = liveRooms?.rooms?.length ? liveRooms.rooms[selectedRoom.live ?? 0] : null;
   const liveFlight = liveFlights?.flights?.length ? liveFlights.flights[selectedFlight] : null;
-  const liveTotal = liveRoom ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
+  const liveTransfer = (selectedTransfer >= 0 && liveTransfers?.services?.length)
+    ? liveTransfers.services[selectedTransfer] : null;
+  const transferPrice = liveTransfer ? Math.round(liveTransfer.price || 0) : 0;
+  const liveTotal = liveRoom ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0) + transferPrice) : null;
   const displayTotal = liveTotal != null ? liveTotal : (hotel?.totalAmount ? Math.round(hotel.totalAmount) : ppPrice * 2);
+  // live-aware overview card numbers (hotel+flight base; transfer & SGR listed separately)
+  const ovPax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
+
+  // The "Compare the lowest prices" filter bar shows the REAL search context when
+  // the page was reached from a search (demo values only on direct visits).
+  const niceDate = (iso) => {
+    if (!iso) return null;
+    const d = new Date(`${iso}T00:00:00`);
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+  };
+  const liveFilters = FILTERS.map((f) => {
+    if (f.label === 'Departure date') { const v = niceDate(pd?.iso || baseCheckIn); return v ? { ...f, val: v } : f; }
+    if (f.label === 'Travelling company' && state) return { ...f, val: `${ovPax} person${ovPax > 1 ? 's' : ''}` };
+    if (f.label === 'Transport' && destination) return { ...f, val: `${DEFAULT_ORIGIN} → ${destination}` };
+    if (f.label === 'Duration' && state?.nights) return { ...f, val: `${nights} nights` };
+    return f;
+  });
+  const ovBase = liveTotal != null ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
 
   // ── shared flight fetch (used on mount + day-click) ──
   const fetchFlights = (checkin, checkout) => {
@@ -435,6 +464,13 @@ export default function HotelDetail() {
         if ((legs[0].from || '').toUpperCase() === origin) outbound.push(f);
         else if ((legs[legs.length - 1].to || '').toUpperCase() === origin) inbound.push(f);
       });
+      // The API's bookable keys are `flightKey`/`flightKeys` — they are REQUIRED
+      // for live price verification and the Airtuerk reservation. (The old code
+      // read a non-existent `offerKey` field, so packages booked from this page
+      // carried no keys at all.)
+      const keysOf = (x) => (Array.isArray(x?.flightKeys) && x.flightKeys.length
+        ? x.flightKeys
+        : [x?.flightKey].filter(Boolean));
       let flights = [];
       if (outbound.length && inbound.length) {
         for (const ob of outbound) {
@@ -445,7 +481,7 @@ export default function HotelDetail() {
               outLegs: ob.legs || [], retLegs: ib.legs || [],
               stops: Math.max((ob.legs || []).length - 1, (ib.legs || []).length - 1),
               fareBreakdown: [...(ob.fareBreakdown || []), ...(ib.fareBreakdown || [])],
-              offerKey: ob.offerKey || ib.offerKey || null,
+              flightKeys: [...keysOf(ob), ...keysOf(ib)],
             });
           }
         }
@@ -454,7 +490,7 @@ export default function HotelDetail() {
         flights = raw.map((f) => ({
           totalPrice: f.totalPrice || 0, currency: f.currency || 'EUR',
           outLegs: f.legs || [], retLegs: [], stops: (f.legs || []).length - 1,
-          fareBreakdown: f.fareBreakdown || [], offerKey: f.offerKey || f.key || null,
+          fareBreakdown: f.fareBreakdown || [], flightKeys: keysOf(f),
         }));
       }
       setSelectedFlight(0);
@@ -462,11 +498,54 @@ export default function HotelDetail() {
     }).catch((e) => setLiveFlights({ error: e?.response?.data?.message || e?.message || 'Could not load live flights' }));
   };
 
-  // ── fetch flights on mount using dates from results screen ──
+  // ── shared transfer fetch — NO manual codes: airport comes from the flight
+  //    search destination, the hotel is this page's code (= HotelBeds ATLAS code).
+  //    `pickupISO` is the pickup datetime — ideally the selected flight's ARRIVAL
+  //    time (the rateKey encodes it, so it becomes the booked pickup time). Falls
+  //    back to midday on the check-in date until a flight is known. ──
+  const lastTransferPickupRef = useRef(null);
+  const fetchTransfers = (checkin, pickupISO = null) => {
+    if (!destination || !hotelCode || !checkin) { setLiveTransfers(null); return; }
+    const validISO = pickupISO && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(pickupISO)
+      ? pickupISO.slice(0, 16) + ':00'
+      : `${checkin}T12:00:00`;
+    if (lastTransferPickupRef.current === validISO && liveTransfers?.services) return; // same datetime → keep results
+    lastTransferPickupRef.current = validISO;
+    setLiveTransfers({ loading: true });
+    axiosInstance.post('/transfer-availability/search', {
+      fromType: 'IATA', fromCode: destination,
+      toType: 'ATLAS', toCode: String(hotelCode),
+      outbound: validISO,
+      adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
+    }).then(({ data }) => {
+      const services = data?.results?.hotelbeds?.services || [];
+      setSelectedTransfer(-1);
+      setLiveTransfers({ services, pickupISO: validISO });
+    }).catch((e) => setLiveTransfers({ error: e?.response?.data?.message || e?.message || 'Could not load transfers' }));
+  };
+
+  // ── fetch flights + transfers on mount using dates from results screen ──
   useEffect(() => {
-    if (baseCheckIn && destination) fetchFlights(baseCheckIn, baseCheckOut);
+    if (baseCheckIn && destination) {
+      fetchFlights(baseCheckIn, baseCheckOut);
+      fetchTransfers(baseCheckIn);
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ── keep the transfer pickup aligned with the SELECTED flight's arrival time —
+  //    when the customer picks a different flight, the transfer availability is
+  //    re-fetched at that flight's landing datetime ──
+  const selectedArrivalISO = (() => {
+    const legs = liveFlights?.flights?.[selectedFlight]?.outLegs;
+    const arr = legs?.length ? legs[legs.length - 1]?.arrival : null;
+    return arr && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(arr)) ? String(arr).slice(0, 16) + ':00' : null;
+  })();
+  useEffect(() => {
+    if (!selectedArrivalISO) return;
+    fetchTransfers(selectedArrivalISO.slice(0, 10), selectedArrivalISO);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedArrivalISO]);
 
   // ── select a day → fetch live hotel + flight availability ──
   const selectDay = (i) => {
@@ -480,7 +559,11 @@ export default function HotelDetail() {
     // Live hotel rooms
     setLiveRooms({ loading: true });
     axiosInstance.post('/hotel-availability/search', {
-      hotelCode: String(hotelCode), checkin, checkout, adults: Number(sAdults) || 2, children: Number(sChildren) || 0,
+      hotelCode: String(hotelCode), checkin, checkout,
+      adults: Number(sAdults) || 2, children: Number(sChildren) || 0,
+      // HB requires an age per child; rooms lets groups get multi-room rates
+      childAges: sChildAges ? sChildAges.split(',').map(Number) : [],
+      rooms: Number(sRooms) || 1,
     }).then(({ data }) => {
       console.log('[Detail] hotel-availability response', data?.results);
       const hb = data?.results?.hotelbeds, dn = data?.results?.diana;
@@ -500,8 +583,9 @@ export default function HotelDetail() {
       setLiveRooms({ rooms, cheapest: data?.results?.cheapest || null });
     }).catch((e) => setLiveRooms({ error: e?.response?.data?.message || e?.message || 'Could not load live room prices' }));
 
-    // Live flights
+    // Live flights + transfers for the newly picked dates
     fetchFlights(checkin, checkout);
+    fetchTransfers(checkin);
   };
 
   // goReviews removed — Reviews tab commented out for now
@@ -509,11 +593,25 @@ export default function HotelDetail() {
   // hand the full selection over to the checkout screen
   const goCheckout = () => {
     const useLive = liveTotal != null;
-    const pax = Number(sAdults) || 2;
+    // Never hand off while flight/transfer availability is still loading — the
+    // package contents (and the total) aren't final yet. The Book button is also
+    // disabled in this state; this is the belt-and-braces guard.
+    if (liveFlights?.loading || liveTransfers?.loading) return;
+    // Seed the checkout traveller forms with the FULL searched party (adults +
+    // children) — the server re-prices flight/transfer from the travellers'
+    // actual dates of birth, so the form count must match the searched occupancy.
+    const pax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
     const checkin = pd?.iso || baseCheckIn;
     const checkout = pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut;
-    const total = useLive ? liveTotal : (hotel?.totalAmount ? Math.round(hotel.totalAmount) : ppPrice * pax);
-    const perPerson = Math.max(1, Math.round(total / pax));
+    // ppPrice covers hotel+flight only — the transfer is priced PER VEHICLE and is
+    // added by the checkout as its own line (never multiplied by travellers).
+    // EXACT sum (no rounding) — this is what the backend will charge.
+    const total = useLive
+      ? (liveRoom.price || 0) + (liveFlight?.totalPrice || 0)
+      : (hotel?.totalAmount ? Math.round(hotel.totalAmount) : ppPrice * pax);
+    // EXACT per-person value — checkout multiplies back by pax, so any rounding
+    // here would make the displayed total drift ±€1/pax from the amount charged.
+    const perPerson = Math.max(0.01, total / pax);
 
     const staticRoom = ROOM_TYPES[selectedRoom[1] ?? 0];
     const staticMeal = MEAL_PLANS[selectedMeal[`1-${selectedRoom[1] ?? 0}`] ?? 1];
@@ -523,6 +621,10 @@ export default function HotelDetail() {
     const outLg = liveFlight?.outLegs || [];
     const retLg = liveFlight?.retLegs || [];
     const allLegs = [...outLg, ...retLg];
+    // In LIVE mode the checkout must only ever show a flight that will really be
+    // booked — if no live flight is available/selected, flight is null (the old
+    // code fell back to a DEMO flight while api.flight was null: the customer saw
+    // an ARKEFLY itinerary that was never part of the booking).
     const dispFlight = (useLive && liveFlight && allLegs.length)
       ? {
           outDep: fmtTime(outLg[0]?.departure), outArr: fmtTime(outLg[outLg.length - 1]?.arrival),
@@ -534,10 +636,10 @@ export default function HotelDetail() {
             retDate: calDate(checkout), retAirline: retLg[0]?.airline,
           } : {}),
         }
-      : (FLIGHTS[selectedFlight] || FLIGHTS[0]);
+      : (useLive ? null : (FLIGHTS[selectedFlight] || FLIGHTS[0]));
 
-    const outLabel = dispFlight.outDate?.replace('.', '') || '';
-    const retLabel = dispFlight.retDate?.replace('.', '') || '';
+    const outLabel = dispFlight?.outDate?.replace('.', '') || '';
+    const retLabel = dispFlight?.retDate?.replace('.', '') || '';
     const dateLabel = useLive
       ? `${pd?.date} — ${calDate(checkout)}`
       : (retLabel ? `${outLabel} — ${retLabel}` : outLabel);
@@ -555,6 +657,15 @@ export default function HotelDetail() {
           roomExtra: 0,
           meal: useLive ? (liveRoom.board || 'Room only') : staticMeal.name,
           mealPrice: useLive ? 0 : staticMeal.price,
+          // display info for the selected airport transfer (package add-on)
+          transfer: liveTransfer ? {
+            from: liveTransfer.pickup?.from || `${destination} Airport`,
+            to: liveTransfer.pickup?.to || hotelName,
+            date: (liveTransfers?.pickupISO || checkin).slice(0, 10),
+            time: (liveTransfer.pickup?.time || liveTransfers?.pickupISO?.slice(11, 16) || '12:00').slice(0, 5),
+            type: liveTransfer.transferType, vehicle: liveTransfer.vehicle,
+            direction: liveTransfer.direction, maxPax: liveTransfer.maxPax,
+          } : null,
           // ── payload for the backend Online-booking create call ──
           api: {
             hotel: {
@@ -565,11 +676,37 @@ export default function HotelDetail() {
               roomCode: useLive ? (liveRoom.roomCode || null) : null,
               boardCode: useLive ? (liveRoom.boardCode || null) : null,
               dianaHotelId: useLive ? (liveRoom.dianaHotelId || null) : null,
-              price: useLive ? Math.round(liveRoom.price) : total, currency: ccy,
+              price: useLive ? liveRoom.price : total, currency: ccy,
             },
             flight: (useLive && liveFlight)
-              ? { from: DEFAULT_ORIGIN, to: destination, depdate: checkin, retdate: checkout, price: Math.round(liveFlight.totalPrice), currency: ccy, legs: allLegs, fareBreakdown: liveFlight.fareBreakdown || [], offerKey: liveFlight.offerKey || null, tripType: retLg.length ? 'roundtrip' : 'oneway', supplier: 'airtuerk' }
+              ? {
+                  from: DEFAULT_ORIGIN, to: destination, depdate: checkin, retdate: checkout,
+                  price: liveFlight.totalPrice, currency: ccy, legs: allLegs,
+                  fareBreakdown: liveFlight.fareBreakdown || [],
+                  // Opaque Airtuerk bookable keys — REQUIRED for live re-pricing
+                  // and the basket/create reservation.
+                  flightKeys: liveFlight.flightKeys || [],
+                  tripType: retLg.length ? 'roundtrip' : 'oneway', supplier: 'airtuerk',
+                }
               : null,
+            // Airport transfer add-on — the arrival flight number/airline are taken
+            // automatically from the selected flight (HotelBeds needs them for the
+            // booking's transferDetails).
+            transfer: liveTransfer ? {
+              fromType: 'IATA', fromCode: destination,
+              toType: 'ATLAS', toCode: String(hotelCode),
+              // The EXACT pickup datetime the displayed price was fetched with —
+              // the server re-prices with the same params, and the rateKey encodes
+              // this as the booked pickup time (aligned to the flight's arrival).
+              outbound: liveTransfers?.pickupISO || `${checkin}T12:00:00`,
+              price: liveTransfer.price, currency: 'EUR',
+              rateKey: liveTransfer.rateKey,
+              transferType: liveTransfer.transferType, vehicleCode: liveTransfer.vehicleCode,
+              vehicle: liveTransfer.vehicle, direction: liveTransfer.direction,
+              from: liveTransfer.pickup?.from, to: liveTransfer.pickup?.to,
+              flightNumber: (outLg[outLg.length - 1]?.flightNumber || '').slice(0, 7) || undefined,
+              companyName: outLg[outLg.length - 1]?.airline || undefined,
+            } : null,
           },
         },
       },
@@ -601,7 +738,7 @@ export default function HotelDetail() {
 
           <div className="sd-hero-main">
             <div className="sd-hero-left">
-              <div className="sd-hero-eyebrow">{ICON.shield} Verified stay · {Math.min(stars, 5)}-star hotel</div>
+              <div className="sd-hero-eyebrow">{ICON.shield} Verified stay{stars > 0 ? ` · ${Math.min(stars, 5)}-star hotel` : ''}</div>
               <h1 className="hhn">{hotelName}</h1>
               <div className="hhm">
                 <span className="hhs">{'★'.repeat(Math.min(stars, 5))}</span>
@@ -611,11 +748,11 @@ export default function HotelDetail() {
               <div className="sd-hero-chips">
                 <span className="sd-chip">{ICON.board} {hotel?.board || 'All inclusive'}</span>
                 <span className="sd-chip">{ICON.moon} {nights} nights</span>
-                <span className="sd-chip">{ICON.users} 2 adults</span>
+                <span className="sd-chip">{ICON.users} {Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</span>
                 <span className="sd-chip sd-chip-price">{ICON.tag} from {ccy}{ppPrice} p.p.</span>
               </div>
               <div className="sd-hero-trust">
-                <span className="sd-hc-item">{ICON.check} Free cancellation</span>
+                <span className="sd-hc-item">{ICON.check} Secure online payment</span>
                 <span className="sd-hc-item">{ICON.check} No booking fees</span>
                 <span className="sd-hc-item">{ICON.check} Best price guarantee</span>
                 <span className="sd-hc-item">{ICON.check} Instant confirmation</span>
@@ -660,7 +797,7 @@ export default function HotelDetail() {
 
               <div className="filter-bar">
                 <div className="filter-fields">
-                  {FILTERS.map((f) => (
+                  {liveFilters.map((f) => (
                     <div className="filter-item" key={f.label}>
                       <span className="fi-ico">{f.icon}</span>
                       <div className="fi-body">
@@ -788,6 +925,46 @@ export default function HotelDetail() {
                 )}
               </div>
 
+              {/* Airport transfer — auto-derived add-on (airport from the flight search,
+                  hotel from this page); shown right below the flights section */}
+              {liveTransfers && (
+              <div className="transfer-section reveal vis">
+                <div className="section-title"><span className="st-step">4</span> Airport transfer <span className="stay-guests">(optional)</span></div>
+                {liveTransfers.loading ? (
+                  <div className="live-loading"><span className="live-spin" /> Checking transfer availability…</div>
+                ) : liveTransfers.error ? (
+                  <div className="live-error">{ICON.warn} {liveTransfers.error}</div>
+                ) : liveTransfers.services?.length ? (
+                  <div className="stay-block">
+                    <div className="flight-note">From {destination} airport to your hotel on arrival day{liveTransfers.pickupISO ? ` · pickup ~${liveTransfers.pickupISO.slice(11, 16)} (follows your flight)` : ''} — live prices:</div>
+                    <div className={`room-option${selectedTransfer === -1 ? ' selected' : ''}`} onClick={() => setSelectedTransfer(-1)}>
+                      <div className="room-radio" />
+                      <div className="room-info">
+                        <div className="room-name">No transfer</div>
+                        <div className="room-cap">I'll arrange my own transport</div>
+                      </div>
+                      <div className="room-price included">{ICON.check}&nbsp;{ccy}0</div>
+                    </div>
+                    {liveTransfers.services.slice(0, 4).map((t, ti) => (
+                      <div key={ti} className={`room-option${selectedTransfer === ti ? ' selected' : ''}`} onClick={() => setSelectedTransfer(ti)}>
+                        <div className="room-radio" />
+                        <div className="room-info">
+                          <div className="room-name">{t.vehicle || 'Transfer'}{t.category ? ` · ${t.category}` : ''} <span className="stay-guests">({t.transferType === 'SHARED' ? 'Shared' : 'Private'})</span></div>
+                          <div className="room-cap">{t.pickup?.from || `${destination} Airport`} → {t.pickup?.to || hotelName}{t.maxPax ? ` · up to ${t.maxPax} passengers` : ''}</div>
+                          {Array.isArray(t.cancellationPolicies) && t.cancellationPolicies.length > 0 && (
+                            <div className="room-cancel room-cancel-free">{ICON.check} Free cancellation before {(() => { const d = new Date(t.cancellationPolicies[0].from); return isNaN(d.getTime()) ? t.cancellationPolicies[0].from : `${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`; })()}</div>
+                          )}
+                        </div>
+                        <div className="room-price">{ccy}{Math.round(t.price)}</div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <div className="live-empty">{ICON.noTransfer} No transfers available for this hotel and date.</div>
+                )}
+              </div>
+              )}
+
               {/* Rooms — live availability, revealed only after a date is picked */}
               {selectedPrice != null && (
               <div className="room-section reveal vis">
@@ -881,39 +1058,41 @@ export default function HotelDetail() {
 
               {/* Overview */}
               <div className="overview-section reveal">
-                <div className="section-title"><span className="st-step">4</span> Overview of your holiday</div>
+                <div className="section-title"><span className="st-step">{liveTransfers ? 5 : 4}</span> Overview of your holiday</div>
                 <div className="overview-card">
                   <div className="overview-head">
                     <div className="overview-head-main">
                     <div className="overview-hotel">{hotelName}</div>
                     <div className="overview-stars">{'★'.repeat(Math.min(stars, 5))}</div>
                     <div className="overview-loc">{ICON.pin} {locLabel}</div>
-                    <div className="overview-dates">{ICON.cal} Friday 10 April 2026 - Wednesday 15 April 2026 <span style={{ color: 'var(--text-light)' }}>({nights} nights)</span></div>
+                    <div className="overview-dates">{ICON.cal} {(() => {
+                      const ci = pd?.iso || baseCheckIn;
+                      const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
+                      return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} - ${niceDate(co)}` : 'Friday 10 April 2026 - Wednesday 15 April 2026';
+                    })()} <span style={{ color: 'var(--text-light)' }}>({nights} nights)</span></div>
                     </div>
                     {/* overview-score removed — no real review data yet */}
                   </div>
                   <div className="overview-body">
-                    <div className="overview-row"><span className="overview-row-label">{ICON.users} 4 × {ccy}361 p.p.</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 1,444</span></div>
+                    {ovBase != null
+                      ? <div className="overview-row"><span className="overview-row-label">{ICON.users} {ovPax} × {ccy}{Math.round(ovBase / ovPax).toLocaleString('en-GB')} p.p.</span><span className="overview-leader" /><span className="overview-row-val">{ccy} {ovBase.toLocaleString('en-GB')}</span></div>
+                      : <div className="overview-row"><span className="overview-row-label">{ICON.users} 4 × {ccy}361 p.p.</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 1,444</span></div>}
                     <div className="overview-row"><span className="overview-row-label">{ICON.shield} SGR Guarantee Fund</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 20</span></div>
-                    <div className="overview-row"><span className="overview-row-label">{ICON.noTransfer} Transfer not included</span><span className="overview-leader" /><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>—</span></div>
+                    {liveTransfer
+                      ? <div className="overview-row"><span className="overview-row-label">{ICON.check} Airport transfer — {liveTransfer.vehicle || 'Transfer'} ({liveTransfer.transferType === 'SHARED' ? 'shared' : 'private'})</span><span className="overview-leader" /><span className="overview-row-val">{ccy} {Math.round(liveTransfer.price)}</span></div>
+                      : <div className="overview-row"><span className="overview-row-label">{ICON.noTransfer} Transfer not included</span><span className="overview-leader" /><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>—</span></div>}
                     <div className="overview-extras">
                       <div className="overview-extra">{ICON.check} No booking fees</div>
-                      <div className="overview-extra">{ICON.check} Hand luggage included</div>
+                      {liveFlight != null && <div className="overview-extra">{ICON.check} Hand luggage included</div>}
                     </div>
                   </div>
-                  <div className="overview-total"><span className="overview-total-label">Total for 4 people</span><span className="overview-total-val">{ccy}1,424</span></div>
-                  <div className="overview-deposit">{ICON.info} At this low price, no deposit is possible.</div>
+                  <div className="overview-total"><span className="overview-total-label">Total for {ovBase != null ? ovPax : 4} people</span><span className="overview-total-val">{ccy}{ovBase != null ? (ovBase + transferPrice + 20).toLocaleString('en-GB') : (1424 + transferPrice).toLocaleString('en-GB')}</span></div>
                   <div className="overview-book-wrap">
-                    <button className="overview-book-btn" onClick={goCheckout}>Now book {ICON.arrow}</button>
+                    <button className="overview-book-btn" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
+                      {liveFlights?.loading ? <>Checking flight prices…</> : <>Now book {ICON.arrow}</>}
+                    </button>
                   </div>
-                  <div className="overview-spot-costs">
-                    <div className="overview-spot-costs-label">{ICON.tag} Not included — pay on the spot</div>
-                    <div className="overview-spot-list">
-                      <span className="overview-spot-cost">{ccy} 20,00</span>
-                      <span className="overview-spot-cost">{ccy} 20,00</span>
-                    </div>
-                  </div>
-                  <div className="overview-urgency"><div className="overview-urgency-text">{ICON.clock} You now have the lowest price. It can change quickly.</div></div>
+                  <div className="overview-urgency"><div className="overview-urgency-text">{ICON.clock} Prices are live and may change until your booking is completed.</div></div>
                 </div>
               </div>
             </div>
@@ -1215,19 +1394,26 @@ export default function HotelDetail() {
                 <div className="bkp-total">
                   {liveTotal != null
                     ? `${liveRoom ? 'Room' : ''}${liveRoom && liveFlight ? ' + flight' : liveFlight ? 'Flight' : ''} · ${sAdults} ${Number(sAdults) === 1 ? 'adult' : 'adults'}`
-                    : `${ccy}${displayTotal.toLocaleString('en-GB')} total · 2 adults`}
+                    : `${ccy}${displayTotal.toLocaleString('en-GB')} total · ${ovPax} traveller${ovPax > 1 ? 's' : ''}`}
                 </div>
               </div>
               <div className="bkd">
-                <div className="bkdi"><span className="bkdk">{ICON.cal}</span>Wed 06 May — Wed 13 May 2026</div>
-                <div className="bkdi"><span className="bkdk">{ICON.users}</span>2 adults</div>
-                <div className="bkdi"><span className="bkdk">{ICON.plane}</span>Amsterdam (Schiphol)</div>
+                <div className="bkdi"><span className="bkdk">{ICON.cal}</span>{(() => {
+                  const ci = pd?.iso || baseCheckIn;
+                  const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
+                  const short = (iso) => { const d = new Date(`${iso}T00:00:00`); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
+                  return short(ci) && short(co) ? `${short(ci)} — ${short(co)}` : 'Select your dates above';
+                })()}</div>
+                <div className="bkdi"><span className="bkdk">{ICON.users}</span>{Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</div>
+                <div className="bkdi"><span className="bkdk">{ICON.plane}</span>{destination ? `Brussels (${DEFAULT_ORIGIN}) → ${destination}` : `Brussels (${DEFAULT_ORIGIN})`}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.board}</span>{hotel?.board || 'All inclusive'}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nights} nights</div>
               </div>
               <div className="bkcw">
-                <button className="bkc" onClick={goCheckout}>Book Now {ICON.arrow}</button>
-                <div className="bkc-note">{ICON.check} Free cancellation · {ICON.check} Instant confirmation</div>
+                <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
+                  {liveFlights?.loading ? 'Checking flights…' : <>Book Now {ICON.arrow}</>}
+                </button>
+                <div className="bkc-note">{ICON.check} Secure payment · {ICON.check} Instant confirmation</div>
               </div>
             </div>
           </aside>
@@ -1238,7 +1424,9 @@ export default function HotelDetail() {
       <div className="mbar">
         <div className="mbi">
           <div className="mbp"><small>{liveTotal != null ? 'live total' : 'per person from'}</small>{ccy}{liveTotal != null ? liveTotal.toLocaleString('en-GB') : ppPrice}</div>
-          <button className="mbc" onClick={goCheckout}>{liveTotal != null ? 'Book now' : 'Check price'} →</button>
+          <button className="mbc" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
+            {liveFlights?.loading ? 'Checking…' : `${liveTotal != null ? 'Book now' : 'Check price'} →`}
+          </button>
         </div>
       </div>
 

@@ -22,7 +22,6 @@ const BOARD_LABELS = {
 
 const BOARD_FILTER_OPTIONS = ['All Inclusive', 'Half Board', 'Bed & Breakfast', 'Room Only', 'Self Catering'];
 const SORT_OPTIONS = ['Price: Low to High', 'Price: High to Low'];
-const BADGES = ['Top Pick', 'Popular Choice', 'Top Rated', 'Best Value', 'Recommended'];
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80';
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
@@ -184,7 +183,9 @@ export default function Results() {
     totalAmount:  c.totalAmount,
     currency:     c.currency,
     nightlyBreakdown: c.nightlyBreakdown || [],
-    badge:        BADGES[badgeIdx % BADGES.length],
+    // No rotating marketing badges — only data-backed ones are rendered
+    // ("Best Value" on the cheapest card, computed at render time).
+    badge:        null,
     img:          FALLBACK_IMG,
     loc:          label,
   });
@@ -518,6 +519,11 @@ export default function Results() {
     </>
   );
 
+  // The only badge we can honestly back with data: the cheapest visible stay.
+  const bestValueId = hotels.length
+    ? hotels.reduce((m, x) => ((x.totalAmount ?? Infinity) < (m.totalAmount ?? Infinity) ? x : m), hotels[0]).id
+    : null;
+
   return (
     <div className={styles.page}>
       {/* Hero header */}
@@ -583,7 +589,7 @@ export default function Results() {
                 Searching the best deals…
               </span>
             ) : (
-              <><strong>{hotels.length}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found{hasMore ? '+' : ''}</>
+              <><strong>{hotels.length}{hasMore ? '+' : ''}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found</>
             )}
           </div>
           <div className={styles.toolbarRight}>
@@ -671,10 +677,12 @@ export default function Results() {
                       ? <img src={dispImg} alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
                       : <div className={styles.rcImgSkel} />}
                     <div className={styles.rcImgOverlay} />
-                    <div className={styles.rcBadge}>
-                      <Icon d="M13 10V3L4 14h7v7l9-11h-7z" size={11} sw={2} />
-                      {h.badge}
-                    </div>
+                    {h.id === bestValueId && (
+                      <div className={styles.rcBadge}>
+                        <Icon d="M13 10V3L4 14h7v7l9-11h-7z" size={11} sw={2} />
+                        Best Value
+                      </div>
+                    )}
                     <button
                       className={`${styles.rcHeart} ${liked[h.id] ? styles.rcHeartLiked : ''}`}
                       onClick={() => toggleLike(h.hotelCode, {
@@ -703,7 +711,9 @@ export default function Results() {
                         <span className={styles.rcStarLabel}>{Math.min(dispStars, 5)}-star hotel</span>
                       </div>
                     )}
-                    {infoReady
+                    {/* Always show a name — the price feed carries one; the slow
+                        bulk-info fetch only upgrades it (no more nameless cards). */}
+                    {dispName
                       ? <h3 className={styles.rcName}>{dispName}</h3>
                       : <div className={`${styles.rcNameSkel} ${styles.skeletonLine}`} />}
                     <div className={styles.rcLocation}>
@@ -742,20 +752,13 @@ export default function Results() {
                           {nights} nights
                         </span>
                       )}
-                      <span className={`${styles.rcTripPill} ${styles.rcTripTransfer}`}>
-                        <Icon d="M5 17H3a2 2 0 01-2-2V5a2 2 0 012-2h11a2 2 0 012 2v3M13 17l4 4 4-4M17 21v-9" size={11} sw={2} />
-                        Transfer incl.
-                      </span>
                     </div>
                   </div>
 
-                  {/* Price rail */}
+                  {/* Price rail — internal contract/rate-plan names are never
+                      shown to customers; refundability already has its own chip. */}
                   <div className={styles.rcPriceRail}>
-                    <div className={styles.rcPriceTop}>
-                      {h.contractName && (
-                        <span className={styles.rcContractBadge}>{h.contractName}</span>
-                      )}
-                    </div>
+                    <div className={styles.rcPriceTop} />
                     <div className={styles.rcPriceInfo}>
                       <span className={styles.rcPriceLabel}>
                         Total{nights > 0 ? ` · ${nights} nights` : ''}
@@ -782,6 +785,7 @@ export default function Results() {
                             adults: fetchParams.adults,
                             children: fetchParams.children,
                             rooms: fetchParams.rooms,
+                            childAges: childAgesRef.current,
                           },
                         })}
                       >
