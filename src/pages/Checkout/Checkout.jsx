@@ -275,6 +275,10 @@ function CheckoutContent({ stripe, elements }) {
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [bookingRef, setBookingRef] = useState('');
+  // Authoritative amount from the server (create response `amountDue`) — the
+  // exact figure charged. Supplier prices can drift ±€1 between availability and
+  // the booking re-price; the confirmation must show what was REALLY paid.
+  const [chargedTotal, setChargedTotal] = useState(null);
   // True when payment succeeded but the supplier reservation/confirm step failed —
   // the booking needs manual finalisation rather than being shown as fully confirmed.
   const [reservationPending, setReservationPending] = useState(false);
@@ -503,6 +507,7 @@ function CheckoutContent({ stripe, elements }) {
       const bookingId = created.bookingId;
       const ref = created.bookingReference;
       if (!bookingId) throw new Error('Booking could not be created');
+      if (created.amountDue != null) setChargedTotal(Number(created.amountDue));
 
       let paidViaStripe = false;
       if (stripe && elements) {
@@ -623,7 +628,7 @@ function CheckoutContent({ stripe, elements }) {
         payMethod={payMethod}
         card={card}
         idealBank={idealBank}
-        pricing={{ base, roomExtraTotal, transferTotal, sgr: SGR_FEE, total, pax }}
+        pricing={{ base, roomExtraTotal, transferTotal, sgr: SGR_FEE, total: chargedTotal ?? total, pax }}
         ccy={ccy}
         reservationPending={reservationPending}
       />
