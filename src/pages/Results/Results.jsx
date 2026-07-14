@@ -15,18 +15,63 @@ const bestImg = (images, fallback) => {
 };
 
 const BOARD_LABELS = {
-  AI: 'All Inclusive', TI: 'All Inclusive+', FB: 'Full Board',
-  HB: 'Half Board',   BB: 'Bed & Breakfast', RO: 'Room Only',
-  SC: 'Self Catering',
+  RO: 'Room Only',  SC: 'Self Catering', BB: 'Bed & Breakfast',
+  HB: 'Half Board', FB: 'Full Board',    AI: 'All Inclusive',
+  UAI: 'Ultra All Inclusive', TI: 'All Inclusive+', DO: 'Dinner & B&B',
+};
+const ROOM_LABELS = {
+  DBL: 'Double',       DBT: 'Double / Twin', TWN: 'Twin',      SGL: 'Single',
+  TPL: 'Triple',       QUA: 'Quad',          FAM: 'Family',    SUI: 'Suite',
+  JSU: 'Junior Suite', STU: 'Studio',        APT: 'Apartment', BUN: 'Bungalow',
+  VIL: 'Villa',        ROO: 'Room',
 };
 
-const BOARD_FILTER_OPTIONS = ['All Inclusive', 'Half Board', 'Bed & Breakfast', 'Room Only', 'Self Catering'];
-const SORT_OPTIONS = ['Price: Low to High', 'Price: High to Low'];
+// Codes the cache actually filters on — the exact values the `boards` / `roomTypes`
+// query params are matched against server-side.
+//
+// These are the codes that genuinely occur in the cached inventory (verified against
+// the live feed), NOT the ones in the cache demo's display map — that map uses
+// Hotelbeds' STE/JNR/TRP, but the ingested data stores SUI/JSU/TPL. Offering a code
+// the data never contains gives the user a filter that always returns nothing.
+const BOARD_FILTERS = ['RO', 'SC', 'BB', 'HB', 'FB', 'AI', 'UAI'];
+const ROOM_FILTERS  = ['DBL', 'DBT', 'TWN', 'TPL', 'FAM', 'SUI', 'JSU', 'STU', 'APT', 'BUN', 'ROO'];
+
+const SORT_OPTIONS = [
+  { value: 'price_asc',  label: 'Price: Low to High' },
+  { value: 'price_desc', label: 'Price: High to Low' },
+];
+const REFUNDABLE_OPTIONS = [
+  { value: 'any', label: 'Any' },
+  { value: 'yes', label: 'Refundable' },
+  { value: 'no',  label: 'Non-ref.' },
+];
+const PRICE_BASIS_OPTIONS = [
+  { value: 'total',     label: 'Total stay' },
+  { value: 'perPerson', label: 'Per person' },
+];
+
+const PRICE_STEP = 50;
+// Placeholder span for the slider until the first results land and tell us the real
+// price range. Once they do, the ceiling tracks the data — a fixed floor would squash
+// a €60–€250 result set into the left quarter of the track, and would never come down
+// when switching to the (roughly halved) per-person scale.
+const PRICE_CEILING_FALLBACK = 1000;
+const EMPTY_FILTERS = {
+  boards: [], roomTypes: [], minPrice: '', maxPrice: '',
+  priceBasis: 'total', refundable: 'any', sortBy: 'price_asc',
+};
+
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80';
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
-const getBoardLabel = (code) => BOARD_LABELS[code] || code;
-const getBoardTags  = (code) => (BOARD_LABELS[code] ? [BOARD_LABELS[code]] : [code]).filter(Boolean);
+const getBoardLabel = (code) => BOARD_LABELS[code] || code || '';
+const getRoomLabel  = (code) => ROOM_LABELS[code]  || code || '';
+
+// How many filters the user has actively changed — drives the sidebar count pill.
+const countActiveFilters = (f) =>
+  f.boards.length + f.roomTypes.length +
+  (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
+  (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0);
 const fmtDate = (iso) => {
   if (!iso) return '';
   const [, m, d] = iso.split('-');
@@ -69,6 +114,25 @@ function FilterCheck({ label, checked, onChange }) {
   );
 }
 
+function Segmented({ options, value, onChange, ariaLabel }) {
+  return (
+    <div className={styles.segRow} role="radiogroup" aria-label={ariaLabel}>
+      {options.map((o) => (
+        <button
+          key={o.value}
+          type="button"
+          role="radio"
+          aria-checked={value === o.value}
+          className={`${styles.segBtn} ${value === o.value ? styles.segBtnActive : ''}`}
+          onClick={() => onChange(o.value)}
+        >
+          {o.label}
+        </button>
+      ))}
+    </div>
+  );
+}
+
 export default function Results() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -99,13 +163,19 @@ export default function Results() {
     adults: initAdults, children: initChildren, rooms: initRooms,
   });
 
-  const [sort, setSort]               = useState('Price: Low to High');
+  // Result filters — mirrored 1:1 onto the cache's /contracts/cheapest query params.
+  // `filters` drives the UI (instant); `applied` is the debounced copy that drives
+  // the fetch, so dragging a price handle doesn't fire a request per pixel.
+  const [filters, setFilters] = useState(EMPTY_FILTERS);
+  const [applied, setApplied] = useState(EMPTY_FILTERS);
+
   const [loading, setLoading]         = useState(true);
+  const [filtering, setFiltering]     = useState(false);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [hasMore, setHasMore]         = useState(true);
-  const [hotels, setHotels]           = useState([]);
   const [allHotels, setAllHotels]     = useState([]);
   const [nights, setNights]           = useState(0);
+  const [cheapestCode, setCheapestCode] = useState(null);
   const [liked, setLiked]             = useState({});
   const isAuth = useSelector((s) => s.auth?.isAuthenticated);
   const { showToast } = useToast();
@@ -123,12 +193,14 @@ export default function Results() {
     return () => { active = false; };
   }, [isAuth]);
   const [drawerOpen, setDrawerOpen]   = useState(false);
-  const [boardFilter, setBoardFilter] = useState([]);
-  const [classFilter, setClassFilter] = useState([]);
 
-  // Price range filter
-  const [maxPriceAvail,  setMaxPriceAvail]  = useState(5000);
-  const [priceMaxFilter, setPriceMaxFilter] = useState(999999);
+  // Upper bound of the price sliders, in the currently-selected price basis.
+  // null = not discovered yet. Within one search+basis it only grows (later pages
+  // bring pricier hotels); it is reset to null — never merely lowered — when the
+  // search or the basis changes, so the next unfiltered response redefines it.
+  // Recomputing it from *filtered* results would collapse the track the moment a
+  // price bound is applied, which is why growCeiling is gated on "no bounds set".
+  const [priceCeiling, setPriceCeiling] = useState(null);
 
   // Lazy hotel-info loading
   const [infoMap, setInfoMap]         = useState({});
@@ -139,17 +211,36 @@ export default function Results() {
   const paginationRef  = useRef({ page: 1, hasMore: true, fetching: false });
   const seenCodesRef   = useRef(new Set());
 
+  // Debounce the UI filters into the committed set that actually drives fetching.
+  // The initial pass is a no-op: `filters` and `applied` start as the same object,
+  // so React bails out of the identical setState and no extra fetch fires.
+  useEffect(() => {
+    const t = setTimeout(() => setApplied(filters), 300);
+    return () => clearTimeout(t);
+  }, [filters]);
+
   // Fetch params ref so loadMore always sees latest values
   const fetchParamsRef    = useRef(fetchParams);
   const destCodeRef       = useRef(destCode);
   const childAgesRef      = useRef(childAges);
   const destLabelRef      = useRef(destinationLabel);
+  const appliedRef        = useRef(applied);
   useEffect(() => { fetchParamsRef.current = fetchParams; },    [fetchParams]);
   useEffect(() => { destCodeRef.current    = destCode; },       [destCode]);
   useEffect(() => { childAgesRef.current   = childAges; },      [childAges]);
   useEffect(() => { destLabelRef.current   = destinationLabel; }, [destinationLabel]);
+  useEffect(() => { appliedRef.current     = applied; },        [applied]);
 
-  const buildQS = (fp, dc, ca, page) => {
+  // Only ever *raise* the slider ceiling, and only from a price-unfiltered response —
+  // otherwise the track shrinks to the filtered max and traps the user below their
+  // own selection.
+  const growCeiling = (amounts) => {
+    if (!amounts.length) return;
+    const rounded = Math.ceil(Math.max(...amounts) / PRICE_STEP) * PRICE_STEP;
+    setPriceCeiling((prev) => Math.max(prev ?? 0, rounded, PRICE_STEP));
+  };
+
+  const buildQS = (fp, dc, ca, page, f) => {
     const roomsN = Math.max(1, parseInt(fp.rooms, 10) || 1);
     const qs = new URLSearchParams({
       destination:        dc,
@@ -165,22 +256,48 @@ export default function Results() {
       maxChildrenPerRoom: String(Math.ceil((parseInt(fp.children, 10) || 0) / roomsN)),
     });
     if (ca) qs.set('childAges', ca);
+
+    // ── Result filters — omitted entirely when at their default, so the cache can
+    //    take its fast unfiltered path (see `hasFilter` in the contracts controller).
+    if (f.boards.length)     qs.set('boards',    f.boards.join(','));
+    if (f.roomTypes.length)  qs.set('roomTypes', f.roomTypes.join(','));
+
+    // A min of 0 and a max sitting at the (still-growing) ceiling both mean
+    // "no bound" — sending them would exclude pricier hotels from later pages.
+    const min = f.minPrice === '' ? null : Number(f.minPrice);
+    const max = f.maxPrice === '' ? null : Number(f.maxPrice);
+    if (Number.isFinite(min) && min > 0)  qs.set('minPrice', String(min));
+    if (Number.isFinite(max) && max > 0 && !(min != null && max < min)) {
+      qs.set('maxPrice', String(max));
+    }
+    if (f.priceBasis !== 'total') qs.set('priceBasis', f.priceBasis);
+    if (f.refundable !== 'any')   qs.set('refundable', f.refundable);
+    if (f.sortBy     !== 'price_asc') qs.set('sortBy', f.sortBy);
+
     return qs.toString();
   };
 
-  const mapContract = (c, label, badgeIdx) => ({
+  const mapContract = (c, label) => {
+    // The cache returns `boardCode` on external results but `board` on internal
+    // ones, and /contracts/cheapest?source=combined interleaves both. Reading only
+    // one of the two left every external hotel with no board at all.
+    const bc = (c.boardCode ?? c.board ?? '') || '';
+    return {
     id:           c.hotelCode,
     hotelCode:    c.hotelCode,
     name:         c.hotelName ?? `Hotel ${c.hotelCode}`,
     stars:        null,
-    board:        getBoardLabel(c.board),
-    boardCode:    c.board,
-    boardTags:    getBoardTags(c.board),
+    board:        getBoardLabel(bc),
+    boardCode:    bc,
+    boardTags:    bc ? [getBoardLabel(bc)] : [],
     roomType:     c.roomType,
+    roomLabel:    getRoomLabel(c.roomType),
     characteristic: c.characteristic,
     classification: c.classification,
+    refundable:   c.refundable,
     contractName: c.contractName,
     totalAmount:  c.totalAmount,
+    perPerson:    c.perPerson,
     currency:     c.currency,
     nightlyBreakdown: c.nightlyBreakdown || [],
     // No rotating marketing badges — only data-backed ones are rendered
@@ -188,73 +305,123 @@ export default function Results() {
     badge:        null,
     img:          FALLBACK_IMG,
     loc:          label,
-  });
+    };
+  };
 
-  // Initial fetch — resets everything when search params change
+  // Identifies "a different search" (vs. merely a different filter on the same search).
+  // Only a new search resets the price ceiling and shows full-page skeletons.
+  const searchKey = `${destCode}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${childAges}`;
+  const prevSearchKeyRef = useRef(null);
+
+  // A price bound is only meaningful for the search it was chosen in — "under €1,500"
+  // means something different for 3 nights than for 10, or for 2 guests than for 6.
+  // Carrying it across a search change would also strand the slider: the ceiling
+  // regrows only from price-unfiltered responses, so a bound left in place would pin
+  // the track at its floor and the user could never raise it again.
+  //
+  // Adjusting state during render (React's documented pattern for reacting to changed
+  // inputs) rather than in an effect: it re-renders before the fetch effect below
+  // commits, so we never fire one request with the stale bounds and another without.
+  const [priceSearchKey, setPriceSearchKey] = useState(searchKey);
+  if (priceSearchKey !== searchKey) {
+    setPriceSearchKey(searchKey);
+    if (filters.minPrice !== '' || filters.maxPrice !== '') {
+      // Same object into both, so the pending debounce commits an identical
+      // reference and React bails out instead of firing a second fetch.
+      const cleared = { ...filters, minPrice: '', maxPrice: '' };
+      setFilters(cleared);
+      setApplied(cleared);
+    }
+  }
+
+  // Monotonic request id — a slow response from an earlier filter state must never
+  // overwrite the results of a newer one (rapid toggling reorders responses).
+  const reqIdRef = useRef(0);
+
+  // Page-1 fetch. Re-runs on a new search AND on every committed filter change.
   useEffect(() => {
     if (!destCode) {
       setAllHotels([]);
       setHasMore(false);
       setLoading(false);
+      setFiltering(false);
       return;
     }
 
-    setLoading(true);
-    setAllHotels([]);
+    const isNewSearch = prevSearchKeyRef.current !== searchKey;
+    prevSearchKeyRef.current = searchKey;
+
+    if (isNewSearch) {
+      setLoading(true);
+      setAllHotels([]);
+      setInfoMap({});
+      setPriceCeiling(null);
+      infoLoadingRef.current = new Set();
+    } else {
+      // Same search, new filter — keep the current cards on screen (dimmed) instead
+      // of flashing skeletons, then swap them for the filtered set.
+      setFiltering(true);
+    }
     setHasMore(true);
-    setInfoMap({});
-    setPriceMaxFilter(999999);
-    setMaxPriceAvail(5000);
-    infoLoadingRef.current = new Set();
-    seenCodesRef.current   = new Set();
-    paginationRef.current  = { page: 1, hasMore: true, fetching: true };
+    seenCodesRef.current  = new Set();
+    paginationRef.current = { page: 1, hasMore: true, fetching: true };
 
-    const url = `${CONTRACTS_API}/contracts/cheapest?${buildQS(fetchParams, destCode, childAges, 1)}`;
-    console.log('[Results] Initial fetch:', url);
+    const reqId = ++reqIdRef.current;
+    const url = `${CONTRACTS_API}/contracts/cheapest?${buildQS(fetchParams, destCode, childAges, 1, applied)}`;
+    console.log('[Results] Page 1 fetch:', url);
 
-    let cancelled = false;
-    fetch(url)
-      .then((r) => r.json())
+    const ctrl = new AbortController();
+    fetch(url, { signal: ctrl.signal })
+      .then((r) => {
+        if (!r.ok) throw new Error(`API ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
-        if (cancelled) return;
-        const results    = data.results || [];
-        const nightCount = data.nights  || 0;
-        setNights(nightCount);
+        if (reqId !== reqIdRef.current) return;   // a newer request has superseded this one
+        const results = data.results || [];
+        setNights(data.nights || 0);
+
+        // The API's `cheapest` is merged[0] — the first item AFTER sorting — so under
+        // price_desc it is really the most EXPENSIVE stay. Trusting it there put the
+        // "Best Value" badge on the priciest card. It is only the true global minimum
+        // on an ascending sort; on descending we have no way to know it, so no badge.
+        setCheapestCode(applied.sortBy === 'price_asc' ? (data.cheapest?.hotelCode ?? null) : null);
 
         const seen   = seenCodesRef.current;
         const mapped = [];
         for (const c of results) {
           if (!seen.has(c.hotelCode)) {
             seen.add(c.hotelCode);
-            mapped.push(mapContract(c, destinationLabel, mapped.length));
+            mapped.push(mapContract(c, destinationLabel));
           }
         }
 
-        if (mapped.length > 0) {
-          const max     = Math.max(...mapped.map((h) => h.totalAmount));
-          const rounded = Math.ceil(max / 100) * 100;
-          setMaxPriceAvail((prev) => Math.max(prev, rounded));
+        // Only widen the slider range from a price-unconstrained response.
+        if (applied.minPrice === '' && applied.maxPrice === '') {
+          growCeiling(mapped.map((h) => (applied.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount))
+                            .filter((n) => Number.isFinite(n)));
         }
 
-        // Use the API's own hasMore flag; fall back to result count check
         const more = data.hasMore ?? (results.length >= PAGE_SIZE);
         paginationRef.current = { page: 2, hasMore: more, fetching: false };
         setHasMore(more);
         setAllHotels(mapped);
         setLoading(false);
+        setFiltering(false);
       })
       .catch((err) => {
-        if (cancelled) return;
+        if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
         console.error('[Results] Contracts API error:', err);
         setAllHotels([]);
         setHasMore(false);
         setLoading(false);
+        setFiltering(false);
         paginationRef.current = { page: 1, hasMore: false, fetching: false };
       });
 
-    return () => { cancelled = true; };
+    return () => ctrl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [destCode, fetchParams]);
+  }, [destCode, fetchParams, applied]);
 
   // Load next page from API
   const loadMore = useCallback(() => {
@@ -268,12 +435,23 @@ export default function Results() {
     const dc  = destCodeRef.current;
     const ca  = childAgesRef.current;
     const lbl = destLabelRef.current;
-    const url = `${CONTRACTS_API}/contracts/cheapest?${buildQS(fp, dc, ca, pg.page)}`;
+    const f   = appliedRef.current;
+
+    // Snapshot the current request generation. If a filter changes while this page
+    // is in flight, page 1 will have reset the list — appending this stale page on
+    // top of it would mix two different filter results.
+    const reqId = reqIdRef.current;
+
+    const url = `${CONTRACTS_API}/contracts/cheapest?${buildQS(fp, dc, ca, pg.page, f)}`;
     console.log('[Results] Load more (page=' + pg.page + '):', url);
 
     fetch(url)
-      .then((r) => r.json())
+      .then((r) => {
+        if (!r.ok) throw new Error(`API ${r.status}`);
+        return r.json();
+      })
       .then((data) => {
+        if (reqId !== reqIdRef.current) return;   // superseded by a newer filter/search
         const results = data.results || [];
         const seen    = seenCodesRef.current;
 
@@ -291,12 +469,12 @@ export default function Results() {
         }
 
         if (newCards.length > 0) {
-          setAllHotels((prev) => [
-            ...prev,
-            ...newCards.map((c, i) => mapContract(c, lbl, prev.length + i)),
-          ]);
-          const newMax = Math.max(...newCards.map((r) => r.totalAmount));
-          setMaxPriceAvail((prev) => Math.max(prev, Math.ceil(newMax / 100) * 100));
+          const mapped = newCards.map((c) => mapContract(c, lbl));
+          setAllHotels((prev) => [...prev, ...mapped]);
+          if (f.minPrice === '' && f.maxPrice === '') {
+            growCeiling(mapped.map((h) => (f.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount))
+                              .filter((n) => Number.isFinite(n)));
+          }
         }
 
         const more = data.hasMore ?? (results.length >= PAGE_SIZE);
@@ -305,33 +483,17 @@ export default function Results() {
         setFetchingMore(false);
       })
       .catch((err) => {
+        if (reqId !== reqIdRef.current) return;
         console.error('[Results] Load more error:', err);
         paginationRef.current = { ...paginationRef.current, fetching: false };
         setFetchingMore(false);
       });
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Client-side filter + sort
-  useEffect(() => {
-    let data = [...allHotels];
-
-    if (boardFilter.length > 0) {
-      data = data.filter((h) => boardFilter.includes(h.board));
-    }
-    if (classFilter.length > 0) {
-      data = data.filter((h) => classFilter.includes(h.classification));
-    }
-    data = data.filter((h) => h.totalAmount <= priceMaxFilter);
-
-    if (sort === 'Price: High to Low') {
-      data.sort((a, b) => b.totalAmount - a.totalAmount);
-    } else {
-      data.sort((a, b) => a.totalAmount - b.totalAmount);
-    }
-
-    setHotels(data);
-  }, [allHotels, boardFilter, classFilter, priceMaxFilter, sort]);
+  // Filtering and sorting are done by the cache (it recalculates each hotel's
+  // cheapest *matching* rate, which client-side filtering of already-picked
+  // winners cannot do), so the fetched list is the list we render.
+  const hotels = allHotels;
 
   // Lazily load real hotel info (name/images/stars) for all visible hotels
   useEffect(() => {
@@ -393,8 +555,48 @@ export default function Results() {
         showToast('Couldn’t update favourites. Please try again.', 'error');
       });
   };
-  const toggleBoard = (b)  => setBoardFilter((prev) => prev.includes(b) ? prev.filter((x) => x !== b) : [...prev, b]);
-  const toggleClass = (c)  => setClassFilter((prev) => prev.includes(c) ? prev.filter((x) => x !== c) : [...prev, c]);
+  // Toggle a code in one of the multi-select filter arrays (boards / roomTypes).
+  const toggleCode = (key, code) => setFilters((f) => ({
+    ...f,
+    [key]: f[key].includes(code) ? f[key].filter((x) => x !== code) : [...f[key], code],
+  }));
+
+  const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
+
+  // Switching basis changes what the min/max numbers *mean* (total stay vs. per
+  // person), so carrying the old bounds over would silently filter on the wrong
+  // scale. Clear them, and drop the ceiling back to its floor so it regrows from
+  // per-person prices — otherwise the track would keep spanning the total-stay
+  // range (0–8,500) while the actual values only reach ~300.
+  const setPriceBasis = (value) => {
+    if (filters.priceBasis === value) return;
+    setPriceCeiling(null);
+    setFilters((f) => ({ ...f, priceBasis: value, minPrice: '', maxPrice: '' }));
+  };
+
+  const clearFilters = () => setFilters(EMPTY_FILTERS);
+
+  // Until the first results define the real range, span a placeholder.
+  const ceiling = priceCeiling ?? PRICE_CEILING_FALLBACK;
+
+  // Slider positions. An empty bound means "unbounded", which renders as the
+  // track edge — and a max pinned to the ceiling is deliberately sent as no max.
+  const sliderMin = filters.minPrice === '' ? 0 : Math.min(Number(filters.minPrice), ceiling);
+  const sliderMax = filters.maxPrice === '' ? ceiling : Math.min(Number(filters.maxPrice), ceiling);
+
+  const onMinPrice = (raw) => {
+    // Never let the handles cross.
+    const v = Math.max(0, Math.min(Number(raw), sliderMax - PRICE_STEP));
+    setFilter('minPrice', v <= 0 ? '' : String(v));
+  };
+  const onMaxPrice = (raw) => {
+    const v = Math.min(ceiling, Math.max(Number(raw), sliderMin + PRICE_STEP));
+    setFilter('maxPrice', v >= ceiling ? '' : String(v));
+  };
+
+  const activeCount = countActiveFilters(filters);
+  const currency    = allHotels[0]?.currency || 'EUR';
+  const priceLabel  = (n) => `${currency} ${Math.round(n).toLocaleString()}`;
 
   const applySearch = () => {
     setFetchParams((prev) => ({
@@ -481,48 +683,94 @@ export default function Results() {
         </button>
       </FilterSection>
 
-      {/* Price Range — client-side */}
+      {/* Price Range — min + max, on either a total-stay or per-person basis */}
       <FilterSection title="Price Range" defaultOpen>
         <div className={styles.priceSliderWrap}>
-          <input
-            type="range"
-            className={styles.filterRange}
-            min={0}
-            max={maxPriceAvail}
-            step={50}
-            value={Math.min(priceMaxFilter, maxPriceAvail)}
-            onChange={(e) => setPriceMaxFilter(Number(e.target.value))}
-            style={{ '--fill': `${(Math.min(priceMaxFilter, maxPriceAvail) / (maxPriceAvail || 1)) * 100}%` }}
-          />
+          <div className={styles.priceDual}>
+            <div className={styles.priceDualTrack}>
+              <div
+                className={styles.priceDualFill}
+                style={{
+                  left:  `${(sliderMin / ceiling) * 100}%`,
+                  right: `${100 - (sliderMax / ceiling) * 100}%`,
+                }}
+              />
+            </div>
+            <input
+              type="range"
+              className={`${styles.filterRange} ${styles.rangeDual}`}
+              min={0} max={ceiling} step={PRICE_STEP}
+              value={sliderMin}
+              onChange={(e) => onMinPrice(e.target.value)}
+              aria-label="Minimum price"
+            />
+            <input
+              type="range"
+              className={`${styles.filterRange} ${styles.rangeDual}`}
+              min={0} max={ceiling} step={PRICE_STEP}
+              value={sliderMax}
+              onChange={(e) => onMaxPrice(e.target.value)}
+              aria-label="Maximum price"
+            />
+          </div>
           <div className={styles.priceSliderLabels}>
-            <span>0</span>
+            <span>{priceLabel(0)}</span>
             <span className={styles.priceSliderCurrent}>
-              Up to {allHotels[0]?.currency || 'EUR'} {Math.min(priceMaxFilter, maxPriceAvail).toLocaleString()}
+              {priceLabel(sliderMin)} – {priceLabel(sliderMax)}
+              {filters.maxPrice === '' ? '+' : ''}
             </span>
-            <span>{maxPriceAvail.toLocaleString()}</span>
+            <span>{priceLabel(ceiling)}</span>
           </div>
         </div>
+        <Segmented
+          options={PRICE_BASIS_OPTIONS}
+          value={filters.priceBasis}
+          onChange={setPriceBasis}
+          ariaLabel="Price basis"
+        />
       </FilterSection>
 
-      {/* Board Type — client-side */}
+      {/* Board Type — server-side (`boards`) */}
       <FilterSection title="Board Type" defaultOpen>
-        {BOARD_FILTER_OPTIONS.map((b) => (
-          <FilterCheck key={b} label={b} checked={boardFilter.includes(b)} onChange={() => toggleBoard(b)} />
+        {BOARD_FILTERS.map((code) => (
+          <FilterCheck
+            key={code}
+            label={getBoardLabel(code)}
+            checked={filters.boards.includes(code)}
+            onChange={() => toggleCode('boards', code)}
+          />
         ))}
       </FilterSection>
 
-      {/* Rate Type — client-side */}
-      <FilterSection title="Rate Type" defaultOpen={false}>
-        <FilterCheck label="Refundable (NOR)"     checked={classFilter.includes('NOR')} onChange={() => toggleClass('NOR')} />
-        <FilterCheck label="Non-Refundable (NRF)" checked={classFilter.includes('NRF')} onChange={() => toggleClass('NRF')} />
+      {/* Room Type — server-side (`roomTypes`) */}
+      <FilterSection title="Room Type" defaultOpen={false}>
+        {ROOM_FILTERS.map((code) => (
+          <FilterCheck
+            key={code}
+            label={getRoomLabel(code)}
+            checked={filters.roomTypes.includes(code)}
+            onChange={() => toggleCode('roomTypes', code)}
+          />
+        ))}
+      </FilterSection>
+
+      {/* Cancellation — server-side (`refundable`), derived from the rate class */}
+      <FilterSection title="Cancellation" defaultOpen>
+        <Segmented
+          options={REFUNDABLE_OPTIONS}
+          value={filters.refundable}
+          onChange={(v) => setFilter('refundable', v)}
+          ariaLabel="Cancellation policy"
+        />
       </FilterSection>
     </>
   );
 
-  // The only badge we can honestly back with data: the cheapest visible stay.
-  const bestValueId = hotels.length
-    ? hotels.reduce((m, x) => ((x.totalAmount ?? Infinity) < (m.totalAmount ?? Infinity) ? x : m), hotels[0]).id
-    : null;
+  // The only badge we can honestly back with data: the cheapest stay for this
+  // search. The API reports the global cheapest across *all* matching hotels, which
+  // is what we want — a local min over the loaded pages would move the badge around
+  // as you scroll, and would sit on the wrong card entirely under high-to-low sort.
+  const bestValueId = cheapestCode ?? null;
 
   return (
     <div className={styles.page}>
@@ -598,8 +846,12 @@ export default function Results() {
                 <Icon d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4" size={14} sw={2} />
                 Sort
               </span>
-              <select className={styles.sortSelect} value={sort} onChange={(e) => setSort(e.target.value)}>
-                {SORT_OPTIONS.map((o) => <option key={o}>{o}</option>)}
+              <select
+                className={styles.sortSelect}
+                value={filters.sortBy}
+                onChange={(e) => setFilter('sortBy', e.target.value)}
+              >
+                {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
             <button className={styles.mobileFilterBtn} onClick={() => setDrawerOpen(true)}>
@@ -607,6 +859,7 @@ export default function Results() {
                 <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
               </svg>
               Filters
+              {activeCount > 0 && <span className={styles.filterCount}>{activeCount}</span>}
             </button>
           </div>
         </div>
@@ -619,13 +872,19 @@ export default function Results() {
             <div className={styles.filterCardHead}>
               <Icon d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" size={15} sw={2} />
               <h2>Filters</h2>
+              {activeCount > 0 && (
+                <>
+                  <span className={styles.filterCount}>{activeCount}</span>
+                  <button className={styles.clearAllBtn} onClick={clearFilters}>Clear all</button>
+                </>
+              )}
             </div>
             {sidebar}
           </div>
         </aside>
 
         <section className={styles.results}>
-          <div className={styles.resultsList}>
+          <div className={`${styles.resultsList} ${filtering ? styles.listBusy : ''}`}>
             {loading ? (
               [1, 2, 3].map((i) => (
                 <div key={i} className={styles.skeletonCard}>
@@ -660,7 +919,16 @@ export default function Results() {
                   </svg>
                 </div>
                 <h3>No results found</h3>
-                <p>Try a different destination, dates, or adjust your filters.</p>
+                <p>
+                  {activeCount > 0
+                    ? 'No stays match your filters. Try relaxing them or widening your price range.'
+                    : 'Try a different destination or different dates.'}
+                </p>
+                {activeCount > 0 && (
+                  <button className={styles.applyBtn} style={{ maxWidth: 200 }} onClick={clearFilters}>
+                    Clear all filters
+                  </button>
+                )}
               </div>
             ) : (
               hotels.map((h, i) => {
@@ -698,7 +966,9 @@ export default function Results() {
                         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
                       </svg>
                     </button>
-                    {h.classification === 'NRF' && (
+                    {/* The API derives this from the rate class, so it also catches
+                        NRP (non-refundable prepaid), which a bare 'NRF' check missed. */}
+                    {h.refundable === false && (
                       <div className={styles.rcNrfChip}>Non-Refundable</div>
                     )}
                   </div>
@@ -721,16 +991,16 @@ export default function Results() {
                       {h.loc}
                     </div>
 
-                    {h.boardTags.length > 0 && (
+                    {(h.boardTags.length > 0 || h.roomLabel) && (
                       <div className={styles.rcAmenities}>
                         {h.boardTags.map((b) => (
                           <span key={b} className={styles.rcAmenity}>
                             <CheckIcon />{b}
                           </span>
                         ))}
-                        {h.roomType && (
+                        {h.roomLabel && (
                           <span className={styles.rcAmenity}>
-                            <CheckIcon />{h.roomType}
+                            <CheckIcon />{h.roomLabel}
                           </span>
                         )}
                       </div>

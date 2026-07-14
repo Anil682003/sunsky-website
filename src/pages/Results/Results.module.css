@@ -282,6 +282,66 @@
   background: var(--blue-light); padding: 4px 12px; border-radius: var(--r-full);
 }
 
+/* Dual price range (min + max) — reuses the .filterRange thumb styling */
+.priceDual { position: relative; height: 22px; margin: 12px 0 4px; }
+.priceDualTrack {
+  position: absolute; left: 0; right: 0; top: 50%;
+  transform: translateY(-50%);
+  height: 5px; border-radius: var(--r-full); background: #e2eaf5;
+}
+.priceDualFill {
+  position: absolute; top: 0; bottom: 0;
+  border-radius: var(--r-full);
+  background: linear-gradient(90deg, var(--blue-deep), var(--blue-mid));
+}
+/* Both range inputs sit on top of the shared track. The inputs themselves are
+   click-through so the lower thumb never blocks the upper one; only the thumbs
+   capture the pointer. */
+.rangeDual {
+  position: absolute; left: 0; top: 0;
+  width: 100%; height: 22px; margin: 0;
+  background: none; pointer-events: none;
+}
+.rangeDual::-webkit-slider-thumb { pointer-events: auto; }
+.rangeDual::-moz-range-thumb { pointer-events: auto; }
+.rangeDual::-moz-range-track { background: none; }
+
+/* Segmented control (Refundable, Price basis) */
+.segRow {
+  display: flex; gap: 4px; margin-top: 4px;
+  background: #f1f6fd; padding: 4px; border-radius: var(--r-full);
+}
+.segBtn {
+  flex: 1; padding: 8px 6px; border: none; background: transparent;
+  border-radius: var(--r-full); cursor: pointer;
+  font-family: 'Sora', sans-serif; font-size: 11.5px; font-weight: 700;
+  color: var(--text-light); white-space: nowrap;
+  transition: all 0.2s var(--ease);
+}
+.segBtn:hover { color: var(--dark); }
+.segBtnActive {
+  background: var(--white); color: var(--blue-deep);
+  box-shadow: 0 2px 8px rgba(31,79,216,0.16);
+}
+
+/* Active-filter count pill + clear-all */
+.filterCount {
+  margin-left: auto; display: flex; align-items: center; justify-content: center;
+  min-width: 19px; height: 19px; padding: 0 6px; border-radius: var(--r-full);
+  background: var(--blue-deep); color: #fff;
+  font-size: 10.5px; font-weight: 800; line-height: 1;
+}
+.clearAllBtn {
+  border: none; background: none; cursor: pointer; padding: 4px 6px;
+  font-family: inherit; font-size: 11.5px; font-weight: 700;
+  color: var(--blue-deep); border-radius: var(--r-sm);
+  transition: background 0.2s;
+}
+.clearAllBtn:hover { background: var(--blue-light); }
+
+/* Results list dimmed while a filter refetch is in flight */
+.listBusy { opacity: 0.45; pointer-events: none; transition: opacity 0.2s var(--ease); }
+
 /* Date inputs */
 .dateGroup { margin-bottom: 11px; }
 .dateLabel {
