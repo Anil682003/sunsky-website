@@ -44,7 +44,7 @@ export default function Navbar() {
 
   const isHome = location.pathname === '/';
   // Pages with a dark hero band — navbar starts transparent and blends in
-  const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights');
+  const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);

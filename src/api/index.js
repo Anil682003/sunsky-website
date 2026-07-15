@@ -86,3 +86,28 @@ export const useCitySearch = () =>
   useApi(ENDPOINTS.citySearch, {
     transformResponse: (res) => res?.data ?? [],
   });
+
+// Every active country with its flag (emoji + flagcdn SVG url). Static reference
+// data, so it is fetched once on mount rather than each time the picker opens.
+export const useCountries = () =>
+  useApi(ENDPOINTS.countries, {
+    immediate: true,
+    transformResponse: (res) => res?.data ?? [],
+    errorMessage: 'Could not load countries',
+  });
+
+// Holiday/theme types as configured in the admin dashboard.
+export const useHolidayTypes = () =>
+  useApi(ENDPOINTS.holidayTypes, {
+    immediate: true,
+    transformResponse: (res) => res?.data ?? [],
+    errorMessage: 'Could not load holiday types',
+  });
+
+// The countries linked to one holiday type. Resolves to { holidayType, countries }.
+// Call execute(idOrSlug) — the slug comes from the /holidays/:slug route param.
+export const useHolidayTypeCountries = () =>
+  useApi(ENDPOINTS.holidayTypeCountries, {
+    transformResponse: (res) => res?.data ?? null,
+    errorMessage: 'Could not load destinations for this holiday type',
+  });

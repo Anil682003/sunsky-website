@@ -2,19 +2,14 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import styles from './Hero.module.css';
-import { useHomepageConfig, useCitySearch } from '../../../api';
+import { useHomepageConfig, useCountries } from '../../../api';
+import CountryModal from '../../../components/CountryModal/CountryModal';
 
-const POPULAR_DESTINATIONS = [
-  { code: 'HRG', label: 'Hurghada, Egypt'    },
-  { code: 'AYT', label: 'Antalya, Turkey'    },
-  { code: 'HER', label: 'Heraklion, Greece'  },
-  { code: 'TFS', label: 'Tenerife, Spain'    },
-  { code: 'MLE', label: 'Male, Maldives'     },
-  { code: 'HKT', label: 'Phuket, Thailand'   },
-  { code: 'RAK', label: 'Marrakech, Morocco' },
-  { code: 'FAO', label: 'Faro, Portugal'     },
-];
-const DURATIONS = ['3 days','5 days','6 days','7 days','8 days','10 days','14 days'];
+// Duration bands. handleSearch takes the first number as the night count, so a
+// band always searches its shortest stay ('6-10 days' → 6 nights).
+const DURATIONS = ['2-5 days','6-10 days','11-16 days','17-24 days','25+ days'];
+
+const MAX_ROOMS = 8;
 
 // Departure airports for the Belgian/Benelux market (the platform's flight
 // searches depart from this region — the old list was 8 UK airports).
@@ -76,11 +71,10 @@ export default function Hero() {
   const [destination, setDestination] = useState('');
   const [destinationCode, setDestinationCode] = useState('');
   const [date, setDate] = useState('');
-  const [duration, setDuration] = useState('7 days');
-  const [adults, setAdults] = useState(2);
-  const [children, setChildren] = useState(0);
-  const [rooms, setRooms] = useState(1);
-  const [childrenDobs, setChildrenDobs] = useState([]);
+  const [duration, setDuration] = useState('6-10 days');
+  // Occupancy is per room — each room carries its own adults, children and one
+  // date-of-birth slot per child. The search still sends totals.
+  const [roomsList, setRoomsList] = useState([{ adults: 2, children: 0, dobs: [] }]);
   const [openField, setOpenField] = useState(null);
 
   const [tripType, setTripType] = useState('roundtrip');
@@ -97,27 +91,21 @@ export default function Hero() {
   const [multiTo, setMultiTo] = useState('');
   const [multiDate, setMultiDate] = useState('');
 
-  const [destSearch, setDestSearch] = useState('');
-  const { execute: searchCities, data: destResultsData, loading: destLoading, reset: resetCities } = useCitySearch();
-  const destResults = destResultsData ?? [];
-  const destInputRef = useRef(null);
+  // Destination is picked from a country modal — the field itself is not typeable.
+  const { data: countriesData, loading: countriesLoading, error: countriesError } = useCountries();
+  const countries = countriesData ?? [];
+  const [countryModalOpen, setCountryModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (!destSearch.trim()) { resetCities(); return; }
-    const timer = setTimeout(() => searchCities(destSearch), 300);
-    return () => clearTimeout(timer);
-  }, [destSearch]);
+  const openCountryModal = () => {
+    setOpenField(null);   // close any other dropdown first
+    setCountryModalOpen(true);
+  };
 
-  // Auto-focus search input when destination dropdown opens
-  useEffect(() => {
-    if (openField === 'destination') {
-      setTimeout(() => destInputRef.current?.focus(), 50);
-    } else {
-      setDestSearch('');
-      resetCities();
-      // keep destinationCode if user already selected one
-    }
-  }, [openField]);
+  const handleCountrySelect = (country) => {
+    setDestination(country.name);
+    setDestinationCode(country.isoCode || country.code || '');
+    setCountryModalOpen(false);
+  };
 
   const searchBarRef = useRef(null);
   const flightsRef = useRef(null);
@@ -145,18 +133,39 @@ export default function Hero() {
 
   const todayISO = new Date().toISOString().split('T')[0];
 
-  // keep one date-of-birth slot per child
-  const setChildrenCount = (next) => {
-    const n = Math.max(0, Math.min(6, next));
-    setChildren(n);
-    setChildrenDobs((prev) => {
-      const arr = prev.slice(0, n);
-      while (arr.length < n) arr.push('');
-      return arr;
-    });
-  };
-  const updateChildDob = (i, val) =>
-    setChildrenDobs((prev) => prev.map((d, idx) => (idx === i ? val : d)));
+  const totalAdults   = roomsList.reduce((n, r) => n + r.adults, 0);
+  const totalChildren = roomsList.reduce((n, r) => n + r.children, 0);
+
+  const setRoomAdults = (roomIdx, next) =>
+    setRoomsList((prev) =>
+      prev.map((r, i) => (i === roomIdx ? { ...r, adults: Math.max(1, Math.min(9, next)) } : r))
+    );
+
+  // keep one date-of-birth slot per child in the room
+  const setRoomChildren = (roomIdx, next) =>
+    setRoomsList((prev) =>
+      prev.map((r, i) => {
+        if (i !== roomIdx) return r;
+        const n = Math.max(0, Math.min(6, next));
+        const dobs = r.dobs.slice(0, n);
+        while (dobs.length < n) dobs.push('');
+        return { ...r, children: n, dobs };
+      })
+    );
+
+  const updateChildDob = (roomIdx, childIdx, val) =>
+    setRoomsList((prev) =>
+      prev.map((r, i) =>
+        i === roomIdx ? { ...r, dobs: r.dobs.map((d, j) => (j === childIdx ? val : d)) } : r
+      )
+    );
+
+  const addRoom = () =>
+    setRoomsList((prev) => (prev.length >= MAX_ROOMS ? prev : [...prev, { adults: 2, children: 0, dobs: [] }]));
+
+  const removeRoom = (roomIdx) =>
+    setRoomsList((prev) => (prev.length === 1 ? prev : prev.filter((_, i) => i !== roomIdx)));
+
   const ageFromDob = (dob) => {
     if (!dob) return null;
     const b = new Date(dob + 'T00:00:00');
@@ -182,11 +191,11 @@ export default function Hero() {
       destinationLabel: destination,
       checkIn:          date || '',
       checkOut:         checkOut || '',
-      adults:           String(adults),
-      children:         String(children),
-      rooms:            String(rooms),
+      adults:           String(totalAdults),
+      children:         String(totalChildren),
+      rooms:            String(roomsList.length),
     });
-    const childAges = childrenDobs.map(ageFromDob).filter((a) => a != null);
+    const childAges = roomsList.flatMap((r) => r.dobs).map(ageFromDob).filter((a) => a != null);
     if (childAges.length) qs.set('childAges', childAges.join(','));
     navigate(`/results?${qs.toString()}`);
   };
@@ -200,7 +209,15 @@ export default function Hero() {
     toSetter(fromVal);
   };
 
-  const travelersLabel = `${adults} adult${adults > 1 ? 's' : ''}${children > 0 ? `, ${children} child${children > 1 ? 'ren' : ''}` : ''} · ${rooms} room${rooms > 1 ? 's' : ''}`;
+  const roomsLabel = `${roomsList.length} room${roomsList.length > 1 ? 's' : ''}`;
+
+  // Compact for the search-bar field, which has limited width. The full
+  // adults/children breakdown is shown in the dropdown's footer instead.
+  const travelersLabel = totalChildren > 0
+    ? `${totalAdults + totalChildren} travelers · ${roomsLabel}`
+    : `${totalAdults} adult${totalAdults > 1 ? 's' : ''} · ${roomsLabel}`;
+
+  const travelersDetail = `${totalAdults} adult${totalAdults > 1 ? 's' : ''}${totalChildren > 0 ? `, ${totalChildren} child${totalChildren > 1 ? 'ren' : ''}` : ''} · ${roomsLabel}`;
 
   const flightTotalTravelers = flightAdults + flightChildren + flightInfants;
   const flightTravelersLabel = `${flightTotalTravelers} Traveller${flightTotalTravelers > 1 ? 's' : ''}, ${cabinClass}`;
@@ -261,23 +278,15 @@ export default function Hero() {
         <div className={styles.searchBarWrap} ref={searchBarRef}>
           <div className={styles.searchBar}>
             <div
-              className={`${styles.sf} ${openField === 'destination' ? styles.sfActive : ''}`}
-              onClick={() => { if (openField !== 'destination') setOpenField('destination'); }}
+              className={`${styles.sf} ${styles.sfDest} ${countryModalOpen ? styles.sfActive : ''}`}
+              onClick={openCountryModal}
             >
               <span className={styles.sfIcon}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Destination</span>
-                <input
-                  ref={destInputRef}
-                  className={styles.sfInput}
-                  placeholder="Where to?"
-                  value={openField === 'destination' ? destSearch : destination}
-                  onChange={(e) => { setDestSearch(e.target.value); setOpenField('destination'); }}
-                  onFocus={() => setOpenField('destination')}
-                  onClick={(e) => e.stopPropagation()}
-                />
+                <span className={styles.sfValue}>{destination || 'Where to?'}</span>
               </div>
             </div>
             <div className={styles.sfDivider} />
@@ -316,7 +325,7 @@ export default function Hero() {
             </div>
             <div className={styles.sfDivider} />
             <div
-              className={`${styles.sf} ${openField === 'travelers' ? styles.sfActive : ''}`}
+              className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`}
               onClick={() => toggleField('travelers')}
             >
               <span className={styles.sfIcon}>
@@ -333,70 +342,19 @@ export default function Hero() {
             </button>
           </div>
 
-          {openField === 'destination' && (
-            <div className={styles.dropdown}>
-              {/* API results — same 2-column grid as popular destinations */}
-              {destResults.length > 0 && (
-                <div className={styles.destGrid}>
-                  {destResults.map(city => (
-                    <div
-                      key={city.id}
-                      className={`${styles.destItem} ${destinationCode === city.code ? styles.destItemActive : ''}`}
-                      onClick={() => {
-                        const label = city.code ? `${city.name} (${city.code})` : `${city.name}, ${city.countryName}`;
-                        setDestination(label);
-                        setDestinationCode(city.code || '');
-                        setOpenField(null);
-                      }}
-                    >
-                      {city.code
-                        ? <span className={styles.destCode}>{city.code}</span>
-                        : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" style={{ opacity: 0.45, flexShrink: 0 }}><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                      }
-                      <span className={styles.destItemLabel}>
-                        {city.name}{city.code ? ` (${city.code})` : `, ${city.countryName}`}
-                      </span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* No results message */}
-              {destSearch.trim() && !destLoading && destResults.length === 0 && (
-                <div className={styles.destNoResult}>No destinations found for "{destSearch}"</div>
-              )}
-
-              {/* Popular picks (shown when search is empty) */}
-              {!destSearch.trim() && (
-                <>
-                  <div className={styles.destPopularLabel}>Popular destinations</div>
-                  <div className={styles.destGrid}>
-                    {POPULAR_DESTINATIONS.map((d) => (
-                      <div
-                        key={d.code}
-                        className={`${styles.destItem} ${destinationCode === d.code ? styles.destItemActive : ''}`}
-                        onClick={() => { setDestination(d.label); setDestinationCode(d.code); setOpenField(null); }}
-                      >
-                        <span className={styles.destCode}>{d.code}</span>
-                        <span className={styles.destItemLabel}>{d.label}</span>
-                      </div>
-                    ))}
-                  </div>
-                </>
-              )}
-            </div>
-          )}
-
           {openField === 'duration' && (
-            <div className={styles.dropdown}>
-              <div className={styles.durGrid}>
+            <div className={`${styles.dropdown} ${styles.durDropdown}`}>
+              <div className={styles.durList}>
                 {DURATIONS.map((d) => (
                   <div
                     key={d}
-                    className={`${styles.durPill} ${duration === d ? styles.durPillActive : ''}`}
+                    className={`${styles.durOpt} ${duration === d ? styles.durOptActive : ''}`}
                     onClick={() => { setDuration(d); setOpenField(null); }}
                   >
-                    {d}
+                    <span>{d}</span>
+                    {duration === d && (
+                      <svg className={styles.durCheck} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                    )}
                   </div>
                 ))}
               </div>
@@ -404,57 +362,87 @@ export default function Hero() {
           )}
 
           {openField === 'travelers' && (
-            <div className={styles.dropdown}>
-              <div className={styles.travRow}>
-                <span className={styles.travLabel}>Adults <small className={styles.travHint}>18+</small></span>
-                <div className={styles.stepper}>
-                  <button className={styles.stepperBtn} onClick={() => setAdults((v) => Math.max(1, v - 1))}>−</button>
-                  <span className={styles.stepperCount}>{adults}</span>
-                  <button className={styles.stepperBtn} onClick={() => setAdults((v) => Math.min(9, v + 1))}>+</button>
-                </div>
-              </div>
-              <div className={styles.travRow}>
-                <span className={styles.travLabel}>Children <small className={styles.travHint}>0–17</small></span>
-                <div className={styles.stepper}>
-                  <button className={styles.stepperBtn} onClick={() => setChildrenCount(children - 1)}>−</button>
-                  <span className={styles.stepperCount}>{children}</span>
-                  <button className={styles.stepperBtn} onClick={() => setChildrenCount(children + 1)}>+</button>
-                </div>
-              </div>
-              <div className={styles.travRow}>
-                <span className={styles.travLabel}>Rooms</span>
-                <div className={styles.stepper}>
-                  <button className={styles.stepperBtn} onClick={() => setRooms((v) => Math.max(1, v - 1))}>−</button>
-                  <span className={styles.stepperCount}>{rooms}</span>
-                  <button className={styles.stepperBtn} onClick={() => setRooms((v) => Math.min(8, v + 1))}>+</button>
-                </div>
-              </div>
+            <div className={`${styles.dropdown} ${styles.travDropdown}`}>
+              <div className={styles.travScroll}>
+                {roomsList.map((room, ri) => (
+                  <div className={styles.roomCard} key={ri}>
+                    <div className={styles.roomHead}>
+                      <span className={styles.roomTitle}>
+                        <span className={styles.roomBadge}>{ri + 1}</span>
+                        Room {ri + 1}
+                      </span>
+                      {ri > 0 && (
+                        <button className={styles.roomRemove} onClick={() => removeRoom(ri)}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                          Remove
+                        </button>
+                      )}
+                    </div>
 
-              {children > 0 && (
-                <div className={styles.travDobs}>
-                  <span className={styles.travDobsTitle}>Children's date of birth</span>
-                  {childrenDobs.map((dob, i) => {
-                    const age = ageFromDob(dob);
-                    return (
-                      <div className={styles.travDobRow} key={i}>
-                        <span className={styles.travDobLabel}>
-                          Child {i + 1}{age != null ? <em className={styles.travDobAge}>{age} yr{age === 1 ? '' : 's'}</em> : ''}
-                        </span>
-                        <input
-                          type="date"
-                          className={styles.travDobInput}
-                          value={dob}
-                          max={todayISO}
-                          onChange={(e) => updateChildDob(i, e.target.value)}
-                        />
+                    <div className={styles.travRow}>
+                      <div className={styles.travLabelWrap}>
+                        <span className={styles.travLabel}>Adults</span>
+                        <span className={styles.travSubInline}>(from 18 years)</span>
                       </div>
-                    );
-                  })}
-                  <span className={styles.travDobHint}>Children's ages help us price rooms &amp; flights correctly.</span>
-                </div>
-              )}
+                      <div className={styles.stepper}>
+                        <button className={styles.stepperBtn} disabled={room.adults <= 1} onClick={() => setRoomAdults(ri, room.adults - 1)} aria-label="Remove adult">−</button>
+                        <span className={styles.stepperCount}>{room.adults}</span>
+                        <button className={styles.stepperBtn} disabled={room.adults >= 9} onClick={() => setRoomAdults(ri, room.adults + 1)} aria-label="Add adult">+</button>
+                      </div>
+                    </div>
 
-              <button className={styles.doneBtn} onClick={() => setOpenField(null)}>Done</button>
+                    <div className={styles.travRow}>
+                      <div className={styles.travLabelWrap}>
+                        <span className={styles.travLabel}>Children</span>
+                        <span className={styles.travSubInline}>(0 to 17 years)</span>
+                      </div>
+                      <div className={styles.stepper}>
+                        <button className={styles.stepperBtn} disabled={room.children <= 0} onClick={() => setRoomChildren(ri, room.children - 1)} aria-label="Remove child">−</button>
+                        <span className={styles.stepperCount}>{room.children}</span>
+                        <button className={styles.stepperBtn} disabled={room.children >= 6} onClick={() => setRoomChildren(ri, room.children + 1)} aria-label="Add child">+</button>
+                      </div>
+                    </div>
+
+                    {room.children > 0 && (
+                      <div className={styles.travDobs}>
+                        <span className={styles.travDobsTitle}>Children's date of birth</span>
+                        {room.dobs.map((dob, ci) => {
+                          const age = ageFromDob(dob);
+                          return (
+                            <div className={styles.travDobRow} key={ci}>
+                              <span className={styles.travDobLabel}>
+                                Child {ci + 1}{age != null ? <em className={styles.travDobAge}>{age} yr{age === 1 ? '' : 's'}</em> : ''}
+                              </span>
+                              <input
+                                type="date"
+                                className={styles.travDobInput}
+                                value={dob}
+                                max={todayISO}
+                                onChange={(e) => updateChildDob(ri, ci, e.target.value)}
+                              />
+                            </div>
+                          );
+                        })}
+                        <span className={styles.travDobHint}>Children's ages help us price rooms &amp; flights correctly.</span>
+                      </div>
+                    )}
+                  </div>
+                ))}
+
+                {roomsList.length < MAX_ROOMS && (
+                  <button className={styles.addRoomBtn} onClick={addRoom}>
+                    <span className={styles.addRoomIcon}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    </span>
+                    Add extra room
+                  </button>
+                )}
+              </div>
+
+              <div className={styles.travFoot}>
+                <span className={styles.travSummary}>{travelersDetail}</span>
+                <button className={styles.doneBtn} onClick={() => setOpenField(null)}>Save</button>
+              </div>
             </div>
           )}
         </div>
@@ -818,6 +806,16 @@ export default function Hero() {
           </div>
         )}
       </div>
+
+      <CountryModal
+        open={countryModalOpen}
+        countries={countries}
+        loading={countriesLoading}
+        error={countriesError}
+        selectedCode={destinationCode}
+        onSelect={handleCountrySelect}
+        onClose={() => setCountryModalOpen(false)}
+      />
     </section>
   );
 }

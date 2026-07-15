@@ -5,6 +5,7 @@ import Packages from '../pages/Packages/Packages';
 import Flights from '../pages/Flights/Flights';
 import FlightDetail from '../pages/FlightDetail/FlightDetail';
 import Hotels from '../pages/Hotels/Hotels';
+import HolidayType from '../pages/HolidayType/HolidayType';
 import Transfers from '../pages/Transfers/Transfers';
 import About from '../pages/About/About';
 import Contact from '../pages/Contact/Contact';
@@ -40,6 +41,7 @@ export const routes = [
   { path: '/flights',    component: Flights,   layout: true, protected: false },
   { path: '/flights/:id', component: FlightDetail, layout: true, protected: false },
   { path: '/hotels',     component: Hotels,    layout: true, protected: false },
+  { path: '/holidays/:slug', component: HolidayType, layout: true, protected: false },
   { path: '/transfers',  component: Transfers, layout: true, protected: false },
   { path: '/about',      component: About,     layout: true, protected: false },
   { path: '/contact',    component: Contact,   layout: true, protected: false },

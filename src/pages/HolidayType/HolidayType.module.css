@@ -1,0 +1,286 @@
+.page { background: var(--white); min-height: 70vh; }
+
+/* ── Dark banner ───────────────────────────────────────────────────────── */
+.banner {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--dark) 0%, var(--dark2) 60%, #12224a 100%);
+  /* Top pad clears the fixed navbar — same 104px the results page uses.
+     The deep bottom pad is what the mosaic is pulled up into. */
+  padding: 104px 0 150px;
+}
+/* Dissolves the banner into the page — no hard horizontal edge under the copy */
+.banner::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 190px;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.06) 35%,
+    rgba(255,255,255,0.45) 72%,
+    var(--white) 100%);
+}
+.bannerBlob1, .bannerBlob2 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.22;
+  pointer-events: none;
+}
+.bannerBlob1 { width: 380px; height: 380px; background: var(--sun-gold);   top: -160px; right: 6%; }
+.bannerBlob2 { width: 300px; height: 300px; background: var(--blue-ocean); bottom: -180px; left: 2%; }
+
+.bannerInner {
+  position: relative;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 52px;
+}
+
+.crumbs { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; margin-bottom: 20px; }
+.crumbLink { color: rgba(255,255,255,0.55); text-decoration: none; transition: color 0.25s var(--ease); }
+.crumbLink:hover { color: #fff; }
+.crumbSep { color: rgba(255,255,255,0.3); }
+.crumbActive { color: var(--sun-gold); font-weight: 600; }
+
+.title {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(2.1rem, 4.6vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: -1.6px;
+  line-height: 1.06;
+  color: #fff;
+  max-width: 16ch;
+}
+.lede {
+  margin-top: 16px;
+  max-width: 60ch;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.62);
+}
+
+/* ── Mosaic ────────────────────────────────────────────────────────────── */
+/* Pulled up into the banner's fade so the grid rises out of it. */
+.inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: -110px auto 0;
+  padding: 0 52px 90px;
+}
+
+/* 12 columns keeps the cards compact while still allowing an uneven rhythm. */
+.mosaic {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  grid-auto-rows: 132px;
+  gap: 14px;
+}
+.hero   { grid-column: span 5; grid-row: span 2; }
+.tall   { grid-column: span 3; grid-row: span 2; }
+.wide   { grid-column: span 4; grid-row: span 1; }
+.narrow { grid-column: span 4; grid-row: span 1; }
+
+.tile {
+  position: relative;
+  display: block;
+  width: 100%; height: 100%;
+  padding: 0;
+  overflow: hidden;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--blue-light);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  text-align: left;
+  opacity: 0;
+  animation: tileIn 0.6s var(--ease) both;
+  transition: transform 0.55s var(--ease-spring), box-shadow 0.55s var(--ease);
+}
+.tile:hover { transform: translateY(-7px); box-shadow: var(--shadow-xl); }
+
+@keyframes tileIn {
+  from { opacity: 0; transform: translateY(18px) scale(0.985); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+.tileImg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 1s var(--ease);
+}
+.tile:hover .tileImg { transform: scale(1.09); }
+
+/* Countries with no mainImage: their flag, scaled up and blurred into a colour
+   field, then darkened. Reads as a designed tile and stays country-specific. */
+.tileFallback {
+  position: absolute; inset: 0;
+  overflow: hidden;
+  background: var(--dark2);
+}
+.tileFallbackImg {
+  position: absolute;
+  /* Overscan so the blur never bleeds transparent edges into the tile */
+  top: -12%; left: -12%;
+  width: 124%; height: 124%;
+  object-fit: cover;
+  filter: blur(26px) saturate(135%);
+  transform: scale(1.06);
+  transition: transform 1s var(--ease);
+}
+.tile:hover .tileFallbackImg { transform: scale(1.14); }
+
+/* Keeps light flags (Japan, Poland) from washing out the white title */
+.tileFallbackWash {
+  position: absolute; inset: 0;
+  background:
+    radial-gradient(120% 90% at 20% 10%, rgba(7,14,31,0.30) 0%, rgba(7,14,31,0.62) 60%, rgba(7,14,31,0.80) 100%),
+    linear-gradient(180deg, rgba(7,14,31,0.10) 0%, rgba(7,14,31,0.55) 100%);
+}
+
+.tileShade {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(7,14,31,0) 30%, rgba(7,14,31,0.86) 100%);
+  transition: background 0.55s var(--ease);
+}
+.tile:hover .tileShade {
+  background: linear-gradient(180deg, rgba(7,14,31,0.2) 10%, rgba(7,14,31,0.9) 100%);
+}
+
+.tileBody {
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  padding: 16px 18px;
+}
+
+.tileFlagRow { display: flex; align-items: center; gap: 9px; }
+.tileFlag {
+  width: 22px; height: 16px;
+  flex-shrink: 0;
+  object-fit: cover;
+  border-radius: 2px;
+  border: 1px solid rgba(255,255,255,0.4);
+  box-shadow: 0 2px 10px rgba(0,0,0,0.3);
+}
+.tileName {
+  font-family: 'Sora', sans-serif;
+  font-size: 1rem; font-weight: 700;
+  color: #fff;
+  text-shadow: 0 2px 14px rgba(0,0,0,0.4);
+}
+.hero .tileName { font-size: 1.45rem; letter-spacing: -0.4px; }
+.tall .tileName { font-size: 1.15rem; }
+
+.tileDesc {
+  margin-top: 6px;
+  font-size: 0.8rem; line-height: 1.45;
+  color: rgba(255,255,255,0.72);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  max-width: 46ch;
+}
+/* The one-row tiles are too short to carry blurb text as well as a name */
+.narrow .tileDesc, .wide .tileDesc { display: none; }
+
+/* Slides up from under the title on hover */
+.tileCta {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 10px;
+  padding: 6px 13px;
+  border-radius: var(--r-full);
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+  color: #fff;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.72rem; font-weight: 700; letter-spacing: 0.02em;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: all 0.45s var(--ease-spring);
+}
+.tile:hover .tileCta {
+  opacity: 1;
+  transform: translateY(0);
+  box-shadow: var(--shadow-glow);
+}
+
+/* ── Skeleton / empty / error ──────────────────────────────────────────── */
+.skeleton {
+  background: linear-gradient(100deg, var(--blue-light) 30%, var(--blue-bg2) 50%, var(--blue-light) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s var(--ease-smooth) infinite;
+  box-shadow: none; cursor: default; opacity: 1;
+}
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Sits in the same slot as the mosaic, styled as a card so a failed or empty
+   load still looks like part of the page rather than a bare message. */
+.state {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 64px 28px;
+  text-align: center;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-light);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  animation: tileIn 0.5s var(--ease) both;
+}
+.stateIcon {
+  width: 58px; height: 58px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 18px;
+  border-radius: var(--r-md);
+  background: var(--white);
+  border: 1px solid var(--blue-light);
+  color: var(--blue-deep);
+  box-shadow: var(--shadow-xs);
+}
+.state h3 {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.4rem; font-weight: 700; color: var(--text);
+  letter-spacing: -0.4px;
+  margin-bottom: 8px;
+}
+.state p { color: var(--text-sec); margin-bottom: 24px; max-width: 44ch; }
+.cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 30px;
+  border: none; border-radius: var(--r-full);
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+  color: #fff; font-weight: 700; font-size: 0.9rem;
+  font-family: 'Sora', sans-serif;
+  text-decoration: none; cursor: pointer;
+  box-shadow: var(--shadow-glow);
+  transition: transform 0.35s var(--ease);
+}
+.cta:hover { transform: translateY(-2px); }
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 1100px) {
+  .mosaic { grid-template-columns: repeat(6, 1fr); grid-auto-rows: 130px; }
+  .hero   { grid-column: span 6; grid-row: span 2; }
+  .tall   { grid-column: span 3; grid-row: span 2; }
+  .wide   { grid-column: span 3; grid-row: span 1; }
+  .narrow { grid-column: span 3; grid-row: span 1; }
+  .narrow .tileDesc, .wide .tileDesc { display: none; }
+}
+
+@media (max-width: 700px) {
+  .banner { padding: 88px 0 120px; }
+  .banner::after { height: 150px; }
+  .bannerInner { padding: 0 18px; }
+  .inner { margin-top: -90px; padding: 0 18px 64px; }
+  .mosaic { grid-template-columns: repeat(2, 1fr); grid-auto-rows: 150px; gap: 10px; }
+  .hero   { grid-column: span 2; grid-row: span 2; }
+  .tall, .wide, .narrow { grid-column: span 1; grid-row: span 1; }
+  .hero .tileName { font-size: 1.25rem; }
+  .tall .tileName, .tileName { font-size: 0.92rem; }
+  .tileCta { opacity: 1; transform: none; }   /* no hover on touch */
+}
