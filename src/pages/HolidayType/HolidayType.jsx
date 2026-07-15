@@ -3,19 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import styles from './HolidayType.module.css';
 import { useHolidayTypeCountries } from '../../api';
 
-// Mosaic rhythm — a hero tile, then alternating wide/narrow rows so the grid
-// never reads as a plain 3-across. Index-based, so any count tiles cleanly.
-const SPANS = ['hero', 'tall', 'narrow', 'narrow', 'wide', 'narrow', 'narrow', 'wide'];
-const spanFor = (i) => SPANS[i % SPANS.length];
-
 const titleFor = (name) => `Our best ${String(name || 'holidays').toLowerCase()}`;
-
-// A raster flag big enough to blur into a full-bleed backdrop. flagcdn serves the
-// SVG we already use, so no new dependency — just a wider raster of the same asset.
-const flagBackdrop = (c) => {
-  const iso = String(c.isoCode || c.code || '').trim().toLowerCase();
-  return /^[a-z]{2}$/.test(iso) ? `https://flagcdn.com/w1280/${iso}.jpg` : null;
-};
 
 // 'last-minute' → 'Last Minute'. Lets the banner read correctly from the URL
 // alone, so a slow or failing API never leaves the header blank.
@@ -77,9 +65,9 @@ export default function HolidayType() {
 
       <div className={styles.inner}>
         {loading && (
-          <div className={styles.mosaic}>
-            {Array.from({ length: 6 }).map((_, i) => (
-              <div key={i} className={`${styles.tile} ${styles[spanFor(i)]} ${styles.skeleton}`} />
+          <div className={styles.grid}>
+            {Array.from({ length: 8 }).map((_, i) => (
+              <div key={i} className={`${styles.card} ${styles.skeleton}`} />
             ))}
           </div>
         )}
@@ -107,47 +95,60 @@ export default function HolidayType() {
         )}
 
         {!loading && !error && countries.length > 0 && (
-          <div className={styles.mosaic}>
-            {countries.map((c, i) => (
-              <button
-                key={c.id}
-                type="button"
-                className={`${styles.tile} ${styles[spanFor(i)]}`}
-                style={{ animationDelay: `${Math.min(i, 8) * 60}ms` }}
-                onClick={() => openCountry(c)}
-              >
-                {c.imageUrl ? (
-                  <img className={styles.tileImg} src={c.imageUrl} alt={c.name} loading="lazy" />
-                ) : (
-                  // No mainImage in the admin — fall back to the country's own flag,
-                  // blown up and blurred into a backdrop rather than a generic panel.
-                  <div className={styles.tileFallback} aria-hidden="true">
-                    {flagBackdrop(c) && (
-                      <img className={styles.tileFallbackImg} src={flagBackdrop(c)} alt="" loading="lazy" />
-                    )}
-                    <div className={styles.tileFallbackWash} />
+          <div className={styles.grid}>
+            {countries.map((c, i) => {
+              const hasPhoto = Boolean(c.imageUrl);
+              return (
+                <button
+                  key={c.id}
+                  type="button"
+                  className={`${styles.card} ${hasPhoto ? styles.cardPhoto : styles.cardFlag}`}
+                  style={{ animationDelay: `${Math.min(i, 12) * 55}ms`, '--theme': i % 6 }}
+                  onClick={() => openCountry(c)}
+                >
+                  {hasPhoto ? (
+                    <img className={styles.cardImg} src={c.imageUrl} alt={c.name} loading="lazy" />
+                  ) : (
+                    // No mainImage: a designed flag card — themed gradient, a subtle
+                    // globe motif, and the crisp flag shown as a floating badge.
+                    <div className={styles.flagArt} aria-hidden="true">
+                      <span className={styles.flagOrbit} />
+                      <span className={styles.flagOrbit2} />
+                      <svg className={styles.flagGlobe} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="0.6">
+                        <circle cx="12" cy="12" r="10" />
+                        <path d="M2 12h20M12 2a15 15 0 010 20M12 2a15 15 0 000 20" />
+                      </svg>
+                      {c.flagUrl && (
+                        <img className={styles.flagBadge} src={c.flagUrl} alt="" loading="lazy" />
+                      )}
+                    </div>
+                  )}
+
+                  <div className={styles.cardShade} />
+
+                  <div className={styles.cardBody}>
+                    <div className={styles.cardTop}>
+                      {c.flagUrl && (
+                        <img className={styles.cardChip} src={c.flagUrl} alt="" loading="lazy" width="26" height="19" />
+                      )}
+                    </div>
+
+                    <div className={styles.cardFoot}>
+                      <h3 className={styles.cardName}>{c.name}</h3>
+                      {c.description && <p className={styles.cardDesc}>{c.description}</p>}
+                      <span className={styles.cardCta}>
+                        Explore stays
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                      </span>
+                    </div>
                   </div>
-                )}
 
-                <div className={styles.tileShade} />
-
-                <div className={styles.tileBody}>
-                  <div className={styles.tileFlagRow}>
-                    {c.flagUrl && (
-                      <img className={styles.tileFlag} src={c.flagUrl} alt="" loading="lazy" width="26" height="19" />
-                    )}
-                    <span className={styles.tileName}>{c.name}</span>
-                  </div>
-
-                  {c.description && <p className={styles.tileDesc}>{c.description}</p>}
-
-                  <span className={styles.tileCta}>
-                    Explore
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
+                  <span className={styles.cardGo} aria-hidden="true">
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M7 17L17 7M17 7H7M17 7v10"/></svg>
                   </span>
-                </div>
-              </button>
-            ))}
+                </button>
+              );
+            })}
           </div>
         )}
       </div>
