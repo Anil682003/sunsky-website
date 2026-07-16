@@ -1,31 +1,470 @@
-.section { padding:80px 52px; max-width:1400px; margin:0 auto; }
-.header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:32px; flex-wrap:wrap; gap:20px; }
-.tag { display:inline-flex; align-items:center; gap:8px; padding:6px 16px; border-radius:var(--r-full); background:var(--blue-light); color:var(--blue-deep); font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:16px; }
-.title { font-family:'Sora',sans-serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:800; color:var(--dark); letter-spacing:-1px; line-height:1.1; margin-bottom:10px; }
-.accent { background:linear-gradient(135deg,var(--sun-orange),#FFB347,var(--sun-gold)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.sub { font-size:1.05rem; color:var(--text-sec); max-width:500px; line-height:1.7; }
+/* ═══════════════════════════════════════════════════════════
+   SunSky — Hotels · Golden Hour, pass 2
+   Section 04 · warm-cream scene (glows, ghost "04" + script,
+   flight route, cloud, grain). Voucher rail bleeds off the
+   right edge; vouchers carry check-in codes, barcodes and
+   handwritten margin notes.
+   ═══════════════════════════════════════════════════════════ */
 
-.scroll { display:flex; gap:28px; overflow-x:auto; padding:20px 4px 40px; scroll-snap-type:x mandatory; -webkit-overflow-scrolling:touch; }
-.scroll::-webkit-scrollbar { height:4px; }
-.scroll::-webkit-scrollbar-thumb { background:var(--blue-ocean); border-radius:2px; }
+.section {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 104% -10%, rgba(255, 209, 102, 0.20) 0%, transparent 50%),
+    linear-gradient(180deg, #FFF9EF 0%, #FFFCF6 55%, #FFFFFF 100%);
+  padding: 60px 0 56px;
+}
+.inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 clamp(20px, 4vw, 60px);
+}
 
-.card { flex:0 0 340px; background:#fff; border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-sm); border:1px solid var(--blue-light); transition:all 0.4s var(--ease-spring); cursor:pointer; scroll-snap-align:start; }
-.card:hover { transform:translateY(-12px) rotate(-1deg); box-shadow:var(--shadow-lg); border-color:transparent; }
-.imgWrap { position:relative; overflow:hidden; aspect-ratio:4/3; }
-.imgWrap img { width:100%; height:100%; object-fit:cover; transition:transform 0.7s var(--ease); }
-.card:hover .imgWrap img { transform:scale(1.1); }
-.fav { position:absolute; top:16px; right:16px; width:40px; height:40px; background:rgba(255,255,255,0.9); backdrop-filter:blur(8px); border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--text-light); transition:all 0.35s var(--ease-spring); }
-.fav:hover { color:#ef4444; background:#fff; transform:scale(1.2); }
-.score { position:absolute; top:16px; left:16px; background:var(--blue-deep); color:#fff; padding:5px 14px; border-radius:var(--r-sm); font-weight:800; font-size:13px; font-family:'Sora',sans-serif; box-shadow:var(--shadow-blue-glow); }
-.body { padding:22px; }
-.stars { display:flex; gap:2px; margin-bottom:10px; }
-.name { font-family:'Sora',sans-serif; font-weight:700; font-size:1.05rem; color:var(--dark); margin-bottom:5px; }
-.loc { font-size:0.85rem; color:var(--text-sec); margin-bottom:18px; }
-.priceRow { display:flex; align-items:flex-end; justify-content:space-between; }
-.from { font-size:0.72rem; color:var(--text-light); }
-.price { font-family:'Sora',sans-serif; font-size:1.45rem; font-weight:800; color:var(--blue-deep); }
-.pp { font-size:0.72rem; font-weight:400; color:var(--text-sec); }
-.viewBtn { background:linear-gradient(135deg,var(--blue-deep),var(--blue-ocean)); color:#fff; border-radius:var(--r-sm); padding:11px 24px; font-weight:700; font-size:13px; font-family:'Sora',sans-serif; transition:all 0.35s var(--ease); box-shadow:0 4px 16px rgba(31,79,216,0.15); }
-.viewBtn:hover { transform:translateY(-2px); box-shadow:var(--shadow-blue-glow); }
+/* ══ Layered background scene ══ */
+.bgArt {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.glowBlue {
+  position: absolute; top: -160px; left: -160px;
+  width: 620px; height: 500px;
+  background: radial-gradient(ellipse at center, rgba(163, 204, 255, 0.20) 0%, transparent 62%);
+}
+.glowGold {
+  position: absolute; bottom: -200px; right: -120px;
+  width: 660px; height: 540px;
+  background: radial-gradient(ellipse at center, rgba(255, 209, 102, 0.20) 0%, transparent 64%);
+}
+.dots {
+  position: absolute; top: 8%; right: 0;
+  width: 44%; height: 64%;
+  background-image: radial-gradient(rgba(199, 119, 0, 0.06) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-mask-image: radial-gradient(ellipse at 88% 12%, black 0%, transparent 70%);
+  mask-image: radial-gradient(ellipse at 88% 12%, black 0%, transparent 70%);
+}
+/* giant ghost numeral, half-cropped top-left */
+.ghostNum {
+  position: absolute; top: -54px; left: -22px;
+  font-family: 'Sora', sans-serif;
+  font-weight: 800;
+  font-size: clamp(8rem, 13vw, 13rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: rgba(199, 119, 0, 0.055);
+  user-select: none;
+}
+/* handwritten ghost word, bottom-right */
+.ghostWord {
+  position: absolute; bottom: 26px; right: -10px;
+  font-family: 'Caveat', cursive;
+  font-weight: 700;
+  font-size: clamp(4.5rem, 7vw, 6.5rem);
+  line-height: 1;
+  color: rgba(31, 79, 216, 0.06);
+  transform: rotate(-4deg);
+  user-select: none;
+}
+/* dashed flight route behind the header */
+.bgRoute {
+  position: absolute; top: 18px; left: 6%;
+  width: min(880px, 76vw);
+  height: auto;
+}
+/* one drifting blurred cloud puff */
+.cloudPuff {
+  position: absolute; top: 60px; right: 10%;
+  width: 220px; height: 52px;
+  background: rgba(255, 255, 255, 0.9);
+  border-radius: 999px;
+  filter: blur(16px);
+  opacity: 0.7;
+  animation: hotDrift 34s ease-in-out infinite alternate;
+}
+.cloudPuff::before {
+  content: ''; position: absolute;
+  background: inherit; border-radius: inherit;
+  width: 54%; height: 130%; top: -58%; left: 24%;
+}
+@keyframes hotDrift {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-110px); }
+}
+/* film grain — auth-screen recipe, dialed down */
+.grain {
+  position: absolute; inset: 0;
+  opacity: 0.025; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
 
-@media(max-width:768px) { .section { padding:48px 18px; } .card { flex:0 0 290px; } }
+/* ══ Boarding-pass section header ══ */
+.sectionHead {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 18px;
+  animation: fadeUp 0.7s var(--ease) both;
+}
+.sectionIndex {
+  font-family: 'Sora', sans-serif;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+  color: var(--blue-deep);
+  background: var(--blue-light);
+  border-radius: 6px;
+  padding: 3.5px 8px;
+  flex-shrink: 0;
+}
+.eyebrow {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.4px;
+  color: var(--text); white-space: nowrap;
+}
+.sectionRule {
+  flex: 1; height: 0;
+  border-top: 1.5px dashed #E3EBF8;
+}
+/* airline micro-code capping the eyebrow rule */
+.headMicro {
+  font-family: 'Sora', sans-serif;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 2px; color: #C9B291;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+.header {
+  display: flex; justify-content: space-between; align-items: flex-end;
+  gap: 28px; flex-wrap: wrap;
+  animation: fadeUp 0.7s var(--ease) 0.08s both;
+}
+.headText { min-width: 0; }
+.title {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 800; color: var(--text);
+  letter-spacing: -1px; line-height: 1.12;
+  margin-bottom: 10px;
+}
+.titleAccent {
+  font-family: 'Caveat', cursive;
+  font-weight: 700; font-size: 1.2em;
+  background: linear-gradient(94deg, #FF9210 10%, #FFB93E 90%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* padding keeps the glyph flourishes inside the painted box */
+  padding: 0.04em 0.16em 0.08em 0.05em;
+}
+.sub {
+  font-size: 0.98rem; color: var(--text-sec);
+  max-width: 560px; line-height: 1.7;
+}
+
+/* handwritten margin note beside the header */
+.headNote {
+  display: flex; align-items: flex-start; gap: 4px;
+  flex-shrink: 0;
+  font-family: 'Caveat', cursive;
+  font-size: 1.45rem; font-weight: 700;
+  color: #C77700;
+  transform: rotate(-3deg);
+  padding-bottom: 10px;
+  white-space: nowrap;
+}
+.headNoteArrow {
+  width: 38px; height: 30px;
+  margin-top: 14px;
+  flex-shrink: 0;
+}
+
+/* ══ Voucher rail — bleeds off the right container edge ══ */
+.railWrap {
+  margin-right: calc(-1 * clamp(20px, 4vw, 60px));
+  -webkit-mask-image: linear-gradient(90deg, black 90%, transparent 100%);
+  mask-image: linear-gradient(90deg, black 90%, transparent 100%);
+}
+.scroll {
+  display: flex; gap: 20px;
+  overflow-x: auto;
+  padding: 30px 60px 40px 6px;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+}
+.scroll::-webkit-scrollbar { display: none; }
+
+.card {
+  flex: 0 0 332px;
+  scroll-snap-align: start;
+  cursor: pointer;
+  filter:
+    drop-shadow(0 18px 34px rgba(31, 79, 216, 0.10))
+    drop-shadow(0 3px 10px rgba(31, 79, 216, 0.06));
+  transition: transform 0.35s var(--ease), filter 0.35s var(--ease);
+  animation: fadeUp 0.7s var(--ease) both;
+  animation-delay: var(--d, 0s);
+}
+.card:hover {
+  transform: translateY(-6px);
+  filter:
+    drop-shadow(0 28px 48px rgba(31, 79, 216, 0.18))
+    drop-shadow(0 6px 14px rgba(31, 79, 216, 0.08));
+}
+.card { position: relative; }
+
+/* handwritten notes hanging above select vouchers */
+.cardNote {
+  position: absolute; top: -27px; left: 14px;
+  z-index: 3;
+  display: flex; align-items: flex-start; gap: 3px;
+  font-family: 'Caveat', cursive;
+  font-size: 1.35rem; font-weight: 700;
+  color: #C77700;
+  transform: rotate(-4deg);
+  white-space: nowrap;
+  pointer-events: none;
+}
+.cardNote svg { width: 24px; height: 20px; margin-top: 12px; }
+.cardNoteAlt {
+  left: auto; right: 12px;
+  color: var(--coral);
+  transform: rotate(3deg);
+}
+
+/* the voucher surface — notched at the price stub */
+.voucher {
+  display: flex; flex-direction: column;
+  height: 100%;
+  background: #FFFFFF;
+  border: 1px solid #E8EFFB;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+}
+.voucher::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--blue-deep), var(--blue-ocean) 45%, var(--sun-gold) 75%, var(--sun-orange));
+  z-index: 2;
+}
+.voucherNotched {
+  --notchY: calc(100% - 78px);
+  -webkit-mask:
+    radial-gradient(circle at 0 var(--notchY), transparent 9px, black 9.8px),
+    radial-gradient(circle at 100% var(--notchY), transparent 9px, black 9.8px);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle at 0 var(--notchY), transparent 9px, black 9.8px),
+    radial-gradient(circle at 100% var(--notchY), transparent 9px, black 9.8px);
+  mask-composite: intersect;
+}
+
+/* ══ Image zone — imgClip clips the zoom, imgWrap hosts the stamps ══ */
+.imgWrap {
+  position: relative;
+  aspect-ratio: 4 / 3;
+  background: var(--blue-light);
+}
+.imgClip {
+  position: absolute; inset: 0;
+  overflow: hidden;
+}
+.imgClip img {
+  width: 100%; height: 100%; object-fit: cover;
+  transition: transform 0.6s var(--ease);
+}
+.card:hover .imgClip img { transform: scale(1.06); }
+.imgClip::after {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, transparent 68%, rgba(26, 39, 68, 0.14));
+  pointer-events: none;
+}
+
+.fav {
+  position: absolute; top: 14px; left: 14px;
+  width: 38px; height: 38px; border-radius: 50%;
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  display: flex; align-items: center; justify-content: center;
+  color: var(--text-sec);
+  border: none; cursor: pointer;
+  box-shadow: 0 6px 16px rgba(26, 39, 68, 0.14);
+  transition: all 0.3s var(--ease-spring);
+  z-index: 1;
+}
+.fav:hover { color: var(--coral); background: #fff; transform: scale(1.12); }
+
+/* Guest score — a passport stamp */
+.score {
+  position: absolute; top: 14px; right: 14px;
+  display: flex; flex-direction: column; align-items: center; gap: 1px;
+  padding: 7px 12px 6px;
+  background: rgba(255, 255, 255, 0.94);
+  border: 1.8px dashed rgba(255, 159, 28, 0.6);
+  border-radius: 12px;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+  transform: rotate(2.5deg);
+  transition: transform 0.35s var(--ease);
+  z-index: 1;
+}
+.card:hover .score { transform: rotate(0deg); }
+.scoreNum {
+  font-family: 'Sora', sans-serif;
+  font-size: 15px; font-weight: 800;
+  color: var(--blue-deep); line-height: 1;
+}
+.scoreLbl {
+  font-family: 'Sora', sans-serif;
+  font-size: 7px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1px;
+  color: var(--text-light);
+}
+
+/* ══ Body zone ══ */
+.body { flex: 1; padding: 18px 20px 16px; }
+.metaRow {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 10px; margin-bottom: 10px;
+}
+.stars { display: flex; gap: 2px; }
+.code {
+  font-family: 'Sora', sans-serif;
+  font-size: 8.5px; font-weight: 700;
+  letter-spacing: 1.8px; color: #B9C7E0;
+  white-space: nowrap;
+}
+.name {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700; font-size: 1.05rem;
+  color: var(--text); margin-bottom: 5px;
+  letter-spacing: -0.2px;
+}
+.loc { font-size: 0.85rem; color: var(--text-sec); }
+/* airline-style check-in micro row */
+.checkRow {
+  display: flex; align-items: center; gap: 7px;
+  margin-top: 12px;
+  padding-top: 11px;
+  border-top: 1px dashed #EDF3FE;
+  font-family: 'Sora', sans-serif;
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 1.2px;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+.checkRow svg { color: var(--blue-soft); flex-shrink: 0; }
+.checkDot {
+  width: 3px; height: 3px; border-radius: 50%;
+  background: #D5E0F2;
+  flex-shrink: 0;
+}
+
+/* ══ Price stub — below the perforation ══ */
+.stub {
+  height: 78px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px 0 20px;
+  border-top: 2px dashed #E3EBF8;
+  background: linear-gradient(180deg, #FDFEFF, #F8FBFF);
+}
+.stubLeft { min-width: 0; }
+.from {
+  font-size: 10px; font-weight: 600;
+  text-transform: uppercase; letter-spacing: 0.8px;
+  color: var(--text-light);
+  margin-bottom: 1px;
+}
+/* printed barcode + room code in the stub center */
+.barcodeBlock {
+  display: flex; flex-direction: column; align-items: center; gap: 3px;
+  flex-shrink: 1; min-width: 0;
+}
+.barcode {
+  width: 44px; height: 15px;
+  color: var(--text);
+  opacity: 0.3;
+}
+.roomCode {
+  font-family: 'Sora', sans-serif;
+  font-size: 7.5px; font-weight: 700;
+  letter-spacing: 1.6px; color: #B9C7E0;
+  white-space: nowrap;
+}
+.price {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.32rem; font-weight: 800;
+  color: var(--blue-deep); line-height: 1.1;
+  white-space: nowrap;
+}
+.pp { font-size: 0.7rem; font-weight: 500; color: var(--text-sec); }
+
+.viewBtn {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 10px 19px;
+  border-radius: var(--r-full);
+  background: linear-gradient(135deg, #FF9210 0%, #FFB93E 55%, #FFCB60 100%);
+  color: #fff;
+  font-family: 'Sora', sans-serif;
+  font-size: 12px; font-weight: 700;
+  border: none; cursor: pointer;
+  position: relative; overflow: hidden;
+  white-space: nowrap;
+  box-shadow:
+    0 8px 20px rgba(255, 159, 28, 0.35),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(200, 110, 0, 0.18);
+  transition: all 0.35s var(--ease);
+}
+.viewBtn::before {
+  content: '';
+  position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 25%, rgba(255, 255, 255, 0.4) 50%, transparent 75%);
+  background-size: 220% 100%;
+  animation: shimmer 3.4s ease-in-out infinite;
+}
+.viewBtn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 26px rgba(255, 159, 28, 0.48),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(200, 110, 0, 0.18);
+}
+.viewArrow { transition: transform 0.3s var(--ease); }
+.viewBtn:hover .viewArrow { transform: translateX(3px); }
+
+/* ══ Responsive ══ */
+@media (max-width: 1180px) {
+  .card { flex: 0 0 310px; }
+}
+@media (max-width: 960px) {
+  .ghostNum, .ghostWord, .bgRoute, .cloudPuff, .headNote { display: none; }
+}
+@media (max-width: 768px) {
+  .section { padding: 48px 0 44px; }
+  .header { gap: 16px; }
+  .headMicro { display: none; }
+  .scroll { gap: 16px; padding: 28px 44px 34px 4px; }
+  .card { flex: 0 0 286px; }
+  .body { padding: 16px 16px 14px; }
+  .stub { padding: 0 12px 0 16px; height: 72px; }
+  .voucherNotched { --notchY: calc(100% - 72px); }
+  .barcodeBlock { display: none; }
+}
+@media (max-width: 480px) {
+  .card { flex: 0 0 262px; }
+  .title { letter-spacing: -0.6px; }
+  .viewBtn { padding: 9px 15px; }
+  .cardNote, .dots { display: none; }
+}
+
+/* Accessibility — respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .sectionHead, .header, .card, .viewBtn::before, .cloudPuff { animation: none; }
+  .card, .imgClip img, .score, .fav, .viewBtn, .viewArrow { transition: none; }
+  .card:hover { transform: none; }
+}

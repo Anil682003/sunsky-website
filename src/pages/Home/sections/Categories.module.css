@@ -1,48 +1,431 @@
-.sectionAlt { background:var(--blue-bg); position:relative; }
-.sectionAlt::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--blue-light),transparent); }
-.section { padding:80px 52px; max-width:1400px; margin:0 auto; }
-.header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:40px; flex-wrap:wrap; gap:20px; }
-.tag { display:inline-flex; align-items:center; gap:8px; padding:6px 16px; border-radius:var(--r-full); background:var(--blue-light); color:var(--blue-deep); font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:16px; }
-.title { font-family:'Sora',sans-serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:800; color:var(--dark); letter-spacing:-1px; line-height:1.1; margin-bottom:10px; }
-.accent { background:linear-gradient(135deg,var(--sun-orange),#FFB347,var(--sun-gold)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.sub { font-size:1.05rem; color:var(--text-sec); max-width:500px; line-height:1.7; }
+/* ═══════════════════════════════════════════════════════════
+   SunSky — Categories · "Golden Hour" boarding-pass desk
+   Section 01 · warm-to-sky drift (Marquee cream above →
+   Destinations sky below). Four holiday types as boarding
+   passes tossed on a desk: rotations + offsets, a sketched
+   flight route behind the row, ghost numeral, dot paper,
+   drifting clouds, film grain. Dense, layered, editorial.
+   ═══════════════════════════════════════════════════════════ */
 
-.grid { display:grid; grid-template-columns:repeat(4,1fr); gap:20px; }
+.sectionAlt {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at -6% -12%, rgba(95, 168, 255, 0.15) 0%, transparent 46%),
+    radial-gradient(ellipse at 105% 110%, rgba(255, 209, 102, 0.22) 0%, transparent 52%),
+    linear-gradient(180deg, #FFF9EF 0%, #FFFFFF 28%, #FDFEFF 62%, #F0F8FF 100%);
+}
+
+/* ── Background scene (all decorative, behind content) ── */
+.bgArt {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+
+/* giant ghost numeral, half-cropped by the section edge */
+.ghost {
+  position: absolute; top: -34px; right: 16px;
+  font-family: 'Sora', sans-serif;
+  font-weight: 800;
+  font-size: clamp(9rem, 15vw, 14rem);
+  line-height: 1;
+  letter-spacing: -0.06em;
+  color: rgba(31, 79, 216, 0.07);
+  user-select: none;
+}
+
+/* dotted paper texture, fading out from the top-left */
+.dots {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(31, 79, 216, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-mask-image: radial-gradient(ellipse at 22% 16%, black 0%, transparent 64%);
+  mask-image: radial-gradient(ellipse at 22% 16%, black 0%, transparent 64%);
+}
+
+/* drifting blurred cloud puffs */
+.cloud {
+  position: absolute;
+  background: rgba(255, 255, 255, 0.92);
+  border-radius: 999px;
+  filter: blur(14px);
+  opacity: 0.75;
+}
+.cloud::before, .cloud::after {
+  content: ''; position: absolute; background: inherit; border-radius: inherit;
+}
+.cloud1 { width: 220px; height: 52px; top: 10%; left: -280px; animation: catCloudDrift 95s linear infinite; }
+.cloud1::before { width: 110px; height: 64px; top: -30px; left: 44px; }
+.cloud1::after  { width: 78px;  height: 46px; top: -18px; left: 126px; }
+.cloud2 { width: 150px; height: 40px; top: 66%; left: -220px; animation: catCloudDrift 125s linear infinite; animation-delay: -52s; opacity: 0.5; }
+.cloud2::before { width: 76px; height: 46px; top: -22px; left: 32px; }
+@keyframes catCloudDrift {
+  from { transform: translateX(0); }
+  to   { transform: translateX(calc(100vw + 520px)); }
+}
+
+/* film grain — same recipe as the auth screens, dialed down */
+.grain {
+  position: absolute; inset: 0;
+  opacity: 0.025; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.section {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 48px clamp(20px, 4vw, 60px) 58px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Boarding-pass section header ── */
+.header {
+  margin-bottom: 22px;
+  animation: fadeUp 0.7s var(--ease) both;
+}
+
+.headRow {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+}
+.headIndex {
+  font-family: 'Sora', sans-serif;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+  color: var(--blue-deep);
+  background: var(--blue-light);
+  border-radius: 6px;
+  padding: 3.5px 8px;
+  flex-shrink: 0;
+}
+.headEyebrow {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.4px;
+  color: var(--text); white-space: nowrap;
+}
+.headRule {
+  flex: 1; height: 0;
+  border-top: 1.5px dashed #E3EBF8;
+}
+.headCode {
+  font-family: 'Sora', sans-serif;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 2px; color: #9FB2D4;
+  white-space: nowrap; flex-shrink: 0;
+}
+.headPlane {
+  flex-shrink: 0;
+  color: var(--blue-ocean);
+  opacity: 0.75;
+  transform: rotate(8deg);
+}
+
+.titleRow {
+  display: flex; align-items: flex-end; flex-wrap: wrap;
+  gap: 6px 22px;
+  margin-bottom: 10px;
+}
+.title {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+  font-weight: 800; color: var(--text);
+  letter-spacing: -1.2px; line-height: 1.1;
+  margin-bottom: 0;
+}
+.titleAccent {
+  font-family: 'Caveat', cursive;
+  font-weight: 700; font-size: 1.28em;
+  background: linear-gradient(94deg, #FF9210 10%, #FFB93E 60%, #F7A62B 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  /* padding keeps the glyph flourishes inside the painted background box */
+  padding: 0.04em 0.14em 0.08em 0.06em;
+}
+
+/* handwritten margin note beside the title */
+.scribble {
+  font-family: 'Caveat', cursive;
+  font-size: 1.5rem; font-weight: 700;
+  color: #C77700;
+  display: inline-flex; align-items: flex-start; gap: 6px;
+  transform: rotate(-5deg);
+  padding-bottom: 8px;
+  white-space: nowrap;
+}
+.scribbleArrow {
+  width: 26px; height: 30px;
+  margin-top: 12px;
+  flex-shrink: 0;
+}
+
+.sub {
+  font-size: 0.98rem; color: var(--text-sec);
+  max-width: 560px; line-height: 1.7;
+}
+
+/* ── The desk: a warm mat the tickets are tossed onto ── */
+.gridWrap {
+  position: relative;
+  padding: 30px 26px 28px;
+}
+/* the desk mat itself — tinted, dashed-edged, fills the void around the row */
+.gridWrap::before {
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: 30px;
+  background:
+    radial-gradient(rgba(199, 119, 0, 0.045) 1px, transparent 1px) 0 0 / 22px 22px,
+    linear-gradient(135deg, rgba(255, 246, 233, 0.85) 0%, rgba(255, 253, 248, 0.6) 45%, rgba(232, 241, 255, 0.55) 100%);
+  border: 1.5px dashed rgba(255, 159, 28, 0.28);
+  pointer-events: none;
+}
+/* mat corner label */
+.gridWrap::after {
+  content: 'SSK · DESK 01';
+  position: absolute; right: 20px; bottom: 10px;
+  font-family: 'Sora', sans-serif;
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 2px; color: rgba(199, 119, 0, 0.4);
+  pointer-events: none;
+}
+
+.route {
+  position: absolute;
+  top: -18px; left: -1%;
+  width: 102%; height: calc(100% + 40px);
+  color: rgba(31, 79, 216, 0.3);
+  z-index: 0;
+  pointer-events: none;
+}
+.routePath { animation: catRouteDash 30s linear infinite; }
+@keyframes catRouteDash {
+  to { stroke-dashoffset: -240; }
+}
+
+/* ── The grid — four tickets tossed loosely on the desk ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  position: relative;
+  z-index: 1;
+}
+/* the toss repeats per row — the dashboard can return more than four types */
+.card:nth-child(4n+1) { --rot: -1.5deg; }
+.card:nth-child(4n+2) { --rot: 0.8deg;  margin-top: 16px; }
+.card:nth-child(4n+3) { --rot: -0.6deg; margin-top: 6px; }
+.card:nth-child(4n+4) { --rot: 1.4deg;  margin-top: 22px; }
+
+/* ── Mini boarding pass ── */
 .card {
-  display:block; text-decoration:none;
-  position:relative; border-radius:var(--r-lg); overflow:hidden;
-  cursor:pointer; box-shadow:var(--shadow-md); aspect-ratio:3/4;
-  transition:all 0.55s var(--ease-spring);
+  display: block; text-decoration: none;
+  position: relative;
+  z-index: 1;
+  --rot: 0deg;
+  border-radius: 20px;
+  transform: rotate(var(--rot));
+  /* drop-shadow (not box-shadow) so the shadow follows the notch cut-outs */
+  filter:
+    drop-shadow(0 12px 26px rgba(31, 79, 216, 0.10))
+    drop-shadow(0 3px 8px rgba(31, 79, 216, 0.05));
+  transition: transform 0.38s var(--ease), filter 0.38s var(--ease);
+  animation: catFadeUp 0.7s var(--ease) backwards;
+  animation-delay: calc(var(--i, 0) * 0.1s + 0.05s);
 }
-/* The stagger repeats per row — the dashboard can return more than four types. */
-.card:nth-child(4n+2) { margin-top:28px; }
-.card:nth-child(4n+3) { margin-top:-12px; }
-.card:nth-child(4n+4) { margin-top:40px; }
-.card:hover { transform:translateY(-12px) scale(1.02); box-shadow:var(--shadow-xl); }
-.card img { width:100%; height:100%; object-fit:cover; transition:transform 0.9s var(--ease); }
-.card:hover img { transform:scale(1.15); }
-.overlay {
-  position:absolute; inset:0;
-  background:linear-gradient(180deg, rgba(7,14,31,0) 30%, rgba(7,14,31,0.92) 100%);
-  display:flex; flex-direction:column; justify-content:flex-end; padding:32px;
+@keyframes catFadeUp {
+  from { opacity: 0; transform: translateY(22px) rotate(var(--rot)); }
+  to   { opacity: 1; transform: translateY(0) rotate(var(--rot)); }
 }
-.icon {
-  width:52px; height:52px; background:rgba(255,255,255,0.08); backdrop-filter:blur(12px);
-  border:1px solid rgba(255,255,255,0.08); border-radius:18px;
-  display:flex; align-items:center; justify-content:center; color:#fff; margin-bottom:16px;
-  transition:all 0.4s var(--ease);
+/* tickets straighten and lift when picked up */
+.card:hover {
+  transform: translateY(-8px) rotate(0deg);
+  filter:
+    drop-shadow(0 22px 44px rgba(31, 79, 216, 0.18))
+    drop-shadow(0 5px 12px rgba(31, 79, 216, 0.08));
+  z-index: 2;
 }
-.card:hover .icon { background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold)); border-color:transparent; transform:scale(1.1) rotate(-4deg); box-shadow:var(--shadow-glow); }
-.cardTitle { color:#fff; font-family:'Sora',sans-serif; font-size:1.35rem; font-weight:700; margin-bottom:4px; }
-.cardCount { color:rgba(255,255,255,0.5); font-size:0.88rem; }
-.arrow {
-  position:absolute; top:20px; right:20px; width:40px; height:40px;
-  background:rgba(255,255,255,0.06); backdrop-filter:blur(8px);
-  border:1px solid rgba(255,255,255,0.08); border-radius:50%;
-  display:flex; align-items:center; justify-content:center; color:#fff;
-  opacity:0; transform:rotate(-45deg) scale(0.8); transition:all 0.4s var(--ease-spring);
+.card:focus-visible {
+  outline: 3px solid rgba(31, 79, 216, 0.45);
+  outline-offset: 4px;
 }
-.card:hover .arrow { opacity:1; transform:rotate(0deg) scale(1); }
 
-@media(max-width:1100px) { .grid { grid-template-columns:repeat(2,1fr); } .card:nth-child(2),.card:nth-child(3),.card:nth-child(4) { margin-top:0; } }
-@media(max-width:768px) { .section { padding:48px 18px; } .grid { gap:14px; } }
+/* circular ink stamp printed across the first ticket's corner */
+.stamp {
+  position: absolute; top: -18px; right: -16px;
+  z-index: 3;
+  color: rgba(31, 79, 216, 0.5);
+  transform: rotate(-14deg);
+  mix-blend-mode: multiply;
+  pointer-events: none;
+}
+.stamp text { font-family: 'Sora', sans-serif; }
+
+/* ticket surface — perforation notches carved where the dashed rule
+   meets the edges, same mask technique as the auth screens */
+.ticket {
+  display: flex; flex-direction: column;
+  background: #FFFFFF;
+  border: 1px solid #E8EFFB;
+  border-radius: 20px;
+  overflow: hidden;
+  position: relative;
+  --notchY: calc(100% - 88px);
+  -webkit-mask:
+    radial-gradient(circle at 0 var(--notchY), transparent 9px, black 9.8px),
+    radial-gradient(circle at 100% var(--notchY), transparent 9px, black 9.8px);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle at 0 var(--notchY), transparent 9px, black 9.8px),
+    radial-gradient(circle at 100% var(--notchY), transparent 9px, black 9.8px);
+  mask-composite: intersect;
+}
+/* gradient strip along the ticket's top edge */
+.ticket::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--blue-deep), var(--blue-ocean) 40%, var(--sun-gold) 72%, var(--sun-orange));
+  z-index: 2;
+}
+/* perforation rule — anchored to the same --notchY as the notch mask */
+.ticket::after {
+  content: '';
+  position: absolute; left: 14px; right: 14px;
+  top: calc(var(--notchY) - 1px);
+  border-top: 2px dashed #DFE9F8;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* photo pane */
+.imgWrap {
+  display: block;
+  overflow: hidden;
+  aspect-ratio: 5 / 4;
+  background: var(--blue-light);
+}
+.imgWrap img {
+  width: 100%; height: 100%;
+  object-fit: cover; display: block;
+  transform: scale(1.01);
+  transition: transform 0.8s var(--ease);
+}
+.card:hover .imgWrap img { transform: scale(1.07); }
+
+/* label stub below the perforation — warm ticket paper, not bare white */
+.stub {
+  display: flex; align-items: center; gap: 13px;
+  height: 88px;
+  padding: 0 16px;
+  position: relative;
+  background: linear-gradient(180deg, #FFFDF8, #FFF6E9);
+}
+.iconChip {
+  width: 46px; height: 46px; border-radius: 50%;
+  background: var(--blue-light); color: var(--blue-deep);
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  transition:
+    background 0.35s var(--ease),
+    color 0.35s var(--ease),
+    box-shadow 0.35s var(--ease),
+    transform 0.4s var(--ease-spring);
+}
+.card:hover .iconChip {
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+  color: #FFFFFF;
+  transform: rotate(-6deg) scale(1.06);
+  box-shadow: 0 8px 18px rgba(255, 159, 28, 0.35);
+}
+.stubText {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0; flex: 1;
+}
+.cardTitle {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.02rem; font-weight: 700;
+  color: var(--text); letter-spacing: -0.3px; line-height: 1.25;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.explore {
+  display: flex; align-items: center; gap: 5px;
+  font-family: 'Sora', sans-serif;
+  font-size: 10.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.1px;
+  color: #C77700;
+  transition: color 0.3s var(--ease), gap 0.3s var(--ease);
+}
+.explore svg { width: 13px; height: 13px; transition: transform 0.35s var(--ease); }
+.card:hover .explore { color: var(--blue-deep); gap: 8px; }
+.card:hover .explore svg { transform: rotate(45deg); }
+
+/* printed edge: barcode strip + sideways micro-code, like a real stub */
+.stubSide {
+  display: flex; align-items: center; gap: 7px;
+  flex-shrink: 0; align-self: center;
+}
+.barcode {
+  width: 12px; height: 52px;
+  border-radius: 1px;
+  opacity: 0.7;
+  background: repeating-linear-gradient(
+    to bottom,
+    rgba(30, 43, 74, 0.5) 0 2px,
+    transparent 2px 5px,
+    rgba(30, 43, 74, 0.5) 5px 6px,
+    transparent 6px 9px
+  );
+}
+.stubCode {
+  writing-mode: vertical-rl;
+  font-family: 'Sora', sans-serif;
+  font-size: 8px; font-weight: 700;
+  letter-spacing: 1.8px; color: #B9C7E0;
+  white-space: nowrap;
+}
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
+  .card:nth-child(4n+2), .card:nth-child(4n+3), .card:nth-child(4n+4) { margin-top: 0; }
+  .card:nth-child(2n) { margin-top: 18px; }
+  .route { display: none; }
+  .gridWrap { padding: 22px 18px 24px; }
+}
+@media (max-width: 768px) {
+  .section { padding: 40px clamp(18px, 4vw, 32px) 46px; }
+  .header { margin-bottom: 18px; }
+  .headPlane, .headCode { display: none; }
+  .ghost, .cloud, .scribble { display: none; }
+  .grid { gap: 14px; }
+  .gridWrap { padding: 16px 12px 20px; }
+  .gridWrap::after { right: 14px; bottom: 7px; }
+  .stub { height: 82px; padding: 0 14px; gap: 11px; }
+  .ticket { --notchY: calc(100% - 82px); }
+  .iconChip { width: 40px; height: 40px; }
+  .cardTitle { font-size: 0.95rem; }
+  .stubSide { display: none; }
+  .stamp svg { width: 68px; height: 68px; }
+  .stamp { top: -12px; right: -8px; }
+}
+@media (max-width: 480px) {
+  .grid { grid-template-columns: 1fr; }
+  .card { --rot: 0deg; }
+  .card:nth-child(2n) { margin-top: 0; }
+  .imgWrap { aspect-ratio: 16 / 9; }
+}
+
+/* Accessibility — respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .header, .card { animation: none; }
+  .cloud1, .cloud2, .routePath { animation: none; }
+  .card, .imgWrap img, .iconChip, .explore, .explore svg { transition: none; }
+  .card:hover { transform: rotate(var(--rot)); }
+  .card:hover .imgWrap img { transform: scale(1.01); }
+  .card:hover .iconChip { transform: none; }
+  .card:hover .explore svg { transform: none; }
+}

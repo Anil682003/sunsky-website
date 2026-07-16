@@ -46,6 +46,30 @@ const ArrowIcon = () => (
   </svg>
 );
 
+const PlaneIcon = () => (
+  <svg className={styles.headPlane} aria-hidden="true" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M22 2L11 13"/>
+    <path d="M22 2l-7 20-4-9-9-4 22-7z"/>
+  </svg>
+);
+
+/* Circular passport-style ink stamp — printed over the first ticket only */
+const StampRing = () => (
+  <span className={styles.stamp} aria-hidden="true">
+    <svg viewBox="0 0 100 100" width="88" height="88">
+      <defs>
+        <path id="catStampArc" d="M 50,50 m -32,0 a 32,32 0 1,1 64,0 a 32,32 0 1,1 -64,0" />
+      </defs>
+      <circle cx="50" cy="50" r="46" fill="none" stroke="currentColor" strokeWidth="2.4" strokeDasharray="4 5" />
+      <circle cx="50" cy="50" r="22" fill="none" stroke="currentColor" strokeWidth="1.5" />
+      <text fontSize="10" fontWeight="700" letterSpacing="2.6" fill="currentColor">
+        <textPath href="#catStampArc">SUNSKY · APPROVED · SUNSKY ·</textPath>
+      </text>
+      <path d="M50 42l2.4 4.9 5.4.8-3.9 3.8.9 5.4-4.8-2.6-4.8 2.6.9-5.4-3.9-3.8 5.4-.8z" fill="currentColor"/>
+    </svg>
+  </span>
+);
+
 export default function Categories({ cms }) {
   const sh = cms?.sectionHeaders?.categories;
   const tag      = sh?.tag      || '✦ Explore';
@@ -104,29 +128,97 @@ export default function Categories({ cms }) {
 
   cards = cards.slice(0, MAX_CARDS);
 
+  // The CMS title keeps its text; only the last word is wrapped so it can
+  // carry the cursive Golden Hour accent.
+  const titleWords = String(title).trim().split(/\s+/);
+  const titleLast = titleWords.pop();
+  const titleLead = titleWords.join(' ');
+
   return (
-    <div className={styles.sectionAlt}>
+    <section className={styles.sectionAlt}>
+      {/* ── Background scene: glows, ghost numeral, dot paper, clouds, grain ── */}
+      <div className={styles.bgArt} aria-hidden="true">
+        <span className={styles.ghost}>01</span>
+        <span className={styles.dots} />
+        <span className={`${styles.cloud} ${styles.cloud1}`} />
+        <span className={`${styles.cloud} ${styles.cloud2}`} />
+        <span className={styles.grain} />
+      </div>
+
       <div className={styles.section}>
         <div className={styles.header}>
-          <div>
-            <div className={styles.tag}>{tag}</div>
-            <h2 className={styles.title}>{title}</h2>
-            <p className={styles.sub}>{subtitle}</p>
+          <div className={styles.headRow}>
+            <span className={styles.headIndex}>01</span>
+            <span className={styles.headEyebrow}>{tag}</span>
+            <span className={styles.headRule} aria-hidden="true" />
+            <span className={styles.headCode} aria-hidden="true">GATE 01 · NOW BOARDING</span>
+            <PlaneIcon />
+          </div>
+          <div className={styles.titleRow}>
+            <h2 className={styles.title}>
+              {titleLead && `${titleLead} `}
+              <span className={styles.titleAccent}>{titleLast}</span>
+            </h2>
+            <span className={styles.scribble} aria-hidden="true">
+              pick your vibe
+              <svg className={styles.scribbleArrow} viewBox="0 0 32 36" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M5 4 C 24 6, 26 18, 14 30" />
+                <path d="M9 25l5 6 7-3" />
+              </svg>
+            </span>
+          </div>
+          <p className={styles.sub}>{subtitle}</p>
+        </div>
+
+        {/* ── Tickets tossed on the desk, a flight route sketched beneath ── */}
+        <div className={styles.gridWrap}>
+          <svg className={styles.route} viewBox="0 0 1200 420" preserveAspectRatio="none" aria-hidden="true">
+            <path
+              className={styles.routePath}
+              d="M 40 280 Q 300 110 600 240 T 1160 150"
+              fill="none" stroke="currentColor" strokeWidth="2"
+              strokeDasharray="2 10" strokeLinecap="round"
+            />
+            <circle cx="40" cy="280" r="4.5" fill="currentColor" />
+            <circle cx="600" cy="240" r="4.5" fill="currentColor" />
+            <circle cx="1160" cy="150" r="4.5" fill="currentColor" />
+            <g transform="translate(872,264) rotate(36) scale(1.1)">
+              <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 22-7z" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
+            </g>
+          </svg>
+
+          <div className={styles.grid}>
+            {cards.map((c, i) => (
+              <Link
+                key={c.key}
+                to={`/holidays/${c.slug}`}
+                className={styles.card}
+                style={{ '--i': i }}
+              >
+                {i === 0 && <StampRing />}
+                <span className={styles.ticket}>
+                  <span className={styles.imgWrap}>
+                    <img src={c.img} alt={c.name} loading="lazy" />
+                  </span>
+                  <span className={styles.stub}>
+                    <span className={styles.iconChip}>{c.icon}</span>
+                    <span className={styles.stubText}>
+                      <span className={styles.cardTitle}>{c.name}</span>
+                      <span className={styles.explore}>Explore <ArrowIcon /></span>
+                    </span>
+                    <span className={styles.stubSide} aria-hidden="true">
+                      <span className={styles.barcode} />
+                      <span className={styles.stubCode}>
+                        {`SSK · ${String(i + 1).padStart(2, '0')}`}
+                      </span>
+                    </span>
+                  </span>
+                </span>
+              </Link>
+            ))}
           </div>
         </div>
-        <div className={styles.grid}>
-          {cards.map((c) => (
-            <Link key={c.key} to={`/holidays/${c.slug}`} className={styles.card}>
-              <img src={c.img} alt={c.name} loading="lazy" />
-              <div className={styles.overlay}>
-                <div className={styles.icon}>{c.icon}</div>
-                <div className={styles.cardTitle}>{c.name}</div>
-              </div>
-              <div className={styles.arrow}><ArrowIcon /></div>
-            </Link>
-          ))}
-        </div>
       </div>
-    </div>
+    </section>
   );
 }

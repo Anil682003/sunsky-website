@@ -1,55 +1,439 @@
-.sectionAlt { background:var(--blue-bg); position:relative; }
-.sectionAlt::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--blue-light),transparent); }
-.section { padding:80px 52px; max-width:1400px; margin:0 auto; }
-.header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:40px; flex-wrap:wrap; gap:20px; }
-.tag { display:inline-flex; align-items:center; gap:8px; padding:6px 16px; border-radius:var(--r-full); background:var(--blue-light); color:var(--blue-deep); font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:16px; }
-.title { font-family:'Sora',sans-serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:800; color:var(--dark); letter-spacing:-1px; line-height:1.1; margin-bottom:10px; }
-.accent { background:linear-gradient(135deg,var(--sun-orange),#FFB347,var(--sun-gold)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.script { font-family:'Caveat',cursive; font-size:1.15em; }
-.sub { font-size:1.05rem; color:var(--text-sec); max-width:500px; line-height:1.7; }
+/* ═══════════════════════════════════════════════════════════
+   SunSky — Popular Destinations · Golden Hour, pass 2
+   Section 05 · a passport stamp-collection wall on a layered
+   white scene (glows, ghost "05" + script, weaving flight
+   route, oversized stamp, grain). Tickets carry edge-crossing
+   collected-stamps and an empty "next stamp" scrapbook slot.
+   ═══════════════════════════════════════════════════════════ */
 
-.grid { display:grid; grid-template-columns:repeat(3,1fr); gap:20px; }
+.sectionAlt {
+  background:
+    radial-gradient(ellipse at -4% 0%, rgba(255, 209, 102, 0.14) 0%, transparent 44%),
+    radial-gradient(ellipse at 106% 100%, rgba(255, 209, 102, 0.16) 0%, transparent 46%),
+    #FFFFFF;
+  position: relative;
+  overflow: hidden;
+}
+.section {
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 64px clamp(20px, 4vw, 60px) 68px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Layered scene (decorative, behind content) ── */
+.bgArt {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.glowBlue {
+  position: absolute; top: -180px; left: -140px;
+  width: 620px; height: 500px;
+  background: radial-gradient(ellipse at center, rgba(163, 204, 255, 0.22) 0%, transparent 62%);
+}
+.glowGold {
+  position: absolute; bottom: -180px; right: -140px;
+  width: 660px; height: 540px;
+  background: radial-gradient(ellipse at center, rgba(255, 209, 102, 0.2) 0%, transparent 64%);
+}
+.dotTexture {
+  position: absolute; top: 20%; left: 0;
+  width: 42%; height: 62%;
+  background-image: radial-gradient(rgba(31, 79, 216, 0.05) 1px, transparent 1px);
+  background-size: 24px 24px;
+  -webkit-mask-image: radial-gradient(ellipse at 12% 50%, black 0%, transparent 68%);
+  mask-image: radial-gradient(ellipse at 12% 50%, black 0%, transparent 68%);
+}
+/* giant ghost numeral, half-cropped top-left */
+.ghostNum {
+  position: absolute; top: -60px; left: -18px;
+  font-family: 'Sora', sans-serif;
+  font-weight: 800;
+  font-size: clamp(8.5rem, 14vw, 13.5rem);
+  line-height: 1;
+  letter-spacing: -0.05em;
+  color: rgba(31, 79, 216, 0.05);
+  user-select: none;
+}
+/* handwritten ghost word, mid-right */
+.ghostWord {
+  position: absolute; top: 42%; right: -30px;
+  font-family: 'Caveat', cursive;
+  font-weight: 700;
+  font-size: clamp(5rem, 8vw, 8rem);
+  line-height: 1;
+  color: rgba(199, 119, 0, 0.06);
+  transform: rotate(-6deg);
+  user-select: none;
+}
+/* drifting blurred cloud puffs */
+.cloudA, .cloudB {
+  position: absolute;
+  background: rgba(232, 241, 255, 0.9);
+  border-radius: 999px;
+  filter: blur(15px);
+}
+.cloudA::before, .cloudB::before {
+  content: ''; position: absolute; background: inherit; border-radius: inherit;
+  width: 52%; height: 128%; top: -56%; left: 24%;
+}
+.cloudA { width: 200px; height: 48px; top: 12%; right: 8%; opacity: 0.7; animation: pdDrift 36s ease-in-out infinite alternate; }
+.cloudB { width: 150px; height: 40px; bottom: 16%; left: 4%; opacity: 0.55; animation: pdDrift 44s ease-in-out infinite alternate; animation-delay: -18s; }
+@keyframes pdDrift {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-100px); }
+}
+/* dashed flight route weaving behind the stamp wall */
+.bgRoute {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+}
+/* oversized rotating passport stamp at the warm seam */
+.bgStamp {
+  position: absolute; bottom: -60px; right: 3%;
+  width: 210px; height: 210px;
+  color: rgba(199, 119, 0, 0.10);
+  animation: spinSlow 120s linear infinite;
+}
+/* film grain — auth-screen recipe, dialed down */
+.grain {
+  position: absolute; inset: 0;
+  opacity: 0.025; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+/* ── Boarding-pass section header ── */
+.header { margin-bottom: 30px; animation: fadeUp 0.7s var(--ease) both; }
+.headRow {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 16px;
+}
+.headIndex {
+  font-family: 'Sora', sans-serif;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+  color: var(--blue-deep);
+  background: var(--blue-light);
+  border-radius: 6px;
+  padding: 3.5px 8px;
+  flex-shrink: 0;
+}
+.headEyebrow {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.4px;
+  color: var(--text); white-space: nowrap;
+}
+.headRule { flex: 1; height: 0; border-top: 1.5px dashed #E3EBF8; }
+/* airline micro-code capping the eyebrow rule */
+.headMicro {
+  font-family: 'Sora', sans-serif;
+  font-size: 9px; font-weight: 700;
+  letter-spacing: 2px; color: #9FB2D4;
+  white-space: nowrap; flex-shrink: 0;
+}
+
+/* editorial split: copy left, handwritten aside right */
+.headMain {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 32px;
+}
+.headCopy { min-width: 0; }
+.headAside {
+  display: flex; align-items: flex-start; gap: 2px;
+  flex-shrink: 0;
+  color: #C77700;
+  transform: rotate(-2deg);
+  padding-bottom: 4px;
+}
+.headNote {
+  font-family: 'Caveat', cursive;
+  font-size: 1.5rem; font-weight: 700;
+  white-space: nowrap;
+}
+.headArrow { width: 58px; height: 42px; margin-top: 18px; flex-shrink: 0; }
+
+.title {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(1.6rem, 3vw, 2.4rem);
+  font-weight: 800; color: var(--text);
+  letter-spacing: -1px; line-height: 1.12;
+  margin-bottom: 12px; max-width: 720px;
+}
+.titleAccent {
+  font-family: 'Caveat', cursive;
+  font-weight: 700; font-size: 1.2em;
+  background: linear-gradient(94deg, #FF9210 10%, #FFB93E 60%, #F7A62B 100%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* padding keeps the glyph flourishes inside the painted box */
+  padding: 0.04em 0.14em 0.08em 0.04em;
+}
+.sub {
+  font-size: 0.98rem; color: var(--text-sec);
+  max-width: 560px; line-height: 1.7;
+}
+
+/* ── Luggage-tag ticket grid ── */
+.grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 22px; }
+
+/* Outer shell carries the drop-shadow so it follows the notch
+   silhouette cut into .cardInner by the mask (see Register.module.css) */
 .card {
-  background:#fff; border-radius:var(--r-lg); overflow:hidden; border:1px solid var(--blue-light);
-  transition:all 0.45s var(--ease-spring); position:relative;
+  display: flex;
+  position: relative;
+  border-radius: 22px;
+  filter:
+    drop-shadow(0 10px 26px rgba(31, 79, 216, 0.08))
+    drop-shadow(0 2px 6px rgba(31, 79, 216, 0.05));
+  transition: transform 0.35s var(--ease), filter 0.35s var(--ease);
+  animation: fadeUp 0.7s var(--ease) both;
 }
-.card:hover { transform:translateY(-6px); box-shadow:var(--shadow-md); border-color:transparent; }
-.card::after { content:''; position:absolute; top:0; left:0; right:0; height:3px; transform:scaleX(0); transition:transform 0.4s var(--ease); }
-.card1::after { background:linear-gradient(90deg,var(--blue-deep),var(--blue-ocean)); }
-.card2::after { background:linear-gradient(90deg,var(--sun-orange),var(--sun-gold)); }
-.card3::after { background:linear-gradient(90deg,#FF6B6B,#FF8A65); }
-.card4::after { background:linear-gradient(90deg,#0EA5E9,#38BDF8); }
-.card5::after { background:linear-gradient(90deg,#8B5CF6,#A78BFA); }
-.card6::after { background:linear-gradient(90deg,#10B981,#34D399); }
-.card:hover::after { transform:scaleX(1); }
+.card:nth-child(6n+1) { animation-delay: 0.05s; }
+.card:nth-child(6n+2) { animation-delay: 0.12s; }
+.card:nth-child(6n+3) { animation-delay: 0.19s; }
+.card:nth-child(6n+4) { animation-delay: 0.26s; }
+.card:nth-child(6n+5) { animation-delay: 0.33s; }
+.card:nth-child(6n)   { animation-delay: 0.40s; }
+.card:hover {
+  transform: translateY(-5px);
+  filter:
+    drop-shadow(0 22px 44px rgba(31, 79, 216, 0.16))
+    drop-shadow(0 4px 12px rgba(31, 79, 216, 0.08));
+}
 
+/* "Most loved" stamp pill on the first ticket */
+.featBadge {
+  position: absolute; top: -11px; left: 18px;
+  z-index: 3;
+  transform: rotate(-3deg);
+  background: rgba(255, 255, 255, 0.95);
+  border: 1.8px dashed rgba(255, 159, 28, 0.6);
+  border-radius: 10px;
+  padding: 5px 12px;
+  color: #C77700;
+  font-family: 'Sora', sans-serif;
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: 1.2px; text-transform: uppercase;
+  white-space: nowrap;
+  pointer-events: none;
+}
+
+/* collected passport stamp inked across the ticket's top-right edge */
+.stamp {
+  position: absolute; top: -24px; right: -18px;
+  width: 86px; height: 86px;
+  z-index: 3;
+  transform: rotate(-12deg);
+  mix-blend-mode: multiply;
+  opacity: 0.85;
+  pointer-events: none;
+  transition: transform 0.35s var(--ease);
+}
+.card:hover .stamp { transform: rotate(-6deg) scale(1.04); }
+.stamp.blue   { color: rgba(31, 79, 216, 0.42); }
+.stamp.gold   { color: rgba(199, 119, 0, 0.45); }
+.stamp.coral  { color: rgba(214, 69, 69, 0.4); }
+.stamp.teal   { color: rgba(2, 132, 199, 0.4); }
+.stamp.purple { color: rgba(124, 58, 237, 0.38); }
+.stamp.green  { color: rgba(5, 150, 105, 0.4); }
+
+/* Ticket surface — perforation notches punched at the stub line */
+.cardInner {
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  background: #FFFFFF;
+  border: 1px solid #E8EFFB;
+  border-radius: 22px;
+  overflow: hidden;
+  position: relative;
+  --notchY: calc(100% - 47px);
+  -webkit-mask:
+    radial-gradient(circle at 0 var(--notchY), transparent 9px, black 9.8px),
+    radial-gradient(circle at 100% var(--notchY), transparent 9px, black 9.8px);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle at 0 var(--notchY), transparent 9px, black 9.8px),
+    radial-gradient(circle at 100% var(--notchY), transparent 9px, black 9.8px);
+  mask-composite: intersect;
+}
+/* perforation rule — anchored to the same --notchY as the notch mask */
+.cardInner::after {
+  content: '';
+  position: absolute; left: 14px; right: 14px;
+  top: calc(var(--notchY) - 1px);
+  border-top: 2px dashed #DFE9F8;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* 4px gradient top strip — colour keyed to grid position (matches
+   the COLOR_CLASSES modulo used for the icons) */
+.strip {
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--blue-deep), var(--blue-ocean) 55%, var(--sun-gold));
+  z-index: 1;
+}
+.card:nth-child(6n+1) .strip { background: linear-gradient(90deg, var(--blue-deep), var(--blue-ocean)); }
+.card:nth-child(6n+2) .strip { background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold)); }
+.card:nth-child(6n+3) .strip { background: linear-gradient(90deg, #FF6B6B, #FF8A65); }
+.card:nth-child(6n+4) .strip { background: linear-gradient(90deg, #0EA5E9, #38BDF8); }
+.card:nth-child(6n+5) .strip { background: linear-gradient(90deg, #8B5CF6, #A78BFA); }
+.card:nth-child(6n)   .strip { background: linear-gradient(90deg, #10B981, #34D399); }
+
+/* ── Ticket head ── */
 .cardHead {
-  padding:22px 24px 16px; display:flex; align-items:center; gap:14px;
-  border-bottom:1px solid var(--blue-light); position:relative; overflow:hidden;
+  padding: 22px 20px 16px;
+  display: flex; align-items: center; gap: 14px;
+  border-bottom: 1px solid #EFF4FD;
+  background: linear-gradient(135deg, #FBFDFF 0%, #FFFFFF 70%);
 }
-.cardHead::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,var(--blue-bg) 0%,transparent 60%); opacity:0.7; }
-.icon { width:44px; height:44px; border-radius:14px; display:flex; align-items:center; justify-content:center; flex-shrink:0; position:relative; z-index:1; transition:all 0.35s var(--ease-spring); }
-.card:hover .icon { transform:scale(1.1) rotate(-4deg); }
-.blue   { background:linear-gradient(135deg,var(--blue-deep),var(--blue-ocean)); color:#fff; box-shadow:var(--shadow-blue-glow); }
-.gold   { background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold)); color:#fff; box-shadow:var(--shadow-glow); }
-.coral  { background:linear-gradient(135deg,#FF6B6B,#FF8A65); color:#fff; box-shadow:0 6px 20px rgba(255,107,107,0.3); }
-.teal   { background:linear-gradient(135deg,#0EA5E9,#38BDF8); color:#fff; box-shadow:0 6px 20px rgba(14,165,233,0.3); }
-.purple { background:linear-gradient(135deg,#8B5CF6,#A78BFA); color:#fff; box-shadow:0 6px 20px rgba(139,92,246,0.3); }
-.green  { background:linear-gradient(135deg,#10B981,#34D399); color:#fff; box-shadow:0 6px 20px rgba(16,185,129,0.3); }
-.cardTitle { font-family:'Sora',sans-serif; font-size:1rem; font-weight:700; color:var(--dark); position:relative; z-index:1; }
-.cardCount { font-size:0.78rem; color:var(--text-light); margin-top:2px; position:relative; z-index:1; }
+.cardHeadText { min-width: 0; }
 
-.links { padding:8px 12px; }
+/* Passport-stamp icon badges — dashed border, slight tilt,
+   straighten on hover */
+.icon {
+  width: 46px; height: 46px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0;
+  border: 1.8px dashed;
+  transition: transform 0.35s var(--ease-spring);
+}
+.card:nth-child(odd) .icon  { transform: rotate(-2.4deg); }
+.card:nth-child(even) .icon { transform: rotate(2deg); }
+.card:hover .icon { transform: rotate(0deg) scale(1.06); }
+
+.icon.blue   { border-color: rgba(31, 79, 216, 0.45);  background: rgba(31, 79, 216, 0.07);  color: var(--blue-deep); }
+.icon.gold   { border-color: rgba(255, 159, 28, 0.55); background: rgba(255, 159, 28, 0.09); color: #C77700; }
+.icon.coral  { border-color: rgba(255, 107, 107, 0.50); background: rgba(255, 107, 107, 0.08); color: #D64545; }
+.icon.teal   { border-color: rgba(14, 165, 233, 0.50); background: rgba(14, 165, 233, 0.08); color: #0284C7; }
+.icon.purple { border-color: rgba(139, 92, 246, 0.50); background: rgba(139, 92, 246, 0.08); color: #7C3AED; }
+.icon.green  { border-color: rgba(16, 185, 129, 0.50); background: rgba(16, 185, 129, 0.08); color: #059669; }
+
+.cardTitle {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.02rem; font-weight: 700;
+  color: var(--text); letter-spacing: -0.2px;
+}
+.cardCount {
+  font-size: 0.78rem; color: var(--text-light);
+  margin-top: 2px; font-weight: 600;
+}
+
+/* ── Destination links ── */
+.links { padding: 10px 12px 14px; flex: 1; }
 .links a {
-  display:flex; align-items:center; gap:10px;
-  padding:11px 14px; color:var(--text-sec); font-size:0.92rem;
-  border-radius:var(--r-sm); transition:all 0.25s var(--ease); position:relative;
+  display: flex; align-items: center; gap: 10px;
+  padding: 10.5px 12px;
+  color: var(--text-sec); font-size: 0.92rem;
+  border-radius: var(--r-sm);
+  transition: background 0.25s var(--ease), color 0.25s var(--ease);
 }
-.links a::before { content:''; width:5px; height:5px; border-radius:50%; background:var(--blue-light); flex-shrink:0; transition:all 0.3s var(--ease); }
-.links a::after { content:'→'; margin-left:auto; opacity:0; transform:translateX(-6px); font-size:0.85rem; transition:all 0.3s var(--ease); color:var(--blue-deep); }
-.links a:hover { background:var(--blue-bg); color:var(--blue-deep); }
-.links a:hover::before { background:var(--blue-deep); width:6px; height:6px; }
-.links a:hover::after { opacity:1; transform:translateX(0); }
+.links a::before {
+  content: '';
+  width: 5px; height: 5px; border-radius: 50%;
+  background: #D5E0F2; flex-shrink: 0;
+  transition: all 0.3s var(--ease);
+}
+.links a::after {
+  content: '→';
+  margin-left: auto; opacity: 0; transform: translateX(-6px);
+  font-size: 0.85rem; color: var(--blue-deep);
+  transition: all 0.3s var(--ease);
+}
+.links a:hover { background: var(--blue-bg); color: var(--blue-deep); }
+.links a:hover::before {
+  background: var(--sun-orange);
+  box-shadow: 0 0 0 3px rgba(255, 159, 28, 0.16);
+}
+.links a:hover::after { opacity: 1; transform: translateX(0); }
 
-@media(max-width:1100px) { .grid { grid-template-columns:repeat(2,1fr); } }
-@media(max-width:768px) { .section { padding:48px 18px; } .grid { grid-template-columns:1fr; gap:16px; } }
+/* ── Tear-off stub below the perforation ── */
+.cardFoot {
+  height: 47px; flex-shrink: 0; margin-top: auto;
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 20px;
+  background: linear-gradient(180deg, #FDFEFF, #F8FBFF);
+}
+.footCode {
+  font-family: 'Sora', sans-serif;
+  font-size: 8.5px; font-weight: 700;
+  letter-spacing: 2px; text-transform: uppercase;
+  color: #B9C7E0;
+}
+/* airline route code in the stub center */
+.footRoute {
+  font-family: 'Sora', sans-serif;
+  font-size: 8.5px; font-weight: 700;
+  letter-spacing: 1.6px;
+  color: #9FB2D4;
+  white-space: nowrap;
+}
+.footBarcode {
+  width: 52px; height: 18px; border-radius: 1px;
+  opacity: 0.24;
+  background: repeating-linear-gradient(90deg,
+    rgba(26, 39, 68, 0.55) 0 1.5px, transparent 1.5px 4px,
+    rgba(26, 39, 68, 0.55) 4px 6.5px, transparent 6.5px 8px);
+}
+
+/* ── Scrapbook empty slot — "your next stamp goes here" ── */
+.slotGhost {
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
+  gap: 14px;
+  min-height: 230px;
+  border: 1.8px dashed #D9E4F6;
+  border-radius: 22px;
+  background:
+    radial-gradient(rgba(31, 79, 216, 0.04) 1px, transparent 1px) 0 0 / 20px 20px,
+    rgba(248, 251, 255, 0.6);
+  animation: fadeUp 0.7s var(--ease) 0.45s both;
+}
+.slotRing {
+  width: 104px; height: 104px;
+  color: rgba(31, 79, 216, 0.22);
+  animation: spinSlow 90s linear infinite;
+}
+.slotNote {
+  font-family: 'Caveat', cursive;
+  font-size: 1.35rem; font-weight: 700;
+  color: var(--text-light);
+  transform: rotate(-2deg);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: repeat(2, 1fr); }
+  .ghostWord, .bgStamp { display: none; }
+}
+@media (max-width: 960px) {
+  .headAside, .cloudA, .cloudB { display: none; }
+}
+@media (max-width: 768px) {
+  .section { padding: 48px 18px 52px; }
+  .header { margin-bottom: 24px; }
+  .headRow { margin-bottom: 14px; }
+  .headMicro { display: none; }
+  .grid { grid-template-columns: 1fr; gap: 16px; }
+  .stamp { width: 72px; height: 72px; top: -18px; right: -10px; }
+  .slotGhost { display: none; }
+  .ghostNum { font-size: 7rem; }
+}
+@media (max-width: 480px) {
+  .cardHead { padding: 18px 16px 14px; }
+  .links { padding: 8px 10px 12px; }
+  .cardFoot { padding: 0 16px; }
+  .footRoute { display: none; }
+}
+
+/* Accessibility — respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .header, .card, .slotGhost, .cloudA, .cloudB { animation: none; }
+  .slotRing, .bgStamp { animation: none; }
+  .card, .icon, .stamp, .links a, .links a::before, .links a::after { transition: none; }
+  .card:hover { transform: none; }
+  .card:hover .icon { transform: none; }
+}

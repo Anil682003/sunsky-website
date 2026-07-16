@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import styles from './Hero.module.css';
 import { useHomepageConfig, useCountries } from '../../../api';
 import CountryModal from '../../../components/CountryModal/CountryModal';
+import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 
 // Duration bands. handleSearch takes the first number as the night count, so a
 // band always searches its shortest stay ('6-10 days' → 6 nights).
@@ -66,6 +67,12 @@ export default function Hero() {
     if (hero.subtitle)         setCmsSubtitle(hero.subtitle);
     if (hero.searchButtonText) setCmsSearchBtn(hero.searchButtonText);
   }, [cmsConfig]);
+
+  // Hero background: use the CMS-managed image when one is set, otherwise fall
+  // back to the default image defined in Hero.module.css (.bg). resolveCmsImageUrl
+  // turns dashboard-uploaded "/uploads/…" paths into absolute admin-backend URLs;
+  // full URLs (Unsplash, etc.) pass through unchanged.
+  const heroBgUrl = resolveCmsImageUrl(cmsConfig?.hero?.backgroundImageUrl);
 
   const [searchMode, setSearchMode] = useState('package');
   const [destination, setDestination] = useState('');
@@ -230,8 +237,13 @@ export default function Hero() {
 
   return (
     <section className={styles.hero}>
-      <div className={styles.heroBg}>
-        <div className={styles.bg} />
+      {/* heroBgImage = client-uploaded photo shown as-is (no darkening filter or
+          overlay), so every element on top must carry its own contrast. */}
+      <div className={`${styles.heroBg} ${heroBgUrl ? styles.heroBgImage : ''}`}>
+        <div
+          className={styles.bg}
+          style={heroBgUrl ? { backgroundImage: `url("${heroBgUrl}")` } : undefined}
+        />
         <div className={styles.overlay} />
         <div className={`${styles.blob} ${styles.blob1}`} />
         <div className={`${styles.blob} ${styles.blob2}`} />
@@ -286,7 +298,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Destination</span>
-                <span className={styles.sfValue}>{destination || 'Where to?'}</span>
+                <span className={`${styles.sfValue} ${!destination ? styles.sfPlaceholder : ''}`}>{destination || 'Where to?'}</span>
               </div>
             </div>
             <div className={styles.sfDivider} />
@@ -299,7 +311,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Departure</span>
-                <span className={styles.sfValue}>{formatDate(date) || 'Pick a date'}</span>
+                <span className={`${styles.sfValue} ${!date ? styles.sfPlaceholder : ''}`}>{formatDate(date) || 'Pick a date'}</span>
               </div>
               <input
                 ref={packageDateRef}
@@ -498,7 +510,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>From</span>
-                <span className={styles.sfValue}>{flightFrom || 'Select airport'}</span>
+                <span className={`${styles.sfValue} ${!flightFrom ? styles.sfPlaceholder : ''}`}>{flightFrom || 'Select airport'}</span>
               </div>
             </div>
 
@@ -521,7 +533,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>To</span>
-                <span className={styles.sfValue}>{flightTo || 'Select destination'}</span>
+                <span className={`${styles.sfValue} ${!flightTo ? styles.sfPlaceholder : ''}`}>{flightTo || 'Select destination'}</span>
               </div>
             </div>
 
@@ -537,7 +549,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Depart</span>
-                <span className={styles.sfValue}>{formatDate(flightDate) || 'Select date'}</span>
+                <span className={`${styles.sfValue} ${!flightDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightDate) || 'Select date'}</span>
               </div>
               <input
                 ref={flightDateRef}
@@ -562,7 +574,7 @@ export default function Hero() {
                   </span>
                   <div className={styles.sfText}>
                     <span className={styles.sfLabel}>Return</span>
-                    <span className={styles.sfValue}>{formatDate(flightReturnDate) || 'Select date'}</span>
+                    <span className={`${styles.sfValue} ${!flightReturnDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightReturnDate) || 'Select date'}</span>
                   </div>
                   <input
                     ref={flightReturnRef}
@@ -611,7 +623,7 @@ export default function Hero() {
                 </span>
                 <div className={styles.sfText}>
                   <span className={styles.sfLabel}>From</span>
-                  <span className={styles.sfValue}>{multiFrom || 'Select airport'}</span>
+                  <span className={`${styles.sfValue} ${!multiFrom ? styles.sfPlaceholder : ''}`}>{multiFrom || 'Select airport'}</span>
                 </div>
               </div>
               <button
@@ -629,7 +641,7 @@ export default function Hero() {
                 </span>
                 <div className={styles.sfText}>
                   <span className={styles.sfLabel}>To</span>
-                  <span className={styles.sfValue}>{multiTo || 'Select destination'}</span>
+                  <span className={`${styles.sfValue} ${!multiTo ? styles.sfPlaceholder : ''}`}>{multiTo || 'Select destination'}</span>
                 </div>
               </div>
               <div className={styles.sfDivider} />
@@ -642,7 +654,7 @@ export default function Hero() {
                 </span>
                 <div className={styles.sfText}>
                   <span className={styles.sfLabel}>Depart</span>
-                  <span className={styles.sfValue}>{formatDate(multiDate) || 'Select date'}</span>
+                  <span className={`${styles.sfValue} ${!multiDate ? styles.sfPlaceholder : ''}`}>{formatDate(multiDate) || 'Select date'}</span>
                 </div>
                 <input
                   ref={multiDateRef}
