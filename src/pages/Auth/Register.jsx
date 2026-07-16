@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import lightLogo from '../../assets/light-logo.png';
+import mainLogo from '../../assets/main-logo.png';
 import styles from './Register.module.css';
 import { useRegister } from '../../api';
 import { useToast } from '../../context/ToastContext';
@@ -370,17 +370,42 @@ export default function Register() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.bgArt}>
+      {/* The sky scene */}
+      <div className={styles.bgArt} aria-hidden="true">
         <div className={styles.bgGrad} />
         <div className={`${styles.blob} ${styles.blob1}`} />
         <div className={`${styles.blob} ${styles.blob2}`} />
         <div className={`${styles.blob} ${styles.blob3}`} />
         <div className={styles.ring} />
+        <div className={styles.sun}>
+          <div className={styles.sunRays} />
+          <div className={styles.sunCore} />
+        </div>
+        <div className={`${styles.cloud} ${styles.cloud1}`} />
+        <div className={`${styles.cloud} ${styles.cloud2}`} />
+        <svg className={styles.balloon} viewBox="0 0 120 164" fill="none">
+          <defs>
+            <linearGradient id="ssbGradR" x1="0" y1="0" x2="1" y2="0">
+              <stop offset="0" stopColor="#2E62E6" />
+              <stop offset="0.55" stopColor="#3D7BF0" />
+              <stop offset="1" stopColor="#7FB8FF" />
+            </linearGradient>
+          </defs>
+          <path d="M60 4C27 4 8 30 8 60c0 30 27 51 39 64h26c12-13 39-34 39-64C112 30 93 4 60 4Z" fill="url(#ssbGradR)" />
+          <path d="M60 4C43 4 33 30 33 60c0 30 13 51 19 64h8V4Z" fill="rgba(255,255,255,0.28)" />
+          <path d="M60 4c17 0 27 26 27 56 0 30-13 51-19 64h-8V4Z" fill="rgba(10,35,110,0.12)" />
+          <path d="M10 47c16-9 84-9 100 0 1.5 4 2 9 2 13-18-8-86-8-104 0 0-4 .5-9 2-13Z" fill="#FFC24D" />
+          <path d="M47 124l6 18M73 124l-6 18M60 124v18" stroke="#B07A22" strokeWidth="1.6" />
+          <rect x="48" y="140" width="24" height="17" rx="4" fill="#D89B3F" />
+          <rect x="48" y="140" width="24" height="6" rx="3" fill="#B07A22" />
+        </svg>
+        <div className={styles.horizon} />
+        <div className={styles.grain} />
       </div>
 
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
-          <img src={lightLogo} alt="SunSky" className={styles.logoImg} />
+          <img src={mainLogo} alt="SunSky" className={styles.logoImg} />
           <div className={styles.logoText}>Sun<span>Sky</span></div>
         </Link>
 
@@ -415,6 +440,7 @@ export default function Register() {
 
       <div className={styles.formPanel}>
         <div className={styles.card}>
+          <div className={styles.ticket}>
           <div className={styles.cardHead}>
             <div className={styles.cardHeader}>
               <h1 className={styles.cardTitle}>Create your account</h1>
@@ -483,6 +509,7 @@ export default function Register() {
               </button>
               <div className={styles.guestLine} />
             </div>
+          </div>
           </div>
         </div>
       </div>

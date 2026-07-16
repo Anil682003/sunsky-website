@@ -119,7 +119,7 @@
 /* Search bar */
 .searchBarWrap {
   position:relative;
-  max-width:900px;
+  max-width:960px;
   width:100%;
   margin:0 auto;
 }
@@ -135,11 +135,15 @@
 }
 .searchBar:hover { border-color:rgba(255,255,255,0.2); }
 .sf {
-  flex:1; display:flex; align-items:center; gap:14px;
-  padding:16px 22px; border-radius:var(--r-lg);
+  flex:1; display:flex; align-items:center; gap:12px;
+  padding:16px 18px; border-radius:var(--r-lg);
   cursor:pointer; transition:all 0.3s; min-width:0;
   position:relative;
 }
+/* Destination (long country names) and Travelers ("2 adults · 1 room") hold more
+   text than the date/duration fields, so they take a bigger share of the bar. */
+.sfDest      { flex:1.5; }
+.sfTravelers { flex:1.7; }
 .sf:hover { background:rgba(255,255,255,0.08); }
 .sfActive { background:rgba(255,255,255,0.12); }
 .sfIcon { color:var(--blue-soft); flex-shrink:0; display:flex; }
@@ -262,30 +266,41 @@
   border-color:var(--sun-orange);
 }
 
-/* Duration dropdown */
-.durGrid {
-  display:flex;
-  flex-wrap:wrap;
-  gap:8px;
+/* Duration dropdown — vertical list, check on the selected band */
+.durDropdown {
+  padding:10px;
 }
-.durPill {
-  padding:10px 20px;
-  border-radius:var(--r-full);
-  border:1px solid rgba(255,255,255,0.15);
-  background:rgba(255,255,255,0.05);
+.durList {
+  display:flex;
+  flex-direction:column;
+  gap:2px;
+}
+.durOpt {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:13px 16px;
+  border-radius:var(--r-md, 8px);
+  border:1px solid transparent;
   color:rgba(255,255,255,0.85);
   font-size:14px;
   cursor:pointer;
   transition:all 0.2s;
 }
-.durPill:hover {
-  background:rgba(255,255,255,0.1);
+.durOpt:hover {
+  background:rgba(255,255,255,0.08);
+  border-color:rgba(255,255,255,0.1);
 }
-.durPillActive {
-  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
-  border-color:transparent;
-  color:#fff;
+.durOptActive {
+  background:rgba(255,159,28,0.1);
+  border-color:var(--sun-orange);
+  color:var(--sun-gold);
   font-weight:600;
+}
+.durCheck {
+  flex-shrink:0;
+  color:var(--sun-gold);
 }
 
 /* Travelers dropdown */
@@ -306,11 +321,15 @@
 .stepper {
   display:flex;
   align-items:center;
-  gap:12px;
+  gap:6px;
+  padding:4px;
+  border-radius:var(--r-full);
+  background:rgba(255,255,255,0.05);
+  border:1px solid rgba(255,255,255,0.08);
 }
 .stepperBtn {
-  width:32px;
-  height:32px;
+  width:34px;
+  height:34px;
   border-radius:50%;
   border:1px solid rgba(255,255,255,0.2);
   background:rgba(255,255,255,0.06);
@@ -324,14 +343,17 @@
   line-height:1;
 }
 .stepperBtn:hover {
-  background:rgba(255,255,255,0.12);
-  border-color:rgba(255,255,255,0.3);
+  background:rgba(255,159,28,0.16);
+  border-color:var(--sun-orange);
+  color:var(--sun-gold);
 }
+.stepperBtn:active { transform:scale(0.92); }
 .stepperCount {
   color:#fff;
   font-size:16px;
-  font-weight:600;
-  min-width:20px;
+  font-weight:700;
+  font-family:'Sora',sans-serif;
+  min-width:26px;
   text-align:center;
 }
 .doneBtn {
@@ -351,6 +373,157 @@
 .doneBtn:hover {
   transform:translateY(-1px);
   box-shadow:0 8px 24px rgba(255,159,28,0.4);
+}
+.stepperBtn:disabled {
+  opacity:0.35;
+  cursor:not-allowed;
+}
+.stepperBtn:disabled:hover {
+  background:rgba(255,255,255,0.06);
+  border-color:rgba(255,255,255,0.2);
+}
+
+/* Travelers — one card per room */
+.travDropdown {
+  padding:14px;
+}
+.travScroll {
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+  max-height:min(52vh, 420px);
+  overflow-y:auto;
+  padding:2px;
+  margin:-2px;
+}
+.travScroll::-webkit-scrollbar { width:6px; }
+.travScroll::-webkit-scrollbar-track { background:transparent; }
+.travScroll::-webkit-scrollbar-thumb {
+  background:rgba(255,255,255,0.16);
+  border-radius:3px;
+}
+.roomCard {
+  padding:6px 18px 16px;
+  border:1px solid rgba(255,255,255,0.09);
+  border-radius:var(--r-md, 18px);
+  background:rgba(255,255,255,0.04);
+  transition:border-color 0.25s var(--ease);
+}
+.roomCard:hover { border-color:rgba(255,255,255,0.16); }
+.roomHead {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  padding:14px 0 6px;
+}
+.roomTitle {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  font-family:'Sora',sans-serif;
+  font-size:15px;
+  font-weight:700;
+  letter-spacing:-0.01em;
+  color:rgba(255,255,255,0.92);
+}
+.roomBadge {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:22px;
+  height:22px;
+  border-radius:50%;
+  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
+  color:#fff;
+  font-size:11px;
+  font-weight:700;
+}
+.roomRemove {
+  display:flex;
+  align-items:center;
+  gap:5px;
+  padding:6px 12px;
+  border:1px solid rgba(255,255,255,0.12);
+  border-radius:var(--r-full);
+  background:rgba(255,255,255,0.04);
+  font-size:12px;
+  font-weight:600;
+  color:rgba(255,255,255,0.6);
+  cursor:pointer;
+  transition:all 0.25s var(--ease);
+}
+.roomRemove:hover {
+  background:rgba(255,107,107,0.12);
+  border-color:var(--coral);
+  color:var(--coral);
+}
+.travLabelWrap {
+  display:flex;
+  align-items:baseline;
+  gap:7px;
+}
+.travSubInline {
+  font-size:12px;
+  font-weight:400;
+  color:rgba(255,255,255,0.4);
+}
+.roomCard .travRow {
+  padding:14px 0;
+}
+.roomCard .travRow + .travRow {
+  border-top:1px solid rgba(255,255,255,0.07);
+}
+.addRoomBtn {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:9px;
+  width:100%;
+  padding:14px;
+  border:1px dashed rgba(255,255,255,0.18);
+  border-radius:var(--r-md, 18px);
+  background:transparent;
+  color:var(--sun-gold);
+  font-size:13px;
+  font-weight:600;
+  font-family:'Sora',sans-serif;
+  cursor:pointer;
+  transition:all 0.25s var(--ease);
+}
+.addRoomBtn:hover {
+  background:rgba(255,159,28,0.08);
+  border-color:var(--sun-orange);
+  border-style:solid;
+}
+.addRoomIcon {
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  background:rgba(255,159,28,0.18);
+}
+.travFoot {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:16px;
+  margin-top:14px;
+  padding-top:14px;
+  border-top:1px solid rgba(255,255,255,0.1);
+}
+.travSummary {
+  font-size:13px;
+  font-weight:500;
+  color:rgba(255,255,255,0.6);
+}
+/* Save sits beside the summary here, so it drops the full-width sizing the
+   flights dropdown's Done button still relies on. */
+.travFoot .doneBtn {
+  width:auto;
+  margin-top:0;
+  padding:13px 32px;
 }
 
 /* Travelers — hints, rooms & children DOB */

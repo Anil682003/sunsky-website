@@ -1,0 +1,331 @@
+.page { background: var(--white); min-height: 70vh; }
+
+/* ── Dark banner ───────────────────────────────────────────────────────── */
+.banner {
+  position: relative;
+  overflow: hidden;
+  background: linear-gradient(160deg, var(--dark) 0%, var(--dark2) 60%, #12224a 100%);
+  /* Top pad clears the fixed navbar — same 104px the results page uses.
+     The deep bottom pad is what the mosaic is pulled up into. */
+  padding: 104px 0 150px;
+}
+/* Dissolves the banner into the page — no hard horizontal edge under the copy */
+.banner::after {
+  content: '';
+  position: absolute;
+  left: 0; right: 0; bottom: 0;
+  height: 190px;
+  pointer-events: none;
+  background: linear-gradient(180deg,
+    rgba(255,255,255,0) 0%,
+    rgba(255,255,255,0.06) 35%,
+    rgba(255,255,255,0.45) 72%,
+    var(--white) 100%);
+}
+.bannerBlob1, .bannerBlob2 {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(90px);
+  opacity: 0.22;
+  pointer-events: none;
+}
+.bannerBlob1 { width: 380px; height: 380px; background: var(--sun-gold);   top: -160px; right: 6%; }
+.bannerBlob2 { width: 300px; height: 300px; background: var(--blue-ocean); bottom: -180px; left: 2%; }
+
+.bannerInner {
+  position: relative;
+  max-width: 1400px;
+  margin: 0 auto;
+  padding: 0 52px;
+}
+
+.crumbs { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; margin-bottom: 20px; }
+.crumbLink { color: rgba(255,255,255,0.55); text-decoration: none; transition: color 0.25s var(--ease); }
+.crumbLink:hover { color: #fff; }
+.crumbSep { color: rgba(255,255,255,0.3); }
+.crumbActive { color: var(--sun-gold); font-weight: 600; }
+
+.title {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(2.1rem, 4.6vw, 3.6rem);
+  font-weight: 800;
+  letter-spacing: -1.6px;
+  line-height: 1.06;
+  color: #fff;
+  max-width: 16ch;
+}
+.lede {
+  margin-top: 16px;
+  max-width: 60ch;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: rgba(255,255,255,0.62);
+}
+
+/* ── Country grid ──────────────────────────────────────────────────────── */
+/* Pulled up into the banner's fade so the grid rises out of it. */
+.inner {
+  position: relative;
+  z-index: 1;
+  max-width: 1400px;
+  margin: -110px auto 0;
+  padding: 0 52px 90px;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(258px, 1fr));
+  gap: 20px;
+}
+
+.card {
+  position: relative;
+  display: block;
+  width: 100%;
+  aspect-ratio: 5 / 6;
+  padding: 0;
+  overflow: hidden;
+  border: 1px solid rgba(255,255,255,0.06);
+  border-radius: var(--r-lg);
+  background: var(--dark2);
+  box-shadow: var(--shadow-md);
+  cursor: pointer;
+  text-align: left;
+  opacity: 0;
+  animation: tileIn 0.6s var(--ease) both;
+  transition: transform 0.55s var(--ease-spring), box-shadow 0.55s var(--ease);
+}
+.card::after {
+  /* Thin gold ring that fades in on hover */
+  content: '';
+  position: absolute; inset: 0;
+  border-radius: inherit;
+  border: 1.5px solid transparent;
+  transition: border-color 0.45s var(--ease);
+  pointer-events: none;
+}
+.card:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 30px 60px rgba(7,14,31,0.28);
+}
+.card:hover::after { border-color: rgba(255,209,102,0.55); }
+
+@keyframes tileIn {
+  from { opacity: 0; transform: translateY(20px) scale(0.98); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Photo cards */
+.cardImg {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  object-fit: cover;
+  transition: transform 1s var(--ease);
+}
+.card:hover .cardImg { transform: scale(1.08); }
+
+/* ── Designed flag fallback (no mainImage) ─────────────────────────────────
+   A themed gradient keyed off --theme (0–5), a faint globe + orbit motif, and
+   the crisp flag shown as a floating "passport" badge. */
+.flagArt {
+  position: absolute; inset: 0;
+  overflow: hidden;
+  background:
+    radial-gradient(135% 100% at 18% 0%,
+      hsl(calc(var(--theme, 0) * 58deg + 208deg) 62% 34%) 0%,
+      transparent 58%),
+    linear-gradient(155deg,
+      hsl(calc(var(--theme, 0) * 58deg + 194deg) 56% 24%) 0%,
+      var(--dark2) 68%,
+      var(--dark) 100%);
+}
+/* Faint concentric orbit rings, top-right */
+.flagOrbit, .flagOrbit2 {
+  position: absolute;
+  border-radius: 50%;
+  border: 1px solid rgba(255,255,255,0.10);
+  pointer-events: none;
+}
+.flagOrbit  { width: 260px; height: 260px; top: -90px;  right: -80px; }
+.flagOrbit2 { width: 170px; height: 170px; top: -45px;  right: -35px; border-color: rgba(255,255,255,0.07); }
+
+/* Line-art globe watermark, bottom-left */
+.flagGlobe {
+  position: absolute;
+  width: 150px; height: 150px;
+  left: -34px; bottom: -30px;
+  color: rgba(255,255,255,0.08);
+  transform: rotate(-8deg);
+  pointer-events: none;
+}
+
+/* The crisp flag, floated as a glossy badge */
+.flagBadge {
+  position: absolute;
+  top: 26%; left: 50%;
+  width: 96px; height: 72px;
+  transform: translate(-50%, -50%) rotate(-4deg);
+  object-fit: cover;
+  border-radius: 12px;
+  border: 2px solid rgba(255,255,255,0.85);
+  box-shadow: 0 16px 34px rgba(0,0,0,0.45), 0 2px 6px rgba(0,0,0,0.3);
+  transition: transform 0.6s var(--ease-spring);
+}
+.card:hover .flagBadge {
+  transform: translate(-50%, -50%) rotate(0deg) scale(1.06);
+}
+
+/* Shared shade so the name stays legible on photos and flag art alike */
+.cardShade {
+  position: absolute; inset: 0;
+  background: linear-gradient(180deg, rgba(7,14,31,0) 42%, rgba(7,14,31,0.88) 100%);
+  transition: background 0.55s var(--ease);
+}
+.card:hover .cardShade {
+  background: linear-gradient(180deg, rgba(7,14,31,0.1) 30%, rgba(7,14,31,0.92) 100%);
+}
+
+.cardBody {
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column; justify-content: space-between;
+  padding: 16px 18px 18px;
+}
+
+.cardTop { display: flex; }
+.cardChip {
+  width: 30px; height: 22px;
+  object-fit: cover;
+  border-radius: 4px;
+  border: 1px solid rgba(255,255,255,0.5);
+  box-shadow: 0 3px 12px rgba(0,0,0,0.35);
+  background: rgba(255,255,255,0.1);
+}
+/* The flag-art card already shows a big flag badge — no need for the corner chip */
+.cardFlag .cardChip { display: none; }
+
+.cardFoot { }
+.cardName {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.28rem; font-weight: 700;
+  letter-spacing: -0.4px;
+  color: #fff;
+  text-shadow: 0 2px 16px rgba(0,0,0,0.45);
+}
+.cardDesc {
+  margin-top: 6px;
+  font-size: 0.82rem; line-height: 1.5;
+  color: rgba(255,255,255,0.74);
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+/* Explore label — reserves its space, then slides up + fades in on hover */
+.cardCta {
+  display: inline-flex; align-items: center; gap: 6px;
+  margin-top: 12px;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.8rem; font-weight: 700; letter-spacing: 0.01em;
+  color: var(--sun-gold);
+  max-height: 0;
+  opacity: 0;
+  transform: translateY(8px);
+  transition: opacity 0.4s var(--ease), transform 0.45s var(--ease-spring), max-height 0.45s var(--ease);
+}
+.card:hover .cardCta {
+  opacity: 1; transform: translateY(0); max-height: 40px;
+}
+.cardCta svg { transition: transform 0.4s var(--ease); }
+.card:hover .cardCta svg { transform: translateX(3px); }
+
+/* Circular corner button that pops in on hover */
+.cardGo {
+  position: absolute; top: 14px; right: 14px;
+  width: 40px; height: 40px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+  color: #fff;
+  opacity: 0;
+  transform: scale(0.6) rotate(-30deg);
+  transition: all 0.45s var(--ease-spring);
+  box-shadow: var(--shadow-glow);
+}
+.card:hover .cardGo { opacity: 1; transform: scale(1) rotate(0); }
+
+/* ── Skeleton / empty / error ──────────────────────────────────────────── */
+.skeleton {
+  aspect-ratio: 5 / 6;
+  background: linear-gradient(100deg, var(--blue-light) 30%, var(--blue-bg2) 50%, var(--blue-light) 70%);
+  background-size: 200% 100%;
+  animation: shimmer 1.4s var(--ease-smooth) infinite;
+  box-shadow: none; cursor: default; opacity: 1;
+  border-color: transparent;
+}
+.skeleton::after { display: none; }
+@keyframes shimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+
+/* Sits in the same slot as the mosaic, styled as a card so a failed or empty
+   load still looks like part of the page rather than a bare message. */
+.state {
+  display: flex; flex-direction: column; align-items: center;
+  padding: 64px 28px;
+  text-align: center;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-light);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  animation: tileIn 0.5s var(--ease) both;
+}
+.stateIcon {
+  width: 58px; height: 58px;
+  display: flex; align-items: center; justify-content: center;
+  margin-bottom: 18px;
+  border-radius: var(--r-md);
+  background: var(--white);
+  border: 1px solid var(--blue-light);
+  color: var(--blue-deep);
+  box-shadow: var(--shadow-xs);
+}
+.state h3 {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.4rem; font-weight: 700; color: var(--text);
+  letter-spacing: -0.4px;
+  margin-bottom: 8px;
+}
+.state p { color: var(--text-sec); margin-bottom: 24px; max-width: 44ch; }
+.cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 30px;
+  border: none; border-radius: var(--r-full);
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+  color: #fff; font-weight: 700; font-size: 0.9rem;
+  font-family: 'Sora', sans-serif;
+  text-decoration: none; cursor: pointer;
+  box-shadow: var(--shadow-glow);
+  transition: transform 0.35s var(--ease);
+}
+.cta:hover { transform: translateY(-2px); }
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .inner { padding: 0 24px 72px; }
+  .grid { grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
+}
+
+@media (max-width: 700px) {
+  .banner { padding: 88px 0 120px; }
+  .banner::after { height: 150px; }
+  .bannerInner { padding: 0 18px; }
+  .inner { margin-top: -90px; padding: 0 18px 64px; }
+  .grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .card { aspect-ratio: 4 / 5; }
+  .cardName { font-size: 1.05rem; }
+  /* No hover on touch — reveal the CTA and corner button by default */
+  .cardCta { opacity: 1; transform: none; max-height: 40px; }
+  .cardGo { opacity: 1; transform: none; }
+}

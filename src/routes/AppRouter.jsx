@@ -3,6 +3,7 @@ import { Suspense } from 'react';
 import Layout from '../Layout/Layout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
+import ScrollToTop from '../components/ScrollToTop';
 import { routes, publicRoutes, notFoundRoute } from './routes.config';
 
 function PageLoader() {
@@ -33,6 +34,7 @@ export default function AppRouter() {
 
   return (
     <Suspense fallback={<PageLoader />}>
+      <ScrollToTop />
       <Routes>
         {publicRoutes.map(({ path, component: Component }) => (
           <Route
