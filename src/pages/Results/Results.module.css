@@ -405,6 +405,58 @@
 }
 .applyBtn:active { transform: translateY(0); }
 
+/* ── Per-room occupancy (Filter 4) ── */
+.roomBlock {
+  border: 1.5px solid #eef2f9; border-radius: 12px;
+  padding: 6px 12px 10px; margin-top: 10px; background: #fbfdff;
+}
+.roomHead {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 0 2px;
+}
+.roomTitle {
+  font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 700;
+  color: var(--blue-deep); letter-spacing: 0.2px;
+}
+.roomRemove {
+  border: none; background: none; cursor: pointer;
+  font-size: 12px; font-weight: 600; color: #d64545; padding: 2px 4px;
+}
+.roomRemove:hover { text-decoration: underline; }
+.childAges { display: flex; flex-direction: column; gap: 6px; padding: 6px 0 2px; }
+.childAge {
+  display: flex; align-items: center; justify-content: space-between;
+  font-size: 12.5px; color: var(--text-sec);
+}
+.childAge select, .cascadeSelect {
+  border: 1.5px solid #e2eaf5; border-radius: 8px;
+  padding: 6px 8px; font-size: 13px; color: var(--dark);
+  background: var(--white); cursor: pointer; min-width: 90px;
+}
+.childAge select:focus, .cascadeSelect:focus {
+  outline: none; border-color: var(--blue-deep);
+}
+.addRoomBtn {
+  width: 100%; margin-top: 10px; padding: 9px;
+  border: 1.5px dashed #c7d8f2; border-radius: 10px;
+  background: var(--white); color: var(--blue-deep);
+  font-size: 12.5px; font-weight: 600; cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.addRoomBtn:hover { background: var(--blue-light); border-color: var(--blue-deep); }
+
+/* Shown inside a filter section while its options load, or if the content API is down. */
+.filterEmpty {
+  font-size: 12.5px; color: var(--text-sec); padding: 6px 0; margin: 0; font-style: italic;
+}
+
+/* ── Destination cascade (Filter 2) ── */
+.cascadeLabel {
+  display: flex; flex-direction: column; gap: 5px; padding: 6px 0;
+  font-size: 12.5px; font-weight: 500; color: var(--text-sec);
+}
+.cascadeSelect { min-width: 100%; }
+
 /* ════════ Results ════════ */
 .results { flex: 1; min-width: 0; }
 .resultsList { display: flex; flex-direction: column; gap: 22px; }

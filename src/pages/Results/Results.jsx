@@ -1,12 +1,16 @@
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
+import { fetchThemes, fetchMatchingHotels, fetchCountries, fetchDestinations } from '../../api/filters';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 const PAGE_SIZE = 20;
+// Default age used for a newly-added child until the traveller picks one. Hotelbeds requires
+// an age per child; without it a family search 400s, so we never send a childless-age.
+const CHILD_AGE_DEFAULT = 8;
 
 const bestImg = (images, fallback) => {
   if (!Array.isArray(images) || images.length === 0) return fallback;
@@ -33,17 +37,33 @@ const ROOM_LABELS = {
 // the live feed), NOT the ones in the cache demo's display map — that map uses
 // Hotelbeds' STE/JNR/TRP, but the ingested data stores SUI/JSU/TPL. Offering a code
 // the data never contains gives the user a filter that always returns nothing.
-const BOARD_FILTERS = ['RO', 'SC', 'BB', 'HB', 'FB', 'AI', 'UAI'];
+// Board codes the cache ACTUALLY holds (verified against live inventory: BB RO HB AI FB SC
+// dominate, plus a long tail of B2/DB/CB/AS/… ). 'UAI' was removed — it was offered but NOT
+// a single hotel in the cache carries it, so ticking it always returned zero. Only the six
+// with real volume AND a human label are offered as quick filters; the rare boards still
+// come back in results, just aren't first-class filter chips.
+const BOARD_FILTERS = ['RO', 'SC', 'BB', 'HB', 'FB', 'AI'];
 const ROOM_FILTERS  = ['DBL', 'DBT', 'TWN', 'TPL', 'FAM', 'SUI', 'JSU', 'STU', 'APT', 'BUN', 'ROO'];
 
 const SORT_OPTIONS = [
   { value: 'price_asc',  label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
+  // Filter 3 — distance sorts. Applied CLIENT-SIDE using the distances from the admin
+  // content API (the cache prices by price and does not know distances). Only reorders the
+  // hotels already loaded — a true global distance sort would need the cache to hold
+  // distances, which is a later enhancement.
+  { value: 'distance_beach',  label: 'Distance to beach' },
+  { value: 'distance_centre', label: 'Distance to centre' },
 ];
 const REFUNDABLE_OPTIONS = [
   { value: 'any', label: 'Any' },
   { value: 'yes', label: 'Refundable' },
   { value: 'no',  label: 'Non-ref.' },
+];
+// Filter 5 — transport type. Maps to the cache `searchType` (see buildQS).
+const TRANSPORT_OPTIONS = [
+  { value: 'hotel_only', label: 'Own transport' },
+  { value: 'package',    label: 'Flight + hotel' },
 ];
 const PRICE_BASIS_OPTIONS = [
   { value: 'total',     label: 'Total stay' },
@@ -59,6 +79,14 @@ const PRICE_CEILING_FALLBACK = 1000;
 const EMPTY_FILTERS = {
   boards: [], roomTypes: [], minPrice: '', maxPrice: '',
   priceBasis: 'total', refundable: 'any', sortBy: 'price_asc',
+  // Content filters (holiday theme). `themes` = selected theme ids; `hotelCodes` = the codes
+  // the admin content API resolved for {destination, themes}. hotelCodes is what actually
+  // gets sent to the cache; null means "not resolved / no content filter" (whole destination).
+  themes: [], hotelCodes: null,
+  // Transport type (Filter 5). 'hotel_only' = own transport → cache searchType=HOTEL_ONLY
+  // (excludes package-only/opaque rates). 'package' = flight + hotel → searchType=PACKAGE
+  // (lets package rates in; the flight leg is added on the detail/checkout screens).
+  transport: 'hotel_only',
 };
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80';
@@ -69,9 +97,10 @@ const getRoomLabel  = (code) => ROOM_LABELS[code]  || code || '';
 
 // How many filters the user has actively changed — drives the sidebar count pill.
 const countActiveFilters = (f) =>
-  f.boards.length + f.roomTypes.length +
+  f.boards.length + f.roomTypes.length + (f.themes?.length || 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
-  (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0);
+  (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
+  (f.transport && f.transport !== 'hotel_only' ? 1 : 0);
 const fmtDate = (iso) => {
   if (!iso) return '';
   const [, m, d] = iso.split('-');
@@ -153,9 +182,48 @@ export default function Results() {
   // Sidebar draft state (not yet fetched)
   const [localCheckIn,  setLocalCheckIn]  = useState(initCheckIn);
   const [localCheckOut, setLocalCheckOut] = useState(initCheckOut);
-  const [localAdults,   setLocalAdults]   = useState(parseInt(initAdults));
-  const [localChildren, setLocalChildren] = useState(parseInt(initChildren));
-  const [localRooms,    setLocalRooms]    = useState(parseInt(initRooms));
+
+  // Filter 4 — PER-ROOM occupancy. `roomsConfig` is one entry per room, each with its own
+  // adults + children + a child age per child (Hotelbeds requires an age for every child).
+  // The flat totals the cache needs (adults/children/rooms/childAges/maxPerRoom) are DERIVED
+  // from this below, so uneven room splits ("room 1: 2 adults, room 2: 2 adults + 1 child")
+  // are priced correctly instead of an even ceil-split.
+  const [roomsConfig, setRoomsConfig] = useState(() => {
+    const nRooms    = Math.max(1, parseInt(initRooms, 10) || 1);
+    const nAdults   = Math.max(1, parseInt(initAdults, 10) || 2);
+    const nChildren = Math.max(0, parseInt(initChildren, 10) || 0);
+    const ages = childAges ? childAges.split(',').map((a) => parseInt(a, 10)).filter((a) => Number.isFinite(a)) : [];
+    const rooms = Array.from({ length: nRooms }, () => ({ adults: 0, children: 0, ages: [] }));
+    for (let i = 0; i < nAdults; i++) rooms[i % nRooms].adults++;
+    let ai = 0;
+    for (let i = 0; i < nChildren; i++) { const r = rooms[i % nRooms]; r.children++; r.ages.push(ages[ai++] ?? CHILD_AGE_DEFAULT); }
+    for (const r of rooms) if (r.adults < 1) r.adults = 1;   // every room needs ≥1 adult
+    return rooms;
+  });
+
+  // Derived flat totals (what the cache query actually uses).
+  const totalAdults        = roomsConfig.reduce((s, r) => s + r.adults, 0);
+  const totalChildren      = roomsConfig.reduce((s, r) => s + r.children, 0);
+  const roomsN             = roomsConfig.length;
+  const allChildAges       = roomsConfig.flatMap((r) => r.ages);
+  const maxAdultsPerRoom   = Math.max(1, ...roomsConfig.map((r) => r.adults));
+  const maxChildrenPerRoom = Math.max(0, ...roomsConfig.map((r) => r.children));
+
+  // Room editing helpers (bounded: 1–6 adults, 0–4 children per room, 1–5 rooms).
+  const changeRoomAdults = (i, delta) => setRoomsConfig((rc) =>
+    rc.map((r, idx) => (idx === i ? { ...r, adults: Math.max(1, Math.min(6, r.adults + delta)) } : r)));
+  const changeRoomChildren = (i, delta) => setRoomsConfig((rc) =>
+    rc.map((r, idx) => {
+      if (idx !== i) return r;
+      const n = Math.max(0, Math.min(4, r.children + delta));
+      const ages = r.ages.slice(0, n);
+      while (ages.length < n) ages.push(CHILD_AGE_DEFAULT);
+      return { ...r, children: n, ages };
+    }));
+  const setChildAge = (i, ci, age) => setRoomsConfig((rc) =>
+    rc.map((r, idx) => (idx === i ? { ...r, ages: r.ages.map((a, j) => (j === ci ? age : a)) } : r)));
+  const addRoom    = () => setRoomsConfig((rc) => (rc.length < 5 ? [...rc, { adults: 2, children: 0, ages: [] }] : rc));
+  const removeRoom = (i) => setRoomsConfig((rc) => (rc.length > 1 ? rc.filter((_, idx) => idx !== i) : rc));
 
   // Committed params that drive the API fetch
   const [fetchParams, setFetchParams] = useState({
@@ -168,6 +236,21 @@ export default function Results() {
   // the fetch, so dragging a price handle doesn't fire a request per pixel.
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [applied, setApplied] = useState(EMPTY_FILTERS);
+
+  // Holiday-theme filter options (loaded once from the admin content API).
+  // `themesStatus`: 'loading' | 'ok' | 'error' — drives a visible state so the section is
+  // ALWAYS shown (even while loading or if the admin API is unreachable), never silently gone.
+  const [themeOptions, setThemeOptions] = useState([]);
+  const [themesStatus, setThemesStatus] = useState('loading');
+  // hotelCode → content attributes (stars, beach/centre distances) from the admin API, used
+  // for the distance sorts. Refreshed whenever the destination or selected themes change.
+  const [attrMap, setAttrMap] = useState({});
+
+  // Filter 2 — country → destination cascade (a way to jump to a different destination).
+  const [countryOptions, setCountryOptions]         = useState([]);
+  const [countriesStatus, setCountriesStatus]       = useState('loading');
+  const [cascadeCountry, setCascadeCountry]         = useState('');
+  const [destinationOptions, setDestinationOptions] = useState([]);
 
   const [loading, setLoading]         = useState(true);
   const [filtering, setFiltering]     = useState(false);
@@ -219,6 +302,67 @@ export default function Results() {
     return () => clearTimeout(t);
   }, [filters]);
 
+  // Load the holiday-theme options once (from the admin content API). The section is always
+  // rendered; this just fills it. On error we flip to 'error' so the UI can say so.
+  useEffect(() => {
+    let live = true;
+    fetchThemes()
+      .then((t) => { if (live) { setThemeOptions(t); setThemesStatus('ok'); } })
+      .catch(() => { if (live) setThemesStatus('error'); });
+    return () => { live = false; };
+  }, []);
+
+  // Filter 2 — load the country list once (only countries that actually have hotels).
+  useEffect(() => {
+    let live = true;
+    fetchCountries()
+      .then((c) => { if (live) { setCountryOptions(c); setCountriesStatus('ok'); } })
+      .catch(() => { if (live) setCountriesStatus('error'); });
+    return () => { live = false; };
+  }, []);
+
+  // Filter 2 — load destinations whenever a country is picked in the cascade.
+  useEffect(() => {
+    if (!cascadeCountry) { setDestinationOptions([]); return; }
+    let live = true;
+    fetchDestinations(cascadeCountry).then((d) => { if (live) setDestinationOptions(d); }).catch(() => { if (live) setDestinationOptions([]); });
+    return () => { live = false; };
+  }, [cascadeCountry]);
+
+  // CONTENT-FILTER RESOLUTION. When the selected theme(s) or the destination change, ask the
+  // admin content API which hotelCodes match, and write them into `filters.hotelCodes`. That
+  // change flows through the debounce above into `applied`, so the cache is re-queried for
+  // exactly those hotels. Keyed on a STRING of the theme ids (stable across the hotelCodes
+  // write, so this cannot loop). No themes selected → clear hotelCodes (whole destination).
+  const themeKey = (filters.themes || []).join(',');
+  useEffect(() => {
+    if (!destCode) return;
+    const ids = (filters.themes || []);
+    let live = true;
+    // Always ask the admin content API for this destination (with any themes): the response
+    // gives BOTH the theme-matched hotelCodes AND the per-hotel attributes (distances) the
+    // distance sorts need — so we fetch even with no theme selected.
+    // Guard: with NO themes the target hotelCodes is null. If it's already null (e.g. first
+    // mount, or after clearing themes) DON'T create a new filters object — that would ripple
+    // through the debounce and fire a redundant second search. Only a real change refetches.
+    const applyCodes = (next) => setFilters((f) => (f.hotelCodes === next ? f : { ...f, hotelCodes: next }));
+    fetchMatchingHotels({ destinationCode: destCode, themes: ids })
+      .then((r) => {
+        if (!live) return;
+        setAttrMap(r.attributes || {});
+        // hotelCodes restricts the cache ONLY when a theme is active; no theme → whole dest.
+        applyCodes(ids.length ? (r.hotelCodes || []) : null);
+      })
+      .catch(() => {
+        if (!live) return;
+        setAttrMap({});
+        // Fail safe: with a theme active, show nothing rather than silently ignore it.
+        applyCodes(ids.length ? [] : null);
+      });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [themeKey, destCode]);
+
   // Fetch params ref so loadMore always sees latest values
   const fetchParamsRef    = useRef(fetchParams);
   const destCodeRef       = useRef(destCode);
@@ -242,6 +386,10 @@ export default function Results() {
 
   const buildQS = (fp, dc, ca, page, f) => {
     const roomsN = Math.max(1, parseInt(fp.rooms, 10) || 1);
+    // Prefer the EXACT per-room maxes from the occupancy editor (fp.maxAdultsPerRoom); fall
+    // back to an even ceil-split for legacy/URL-seeded searches that didn't set them.
+    const maxA = fp.maxAdultsPerRoom   ?? String(Math.ceil((parseInt(fp.adults, 10)   || 1) / roomsN));
+    const maxC = fp.maxChildrenPerRoom ?? String(Math.ceil((parseInt(fp.children, 10) || 0) / roomsN));
     const qs = new URLSearchParams({
       destination:        dc,
       checkIn:            fp.checkIn,
@@ -252,10 +400,12 @@ export default function Results() {
       limit:              String(PAGE_SIZE),
       page:               String(page),
       source:             'combined',
-      maxAdultsPerRoom:   String(Math.ceil((parseInt(fp.adults, 10) || 1) / roomsN)),
-      maxChildrenPerRoom: String(Math.ceil((parseInt(fp.children, 10) || 0) / roomsN)),
+      maxAdultsPerRoom:   maxA,
+      maxChildrenPerRoom: maxC,
     });
-    if (ca) qs.set('childAges', ca);
+    // Prefer the ages the occupancy editor collected (fp.childAges); else the URL-seeded ca.
+    const ages = fp.childAges || ca;
+    if (ages) qs.set('childAges', ages);
 
     // ── Result filters — omitted entirely when at their default, so the cache can
     //    take its fast unfiltered path (see `hasFilter` in the contracts controller).
@@ -272,7 +422,21 @@ export default function Results() {
     }
     if (f.priceBasis !== 'total') qs.set('priceBasis', f.priceBasis);
     if (f.refundable !== 'any')   qs.set('refundable', f.refundable);
-    if (f.sortBy     !== 'price_asc') qs.set('sortBy', f.sortBy);
+    // Only PRICE sorts go to the cache (its sortBy enum is price_asc|price_desc). Distance
+    // sorts are client-side, so we leave the cache on its default price_asc and reorder here.
+    if (f.sortBy === 'price_desc') qs.set('sortBy', 'price_desc');
+    // Transport type (Filter 5) → cache searchType. Only sent when 'package' (PACKAGE),
+    // since HOTEL_ONLY is the cache default and omitting it keeps the fast unfiltered path.
+    if (f.transport === 'package') qs.set('searchType', 'PACKAGE');
+
+    // Content-filter hand-off: when the admin content API has resolved a hotelCode set for
+    // the chosen theme(s), the cache prices ONLY those. An empty resolved set means "themes
+    // selected but nothing matched" → send a sentinel so the cache returns nothing, rather
+    // than falling back to the whole destination (which would ignore the filter). null =
+    // no content filter at all → omitted, whole destination as before.
+    if (Array.isArray(f.hotelCodes)) {
+      qs.set('hotelCodes', f.hotelCodes.length ? f.hotelCodes.join(',') : '__none__');
+    }
 
     return qs.toString();
   };
@@ -310,7 +474,9 @@ export default function Results() {
 
   // Identifies "a different search" (vs. merely a different filter on the same search).
   // Only a new search resets the price ceiling and shows full-page skeletons.
-  const searchKey = `${destCode}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${childAges}`;
+  // Include the COMMITTED child ages (fetchParams), not the URL seed, so changing a child's
+  // age (same head-counts) still re-fires the search. Falls back to the URL value pre-edit.
+  const searchKey = `${destCode}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${fetchParams.childAges ?? childAges}`;
   const prevSearchKeyRef = useRef(null);
 
   // A price bound is only meaningful for the search it was chosen in — "under €1,500"
@@ -493,7 +659,19 @@ export default function Results() {
   // Filtering and sorting are done by the cache (it recalculates each hotel's
   // cheapest *matching* rate, which client-side filtering of already-picked
   // winners cannot do), so the fetched list is the list we render.
-  const hotels = allHotels;
+  // Distance sorts (Filter 3) are applied here, client-side, using the admin attributes —
+  // the cache has already ordered by price. A hotel with no distance for the chosen metric
+  // sorts LAST (Infinity), never as 0 (which would wrongly float unknowns to the top).
+  const hotels = useMemo(() => {
+    const field = applied.sortBy === 'distance_beach' ? 'beachMetres'
+                : applied.sortBy === 'distance_centre' ? 'centreMetres' : null;
+    if (!field) return allHotels;
+    const dist = (h) => {
+      const v = attrMap[String(h.hotelCode)]?.[field];
+      return typeof v === 'number' && v >= 0 ? v : Infinity;
+    };
+    return [...allHotels].sort((a, b) => dist(a) - dist(b));   // nearest first
+  }, [allHotels, applied.sortBy, attrMap]);
 
   // Lazily load real hotel info (name/images/stars) for all visible hotels
   useEffect(() => {
@@ -603,10 +781,28 @@ export default function Results() {
       ...prev,
       checkIn:  localCheckIn,
       checkOut: localCheckOut,
-      adults:   String(localAdults),
-      children: String(localChildren),
-      rooms:    String(localRooms),
+      adults:   String(totalAdults),
+      children: String(totalChildren),
+      rooms:    String(roomsN),
+      // Per-room occupancy → the exact totals + per-room maxes + child ages the cache needs.
+      childAges:          allChildAges.join(','),
+      maxAdultsPerRoom:   String(maxAdultsPerRoom),
+      maxChildrenPerRoom: String(maxChildrenPerRoom),
     }));
+  };
+
+  // Filter 2 — jump to a different destination from the cascade. Re-navigates the results
+  // page with the new destination, preserving the current dates + occupancy.
+  const goToDestination = (code, label) => {
+    if (!code) return;
+    const qp = new URLSearchParams({
+      destination: code,
+      destinationLabel: label || code,
+      checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut,
+      adults: fetchParams.adults, children: fetchParams.children, rooms: fetchParams.rooms,
+    });
+    if (fetchParams.childAges) qp.set('childAges', fetchParams.childAges);
+    navigate({ search: qp.toString() });   // same /results page, new query
   };
 
   const guestSummary = `${fetchParams.adults} Adult${fetchParams.adults !== '1' ? 's' : ''}${fetchParams.children !== '0' ? `, ${fetchParams.children} Child${fetchParams.children !== '1' ? 'ren' : ''}` : ''}`;
@@ -653,30 +849,48 @@ export default function Results() {
             onChange={(e) => setLocalCheckOut(e.target.value)}
           />
         </div>
-        <div className={styles.guestRow}>
-          <span className={styles.guestLabel}>Adults</span>
-          <div className={styles.guestCounter}>
-            <button className={styles.guestBtn} onClick={() => setLocalAdults((a) => { const n = Math.max(1, a - 1); setLocalRooms((r) => Math.min(r, n)); return n; })}>−</button>
-            <span className={styles.guestNum}>{localAdults}</span>
-            <button className={styles.guestBtn} onClick={() => setLocalAdults((a) => Math.min(9, a + 1))}>+</button>
+        {/* Filter 4 — per-room occupancy. One block per room: adults, children, child ages. */}
+        {roomsConfig.map((room, i) => (
+          <div key={i} className={styles.roomBlock}>
+            <div className={styles.roomHead}>
+              <span className={styles.roomTitle}>Room {i + 1}</span>
+              {roomsConfig.length > 1 && (
+                <button type="button" className={styles.roomRemove} onClick={() => removeRoom(i)}>Remove</button>
+              )}
+            </div>
+            <div className={styles.guestRow}>
+              <span className={styles.guestLabel}>Adults</span>
+              <div className={styles.guestCounter}>
+                <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, -1)}>−</button>
+                <span className={styles.guestNum}>{room.adults}</span>
+                <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, +1)}>+</button>
+              </div>
+            </div>
+            <div className={styles.guestRow}>
+              <span className={styles.guestLabel}>Children</span>
+              <div className={styles.guestCounter}>
+                <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, -1)}>−</button>
+                <span className={styles.guestNum}>{room.children}</span>
+                <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, +1)}>+</button>
+              </div>
+            </div>
+            {room.children > 0 && (
+              <div className={styles.childAges}>
+                {room.ages.map((age, ci) => (
+                  <label key={ci} className={styles.childAge}>
+                    <span>Child {ci + 1} age</span>
+                    <select value={age} onChange={(e) => setChildAge(i, ci, parseInt(e.target.value, 10))}>
+                      {Array.from({ length: 18 }, (_, a) => <option key={a} value={a}>{a}</option>)}
+                    </select>
+                  </label>
+                ))}
+              </div>
+            )}
           </div>
-        </div>
-        <div className={styles.guestRow}>
-          <span className={styles.guestLabel}>Children</span>
-          <div className={styles.guestCounter}>
-            <button className={styles.guestBtn} onClick={() => setLocalChildren((c) => Math.max(0, c - 1))}>−</button>
-            <span className={styles.guestNum}>{localChildren}</span>
-            <button className={styles.guestBtn} onClick={() => setLocalChildren((c) => Math.min(6, c + 1))}>+</button>
-          </div>
-        </div>
-        <div className={styles.guestRow}>
-          <span className={styles.guestLabel}>Rooms</span>
-          <div className={styles.guestCounter}>
-            <button className={styles.guestBtn} onClick={() => setLocalRooms((r) => Math.max(1, r - 1))}>−</button>
-            <span className={styles.guestNum}>{localRooms}</span>
-            <button className={styles.guestBtn} onClick={() => setLocalRooms((r) => Math.min(localAdults, r + 1))}>+</button>
-          </div>
-        </div>
+        ))}
+        {roomsConfig.length < 5 && (
+          <button type="button" className={styles.addRoomBtn} onClick={addRoom}>+ Add room</button>
+        )}
         <button className={styles.applyBtn} onClick={applySearch}>
           <Icon d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" size={13} sw={2.2} />
           Update Search
@@ -728,6 +942,77 @@ export default function Results() {
           onChange={setPriceBasis}
           ariaLabel="Price basis"
         />
+      </FilterSection>
+
+      {/* Destination cascade (Filter 2) — country → destination. ALWAYS shown; the country
+          list fills once the admin content API responds. If that API is unreachable it says
+          so, rather than the whole section disappearing. */}
+      <FilterSection title="Destination" defaultOpen={false}>
+        {countriesStatus === 'error' ? (
+          <p className={styles.filterEmpty}>Destination filter unavailable (content service unreachable).</p>
+        ) : countryOptions.length === 0 ? (
+          <p className={styles.filterEmpty}>Loading countries…</p>
+        ) : (
+          <>
+            <label className={styles.cascadeLabel}>
+              <span>Country</span>
+              <select
+                className={styles.cascadeSelect}
+                value={cascadeCountry}
+                onChange={(e) => setCascadeCountry(e.target.value)}
+              >
+                <option value="">Select a country…</option>
+                {countryOptions.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
+              </select>
+            </label>
+            {cascadeCountry && (
+              <label className={styles.cascadeLabel}>
+                <span>Destination</span>
+                <select
+                  className={styles.cascadeSelect}
+                  value={destCode}
+                  onChange={(e) => {
+                    const opt = destinationOptions.find((d) => d.code === e.target.value);
+                    goToDestination(e.target.value, opt?.name);
+                  }}
+                >
+                  <option value="">{destinationOptions.length ? 'Select a destination…' : 'Loading…'}</option>
+                  {destinationOptions.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
+                </select>
+              </label>
+            )}
+          </>
+        )}
+      </FilterSection>
+
+      {/* Transport type (Filter 5) — own transport (hotel only) vs flight + hotel package.
+          Sets the cache searchType; PACKAGE lets package-only rates in. */}
+      <FilterSection title="Transport" defaultOpen>
+        <Segmented
+          options={TRANSPORT_OPTIONS}
+          value={filters.transport}
+          onChange={(v) => setFilter('transport', v)}
+          ariaLabel="Transport type"
+        />
+      </FilterSection>
+
+      {/* Holiday Type (Filter 1) — ALWAYS shown; the chips fill once the admin content API
+          responds. If that API is unreachable it says so, rather than vanishing. */}
+      <FilterSection title="Holiday Type" defaultOpen>
+        {themesStatus === 'error' ? (
+          <p className={styles.filterEmpty}>Holiday types unavailable (content service unreachable).</p>
+        ) : themeOptions.length === 0 ? (
+          <p className={styles.filterEmpty}>Loading holiday types…</p>
+        ) : (
+          themeOptions.map((t) => (
+            <FilterCheck
+              key={t.id}
+              label={`${t.icon ? `${t.icon} ` : ''}${t.name}`}
+              checked={filters.themes.includes(t.id)}
+              onChange={() => toggleCode('themes', t.id)}
+            />
+          ))
+        )}
       </FilterSection>
 
       {/* Board Type — server-side (`boards`) */}
