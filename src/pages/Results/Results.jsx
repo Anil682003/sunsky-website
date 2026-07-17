@@ -1066,6 +1066,18 @@ export default function Results() {
         <div className={styles.heroGlow} />
         <div className={styles.heroGlow2} />
         <div className={styles.heroGrid} />
+        {/* Sky scene — decorative only, all pointer-transparent */}
+        <div className={styles.heroSun} aria-hidden="true">
+          <span className={styles.sunRing} />
+          <span className={styles.sunRing2} />
+        </div>
+        <span className={`${styles.cloud} ${styles.cloud1}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud2}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud3}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud4}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud5}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud6}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud7}`} aria-hidden="true" />
         <svg className={styles.heroFlight} viewBox="0 0 600 200" fill="none" aria-hidden="true">
           <path
             className={styles.flightPath}
@@ -1079,7 +1091,20 @@ export default function Results() {
             <path d="M0 8L22 0l-7.5 18-3.5-6.5L0 8z" fill="rgba(255,255,255,0.9)" transform="translate(-11,-9)" />
           </g>
         </svg>
+        {/* Route constellation — dashed hops between pulsing destination nodes */}
+        <svg className={styles.heroRoutes} viewBox="0 0 640 190" fill="none" aria-hidden="true">
+          <path className={styles.routeArc} d="M18 168 Q 150 96 300 128" />
+          <path className={styles.routeArc} d="M300 128 Q 450 162 622 58" />
+          <circle className={styles.routeNode} cx="18" cy="168" r="3.5" />
+          <circle className={styles.routePulse} cx="18" cy="168" r="5" />
+          <circle className={styles.routeNode} cx="300" cy="128" r="3.5" />
+          <circle className={styles.routePulse} cx="300" cy="128" r="5" style={{ animationDelay: '1.1s' }} />
+          <circle className={`${styles.routeNode} ${styles.routeNodeGold}`} cx="622" cy="58" r="4" />
+          <circle className={`${styles.routePulse} ${styles.routePulseGold}`} cx="622" cy="58" r="6" style={{ animationDelay: '2.2s' }} />
+        </svg>
         <span className={styles.twinkle} style={{ top: '24%', left: '38%' }} />
+        <span className={styles.twinkle} style={{ top: '36%', left: '48%', animationDelay: '1.7s' }} />
+        <span className={styles.twinkle} style={{ top: '72%', left: '66%', animationDelay: '2.7s' }} />
         <span className={styles.twinkle} style={{ top: '58%', left: '55%', animationDelay: '1.2s' }} />
         <span className={styles.twinkle} style={{ top: '18%', left: '72%', animationDelay: '2.1s' }} />
         <span className={styles.twinkle} style={{ top: '64%', left: '86%', animationDelay: '0.6s' }} />
@@ -1118,14 +1143,33 @@ export default function Results() {
       <div className={styles.toolbar}>
         <div className={styles.toolbarInner}>
           <div className={styles.resultCount}>
+            <span className={styles.countIcon}>
+              <Icon d="M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" size={18} sw={2} />
+            </span>
             {loading ? (
               <span className={styles.countSearching}>
                 <span className={styles.countPulse} />
                 Searching the best deals…
               </span>
             ) : (
-              <><strong>{hotels.length}{hasMore ? '+' : ''}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found</>
+              <span className={styles.countText}>
+                <span><strong>{hotels.length}{hasMore ? '+' : ''}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found</span>
+                {destinationLabel && <span className={styles.countSub}>in {destinationLabel}</span>}
+              </span>
             )}
+          </div>
+          {/* Boarding-pass strip — the trip summary rides the dashed route line */}
+          <div className={styles.tripStrip}>
+            <span className={styles.tripStripLine} aria-hidden="true" />
+            {heroChips.map((c) => (
+              <span key={c.text} className={styles.tripStop}>
+                <Icon d={c.icon} size={12} sw={1.8} />
+                {c.text}
+              </span>
+            ))}
+            <svg className={styles.tripStripPlane} viewBox="0 0 22 18" width="16" height="13" aria-hidden="true">
+              <path d="M0 8L22 0l-7.5 18-3.5-6.5L0 8z" fill="currentColor" />
+            </svg>
           </div>
           <div className={styles.toolbarRight}>
             <div className={styles.sortWrap}>

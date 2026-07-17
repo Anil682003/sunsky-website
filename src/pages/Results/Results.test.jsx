@@ -382,7 +382,8 @@ describe('price range', () => {
     dragSlider('Minimum price', 200);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
     await waitFor(() => {
-      const prices = cards().map((c) => Number(c.textContent.match(/EUR([\d,.]+)/)[1].replace(/,/g, '')));
+      // Headline price renders as "€1,234.56" (symbol) — older cards said "EUR1234.56".
+      const prices = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/,/g, '')));
       expect(Math.min(...prices)).toBeGreaterThanOrEqual(200);
     });
   });
@@ -393,7 +394,8 @@ describe('price range', () => {
     dragSlider('Maximum price', 150);
     await waitFor(() => expect(lastCall().get('maxPrice')).toBe('150'));
     await waitFor(() => {
-      const prices = cards().map((c) => Number(c.textContent.match(/EUR([\d,.]+)/)[1].replace(/,/g, '')));
+      // Headline price renders as "€1,234.56" (symbol) — older cards said "EUR1234.56".
+      const prices = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/,/g, '')));
       expect(Math.max(...prices)).toBeLessThanOrEqual(150);
     });
   });
@@ -551,7 +553,7 @@ describe('infinite scroll', () => {
     await waitFor(() => expect(cards().length).toBeGreaterThan(20));
 
     const prices = cards().map((c) => {
-      const t = c.textContent.match(/EUR([\d,.]+)/);
+      const t = c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/);
       return t ? Number(t[1].replace(/,/g, '')) : 0;
     });
     const sorted = [...prices].sort((a, b) => a - b);
