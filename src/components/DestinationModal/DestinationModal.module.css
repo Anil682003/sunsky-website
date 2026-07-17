@@ -31,7 +31,7 @@
 .header {
   position: relative;
   display: flex; align-items: flex-start; gap: 16px;
-  padding: 24px 28px 0;
+  padding: 24px 28px 18px;
 }
 
 .headText { flex: 1; min-width: 0; }
@@ -76,71 +76,13 @@
   transform: rotate(90deg);
 }
 
-/* ── Search row ─────────────────────────────────────────────────────────── */
-
-.searchRow {
-  display: flex; align-items: center; gap: 14px;
-  padding: 16px 28px 14px;
-  border-bottom: 1px solid rgba(15, 40, 100, 0.07);
-}
-
-.searchBox {
-  position: relative;
-  flex: 1; max-width: 430px;
-  display: flex; align-items: center;
-}
-
-.searchIcon {
-  position: absolute; left: 15px;
-  color: var(--text-light);
-  pointer-events: none;
-}
-
-.searchInput {
-  width: 100%;
-  height: 44px;
-  padding: 0 40px 0 42px;
-  border: 1px solid rgba(31, 79, 216, 0.16);
-  border-radius: var(--r-full);
-  background: var(--blue-bg);
-  font-family: inherit;
-  font-size: 0.9rem;
-  color: var(--text);
-  outline: none;
-  transition: border-color 0.25s var(--ease), box-shadow 0.25s var(--ease), background 0.25s var(--ease);
-}
-.searchInput::placeholder { color: var(--text-light); }
-.searchInput:focus {
-  background: #fff;
-  border-color: var(--blue-deep);
-  box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.14);
-}
-
-.searchClear {
-  position: absolute; right: 10px;
-  width: 24px; height: 24px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: var(--r-full);
-  background: rgba(15, 40, 100, 0.08);
-  color: var(--text-sec);
-  cursor: pointer;
-  transition: all 0.2s var(--ease);
-}
-.searchClear:hover { background: rgba(15, 40, 100, 0.14); color: var(--text); }
-
-.searchHint {
-  margin-left: auto;
-  font-size: 0.78rem; font-weight: 600;
-  color: var(--text-light);
-  white-space: nowrap;
-}
-
 /* ── Main: rail + panel ─────────────────────────────────────────────────── */
 
 .main {
   flex: 1; min-height: 0;
   display: grid;
   grid-template-columns: 300px minmax(0, 1fr);
+  border-top: 1px solid rgba(15, 40, 100, 0.07);
 }
 
 .rail {
@@ -286,12 +228,35 @@
   animation: blockIn 0.28s var(--ease) both;
 }
 
+/* The open card is lifted and ringed, so which country you're editing reads
+   at a glance in a stack of collapsed ones. */
+.blockOpen {
+  border-color: rgba(31, 79, 216, 0.34);
+  box-shadow: 0 10px 30px rgba(15, 40, 100, 0.1);
+}
+
 .blockHead {
   display: flex; align-items: center; gap: 12px;
   padding: 13px 16px;
+  background: #fff;
+  cursor: pointer;
+  transition: background 0.2s var(--ease);
+}
+.blockHead:hover { background: var(--blue-bg); }
+.blockOpen .blockHead {
   background: linear-gradient(120deg, var(--blue-bg) 0%, #fff 70%);
   border-bottom: 1px solid rgba(15, 40, 100, 0.07);
 }
+
+.chev {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 18px; height: 18px;
+  color: var(--text-light);
+  transition: transform 0.24s var(--ease), color 0.2s var(--ease);
+}
+.chevOpen { transform: rotate(90deg); color: var(--blue-deep); }
+
 
 .blockFlag {
   flex-shrink: 0;
@@ -354,7 +319,17 @@
   color: var(--coral);
 }
 
-.blockBody { padding: 4px 0 8px; }
+/* Cap the open card so a 74-city country scrolls inside itself instead of
+   pushing the other selected countries out of reach. */
+.blockBody {
+  padding: 4px 0 8px;
+  max-height: 260px;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.blockBody::-webkit-scrollbar { width: 5px; }
+.blockBody::-webkit-scrollbar-track { background: transparent; }
+.blockBody::-webkit-scrollbar-thumb { background: rgba(15, 40, 100, 0.14); border-radius: 3px; }
 
 .group { padding: 8px 0 2px; }
 
@@ -600,16 +575,13 @@
 @media (max-width: 860px) {
   .main { grid-template-columns: 240px minmax(0, 1fr); }
   .route { display: none; }
-  .searchHint { display: none; }
 }
 
 @media (max-width: 640px) {
   .backdrop { padding: 10px; }
   .modal { max-height: 94vh; border-radius: 22px; }
-  .header { padding: 18px 18px 0; }
+  .header { padding: 18px 18px 14px; }
   .title { font-size: 1.12rem; }
-  .searchRow { padding: 12px 18px 12px; }
-  .searchBox { max-width: none; }
 
   .main { grid-template-columns: 1fr; grid-template-rows: 208px minmax(0, 1fr); }
   .rail {

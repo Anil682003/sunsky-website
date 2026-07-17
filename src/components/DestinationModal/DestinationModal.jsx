@@ -45,11 +45,12 @@ export default function DestinationModal({
   onClose,
 }) {
   const [draft, setDraft] = useState(value);
-  const [search, setSearch] = useState('');
   const [placesByCountry, setPlacesByCountry] = useState({});   // countryId → group
   const [errorIds, setErrorIds] = useState(() => new Set());
   const [expanded, setExpanded] = useState(() => new Set());    // `${countryId}-${type}`
-  const searchRef = useRef(null);
+  // Accordion: only one country's places are open at a time, so ten picked
+  // countries stay a ten-row list instead of ten full chip lists to scroll past.
+  const [activeId, setActiveId] = useState(null);
   const inflightRef = useRef(new Set());   // countryIds being fetched (guards duplicates)
 
   // Re-seed the draft from the committed value each time the modal opens
@@ -59,8 +60,9 @@ export default function DestinationModal({
     setPrevOpen(open);
     if (open) {
       setDraft(value);
-      setSearch('');
       setExpanded(new Set());
+      // Reopen focused on the last country picked, not the first.
+      setActiveId(value.countries?.[value.countries.length - 1]?.id ?? null);
     }
   }
 
@@ -107,25 +109,15 @@ export default function DestinationModal({
       });
   }, [open, draft.countries, placesByCountry, errorIds]);
 
-  const q = search.trim().toLowerCase();
-
-  const filteredCountries = useMemo(() => {
-    if (!q) return countries;
-    return countries.filter(
-      (c) =>
-        (c.name && c.name.toLowerCase().includes(q)) ||
-        (c.isoCode && c.isoCode.toLowerCase().includes(q))
-    );
-  }, [countries, q]);
-
   const selectedIds = useMemo(() => new Set(draft.countries.map((c) => c.id)), [draft.countries]);
   const selectedKeys = useMemo(() => new Set(draft.places.map((p) => p.key)), [draft.places]);
 
   const placesInCountry = (countryId) => draft.places.filter((p) => p.countryId === countryId);
 
   const toggleCountry = (country) => {
+    const isOn = selectedIds.has(country.id);
     setDraft((d) => {
-      if (selectedIds.has(country.id)) {
+      if (isOn) {
         return {
           countries: d.countries.filter((c) => c.id !== country.id),
           places: d.places.filter((p) => p.countryId !== country.id),
@@ -133,6 +125,17 @@ export default function DestinationModal({
       }
       return { ...d, countries: [...d.countries, country] };
     });
+    // Ticking a country focuses it (that's what you came to refine); unticking
+    // the focused one falls back to whichever country remains last.
+    if (isOn) {
+      setActiveId((prev) => {
+        if (prev !== country.id) return prev;
+        const rest = draft.countries.filter((c) => c.id !== country.id);
+        return rest[rest.length - 1]?.id ?? null;
+      });
+    } else {
+      setActiveId(country.id);
+    }
   };
 
   const togglePlace = (group, type, item) => {
@@ -173,27 +176,16 @@ export default function DestinationModal({
 
   const wholeCountries = draft.countries.filter((c) => !draft.places.some((p) => p.countryId === c.id));
   const totalDestinations = draft.places.length + wholeCountries.length;
-  const cityCount = draft.places.filter((p) => p.type === 'city').length;
-  const regionCount = draft.places.filter((p) => p.type === 'region').length;
-
-  const summaryText = draft.countries.length
-    ? [
-        `${draft.countries.length} ${draft.countries.length === 1 ? 'country' : 'countries'}`,
-        regionCount ? `${regionCount} region${regionCount === 1 ? '' : 's'}` : null,
-        cityCount ? `${cityCount} cit${cityCount === 1 ? 'y' : 'ies'}` : null,
-      ].filter(Boolean).join(' · ')
-    : 'Nothing selected yet';
 
   if (!open) return null;
 
   const renderChips = (group, type, items) => {
-    const matched = q ? items.filter((i) => i.name && i.name.toLowerCase().includes(q)) : items;
-    if (!matched.length) return null;
+    if (!items.length) return null;
 
     const expKey = `${group.countryId}-${type}`;
-    const isExpanded = expanded.has(expKey) || !!q;
-    const shown = isExpanded ? matched : matched.slice(0, CHIP_LIMIT);
-    const hidden = matched.length - shown.length;
+    const isExpanded = expanded.has(expKey);
+    const shown = isExpanded ? items : items.slice(0, CHIP_LIMIT);
+    const hidden = items.length - shown.length;
 
     return (
       <div className={styles.group}>
@@ -204,7 +196,7 @@ export default function DestinationModal({
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/></svg>
           )}
           {type === 'region' ? 'Regions' : 'Cities'}
-          <em className={styles.groupCount}>{matched.length}</em>
+          <em className={styles.groupCount}>{items.length}</em>
         </span>
         <div className={styles.chips}>
           {shown.map((item) => {
@@ -264,27 +256,6 @@ export default function DestinationModal({
           </button>
         </div>
 
-        {/* ── Search ── */}
-        <div className={styles.searchRow}>
-          <div className={styles.searchBox}>
-            <svg className={styles.searchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            <input
-              ref={searchRef}
-              className={styles.searchInput}
-              type="text"
-              placeholder="Search countries, regions or cities…"
-              value={search}
-              onChange={(e) => setSearch(e.target.value)}
-            />
-            {search && (
-              <button className={styles.searchClear} onClick={() => { setSearch(''); searchRef.current?.focus(); }} aria-label="Clear search">
-                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-              </button>
-            )}
-          </div>
-          <span className={styles.searchHint}>{summaryText}</span>
-        </div>
-
         {/* ── Body: countries rail + places panel ── */}
         <div className={styles.main}>
           <aside className={styles.rail}>
@@ -301,11 +272,11 @@ export default function DestinationModal({
             {!loading && error && (
               <div className={`${styles.railState} ${styles.railError}`}>Could not load countries. Please try again.</div>
             )}
-            {!loading && !error && filteredCountries.length === 0 && (
-              <div className={styles.railState}>No country matches &ldquo;{search}&rdquo;.</div>
+            {!loading && !error && countries.length === 0 && (
+              <div className={styles.railState}>No countries available.</div>
             )}
 
-            {!loading && !error && filteredCountries.map((c) => {
+            {!loading && !error && countries.map((c) => {
               const active = selectedIds.has(c.id);
               const picked = active ? placesInCountry(c.id).length : 0;
               return (
@@ -345,10 +316,23 @@ export default function DestinationModal({
               const isLoading = !group && !isError;
               const picked = placesInCountry(c.id);
               const whole = picked.length === 0;
+              const isOpen = activeId === c.id;
 
               return (
-                <div className={styles.block} key={c.id}>
-                  <div className={styles.blockHead}>
+                <div className={`${styles.block} ${isOpen ? styles.blockOpen : ''}`} key={c.id}>
+                  <div
+                    className={styles.blockHead}
+                    onClick={() => setActiveId(isOpen ? null : c.id)}
+                    role="button"
+                    tabIndex={0}
+                    aria-expanded={isOpen}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setActiveId(isOpen ? null : c.id); }
+                    }}
+                  >
+                    <span className={`${styles.chev} ${isOpen ? styles.chevOpen : ''}`}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
+                    </span>
                     <Flag flagUrl={c.flagUrl} flag={c.flag} className={styles.blockFlag} />
                     <div className={styles.blockText}>
                       <span className={styles.blockName}>{c.name}</span>
@@ -361,7 +345,7 @@ export default function DestinationModal({
                     <button
                       type="button"
                       className={`${styles.wholeChip} ${whole ? styles.wholeChipActive : ''}`}
-                      onClick={() => clearCountryPlaces(c.id)}
+                      onClick={(e) => { e.stopPropagation(); clearCountryPlaces(c.id); }}
                       title={`Search all of ${c.name}`}
                     >
                       {whole && <CheckIcon size={10} />}
@@ -370,14 +354,14 @@ export default function DestinationModal({
                     <button
                       type="button"
                       className={styles.blockRemove}
-                      onClick={() => toggleCountry(c)}
+                      onClick={(e) => { e.stopPropagation(); toggleCountry(c); }}
                       aria-label={`Remove ${c.name}`}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                     </button>
                   </div>
 
-                  {isLoading && (
+                  {isOpen && isLoading && (
                     <div className={styles.blockBody}>
                       <div className={styles.chips}>
                         {Array.from({ length: 8 }).map((_, i) => <span key={i} className={styles.skelChip} />)}
@@ -385,7 +369,7 @@ export default function DestinationModal({
                     </div>
                   )}
 
-                  {isError && (
+                  {isOpen && isError && (
                     <div className={styles.blockBody}>
                       <div className={styles.blockError}>
                         Couldn&rsquo;t load places for {c.name}.
@@ -394,18 +378,12 @@ export default function DestinationModal({
                     </div>
                   )}
 
-                  {!isLoading && !isError && group && (
+                  {isOpen && !isLoading && !isError && group && (
                     <div className={styles.blockBody}>
                       {renderChips({ ...group, name: c.name }, 'region', group.regions || [])}
                       {renderChips({ ...group, name: c.name }, 'city', group.cities || [])}
                       {!(group.regions || []).length && !(group.cities || []).length && (
                         <p className={styles.blockNote}>No regions or cities listed yet — we&rsquo;ll search the whole country.</p>
-                      )}
-                      {q &&
-                        !(group.regions || []).some((r) => r.name?.toLowerCase().includes(q)) &&
-                        !(group.cities || []).some((d) => d.name?.toLowerCase().includes(q)) &&
-                        ((group.regions || []).length > 0 || (group.cities || []).length > 0) && (
-                        <p className={styles.blockNote}>No match for &ldquo;{search}&rdquo; in {c.name}.</p>
                       )}
                     </div>
                   )}
