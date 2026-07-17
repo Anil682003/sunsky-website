@@ -91,6 +91,8 @@ const EMPTY_FILTERS = {
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80';
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Display symbol for the headline price only — fine print keeps the ISO code.
+const CCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', TRY: '₺' };
 
 const getBoardLabel = (code) => BOARD_LABELS[code] || code || '';
 const getRoomLabel  = (code) => ROOM_LABELS[code]  || code || '';
@@ -1068,7 +1070,7 @@ export default function Results() {
           <path
             className={styles.flightPath}
             d="M10 160 Q 220 30 590 70"
-            stroke="rgba(255,255,255,0.3)"
+            stroke="rgba(255,255,255,0.45)"
             strokeWidth="2"
             strokeLinecap="round"
             strokeDasharray="2 12"
@@ -1222,6 +1224,11 @@ export default function Results() {
                 const dispStars = info?.stars ?? h.stars;
                 const dispImg   = info ? bestImg(info.images, FALLBACK_IMG) : h.img;
                 const infoReady = !!info;
+                // Headline price split into whole + decimals (toFixed FIRST, so
+                // 99.999 renders 100.00 — trunc-then-format would show 99.00).
+                const total = Number(h.totalAmount);
+                const [totalMajorRaw, totalDec] = Number.isFinite(total) ? total.toFixed(2).split('.') : ['—', null];
+                const totalMajor = totalDec != null ? Number(totalMajorRaw).toLocaleString('en-GB') : totalMajorRaw;
                 return (
                 <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
                   {/* Image column */}
@@ -1313,18 +1320,23 @@ export default function Results() {
                   {/* Price rail — internal contract/rate-plan names are never
                       shown to customers; refundability already has its own chip. */}
                   <div className={styles.rcPriceRail}>
-                    <div className={styles.rcPriceTop} />
                     <div className={styles.rcPriceInfo}>
+                      {/* Only rendered when the API says the rate IS refundable — the
+                          false case already has its own chip on the image. */}
+                      {h.refundable === true && (
+                        <span className={styles.rcRefundable}><CheckIcon />Refundable</span>
+                      )}
                       <span className={styles.rcPriceLabel}>
                         Total{nights > 0 ? ` · ${nights} nights` : ''}
                       </span>
                       <div className={styles.rcPriceAmount}>
-                        <span className={styles.rcPriceCcy}>{h.currency}</span>
-                        {h.totalAmount?.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
+                        {totalMajor}
+                        {totalDec != null && <span className={styles.rcPriceDec}>.{totalDec}</span>}
                       </div>
-                      {nights > 0 && (
+                      {nights > 0 && Number.isFinite(total) && (
                         <div className={styles.rcPriceMeta}>
-                          <strong>{h.currency} {(h.totalAmount / nights).toFixed(2)}</strong> / night
+                          <strong>{h.currency} {(total / nights).toFixed(2)}</strong> / night
                         </div>
                       )}
                       <button
