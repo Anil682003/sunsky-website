@@ -96,6 +96,15 @@ export const useCountries = () =>
     errorMessage: 'Could not load countries',
   });
 
+// Regions + cities of the given countries, grouped per country with its flag.
+// Imperative (not a hook) — the destination picker fetches on demand as the
+// user ticks countries and keeps its own per-country cache.
+export const fetchGeoPlaces = async (countryIds) => {
+  if (!countryIds?.length) return [];
+  const res = await axiosInstance.get(ENDPOINTS.geoPlaces(countryIds));
+  return res?.data?.data ?? [];
+};
+
 // Holiday/theme types as configured in the admin dashboard.
 export const useHolidayTypes = () =>
   useApi(ENDPOINTS.holidayTypes, {

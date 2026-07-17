@@ -18,6 +18,8 @@ export const ENDPOINTS = {
 
   // Geo
   countries:       '/website/geo/countries',
+  geoPlaces: (countryIds) =>
+    `/website/geo/places?countryIds=${countryIds.map((id) => encodeURIComponent(id)).join(',')}`,
 
   // Holiday types (linked to countries in the admin dashboard)
   holidayTypes:    '/website/holiday-types',

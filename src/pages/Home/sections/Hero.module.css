@@ -168,6 +168,23 @@
 .sfLabel { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-light); white-space:nowrap; }
 .sfValue { font-size:14px; color:var(--text); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; width:100%; }
 .sfPlaceholder { color:var(--text-light); font-weight:500; }
+
+/* Mini flag strip ahead of the destination label (multi-country selection).
+   Flags overlap like a fanned hand of cards — earlier picks on top. */
+.sfFlags { display:inline-flex; align-items:center; margin-right:7px; vertical-align:-2px; }
+.sfFlag {
+  position:relative;
+  width:18px; height:13px; object-fit:cover;
+  border-radius:2.5px;
+  border:1px solid rgba(255,255,255,0.9);
+  box-shadow:0 1px 3px rgba(15,40,100,0.25);
+}
+.sfFlag + .sfFlag, .sfFlags .sfFlagEmoji + .sfFlagEmoji { margin-left:-6px; }
+.sfFlag:nth-child(1) { z-index:4; }
+.sfFlag:nth-child(2) { z-index:3; }
+.sfFlag:nth-child(3) { z-index:2; }
+.sfFlag:nth-child(4) { z-index:1; }
+.sfFlagEmoji { font-size:13px; line-height:1; }
 .sfInput {
   font-size:14px; color:var(--text); font-weight:500;
   background:none; border:none; outline:none; padding:0; width:100%;
