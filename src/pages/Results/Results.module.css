@@ -457,6 +457,42 @@
 }
 .cascadeSelect { min-width: 100%; }
 
+/* ── Scope multi-select (Where: countries + destinations) ── */
+.scopeSearch {
+  width: 100%; box-sizing: border-box; padding: 7px 10px; margin-bottom: 8px;
+  border: 1px solid var(--border, #dfe3ea); border-radius: 8px; font-size: 12.5px;
+  background: var(--surface, #fff); color: var(--text-pri, #1a1f2b);
+}
+.scopeSearch:focus { outline: none; border-color: var(--blue-deep, #2563eb); }
+/* Scrollable checkbox list — long option lists (52 countries) stay contained. */
+.scopeList {
+  max-height: 190px; overflow-y: auto; margin: 0 -4px 6px; padding: 0 4px;
+  display: flex; flex-direction: column;
+}
+.facetScroll { max-height: 230px; overflow-y: auto; margin: 0 -4px; padding: 0 4px; }
+/* Selected-scope chips */
+.scopeChips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }
+.scopeChip {
+  display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px;
+  background: var(--blue-light, #eef4ff); color: var(--blue-deep, #2563eb);
+  border-radius: 999px; font-size: 11.5px; font-weight: 600;
+}
+.scopeChipX {
+  cursor: pointer; border: none; background: none; color: inherit; padding: 0;
+  font-size: 14px; line-height: 1; opacity: 0.7;
+}
+.scopeChipX:hover { opacity: 1; }
+.applyScopeBtn {
+  width: 100%; margin-top: 6px; padding: 8px; border: none; border-radius: 8px;
+  background: var(--blue-deep, #2563eb); color: #fff; font-size: 12.5px; font-weight: 600;
+  cursor: pointer;
+}
+.applyScopeBtn:disabled { opacity: 0.5; cursor: default; }
+.scopeGroupLabel {
+  font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+  color: var(--text-sec, #6b7280); margin: 8px 0 4px;
+}
+
 /* ════════ Results ════════ */
 .results { flex: 1; min-width: 0; }
 .resultsList { display: flex; flex-direction: column; gap: 22px; }

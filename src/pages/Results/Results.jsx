@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
-import { fetchThemes, fetchMatchingHotels, fetchCountries, fetchDestinations } from '../../api/filters';
+import { fetchFacets, fetchCountries, fetchDestinations } from '../../api/filters';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -11,6 +11,10 @@ const PAGE_SIZE = 20;
 // Default age used for a newly-added child until the traveller picks one. Hotelbeds requires
 // an age per child; without it a family search 400s, so we never send a childless-age.
 const CHILD_AGE_DEFAULT = 8;
+// Above these sizes the cheapest request goes as a POST (JSON body) instead of a GET, because a
+// whole-country content-filter set (thousands of hotelCodes) is far too long for a URL.
+const LARGE_CODES = 150;
+const MANY_DESTINATIONS = 8;
 
 const bestImg = (images, fallback) => {
   if (!Array.isArray(images) || images.length === 0) return fallback;
@@ -30,28 +34,15 @@ const ROOM_LABELS = {
   VIL: 'Villa',        ROO: 'Room',
 };
 
-// Codes the cache actually filters on — the exact values the `boards` / `roomTypes`
-// query params are matched against server-side.
-//
-// These are the codes that genuinely occur in the cached inventory (verified against
-// the live feed), NOT the ones in the cache demo's display map — that map uses
-// Hotelbeds' STE/JNR/TRP, but the ingested data stores SUI/JSU/TPL. Offering a code
-// the data never contains gives the user a filter that always returns nothing.
-// Board codes the cache ACTUALLY holds (verified against live inventory: BB RO HB AI FB SC
-// dominate, plus a long tail of B2/DB/CB/AS/… ). 'UAI' was removed — it was offered but NOT
-// a single hotel in the cache carries it, so ticking it always returned zero. Only the six
-// with real volume AND a human label are offered as quick filters; the rare boards still
-// come back in results, just aren't first-class filter chips.
-const BOARD_FILTERS = ['RO', 'SC', 'BB', 'HB', 'FB', 'AI'];
-const ROOM_FILTERS  = ['DBL', 'DBT', 'TWN', 'TPL', 'FAM', 'SUI', 'JSU', 'STU', 'APT', 'BUN', 'ROO'];
+// Room codes the cache ACTUALLY holds (verified against live inventory). Offering a code the
+// data never contains gives the user a filter that always returns nothing.
+const ROOM_FILTERS = ['DBL', 'DBT', 'TWN', 'TPL', 'FAM', 'SUI', 'JSU', 'STU', 'APT', 'BUN', 'ROO'];
 
 const SORT_OPTIONS = [
   { value: 'price_asc',  label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
-  // Filter 3 — distance sorts. Applied CLIENT-SIDE using the distances from the admin
-  // content API (the cache prices by price and does not know distances). Only reorders the
-  // hotels already loaded — a true global distance sort would need the cache to hold
-  // distances, which is a later enhancement.
+  // Distance sorts. Applied CLIENT-SIDE using the distances from the admin content API (the
+  // cache prices by price and does not know distances). Only reorders the hotels already loaded.
   { value: 'distance_beach',  label: 'Distance to beach' },
   { value: 'distance_centre', label: 'Distance to centre' },
 ];
@@ -60,7 +51,7 @@ const REFUNDABLE_OPTIONS = [
   { value: 'yes', label: 'Refundable' },
   { value: 'no',  label: 'Non-ref.' },
 ];
-// Filter 5 — transport type. Maps to the cache `searchType` (see buildQS).
+// Transport type. Maps to the cache `searchType` (see buildRequest).
 const TRANSPORT_OPTIONS = [
   { value: 'hotel_only', label: 'Own transport' },
   { value: 'package',    label: 'Flight + hotel' },
@@ -71,21 +62,15 @@ const PRICE_BASIS_OPTIONS = [
 ];
 
 const PRICE_STEP = 50;
-// Placeholder span for the slider until the first results land and tell us the real
-// price range. Once they do, the ceiling tracks the data — a fixed floor would squash
-// a €60–€250 result set into the left quarter of the track, and would never come down
-// when switching to the (roughly halved) per-person scale.
 const PRICE_CEILING_FALLBACK = 1000;
+
+// Content facets narrow the hotelCodes via the admin API; price facets go straight to the cache.
 const EMPTY_FILTERS = {
   boards: [], roomTypes: [], minPrice: '', maxPrice: '',
   priceBasis: 'total', refundable: 'any', sortBy: 'price_asc',
-  // Content filters (holiday theme). `themes` = selected theme ids; `hotelCodes` = the codes
-  // the admin content API resolved for {destination, themes}. hotelCodes is what actually
-  // gets sent to the cache; null means "not resolved / no content filter" (whole destination).
-  themes: [], hotelCodes: null,
-  // Transport type (Filter 5). 'hotel_only' = own transport → cache searchType=HOTEL_ONLY
-  // (excludes package-only/opaque rates). 'package' = flight + hotel → searchType=PACKAGE
-  // (lets package rates in; the flight leg is added on the detail/checkout screens).
+  // Content facets (resolved against the admin content API into a hotelCode set for the cache).
+  themes: [], stars: [], facilities: [], activities: [],
+  // Transport type. 'hotel_only' → cache searchType=HOTEL_ONLY; 'package' → PACKAGE.
   transport: 'hotel_only',
 };
 
@@ -97,15 +82,25 @@ const getRoomLabel  = (code) => ROOM_LABELS[code]  || code || '';
 
 // How many filters the user has actively changed — drives the sidebar count pill.
 const countActiveFilters = (f) =>
-  f.boards.length + f.roomTypes.length + (f.themes?.length || 0) +
+  f.boards.length + f.roomTypes.length +
+  (f.themes?.length || 0) + (f.stars?.length || 0) +
+  (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0);
+
+// Any content facet active means the cache must be restricted to the resolved hotelCodes.
+const hasContentFacet = (f) =>
+  (f.themes?.length || 0) + (f.stars?.length || 0) +
+  (f.facilities?.length || 0) + (f.activities?.length || 0) > 0;
+
 const fmtDate = (iso) => {
   if (!iso) return '';
   const [, m, d] = iso.split('-');
   return `${parseInt(d)} ${MONTHS[parseInt(m) - 1]}`;
 };
+
+const csv = (s) => (s ? String(s).split(',').map((x) => x.trim()).filter(Boolean) : []);
 
 const Icon = ({ d, size = 14, sw = 1.8 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth={sw} strokeLinecap="round" strokeLinejoin="round">
@@ -166,8 +161,21 @@ export default function Results() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
-  const destCode         = params.get('destination')      || '';
-  const destinationLabel = params.get('destinationLabel') || destCode;
+  // ── SCOPE (multi-country / multi-destination) ──────────────────────────────────
+  // The search is defined by a scope of countries and/or destinations (union). Seeded from the
+  // URL and editable in the sidebar. Back-compat: a legacy `?destination=AYT` becomes a
+  // single-destination scope, so existing links keep working.
+  const urlCountries    = params.get('countries')    || '';
+  const urlDestinations = params.get('destinations') || '';
+  const legacyDest      = params.get('destination')  || '';
+  const urlLabel        = params.get('destinationLabel') || params.get('label') || '';
+
+  const scope = useMemo(() => ({
+    countries:    csv(urlCountries),
+    destinations: urlDestinations ? csv(urlDestinations) : (legacyDest ? [legacyDest] : []),
+  }), [urlCountries, urlDestinations, legacyDest]);
+  const scopeKey  = `${scope.countries.join(',')}|${scope.destinations.join(',')}`;
+  const hasScope  = scope.countries.length > 0 || scope.destinations.length > 0;
 
   const defaultCheckIn  = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]; })();
   const defaultCheckOut = (() => { const d = new Date(); d.setDate(d.getDate() + 37); return d.toISOString().split('T')[0]; })();
@@ -183,11 +191,8 @@ export default function Results() {
   const [localCheckIn,  setLocalCheckIn]  = useState(initCheckIn);
   const [localCheckOut, setLocalCheckOut] = useState(initCheckOut);
 
-  // Filter 4 — PER-ROOM occupancy. `roomsConfig` is one entry per room, each with its own
-  // adults + children + a child age per child (Hotelbeds requires an age for every child).
-  // The flat totals the cache needs (adults/children/rooms/childAges/maxPerRoom) are DERIVED
-  // from this below, so uneven room splits ("room 1: 2 adults, room 2: 2 adults + 1 child")
-  // are priced correctly instead of an even ceil-split.
+  // PER-ROOM occupancy. One entry per room, each with its own adults + children + a child age
+  // per child. The flat totals the cache needs are DERIVED below.
   const [roomsConfig, setRoomsConfig] = useState(() => {
     const nRooms    = Math.max(1, parseInt(initRooms, 10) || 1);
     const nAdults   = Math.max(1, parseInt(initAdults, 10) || 2);
@@ -209,7 +214,6 @@ export default function Results() {
   const maxAdultsPerRoom   = Math.max(1, ...roomsConfig.map((r) => r.adults));
   const maxChildrenPerRoom = Math.max(0, ...roomsConfig.map((r) => r.children));
 
-  // Room editing helpers (bounded: 1–6 adults, 0–4 children per room, 1–5 rooms).
   const changeRoomAdults = (i, delta) => setRoomsConfig((rc) =>
     rc.map((r, idx) => (idx === i ? { ...r, adults: Math.max(1, Math.min(6, r.adults + delta)) } : r)));
   const changeRoomChildren = (i, delta) => setRoomsConfig((rc) =>
@@ -231,26 +235,30 @@ export default function Results() {
     adults: initAdults, children: initChildren, rooms: initRooms,
   });
 
-  // Result filters — mirrored 1:1 onto the cache's /contracts/cheapest query params.
-  // `filters` drives the UI (instant); `applied` is the debounced copy that drives
-  // the fetch, so dragging a price handle doesn't fire a request per pixel.
+  // Result filters. `filters` drives the UI (instant); `applied` is the debounced copy.
   const [filters, setFilters] = useState(EMPTY_FILTERS);
   const [applied, setApplied] = useState(EMPTY_FILTERS);
 
-  // Holiday-theme filter options (loaded once from the admin content API).
-  // `themesStatus`: 'loading' | 'ok' | 'error' — drives a visible state so the section is
-  // ALWAYS shown (even while loading or if the admin API is unreachable), never silently gone.
-  const [themeOptions, setThemeOptions] = useState([]);
-  const [themesStatus, setThemesStatus] = useState('loading');
-  // hotelCode → content attributes (stars, beach/centre distances) from the admin API, used
-  // for the distance sorts. Refreshed whenever the destination or selected themes change.
-  const [attrMap, setAttrMap] = useState({});
+  // ── FACETS (from the admin content API over the scope) ──────────────────────────
+  // holiday / stars / facilities / activities, each with a hotel count. `facetsStatus`:
+  // 'loading' | 'ok' | 'error'. attrMap = hotelCode → attributes (stars, distances).
+  const [facets, setFacets]           = useState({ holiday: [], stars: [], facilities: [], activities: [] });
+  const [facetsStatus, setFacetsStatus] = useState('loading');
+  const [attrMap, setAttrMap]         = useState({});
 
-  // Filter 2 — country → destination cascade (a way to jump to a different destination).
-  const [countryOptions, setCountryOptions]         = useState([]);
-  const [countriesStatus, setCountriesStatus]       = useState('loading');
-  const [cascadeCountry, setCascadeCountry]         = useState('');
-  const [destinationOptions, setDestinationOptions] = useState([]);
+  // PRICE SCOPE — what the cache actually prices: the matched destinations, plus a hotelCodes
+  // restriction when a content facet is active (null = whole scope). Set by the facets
+  // resolution below; the price fetch is gated on it.
+  const [priceScope, setPriceScope]   = useState(null);
+
+  // Scope selection UI (draft, applied via the button so we don't refetch per checkbox).
+  const [countryOptions, setCountryOptions]   = useState([]);
+  const [countriesStatus, setCountriesStatus] = useState('loading');
+  const [countrySearch, setCountrySearch]     = useState('');
+  const [draftCountries, setDraftCountries]       = useState(() => new Set(scope.countries));
+  const [draftDestinations, setDraftDestinations] = useState(() => new Set(scope.destinations));
+  const [browseCountry, setBrowseCountry]         = useState('');
+  const [browseDestOptions, setBrowseDestOptions] = useState([]);
 
   const [loading, setLoading]         = useState(true);
   const [filtering, setFiltering]     = useState(false);
@@ -259,9 +267,12 @@ export default function Results() {
   const [allHotels, setAllHotels]     = useState([]);
   const [nights, setNights]           = useState(0);
   const [cheapestCode, setCheapestCode] = useState(null);
+  // Dynamic board facets from the cache: { boardCode: hotelCount } for THIS search.
+  const [boardFacets, setBoardFacets] = useState({});
   const [liked, setLiked]             = useState({});
   const isAuth = useSelector((s) => s.auth?.isAuthenticated);
   const { showToast } = useToast();
+  const [drawerOpen, setDrawerOpen]   = useState(false);
 
   // Load the user's existing favourites so saved hotels show a filled heart.
   useEffect(() => {
@@ -275,14 +286,9 @@ export default function Results() {
     });
     return () => { active = false; };
   }, [isAuth]);
-  const [drawerOpen, setDrawerOpen]   = useState(false);
 
-  // Upper bound of the price sliders, in the currently-selected price basis.
-  // null = not discovered yet. Within one search+basis it only grows (later pages
-  // bring pricier hotels); it is reset to null — never merely lowered — when the
-  // search or the basis changes, so the next unfiltered response redefines it.
-  // Recomputing it from *filtered* results would collapse the track the moment a
-  // price bound is applied, which is why growCeiling is gated on "no bounds set".
+  // Upper bound of the price sliders, in the currently-selected price basis. null = not
+  // discovered yet. Reset to null (never merely lowered) when the search or basis changes.
   const [priceCeiling, setPriceCeiling] = useState(null);
 
   // Lazy hotel-info loading
@@ -295,24 +301,22 @@ export default function Results() {
   const seenCodesRef   = useRef(new Set());
 
   // Debounce the UI filters into the committed set that actually drives fetching.
-  // The initial pass is a no-op: `filters` and `applied` start as the same object,
-  // so React bails out of the identical setState and no extra fetch fires.
   useEffect(() => {
     const t = setTimeout(() => setApplied(filters), 300);
     return () => clearTimeout(t);
   }, [filters]);
 
-  // Load the holiday-theme options once (from the admin content API). The section is always
-  // rendered; this just fills it. On error we flip to 'error' so the UI can say so.
-  useEffect(() => {
-    let live = true;
-    fetchThemes()
-      .then((t) => { if (live) { setThemeOptions(t); setThemesStatus('ok'); } })
-      .catch(() => { if (live) setThemesStatus('error'); });
-    return () => { live = false; };
-  }, []);
+  // Keep the scope draft in sync when the URL scope changes (e.g. back/forward navigation).
+  // Adjust-state-during-render (React's documented pattern for resetting state on changed
+  // inputs) rather than an effect, so the draft is correct on the very next render.
+  const [draftScopeKey, setDraftScopeKey] = useState(scopeKey);
+  if (draftScopeKey !== scopeKey) {
+    setDraftScopeKey(scopeKey);
+    setDraftCountries(new Set(scope.countries));
+    setDraftDestinations(new Set(scope.destinations));
+  }
 
-  // Filter 2 — load the country list once (only countries that actually have hotels).
+  // Load the country list once (only countries that actually have hotels).
   useEffect(() => {
     let live = true;
     fetchCountries()
@@ -321,196 +325,207 @@ export default function Results() {
     return () => { live = false; };
   }, []);
 
-  // Filter 2 — load destinations whenever a country is picked in the cascade.
+  // Load destinations for the "browse" country (the destination picker in the scope editor).
   useEffect(() => {
-    if (!cascadeCountry) { setDestinationOptions([]); return; }
+    if (!browseCountry) return;
     let live = true;
-    fetchDestinations(cascadeCountry).then((d) => { if (live) setDestinationOptions(d); }).catch(() => { if (live) setDestinationOptions([]); });
+    fetchDestinations(browseCountry).then((d) => { if (live) setBrowseDestOptions(d); }).catch(() => { if (live) setBrowseDestOptions([]); });
     return () => { live = false; };
-  }, [cascadeCountry]);
+  }, [browseCountry]);
+  // Options actually shown (empty unless a browse country is selected — no effect setState needed).
+  const destPickerOptions = browseCountry ? browseDestOptions : [];
 
-  // CONTENT-FILTER RESOLUTION. When the selected theme(s) or the destination change, ask the
-  // admin content API which hotelCodes match, and write them into `filters.hotelCodes`. That
-  // change flows through the debounce above into `applied`, so the cache is re-queried for
-  // exactly those hotels. Keyed on a STRING of the theme ids (stable across the hotelCodes
-  // write, so this cannot loop). No themes selected → clear hotelCodes (whole destination).
-  const themeKey = (filters.themes || []).join(',');
+  // ── FACETS RESOLUTION ──────────────────────────────────────────────────────────
+  // When the scope OR the selected content facets change, ask the admin content API for the
+  // facet counts + the matching hotelCodes (narrowed by the selected facets) + the matched
+  // destinations. Sets `facets` (counts stay scope-level so options never vanish), `attrMap`
+  // (for distance sorts) and `priceScope` (what the cache prices). Keyed on a STRING of the
+  // content facets so it can't loop.
+  const contentKey = `${applied.themes.join(',')}|${applied.stars.join(',')}|${applied.facilities.join(',')}|${applied.activities.join(',')}`;
   useEffect(() => {
-    if (!destCode) return;
-    const ids = (filters.themes || []);
+    if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
     let live = true;
-    // Always ask the admin content API for this destination (with any themes): the response
-    // gives BOTH the theme-matched hotelCodes AND the per-hotel attributes (distances) the
-    // distance sorts need — so we fetch even with no theme selected.
-    // Guard: with NO themes the target hotelCodes is null. If it's already null (e.g. first
-    // mount, or after clearing themes) DON'T create a new filters object — that would ripple
-    // through the debounce and fire a redundant second search. Only a real change refetches.
-    const applyCodes = (next) => setFilters((f) => (f.hotelCodes === next ? f : { ...f, hotelCodes: next }));
-    fetchMatchingHotels({ destinationCode: destCode, themes: ids })
+    setFacetsStatus('loading');
+    const selected = {
+      themes: applied.themes, stars: applied.stars,
+      facilities: applied.facilities, activities: applied.activities,
+    };
+    fetchFacets(scope, selected)
       .then((r) => {
         if (!live) return;
+        setFacets(r.facets || { holiday: [], stars: [], facilities: [], activities: [] });
         setAttrMap(r.attributes || {});
-        // hotelCodes restricts the cache ONLY when a theme is active; no theme → whole dest.
-        applyCodes(ids.length ? (r.hotelCodes || []) : null);
+        const dests = (r.matchedDestinations && r.matchedDestinations.length)
+          ? r.matchedDestinations
+          : scope.destinations;                        // fallback if admin returned none
+        setPriceScope({
+          destinations: dests,
+          // Restrict the cache to the resolved hotelCodes ONLY when a content facet is active.
+          hotelCodes: hasContentFacet(applied) ? (r.hotelCodes || []) : null,
+        });
+        setFacetsStatus('ok');
       })
       .catch(() => {
         if (!live) return;
+        setFacets({ holiday: [], stars: [], facilities: [], activities: [] });
         setAttrMap({});
-        // Fail safe: with a theme active, show nothing rather than silently ignore it.
-        applyCodes(ids.length ? [] : null);
+        setFacetsStatus('error');
+        // Admin down: still price the scope's explicit destinations (content facets can't apply).
+        setPriceScope({
+          destinations: scope.destinations,
+          hotelCodes: hasContentFacet(applied) ? [] : null,
+        });
       });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [themeKey, destCode]);
+  }, [scopeKey, contentKey]);
 
-  // Fetch params ref so loadMore always sees latest values
-  const fetchParamsRef    = useRef(fetchParams);
-  const destCodeRef       = useRef(destCode);
-  const childAgesRef      = useRef(childAges);
-  const destLabelRef      = useRef(destinationLabel);
-  const appliedRef        = useRef(applied);
-  useEffect(() => { fetchParamsRef.current = fetchParams; },    [fetchParams]);
-  useEffect(() => { destCodeRef.current    = destCode; },       [destCode]);
-  useEffect(() => { childAgesRef.current   = childAges; },      [childAges]);
-  useEffect(() => { destLabelRef.current   = destinationLabel; }, [destinationLabel]);
-  useEffect(() => { appliedRef.current     = applied; },        [applied]);
+  // Refs so loadMore always sees latest values
+  const fetchParamsRef = useRef(fetchParams);
+  const childAgesRef   = useRef(childAges);
+  const appliedRef     = useRef(applied);
+  const priceScopeRef  = useRef(priceScope);
+  useEffect(() => { fetchParamsRef.current = fetchParams; }, [fetchParams]);
+  useEffect(() => { childAgesRef.current   = childAges; },   [childAges]);
+  useEffect(() => { appliedRef.current     = applied; },     [applied]);
+  useEffect(() => { priceScopeRef.current  = priceScope; },  [priceScope]);
 
-  // Only ever *raise* the slider ceiling, and only from a price-unfiltered response —
-  // otherwise the track shrinks to the filtered max and traps the user below their
-  // own selection.
+  // Only ever *raise* the slider ceiling, and only from a price-unfiltered response.
   const growCeiling = (amounts) => {
     if (!amounts.length) return;
     const rounded = Math.ceil(Math.max(...amounts) / PRICE_STEP) * PRICE_STEP;
     setPriceCeiling((prev) => Math.max(prev ?? 0, rounded, PRICE_STEP));
   };
 
-  const buildQS = (fp, dc, ca, page, f) => {
-    const roomsN = Math.max(1, parseInt(fp.rooms, 10) || 1);
-    // Prefer the EXACT per-room maxes from the occupancy editor (fp.maxAdultsPerRoom); fall
-    // back to an even ceil-split for legacy/URL-seeded searches that didn't set them.
-    const maxA = fp.maxAdultsPerRoom   ?? String(Math.ceil((parseInt(fp.adults, 10)   || 1) / roomsN));
-    const maxC = fp.maxChildrenPerRoom ?? String(Math.ceil((parseInt(fp.children, 10) || 0) / roomsN));
-    const qs = new URLSearchParams({
-      destination:        dc,
+  // Build the cheapest request. Returns { url, opts } for fetch(). Uses POST (JSON body) when
+  // the hotelCodes set or the destination list would make the URL too long; else GET.
+  const buildRequest = (fp, ps, ca, page, f) => {
+    const roomsCount = Math.max(1, parseInt(fp.rooms, 10) || 1);
+    const maxA = fp.maxAdultsPerRoom   ?? String(Math.ceil((parseInt(fp.adults, 10)   || 1) / roomsCount));
+    const maxC = fp.maxChildrenPerRoom ?? String(Math.ceil((parseInt(fp.children, 10) || 0) / roomsCount));
+
+    const body = {
+      destinations:       ps.destinations,
       checkIn:            fp.checkIn,
       checkOut:           fp.checkOut,
       adults:             fp.adults,
       children:           fp.children,
-      rooms:              String(roomsN),
+      rooms:              String(roomsCount),
       limit:              String(PAGE_SIZE),
       page:               String(page),
       source:             'combined',
       maxAdultsPerRoom:   maxA,
       maxChildrenPerRoom: maxC,
-    });
-    // Prefer the ages the occupancy editor collected (fp.childAges); else the URL-seeded ca.
+    };
     const ages = fp.childAges || ca;
-    if (ages) qs.set('childAges', ages);
+    if (ages) body.childAges = ages;
 
-    // ── Result filters — omitted entirely when at their default, so the cache can
-    //    take its fast unfiltered path (see `hasFilter` in the contracts controller).
-    if (f.boards.length)     qs.set('boards',    f.boards.join(','));
-    if (f.roomTypes.length)  qs.set('roomTypes', f.roomTypes.join(','));
+    if (f.boards.length)    body.boards    = f.boards;
+    if (f.roomTypes.length) body.roomTypes = f.roomTypes;
 
-    // A min of 0 and a max sitting at the (still-growing) ceiling both mean
-    // "no bound" — sending them would exclude pricier hotels from later pages.
     const min = f.minPrice === '' ? null : Number(f.minPrice);
     const max = f.maxPrice === '' ? null : Number(f.maxPrice);
-    if (Number.isFinite(min) && min > 0)  qs.set('minPrice', String(min));
-    if (Number.isFinite(max) && max > 0 && !(min != null && max < min)) {
-      qs.set('maxPrice', String(max));
-    }
-    if (f.priceBasis !== 'total') qs.set('priceBasis', f.priceBasis);
-    if (f.refundable !== 'any')   qs.set('refundable', f.refundable);
-    // Only PRICE sorts go to the cache (its sortBy enum is price_asc|price_desc). Distance
-    // sorts are client-side, so we leave the cache on its default price_asc and reorder here.
-    if (f.sortBy === 'price_desc') qs.set('sortBy', 'price_desc');
-    // Transport type (Filter 5) → cache searchType. Only sent when 'package' (PACKAGE),
-    // since HOTEL_ONLY is the cache default and omitting it keeps the fast unfiltered path.
-    if (f.transport === 'package') qs.set('searchType', 'PACKAGE');
+    if (Number.isFinite(min) && min > 0)  body.minPrice = String(min);
+    if (Number.isFinite(max) && max > 0 && !(min != null && max < min)) body.maxPrice = String(max);
+    if (f.priceBasis !== 'total') body.priceBasis = f.priceBasis;
+    if (f.refundable !== 'any')   body.refundable = f.refundable;
+    if (f.sortBy === 'price_desc') body.sortBy = 'price_desc';
+    if (f.transport === 'package') body.searchType = 'PACKAGE';
 
-    // Content-filter hand-off: when the admin content API has resolved a hotelCode set for
-    // the chosen theme(s), the cache prices ONLY those. An empty resolved set means "themes
-    // selected but nothing matched" → send a sentinel so the cache returns nothing, rather
-    // than falling back to the whole destination (which would ignore the filter). null =
-    // no content filter at all → omitted, whole destination as before.
-    if (Array.isArray(f.hotelCodes)) {
-      qs.set('hotelCodes', f.hotelCodes.length ? f.hotelCodes.join(',') : '__none__');
+    // Content-filter hand-off. An empty resolved set means "facets selected but nothing matched"
+    // → send a sentinel so the cache returns nothing (rather than the whole scope). null = no
+    // content filter → omitted.
+    if (Array.isArray(ps.hotelCodes)) {
+      body.hotelCodes = ps.hotelCodes.length ? ps.hotelCodes : ['__none__'];
     }
 
-    return qs.toString();
+    const codeCount = Array.isArray(ps.hotelCodes) ? ps.hotelCodes.length : 0;
+    const usePost = codeCount > LARGE_CODES || ps.destinations.length > MANY_DESTINATIONS;
+    if (usePost) {
+      return {
+        url: `${CONTRACTS_API}/contracts/cheapest`,
+        opts: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) },
+      };
+    }
+    const qs = new URLSearchParams();
+    for (const [k, v] of Object.entries(body)) qs.set(k, Array.isArray(v) ? v.join(',') : v);
+    return { url: `${CONTRACTS_API}/contracts/cheapest?${qs.toString()}`, opts: {} };
   };
 
   const mapContract = (c, label) => {
-    // The cache returns `boardCode` on external results but `board` on internal
-    // ones, and /contracts/cheapest?source=combined interleaves both. Reading only
-    // one of the two left every external hotel with no board at all.
+    // The cache returns `boardCode` on external results but `board` on internal ones.
     const bc = (c.boardCode ?? c.board ?? '') || '';
     return {
-    id:           c.hotelCode,
-    hotelCode:    c.hotelCode,
-    name:         c.hotelName ?? `Hotel ${c.hotelCode}`,
-    stars:        null,
-    board:        getBoardLabel(bc),
-    boardCode:    bc,
-    boardTags:    bc ? [getBoardLabel(bc)] : [],
-    roomType:     c.roomType,
-    roomLabel:    getRoomLabel(c.roomType),
-    characteristic: c.characteristic,
-    classification: c.classification,
-    refundable:   c.refundable,
-    contractName: c.contractName,
-    totalAmount:  c.totalAmount,
-    perPerson:    c.perPerson,
-    currency:     c.currency,
-    nightlyBreakdown: c.nightlyBreakdown || [],
-    // No rotating marketing badges — only data-backed ones are rendered
-    // ("Best Value" on the cheapest card, computed at render time).
-    badge:        null,
-    img:          FALLBACK_IMG,
-    loc:          label,
+      id:           c.hotelCode,
+      hotelCode:    c.hotelCode,
+      name:         c.hotelName ?? `Hotel ${c.hotelCode}`,
+      stars:        null,
+      board:        getBoardLabel(bc),
+      boardCode:    bc,
+      boardTags:    bc ? [getBoardLabel(bc)] : [],
+      roomType:     c.roomType,
+      roomLabel:    getRoomLabel(c.roomType),
+      characteristic: c.characteristic,
+      classification: c.classification,
+      refundable:   c.refundable,
+      contractName: c.contractName,
+      totalAmount:  c.totalAmount,
+      perPerson:    c.perPerson,
+      currency:     c.currency,
+      nightlyBreakdown: c.nightlyBreakdown || [],
+      badge:        null,
+      img:          FALLBACK_IMG,
+      loc:          label,
     };
   };
 
-  // Identifies "a different search" (vs. merely a different filter on the same search).
-  // Only a new search resets the price ceiling and shows full-page skeletons.
-  // Include the COMMITTED child ages (fetchParams), not the URL seed, so changing a child's
-  // age (same head-counts) still re-fires the search. Falls back to the URL value pre-edit.
-  const searchKey = `${destCode}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${fetchParams.childAges ?? childAges}`;
+  // Scope label for the hero. A single place → its name; otherwise "N places".
+  const scopeLabel = useMemo(() => {
+    if (urlLabel) return urlLabel;
+    const names = countryOptions.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
+    const parts = [
+      ...scope.countries.map((c) => names[c] || c),
+      ...scope.destinations,
+    ];
+    if (parts.length === 0) return '';
+    if (parts.length === 1) return parts[0];
+    return `${parts.length} places`;
+  }, [urlLabel, scope, countryOptions]);
+
+  // "A different search" (vs. a different filter): scope or head-counts/dates changed.
+  const searchKey = `${scopeKey}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${fetchParams.childAges ?? childAges}`;
   const prevSearchKeyRef = useRef(null);
 
-  // A price bound is only meaningful for the search it was chosen in — "under €1,500"
-  // means something different for 3 nights than for 10, or for 2 guests than for 6.
-  // Carrying it across a search change would also strand the slider: the ceiling
-  // regrows only from price-unfiltered responses, so a bound left in place would pin
-  // the track at its floor and the user could never raise it again.
-  //
-  // Adjusting state during render (React's documented pattern for reacting to changed
-  // inputs) rather than in an effect: it re-renders before the fetch effect below
-  // commits, so we never fire one request with the stale bounds and another without.
+  // A price bound is only meaningful for the search it was chosen in. Clear it on a search change
+  // (adjusting state during render — React's documented pattern for reacting to changed inputs).
   const [priceSearchKey, setPriceSearchKey] = useState(searchKey);
   if (priceSearchKey !== searchKey) {
     setPriceSearchKey(searchKey);
     if (filters.minPrice !== '' || filters.maxPrice !== '') {
-      // Same object into both, so the pending debounce commits an identical
-      // reference and React bails out instead of firing a second fetch.
       const cleared = { ...filters, minPrice: '', maxPrice: '' };
       setFilters(cleared);
       setApplied(cleared);
     }
   }
 
-  // Monotonic request id — a slow response from an earlier filter state must never
-  // overwrite the results of a newer one (rapid toggling reorders responses).
+  // Monotonic request id — a slow response from an earlier state must never overwrite a newer one.
   const reqIdRef = useRef(0);
 
-  // Page-1 fetch. Re-runs on a new search AND on every committed filter change.
+  // Price-scope key so the fetch effect re-runs when the resolved scope changes.
+  const priceScopeKey = priceScope
+    ? `${priceScope.destinations.join(',')}|${priceScope.hotelCodes ? priceScope.hotelCodes.length + ':' + priceScope.hotelCodes.slice(0, 3).join(',') : 'all'}`
+    : null;
+
+  // Page-1 fetch. Re-runs on a new search, on a committed filter change, and once the price
+  // scope is resolved from the facets step.
   useEffect(() => {
-    if (!destCode) {
-      setAllHotels([]);
-      setHasMore(false);
-      setLoading(false);
-      setFiltering(false);
+    if (!hasScope) {
+      setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false);
+      return;
+    }
+    if (!priceScope) return;                       // wait for facets resolution
+    if (!priceScope.destinations.length) {         // scope resolved to nothing to price
+      setAllHotels([]); setBoardFacets({}); setHasMore(false); setLoading(false); setFiltering(false);
       return;
     }
 
@@ -524,8 +539,6 @@ export default function Results() {
       setPriceCeiling(null);
       infoLoadingRef.current = new Set();
     } else {
-      // Same search, new filter — keep the current cards on screen (dimmed) instead
-      // of flashing skeletons, then swap them for the filtered set.
       setFiltering(true);
     }
     setHasMore(true);
@@ -533,41 +546,27 @@ export default function Results() {
     paginationRef.current = { page: 1, hasMore: true, fetching: true };
 
     const reqId = ++reqIdRef.current;
-    const url = `${CONTRACTS_API}/contracts/cheapest?${buildQS(fetchParams, destCode, childAges, 1, applied)}`;
-    console.log('[Results] Page 1 fetch:', url);
+    const { url, opts } = buildRequest(fetchParams, priceScope, childAges, 1, applied);
+    console.log('[Results] Page 1 fetch:', opts.method || 'GET', url);
 
     const ctrl = new AbortController();
-    fetch(url, { signal: ctrl.signal })
-      .then((r) => {
-        if (!r.ok) throw new Error(`API ${r.status}`);
-        return r.json();
-      })
+    fetch(url, { ...opts, signal: ctrl.signal })
+      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
       .then((data) => {
-        if (reqId !== reqIdRef.current) return;   // a newer request has superseded this one
+        if (reqId !== reqIdRef.current) return;
         const results = data.results || [];
         setNights(data.nights || 0);
-
-        // The API's `cheapest` is merged[0] — the first item AFTER sorting — so under
-        // price_desc it is really the most EXPENSIVE stay. Trusting it there put the
-        // "Best Value" badge on the priciest card. It is only the true global minimum
-        // on an ascending sort; on descending we have no way to know it, so no badge.
+        setBoardFacets(data.boardFacets || {});
         setCheapestCode(applied.sortBy === 'price_asc' ? (data.cheapest?.hotelCode ?? null) : null);
 
         const seen   = seenCodesRef.current;
         const mapped = [];
         for (const c of results) {
-          if (!seen.has(c.hotelCode)) {
-            seen.add(c.hotelCode);
-            mapped.push(mapContract(c, destinationLabel));
-          }
+          if (!seen.has(c.hotelCode)) { seen.add(c.hotelCode); mapped.push(mapContract(c, scopeLabel)); }
         }
-
-        // Only widen the slider range from a price-unconstrained response.
         if (applied.minPrice === '' && applied.maxPrice === '') {
-          growCeiling(mapped.map((h) => (applied.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount))
-                            .filter((n) => Number.isFinite(n)));
+          growCeiling(mapped.map((h) => (applied.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount)).filter((n) => Number.isFinite(n)));
         }
-
         const more = data.hasMore ?? (results.length >= PAGE_SIZE);
         paginationRef.current = { page: 2, hasMore: more, fetching: false };
         setHasMore(more);
@@ -578,71 +577,49 @@ export default function Results() {
       .catch((err) => {
         if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
         console.error('[Results] Contracts API error:', err);
-        setAllHotels([]);
-        setHasMore(false);
-        setLoading(false);
-        setFiltering(false);
+        setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false);
         paginationRef.current = { page: 1, hasMore: false, fetching: false };
       });
 
     return () => ctrl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [destCode, fetchParams, applied]);
+  }, [scopeKey, fetchParams, applied, priceScopeKey]);
 
   // Load next page from API
   const loadMore = useCallback(() => {
     const pg = paginationRef.current;
     if (!pg.hasMore || pg.fetching) return;
+    const ps = priceScopeRef.current;
+    if (!ps || !ps.destinations.length) return;
 
     paginationRef.current = { ...pg, fetching: true };
     setFetchingMore(true);
 
     const fp  = fetchParamsRef.current;
-    const dc  = destCodeRef.current;
     const ca  = childAgesRef.current;
-    const lbl = destLabelRef.current;
     const f   = appliedRef.current;
-
-    // Snapshot the current request generation. If a filter changes while this page
-    // is in flight, page 1 will have reset the list — appending this stale page on
-    // top of it would mix two different filter results.
     const reqId = reqIdRef.current;
 
-    const url = `${CONTRACTS_API}/contracts/cheapest?${buildQS(fp, dc, ca, pg.page, f)}`;
-    console.log('[Results] Load more (page=' + pg.page + '):', url);
+    const { url, opts } = buildRequest(fp, ps, ca, pg.page, f);
+    console.log('[Results] Load more (page=' + pg.page + '):', opts.method || 'GET', url);
 
-    fetch(url)
-      .then((r) => {
-        if (!r.ok) throw new Error(`API ${r.status}`);
-        return r.json();
-      })
+    fetch(url, opts)
+      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
       .then((data) => {
-        if (reqId !== reqIdRef.current) return;   // superseded by a newer filter/search
+        if (reqId !== reqIdRef.current) return;
         const results = data.results || [];
         const seen    = seenCodesRef.current;
-
-        // Dedup OUTSIDE the state updater: seen.add() is a mutation, and React
-        // StrictMode double-invokes updater functions in dev — doing it inside
-        // would make the 2nd invocation see the codes already added and append
-        // nothing, wiping the new page. Build the new items here (once), then
-        // append with a pure updater.
         const newCards = [];
         for (const c of results) {
-          if (!seen.has(c.hotelCode)) {
-            seen.add(c.hotelCode);
-            newCards.push(c);
-          }
+          if (!seen.has(c.hotelCode)) { seen.add(c.hotelCode); newCards.push(c); }
         }
-
         if (newCards.length > 0) {
-          const mapped = newCards.map((c) => mapContract(c, lbl));
+          const mapped = newCards.map((c) => mapContract(c, scopeLabel));
           setAllHotels((prev) => [...prev, ...mapped]);
           if (f.minPrice === '' && f.maxPrice === '') {
-            growCeiling(mapped.map((h) => (f.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount))
-                              .filter((n) => Number.isFinite(n)));
+            growCeiling(mapped.map((h) => (f.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount)).filter((n) => Number.isFinite(n)));
           }
         }
-
         const more = data.hasMore ?? (results.length >= PAGE_SIZE);
         paginationRef.current = { page: pg.page + 1, hasMore: more, fetching: false };
         setHasMore(more);
@@ -654,14 +631,9 @@ export default function Results() {
         paginationRef.current = { ...paginationRef.current, fetching: false };
         setFetchingMore(false);
       });
-  }, []);
+  }, [scopeLabel]);
 
-  // Filtering and sorting are done by the cache (it recalculates each hotel's
-  // cheapest *matching* rate, which client-side filtering of already-picked
-  // winners cannot do), so the fetched list is the list we render.
-  // Distance sorts (Filter 3) are applied here, client-side, using the admin attributes —
-  // the cache has already ordered by price. A hotel with no distance for the chosen metric
-  // sorts LAST (Infinity), never as 0 (which would wrongly float unknowns to the top).
+  // Distance sorts (client-side) using the admin attributes; the cache already ordered by price.
   const hotels = useMemo(() => {
     const field = applied.sortBy === 'distance_beach' ? 'beachMetres'
                 : applied.sortBy === 'distance_centre' ? 'centreMetres' : null;
@@ -670,24 +642,20 @@ export default function Results() {
       const v = attrMap[String(h.hotelCode)]?.[field];
       return typeof v === 'number' && v >= 0 ? v : Infinity;
     };
-    return [...allHotels].sort((a, b) => dist(a) - dist(b));   // nearest first
+    return [...allHotels].sort((a, b) => dist(a) - dist(b));
   }, [allHotels, applied.sortBy, attrMap]);
 
   // Lazily load real hotel info (name/images/stars) for all visible hotels
   useEffect(() => {
-    const need = hotels
-      .map((h) => String(h.hotelCode))
-      .filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code));
+    const need = hotels.map((h) => String(h.hotelCode)).filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code));
     if (need.length === 0) return;
-
     need.forEach((c) => infoLoadingRef.current.add(c));
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
-          method:  'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body:    JSON.stringify({ hotelCodes: need }),
+          method: 'POST', headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ hotelCodes: need }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -706,17 +674,11 @@ export default function Results() {
   }, [hotels]);
 
   // Infinite scroll — IntersectionObserver on sentinel.
-  // Re-runs when allHotels.length changes so it reconnects after each page
-  // load and fires immediately if the sentinel is still in view (short page).
   useEffect(() => {
     if (loading || !hasMore) return;
     const el = sentinelRef.current;
     if (!el) return;
-
-    const observer = new IntersectionObserver(
-      ([entry]) => { if (entry.isIntersecting) loadMore(); },
-      { rootMargin: '400px' }
-    );
+    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) loadMore(); }, { rootMargin: '400px' });
     observer.observe(el);
     return () => observer.disconnect();
   }, [loading, hasMore, allHotels.length, loadMore]);
@@ -724,16 +686,17 @@ export default function Results() {
   const toggleLike = (hotelCode, snapshot) => {
     if (!isAuth) { showToast('Sign in to save favourites', 'info'); navigate('/login'); return; }
     const wasLiked = !!liked[hotelCode];
-    setLiked((prev) => ({ ...prev, [hotelCode]: !wasLiked }));   // optimistic
+    setLiked((prev) => ({ ...prev, [hotelCode]: !wasLiked }));
     const req = wasLiked ? removeFavourite(hotelCode) : addFavourite(snapshot);
     req
       .then(() => showToast(wasLiked ? 'Removed from favourites' : 'Added to favourites', 'success'))
       .catch(() => {
-        setLiked((prev) => ({ ...prev, [hotelCode]: wasLiked })); // revert on failure
+        setLiked((prev) => ({ ...prev, [hotelCode]: wasLiked }));
         showToast('Couldn’t update favourites. Please try again.', 'error');
       });
   };
-  // Toggle a code in one of the multi-select filter arrays (boards / roomTypes).
+
+  // Toggle a code in one of the multi-select filter arrays (boards / roomTypes / stars / facilities / activities / themes).
   const toggleCode = (key, code) => setFilters((f) => ({
     ...f,
     [key]: f[key].includes(code) ? f[key].filter((x) => x !== code) : [...f[key], code],
@@ -741,11 +704,6 @@ export default function Results() {
 
   const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
 
-  // Switching basis changes what the min/max numbers *mean* (total stay vs. per
-  // person), so carrying the old bounds over would silently filter on the wrong
-  // scale. Clear them, and drop the ceiling back to its floor so it regrows from
-  // per-person prices — otherwise the track would keep spanning the total-stay
-  // range (0–8,500) while the actual values only reach ~300.
   const setPriceBasis = (value) => {
     if (filters.priceBasis === value) return;
     setPriceCeiling(null);
@@ -754,16 +712,10 @@ export default function Results() {
 
   const clearFilters = () => setFilters(EMPTY_FILTERS);
 
-  // Until the first results define the real range, span a placeholder.
   const ceiling = priceCeiling ?? PRICE_CEILING_FALLBACK;
-
-  // Slider positions. An empty bound means "unbounded", which renders as the
-  // track edge — and a max pinned to the ceiling is deliberately sent as no max.
   const sliderMin = filters.minPrice === '' ? 0 : Math.min(Number(filters.minPrice), ceiling);
   const sliderMax = filters.maxPrice === '' ? ceiling : Math.min(Number(filters.maxPrice), ceiling);
-
   const onMinPrice = (raw) => {
-    // Never let the handles cross.
     const v = Math.max(0, Math.min(Number(raw), sliderMax - PRICE_STEP));
     setFilter('minPrice', v <= 0 ? '' : String(v));
   };
@@ -784,46 +736,57 @@ export default function Results() {
       adults:   String(totalAdults),
       children: String(totalChildren),
       rooms:    String(roomsN),
-      // Per-room occupancy → the exact totals + per-room maxes + child ages the cache needs.
       childAges:          allChildAges.join(','),
       maxAdultsPerRoom:   String(maxAdultsPerRoom),
       maxChildrenPerRoom: String(maxChildrenPerRoom),
     }));
   };
 
-  // Filter 2 — jump to a different destination from the cascade. Re-navigates the results
-  // page with the new destination, preserving the current dates + occupancy.
-  const goToDestination = (code, label) => {
-    if (!code) return;
-    const qp = new URLSearchParams({
-      destination: code,
-      destinationLabel: label || code,
-      checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut,
-      adults: fetchParams.adults, children: fetchParams.children, rooms: fetchParams.rooms,
-    });
+  // ── Scope editor helpers ────────────────────────────────────────────────────────
+  const toggleDraft = (setter) => (code) => setter((prev) => {
+    const next = new Set(prev);
+    if (next.has(code)) next.delete(code); else next.add(code);
+    return next;
+  });
+  const toggleDraftCountry     = toggleDraft(setDraftCountries);
+  const toggleDraftDestination = toggleDraft(setDraftDestinations);
+
+  const countryName = (code) => countryOptions.find((c) => c.code === code)?.name || code;
+
+  // Apply the drafted scope — re-navigate the results page (keeps dates + occupancy, shareable URL).
+  const applyScope = () => {
+    const countries    = [...draftCountries];
+    const destinations = [...draftDestinations];
+    if (!countries.length && !destinations.length) return;
+    const qp = new URLSearchParams();
+    if (countries.length)    qp.set('countries', countries.join(','));
+    if (destinations.length) qp.set('destinations', destinations.join(','));
+    qp.set('checkIn', fetchParams.checkIn);
+    qp.set('checkOut', fetchParams.checkOut);
+    qp.set('adults', fetchParams.adults);
+    qp.set('children', fetchParams.children);
+    qp.set('rooms', fetchParams.rooms);
     if (fetchParams.childAges) qp.set('childAges', fetchParams.childAges);
-    navigate({ search: qp.toString() });   // same /results page, new query
+    navigate({ search: qp.toString() });
   };
+  const scopeDirty =
+    draftCountries.size !== scope.countries.length ||
+    draftDestinations.size !== scope.destinations.length ||
+    scope.countries.some((c) => !draftCountries.has(c)) ||
+    scope.destinations.some((d) => !draftDestinations.has(d));
+  const draftCount = draftCountries.size + draftDestinations.size;
+
+  const filteredCountries = countryOptions.filter((c) =>
+    !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase()) || c.code.toLowerCase().includes(countrySearch.toLowerCase()));
 
   const guestSummary = `${fetchParams.adults} Adult${fetchParams.adults !== '1' ? 's' : ''}${fetchParams.children !== '0' ? `, ${fetchParams.children} Child${fetchParams.children !== '1' ? 'ren' : ''}` : ''}`;
 
   const heroChips = [];
   if (fetchParams.checkIn && fetchParams.checkOut) {
-    heroChips.push({
-      icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
-      text: `${fmtDate(fetchParams.checkIn)} — ${fmtDate(fetchParams.checkOut)}`,
-    });
+    heroChips.push({ icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z', text: `${fmtDate(fetchParams.checkIn)} — ${fmtDate(fetchParams.checkOut)}` });
   }
-  if (nights > 0) {
-    heroChips.push({
-      icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z',
-      text: `${nights} nights`,
-    });
-  }
-  heroChips.push({
-    icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
-    text: guestSummary,
-  });
+  if (nights > 0) heroChips.push({ icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z', text: `${nights} nights` });
+  heroChips.push({ icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75', text: guestSummary });
 
   const sidebar = (
     <>
@@ -831,25 +794,12 @@ export default function Results() {
       <FilterSection title="Dates & Guests" defaultOpen>
         <div className={styles.dateGroup}>
           <label className={styles.dateLabel}>Check-in</label>
-          <input
-            type="date"
-            className={styles.dateInput}
-            value={localCheckIn}
-            min={new Date().toISOString().split('T')[0]}
-            onChange={(e) => setLocalCheckIn(e.target.value)}
-          />
+          <input type="date" className={styles.dateInput} value={localCheckIn} min={new Date().toISOString().split('T')[0]} onChange={(e) => setLocalCheckIn(e.target.value)} />
         </div>
         <div className={styles.dateGroup}>
           <label className={styles.dateLabel}>Check-out</label>
-          <input
-            type="date"
-            className={styles.dateInput}
-            value={localCheckOut}
-            min={localCheckIn || new Date().toISOString().split('T')[0]}
-            onChange={(e) => setLocalCheckOut(e.target.value)}
-          />
+          <input type="date" className={styles.dateInput} value={localCheckOut} min={localCheckIn || new Date().toISOString().split('T')[0]} onChange={(e) => setLocalCheckOut(e.target.value)} />
         </div>
-        {/* Filter 4 — per-room occupancy. One block per room: adults, children, child ages. */}
         {roomsConfig.map((room, i) => (
           <div key={i} className={styles.roomBlock}>
             <div className={styles.roomHead}>
@@ -897,117 +847,107 @@ export default function Results() {
         </button>
       </FilterSection>
 
-      {/* Price Range — min + max, on either a total-stay or per-person basis */}
-      <FilterSection title="Price Range" defaultOpen>
-        <div className={styles.priceSliderWrap}>
-          <div className={styles.priceDual}>
-            <div className={styles.priceDualTrack}>
-              <div
-                className={styles.priceDualFill}
-                style={{
-                  left:  `${(sliderMin / ceiling) * 100}%`,
-                  right: `${100 - (sliderMax / ceiling) * 100}%`,
-                }}
-              />
-            </div>
-            <input
-              type="range"
-              className={`${styles.filterRange} ${styles.rangeDual}`}
-              min={0} max={ceiling} step={PRICE_STEP}
-              value={sliderMin}
-              onChange={(e) => onMinPrice(e.target.value)}
-              aria-label="Minimum price"
-            />
-            <input
-              type="range"
-              className={`${styles.filterRange} ${styles.rangeDual}`}
-              min={0} max={ceiling} step={PRICE_STEP}
-              value={sliderMax}
-              onChange={(e) => onMaxPrice(e.target.value)}
-              aria-label="Maximum price"
-            />
-          </div>
-          <div className={styles.priceSliderLabels}>
-            <span>{priceLabel(0)}</span>
-            <span className={styles.priceSliderCurrent}>
-              {priceLabel(sliderMin)} – {priceLabel(sliderMax)}
-              {filters.maxPrice === '' ? '+' : ''}
-            </span>
-            <span>{priceLabel(ceiling)}</span>
-          </div>
-        </div>
-        <Segmented
-          options={PRICE_BASIS_OPTIONS}
-          value={filters.priceBasis}
-          onChange={setPriceBasis}
-          ariaLabel="Price basis"
-        />
-      </FilterSection>
-
-      {/* Destination cascade (Filter 2) — country → destination. ALWAYS shown; the country
-          list fills once the admin content API responds. If that API is unreachable it says
-          so, rather than the whole section disappearing. */}
-      <FilterSection title="Destination" defaultOpen={false}>
+      {/* WHERE — multi-country / multi-destination scope. Pick whole countries and/or
+          individual destinations, then Apply. */}
+      <FilterSection title="Where" defaultOpen>
         {countriesStatus === 'error' ? (
           <p className={styles.filterEmpty}>Destination filter unavailable (content service unreachable).</p>
         ) : countryOptions.length === 0 ? (
           <p className={styles.filterEmpty}>Loading countries…</p>
         ) : (
           <>
+            {(draftCountries.size > 0 || draftDestinations.size > 0) && (
+              <div className={styles.scopeChips}>
+                {[...draftCountries].map((c) => (
+                  <span key={`c-${c}`} className={styles.scopeChip}>
+                    {countryName(c)}
+                    <button className={styles.scopeChipX} onClick={() => toggleDraftCountry(c)} aria-label={`Remove ${countryName(c)}`}>×</button>
+                  </span>
+                ))}
+                {[...draftDestinations].map((d) => (
+                  <span key={`d-${d}`} className={styles.scopeChip}>
+                    {d}
+                    <button className={styles.scopeChipX} onClick={() => toggleDraftDestination(d)} aria-label={`Remove ${d}`}>×</button>
+                  </span>
+                ))}
+              </div>
+            )}
+
+            <div className={styles.scopeGroupLabel}>Countries</div>
+            <input
+              type="text"
+              className={styles.scopeSearch}
+              placeholder="Search countries…"
+              value={countrySearch}
+              onChange={(e) => setCountrySearch(e.target.value)}
+            />
+            <div className={styles.scopeList}>
+              {filteredCountries.map((c) => (
+                <FilterCheck key={c.code} label={c.name} checked={draftCountries.has(c.code)} onChange={() => toggleDraftCountry(c.code)} />
+              ))}
+            </div>
+
+            <div className={styles.scopeGroupLabel}>Add destinations</div>
             <label className={styles.cascadeLabel}>
-              <span>Country</span>
-              <select
-                className={styles.cascadeSelect}
-                value={cascadeCountry}
-                onChange={(e) => setCascadeCountry(e.target.value)}
-              >
-                <option value="">Select a country…</option>
+              <select className={styles.cascadeSelect} value={browseCountry} onChange={(e) => setBrowseCountry(e.target.value)}>
+                <option value="">Browse a country…</option>
                 {countryOptions.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
               </select>
             </label>
-            {cascadeCountry && (
-              <label className={styles.cascadeLabel}>
-                <span>Destination</span>
-                <select
-                  className={styles.cascadeSelect}
-                  value={destCode}
-                  onChange={(e) => {
-                    const opt = destinationOptions.find((d) => d.code === e.target.value);
-                    goToDestination(e.target.value, opt?.name);
-                  }}
-                >
-                  <option value="">{destinationOptions.length ? 'Select a destination…' : 'Loading…'}</option>
-                  {destinationOptions.map((d) => <option key={d.code} value={d.code}>{d.name}</option>)}
-                </select>
-              </label>
+            {browseCountry && (
+              <div className={styles.scopeList}>
+                {destPickerOptions.length === 0
+                  ? <p className={styles.filterEmpty}>Loading destinations…</p>
+                  : destPickerOptions.map((d) => (
+                    <FilterCheck key={d.code} label={d.name} checked={draftDestinations.has(d.code)} onChange={() => toggleDraftDestination(d.code)} />
+                  ))}
+              </div>
             )}
+
+            <button className={styles.applyScopeBtn} onClick={applyScope} disabled={!scopeDirty || draftCount === 0}>
+              {draftCount === 0 ? 'Pick a country or destination' : `Search ${draftCount} place${draftCount === 1 ? '' : 's'}`}
+            </button>
           </>
         )}
       </FilterSection>
 
-      {/* Transport type (Filter 5) — own transport (hotel only) vs flight + hotel package.
-          Sets the cache searchType; PACKAGE lets package-only rates in. */}
-      <FilterSection title="Transport" defaultOpen>
-        <Segmented
-          options={TRANSPORT_OPTIONS}
-          value={filters.transport}
-          onChange={(v) => setFilter('transport', v)}
-          ariaLabel="Transport type"
-        />
+      {/* Price Range */}
+      <FilterSection title="Price Range" defaultOpen>
+        <div className={styles.priceSliderWrap}>
+          <div className={styles.priceDual}>
+            <div className={styles.priceDualTrack}>
+              <div className={styles.priceDualFill} style={{ left: `${(sliderMin / ceiling) * 100}%`, right: `${100 - (sliderMax / ceiling) * 100}%` }} />
+            </div>
+            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={ceiling} step={PRICE_STEP} value={sliderMin} onChange={(e) => onMinPrice(e.target.value)} aria-label="Minimum price" />
+            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={ceiling} step={PRICE_STEP} value={sliderMax} onChange={(e) => onMaxPrice(e.target.value)} aria-label="Maximum price" />
+          </div>
+          <div className={styles.priceSliderLabels}>
+            <span>{priceLabel(0)}</span>
+            <span className={styles.priceSliderCurrent}>{priceLabel(sliderMin)} – {priceLabel(sliderMax)}{filters.maxPrice === '' ? '+' : ''}</span>
+            <span>{priceLabel(ceiling)}</span>
+          </div>
+        </div>
+        <Segmented options={PRICE_BASIS_OPTIONS} value={filters.priceBasis} onChange={setPriceBasis} ariaLabel="Price basis" />
       </FilterSection>
 
-      {/* Holiday Type (Filter 1) — ALWAYS shown; the chips fill once the admin content API
-          responds. If that API is unreachable it says so, rather than vanishing. */}
+      {/* Transport type */}
+      <FilterSection title="Transport" defaultOpen>
+        <Segmented options={TRANSPORT_OPTIONS} value={filters.transport} onChange={(v) => setFilter('transport', v)} ariaLabel="Transport type" />
+      </FilterSection>
+
+      {/* Holiday Type — DYNAMIC from the admin facets (only themes that apply to the scope, with counts). */}
       <FilterSection title="Holiday Type" defaultOpen>
-        {themesStatus === 'error' ? (
+        {facetsStatus === 'error' ? (
           <p className={styles.filterEmpty}>Holiday types unavailable (content service unreachable).</p>
-        ) : themeOptions.length === 0 ? (
+        ) : facetsStatus === 'loading' && facets.holiday.length === 0 ? (
           <p className={styles.filterEmpty}>Loading holiday types…</p>
+        ) : facets.holiday.length === 0 ? (
+          <p className={styles.filterEmpty}>No holiday types for this search.</p>
         ) : (
-          themeOptions.map((t) => (
+          facets.holiday.map((t) => (
             <FilterCheck
               key={t.id}
-              label={`${t.icon ? `${t.icon} ` : ''}${t.name}`}
+              label={`${t.icon ? `${t.icon} ` : ''}${t.name} (${t.hotels})`}
               checked={filters.themes.includes(t.id)}
               onChange={() => toggleCode('themes', t.id)}
             />
@@ -1015,46 +955,73 @@ export default function Results() {
         )}
       </FilterSection>
 
-      {/* Board Type — server-side (`boards`) */}
+      {/* Star Rating — DYNAMIC from the admin facets, with counts. */}
+      <FilterSection title="Star Rating" defaultOpen>
+        {facets.stars.length === 0 ? (
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No star data for this search.'}</p>
+        ) : (
+          facets.stars.map((s) => (
+            <FilterCheck
+              key={s.stars}
+              label={`${'★'.repeat(s.stars)} ${s.stars}-star (${s.hotels})`}
+              checked={filters.stars.includes(s.stars)}
+              onChange={() => toggleCode('stars', s.stars)}
+            />
+          ))
+        )}
+      </FilterSection>
+
+      {/* Board Type — DYNAMIC from the cache: only boards that exist for this search, with counts. */}
       <FilterSection title="Board Type" defaultOpen>
-        {BOARD_FILTERS.map((code) => (
-          <FilterCheck
-            key={code}
-            label={getBoardLabel(code)}
-            checked={filters.boards.includes(code)}
-            onChange={() => toggleCode('boards', code)}
-          />
-        ))}
+        {Object.keys(boardFacets).length === 0 ? (
+          <p className={styles.filterEmpty}>{loading ? 'Loading…' : 'No board data for this search.'}</p>
+        ) : (
+          Object.entries(boardFacets).sort((a, b) => b[1] - a[1]).map(([code, n]) => (
+            <FilterCheck key={code} label={`${getBoardLabel(code)} (${n})`} checked={filters.boards.includes(code)} onChange={() => toggleCode('boards', code)} />
+          ))
+        )}
+      </FilterSection>
+
+      {/* Facilities — DYNAMIC from the admin facets (group 70), unique with counts. */}
+      <FilterSection title="Facilities" defaultOpen={false}>
+        {facets.facilities.length === 0 ? (
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No facilities data for this search.'}</p>
+        ) : (
+          <div className={styles.facetScroll}>
+            {facets.facilities.map((f) => (
+              <FilterCheck key={f.code} label={`${f.name} (${f.hotels})`} checked={filters.facilities.includes(f.code)} onChange={() => toggleCode('facilities', f.code)} />
+            ))}
+          </div>
+        )}
+      </FilterSection>
+
+      {/* Activities — DYNAMIC from the admin facets (groups 73/74/90), unique with counts. */}
+      <FilterSection title="Activities" defaultOpen={false}>
+        {facets.activities.length === 0 ? (
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No activities data for this search.'}</p>
+        ) : (
+          <div className={styles.facetScroll}>
+            {facets.activities.map((a) => (
+              <FilterCheck key={a.code} label={`${a.name} (${a.hotels})`} checked={filters.activities.includes(a.code)} onChange={() => toggleCode('activities', a.code)} />
+            ))}
+          </div>
+        )}
       </FilterSection>
 
       {/* Room Type — server-side (`roomTypes`) */}
       <FilterSection title="Room Type" defaultOpen={false}>
         {ROOM_FILTERS.map((code) => (
-          <FilterCheck
-            key={code}
-            label={getRoomLabel(code)}
-            checked={filters.roomTypes.includes(code)}
-            onChange={() => toggleCode('roomTypes', code)}
-          />
+          <FilterCheck key={code} label={getRoomLabel(code)} checked={filters.roomTypes.includes(code)} onChange={() => toggleCode('roomTypes', code)} />
         ))}
       </FilterSection>
 
-      {/* Cancellation — server-side (`refundable`), derived from the rate class */}
+      {/* Cancellation — server-side (`refundable`) */}
       <FilterSection title="Cancellation" defaultOpen>
-        <Segmented
-          options={REFUNDABLE_OPTIONS}
-          value={filters.refundable}
-          onChange={(v) => setFilter('refundable', v)}
-          ariaLabel="Cancellation policy"
-        />
+        <Segmented options={REFUNDABLE_OPTIONS} value={filters.refundable} onChange={(v) => setFilter('refundable', v)} ariaLabel="Cancellation policy" />
       </FilterSection>
     </>
   );
 
-  // The only badge we can honestly back with data: the cheapest stay for this
-  // search. The API reports the global cheapest across *all* matching hotels, which
-  // is what we want — a local min over the loaded pages would move the badge around
-  // as you scroll, and would sit on the wrong card entirely under high-to-low sort.
   const bestValueId = cheapestCode ?? null;
 
   return (
@@ -1065,14 +1032,7 @@ export default function Results() {
         <div className={styles.heroGlow2} />
         <div className={styles.heroGrid} />
         <svg className={styles.heroFlight} viewBox="0 0 600 200" fill="none" aria-hidden="true">
-          <path
-            className={styles.flightPath}
-            d="M10 160 Q 220 30 590 70"
-            stroke="rgba(255,255,255,0.3)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeDasharray="2 12"
-          />
+          <path className={styles.flightPath} d="M10 160 Q 220 30 590 70" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeDasharray="2 12" />
           <g className={styles.flightPlane}>
             <path d="M0 8L22 0l-7.5 18-3.5-6.5L0 8z" fill="rgba(255,255,255,0.9)" transform="translate(-11,-9)" />
           </g>
@@ -1087,14 +1047,10 @@ export default function Results() {
             <span className={styles.bcSep}>·</span>
             <span>Holidays</span>
             <span className={styles.bcSep}>·</span>
-            <span className={styles.bcActive}>{destinationLabel || 'Results'}</span>
+            <span className={styles.bcActive}>{scopeLabel || 'Results'}</span>
           </div>
           <h1 className={styles.heroTitle}>
-            {destinationLabel ? (
-              <>Stays in <em>{destinationLabel}</em></>
-            ) : (
-              'Find your perfect stay'
-            )}
+            {scopeLabel ? (<>Stays in <em>{scopeLabel}</em></>) : ('Find your perfect stay')}
           </h1>
           <div className={styles.heroChips}>
             {heroChips.map((c) => (
@@ -1131,11 +1087,7 @@ export default function Results() {
                 <Icon d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4" size={14} sw={2} />
                 Sort
               </span>
-              <select
-                className={styles.sortSelect}
-                value={filters.sortBy}
-                onChange={(e) => setFilter('sortBy', e.target.value)}
-              >
+              <select className={styles.sortSelect} value={filters.sortBy} onChange={(e) => setFilter('sortBy', e.target.value)}>
                 {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
@@ -1186,15 +1138,15 @@ export default function Results() {
                   </div>
                 </div>
               ))
-            ) : !destCode ? (
+            ) : !hasScope ? (
               <div className={styles.noResults}>
                 <div className={styles.noResultsIcon}>
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
                   </svg>
                 </div>
-                <h3>Select a destination</h3>
-                <p>Use the search form to find available holidays.</p>
+                <h3>Select where you want to go</h3>
+                <p>Pick one or more countries or destinations in the “Where” filter.</p>
               </div>
             ) : hotels.length === 0 ? (
               <div className={styles.noResults}>
@@ -1207,24 +1159,22 @@ export default function Results() {
                 <p>
                   {activeCount > 0
                     ? 'No stays match your filters. Try relaxing them or widening your price range.'
-                    : 'Try a different destination or different dates.'}
+                    : 'Try different dates or a wider area.'}
                 </p>
                 {activeCount > 0 && (
-                  <button className={styles.applyBtn} style={{ maxWidth: 200 }} onClick={clearFilters}>
-                    Clear all filters
-                  </button>
+                  <button className={styles.applyBtn} style={{ maxWidth: 200 }} onClick={clearFilters}>Clear all filters</button>
                 )}
               </div>
             ) : (
               hotels.map((h, i) => {
                 const info      = infoMap[String(h.hotelCode)];
                 const dispName  = info?.name?.trim() || h.name;
-                const dispStars = info?.stars ?? h.stars;
+                const dispStars = info?.stars ?? attrMap[String(h.hotelCode)]?.stars ?? h.stars;
                 const dispImg   = info ? bestImg(info.images, FALLBACK_IMG) : h.img;
                 const infoReady = !!info;
+                const hotelDest = attrMap[String(h.hotelCode)]?.destinationCode || priceScope?.destinations?.[0] || '';
                 return (
                 <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
-                  {/* Image column */}
                   <div className={styles.rcImg}>
                     {infoReady
                       ? <img src={dispImg} alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
@@ -1251,14 +1201,9 @@ export default function Results() {
                         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
                       </svg>
                     </button>
-                    {/* The API derives this from the rate class, so it also catches
-                        NRP (non-refundable prepaid), which a bare 'NRF' check missed. */}
-                    {h.refundable === false && (
-                      <div className={styles.rcNrfChip}>Non-Refundable</div>
-                    )}
+                    {h.refundable === false && (<div className={styles.rcNrfChip}>Non-Refundable</div>)}
                   </div>
 
-                  {/* Content column */}
                   <div className={styles.rcContent}>
                     {dispStars > 0 && (
                       <div className={styles.rcStars}>
@@ -1266,8 +1211,6 @@ export default function Results() {
                         <span className={styles.rcStarLabel}>{Math.min(dispStars, 5)}-star hotel</span>
                       </div>
                     )}
-                    {/* Always show a name — the price feed carries one; the slow
-                        bulk-info fetch only upgrades it (no more nameless cards). */}
                     {dispName
                       ? <h3 className={styles.rcName}>{dispName}</h3>
                       : <div className={`${styles.rcNameSkel} ${styles.skeletonLine}`} />}
@@ -1278,20 +1221,11 @@ export default function Results() {
 
                     {(h.boardTags.length > 0 || h.roomLabel) && (
                       <div className={styles.rcAmenities}>
-                        {h.boardTags.map((b) => (
-                          <span key={b} className={styles.rcAmenity}>
-                            <CheckIcon />{b}
-                          </span>
-                        ))}
-                        {h.roomLabel && (
-                          <span className={styles.rcAmenity}>
-                            <CheckIcon />{h.roomLabel}
-                          </span>
-                        )}
+                        {h.boardTags.map((b) => (<span key={b} className={styles.rcAmenity}><CheckIcon />{b}</span>))}
+                        {h.roomLabel && (<span className={styles.rcAmenity}><CheckIcon />{h.roomLabel}</span>)}
                       </div>
                     )}
 
-                    {/* Trip details */}
                     <div className={styles.rcTrip}>
                       {fetchParams.checkIn && (
                         <div className={styles.rcTripDates}>
@@ -1310,14 +1244,10 @@ export default function Results() {
                     </div>
                   </div>
 
-                  {/* Price rail — internal contract/rate-plan names are never
-                      shown to customers; refundability already has its own chip. */}
                   <div className={styles.rcPriceRail}>
                     <div className={styles.rcPriceTop} />
                     <div className={styles.rcPriceInfo}>
-                      <span className={styles.rcPriceLabel}>
-                        Total{nights > 0 ? ` · ${nights} nights` : ''}
-                      </span>
+                      <span className={styles.rcPriceLabel}>Total{nights > 0 ? ` · ${nights} nights` : ''}</span>
                       <div className={styles.rcPriceAmount}>
                         <span className={styles.rcPriceCcy}>{h.currency}</span>
                         {h.totalAmount?.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
@@ -1333,7 +1263,7 @@ export default function Results() {
                           state: {
                             hotel: { ...h, name: dispName, stars: dispStars, img: dispImg },
                             info,
-                            destination: destCode,
+                            destination: hotelDest,
                             nights,
                             checkIn: fetchParams.checkIn,
                             checkOut: fetchParams.checkOut,
@@ -1354,20 +1284,15 @@ export default function Results() {
               })
             )}
 
-            {/* Invisible sentinel — IntersectionObserver anchor, always present while more pages exist */}
             {!loading && hasMore && <div ref={sentinelRef} style={{ height: '1px' }} />}
-            {/* Spinner — only shown while a page fetch is actually in flight */}
             {!loading && fetchingMore && (
               <div className={styles.loadMore}>
                 <span className={styles.loadMoreSpin} />
                 Loading more stays…
               </div>
             )}
-            {/* End of results — no more pages to load */}
             {!loading && !hasMore && hotels.length > 0 && (
-              <div className={styles.endOfResults}>
-                You’ve reached the end — all {hotels.length} stays shown
-              </div>
+              <div className={styles.endOfResults}>You’ve reached the end — all {hotels.length} stays shown</div>
             )}
           </div>
         </section>
