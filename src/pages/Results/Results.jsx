@@ -197,6 +197,30 @@ export default function Results() {
   const initRooms    = params.get('rooms')    || '1';
   const childAges    = params.get('childAges') || '';
 
+  // Travel-time (duration) filter — the day-range band chosen on the home page (e.g. "6-10 days")
+  // plus its night bounds, so the results page can offer each individual length within the band
+  // (like the reference site's "Travel time" filter) and re-price the search when one is picked.
+  const urlDuration  = params.get('duration') || '';
+  const urlMinNights = parseInt(params.get('minNights'), 10);
+  const urlMaxNights = parseInt(params.get('maxNights'), 10);
+  const dayOptions = (Number.isFinite(urlMinNights) && Number.isFinite(urlMaxNights) && urlMaxNights >= urlMinNights)
+    ? Array.from({ length: Math.min(9, urlMaxNights - urlMinNights + 1) }, (_, i) => urlMinNights + i)
+    : [];
+  // The stay length currently searched (nights) — derived from the committed check-in/out so the
+  // matching Travel-time option is highlighted.
+  const nightsBetween = (ci, co) => {
+    if (!ci || !co) return null;
+    const n = Math.round((new Date(co + 'T00:00:00Z') - new Date(ci + 'T00:00:00Z')) / 86400000);
+    return Number.isFinite(n) && n > 0 ? n : null;
+  };
+  // Compute in UTC (parse as Z, add in UTC, format from UTC) so the result never shifts a day in
+  // a positive-offset timezone — `new Date('..T00:00:00')` is LOCAL and toISOString() is UTC, which
+  // silently lands the checkout a day early for e.g. Belgian users.
+  const checkOutForNights = (ci, n) => {
+    const d = new Date(ci + 'T00:00:00Z'); d.setUTCDate(d.getUTCDate() + n);
+    return d.toISOString().split('T')[0];
+  };
+
   // Sidebar draft state (not yet fetched)
   const [localCheckIn,  setLocalCheckIn]  = useState(initCheckIn);
   const [localCheckOut, setLocalCheckOut] = useState(initCheckOut);
@@ -279,6 +303,8 @@ export default function Results() {
   const [cheapestCode, setCheapestCode] = useState(null);
   // Dynamic board facets from the cache: { boardCode: hotelCount } for THIS search.
   const [boardFacets, setBoardFacets] = useState({});
+  // Travel-time filter: { nights: priced-hotel count } for each day option (loaded in background).
+  const [durationCounts, setDurationCounts] = useState({});
   const [liked, setLiked]             = useState({});
   const isAuth = useSelector((s) => s.auth?.isAuthenticated);
   const { showToast } = useToast();
@@ -409,7 +435,8 @@ export default function Results() {
 
   // Build the cheapest request. Returns { url, opts } for fetch(). Uses POST (JSON body) when
   // the hotelCodes set or the destination list would make the URL too long; else GET.
-  const buildRequest = (fp, ps, ca, page, f) => {
+  // `over` overrides fields for the Travel-time count queries: { checkOut, pageSize }.
+  const buildRequest = (fp, ps, ca, page, f, over = {}) => {
     const roomsCount = Math.max(1, parseInt(fp.rooms, 10) || 1);
     const maxA = fp.maxAdultsPerRoom   ?? String(Math.ceil((parseInt(fp.adults, 10)   || 1) / roomsCount));
     const maxC = fp.maxChildrenPerRoom ?? String(Math.ceil((parseInt(fp.children, 10) || 0) / roomsCount));
@@ -417,11 +444,12 @@ export default function Results() {
     const body = {
       destinations:       ps.destinations,
       checkIn:            fp.checkIn,
-      checkOut:           fp.checkOut,
+      checkOut:           over.checkOut ?? fp.checkOut,
       adults:             fp.adults,
       children:           fp.children,
       rooms:              String(roomsCount),
-      limit:              String(PAGE_SIZE),
+      limit:              String(over.pageSize ?? PAGE_SIZE),
+      pageSize:           String(over.pageSize ?? PAGE_SIZE),
       page:               String(page),
       source:             'combined',
       maxAdultsPerRoom:   maxA,
@@ -595,6 +623,32 @@ export default function Results() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey, fetchParams, applied, priceScopeKey]);
 
+  // TRAVEL-TIME COUNTS. For each day option in the band, price the same scope at that stay length
+  // (in the background) and record how many hotels come back — the number shown next to each
+  // duration, like the reference site's "Travel time" filter. Non-blocking: options render
+  // immediately and each count fills in as its request returns. Re-runs when the search context
+  // (scope, departure, occupancy, filters) changes so the counts stay honest.
+  const appliedKey = JSON.stringify(applied);
+  useEffect(() => {
+    if (!priceScope || !priceScope.destinations.length || !dayOptions.length || !fetchParams.checkIn) {
+      setDurationCounts({});
+      return;
+    }
+    let live = true;
+    setDurationCounts({});
+    dayOptions.forEach((n) => {
+      const { url, opts } = buildRequest(fetchParams, priceScope, childAges, 1, applied, {
+        checkOut: checkOutForNights(fetchParams.checkIn, n), pageSize: 100,
+      });
+      fetch(url, opts)
+        .then((r) => (r.ok ? r.json() : null))
+        .then((data) => { if (live && data) setDurationCounts((prev) => ({ ...prev, [n]: data.total ?? 0 })); })
+        .catch(() => { /* a single duration's count failing shouldn't break the filter */ });
+    });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [priceScopeKey, fetchParams.checkIn, fetchParams.adults, fetchParams.children, fetchParams.rooms, fetchParams.childAges, appliedKey, urlDuration]);
+
   // Load next page from API
   const loadMore = useCallback(() => {
     const pg = paginationRef.current;
@@ -752,6 +806,19 @@ export default function Results() {
     }));
   };
 
+  // The stay length (nights) the current search is priced for — highlights the matching
+  // Travel-time option.
+  const searchedNights = nightsBetween(fetchParams.checkIn, fetchParams.checkOut);
+
+  // Travel-time filter: pick a specific stay length within the band → re-price at that duration
+  // (keeps the check-out date picker in sync). Clicking the active length is a no-op.
+  const applyDuration = (n) => {
+    if (n === searchedNights) return;
+    const checkOut = checkOutForNights(fetchParams.checkIn, n);
+    setLocalCheckOut(checkOut);
+    setFetchParams((prev) => ({ ...prev, checkOut }));
+  };
+
   // ── Scope editor helpers ────────────────────────────────────────────────────────
   const toggleDraft = (setter) => (code) => setter((prev) => {
     const next = new Set(prev);
@@ -856,6 +923,23 @@ export default function Results() {
           Update Search
         </button>
       </FilterSection>
+
+      {/* TRAVEL TIME — the duration band chosen on the home page, with each individual stay length
+          inside it (like the reference site). Picking one re-prices at that exact duration; the
+          count shows how many hotels are available for that length in the current search. */}
+      {dayOptions.length > 0 && (
+        <FilterSection title="Travel time" defaultOpen>
+          {urlDuration && <div className={styles.travelBand}>{urlDuration}</div>}
+          {dayOptions.map((n) => (
+            <FilterCheck
+              key={n}
+              label={`${n} days${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString()})` : ''}`}
+              checked={searchedNights === n}
+              onChange={() => applyDuration(n)}
+            />
+          ))}
+        </FilterSection>
+      )}
 
       {/* WHERE — multi-country / multi-destination scope. Pick whole countries and/or
           individual destinations, then Apply. */}

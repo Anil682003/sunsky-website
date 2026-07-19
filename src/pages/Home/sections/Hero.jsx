@@ -6,28 +6,18 @@ import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 
-// Exact stay lengths, in nights. The search uses the chosen value directly (no more coarse
-// bands that silently searched only the shortest stay). Daily granularity up to two weeks —
-// the span of nearly every package — then weekly for longer trips. For anything in between,
-// the results page has exact check-in / check-out date pickers.
+// Duration bands shown in the search box. Each band is a day-range with a representative stay
+// length in nights — the concrete duration the search prices for that band. Picking a band + a
+// departure date therefore "picks the dates": checkOut = checkIn + that band's nights.
+// (minNights/maxNights ride along in the URL so the results page can offer the full range later.)
 const DURATIONS = [
-  { nights: 2,  label: '2 nights' },
-  { nights: 3,  label: '3 nights' },
-  { nights: 4,  label: '4 nights' },
-  { nights: 5,  label: '5 nights' },
-  { nights: 6,  label: '6 nights' },
-  { nights: 7,  label: '7 nights · 1 week' },
-  { nights: 8,  label: '8 nights' },
-  { nights: 9,  label: '9 nights' },
-  { nights: 10, label: '10 nights' },
-  { nights: 11, label: '11 nights' },
-  { nights: 12, label: '12 nights' },
-  { nights: 13, label: '13 nights' },
-  { nights: 14, label: '14 nights · 2 weeks' },
-  { nights: 21, label: '21 nights · 3 weeks' },
-  { nights: 28, label: '28 nights · 4 weeks' },
+  { label: '2-5 days',   nights: 4,  minNights: 2,  maxNights: 5 },
+  { label: '6-10 days',  nights: 7,  minNights: 6,  maxNights: 10 },
+  { label: '11-16 days', nights: 14, minNights: 11, maxNights: 16 },
+  { label: '17-24 days', nights: 21, minNights: 17, maxNights: 24 },
+  { label: '25+ days',   nights: 28, minNights: 25, maxNights: 35 },
 ];
-const durationLabel = (nights) => DURATIONS.find((d) => d.nights === nights)?.label ?? `${nights} nights`;
+const findBand = (label) => DURATIONS.find((d) => d.label === label) ?? DURATIONS[1];
 
 const MAX_ROOMS = 8;
 
@@ -118,7 +108,7 @@ export default function Hero() {
   // (empty places for a country = "anywhere in it").
   const [destSelection, setDestSelection] = useState({ countries: [], places: [] });
   const [date, setDate] = useState('');
-  const [duration, setDuration] = useState(7);   // nights (default: one week)
+  const [duration, setDuration] = useState('6-10 days');   // band label (default: ~1 week)
   // Occupancy is per room — each room carries its own adults, children and one
   // date-of-birth slot per child. The search still sends totals.
   const [roomsList, setRoomsList] = useState([{ adults: 2, children: 0, dobs: [] }]);
@@ -229,11 +219,14 @@ export default function Hero() {
   };
 
   const handleSearch = () => {
-    const nights = duration;   // exact nights the traveller picked
+    const band = findBand(duration);         // the chosen duration band
+    const nights = band.nights;              // representative stay length for that band
     let checkOut = '';
     if (date) {
-      const d = new Date(date + 'T00:00:00');
-      d.setDate(d.getDate() + nights);
+      // Compute in UTC so the checkout never shifts a day in a positive-offset timezone
+      // (`new Date('..T00:00:00')` is local, toISOString() is UTC → a day early for e.g. Belgium).
+      const d = new Date(date + 'T00:00:00Z');
+      d.setUTCDate(d.getUTCDate() + nights);
       checkOut = d.toISOString().split('T')[0];
     }
     const selCities    = destSelection.places.filter((p) => p.type === 'city');
@@ -261,6 +254,10 @@ export default function Hero() {
     if (wholeCountries.length) qs.set('countries', wholeCountries.map((c) => c.code).join(','));
     if (selCities.length)      qs.set('cities',    selCities.map((p) => p.code).join(','));
     if (selRegions.length)     qs.set('regions',   selRegions.map((p) => p.code).join(','));
+    // Carry the chosen duration band so the results page can show it and (later) offer the range.
+    qs.set('duration', band.label);
+    qs.set('minNights', String(band.minNights));
+    qs.set('maxNights', String(band.maxNights));
     const childAges = roomsList.flatMap((r) => r.dobs).map(ageFromDob).filter((a) => a != null);
     if (childAges.length) qs.set('childAges', childAges.join(','));
     navigate(`/results?${qs.toString()}`);
@@ -402,7 +399,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Duration</span>
-                <span className={styles.sfValue}>{durationLabel(duration)}</span>
+                <span className={styles.sfValue}>{duration}</span>
               </div>
             </div>
             <div className={styles.sfDivider} />
@@ -429,12 +426,12 @@ export default function Hero() {
               <div className={styles.durList}>
                 {DURATIONS.map((d) => (
                   <div
-                    key={d.nights}
-                    className={`${styles.durOpt} ${duration === d.nights ? styles.durOptActive : ''}`}
-                    onClick={() => { setDuration(d.nights); setOpenField(null); }}
+                    key={d.label}
+                    className={`${styles.durOpt} ${duration === d.label ? styles.durOptActive : ''}`}
+                    onClick={() => { setDuration(d.label); setOpenField(null); }}
                   >
                     <span>{d.label}</span>
-                    {duration === d.nights && (
+                    {duration === d.label && (
                       <svg className={styles.durCheck} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                     )}
                   </div>
