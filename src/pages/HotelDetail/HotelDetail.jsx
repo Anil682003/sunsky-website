@@ -3,6 +3,7 @@ import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axiosInstance from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
+import { rememberDestCode } from '../../utils/favDest';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
@@ -312,9 +313,11 @@ export default function HotelDetail() {
     if (!isAuth) { showToast('Sign in to save favourites', 'info'); navigate('/login'); return; }
     const was = saved;
     setSaved(!was); // optimistic
+    // Remember the destination code so Favourites can re-open this hotel with live prices.
+    if (!was) rememberDestCode(hotelCode, destination);
     const req = was
       ? removeFavourite(hotelCode)
-      : addFavourite({ hotelCode, hotelName, destination: locLabel, stars, imageUrl: images[0] });
+      : addFavourite({ hotelCode, hotelName, destination: locLabel, stars, imageUrl: images[0], destinationCode: destination });
     req
       .then(() => showToast(was ? 'Removed from favourites' : 'Saved to favourites', 'success'))
       .catch(() => {

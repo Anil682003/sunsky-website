@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations } from '../../api/filters';
+import { rememberDestCode } from '../../utils/favDest';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -20,6 +21,15 @@ const bestImg = (images, fallback) => {
   if (!Array.isArray(images) || images.length === 0) return fallback;
   const sorted = [...images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   return sorted[0]?.url || fallback;
+};
+
+// All of a hotel's photo URLs, ordered — feeds the full-screen lightbox slider.
+const allImgs = (images) => {
+  if (!Array.isArray(images) || images.length === 0) return [];
+  return [...images]
+    .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    .map((im) => im?.url)
+    .filter(Boolean);
 };
 
 const BOARD_LABELS = {
@@ -322,6 +332,39 @@ export default function Results() {
     });
     return () => { active = false; };
   }, [isAuth]);
+
+  // Per-card inline slider position: hotelCode → image index (defaults to 0).
+  const [cardIdx, setCardIdx] = useState({});
+  const cardGo = (code, len, delta) =>
+    setCardIdx((m) => ({ ...m, [code]: (((m[code] || 0) + delta) % len + len) % len }));
+
+  // Full-screen photo lightbox. null = closed; otherwise { name, images: string[], index }.
+  const [lightbox, setLightbox] = useState(null);
+  const openLightbox  = (name, images, startIdx = 0) => {
+    if (!images || images.length === 0) return;
+    setLightbox({ name, images, index: Math.max(0, Math.min(startIdx, images.length - 1)) });
+  };
+  const closeLightbox = () => setLightbox(null);
+  const lbGo   = (idx) => setLightbox((lb) => (lb ? { ...lb, index: (idx + lb.images.length) % lb.images.length } : lb));
+  const lbNext = () => setLightbox((lb) => (lb ? { ...lb, index: (lb.index + 1) % lb.images.length } : lb));
+  const lbPrev = () => setLightbox((lb) => (lb ? { ...lb, index: (lb.index - 1 + lb.images.length) % lb.images.length } : lb));
+
+  // Keyboard nav (← → Esc) + lock body scroll while the lightbox is open.
+  useEffect(() => {
+    if (!lightbox) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') closeLightbox();
+      else if (e.key === 'ArrowRight') lbNext();
+      else if (e.key === 'ArrowLeft') lbPrev();
+    };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => {
+      window.removeEventListener('keydown', onKey);
+      document.body.style.overflow = prevOverflow;
+    };
+  }, [lightbox]);
 
   // Upper bound of the price sliders, in the currently-selected price basis. null = not
   // discovered yet. Reset to null (never merely lowered) when the search or basis changes.
@@ -750,7 +793,10 @@ export default function Results() {
   const toggleLike = (hotelCode, snapshot) => {
     if (!isAuth) { showToast('Sign in to save favourites', 'info'); navigate('/login'); return; }
     const wasLiked = !!liked[hotelCode];
-    setLiked((prev) => ({ ...prev, [hotelCode]: !wasLiked }));
+    setLiked((prev) => ({ ...prev, [hotelCode]: !wasLiked }));   // optimistic
+    // Capture the hotel's destination code (carried on the snapshot) so the Favourites
+    // screen can re-open it with a working live-price search (see utils/favDest).
+    if (!wasLiked && snapshot.destinationCode) rememberDestCode(hotelCode, snapshot.destinationCode);
     const req = wasLiked ? removeFavourite(hotelCode) : addFavourite(snapshot);
     req
       .then(() => showToast(wasLiked ? 'Removed from favourites' : 'Added to favourites', 'success'))
@@ -1268,18 +1314,38 @@ export default function Results() {
         <section className={styles.results}>
           <div className={`${styles.resultsList} ${filtering ? styles.listBusy : ''}`}>
             {loading ? (
-              [1, 2, 3].map((i) => (
-                <div key={i} className={styles.skeletonCard}>
-                  <div className={styles.skeletonImg} />
-                  <div className={styles.skeletonBody}>
-                    <div className={`${styles.skeletonLine} ${styles.skW60}`} />
-                    <div className={`${styles.skeletonLine} ${styles.skW40}`} />
-                    <div className={`${styles.skeletonLine} ${styles.skW80}`} />
-                    <div className={`${styles.skeletonLine} ${styles.skW30}`} />
+              [0, 1, 2].map((i) => (
+                <div key={i} className={styles.skeletonCard} style={{ animationDelay: `${i * 0.1}s` }}>
+                  {/* Branded image placeholder — soft sky wash with a mountain/sun watermark */}
+                  <div className={styles.skImg}>
+                    <svg className={styles.skImgIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                      <circle cx="7.5" cy="7" r="2.5" />
+                      <path d="M3 20l5.5-7 4 5 3-3.5L21 20z" />
+                    </svg>
+                    <span className={styles.skChip} />
                   </div>
-                  <div className={styles.skeletonRail}>
-                    <div className={`${styles.skeletonLine} ${styles.skRail1}`} />
-                    <div className={`${styles.skeletonLine} ${styles.skRail2}`} />
+                  {/* Content — mirrors stars → name → location → amenity chips → dates */}
+                  <div className={styles.skBody}>
+                    <div className={styles.skStars}>
+                      {[0, 1, 2, 3, 4].map((s) => <span key={s} className={styles.skStar} />)}
+                    </div>
+                    <div className={`${styles.skLine} ${styles.skName}`} />
+                    <div className={`${styles.skLine} ${styles.skLoc}`} />
+                    <div className={styles.skChips}>
+                      <span className={styles.skPill} />
+                      <span className={`${styles.skPill} ${styles.skPillSm}`} />
+                    </div>
+                    <div className={styles.skDates}>
+                      <span className={styles.skDate} />
+                      <span className={styles.skNights} />
+                    </div>
+                  </div>
+                  {/* Price rail — same boarding-pass tear line + notches as a real card */}
+                  <div className={styles.skRail}>
+                    <div className={`${styles.skLine} ${styles.skRailLabel}`} />
+                    <div className={`${styles.skLine} ${styles.skRailPrice}`} />
+                    <div className={`${styles.skLine} ${styles.skRailMeta}`} />
+                    <div className={styles.skRailCta} />
                   </div>
                 </div>
               ))
@@ -1318,6 +1384,9 @@ export default function Results() {
                 const dispImg   = info ? bestImg(info.images, FALLBACK_IMG) : h.img;
                 const infoReady = !!info;
                 const hotelDest = attrMap[String(h.hotelCode)]?.destinationCode || priceScope?.destinations?.[0] || '';
+                const gallery   = info ? allImgs(info.images) : [];
+                const imgIdx    = gallery.length ? Math.min(cardIdx[h.hotelCode] || 0, gallery.length - 1) : 0;
+                const curImg    = gallery.length ? gallery[imgIdx] : dispImg;
                 // Headline price split into whole + decimals (toFixed FIRST, so
                 // 99.999 renders 100.00 — trunc-then-format would show 99.00).
                 const total = Number(h.totalAmount);
@@ -1327,9 +1396,50 @@ export default function Results() {
                 <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
                   <div className={styles.rcImg}>
                     {infoReady
-                      ? <img src={dispImg} alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
+                      ? <img src={curImg} alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
                       : <div className={styles.rcImgSkel} />}
                     <div className={styles.rcImgOverlay} />
+                    {infoReady && gallery.length > 0 && (
+                      <button
+                        type="button"
+                        className={styles.rcImgBtn}
+                        onClick={() => openLightbox(dispName, gallery, imgIdx)}
+                        aria-label={`View ${gallery.length} photo${gallery.length > 1 ? 's' : ''} of ${dispName}`}
+                      />
+                    )}
+                    {infoReady && gallery.length > 1 && (
+                      <>
+                        <button
+                          type="button"
+                          className={`${styles.rcArrow} ${styles.rcArrowPrev}`}
+                          onClick={(e) => { e.stopPropagation(); cardGo(h.hotelCode, gallery.length, -1); }}
+                          aria-label="Previous photo"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M15 18l-6-6 6-6" />
+                          </svg>
+                        </button>
+                        <button
+                          type="button"
+                          className={`${styles.rcArrow} ${styles.rcArrowNext}`}
+                          onClick={(e) => { e.stopPropagation(); cardGo(h.hotelCode, gallery.length, +1); }}
+                          aria-label="Next photo"
+                        >
+                          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M9 18l6-6-6-6" />
+                          </svg>
+                        </button>
+                        <span className={styles.rcPhotoCount}>
+                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+                            <rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" />
+                          </svg>
+                          {imgIdx + 1}/{gallery.length}
+                          <svg className={styles.rcCountExpand} width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M15 3h6v6M9 21H3v-6M21 3l-7 7M3 21l7-7" />
+                          </svg>
+                        </span>
+                      </>
+                    )}
                     {h.id === bestValueId && (
                       <div className={styles.rcBadge}>
                         <Icon d="M13 10V3L4 14h7v7l9-11h-7z" size={11} sw={2} />
@@ -1342,6 +1452,7 @@ export default function Results() {
                         hotelCode: h.hotelCode,
                         hotelName: dispName,
                         destination: h.loc,
+                        destinationCode: hotelDest,
                         stars: dispStars || null,
                         imageUrl: infoReady ? dispImg : null,
                       })}
@@ -1471,6 +1582,64 @@ export default function Results() {
             <div className={styles.drawerBody}>{sidebar}</div>
           </div>
         </>
+      )}
+
+      {/* Full-screen photo lightbox — big view + slider through all of a hotel's images */}
+      {lightbox && (
+        <div className={styles.lbOverlay} onClick={closeLightbox} role="dialog" aria-modal="true" aria-label={`${lightbox.name} photos`}>
+          <button className={styles.lbClose} onClick={closeLightbox} aria-label="Close photos">
+            <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="M18 6L6 18M6 6l12 12" />
+            </svg>
+          </button>
+
+          <div className={styles.lbStage} onClick={(e) => e.stopPropagation()}>
+            {lightbox.images.length > 1 && (
+              <button className={`${styles.lbNav} ${styles.lbNavPrev}`} onClick={lbPrev} aria-label="Previous photo">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M15 18l-6-6 6-6" />
+                </svg>
+              </button>
+            )}
+
+            <img
+              key={lightbox.index}
+              src={lightbox.images[lightbox.index]}
+              alt={`${lightbox.name} — photo ${lightbox.index + 1}`}
+              className={styles.lbImg}
+              onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }}
+            />
+
+            {lightbox.images.length > 1 && (
+              <button className={`${styles.lbNav} ${styles.lbNavNext}`} onClick={lbNext} aria-label="Next photo">
+                <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M9 18l6-6-6-6" />
+                </svg>
+              </button>
+            )}
+
+            <div className={styles.lbCaption}>
+              <span className={styles.lbName}>{lightbox.name}</span>
+              <span className={styles.lbCounter}>{lightbox.index + 1} / {lightbox.images.length}</span>
+            </div>
+          </div>
+
+          {lightbox.images.length > 1 && (
+            <div className={styles.lbThumbs} onClick={(e) => e.stopPropagation()}>
+              {lightbox.images.map((src, idx) => (
+                <button
+                  key={idx}
+                  className={`${styles.lbThumb} ${idx === lightbox.index ? styles.lbThumbActive : ''}`}
+                  onClick={() => lbGo(idx)}
+                  aria-label={`Go to photo ${idx + 1}`}
+                  aria-current={idx === lightbox.index}
+                >
+                  <img src={src} alt="" loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
+                </button>
+              ))}
+            </div>
+          )}
+        </div>
       )}
     </div>
   );
