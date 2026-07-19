@@ -76,6 +76,8 @@ const EMPTY_FILTERS = {
 
 const FALLBACK_IMG = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80';
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Display symbol for the headline price only — fine print keeps the ISO code.
+const CCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', TRY: '₺' };
 
 const getBoardLabel = (code) => BOARD_LABELS[code] || code || '';
 const getRoomLabel  = (code) => ROOM_LABELS[code]  || code || '';
@@ -167,13 +169,21 @@ export default function Results() {
   // single-destination scope, so existing links keep working.
   const urlCountries    = params.get('countries')    || '';
   const urlDestinations = params.get('destinations') || '';
+  // The home destination picker (Hero + DestinationModal) sends chosen CITIES as `cities`
+  // (Hotelbeds destination codes) — treat them as scope destinations, same as `destinations`.
+  const urlCities       = params.get('cities')       || '';
   const legacyDest      = params.get('destination')  || '';
   const urlLabel        = params.get('destinationLabel') || params.get('label') || '';
 
-  const scope = useMemo(() => ({
-    countries:    csv(urlCountries),
-    destinations: urlDestinations ? csv(urlDestinations) : (legacyDest ? [legacyDest] : []),
-  }), [urlCountries, urlDestinations, legacyDest]);
+  const scope = useMemo(() => {
+    // destinations = explicit `destinations` ∪ home-picker `cities`; fall back to the legacy
+    // single `destination` only when neither is present (old links still work).
+    const dests = [...new Set([...csv(urlDestinations), ...csv(urlCities)])];
+    return {
+      countries:    csv(urlCountries),
+      destinations: dests.length ? dests : (legacyDest ? [legacyDest] : []),
+    };
+  }, [urlCountries, urlDestinations, urlCities, legacyDest]);
   const scopeKey  = `${scope.countries.join(',')}|${scope.destinations.join(',')}`;
   const hasScope  = scope.countries.length > 0 || scope.destinations.length > 0;
 
@@ -1031,13 +1041,45 @@ export default function Results() {
         <div className={styles.heroGlow} />
         <div className={styles.heroGlow2} />
         <div className={styles.heroGrid} />
+        {/* Sky scene — decorative only, all pointer-transparent */}
+        <div className={styles.heroSun} aria-hidden="true">
+          <span className={styles.sunRing} />
+          <span className={styles.sunRing2} />
+        </div>
+        <span className={`${styles.cloud} ${styles.cloud1}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud2}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud3}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud4}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud5}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud6}`} aria-hidden="true" />
+        <span className={`${styles.cloud} ${styles.cloud7}`} aria-hidden="true" />
         <svg className={styles.heroFlight} viewBox="0 0 600 200" fill="none" aria-hidden="true">
-          <path className={styles.flightPath} d="M10 160 Q 220 30 590 70" stroke="rgba(255,255,255,0.3)" strokeWidth="2" strokeLinecap="round" strokeDasharray="2 12" />
+          <path
+            className={styles.flightPath}
+            d="M10 160 Q 220 30 590 70"
+            stroke="rgba(255,255,255,0.45)"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeDasharray="2 12"
+          />
           <g className={styles.flightPlane}>
             <path d="M0 8L22 0l-7.5 18-3.5-6.5L0 8z" fill="rgba(255,255,255,0.9)" transform="translate(-11,-9)" />
           </g>
         </svg>
+        {/* Route constellation — dashed hops between pulsing destination nodes */}
+        <svg className={styles.heroRoutes} viewBox="0 0 640 190" fill="none" aria-hidden="true">
+          <path className={styles.routeArc} d="M18 168 Q 150 96 300 128" />
+          <path className={styles.routeArc} d="M300 128 Q 450 162 622 58" />
+          <circle className={styles.routeNode} cx="18" cy="168" r="3.5" />
+          <circle className={styles.routePulse} cx="18" cy="168" r="5" />
+          <circle className={styles.routeNode} cx="300" cy="128" r="3.5" />
+          <circle className={styles.routePulse} cx="300" cy="128" r="5" style={{ animationDelay: '1.1s' }} />
+          <circle className={`${styles.routeNode} ${styles.routeNodeGold}`} cx="622" cy="58" r="4" />
+          <circle className={`${styles.routePulse} ${styles.routePulseGold}`} cx="622" cy="58" r="6" style={{ animationDelay: '2.2s' }} />
+        </svg>
         <span className={styles.twinkle} style={{ top: '24%', left: '38%' }} />
+        <span className={styles.twinkle} style={{ top: '36%', left: '48%', animationDelay: '1.7s' }} />
+        <span className={styles.twinkle} style={{ top: '72%', left: '66%', animationDelay: '2.7s' }} />
         <span className={styles.twinkle} style={{ top: '58%', left: '55%', animationDelay: '1.2s' }} />
         <span className={styles.twinkle} style={{ top: '18%', left: '72%', animationDelay: '2.1s' }} />
         <span className={styles.twinkle} style={{ top: '64%', left: '86%', animationDelay: '0.6s' }} />
@@ -1072,14 +1114,33 @@ export default function Results() {
       <div className={styles.toolbar}>
         <div className={styles.toolbarInner}>
           <div className={styles.resultCount}>
+            <span className={styles.countIcon}>
+              <Icon d="M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" size={18} sw={2} />
+            </span>
             {loading ? (
               <span className={styles.countSearching}>
                 <span className={styles.countPulse} />
                 Searching the best deals…
               </span>
             ) : (
-              <><strong>{hotels.length}{hasMore ? '+' : ''}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found</>
+              <span className={styles.countText}>
+                <span><strong>{hotels.length}{hasMore ? '+' : ''}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found</span>
+                {scopeLabel && <span className={styles.countSub}>in {scopeLabel}</span>}
+              </span>
             )}
+          </div>
+          {/* Boarding-pass strip — the trip summary rides the dashed route line */}
+          <div className={styles.tripStrip}>
+            <span className={styles.tripStripLine} aria-hidden="true" />
+            {heroChips.map((c) => (
+              <span key={c.text} className={styles.tripStop}>
+                <Icon d={c.icon} size={12} sw={1.8} />
+                {c.text}
+              </span>
+            ))}
+            <svg className={styles.tripStripPlane} viewBox="0 0 22 18" width="16" height="13" aria-hidden="true">
+              <path d="M0 8L22 0l-7.5 18-3.5-6.5L0 8z" fill="currentColor" />
+            </svg>
           </div>
           <div className={styles.toolbarRight}>
             <div className={styles.sortWrap}>
@@ -1173,6 +1234,11 @@ export default function Results() {
                 const dispImg   = info ? bestImg(info.images, FALLBACK_IMG) : h.img;
                 const infoReady = !!info;
                 const hotelDest = attrMap[String(h.hotelCode)]?.destinationCode || priceScope?.destinations?.[0] || '';
+                // Headline price split into whole + decimals (toFixed FIRST, so
+                // 99.999 renders 100.00 — trunc-then-format would show 99.00).
+                const total = Number(h.totalAmount);
+                const [totalMajorRaw, totalDec] = Number.isFinite(total) ? total.toFixed(2).split('.') : ['—', null];
+                const totalMajor = totalDec != null ? Number(totalMajorRaw).toLocaleString('en-GB') : totalMajorRaw;
                 return (
                 <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
                   <div className={styles.rcImg}>
@@ -1245,16 +1311,23 @@ export default function Results() {
                   </div>
 
                   <div className={styles.rcPriceRail}>
-                    <div className={styles.rcPriceTop} />
                     <div className={styles.rcPriceInfo}>
-                      <span className={styles.rcPriceLabel}>Total{nights > 0 ? ` · ${nights} nights` : ''}</span>
+                      {/* Only rendered when the API says the rate IS refundable — the
+                          false case already has its own chip on the image. */}
+                      {h.refundable === true && (
+                        <span className={styles.rcRefundable}><CheckIcon />Refundable</span>
+                      )}
+                      <span className={styles.rcPriceLabel}>
+                        Total{nights > 0 ? ` · ${nights} nights` : ''}
+                      </span>
                       <div className={styles.rcPriceAmount}>
-                        <span className={styles.rcPriceCcy}>{h.currency}</span>
-                        {h.totalAmount?.toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                        <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
+                        {totalMajor}
+                        {totalDec != null && <span className={styles.rcPriceDec}>.{totalDec}</span>}
                       </div>
-                      {nights > 0 && (
+                      {nights > 0 && Number.isFinite(total) && (
                         <div className={styles.rcPriceMeta}>
-                          <strong>{h.currency} {(h.totalAmount / nights).toFixed(2)}</strong> / night
+                          <strong>{h.currency} {(total / nights).toFixed(2)}</strong> / night
                         </div>
                       )}
                       <button

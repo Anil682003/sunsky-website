@@ -1,32 +1,421 @@
-.sectionAlt { background:var(--blue-bg); position:relative; }
-.sectionAlt::before { content:''; position:absolute; top:0; left:0; right:0; height:1px; background:linear-gradient(90deg,transparent,var(--blue-light),transparent); }
-.section { padding:80px 52px; max-width:1400px; margin:0 auto; }
-.header { display:flex; justify-content:space-between; align-items:flex-end; margin-bottom:40px; flex-wrap:wrap; gap:20px; }
-.tag { display:inline-flex; align-items:center; gap:8px; padding:6px 16px; border-radius:var(--r-full); background:var(--blue-light); color:var(--blue-deep); font-size:12px; font-weight:700; letter-spacing:1px; text-transform:uppercase; margin-bottom:16px; }
-.title { font-family:'Sora',sans-serif; font-size:clamp(2rem,4vw,3.2rem); font-weight:800; color:var(--dark); letter-spacing:-1px; line-height:1.1; margin-bottom:10px; }
-.accent { background:linear-gradient(135deg,var(--sun-orange),#FFB347,var(--sun-gold)); -webkit-background-clip:text; -webkit-text-fill-color:transparent; background-clip:text; }
-.script { font-family:'Caveat',cursive; font-size:1.2em; }
-.sub { font-size:1.05rem; color:var(--text-sec); max-width:500px; line-height:1.7; }
+/* ═══════════════════════════════════════════════════════════
+   SunSky — Vacation Types · Golden Hour, pass 2
+   Section 03 — luggage-tag tickets (punched eyelet, string
+   loop, edge-crossing stamps, barcode stubs) on a layered
+   sky scene: ghost "03", flight route, clouds, grain.
+   White above (Stats) drifting into cream below (Hotels).
+   ═══════════════════════════════════════════════════════════ */
 
-.grid { display:grid; grid-template-columns:1.2fr 0.8fr 1fr; gap:24px; }
-.card { position:relative; border-radius:var(--r-lg); overflow:hidden; cursor:pointer; box-shadow:var(--shadow-lg); transition:all 0.6s var(--ease-spring); min-height:420px; }
-.offset { margin-top:28px; }
-.card:hover { transform:scale(1.025); }
-.card img { width:100%; height:100%; object-fit:cover; transition:transform 1s var(--ease); }
-.card:hover img { transform:scale(1.15); }
-.overlay { position:absolute; inset:0; background:linear-gradient(180deg,transparent 20%,rgba(7,14,31,0.9) 100%); display:flex; flex-direction:column; justify-content:flex-end; padding:44px; }
-.vacLabel { font-size:0.7rem; font-weight:700; text-transform:uppercase; letter-spacing:3px; color:var(--sun-gold); margin-bottom:12px; }
-.vacTitle { color:#fff; font-family:'Sora',sans-serif; font-size:2rem; font-weight:800; line-height:1.1; }
-.vacDesc { color:rgba(255,255,255,0.6); font-size:0.95rem; margin-top:10px; max-width:280px; }
-.vacBtn {
-  display:inline-flex; align-items:center; gap:10px;
-  margin-top:28px; padding:14px 32px;
-  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
-  color:#fff; border-radius:var(--r-full); font-weight:700; font-size:14px;
-  font-family:'Sora',sans-serif;
-  opacity:0; transform:translateY(16px); transition:all 0.5s var(--ease);
+.sectionAlt {
+  background: linear-gradient(180deg, #FFFFFF 0%, #FBFCFF 40%, #FFF9EF 86%, #FFF6E9 100%);
+  position: relative;
+  overflow: hidden;
 }
-.card:hover .vacBtn { opacity:1; transform:translateY(0); box-shadow:var(--shadow-glow); }
 
-@media(max-width:1100px) { .grid { grid-template-columns:1fr 1fr; } .offset { margin-top:0; } }
-@media(max-width:768px) { .section { padding:48px 18px; } .grid { grid-template-columns:1fr; } .card { min-height:360px; } }
+/* ── Layered sky scene ── */
+.bgScene {
+  position: absolute; inset: 0;
+  pointer-events: none;
+  z-index: 0;
+}
+.glowBlue {
+  position: absolute; top: -160px; left: -140px;
+  width: 640px; height: 520px;
+  background: radial-gradient(ellipse at center, rgba(163, 204, 255, 0.25) 0%, transparent 62%);
+}
+.glowGold {
+  position: absolute; bottom: -180px; right: -120px;
+  width: 700px; height: 560px;
+  background: radial-gradient(ellipse at center, rgba(255, 209, 102, 0.22) 0%, transparent 65%);
+}
+/* dotted paper texture, fading out from the top-right */
+.dots {
+  position: absolute; top: 40px; right: 0;
+  width: 48%; height: 62%;
+  background-image: radial-gradient(rgba(31, 79, 216, 0.055) 1.1px, transparent 1.1px);
+  background-size: 23px 23px;
+  -webkit-mask-image: radial-gradient(ellipse at 85% 8%, black 0%, transparent 72%);
+  mask-image: radial-gradient(ellipse at 85% 8%, black 0%, transparent 72%);
+}
+/* giant ghost section number, half-cropped bottom-left */
+.ghostNum {
+  position: absolute; bottom: -0.16em; left: -14px;
+  font-family: 'Sora', sans-serif;
+  font-weight: 800;
+  font-size: clamp(7.5rem, 13vw, 13rem);
+  line-height: 1; letter-spacing: -0.04em;
+  color: rgba(31, 79, 216, 0.05);
+  user-select: none;
+}
+/* dashed flight route with waypoints + tiny plane */
+.route {
+  position: absolute; top: 34px; left: 0;
+  width: 100%; height: 320px;
+}
+/* drifting blurred cloud puffs */
+.vtCloud {
+  position: absolute;
+  border-radius: 999px;
+  filter: blur(17px);
+  animation: vtDrift 30s ease-in-out infinite alternate;
+}
+.vtCloud::before {
+  content: ''; position: absolute;
+  background: inherit; border-radius: inherit;
+  width: 55%; height: 130%;
+  top: -58%; left: 22%;
+}
+.vtCloud1 {
+  width: 230px; height: 54px;
+  top: 88px; right: 5%;
+  background: rgba(214, 233, 255, 0.85);
+  opacity: 0.7;
+}
+.vtCloud2 {
+  width: 170px; height: 44px;
+  bottom: 110px; left: 3%;
+  background: rgba(255, 255, 255, 0.95);
+  opacity: 0.8;
+  animation-delay: -15s; animation-duration: 38s;
+}
+@keyframes vtDrift {
+  from { transform: translateX(0); }
+  to   { transform: translateX(-90px); }
+}
+/* film grain */
+.grain {
+  position: absolute; inset: 0;
+  opacity: 0.025; mix-blend-mode: multiply;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
+}
+
+.section {
+  max-width: 1400px; margin: 0 auto;
+  padding: 64px clamp(20px, 4vw, 60px) 68px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Boarding-pass section header ── */
+.headRow {
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 14px;
+  animation: fadeUp 0.6s var(--ease) both;
+}
+.headIndex {
+  font-family: 'Sora', sans-serif;
+  font-size: 10px; font-weight: 800; letter-spacing: 0.5px;
+  color: var(--blue-deep);
+  background: var(--blue-light);
+  border-radius: 6px;
+  padding: 3.5px 8px;
+  flex-shrink: 0;
+}
+.headEyebrow {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.4px;
+  color: var(--text); white-space: nowrap;
+}
+.headRule {
+  flex: 1; height: 0;
+  border-top: 1.5px dashed #E3EBF8;
+}
+.headCode {
+  font-family: 'Sora', sans-serif;
+  font-size: 8.5px; font-weight: 700;
+  letter-spacing: 2px; color: #B9C7E0;
+  white-space: nowrap; flex-shrink: 0;
+}
+.headPlane { color: var(--blue-soft); flex-shrink: 0; }
+
+/* editorial header: big title left, subtitle right-aligned at the baseline */
+.header {
+  display: flex; align-items: flex-end; justify-content: space-between;
+  gap: 32px;
+  margin-bottom: 32px;
+  animation: fadeUp 0.7s var(--ease) 0.08s both;
+}
+.title {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+  font-weight: 800; color: var(--text);
+  letter-spacing: -1.4px; line-height: 1.08;
+}
+.titleAccent {
+  font-family: 'Caveat', cursive;
+  font-weight: 700; font-size: 1.3em;
+  background: linear-gradient(94deg, #FF9210 10%, #FFB93E 90%);
+  -webkit-background-clip: text; background-clip: text;
+  color: transparent;
+  -webkit-text-fill-color: transparent;
+  /* padding keeps the glyph flourishes inside the painted background box */
+  padding: 0.05em 0.15em 0.1em 0.05em;
+}
+.sub {
+  font-size: 0.95rem; color: var(--text-sec);
+  line-height: 1.65; max-width: 400px;
+  padding-bottom: 6px;
+  flex-shrink: 0;
+}
+
+/* ── Luggage-tag cards ── */
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 26px;
+  position: relative;
+}
+.offset { margin-top: 38px; }
+
+/* shell — entrance animation + drop-shadow (traces the mask cut-outs) */
+.card {
+  display: flex;
+  filter: drop-shadow(0 14px 24px rgba(31, 79, 216, 0.10)) drop-shadow(0 2px 6px rgba(31, 79, 216, 0.05));
+  transition: filter 0.35s var(--ease);
+  animation: fadeUp 0.7s var(--ease) both;
+}
+.card:nth-child(1) { animation-delay: 0.1s; }
+.card:nth-child(2) { animation-delay: 0.22s; }
+.card:nth-child(3) { animation-delay: 0.34s; }
+.card:hover {
+  filter: drop-shadow(0 24px 38px rgba(31, 79, 216, 0.17)) drop-shadow(0 5px 12px rgba(31, 79, 216, 0.08));
+}
+
+/* tag — slight print-shop rotation, straightens + lifts on hover */
+.tag {
+  position: relative;
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  transition: transform 0.38s var(--ease);
+}
+.card:nth-child(1) .tag { transform: rotate(-1.1deg); }
+.card:nth-child(3) .tag { transform: rotate(0.9deg); }
+.card:hover .tag { transform: translateY(-6px) rotate(0deg); }
+
+/* ticket surface — masked: stub notches + punched eyelet hole */
+.ticket {
+  position: relative;
+  flex: 1; min-width: 0;
+  display: flex; flex-direction: column;
+  background: #FFFFFF;
+  border: 1px solid #E8EFFB;
+  border-radius: 22px;
+  overflow: hidden;
+  --notchY: calc(100% - 62px);
+  -webkit-mask:
+    radial-gradient(circle at 26px 30px, transparent 7px, black 7.7px),
+    radial-gradient(circle at 0 var(--notchY), transparent 10px, black 10.7px),
+    radial-gradient(circle at 100% var(--notchY), transparent 10px, black 10.7px);
+  -webkit-mask-composite: source-in;
+  mask:
+    radial-gradient(circle at 26px 30px, transparent 7px, black 7.7px),
+    radial-gradient(circle at 0 var(--notchY), transparent 10px, black 10.7px),
+    radial-gradient(circle at 100% var(--notchY), transparent 10px, black 10.7px);
+  mask-composite: intersect;
+}
+/* dashed perforation rule — anchored to the same --notchY as the notch mask */
+.ticket::after {
+  content: '';
+  position: absolute; left: 16px; right: 16px;
+  top: calc(var(--notchY) - 1px);
+  border-top: 2px dashed #DFE9F8;
+  pointer-events: none;
+  z-index: 2;
+}
+
+/* metal eyelet ring around the punched hole (inner radius = the 7px mask hole) */
+.eyelet {
+  position: absolute; top: 30px; left: 26px; z-index: 4;
+  width: 24px; height: 24px;
+  margin: -12px 0 0 -12px;
+  border-radius: 50%;
+  border: 5px solid #FDFDFE;
+  box-shadow:
+    0 1px 5px rgba(15, 40, 100, 0.35),
+    inset 0 1px 3px rgba(15, 40, 100, 0.35);
+  pointer-events: none;
+}
+
+/* tag string looping out of the eyelet, past the card corner */
+.string {
+  position: absolute; top: -24px; left: -16px;
+  z-index: 3;
+  pointer-events: none;
+}
+
+.cardMedia {
+  position: relative;
+  aspect-ratio: 16 / 10;
+  overflow: hidden;
+  flex-shrink: 0;
+}
+/* gradient top strip, blue → gold */
+.cardMedia::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0; height: 4px;
+  background: linear-gradient(90deg, var(--blue-deep), var(--blue-ocean) 40%, var(--sun-gold) 72%, var(--sun-orange));
+  z-index: 2;
+}
+.cardMedia img {
+  width: 100%; height: 100%; object-fit: cover; display: block;
+  transition: transform 0.9s var(--ease);
+}
+.card:hover .cardMedia img { transform: scale(1.07); }
+
+/* passport-stamp label, straddling the ticket's top edge */
+.stamp {
+  position: absolute; top: 0; right: 18px; z-index: 6;
+  font-family: 'Sora', sans-serif;
+  font-size: 10px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.2px;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.92);
+  backdrop-filter: blur(6px);
+  -webkit-backdrop-filter: blur(6px);
+  border: 1.8px dashed rgba(255, 159, 28, 0.55);
+  border-radius: 10px;
+  padding: 6px 12px;
+  box-shadow: 0 6px 16px rgba(31, 79, 216, 0.10);
+  transform: translateY(-50%) rotate(-2.2deg);
+  transition: transform 0.35s var(--ease);
+}
+.card:nth-child(2) .stamp { border-color: rgba(31, 79, 216, 0.45); transform: translateY(-50%) rotate(1.8deg); }
+.card:nth-child(3) .stamp { border-color: rgba(255, 107, 107, 0.5); transform: translateY(-50%) rotate(-1.4deg); }
+.card:hover .stamp { transform: translateY(-50%) rotate(0deg); }
+
+.cardBody {
+  flex: 1;
+  padding: 20px 22px 16px;
+}
+.vacTitle {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.28rem; font-weight: 800;
+  color: var(--text); letter-spacing: -0.4px;
+  line-height: 1.2;
+}
+.vacDesc {
+  font-size: 0.9rem; color: var(--text-sec);
+  line-height: 1.65; margin-top: 8px;
+}
+
+/* Ticket stub — below the perforation: route code, barcode, CTA */
+.cardFoot {
+  height: 62px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px;
+  padding: 0 16px 0 20px;
+  background: linear-gradient(180deg, #FDFEFF, #F7FAFF);
+}
+.footMeta {
+  display: flex; flex-direction: column; gap: 3px;
+  min-width: 0;
+}
+.vacRoute {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px; font-weight: 800;
+  letter-spacing: 1.5px; color: var(--text);
+  white-space: nowrap;
+}
+.vacCode {
+  font-family: 'Sora', sans-serif;
+  font-size: 7.5px; font-weight: 700;
+  letter-spacing: 1.8px; color: #B9C7E0;
+  white-space: nowrap;
+}
+.barcode {
+  width: 52px; height: 24px;
+  flex-shrink: 0; opacity: 0.5;
+  background-image: repeating-linear-gradient(
+    90deg,
+    #24335A 0 2px, transparent 2px 4px,
+    #24335A 4px 7px, transparent 7px 9px,
+    #24335A 9px 10px, transparent 10px 14px
+  );
+}
+.vacBtn {
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 20px;
+  border: none; border-radius: var(--r-full);
+  background: linear-gradient(135deg, #FF9210 0%, #FFB93E 55%, #FFCB60 100%);
+  color: #fff;
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700;
+  position: relative; overflow: hidden;
+  cursor: pointer;
+  box-shadow:
+    0 8px 20px rgba(255, 159, 28, 0.32),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(200, 110, 0, 0.18);
+  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease);
+}
+.vacBtn::before {
+  content: ''; position: absolute; inset: 0;
+  background: linear-gradient(115deg, transparent 25%, rgba(255, 255, 255, 0.35) 50%, transparent 75%);
+  transform: translateX(-130%);
+  animation: vacShimmer 3.2s ease-in-out infinite;
+}
+@keyframes vacShimmer {
+  0%, 55% { transform: translateX(-130%); }
+  100%    { transform: translateX(130%); }
+}
+.vacBtn:hover {
+  transform: translateY(-2px);
+  box-shadow:
+    0 12px 28px rgba(255, 159, 28, 0.45),
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    inset 0 -2px 0 rgba(200, 110, 0, 0.18);
+}
+.vacBtn:focus-visible {
+  outline: 3px solid rgba(31, 79, 216, 0.45);
+  outline-offset: 3px;
+}
+
+/* handwritten note + hand-drawn arrow → middle (offset) tag */
+.annot {
+  position: absolute; top: -14px; left: 33.3%;
+  transform: translateX(-64%) rotate(-4deg);
+  display: flex; align-items: flex-start; gap: 2px;
+  color: #D98A00;
+  pointer-events: none;
+  z-index: 5;
+  animation: fadeIn 0.8s var(--ease) 0.6s both;
+}
+.annotText {
+  font-family: 'Caveat', cursive;
+  font-size: 1.45rem; font-weight: 700;
+  white-space: nowrap;
+}
+.annotArrow {
+  margin-top: 14px;
+  transform: rotate(6deg);
+}
+
+/* ── Responsive ── */
+@media (max-width: 1100px) {
+  .grid { grid-template-columns: 1fr 1fr; }
+  .offset { margin-top: 0; }
+  .annot { display: none; }
+}
+@media (max-width: 768px) {
+  .section { padding: 48px clamp(18px, 4vw, 32px) 52px; }
+  .header { flex-direction: column; align-items: flex-start; gap: 10px; margin-bottom: 26px; }
+  .sub { padding-bottom: 0; }
+  .grid { grid-template-columns: 1fr; gap: 24px; }
+  .cardBody { padding: 18px 18px 14px; }
+  .cardFoot { padding: 0 14px 0 18px; }
+  .route, .vtCloud { display: none; }
+  .headCode { display: none; }
+}
+@media (max-width: 480px) {
+  .headEyebrow { letter-spacing: 1px; }
+  .vacCode { letter-spacing: 1.4px; }
+}
+@media (max-width: 400px) {
+  .barcode { display: none; }
+}
+
+/* Accessibility — respect reduced motion */
+@media (prefers-reduced-motion: reduce) {
+  .headRow, .header, .card, .vacBtn::before, .vtCloud, .annot { animation: none; }
+  .card, .tag, .cardMedia img, .stamp, .vacBtn { transition: none; }
+}

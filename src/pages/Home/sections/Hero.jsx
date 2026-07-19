@@ -3,11 +3,31 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import styles from './Hero.module.css';
 import { useHomepageConfig, useCountries } from '../../../api';
-import CountryModal from '../../../components/CountryModal/CountryModal';
+import DestinationModal from '../../../components/DestinationModal/DestinationModal';
+import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 
-// Duration bands. handleSearch takes the first number as the night count, so a
-// band always searches its shortest stay ('6-10 days' → 6 nights).
-const DURATIONS = ['2-5 days','6-10 days','11-16 days','17-24 days','25+ days'];
+// Exact stay lengths, in nights. The search uses the chosen value directly (no more coarse
+// bands that silently searched only the shortest stay). Daily granularity up to two weeks —
+// the span of nearly every package — then weekly for longer trips. For anything in between,
+// the results page has exact check-in / check-out date pickers.
+const DURATIONS = [
+  { nights: 2,  label: '2 nights' },
+  { nights: 3,  label: '3 nights' },
+  { nights: 4,  label: '4 nights' },
+  { nights: 5,  label: '5 nights' },
+  { nights: 6,  label: '6 nights' },
+  { nights: 7,  label: '7 nights · 1 week' },
+  { nights: 8,  label: '8 nights' },
+  { nights: 9,  label: '9 nights' },
+  { nights: 10, label: '10 nights' },
+  { nights: 11, label: '11 nights' },
+  { nights: 12, label: '12 nights' },
+  { nights: 13, label: '13 nights' },
+  { nights: 14, label: '14 nights · 2 weeks' },
+  { nights: 21, label: '21 nights · 3 weeks' },
+  { nights: 28, label: '28 nights · 4 weeks' },
+];
+const durationLabel = (nights) => DURATIONS.find((d) => d.nights === nights)?.label ?? `${nights} nights`;
 
 const MAX_ROOMS = 8;
 
@@ -36,6 +56,25 @@ const FLIGHT_DESTINATIONS = [
 ];
 
 const CABIN_CLASSES = ['Economy', 'Premium Economy', 'Business', 'First'];
+
+// Human label for the multi-destination selection shown in the search field.
+// {countries:[...], places:[...]} → "Mallorca, Spain" / "Spain · 3 places" /
+// "Spain, Greece +1 · 4 places".
+function selectionLabel({ countries = [], places = [] } = {}) {
+  if (!countries.length) return '';
+  if (countries.length === 1) {
+    const c = countries[0];
+    if (places.length === 0) return c.name;
+    if (places.length === 1) return `${places[0].name}, ${c.name}`;
+    if (places.length === 2) return `${places[0].name} & ${places[1].name}, ${c.name}`;
+    return `${c.name} · ${places.length} places`;
+  }
+  const names = countries.map((c) => c.name);
+  const shown = names.slice(0, 2).join(', ');
+  const more = names.length > 2 ? ` +${names.length - 2}` : '';
+  const suffix = places.length ? ` · ${places.length} place${places.length === 1 ? '' : 's'}` : '';
+  return shown + more + suffix;
+}
 
 // Splits a title string and wraps the word "sun" in the script-font span.
 // Falls back to the hardcoded JSX if no CMS title has loaded yet.
@@ -67,11 +106,19 @@ export default function Hero() {
     if (hero.searchButtonText) setCmsSearchBtn(hero.searchButtonText);
   }, [cmsConfig]);
 
+  // Hero background: use the CMS-managed image when one is set, otherwise fall
+  // back to the default image defined in Hero.module.css (.bg). resolveCmsImageUrl
+  // turns dashboard-uploaded "/uploads/…" paths into absolute admin-backend URLs;
+  // full URLs (Unsplash, etc.) pass through unchanged.
+  const heroBgUrl = resolveCmsImageUrl(cmsConfig?.hero?.backgroundImageUrl);
+
   const [searchMode, setSearchMode] = useState('package');
-  const [destination, setDestination] = useState('');
-  const [destinationCode, setDestinationCode] = useState('');
+  // Multi-destination selection committed from the picker modal:
+  // countries the traveller ticked, plus any regions/cities inside them
+  // (empty places for a country = "anywhere in it").
+  const [destSelection, setDestSelection] = useState({ countries: [], places: [] });
   const [date, setDate] = useState('');
-  const [duration, setDuration] = useState('6-10 days');
+  const [duration, setDuration] = useState(7);   // nights (default: one week)
   // Occupancy is per room — each room carries its own adults, children and one
   // date-of-birth slot per child. The search still sends totals.
   const [roomsList, setRoomsList] = useState([{ adults: 2, children: 0, dobs: [] }]);
@@ -91,21 +138,25 @@ export default function Hero() {
   const [multiTo, setMultiTo] = useState('');
   const [multiDate, setMultiDate] = useState('');
 
-  // Destination is picked from a country modal — the field itself is not typeable.
+  // Destinations are picked from the multi-select modal — the field itself is
+  // not typeable.
   const { data: countriesData, loading: countriesLoading, error: countriesError } = useCountries();
   const countries = countriesData ?? [];
-  const [countryModalOpen, setCountryModalOpen] = useState(false);
+  const [destModalOpen, setDestModalOpen] = useState(false);
 
-  const openCountryModal = () => {
+  const openDestModal = () => {
     setOpenField(null);   // close any other dropdown first
-    setCountryModalOpen(true);
+    setDestModalOpen(true);
   };
 
-  const handleCountrySelect = (country) => {
-    setDestination(country.name);
-    setDestinationCode(country.isoCode || country.code || '');
-    setCountryModalOpen(false);
+  const handleDestinationApply = (selection) => {
+    setDestSelection(selection);
+    setDestModalOpen(false);
   };
+
+  const destinationLabel = selectionLabel(destSelection);
+  // Small flag strip rendered ahead of the label (first few picked countries).
+  const destFlags = destSelection.countries.slice(0, 4);
 
   const searchBarRef = useRef(null);
   const flightsRef = useRef(null);
@@ -178,23 +229,38 @@ export default function Hero() {
   };
 
   const handleSearch = () => {
-    const daysMatch = duration.match(/(\d+)/);
-    const nights = daysMatch ? parseInt(daysMatch[1]) : 7;
+    const nights = duration;   // exact nights the traveller picked
     let checkOut = '';
     if (date) {
       const d = new Date(date + 'T00:00:00');
       d.setDate(d.getDate() + nights);
       checkOut = d.toISOString().split('T')[0];
     }
+    const selCities    = destSelection.places.filter((p) => p.type === 'city');
+    const selRegions   = destSelection.places.filter((p) => p.type === 'region');
+    // A country is searched WHOLE only when no specific place inside it was picked; if the
+    // traveller ticked cities/regions in a country, those represent it instead (this mirrors the
+    // DestinationModal's own "Entire country vs N places" semantics). Sending such a country as a
+    // whole `countries=` entry would widen the search back to the whole country and ignore the
+    // narrower picks.
+    const pickedCountryIds = new Set(destSelection.places.map((p) => p.countryId));
+    const wholeCountries   = destSelection.countries.filter((c) => !pickedCountryIds.has(c.id));
+    // The results page scopes the faceted search by Hotelbeds codes: countries match
+    // hotels.countryCode (== Country.code — NOT the ISO code; e.g. Cyprus is 'NY' not 'CY',
+    // UK is 'UK' not 'GB'), and cities match hotels.destinationCode. Send those exact codes.
+    const destParam = selCities[0]?.code || wholeCountries[0]?.code || destSelection.countries[0]?.code || '';
     const qs = new URLSearchParams({
-      destination:      destinationCode || destination,
-      destinationLabel: destination,
+      destination:      destParam,
+      destinationLabel: destinationLabel,
       checkIn:          date || '',
       checkOut:         checkOut || '',
       adults:           String(totalAdults),
       children:         String(totalChildren),
       rooms:            String(roomsList.length),
     });
+    if (wholeCountries.length) qs.set('countries', wholeCountries.map((c) => c.code).join(','));
+    if (selCities.length)      qs.set('cities',    selCities.map((p) => p.code).join(','));
+    if (selRegions.length)     qs.set('regions',   selRegions.map((p) => p.code).join(','));
     const childAges = roomsList.flatMap((r) => r.dobs).map(ageFromDob).filter((a) => a != null);
     if (childAges.length) qs.set('childAges', childAges.join(','));
     navigate(`/results?${qs.toString()}`);
@@ -230,8 +296,13 @@ export default function Hero() {
 
   return (
     <section className={styles.hero}>
-      <div className={styles.heroBg}>
-        <div className={styles.bg} />
+      {/* heroBgImage = client-uploaded photo shown as-is (no darkening filter or
+          overlay), so every element on top must carry its own contrast. */}
+      <div className={`${styles.heroBg} ${heroBgUrl ? styles.heroBgImage : ''}`}>
+        <div
+          className={styles.bg}
+          style={heroBgUrl ? { backgroundImage: `url("${heroBgUrl}")` } : undefined}
+        />
         <div className={styles.overlay} />
         <div className={`${styles.blob} ${styles.blob1}`} />
         <div className={`${styles.blob} ${styles.blob2}`} />
@@ -278,15 +349,26 @@ export default function Hero() {
         <div className={styles.searchBarWrap} ref={searchBarRef}>
           <div className={styles.searchBar}>
             <div
-              className={`${styles.sf} ${styles.sfDest} ${countryModalOpen ? styles.sfActive : ''}`}
-              onClick={openCountryModal}
+              className={`${styles.sf} ${styles.sfDest} ${destModalOpen ? styles.sfActive : ''}`}
+              onClick={openDestModal}
             >
               <span className={styles.sfIcon}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Destination</span>
-                <span className={styles.sfValue}>{destination || 'Where to?'}</span>
+                <span className={`${styles.sfValue} ${!destinationLabel ? styles.sfPlaceholder : ''}`}>
+                  {destFlags.length > 0 && (
+                    <span className={styles.sfFlags}>
+                      {destFlags.map((c) =>
+                        c.flagUrl
+                          ? <img key={c.id ?? c.isoCode} className={styles.sfFlag} src={c.flagUrl} alt="" />
+                          : <span key={c.id ?? c.isoCode} className={styles.sfFlagEmoji}>{c.flag || '🏳️'}</span>
+                      )}
+                    </span>
+                  )}
+                  {destinationLabel || 'Where to?'}
+                </span>
               </div>
             </div>
             <div className={styles.sfDivider} />
@@ -299,7 +381,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Departure</span>
-                <span className={styles.sfValue}>{formatDate(date) || 'Pick a date'}</span>
+                <span className={`${styles.sfValue} ${!date ? styles.sfPlaceholder : ''}`}>{formatDate(date) || 'Pick a date'}</span>
               </div>
               <input
                 ref={packageDateRef}
@@ -320,7 +402,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Duration</span>
-                <span className={styles.sfValue}>{duration}</span>
+                <span className={styles.sfValue}>{durationLabel(duration)}</span>
               </div>
             </div>
             <div className={styles.sfDivider} />
@@ -347,12 +429,12 @@ export default function Hero() {
               <div className={styles.durList}>
                 {DURATIONS.map((d) => (
                   <div
-                    key={d}
-                    className={`${styles.durOpt} ${duration === d ? styles.durOptActive : ''}`}
-                    onClick={() => { setDuration(d); setOpenField(null); }}
+                    key={d.nights}
+                    className={`${styles.durOpt} ${duration === d.nights ? styles.durOptActive : ''}`}
+                    onClick={() => { setDuration(d.nights); setOpenField(null); }}
                   >
-                    <span>{d}</span>
-                    {duration === d && (
+                    <span>{d.label}</span>
+                    {duration === d.nights && (
                       <svg className={styles.durCheck} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                     )}
                   </div>
@@ -498,7 +580,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>From</span>
-                <span className={styles.sfValue}>{flightFrom || 'Select airport'}</span>
+                <span className={`${styles.sfValue} ${!flightFrom ? styles.sfPlaceholder : ''}`}>{flightFrom || 'Select airport'}</span>
               </div>
             </div>
 
@@ -521,7 +603,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>To</span>
-                <span className={styles.sfValue}>{flightTo || 'Select destination'}</span>
+                <span className={`${styles.sfValue} ${!flightTo ? styles.sfPlaceholder : ''}`}>{flightTo || 'Select destination'}</span>
               </div>
             </div>
 
@@ -537,7 +619,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Depart</span>
-                <span className={styles.sfValue}>{formatDate(flightDate) || 'Select date'}</span>
+                <span className={`${styles.sfValue} ${!flightDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightDate) || 'Select date'}</span>
               </div>
               <input
                 ref={flightDateRef}
@@ -562,7 +644,7 @@ export default function Hero() {
                   </span>
                   <div className={styles.sfText}>
                     <span className={styles.sfLabel}>Return</span>
-                    <span className={styles.sfValue}>{formatDate(flightReturnDate) || 'Select date'}</span>
+                    <span className={`${styles.sfValue} ${!flightReturnDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightReturnDate) || 'Select date'}</span>
                   </div>
                   <input
                     ref={flightReturnRef}
@@ -611,7 +693,7 @@ export default function Hero() {
                 </span>
                 <div className={styles.sfText}>
                   <span className={styles.sfLabel}>From</span>
-                  <span className={styles.sfValue}>{multiFrom || 'Select airport'}</span>
+                  <span className={`${styles.sfValue} ${!multiFrom ? styles.sfPlaceholder : ''}`}>{multiFrom || 'Select airport'}</span>
                 </div>
               </div>
               <button
@@ -629,7 +711,7 @@ export default function Hero() {
                 </span>
                 <div className={styles.sfText}>
                   <span className={styles.sfLabel}>To</span>
-                  <span className={styles.sfValue}>{multiTo || 'Select destination'}</span>
+                  <span className={`${styles.sfValue} ${!multiTo ? styles.sfPlaceholder : ''}`}>{multiTo || 'Select destination'}</span>
                 </div>
               </div>
               <div className={styles.sfDivider} />
@@ -642,7 +724,7 @@ export default function Hero() {
                 </span>
                 <div className={styles.sfText}>
                   <span className={styles.sfLabel}>Depart</span>
-                  <span className={styles.sfValue}>{formatDate(multiDate) || 'Select date'}</span>
+                  <span className={`${styles.sfValue} ${!multiDate ? styles.sfPlaceholder : ''}`}>{formatDate(multiDate) || 'Select date'}</span>
                 </div>
                 <input
                   ref={multiDateRef}
@@ -807,14 +889,14 @@ export default function Hero() {
         )}
       </div>
 
-      <CountryModal
-        open={countryModalOpen}
+      <DestinationModal
+        open={destModalOpen}
         countries={countries}
         loading={countriesLoading}
         error={countriesError}
-        selectedCode={destinationCode}
-        onSelect={handleCountrySelect}
-        onClose={() => setCountryModalOpen(false)}
+        value={destSelection}
+        onApply={handleDestinationApply}
+        onClose={() => setDestModalOpen(false)}
       />
     </section>
   );

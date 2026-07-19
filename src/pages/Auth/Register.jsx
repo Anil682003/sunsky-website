@@ -5,19 +5,41 @@ import styles from './Register.module.css';
 import { useRegister } from '../../api';
 import { useToast } from '../../context/ToastContext';
 
-const INDUSTRIES = [
-  'Airline','Corporate Travel','Event Management','Government',
-  'Hospitality','Incentive Travel','Logistics','Management Consulting',
-  'Media & Entertainment','NGO / Non-Profit','Sports & Recreation',
-  'Technology','Tour Operator','Travel Agency','Other',
-];
+/* The option lists below are the dashboard's lists, verbatim. Registrations
+   land in the same tables agents type into, so the values have to match or a
+   web signup shows up blank in the admin's dropdowns. */
+
+const NATIONALITIES = [
+  'American', 'Australian', 'Austrian', 'Belgian', 'Brazilian', 'British',
+  'Canadian', 'Chinese', 'Czech', 'Danish', 'Dutch', 'Finnish', 'French',
+  'German', 'Greek', 'Hungarian', 'Indian', 'Irish', 'Italian', 'Japanese',
+  'Korean', 'Mexican', 'Norwegian', 'Polish', 'Portuguese', 'Romanian',
+  'Russian', 'Spanish', 'Swedish', 'Swiss', 'Turkish', 'Ukrainian',
+].sort();
+
 const LANGUAGES = [
-  { value:'en', label:'English' },
-  { value:'nl', label:'Nederlands' },
-  { value:'fr', label:'Français' },
-  { value:'de', label:'Deutsch' },
+  'Arabic', 'Chinese', 'Danish', 'Dutch', 'English', 'Finnish',
+  'French', 'German', 'Greek', 'Hungarian', 'Italian', 'Japanese',
+  'Korean', 'Norwegian', 'Polish', 'Portuguese', 'Romanian',
+  'Russian', 'Spanish', 'Swedish', 'Turkish', 'Ukrainian',
+].sort();
+
+const COUNTRIES = [
+  'Austria', 'Belgium', 'Brazil', 'Canada', 'China', 'Czech Republic',
+  'Denmark', 'Finland', 'France', 'Germany', 'Greece', 'Hungary',
+  'India', 'Ireland', 'Italy', 'Japan', 'Mexico', 'Netherlands',
+  'Norway', 'Poland', 'Portugal', 'Romania', 'Russia', 'South Korea',
+  'Spain', 'Sweden', 'Switzerland', 'Turkey', 'Ukraine',
+  'United Kingdom', 'United States',
+].sort();
+
+// Values are the DB enum; labels are what the dashboard shows.
+const GENDERS = [
+  { value: 'MALE', label: 'Male' },
+  { value: 'FEMALE', label: 'Female' },
+  { value: 'OTHER', label: 'Other' },
+  { value: 'PREFER_NOT_TO_SAY', label: 'Prefer not to say' },
 ];
-const PAYMENT_TERMS = ['0 days','7 days','14 days','30 days','45 days','60 days'];
 
 const PHONE_CODES = [
   { code:'32',  flag:'🇧🇪', name:'Belgium' },
@@ -74,17 +96,16 @@ const PHONE_CODES = [
   { code:'213', flag:'🇩🇿', name:'Algeria' },
 ];
 
-const PRIVATE_STEPS = [
-  { key:'personal', label:'Personal' },
-  { key:'address',  label:'Address' },
-  { key:'security', label:'Security' },
-];
-const PRO_STEPS = [
-  { key:'company',  label:'Company' },
-  { key:'invoice',  label:'Invoicing' },
-  { key:'contact',  label:'Contact' },
-  { key:'security', label:'Security' },
-];
+const EMPTY_FORM = {
+  firstName: '', lastName: '', email: '',
+  phoneCode: '32', phone: '',
+  dateOfBirth: '', gender: '', nationality: '', language: '',
+  street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
+  password: '',
+  tradingName: '', legalName: '', vatNumber: '',
+};
+
+const toE164 = (code, number) => `+${code}${number.replace(/\D/g, '').replace(/^0+/, '')}`;
 
 function getPasswordStrength(pw) {
   let s = 0;
@@ -95,13 +116,75 @@ function getPasswordStrength(pw) {
   return s;
 }
 
+function validateField(key, form, isCompany) {
+  const v = String(form[key] ?? '').trim();
+  switch (key) {
+    case 'firstName':
+      if (!v) return 'First name is required';
+      if (v.length < 2) return 'First name must be at least 2 characters';
+      break;
+    case 'lastName':
+      if (!v) return 'Last name is required';
+      if (v.length < 2) return 'Last name must be at least 2 characters';
+      break;
+    case 'email':
+      if (!v) return 'Email is required';
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address';
+      break;
+    case 'phone': {
+      if (!v) return 'Phone number is required';
+      const e164 = toE164(form.phoneCode, v);
+      if (!/^\+[1-9]\d{6,14}$/.test(e164)) return 'Enter a valid phone number';
+      break;
+    }
+    case 'nationality':
+      // Only stored on a private customer — a company account has no such column.
+      if (!isCompany && !v) return 'Nationality is required';
+      break;
+    case 'language':
+      if (!v) return 'Preferred language is required';
+      break;
+    case 'country':
+      if (!v) return 'Country is required';
+      break;
+    case 'password':
+      if (!v) return 'Password is required';
+      if (getPasswordStrength(form.password) < 4) return 'Use 8+ characters with an uppercase letter, a number and a symbol';
+      break;
+    case 'tradingName':
+      if (isCompany && !v) return 'Trading name is required';
+      break;
+    case 'legalName':
+      if (isCompany && !v) return 'Legal name is required';
+      break;
+    case 'vatNumber':
+      if (isCompany && !v) return 'VAT number is required';
+      break;
+    default: break;
+  }
+  return '';
+}
+
+const VALIDATED_FIELDS = [
+  'firstName', 'lastName', 'email', 'phone', 'nationality',
+  'language', 'country', 'password', 'tradingName', 'legalName', 'vatNumber',
+];
+
 // Stable component — defined outside Register to prevent React unmount on re-render
-function Field({ label, placeholder, type = 'text', full, span2, required, select, options, value, onChange }) {
+function Field({
+  label, placeholder, type = 'text', full, span2, required,
+  select, options, value, onChange, onBlur, error, hint, max,
+}) {
   return (
     <div className={`${styles.field} ${full ? styles.fieldFull : ''} ${span2 ? styles.fieldSpan2 : ''}`}>
       <label className={styles.fieldLabel}>{label}{required && ' *'}</label>
       {select ? (
-        <select className={styles.fieldSelect} value={value} onChange={onChange}>
+        <select
+          className={`${styles.fieldSelect} ${error ? styles.inputError : ''}`}
+          value={value}
+          onChange={onChange}
+          onBlur={onBlur}
+        >
           <option value="">{placeholder}</option>
           {options.map(o => typeof o === 'string'
             ? <option key={o} value={o}>{o}</option>
@@ -110,19 +193,24 @@ function Field({ label, placeholder, type = 'text', full, span2, required, selec
         </select>
       ) : (
         <input
-          className={styles.fieldInput}
+          className={`${styles.fieldInput} ${error ? styles.inputError : ''}`}
           type={type}
           placeholder={placeholder}
           value={value}
           onChange={onChange}
+          onBlur={onBlur}
+          max={max}
         />
       )}
+      {error
+        ? <span className={styles.errorText}>{error}</span>
+        : hint ? <span className={styles.hintText}>{hint}</span> : null}
     </div>
   );
 }
 
 // Searchable phone code picker + number input — defined outside Register
-function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChange, required, full, span2 }) {
+function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChange, onBlur, error, required, full, span2 }) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const wrapRef = useRef(null);
@@ -195,13 +283,26 @@ function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChang
         )}
 
         <input
-          className={styles.phoneNumber}
+          className={`${styles.phoneNumber} ${error ? styles.inputError : ''}`}
           type="tel"
           placeholder="470 123 456"
           value={numberValue}
           onChange={onNumberChange}
+          onBlur={onBlur}
         />
       </div>
+      {error && <span className={styles.errorText}>{error}</span>}
+    </div>
+  );
+}
+
+function SectionHead({ index, title, note }) {
+  return (
+    <div className={styles.sectionHead}>
+      <span className={styles.sectionIndex}>{index}</span>
+      <span className={styles.sectionTitle}>{title}</span>
+      {note && <span className={styles.sectionNote}>{note}</span>}
+      <span className={styles.sectionRule} />
     </div>
   );
 }
@@ -210,163 +311,85 @@ export default function Register() {
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { execute: register, loading } = useRegister();
-  const [type, setType] = useState('private');
-  const [step, setStep] = useState(0);
-  const [agreed, setAgreed] = useState(false);
 
-  const [prv, setPrv] = useState({
-    firstName:'', lastName:'', email:'',
-    phoneCode:'32', phone:'',
-    dateOfBirth:'', gender:'', nationality:'',
-    preferredLanguage:'', street:'', city:'',
-    postalCode:'', country:'', password:'',
-  });
+  const [form, setForm]         = useState(EMPTY_FORM);
+  const [errors, setErrors]     = useState({});
+  const [isCompany, setCompany] = useState(false);
+  const [agreed, setAgreed]     = useState(false);
 
-  const [pro, setPro] = useState({
-    tradingName:'', legalName:'', vatNumber:'',
-    industry:'', website:'', street:'', city:'',
-    postalCode:'', country:'',
-    invoiceEmail:'', invoicingAddress:'', paymentTerms:'',
-    primaryContactFirstName:'', primaryContactLastName:'',
-    primaryContactEmail:'',
-    primaryContactPhoneCode:'32', primaryContactPhone:'',
-    primaryContactRole:'', preferredLanguage:'',
-    password:'',
-  });
+  const set = (key) => (e) => {
+    let value = e.target.value;
+    // SUNSKY convention — surnames are uppercase, same as the dashboard.
+    if (key === 'lastName') value = value.toUpperCase();
+    if (key === 'email') value = value.trim().toLowerCase();
+    setForm(prev => ({ ...prev, [key]: value }));
+    if (errors[key]) setErrors(prev => ({ ...prev, [key]: '' }));
+  };
+  const setCode = (key) => (v) => setForm(prev => ({ ...prev, [key]: v }));
+  const blur = (key) => () =>
+    setErrors(prev => ({ ...prev, [key]: validateField(key, form, isCompany) }));
 
-  const data    = type === 'private' ? prv : pro;
-  const setData = type === 'private' ? setPrv : setPro;
-  const set     = (k) => (e) => setData(prev => ({ ...prev, [k]: e.target.value }));
-  const setCode = (k) => (v)  => setData(prev => ({ ...prev, [k]: v }));
+  const strength = getPasswordStrength(form.password);
 
-  const strength = getPasswordStrength(data.password);
-  const steps    = type === 'private' ? PRIVATE_STEPS : PRO_STEPS;
-  const isLast   = step === steps.length - 1;
-  const handleTypeSwitch = (t) => { setType(t); setStep(0); };
+  const toggleCompany = () => {
+    setCompany(prev => {
+      const next = !prev;
+      // Drop stale errors for fields that stop applying either way.
+      setErrors(e => ({ ...e, nationality: '', tradingName: '', legalName: '', vatNumber: '' }));
+      return next;
+    });
+  };
 
   const handleRegister = async () => {
+    const found = {};
+    VALIDATED_FIELDS.forEach(key => {
+      const err = validateField(key, form, isCompany);
+      if (err) found[key] = err;
+    });
+    setErrors(found);
+
+    if (Object.keys(found).length) {
+      showToast('Please check the highlighted fields.', 'error');
+      document.querySelector(`.${styles.inputError}`)
+        ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+
+    const payload = {
+      type: isCompany ? 'professional' : 'private',
+      password: form.password,
+      firstName: form.firstName.trim(),
+      lastName: form.lastName.trim(),
+      email: form.email.trim().toLowerCase(),
+      phone: toE164(form.phoneCode, form.phone),
+      preferredLanguage: form.language,
+      street: form.street.trim(),
+      houseNumber: form.houseNumber.trim(),
+      boxNumber: form.boxNumber.trim(),
+      city: form.city.trim(),
+      postalCode: form.postalCode.trim(),
+      country: form.country,
+    };
+
+    if (isCompany) {
+      // The person above is stored as the company's primary contact.
+      payload.tradingName = form.tradingName.trim();
+      payload.legalName   = form.legalName.trim();
+      payload.vatNumber   = form.vatNumber.trim();
+    } else {
+      payload.nationality = form.nationality;
+      if (form.dateOfBirth) payload.dateOfBirth = form.dateOfBirth;
+      if (form.gender)      payload.gender      = form.gender;
+    }
+
     try {
-      const { password, phoneCode, primaryContactPhoneCode, ...fields } = data;
-
-      if (type === 'private' && fields.phone !== undefined) {
-        const num = fields.phone.replace(/\D/g, '').replace(/^0+/, '');
-        fields.phone = `+${phoneCode}${num}`;
-      }
-      if (type === 'professional' && fields.primaryContactPhone !== undefined) {
-        const num = fields.primaryContactPhone.replace(/\D/g, '').replace(/^0+/, '');
-        fields.primaryContactPhone = `+${primaryContactPhoneCode}${num}`;
-      }
-
-      await register({ type, password, ...fields });
+      await register(payload);
     } catch (err) {
       showToast(err.response?.data?.message || 'Registration failed. Please try again.', 'error');
     }
   };
 
-  const renderPrivateStep = () => {
-    switch (step) {
-      case 0: return (
-        <>
-          <Field label="First Name" placeholder="John" value={data.firstName} onChange={set('firstName')} required />
-          <Field label="Last Name" placeholder="Doe" value={data.lastName} onChange={set('lastName')} required />
-          <Field label="Email" placeholder="john@example.com" type="email" value={data.email} onChange={set('email')} required />
-          <PhoneField label="Phone" codeValue={data.phoneCode} numberValue={data.phone} onCodeChange={setCode('phoneCode')} onNumberChange={set('phone')} required />
-          <Field label="Date of Birth" type="date" value={data.dateOfBirth} onChange={set('dateOfBirth')} />
-          <Field label="Gender" placeholder="Select" select value={data.gender} onChange={set('gender')} options={[
-            { value:'MALE', label:'Male' }, { value:'FEMALE', label:'Female' },
-            { value:'OTHER', label:'Other' }, { value:'PREFER_NOT_TO_SAY', label:'Prefer not to say' },
-          ]} />
-          <Field label="Nationality" placeholder="e.g. Belgian" value={data.nationality} onChange={set('nationality')} required />
-          <Field label="Language" placeholder="Select" select value={data.preferredLanguage} onChange={set('preferredLanguage')} options={LANGUAGES} required />
-        </>
-      );
-      case 1: return (
-        <>
-          <Field label="Street" placeholder="Rue de la Loi 16" full value={data.street} onChange={set('street')} />
-          <Field label="City" placeholder="Brussels" value={data.city} onChange={set('city')} />
-          <Field label="Postal Code" placeholder="1000" value={data.postalCode} onChange={set('postalCode')} />
-          <Field label="Country" placeholder="Belgium" value={data.country} onChange={set('country')} />
-        </>
-      );
-      case 2: return (
-        <>
-          <Field label="Password" placeholder="Min. 8 characters" type="password" full value={data.password} onChange={set('password')} required />
-          <div className={styles.strengthBar}>
-            {[1,2,3,4].map(i => <div key={i} className={`${styles.strengthSeg} ${strength >= i ? styles[`filled${i}`] : ''}`} />)}
-          </div>
-          <div className={styles.strengthHint}>
-            <span className={strength >= 1 ? styles.met : ''}>8+ chars</span>
-            <span className={strength >= 2 ? styles.met : ''}>Uppercase</span>
-            <span className={strength >= 3 ? styles.met : ''}>Number</span>
-            <span className={strength >= 4 ? styles.met : ''}>Symbol</span>
-          </div>
-          <div className={styles.terms}>
-            <div className={`${styles.checkbox} ${agreed ? styles.checked : ''}`} onClick={() => setAgreed(!agreed)}>
-              {agreed && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
-            </div>
-            <span className={styles.termsText}>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></span>
-          </div>
-        </>
-      );
-      default: return null;
-    }
-  };
-
-  const renderProStep = () => {
-    switch (step) {
-      case 0: return (
-        <>
-          <Field label="Trading Name" placeholder="SunSky Travel BV" value={data.tradingName} onChange={set('tradingName')} required />
-          <Field label="Legal Name" placeholder="SunSky Travel BV" value={data.legalName} onChange={set('legalName')} required />
-          <Field label="VAT Number" placeholder="BE0477.123.456" value={data.vatNumber} onChange={set('vatNumber')} required />
-          <Field label="Industry" placeholder="Select industry" select value={data.industry} onChange={set('industry')} options={INDUSTRIES} required />
-          <Field label="Website" placeholder="https://example.com" value={data.website} onChange={set('website')} required />
-          <Field label="Country" placeholder="Belgium" value={data.country} onChange={set('country')} required />
-          <Field label="Street" placeholder="Rue de la Loi 16" span2 value={data.street} onChange={set('street')} />
-          <Field label="City" placeholder="Brussels" value={data.city} onChange={set('city')} />
-          <Field label="Postal Code" placeholder="1000" value={data.postalCode} onChange={set('postalCode')} />
-        </>
-      );
-      case 1: return (
-        <>
-          <Field label="Invoice Email" placeholder="billing@company.com" type="email" span2 value={data.invoiceEmail} onChange={set('invoiceEmail')} required />
-          <Field label="Payment Terms" placeholder="Select terms" select value={data.paymentTerms} onChange={set('paymentTerms')} options={PAYMENT_TERMS} />
-          <Field label="Invoicing Address (if different)" placeholder="Full invoicing address" full value={data.invoicingAddress} onChange={set('invoicingAddress')} />
-        </>
-      );
-      case 2: return (
-        <>
-          <Field label="First Name" placeholder="Jane" value={data.primaryContactFirstName} onChange={set('primaryContactFirstName')} required />
-          <Field label="Last Name" placeholder="Smith" value={data.primaryContactLastName} onChange={set('primaryContactLastName')} required />
-          <Field label="Role / Title" placeholder="e.g. Travel Manager" value={data.primaryContactRole} onChange={set('primaryContactRole')} />
-          <Field label="Email" placeholder="jane@company.com" type="email" value={data.primaryContactEmail} onChange={set('primaryContactEmail')} required />
-          <PhoneField label="Phone" codeValue={data.primaryContactPhoneCode} numberValue={data.primaryContactPhone} onCodeChange={setCode('primaryContactPhoneCode')} onNumberChange={set('primaryContactPhone')} required />
-          <Field label="Language" placeholder="Select" select value={data.preferredLanguage} onChange={set('preferredLanguage')} options={LANGUAGES} />
-        </>
-      );
-      case 3: return (
-        <>
-          <Field label="Password" placeholder="Min. 8 characters" type="password" full value={data.password} onChange={set('password')} required />
-          <div className={styles.strengthBar}>
-            {[1,2,3,4].map(i => <div key={i} className={`${styles.strengthSeg} ${strength >= i ? styles[`filled${i}`] : ''}`} />)}
-          </div>
-          <div className={styles.strengthHint}>
-            <span className={strength >= 1 ? styles.met : ''}>8+ chars</span>
-            <span className={strength >= 2 ? styles.met : ''}>Uppercase</span>
-            <span className={strength >= 3 ? styles.met : ''}>Number</span>
-            <span className={strength >= 4 ? styles.met : ''}>Symbol</span>
-          </div>
-          <div className={styles.terms}>
-            <div className={`${styles.checkbox} ${agreed ? styles.checked : ''}`} onClick={() => setAgreed(!agreed)}>
-              {agreed && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
-            </div>
-            <span className={styles.termsText}>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></span>
-          </div>
-        </>
-      );
-      default: return null;
-    }
-  };
+  const today = new Date().toISOString().split('T')[0];
 
   return (
     <div className={styles.page}>
@@ -421,7 +444,7 @@ export default function Register() {
             <div className={`${styles.trustIcon} ${styles.orange}`}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
-            <span className={styles.trustLabel}>Secure & GDPR-compliant</span>
+            <span className={styles.trustLabel}>Secure &amp; GDPR-compliant</span>
           </div>
           <div className={styles.trustItem}>
             <div className={`${styles.trustIcon} ${styles.blue}`}>
@@ -441,75 +464,120 @@ export default function Register() {
       <div className={styles.formPanel}>
         <div className={styles.card}>
           <div className={styles.ticket}>
-          <div className={styles.cardHead}>
-            <div className={styles.cardHeader}>
-              <h1 className={styles.cardTitle}>Create your account</h1>
-              <p className={styles.cardSub}>Already have an account? <Link to="/login">Sign in</Link></p>
+
+            <div className={styles.cardHead}>
+              <div className={styles.cardHeader}>
+                <h1 className={styles.cardTitle}>Create your account</h1>
+                <p className={styles.cardSub}>
+                  One form, no steps. Already have an account? <Link to="/login">Sign in</Link>
+                </p>
+              </div>
             </div>
 
-            <div className={styles.typeToggle}>
-              <button className={`${styles.typeBtn} ${type === 'private' ? styles.active : ''}`} onClick={() => handleTypeSwitch('private')}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
-                Private
-              </button>
-              <button className={`${styles.typeBtn} ${type === 'professional' ? styles.active : ''}`} onClick={() => handleTypeSwitch('professional')}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/></svg>
-                Professional
-              </button>
-            </div>
+            <div className={styles.cardBody}>
 
-            <div className={styles.stepper}>
-              {steps.map((s, i) => (
-                <div key={s.key} className={`${styles.stepItem} ${i === step ? styles.stepActive : ''} ${i < step ? styles.stepDone : ''}`} onClick={() => i <= step && setStep(i)}>
-                  <div className={styles.stepDot}>
-                    {i < step ? (
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M20 6L9 17l-5-5"/></svg>
-                    ) : (
-                      <span>{i + 1}</span>
-                    )}
-                  </div>
-                  <span className={styles.stepLabel}>{s.label}</span>
-                  {i < steps.length - 1 && <div className={`${styles.stepLine} ${i < step ? styles.stepLineFilled : ''}`} />}
+              <SectionHead index="01" title="Your details" />
+              <div className={styles.formGrid}>
+                <Field label="First Name" placeholder="John" required
+                  value={form.firstName} onChange={set('firstName')} onBlur={blur('firstName')} error={errors.firstName} />
+                <Field label="Last Name" placeholder="DOE" required
+                  value={form.lastName} onChange={set('lastName')} onBlur={blur('lastName')} error={errors.lastName} />
+                <Field label="Email" placeholder="john@example.com" type="email" required
+                  value={form.email} onChange={set('email')} onBlur={blur('email')} error={errors.email} />
+                <PhoneField label="Phone" span2 required
+                  codeValue={form.phoneCode} numberValue={form.phone}
+                  onCodeChange={setCode('phoneCode')} onNumberChange={set('phone')}
+                  onBlur={blur('phone')} error={errors.phone} />
+                <Field label="Nationality" placeholder="Select nationality" select options={NATIONALITIES}
+                  required={!isCompany}
+                  value={form.nationality} onChange={set('nationality')} onBlur={blur('nationality')} error={errors.nationality} />
+                <Field label="Preferred Language" placeholder="Select language" select options={LANGUAGES} required
+                  value={form.language} onChange={set('language')} onBlur={blur('language')} error={errors.language} />
+                <Field label="Date of Birth" type="date" max={today}
+                  value={form.dateOfBirth} onChange={set('dateOfBirth')} />
+                <Field label="Gender" placeholder="Select" select options={GENDERS}
+                  value={form.gender} onChange={set('gender')} />
+              </div>
+
+              <SectionHead index="02" title="Address" />
+              <div className={styles.formGrid}>
+                <Field label="Street" placeholder="Rue de la Loi" span2
+                  value={form.street} onChange={set('street')} />
+                <Field label="House No." placeholder="42"
+                  value={form.houseNumber} onChange={set('houseNumber')} />
+                <Field label="Box No." placeholder="3A" hint="Apartment, suite or bus"
+                  value={form.boxNumber} onChange={set('boxNumber')} />
+                <Field label="City" placeholder="Brussels"
+                  value={form.city} onChange={set('city')} />
+                <Field label="Postal Code" placeholder="1000"
+                  value={form.postalCode} onChange={set('postalCode')} />
+                <Field label="Country" placeholder="Select country" select options={COUNTRIES} required full
+                  value={form.country} onChange={set('country')} onBlur={blur('country')} error={errors.country} />
+              </div>
+
+              <SectionHead index="03" title="Security" />
+              <div className={styles.formGrid}>
+                <Field label="Password" placeholder="Min. 8 characters" type="password" full required
+                  value={form.password} onChange={set('password')} onBlur={blur('password')} error={errors.password} />
+                <div className={styles.strengthBar}>
+                  {[1,2,3,4].map(i => <div key={i} className={`${styles.strengthSeg} ${strength >= i ? styles[`filled${i}`] : ''}`} />)}
                 </div>
-              ))}
-            </div>
-          </div>
+                <div className={styles.strengthHint}>
+                  <span className={strength >= 1 ? styles.met : ''}>8+ chars</span>
+                  <span className={strength >= 2 ? styles.met : ''}>Uppercase</span>
+                  <span className={strength >= 3 ? styles.met : ''}>Number</span>
+                  <span className={strength >= 4 ? styles.met : ''}>Symbol</span>
+                </div>
+              </div>
 
-          <div className={styles.cardBody}>
-            <div className={styles.formGrid} key={`${type}-${step}`}>
-              {type === 'private' ? renderPrivateStep() : renderProStep()}
-            </div>
-          </div>
+              <SectionHead index="04" title="Business account" note="Optional" />
+              <div className={`${styles.companyBlock} ${isCompany ? styles.companyOpen : ''}`}>
+                <div className={styles.companyToggle} onClick={toggleCompany}>
+                  <div className={`${styles.checkbox} ${isCompany ? styles.checked : ''}`}>
+                    {isCompany && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
+                  </div>
+                  <div className={styles.companyToggleText}>
+                    <strong>I'm registering as a company</strong>
+                    <span>Book on behalf of a business. You stay the primary contact on the account.</span>
+                  </div>
+                  <svg className={styles.companyIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                    <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/>
+                  </svg>
+                </div>
 
-          <div className={styles.cardFoot}>
-            <div className={styles.navRow}>
-              {step > 0 ? (
-                <button className={styles.backBtn} onClick={() => setStep(step - 1)}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7"/></svg>
-                  Back
+                {isCompany && (
+                  <div className={`${styles.formGrid} ${styles.companyFields}`}>
+                    <Field label="Trading Name" placeholder="SunSky Travel" required
+                      value={form.tradingName} onChange={set('tradingName')} onBlur={blur('tradingName')} error={errors.tradingName} />
+                    <Field label="Legal Name" placeholder="SunSky Travel BV" required
+                      value={form.legalName} onChange={set('legalName')} onBlur={blur('legalName')} error={errors.legalName} />
+                    <Field label="VAT Number" placeholder="BE0477.123.456" required
+                      value={form.vatNumber} onChange={set('vatNumber')} onBlur={blur('vatNumber')} error={errors.vatNumber} />
+                  </div>
+                )}
+              </div>
+
+              <div className={styles.terms}>
+                <div className={`${styles.checkbox} ${agreed ? styles.checked : ''}`} onClick={() => setAgreed(!agreed)}>
+                  {agreed && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
+                </div>
+                <span className={styles.termsText}>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></span>
+              </div>
+            </div>
+
+            <div className={styles.cardFoot}>
+              <div className={styles.navRow}>
+                <button className={styles.guestBtn} onClick={() => navigate('/')}>
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
+                  Continue as Guest
                 </button>
-              ) : <div />}
-              {isLast ? (
                 <button className={styles.submitBtn} disabled={!agreed || loading} onClick={handleRegister}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
-                  {loading ? 'Creating account…' : `Create ${type === 'private' ? 'Account' : 'Business Account'}`}
+                  {loading ? 'Creating account…' : `Create ${isCompany ? 'Business Account' : 'Account'}`}
                 </button>
-              ) : (
-                <button className={styles.nextBtn} onClick={() => setStep(step + 1)}>
-                  Continue
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-                </button>
-              )}
+              </div>
             </div>
-            <div className={styles.guestRow}>
-              <div className={styles.guestLine} />
-              <button className={styles.guestBtn} onClick={() => navigate('/')}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-                Continue as Guest
-              </button>
-              <div className={styles.guestLine} />
-            </div>
-          </div>
+
           </div>
         </div>
       </div>
