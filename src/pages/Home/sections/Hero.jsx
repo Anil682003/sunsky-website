@@ -6,9 +6,28 @@ import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 
-// Duration bands. handleSearch takes the first number as the night count, so a
-// band always searches its shortest stay ('6-10 days' → 6 nights).
-const DURATIONS = ['2-5 days','6-10 days','11-16 days','17-24 days','25+ days'];
+// Exact stay lengths, in nights. The search uses the chosen value directly (no more coarse
+// bands that silently searched only the shortest stay). Daily granularity up to two weeks —
+// the span of nearly every package — then weekly for longer trips. For anything in between,
+// the results page has exact check-in / check-out date pickers.
+const DURATIONS = [
+  { nights: 2,  label: '2 nights' },
+  { nights: 3,  label: '3 nights' },
+  { nights: 4,  label: '4 nights' },
+  { nights: 5,  label: '5 nights' },
+  { nights: 6,  label: '6 nights' },
+  { nights: 7,  label: '7 nights · 1 week' },
+  { nights: 8,  label: '8 nights' },
+  { nights: 9,  label: '9 nights' },
+  { nights: 10, label: '10 nights' },
+  { nights: 11, label: '11 nights' },
+  { nights: 12, label: '12 nights' },
+  { nights: 13, label: '13 nights' },
+  { nights: 14, label: '14 nights · 2 weeks' },
+  { nights: 21, label: '21 nights · 3 weeks' },
+  { nights: 28, label: '28 nights · 4 weeks' },
+];
+const durationLabel = (nights) => DURATIONS.find((d) => d.nights === nights)?.label ?? `${nights} nights`;
 
 const MAX_ROOMS = 8;
 
@@ -99,7 +118,7 @@ export default function Hero() {
   // (empty places for a country = "anywhere in it").
   const [destSelection, setDestSelection] = useState({ countries: [], places: [] });
   const [date, setDate] = useState('');
-  const [duration, setDuration] = useState('6-10 days');
+  const [duration, setDuration] = useState(7);   // nights (default: one week)
   // Occupancy is per room — each room carries its own adults, children and one
   // date-of-birth slot per child. The search still sends totals.
   const [roomsList, setRoomsList] = useState([{ adults: 2, children: 0, dobs: [] }]);
@@ -210,21 +229,26 @@ export default function Hero() {
   };
 
   const handleSearch = () => {
-    const daysMatch = duration.match(/(\d+)/);
-    const nights = daysMatch ? parseInt(daysMatch[1]) : 7;
+    const nights = duration;   // exact nights the traveller picked
     let checkOut = '';
     if (date) {
       const d = new Date(date + 'T00:00:00');
       d.setDate(d.getDate() + nights);
       checkOut = d.toISOString().split('T')[0];
     }
-    const selCountries = destSelection.countries;
     const selCities    = destSelection.places.filter((p) => p.type === 'city');
     const selRegions   = destSelection.places.filter((p) => p.type === 'region');
-    // The cache's `destination` param takes one code (destination code or
-    // country iso, as before) — the most specific pick wins. The FULL
-    // selection rides along in countries/cities/regions for the results page.
-    const destParam = selCities[0]?.code || selCountries[0]?.isoCode || selCountries[0]?.code || '';
+    // A country is searched WHOLE only when no specific place inside it was picked; if the
+    // traveller ticked cities/regions in a country, those represent it instead (this mirrors the
+    // DestinationModal's own "Entire country vs N places" semantics). Sending such a country as a
+    // whole `countries=` entry would widen the search back to the whole country and ignore the
+    // narrower picks.
+    const pickedCountryIds = new Set(destSelection.places.map((p) => p.countryId));
+    const wholeCountries   = destSelection.countries.filter((c) => !pickedCountryIds.has(c.id));
+    // The results page scopes the faceted search by Hotelbeds codes: countries match
+    // hotels.countryCode (== Country.code — NOT the ISO code; e.g. Cyprus is 'NY' not 'CY',
+    // UK is 'UK' not 'GB'), and cities match hotels.destinationCode. Send those exact codes.
+    const destParam = selCities[0]?.code || wholeCountries[0]?.code || destSelection.countries[0]?.code || '';
     const qs = new URLSearchParams({
       destination:      destParam,
       destinationLabel: destinationLabel,
@@ -234,9 +258,9 @@ export default function Hero() {
       children:         String(totalChildren),
       rooms:            String(roomsList.length),
     });
-    if (selCountries.length) qs.set('countries', selCountries.map((c) => c.isoCode || c.code).join(','));
-    if (selCities.length)    qs.set('cities',    selCities.map((p) => p.code).join(','));
-    if (selRegions.length)   qs.set('regions',   selRegions.map((p) => p.code).join(','));
+    if (wholeCountries.length) qs.set('countries', wholeCountries.map((c) => c.code).join(','));
+    if (selCities.length)      qs.set('cities',    selCities.map((p) => p.code).join(','));
+    if (selRegions.length)     qs.set('regions',   selRegions.map((p) => p.code).join(','));
     const childAges = roomsList.flatMap((r) => r.dobs).map(ageFromDob).filter((a) => a != null);
     if (childAges.length) qs.set('childAges', childAges.join(','));
     navigate(`/results?${qs.toString()}`);
@@ -378,7 +402,7 @@ export default function Hero() {
               </span>
               <div className={styles.sfText}>
                 <span className={styles.sfLabel}>Duration</span>
-                <span className={styles.sfValue}>{duration}</span>
+                <span className={styles.sfValue}>{durationLabel(duration)}</span>
               </div>
             </div>
             <div className={styles.sfDivider} />
@@ -405,12 +429,12 @@ export default function Hero() {
               <div className={styles.durList}>
                 {DURATIONS.map((d) => (
                   <div
-                    key={d}
-                    className={`${styles.durOpt} ${duration === d ? styles.durOptActive : ''}`}
-                    onClick={() => { setDuration(d); setOpenField(null); }}
+                    key={d.nights}
+                    className={`${styles.durOpt} ${duration === d.nights ? styles.durOptActive : ''}`}
+                    onClick={() => { setDuration(d.nights); setOpenField(null); }}
                   >
-                    <span>{d}</span>
-                    {duration === d && (
+                    <span>{d.label}</span>
+                    {duration === d.nights && (
                       <svg className={styles.durCheck} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                     )}
                   </div>

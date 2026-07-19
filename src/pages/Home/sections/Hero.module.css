@@ -308,6 +308,9 @@
   display:flex;
   flex-direction:column;
   gap:2px;
+  /* Exact-nights list is long — keep the dropdown a sensible height and scroll inside it. */
+  max-height:340px;
+  overflow-y:auto;
 }
 .durOpt {
   display:flex;
