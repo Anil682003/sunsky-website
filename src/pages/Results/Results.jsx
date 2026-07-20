@@ -80,6 +80,8 @@ const EMPTY_FILTERS = {
   priceBasis: 'total', refundable: 'any', sortBy: 'price_asc',
   // Content facets (resolved against the admin content API into a hotelCode set for the cache).
   themes: [], stars: [], facilities: [], activities: [],
+  accommodation: [], kids: [],           // accommodation type (group 20), kids amenities
+  maxBeach: '', maxCentre: '',           // max distance (m) to beach / city centre
   // Transport type. 'hotel_only' → cache searchType=HOTEL_ONLY; 'package' → PACKAGE.
   transport: 'hotel_only',
 };
@@ -91,12 +93,16 @@ const CCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', TRY: '₺' };
 
 const getBoardLabel = (code) => BOARD_LABELS[code] || code || '';
 const getRoomLabel  = (code) => ROOM_LABELS[code]  || code || '';
+const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
+const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
 
 // How many filters the user has actively changed — drives the sidebar count pill.
 const countActiveFilters = (f) =>
   f.boards.length + f.roomTypes.length +
   (f.themes?.length || 0) + (f.stars?.length || 0) +
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
+  (f.accommodation?.length || 0) + (f.kids?.length || 0) +
+  (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0);
@@ -104,7 +110,9 @@ const countActiveFilters = (f) =>
 // Any content facet active means the cache must be restricted to the resolved hotelCodes.
 const hasContentFacet = (f) =>
   (f.themes?.length || 0) + (f.stars?.length || 0) +
-  (f.facilities?.length || 0) + (f.activities?.length || 0) > 0;
+  (f.facilities?.length || 0) + (f.activities?.length || 0) +
+  (f.accommodation?.length || 0) + (f.kids?.length || 0) +
+  (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) > 0;
 
 const fmtDate = (iso) => {
   if (!iso) return '';
@@ -286,7 +294,7 @@ export default function Results() {
   // ── FACETS (from the admin content API over the scope) ──────────────────────────
   // holiday / stars / facilities / activities, each with a hotel count. `facetsStatus`:
   // 'loading' | 'ok' | 'error'. attrMap = hotelCode → attributes (stars, distances).
-  const [facets, setFacets]           = useState({ holiday: [], stars: [], facilities: [], activities: [] });
+  const [facets, setFacets]           = useState({ holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [] });
   const [facetsStatus, setFacetsStatus] = useState('loading');
   const [attrMap, setAttrMap]         = useState({});
 
@@ -420,7 +428,11 @@ export default function Results() {
   // destinations. Sets `facets` (counts stay scope-level so options never vanish), `attrMap`
   // (for distance sorts) and `priceScope` (what the cache prices). Keyed on a STRING of the
   // content facets so it can't loop.
-  const contentKey = `${applied.themes.join(',')}|${applied.stars.join(',')}|${applied.facilities.join(',')}|${applied.activities.join(',')}`;
+  const EMPTY_FACETS = { holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [] };
+  const contentKey = [
+    applied.themes.join(','), applied.stars.join(','), applied.facilities.join(','), applied.activities.join(','),
+    applied.accommodation.join(','), applied.kids.join(','), applied.maxBeach, applied.maxCentre,
+  ].join('|');
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
     let live = true;
@@ -428,11 +440,13 @@ export default function Results() {
     const selected = {
       themes: applied.themes, stars: applied.stars,
       facilities: applied.facilities, activities: applied.activities,
+      accommodation: applied.accommodation, kids: applied.kids,
+      maxBeach: applied.maxBeach, maxCentre: applied.maxCentre,
     };
     fetchFacets(scope, selected)
       .then((r) => {
         if (!live) return;
-        setFacets(r.facets || { holiday: [], stars: [], facilities: [], activities: [] });
+        setFacets(r.facets || EMPTY_FACETS);
         setAttrMap(r.attributes || {});
         const dests = (r.matchedDestinations && r.matchedDestinations.length)
           ? r.matchedDestinations
@@ -446,7 +460,7 @@ export default function Results() {
       })
       .catch(() => {
         if (!live) return;
-        setFacets({ holiday: [], stars: [], facilities: [], activities: [] });
+        setFacets(EMPTY_FACETS);
         setAttrMap({});
         setFacetsStatus('error');
         // Admin down: still price the scope's explicit destinations (content facets can't apply).
@@ -813,6 +827,8 @@ export default function Results() {
   }));
 
   const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
+  // Distance is single-select per type: re-picking the active bucket clears it ("Any distance").
+  const setMaxDistance = (key, metres) => setFilter(key, filters[key] === metres ? '' : metres);
 
   const setPriceBasis = (value) => {
     if (filters.priceBasis === value) return;
@@ -1111,6 +1127,20 @@ export default function Results() {
         )}
       </FilterSection>
 
+      {/* Accommodation Type — DYNAMIC from the admin facets (group 20), with counts. OR-within
+          (a hotel IS one type), so ticking several widens to "any of these". */}
+      <FilterSection title="Accommodation Type" defaultOpen={false}>
+        {facets.accommodation.length === 0 ? (
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No accommodation data for this search.'}</p>
+        ) : (
+          <div className={styles.facetScroll}>
+            {facets.accommodation.map((a) => (
+              <FilterCheck key={a.code} label={`${cap(a.name)} (${a.hotels})`} checked={filters.accommodation.includes(a.code)} onChange={() => toggleCode('accommodation', a.code)} />
+            ))}
+          </div>
+        )}
+      </FilterSection>
+
       {/* Board Type — DYNAMIC from the cache: only boards that exist for this search, with counts. */}
       <FilterSection title="Board Type" defaultOpen>
         {Object.keys(boardFacets).length === 0 ? (
@@ -1121,6 +1151,29 @@ export default function Results() {
           ))
         )}
       </FilterSection>
+
+      {/* Distance — filter by MAX distance to the beach / city centre (admin facets group 40).
+          Single-select per type; re-picking the active option clears it. */}
+      {(facets.beachDistance.length > 0 || facets.centreDistance.length > 0) && (
+        <FilterSection title="Distance" defaultOpen={false}>
+          {facets.beachDistance.length > 0 && (
+            <>
+              <div className={styles.scopeGroupLabel}>To the beach</div>
+              {facets.beachDistance.map((b) => (
+                <FilterCheck key={`b${b.maxMetres}`} label={`${metresLabel(b.maxMetres)} (${b.hotels})`} checked={filters.maxBeach === b.maxMetres} onChange={() => setMaxDistance('maxBeach', b.maxMetres)} />
+              ))}
+            </>
+          )}
+          {facets.centreDistance.length > 0 && (
+            <>
+              <div className={styles.scopeGroupLabel}>To the city centre</div>
+              {facets.centreDistance.map((c) => (
+                <FilterCheck key={`c${c.maxMetres}`} label={`${metresLabel(c.maxMetres)} (${c.hotels})`} checked={filters.maxCentre === c.maxMetres} onChange={() => setMaxDistance('maxCentre', c.maxMetres)} />
+              ))}
+            </>
+          )}
+        </FilterSection>
+      )}
 
       {/* Facilities — DYNAMIC from the admin facets (group 70), unique with counts. */}
       <FilterSection title="Facilities" defaultOpen={false}>
@@ -1147,6 +1200,15 @@ export default function Results() {
           </div>
         )}
       </FilterSection>
+
+      {/* Family & Kids — curated child-friendly amenities (admin facets), with counts. */}
+      {facets.kids.length > 0 && (
+        <FilterSection title="Family & Kids" defaultOpen={false}>
+          {facets.kids.map((k) => (
+            <FilterCheck key={k.code} label={`${k.name} (${k.hotels})`} checked={filters.kids.includes(k.code)} onChange={() => toggleCode('kids', k.code)} />
+          ))}
+        </FilterSection>
+      )}
 
       {/* Room Type — server-side (`roomTypes`) */}
       <FilterSection title="Room Type" defaultOpen={false}>
