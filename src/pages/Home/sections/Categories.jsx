@@ -89,7 +89,7 @@ export default function Categories({ cms }) {
   // holiday type. The CMS picks which ones are featured (and their artwork);
   // without a selection we simply show the first few types.
   const featured = (cms?.featuredHolidayTypes ?? []).filter(
-    (f) => f && (f.holidayTypeId != null || f.title)
+    (f) => f && (f.holidayTypeId != null || f.title) && f.active !== false
   );
 
   const cardFromType = (t, i, imageUrl) => ({
