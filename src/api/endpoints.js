@@ -4,6 +4,9 @@ export const ENDPOINTS = {
   register:        '/website/auth/register',
   me:              '/website/auth/me',
   refresh:         '/website/auth/refresh',
+  forgotPassword:  '/website/auth/forgot-password',
+  verifyResetCode: '/website/auth/verify-reset-code',
+  resetPassword:   '/website/auth/reset-password',
 
   // Bookings
   myBookings:      '/website/bookings',

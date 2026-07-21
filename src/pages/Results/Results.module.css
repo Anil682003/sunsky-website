@@ -832,6 +832,8 @@
 .rcPriceMeta strong { color: var(--text); font-weight: 700; }
 .rcCta {
   margin-top: 10px; width: 100%;
+  /* Rendered as an <a> (opens the detail page in a new tab), so reset link styling. */
+  text-decoration: none; box-sizing: border-box;
   padding: 13px 18px; border-radius: var(--r-full);
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
   color: #fff; font-family: 'Sora', sans-serif;

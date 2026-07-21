@@ -27,6 +27,19 @@ export const useRegister = () => {
   return useApi(ENDPOINTS.register, { method: 'POST', onSuccess });
 };
 
+// ── Password reset (forgot password) ────────────────────────────────────────
+// Three imperative steps; the UI drives them, so no hook wrapper is needed.
+// Step 1 always resolves for any well-formed email — the API deliberately does
+// not reveal whether an account exists.
+export const requestPasswordReset = (email) =>
+  axiosInstance.post(ENDPOINTS.forgotPassword, { email });
+
+export const verifyPasswordResetCode = (email, code) =>
+  axiosInstance.post(ENDPOINTS.verifyResetCode, { email, code });
+
+export const submitNewPassword = (email, code, newPassword) =>
+  axiosInstance.post(ENDPOINTS.resetPassword, { email, code, newPassword });
+
 export const useMe = () => {
   const dispatch = useDispatch();
   return useApi(ENDPOINTS.me, {

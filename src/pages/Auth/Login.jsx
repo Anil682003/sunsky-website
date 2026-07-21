@@ -262,6 +262,7 @@ export default function Login() {
                   )}
                 </div>
                 <span className={styles.rememberLabel}>Keep me signed in for 30 days</span>
+                <Link to="/forgot-password" className={styles.forgotLink}>Forgot password?</Link>
               </div>
 
               {/* Submit */}

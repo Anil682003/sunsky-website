@@ -502,6 +502,13 @@
 
 /* Remember me */
 .rememberRow { display: flex; align-items: center; gap: 10px; margin-top: 1px; }
+/* Pushed to the far right of the remember-me row. */
+.forgotLink {
+  margin-left: auto; flex-shrink: 0; text-decoration: none;
+  font-size: 13px; font-weight: 700; color: var(--blue-deep);
+  transition: opacity 0.2s;
+}
+.forgotLink:hover { text-decoration: underline; }
 .checkbox {
   width: 20px; height: 20px; flex-shrink: 0;
   border: 1.5px solid #C6D5EE;

@@ -804,6 +804,31 @@ export default function Results() {
     return () => observer.disconnect();
   }, [loading, hasMore, allHotels.length, loadMore]);
 
+  // Deep link to the hotel/package detail page. The card opens it in a NEW TAB, and a new
+  // tab can't receive react-router's in-memory `state` — so the whole search context rides
+  // in the URL instead. HotelDetail reads these as its fallback and refetches the hotel
+  // content itself, which also makes the detail page shareable/bookmarkable.
+  const detailHref = (h, name, starsVal, dest, img) => {
+    const qs = new URLSearchParams({
+      checkIn:  fetchParams.checkIn,
+      checkOut: fetchParams.checkOut,
+      adults:   fetchParams.adults,
+      children: fetchParams.children,
+      rooms:    fetchParams.rooms,
+      nights:   String(nights || 7),
+    });
+    if (dest)       qs.set('destination', dest);
+    if (name)       qs.set('name', name);
+    if (img)        qs.set('img', img);
+    if (h.loc)      qs.set('loc', h.loc);
+    if (starsVal)   qs.set('stars', String(starsVal));
+    if (h.currency) qs.set('currency', h.currency);
+    if (Number.isFinite(Number(h.totalAmount))) qs.set('total', String(h.totalAmount));
+    const ages = childAgesRef.current;
+    if (ages) qs.set('childAges', ages);
+    return `/hotel/${h.hotelCode}?${qs.toString()}`;
+  };
+
   const toggleLike = (hotelCode, snapshot) => {
     if (!isAuth) { showToast('Sign in to save favourites', 'info'); navigate('/login'); return; }
     const wasLiked = !!liked[hotelCode];
@@ -1587,26 +1612,15 @@ export default function Results() {
                           <strong>{h.currency} {(total / nights).toFixed(2)}</strong> / night
                         </div>
                       )}
-                      <button
+                      <a
                         className={styles.rcCta}
-                        onClick={() => navigate(`/hotel/${h.hotelCode}`, {
-                          state: {
-                            hotel: { ...h, name: dispName, stars: dispStars, img: dispImg },
-                            info,
-                            destination: hotelDest,
-                            nights,
-                            checkIn: fetchParams.checkIn,
-                            checkOut: fetchParams.checkOut,
-                            adults: fetchParams.adults,
-                            children: fetchParams.children,
-                            rooms: fetchParams.rooms,
-                            childAges: childAgesRef.current,
-                          },
-                        })}
+                        href={detailHref(h, dispName, dispStars, hotelDest, curImg)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
                         View Deal
                         <Icon d="M5 12h14M12 5l7 7-7 7" size={14} sw={2.2} />
-                      </button>
+                      </a>
                     </div>
                   </div>
                 </article>

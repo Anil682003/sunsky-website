@@ -11,6 +11,7 @@ import About from '../pages/About/About';
 import Contact from '../pages/Contact/Contact';
 import Login from '../pages/Auth/Login';
 import Register from '../pages/Auth/Register';
+import ForgotPassword from '../pages/Auth/ForgotPassword';
 import Account from '../pages/Account/Account';
 import MyBookings from '../pages/Account/MyBookings';
 import AccountBookingDetail from '../pages/Account/BookingDetail';
@@ -30,6 +31,7 @@ import NotFound from '../pages/NotFound/NotFound';
 export const publicRoutes = [
   { path: '/login',    component: Login,    layout: false },
   { path: '/register', component: Register, layout: false },
+  { path: '/forgot-password', component: ForgotPassword, layout: false },
 ];
 
 export const routes = [
