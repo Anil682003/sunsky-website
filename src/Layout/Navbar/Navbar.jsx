@@ -2,9 +2,11 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
-import mainLogo from '../../assets/main-logo.png';
-import lightLogo from '../../assets/light-logo.png';
+import mainLogoFallback from '../../assets/main-logo.png';
+import lightLogoFallback from '../../assets/light-logo.png';
 import styles from './Navbar.module.css';
+import { useHomepageConfig } from '../../api';
+import { resolveCmsImageUrl } from '../../utils/cmsImage';
 
 const SERVICES = [
   {
@@ -41,6 +43,12 @@ export default function Navbar() {
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [dropOpen,    setDropOpen]    = useState(false);
   const dropRef = useRef(null);
+
+  const { data: cmsConfig } = useHomepageConfig();
+  const cmsMainLogo = resolveCmsImageUrl(cmsConfig?.logo?.mainUrl);
+  const cmsLightLogo = resolveCmsImageUrl(cmsConfig?.logo?.lightUrl);
+  const mainLogo = cmsMainLogo || mainLogoFallback;
+  const lightLogo = cmsLightLogo || cmsMainLogo || lightLogoFallback;
 
   const isHome = location.pathname === '/';
   // Pages with a dark hero band — navbar starts transparent and blends in

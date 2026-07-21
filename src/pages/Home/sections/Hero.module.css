@@ -46,10 +46,22 @@
    no gradient overlay, no decorative glows tinting the photo. Everything layered
    on top carries its own contrast (glass chips, light search card, text shadows),
    so this holds on bright photos and dark ones alike. */
-.heroBgImage .bg { filter:none; }
+.heroBgImage .bg { filter:none; transition:opacity 0.6s ease; }
 .heroBgImage .overlay,
 .heroBgImage .blob,
 .heroBgImage .ring { display:none; }
+.bgHidden { opacity:0; }
+.bgShimmer {
+  position:absolute; inset:0; z-index:1;
+  background:linear-gradient(135deg, #1a2340 0%, #243054 50%, #1a2340 100%);
+  background-size:400% 400%;
+  animation:shimmerBg 1.8s ease-in-out infinite;
+}
+@keyframes shimmerBg {
+  0%   { background-position:100% 50%; }
+  50%  { background-position:0% 50%; }
+  100% { background-position:100% 50%; }
+}
 .content {
   position:relative; z-index:2;
   text-align:center; padding:80px 24px 0; width:100%;

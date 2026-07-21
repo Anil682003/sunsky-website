@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom';
 import styles from './Footer.module.css';
+import { useHomepageConfig } from '../../api';
+import { resolveCmsImageUrl } from '../../utils/cmsImage';
 
 const COLS = [
   { title: 'Destinations', links: ['Spain','Turkey','Greece','Egypt','Canary Islands','Italy'] },
@@ -9,12 +11,19 @@ const COLS = [
 
 export default function Footer() {
   const navigate = useNavigate();
+  const { data: cmsConfig } = useHomepageConfig();
+  const cmsLogoUrl = resolveCmsImageUrl(cmsConfig?.logo?.mainUrl);
+
   return (
     <footer className={styles.footer}>
       <div className={styles.inner}>
         <div className={styles.brand}>
           <div className={styles.logo} onClick={() => navigate('/')}>
-            <span className={styles.logoText}>Sunsky</span>
+            {cmsLogoUrl ? (
+              <img src={cmsLogoUrl} alt="Sunsky" className={styles.logoImg} />
+            ) : (
+              <span className={styles.logoText}>Sunsky</span>
+            )}
           </div>
           <p>Your trusted travel partner for unforgettable sun-soaked holidays around the world.</p>
           <div className={styles.pays}>

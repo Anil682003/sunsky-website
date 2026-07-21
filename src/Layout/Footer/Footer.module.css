@@ -12,6 +12,7 @@
 .brand { display:flex; flex-direction:column; gap:16px; }
 .logo { cursor:pointer; }
 .logoText { font-family:'Sora',sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--dark); }
+.logoImg { height:40px; object-fit:contain; }
 .brand p { color:var(--text-sec); font-size:0.9rem; line-height:1.8; max-width:320px; }
 .pays { display:flex; gap:8px; flex-wrap:wrap; }
 .pay {
