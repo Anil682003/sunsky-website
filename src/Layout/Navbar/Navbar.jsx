@@ -66,6 +66,9 @@ export default function Navbar() {
   const isWordmark = usingCmsLogo && logoAspect !== null && logoAspect > 1.6;
 
   const isHome = location.pathname === '/';
+  // The results bar carries a decorative layer of drifting wind currents. It is
+  // scoped to this one route so the search screen reads as its own place.
+  const isResults = location.pathname === '/results';
   // Pages with a dark hero band — navbar starts transparent and blends in
   const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
 
@@ -93,7 +96,35 @@ export default function Navbar() {
   };
 
   return (
-    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
+    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''} ${isResults ? styles.navResults : ''}`}>
+
+      {/* Wind currents — results screen only. Purely decorative: masked away
+          from the logo and account controls, and hidden from assistive tech. */}
+      {isResults && (
+        <div className={styles.swirls} aria-hidden="true">
+          <div className={styles.swirlWash} />
+          <svg className={styles.swirlSvg} viewBox="0 0 1200 120" preserveAspectRatio="xMidYMid slice" fill="none">
+            <g className={styles.swirlDrift} strokeLinecap="round">
+              <path className={styles.swirlFlow} d="M-40 60C130 26 250 92 420 60c140-27 270 24 410-2"
+                stroke="#FF9F1C" strokeOpacity="0.34" strokeWidth="1.7" />
+              <path d="M900 60c40 0 58-20 38-32-18-11-38 2-26 16 10 11 34 10 50-2"
+                stroke="#FF9F1C" strokeOpacity="0.4" strokeWidth="1.7" />
+              <path className={styles.swirlFlow} d="M150 86c150-24 270 18 430-4 140-19 270 14 420-4"
+                stroke="#FF9F1C" strokeOpacity="0.2" strokeWidth="1.5" />
+              <path d="M60 70c32 4 48-10 38-20-9-9-24-2-18 8 5 8 22 10 32 2"
+                stroke="#5FA8FF" strokeOpacity="0.3" strokeWidth="1.5" />
+              <path d="M480 34c110-16 196 12 306-4" stroke="#5FA8FF" strokeOpacity="0.22" strokeWidth="1.3" />
+              <path className={styles.swirlFlow} d="M-20 44C200 70 380 18 620 44c220 24 380-18 620 6"
+                stroke="#FF9F1C" strokeOpacity="0.15" strokeWidth="1.2" />
+              <path d="M1080 60c40 0 56-18 38-28-16-9-32 4-20 15 10 9 32 8 44-3"
+                stroke="#FF9F1C" strokeOpacity="0.26" strokeWidth="1.5" />
+            </g>
+          </svg>
+          <span className={`${styles.spark} ${styles.spark1}`} />
+          <span className={`${styles.spark} ${styles.spark2}`} />
+          <span className={`${styles.spark} ${styles.spark3}`} />
+        </div>
+      )}
 
       {/* Logo */}
       <Link to={logoHref} className={styles.logo}>
