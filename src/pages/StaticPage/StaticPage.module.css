@@ -1,31 +1,77 @@
-/* Legal / information pages. Deliberately quiet: a soft light band up top, then
-   a long, comfortable measure of text beside a sticky index of sibling pages. */
+/* ═══════════════════════════════════════════════════════════════════════════
+   SunSky — information & legal pages.
 
-.page { background: var(--white); min-height: 70vh; }
+   These pages ARE travel documents, so they borrow the site's boarding-pass
+   language — reference codes, numbered clauses, a barcode sign-off, a sketched
+   flight route — but hold it back hard. Long legal text has to stay readable,
+   so the ornament lives at the edges and the column itself is quiet: a ~68ch
+   measure, 1.85 line-height, and one accent colour used sparingly.
+   ═══════════════════════════════════════════════════════════════════════════ */
 
-/* ── Hero band ─────────────────────────────────────────────────────────── */
+.page {
+  background: var(--white);
+  min-height: 70vh;
+}
+
+/* ── Reading progress ──────────────────────────────────────────────────────
+   Fixed hairline under the navbar. The only moving element on the page. */
+.progressTrack {
+  position: fixed;
+  top: 0; left: 0; right: 0;
+  height: 3px;
+  z-index: 60;
+  background: transparent;
+  pointer-events: none;
+}
+.progressBar {
+  display: block;
+  height: 100%;
+  transform-origin: 0 50%;
+  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
+  box-shadow: 0 0 12px rgba(255, 159, 28, 0.5);
+  transition: transform 0.08s linear;
+}
+
+/* ── Hero ─────────────────────────────────────────────────────────────────── */
 .hero {
   position: relative;
   overflow: hidden;
-  /* Top pad clears the fixed (solid) navbar on this route */
-  padding: 116px 0 44px;
-  background: linear-gradient(170deg, var(--blue-bg) 0%, var(--blue-bg2) 58%, var(--white) 100%);
+  padding: 118px 0 52px;
+  background:
+    radial-gradient(ellipse at 8% -10%, rgba(95, 168, 255, 0.16) 0%, transparent 52%),
+    linear-gradient(168deg, var(--blue-bg) 0%, var(--blue-bg2) 55%, var(--white) 100%);
   border-bottom: 1px solid var(--blue-light);
 }
-/* One faint warm wash, top-right — enough to stop the band reading as flat grey */
 .heroGlow {
   position: absolute;
-  top: -190px; right: -60px;
-  width: 420px; height: 420px;
+  top: -200px; right: -70px;
+  width: 460px; height: 460px;
   border-radius: 50%;
   background: var(--sun-gold);
-  filter: blur(110px);
-  opacity: 0.16;
+  filter: blur(120px);
+  opacity: 0.18;
+  pointer-events: none;
+}
+/* Faint dot grid, fading out to the right — "document paper" */
+.heroGrid {
+  position: absolute; inset: 0;
+  background-image: radial-gradient(rgba(31, 79, 216, 0.07) 1px, transparent 1px);
+  background-size: 22px 22px;
+  -webkit-mask-image: linear-gradient(100deg, black 0%, transparent 58%);
+  mask-image: linear-gradient(100deg, black 0%, transparent 58%);
+  pointer-events: none;
+}
+.heroRoute {
+  position: absolute;
+  right: -40px; bottom: 6px;
+  width: 620px; max-width: 62%;
+  color: rgba(31, 79, 216, 0.22);
   pointer-events: none;
 }
 
 .heroInner {
   position: relative;
+  z-index: 1;
   max-width: 1180px;
   margin: 0 auto;
   padding: 0 52px;
@@ -33,242 +79,329 @@
 
 .crumbs {
   display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  margin-bottom: 18px;
+  margin-bottom: 20px;
   font-size: 0.82rem;
   color: var(--text-light);
 }
-.crumbLink { color: var(--text-sec); transition: color 0.25s var(--ease); }
+.crumbLink { color: var(--text-sec); text-decoration: none; transition: color 0.25s var(--ease); }
 .crumbLink:hover { color: var(--blue-deep); }
 .crumbSep { color: var(--text-light); }
 .crumbGroup { color: var(--text-sec); }
 .crumbCurrent { color: var(--blue-deep); font-weight: 600; }
 
+/* Eyebrow chip naming the document family */
+.heroTag {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 6px 14px 6px 11px;
+  margin-bottom: 16px;
+  border-radius: var(--r-full);
+  background: rgba(255, 255, 255, 0.82);
+  border: 1px solid var(--blue-light);
+  box-shadow: var(--shadow-xs);
+  font-family: 'Sora', sans-serif;
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 1.3px;
+  text-transform: uppercase;
+  color: var(--blue-deep);
+}
+.heroTagDot {
+  width: 6px; height: 6px; border-radius: 50%;
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+  box-shadow: 0 0 0 3px rgba(255, 159, 28, 0.18);
+}
+
 .title {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(1.9rem, 3.6vw, 2.9rem);
-  font-weight: 700;
-  letter-spacing: -1.1px;
-  line-height: 1.12;
+  font-size: clamp(2rem, 3.9vw, 3.05rem);
+  font-weight: 800;
+  letter-spacing: -1.4px;
+  line-height: 1.08;
   color: var(--text);
-  max-width: 20ch;
+  max-width: 19ch;
 }
 .lede {
-  margin-top: 14px;
-  max-width: 62ch;
-  font-size: 1.02rem;
+  margin-top: 15px;
+  max-width: 60ch;
+  font-size: 1.05rem;
   line-height: 1.7;
   color: var(--text-sec);
 }
 
-/* ── Two-column body ───────────────────────────────────────────────────── */
-.body {
-  display: grid;
-  grid-template-columns: 264px minmax(0, 1fr);
-  gap: 56px;
-  align-items: start;
-  max-width: 1180px;
-  margin: 0 auto;
-  padding: 52px 52px 96px;
-}
-
-/* ── Sidebar ───────────────────────────────────────────────────────────── */
-.sidebar { position: sticky; top: 100px; }
-
-.sidebarCard {
-  padding: 20px 16px 16px;
-  background: var(--blue-bg);
-  border: 1px solid var(--blue-light);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-xs);
-}
-.sidebarLabel {
-  padding: 0 10px;
+/* Micro-print meta strip, ruled like a document header */
+.heroMeta {
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 26px;
+  padding-top: 16px;
+  border-top: 1px dashed rgba(31, 79, 216, 0.2);
   font-family: 'Sora', sans-serif;
-  font-size: 0.72rem;
+  font-size: 10px;
   font-weight: 700;
-  letter-spacing: 0.1em;
+  letter-spacing: 1.4px;
   text-transform: uppercase;
   color: var(--text-light);
 }
-.sidebarNote {
-  padding: 0 10px;
-  margin-top: 6px;
-  font-size: 0.82rem;
-  line-height: 1.55;
-  color: var(--text-sec);
-}
-.sidebarList { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
+.metaDot { width: 3px; height: 3px; border-radius: 50%; background: currentColor; opacity: 0.6; }
+.metaSpacer { flex: 1; }
+.metaCode { color: var(--blue-deep); opacity: 0.55; letter-spacing: 2px; }
 
+/* ── Body layout ──────────────────────────────────────────────────────────── */
+.body {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 52px 52px 96px;
+  display: grid;
+  grid-template-columns: 268px minmax(0, 1fr);
+  gap: 56px;
+  align-items: start;
+}
+
+/* ── Index sidebar ────────────────────────────────────────────────────────── */
+.sidebar { position: sticky; top: 104px; }
+
+.sidebarCard {
+  border: 1px solid var(--blue-light);
+  border-radius: var(--r-md);
+  background: linear-gradient(180deg, var(--white) 0%, var(--blue-bg) 100%);
+  box-shadow: var(--shadow-xs);
+  padding: 18px 16px;
+}
+
+.sidebarLabel {
+  display: flex; align-items: center; gap: 9px;
+  margin-bottom: 14px;
+  font-family: 'Sora', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+.sidebarLabelRule {
+  width: 16px; height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
+  flex-shrink: 0;
+}
+
+.sidebarList { list-style: none; margin: 0; padding: 0; }
+
+/* Numbered index rows; the number comes from data-num so the DOM stays clean */
 .sidebarLink {
   position: relative;
-  display: block;
-  padding: 10px 12px 10px 14px;
+  display: grid;
+  grid-template-columns: 22px minmax(0, 1fr);
+  gap: 9px;
+  align-items: baseline;
+  padding: 9px 10px 9px 12px;
   border-radius: 10px;
-  font-size: 0.9rem;
+  font-size: 0.875rem;
   line-height: 1.45;
   color: var(--text-sec);
-  transition: color 0.25s var(--ease), background 0.25s var(--ease);
+  text-decoration: none;
+  transition: background 0.22s var(--ease), color 0.22s var(--ease);
 }
-/* The accent bar that marks the current page */
 .sidebarLink::before {
+  content: attr(data-num);
+  font-family: 'Sora', sans-serif;
+  font-size: 9.5px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: var(--text-light);
+  transition: color 0.22s var(--ease);
+}
+/* Accent bar marking the section being read */
+.sidebarLink::after {
   content: '';
   position: absolute;
   left: 0; top: 50%;
   width: 3px; height: 0;
-  border-radius: var(--r-full);
+  border-radius: 0 3px 3px 0;
   background: linear-gradient(180deg, var(--sun-orange), var(--sun-gold));
   transform: translateY(-50%);
-  transition: height 0.35s var(--ease);
+  transition: height 0.26s var(--ease);
 }
-.sidebarLink:hover { color: var(--text); background: var(--white); }
-
+.sidebarLink:hover { background: var(--blue-light); color: var(--text); }
 .sidebarLinkActive {
+  background: var(--white);
   color: var(--blue-deep);
   font-weight: 600;
-  background: var(--white);
   box-shadow: var(--shadow-xs);
 }
-.sidebarLinkActive::before { height: 22px; }
+.sidebarLinkActive::before { color: var(--blue-deep); }
+.sidebarLinkActive::after { height: 62%; }
 
-/* ── Content ───────────────────────────────────────────────────────────── */
-.content { max-width: 68ch; }
-/* Nothing to index — let the prose sit centred in the full width instead */
-.contentWide { grid-column: 1 / -1; margin: 0 auto; }
-
-.intro p {
-  font-size: 1.08rem;
-  line-height: 1.82;
-  color: var(--text);
+/* Sibling pages, below the index */
+.sidebarMore {
+  margin-top: 18px;
+  padding-top: 16px;
+  border-top: 1px dashed var(--blue-light);
 }
-.intro p + p { margin-top: 18px; }
+.sidebarMore .sidebarLabel { margin-bottom: 8px; }
+.sidebarMore .sidebarLink { grid-template-columns: minmax(0, 1fr); padding-left: 12px; }
+.sidebarMore .sidebarLink::before { content: none; }
+
+/* ── Article ──────────────────────────────────────────────────────────────── */
+.content { min-width: 0; max-width: 68ch; }
+.contentWide { max-width: 74ch; }
+
 .intro {
-  padding-bottom: 30px;
+  margin-bottom: 34px;
+  padding-bottom: 26px;
   border-bottom: 1px solid var(--blue-light);
 }
-
-.section + .section { margin-top: 44px; }
-.intro + .section { margin-top: 38px; }
-
-.heading {
-  font-family: 'Sora', sans-serif;
-  font-size: 1.32rem;
-  font-weight: 700;
-  letter-spacing: -0.4px;
-  line-height: 1.35;
+.intro p {
+  font-size: 1.09rem;
+  line-height: 1.78;
   color: var(--text);
-  margin-bottom: 14px;
-  /* Anchor targets must clear the fixed navbar, or the heading lands underneath it */
-  scroll-margin-top: 104px;
 }
-/* A short gold rule instead of a heavy divider — the only ornament on the page */
-.heading::after {
-  content: '';
-  display: block;
-  width: 34px; height: 2px;
-  margin-top: 12px;
-  border-radius: var(--r-full);
-  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
+.intro p + p { margin-top: 14px; }
+
+.section { margin-bottom: 46px; scroll-margin-top: 104px; }
+.section:last-of-type { margin-bottom: 8px; }
+
+/* Numbered clause heading */
+.headingRow {
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  gap: 12px;
+  align-items: baseline;
+  margin-bottom: 16px;
+}
+.headingNum {
+  font-family: 'Sora', sans-serif;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--sun-orange);
+  padding-top: 6px;
+}
+.heading {
+  position: relative;
+  font-family: 'Sora', sans-serif;
+  font-size: 1.36rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.32;
+  color: var(--text);
+  scroll-margin-top: 104px;
 }
 
 .para {
+  margin-bottom: 15px;
+  padding-left: 46px;
   font-size: 1rem;
   line-height: 1.85;
   color: var(--text-sec);
 }
-.para + .para { margin-top: 16px; }
+.para:last-child { margin-bottom: 0; }
 
+/* Custom markers — a small gold dash rather than a default disc */
 .bullets {
-  margin-top: 16px;
-  display: flex;
-  flex-direction: column;
-  gap: 10px;
+  list-style: none;
+  margin: 18px 0 0;
+  padding: 18px 0 18px 46px;
+  border-top: 1px dashed var(--blue-light);
+  border-bottom: 1px dashed var(--blue-light);
 }
 .bullets li {
   position: relative;
-  padding-left: 22px;
-  font-size: 1rem;
-  line-height: 1.75;
+  padding-left: 20px;
+  margin-bottom: 10px;
+  font-size: 0.965rem;
+  line-height: 1.72;
   color: var(--text-sec);
 }
+.bullets li:last-child { margin-bottom: 0; }
 .bullets li::before {
   content: '';
   position: absolute;
-  left: 2px; top: 0.72em;
-  width: 6px; height: 6px;
-  border-radius: 50%;
-  background: var(--blue-ocean);
+  left: 0; top: 0.72em;
+  width: 8px; height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
 }
 
-/* ── Page-not-found state ──────────────────────────────────────────────── */
+/* ── Sign-off ─────────────────────────────────────────────────────────────── */
+.docFoot {
+  display: flex; align-items: center; gap: 14px;
+  margin-top: 48px;
+  padding-top: 20px;
+  border-top: 1px solid var(--blue-light);
+}
+.docFootCode {
+  font-family: 'Sora', sans-serif;
+  font-size: 9.5px; font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--text-light);
+  white-space: nowrap;
+}
+.docFootRule { flex: 1; height: 0; border-top: 1px dashed var(--blue-light); }
+.docFootBarcode {
+  width: 68px; height: 22px;
+  opacity: 0.42;
+  background: repeating-linear-gradient(
+    to right,
+    var(--text-light) 0 2px,
+    transparent 2px 5px,
+    var(--text-light) 5px 6px,
+    transparent 6px 9px
+  );
+}
+
+/* ── Not found ────────────────────────────────────────────────────────────── */
 .missing {
   max-width: 1180px;
   margin: 0 auto;
-  padding: 52px 52px 110px;
+  padding: 64px 52px 110px;
 }
 .cta {
-  display: inline-flex; align-items: center; gap: 8px;
-  padding: 13px 28px;
+  display: inline-flex; align-items: center; gap: 9px;
+  padding: 13px 26px;
   border-radius: var(--r-full);
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
   color: var(--white);
   font-family: 'Sora', sans-serif;
   font-size: 0.9rem; font-weight: 700;
+  text-decoration: none;
   box-shadow: var(--shadow-glow);
-  transition: transform 0.35s var(--ease);
+  transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease);
 }
-.cta:hover { transform: translateY(-2px); }
-.cta svg { transition: transform 0.35s var(--ease); }
-.cta:hover svg { transform: translateX(3px); }
+.cta:hover { transform: translateY(-2px); box-shadow: 0 14px 40px rgba(255, 159, 28, 0.48); }
 
-/* ── Skeletons ─────────────────────────────────────────────────────────── */
-.sk {
+/* ── Skeletons ────────────────────────────────────────────────────────────── */
+.skelLine, .skelCard {
   border-radius: 10px;
-  background: linear-gradient(100deg, var(--blue-light) 30%, var(--blue-bg2) 50%, var(--blue-light) 70%);
-  background-size: 200% 100%;
-  animation: skShimmer 1.4s var(--ease-smooth) infinite;
+  background: linear-gradient(90deg, var(--blue-bg) 25%, var(--blue-light) 37%, var(--blue-bg) 63%);
+  background-size: 400% 100%;
+  animation: staticShimmer 1.5s ease-in-out infinite;
 }
-@keyframes skShimmer {
-  from { background-position: 200% 0; }
-  to   { background-position: -200% 0; }
-}
-.skCrumbs { width: 220px; height: 12px; margin-bottom: 22px; }
-.skTitle  { width: min(460px, 80%); height: 40px; border-radius: 12px; }
-.skLede   { width: min(560px, 92%); height: 14px; margin-top: 18px; }
-.skSidebar { height: 268px; border-radius: var(--r-lg); }
-.skContent { display: flex; flex-direction: column; gap: 14px; max-width: 68ch; }
-.skLine { height: 13px; }
-
-/* ── Responsive ────────────────────────────────────────────────────────── */
-@media (max-width: 900px) {
-  .hero { padding: 96px 0 36px; }
-  .heroInner, .missing { padding-left: 24px; padding-right: 24px; }
-  .body {
-    grid-template-columns: minmax(0, 1fr);
-    gap: 32px;
-    padding: 36px 24px 72px;
-  }
-  /* Sidebar collapses to a plain block above the prose */
-  .sidebar { position: static; top: auto; }
-  .contentWide { margin: 0; }
+.skelCard { height: 260px; border-radius: var(--r-md); }
+@keyframes staticShimmer {
+  0% { background-position: 100% 50%; }
+  100% { background-position: 0 50%; }
 }
 
-@media (max-width: 640px) {
-  .hero { padding: 88px 0 30px; }
-  .heroInner, .missing { padding-left: 18px; padding-right: 18px; }
-  .body { padding: 30px 18px 64px; }
-  .heading { font-size: 1.18rem; }
-  .intro p { font-size: 1.02rem; }
+/* ── Responsive ───────────────────────────────────────────────────────────── */
+@media (max-width: 1000px) {
+  .body { grid-template-columns: 1fr; gap: 32px; padding: 40px 32px 76px; }
+  .sidebar { position: static; }
+  .sidebarCard { padding: 16px 14px; }
+  .heroInner, .missing { padding-left: 32px; padding-right: 32px; }
+  .content, .contentWide { max-width: none; }
+  .heroRoute { display: none; }
+}
+@media (max-width: 620px) {
+  .hero { padding: 104px 0 40px; }
+  .heroInner, .missing, .body { padding-left: 20px; padding-right: 20px; }
+  .title { max-width: none; }
+  .heroMeta { flex-wrap: wrap; gap: 8px 10px; }
+  .metaSpacer { display: none; }
+  /* Drop the hanging indent — too costly on a narrow column */
+  .para, .bullets { padding-left: 0; }
+  .headingRow { grid-template-columns: 26px minmax(0, 1fr); gap: 8px; }
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .sk { animation: none; }
-  .cta, .cta svg, .sidebarLink, .sidebarLink::before { transition: none; }
+  .progressBar, .sidebarLink, .sidebarLink::before, .sidebarLink::after, .cta { transition: none; }
+  .skelLine, .skelCard { animation: none; }
 }
-
-/* "More information" — the sibling pages, below the on-this-page index */
-.sidebarMore {
-  margin-top: 20px;
-  padding-top: 16px;
-  border-top: 1px solid var(--blue-light);
-}
-.sidebarMore .sidebarLabel { margin-bottom: 8px; }

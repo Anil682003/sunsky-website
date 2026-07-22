@@ -149,6 +149,46 @@ export default function StaticPage() {
   const sections = Array.isArray(page?.sections) ? page.sections : [];
   const intro    = toParagraphs(page?.intro);
 
+  // Document chrome: a reference code and a reading estimate, in keeping with
+  // the boarding-pass language the rest of the site uses.
+  const docCode = useMemo(() => {
+    const initials = String(page?.title ?? '')
+      .split(/\s+/)
+      .map((w) => w[0])
+      .filter((c) => /[A-Za-z]/.test(c ?? ''))
+      .join('')
+      .slice(0, 3)
+      .toUpperCase();
+    return `SSK · ${initials || 'DOC'} · ${String(page?.sortOrder ?? 0).padStart(2, '0')}`;
+  }, [page]);
+
+  const readingMinutes = useMemo(() => {
+    const words = [page?.intro, ...sections.flatMap((s) => [s?.heading, s?.body, ...(s?.bullets ?? [])])]
+      .join(' ')
+      .trim()
+      .split(/\s+/)
+      .filter(Boolean).length;
+    return Math.max(1, Math.round(words / 200));
+  }, [page, sections]);
+
+  // How far through the article the reader is (0–1), for the top progress bar.
+  const [progress, setProgress] = useState(0);
+  useEffect(() => {
+    if (!page) return undefined;
+    const update = () => {
+      const doc = document.documentElement;
+      const max = doc.scrollHeight - window.innerHeight;
+      setProgress(max > 0 ? Math.min(1, Math.max(0, window.scrollY / max)) : 0);
+    };
+    update();
+    window.addEventListener('scroll', update, { passive: true });
+    window.addEventListener('resize', update);
+    return () => {
+      window.removeEventListener('scroll', update);
+      window.removeEventListener('resize', update);
+    };
+  }, [page]);
+
   // ── Loading ─────────────────────────────────────────────────────────────
   if (loading && !data) {
     return (
@@ -206,8 +246,25 @@ export default function StaticPage() {
   // ── The page ────────────────────────────────────────────────────────────
   return (
     <div className={styles.page}>
+      {/* Reading progress — these pages are long, and it doubles as the only
+          moving element on an otherwise deliberately still page. */}
+      <div className={styles.progressTrack} aria-hidden="true">
+        <span className={styles.progressBar} style={{ transform: `scaleX(${progress})` }} />
+      </div>
+
       <header className={styles.hero}>
         <span className={styles.heroGlow} aria-hidden="true" />
+        <span className={styles.heroGrid} aria-hidden="true" />
+        <svg className={styles.heroRoute} viewBox="0 0 720 150" fill="none" aria-hidden="true" focusable="false">
+          <path d="M8 128 C 180 118, 300 40, 520 52 C 610 57, 668 40, 712 22"
+                stroke="currentColor" strokeWidth="1.5" strokeDasharray="2 8" strokeLinecap="round" />
+          <circle cx="8" cy="128" r="3.2" fill="currentColor" />
+          <circle cx="520" cy="52" r="3.2" fill="currentColor" />
+          <g transform="translate(700 14) rotate(-16)">
+            <path d="M2.5 12.4 21 4l-6.6 17-2.7-7.1-9.2-1.5z" fill="currentColor" />
+          </g>
+        </svg>
+
         <div className={styles.heroInner}>
           <nav className={styles.crumbs} aria-label="Breadcrumb">
             <Link to="/" className={styles.crumbLink}>Home</Link>
@@ -221,8 +278,23 @@ export default function StaticPage() {
             <span className={styles.crumbCurrent}>{page.title}</span>
           </nav>
 
+          <div className={styles.heroTag}>
+            <span className={styles.heroTagDot} aria-hidden="true" />
+            {group?.title || 'Information'}
+          </div>
+
           <h1 className={styles.title}>{page.title}</h1>
           {page.subtitle && <p className={styles.lede}>{page.subtitle}</p>}
+
+          <div className={styles.heroMeta} aria-hidden="true">
+            <span className={styles.metaItem}>
+              {sectionIndex.length} {sectionIndex.length === 1 ? 'section' : 'sections'}
+            </span>
+            <span className={styles.metaDot} />
+            <span className={styles.metaItem}>{readingMinutes} min read</span>
+            <span className={styles.metaSpacer} />
+            <span className={styles.metaCode}>{docCode}</span>
+          </div>
         </div>
       </header>
 
@@ -230,9 +302,12 @@ export default function StaticPage() {
         {sectionIndex.length > 1 && (
           <nav className={styles.sidebar} aria-label={`On this page: ${page.title}`}>
             <div className={styles.sidebarCard}>
-              <p className={styles.sidebarLabel}>On this page</p>
+              <p className={styles.sidebarLabel}>
+                <span className={styles.sidebarLabelRule} aria-hidden="true" />
+                On this page
+              </p>
               <ul className={styles.sidebarList}>
-                {sectionIndex.map(({ id, heading }) => {
+                {sectionIndex.map(({ id, heading }, i) => {
                   const isActive = activeId === id;
                   return (
                     <li key={id}>
@@ -240,6 +315,7 @@ export default function StaticPage() {
                         href={`#${id}`}
                         className={`${styles.sidebarLink} ${isActive ? styles.sidebarLinkActive : ''}`}
                         aria-current={isActive ? 'true' : undefined}
+                        data-num={String(i + 1).padStart(2, '0')}
                         onClick={(e) => {
                           // Scroll smoothly and put the anchor in the URL so the
                           // section stays shareable, without a full navigation.
@@ -291,14 +367,18 @@ export default function StaticPage() {
               : [];
 
             // Same id the index and the footer anchors use.
-            const headingId = section?.heading
-              ? sectionIndex[sections.slice(0, i).filter((s) => s?.heading).length]?.id
-              : undefined;
+            const nth = sections.slice(0, i).filter((s) => s?.heading).length;
+            const headingId = section?.heading ? sectionIndex[nth]?.id : undefined;
 
             return (
               <section key={i} className={styles.section}>
                 {section?.heading && (
-                  <h2 id={headingId} className={styles.heading}>{section.heading}</h2>
+                  <div className={styles.headingRow}>
+                    <span className={styles.headingNum} aria-hidden="true">
+                      {String(nth + 1).padStart(2, '0')}
+                    </span>
+                    <h2 id={headingId} className={styles.heading}>{section.heading}</h2>
+                  </div>
                 )}
                 {paras.map((p, j) => <p key={j} className={styles.para}>{p}</p>)}
                 {bullets.length > 0 && (
@@ -309,6 +389,14 @@ export default function StaticPage() {
               </section>
             );
           })}
+
+          {/* Ticket-stub sign-off, matching the boarding-pass motif used
+              elsewhere on the site. */}
+          <div className={styles.docFoot} aria-hidden="true">
+            <span className={styles.docFootCode}>{docCode}</span>
+            <span className={styles.docFootRule} />
+            <span className={styles.docFootBarcode} />
+          </div>
 
           {intro.length === 0 && sections.length === 0 && (
             <p className={styles.para}>This page is being written. Please check back soon.</p>
