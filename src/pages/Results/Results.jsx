@@ -287,9 +287,19 @@ export default function Results() {
     adults: initAdults, children: initChildren, rooms: initRooms,
   });
 
+  // Board codes can arrive in the URL (?boards=AI or ?boards=AI,UAI) — the homepage
+  // vacation-type cards link straight into a board-filtered search. Seeded once, on
+  // entry; from then on the sidebar owns the value like any other filter.
+  const seedFilters = () => {
+    const boards = csv(params.get('boards') || '')
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+    return boards.length ? { ...EMPTY_FILTERS, boards } : EMPTY_FILTERS;
+  };
+
   // Result filters. `filters` drives the UI (instant); `applied` is the debounced copy.
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [applied, setApplied] = useState(EMPTY_FILTERS);
+  const [filters, setFilters] = useState(seedFilters);
+  const [applied, setApplied] = useState(seedFilters);
 
   // ── FACETS (from the admin content API over the scope) ──────────────────────────
   // holiday / stars / facilities / activities, each with a hotel count. `facetsStatus`:
