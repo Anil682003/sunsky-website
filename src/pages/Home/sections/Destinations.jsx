@@ -1,5 +1,7 @@
 import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import styles from './Destinations.module.css';
+import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
 
 const FALLBACK_TABS = {
   spain:  { label:'Spain',          dest:[{name:'Costa del Sol',count:'342 holidays',badge:'Popular',img:'https://images.unsplash.com/photo-1543783207-ec64e4d95325?w=800&q=80'},{name:'Mallorca',count:'289 holidays',img:'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=800&q=80'},{name:'Barcelona',count:'198 holidays',badge:'Trending',img:'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=800&q=80'}] },
@@ -17,12 +19,18 @@ function buildTabsFromCms(destinationTabs) {
     const key = `tab_${i}`;
     result[key] = {
       label: tab.tab || `Tab ${i + 1}`,
-      dest: (tab.cards || []).map((c) => ({
-        name: c.name,
-        count: c.holidays,
-        badge: c.badge,
-        img: c.imageUrl,
-      })),
+      dest: (tab.cards || []).map((c) => {
+        // A card is clickable only once the dashboard links it to a real
+        // country/city; otherwise it stays decorative, exactly as before.
+        const [linked] = normalizeDests(c.dest ? [c.dest] : []);
+        return {
+          name: c.name,
+          count: c.holidays,
+          badge: c.badge,
+          img: c.imageUrl,
+          href: linked ? destUrl(linked) : null,
+        };
+      }),
     };
   });
   return result;
@@ -128,8 +136,17 @@ export default function Destinations({ cms }) {
         </div>
 
         <div key={safeActive} className={styles.panel}>
-          {panel.dest.map((d, i) => (
-            <div key={i} className={`${styles.card} ${i === 0 ? styles.cardFeat : ''}`}>
+          {panel.dest.map((d, i) => {
+            // Linked cards become real anchors so they can be opened in a new tab;
+            // unlinked ones stay plain divs and keep the current behaviour.
+            const Card = d.href ? Link : 'div';
+            const cardProps = d.href ? { to: d.href, title: `Search stays in ${d.name}` } : {};
+            return (
+            <Card
+              key={i}
+              {...cardProps}
+              className={`${styles.card} ${i === 0 ? styles.cardFeat : ''} ${d.href ? styles.cardLink : ''}`}
+            >
               <div className={styles.cardMask}>
                 <img src={d.img} alt={d.name} loading="lazy" />
                 <div className={styles.overlay}>
@@ -165,8 +182,9 @@ export default function Destinations({ cms }) {
                   </svg>
                 </div>
               )}
-            </div>
-          ))}
+            </Card>
+            );
+          })}
         </div>
       </div>
     </section>
