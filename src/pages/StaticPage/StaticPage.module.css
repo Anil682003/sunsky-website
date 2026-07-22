@@ -1,0 +1,264 @@
+/* Legal / information pages. Deliberately quiet: a soft light band up top, then
+   a long, comfortable measure of text beside a sticky index of sibling pages. */
+
+.page { background: var(--white); min-height: 70vh; }
+
+/* ── Hero band ─────────────────────────────────────────────────────────── */
+.hero {
+  position: relative;
+  overflow: hidden;
+  /* Top pad clears the fixed (solid) navbar on this route */
+  padding: 116px 0 44px;
+  background: linear-gradient(170deg, var(--blue-bg) 0%, var(--blue-bg2) 58%, var(--white) 100%);
+  border-bottom: 1px solid var(--blue-light);
+}
+/* One faint warm wash, top-right — enough to stop the band reading as flat grey */
+.heroGlow {
+  position: absolute;
+  top: -190px; right: -60px;
+  width: 420px; height: 420px;
+  border-radius: 50%;
+  background: var(--sun-gold);
+  filter: blur(110px);
+  opacity: 0.16;
+  pointer-events: none;
+}
+
+.heroInner {
+  position: relative;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 0 52px;
+}
+
+.crumbs {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-bottom: 18px;
+  font-size: 0.82rem;
+  color: var(--text-light);
+}
+.crumbLink { color: var(--text-sec); transition: color 0.25s var(--ease); }
+.crumbLink:hover { color: var(--blue-deep); }
+.crumbSep { color: var(--text-light); }
+.crumbGroup { color: var(--text-sec); }
+.crumbCurrent { color: var(--blue-deep); font-weight: 600; }
+
+.title {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(1.9rem, 3.6vw, 2.9rem);
+  font-weight: 700;
+  letter-spacing: -1.1px;
+  line-height: 1.12;
+  color: var(--text);
+  max-width: 20ch;
+}
+.lede {
+  margin-top: 14px;
+  max-width: 62ch;
+  font-size: 1.02rem;
+  line-height: 1.7;
+  color: var(--text-sec);
+}
+
+/* ── Two-column body ───────────────────────────────────────────────────── */
+.body {
+  display: grid;
+  grid-template-columns: 264px minmax(0, 1fr);
+  gap: 56px;
+  align-items: start;
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 52px 52px 96px;
+}
+
+/* ── Sidebar ───────────────────────────────────────────────────────────── */
+.sidebar { position: sticky; top: 100px; }
+
+.sidebarCard {
+  padding: 20px 16px 16px;
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-light);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-xs);
+}
+.sidebarLabel {
+  padding: 0 10px;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+.sidebarNote {
+  padding: 0 10px;
+  margin-top: 6px;
+  font-size: 0.82rem;
+  line-height: 1.55;
+  color: var(--text-sec);
+}
+.sidebarList { margin-top: 14px; display: flex; flex-direction: column; gap: 2px; }
+
+.sidebarLink {
+  position: relative;
+  display: block;
+  padding: 10px 12px 10px 14px;
+  border-radius: 10px;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  color: var(--text-sec);
+  transition: color 0.25s var(--ease), background 0.25s var(--ease);
+}
+/* The accent bar that marks the current page */
+.sidebarLink::before {
+  content: '';
+  position: absolute;
+  left: 0; top: 50%;
+  width: 3px; height: 0;
+  border-radius: var(--r-full);
+  background: linear-gradient(180deg, var(--sun-orange), var(--sun-gold));
+  transform: translateY(-50%);
+  transition: height 0.35s var(--ease);
+}
+.sidebarLink:hover { color: var(--text); background: var(--white); }
+
+.sidebarLinkActive {
+  color: var(--blue-deep);
+  font-weight: 600;
+  background: var(--white);
+  box-shadow: var(--shadow-xs);
+}
+.sidebarLinkActive::before { height: 22px; }
+
+/* ── Content ───────────────────────────────────────────────────────────── */
+.content { max-width: 68ch; }
+/* Nothing to index — let the prose sit centred in the full width instead */
+.contentWide { grid-column: 1 / -1; margin: 0 auto; }
+
+.intro p {
+  font-size: 1.08rem;
+  line-height: 1.82;
+  color: var(--text);
+}
+.intro p + p { margin-top: 18px; }
+.intro {
+  padding-bottom: 30px;
+  border-bottom: 1px solid var(--blue-light);
+}
+
+.section + .section { margin-top: 44px; }
+.intro + .section { margin-top: 38px; }
+
+.heading {
+  font-family: 'Sora', sans-serif;
+  font-size: 1.32rem;
+  font-weight: 700;
+  letter-spacing: -0.4px;
+  line-height: 1.35;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+/* A short gold rule instead of a heavy divider — the only ornament on the page */
+.heading::after {
+  content: '';
+  display: block;
+  width: 34px; height: 2px;
+  margin-top: 12px;
+  border-radius: var(--r-full);
+  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
+}
+
+.para {
+  font-size: 1rem;
+  line-height: 1.85;
+  color: var(--text-sec);
+}
+.para + .para { margin-top: 16px; }
+
+.bullets {
+  margin-top: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.bullets li {
+  position: relative;
+  padding-left: 22px;
+  font-size: 1rem;
+  line-height: 1.75;
+  color: var(--text-sec);
+}
+.bullets li::before {
+  content: '';
+  position: absolute;
+  left: 2px; top: 0.72em;
+  width: 6px; height: 6px;
+  border-radius: 50%;
+  background: var(--blue-ocean);
+}
+
+/* ── Page-not-found state ──────────────────────────────────────────────── */
+.missing {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 52px 52px 110px;
+}
+.cta {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 13px 28px;
+  border-radius: var(--r-full);
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+  color: var(--white);
+  font-family: 'Sora', sans-serif;
+  font-size: 0.9rem; font-weight: 700;
+  box-shadow: var(--shadow-glow);
+  transition: transform 0.35s var(--ease);
+}
+.cta:hover { transform: translateY(-2px); }
+.cta svg { transition: transform 0.35s var(--ease); }
+.cta:hover svg { transform: translateX(3px); }
+
+/* ── Skeletons ─────────────────────────────────────────────────────────── */
+.sk {
+  border-radius: 10px;
+  background: linear-gradient(100deg, var(--blue-light) 30%, var(--blue-bg2) 50%, var(--blue-light) 70%);
+  background-size: 200% 100%;
+  animation: skShimmer 1.4s var(--ease-smooth) infinite;
+}
+@keyframes skShimmer {
+  from { background-position: 200% 0; }
+  to   { background-position: -200% 0; }
+}
+.skCrumbs { width: 220px; height: 12px; margin-bottom: 22px; }
+.skTitle  { width: min(460px, 80%); height: 40px; border-radius: 12px; }
+.skLede   { width: min(560px, 92%); height: 14px; margin-top: 18px; }
+.skSidebar { height: 268px; border-radius: var(--r-lg); }
+.skContent { display: flex; flex-direction: column; gap: 14px; max-width: 68ch; }
+.skLine { height: 13px; }
+
+/* ── Responsive ────────────────────────────────────────────────────────── */
+@media (max-width: 900px) {
+  .hero { padding: 96px 0 36px; }
+  .heroInner, .missing { padding-left: 24px; padding-right: 24px; }
+  .body {
+    grid-template-columns: minmax(0, 1fr);
+    gap: 32px;
+    padding: 36px 24px 72px;
+  }
+  /* Sidebar collapses to a plain block above the prose */
+  .sidebar { position: static; top: auto; }
+  .contentWide { margin: 0; }
+}
+
+@media (max-width: 640px) {
+  .hero { padding: 88px 0 30px; }
+  .heroInner, .missing { padding-left: 18px; padding-right: 18px; }
+  .body { padding: 30px 18px 64px; }
+  .heading { font-size: 1.18rem; }
+  .intro p { font-size: 1.02rem; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .sk { animation: none; }
+  .cta, .cta svg, .sidebarLink, .sidebarLink::before { transition: none; }
+}

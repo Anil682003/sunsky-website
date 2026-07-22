@@ -103,6 +103,15 @@ export const useFooterConfig = () =>
     transformResponse: (res) => (res?.success ? res.data?.footerConfig ?? res.data : null),
   });
 
+// Every active static/legal page plus the groups they are filed under (CMS →
+// Static Pages). One fetch serves the whole /p/:slug family, so the sidebar can
+// list a page's siblings without a second request.
+export const useStaticPages = () =>
+  useApi(ENDPOINTS.staticPages, {
+    immediate: true,
+    transformResponse: (res) => (res?.success ? res.data : null),
+  });
+
 export const useCitySearch = () =>
   useApi(ENDPOINTS.citySearch, {
     transformResponse: (res) => res?.data ?? [],

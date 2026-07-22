@@ -19,6 +19,7 @@ export const ENDPOINTS = {
   // CMS
   homepageConfig:  '/cms/layout/homepage-config',
   footerConfig:    '/cms/layout/footer-config',
+  staticPages:     '/cms/static-pages',
 
   // Geo
   countries:       '/website/geo/countries',
