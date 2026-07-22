@@ -68,12 +68,12 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* One row per group: heading on the left, links flowing across the rest
-            of the width. Tall groups (Terms has eight) wrap instead of forming a
-            column far taller than its neighbours. */}
-        <div className={styles.navRows}>
+        {/* Groups sit side by side as columns; the brand block above spans the
+            full width so the columns get equal room instead of being squeezed
+            next to it. */}
+        <div className={styles.navGrid}>
           {cols.map((col) => (
-            <div key={col.title} className={styles.navRow}>
+            <div key={col.title} className={styles.navCol}>
               <h4>{col.title}</h4>
               <div className={styles.navLinks}>
                 {col.links.map((l, i) => {
