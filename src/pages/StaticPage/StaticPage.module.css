@@ -461,33 +461,35 @@
 }
 .faqQText { min-width: 0; }
 
-/* Plus that rotates into a minus */
+/* Chevron in a soft disc, rotating on open */
 .faqIcon {
   position: relative;
   flex-shrink: 0;
-  width: 28px; height: 28px;
+  width: 30px; height: 30px;
   border-radius: 50%;
-  background: var(--blue-light);
-  transition: background 0.26s var(--ease), transform 0.34s var(--ease);
-}
-.faqItemOpen .faqIcon {
-  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
-  transform: rotate(180deg);
-}
-.faqIconBar {
-  position: absolute;
-  top: 50%; left: 50%;
-  width: 11px; height: 2px;
-  border-radius: 2px;
-  background: var(--blue-deep);
-  transform: translate(-50%, -50%);
-  transition: background 0.26s var(--ease), opacity 0.26s var(--ease),
+  background: var(--blue-bg);
+  border: 1px solid var(--blue-light);
+  display: flex; align-items: center; justify-content: center;
+  transition: background 0.26s var(--ease), border-color 0.26s var(--ease),
               transform 0.34s var(--ease);
 }
-.faqIconBarV { transform: translate(-50%, -50%) rotate(90deg); }
+.faqQ:hover .faqIcon { background: var(--blue-light); }
+.faqItemOpen .faqIcon {
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+  border-color: transparent;
+  transform: rotate(180deg);
+}
+/* Two strokes forming the chevron, so no icon font is needed */
+.faqIconBar {
+  position: absolute;
+  width: 8px; height: 2px;
+  border-radius: 2px;
+  background: var(--blue-deep);
+  transition: background 0.26s var(--ease);
+}
+.faqIconBar { transform: translateX(-2.6px) rotate(45deg); }
+.faqIconBarV { transform: translateX(2.6px) rotate(-45deg); }
 .faqItemOpen .faqIconBar { background: var(--white); }
-/* Hide the vertical stroke so the plus reads as a minus */
-.faqItemOpen .faqIconBarV { opacity: 0; transform: translate(-50%, -50%) rotate(0deg); }
 
 /* max-height is set inline from the measured content: the grid 0fr->1fr trick
    resolves to 0px here once a transition is attached. */
