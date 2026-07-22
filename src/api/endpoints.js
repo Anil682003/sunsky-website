@@ -18,6 +18,7 @@ export const ENDPOINTS = {
 
   // CMS
   homepageConfig:  '/cms/layout/homepage-config',
+  headerConfig:    '/cms/layout/header-config',
   footerConfig:    '/cms/layout/footer-config',
   staticPages:     '/cms/static-pages',
 

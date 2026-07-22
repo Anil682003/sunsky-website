@@ -95,6 +95,14 @@ export const useHomepageConfig = () =>
     transformResponse: (res) => (res?.success ? res.data.homepageConfig : null),
   });
 
+// Header content managed in the dashboard (CMS → Layout → Header Settings):
+// the logo, its alt text and where it links.
+export const useHeaderConfig = () =>
+  useApi(ENDPOINTS.headerConfig, {
+    immediate: true,
+    transformResponse: (res) => (res?.success ? res.data?.headerConfig ?? res.data : null),
+  });
+
 // Footer content managed in the dashboard (CMS → Layout → Footer Settings):
 // brand block, the navigation columns, payment icons and the copyright line.
 export const useFooterConfig = () =>

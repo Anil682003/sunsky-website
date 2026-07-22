@@ -5,7 +5,7 @@ import { logout } from '../../store/slices/authSlice';
 import mainLogoFallback from '../../assets/main-logo.png';
 import lightLogoFallback from '../../assets/light-logo.png';
 import styles from './Navbar.module.css';
-import { useHomepageConfig } from '../../api';
+import { useHomepageConfig, useHeaderConfig } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
 
 const SERVICES = [
@@ -44,11 +44,21 @@ export default function Navbar() {
   const [dropOpen,    setDropOpen]    = useState(false);
   const dropRef = useRef(null);
 
+  // The header CMS (CMS → Layout → Header) owns the logo. The homepage CMS
+  // `logo` field stays as a fallback so nothing breaks for anyone who set it
+  // there, and it still supplies the LIGHT variant — the header CMS holds a
+  // single logo, which would be unreadable over the dark hero photo.
+  const { data: headerConfig } = useHeaderConfig();
   const { data: cmsConfig } = useHomepageConfig();
+
+  const headerLogo = resolveCmsImageUrl(headerConfig?.logoUrl);
   const cmsMainLogo = resolveCmsImageUrl(cmsConfig?.logo?.mainUrl);
   const cmsLightLogo = resolveCmsImageUrl(cmsConfig?.logo?.lightUrl);
-  const mainLogo = cmsMainLogo || mainLogoFallback;
-  const lightLogo = cmsLightLogo || cmsMainLogo || lightLogoFallback;
+
+  const mainLogo = headerLogo || cmsMainLogo || mainLogoFallback;
+  const lightLogo = cmsLightLogo || lightLogoFallback;
+  const logoAlt = headerConfig?.logoAltText?.trim() || 'SunSky';
+  const logoHref = headerConfig?.logoLinkTarget?.trim() || '/';
 
   const isHome = location.pathname === '/';
   // Pages with a dark hero band — navbar starts transparent and blends in
@@ -79,10 +89,10 @@ export default function Navbar() {
     <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
 
       {/* Logo */}
-      <Link to="/" className={styles.logo}>
+      <Link to={logoHref} className={styles.logo}>
         <img
           src={dark ? mainLogo : lightLogo}
-          alt="SunSky"
+          alt={logoAlt}
           className={styles.logoImg}
         />
         <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
