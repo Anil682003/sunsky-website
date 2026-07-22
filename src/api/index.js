@@ -95,6 +95,14 @@ export const useHomepageConfig = () =>
     transformResponse: (res) => (res?.success ? res.data.homepageConfig : null),
   });
 
+// Footer content managed in the dashboard (CMS → Layout → Footer Settings):
+// brand block, the navigation columns, payment icons and the copyright line.
+export const useFooterConfig = () =>
+  useApi(ENDPOINTS.footerConfig, {
+    immediate: true,
+    transformResponse: (res) => (res?.success ? res.data?.footerConfig ?? res.data : null),
+  });
+
 export const useCitySearch = () =>
   useApi(ENDPOINTS.citySearch, {
     transformResponse: (res) => res?.data ?? [],

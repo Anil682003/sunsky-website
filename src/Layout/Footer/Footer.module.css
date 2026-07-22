@@ -6,8 +6,11 @@
 }
 .inner {
   max-width:1400px; margin:0 auto;
-  display:grid; grid-template-columns:2.2fr repeat(3,1fr);
-  gap:48px; margin-bottom:48px;
+  /* The column count is CMS-driven now, so the track list has to flex rather
+     than assume exactly three. */
+  display:grid; grid-template-columns:2.2fr repeat(auto-fit, minmax(150px, 1fr));
+  gap:40px; margin-bottom:48px;
+  align-items:start;
 }
 .brand { display:flex; flex-direction:column; gap:16px; }
 .logo { cursor:pointer; }
