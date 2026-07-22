@@ -287,14 +287,20 @@ export default function Results() {
     adults: initAdults, children: initChildren, rooms: initRooms,
   });
 
-  // Board codes can arrive in the URL (?boards=AI or ?boards=AI,UAI) — the homepage
-  // vacation-type cards link straight into a board-filtered search. Seeded once, on
-  // entry; from then on the sidebar owns the value like any other filter.
+  // Filters can arrive in the URL — the homepage links into pre-filtered searches:
+  //   ?boards=AI        board code(s)        (vacation-type cards)
+  //   ?themes=12        holiday type id(s)   (popular-destination links)
+  // Seeded once, on entry; from then on the sidebar owns them like any other filter.
+  // Theme ids are numbers because the facet list compares against a numeric t.id.
   const seedFilters = () => {
     const boards = csv(params.get('boards') || '')
       .map((c) => c.trim().toUpperCase())
       .filter(Boolean);
-    return boards.length ? { ...EMPTY_FILTERS, boards } : EMPTY_FILTERS;
+    const themes = csv(params.get('themes') || '')
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n));
+    if (!boards.length && !themes.length) return EMPTY_FILTERS;
+    return { ...EMPTY_FILTERS, ...(boards.length ? { boards } : {}), ...(themes.length ? { themes } : {}) };
   };
 
   // Result filters. `filters` drives the UI (instant); `applied` is the debounced copy.

@@ -1,4 +1,6 @@
+import { Link } from 'react-router-dom';
 import styles from './PopularDest.module.css';
+import { groupLinkUrl, groupLinkLabel } from '../../../utils/cmsDestinations';
 
 const FALLBACK_CARDS = [
   { title:'Distant Destinations', count:'480+ holidays', colorClass:'blue',
@@ -148,7 +150,17 @@ export default function PopularDest({ cms }) {
                   </div>
                 </div>
                 <div className={styles.links}>
-                  {c.links.map((l) => <a key={l} href="#">{l}</a>)}
+                  {c.links.map((l, li) => {
+                    const label = groupLinkLabel(l);
+                    const href  = groupLinkUrl(l);
+                    // Legacy string links (and any the dashboard has not linked
+                    // yet) keep the previous inert anchor.
+                    return href ? (
+                      <Link key={`${label}-${li}`} to={href} title={`Search ${label}`}>{label}</Link>
+                    ) : (
+                      <a key={`${label}-${li}`} href="#">{label}</a>
+                    );
+                  })}
                 </div>
                 <div className={styles.cardFoot}>
                   <span className={styles.footCode}>{`SSK · ${String(i + 1).padStart(2, '0')}`}</span>

@@ -30,6 +30,36 @@ export const destUrl = (d) => {
   return `/results?${qs.toString()}`;
 };
 
+/**
+ * A quick link under a "Most popular destinations" group. Any combination of a
+ * place, a board type and a holiday type — "Turkey All Inclusive" is a country
+ * plus a board, "Last Minute Spain" a holiday type plus a country, "France by
+ * Car" a country plus a holiday type.
+ *
+ * Legacy entries are plain strings (label only) and stay unlinked.
+ * Returns null when there is nothing to filter by, so the caller renders text.
+ */
+export const groupLinkUrl = (link) => {
+  if (!link || typeof link !== 'object') return null;
+  const qs = new URLSearchParams();
+  const d = link.dest;
+  if (d && d.code && (d.type === 'country' || d.type === 'city')) {
+    qs.set(d.type === 'country' ? 'countries' : 'destinations', String(d.code).trim().toUpperCase());
+  }
+  if (link.boardCode) qs.set('boards', String(link.boardCode).trim().toUpperCase());
+  if (link.holidayTypeId != null && link.holidayTypeId !== '') {
+    qs.set('themes', String(link.holidayTypeId));
+  }
+  if ([...qs.keys()].length === 0) return null;
+  const label = link.label || d?.name || '';
+  if (label) qs.set('destinationLabel', label);
+  return `/results?${qs.toString()}`;
+};
+
+/** Display text for a group link, whether it is a legacy string or an object. */
+export const groupLinkLabel = (link) =>
+  typeof link === 'string' ? link : link?.label || link?.dest?.name || '';
+
 const slugify = (s) =>
   String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
