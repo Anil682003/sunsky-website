@@ -68,18 +68,25 @@ export default function Footer() {
           </div>
         </div>
 
-        {cols.map((col) => (
-          <div key={col.title} className={styles.col}>
-            <h4>{col.title}</h4>
-            {col.links.map((l, i) => {
-              const key = `${l.label}-${i}`;
-              if (isPlaceholder(l.url)) return <a key={key} href="#">{l.label}</a>;
-              return isInternal(l.url)
-                ? <Link key={key} to={l.url}>{l.label}</Link>
-                : <a key={key} href={l.url} target="_blank" rel="noreferrer">{l.label}</a>;
-            })}
-          </div>
-        ))}
+        {/* One row per group: heading on the left, links flowing across the rest
+            of the width. Tall groups (Terms has eight) wrap instead of forming a
+            column far taller than its neighbours. */}
+        <div className={styles.navRows}>
+          {cols.map((col) => (
+            <div key={col.title} className={styles.navRow}>
+              <h4>{col.title}</h4>
+              <div className={styles.navLinks}>
+                {col.links.map((l, i) => {
+                  const key = `${l.label}-${i}`;
+                  if (isPlaceholder(l.url)) return <a key={key} href="#">{l.label}</a>;
+                  return isInternal(l.url)
+                    ? <Link key={key} to={l.url}>{l.label}</Link>
+                    : <a key={key} href={l.url} target="_blank" rel="noreferrer">{l.label}</a>;
+                })}
+              </div>
+            </div>
+          ))}
+        </div>
       </div>
 
       <div className={styles.divider} />

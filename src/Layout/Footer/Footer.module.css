@@ -4,15 +4,41 @@
   padding:72px 52px 36px;
   border-top:1px solid var(--blue-light);
 }
+/* Brand block, then one row per navigation group beneath it. Columns were a bad
+   fit once the CMS drove the content: "Terms & Traveller Rights" has eight links
+   and towered over a two-link neighbour. */
 .inner {
   max-width:1400px; margin:0 auto;
-  /* The column count is CMS-driven now, so the track list has to flex rather
-     than assume exactly three. */
-  display:grid; grid-template-columns:2.2fr repeat(auto-fit, minmax(150px, 1fr));
-  gap:40px; margin-bottom:48px;
-  align-items:start;
+  margin-bottom:40px;
 }
-.brand { display:flex; flex-direction:column; gap:16px; }
+.brand {
+  display:flex; flex-direction:column; gap:16px;
+  padding-bottom:28px;
+  margin-bottom:4px;
+}
+.brand p { max-width:520px; }
+
+.navRows { display:flex; flex-direction:column; }
+.navRow {
+  display:grid;
+  grid-template-columns:230px minmax(0, 1fr);
+  gap:12px 32px;
+  padding:18px 0;
+  border-top:1px solid var(--blue-light);
+  align-items:baseline;
+}
+.navRow h4 {
+  font-family:'Sora',sans-serif; font-size:0.82rem; font-weight:700;
+  margin:0; color:var(--blue-deep);
+  text-transform:uppercase; letter-spacing:1px; line-height:1.5;
+}
+.navLinks { display:flex; flex-wrap:wrap; gap:6px 28px; }
+.navLinks a {
+  color:var(--text-sec);
+  font-size:0.9rem; line-height:1.6;
+  transition:color 0.25s var(--ease);
+}
+.navLinks a:hover { color:var(--blue-deep); }
 .logo { cursor:pointer; }
 .logoText { font-family:'Sora',sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--dark); }
 .logoImg { height:40px; object-fit:contain; }
@@ -44,5 +70,12 @@
 .bottomLinks a { color:var(--text-light); font-size:0.83rem; transition:color 0.3s; }
 .bottomLinks a:hover { color:var(--blue-deep); }
 
-@media(max-width:1100px) { .inner { grid-template-columns:repeat(2,1fr); } .brand { grid-column:1/-1; } }
-@media(max-width:640px) { .footer { padding:48px 20px 28px; } .inner { grid-template-columns:1fr; gap:32px; } }
+/* Narrow: heading stacks above its links rather than squeezing a 230px column */
+@media(max-width:820px) {
+  .navRow { grid-template-columns:1fr; gap:8px; padding:16px 0; }
+  .navLinks { gap:6px 20px; }
+}
+@media(max-width:640px) {
+  .footer { padding:48px 20px 28px; }
+  .brand p { max-width:none; }
+}
