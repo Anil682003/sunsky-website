@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useLocation } from 'react-router-dom';
 import styles from './StaticPage.module.css';
 import { useStaticPages } from '../../api';
@@ -23,6 +23,91 @@ const toParagraphs = (text) =>
 const bySortOrder = (a, b) =>
   (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0) ||
   String(a?.title ?? '').localeCompare(String(b?.title ?? ''));
+
+/**
+ * One FAQ row. The panel animates on max-height measured from the content,
+ * rather than the grid-template-rows 0fr→1fr trick: that resolves to 0px here
+ * whenever a transition is attached, collapsing the answer. The answer stays
+ * in the DOM while closed so in-page search still finds it.
+ */
+function FaqItem({ item, isOpen, onToggle, idBase }) {
+  const innerRef = useRef(null);
+  const [maxHeight, setMaxHeight] = useState(0);
+
+  useEffect(() => {
+    const el = innerRef.current;
+    if (!el) return undefined;
+    const measure = () => setMaxHeight(el.scrollHeight);
+    measure();
+    // Re-measure if the answer reflows (font load, resize).
+    const ro = typeof ResizeObserver !== 'undefined' ? new ResizeObserver(measure) : null;
+    ro?.observe(el);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', measure);
+    };
+  }, [item]);
+
+  const panelId = `${idBase}-a`;
+  const btnId = `${idBase}-q`;
+
+  return (
+    <div className={`${styles.faqItem} ${isOpen ? styles.faqItemOpen : ''}`}>
+      <h3 className={styles.faqHeading}>
+        <button
+          type="button"
+          id={btnId}
+          className={styles.faqQ}
+          aria-expanded={isOpen}
+          aria-controls={panelId}
+          onClick={onToggle}
+        >
+          <span className={styles.faqQText}>{item.q}</span>
+          <span className={styles.faqIcon} aria-hidden="true">
+            <span className={styles.faqIconBar} />
+            <span className={`${styles.faqIconBar} ${styles.faqIconBarV}`} />
+          </span>
+        </button>
+      </h3>
+      <div
+        id={panelId}
+        role="region"
+        aria-labelledby={btnId}
+        className={styles.faqPanel}
+        style={{ maxHeight: isOpen ? maxHeight : 0 }}
+      >
+        <div ref={innerRef} className={styles.faqPanelInner}>
+          <div className={styles.faqA}>
+            {toParagraphs(item.a).map((p, j) => <p key={j}>{p}</p>)}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * FAQ accordion. One question open at a time — with a dozen questions, letting
+ * them all stack open just recreates the wall of text this replaces.
+ */
+function Faq({ items, sectionId }) {
+  const [openIdx, setOpenIdx] = useState(null);
+
+  return (
+    <div className={styles.faq}>
+      {items.map((item, i) => (
+        <FaqItem
+          key={i}
+          item={item}
+          idBase={`${sectionId}-${i}`}
+          isOpen={openIdx === i}
+          onToggle={() => setOpenIdx(openIdx === i ? null : i)}
+        />
+      ))}
+    </div>
+  );
+}
 
 export default function StaticPage() {
   const { slug } = useParams();
@@ -370,6 +455,11 @@ export default function StaticPage() {
             const nth = sections.slice(0, i).filter((s) => s?.heading).length;
             const headingId = section?.heading ? sectionIndex[nth]?.id : undefined;
 
+            const faqItems =
+              section?.type === 'faq' && Array.isArray(section.items)
+                ? section.items.filter((it) => it?.q)
+                : [];
+
             return (
               <section key={i} className={styles.section}>
                 {section?.heading && (
@@ -385,6 +475,9 @@ export default function StaticPage() {
                   <ul className={styles.bullets}>
                     {bullets.map((b, j) => <li key={j}>{b}</li>)}
                   </ul>
+                )}
+                {faqItems.length > 0 && (
+                  <Faq items={faqItems} sectionId={headingId ?? `faq-${i}`} />
                 )}
               </section>
             );

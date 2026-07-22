@@ -405,3 +405,117 @@
   .progressBar, .sidebarLink, .sidebarLink::before, .sidebarLink::after, .cta { transition: none; }
   .skelLine, .skelCard { animation: none; }
 }
+
+/* ── FAQ accordion ─────────────────────────────────────────────────────────
+   Sits inside a section, so it aligns to the same hanging indent as prose. */
+.faq {
+  margin: 6px 0 0 46px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.faqItem {
+  border: 1px solid var(--blue-light);
+  border-radius: 14px;
+  background: var(--white);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  transition: border-color 0.24s var(--ease), box-shadow 0.24s var(--ease),
+              background 0.24s var(--ease);
+}
+.faqItem:hover { border-color: var(--blue-soft); }
+.faqItemOpen {
+  border-color: var(--blue-soft);
+  background: linear-gradient(180deg, var(--white) 0%, var(--blue-bg) 100%);
+  box-shadow: var(--shadow-sm);
+}
+
+/* The <h3> is structural only — all styling lives on the button */
+.faqHeading { margin: 0; font: inherit; }
+
+.faqQ {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  width: 100%;
+  padding: 17px 18px;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  text-align: left;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.97rem;
+  font-weight: 600;
+  line-height: 1.5;
+  letter-spacing: -0.2px;
+  color: var(--text);
+  transition: color 0.2s var(--ease);
+}
+.faqQ:hover { color: var(--blue-deep); }
+.faqQ:focus-visible {
+  outline: 3px solid rgba(31, 79, 216, 0.35);
+  outline-offset: -3px;
+  border-radius: 14px;
+}
+.faqQText { min-width: 0; }
+
+/* Plus that rotates into a minus */
+.faqIcon {
+  position: relative;
+  flex-shrink: 0;
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  background: var(--blue-light);
+  transition: background 0.26s var(--ease), transform 0.34s var(--ease);
+}
+.faqItemOpen .faqIcon {
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+  transform: rotate(180deg);
+}
+.faqIconBar {
+  position: absolute;
+  top: 50%; left: 50%;
+  width: 11px; height: 2px;
+  border-radius: 2px;
+  background: var(--blue-deep);
+  transform: translate(-50%, -50%);
+  transition: background 0.26s var(--ease), opacity 0.26s var(--ease),
+              transform 0.34s var(--ease);
+}
+.faqIconBarV { transform: translate(-50%, -50%) rotate(90deg); }
+.faqItemOpen .faqIconBar { background: var(--white); }
+/* Hide the vertical stroke so the plus reads as a minus */
+.faqItemOpen .faqIconBarV { opacity: 0; transform: translate(-50%, -50%) rotate(0deg); }
+
+/* max-height is set inline from the measured content: the grid 0fr->1fr trick
+   resolves to 0px here once a transition is attached. */
+.faqPanel {
+  overflow: hidden;
+  max-height: 0;
+  transition: max-height 0.34s var(--ease);
+}
+.faqPanelInner { min-height: 0; }
+
+.faqA {
+  padding: 0 18px 18px;
+  border-top: 1px dashed var(--blue-light);
+  margin-top: 2px;
+  padding-top: 14px;
+}
+.faqA p {
+  font-size: 0.96rem;
+  line-height: 1.78;
+  color: var(--text-sec);
+}
+.faqA p + p { margin-top: 12px; }
+
+@media (max-width: 620px) {
+  .faq { margin-left: 0; }
+  .faqQ { padding: 15px 14px; font-size: 0.93rem; gap: 12px; }
+  .faqA { padding: 12px 14px 16px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .faqItem, .faqIcon, .faqIconBar, .faqPanel { transition: none; }
+}
