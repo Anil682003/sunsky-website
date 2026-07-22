@@ -157,6 +157,8 @@
   line-height: 1.35;
   color: var(--text);
   margin-bottom: 14px;
+  /* Anchor targets must clear the fixed navbar, or the heading lands underneath it */
+  scroll-margin-top: 104px;
 }
 /* A short gold rule instead of a heavy divider — the only ornament on the page */
 .heading::after {
@@ -262,3 +264,11 @@
   .sk { animation: none; }
   .cta, .cta svg, .sidebarLink, .sidebarLink::before { transition: none; }
 }
+
+/* "More information" — the sibling pages, below the on-this-page index */
+.sidebarMore {
+  margin-top: 20px;
+  padding-top: 16px;
+  border-top: 1px solid var(--blue-light);
+}
+.sidebarMore .sidebarLabel { margin-bottom: 8px; }

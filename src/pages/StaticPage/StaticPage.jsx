@@ -1,7 +1,16 @@
-import { useEffect, useMemo } from 'react';
-import { Link, useParams } from 'react-router-dom';
+import { useEffect, useMemo, useState } from 'react';
+import { Link, useParams, useLocation } from 'react-router-dom';
 import styles from './StaticPage.module.css';
 import { useStaticPages } from '../../api';
+
+// Section anchors are derived from the CMS heading, so the footer can link
+// straight to "Secure Online Payments" without storing an id alongside it.
+export const slugifyHeading = (s) =>
+  String(s ?? '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
 
 // The CMS stores body/intro/bullets as PLAIN TEXT — blank lines separate
 // paragraphs. Everything below renders as React text nodes; never as HTML.
@@ -31,11 +40,94 @@ export default function StaticPage() {
     [groups, page]
   );
 
-  // Sibling pages — what the sidebar lists, in the order the dashboard set.
+  // Sibling pages — kept for the "More information" links under the index.
   const siblings = useMemo(
     () => (page ? pages.filter((p) => p?.groupKey === page.groupKey).sort(bySortOrder) : []),
     [pages, page]
   );
+
+  // The sidebar is a table of contents for THIS page: one entry per section,
+  // anchored to it. Headings come from the CMS, so ids are derived from them
+  // and de-duplicated in case two sections share a heading.
+  const sectionIndex = useMemo(() => {
+    const seen = new Map();
+    return (Array.isArray(page?.sections) ? page.sections : [])
+      .filter((s) => s?.heading)
+      .map((s) => {
+        const base = slugifyHeading(s.heading);
+        const n = (seen.get(base) ?? 0) + 1;
+        seen.set(base, n);
+        return { id: n > 1 ? `${base}-${n}` : base, heading: s.heading };
+      });
+  }, [page]);
+
+  // Which section the reader is in, so the index can mark it. Plain scroll maths
+  // rather than IntersectionObserver: "the last heading that has passed the
+  // navbar" is exactly the rule we want, and a rootMargin band leaves no entry
+  // marked whenever a long section spans the whole viewport.
+  const [activeId, setActiveId] = useState(null);
+  useEffect(() => {
+    if (!sectionIndex.length) return undefined;
+
+    const NAV_OFFSET = 120;
+    const pick = () => {
+      let current = sectionIndex[0]?.id ?? null;
+      for (const { id } of sectionIndex) {
+        const el = document.getElementById(id);
+        if (el && el.getBoundingClientRect().top <= NAV_OFFSET) current = id;
+        else break;
+      }
+      // At the very bottom the last section may never reach the offset.
+      const atBottom =
+        window.innerHeight + window.scrollY >= document.documentElement.scrollHeight - 4;
+      if (atBottom) current = sectionIndex[sectionIndex.length - 1].id;
+      setActiveId(current);
+    };
+
+    pick();
+    window.addEventListener('scroll', pick, { passive: true });
+    window.addEventListener('resize', pick);
+    return () => {
+      window.removeEventListener('scroll', pick);
+      window.removeEventListener('resize', pick);
+    };
+  }, [sectionIndex]);
+
+  // Deep link from the footer (/p/about-sunsky#secure-online-payments).
+  // The content only exists once the fetch resolves, and the layout keeps
+  // settling after that as images and fonts land — so re-assert the scroll a
+  // few times rather than firing once and hoping it stuck.
+  const { hash } = useLocation();
+  useEffect(() => {
+    const id = hash ? hash.slice(1) : '';
+    if (!id || !sectionIndex.length) return undefined;
+
+    let cancelled = false;
+    const timers = [];
+    // index.css sets `html { scroll-behavior: smooth }`, and scrollIntoView's
+    // 'auto' defers to that — so the jump animates, and the animation is
+    // aborted as the page reflows. Force it off for the jump, as ScrollToTop
+    // does for the same reason.
+    const jump = () => {
+      if (cancelled) return;
+      const el = document.getElementById(id);
+      if (!el) return;
+      const html = document.documentElement;
+      const previous = html.style.scrollBehavior;
+      html.style.scrollBehavior = 'auto';
+      el.scrollIntoView({ block: 'start' });
+      html.style.scrollBehavior = previous;
+    };
+
+    // Land immediately, then correct for any reflow that follows.
+    jump();
+    [60, 220, 600].forEach((ms) => timers.push(setTimeout(jump, ms)));
+
+    return () => {
+      cancelled = true;
+      timers.forEach(clearTimeout);
+    };
+  }, [hash, sectionIndex]);
 
   // Tab title / meta description come from the CMS when filled in. Restored on
   // unmount so the next route does not inherit this page's SEO copy.
@@ -135,32 +227,57 @@ export default function StaticPage() {
       </header>
 
       <div className={styles.body}>
-        {siblings.length > 1 && (
-          <nav className={styles.sidebar} aria-label={group?.title || 'Related pages'}>
+        {sectionIndex.length > 1 && (
+          <nav className={styles.sidebar} aria-label={`On this page: ${page.title}`}>
             <div className={styles.sidebarCard}>
-              <p className={styles.sidebarLabel}>{group?.title || 'Information'}</p>
-              {group?.subtitle && <p className={styles.sidebarNote}>{group.subtitle}</p>}
+              <p className={styles.sidebarLabel}>On this page</p>
               <ul className={styles.sidebarList}>
-                {siblings.map((s) => {
-                  const isActive = s.slug === page.slug;
+                {sectionIndex.map(({ id, heading }) => {
+                  const isActive = activeId === id;
                   return (
-                    <li key={s.id ?? s.slug}>
-                      <Link
-                        to={`/p/${s.slug}`}
+                    <li key={id}>
+                      <a
+                        href={`#${id}`}
                         className={`${styles.sidebarLink} ${isActive ? styles.sidebarLinkActive : ''}`}
-                        aria-current={isActive ? 'page' : undefined}
+                        aria-current={isActive ? 'true' : undefined}
+                        onClick={(e) => {
+                          // Scroll smoothly and put the anchor in the URL so the
+                          // section stays shareable, without a full navigation.
+                          e.preventDefault();
+                          const el = document.getElementById(id);
+                          if (!el) return;
+                          el.scrollIntoView({ behavior: 'smooth', block: 'start' });
+                          window.history.replaceState(null, '', `#${id}`);
+                        }}
                       >
-                        {s.title}
-                      </Link>
+                        {heading}
+                      </a>
                     </li>
                   );
                 })}
               </ul>
+
+              {siblings.length > 1 && (
+                <div className={styles.sidebarMore}>
+                  <p className={styles.sidebarLabel}>More information</p>
+                  <ul className={styles.sidebarList}>
+                    {siblings
+                      .filter((s) => s.slug !== page.slug)
+                      .map((s) => (
+                        <li key={s.id ?? s.slug}>
+                          <Link to={`/p/${s.slug}`} className={styles.sidebarLink}>
+                            {s.title}
+                          </Link>
+                        </li>
+                      ))}
+                  </ul>
+                </div>
+              )}
             </div>
           </nav>
         )}
 
-        <article className={`${styles.content} ${siblings.length > 1 ? '' : styles.contentWide}`}>
+        <article className={`${styles.content} ${sectionIndex.length > 1 ? '' : styles.contentWide}`}>
           {intro.length > 0 && (
             <div className={styles.intro}>
               {intro.map((p, i) => <p key={i}>{p}</p>)}
@@ -173,9 +290,16 @@ export default function StaticPage() {
               ? section.bullets.filter((b) => String(b ?? '').trim())
               : [];
 
+            // Same id the index and the footer anchors use.
+            const headingId = section?.heading
+              ? sectionIndex[sections.slice(0, i).filter((s) => s?.heading).length]?.id
+              : undefined;
+
             return (
               <section key={i} className={styles.section}>
-                {section?.heading && <h2 className={styles.heading}>{section.heading}</h2>}
+                {section?.heading && (
+                  <h2 id={headingId} className={styles.heading}>{section.heading}</h2>
+                )}
                 {paras.map((p, j) => <p key={j} className={styles.para}>{p}</p>)}
                 {bullets.length > 0 && (
                   <ul className={styles.bullets}>
