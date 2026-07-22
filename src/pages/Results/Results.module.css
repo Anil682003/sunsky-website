@@ -11,7 +11,7 @@
      underneath — otherwise the top of it (gradient, sun, flight path) is hidden.
      margin-top clears the bar (60px desktop / 52px mobile); the reduced padding
      keeps the content from dropping too far down the band. */
-  margin-top: 64px;
+  margin-top: 60px;
   padding: 46px 40px 52px;
   overflow: hidden;
 }

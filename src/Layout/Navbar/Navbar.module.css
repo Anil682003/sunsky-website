@@ -156,7 +156,10 @@
   border-color: var(--blue-soft);
 }
 .avatarCircle {
-  width: 26px; height: 26px; border-radius: 50%;
+  /* 25px, not 26: the pill's 5px padding + 1.5px border make this the tallest
+     child, and 25 lands the bar on exactly 60px — matching the hamburger's
+     height on mobile and the offsets that clear the bar. */
+  width: 25px; height: 25px; border-radius: 50%;
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
   color: #fff; font-size: 11px; font-weight: 800;
   font-family: 'Sora', sans-serif;
