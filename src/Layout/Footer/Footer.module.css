@@ -7,27 +7,21 @@
 /* Brand block, then one row per navigation group beneath it. Columns were a bad
    fit once the CMS drove the content: "Terms & Traveller Rights" has eight links
    and towered over a two-link neighbour. */
+/* Brand block and the navigation columns share one row — the brand took the
+   full width before, leaving a large empty gap beside it. auto-fit keeps this
+   correct for any number of CMS groups, not just four. */
 .inner {
-  max-width:1400px; margin:0 auto;
-  margin-bottom:40px;
-}
-.brand {
-  display:flex; flex-direction:column; gap:16px;
-  padding-bottom:28px;
-  margin-bottom:4px;
-}
-.brand p { max-width:520px; }
-
-/* The groups side by side. Equal tracks, top-aligned — a group with eight links
-   simply runs longer than its neighbours rather than stretching them. */
-.navGrid {
+  max-width:1400px; margin:0 auto 40px;
   display:grid;
-  grid-template-columns:repeat(4, minmax(0, 1fr));
-  gap:36px 32px;
+  grid-template-columns:minmax(230px, 290px) repeat(auto-fit, minmax(160px, 1fr));
+  gap:32px 28px;
   align-items:start;
-  padding-top:32px;
-  border-top:1px solid var(--blue-light);
 }
+.brand { display:flex; flex-direction:column; gap:16px; }
+.brand p { max-width:none; }
+
+/* Top-aligned, so a group with eight links simply runs longer than its
+   neighbours rather than stretching them. */
 .navCol { min-width:0; }
 .navCol h4 {
   font-family:'Sora',sans-serif; font-size:0.82rem; font-weight:700;
@@ -73,9 +67,12 @@
 .bottomLinks a { color:var(--text-light); font-size:0.83rem; transition:color 0.3s; }
 .bottomLinks a:hover { color:var(--blue-deep); }
 
-@media(max-width:1000px) { .navGrid { grid-template-columns:repeat(2, minmax(0, 1fr)); } }
+/* Brand goes full width once the columns can no longer sit beside it */
+@media(max-width:1000px) {
+  .inner { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:28px 24px; }
+  .brand { grid-column:1 / -1; }
+}
 @media(max-width:560px) {
   .footer { padding:48px 20px 28px; }
-  .brand p { max-width:none; }
-  .navGrid { grid-template-columns:1fr; gap:28px; }
+  .inner { grid-template-columns:1fr; gap:26px; }
 }

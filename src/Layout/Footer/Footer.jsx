@@ -68,25 +68,22 @@ export default function Footer() {
           </div>
         </div>
 
-        {/* Groups sit side by side as columns; the brand block above spans the
-            full width so the columns get equal room instead of being squeezed
-            next to it. */}
-        <div className={styles.navGrid}>
-          {cols.map((col) => (
-            <div key={col.title} className={styles.navCol}>
-              <h4>{col.title}</h4>
-              <div className={styles.navLinks}>
-                {col.links.map((l, i) => {
-                  const key = `${l.label}-${i}`;
-                  if (isPlaceholder(l.url)) return <a key={key} href="#">{l.label}</a>;
-                  return isInternal(l.url)
-                    ? <Link key={key} to={l.url}>{l.label}</Link>
-                    : <a key={key} href={l.url} target="_blank" rel="noreferrer">{l.label}</a>;
-                })}
-              </div>
+        {/* Columns are siblings of the brand block, not nested, so they share
+            its grid row instead of starting underneath it. */}
+        {cols.map((col) => (
+          <div key={col.title} className={styles.navCol}>
+            <h4>{col.title}</h4>
+            <div className={styles.navLinks}>
+              {col.links.map((l, i) => {
+                const key = `${l.label}-${i}`;
+                if (isPlaceholder(l.url)) return <a key={key} href="#">{l.label}</a>;
+                return isInternal(l.url)
+                  ? <Link key={key} to={l.url}>{l.label}</Link>
+                  : <a key={key} href={l.url} target="_blank" rel="noreferrer">{l.label}</a>;
+              })}
             </div>
-          ))}
-        </div>
+          </div>
+        ))}
       </div>
 
       <div className={styles.divider} />
