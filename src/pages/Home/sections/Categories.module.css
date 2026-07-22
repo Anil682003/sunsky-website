@@ -211,6 +211,9 @@
   gap: 18px;
   position: relative;
   z-index: 1;
+  /* Cards keep their natural height — without this, expanding one card's
+     destination slip stretches every sibling ticket to match. */
+  align-items: start;
 }
 /* the toss repeats per row — the dashboard can return more than four types */
 .card:nth-child(4n+1) { --rot: -1.5deg; }
@@ -246,9 +249,13 @@
     drop-shadow(0 5px 12px rgba(31, 79, 216, 0.08));
   z-index: 2;
 }
-.card:focus-visible {
+/* The ticket is the link now (the card is a container so the destination
+   chips can be links of their own without nesting anchors). */
+.ticket:focus-visible,
+.destToggle:focus-visible,
+.destChip:focus-visible {
   outline: 3px solid rgba(31, 79, 216, 0.45);
-  outline-offset: 4px;
+  outline-offset: 3px;
 }
 
 /* circular ink stamp printed across the first ticket's corner */
@@ -266,6 +273,7 @@
    meets the edges, same mask technique as the auth screens */
 .ticket {
   display: flex; flex-direction: column;
+  text-decoration: none;
   background: #FFFFFF;
   border: 1px solid #E8EFFB;
   border-radius: 20px;
@@ -388,6 +396,96 @@
   white-space: nowrap;
 }
 
+/* ═══ Destination slip — the itinerary tucked under the boarding pass ═══
+   Only rendered when the CMS gave a holiday type destinations. The strip
+   peeks out narrower than the ticket so the two read as stacked paper. */
+.destToggle {
+  position: relative;
+  z-index: 0;
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 8px;
+  width: calc(100% - 18px);
+  margin: -9px auto 0;
+  padding: 13px 14px 9px;
+  border: 1px solid #E8EFFB;
+  border-top: none;
+  border-radius: 0 0 16px 16px;
+  background: linear-gradient(180deg, #FFF3E2 0%, #FFFDF8 100%);
+  cursor: pointer;
+  font-family: 'Sora', sans-serif;
+  transition: background 0.3s var(--ease), border-radius 0.3s var(--ease);
+}
+.destToggle:hover { background: linear-gradient(180deg, #FFE9CC 0%, #FFF8ED 100%); }
+/* square the bottom while the panel below is showing */
+.destToggleOpen { border-radius: 0; }
+
+.destToggleLabel {
+  font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 1.4px;
+  color: #C77700;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.destToggleChevron {
+  display: flex; flex-shrink: 0;
+  color: #C77700;
+  transition: transform 0.38s var(--ease);
+}
+.destToggleOpen .destToggleChevron { transform: rotate(180deg); }
+
+/* 0fr → 1fr animates to the panel's real height without measuring it */
+.destWrap {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.42s var(--ease);
+}
+.destWrapOpen { grid-template-rows: 1fr; }
+.destInner { overflow: hidden; min-height: 0; }
+
+.destPanel {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 6px;
+  width: calc(100% - 18px);
+  margin: 0 auto;
+  padding: 10px;
+  background: #FFFFFF;
+  border: 1px solid #E8EFFB;
+  border-top: 1.5px dashed #E3EBF8;
+  border-radius: 0 0 16px 16px;
+}
+
+.destChip {
+  display: flex; align-items: center; gap: 6px;
+  min-width: 0;
+  padding: 8px 9px;
+  border-radius: 10px;
+  border: 1px solid transparent;
+  background: var(--blue-bg);
+  text-decoration: none;
+  transition:
+    background 0.25s var(--ease),
+    border-color 0.25s var(--ease),
+    transform 0.25s var(--ease);
+}
+.destChip:hover {
+  background: #FFFFFF;
+  border-color: var(--blue-ocean);
+  transform: translateX(2px);
+}
+.destChipIcon { display: flex; flex-shrink: 0; color: var(--blue-deep); }
+.destChipName {
+  flex: 1; min-width: 0;
+  font-size: 11.5px; font-weight: 600;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.destChipCode {
+  flex-shrink: 0;
+  font-family: 'Sora', sans-serif;
+  font-size: 8.5px; font-weight: 700; letter-spacing: 1px;
+  color: #B9C7E0;
+}
+
 /* ── Responsive ── */
 @media (max-width: 1100px) {
   .grid { grid-template-columns: repeat(2, 1fr); gap: 16px; }
@@ -406,6 +504,8 @@
   .gridWrap::after { right: 14px; bottom: 7px; }
   .stub { height: 82px; padding: 0 14px; gap: 11px; }
   .ticket { --notchY: calc(100% - 82px); }
+  /* cards are half-width here — two chip columns would be unreadably narrow */
+  .destPanel { grid-template-columns: 1fr; }
   .iconChip { width: 40px; height: 40px; }
   .cardTitle { font-size: 0.95rem; }
   .stubSide { display: none; }
@@ -417,6 +517,8 @@
   .card { --rot: 0deg; }
   .card:nth-child(2n) { margin-top: 0; }
   .imgWrap { aspect-ratio: 16 / 9; }
+  /* full-width card again — two columns fit comfortably */
+  .destPanel { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
 
 /* Accessibility — respect reduced motion */
@@ -424,6 +526,7 @@
   .header, .card { animation: none; }
   .cloud1, .cloud2, .routePath { animation: none; }
   .card, .imgWrap img, .iconChip, .explore, .explore svg { transition: none; }
+  .destWrap, .destToggle, .destToggleChevron, .destChip { transition: none; }
   .card:hover { transform: rotate(var(--rot)); }
   .card:hover .imgWrap img { transform: scale(1.01); }
   .card:hover .iconChip { transform: none; }

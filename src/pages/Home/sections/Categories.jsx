@@ -1,6 +1,8 @@
+import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './Categories.module.css';
 import { useHolidayTypes } from '../../../api';
+import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 
 const SunIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>;
 const CityIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 6h1M14 6h1M9 10h1M14 10h1M9 14h1M14 14h1M9 18h6"/></svg>;
@@ -26,9 +28,33 @@ const IMAGE_POOL = [
 // The categories grid is built for exactly four cards; the CMS decides which
 // holiday types fill them (Homepage Settings → Featured Holiday Types).
 const MAX_CARDS = 4;
+// Destinations a card can reveal when expanded (mirrors the CMS + backend cap).
+const MAX_DESTS = 6;
 
 const slugify = (s) =>
   String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+// CMS destinations are free-form JSON — keep only entries that can actually build
+// a search link, so a half-filled dashboard row can never render a dead chip.
+const normalizeDests = (list) =>
+  (Array.isArray(list) ? list : [])
+    .filter((d) => d && d.code && (d.type === 'country' || d.type === 'city'))
+    .slice(0, MAX_DESTS);
+
+const destLabel = (d) =>
+  d.type === 'city' && d.countryName ? `${d.name}, ${d.countryName}` : d.name || d.code;
+
+// The results page scopes a search by Hotelbeds codes: whole countries go in
+// `countries`, single cities in `destinations` (same params its own sidebar
+// writes back). Dates are deliberately omitted — Results defaults to a 7-night
+// stay 30 days out when they are absent.
+const destUrl = (d) => {
+  const qs = new URLSearchParams();
+  qs.set(d.type === 'country' ? 'countries' : 'destinations', d.code);
+  const label = destLabel(d);
+  if (label) qs.set('destinationLabel', label);
+  return `/results?${qs.toString()}`;
+};
 
 // `icon` in the dashboard is free text, so the card icon is picked from the name.
 function iconFor(name) {
@@ -43,6 +69,24 @@ function iconFor(name) {
 const ArrowIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
     <path d="M7 17L17 7M17 7H7M17 7v10"/>
+  </svg>
+);
+
+const ChevronIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M6 9l6 6 6-6"/>
+  </svg>
+);
+
+const PinIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
+  </svg>
+);
+
+const GlobeIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/>
   </svg>
 );
 
@@ -79,9 +123,21 @@ export default function Categories({ cms }) {
   const { data: typesData } = useHolidayTypes();
   const types = typesData ?? [];
 
+  // Which cards have their destination slip pulled out. Several can be open at
+  // once — closing a neighbour the visitor did not touch reads as a glitch.
+  const [openKeys, setOpenKeys] = useState(() => new Set());
+  const toggleCard = (key) =>
+    setOpenKeys((prev) => {
+      const next = new Set(prev);
+      if (next.has(key)) next.delete(key); else next.add(key);
+      return next;
+    });
+
   const cmsCats = cms?.categories ?? [];
+  // Dashboard uploads are stored as "/uploads/…", which only resolves against the
+  // ADMIN origin — without resolveCmsImageUrl they 404 against the customer site.
   const artworkFor = (name, i) =>
-    cmsCats.find((c) => slugify(c.title) === slugify(name))?.imageUrl ||
+    resolveCmsImageUrl(cmsCats.find((c) => slugify(c.title) === slugify(name))?.imageUrl) ||
     FALLBACK_CATS.find((c) => slugify(c.title) === slugify(name))?.img ||
     IMAGE_POOL[i % IMAGE_POOL.length];
 
@@ -92,12 +148,13 @@ export default function Categories({ cms }) {
     (f) => f && (f.holidayTypeId != null || f.title) && f.active !== false
   );
 
-  const cardFromType = (t, i, imageUrl) => ({
+  const cardFromType = (t, i, f) => ({
     key:  t.id ?? t.name,
     name: t.name,
     slug: t.slug || slugify(t.name),
-    img:  imageUrl || artworkFor(t.name, i),
+    img:  resolveCmsImageUrl(f?.imageUrl) || artworkFor(t.name, i),
     icon: iconFor(t.name),
+    destinations: normalizeDests(f?.destinations),
   });
 
   let cards;
@@ -109,7 +166,7 @@ export default function Categories({ cms }) {
         const t =
           types.find((x) => String(x.id) === String(f.holidayTypeId)) ||
           types.find((x) => slugify(x.name) === slugify(f.title));
-        return t ? cardFromType(t, i, f.imageUrl) : null;
+        return t ? cardFromType(t, i, f) : null;
       })
       .filter(Boolean);
   } else if (types.length > 0) {
@@ -121,8 +178,9 @@ export default function Categories({ cms }) {
       key:  c.title,
       name: c.title,
       slug: slugify(c.title),
-      img:  c.imageUrl || c.img || IMAGE_POOL[i % IMAGE_POOL.length],
+      img:  resolveCmsImageUrl(c.imageUrl) || c.img || IMAGE_POOL[i % IMAGE_POOL.length],
       icon: c.icon || iconFor(c.title),
+      destinations: normalizeDests(c.destinations),
     }));
   }
 
@@ -188,34 +246,73 @@ export default function Categories({ cms }) {
           </svg>
 
           <div className={styles.grid}>
-            {cards.map((c, i) => (
-              <Link
-                key={c.key}
-                to={`/holidays/${c.slug}`}
-                className={styles.card}
-                style={{ '--i': i }}
-              >
-                {i === 0 && <StampRing />}
-                <span className={styles.ticket}>
-                  <span className={styles.imgWrap}>
-                    <img src={c.img} alt={c.name} loading="lazy" />
-                  </span>
-                  <span className={styles.stub}>
-                    <span className={styles.iconChip}>{c.icon}</span>
-                    <span className={styles.stubText}>
-                      <span className={styles.cardTitle}>{c.name}</span>
-                      <span className={styles.explore}>Explore <ArrowIcon /></span>
+            {cards.map((c, i) => {
+              const dests = c.destinations;
+              const open = openKeys.has(c.key);
+              const panelId = `cat-dests-${slugify(String(c.key))}`;
+              return (
+                <div key={c.key} className={styles.card} style={{ '--i': i }}>
+                  {i === 0 && <StampRing />}
+                  <Link to={`/holidays/${c.slug}`} className={styles.ticket}>
+                    <span className={styles.imgWrap}>
+                      <img src={c.img} alt={c.name} loading="lazy" />
                     </span>
-                    <span className={styles.stubSide} aria-hidden="true">
-                      <span className={styles.barcode} />
-                      <span className={styles.stubCode}>
-                        {`SSK · ${String(i + 1).padStart(2, '0')}`}
+                    <span className={styles.stub}>
+                      <span className={styles.iconChip}>{c.icon}</span>
+                      <span className={styles.stubText}>
+                        <span className={styles.cardTitle}>{c.name}</span>
+                        <span className={styles.explore}>Explore <ArrowIcon /></span>
+                      </span>
+                      <span className={styles.stubSide} aria-hidden="true">
+                        <span className={styles.barcode} />
+                        <span className={styles.stubCode}>
+                          {`SSK · ${String(i + 1).padStart(2, '0')}`}
+                        </span>
                       </span>
                     </span>
-                  </span>
-                </span>
-              </Link>
-            ))}
+                  </Link>
+
+                  {/* Itinerary slip tucked under the pass — only when the CMS
+                      gave this holiday type destinations to reveal. */}
+                  {dests.length > 0 && (
+                    <>
+                      <button
+                        type="button"
+                        className={`${styles.destToggle} ${open ? styles.destToggleOpen : ''}`}
+                        aria-expanded={open}
+                        aria-controls={panelId}
+                        onClick={() => toggleCard(c.key)}
+                      >
+                        <span className={styles.destToggleLabel}>
+                          {open ? 'Hide destinations' : `${dests.length} destination${dests.length > 1 ? 's' : ''}`}
+                        </span>
+                        <span className={styles.destToggleChevron}><ChevronIcon /></span>
+                      </button>
+                      <div className={`${styles.destWrap} ${open ? styles.destWrapOpen : ''}`}>
+                        <div className={styles.destInner}>
+                          <div className={styles.destPanel} id={panelId}>
+                            {dests.map((d) => (
+                              <Link
+                                key={`${d.type}:${d.code}`}
+                                to={destUrl(d)}
+                                className={styles.destChip}
+                                tabIndex={open ? 0 : -1}
+                              >
+                                <span className={styles.destChipIcon}>
+                                  {d.type === 'country' ? <GlobeIcon /> : <PinIcon />}
+                                </span>
+                                <span className={styles.destChipName}>{d.name}</span>
+                                <span className={styles.destChipCode}>{d.code}</span>
+                              </Link>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>
