@@ -3,7 +3,6 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
 import mainLogoFallback from '../../assets/main-logo.png';
-import lightLogoFallback from '../../assets/light-logo.png';
 import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
@@ -44,26 +43,27 @@ export default function Navbar() {
   const [dropOpen,    setDropOpen]    = useState(false);
   const dropRef = useRef(null);
 
-  // The header CMS (CMS → Layout → Header) owns the logo. The homepage CMS
-  // `logo` field stays as a fallback so nothing breaks for anyone who set it
-  // there, and it still supplies the LIGHT variant — the header CMS holds a
-  // single logo, which would be unreadable over the dark hero photo.
+  // The header CMS (CMS → Layout → Header) owns the logo; the homepage CMS
+  // `logo.mainUrl` remains a fallback for anyone who set it there first.
+  // Only one logo is needed now that the bar is white in every state.
   const { data: headerConfig } = useHeaderConfig();
   const { data: cmsConfig } = useHomepageConfig();
 
   const headerLogo = resolveCmsImageUrl(headerConfig?.logoUrl);
   const cmsMainLogo = resolveCmsImageUrl(cmsConfig?.logo?.mainUrl);
-  const cmsLightLogo = resolveCmsImageUrl(cmsConfig?.logo?.lightUrl);
 
   const mainLogo = headerLogo || cmsMainLogo || mainLogoFallback;
-  const lightLogo = cmsLightLogo || lightLogoFallback;
   const logoAlt = headerConfig?.logoAltText?.trim() || 'SunSky';
   const logoHref = headerConfig?.logoLinkTarget?.trim() || '/';
 
-  // Whether the logo currently on screen came from the CMS, which decides both
-  // its sizing and whether the text wordmark is shown next to it.
-  const hasCmsMain = Boolean(headerLogo || cmsMainLogo);
-  const hasCmsLight = Boolean(cmsLightLogo);
+  const usingCmsLogo = Boolean(headerLogo || cmsMainLogo);
+
+  // Whether the uploaded logo is a wide wordmark or a square icon decides how
+  // it is sized AND whether the "SunSky" text sits beside it: a wordmark
+  // already carries the name, a square icon does not. Measured on load rather
+  // than assumed, since either can be uploaded.
+  const [logoAspect, setLogoAspect] = useState(null);
+  const isWordmark = usingCmsLogo && logoAspect !== null && logoAspect > 1.6;
 
   const isHome = location.pathname === '/';
   // Pages with a dark hero band — navbar starts transparent and blends in
@@ -81,8 +81,9 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const dark = !overHero || scrolled;
-  const usingCmsLogo = dark ? hasCmsMain : hasCmsLight;
+  // The bar is white in every state, so its contents always use the dark
+  // treatment. `scrolled` still drives the compaction and deeper shadow.
+  const dark = true;
 
   const handleLogout = () => {
     dispatch(logout());
@@ -97,13 +98,16 @@ export default function Navbar() {
       {/* Logo */}
       <Link to={logoHref} className={styles.logo}>
         <img
-          src={dark ? mainLogo : lightLogo}
+          src={mainLogo}
           alt={logoAlt}
-          className={`${styles.logoImg} ${usingCmsLogo ? styles.logoImgCms : ''}`}
+          className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''}`}
+          onLoad={(e) => {
+            const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+            if (w && h) setLogoAspect(w / h);
+          }}
         />
-        {/* A CMS logo already carries the brand name, so the text wordmark
-            would print it twice. Only shown beside the bundled square icon. */}
-        {!usingCmsLogo && (
+        {/* Hidden only for a wordmark logo, which already prints the name. */}
+        {!isWordmark && (
           <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
             Sun<span className={styles.logoAccent}>Sky</span>
           </span>
