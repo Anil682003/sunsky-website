@@ -20,11 +20,27 @@
   display: flex; align-items: center; gap: 11px;
   text-decoration: none; flex-shrink: 0;
 }
+/* Bundled mark: a square icon sitting beside the "SunSky" wordmark. */
 .logoImg {
   width: 38px; height: 38px; object-fit: contain;
   transition: transform 0.4s var(--ease-spring);
 }
 .logo:hover .logoImg { transform: rotate(-8deg) scale(1.08); }
+
+/* A logo uploaded in the CMS is usually a full wordmark, not a square icon —
+   height-constrained with a free width, or `contain` in a 38px square would
+   shrink a 2.4:1 logo to a sliver. The text wordmark is hidden alongside it,
+   so a gentle lift replaces the icon's rotation. */
+.logoImgCms {
+  width: auto;
+  height: 40px;
+  max-width: 210px;
+}
+.logo:hover .logoImgCms { transform: scale(1.04); }
+
+@media (max-width: 768px) {
+  .logoImgCms { height: 34px; max-width: 150px; }
+}
 .logoText {
   font-family: 'Sora', sans-serif; font-size: 23px;
   font-weight: 800; letter-spacing: -0.6px;

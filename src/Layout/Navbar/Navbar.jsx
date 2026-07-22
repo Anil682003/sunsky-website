@@ -60,6 +60,11 @@ export default function Navbar() {
   const logoAlt = headerConfig?.logoAltText?.trim() || 'SunSky';
   const logoHref = headerConfig?.logoLinkTarget?.trim() || '/';
 
+  // Whether the logo currently on screen came from the CMS, which decides both
+  // its sizing and whether the text wordmark is shown next to it.
+  const hasCmsMain = Boolean(headerLogo || cmsMainLogo);
+  const hasCmsLight = Boolean(cmsLightLogo);
+
   const isHome = location.pathname === '/';
   // Pages with a dark hero band — navbar starts transparent and blends in
   const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
@@ -77,6 +82,7 @@ export default function Navbar() {
   }, []);
 
   const dark = !overHero || scrolled;
+  const usingCmsLogo = dark ? hasCmsMain : hasCmsLight;
 
   const handleLogout = () => {
     dispatch(logout());
@@ -93,11 +99,15 @@ export default function Navbar() {
         <img
           src={dark ? mainLogo : lightLogo}
           alt={logoAlt}
-          className={styles.logoImg}
+          className={`${styles.logoImg} ${usingCmsLogo ? styles.logoImgCms : ''}`}
         />
-        <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
-          Sun<span className={styles.logoAccent}>Sky</span>
-        </span>
+        {/* A CMS logo already carries the brand name, so the text wordmark
+            would print it twice. Only shown beside the bundled square icon. */}
+        {!usingCmsLogo && (
+          <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
+            Sun<span className={styles.logoAccent}>Sky</span>
+          </span>
+        )}
       </Link>
 
       {/* Desktop auth buttons */}
