@@ -1,7 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import styles from './HolidayType.module.css';
-import { useHolidayTypeCountries } from '../../api';
+import { useHolidayTypeCountries, useHomepageConfig, useCountries } from '../../api';
+import { destsForHolidayType, destUrl, destLabel } from '../../utils/cmsDestinations';
 
 const titleFor = (name) => `Our best ${String(name || 'holidays').toLowerCase()}`;
 
@@ -30,13 +31,64 @@ export default function HolidayType() {
   const typeName = holidayType?.name || nameFromSlug(slug);
   const heading  = holidayType?.title || titleFor(typeName);
 
-  const openCountry = (c) => {
-    const qs = new URLSearchParams({
-      destination:      c.isoCode || c.code || '',
-      destinationLabel: c.name,
+  // What the dashboard picked for this holiday type. When set, it REPLACES the
+  // linked-country grid — that list is the editorial one, so it wins.
+  const { data: cms } = useHomepageConfig();
+  const cmsDests = destsForHolidayType(cms, { id: holidayType?.id, slug });
+
+  // Every country, purely to borrow flags/artwork for the CMS entries (a picked
+  // country need not be linked to this holiday type, so `countries` may not hold it).
+  const { data: allCountries } = useCountries();
+  const countryLookup = useMemo(() => {
+    const byCode = new Map();
+    const byName = new Map();
+    (allCountries ?? []).forEach((c) => {
+      if (c?.code) byCode.set(String(c.code).toUpperCase(), c);
+      if (c?.isoCode) byCode.set(String(c.isoCode).toUpperCase(), c);
+      if (c?.name) byName.set(String(c.name).toLowerCase(), c);
     });
-    navigate(`/results?${qs.toString()}`);
-  };
+    return { byCode, byName };
+  }, [allCountries]);
+
+  // One shape for both sources so the grid below renders them identically.
+  const items = useMemo(() => {
+    if (cmsDests.length) {
+      return cmsDests.map((d) => {
+        const parent =
+          d.type === 'country'
+            ? countryLookup.byCode.get(String(d.code).toUpperCase())
+            : countryLookup.byName.get(String(d.countryName || '').toLowerCase());
+        return {
+          key: `${d.type}:${d.code}`,
+          name: d.name || d.code,
+          desc: d.type === 'city' ? d.countryName || 'City' : parent?.description || null,
+          flagUrl: parent?.flagUrl || null,
+          // Only a whole country carries usable artwork; a city would show its
+          // country's photo, which misleads.
+          imageUrl: d.type === 'country' ? parent?.imageUrl || null : null,
+          href: destUrl(d),
+          title: destLabel(d),
+        };
+      });
+    }
+    // No CMS selection — fall back to the countries linked in the dashboard.
+    return countries.map((c) => {
+      const qs = new URLSearchParams();
+      // The results page matches Country.code (the Hotelbeds code), NOT the ISO
+      // code — they diverge (Cyprus is NY, the UK is UK).
+      qs.set('countries', c.code || c.isoCode || '');
+      qs.set('destinationLabel', c.name || '');
+      return {
+        key: `country:${c.id}`,
+        name: c.name,
+        desc: c.description || null,
+        flagUrl: c.flagUrl || null,
+        imageUrl: c.imageUrl || null,
+        href: `/results?${qs.toString()}`,
+        title: c.name,
+      };
+    });
+  }, [cmsDests, countries, countryLookup]);
 
   return (
     <div className={styles.page}>
@@ -83,7 +135,7 @@ export default function HolidayType() {
           </div>
         )}
 
-        {!loading && !error && countries.length === 0 && (
+        {!loading && !error && items.length === 0 && (
           <div className={styles.state}>
             <span className={styles.stateIcon}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -94,17 +146,18 @@ export default function HolidayType() {
           </div>
         )}
 
-        {!loading && !error && countries.length > 0 && (
+        {!loading && !error && items.length > 0 && (
           <div className={styles.grid}>
-            {countries.map((c, i) => {
+            {items.map((c, i) => {
               const hasPhoto = Boolean(c.imageUrl);
               return (
                 <button
-                  key={c.id}
+                  key={c.key}
                   type="button"
+                  title={c.title}
                   className={`${styles.card} ${hasPhoto ? styles.cardPhoto : styles.cardFlag}`}
                   style={{ animationDelay: `${Math.min(i, 12) * 55}ms`, '--theme': i % 6 }}
-                  onClick={() => openCountry(c)}
+                  onClick={() => navigate(c.href)}
                 >
                   {hasPhoto ? (
                     <img className={styles.cardImg} src={c.imageUrl} alt={c.name} loading="lazy" />
@@ -135,7 +188,7 @@ export default function HolidayType() {
 
                     <div className={styles.cardFoot}>
                       <h3 className={styles.cardName}>{c.name}</h3>
-                      {c.description && <p className={styles.cardDesc}>{c.description}</p>}
+                      {c.desc && <p className={styles.cardDesc}>{c.desc}</p>}
                       <span className={styles.cardCta}>
                         Explore stays
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>

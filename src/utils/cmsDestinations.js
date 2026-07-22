@@ -1,0 +1,48 @@
+// Destinations an admin picks per featured holiday type in the dashboard
+// (Homepage Settings → Featured Holiday Types → Destinations).
+//
+// The same list drives two surfaces, so the shaping and link-building live here
+// rather than in either page: the /holidays/:slug grid, and the expandable slip
+// on the homepage Categories card.
+
+// Mirrors the CMS and backend caps.
+export const MAX_DESTS = 6;
+
+// CMS destinations are free-form JSON — keep only entries that can actually
+// build a search link, so a half-filled dashboard row never renders a dead card.
+export const normalizeDests = (list) =>
+  (Array.isArray(list) ? list : [])
+    .filter((d) => d && d.code && (d.type === 'country' || d.type === 'city'))
+    .slice(0, MAX_DESTS);
+
+export const destLabel = (d) =>
+  d.type === 'city' && d.countryName ? `${d.name}, ${d.countryName}` : d.name || d.code;
+
+// The results page scopes a search by Hotelbeds codes: whole countries go in
+// `countries`, single cities in `destinations` — the same params the results
+// sidebar itself writes back. Dates are deliberately omitted; Results defaults
+// to a 7-night stay 30 days out when they are absent.
+export const destUrl = (d) => {
+  const qs = new URLSearchParams();
+  qs.set(d.type === 'country' ? 'countries' : 'destinations', d.code);
+  const label = destLabel(d);
+  if (label) qs.set('destinationLabel', label);
+  return `/results?${qs.toString()}`;
+};
+
+const slugify = (s) =>
+  String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+/**
+ * The destinations configured for one holiday type, resolved from the homepage
+ * CMS config. Matches on id first, then on the cached title, so a card still
+ * resolves if the dashboard stored a title but no id.
+ */
+export const destsForHolidayType = (cms, { id, slug } = {}) => {
+  const entry = (cms?.featuredHolidayTypes ?? []).find((f) => {
+    if (!f) return false;
+    if (id != null && f.holidayTypeId != null) return String(f.holidayTypeId) === String(id);
+    return slug ? slugify(f.title) === slug : false;
+  });
+  return normalizeDests(entry?.destinations);
+};

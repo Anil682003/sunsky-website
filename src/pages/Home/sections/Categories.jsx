@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import styles from './Categories.module.css';
 import { useHolidayTypes } from '../../../api';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
+import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
 
 const SunIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>;
 const CityIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 6h1M14 6h1M9 10h1M14 10h1M9 14h1M14 14h1M9 18h6"/></svg>;
@@ -28,33 +29,8 @@ const IMAGE_POOL = [
 // The categories grid is built for exactly four cards; the CMS decides which
 // holiday types fill them (Homepage Settings → Featured Holiday Types).
 const MAX_CARDS = 4;
-// Destinations a card can reveal when expanded (mirrors the CMS + backend cap).
-const MAX_DESTS = 6;
-
 const slugify = (s) =>
   String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
-
-// CMS destinations are free-form JSON — keep only entries that can actually build
-// a search link, so a half-filled dashboard row can never render a dead chip.
-const normalizeDests = (list) =>
-  (Array.isArray(list) ? list : [])
-    .filter((d) => d && d.code && (d.type === 'country' || d.type === 'city'))
-    .slice(0, MAX_DESTS);
-
-const destLabel = (d) =>
-  d.type === 'city' && d.countryName ? `${d.name}, ${d.countryName}` : d.name || d.code;
-
-// The results page scopes a search by Hotelbeds codes: whole countries go in
-// `countries`, single cities in `destinations` (same params its own sidebar
-// writes back). Dates are deliberately omitted — Results defaults to a 7-night
-// stay 30 days out when they are absent.
-const destUrl = (d) => {
-  const qs = new URLSearchParams();
-  qs.set(d.type === 'country' ? 'countries' : 'destinations', d.code);
-  const label = destLabel(d);
-  if (label) qs.set('destinationLabel', label);
-  return `/results?${qs.toString()}`;
-};
 
 // `icon` in the dashboard is free text, so the card icon is picked from the name.
 function iconFor(name) {
