@@ -256,7 +256,7 @@
 }
 .intro p + p { margin-top: 14px; }
 
-.section { margin-bottom: 46px; scroll-margin-top: 104px; }
+.section { margin-bottom: 46px; scroll-margin-top: 84px; }
 .section:last-of-type { margin-bottom: 8px; }
 
 /* Numbered clause heading */
@@ -283,7 +283,7 @@
   letter-spacing: -0.5px;
   line-height: 1.32;
   color: var(--text);
-  scroll-margin-top: 104px;
+  scroll-margin-top: 84px;
 }
 
 .para {

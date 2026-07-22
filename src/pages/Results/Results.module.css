@@ -8,10 +8,10 @@
     radial-gradient(ellipse 60% 100% at 10% 110%, rgba(21,62,190,0.3), transparent 60%),
     linear-gradient(125deg, #2A5CE4 0%, #4A82F2 45%, #7CB9FF 110%);
   /* The header is opaque now, so the banner starts BELOW it rather than sliding
-     underneath — otherwise its top 80px (gradient, sun, flight path) is hidden.
-     margin-top clears the bar; the reduced padding keeps the content from
-     dropping too far down the band. */
-  margin-top: 80px;
+     underneath — otherwise the top of it (gradient, sun, flight path) is hidden.
+     margin-top clears the bar (60px desktop / 52px mobile); the reduced padding
+     keeps the content from dropping too far down the band. */
+  margin-top: 64px;
   padding: 46px 40px 52px;
   overflow: hidden;
 }
