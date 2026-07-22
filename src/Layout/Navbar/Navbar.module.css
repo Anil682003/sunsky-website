@@ -10,7 +10,9 @@
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
   transition: padding 0.45s var(--ease), box-shadow 0.45s var(--ease);
-  background: #FFF6E6;
+  /* A softened --sun-warm. Full-strength cream reads as aged paper stretched
+     across a 1920px bar, and its warmth fights the cool --blue-bg page below. */
+  background: #FFFBF2;
   box-shadow: 0 2px 14px rgba(15,40,100,0.05);
 }
 .scrolled, .solid {
@@ -231,7 +233,7 @@
 .mobile {
   position: absolute; top: 100%; left: 0; right: 0;
   /* Matches the bar it drops out of */
-  background: #FFF6E6;
+  background: #FFFBF2;
   padding: 12px 16px 20px;
   box-shadow: var(--shadow-lg);
   border-top: 1px solid rgba(0,0,0,0.05);
