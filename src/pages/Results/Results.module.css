@@ -7,7 +7,12 @@
     radial-gradient(ellipse 80% 120% at 85% -20%, rgba(255,255,255,0.26), transparent 55%),
     radial-gradient(ellipse 60% 100% at 10% 110%, rgba(21,62,190,0.3), transparent 60%),
     linear-gradient(125deg, #2A5CE4 0%, #4A82F2 45%, #7CB9FF 110%);
-  padding: 104px 40px 52px;
+  /* The header is opaque now, so the banner starts BELOW it rather than sliding
+     underneath — otherwise its top 80px (gradient, sun, flight path) is hidden.
+     margin-top clears the bar; the reduced padding keeps the content from
+     dropping too far down the band. */
+  margin-top: 80px;
+  padding: 46px 40px 52px;
   overflow: hidden;
 }
 .heroGlow {
@@ -1046,7 +1051,9 @@
   .skRail { display: none; }
 }
 @media (max-width: 560px) {
-  .hero { padding: 92px 16px 50px; }
+  /* Same 80px clearance — the bar measures 76px here, so this leaves a couple
+     of cream pixels rather than risking an overlap. Only the padding tightens. */
+  .hero { padding: 34px 16px 50px; }
   .heroFlight, .heroRoutes, .heroSun, .cloud { display: none; }
   .heroTitle { margin-bottom: 16px; }
   .toolbar { padding: 0 16px; top: 62px; }
