@@ -141,10 +141,10 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
   const typed = useTypewriter(typeNames, !focused && query === '');
   const showTyped = typed !== null && !focused && query === '';
 
-  // Flat list in render order (HOTELS then destinations) so keyboard nav maps to what's shown.
+  // Flat list in render order (DESTINATIONS then hotels) so keyboard nav maps to what's shown.
   const flat = [
-    ...results.hotels.map((h) => ({ kind: 'hotel', ...h })),
     ...results.destinations.map((d) => ({ kind: 'destination', ...d })),
+    ...results.hotels.map((h) => ({ kind: 'hotel', ...h })),
   ];
 
   const choose = (item) => {
@@ -253,9 +253,9 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
           {flat.length > 0 && (
             <div className={styles.tallyStrip}>
               <span className={styles.tally}>
-                {nHotels > 0 && `${nHotels} hotel${nHotels === 1 ? '' : 's'}`}
-                {nHotels > 0 && nDests > 0 && ' · '}
                 {nDests > 0 && `${nDests} place${nDests === 1 ? '' : 's'}`}
+                {nDests > 0 && nHotels > 0 && ' · '}
+                {nHotels > 0 && `${nHotels} hotel${nHotels === 1 ? '' : 's'}`}
               </span>
             </div>
           )}
@@ -266,50 +266,50 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
             <div className={styles.state}>No hotels or destinations match “{query.trim()}”.</div>
           )}
 
-          {results.hotels.length > 0 && (
+          {results.destinations.length > 0 && (
             <div className={styles.section}>
-              <div className={styles.group}><HotelIcon /><span>Hotels</span></div>
-              {results.hotels.map((h, i) => (
+              <div className={styles.group}><PinIcon /><span>Destinations</span></div>
+              {results.destinations.map((d, i) => (
                 <button
-                  key={`h-${h.hotelCode}`} type="button"
+                  key={`d-${d.code}`} type="button"
                   className={`${styles.item} ${styles.itemRise} ${active === i ? styles.itemActive : ''}`}
                   style={{ animationDelay: `${Math.min(i, 5) * 20}ms` }}
                   onMouseEnter={() => setActive(i)}
-                  onClick={() => choose({ kind: 'hotel', ...h })}
+                  onClick={() => choose({ kind: 'destination', ...d })}
                 >
-                  <span className={`${styles.itemIcon} ${styles.iconHotel}`}><HotelIcon /></span>
+                  <span className={`${styles.itemIcon} ${styles.iconDest}`}><PinIcon /></span>
                   <span className={styles.itemText}>
-                    <span className={styles.itemMainRow}>
-                      <span className={styles.itemMain}>{h.name}</span>
-                      <Stars n={h.stars} />
-                    </span>
-                    <span className={styles.itemSub}>{h.destinationName}{h.country ? `, ${h.country}` : ''}</span>
+                    <span className={styles.itemMain}>{d.name}</span>
+                    <span className={styles.itemSub}>{d.country || 'Destination'}</span>
                   </span>
-                  <span className={`${styles.tag} ${styles.tagHotel}`}>Hotel</span>
+                  <span className={`${styles.tag} ${styles.tagDest}`}>Place</span>
                 </button>
               ))}
             </div>
           )}
 
-          {results.destinations.length > 0 && (
+          {results.hotels.length > 0 && (
             <div className={styles.section}>
-              <div className={styles.group}><PinIcon /><span>Destinations</span></div>
-              {results.destinations.map((d, i) => {
-                const idx = nHotels + i;
+              <div className={styles.group}><HotelIcon /><span>Hotels</span></div>
+              {results.hotels.map((h, i) => {
+                const idx = nDests + i;
                 return (
                   <button
-                    key={`d-${d.code}`} type="button"
+                    key={`h-${h.hotelCode}`} type="button"
                     className={`${styles.item} ${styles.itemRise} ${active === idx ? styles.itemActive : ''}`}
                     style={{ animationDelay: `${Math.min(idx, 7) * 20}ms` }}
                     onMouseEnter={() => setActive(idx)}
-                    onClick={() => choose({ kind: 'destination', ...d })}
+                    onClick={() => choose({ kind: 'hotel', ...h })}
                   >
-                    <span className={`${styles.itemIcon} ${styles.iconDest}`}><PinIcon /></span>
+                    <span className={`${styles.itemIcon} ${styles.iconHotel}`}><HotelIcon /></span>
                     <span className={styles.itemText}>
-                      <span className={styles.itemMain}>{d.name}</span>
-                      <span className={styles.itemSub}>{d.country || 'Destination'}</span>
+                      <span className={styles.itemMainRow}>
+                        <span className={styles.itemMain}>{h.name}</span>
+                        <Stars n={h.stars} />
+                      </span>
+                      <span className={styles.itemSub}>{h.destinationName}{h.country ? `, ${h.country}` : ''}</span>
                     </span>
-                    <span className={`${styles.tag} ${styles.tagDest}`}>Place</span>
+                    <span className={`${styles.tag} ${styles.tagHotel}`}>Hotel</span>
                   </button>
                 );
               })}
