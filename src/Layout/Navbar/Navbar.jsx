@@ -140,8 +140,16 @@ export default function Navbar() {
       header.style.setProperty('--hs-width', `${width}px`);
     };
     compute();
+    // A window 'resize' listener alone is not reliable enough here: some
+    // programmatic viewport changes (devtools/automation resizing, some OS
+    // window-snap paths) resize the layout without dispatching a DOM 'resize'
+    // event, which left the cluster at a stale width and overlapping the auth
+    // buttons. ResizeObserver reacts to the header's actual rendered width
+    // changing, regardless of what caused it.
+    const ro = new ResizeObserver(compute);
+    ro.observe(header);
     window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
+    return () => { ro.disconnect(); window.removeEventListener('resize', compute); };
   }, [isAuthenticated, isHome, usingCmsLogo, logoAspect]);
 
   useEffect(() => {
