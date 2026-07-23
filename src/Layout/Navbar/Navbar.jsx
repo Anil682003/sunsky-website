@@ -4,10 +4,50 @@ import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
 import mainLogoFallback from '../../assets/main-logo.png';
 import styles from './Navbar.module.css';
-import { useHomepageConfig, useHeaderConfig } from '../../api';
+import { useHomepageConfig, useHeaderConfig, useHolidayTypes } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
+import HeaderMenu from './HeaderMenu';
+
+const slugify = (s) =>
+  String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
+
+// Menu icons. Holiday-type icons are picked from the name — the dashboard's
+// `icon` field is free text (same convention as the homepage Categories cards).
+const MenuPin = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" /></svg>
+);
+const MenuGlobe = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></svg>
+);
+const TypeSun = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
+);
+const TypeCity = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4" /><path d="M9 9h1M9 13h1M9 17h1" /></svg>
+);
+const TypeCar = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17H3v-6l2-5h12l2 5h2v6h-2M7 17a2 2 0 104 0M13 17a2 2 0 104 0" /></svg>
+);
+const TypeBolt = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" /></svg>
+);
+const TypeSnow = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M12 2v20M4 6l16 12M20 6L4 18M12 7l-3-2M12 7l3-2M12 17l-3 2M12 17l3 2" /></svg>
+);
+const TypeCompass = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M16.24 7.76l-2.12 6.36-6.36 2.12 2.12-6.36 6.36-2.12z" /></svg>
+);
+const typeIconFor = (name) => {
+  const n = String(name || '').toLowerCase();
+  if (n.includes('ski') || n.includes('snow') || n.includes('winter')) return <TypeSnow />;
+  if (n.includes('sun') || n.includes('beach')) return <TypeSun />;
+  if (n.includes('city')) return <TypeCity />;
+  if (n.includes('car') || n.includes('road')) return <TypeCar />;
+  if (n.includes('last minute') || n.includes('deal')) return <TypeBolt />;
+  return <TypeCompass />;
+};
 
 const SERVICES = [
   {
@@ -94,11 +134,12 @@ export default function Navbar() {
     navigate('/');
   };
 
-  // The search's idle "Popular right now" chips, drawn from the CMS popular-destination groups
-  // the homepage already fetches — zero extra API calls. groupLinkUrl builds the right params
-  // per entry (whole countries → ?countries=, cities → ?destinations=); unlinked legacy strings
-  // drop out. De-duped by label, capped at 6. The same names feed the pill's typewriter.
-  const searchSuggestions = useMemo(() => {
+  // Popular destinations, drawn from the CMS popular-destination groups the homepage already
+  // fetches — zero extra API calls. groupLinkUrl builds the right params per entry (whole
+  // countries → ?countries=, cities → ?destinations=); unlinked legacy strings drop out.
+  // De-duped by label. The group each entry came from becomes its menu sublabel. Top 7 fill
+  // the header menu; the first 6 double as the search's idle chips and typewriter names.
+  const popularDests = useMemo(() => {
     const seen = new Set();
     const out = [];
     for (const g of cmsConfig?.popularDestinationGroups ?? []) {
@@ -107,12 +148,36 @@ export default function Navbar() {
         const label = groupLinkLabel(link);
         if (!url || !label || seen.has(label)) continue;
         seen.add(label);
-        out.push({ label, url });
-        if (out.length >= 6) return out;
+        out.push({ label, url, sub: g?.title || '' });
+        if (out.length >= 7) return out;
       }
     }
     return out;
   }, [cmsConfig]);
+  const searchSuggestions = useMemo(() => popularDests.slice(0, 6), [popularDests]);
+
+  // Top holiday types for the right-hand menu: the CMS featured list leads (dashboard order),
+  // topped up from the full admin list to 5. Each opens its /holidays/:slug page.
+  const { data: allTypes } = useHolidayTypes();
+  const topHolidayTypes = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    const push = (title, slug) => {
+      const key = slugify(title);
+      if (!title || !key || seen.has(key)) return;
+      seen.add(key);
+      out.push({ title, slug: slug || key });
+    };
+    for (const f of cmsConfig?.featuredHolidayTypes ?? []) {
+      if (f && f.active !== false && f.title) push(f.title);
+      if (out.length >= 5) return out;
+    }
+    for (const t of allTypes ?? []) {
+      push(t.name, t.slug);
+      if (out.length >= 5) break;
+    }
+    return out;
+  }, [cmsConfig, allTypes]);
 
   // Header search — a picked hotel pins that one hotel; a picked destination opens results for it.
   // The results page fills the rest (dates default to today+30/+37, 2 adults, 1 room).
@@ -146,7 +211,35 @@ export default function Navbar() {
           mobile, where it moves into the drawer. */}
       {isHome && (
         <div className={styles.headerSearch}>
-          <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
+          <HeaderMenu
+            label="Popular destinations"
+            buttonIcon={<MenuGlobe />}
+            tally={`${popularDests.length} destination${popularDests.length === 1 ? '' : 's'}`}
+            align="left"
+            items={popularDests.map((d) => ({
+              key: d.label,
+              label: d.label,
+              sub: d.sub,
+              icon: <MenuPin />,
+              onPick: () => goToSuggestion(d.url),
+            }))}
+          />
+          <div className={styles.searchGrow}>
+            <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
+          </div>
+          <HeaderMenu
+            label="Holiday types"
+            buttonIcon={<TypeSun />}
+            tally={`${topHolidayTypes.length} holiday type${topHolidayTypes.length === 1 ? '' : 's'}`}
+            align="right"
+            items={topHolidayTypes.map((t) => ({
+              key: t.slug,
+              label: t.title,
+              sub: 'Explore holidays',
+              icon: typeIconFor(t.title),
+              onPick: () => { navigate(`/holidays/${t.slug}`); },
+            }))}
+          />
         </div>
       )}
 

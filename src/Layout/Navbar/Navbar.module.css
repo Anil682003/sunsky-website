@@ -69,25 +69,115 @@
   pointer-events: none;
 }
 
-/* ── Centered header search ── */
+/* ── Centered header cluster: menu · search ticket · menu ── */
 /* Absolutely positioned inside the fixed bar — NOT a flex child. A middle flex
    child only sits centred when the logo and auth blocks are equal width; they
    are not, so it is pinned to the bar's true centre instead. */
 .headerSearch {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: clamp(300px, 34vw, 440px); z-index: 5;
+  display: flex; align-items: center; gap: 8px;
+  /* 58vw clears the logged-OUT auth block (Sign In + Register, the widest case)
+     at 1280 with margin to spare; 820px caps it on wide screens. */
+  width: min(820px, 58vw); z-index: 5;
+}
+.searchGrow { flex: 1 1 auto; min-width: 0; }
+
+/* The flanking menus need elbow room; below ~1180px they yield it all to the
+   ticket, which returns to its solo width. */
+@media (max-width: 1180px) {
+  .hmWrap { display: none; }
+  .headerSearch { width: clamp(300px, 34vw, 440px); }
 }
 /* Below the auth breakpoint the bar only has room for the logo + hamburger, so
-   the centred pill steps aside and the search moves into the drawer. */
+   the cluster steps aside and the search moves into the drawer. */
 @media (max-width: 900px) {
   .headerSearch { display: none; }
 }
-/* On very wide viewports keep the pill from crowding the logo/auth. */
-@media (min-width: 1500px) {
-  .headerSearch { width: 460px; }
-}
 
 .mobileSearch { padding: 2px 2px 12px; }
+
+/* ── Header menus (Popular destinations / Holiday types) ── */
+.hmWrap { position: relative; flex-shrink: 0; }
+.hmBtn {
+  display: flex; align-items: center; gap: 7px;
+  height: 38px; padding: 0 13px; border-radius: var(--r-full);
+  border: 1px solid transparent; background: transparent; cursor: pointer;
+  font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 700;
+  color: var(--text); white-space: nowrap;
+  transition: background 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease);
+}
+.hmBtnIcon { display: flex; color: var(--blue-deep); transition: color 0.25s var(--ease); }
+.hmBtn:hover, .hmBtnOpen {
+  background: rgba(255, 255, 255, 0.72);
+  border-color: rgba(199, 119, 0, 0.24);
+}
+.hmBtn:hover .hmBtnIcon, .hmBtnOpen .hmBtnIcon { color: var(--sun-orange); }
+.hmChevron { color: var(--text-sec); transition: transform 0.3s var(--ease); flex-shrink: 0; }
+.hmChevronUp { transform: rotate(180deg); }
+
+/* Panel: the same manifest language as the search dropdown — cream tally strip,
+   icon-tile rows, staggered rise, boarding-bar hover. */
+.hmPanel {
+  position: absolute; top: calc(100% + 13px); left: 0;
+  width: 296px;
+  background: #fff;
+  border: 1px solid rgba(15, 40, 100, 0.08);
+  border-radius: 16px;
+  padding: 7px;
+  box-shadow: 0 28px 74px rgba(7, 20, 60, 0.22), 0 6px 18px rgba(7, 20, 60, 0.08);
+  z-index: 1200;
+  animation: hmIn 0.2s var(--ease) both;
+}
+.hmPanelRight { left: auto; right: 0; }
+@keyframes hmIn { from { opacity: 0; transform: translateY(-6px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+.hmStrip {
+  margin: -7px -7px 4px; padding: 9px 16px 8px;
+  background: linear-gradient(180deg, #fff9ee, #fffdf8);
+  border-bottom: 1px solid rgba(199, 119, 0, 0.18);
+  border-radius: 15px 15px 0 0;
+}
+.hmTally {
+  font-size: 10px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
+  color: #b07a18; font-variant-numeric: tabular-nums;
+}
+
+.hmItem {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  border: none; background: none; cursor: pointer; padding: 9px 12px; border-radius: 12px;
+  transition: background 0.15s, box-shadow 0.15s;
+  animation: hmRow 0.22s var(--ease) both;
+}
+@keyframes hmRow { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.hmItem:hover {
+  background: var(--blue-bg);
+  box-shadow: inset 3px 0 0 0 var(--sun-orange);
+}
+.hmItemIcon {
+  width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(31, 79, 216, 0.10); color: var(--blue-deep);
+  transition: background 0.15s, color 0.15s;
+}
+.hmItem:hover .hmItemIcon {
+  background: linear-gradient(135deg, rgba(255, 159, 28, 0.18), rgba(255, 209, 102, 0.22));
+  color: #e07d0a;
+}
+.hmItemText { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 1px; }
+.hmItemMain {
+  font-size: 13.5px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.1px;
+}
+.hmItemSub {
+  font-size: 11.5px; font-weight: 500; color: var(--text-sec);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hmItemArrow { color: var(--text-light); opacity: 0; transform: translateX(-3px); transition: opacity 0.15s, transform 0.15s; flex-shrink: 0; }
+.hmItem:hover .hmItemArrow { opacity: 1; transform: translateX(0); color: var(--sun-orange); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hmPanel, .hmItem { animation: none; }
+}
 
 /* ── Auth area ── */
 .authArea { display: flex; align-items: center; flex-shrink: 0; }
