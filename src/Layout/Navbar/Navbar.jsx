@@ -113,12 +113,14 @@ export default function Navbar() {
   return (
     <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
 
-      {/* Centered search — absolutely positioned (not a flex child) so it stays dead-centre in the
-          bar regardless of the differing logo / account widths. Hidden on mobile, where it moves
-          into the drawer. */}
-      <div className={styles.headerSearch}>
-        <DestinationSearch onSelect={goToSearchResult} />
-      </div>
+      {/* Centered search — home page only. Absolutely positioned (not a flex child) so it stays
+          dead-centre in the bar regardless of the differing logo / account widths. Hidden on
+          mobile, where it moves into the drawer. */}
+      {isHome && (
+        <div className={styles.headerSearch}>
+          <DestinationSearch onSelect={goToSearchResult} />
+        </div>
+      )}
 
       {/* Logo */}
       <Link to={logoHref} className={styles.logo}>
@@ -235,9 +237,11 @@ export default function Navbar() {
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className={styles.mobile}>
-          <div className={styles.mobileSearch}>
-            <DestinationSearch onSelect={goToSearchResult} />
-          </div>
+          {isHome && (
+            <div className={styles.mobileSearch}>
+              <DestinationSearch onSelect={goToSearchResult} />
+            </div>
+          )}
           <div className={styles.mobileLinks}>
             {SERVICES.map((l) => (
               <button
