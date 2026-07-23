@@ -70,38 +70,35 @@
 }
 
 /* ── Centered header cluster: menu · search ticket · menu ── */
-/* Absolutely positioned inside the fixed bar — NOT a flex child. A middle flex
-   child only sits centred when the logo and auth blocks are equal width; they
-   are not, so it is pinned to the bar's true centre instead. */
+/* A REAL flex child sitting between the logo and the auth block in DOM order
+   (not absolutely positioned, not JS-measured). flex:1 makes it fill exactly
+   whatever room the browser's own layout leaves between its neighbours —
+   correct on first paint and on every resize, by construction, with no event
+   listening and no way to go stale or overlap either side. A previous
+   JS-measured absolute-position version broke twice (a render crash, then an
+   overlap after a resize that didn't fire the expected browser event) before
+   landing on this simpler, structurally-safe approach. */
 .headerSearch {
-  /* --hs-left / --hs-width are measured in JS to centre the cluster in the gap
-     between the logo and the auth block (see Navbar.jsx). The min() fallback
-     applies for the one frame before measurement and if JS is disabled. */
-  position: absolute; top: 50%;
-  left: var(--hs-left, 50%);
-  width: var(--hs-width, min(1100px, 55vw));
-  transform: translate(-50%, -50%);
-  /* space-between pushes the menus to the cluster's far edges; the ticket sits
-     in the middle behind a max-width cap, so the leftover space becomes clear
-     air around it. */
+  flex: 1 1 auto; min-width: 0;
+  /* Capped so it doesn't stretch absurdly on an ultra-wide screen; centred
+     within whatever space flex:1 gives it once the cap is hit. */
+  max-width: 1200px; margin: 0 auto;
   display: flex; align-items: center; justify-content: space-between; gap: 8px;
-  z-index: 5;
 }
 .searchGrow {
   /* Fixed, not growing — the ticket stays one size whether idle, focused, or
      the viewport is wide. flex-shrink (not grow) lets it narrow gracefully
-     if the cluster itself is tight, but it never stretches past 440px, which
+     if the cluster itself is tight, but it never stretches past 620px, which
      is also the dropdown's width — the panel is never wider than the field
      it drops from. Whatever room the cluster has beyond menus + this fixed
-     440px is spent as flanking air (space-between), not on the ticket. */
+     620px is spent as flanking air (space-between), not on the ticket. */
   flex: 0 1 620px; min-width: 0; max-width: 620px;
 }
 
-/* The flanking menus need elbow room; below ~1180px they yield it all to the
-   ticket, which returns to its solo width. */
+/* The flanking menus need elbow room; below ~1180px they yield it, and the
+   ticket's own flex-basis (620, shrinking) takes over the solo width. */
 @media (max-width: 1180px) {
   .hmWrap { display: none; }
-  .headerSearch { width: clamp(300px, 34vw, 440px); }
 }
 /* Below the auth breakpoint the bar only has room for the logo + hamburger, so
    the cluster steps aside and the search moves into the drawer. */

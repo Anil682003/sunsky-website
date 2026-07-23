@@ -1,4 +1,4 @@
-import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -83,9 +83,6 @@ export default function Navbar() {
   const [scrolled,    setScrolled]    = useState(false);
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [dropOpen,    setDropOpen]    = useState(false);
-  const headerRef = useRef(null);
-  const logoRef   = useRef(null);
-  const authRef   = useRef(null);
   const dropRef = useRef(null);
 
   // The header CMS (CMS → Layout → Header) owns the logo; the homepage CMS
@@ -113,44 +110,6 @@ export default function Navbar() {
   const isHome = location.pathname === '/';
   // Pages with a dark hero band — navbar starts transparent and blends in
   const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
-
-  // The centered cluster is placed in the actual gap BETWEEN the logo and the
-  // auth block, not on the page centre — the logo side has more room than the
-  // auth side, so page-centring would waste it and squeeze the search. Measured
-  // because both edges move (logo wordmark vs icon, signed-in vs -out auth).
-  // Must sit AFTER isHome/usingCmsLogo/logoAspect are declared — its deps read
-  // them at the call site, and a temporal-dead-zone reference would crash render.
-  useLayoutEffect(() => {
-    const header = headerRef.current;
-    if (!header) return undefined;
-    const GAP = 28;         // min clear space each side
-    const CAP = 1120;       // never wider than this
-    const compute = () => {
-      // The cluster only shows above the mobile breakpoint; below it the auth
-      // block is hidden (zero-width) and the search lives in the drawer.
-      if (window.innerWidth <= 900 || !logoRef.current || !authRef.current) {
-        header.style.removeProperty('--hs-left');
-        header.style.removeProperty('--hs-width');
-        return;
-      }
-      const left  = logoRef.current.getBoundingClientRect().right + GAP;
-      const right = authRef.current.getBoundingClientRect().left - GAP;
-      const width = Math.min(CAP, Math.max(0, right - left));
-      header.style.setProperty('--hs-left', `${(left + right) / 2}px`);
-      header.style.setProperty('--hs-width', `${width}px`);
-    };
-    compute();
-    // A window 'resize' listener alone is not reliable enough here: some
-    // programmatic viewport changes (devtools/automation resizing, some OS
-    // window-snap paths) resize the layout without dispatching a DOM 'resize'
-    // event, which left the cluster at a stale width and overlapping the auth
-    // buttons. ResizeObserver reacts to the header's actual rendered width
-    // changing, regardless of what caused it.
-    const ro = new ResizeObserver(compute);
-    ro.observe(header);
-    window.addEventListener('resize', compute);
-    return () => { ro.disconnect(); window.removeEventListener('resize', compute); };
-  }, [isAuthenticated, isHome, usingCmsLogo, logoAspect]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -245,11 +204,31 @@ export default function Navbar() {
   };
 
   return (
-    <header ref={headerRef} className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
+    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
 
-      {/* Centered search — home page only. Absolutely positioned (not a flex child) so it stays
-          dead-centre in the bar regardless of the differing logo / account widths. Hidden on
-          mobile, where it moves into the drawer. */}
+      {/* Logo */}
+      <Link to={logoHref} className={styles.logo}>
+        <img
+          src={mainLogo}
+          alt={logoAlt}
+          className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''}`}
+          onLoad={(e) => {
+            const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+            if (w && h) setLogoAspect(w / h);
+          }}
+        />
+        {/* Hidden only for a wordmark logo, which already prints the name. */}
+        {!isWordmark && (
+          <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
+            Sun<span className={styles.logoAccent}>Sky</span>
+          </span>
+        )}
+      </Link>
+
+      {/* Centered search — home page only. A REAL flex child between the logo and the auth
+          block (not absolutely positioned) so the browser's own layout fills the gap between
+          them — it can never overlap either side, on any resize, with no JS measurement. Hidden
+          on mobile, where it moves into the drawer. */}
       {isHome && (
         <div className={styles.headerSearch}>
           <HeaderMenu
@@ -284,27 +263,8 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* Logo */}
-      <Link to={logoHref} className={styles.logo} ref={logoRef}>
-        <img
-          src={mainLogo}
-          alt={logoAlt}
-          className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''}`}
-          onLoad={(e) => {
-            const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
-            if (w && h) setLogoAspect(w / h);
-          }}
-        />
-        {/* Hidden only for a wordmark logo, which already prints the name. */}
-        {!isWordmark && (
-          <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
-            Sun<span className={styles.logoAccent}>Sky</span>
-          </span>
-        )}
-      </Link>
-
       {/* Desktop auth buttons */}
-      <div className={styles.authArea} ref={authRef}>
+      <div className={styles.authArea}>
         {isAuthenticated ? (
           <div className={styles.userMenu} ref={dropRef}>
             <button
