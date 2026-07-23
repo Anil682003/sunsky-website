@@ -94,7 +94,7 @@
      is also the dropdown's width — the panel is never wider than the field
      it drops from. Whatever room the cluster has beyond menus + this fixed
      440px is spent as flanking air (space-between), not on the ticket. */
-  flex: 0 1 440px; min-width: 0; max-width: 440px;
+  flex: 0 1 620px; min-width: 0; max-width: 620px;
 }
 
 /* The flanking menus need elbow room; below ~1180px they yield it all to the
