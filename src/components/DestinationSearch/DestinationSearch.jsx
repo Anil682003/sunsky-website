@@ -1,12 +1,16 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useCallback } from 'react';
 import { searchDestinationsAndHotels } from '../../api/filters';
 import styles from './DestinationSearch.module.css';
 
 // One search box that finds BOTH hotels and destinations by name and groups them (🏨 Hotels first,
 // then 📍 Destinations). Picking a hotel pins that specific hotel; picking a destination selects it.
 // Used in the site header — a compact pill that drops a rich typeahead. onSelect receives
-// { type:'hotel', hotelCode, name, destinationCode, destinationName, country, stars } or
+// { type:'hotel', hotelCode, name, destinationCode, destinationName, country, stars, image } or
 // { type:'destination', code, name, country }, and null when cleared.
+//
+// Each hotel row shows that hotel's MASTER image (its primary photo in the admin) as the row
+// thumbnail — a traveller recognises the place far faster than a name. About 8% of hotels have
+// no photo, and any URL can 404, so the generic icon stays as the fallback in both cases.
 
 const SearchIcon = () => (
   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -39,38 +43,93 @@ const Stars = ({ n }) => {
   );
 };
 
+// A typed word is re-searched constantly — backspacing, re-typing, reopening the box. Holding the
+// last handful of answers makes those instant and silent. Small and per-mount on purpose: it is a
+// keystroke buffer, not a data store, so it can never serve a stale list into a later session.
+const CACHE_MAX = 30;
+
+// Some source names carry stray whitespace; trim so the field, the label and the results
+// banner never render a doubled space ("Stays in  Ana y Jose…").
+const normalise = (r) => ({
+  hotels: (r?.hotels || []).map((h) => ({ ...h, name: (h.name || '').trim() })),
+  destinations: (r?.destinations || []).map((d) => ({ ...d, name: (d.name || '').trim() })),
+});
+
+const EMPTY = { destinations: [], hotels: [] };
+
 export default function DestinationSearch({ onSelect, onBrowseAll, autoFocus = false, placeholder = 'Search hotels & destinations' }) {
   const [query, setQuery]     = useState('');
-  const [results, setResults] = useState({ destinations: [], hotels: [] });
+  // The last SETTLED answer, tagged with the query it belongs to. What the dropdown shows and
+  // whether it is loading are DERIVED from this plus the current query — so an empty box or a
+  // cache hit needs no state update at all, and there is no render-then-correct flash.
+  const [settled, setSettled] = useState({ query: '', results: EMPTY });
   const [open, setOpen]       = useState(false);
-  const [loading, setLoading] = useState(false);
   const [active, setActive]   = useState(-1);
+  // Hotels whose thumbnail failed to load — keyed by hotelCode so the row falls back to the
+  // icon instead of showing a broken frame, and stays fallen back if the list re-renders.
+  const [brokenImg, setBrokenImg] = useState({});
+  // Answers already seen this session. State rather than a ref because it is READ DURING RENDER
+  // to decide what the dropdown shows — reading a ref there is not safe under concurrent
+  // rendering. Bounded, so a long typing session cannot grow it without limit.
+  const [cache, setCache] = useState(() => new Map());
   const boxRef = useRef(null);
   const inputRef = useRef(null);
   const reqRef = useRef(0);
+  // The request in flight, so a superseded keystroke is CANCELLED rather than left to land.
+  const abortRef = useRef(null);
 
   useEffect(() => { if (autoFocus) inputRef.current?.focus(); }, [autoFocus]);
 
-  // Debounced search — only the latest request's result is applied (reqRef guards races).
+  // Abort whatever is still in flight when the box unmounts (navigating away mid-type).
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const markBroken = useCallback((code) => {
+    setBrokenImg((m) => (m[code] ? m : { ...m, [code]: true }));
+  }, []);
+
+  const q = query.trim();
+  const cached = q.length >= 2 ? cache.get(q) : null;
+  // Below the 2-character floor there is nothing to show. Otherwise: a cached answer wins,
+  // else the last settled one — which keeps the previous matches on screen while a newer
+  // keystroke loads, instead of blanking the list between every letter.
+  const results = q.length < 2 ? EMPTY : (cached ?? settled.results);
+  // Loading = the current query has no answer yet, from either source.
+  const loading = q.length >= 2 && !cached && settled.query !== q;
+
+  // Debounced search — only the latest request's result is applied (reqRef guards races, and
+  // the AbortController stops the superseded request from occupying the network at all).
   useEffect(() => {
-    const q = query.trim();
-    if (q.length < 2) { setResults({ destinations: [], hotels: [] }); setLoading(false); return; }
-    setLoading(true);
+    const term = query.trim();
+    // Nothing to fetch: too short, or already answered from the cache. Drop any in-flight
+    // request on the floor — its answer can no longer be the one on screen.
+    if (term.length < 2 || cache.has(term)) {
+      reqRef.current++;
+      abortRef.current?.abort();
+      return;
+    }
     const id = ++reqRef.current;
     const t = setTimeout(async () => {
-      const r = await searchDestinationsAndHotels(q);
-      if (id === reqRef.current) {
-        // Some source names carry stray whitespace; trim so the field, the label and the results
-        // banner never render a doubled space ("Stays in  Ana y Jose…").
-        setResults({
-          hotels: (r.hotels || []).map((h) => ({ ...h, name: (h.name || '').trim() })),
-          destinations: (r.destinations || []).map((d) => ({ ...d, name: (d.name || '').trim() })),
+      abortRef.current?.abort();
+      const ctrl = new AbortController();
+      abortRef.current = ctrl;
+      const r = await searchDestinationsAndHotels(term, 6, { signal: ctrl.signal });
+      if (id !== reqRef.current) return;   // a newer keystroke already owns the box
+      const next = normalise(r);
+      // Don't cache an empty result: it is indistinguishable from "the request was aborted",
+      // and caching that would wedge a query into looking like it has no matches.
+      if (next.hotels.length || next.destinations.length) {
+        setCache((prev) => {
+          const m = new Map(prev);
+          m.set(term, next);
+          // Map keeps insertion order, so the first key is the oldest.
+          while (m.size > CACHE_MAX) m.delete(m.keys().next().value);
+          return m;
         });
-        setLoading(false);
       }
+      setSettled({ query: term, results: next });
     }, 220);
     return () => clearTimeout(t);
-  }, [query]);
+  }, [query, cache]);
 
   // Close the dropdown on an outside click.
   useEffect(() => {
@@ -90,13 +149,13 @@ export default function DestinationSearch({ onSelect, onBrowseAll, autoFocus = f
     setOpen(false);
     setActive(-1);
     if (item.kind === 'hotel') {
-      onSelect({ type: 'hotel', hotelCode: item.hotelCode, name: item.name, destinationCode: item.destinationCode, destinationName: item.destinationName, country: item.country, stars: item.stars });
+      onSelect({ type: 'hotel', hotelCode: item.hotelCode, name: item.name, destinationCode: item.destinationCode, destinationName: item.destinationName, country: item.country, stars: item.stars, image: item.image ?? null });
     } else {
       onSelect({ type: 'destination', code: item.code, name: item.name, country: item.country });
     }
   };
 
-  const clear = () => { setQuery(''); setResults({ destinations: [], hotels: [] }); setActive(-1); onSelect(null); inputRef.current?.focus(); };
+  const clear = () => { setQuery(''); setActive(-1); onSelect(null); inputRef.current?.focus(); };
 
   const onKeyDown = (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => Math.min(a + 1, flat.length - 1)); }
@@ -105,7 +164,7 @@ export default function DestinationSearch({ onSelect, onBrowseAll, autoFocus = f
     else if (e.key === 'Escape') { setOpen(false); }
   };
 
-  const showDrop = open && query.trim().length >= 2;
+  const showDrop = open && q.length >= 2;
   const nHotels = results.hotels.length;
 
   return (
@@ -130,7 +189,7 @@ export default function DestinationSearch({ onSelect, onBrowseAll, autoFocus = f
             <div className={styles.state}><span className={styles.spinner} />Searching…</div>
           )}
           {!loading && flat.length === 0 && (
-            <div className={styles.state}>No hotels or destinations match “{query.trim()}”.</div>
+            <div className={styles.state}>No hotels or destinations match “{q}”.</div>
           )}
 
           {results.hotels.length > 0 && (
@@ -143,7 +202,20 @@ export default function DestinationSearch({ onSelect, onBrowseAll, autoFocus = f
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose({ kind: 'hotel', ...h })}
                 >
-                  <span className={`${styles.itemIcon} ${styles.iconHotel}`}><HotelIcon /></span>
+                  {h.image && !brokenImg[h.hotelCode] ? (
+                    <span className={`${styles.itemIcon} ${styles.itemThumb}`}>
+                      <img
+                        src={h.image}
+                        alt=""
+                        loading="lazy"
+                        decoding="async"
+                        aria-hidden="true"
+                        onError={() => markBroken(h.hotelCode)}
+                      />
+                    </span>
+                  ) : (
+                    <span className={`${styles.itemIcon} ${styles.iconHotel}`}><HotelIcon /></span>
+                  )}
                   <span className={styles.itemText}>
                     <span className={styles.itemMainRow}>
                       <span className={styles.itemMain}>{h.name}</span>

@@ -1,5 +1,11 @@
+import { Link } from 'react-router-dom';
+import { hotelDetailHref } from '../../../utils/searchDefaults';
 import styles from './Hotels.module.css';
 
+// The CMS-picked cards carry the hotel's real identity (hotelCode + destinationCode), so each
+// one links to that hotel's own live-priced detail page. The demo fallbacks below have no
+// hotelCode and stay non-clickable — a card that goes nowhere is better than one that opens an
+// empty search for a hotel that isn't in the inventory.
 const FALLBACK_HOTELS = [
   { name:'Rixos Premium Belek',    loc:'🇹🇷 Antalya, Turkey',     score:'9.2', stars:5, price:'€899',  img:'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80' },
   { name:'Atlantica Mare Village', loc:'🇨🇾 Ayia Napa, Cyprus',   score:'8.8', stars:5, price:'€749',  img:'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600&q=80' },
@@ -33,15 +39,20 @@ export default function Hotels({ cms }) {
   const subtitle = sh?.subtitle || 'Top-rated hotels loved by thousands of happy travelers.';
 
   const hotels = (cms?.popularHotels?.length > 0)
-    ? cms.popularHotels.map((h) => ({
-        name:  h.name,
-        loc:   h.location || h.loc,
-        score: h.score,
-        stars: h.stars || 5,
-        price: h.price,
-        img:   h.imageUrl || h.img,
-      }))
-    : FALLBACK_HOTELS;
+    ? cms.popularHotels.map((h) => {
+        const card = {
+          name:  h.name,
+          loc:   h.location || h.loc,
+          score: h.score,
+          stars: h.stars || 5,
+          price: h.price,
+          img:   h.imageUrl || h.img,
+          hotelCode:       h.hotelCode ?? null,
+          destinationCode: h.destinationCode ?? null,
+        };
+        return { ...card, href: hotelDetailHref(card) };
+      })
+    : FALLBACK_HOTELS.map((h) => ({ ...h, href: null }));
 
   // Split the CMS title so the last word can carry the cursive accent
   const titleWords = String(title).trim().split(/\s+/);
@@ -121,11 +132,18 @@ export default function Hotels({ cms }) {
 
                 <div className={h.price ? `${styles.voucher} ${styles.voucherNotched}` : styles.voucher}>
 
+                  {/* Whole-card click target. Hidden from the keyboard and from assistive tech
+                      (tabIndex -1 + aria-hidden) because "View Deal" below is the SAME link and
+                      is the one that should be announced — one destination, one announced link. */}
+                  {h.href && (
+                    <Link to={h.href} className={styles.cardLink} tabIndex={-1} aria-hidden="true" />
+                  )}
+
                   <div className={styles.imgWrap}>
                     <div className={styles.imgClip}>
                       <img src={h.img} alt={h.name} loading="lazy" />
                     </div>
-                    <button className={styles.fav} aria-label={`Save ${h.name} to favourites`}><Heart /></button>
+                    <button type="button" className={styles.fav} aria-label={`Save ${h.name} to favourites`}><Heart /></button>
                     {h.score && (
                       <div className={styles.score}>
                         <span className={styles.scoreNum}>{h.score}</span>
@@ -160,10 +178,17 @@ export default function Hotels({ cms }) {
                         <Barcode />
                         <span className={styles.roomCode}>RM-{204 + i * 7}</span>
                       </div>
-                      <button className={styles.viewBtn}>
-                        View Deal
-                        <span className={styles.viewArrow} aria-hidden="true">→</span>
-                      </button>
+                      {h.href ? (
+                        <Link to={h.href} className={styles.viewBtn} aria-label={`View deal for ${h.name}`}>
+                          View Deal
+                          <span className={styles.viewArrow} aria-hidden="true">→</span>
+                        </Link>
+                      ) : (
+                        <button type="button" className={styles.viewBtn} disabled>
+                          View Deal
+                          <span className={styles.viewArrow} aria-hidden="true">→</span>
+                        </button>
+                      )}
                     </div>
                   )}
 

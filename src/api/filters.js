@@ -21,14 +21,21 @@ export async function fetchThemes(destinationCode) {
 
 /**
  * Home-page typeahead: search destinations AND hotels by name in one call.
- * @returns {Promise<{ destinations:{code,name,country}[], hotels:{hotelCode,name,destinationCode,destinationName,country,stars}[] }>}
+ *
+ * Each hotel carries `image` — the URL of its master photo as a thumbnail, or null when the
+ * hotel has none (~8% of them), in which case the caller keeps its icon.
+ *
+ * Pass an AbortSignal so a superseded keystroke's request is cancelled rather than merely
+ * ignored; an aborted call resolves to the empty result, never throws.
+ *
+ * @returns {Promise<{ destinations:{code,name,country}[], hotels:{hotelCode,name,destinationCode,destinationName,country,stars,image}[] }>}
  */
-export async function searchDestinationsAndHotels(q, limit = 6) {
+export async function searchDestinationsAndHotels(q, limit = 6, { signal } = {}) {
   const query = String(q ?? '').trim();
   const empty = { destinations: [], hotels: [] };
   if (query.length < 2) return empty;
   try {
-    const { data } = await axiosInstance.get('/hotel-filters/search', { params: { q: query, limit } });
+    const { data } = await axiosInstance.get('/hotel-filters/search', { params: { q: query, limit }, signal });
     return data?.data ?? empty;
   } catch {
     return empty;
@@ -71,17 +78,26 @@ export async function fetchMatchingHotels({ destinationCode, countryCode, themes
  * The optional `filters` narrow the returned hotelCodes (a hotel must match ALL selected
  * facets); the facet COUNTS stay at scope level so every option stays visible with its count.
  *
+ * ASK ONLY FOR WHAT YOU WILL USE. `hotelCodes` matter only when a content facet is selected
+ * (they restrict the cache); the per-hotel `attributes` map matters only for a client-side
+ * distance sort. A whole-country search is ~8k hotels: requesting both makes the response
+ * ~1 MB, requesting neither makes it ~7 KB. Hence the explicit opt-ins below — the server
+ * then aggregates the match in SQL instead of shipping every row.
+ *
  * @param {{ countries?: string[], destinations?: string[] }} scope
  * @param {{ themes?, stars?, facilities?, activities?, accommodation?, kids?, maxBeach?, maxCentre? }} [filters]
+ * @param {{ codes?: boolean, attrs?: boolean, signal?: AbortSignal }} [opts]
  * @returns {Promise<{
  *   scope:{ countries:string[], destinations:string[], hotelCount:number },
  *   matchedDestinations:string[],
- *   hotelCodes:string[],
- *   attributes:Record<string,object>,
+ *   hotelCodes?:string[],
+ *   attributes?:Record<string,object>,
+ *   included:{ hotelCodes:boolean, attributes:boolean },
  *   facets:{ holiday, stars, facilities, activities, accommodation, kids, beachDistance, centreDistance }
  * }>}
  */
-export async function fetchFacets({ countries = [], destinations = [] } = {}, filters = {}) {
+export async function fetchFacets({ countries = [], destinations = [] } = {}, filters = {}, opts = {}) {
+  const { codes = true, attrs = true, signal } = opts;
   const params = {};
   if (countries.length)    params.countries = countries.join(',');
   if (destinations.length) params.destinations = destinations.join(',');
@@ -95,12 +111,15 @@ export async function fetchFacets({ countries = [], destinations = [] } = {}, fi
   if (filters.maxBeach)            params.maxBeach      = String(filters.maxBeach);
   if (filters.maxCentre)           params.maxCentre     = String(filters.maxCentre);
   if (filters.adultsOnly)          params.adultsOnly    = '1';
+  if (!codes) params.codes = '0';
+  if (!attrs) params.attrs = '0';
   const empty = {
     scope: { countries, destinations, hotelCount: 0 },
     matchedDestinations: [], hotelCodes: [], attributes: {},
+    included: { hotelCodes: false, attributes: false },
     facets: { holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [] },
   };
   if (!countries.length && !destinations.length) return empty;
-  const { data } = await axiosInstance.get('/hotel-filters/facets', { params });
+  const { data } = await axiosInstance.get('/hotel-filters/facets', { params, signal });
   return data?.data ?? empty;
 }

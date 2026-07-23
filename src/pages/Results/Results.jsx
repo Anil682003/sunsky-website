@@ -489,9 +489,17 @@ export default function Results() {
     applied.accommodation.join(','), applied.kids.join(','), applied.maxBeach, applied.maxCentre,
     applied.adultsOnly ? '1' : '',
   ].join('|');
+  // What this request actually needs back (the response is ~1 MB with both for a country
+  // search, ~7 KB with neither):
+  //   codes — only when a content facet is on; that is the only time the cache is restricted
+  //           to a hotelCode set. A pinned ?hotelCode= supplies its own single code.
+  //   attrs — only for a distance sort, the one thing computed client-side from them.
+  const needCodes = hasContentFacet(applied);
+  const needAttrs = applied.sortBy === 'distance_beach' || applied.sortBy === 'distance_centre';
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
     let live = true;
+    const ctrl = new AbortController();
     setFacetsStatus('loading');
     const selected = {
       themes: applied.themes, stars: applied.stars,
@@ -500,11 +508,14 @@ export default function Results() {
       maxBeach: applied.maxBeach, maxCentre: applied.maxCentre,
       adultsOnly: applied.adultsOnly,
     };
-    fetchFacets(scope, selected)
+    fetchFacets(scope, selected, { codes: needCodes, attrs: needAttrs, signal: ctrl.signal })
       .then((r) => {
         if (!live) return;
         setFacets(r.facets || EMPTY_FACETS);
-        setAttrMap(r.attributes || {});
+        // Keep the previous map when this request didn't ask for attributes — clearing it
+        // would drop the distances a still-open distance sort is ordering by.
+        if (r.attributes) setAttrMap(r.attributes);
+        else if (!needAttrs) setAttrMap({});
         const dests = (r.matchedDestinations && r.matchedDestinations.length)
           ? r.matchedDestinations
           : scope.destinations;                        // fallback if admin returned none
@@ -512,24 +523,26 @@ export default function Results() {
           destinations: dests,
           // A specific hotel (typeahead) pins the result to just that hotel. Otherwise restrict
           // the cache to the resolved hotelCodes only when a content facet is active.
-          hotelCodes: urlHotelCode ? [urlHotelCode] : (hasContentFacet(applied) ? (r.hotelCodes || []) : null),
+          hotelCodes: urlHotelCode ? [urlHotelCode] : (needCodes ? (r.hotelCodes || []) : null),
         });
         setFacetsStatus('ok');
       })
-      .catch(() => {
-        if (!live) return;
+      .catch((err) => {
+        // A superseded request was cancelled on purpose — not an error, and the newer one owns
+        // the state now.
+        if (!live || err?.name === 'CanceledError' || err?.name === 'AbortError') return;
         setFacets(EMPTY_FACETS);
         setAttrMap({});
         setFacetsStatus('error');
         // Admin down: still price the scope's explicit destinations (content facets can't apply).
         setPriceScope({
           destinations: scope.destinations,
-          hotelCodes: urlHotelCode ? [urlHotelCode] : (hasContentFacet(applied) ? [] : null),
+          hotelCodes: urlHotelCode ? [urlHotelCode] : (needCodes ? [] : null),
         });
       });
-    return () => { live = false; };
+    return () => { live = false; ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeKey, contentKey, urlHotelCode]);
+  }, [scopeKey, contentKey, urlHotelCode, needCodes, needAttrs]);
 
   // Refs so loadMore always sees latest values
   const fetchParamsRef = useRef(fetchParams);
@@ -1434,7 +1447,7 @@ export default function Results() {
                 <Icon d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4" size={14} sw={2} />
                 Sort
               </span>
-              <select className={styles.sortSelect} value={filters.sortBy} onChange={(e) => setFilter('sortBy', e.target.value)}>
+              <select className={styles.sortSelect} aria-label="Sort results" value={filters.sortBy} onChange={(e) => setFilter('sortBy', e.target.value)}>
                 {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
               </select>
             </div>
@@ -1539,7 +1552,9 @@ export default function Results() {
                 const dispStars = info?.stars ?? attrMap[String(h.hotelCode)]?.stars ?? h.stars;
                 const dispImg   = info ? bestImg(info.images, FALLBACK_IMG) : h.img;
                 const infoReady = !!info;
-                const hotelDest = attrMap[String(h.hotelCode)]?.destinationCode || priceScope?.destinations?.[0] || '';
+                // The hotel's OWN destination, from its info record — a country or multi-city
+                // search must not deep-link every card to the first destination in the scope.
+                const hotelDest = info?.destinationCode || attrMap[String(h.hotelCode)]?.destinationCode || priceScope?.destinations?.[0] || '';
                 const gallery   = info ? allImgs(info.images) : [];
                 const imgIdx    = gallery.length ? Math.min(cardIdx[h.hotelCode] || 0, gallery.length - 1) : 0;
                 const curImg    = gallery.length ? gallery[imgIdx] : dispImg;

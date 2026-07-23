@@ -73,6 +73,20 @@
 .iconDest  { background: rgba(31, 79, 216, 0.10); color: var(--blue-deep, #1f4fd8); }
 .iconHotel { background: linear-gradient(135deg, rgba(255, 159, 28, 0.18), rgba(255, 209, 102, 0.22)); color: #e07d0a; }
 
+/* Hotel master image in the icon slot — same 38px square as the icon it replaces, so a row
+   with a photo and a row without line up exactly. The tinted background shows through while
+   the image is still loading, which keeps the row from flashing white. */
+.itemThumb {
+  overflow: hidden;
+  background: linear-gradient(135deg, rgba(255, 159, 28, 0.18), rgba(255, 209, 102, 0.22));
+  box-shadow: inset 0 0 0 1px rgba(16, 32, 58, 0.06);
+}
+.itemThumb img {
+  width: 100%; height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
 .itemText { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 2px; }
 .itemMainRow { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .itemMain {

@@ -197,7 +197,9 @@
 .card {
   flex: 0 0 332px;
   scroll-snap-align: start;
-  cursor: pointer;
+  /* The pointer comes from .cardLink, which only exists on a card that actually links
+     somewhere — a demo card must not look clickable. */
+  cursor: default;
   filter:
     drop-shadow(0 18px 34px rgba(31, 79, 216, 0.10))
     drop-shadow(0 3px 10px rgba(31, 79, 216, 0.06));
@@ -261,6 +263,18 @@
 }
 
 /* ══ Image zone — imgClip clips the zoom, imgWrap hosts the stamps ══ */
+/* Whole-card click target. Sits above the card's own content but BELOW the heart and the
+   "View Deal" button, so those keep their own click behaviour. */
+.cardLink {
+  position: absolute; inset: 0;
+  z-index: 3;
+  border-radius: inherit;
+  cursor: pointer;
+}
+/* The card is one link, so a keyboard focus ring belongs around the whole card, not the
+   invisible overlay — "View Deal" is what receives focus. */
+.viewBtn:focus-visible { outline: 3px solid var(--blue-deep, #1f4fd8); outline-offset: 3px; }
+
 .imgWrap {
   position: relative;
   aspect-ratio: 4 / 3;
@@ -293,7 +307,8 @@
   border: none; cursor: pointer;
   box-shadow: 0 6px 16px rgba(26, 39, 68, 0.14);
   transition: all 0.3s var(--ease-spring);
-  z-index: 1;
+  /* Above .cardLink — saving a hotel must not open it. */
+  z-index: 4;
 }
 .fav:hover { color: var(--coral); background: #fff; transform: scale(1.12); }
 
@@ -412,7 +427,9 @@
   font-family: 'Sora', sans-serif;
   font-size: 12px; font-weight: 700;
   border: none; cursor: pointer;
-  position: relative; overflow: hidden;
+  text-decoration: none;
+  /* Above .cardLink so the CTA itself is what the pointer and the keyboard hit. */
+  position: relative; z-index: 4; overflow: hidden;
   white-space: nowrap;
   box-shadow:
     0 8px 20px rgba(255, 159, 28, 0.35),
@@ -436,6 +453,11 @@
 }
 .viewArrow { transition: transform 0.3s var(--ease); }
 .viewBtn:hover .viewArrow { transform: translateX(3px); }
+/* Hovering anywhere on a linked card should animate its CTA — the whole card is the link. */
+.card:hover .viewBtn .viewArrow { transform: translateX(3px); }
+/* A demo/unlinked card must not advertise a click it cannot honour. */
+.viewBtn:disabled { cursor: default; opacity: 0.75; }
+.viewBtn:disabled::before { animation: none; }
 
 /* ══ Responsive ══ */
 @media (max-width: 1180px) {
