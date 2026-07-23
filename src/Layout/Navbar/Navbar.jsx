@@ -86,37 +86,9 @@ export default function Navbar() {
   // While the ticket is focused, the flanking menus collapse and the search
   // blooms across the whole cluster — widest exactly when typing needs it.
   const [searchFocused, setSearchFocused] = useState(false);
-
-  // The centered cluster is placed in the actual gap BETWEEN the logo and the
-  // auth block, not on the page centre — the logo side has more room than the
-  // auth side, so page-centring would waste it and squeeze the search. Measured
-  // because both edges move (logo wordmark vs icon, signed-in vs -out auth).
   const headerRef = useRef(null);
   const logoRef   = useRef(null);
   const authRef   = useRef(null);
-  useLayoutEffect(() => {
-    const header = headerRef.current;
-    if (!header) return undefined;
-    const GAP = 28;         // min clear space each side
-    const CAP = 1120;       // never wider than this
-    const compute = () => {
-      // The cluster only shows above the mobile breakpoint; below it the auth
-      // block is hidden (zero-width) and the search lives in the drawer.
-      if (window.innerWidth <= 900 || !logoRef.current || !authRef.current) {
-        header.style.removeProperty('--hs-left');
-        header.style.removeProperty('--hs-width');
-        return;
-      }
-      const left  = logoRef.current.getBoundingClientRect().right + GAP;
-      const right = authRef.current.getBoundingClientRect().left - GAP;
-      const width = Math.min(CAP, Math.max(0, right - left));
-      header.style.setProperty('--hs-left', `${(left + right) / 2}px`);
-      header.style.setProperty('--hs-width', `${width}px`);
-    };
-    compute();
-    window.addEventListener('resize', compute);
-    return () => window.removeEventListener('resize', compute);
-  }, [isAuthenticated, isHome, usingCmsLogo, logoAspect]);
   const dropRef = useRef(null);
 
   // The header CMS (CMS → Layout → Header) owns the logo; the homepage CMS
@@ -144,6 +116,36 @@ export default function Navbar() {
   const isHome = location.pathname === '/';
   // Pages with a dark hero band — navbar starts transparent and blends in
   const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
+
+  // The centered cluster is placed in the actual gap BETWEEN the logo and the
+  // auth block, not on the page centre — the logo side has more room than the
+  // auth side, so page-centring would waste it and squeeze the search. Measured
+  // because both edges move (logo wordmark vs icon, signed-in vs -out auth).
+  // Must sit AFTER isHome/usingCmsLogo/logoAspect are declared — its deps read
+  // them at the call site, and a temporal-dead-zone reference would crash render.
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) return undefined;
+    const GAP = 28;         // min clear space each side
+    const CAP = 1120;       // never wider than this
+    const compute = () => {
+      // The cluster only shows above the mobile breakpoint; below it the auth
+      // block is hidden (zero-width) and the search lives in the drawer.
+      if (window.innerWidth <= 900 || !logoRef.current || !authRef.current) {
+        header.style.removeProperty('--hs-left');
+        header.style.removeProperty('--hs-width');
+        return;
+      }
+      const left  = logoRef.current.getBoundingClientRect().right + GAP;
+      const right = authRef.current.getBoundingClientRect().left - GAP;
+      const width = Math.min(CAP, Math.max(0, right - left));
+      header.style.setProperty('--hs-left', `${(left + right) / 2}px`);
+      header.style.setProperty('--hs-width', `${width}px`);
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, [isAuthenticated, isHome, usingCmsLogo, logoAspect]);
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
