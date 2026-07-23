@@ -97,7 +97,17 @@
 .mobileSearch { padding: 2px 2px 12px; }
 
 /* ── Header menus (Popular destinations / Holiday types) ── */
-.hmWrap { position: relative; flex-shrink: 0; }
+.hmWrap {
+  position: relative; flex-shrink: 0;
+  max-width: 220px; overflow: visible;
+  transition: max-width 0.4s var(--ease), opacity 0.25s var(--ease);
+}
+/* The focus bloom: while the ticket is engaged the menus fold away and the
+   search sweeps the whole cluster — widest exactly when typing needs it. */
+.headerSearchFocused .hmWrap {
+  max-width: 0; opacity: 0; overflow: hidden; pointer-events: none;
+}
+.headerSearchFocused { gap: 0; }
 .hmBtn {
   display: flex; align-items: center; gap: 7px;
   height: 38px; padding: 0 13px; border-radius: var(--r-full);
