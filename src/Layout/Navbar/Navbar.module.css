@@ -69,60 +69,25 @@
   pointer-events: none;
 }
 
-/* ── Wind currents (results screen only) ── */
-/* A decorative layer behind the bar's contents. `overflow: hidden` keeps the
-   drifting group from widening the page, and the mask fades the currents out
-   before they reach the logo or the account controls — so they live in the
-   empty middle of the bar and never sit behind text. */
-.swirls {
-  position: absolute; inset: 0;
-  overflow: hidden; pointer-events: none; z-index: 0;
-  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 19%, #000 71%, transparent 95%);
-  mask-image: linear-gradient(90deg, transparent 0, #000 19%, #000 71%, transparent 95%);
+/* ── Centered header search ── */
+/* Absolutely positioned inside the fixed bar — NOT a flex child. A middle flex
+   child only sits centred when the logo and auth blocks are equal width; they
+   are not, so it is pinned to the bar's true centre instead. */
+.headerSearch {
+  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
+  width: clamp(300px, 34vw, 440px); z-index: 5;
 }
-.swirlWash {
-  position: absolute; inset: 0;
-  background: radial-gradient(ellipse 55% 180% at 46% 50%, rgba(255,159,28,0.1), transparent 70%);
-}
-.swirlSvg { position: absolute; inset: 0; width: 100%; height: 100%; }
-.swirlDrift { animation: swirlDrift 26s ease-in-out infinite alternate; }
-@keyframes swirlDrift { from { transform: translateX(-16px); } to { transform: translateX(16px); } }
-/* Dashed currents that flow along their own path, echoing the flight path in
-   the banner below. */
-.swirlFlow { stroke-dasharray: 3 10; animation: swirlDash 34s linear infinite; }
-@keyframes swirlDash { to { stroke-dashoffset: -260; } }
-
-.spark {
-  position: absolute; width: 3px; height: 3px; border-radius: 50%;
-  background: var(--sun-orange); opacity: 0;
-  box-shadow: 0 0 6px 1px rgba(255,159,28,0.5);
-  animation: sparkFade 5.6s ease-in-out infinite;
-}
-.spark1 { top: 34%; left: 33%; }
-.spark2 { top: 62%; left: 52%; animation-delay: -2.2s; }
-.spark3 { top: 42%; left: 63%; animation-delay: -4s; }
-@keyframes sparkFade {
-  0%, 100% { opacity: 0; transform: scale(0.5); }
-  50%      { opacity: 0.75; transform: scale(1); }
-}
-
-/* The bar's real contents sit above the decorative layer. */
-.navResults .logo,
-.navResults .authArea,
-.navResults .hamburger { position: relative; z-index: 1; }
-
+/* Below the auth breakpoint the bar only has room for the logo + hamburger, so
+   the centred pill steps aside and the search moves into the drawer. */
 @media (max-width: 900px) {
-  /* The bar is far narrower here, so the currents get a tighter corridor
-     between the logo and the hamburger. */
-  .swirls {
-    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 36%, #000 64%, transparent 88%);
-    mask-image: linear-gradient(90deg, transparent 0, #000 36%, #000 64%, transparent 88%);
-  }
+  .headerSearch { display: none; }
 }
-@media (prefers-reduced-motion: reduce) {
-  .swirlDrift, .swirlFlow, .spark { animation: none; }
-  .spark { opacity: 0.5; }
+/* On very wide viewports keep the pill from crowding the logo/auth. */
+@media (min-width: 1500px) {
+  .headerSearch { width: 460px; }
 }
+
+.mobileSearch { padding: 2px 2px 12px; }
 
 /* ── Auth area ── */
 .authArea { display: flex; align-items: center; flex-shrink: 0; }

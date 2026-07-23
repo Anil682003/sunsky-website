@@ -4,7 +4,6 @@ import { useSelector } from 'react-redux';
 import styles from './Hero.module.css';
 import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
-import DestinationSearch from '../../../components/DestinationSearch/DestinationSearch';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 
 // Duration bands shown in the search box. Each band is a day-range with a representative stay
@@ -115,15 +114,11 @@ export default function Hero() {
   }, [heroBgUrl]);
 
   // Default to the new "Search" (typeahead) tab — our change.
-  const [searchMode, setSearchMode] = useState('search');
+  const [searchMode, setSearchMode] = useState('package');
   // Multi-destination selection committed from the picker modal:
   // countries the traveller ticked, plus any regions/cities inside them
   // (empty places for a country = "anywhere in it").
   const [destSelection, setDestSelection] = useState({ countries: [], places: [] });
-  // The Search tab's single typeahead selection: { type:'destination'|'hotel', ... } | null.
-  // Independent of the Package tab's modal selection (destSelection) — each tab has its own
-  // destination input and its own Search button, so the two never interfere.
-  const [pick, setPick] = useState(null);
   const [date, setDate] = useState('');
   const [duration, setDuration] = useState('6-10 days');   // band label (default: ~1 week)
   // Occupancy is per room — each room carries its own adults, children and one
@@ -161,15 +156,9 @@ export default function Hero() {
     setDestModalOpen(false);
   };
 
-  // The Search tab's typeahead selection (destination or hotel). Independent of the Package
-  // tab's modal selection — each tab runs its own search.
-  const handleTypeaheadSelect = (item) => setPick(item);
-
   const destinationLabel = selectionLabel(destSelection);
   // Small flag strip rendered ahead of the label (first few picked countries) in the modal field.
   const destFlags = destSelection.countries.slice(0, 4);
-  // What the Search tab's typeahead shows: the current pick's name.
-  const searchDisplayText = pick ? pick.name : '';
 
   const searchBarRef = useRef(null);
   const flightsRef = useRef(null);
@@ -286,24 +275,6 @@ export default function Hero() {
     if (wholeCountries.length) qs.set('countries', wholeCountries.map((c) => c.code).join(','));
     if (selCities.length)      qs.set('cities',    selCities.map((p) => p.code).join(','));
     if (selRegions.length)     qs.set('regions',   selRegions.map((p) => p.code).join(','));
-    navigate(`/results?${qs.toString()}`);
-  };
-
-  // SEARCH tab — destination or hotel chosen via the typeahead. A hotel → results pinned to that
-  // one hotel; a destination → results for it; nothing picked → popular destinations.
-  const handleTypeaheadSearch = () => {
-    const qs = buildBaseParams();
-    if (pick?.type === 'hotel') {
-      // Guard against a hotel with no destinationCode so the URL never carries the literal
-      // "undefined" (no active hotel lacks one today — this just keeps the link well-formed if
-      // the data ever regresses; the hotelCode alone still pins the result).
-      if (pick.destinationCode) qs.set('destinations', pick.destinationCode);
-      qs.set('hotelCode', pick.hotelCode);
-      qs.set('destinationLabel', pick.name);
-    } else if (pick?.type === 'destination') {
-      qs.set('destinations', pick.code);
-      qs.set('destinationLabel', pick.name);
-    }
     navigate(`/results?${qs.toString()}`);
   };
 
@@ -501,13 +472,6 @@ export default function Hero() {
 
         <div className={styles.modeTabs}>
           <button
-            className={`${styles.modeTab} ${searchMode === 'search' ? styles.modeTabActive : ''}`}
-            onClick={() => { setSearchMode('search'); setOpenField(null); }}
-          >
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-            Search
-          </button>
-          <button
             className={`${styles.modeTab} ${searchMode === 'package' ? styles.modeTabActive : ''}`}
             onClick={() => { setSearchMode('package'); setOpenField(null); }}
           >
@@ -522,25 +486,6 @@ export default function Hero() {
             Flights Only
           </button>
         </div>
-
-        {/* ── SEARCH tab — typeahead: find a hotel OR a destination by name ── */}
-        {searchMode === 'search' && (
-        <div className={styles.searchBarWrap} ref={searchBarRef}>
-          <div className={styles.searchBar}>
-            <DestinationSearch
-              displayText={searchDisplayText}
-              onSelect={handleTypeaheadSelect}
-              onBrowseAll={() => { setSearchMode('package'); setOpenField(null); }}
-            />
-            {stayFields}
-            <button className={styles.searchBtn} onClick={handleTypeaheadSearch}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              {cmsSearchBtn}
-            </button>
-          </div>
-          {stayDropdowns}
-        </div>
-        )}
 
         {/* ── PACKAGE SEARCH — destination via country → destination modal (unchanged) ── */}
         {searchMode === 'package' && (

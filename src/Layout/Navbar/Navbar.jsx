@@ -6,6 +6,7 @@ import mainLogoFallback from '../../assets/main-logo.png';
 import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
+import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
 
 const SERVICES = [
   {
@@ -66,9 +67,6 @@ export default function Navbar() {
   const isWordmark = usingCmsLogo && logoAspect !== null && logoAspect > 1.6;
 
   const isHome = location.pathname === '/';
-  // The results bar carries a decorative layer of drifting wind currents. It is
-  // scoped to this one route so the search screen reads as its own place.
-  const isResults = location.pathname === '/results';
   // Pages with a dark hero band — navbar starts transparent and blends in
   const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
 
@@ -95,36 +93,32 @@ export default function Navbar() {
     navigate('/');
   };
 
-  return (
-    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''} ${isResults ? styles.navResults : ''}`}>
+  // Header search — a picked hotel pins that one hotel; a picked destination opens results for it.
+  // The results page fills the rest (dates default to today+30/+37, 2 adults, 1 room).
+  const goToSearchResult = (item) => {
+    if (!item) return;
+    const qs = new URLSearchParams();
+    if (item.type === 'hotel') {
+      if (item.destinationCode) qs.set('destinations', item.destinationCode);
+      qs.set('hotelCode', item.hotelCode);
+      qs.set('destinationLabel', item.name);
+    } else {
+      qs.set('destinations', item.code);
+      qs.set('destinationLabel', item.name);
+    }
+    navigate(`/results?${qs.toString()}`);
+    setMobileOpen(false);
+  };
 
-      {/* Wind currents — results screen only. Purely decorative: masked away
-          from the logo and account controls, and hidden from assistive tech. */}
-      {isResults && (
-        <div className={styles.swirls} aria-hidden="true">
-          <div className={styles.swirlWash} />
-          <svg className={styles.swirlSvg} viewBox="0 0 1200 120" preserveAspectRatio="xMidYMid slice" fill="none">
-            <g className={styles.swirlDrift} strokeLinecap="round">
-              <path className={styles.swirlFlow} d="M-40 60C130 26 250 92 420 60c140-27 270 24 410-2"
-                stroke="#FF9F1C" strokeOpacity="0.34" strokeWidth="1.7" />
-              <path d="M900 60c40 0 58-20 38-32-18-11-38 2-26 16 10 11 34 10 50-2"
-                stroke="#FF9F1C" strokeOpacity="0.4" strokeWidth="1.7" />
-              <path className={styles.swirlFlow} d="M150 86c150-24 270 18 430-4 140-19 270 14 420-4"
-                stroke="#FF9F1C" strokeOpacity="0.2" strokeWidth="1.5" />
-              <path d="M60 70c32 4 48-10 38-20-9-9-24-2-18 8 5 8 22 10 32 2"
-                stroke="#5FA8FF" strokeOpacity="0.3" strokeWidth="1.5" />
-              <path d="M480 34c110-16 196 12 306-4" stroke="#5FA8FF" strokeOpacity="0.22" strokeWidth="1.3" />
-              <path className={styles.swirlFlow} d="M-20 44C200 70 380 18 620 44c220 24 380-18 620 6"
-                stroke="#FF9F1C" strokeOpacity="0.15" strokeWidth="1.2" />
-              <path d="M1080 60c40 0 56-18 38-28-16-9-32 4-20 15 10 9 32 8 44-3"
-                stroke="#FF9F1C" strokeOpacity="0.26" strokeWidth="1.5" />
-            </g>
-          </svg>
-          <span className={`${styles.spark} ${styles.spark1}`} />
-          <span className={`${styles.spark} ${styles.spark2}`} />
-          <span className={`${styles.spark} ${styles.spark3}`} />
-        </div>
-      )}
+  return (
+    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
+
+      {/* Centered search — absolutely positioned (not a flex child) so it stays dead-centre in the
+          bar regardless of the differing logo / account widths. Hidden on mobile, where it moves
+          into the drawer. */}
+      <div className={styles.headerSearch}>
+        <DestinationSearch onSelect={goToSearchResult} />
+      </div>
 
       {/* Logo */}
       <Link to={logoHref} className={styles.logo}>
@@ -241,6 +235,9 @@ export default function Navbar() {
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className={styles.mobile}>
+          <div className={styles.mobileSearch}>
+            <DestinationSearch onSelect={goToSearchResult} />
+          </div>
           <div className={styles.mobileLinks}>
             {SERVICES.map((l) => (
               <button
