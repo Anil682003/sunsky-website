@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useLayoutEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -86,6 +86,37 @@ export default function Navbar() {
   // While the ticket is focused, the flanking menus collapse and the search
   // blooms across the whole cluster — widest exactly when typing needs it.
   const [searchFocused, setSearchFocused] = useState(false);
+
+  // The centered cluster is placed in the actual gap BETWEEN the logo and the
+  // auth block, not on the page centre — the logo side has more room than the
+  // auth side, so page-centring would waste it and squeeze the search. Measured
+  // because both edges move (logo wordmark vs icon, signed-in vs -out auth).
+  const headerRef = useRef(null);
+  const logoRef   = useRef(null);
+  const authRef   = useRef(null);
+  useLayoutEffect(() => {
+    const header = headerRef.current;
+    if (!header) return undefined;
+    const GAP = 28;         // min clear space each side
+    const CAP = 1120;       // never wider than this
+    const compute = () => {
+      // The cluster only shows above the mobile breakpoint; below it the auth
+      // block is hidden (zero-width) and the search lives in the drawer.
+      if (window.innerWidth <= 900 || !logoRef.current || !authRef.current) {
+        header.style.removeProperty('--hs-left');
+        header.style.removeProperty('--hs-width');
+        return;
+      }
+      const left  = logoRef.current.getBoundingClientRect().right + GAP;
+      const right = authRef.current.getBoundingClientRect().left - GAP;
+      const width = Math.min(CAP, Math.max(0, right - left));
+      header.style.setProperty('--hs-left', `${(left + right) / 2}px`);
+      header.style.setProperty('--hs-width', `${width}px`);
+    };
+    compute();
+    window.addEventListener('resize', compute);
+    return () => window.removeEventListener('resize', compute);
+  }, [isAuthenticated, isHome, usingCmsLogo, logoAspect]);
   const dropRef = useRef(null);
 
   // The header CMS (CMS → Layout → Header) owns the logo; the homepage CMS
@@ -207,7 +238,7 @@ export default function Navbar() {
   };
 
   return (
-    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
+    <header ref={headerRef} className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
 
       {/* Centered search — home page only. Absolutely positioned (not a flex child) so it stays
           dead-centre in the bar regardless of the differing logo / account widths. Hidden on
@@ -247,7 +278,7 @@ export default function Navbar() {
       )}
 
       {/* Logo */}
-      <Link to={logoHref} className={styles.logo}>
+      <Link to={logoHref} className={styles.logo} ref={logoRef}>
         <img
           src={mainLogo}
           alt={logoAlt}
@@ -266,7 +297,7 @@ export default function Navbar() {
       </Link>
 
       {/* Desktop auth buttons */}
-      <div className={styles.authArea}>
+      <div className={styles.authArea} ref={authRef}>
         {isAuthenticated ? (
           <div className={styles.userMenu} ref={dropRef}>
             <button
