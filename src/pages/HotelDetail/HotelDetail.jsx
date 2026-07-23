@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useLocation, useNavigate, Link } from 'react-router-dom';
+import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axiosInstance from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
@@ -261,21 +261,52 @@ function FlightCard({ f, selected, onSelect }) {
 export default function HotelDetail() {
   const { hotelCode } = useParams();
   const { state } = useLocation();
+  const [searchParams] = useSearchParams();
   const navigate = useNavigate();
-  const hotel = state?.hotel || null;
-  const info  = state?.info || null;            // full bulk record (images, description, facilities)
   const pageRef = useRef(null);
 
-  console.log('HotelDetail state:', state);
-  // Header / booking facts pulled from the clicked result, with demo fallbacks
-  const hotelName = hotel?.name || 'Cavo Vezal';
+  // The results card opens this page in a NEW TAB, which cannot carry react-router's
+  // in-memory `state` — so every field falls back to a URL query param. `qp` reads those.
+  const qp = (key) => searchParams.get(key) || '';
+
+  // Hotel identity: from the clicked card when navigating in-app, else rebuilt from the URL.
+  const hotel = state?.hotel || {
+    hotelCode,
+    name:        qp('name'),
+    img:         qp('img'),
+    loc:         qp('loc'),
+    stars:       qp('stars'),
+    currency:    qp('currency'),
+    totalAmount: Number(qp('total')) || undefined,
+  };
+
+  // Full content record (images, description, facilities). Handed over in-app; when the page
+  // is opened cold we fetch it ourselves so the gallery/description are real, not the demo set.
+  const [fetchedInfo, setFetchedInfo] = useState(null);
+  useEffect(() => {
+    if (state?.info || !hotelCode) return;
+    let cancelled = false;
+    fetch(`${CONTRACTS_API}/hotels/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ hotelCodes: [String(hotelCode)] }),
+    })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => { const rec = d?.data?.[0]; if (!cancelled && rec) setFetchedInfo(rec); })
+      .catch(() => { /* keep whatever the URL gave us */ });
+    return () => { cancelled = true; };
+  }, [hotelCode, state?.info]);
+  const info = state?.info || fetchedInfo;
+
+  // Header / booking facts, preferring the richest source available.
+  const hotelName = hotel?.name || info?.name?.trim() || 'Cavo Vezal';
   // Never invent a rating: unknown star data renders NO stars (the old `|| 5`
   // fallback showed budget hotels as "5-star").
-  const stars = Number(hotel?.stars) || 0;
-  const locLabel = hotel?.loc ? `${hotel.loc}` : 'Greece, Zakynthos, Agios Sostis';
+  const stars = Number(hotel?.stars) || Number(info?.stars) || 0;
+  const locLabel = hotel?.loc || info?.city || 'Greece, Zakynthos, Agios Sostis';
   const currency = hotel?.currency || '€';
   const ccy = currency === 'EUR' ? '€' : currency;
-  const nights = state?.nights || 7;
+  const nights = state?.nights || Number(qp('nights')) || 7;
   const ppPrice = hotel?.totalAmount ? Math.round(hotel.totalAmount / 2) : 765;
 
   // real photos from the bulk hotel record (fallback to demo gallery)
@@ -285,15 +316,16 @@ export default function HotelDetail() {
   const images = realImages && realImages.length ? realImages.slice(0, 30) : [hotel?.img || GALLERY[0], ...GALLERY.slice(1)];
   const photoCount = realImages?.length || 48;
 
-  // search context (for the live calendar + availability calls)
-  const destination  = state?.destination || '';
-  const baseCheckIn  = state?.checkIn || '';
-  const baseCheckOut = state?.checkOut || '';
-  const sAdults   = String(state?.adults ?? '2');
-  const sChildren = String(state?.children ?? '0');
-  const sRooms    = String(state?.rooms ?? '1');
+  // Search context (for the live calendar + availability calls). URL params are the
+  // fallback so a new tab / shared link still prices the same stay.
+  const destination  = state?.destination || qp('destination');
+  const baseCheckIn  = state?.checkIn  || qp('checkIn');
+  const baseCheckOut = state?.checkOut || qp('checkOut');
+  const sAdults   = String(state?.adults   ?? (qp('adults')   || '2'));
+  const sChildren = String(state?.children ?? (qp('children') || '0'));
+  const sRooms    = String(state?.rooms    ?? (qp('rooms')    || '1'));
   // children's ages (csv) — HotelBeds requires an age per child for availability
-  const sChildAges = String(state?.childAges ?? '');
+  const sChildAges = String(state?.childAges ?? qp('childAges'));
 
   const [activeTab, setActiveTab] = useState('Prices');
   const [saved, setSaved] = useState(false);

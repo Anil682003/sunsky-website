@@ -97,6 +97,7 @@ const EMPTY_FILTERS = {
   themes: [], stars: [], facilities: [], activities: [],
   accommodation: [], kids: [],           // accommodation type (group 20), kids amenities
   maxBeach: '', maxCentre: '',           // max distance (m) to beach / city centre
+  adultsOnly: false,                     // "Only Adults" hotels (facility 203/group 85)
   // Transport type. 'hotel_only' → cache searchType=HOTEL_ONLY; 'package' → PACKAGE.
   transport: 'hotel_only',
 };
@@ -118,6 +119,7 @@ const countActiveFilters = (f) =>
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
   (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
+  (f.adultsOnly ? 1 : 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0);
@@ -127,7 +129,8 @@ const hasContentFacet = (f) =>
   (f.themes?.length || 0) + (f.stars?.length || 0) +
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
-  (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) > 0;
+  (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
+  (f.adultsOnly ? 1 : 0) > 0;
 
 const fmtDate = (iso) => {
   if (!iso) return '';
@@ -311,9 +314,37 @@ export default function Results() {
     adults: initAdults, children: initChildren, rooms: initRooms,
   });
 
+  // Filters can arrive in the URL — the homepage links into pre-filtered searches:
+  //   ?boards=AI        board code(s)         (vacation-type cards, popular-dest links)
+  //   ?themes=12        holiday type id(s)    (popular-destination links)
+  //   ?kids=340         kids amenity code(s)  ("Family Friendly" vacation-type card)
+  //   ?adultsOnly=1     only-adults hotels    ("Adults Only" vacation-type card)
+  // Seeded once, on entry; from then on the sidebar owns them like any other filter.
+  // Theme/kids ids are numbers because the facet lists compare against numeric ids.
+  const seedFilters = () => {
+    const boards = csv(params.get('boards') || '')
+      .map((c) => c.trim().toUpperCase())
+      .filter(Boolean);
+    const themes = csv(params.get('themes') || '')
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n));
+    const kids = csv(params.get('kids') || '')
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n));
+    const adultsOnly = ['1', 'true', 'yes'].includes((params.get('adultsOnly') || '').toLowerCase());
+    if (!boards.length && !themes.length && !kids.length && !adultsOnly) return EMPTY_FILTERS;
+    return {
+      ...EMPTY_FILTERS,
+      ...(boards.length ? { boards } : {}),
+      ...(themes.length ? { themes } : {}),
+      ...(kids.length ? { kids } : {}),
+      ...(adultsOnly ? { adultsOnly: true } : {}),
+    };
+  };
+
   // Result filters. `filters` drives the UI (instant); `applied` is the debounced copy.
-  const [filters, setFilters] = useState(EMPTY_FILTERS);
-  const [applied, setApplied] = useState(EMPTY_FILTERS);
+  const [filters, setFilters] = useState(seedFilters);
+  const [applied, setApplied] = useState(seedFilters);
 
   // ── FACETS (from the admin content API over the scope) ──────────────────────────
   // holiday / stars / facilities / activities, each with a hotel count. `facetsStatus`:
@@ -456,6 +487,7 @@ export default function Results() {
   const contentKey = [
     applied.themes.join(','), applied.stars.join(','), applied.facilities.join(','), applied.activities.join(','),
     applied.accommodation.join(','), applied.kids.join(','), applied.maxBeach, applied.maxCentre,
+    applied.adultsOnly ? '1' : '',
   ].join('|');
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
@@ -466,6 +498,7 @@ export default function Results() {
       facilities: applied.facilities, activities: applied.activities,
       accommodation: applied.accommodation, kids: applied.kids,
       maxBeach: applied.maxBeach, maxCentre: applied.maxCentre,
+      adultsOnly: applied.adultsOnly,
     };
     fetchFacets(scope, selected)
       .then((r) => {
@@ -830,6 +863,31 @@ export default function Results() {
     observer.observe(el);
     return () => observer.disconnect();
   }, [loading, hasMore, allHotels.length, loadMore]);
+
+  // Deep link to the hotel/package detail page. The card opens it in a NEW TAB, and a new
+  // tab can't receive react-router's in-memory `state` — so the whole search context rides
+  // in the URL instead. HotelDetail reads these as its fallback and refetches the hotel
+  // content itself, which also makes the detail page shareable/bookmarkable.
+  const detailHref = (h, name, starsVal, dest, img) => {
+    const qs = new URLSearchParams({
+      checkIn:  fetchParams.checkIn,
+      checkOut: fetchParams.checkOut,
+      adults:   fetchParams.adults,
+      children: fetchParams.children,
+      rooms:    fetchParams.rooms,
+      nights:   String(nights || 7),
+    });
+    if (dest)       qs.set('destination', dest);
+    if (name)       qs.set('name', name);
+    if (img)        qs.set('img', img);
+    if (h.loc)      qs.set('loc', h.loc);
+    if (starsVal)   qs.set('stars', String(starsVal));
+    if (h.currency) qs.set('currency', h.currency);
+    if (Number.isFinite(Number(h.totalAmount))) qs.set('total', String(h.totalAmount));
+    const ages = childAgesRef.current;
+    if (ages) qs.set('childAges', ages);
+    return `/hotel/${h.hotelCode}?${qs.toString()}`;
+  };
 
   const toggleLike = (hotelCode, snapshot) => {
     if (!isAuth) { showToast('Sign in to save favourites', 'info'); navigate('/login'); return; }
@@ -1237,6 +1295,15 @@ export default function Results() {
         </FilterSection>
       )}
 
+      {/* Adults only — boolean content facet (the "Adults Only" vacation-type card seeds ?adultsOnly=1). */}
+      <FilterSection title="Adults only" defaultOpen={false}>
+        <FilterCheck
+          label="Adults-only hotels"
+          checked={filters.adultsOnly}
+          onChange={() => setFilter('adultsOnly', !filters.adultsOnly)}
+        />
+      </FilterSection>
+
       {/* Room Type — server-side (`roomTypes`) */}
       <FilterSection title="Room Type" defaultOpen={false}>
         {ROOM_FILTERS.map((code) => (
@@ -1614,26 +1681,15 @@ export default function Results() {
                           <strong>{h.currency} {(total / nights).toFixed(2)}</strong> / night
                         </div>
                       )}
-                      <button
+                      <a
                         className={styles.rcCta}
-                        onClick={() => navigate(`/hotel/${h.hotelCode}`, {
-                          state: {
-                            hotel: { ...h, name: dispName, stars: dispStars, img: dispImg },
-                            info,
-                            destination: hotelDest,
-                            nights,
-                            checkIn: fetchParams.checkIn,
-                            checkOut: fetchParams.checkOut,
-                            adults: fetchParams.adults,
-                            children: fetchParams.children,
-                            rooms: fetchParams.rooms,
-                            childAges: childAgesRef.current,
-                          },
-                        })}
+                        href={detailHref(h, dispName, dispStars, hotelDest, curImg)}
+                        target="_blank"
+                        rel="noopener noreferrer"
                       >
                         View Deal
                         <Icon d="M5 12h14M12 5l7 7-7 7" size={14} sw={2.2} />
-                      </button>
+                      </a>
                     </div>
                   </div>
                 </article>

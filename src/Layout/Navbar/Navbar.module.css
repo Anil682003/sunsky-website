@@ -1,16 +1,17 @@
 /* ── Base nav ── */
+/* One appearance in every state — the bar no longer goes transparent over the
+   hero. Scrolling only compacts it and deepens the shadow. The background is a
+   flat warm cream, so no backdrop blur is needed behind it. */
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
   padding: 18px 40px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
-  transition: all 0.45s var(--ease);
-  background: linear-gradient(180deg, rgba(0,0,0,0.35) 0%, rgba(0,0,0,0.12) 60%, transparent 100%);
+  transition: padding 0.45s var(--ease), box-shadow 0.45s var(--ease);
+  background: #FFF6E6;
+  box-shadow: 0 2px 14px rgba(15,40,100,0.05);
 }
 .scrolled, .solid {
-  background: linear-gradient(180deg, rgba(255,255,255,0.96), rgba(247,250,255,0.88)) !important;
-  backdrop-filter: blur(30px) saturate(190%);
-  -webkit-backdrop-filter: blur(30px) saturate(190%);
   box-shadow: 0 10px 36px rgba(15,40,100,0.08);
   padding: 11px 40px;
 }
@@ -20,11 +21,27 @@
   display: flex; align-items: center; gap: 11px;
   text-decoration: none; flex-shrink: 0;
 }
+/* Bundled mark: a square icon sitting beside the "SunSky" wordmark. */
 .logoImg {
   width: 38px; height: 38px; object-fit: contain;
   transition: transform 0.4s var(--ease-spring);
 }
 .logo:hover .logoImg { transform: rotate(-8deg) scale(1.08); }
+
+/* A logo uploaded in the CMS is usually a full wordmark, not a square icon —
+   height-constrained with a free width, or `contain` in a 38px square would
+   shrink a 2.4:1 logo to a sliver. The text wordmark is hidden alongside it,
+   so a gentle lift replaces the icon's rotation. */
+.logoImgCms {
+  width: auto;
+  height: 40px;
+  max-width: 210px;
+}
+.logo:hover .logoImgCms { transform: scale(1.04); }
+
+@media (max-width: 768px) {
+  .logoImgCms { height: 34px; max-width: 150px; }
+}
 .logoText {
   font-family: 'Sora', sans-serif; font-size: 23px;
   font-weight: 800; letter-spacing: -0.6px;
@@ -39,10 +56,12 @@
 }
 
 /* ── Bottom hairline (solid bar) ── */
-.scrolled::after, .solid::after {
+/* Hairline under the bar, present in every state. Warm-toned so it sits on the
+   cream background rather than reading as a cool blue line on it. */
+.nav::after {
   content: ''; position: absolute; left: 0; right: 0; bottom: 0;
   height: 1px;
-  background: linear-gradient(90deg, transparent, rgba(31,79,216,0.18) 25%, rgba(95,168,255,0.28) 50%, rgba(31,79,216,0.18) 75%, transparent);
+  background: linear-gradient(90deg, transparent, rgba(199,119,0,0.16) 25%, rgba(255,159,28,0.3) 50%, rgba(199,119,0,0.16) 75%, transparent);
   pointer-events: none;
 }
 
@@ -204,8 +223,8 @@
 /* ── Mobile drawer ── */
 .mobile {
   position: absolute; top: 100%; left: 0; right: 0;
-  background: rgba(255,255,255,0.97);
-  backdrop-filter: blur(24px);
+  /* Matches the bar it drops out of */
+  background: #FFF6E6;
   padding: 12px 16px 20px;
   box-shadow: var(--shadow-lg);
   border-top: 1px solid rgba(0,0,0,0.05);

@@ -347,6 +347,9 @@
     inset 0 1px 0 rgba(255, 255, 255, 0.45),
     inset 0 -2px 0 rgba(200, 110, 0, 0.18);
   transition: transform 0.3s var(--ease), box-shadow 0.3s var(--ease);
+  /* rendered as an <a> when the dashboard has linked a board type */
+  text-decoration: none;
+  white-space: nowrap;
 }
 .vacBtn::before {
   content: ''; position: absolute; inset: 0;

@@ -103,6 +103,18 @@ export default function Hero() {
   // full URLs (Unsplash, etc.) pass through unchanged.
   const heroBgUrl = resolveCmsImageUrl(cmsConfig?.hero?.backgroundImageUrl);
 
+  // Preload the CMS background image so the hero can show a shimmer until it's ready (friend's
+  // change from master).
+  const [bgLoaded, setBgLoaded] = useState(false);
+  useEffect(() => {
+    if (!heroBgUrl) { setBgLoaded(false); return; }
+    const img = new Image();
+    img.onload = () => setBgLoaded(true);
+    img.src = heroBgUrl;
+    return () => { img.onload = null; };
+  }, [heroBgUrl]);
+
+  // Default to the new "Search" (typeahead) tab — our change.
   const [searchMode, setSearchMode] = useState('search');
   // Multi-destination selection committed from the picker modal:
   // countries the traveller ticked, plus any regions/cities inside them
@@ -458,8 +470,9 @@ export default function Hero() {
       {/* heroBgImage = client-uploaded photo shown as-is (no darkening filter or
           overlay), so every element on top must carry its own contrast. */}
       <div className={`${styles.heroBg} ${heroBgUrl ? styles.heroBgImage : ''}`}>
+        {heroBgUrl && !bgLoaded && <div className={styles.bgShimmer} />}
         <div
-          className={styles.bg}
+          className={`${styles.bg} ${heroBgUrl && !bgLoaded ? styles.bgHidden : ''}`}
           style={heroBgUrl ? { backgroundImage: `url("${heroBgUrl}")` } : undefined}
         />
         <div className={styles.overlay} />

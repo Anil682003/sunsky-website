@@ -1,9 +1,22 @@
+import { Link } from 'react-router-dom';
 import styles from './VacationTypes.module.css';
 
+// Search links for the cards. The results page seeds these filters from the URL on entry, so a
+// card lands on a list already narrowed to that vacation type (empty scope → popular destinations,
+// then the filter applied). `?boards=` = board type, `?kids=` = kids amenity, `?adultsOnly=1` =
+// adults-only hotels — all real, live filters (verified non-empty over the default scope).
+const boardUrl = (code, label) => {
+  const qs = new URLSearchParams();
+  qs.set('boards', String(code).trim().toUpperCase());
+  if (label) qs.set('boardLabel', label);
+  return `/results?${qs.toString()}`;
+};
+const searchUrl = (params) => `/results?${new URLSearchParams(params).toString()}`;
+
 const FALLBACK_TYPES = [
-  { label:'Worry-Free',    title:'All Inclusive',    desc:'Everything taken care of. Just relax and enjoy.',     img:'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80' },
-  { label:'Premium Escape',title:'Adults Only',      desc:'Tranquil retreats for couples and friends.',           img:'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800&q=80' },
-  { label:'Family Fun',    title:'Family Friendly',  desc:"Fun for the whole family with kids' activities.",      img:'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80' },
+  { label:'Worry-Free',    title:'All Inclusive',    desc:'Everything taken care of. Just relax and enjoy.',     img:'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80', href: boardUrl('AI', 'All Inclusive') },
+  { label:'Premium Escape',title:'Adults Only',      desc:'Tranquil retreats for couples and friends.',           img:'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800&q=80', href: searchUrl({ adultsOnly: '1' }) },
+  { label:'Family Fun',    title:'Family Friendly',  desc:"Fun for the whole family with kids' activities.",      img:'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80', href: searchUrl({ kids: '340' }) },
 ];
 
 /* decorative airline-style route codes, one per tag */
@@ -22,6 +35,8 @@ export default function VacationTypes({ cms }) {
         desc:  v.description || v.desc || '',
         img:   v.imageUrl,
         buttonText: v.buttonText || 'Explore',
+        // Set in the dashboard; without it the card stays non-clickable.
+        href:  v.boardCode ? boardUrl(v.boardCode, v.title) : null,
       }))
     : FALLBACK_TYPES;
 
@@ -101,12 +116,21 @@ export default function VacationTypes({ cms }) {
                       <span className={styles.vacCode}>SSK · 03 · {String(i + 1).padStart(2, '0')}</span>
                     </span>
                     <span className={styles.barcode} aria-hidden="true" />
-                    <button className={styles.vacBtn} type="button">
-                      {t.buttonText || 'Explore'}
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                        <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                      </svg>
-                    </button>
+                    {t.href ? (
+                      <Link className={styles.vacBtn} to={t.href} title={`Search ${t.title} stays`}>
+                        {t.buttonText || 'Explore'}
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </Link>
+                    ) : (
+                      <button className={styles.vacBtn} type="button">
+                        {t.buttonText || 'Explore'}
+                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+                        </svg>
+                      </button>
+                    )}
                   </div>
                 </div>
 

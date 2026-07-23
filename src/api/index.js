@@ -27,6 +27,19 @@ export const useRegister = () => {
   return useApi(ENDPOINTS.register, { method: 'POST', onSuccess });
 };
 
+// ── Password reset (forgot password) ────────────────────────────────────────
+// Three imperative steps; the UI drives them, so no hook wrapper is needed.
+// Step 1 always resolves for any well-formed email — the API deliberately does
+// not reveal whether an account exists.
+export const requestPasswordReset = (email) =>
+  axiosInstance.post(ENDPOINTS.forgotPassword, { email });
+
+export const verifyPasswordResetCode = (email, code) =>
+  axiosInstance.post(ENDPOINTS.verifyResetCode, { email, code });
+
+export const submitNewPassword = (email, code, newPassword) =>
+  axiosInstance.post(ENDPOINTS.resetPassword, { email, code, newPassword });
+
 export const useMe = () => {
   const dispatch = useDispatch();
   return useApi(ENDPOINTS.me, {
@@ -80,6 +93,31 @@ export const useHomepageConfig = () =>
   useApi(ENDPOINTS.homepageConfig, {
     immediate: true,
     transformResponse: (res) => (res?.success ? res.data.homepageConfig : null),
+  });
+
+// Header content managed in the dashboard (CMS → Layout → Header Settings):
+// the logo, its alt text and where it links.
+export const useHeaderConfig = () =>
+  useApi(ENDPOINTS.headerConfig, {
+    immediate: true,
+    transformResponse: (res) => (res?.success ? res.data?.headerConfig ?? res.data : null),
+  });
+
+// Footer content managed in the dashboard (CMS → Layout → Footer Settings):
+// brand block, the navigation columns, payment icons and the copyright line.
+export const useFooterConfig = () =>
+  useApi(ENDPOINTS.footerConfig, {
+    immediate: true,
+    transformResponse: (res) => (res?.success ? res.data?.footerConfig ?? res.data : null),
+  });
+
+// Every active static/legal page plus the groups they are filed under (CMS →
+// Static Pages). One fetch serves the whole /p/:slug family, so the sidebar can
+// list a page's siblings without a second request.
+export const useStaticPages = () =>
+  useApi(ENDPOINTS.staticPages, {
+    immediate: true,
+    transformResponse: (res) => (res?.success ? res.data : null),
   });
 
 export const useCitySearch = () =>

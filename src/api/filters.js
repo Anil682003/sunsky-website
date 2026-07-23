@@ -94,6 +94,7 @@ export async function fetchFacets({ countries = [], destinations = [] } = {}, fi
   if (join(filters.kids))          params.kids          = join(filters.kids);
   if (filters.maxBeach)            params.maxBeach      = String(filters.maxBeach);
   if (filters.maxCentre)           params.maxCentre     = String(filters.maxCentre);
+  if (filters.adultsOnly)          params.adultsOnly    = '1';
   const empty = {
     scope: { countries, destinations, hotelCount: 0 },
     matchedDestinations: [], hotelCodes: [], attributes: {},

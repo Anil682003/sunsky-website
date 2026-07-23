@@ -4,6 +4,9 @@ export const ENDPOINTS = {
   register:        '/website/auth/register',
   me:              '/website/auth/me',
   refresh:         '/website/auth/refresh',
+  forgotPassword:  '/website/auth/forgot-password',
+  verifyResetCode: '/website/auth/verify-reset-code',
+  resetPassword:   '/website/auth/reset-password',
 
   // Bookings
   myBookings:      '/website/bookings',
@@ -15,6 +18,9 @@ export const ENDPOINTS = {
 
   // CMS
   homepageConfig:  '/cms/layout/homepage-config',
+  headerConfig:    '/cms/layout/header-config',
+  footerConfig:    '/cms/layout/footer-config',
+  staticPages:     '/cms/static-pages',
 
   // Geo
   countries:       '/website/geo/countries',

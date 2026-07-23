@@ -2,9 +2,10 @@ import { useState, useEffect, useRef } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
-import mainLogo from '../../assets/main-logo.png';
-import lightLogo from '../../assets/light-logo.png';
+import mainLogoFallback from '../../assets/main-logo.png';
 import styles from './Navbar.module.css';
+import { useHomepageConfig, useHeaderConfig } from '../../api';
+import { resolveCmsImageUrl } from '../../utils/cmsImage';
 
 const SERVICES = [
   {
@@ -42,6 +43,28 @@ export default function Navbar() {
   const [dropOpen,    setDropOpen]    = useState(false);
   const dropRef = useRef(null);
 
+  // The header CMS (CMS → Layout → Header) owns the logo; the homepage CMS
+  // `logo.mainUrl` remains a fallback for anyone who set it there first.
+  // Only one logo is needed now that the bar is white in every state.
+  const { data: headerConfig } = useHeaderConfig();
+  const { data: cmsConfig } = useHomepageConfig();
+
+  const headerLogo = resolveCmsImageUrl(headerConfig?.logoUrl);
+  const cmsMainLogo = resolveCmsImageUrl(cmsConfig?.logo?.mainUrl);
+
+  const mainLogo = headerLogo || cmsMainLogo || mainLogoFallback;
+  const logoAlt = headerConfig?.logoAltText?.trim() || 'SunSky';
+  const logoHref = headerConfig?.logoLinkTarget?.trim() || '/';
+
+  const usingCmsLogo = Boolean(headerLogo || cmsMainLogo);
+
+  // Whether the uploaded logo is a wide wordmark or a square icon decides how
+  // it is sized AND whether the "SunSky" text sits beside it: a wordmark
+  // already carries the name, a square icon does not. Measured on load rather
+  // than assumed, since either can be uploaded.
+  const [logoAspect, setLogoAspect] = useState(null);
+  const isWordmark = usingCmsLogo && logoAspect !== null && logoAspect > 1.6;
+
   const isHome = location.pathname === '/';
   // Pages with a dark hero band — navbar starts transparent and blends in
   const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
@@ -58,7 +81,9 @@ export default function Navbar() {
     return () => document.removeEventListener('mousedown', close);
   }, []);
 
-  const dark = !overHero || scrolled;
+  // The bar is white in every state, so its contents always use the dark
+  // treatment. `scrolled` still drives the compaction and deeper shadow.
+  const dark = true;
 
   const handleLogout = () => {
     dispatch(logout());
@@ -71,15 +96,22 @@ export default function Navbar() {
     <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
 
       {/* Logo */}
-      <Link to="/" className={styles.logo}>
+      <Link to={logoHref} className={styles.logo}>
         <img
-          src={dark ? mainLogo : lightLogo}
-          alt="SunSky"
-          className={styles.logoImg}
+          src={mainLogo}
+          alt={logoAlt}
+          className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''}`}
+          onLoad={(e) => {
+            const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
+            if (w && h) setLogoAspect(w / h);
+          }}
         />
-        <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
-          Sun<span className={styles.logoAccent}>Sky</span>
-        </span>
+        {/* Hidden only for a wordmark logo, which already prints the name. */}
+        {!isWordmark && (
+          <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
+            Sun<span className={styles.logoAccent}>Sky</span>
+          </span>
+        )}
       </Link>
 
       {/* Desktop auth buttons */}

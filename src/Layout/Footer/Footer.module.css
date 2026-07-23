@@ -4,14 +4,41 @@
   padding:72px 52px 36px;
   border-top:1px solid var(--blue-light);
 }
+/* Brand block, then one row per navigation group beneath it. Columns were a bad
+   fit once the CMS drove the content: "Terms & Traveller Rights" has eight links
+   and towered over a two-link neighbour. */
+/* Brand block and the navigation columns share one row — the brand took the
+   full width before, leaving a large empty gap beside it. auto-fit keeps this
+   correct for any number of CMS groups, not just four. */
 .inner {
-  max-width:1400px; margin:0 auto;
-  display:grid; grid-template-columns:2.2fr repeat(3,1fr);
-  gap:48px; margin-bottom:48px;
+  max-width:1400px; margin:0 auto 40px;
+  display:grid;
+  grid-template-columns:minmax(230px, 290px) repeat(auto-fit, minmax(160px, 1fr));
+  gap:32px 28px;
+  align-items:start;
 }
 .brand { display:flex; flex-direction:column; gap:16px; }
+.brand p { max-width:none; }
+
+/* Top-aligned, so a group with eight links simply runs longer than its
+   neighbours rather than stretching them. */
+.navCol { min-width:0; }
+.navCol h4 {
+  font-family:'Sora',sans-serif; font-size:0.82rem; font-weight:700;
+  margin:0 0 16px; color:var(--blue-deep);
+  text-transform:uppercase; letter-spacing:1px; line-height:1.5;
+}
+.navLinks { display:flex; flex-direction:column; }
+.navLinks a {
+  color:var(--text-sec);
+  font-size:0.88rem; line-height:1.5;
+  padding:6px 0;
+  transition:color 0.25s var(--ease), padding-left 0.25s var(--ease);
+}
+.navLinks a:hover { color:var(--blue-deep); padding-left:6px; }
 .logo { cursor:pointer; }
 .logoText { font-family:'Sora',sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--dark); }
+.logoImg { height:40px; object-fit:contain; }
 .brand p { color:var(--text-sec); font-size:0.9rem; line-height:1.8; max-width:320px; }
 .pays { display:flex; gap:8px; flex-wrap:wrap; }
 .pay {
@@ -40,5 +67,12 @@
 .bottomLinks a { color:var(--text-light); font-size:0.83rem; transition:color 0.3s; }
 .bottomLinks a:hover { color:var(--blue-deep); }
 
-@media(max-width:1100px) { .inner { grid-template-columns:repeat(2,1fr); } .brand { grid-column:1/-1; } }
-@media(max-width:640px) { .footer { padding:48px 20px 28px; } .inner { grid-template-columns:1fr; gap:32px; } }
+/* Brand goes full width once the columns can no longer sit beside it */
+@media(max-width:1000px) {
+  .inner { grid-template-columns:repeat(2, minmax(0, 1fr)); gap:28px 24px; }
+  .brand { grid-column:1 / -1; }
+}
+@media(max-width:560px) {
+  .footer { padding:48px 20px 28px; }
+  .inner { grid-template-columns:1fr; gap:26px; }
+}

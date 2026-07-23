@@ -12,19 +12,21 @@ import Newsletter from './sections/Newsletter';
 
 export default function Home() {
   const { data: cms } = useHomepageConfig();
+  const v = cms?.sectionVisibility || {};
+  const on = (key) => v[key] !== false;
 
   return (
     <>
-      <Hero cms={cms} />
-      <Marquee cms={cms} />
-      <Categories cms={cms} />
-      <Destinations cms={cms} />
-      <Stats cms={cms} />
-      <VacationTypes cms={cms} />
-      <Hotels cms={cms} />
-      <PopularDest cms={cms} />
-      <Trust cms={cms} />
-      <Newsletter cms={cms} />
+      {on('hero') && <Hero cms={cms} />}
+      {on('marquee') && <Marquee cms={cms} />}
+      {on('categories') && <Categories cms={cms} />}
+      {on('destinations') && <Destinations cms={cms} />}
+      {on('stats') && <Stats cms={cms} />}
+      {on('vacationTypes') && <VacationTypes cms={cms} />}
+      {on('hotels') && <Hotels cms={cms} />}
+      {on('popularDest') && <PopularDest cms={cms} />}
+      {on('trust') && <Trust cms={cms} />}
+      {on('newsletter') && <Newsletter cms={cms} />}
     </>
   );
 }
