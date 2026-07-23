@@ -395,7 +395,7 @@
   animation:ckSpin .7s linear infinite; display:inline-block; }
 
 /* ════ SUMMARY SIDEBAR ════ */
-.ck-aside { position:sticky; top:84px; animation:ckFadeUp .6s var(--ease) .22s both; }
+.ck-aside { position:sticky; top:64px; animation:ckFadeUp .6s var(--ease) .22s both; }
 .ck-sum { background:#fff; border:1px solid var(--border-light); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-lg); }
 .ck-sum-img { position:relative; height:158px; overflow:hidden; }
 .ck-sum-img img { width:100%; height:100%; object-fit:cover; transition:transform 6s var(--ease); }

@@ -4,26 +4,30 @@
    flat warm cream, so no backdrop blur is needed behind it. */
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-  padding: 18px 40px;
+  /* The tallest child (the account pill / register button) sets the bar height,
+     not the logo — so this padding is tuned against that, not the 32px mark. */
+  padding: 11px 36px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
   transition: padding 0.45s var(--ease), box-shadow 0.45s var(--ease);
-  background: #FFF6E6;
+  /* A softened --sun-warm. Full-strength cream reads as aged paper stretched
+     across a 1920px bar, and its warmth fights the cool --blue-bg page below. */
+  background: #FFFBF2;
   box-shadow: 0 2px 14px rgba(15,40,100,0.05);
 }
 .scrolled, .solid {
   box-shadow: 0 10px 36px rgba(15,40,100,0.08);
-  padding: 11px 40px;
+  padding: 8px 36px;
 }
 
 /* ── Logo ── */
 .logo {
-  display: flex; align-items: center; gap: 11px;
+  display: flex; align-items: center; gap: 9px;
   text-decoration: none; flex-shrink: 0;
 }
 /* Bundled mark: a square icon sitting beside the "SunSky" wordmark. */
 .logoImg {
-  width: 38px; height: 38px; object-fit: contain;
+  width: 32px; height: 32px; object-fit: contain;
   transition: transform 0.4s var(--ease-spring);
 }
 .logo:hover .logoImg { transform: rotate(-8deg) scale(1.08); }
@@ -34,16 +38,16 @@
    so a gentle lift replaces the icon's rotation. */
 .logoImgCms {
   width: auto;
-  height: 40px;
-  max-width: 210px;
+  height: 32px;
+  max-width: 168px;
 }
 .logo:hover .logoImgCms { transform: scale(1.04); }
 
 @media (max-width: 768px) {
-  .logoImgCms { height: 34px; max-width: 150px; }
+  .logoImgCms { height: 28px; max-width: 132px; }
 }
 .logoText {
-  font-family: 'Sora', sans-serif; font-size: 23px;
+  font-family: 'Sora', sans-serif; font-size: 19px;
   font-weight: 800; letter-spacing: -0.6px;
   transition: color 0.4s;
 }
@@ -65,13 +69,74 @@
   pointer-events: none;
 }
 
+/* ── Wind currents (results screen only) ── */
+/* A decorative layer behind the bar's contents. `overflow: hidden` keeps the
+   drifting group from widening the page, and the mask fades the currents out
+   before they reach the logo or the account controls — so they live in the
+   empty middle of the bar and never sit behind text. */
+.swirls {
+  position: absolute; inset: 0;
+  overflow: hidden; pointer-events: none; z-index: 0;
+  -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 19%, #000 71%, transparent 95%);
+  mask-image: linear-gradient(90deg, transparent 0, #000 19%, #000 71%, transparent 95%);
+}
+.swirlWash {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse 55% 180% at 46% 50%, rgba(255,159,28,0.1), transparent 70%);
+}
+.swirlSvg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.swirlDrift { animation: swirlDrift 26s ease-in-out infinite alternate; }
+@keyframes swirlDrift { from { transform: translateX(-16px); } to { transform: translateX(16px); } }
+/* Dashed currents that flow along their own path, echoing the flight path in
+   the banner below. */
+.swirlFlow { stroke-dasharray: 3 10; animation: swirlDash 34s linear infinite; }
+@keyframes swirlDash { to { stroke-dashoffset: -260; } }
+
+.spark {
+  position: absolute; width: 3px; height: 3px; border-radius: 50%;
+  background: var(--sun-orange); opacity: 0;
+  box-shadow: 0 0 6px 1px rgba(255,159,28,0.5);
+  animation: sparkFade 5.6s ease-in-out infinite;
+}
+.spark1 { top: 34%; left: 33%; }
+.spark2 { top: 62%; left: 52%; animation-delay: -2.2s; }
+.spark3 { top: 42%; left: 63%; animation-delay: -4s; }
+@keyframes sparkFade {
+  0%, 100% { opacity: 0; transform: scale(0.5); }
+  50%      { opacity: 0.75; transform: scale(1); }
+}
+
+/* The bar's real contents sit above the decorative layer. */
+.navResults .logo,
+.navResults .authArea,
+.navResults .hamburger { position: relative; z-index: 1; }
+
+@media (max-width: 900px) {
+  /* The bar is far narrower here, so the currents get a tighter corridor
+     between the logo and the hamburger. */
+  .swirls {
+    -webkit-mask-image: linear-gradient(90deg, transparent 0, #000 36%, #000 64%, transparent 88%);
+    mask-image: linear-gradient(90deg, transparent 0, #000 36%, #000 64%, transparent 88%);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .swirlDrift, .swirlFlow, .spark { animation: none; }
+  .spark { opacity: 0.5; }
+}
+
 /* ── Auth area ── */
 .authArea { display: flex; align-items: center; flex-shrink: 0; }
 .authBtns { display: flex; align-items: center; gap: 10px; }
 
+/* The three auth controls — signed-in, signed-out, register — are pinned to one
+   explicit height so the bar is 60px in every state. Tuning by padding does not
+   hold: font leading and fractional border rendering both shift the result, and
+   the offsets that clear this bar are fixed. */
+.signInBtn, .registerBtn, .avatarBtn { height: 38px; box-sizing: border-box; }
+
 .signInBtn {
-  padding: 10px 20px; border-radius: var(--r-full);
-  font-size: 13.5px; font-weight: 700; font-family: 'Sora', sans-serif;
+  padding: 0 16px; line-height: 1; border-radius: var(--r-full);
+  font-size: 13px; font-weight: 700; font-family: 'Sora', sans-serif;
   transition: all 0.3s var(--ease); white-space: nowrap;
   text-decoration: none; display: inline-flex; align-items: center; gap: 7px;
 }
@@ -99,9 +164,9 @@
 }
 
 .registerBtn {
-  padding: 7px 7px 7px 22px; border-radius: var(--r-full);
+  padding: 0 7px 0 18px; line-height: 1; border-radius: var(--r-full);
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
-  color: #fff; font-size: 13.5px; font-weight: 700;
+  color: #fff; font-size: 13px; font-weight: 700;
   font-family: 'Sora', sans-serif;
   box-shadow: 0 6px 20px rgba(255,159,28,0.32);
   transition: all 0.35s var(--ease);
@@ -120,7 +185,7 @@
   box-shadow: 0 14px 38px rgba(255,159,28,0.5);
 }
 .registerArrow {
-  width: 28px; height: 28px; border-radius: 50%;
+  width: 24px; height: 24px; border-radius: 50%;
   background: rgba(255,255,255,0.24);
   display: flex; align-items: center; justify-content: center;
   transition: transform 0.3s var(--ease), background 0.3s;
@@ -133,8 +198,8 @@
 /* ── User avatar dropdown ── */
 .userMenu { position: relative; }
 .avatarBtn {
-  display: flex; align-items: center; gap: 9px;
-  padding: 7px 14px 7px 7px; border-radius: var(--r-full);
+  display: flex; align-items: center; gap: 8px;
+  padding: 0 12px 0 5px; border-radius: var(--r-full);
   transition: all 0.3s var(--ease); cursor: pointer;
 }
 .avatarBtnLight {
@@ -154,15 +219,18 @@
   border-color: var(--blue-soft);
 }
 .avatarCircle {
-  width: 32px; height: 32px; border-radius: 50%;
+  /* 25px, not 26: the pill's 5px padding + 1.5px border make this the tallest
+     child, and 25 lands the bar on exactly 60px — matching the hamburger's
+     height on mobile and the offsets that clear the bar. */
+  width: 25px; height: 25px; border-radius: 50%;
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
-  color: #fff; font-size: 12px; font-weight: 800;
+  color: #fff; font-size: 11px; font-weight: 800;
   font-family: 'Sora', sans-serif;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0; box-shadow: 0 2px 12px rgba(255,159,28,0.3);
 }
 .avatarName {
-  font-size: 13px; font-weight: 700; font-family: 'Sora', sans-serif;
+  font-size: 12.5px; font-weight: 700; font-family: 'Sora', sans-serif;
 }
 .avatarNameLight { color: #fff; }
 .avatarNameDark  { color: var(--dark); }
@@ -216,7 +284,9 @@
 .dropLogout:hover { background: rgba(255,107,107,0.08); }
 
 /* ── Hamburger ── */
-.hamburger { display: none; padding: 8px; transition: color 0.3s; }
+/* display:flex, not block — an inline svg adds a baseline gap that would make
+   the hamburger the tallest child and push the mobile bar past the desktop one. */
+.hamburger { display: none; padding: 7px; transition: color 0.3s; }
 .hamburgerLight { color: #fff; }
 .hamburgerDark  { color: var(--dark); }
 
@@ -224,7 +294,7 @@
 .mobile {
   position: absolute; top: 100%; left: 0; right: 0;
   /* Matches the bar it drops out of */
-  background: #FFF6E6;
+  background: #FFFBF2;
   padding: 12px 16px 20px;
   box-shadow: var(--shadow-lg);
   border-top: 1px solid rgba(0,0,0,0.05);
@@ -286,7 +356,7 @@
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .authArea { display: none; }
-  .hamburger { display: block; }
-  .nav { padding: 16px 24px; }
-  .scrolled, .solid { padding: 12px 24px; }
+  .hamburger { display: flex; }
+  .nav { padding: 11px 20px; }
+  .scrolled, .solid { padding: 9px 20px; }
 }
