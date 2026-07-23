@@ -83,9 +83,6 @@ export default function Navbar() {
   const [scrolled,    setScrolled]    = useState(false);
   const [mobileOpen,  setMobileOpen]  = useState(false);
   const [dropOpen,    setDropOpen]    = useState(false);
-  // While the ticket is focused, the flanking menus collapse and the search
-  // blooms across the whole cluster — widest exactly when typing needs it.
-  const [searchFocused, setSearchFocused] = useState(false);
   const headerRef = useRef(null);
   const logoRef   = useRef(null);
   const authRef   = useRef(null);
@@ -246,7 +243,7 @@ export default function Navbar() {
           dead-centre in the bar regardless of the differing logo / account widths. Hidden on
           mobile, where it moves into the drawer. */}
       {isHome && (
-        <div className={`${styles.headerSearch} ${searchFocused ? styles.headerSearchFocused : ''}`}>
+        <div className={styles.headerSearch}>
           <HeaderMenu
             label="Popular destinations"
             buttonIcon={<MenuGlobe />}
@@ -261,7 +258,7 @@ export default function Navbar() {
             }))}
           />
           <div className={styles.searchGrow}>
-            <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} onFocusChange={setSearchFocused} />
+            <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
           </div>
           <HeaderMenu
             label="Holiday types"

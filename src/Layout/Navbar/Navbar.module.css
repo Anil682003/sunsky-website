@@ -88,15 +88,14 @@
   z-index: 5;
 }
 .searchGrow {
-  flex: 1 1 auto; min-width: 0;
-  /* Capped in the middle so, once the cluster is wider than menus + search,
-     space-between spills the rest into clear air on either side of the ticket.
-     The air therefore grows with the viewport (none at 1280, ~100px at 1920). */
-  max-width: clamp(360px, 28vw, 480px);
-  transition: max-width 0.4s var(--ease);
+  /* Fixed, not growing — the ticket stays one size whether idle, focused, or
+     the viewport is wide. flex-shrink (not grow) lets it narrow gracefully
+     if the cluster itself is tight, but it never stretches past 440px, which
+     is also the dropdown's width — the panel is never wider than the field
+     it drops from. Whatever room the cluster has beyond menus + this fixed
+     440px is spent as flanking air (space-between), not on the ticket. */
+  flex: 0 1 440px; min-width: 0; max-width: 440px;
 }
-/* The focus bloom lifts the cap — the ticket sweeps the whole cluster. */
-.headerSearchFocused .searchGrow { max-width: 100%; }
 
 /* The flanking menus need elbow room; below ~1180px they yield it all to the
    ticket, which returns to its solo width. */
@@ -115,15 +114,7 @@
 /* ── Header menus (Popular destinations / Holiday types) ── */
 .hmWrap {
   position: relative; flex-shrink: 0;
-  max-width: 220px; overflow: visible;
-  transition: max-width 0.4s var(--ease), opacity 0.25s var(--ease);
 }
-/* The focus bloom: while the ticket is engaged the menus fold away and the
-   search sweeps the whole cluster — widest exactly when typing needs it. */
-.headerSearchFocused .hmWrap {
-  max-width: 0; opacity: 0; overflow: hidden; pointer-events: none;
-}
-.headerSearchFocused { gap: 0; }
 .hmBtn {
   display: flex; align-items: center; gap: 7px;
   height: 38px; padding: 0 13px; border-radius: var(--r-full);

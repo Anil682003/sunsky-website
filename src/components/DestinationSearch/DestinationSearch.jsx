@@ -95,7 +95,7 @@ const useTypewriter = (names, active) => {
   return text;
 };
 
-export default function DestinationSearch({ onSelect, onGo, onBrowseAll, onFocusChange, suggestions = [], placeholder = 'Search hotels & destinations' }) {
+export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggestions = [], placeholder = 'Search hotels & destinations' }) {
   const [query, setQuery]     = useState('');
   const [results, setResults] = useState({ destinations: [], hotels: [] });
   const [open, setOpen]       = useState(false);
@@ -134,12 +134,6 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, onFocus
     document.addEventListener('mousedown', h);
     return () => document.removeEventListener('mousedown', h);
   }, []);
-
-  // The host is told the search is "engaged" while focused OR while its panel is
-  // open — not just focused. Blur alone must not end the engagement: clicking a
-  // result blurs the input first, and if the host reflowed the cluster on blur,
-  // the row would move between mousedown and mouseup and the click would miss.
-  useEffect(() => { onFocusChange?.(focused || open); }, [focused, open, onFocusChange]);
 
   // The resting pill types real destination names (the same ones the suggestion
   // chips offer). Paused the moment the field is focused or holds text.

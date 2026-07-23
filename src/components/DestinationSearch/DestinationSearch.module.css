@@ -131,9 +131,11 @@
 .clear:hover { background: rgba(15, 40, 100, 0.12); color: var(--text, #10203a); }
 
 /* ── Dropdown (shared by idle panel and results manifest) ── */
+/* Exactly the width of the ticket it drops from — left:0/right:0 against the
+   relatively-positioned .wrap, not an independently-sized panel. The manifest
+   is never wider than the field that opened it. */
 .dropdown {
-  position: absolute; top: calc(100% + 11px); left: 50%; transform: translateX(-50%);
-  width: min(440px, 92vw); min-width: 320px;
+  position: absolute; top: calc(100% + 11px); left: 0; right: 0;
   background: #fff;
   border: 1px solid rgba(15, 40, 100, 0.08);
   border-radius: 16px;
@@ -141,7 +143,7 @@
   z-index: 1200; max-height: min(70vh, 470px); overflow-y: auto;
   animation: dsIn 0.2s var(--ease, ease) both;
 }
-@keyframes dsIn { from { opacity: 0; transform: translateX(-50%) translateY(-6px) scale(0.985); } to { opacity: 1; transform: translateX(-50%) translateY(0) scale(1); } }
+@keyframes dsIn { from { opacity: 0; transform: translateY(-6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
 /* Cream tally strip — the manifest's header row. Solid hairline (dashes are
    reserved for the perforation and the tear-off rule). */
