@@ -32,10 +32,25 @@ const allImgs = (images) => {
     .filter(Boolean);
 };
 
+// Empty-search fallback: popular sun destinations (Hotelbeds codes) that have priced inventory —
+// what we search when the traveller hits Search without choosing a place. Curated for the
+// Belgian sun-holiday market; the business can adjust this list.
+const DEFAULT_DESTINATIONS = ['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC'];
+
+// Board codes → human labels. Names are Hotelbeds' OFFICIAL board dictionary
+// (/hotel-content-api/1.0/types/boards), covering every code that occurs in our cache — so no
+// raw code (e.g. "CB") ever leaks to the UI. getBoardLabel() falls back to the code for anything
+// not listed (rare).
 const BOARD_LABELS = {
-  RO: 'Room Only',  SC: 'Self Catering', BB: 'Bed & Breakfast',
-  HB: 'Half Board', FB: 'Full Board',    AI: 'All Inclusive',
-  UAI: 'Ultra All Inclusive', TI: 'All Inclusive+', DO: 'Dinner & B&B',
+  RO: 'Room Only',            SC: 'Self Catering',        BB: 'Bed & Breakfast',
+  CB: 'Continental Breakfast', AB: 'American Breakfast',   DB: 'Buffet Breakfast',
+  GB: 'English Breakfast',    IB: 'Irish Breakfast',      SB: 'Scottish Breakfast',
+  LB: 'Light Breakfast',      B2: 'Breakfast (2 guests)',
+  HB: 'Half Board',           MB: 'Half Board + Drinks',
+  FB: 'Full Board',           PB: 'Full Board + Drinks',
+  CE: 'Dinner Included',      CO: 'Lunch Included',
+  AI: 'All Inclusive',        AS: 'All Inclusive Premium', TL: 'All Inclusive Soft',
+  UAI: 'Ultra All Inclusive', TI: 'All Inclusive+',       DO: 'Dinner & B&B',
 };
 const ROOM_LABELS = {
   DBL: 'Double',       DBT: 'Double / Twin', TWN: 'Twin',      SGL: 'Single',
@@ -82,6 +97,7 @@ const EMPTY_FILTERS = {
   themes: [], stars: [], facilities: [], activities: [],
   accommodation: [], kids: [],           // accommodation type (group 20), kids amenities
   maxBeach: '', maxCentre: '',           // max distance (m) to beach / city centre
+  adultsOnly: false,                     // "Only Adults" hotels (facility 203/group 85)
   // Transport type. 'hotel_only' → cache searchType=HOTEL_ONLY; 'package' → PACKAGE.
   transport: 'hotel_only',
 };
@@ -103,6 +119,7 @@ const countActiveFilters = (f) =>
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
   (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
+  (f.adultsOnly ? 1 : 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0);
@@ -112,7 +129,8 @@ const hasContentFacet = (f) =>
   (f.themes?.length || 0) + (f.stars?.length || 0) +
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
-  (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) > 0;
+  (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
+  (f.adultsOnly ? 1 : 0) > 0;
 
 const fmtDate = (iso) => {
   if (!iso) return '';
@@ -192,17 +210,26 @@ export default function Results() {
   const urlCities       = params.get('cities')       || '';
   const legacyDest      = params.get('destination')  || '';
   const urlLabel        = params.get('destinationLabel') || params.get('label') || '';
+  // A specific hotel picked from the home typeahead → restrict results to just that hotel.
+  const urlHotelCode    = params.get('hotelCode') || '';
 
-  const scope = useMemo(() => {
+  const { scope, usingDefaultScope } = useMemo(() => {
     // destinations = explicit `destinations` ∪ home-picker `cities`; fall back to the legacy
     // single `destination` only when neither is present (old links still work).
     const dests = [...new Set([...csv(urlDestinations), ...csv(urlCities)])];
-    return {
-      countries:    csv(urlCountries),
-      destinations: dests.length ? dests : (legacyDest ? [legacyDest] : []),
-    };
+    const countries = csv(urlCountries);
+    const explicit = dests.length ? dests : (legacyDest ? [legacyDest] : []);
+    // EMPTY SEARCH → no country and no destination chosen (e.g. the traveller clicked Search on
+    // the home page without picking a place). Rather than a blank "pick a destination" wall, we
+    // default to a curated set of popular sun destinations that actually have priced inventory,
+    // sorted cheapest-first — a "best deals" landing. The traveller refines via the Where filter.
+    if (!countries.length && !explicit.length) {
+      return { scope: { countries: [], destinations: DEFAULT_DESTINATIONS }, usingDefaultScope: true };
+    }
+    return { scope: { countries, destinations: explicit }, usingDefaultScope: false };
   }, [urlCountries, urlDestinations, urlCities, legacyDest]);
   const scopeKey  = `${scope.countries.join(',')}|${scope.destinations.join(',')}`;
+  // Always have a scope now (the default fills it), so the results page is never blank.
   const hasScope  = scope.countries.length > 0 || scope.destinations.length > 0;
 
   const defaultCheckIn  = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]; })();
@@ -288,10 +315,12 @@ export default function Results() {
   });
 
   // Filters can arrive in the URL — the homepage links into pre-filtered searches:
-  //   ?boards=AI        board code(s)        (vacation-type cards)
-  //   ?themes=12        holiday type id(s)   (popular-destination links)
+  //   ?boards=AI        board code(s)         (vacation-type cards, popular-dest links)
+  //   ?themes=12        holiday type id(s)    (popular-destination links)
+  //   ?kids=340         kids amenity code(s)  ("Family Friendly" vacation-type card)
+  //   ?adultsOnly=1     only-adults hotels    ("Adults Only" vacation-type card)
   // Seeded once, on entry; from then on the sidebar owns them like any other filter.
-  // Theme ids are numbers because the facet list compares against a numeric t.id.
+  // Theme/kids ids are numbers because the facet lists compare against numeric ids.
   const seedFilters = () => {
     const boards = csv(params.get('boards') || '')
       .map((c) => c.trim().toUpperCase())
@@ -299,8 +328,18 @@ export default function Results() {
     const themes = csv(params.get('themes') || '')
       .map((n) => Number(n))
       .filter((n) => Number.isFinite(n));
-    if (!boards.length && !themes.length) return EMPTY_FILTERS;
-    return { ...EMPTY_FILTERS, ...(boards.length ? { boards } : {}), ...(themes.length ? { themes } : {}) };
+    const kids = csv(params.get('kids') || '')
+      .map((n) => Number(n))
+      .filter((n) => Number.isFinite(n));
+    const adultsOnly = ['1', 'true', 'yes'].includes((params.get('adultsOnly') || '').toLowerCase());
+    if (!boards.length && !themes.length && !kids.length && !adultsOnly) return EMPTY_FILTERS;
+    return {
+      ...EMPTY_FILTERS,
+      ...(boards.length ? { boards } : {}),
+      ...(themes.length ? { themes } : {}),
+      ...(kids.length ? { kids } : {}),
+      ...(adultsOnly ? { adultsOnly: true } : {}),
+    };
   };
 
   // Result filters. `filters` drives the UI (instant); `applied` is the debounced copy.
@@ -448,6 +487,7 @@ export default function Results() {
   const contentKey = [
     applied.themes.join(','), applied.stars.join(','), applied.facilities.join(','), applied.activities.join(','),
     applied.accommodation.join(','), applied.kids.join(','), applied.maxBeach, applied.maxCentre,
+    applied.adultsOnly ? '1' : '',
   ].join('|');
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
@@ -458,6 +498,7 @@ export default function Results() {
       facilities: applied.facilities, activities: applied.activities,
       accommodation: applied.accommodation, kids: applied.kids,
       maxBeach: applied.maxBeach, maxCentre: applied.maxCentre,
+      adultsOnly: applied.adultsOnly,
     };
     fetchFacets(scope, selected)
       .then((r) => {
@@ -469,8 +510,9 @@ export default function Results() {
           : scope.destinations;                        // fallback if admin returned none
         setPriceScope({
           destinations: dests,
-          // Restrict the cache to the resolved hotelCodes ONLY when a content facet is active.
-          hotelCodes: hasContentFacet(applied) ? (r.hotelCodes || []) : null,
+          // A specific hotel (typeahead) pins the result to just that hotel. Otherwise restrict
+          // the cache to the resolved hotelCodes only when a content facet is active.
+          hotelCodes: urlHotelCode ? [urlHotelCode] : (hasContentFacet(applied) ? (r.hotelCodes || []) : null),
         });
         setFacetsStatus('ok');
       })
@@ -482,12 +524,12 @@ export default function Results() {
         // Admin down: still price the scope's explicit destinations (content facets can't apply).
         setPriceScope({
           destinations: scope.destinations,
-          hotelCodes: hasContentFacet(applied) ? [] : null,
+          hotelCodes: urlHotelCode ? [urlHotelCode] : (hasContentFacet(applied) ? [] : null),
         });
       });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeKey, contentKey]);
+  }, [scopeKey, contentKey, urlHotelCode]);
 
   // Refs so loadMore always sees latest values
   const fetchParamsRef = useRef(fetchParams);
@@ -590,8 +632,10 @@ export default function Results() {
     };
   };
 
-  // Scope label for the hero. A single place → its name; otherwise "N places".
+  // Scope label for the hero. Default (empty) search → "Popular destinations";
+  // a single place → its name; otherwise "N places".
   const scopeLabel = useMemo(() => {
+    if (usingDefaultScope) return 'Popular destinations';
     if (urlLabel) return urlLabel;
     const names = countryOptions.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
     const parts = [
@@ -601,7 +645,7 @@ export default function Results() {
     if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0];
     return `${parts.length} places`;
-  }, [urlLabel, scope, countryOptions]);
+  }, [usingDefaultScope, urlLabel, scope, countryOptions]);
 
   // "A different search" (vs. a different filter): scope or head-counts/dates changed.
   const searchKey = `${scopeKey}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${fetchParams.childAges ?? childAges}`;
@@ -1250,6 +1294,15 @@ export default function Results() {
           ))}
         </FilterSection>
       )}
+
+      {/* Adults only — boolean content facet (the "Adults Only" vacation-type card seeds ?adultsOnly=1). */}
+      <FilterSection title="Adults only" defaultOpen={false}>
+        <FilterCheck
+          label="Adults-only hotels"
+          checked={filters.adultsOnly}
+          onChange={() => setFilter('adultsOnly', !filters.adultsOnly)}
+        />
+      </FilterSection>
 
       {/* Room Type — server-side (`roomTypes`) */}
       <FilterSection title="Room Type" defaultOpen={false}>

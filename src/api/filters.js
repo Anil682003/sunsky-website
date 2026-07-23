@@ -19,6 +19,22 @@ export async function fetchThemes(destinationCode) {
   return data?.data ?? [];
 }
 
+/**
+ * Home-page typeahead: search destinations AND hotels by name in one call.
+ * @returns {Promise<{ destinations:{code,name,country}[], hotels:{hotelCode,name,destinationCode,destinationName,country,stars}[] }>}
+ */
+export async function searchDestinationsAndHotels(q, limit = 6) {
+  const query = String(q ?? '').trim();
+  const empty = { destinations: [], hotels: [] };
+  if (query.length < 2) return empty;
+  try {
+    const { data } = await axiosInstance.get('/hotel-filters/search', { params: { q: query, limit } });
+    return data?.data ?? empty;
+  } catch {
+    return empty;
+  }
+}
+
 /** Countries that have hotels → [{ code, name }]. Cascade level 1. */
 export async function fetchCountries() {
   const { data } = await axiosInstance.get('/hotel-filters/countries');
@@ -78,6 +94,7 @@ export async function fetchFacets({ countries = [], destinations = [] } = {}, fi
   if (join(filters.kids))          params.kids          = join(filters.kids);
   if (filters.maxBeach)            params.maxBeach      = String(filters.maxBeach);
   if (filters.maxCentre)           params.maxCentre     = String(filters.maxCentre);
+  if (filters.adultsOnly)          params.adultsOnly    = '1';
   const empty = {
     scope: { countries, destinations, hotelCount: 0 },
     matchedDestinations: [], hotelCodes: [], attributes: {},

@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import styles from './Hero.module.css';
 import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
+import DestinationSearch from '../../../components/DestinationSearch/DestinationSearch';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 
 // Duration bands shown in the search box. Each band is a day-range with a representative stay
@@ -102,6 +103,8 @@ export default function Hero() {
   // full URLs (Unsplash, etc.) pass through unchanged.
   const heroBgUrl = resolveCmsImageUrl(cmsConfig?.hero?.backgroundImageUrl);
 
+  // Preload the CMS background image so the hero can show a shimmer until it's ready (friend's
+  // change from master).
   const [bgLoaded, setBgLoaded] = useState(false);
   useEffect(() => {
     if (!heroBgUrl) { setBgLoaded(false); return; }
@@ -111,11 +114,16 @@ export default function Hero() {
     return () => { img.onload = null; };
   }, [heroBgUrl]);
 
-  const [searchMode, setSearchMode] = useState('package');
+  // Default to the new "Search" (typeahead) tab — our change.
+  const [searchMode, setSearchMode] = useState('search');
   // Multi-destination selection committed from the picker modal:
   // countries the traveller ticked, plus any regions/cities inside them
   // (empty places for a country = "anywhere in it").
   const [destSelection, setDestSelection] = useState({ countries: [], places: [] });
+  // The Search tab's single typeahead selection: { type:'destination'|'hotel', ... } | null.
+  // Independent of the Package tab's modal selection (destSelection) — each tab has its own
+  // destination input and its own Search button, so the two never interfere.
+  const [pick, setPick] = useState(null);
   const [date, setDate] = useState('');
   const [duration, setDuration] = useState('6-10 days');   // band label (default: ~1 week)
   // Occupancy is per room — each room carries its own adults, children and one
@@ -153,9 +161,15 @@ export default function Hero() {
     setDestModalOpen(false);
   };
 
+  // The Search tab's typeahead selection (destination or hotel). Independent of the Package
+  // tab's modal selection — each tab runs its own search.
+  const handleTypeaheadSelect = (item) => setPick(item);
+
   const destinationLabel = selectionLabel(destSelection);
-  // Small flag strip rendered ahead of the label (first few picked countries).
+  // Small flag strip rendered ahead of the label (first few picked countries) in the modal field.
   const destFlags = destSelection.countries.slice(0, 4);
+  // What the Search tab's typeahead shows: the current pick's name.
+  const searchDisplayText = pick ? pick.name : '';
 
   const searchBarRef = useRef(null);
   const flightsRef = useRef(null);
@@ -227,9 +241,10 @@ export default function Hero() {
     return a >= 0 ? a : 0;
   };
 
-  const handleSearch = () => {
-    const band = findBand(duration);         // the chosen duration band
-    const nights = band.nights;              // representative stay length for that band
+  // Params common to every search (dates, occupancy, duration band).
+  const buildBaseParams = () => {
+    const band = findBand(duration);
+    const nights = band.nights;
     let checkOut = '';
     if (date) {
       // Compute in UTC so the checkout never shifts a day in a positive-offset timezone
@@ -238,37 +253,57 @@ export default function Hero() {
       d.setUTCDate(d.getUTCDate() + nights);
       checkOut = d.toISOString().split('T')[0];
     }
+    const childAges = roomsList.flatMap((r) => r.dobs).map(ageFromDob).filter((a) => a != null);
+    const qs = new URLSearchParams({
+      checkIn:  date || '',
+      checkOut: checkOut || '',
+      adults:   String(totalAdults),
+      children: String(totalChildren),
+      rooms:    String(roomsList.length),
+    });
+    qs.set('duration', band.label);
+    qs.set('minNights', String(band.minNights));
+    qs.set('maxNights', String(band.maxNights));
+    if (childAges.length) qs.set('childAges', childAges.join(','));
+    return qs;
+  };
+
+  // PACKAGE search — destination chosen via the country → destination modal (unchanged behaviour).
+  const handleSearch = () => {
     const selCities    = destSelection.places.filter((p) => p.type === 'city');
     const selRegions   = destSelection.places.filter((p) => p.type === 'region');
     // A country is searched WHOLE only when no specific place inside it was picked; if the
     // traveller ticked cities/regions in a country, those represent it instead (this mirrors the
-    // DestinationModal's own "Entire country vs N places" semantics). Sending such a country as a
-    // whole `countries=` entry would widen the search back to the whole country and ignore the
-    // narrower picks.
+    // DestinationModal's own "Entire country vs N places" semantics).
     const pickedCountryIds = new Set(destSelection.places.map((p) => p.countryId));
     const wholeCountries   = destSelection.countries.filter((c) => !pickedCountryIds.has(c.id));
-    // The results page scopes the faceted search by Hotelbeds codes: countries match
-    // hotels.countryCode (== Country.code — NOT the ISO code; e.g. Cyprus is 'NY' not 'CY',
-    // UK is 'UK' not 'GB'), and cities match hotels.destinationCode. Send those exact codes.
+    // countries match hotels.countryCode (== Country.code — NOT the ISO code; e.g. Cyprus is 'NY'
+    // not 'CY', UK is 'UK' not 'GB'); cities match hotels.destinationCode. Send the exact codes.
     const destParam = selCities[0]?.code || wholeCountries[0]?.code || destSelection.countries[0]?.code || '';
-    const qs = new URLSearchParams({
-      destination:      destParam,
-      destinationLabel: destinationLabel,
-      checkIn:          date || '',
-      checkOut:         checkOut || '',
-      adults:           String(totalAdults),
-      children:         String(totalChildren),
-      rooms:            String(roomsList.length),
-    });
+    const qs = buildBaseParams();
+    qs.set('destination', destParam);
+    qs.set('destinationLabel', destinationLabel);
     if (wholeCountries.length) qs.set('countries', wholeCountries.map((c) => c.code).join(','));
     if (selCities.length)      qs.set('cities',    selCities.map((p) => p.code).join(','));
     if (selRegions.length)     qs.set('regions',   selRegions.map((p) => p.code).join(','));
-    // Carry the chosen duration band so the results page can show it and (later) offer the range.
-    qs.set('duration', band.label);
-    qs.set('minNights', String(band.minNights));
-    qs.set('maxNights', String(band.maxNights));
-    const childAges = roomsList.flatMap((r) => r.dobs).map(ageFromDob).filter((a) => a != null);
-    if (childAges.length) qs.set('childAges', childAges.join(','));
+    navigate(`/results?${qs.toString()}`);
+  };
+
+  // SEARCH tab — destination or hotel chosen via the typeahead. A hotel → results pinned to that
+  // one hotel; a destination → results for it; nothing picked → popular destinations.
+  const handleTypeaheadSearch = () => {
+    const qs = buildBaseParams();
+    if (pick?.type === 'hotel') {
+      // Guard against a hotel with no destinationCode so the URL never carries the literal
+      // "undefined" (no active hotel lacks one today — this just keeps the link well-formed if
+      // the data ever regresses; the hotelCode alone still pins the result).
+      if (pick.destinationCode) qs.set('destinations', pick.destinationCode);
+      qs.set('hotelCode', pick.hotelCode);
+      qs.set('destinationLabel', pick.name);
+    } else if (pick?.type === 'destination') {
+      qs.set('destinations', pick.code);
+      qs.set('destinationLabel', pick.name);
+    }
     navigate(`/results?${qs.toString()}`);
   };
 
@@ -299,6 +334,136 @@ export default function Hero() {
     const d = new Date(dateStr + 'T00:00:00');
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
+
+  // Shared "Departure + Duration + Travelers" fields — used by BOTH the Package and Search tabs
+  // (same state), so the two tabs differ only in how the destination is chosen.
+  const stayFields = (
+    <>
+      <div className={styles.sfDivider} />
+      <div className={styles.sf} onClick={() => packageDateRef.current?.showPicker()}>
+        <span className={styles.sfIcon}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+        </span>
+        <div className={styles.sfText}>
+          <span className={styles.sfLabel}>Departure</span>
+          <span className={`${styles.sfValue} ${!date ? styles.sfPlaceholder : ''}`}>{formatDate(date) || 'Pick a date'}</span>
+        </div>
+        <input ref={packageDateRef} type="date" className={styles.hiddenDateInput} value={date} onChange={(e) => setDate(e.target.value)} tabIndex={-1} />
+      </div>
+      <div className={styles.sfDivider} />
+      <div className={`${styles.sf} ${openField === 'duration' ? styles.sfActive : ''}`} onClick={() => toggleField('duration')}>
+        <span className={styles.sfIcon}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+        </span>
+        <div className={styles.sfText}>
+          <span className={styles.sfLabel}>Duration</span>
+          <span className={styles.sfValue}>{duration}</span>
+        </div>
+      </div>
+      <div className={styles.sfDivider} />
+      <div className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`} onClick={() => toggleField('travelers')}>
+        <span className={styles.sfIcon}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+        </span>
+        <div className={styles.sfText}>
+          <span className={styles.sfLabel}>Travelers</span>
+          <span className={styles.sfValue}>{travelersLabel}</span>
+        </div>
+      </div>
+    </>
+  );
+
+  const stayDropdowns = (
+    <>
+      {openField === 'duration' && (
+        <div className={`${styles.dropdown} ${styles.durDropdown}`}>
+          <div className={styles.durList}>
+            {DURATIONS.map((d) => (
+              <div key={d.label} className={`${styles.durOpt} ${duration === d.label ? styles.durOptActive : ''}`} onClick={() => { setDuration(d.label); setOpenField(null); }}>
+                <span>{d.label}</span>
+                {duration === d.label && (
+                  <svg className={styles.durCheck} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+      {openField === 'travelers' && (
+        <div className={`${styles.dropdown} ${styles.travDropdown}`}>
+          <div className={styles.travScroll}>
+            {roomsList.map((room, ri) => (
+              <div className={styles.roomCard} key={ri}>
+                <div className={styles.roomHead}>
+                  <span className={styles.roomTitle}>
+                    <span className={styles.roomBadge}>{ri + 1}</span>
+                    Room {ri + 1}
+                  </span>
+                  {ri > 0 && (
+                    <button className={styles.roomRemove} onClick={() => removeRoom(ri)}>
+                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                      Remove
+                    </button>
+                  )}
+                </div>
+                <div className={styles.travRow}>
+                  <div className={styles.travLabelWrap}>
+                    <span className={styles.travLabel}>Adults</span>
+                    <span className={styles.travSubInline}>(from 18 years)</span>
+                  </div>
+                  <div className={styles.stepper}>
+                    <button className={styles.stepperBtn} disabled={room.adults <= 1} onClick={() => setRoomAdults(ri, room.adults - 1)} aria-label="Remove adult">−</button>
+                    <span className={styles.stepperCount}>{room.adults}</span>
+                    <button className={styles.stepperBtn} disabled={room.adults >= 9} onClick={() => setRoomAdults(ri, room.adults + 1)} aria-label="Add adult">+</button>
+                  </div>
+                </div>
+                <div className={styles.travRow}>
+                  <div className={styles.travLabelWrap}>
+                    <span className={styles.travLabel}>Children</span>
+                    <span className={styles.travSubInline}>(0 to 17 years)</span>
+                  </div>
+                  <div className={styles.stepper}>
+                    <button className={styles.stepperBtn} disabled={room.children <= 0} onClick={() => setRoomChildren(ri, room.children - 1)} aria-label="Remove child">−</button>
+                    <span className={styles.stepperCount}>{room.children}</span>
+                    <button className={styles.stepperBtn} disabled={room.children >= 6} onClick={() => setRoomChildren(ri, room.children + 1)} aria-label="Add child">+</button>
+                  </div>
+                </div>
+                {room.children > 0 && (
+                  <div className={styles.travDobs}>
+                    <span className={styles.travDobsTitle}>Children's date of birth</span>
+                    {room.dobs.map((dob, ci) => {
+                      const age = ageFromDob(dob);
+                      return (
+                        <div className={styles.travDobRow} key={ci}>
+                          <span className={styles.travDobLabel}>
+                            Child {ci + 1}{age != null ? <em className={styles.travDobAge}>{age} yr{age === 1 ? '' : 's'}</em> : ''}
+                          </span>
+                          <input type="date" className={styles.travDobInput} value={dob} max={todayISO} onChange={(e) => updateChildDob(ri, ci, e.target.value)} />
+                        </div>
+                      );
+                    })}
+                    <span className={styles.travDobHint}>Children's ages help us price rooms &amp; flights correctly.</span>
+                  </div>
+                )}
+              </div>
+            ))}
+            {roomsList.length < MAX_ROOMS && (
+              <button className={styles.addRoomBtn} onClick={addRoom}>
+                <span className={styles.addRoomIcon}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                </span>
+                Add extra room
+              </button>
+            )}
+          </div>
+          <div className={styles.travFoot}>
+            <span className={styles.travSummary}>{travelersDetail}</span>
+            <button className={styles.doneBtn} onClick={() => setOpenField(null)}>Save</button>
+          </div>
+        </div>
+      )}
+    </>
+  );
 
   return (
     <section className={styles.hero}>
@@ -336,6 +501,13 @@ export default function Hero() {
 
         <div className={styles.modeTabs}>
           <button
+            className={`${styles.modeTab} ${searchMode === 'search' ? styles.modeTabActive : ''}`}
+            onClick={() => { setSearchMode('search'); setOpenField(null); }}
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+            Search
+          </button>
+          <button
             className={`${styles.modeTab} ${searchMode === 'package' ? styles.modeTabActive : ''}`}
             onClick={() => { setSearchMode('package'); setOpenField(null); }}
           >
@@ -351,7 +523,26 @@ export default function Hero() {
           </button>
         </div>
 
-        {/* ── PACKAGE SEARCH ── */}
+        {/* ── SEARCH tab — typeahead: find a hotel OR a destination by name ── */}
+        {searchMode === 'search' && (
+        <div className={styles.searchBarWrap} ref={searchBarRef}>
+          <div className={styles.searchBar}>
+            <DestinationSearch
+              displayText={searchDisplayText}
+              onSelect={handleTypeaheadSelect}
+              onBrowseAll={() => { setSearchMode('package'); setOpenField(null); }}
+            />
+            {stayFields}
+            <button className={styles.searchBtn} onClick={handleTypeaheadSearch}>
+              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+              {cmsSearchBtn}
+            </button>
+          </div>
+          {stayDropdowns}
+        </div>
+        )}
+
+        {/* ── PACKAGE SEARCH — destination via country → destination modal (unchanged) ── */}
         {searchMode === 'package' && (
         <div className={styles.searchBarWrap} ref={searchBarRef}>
           <div className={styles.searchBar}>
@@ -378,162 +569,13 @@ export default function Hero() {
                 </span>
               </div>
             </div>
-            <div className={styles.sfDivider} />
-            <div
-              className={styles.sf}
-              onClick={() => packageDateRef.current?.showPicker()}
-            >
-              <span className={styles.sfIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-              </span>
-              <div className={styles.sfText}>
-                <span className={styles.sfLabel}>Departure</span>
-                <span className={`${styles.sfValue} ${!date ? styles.sfPlaceholder : ''}`}>{formatDate(date) || 'Pick a date'}</span>
-              </div>
-              <input
-                ref={packageDateRef}
-                type="date"
-                className={styles.hiddenDateInput}
-                value={date}
-                onChange={(e) => setDate(e.target.value)}
-                tabIndex={-1}
-              />
-            </div>
-            <div className={styles.sfDivider} />
-            <div
-              className={`${styles.sf} ${openField === 'duration' ? styles.sfActive : ''}`}
-              onClick={() => toggleField('duration')}
-            >
-              <span className={styles.sfIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-              </span>
-              <div className={styles.sfText}>
-                <span className={styles.sfLabel}>Duration</span>
-                <span className={styles.sfValue}>{duration}</span>
-              </div>
-            </div>
-            <div className={styles.sfDivider} />
-            <div
-              className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`}
-              onClick={() => toggleField('travelers')}
-            >
-              <span className={styles.sfIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-              </span>
-              <div className={styles.sfText}>
-                <span className={styles.sfLabel}>Travelers</span>
-                <span className={styles.sfValue}>{travelersLabel}</span>
-              </div>
-            </div>
+            {stayFields}
             <button className={styles.searchBtn} onClick={handleSearch}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
               {cmsSearchBtn}
             </button>
           </div>
-
-          {openField === 'duration' && (
-            <div className={`${styles.dropdown} ${styles.durDropdown}`}>
-              <div className={styles.durList}>
-                {DURATIONS.map((d) => (
-                  <div
-                    key={d.label}
-                    className={`${styles.durOpt} ${duration === d.label ? styles.durOptActive : ''}`}
-                    onClick={() => { setDuration(d.label); setOpenField(null); }}
-                  >
-                    <span>{d.label}</span>
-                    {duration === d.label && (
-                      <svg className={styles.durCheck} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
-          )}
-
-          {openField === 'travelers' && (
-            <div className={`${styles.dropdown} ${styles.travDropdown}`}>
-              <div className={styles.travScroll}>
-                {roomsList.map((room, ri) => (
-                  <div className={styles.roomCard} key={ri}>
-                    <div className={styles.roomHead}>
-                      <span className={styles.roomTitle}>
-                        <span className={styles.roomBadge}>{ri + 1}</span>
-                        Room {ri + 1}
-                      </span>
-                      {ri > 0 && (
-                        <button className={styles.roomRemove} onClick={() => removeRoom(ri)}>
-                          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                          Remove
-                        </button>
-                      )}
-                    </div>
-
-                    <div className={styles.travRow}>
-                      <div className={styles.travLabelWrap}>
-                        <span className={styles.travLabel}>Adults</span>
-                        <span className={styles.travSubInline}>(from 18 years)</span>
-                      </div>
-                      <div className={styles.stepper}>
-                        <button className={styles.stepperBtn} disabled={room.adults <= 1} onClick={() => setRoomAdults(ri, room.adults - 1)} aria-label="Remove adult">−</button>
-                        <span className={styles.stepperCount}>{room.adults}</span>
-                        <button className={styles.stepperBtn} disabled={room.adults >= 9} onClick={() => setRoomAdults(ri, room.adults + 1)} aria-label="Add adult">+</button>
-                      </div>
-                    </div>
-
-                    <div className={styles.travRow}>
-                      <div className={styles.travLabelWrap}>
-                        <span className={styles.travLabel}>Children</span>
-                        <span className={styles.travSubInline}>(0 to 17 years)</span>
-                      </div>
-                      <div className={styles.stepper}>
-                        <button className={styles.stepperBtn} disabled={room.children <= 0} onClick={() => setRoomChildren(ri, room.children - 1)} aria-label="Remove child">−</button>
-                        <span className={styles.stepperCount}>{room.children}</span>
-                        <button className={styles.stepperBtn} disabled={room.children >= 6} onClick={() => setRoomChildren(ri, room.children + 1)} aria-label="Add child">+</button>
-                      </div>
-                    </div>
-
-                    {room.children > 0 && (
-                      <div className={styles.travDobs}>
-                        <span className={styles.travDobsTitle}>Children's date of birth</span>
-                        {room.dobs.map((dob, ci) => {
-                          const age = ageFromDob(dob);
-                          return (
-                            <div className={styles.travDobRow} key={ci}>
-                              <span className={styles.travDobLabel}>
-                                Child {ci + 1}{age != null ? <em className={styles.travDobAge}>{age} yr{age === 1 ? '' : 's'}</em> : ''}
-                              </span>
-                              <input
-                                type="date"
-                                className={styles.travDobInput}
-                                value={dob}
-                                max={todayISO}
-                                onChange={(e) => updateChildDob(ri, ci, e.target.value)}
-                              />
-                            </div>
-                          );
-                        })}
-                        <span className={styles.travDobHint}>Children's ages help us price rooms &amp; flights correctly.</span>
-                      </div>
-                    )}
-                  </div>
-                ))}
-
-                {roomsList.length < MAX_ROOMS && (
-                  <button className={styles.addRoomBtn} onClick={addRoom}>
-                    <span className={styles.addRoomIcon}>
-                      <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                    </span>
-                    Add extra room
-                  </button>
-                )}
-              </div>
-
-              <div className={styles.travFoot}>
-                <span className={styles.travSummary}>{travelersDetail}</span>
-                <button className={styles.doneBtn} onClick={() => setOpenField(null)}>Save</button>
-              </div>
-            </div>
-          )}
+          {stayDropdowns}
         </div>
         )}
 
