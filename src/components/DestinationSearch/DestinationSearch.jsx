@@ -59,7 +59,15 @@ export default function DestinationSearch({ onSelect, onBrowseAll, autoFocus = f
     const id = ++reqRef.current;
     const t = setTimeout(async () => {
       const r = await searchDestinationsAndHotels(q);
-      if (id === reqRef.current) { setResults(r); setLoading(false); }
+      if (id === reqRef.current) {
+        // Some source names carry stray whitespace; trim so the field, the label and the results
+        // banner never render a doubled space ("Stays in  Ana y Jose…").
+        setResults({
+          hotels: (r.hotels || []).map((h) => ({ ...h, name: (h.name || '').trim() })),
+          destinations: (r.destinations || []).map((d) => ({ ...d, name: (d.name || '').trim() })),
+        });
+        setLoading(false);
+      }
     }, 220);
     return () => clearTimeout(t);
   }, [query]);
