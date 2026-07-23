@@ -112,20 +112,60 @@
 .hmWrap {
   position: relative; flex-shrink: 0;
 }
+/* Light "gate card" triggers — present at a glance, but tuned well below the
+   ticket's weight (0.55 white vs its solid #fff + gold ring) so the centrepiece
+   hierarchy holds. */
 .hmBtn {
-  display: flex; align-items: center; gap: 7px;
-  height: 38px; padding: 0 13px; border-radius: var(--r-full);
-  border: 1px solid transparent; background: transparent; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+  height: 38px; padding: 0 12px; border-radius: var(--r-full);
+  border: 1px solid rgba(199, 119, 0, 0.2);
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
   font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 700;
   color: var(--text); white-space: nowrap;
+  transition: background 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+.hmBtnIcon { display: flex; color: var(--blue-deep); transition: color 0.25s var(--ease), transform 0.35s var(--ease-spring); }
+.hmBtn:hover, .hmBtnOpen {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(199, 119, 0, 0.34);
+  box-shadow: 0 3px 10px rgba(31, 40, 80, 0.06);
+}
+.hmBtn:hover .hmBtnIcon, .hmBtnOpen .hmBtnIcon { color: var(--sun-orange); transform: translateY(-1px); }
+
+/* The golden thread, trigger side: a gold line draws under the label on hover
+   and stays while open. Draw direction respects which side of the ticket the
+   menu sits on — the right menu's thread draws from the right. */
+.hmBtnLabel { position: relative; }
+.hmBtnLabel::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -4px;
+  height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.28s var(--ease);
+}
+.hmFromRight .hmBtnLabel::after {
+  transform-origin: right;
+  background: linear-gradient(270deg, var(--sun-orange), var(--sun-gold));
+}
+.hmBtn:hover .hmBtnLabel::after, .hmBtnOpen .hmBtnLabel::after { transform: scaleX(1); }
+
+/* Gate-count stamp — the manifest's fare-stamp recipe carrying a real count.
+   Blue at rest; heats amber while the gate is open. */
+.hmStamp {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.4px;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px; border-radius: 6px;
+  background: rgba(31, 79, 216, 0.05);
+  border: 1px solid rgba(31, 79, 216, 0.3);
+  color: var(--blue-deep);
   transition: background 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease);
 }
-.hmBtnIcon { display: flex; color: var(--blue-deep); transition: color 0.25s var(--ease); }
-.hmBtn:hover, .hmBtnOpen {
-  background: rgba(255, 255, 255, 0.72);
-  border-color: rgba(199, 119, 0, 0.24);
+.hmBtn:hover .hmStamp, .hmBtnOpen .hmStamp {
+  background: rgba(255, 159, 28, 0.07);
+  border-color: rgba(199, 119, 0, 0.35);
+  color: #c7770a;
 }
-.hmBtn:hover .hmBtnIcon, .hmBtnOpen .hmBtnIcon { color: var(--sun-orange); }
 .hmChevron { color: var(--text-sec); transition: transform 0.3s var(--ease); flex-shrink: 0; }
 .hmChevronUp { transform: rotate(180deg); }
 
@@ -146,11 +186,29 @@
 @keyframes hmIn { from { opacity: 0; transform: translateY(-6px) scale(0.985); } to { opacity: 1; transform: none; } }
 
 .hmStrip {
+  position: relative;
   margin: -7px -7px 4px; padding: 9px 16px 8px;
   background: linear-gradient(180deg, #fff9ee, #fffdf8);
+  /* The static hairline stays beneath the thread — it is also the
+     reduced-motion fallback. */
   border-bottom: 1px solid rgba(199, 119, 0, 0.18);
   border-radius: 15px 15px 0 0;
 }
+/* The golden thread, panel side: the trigger's underline visibly continues —
+   re-drawing across the cream strip from the trigger's side just after the
+   panel lands. One draw, then still. */
+.hmStrip::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
+  transform: scaleX(0); transform-origin: left;
+  animation: hmThread 0.3s var(--ease) 0.06s both;
+}
+.hmFromRight .hmStrip::after {
+  transform-origin: right;
+  background: linear-gradient(270deg, var(--sun-orange), var(--sun-gold));
+}
+@keyframes hmThread { to { transform: scaleX(1); } }
 .hmTally {
   font-size: 10px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
   color: #b07a18; font-variant-numeric: tabular-nums;
@@ -191,6 +249,10 @@
 
 @media (prefers-reduced-motion: reduce) {
   .hmPanel, .hmItem { animation: none; }
+  /* Thread rests fully drawn; the static hairline still separates the strip. */
+  .hmStrip::after { animation: none; transform: scaleX(1); }
+  .hmBtnLabel::after { transition: none; }
+  .hmBtnIcon { transition: color 0.25s var(--ease); }
 }
 
 /* ── Auth area ── */

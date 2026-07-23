@@ -77,6 +77,33 @@
 /* The same gesture as the logo hover — house motion, not a new trick. */
 .wrap:focus-within .stub svg { transform: rotate(-8deg) scale(1.08); }
 
+/* ── Runway lights ── */
+/* A strip of gold dashes just under the ticket, dark at rest; focusing the
+   field lights them left-to-right once — the runway is lit, you can depart.
+   State-carrying (only while engaged), never ambient. */
+.runway {
+  position: absolute; left: 14px; right: 14px; bottom: -6px;
+  height: 2px; border-radius: 1px; pointer-events: none;
+  background: repeating-linear-gradient(90deg,
+    var(--sun-gold, #ffd166) 0 6px, transparent 6px 13px);
+  opacity: 0;
+  /* A soft-edged opaque half over a double-width mask; sliding mask-position
+     (which interpolates, unlike mask-image) sweeps the lit region across. */
+  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
+  -webkit-mask-size: 220% 100%; mask-size: 220% 100%;
+  -webkit-mask-position: 0 0; mask-position: 0 0;
+  transition: opacity 0.2s var(--ease);
+}
+.wrap:focus-within .runway {
+  opacity: 1;
+  animation: runwayLight 0.55s var(--ease) both;
+}
+@keyframes runwayLight {
+  from { -webkit-mask-position: 120% 0; mask-position: 120% 0; }
+  to   { -webkit-mask-position: 0 0;    mask-position: 0 0; }
+}
+
 /* ── The perforation ── */
 .perf {
   width: 1px; height: 100%; flex-shrink: 0;
@@ -153,9 +180,20 @@
   position: sticky; top: -7px; z-index: 2;
   margin: -7px -7px 4px; padding: 9px 16px 8px;
   background: linear-gradient(180deg, #fff9ee, #fffdf8);
+  /* Static hairline stays beneath the thread — also the reduced-motion state. */
   border-bottom: 1px solid rgba(199, 119, 0, 0.18);
   border-radius: 15px 15px 0 0;
 }
+/* The golden thread, manifest side: draws from the stub's side (left) when the
+   manifest opens — the same stitch the header menus make with their panels. */
+.tallyStrip::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--sun-orange, #ff9f1c), var(--sun-gold, #ffd166));
+  transform: scaleX(0); transform-origin: left;
+  animation: dsThread 0.3s var(--ease) 0.06s both;
+}
+@keyframes dsThread { to { transform: scaleX(1); } }
 .tally {
   font-size: 10px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
   color: #b07a18; font-variant-numeric: tabular-nums;
@@ -261,4 +299,7 @@
   .wrap::before, .wrap::after { animation: none; opacity: 0; }
   .stub svg, .perf { transition: none; }
   .wrap:focus-within .stub svg { transform: none; }
+  /* Runway simply fades in fully lit; thread rests fully drawn. */
+  .wrap:focus-within .runway { animation: none; }
+  .tallyStrip::after { animation: none; transform: scaleX(1); }
 }

@@ -5,6 +5,13 @@ import styles from './Navbar.module.css';
 // search results panel: cream tally strip, icon-tile rows, staggered rise, boarding-bar
 // hover. Click to open; closes on outside click, Escape, or a pick.
 //
+// Two elevation motifs live here (design-panel winners):
+// - Gate-count stamp: the trigger carries its item count zero-padded ("07"), set in the
+//   manifest's fare-stamp recipe — blue at rest, heating amber while open.
+// - Golden thread: hovering draws a gold line under the label; opening re-draws that same
+//   line across the panel's cream strip FROM THE TRIGGER'S SIDE, stitching the two
+//   together. The side-aware classes keep the draw direction honest for the right menu.
+//
 // items: [{ key, label, sub, icon, onPick }]
 export default function HeaderMenu({ label, buttonIcon, tally, items, align = 'left' }) {
   const [open, setOpen] = useState(false);
@@ -21,17 +28,20 @@ export default function HeaderMenu({ label, buttonIcon, tally, items, align = 'l
 
   if (!items.length) return null;
 
+  const sideClass = align === 'right' ? styles.hmFromRight : '';
+
   return (
     <div className={styles.hmWrap} ref={ref}>
       <button
         type="button"
-        className={`${styles.hmBtn} ${open ? styles.hmBtnOpen : ''}`}
+        className={`${styles.hmBtn} ${sideClass} ${open ? styles.hmBtnOpen : ''}`}
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
       >
         <span className={styles.hmBtnIcon}>{buttonIcon}</span>
-        {label}
+        <span className={styles.hmBtnLabel}>{label}</span>
+        <span className={styles.hmStamp} aria-hidden="true">{String(items.length).padStart(2, '0')}</span>
         <svg
           className={`${styles.hmChevron} ${open ? styles.hmChevronUp : ''}`}
           width="12" height="12" viewBox="0 0 24 24" fill="none"
@@ -42,7 +52,7 @@ export default function HeaderMenu({ label, buttonIcon, tally, items, align = 'l
       </button>
 
       {open && (
-        <div className={`${styles.hmPanel} ${align === 'right' ? styles.hmPanelRight : ''}`} role="menu">
+        <div className={`${styles.hmPanel} ${sideClass} ${align === 'right' ? styles.hmPanelRight : ''}`} role="menu">
           <div className={styles.hmStrip}><span className={styles.hmTally}>{tally}</span></div>
           {items.map((it, i) => (
             <button
