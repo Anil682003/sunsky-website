@@ -75,12 +75,26 @@
    are not, so it is pinned to the bar's true centre instead. */
 .headerSearch {
   position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  display: flex; align-items: center; gap: 8px;
-  /* 58vw clears the logged-OUT auth block (Sign In + Register, the widest case)
-     at 1280 with margin to spare; 820px caps it on wide screens. */
-  width: min(820px, 58vw); z-index: 5;
+  /* space-between pushes the menus to the cluster's far edges; the ticket sits
+     in the middle behind a max-width cap, so the leftover space becomes clear
+     air around it. 60vw clears the logged-OUT auth block (the widest case) at
+     1280; the 1040px cap lets wide screens open up real breathing room. */
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  /* 55vw keeps the right menu clear of the logged-OUT auth block (Sign In +
+     Register, ~228px) at 1280 with ~19px to spare; 1100px caps very wide
+     screens. On wide viewports the leftover feeds real air around the search. */
+  width: min(1100px, 55vw); z-index: 5;
 }
-.searchGrow { flex: 1 1 auto; min-width: 0; }
+.searchGrow {
+  flex: 1 1 auto; min-width: 0;
+  /* Capped in the middle so, once the cluster is wider than menus + search,
+     space-between spills the rest into clear air on either side of the ticket.
+     The air therefore grows with the viewport (none at 1280, ~100px at 1920). */
+  max-width: clamp(360px, 28vw, 480px);
+  transition: max-width 0.4s var(--ease);
+}
+/* The focus bloom lifts the cap — the ticket sweeps the whole cluster. */
+.headerSearchFocused .searchGrow { max-width: 100%; }
 
 /* The flanking menus need elbow room; below ~1180px they yield it all to the
    ticket, which returns to its solo width. */
