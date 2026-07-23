@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -6,6 +6,7 @@ import mainLogoFallback from '../../assets/main-logo.png';
 import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
+import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
 
 const SERVICES = [
@@ -93,6 +94,26 @@ export default function Navbar() {
     navigate('/');
   };
 
+  // The search's idle "Popular right now" chips, drawn from the CMS popular-destination groups
+  // the homepage already fetches — zero extra API calls. groupLinkUrl builds the right params
+  // per entry (whole countries → ?countries=, cities → ?destinations=); unlinked legacy strings
+  // drop out. De-duped by label, capped at 6. The same names feed the pill's typewriter.
+  const searchSuggestions = useMemo(() => {
+    const seen = new Set();
+    const out = [];
+    for (const g of cmsConfig?.popularDestinationGroups ?? []) {
+      for (const link of g?.links ?? []) {
+        const url = groupLinkUrl(link);
+        const label = groupLinkLabel(link);
+        if (!url || !label || seen.has(label)) continue;
+        seen.add(label);
+        out.push({ label, url });
+        if (out.length >= 6) return out;
+      }
+    }
+    return out;
+  }, [cmsConfig]);
+
   // Header search — a picked hotel pins that one hotel; a picked destination opens results for it.
   // The results page fills the rest (dates default to today+30/+37, 2 adults, 1 room).
   const goToSearchResult = (item) => {
@@ -110,6 +131,13 @@ export default function Navbar() {
     setMobileOpen(false);
   };
 
+  // Suggestion chips carry a prebuilt URL (their country/city params differ per entry).
+  const goToSuggestion = (url) => {
+    if (!url) return;
+    navigate(url);
+    setMobileOpen(false);
+  };
+
   return (
     <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
 
@@ -118,7 +146,7 @@ export default function Navbar() {
           mobile, where it moves into the drawer. */}
       {isHome && (
         <div className={styles.headerSearch}>
-          <DestinationSearch onSelect={goToSearchResult} />
+          <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
         </div>
       )}
 
@@ -239,7 +267,7 @@ export default function Navbar() {
         <div className={styles.mobile}>
           {isHome && (
             <div className={styles.mobileSearch}>
-              <DestinationSearch onSelect={goToSearchResult} />
+              <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
             </div>
           )}
           <div className={styles.mobileLinks}>
