@@ -7,9 +7,16 @@ describe('formatReview', () => {
       score: '4.4',
       fillPct: 88,                       // 4.4 / 5
       label: 'TripAdvisor',
+      count: 756,
       meta: 'TripAdvisor · 756 reviews',
       title: '4.4 of 5 on TripAdvisor from 756 reviews',
     });
+  });
+
+  it('returns the numeric count (0 when unknown) for the caller to format', () => {
+    expect(formatReview({ rate: 4.1, count: 12456, type: 'TRIPADVISOR', outOf: 5 }).count).toBe(12456);
+    expect(formatReview({ rate: 4.1, count: 0, type: 'TRIPADVISOR', outOf: 5 }).count).toBe(0);
+    expect(formatReview({ rate: 4.1, type: 'TRIPADVISOR', outOf: 5 }).count).toBe(0);
   });
 
   it('groups the review count with thousands separators', () => {

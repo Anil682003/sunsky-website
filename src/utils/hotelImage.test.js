@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hotelImage, hotelImageForWidth, VARIANT_WIDTH } from './hotelImage';
+import { hotelImage, hotelImageForWidth, hotelImageChain, VARIANT_WIDTH } from './hotelImage';
 
 const CDN = 'https://photos.hotelbeds.com/giata/';
 const PATH = '00/000022/000022a_hb_a_005.jpg';
@@ -67,11 +67,17 @@ describe('hotelImageForWidth', () => {
     expect(VARIANT_WIDTH.medium).toBeGreaterThanOrEqual(38 * 2);
   });
 
-  it('steps up as the render box grows', () => {
-    expect(hotelImageForWidth(url, 100, 1)).toBe(`${CDN}medium/${PATH}`);   // 100
-    expect(hotelImageForWidth(url, 300, 1)).toBe(url);                      // 300 → default 320
-    expect(hotelImageForWidth(url, 360, 2)).toBe(`${CDN}bigger/${PATH}`);   // 720
-    expect(hotelImageForWidth(url, 900, 2)).toBe(`${CDN}xl/${PATH}`);       // 1800
+  it('steps up as the render box grows, skipping the unreliable xl', () => {
+    expect(hotelImageForWidth(url, 100, 1)).toBe(`${CDN}medium/${PATH}`);    // 100
+    expect(hotelImageForWidth(url, 300, 1)).toBe(url);                       // 300 → default 320
+    expect(hotelImageForWidth(url, 360, 2)).toBe(`${CDN}bigger/${PATH}`);    // 720
+    expect(hotelImageForWidth(url, 900, 2)).toBe(`${CDN}original/${PATH}`);  // 1800 → original, never xl
+  });
+
+  it('never returns the xl variant, which 403s for many images', () => {
+    for (const [w, dpr] of [[900, 2], [1200, 2], [500, 3], [700, 2]]) {
+      expect(hotelImageForWidth(url, w, dpr)).not.toContain('/xl/');
+    }
   });
 
   it('accounts for device pixel ratio', () => {
@@ -86,5 +92,50 @@ describe('hotelImageForWidth', () => {
   it('still leaves non-Hotelbeds URLs alone', () => {
     const other = 'https://example.com/a.jpg';
     expect(hotelImageForWidth(other, 800, 2)).toBe(other);
+  });
+});
+
+describe('hotelImageChain', () => {
+  const url = CDN + PATH;
+
+  it('lists the requested size, then progressively safer sizes down to default', () => {
+    expect(hotelImageChain(url, 'original')).toEqual([
+      `${CDN}original/${PATH}`, `${CDN}bigger/${PATH}`, url,
+    ]);
+    expect(hotelImageChain(url, 'bigger')).toEqual([`${CDN}bigger/${PATH}`, url]);
+    expect(hotelImageChain(url, 'default')).toEqual([url]);
+  });
+
+  it('NEVER includes the xl variant in the fallback chain', () => {
+    for (const size of ['original', 'bigger', 'default', 'medium', 'small']) {
+      expect(hotelImageChain(url, size).some((u) => u.includes('/xl/'))).toBe(false);
+    }
+  });
+
+  it('always ends at default, the size the CDN never fails to serve', () => {
+    for (const size of ['original', 'bigger']) {
+      expect(hotelImageChain(url, size).at(-1)).toBe(url);
+    }
+  });
+
+  it('rebuilds from a URL that already carries a (broken) size', () => {
+    // The card slider hands us whatever variant it last showed; the chain must strip it.
+    expect(hotelImageChain(`${CDN}xl/${PATH}`, 'bigger')).toEqual([`${CDN}bigger/${PATH}`, url]);
+  });
+
+  it('a small-box request keeps its size, then falls to the reliable default', () => {
+    expect(hotelImageChain(url, 'small')).toEqual([`${CDN}small/${PATH}`, url]);
+    expect(hotelImageChain(url, 'medium')).toEqual([`${CDN}medium/${PATH}`, url]);
+  });
+
+  it('a non-Hotelbeds URL yields just itself — nothing to fall back through', () => {
+    const ovh = 'https://sunsky-assets.s3.rbx.io.cloud.ovh.net/hotels/x.jpg';
+    expect(hotelImageChain(ovh, 'original')).toEqual([ovh]);
+  });
+
+  it('empty input yields an empty chain', () => {
+    expect(hotelImageChain(null, 'bigger')).toEqual([]);
+    expect(hotelImageChain('', 'bigger')).toEqual([]);
+    expect(hotelImageChain(undefined, 'bigger')).toEqual([]);
   });
 });

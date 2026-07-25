@@ -1,10 +1,10 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { useSearchParams, useNavigate } from 'react-router-dom';
+import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations } from '../../api/filters';
 import { rememberDestCode } from '../../utils/favDest';
-import { hotelImage } from '../../utils/hotelImage';
+import HotelImg from '../../components/HotelImg/HotelImg';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -18,24 +18,22 @@ const CHILD_AGE_DEFAULT = 8;
 const LARGE_CODES = 150;
 const MANY_DESTINATIONS = 8;
 
-// Card images are painted into a 280-360 x 204 CSS box — ~720x408 real pixels on a 2x
-// screen. The API's default photo is 320x213, so it must be requested one size up or every
-// card looks soft. The lightbox is full-screen and needs one more step again.
-const CARD_IMG = 'bigger';       // 800x533
-const LIGHTBOX_IMG = 'xl';       // 1024x683
-
+// Photo URLs are kept CANONICAL (default size); each <HotelImg> requests the size its box
+// needs (`bigger` for a card, `original` for the lightbox) and falls back if that size is
+// missing — many Hotelbeds images lack the larger variants (`xl` 403s), which is what left
+// gallery frames blank. The card box is ~360px (720 on a 2x screen); the lightbox is full.
 const bestImg = (images, fallback) => {
   if (!Array.isArray(images) || images.length === 0) return fallback;
   const sorted = [...images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-  return hotelImage(sorted[0]?.url, CARD_IMG) || fallback;
+  return sorted[0]?.url || fallback;
 };
 
-// All of a hotel's photo URLs, ordered — feeds the full-screen lightbox slider.
+// All of a hotel's photo URLs, ordered — feeds the inline card slider and the lightbox.
 const allImgs = (images) => {
   if (!Array.isArray(images) || images.length === 0) return [];
   return [...images]
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-    .map((im) => hotelImage(im?.url, LIGHTBOX_IMG))
+    .map((im) => im?.url)
     .filter(Boolean);
 };
 
@@ -531,6 +529,9 @@ export default function Results() {
           // A specific hotel (typeahead) pins the result to just that hotel. Otherwise restrict
           // the cache to the resolved hotelCodes only when a content facet is active.
           hotelCodes: urlHotelCode ? [urlHotelCode] : (needCodes ? (r.hotelCodes || []) : null),
+          // Empty-search teaser → fast external-only path (avoids the slow Diana leg that 502s);
+          // a real, place-specific search keeps the full combined supplier set.
+          source: usingDefaultScope ? 'external' : 'combined',
         });
         setFacetsStatus('ok');
       })
@@ -545,6 +546,7 @@ export default function Results() {
         setPriceScope({
           destinations: scope.destinations,
           hotelCodes: urlHotelCode ? [urlHotelCode] : (needCodes ? [] : null),
+          source: usingDefaultScope ? 'external' : 'combined',
         });
       });
     return () => { live = false; ctrl.abort(); };
@@ -586,7 +588,12 @@ export default function Results() {
       limit:              String(over.pageSize ?? PAGE_SIZE),
       pageSize:           String(over.pageSize ?? PAGE_SIZE),
       page:               String(page),
-      source:             'combined',
+      // 'combined' searches BOTH the external cache (Hotelbeds) and the internal supplier
+      // (Diana, over SOAP). Diana is the slow half: an 8-destination combined search measured
+      // ~17s COLD and tripped the cache gateway's timeout → the 502 on the empty-search
+      // landing. The landing is a "popular deals" teaser, so it uses the external cache only
+      // (~2s, reliable); a real, place-specific search keeps 'combined' for full coverage.
+      source:             ps.source || 'combined',
       maxAdultsPerRoom:   maxA,
       maxChildrenPerRoom: maxC,
     };
@@ -1574,7 +1581,7 @@ export default function Results() {
                 <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
                   <div className={styles.rcImg}>
                     {infoReady
-                      ? <img src={curImg} alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
+                      ? <HotelImg key={curImg} src={curImg} size="bigger" alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
                       : <div className={styles.rcImgSkel} />}
                     <div className={styles.rcImgOverlay} />
                     {infoReady && gallery.length > 0 && (
@@ -1703,15 +1710,13 @@ export default function Results() {
                           <strong>{h.currency} {(total / nights).toFixed(2)}</strong> / night
                         </div>
                       )}
-                      <a
-                        className={styles.rcCta}
-                        href={detailHref(h, dispName, dispStars, hotelDest, curImg)}
-                        target="_blank"
-                        rel="noopener noreferrer"
-                      >
+                      {/* Opens in the SAME tab (client-side nav). It stays a real link, so a
+                          power user can still cmd/ctrl/middle-click to open a new tab by choice
+                          — we just no longer force one on every click. */}
+                      <Link className={styles.rcCta} to={detailHref(h, dispName, dispStars, hotelDest, curImg)}>
                         View Deal
                         <Icon d="M5 12h14M12 5l7 7-7 7" size={14} sw={2.2} />
-                      </a>
+                      </Link>
                     </div>
                   </div>
                 </article>
@@ -1769,11 +1774,12 @@ export default function Results() {
               </button>
             )}
 
-            <img
+            <HotelImg
               key={lightbox.index}
-              // Full-screen inspection → the CDN's `original` (2048x1365). The gallery array
-              // is `xl` for the inline card slider; this one surface wants the sharpest source.
-              src={hotelImage(lightbox.images[lightbox.index], 'original')}
+              // Full-screen inspection → request `original` (2048x1365); HotelImg steps down if
+              // a given image lacks it, so the lightbox always opens something.
+              src={lightbox.images[lightbox.index]}
+              size="original"
               alt={`${lightbox.name} — photo ${lightbox.index + 1}`}
               className={styles.lbImg}
               onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }}

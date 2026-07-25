@@ -27,6 +27,7 @@ export function formatReview(review) {
     score,                                               // "4.4"
     fillPct,                                             // 0–100, for the bubble fill width
     label,                                               // "TripAdvisor" | "Guest rating"
+    count: hasCount ? count : 0,                         // numeric review count (0 = unknown)
     meta: [label, countText].filter(Boolean).join(' · '),
     title: `${score} of ${outOf} on ${label}${hasCount ? ` from ${countText}` : ''}`,
   };

@@ -4,7 +4,7 @@ import { useSelector } from 'react-redux';
 import axiosInstance from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { rememberDestCode } from '../../utils/favDest';
-import { hotelImage } from '../../utils/hotelImage';
+import HotelImg from '../../components/HotelImg/HotelImg';
 import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
 import { formatReview } from '../../utils/reviewBadge';
 import { useToast } from '../../context/ToastContext';
@@ -273,12 +273,17 @@ function GuestRating({ review }) {
   if (!r) return null;
   return (
     <span className="sd-rating" title={r.title}>
-      <span className="sd-rating-score">{r.score}</span>
-      <span className="sd-rating-bubbles" aria-hidden="true">
-        <span className="sd-rating-bubbles-base">{'●●●●●'}</span>
-        <span className="sd-rating-bubbles-fill" style={{ width: `${r.fillPct}%` }}>{'●●●●●'}</span>
+      <span className="sd-rating-badge">{r.score}</span>
+      <span className="sd-rating-body">
+        <span className="sd-rating-bubbles" aria-hidden="true">
+          <span className="sd-rating-bubbles-base">{'●●●●●'}</span>
+          <span className="sd-rating-bubbles-fill" style={{ width: `${r.fillPct}%` }}>{'●●●●●'}</span>
+        </span>
+        <span className="sd-rating-meta">
+          <span className="sd-rating-src">{r.label}</span>
+          {r.count > 0 && <span className="sd-rating-count">{r.count.toLocaleString('en-GB')} reviews</span>}
+        </span>
       </span>
-      <span className="sd-rating-meta">{r.meta}</span>
     </span>
   );
 }
@@ -334,11 +339,12 @@ export default function HotelDetail() {
   const nights = state?.nights || Number(qp('nights')) || 7;
   const ppPrice = hotel?.totalAmount ? Math.round(hotel.totalAmount / 2) : 765;
 
-  // real photos from the bulk hotel record (fallback to demo gallery).
-  // Requested at `xl` (1024x683): this gallery is the biggest photo on the site, and the
-  // API's default 320x213 is upscaled to mush across a full-width hero on a retina screen.
+  // real photos from the bulk hotel record (fallback to demo gallery). Kept as the CANONICAL
+  // (default-size) URLs; each <HotelImg> below requests the size its box needs and falls back
+  // safely if that size is missing — so the array is also safe to hand to checkout/favourites
+  // as a plain reference.
   const realImages = Array.isArray(info?.images) && info.images.length
-    ? [...info.images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999)).map((im) => hotelImage(im.url, 'xl')).filter(Boolean)
+    ? [...info.images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999)).map((im) => im.url).filter(Boolean)
     : null;
   const images = realImages && realImages.length ? realImages.slice(0, 30) : [hotel?.img || GALLERY[0], ...GALLERY.slice(1)];
   const photoCount = realImages?.length || 48;
@@ -608,24 +614,12 @@ export default function HotelDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Fetch the TripAdvisor rating once, on entry. The live availability call is the only source
-  // of it, so we make one here with the search's dates — the rating is hotel-static, so this
-  // never re-runs when the traveller changes the date. Purely additive: a failure leaves the
-  // hero exactly as it was, and the page never waits on it.
-  useEffect(() => {
-    if (!hotelCode || !baseCheckIn || !baseCheckOut) return;
-    let cancelled = false;
-    axiosInstance.post('/hotel-availability/search', {
-      hotelCode: String(hotelCode), checkin: baseCheckIn, checkout: baseCheckOut,
-      adults: Number(sAdults) || 2, children: Number(sChildren) || 0,
-      childAges: sChildAges ? sChildAges.split(',').map(Number) : [],
-      rooms: Number(sRooms) || 1,
-    })
-      .then(({ data }) => { if (!cancelled && data?.review) setReview(data.review); })
-      .catch(() => { /* a missing rating is not an error — leave the hero unchanged */ });
-    return () => { cancelled = true; };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotelCode, baseCheckIn, baseCheckOut]);
+  // NOTE: the TripAdvisor rating is NOT fetched on mount. It comes only from the live
+  // availability API, and firing that call on every page open — before the traveller has
+  // engaged with anything — is exactly the kind of eager live-supplier hit we avoid. The
+  // rating instead rides on the availability response that the FIRST date selection already
+  // triggers (see selectDay), so the badge appears once live prices are being loaded and costs
+  // no extra supplier call.
 
   // ── keep the transfer pickup aligned with the SELECTED flight's arrival time —
   //    when the customer picks a different flight, the transfer availability is
@@ -675,8 +669,8 @@ export default function HotelDetail() {
       })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
       setSelectedRoom((p) => ({ ...p, live: 0 }));
       setLiveRooms({ rooms, cheapest: data?.results?.cheapest || null });
-      // Same rating rides on every availability response — adopt it if the mount fetch hasn't
-      // landed yet, so the hero badge is never left empty when prices are already showing.
+      // The rating rides on the availability response — this is the ONLY place it is read, so
+      // opening a hotel costs no extra supplier call. Keep the first one we see (hotel-static).
       if (data?.review) setReview((prev) => prev ?? data.review);
     }).catch((e) => setLiveRooms({ error: e?.response?.data?.message || e?.message || 'Could not load live room prices' }));
 
@@ -861,12 +855,12 @@ export default function HotelDetail() {
 
             <div className="sd-hero-photos">
               <div className="gi gi-hero" onClick={() => setLightbox(0)}>
-                <img src={images[0]} alt={hotelName} fetchPriority="high" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                <HotelImg src={images[0]} size="bigger" alt={hotelName} fetchPriority="high" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
               </div>
               {images.slice(1, 5).map((src, i) => (
                 <div className="gi" key={i} onClick={() => setLightbox(i + 1)}>
-                  <img src={src} alt={`${hotelName} ${i + 2}`} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  <HotelImg src={src} size="bigger" alt={`${hotelName} ${i + 2}`} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   {i === 3 && photoCount > 5 && <span className="gi-more">+{photoCount - 5}</span>}
                   <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
                 </div>
@@ -1576,11 +1570,10 @@ export default function HotelDetail() {
             <S size={26} sw={2.2}><path d="M15 18l-6-6 6-6" /></S>
           </button>
           <div className="lb-stage" onClick={(e) => e.stopPropagation()}>
-            {/* Full-screen inspection — serve the CDN's `original` (2048x1365). The `xl` used
-                for the hero grid is only 683px tall and visibly upscales across a 78vh stage on
-                a large retina display. hotelImage() rewrites the variant, so a non-Hotelbeds
-                photo is left untouched. */}
-            <img className="lb-img" key={lightbox} src={hotelImage(images[lightbox], 'original')} alt={`${hotelName} photo ${lightbox + 1}`} />
+            {/* Full-screen inspection — request `original` (2048x1365), the sharpest source. If
+                a given image lacks it, HotelImg steps down (bigger → default) rather than
+                failing to open, which is what happened before for some hotels. */}
+            <HotelImg className="lb-img" key={lightbox} src={images[lightbox]} size="original" alt={`${hotelName} photo ${lightbox + 1}`} />
           </div>
           <button className="lb-nav lb-next" onClick={nextImg} aria-label="Next">
             <S size={26} sw={2.2}><path d="M9 18l6-6-6-6" /></S>
@@ -1588,9 +1581,8 @@ export default function HotelDetail() {
           <div className="lb-thumbs" onClick={(e) => e.stopPropagation()}>
             {images.map((src, i) => (
               <button key={i} className={`lb-thumb${i === lightbox ? ' active' : ''}`} onClick={() => setLightbox(i)}>
-                {/* The strip thumbnails are ~64px — `small` is all they need; loading xl here
-                    would download megabytes for a filmstrip. */}
-                <img src={hotelImage(src, 'small')} alt="" />
+                {/* The strip thumbnails are ~64px — `small` is all they need. */}
+                <HotelImg src={src} size="small" alt="" />
               </button>
             ))}
           </div>
