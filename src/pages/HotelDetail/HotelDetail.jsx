@@ -1,9 +1,12 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axiosInstance from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { rememberDestCode } from '../../utils/favDest';
+import { hotelImage } from '../../utils/hotelImage';
+import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
+import { formatReview } from '../../utils/reviewBadge';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
@@ -258,6 +261,28 @@ function FlightCard({ f, selected, onSelect }) {
   );
 }
 
+// The TripAdvisor rating, shown in the hero next to the star rating. `review` is the
+// normalised shape from the availability API — { rate, count, type, outOf } — or null, in
+// which case the badge renders nothing at all (an unrated hotel shows no empty widget).
+//
+// The rating is drawn as five circles filled proportionally to `rate/outOf` (TripAdvisor's own
+// convention), with the numeric score and, when we have it, the review count. `count === 0`
+// means "rated, but the count wasn't returned" — we show the score without a misleading "0".
+function GuestRating({ review }) {
+  const r = formatReview(review);
+  if (!r) return null;
+  return (
+    <span className="sd-rating" title={r.title}>
+      <span className="sd-rating-score">{r.score}</span>
+      <span className="sd-rating-bubbles" aria-hidden="true">
+        <span className="sd-rating-bubbles-base">{'●●●●●'}</span>
+        <span className="sd-rating-bubbles-fill" style={{ width: `${r.fillPct}%` }}>{'●●●●●'}</span>
+      </span>
+      <span className="sd-rating-meta">{r.meta}</span>
+    </span>
+  );
+}
+
 export default function HotelDetail() {
   const { hotelCode } = useParams();
   const { state } = useLocation();
@@ -309,9 +334,11 @@ export default function HotelDetail() {
   const nights = state?.nights || Number(qp('nights')) || 7;
   const ppPrice = hotel?.totalAmount ? Math.round(hotel.totalAmount / 2) : 765;
 
-  // real photos from the bulk hotel record (fallback to demo gallery)
+  // real photos from the bulk hotel record (fallback to demo gallery).
+  // Requested at `xl` (1024x683): this gallery is the biggest photo on the site, and the
+  // API's default 320x213 is upscaled to mush across a full-width hero on a retina screen.
   const realImages = Array.isArray(info?.images) && info.images.length
-    ? [...info.images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999)).map((im) => im.url).filter(Boolean)
+    ? [...info.images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999)).map((im) => hotelImage(im.url, 'xl')).filter(Boolean)
     : null;
   const images = realImages && realImages.length ? realImages.slice(0, 30) : [hotel?.img || GALLERY[0], ...GALLERY.slice(1)];
   const photoCount = realImages?.length || 48;
@@ -374,6 +401,10 @@ export default function HotelDetail() {
   const [calData, setCalData]       = useState(null);   // [{date, price, currency, isLowest}]
   const [calLoading, setCalLoading] = useState(false);
   const [liveRooms, setLiveRooms]   = useState(null);   // {loading?|error?|rooms[]|cheapest}
+  // The hotel's TripAdvisor rating: { rate, count, type, outOf } or null. Comes only from the
+  // live availability API (it is NOT in the content we sync), and is hotel-static, so it is
+  // fetched once and kept regardless of which date the traveller later picks.
+  const [review, setReview]         = useState(null);
   const [liveFlights, setLiveFlights] = useState(null); // {loading?|error?|flights[]|cheapest}
   // airport→hotel transfer add-on: everything is derived from the page context
   // (airport = flight-search destination, hotel = this page's HotelBeds/ATLAS code)
@@ -456,6 +487,15 @@ export default function HotelDetail() {
 
   // live selection → live price shown in the Book Now card / mobile bar / checkout
   const liveRoom = liveRooms?.rooms?.length ? liveRooms.rooms[selectedRoom.live ?? 0] : null;
+
+  // Live rates as "room type → its board options". Selection still addresses the flat
+  // `liveRooms.rooms` array by index, so the booking hand-off keeps the exact rateKey.
+  const roomGroups = useMemo(() => groupRoomsByBoard(liveRooms?.rooms), [liveRooms]);
+  const nBoards = useMemo(() => boardCount(roomGroups), [roomGroups]);
+  // Big resorts return 15+ room types; show a readable set and let the traveller open the rest.
+  const [showAllRooms, setShowAllRooms] = useState(false);
+  const ROOMS_COLLAPSED = 6;
+  const visibleGroups = showAllRooms ? roomGroups : roomGroups.slice(0, ROOMS_COLLAPSED);
   const liveFlight = liveFlights?.flights?.length ? liveFlights.flights[selectedFlight] : null;
   const liveTransfer = (selectedTransfer >= 0 && liveTransfers?.services?.length)
     ? liveTransfers.services[selectedTransfer] : null;
@@ -568,6 +608,25 @@ export default function HotelDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // Fetch the TripAdvisor rating once, on entry. The live availability call is the only source
+  // of it, so we make one here with the search's dates — the rating is hotel-static, so this
+  // never re-runs when the traveller changes the date. Purely additive: a failure leaves the
+  // hero exactly as it was, and the page never waits on it.
+  useEffect(() => {
+    if (!hotelCode || !baseCheckIn || !baseCheckOut) return;
+    let cancelled = false;
+    axiosInstance.post('/hotel-availability/search', {
+      hotelCode: String(hotelCode), checkin: baseCheckIn, checkout: baseCheckOut,
+      adults: Number(sAdults) || 2, children: Number(sChildren) || 0,
+      childAges: sChildAges ? sChildAges.split(',').map(Number) : [],
+      rooms: Number(sRooms) || 1,
+    })
+      .then(({ data }) => { if (!cancelled && data?.review) setReview(data.review); })
+      .catch(() => { /* a missing rating is not an error — leave the hero unchanged */ });
+    return () => { cancelled = true; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotelCode, baseCheckIn, baseCheckOut]);
+
   // ── keep the transfer pickup aligned with the SELECTED flight's arrival time —
   //    when the customer picks a different flight, the transfer availability is
   //    re-fetched at that flight's landing datetime ──
@@ -616,6 +675,9 @@ export default function HotelDetail() {
       })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
       setSelectedRoom((p) => ({ ...p, live: 0 }));
       setLiveRooms({ rooms, cheapest: data?.results?.cheapest || null });
+      // Same rating rides on every availability response — adopt it if the mount fetch hasn't
+      // landed yet, so the hero badge is never left empty when prices are already showing.
+      if (data?.review) setReview((prev) => prev ?? data.review);
     }).catch((e) => setLiveRooms({ error: e?.response?.data?.message || e?.message || 'Could not load live room prices' }));
 
     // Live flights + transfers for the newly picked dates
@@ -778,6 +840,9 @@ export default function HotelDetail() {
               <div className="hhm">
                 <span className="hhs">{'★'.repeat(Math.min(stars, 5))}</span>
                 <span className="hhl">{ICON.pin} {locLabel}</span>
+                {/* Real TripAdvisor rating from the live availability API; renders nothing
+                    until it arrives, and nothing at all for an unrated hotel. */}
+                <GuestRating review={review} />
               </div>
               <span className="sd-hero-rule" />
               <div className="sd-hero-chips">
@@ -1009,29 +1074,64 @@ export default function HotelDetail() {
                     <div className="live-loading"><span className="live-spin" /> Checking live room availability…</div>
                   ) : liveRooms.error ? (
                     <div className="live-error">{ICON.warn} {liveRooms.error}</div>
-                  ) : liveRooms.rooms?.length ? (
+                  ) : roomGroups.length ? (
                     <div className="stay-block">
-                      <div className="stay-header"><div className="stay-icon">{ICON.bed}</div><div className="stay-title">Available rooms <span className="stay-guests">(live prices)</span></div></div>
-                      {liveRooms.rooms.slice(0, 8).map((rm, ri) => {
-                        const isSel = selectedRoom.live === ri;
-                        return (
-                          <div key={ri} className={`room-option${isSel ? ' selected' : ''}`} onClick={() => setSelectedRoom((p) => ({ ...p, live: ri }))}>
-                            <div className="room-radio" />
-                            <div className="room-info">
-                              <div className="room-name">{rm.name}</div>
-                              <div className="room-cap">{[rm.board, rm.supplier].filter(Boolean).join(' · ')}</div>
-                              {rm.cancellation?.length > 0 ? (
-                                <div className="room-cancel room-cancel-nr">
-                                  {ICON.warn} Non-refundable — cancel before {(() => { const d = new Date(rm.cancellation[0].from); return isNaN(d.getTime()) ? rm.cancellation[0].from : `${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`; })()} or pay €{Number(rm.cancellation[0].amount).toFixed(0)} penalty
-                                </div>
-                              ) : rm.refundable === true ? (
-                                <div className="room-cancel room-cancel-free">{ICON.check} Free cancellation</div>
-                              ) : null}
+                      <div className="stay-header">
+                        <div className="stay-icon">{ICON.bed}</div>
+                        <div className="stay-title">
+                          Available rooms
+                          <span className="stay-guests">
+                            ({roomGroups.length} room type{roomGroups.length === 1 ? '' : 's'}
+                            {nBoards > 1 ? ` · ${nBoards} board options` : ''} · live prices)
+                          </span>
+                        </div>
+                      </div>
+
+                      {/* One card per ROOM TYPE; inside it, every board that room can be booked
+                          on, cheapest first. Boards were previously invisible: the flat list was
+                          sorted by price, so the cheapest board crowded out all the others. */}
+                      {visibleGroups.map((g) => (
+                        <div className="room-group" key={g.key}>
+                          <div className="room-group-head">
+                            <div className="room-group-name">{g.name}</div>
+                            <div className="room-group-from">
+                              {g.boards.length} option{g.boards.length === 1 ? '' : 's'} · from €{Math.round(g.cheapest.price)}
                             </div>
-                            <div className="room-price">€{Math.round(rm.price)}</div>
                           </div>
-                        );
-                      })}
+                          {g.boards.map((b) => {
+                            const isSel = selectedRoom.live === b.index;
+                            return (
+                              <div
+                                key={b.index}
+                                className={`room-option${isSel ? ' selected' : ''}`}
+                                onClick={() => setSelectedRoom((p) => ({ ...p, live: b.index }))}
+                              >
+                                <div className="room-radio" />
+                                <div className="room-info">
+                                  <div className="room-name">{b.boardLabel}</div>
+                                  {b.supplier && <div className="room-cap">{b.supplier}</div>}
+                                  {b.cancellation?.length > 0 ? (
+                                    <div className="room-cancel room-cancel-nr">
+                                      {ICON.warn} Non-refundable — cancel before {(() => { const d = new Date(b.cancellation[0].from); return isNaN(d.getTime()) ? b.cancellation[0].from : `${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`; })()} or pay €{Number(b.cancellation[0].amount).toFixed(0)} penalty
+                                    </div>
+                                  ) : b.refundable === true ? (
+                                    <div className="room-cancel room-cancel-free">{ICON.check} Free cancellation</div>
+                                  ) : null}
+                                </div>
+                                <div className="room-price">€{Math.round(b.price)}</div>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      ))}
+
+                      {roomGroups.length > ROOMS_COLLAPSED && (
+                        <button type="button" className="room-more" onClick={() => setShowAllRooms((s) => !s)}>
+                          {showAllRooms
+                            ? 'Show fewer room types'
+                            : `Show all ${roomGroups.length} room types`}
+                        </button>
+                      )}
                     </div>
                   ) : (
                     <div className="live-empty">{ICON.bed} No live rooms found for these dates.</div>
@@ -1476,7 +1576,11 @@ export default function HotelDetail() {
             <S size={26} sw={2.2}><path d="M15 18l-6-6 6-6" /></S>
           </button>
           <div className="lb-stage" onClick={(e) => e.stopPropagation()}>
-            <img className="lb-img" key={lightbox} src={images[lightbox]} alt={`${hotelName} photo ${lightbox + 1}`} />
+            {/* Full-screen inspection — serve the CDN's `original` (2048x1365). The `xl` used
+                for the hero grid is only 683px tall and visibly upscales across a 78vh stage on
+                a large retina display. hotelImage() rewrites the variant, so a non-Hotelbeds
+                photo is left untouched. */}
+            <img className="lb-img" key={lightbox} src={hotelImage(images[lightbox], 'original')} alt={`${hotelName} photo ${lightbox + 1}`} />
           </div>
           <button className="lb-nav lb-next" onClick={nextImg} aria-label="Next">
             <S size={26} sw={2.2}><path d="M9 18l6-6-6-6" /></S>
@@ -1484,7 +1588,9 @@ export default function HotelDetail() {
           <div className="lb-thumbs" onClick={(e) => e.stopPropagation()}>
             {images.map((src, i) => (
               <button key={i} className={`lb-thumb${i === lightbox ? ' active' : ''}`} onClick={() => setLightbox(i)}>
-                <img src={src} alt="" />
+                {/* The strip thumbnails are ~64px — `small` is all they need; loading xl here
+                    would download megabytes for a filmstrip. */}
+                <img src={hotelImage(src, 'small')} alt="" />
               </button>
             ))}
           </div>

@@ -69,25 +69,191 @@
   pointer-events: none;
 }
 
-/* ── Centered header search ── */
-/* Absolutely positioned inside the fixed bar — NOT a flex child. A middle flex
-   child only sits centred when the logo and auth blocks are equal width; they
-   are not, so it is pinned to the bar's true centre instead. */
+/* ── Centered header cluster: menu · search ticket · menu ── */
+/* A REAL flex child sitting between the logo and the auth block in DOM order
+   (not absolutely positioned, not JS-measured). flex:1 makes it fill exactly
+   whatever room the browser's own layout leaves between its neighbours —
+   correct on first paint and on every resize, by construction, with no event
+   listening and no way to go stale or overlap either side. A previous
+   JS-measured absolute-position version broke twice (a render crash, then an
+   overlap after a resize that didn't fire the expected browser event) before
+   landing on this simpler, structurally-safe approach. */
 .headerSearch {
-  position: absolute; left: 50%; top: 50%; transform: translate(-50%, -50%);
-  width: clamp(300px, 34vw, 440px); z-index: 5;
+  flex: 1 1 auto; min-width: 0;
+  /* Capped so it doesn't stretch absurdly on an ultra-wide screen; centred
+     within whatever space flex:1 gives it once the cap is hit. */
+  max-width: 1200px; margin: 0 auto;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+}
+.searchGrow {
+  /* Fixed, not growing — the ticket stays one size whether idle, focused, or
+     the viewport is wide. flex-shrink (not grow) lets it narrow gracefully
+     if the cluster itself is tight, but it never stretches past 620px, which
+     is also the dropdown's width — the panel is never wider than the field
+     it drops from. Whatever room the cluster has beyond menus + this fixed
+     620px is spent as flanking air (space-between), not on the ticket. */
+  flex: 0 1 620px; min-width: 0; max-width: 620px;
+}
+
+/* The flanking menus need elbow room; below ~1180px they yield it, and the
+   ticket's own flex-basis (620, shrinking) takes over the solo width. */
+@media (max-width: 1180px) {
+  .hmWrap { display: none; }
 }
 /* Below the auth breakpoint the bar only has room for the logo + hamburger, so
-   the centred pill steps aside and the search moves into the drawer. */
+   the cluster steps aside and the search moves into the drawer. */
 @media (max-width: 900px) {
   .headerSearch { display: none; }
 }
-/* On very wide viewports keep the pill from crowding the logo/auth. */
-@media (min-width: 1500px) {
-  .headerSearch { width: 460px; }
-}
 
 .mobileSearch { padding: 2px 2px 12px; }
+
+/* ── Header menus (Popular destinations / Holiday types) ── */
+.hmWrap {
+  position: relative; flex-shrink: 0;
+}
+/* Light "gate card" triggers — present at a glance, but tuned well below the
+   ticket's weight (0.55 white vs its solid #fff + gold ring) so the centrepiece
+   hierarchy holds. */
+.hmBtn {
+  display: flex; align-items: center; gap: 8px;
+  height: 38px; padding: 0 12px; border-radius: var(--r-full);
+  border: 1px solid rgba(199, 119, 0, 0.2);
+  background: rgba(255, 255, 255, 0.55);
+  cursor: pointer;
+  font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 700;
+  color: var(--text); white-space: nowrap;
+  transition: background 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease), box-shadow 0.25s var(--ease);
+}
+.hmBtnIcon { display: flex; color: var(--blue-deep); transition: color 0.25s var(--ease), transform 0.35s var(--ease-spring); }
+.hmBtn:hover, .hmBtnOpen {
+  background: rgba(255, 255, 255, 0.85);
+  border-color: rgba(199, 119, 0, 0.34);
+  box-shadow: 0 3px 10px rgba(31, 40, 80, 0.06);
+}
+.hmBtn:hover .hmBtnIcon, .hmBtnOpen .hmBtnIcon { color: var(--sun-orange); transform: translateY(-1px); }
+
+/* The golden thread, trigger side: a gold line draws under the label on hover
+   and stays while open. Draw direction respects which side of the ticket the
+   menu sits on — the right menu's thread draws from the right. */
+.hmBtnLabel { position: relative; }
+.hmBtnLabel::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -4px;
+  height: 2px; border-radius: 2px;
+  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
+  transform: scaleX(0); transform-origin: left;
+  transition: transform 0.28s var(--ease);
+}
+.hmFromRight .hmBtnLabel::after {
+  transform-origin: right;
+  background: linear-gradient(270deg, var(--sun-orange), var(--sun-gold));
+}
+.hmBtn:hover .hmBtnLabel::after, .hmBtnOpen .hmBtnLabel::after { transform: scaleX(1); }
+
+/* Gate-count stamp — the manifest's fare-stamp recipe carrying a real count.
+   Blue at rest; heats amber while the gate is open. */
+.hmStamp {
+  font-size: 10px; font-weight: 800; letter-spacing: 0.4px;
+  font-variant-numeric: tabular-nums;
+  padding: 2px 6px; border-radius: 6px;
+  background: rgba(31, 79, 216, 0.05);
+  border: 1px solid rgba(31, 79, 216, 0.3);
+  color: var(--blue-deep);
+  transition: background 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease);
+}
+.hmBtn:hover .hmStamp, .hmBtnOpen .hmStamp {
+  background: rgba(255, 159, 28, 0.07);
+  border-color: rgba(199, 119, 0, 0.35);
+  color: #c7770a;
+}
+.hmChevron { color: var(--text-sec); transition: transform 0.3s var(--ease); flex-shrink: 0; }
+.hmChevronUp { transform: rotate(180deg); }
+
+/* Panel: the same manifest language as the search dropdown — cream tally strip,
+   icon-tile rows, staggered rise, boarding-bar hover. */
+.hmPanel {
+  position: absolute; top: calc(100% + 13px); left: 0;
+  width: 296px;
+  background: #fff;
+  border: 1px solid rgba(15, 40, 100, 0.08);
+  border-radius: 16px;
+  padding: 7px;
+  box-shadow: 0 28px 74px rgba(7, 20, 60, 0.22), 0 6px 18px rgba(7, 20, 60, 0.08);
+  z-index: 1200;
+  animation: hmIn 0.2s var(--ease) both;
+}
+.hmPanelRight { left: auto; right: 0; }
+@keyframes hmIn { from { opacity: 0; transform: translateY(-6px) scale(0.985); } to { opacity: 1; transform: none; } }
+
+.hmStrip {
+  position: relative;
+  margin: -7px -7px 4px; padding: 9px 16px 8px;
+  background: linear-gradient(180deg, #fff9ee, #fffdf8);
+  /* The static hairline stays beneath the thread — it is also the
+     reduced-motion fallback. */
+  border-bottom: 1px solid rgba(199, 119, 0, 0.18);
+  border-radius: 15px 15px 0 0;
+}
+/* The golden thread, panel side: the trigger's underline visibly continues —
+   re-drawing across the cream strip from the trigger's side just after the
+   panel lands. One draw, then still. */
+.hmStrip::after {
+  content: ''; position: absolute; left: 0; right: 0; bottom: -1px;
+  height: 2px;
+  background: linear-gradient(90deg, var(--sun-orange), var(--sun-gold));
+  transform: scaleX(0); transform-origin: left;
+  animation: hmThread 0.3s var(--ease) 0.06s both;
+}
+.hmFromRight .hmStrip::after {
+  transform-origin: right;
+  background: linear-gradient(270deg, var(--sun-orange), var(--sun-gold));
+}
+@keyframes hmThread { to { transform: scaleX(1); } }
+.hmTally {
+  font-size: 10px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
+  color: #b07a18; font-variant-numeric: tabular-nums;
+}
+
+.hmItem {
+  display: flex; align-items: center; gap: 12px; width: 100%; text-align: left;
+  border: none; background: none; cursor: pointer; padding: 9px 12px; border-radius: 12px;
+  transition: background 0.15s, box-shadow 0.15s;
+  animation: hmRow 0.22s var(--ease) both;
+}
+@keyframes hmRow { from { opacity: 0; transform: translateY(3px); } to { opacity: 1; transform: none; } }
+.hmItem:hover {
+  background: var(--blue-bg);
+  box-shadow: inset 3px 0 0 0 var(--sun-orange);
+}
+.hmItemIcon {
+  width: 36px; height: 36px; border-radius: 11px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(31, 79, 216, 0.10); color: var(--blue-deep);
+  transition: background 0.15s, color 0.15s;
+}
+.hmItem:hover .hmItemIcon {
+  background: linear-gradient(135deg, rgba(255, 159, 28, 0.18), rgba(255, 209, 102, 0.22));
+  color: #e07d0a;
+}
+.hmItemText { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 1px; }
+.hmItemMain {
+  font-size: 13.5px; font-weight: 700; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.1px;
+}
+.hmItemSub {
+  font-size: 11.5px; font-weight: 500; color: var(--text-sec);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.hmItemArrow { color: var(--text-light); opacity: 0; transform: translateX(-3px); transition: opacity 0.15s, transform 0.15s; flex-shrink: 0; }
+.hmItem:hover .hmItemArrow { opacity: 1; transform: translateX(0); color: var(--sun-orange); }
+
+@media (prefers-reduced-motion: reduce) {
+  .hmPanel, .hmItem { animation: none; }
+  /* Thread rests fully drawn; the static hairline still separates the strip. */
+  .hmStrip::after { animation: none; transform: scaleX(1); }
+  .hmBtnLabel::after { transition: none; }
+  .hmBtnIcon { transition: color 0.25s var(--ease); }
+}
 
 /* ── Auth area ── */
 .authArea { display: flex; align-items: center; flex-shrink: 0; }

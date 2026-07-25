@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations } from '../../api/filters';
 import { rememberDestCode } from '../../utils/favDest';
+import { hotelImage } from '../../utils/hotelImage';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -17,10 +18,16 @@ const CHILD_AGE_DEFAULT = 8;
 const LARGE_CODES = 150;
 const MANY_DESTINATIONS = 8;
 
+// Card images are painted into a 280-360 x 204 CSS box — ~720x408 real pixels on a 2x
+// screen. The API's default photo is 320x213, so it must be requested one size up or every
+// card looks soft. The lightbox is full-screen and needs one more step again.
+const CARD_IMG = 'bigger';       // 800x533
+const LIGHTBOX_IMG = 'xl';       // 1024x683
+
 const bestImg = (images, fallback) => {
   if (!Array.isArray(images) || images.length === 0) return fallback;
   const sorted = [...images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
-  return sorted[0]?.url || fallback;
+  return hotelImage(sorted[0]?.url, CARD_IMG) || fallback;
 };
 
 // All of a hotel's photo URLs, ordered — feeds the full-screen lightbox slider.
@@ -28,7 +35,7 @@ const allImgs = (images) => {
   if (!Array.isArray(images) || images.length === 0) return [];
   return [...images]
     .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
-    .map((im) => im?.url)
+    .map((im) => hotelImage(im?.url, LIGHTBOX_IMG))
     .filter(Boolean);
 };
 
@@ -1764,7 +1771,9 @@ export default function Results() {
 
             <img
               key={lightbox.index}
-              src={lightbox.images[lightbox.index]}
+              // Full-screen inspection → the CDN's `original` (2048x1365). The gallery array
+              // is `xl` for the inline card slider; this one surface wants the sharpest source.
+              src={hotelImage(lightbox.images[lightbox.index], 'original')}
               alt={`${lightbox.name} — photo ${lightbox.index + 1}`}
               className={styles.lbImg}
               onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }}

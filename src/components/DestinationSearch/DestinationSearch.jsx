@@ -1,34 +1,41 @@
-import { useState, useRef, useEffect, useCallback } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { searchDestinationsAndHotels } from '../../api/filters';
 import styles from './DestinationSearch.module.css';
 
-// One search box that finds BOTH hotels and destinations by name and groups them (🏨 Hotels first,
-// then 📍 Destinations). Picking a hotel pins that specific hotel; picking a destination selects it.
-// Used in the site header — a compact pill that drops a rich typeahead. onSelect receives
-// { type:'hotel', hotelCode, name, destinationCode, destinationName, country, stars, image } or
-// { type:'destination', code, name, country }, and null when cleared.
+// The header search, styled as a slim die-cut travel ticket: a warm magnifier "stub" separated
+// from the input by a perforation, a manifest-style dropdown (hotels first, then destinations),
+// and — before anything is typed — recent searches plus CMS-fed popular destinations.
 //
-// Each hotel row shows that hotel's MASTER image (its primary photo in the admin) as the row
-// thumbnail — a traveller recognises the place far faster than a name. About 8% of hotels have
-// no photo, and any URL can 404, so the generic icon stays as the fallback in both cases.
+// onSelect({type:'hotel'|'destination', ...}) fires for search results and recents; suggestion
+// chips carry a prebuilt URL instead (countries vs destinations params differ), so they go
+// through onGo(url). Both are provided by the Navbar.
 
 const SearchIcon = () => (
-  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
     <circle cx="11" cy="11" r="7.5" /><path d="M21 21l-4.3-4.3" />
   </svg>
 );
 const PinIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
   </svg>
 );
 const HotelIcon = () => (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" /><path d="M9 7h.01M13 7h.01M9 11h.01M13 11h.01M9 15h6v6H9z" />
   </svg>
 );
+const ClockIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" />
+  </svg>
+);
+const SunIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+    <circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" />
+  </svg>
+);
 
-// Small gold star row for a hotel's rating (rendered as its own element rather than glued to the name).
 const Stars = ({ n }) => {
   const count = Math.max(0, Math.min(5, Math.round(n || 0)));
   if (!count) return null;
@@ -43,93 +50,117 @@ const Stars = ({ n }) => {
   );
 };
 
-// A typed word is re-searched constantly — backspacing, re-typing, reopening the box. Holding the
-// last handful of answers makes those instant and silent. Small and per-mount on purpose: it is a
-// keystroke buffer, not a data store, so it can never serve a stale list into a later session.
-const CACHE_MAX = 30;
+// A row's leading square: the hotel's MASTER image when it has one, else the icon. Shared by
+// the results manifest and the recents list so a hotel looks the same wherever it appears.
+// About 8% of hotels carry no photo, and any CDN URL can 404 — both land on the icon.
+const RowThumb = ({ image, broken, onBroken, fallbackClass, children }) => {
+  if (!image || broken) {
+    return <span className={`${styles.itemIcon} ${fallbackClass}`}>{children}</span>;
+  }
+  return (
+    <span className={`${styles.itemIcon} ${styles.itemThumb}`}>
+      <img src={image} alt="" loading="lazy" decoding="async" aria-hidden="true" onError={onBroken} />
+    </span>
+  );
+};
 
-// Some source names carry stray whitespace; trim so the field, the label and the results
-// banner never render a doubled space ("Stays in  Ana y Jose…").
-const normalise = (r) => ({
-  hotels: (r?.hotels || []).map((h) => ({ ...h, name: (h.name || '').trim() })),
-  destinations: (r?.destinations || []).map((d) => ({ ...d, name: (d.name || '').trim() })),
-});
+// ── Recent searches (localStorage) ──────────────────────────────────────────
+const RECENTS_KEY = 'sunsky.recentSearches';
+const RECENTS_MAX = 4;
 
-const EMPTY = { destinations: [], hotels: [] };
+// A stored entry is only usable if it still carries the identity the caller navigates by:
+// a hotel needs its hotelCode, a destination its code. Without this guard a half-written or
+// older-format entry sails through to `/results?hotelCode=undefined`, which prices nothing.
+const isUsableRecent = (r) =>
+  !!r && typeof r.name === 'string' && r.name.trim() !== '' &&
+  ((r.kind === 'hotel' && r.hotelCode != null && String(r.hotelCode) !== '') ||
+   (r.kind === 'destination' && !!r.code));
 
-export default function DestinationSearch({ onSelect, onBrowseAll, autoFocus = false, placeholder = 'Search hotels & destinations' }) {
+const loadRecents = () => {
+  try {
+    const raw = JSON.parse(localStorage.getItem(RECENTS_KEY));
+    return Array.isArray(raw) ? raw.filter(isUsableRecent).slice(0, RECENTS_MAX) : [];
+  } catch { return []; }   // unparseable, or storage blocked (Safari private mode)
+};
+const saveRecent = (item) => {
+  // De-dupe on kind+identity, not name: a hotel and a city can share a name ("Antalya"), and
+  // the same hotel renamed upstream must still replace its own entry rather than pile up.
+  const sameAs = (r) => r.kind === item.kind &&
+    (item.kind === 'hotel' ? String(r.hotelCode) === String(item.hotelCode) : r.code === item.code);
+  const next = [item, ...loadRecents().filter((r) => !sameAs(r))].slice(0, RECENTS_MAX);
+  try {
+    localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
+  } catch { /* storage full or blocked — the list still updates for this session */ }
+  return next;
+};
+
+// ── Typewriter hook — cycles destination names in the resting pill ──────────
+// Types each name char-by-char, holds, deletes, moves on. Returns null (meaning
+// "use a static placeholder") when reduced motion is preferred or no names exist.
+const useTypewriter = (names, active) => {
+  const [text, setText] = useState('');
+  const reduced = useMemo(
+    () => typeof window !== 'undefined' && window.matchMedia?.('(prefers-reduced-motion: reduce)').matches,
+    []
+  );
+  useEffect(() => {
+    if (reduced || !active || !names.length) return undefined;
+    let i = 0, pos = 0, dir = 1, cancelled = false, t;
+    const tick = () => {
+      if (cancelled) return;
+      const name = names[i % names.length];
+      pos += dir;
+      setText(name.slice(0, pos));
+      let delay = dir > 0 ? 70 : 38;
+      if (dir > 0 && pos >= name.length) { dir = -1; delay = 2100; }
+      else if (dir < 0 && pos <= 0) { dir = 1; i += 1; delay = 320; }
+      t = setTimeout(tick, delay);
+    };
+    t = setTimeout(tick, 600);
+    return () => { cancelled = true; clearTimeout(t); };
+  }, [names, active, reduced]);
+  if (reduced || !names.length) return null;
+  return text;
+};
+
+export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggestions = [], placeholder = 'Search hotels & destinations' }) {
   const [query, setQuery]     = useState('');
-  // The last SETTLED answer, tagged with the query it belongs to. What the dropdown shows and
-  // whether it is loading are DERIVED from this plus the current query — so an empty box or a
-  // cache hit needs no state update at all, and there is no render-then-correct flash.
-  const [settled, setSettled] = useState({ query: '', results: EMPTY });
+  const [results, setResults] = useState({ destinations: [], hotels: [] });
   const [open, setOpen]       = useState(false);
+  const [focused, setFocused] = useState(false);
+  const [loading, setLoading] = useState(false);
   const [active, setActive]   = useState(-1);
-  // Hotels whose thumbnail failed to load — keyed by hotelCode so the row falls back to the
-  // icon instead of showing a broken frame, and stays fallen back if the list re-renders.
-  const [brokenImg, setBrokenImg] = useState({});
-  // Answers already seen this session. State rather than a ref because it is READ DURING RENDER
-  // to decide what the dropdown shows — reading a ref there is not safe under concurrent
-  // rendering. Bounded, so a long typing session cannot grow it without limit.
-  const [cache, setCache] = useState(() => new Map());
+  const [recents, setRecents] = useState(loadRecents);
   const boxRef = useRef(null);
   const inputRef = useRef(null);
   const reqRef = useRef(0);
-  // The request in flight, so a superseded keystroke is CANCELLED rather than left to land.
-  const abortRef = useRef(null);
-
-  useEffect(() => { if (autoFocus) inputRef.current?.focus(); }, [autoFocus]);
-
-  // Abort whatever is still in flight when the box unmounts (navigating away mid-type).
-  useEffect(() => () => abortRef.current?.abort(), []);
-
+  // Hotels whose thumbnail failed to load — keyed by hotelCode, so that row falls back to the
+  // icon instead of showing a broken frame, and stays fallen back across re-renders.
+  const [brokenImg, setBrokenImg] = useState({});
   const markBroken = useCallback((code) => {
     setBrokenImg((m) => (m[code] ? m : { ...m, [code]: true }));
   }, []);
 
-  const q = query.trim();
-  const cached = q.length >= 2 ? cache.get(q) : null;
-  // Below the 2-character floor there is nothing to show. Otherwise: a cached answer wins,
-  // else the last settled one — which keeps the previous matches on screen while a newer
-  // keystroke loads, instead of blanking the list between every letter.
-  const results = q.length < 2 ? EMPTY : (cached ?? settled.results);
-  // Loading = the current query has no answer yet, from either source.
-  const loading = q.length >= 2 && !cached && settled.query !== q;
-
-  // Debounced search — only the latest request's result is applied (reqRef guards races, and
-  // the AbortController stops the superseded request from occupying the network at all).
+  // Debounced search — only the latest request's result is applied (reqRef guards races).
   useEffect(() => {
-    const term = query.trim();
-    // Nothing to fetch: too short, or already answered from the cache. Drop any in-flight
-    // request on the floor — its answer can no longer be the one on screen.
-    if (term.length < 2 || cache.has(term)) {
-      reqRef.current++;
-      abortRef.current?.abort();
-      return;
-    }
+    const q = query.trim();
+    if (q.length < 2) { setResults({ destinations: [], hotels: [] }); setLoading(false); return; }
+    setLoading(true);
     const id = ++reqRef.current;
     const t = setTimeout(async () => {
-      abortRef.current?.abort();
-      const ctrl = new AbortController();
-      abortRef.current = ctrl;
-      const r = await searchDestinationsAndHotels(term, 6, { signal: ctrl.signal });
-      if (id !== reqRef.current) return;   // a newer keystroke already owns the box
-      const next = normalise(r);
-      // Don't cache an empty result: it is indistinguishable from "the request was aborted",
-      // and caching that would wedge a query into looking like it has no matches.
-      if (next.hotels.length || next.destinations.length) {
-        setCache((prev) => {
-          const m = new Map(prev);
-          m.set(term, next);
-          // Map keeps insertion order, so the first key is the oldest.
-          while (m.size > CACHE_MAX) m.delete(m.keys().next().value);
-          return m;
+      const r = await searchDestinationsAndHotels(q);
+      if (id === reqRef.current) {
+        // Some source names carry stray whitespace; trim so the field, the label and the results
+        // banner never render a doubled space.
+        setResults({
+          hotels: (r.hotels || []).map((h) => ({ ...h, name: (h.name || '').trim() })),
+          destinations: (r.destinations || []).map((d) => ({ ...d, name: (d.name || '').trim() })),
         });
+        setLoading(false);
       }
-      setSettled({ query: term, results: next });
     }, 220);
     return () => clearTimeout(t);
-  }, [query, cache]);
+  }, [query]);
 
   // Close the dropdown on an outside click.
   useEffect(() => {
@@ -138,115 +169,201 @@ export default function DestinationSearch({ onSelect, onBrowseAll, autoFocus = f
     return () => document.removeEventListener('mousedown', h);
   }, []);
 
-  // Flat list in render order (HOTELS then destinations) so keyboard nav maps to what's shown.
+  // The resting pill types real destination names (the same ones the suggestion
+  // chips offer). Paused the moment the field is focused or holds text.
+  const typeNames = useMemo(() => suggestions.map((s) => s.label).filter(Boolean).slice(0, 6), [suggestions]);
+  const typed = useTypewriter(typeNames, !focused && query === '');
+  const showTyped = typed !== null && !focused && query === '';
+
+  // Flat list in render order (DESTINATIONS then hotels) so keyboard nav maps to what's shown.
   const flat = [
-    ...results.hotels.map((h) => ({ kind: 'hotel', ...h })),
     ...results.destinations.map((d) => ({ kind: 'destination', ...d })),
+    ...results.hotels.map((h) => ({ kind: 'hotel', ...h })),
   ];
 
   const choose = (item) => {
     setQuery(item.name);
     setOpen(false);
     setActive(-1);
+    setRecents(saveRecent(item));
     if (item.kind === 'hotel') {
+      // `image` rides along so a hotel picked today still shows its photo when it comes back
+      // as a recent search tomorrow — recents are stored from exactly this object.
       onSelect({ type: 'hotel', hotelCode: item.hotelCode, name: item.name, destinationCode: item.destinationCode, destinationName: item.destinationName, country: item.country, stars: item.stars, image: item.image ?? null });
     } else {
       onSelect({ type: 'destination', code: item.code, name: item.name, country: item.country });
     }
   };
 
-  const clear = () => { setQuery(''); setActive(-1); onSelect(null); inputRef.current?.focus(); };
+  const clear = () => { setQuery(''); setResults({ destinations: [], hotels: [] }); setActive(-1); onSelect(null); inputRef.current?.focus(); };
 
   const onKeyDown = (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => Math.min(a + 1, flat.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
     else if (e.key === 'Enter' && open && active >= 0 && flat[active]) { e.preventDefault(); choose(flat[active]); }
-    else if (e.key === 'Escape') { setOpen(false); }
+    // Reset the highlight too, or reopening the box resumes on a row from the previous query.
+    else if (e.key === 'Escape') { setOpen(false); setActive(-1); }
   };
 
-  const showDrop = open && q.length >= 2;
+  const hasQuery = query.trim().length >= 2;
+  const showResults = open && hasQuery;
+  // Before typing: recents (returning visitors) + popular chips (everyone).
+  const showIdle = open && !hasQuery && (recents.length > 0 || suggestions.length > 0);
   const nHotels = results.hotels.length;
+  const nDests = results.destinations.length;
 
   return (
     <div className={styles.wrap} ref={boxRef}>
-      <span className={styles.icon}><SearchIcon /></span>
-      <input
-        ref={inputRef}
-        className={styles.input}
-        value={query}
-        placeholder={placeholder}
-        onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(-1); }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={onKeyDown}
-        aria-label="Search hotels and destinations"
-        autoComplete="off"
-      />
+      {/* The magnifier stub — the tear-off end of the ticket. */}
+      <span className={styles.stub} aria-hidden="true"><SearchIcon /></span>
+      <span className={styles.perf} aria-hidden="true" />
+      <span className={styles.notchTop} aria-hidden="true" />
+      <span className={styles.notchBottom} aria-hidden="true" />
+      {/* Runway lights under the ticket — ignite while it is focused. State-carrying,
+          not ambient: dark until the field is engaged. */}
+      <span className={styles.runway} aria-hidden="true" />
+
+      <div className={styles.inputZone}>
+        <input
+          ref={inputRef}
+          className={styles.input}
+          value={query}
+          placeholder={showTyped ? '' : placeholder}
+          onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(-1); }}
+          onFocus={() => { setFocused(true); setOpen(true); }}
+          onBlur={() => setFocused(false)}
+          onKeyDown={onKeyDown}
+          aria-label="Search hotels and destinations"
+          autoComplete="off"
+        />
+        {/* The self-typing invitation — hidden the instant the real caret takes over. */}
+        {showTyped && (
+          <span className={styles.typeHint} aria-hidden="true">
+            <span className={styles.typeLead}>Search&nbsp;</span>
+            <span className={styles.typeName}>“{typed}”</span>
+            <span className={styles.caret} />
+          </span>
+        )}
+      </div>
       {query && <button type="button" className={styles.clear} onClick={clear} aria-label="Clear">×</button>}
 
-      {showDrop && (
+      {/* ── Idle panel: recents + popular, before anything is typed ── */}
+      {showIdle && (
         <div className={styles.dropdown}>
+          {recents.length > 0 && (
+            <div className={styles.section}>
+              <div className={styles.group}><ClockIcon /><span>Recent searches</span></div>
+              {recents.map((r, i) => (
+                <button
+                  key={`r-${r.name}-${i}`} type="button" className={styles.item}
+                  onClick={() => choose(r)}
+                >
+                  <RowThumb
+                    image={r.kind === 'hotel' ? r.image : null}
+                    broken={brokenImg[r.hotelCode]}
+                    onBroken={() => markBroken(r.hotelCode)}
+                    fallbackClass={styles.iconRecent}
+                  >
+                    {r.kind === 'hotel' ? <HotelIcon /> : <PinIcon />}
+                  </RowThumb>
+                  <span className={styles.itemText}>
+                    <span className={styles.itemMain}>{r.name}</span>
+                    <span className={styles.itemSub}>{r.kind === 'hotel' ? [r.destinationName, r.country].filter(Boolean).join(', ') : (r.country || 'Destination')}</span>
+                  </span>
+                </button>
+              ))}
+            </div>
+          )}
+          {suggestions.length > 0 && (
+            <div className={styles.section}>
+              <div className={styles.group}><SunIcon /><span>Popular right now</span></div>
+              <div className={styles.chipRow}>
+                {suggestions.map((s, i) => (
+                  <button
+                    key={`s-${s.label}`} type="button" className={styles.chip}
+                    style={{ animationDelay: `${i * 30}ms` }}
+                    onClick={() => { setOpen(false); onGo?.(s.url); }}
+                  >
+                    <PinIcon />
+                    {s.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* ── Results manifest ── */}
+      {showResults && (
+        <div className={styles.dropdown}>
+          {flat.length > 0 && (
+            <div className={styles.tallyStrip}>
+              <span className={styles.tally}>
+                {nDests > 0 && `${nDests} place${nDests === 1 ? '' : 's'}`}
+                {nDests > 0 && nHotels > 0 && ' · '}
+                {nHotels > 0 && `${nHotels} hotel${nHotels === 1 ? '' : 's'}`}
+              </span>
+            </div>
+          )}
           {loading && flat.length === 0 && (
             <div className={styles.state}><span className={styles.spinner} />Searching…</div>
           )}
           {!loading && flat.length === 0 && (
-            <div className={styles.state}>No hotels or destinations match “{q}”.</div>
-          )}
-
-          {results.hotels.length > 0 && (
-            <div className={styles.section}>
-              <div className={styles.group}><HotelIcon /><span>Hotels</span></div>
-              {results.hotels.map((h, i) => (
-                <button
-                  key={`h-${h.hotelCode}`} type="button"
-                  className={`${styles.item} ${active === i ? styles.itemActive : ''}`}
-                  onMouseEnter={() => setActive(i)}
-                  onClick={() => choose({ kind: 'hotel', ...h })}
-                >
-                  {h.image && !brokenImg[h.hotelCode] ? (
-                    <span className={`${styles.itemIcon} ${styles.itemThumb}`}>
-                      <img
-                        src={h.image}
-                        alt=""
-                        loading="lazy"
-                        decoding="async"
-                        aria-hidden="true"
-                        onError={() => markBroken(h.hotelCode)}
-                      />
-                    </span>
-                  ) : (
-                    <span className={`${styles.itemIcon} ${styles.iconHotel}`}><HotelIcon /></span>
-                  )}
-                  <span className={styles.itemText}>
-                    <span className={styles.itemMainRow}>
-                      <span className={styles.itemMain}>{h.name}</span>
-                      <Stars n={h.stars} />
-                    </span>
-                    <span className={styles.itemSub}>{h.destinationName}{h.country ? `, ${h.country}` : ''}</span>
-                  </span>
-                  <span className={`${styles.tag} ${styles.tagHotel}`}>Hotel</span>
-                </button>
-              ))}
-            </div>
+            <div className={styles.state}>No hotels or destinations match “{query.trim()}”.</div>
           )}
 
           {results.destinations.length > 0 && (
             <div className={styles.section}>
               <div className={styles.group}><PinIcon /><span>Destinations</span></div>
-              {results.destinations.map((d, i) => {
-                const idx = nHotels + i;
+              {results.destinations.map((d, i) => (
+                <button
+                  key={`d-${d.code}`} type="button"
+                  className={`${styles.item} ${styles.itemRise} ${active === i ? styles.itemActive : ''}`}
+                  style={{ animationDelay: `${Math.min(i, 5) * 20}ms` }}
+                  onMouseEnter={() => setActive(i)}
+                  onClick={() => choose({ kind: 'destination', ...d })}
+                >
+                  <span className={`${styles.itemIcon} ${styles.iconDest}`}><PinIcon /></span>
+                  <span className={styles.itemText}>
+                    <span className={styles.itemMain}>{d.name}</span>
+                    <span className={styles.itemSub}>{d.country || 'Destination'}</span>
+                  </span>
+                  <span className={`${styles.tag} ${styles.tagDest}`}>Place</span>
+                </button>
+              ))}
+            </div>
+          )}
+
+          {results.hotels.length > 0 && (
+            <div className={styles.section}>
+              <div className={styles.group}><HotelIcon /><span>Hotels</span></div>
+              {results.hotels.map((h, i) => {
+                const idx = nDests + i;
                 return (
                   <button
-                    key={`d-${d.code}`} type="button"
-                    className={`${styles.item} ${active === idx ? styles.itemActive : ''}`}
+                    key={`h-${h.hotelCode}`} type="button"
+                    className={`${styles.item} ${styles.itemRise} ${active === idx ? styles.itemActive : ''}`}
+                    style={{ animationDelay: `${Math.min(idx, 7) * 20}ms` }}
                     onMouseEnter={() => setActive(idx)}
-                    onClick={() => choose({ kind: 'destination', ...d })}
+                    onClick={() => choose({ kind: 'hotel', ...h })}
                   >
-                    <span className={`${styles.itemIcon} ${styles.iconDest}`}><PinIcon /></span>
+                    <RowThumb
+                      image={h.image}
+                      broken={brokenImg[h.hotelCode]}
+                      onBroken={() => markBroken(h.hotelCode)}
+                      fallbackClass={styles.iconHotel}
+                    >
+                      <HotelIcon />
+                    </RowThumb>
                     <span className={styles.itemText}>
-                      <span className={styles.itemMain}>{d.name}</span>
-                      <span className={styles.itemSub}>{d.country || 'Destination'}</span>
+                      <span className={styles.itemMainRow}>
+                        <span className={styles.itemMain}>{h.name}</span>
+                        <Stars n={h.stars} />
+                      </span>
+                      <span className={styles.itemSub}>{h.destinationName}{h.country ? `, ${h.country}` : ''}</span>
                     </span>
-                    <span className={`${styles.tag} ${styles.tagDest}`}>Place</span>
+                    <span className={`${styles.tag} ${styles.tagHotel}`}>Hotel</span>
                   </button>
                 );
               })}

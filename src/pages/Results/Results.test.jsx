@@ -292,6 +292,10 @@ describe('board filter', () => {
     renderResults();
     await settled();
     await user.click(sidebarCheck('All Inclusive'));
+    // Wait for the request FIRST, then for the render. Ticking a filter costs a 300ms debounce
+    // plus a round trip; folding both into one waitFor puts them inside a single 1s budget,
+    // which is enough on an idle machine and not enough under full-suite load.
+    await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
     await waitFor(() => expect(cards()).toHaveLength(3));
 
     // Resort Alpha's cheapest rate overall is RO @700, but its AI rate is 800.
@@ -366,6 +370,7 @@ describe('cancellation filter', () => {
     renderResults();
     await settled();
     await user.click(sidebarCheck('All Inclusive'));
+    await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));   // debounce, then render
     await waitFor(() => expect(cards()).toHaveLength(3));
     // Resort Beta's only AI rate is NRP.
     const beta = cards().find((c) => within(c).queryByText('Resort Beta'));
