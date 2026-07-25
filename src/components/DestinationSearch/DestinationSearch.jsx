@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from 'react';
+import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { searchDestinationsAndHotels } from '../../api/filters';
 import styles from './DestinationSearch.module.css';
 
@@ -50,20 +50,48 @@ const Stars = ({ n }) => {
   );
 };
 
+// A row's leading square: the hotel's MASTER image when it has one, else the icon. Shared by
+// the results manifest and the recents list so a hotel looks the same wherever it appears.
+// About 8% of hotels carry no photo, and any CDN URL can 404 — both land on the icon.
+const RowThumb = ({ image, broken, onBroken, fallbackClass, children }) => {
+  if (!image || broken) {
+    return <span className={`${styles.itemIcon} ${fallbackClass}`}>{children}</span>;
+  }
+  return (
+    <span className={`${styles.itemIcon} ${styles.itemThumb}`}>
+      <img src={image} alt="" loading="lazy" decoding="async" aria-hidden="true" onError={onBroken} />
+    </span>
+  );
+};
+
 // ── Recent searches (localStorage) ──────────────────────────────────────────
 const RECENTS_KEY = 'sunsky.recentSearches';
+const RECENTS_MAX = 4;
+
+// A stored entry is only usable if it still carries the identity the caller navigates by:
+// a hotel needs its hotelCode, a destination its code. Without this guard a half-written or
+// older-format entry sails through to `/results?hotelCode=undefined`, which prices nothing.
+const isUsableRecent = (r) =>
+  !!r && typeof r.name === 'string' && r.name.trim() !== '' &&
+  ((r.kind === 'hotel' && r.hotelCode != null && String(r.hotelCode) !== '') ||
+   (r.kind === 'destination' && !!r.code));
+
 const loadRecents = () => {
   try {
     const raw = JSON.parse(localStorage.getItem(RECENTS_KEY));
-    return Array.isArray(raw) ? raw.filter((r) => r && r.name && r.kind) : [];
-  } catch { return []; }
+    return Array.isArray(raw) ? raw.filter(isUsableRecent).slice(0, RECENTS_MAX) : [];
+  } catch { return []; }   // unparseable, or storage blocked (Safari private mode)
 };
 const saveRecent = (item) => {
+  // De-dupe on kind+identity, not name: a hotel and a city can share a name ("Antalya"), and
+  // the same hotel renamed upstream must still replace its own entry rather than pile up.
+  const sameAs = (r) => r.kind === item.kind &&
+    (item.kind === 'hotel' ? String(r.hotelCode) === String(item.hotelCode) : r.code === item.code);
+  const next = [item, ...loadRecents().filter((r) => !sameAs(r))].slice(0, RECENTS_MAX);
   try {
-    const next = [item, ...loadRecents().filter((r) => r.name !== item.name)].slice(0, 4);
     localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
-    return next;
-  } catch { return [item]; }
+  } catch { /* storage full or blocked — the list still updates for this session */ }
+  return next;
 };
 
 // ── Typewriter hook — cycles destination names in the resting pill ──────────
@@ -106,6 +134,12 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
   const boxRef = useRef(null);
   const inputRef = useRef(null);
   const reqRef = useRef(0);
+  // Hotels whose thumbnail failed to load — keyed by hotelCode, so that row falls back to the
+  // icon instead of showing a broken frame, and stays fallen back across re-renders.
+  const [brokenImg, setBrokenImg] = useState({});
+  const markBroken = useCallback((code) => {
+    setBrokenImg((m) => (m[code] ? m : { ...m, [code]: true }));
+  }, []);
 
   // Debounced search — only the latest request's result is applied (reqRef guards races).
   useEffect(() => {
@@ -153,7 +187,9 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
     setActive(-1);
     setRecents(saveRecent(item));
     if (item.kind === 'hotel') {
-      onSelect({ type: 'hotel', hotelCode: item.hotelCode, name: item.name, destinationCode: item.destinationCode, destinationName: item.destinationName, country: item.country, stars: item.stars });
+      // `image` rides along so a hotel picked today still shows its photo when it comes back
+      // as a recent search tomorrow — recents are stored from exactly this object.
+      onSelect({ type: 'hotel', hotelCode: item.hotelCode, name: item.name, destinationCode: item.destinationCode, destinationName: item.destinationName, country: item.country, stars: item.stars, image: item.image ?? null });
     } else {
       onSelect({ type: 'destination', code: item.code, name: item.name, country: item.country });
     }
@@ -165,7 +201,8 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
     if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => Math.min(a + 1, flat.length - 1)); }
     else if (e.key === 'ArrowUp') { e.preventDefault(); setActive((a) => Math.max(a - 1, 0)); }
     else if (e.key === 'Enter' && open && active >= 0 && flat[active]) { e.preventDefault(); choose(flat[active]); }
-    else if (e.key === 'Escape') { setOpen(false); }
+    // Reset the highlight too, or reopening the box resumes on a row from the previous query.
+    else if (e.key === 'Escape') { setOpen(false); setActive(-1); }
   };
 
   const hasQuery = query.trim().length >= 2;
@@ -221,7 +258,14 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                   key={`r-${r.name}-${i}`} type="button" className={styles.item}
                   onClick={() => choose(r)}
                 >
-                  <span className={`${styles.itemIcon} ${styles.iconRecent}`}>{r.kind === 'hotel' ? <HotelIcon /> : <PinIcon />}</span>
+                  <RowThumb
+                    image={r.kind === 'hotel' ? r.image : null}
+                    broken={brokenImg[r.hotelCode]}
+                    onBroken={() => markBroken(r.hotelCode)}
+                    fallbackClass={styles.iconRecent}
+                  >
+                    {r.kind === 'hotel' ? <HotelIcon /> : <PinIcon />}
+                  </RowThumb>
                   <span className={styles.itemText}>
                     <span className={styles.itemMain}>{r.name}</span>
                     <span className={styles.itemSub}>{r.kind === 'hotel' ? [r.destinationName, r.country].filter(Boolean).join(', ') : (r.country || 'Destination')}</span>
@@ -304,7 +348,14 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                     onMouseEnter={() => setActive(idx)}
                     onClick={() => choose({ kind: 'hotel', ...h })}
                   >
-                    <span className={`${styles.itemIcon} ${styles.iconHotel}`}><HotelIcon /></span>
+                    <RowThumb
+                      image={h.image}
+                      broken={brokenImg[h.hotelCode]}
+                      onBroken={() => markBroken(h.hotelCode)}
+                      fallbackClass={styles.iconHotel}
+                    >
+                      <HotelIcon />
+                    </RowThumb>
                     <span className={styles.itemText}>
                       <span className={styles.itemMainRow}>
                         <span className={styles.itemMain}>{h.name}</span>

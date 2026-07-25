@@ -14,6 +14,31 @@ vi.mock('../../api', () => ({
   fetchFavouriteCodes: vi.fn(() => Promise.resolve(new Set())),
   addFavourite: vi.fn(), removeFavourite: vi.fn(),
 }));
+// The content-filter API (admin) is a different transport from the price cache (fetch), so it
+// needs its own stub — without one these tests fire real axios requests, which is both slow
+// and non-deterministic. Empty facet lists = "this scope has no content facets", which is the
+// state that decides whether the optional sidebar sections render at all.
+const EMPTY_FACETS = {
+  holiday: [], stars: [], facilities: [], activities: [],
+  accommodation: [], kids: [], beachDistance: [], centreDistance: [],
+};
+vi.mock('../../api/filters', () => ({
+  fetchFacets: vi.fn(() => Promise.resolve({
+    scope: { countries: [], destinations: ['AYT'], hotelCount: 0 },
+    matchedDestinations: ['AYT'],
+    included: { hotelCodes: false, attributes: false },
+    facets: EMPTY_FACETS,
+  })),
+  fetchCountries: vi.fn(() => Promise.resolve([{ code: 'TR', name: 'Turkey' }])),
+  fetchDestinations: vi.fn(() => Promise.resolve([])),
+  fetchThemes: vi.fn(() => Promise.resolve([])),
+  searchDestinationsAndHotels: vi.fn(() => Promise.resolve({ destinations: [], hotels: [] })),
+  fetchMatchingHotels: vi.fn(() => Promise.resolve({ count: 0, hotelCodes: [], attributes: {} })),
+}));
+
+// Board options are DYNAMIC — the sidebar lists exactly the boards the cache reports for this
+// search, with counts. A response without boardFacets means "no board filter available".
+const BOARD_FACETS = { RO: 4, SC: 3, BB: 6, HB: 5, FB: 2, AI: 20, UAI: 1 };
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const JSX = readFileSync(resolve(HERE, 'Results.jsx'), 'utf8');
@@ -33,6 +58,7 @@ beforeEach(() => {
         String(url).includes('/hotels/bulk')
           ? { data: [] }
           : { nights: 3, count: 20, results, cheapest: results[0], hasMore: false,
+              boardFacets: BOARD_FACETS,
               diagnostics: { candidateCount: 20, rejectedByCNEM: 0, rejectedByCNES: 0 } }
       ),
     })
@@ -48,6 +74,11 @@ const renderResults = () =>
 
 const settled = () =>
   waitFor(() => expect(screen.queryByText(/Searching the best deals/)).not.toBeInTheDocument());
+
+// Board and content-facet checkboxes carry their hotel count in the label ("All Inclusive (20)"),
+// so match on the name and let the count vary.
+const boardCheck = (name) =>
+  screen.getAllByRole('checkbox', { name: new RegExp(`^${name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*\\(\\d+\\)$`) })[0];
 
 describe('stylesheet integrity', () => {
   // A `styles.foo` that has no matching `.foo` in the CSS module silently renders as
@@ -77,8 +108,13 @@ describe('sidebar layout', () => {
     // Scope to the sidebar — result cards also use <h3> for the hotel name.
     const aside = screen.getByRole('heading', { name: 'Filters', level: 2 }).closest('aside');
     const headings = within(aside).getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    // Travel time / Distance / Family & Kids are conditional — they appear only when the URL
+    // carries a night range, or when the scope actually has those content facets (it doesn't
+    // here). Everything else is unconditional and this is the order it ships in.
     expect(headings).toEqual([
-      'Dates & Guests', 'Price Range', 'Board Type', 'Room Type', 'Cancellation',
+      'Dates & Guests', 'Where', 'Price Range', 'Transport', 'Holiday Type', 'Star Rating',
+      'Accommodation Type', 'Board Type', 'Facilities', 'Activities', 'Adults only',
+      'Room Type', 'Cancellation',
     ]);
   });
 
@@ -93,7 +129,7 @@ describe('sidebar layout', () => {
     renderResults();
     await settled();
     const groups = screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label'));
-    expect(groups).toEqual(['Price basis', 'Cancellation policy']);
+    expect(groups).toEqual(['Price basis', 'Transport type', 'Cancellation policy']);
 
     // Exactly one option selected per group, and it reflects the default.
     expect(screen.getByRole('radio', { name: 'Total stay' })).toHaveAttribute('aria-checked', 'true');
@@ -101,13 +137,32 @@ describe('sidebar layout', () => {
     expect(screen.getByRole('radio', { name: 'Per person' })).toHaveAttribute('aria-checked', 'false');
   });
 
-  it('shows every board option the cache can filter on', async () => {
+  it('shows every board option the cache reported, with its hotel count', async () => {
     renderResults();
     await settled();
     for (const b of ['Room Only', 'Self Catering', 'Bed & Breakfast', 'Half Board',
                      'Full Board', 'All Inclusive', 'Ultra All Inclusive']) {
-      expect(screen.getByRole('checkbox', { name: b })).toBeInTheDocument();
+      expect(boardCheck(b)).toBeInTheDocument();
     }
+    // Counts come from the response, not from a hardcoded list.
+    expect(screen.getAllByRole('checkbox', { name: 'All Inclusive (20)' })[0]).toBeInTheDocument();
+  });
+
+  it('offers no board filter when the search reports none', async () => {
+    globalThis.fetch = vi.fn((url) =>
+      Promise.resolve({
+        ok: true,
+        json: () => Promise.resolve(
+          String(url).includes('/hotels/bulk')
+            ? { data: [] }
+            : { nights: 3, count: 20, results, cheapest: results[0], hasMore: false,
+                diagnostics: { candidateCount: 20, rejectedByCNEM: 0, rejectedByCNES: 0 } }
+        ),
+      })
+    );
+    renderResults();
+    await settled();
+    expect(screen.queryByRole('checkbox', { name: /All Inclusive/ })).not.toBeInTheDocument();
   });
 
   it('hides the B2B rate-class codes from the consumer UI', async () => {
@@ -158,7 +213,7 @@ describe('mobile drawer', () => {
     await settled();
 
     expect(filtersBtn().textContent).not.toMatch(/\d/);
-    await user.click(screen.getAllByRole('checkbox', { name: 'Half Board' })[0]);
+    await user.click(boardCheck('Half Board'));
     await waitFor(() => expect(filtersBtn().textContent).toMatch(/1/));
   });
 
@@ -187,7 +242,10 @@ describe('result card', () => {
     expect(within(card).getByText('All Inclusive')).toBeInTheDocument();   // board tag
     expect(within(card).getByText('Double')).toBeInTheDocument();          // room label, not "DBL"
     expect(within(card).getByRole('button', { name: /save to favourites/i })).toBeInTheDocument();
-    expect(within(card).getByRole('button', { name: /view deal/i })).toBeInTheDocument();
+    // "View Deal" is a real link (it opens the detail page in a new tab, so it must be
+    // middle-clickable and copyable), not a button.
+    const deal = within(card).getByRole('link', { name: /view deal/i });
+    expect(deal).toHaveAttribute('href', expect.stringContaining('/hotel/200'));
     expect(within(card).getByText('Best Value')).toBeInTheDocument();      // cheapest card
     expect(card.textContent).toMatch(/EUR/);
     expect(card.textContent).toMatch(/\/ night/);

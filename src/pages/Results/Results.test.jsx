@@ -17,6 +17,30 @@ vi.mock('../../api', () => ({
   addFavourite: vi.fn(() => Promise.resolve()),
   removeFavourite: vi.fn(() => Promise.resolve()),
 }));
+// The content-filter API (admin) is a separate transport from the price cache (fetch). Stubbed
+// so these tests exercise the PRICE contract deterministically, with no real axios traffic.
+// `facetCalls` records what was asked for, so the payload opt-ins can be asserted.
+const facetCalls = [];
+vi.mock('../../api/filters', () => ({
+  fetchFacets: vi.fn((scope, filters, opts = {}) => {
+    facetCalls.push({ scope, filters, opts });
+    return Promise.resolve({
+      scope: { countries: scope.countries ?? [], destinations: scope.destinations ?? [], hotelCount: 0 },
+      matchedDestinations: scope.destinations ?? [],
+      included: { hotelCodes: Boolean(opts.codes), attributes: Boolean(opts.codes && opts.attrs) },
+      ...(opts.codes ? { hotelCodes: [] } : {}),
+      facets: {
+        holiday: [], stars: [], facilities: [], activities: [],
+        accommodation: [], kids: [], beachDistance: [], centreDistance: [],
+      },
+    });
+  }),
+  fetchCountries: vi.fn(() => Promise.resolve([{ code: 'TR', name: 'Turkey' }])),
+  fetchDestinations: vi.fn(() => Promise.resolve([])),
+  fetchThemes: vi.fn(() => Promise.resolve([])),
+  searchDestinationsAndHotels: vi.fn(() => Promise.resolve({ destinations: [], hotels: [] })),
+  fetchMatchingHotels: vi.fn(() => Promise.resolve({ count: 0, hotelCodes: [], attributes: {} })),
+}));
 
 // ── Fixture: hotels as RATE POOLS, not pre-picked winners ─────────────────────
 // This is the crux. The real cache stores many rates per hotel and picks the
@@ -113,12 +137,23 @@ function cheapest(qs) {
   }
   winners.sort((a, b) => (desc ? b.totalAmount - a.totalAmount : a.totalAmount - b.totalAmount));
 
+  // Board facets are what the sidebar's Board Type list is built from: every board present in
+  // the SEARCH (not just on this page), with a hotel count. The real controller derives them
+  // from the whole rate pool, so they stay stable while the user ticks boards — otherwise
+  // filtering to AI would delete every other option and there would be no way back.
+  const boardFacets = {};
+  for (const h of HOTELS) {
+    for (const b of new Set(h.rates.map((r) => r.board))) boardFacets[b] = (boardFacets[b] ?? 0) + 1;
+  }
+
   const start = (page - 1) * PAGE;
   const items = winners.slice(start, start + PAGE);
   return {
     destination: qs.get('destination'), checkIn: qs.get('checkIn'), checkOut: qs.get('checkOut'),
     nights: 3, count: items.length, results: items,
     cheapest: winners[0] ?? null,
+    boardFacets,
+    total: winners.length,
     page, pageSize: PAGE, hasMore: winners.length > start + PAGE,
     diagnostics: { candidateCount: winners.length, rejectedByCNEM: 0, rejectedByCNES: 0 },
   };
@@ -126,6 +161,7 @@ function cheapest(qs) {
 
 beforeEach(() => {
   calls = [];
+  facetCalls.length = 0;
   latency = () => 0;
   internalSource = () => false;
   globalThis.fetch = vi.fn((url, opts) => {
@@ -155,7 +191,15 @@ const renderResults = (query = '?destination=AYT&destinationLabel=Antalya&checkI
 const lastCall = () => calls[calls.length - 1];
 const cards = () => screen.queryAllByRole('article');
 // The sidebar and the mobile drawer both render the same controls; the sidebar is first.
-const sidebarCheck = (name) => screen.getAllByRole('checkbox', { name })[0];
+// Facet-driven checkboxes (boards, holiday types, facilities…) carry their hotel count in the
+// label — "All Inclusive (4)" — while static ones (room types) do not. Accept either so a test
+// names the filter, not its current count.
+const sidebarCheck = (name) => {
+  const exact = screen.queryAllByRole('checkbox', { name });
+  if (exact.length) return exact[0];
+  const escaped = name.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return screen.getAllByRole('checkbox', { name: new RegExp(`^${escaped}\\s*\\(\\d+\\)$`) })[0];
+};
 const sidebarRadio = (name) => screen.getAllByRole('radio', { name })[0];
 
 // Room Type ships collapsed (like the old Rate Type section did), so open it first.
@@ -248,6 +292,10 @@ describe('board filter', () => {
     renderResults();
     await settled();
     await user.click(sidebarCheck('All Inclusive'));
+    // Wait for the request FIRST, then for the render. Ticking a filter costs a 300ms debounce
+    // plus a round trip; folding both into one waitFor puts them inside a single 1s budget,
+    // which is enough on an idle machine and not enough under full-suite load.
+    await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
     await waitFor(() => expect(cards()).toHaveLength(3));
 
     // Resort Alpha's cheapest rate overall is RO @700, but its AI rate is 800.
@@ -322,6 +370,7 @@ describe('cancellation filter', () => {
     renderResults();
     await settled();
     await user.click(sidebarCheck('All Inclusive'));
+    await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));   // debounce, then render
     await waitFor(() => expect(cards()).toHaveLength(3));
     // Resort Beta's only AI rate is NRP.
     const beta = cards().find((c) => within(c).queryByText('Resort Beta'));
@@ -344,7 +393,7 @@ describe('sort', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.selectOptions(screen.getByRole('combobox'), 'price_desc');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'price_desc');
     await waitFor(() => expect(lastCall().get('sortBy')).toBe('price_desc'));
     await waitFor(() => expect(within(cards()[0]).getByText('Resort Delta')).toBeInTheDocument());
   });
@@ -353,7 +402,7 @@ describe('sort', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.selectOptions(screen.getByRole('combobox'), 'price_desc');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'price_desc');
     await waitFor(() => expect(lastCall().get('sortBy')).toBe('price_desc'));
     await waitFor(() => expect(within(cards()[0]).getByText('Resort Delta')).toBeInTheDocument());
     // The badge must NOT land on the first (most expensive) card.
@@ -493,11 +542,13 @@ describe('debounce + request ordering', () => {
     await settled();
     const before = calls.length;
 
+    // Boards offered are exactly those the cache reported for this search, so pick three the
+    // fixture actually contains — "Full Board" is not one of them.
     await user.click(sidebarCheck('All Inclusive'));
     await user.click(sidebarCheck('Half Board'));
-    await user.click(sidebarCheck('Full Board'));
+    await user.click(sidebarCheck('Ultra All Inclusive'));
 
-    await waitFor(() => expect(lastCall().get('boards')).toBe('AI,HB,FB'));
+    await waitFor(() => expect(lastCall().get('boards')).toBe('AI,HB,UAI'));
     await new Promise((r) => setTimeout(r, 400));
     // Three clicks inside the debounce window must not mean three round-trips.
     expect(calls.length - before).toBeLessThanOrEqual(2);
@@ -647,9 +698,47 @@ describe('resilience', () => {
     await waitFor(() => expect(screen.getByText('No results found')).toBeInTheDocument());
   });
 
-  it('prompts for a destination when none is supplied', async () => {
+  // An empty search used to dead-end on "Select a destination". It now lands on a curated set
+  // of popular sun destinations that actually have priced inventory, cheapest-first — the
+  // traveller sees deals immediately and narrows from the Where filter.
+  it('falls back to popular destinations when no place is supplied', async () => {
     renderResults('?');
-    await waitFor(() => expect(screen.getByText('Select a destination')).toBeInTheDocument());
-    expect(calls).toHaveLength(0);
+    await settled();
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    expect(lastCall().get('destinations').split(',')).toEqual(
+      ['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
+    expect(screen.getAllByText('Popular destinations').length).toBeGreaterThan(0);
+    expect(cards().length).toBeGreaterThan(0);
+  });
+});
+
+// The content API is asked for the big optional payloads ONLY when the page will use them.
+// Getting this wrong is invisible in the UI and costs ~1 MB per request on a country search.
+describe('content-facet payload opt-ins', () => {
+  const lastFacetCall = () => facetCalls[facetCalls.length - 1];
+
+  it('asks for neither hotelCodes nor attributes on a plain search', async () => {
+    renderResults();
+    await settled();
+    expect(lastFacetCall().opts).toMatchObject({ codes: false, attrs: false });
+  });
+
+  it('asks for hotelCodes once a content facet is selected', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.click(screen.getAllByText('Adults only')[0]);   // section ships collapsed
+    await user.click(sidebarCheck('Adults-only hotels'));
+    await waitFor(() => expect(lastFacetCall().opts.codes).toBe(true));
+    expect(lastFacetCall().filters.adultsOnly).toBe(true);
+  });
+
+  it('asks for attributes only when a distance sort is chosen', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    expect(lastFacetCall().opts.attrs).toBe(false);
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'distance_beach');
+    await waitFor(() => expect(lastFacetCall().opts.attrs).toBe(true));
   });
 });

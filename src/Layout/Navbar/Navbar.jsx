@@ -7,6 +7,7 @@ import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig, useHolidayTypes } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
+import { hotelDetailHref } from '../../utils/searchDefaults';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
 import HeaderMenu from './HeaderMenu';
 
@@ -179,19 +180,33 @@ export default function Navbar() {
     return out;
   }, [cmsConfig, allTypes]);
 
-  // Header search — a picked hotel pins that one hotel; a picked destination opens results for it.
-  // The results page fills the rest (dates default to today+30/+37, 2 adults, 1 room).
+  // Header search.
+  //
+  // Naming ONE hotel is an unambiguous request for that hotel, so it opens the hotel's own
+  // detail page. It used to land on the results list filtered to a single hotel, which showed
+  // the traveller a whole filter sidebar and one lonely card, and made them click again to
+  // reach the page they had already asked for.
+  //
+  // A destination is genuinely a many-results query, so that still opens the results list.
+  // Either way the dates default to today+30/+37, 2 adults, 1 room, and the target page
+  // live-prices from there.
   const goToSearchResult = (item) => {
     if (!item) return;
-    const qs = new URLSearchParams();
-    if (item.type === 'hotel') {
-      if (item.destinationCode) qs.set('destinations', item.destinationCode);
-      qs.set('hotelCode', item.hotelCode);
-      qs.set('destinationLabel', item.name);
-    } else {
-      qs.set('destinations', item.code);
-      qs.set('destinationLabel', item.name);
+    if (item.type === 'hotel' && item.hotelCode) {
+      const href = hotelDetailHref({
+        hotelCode: item.hotelCode,
+        name: item.name,
+        destinationCode: item.destinationCode,
+        stars: item.stars,
+        img: item.image,
+        loc: [item.destinationName, item.country].filter(Boolean).join(', '),
+      });
+      if (href) { navigate(href); setMobileOpen(false); return; }
     }
+    // A destination — or a hotel result that arrived without a code to navigate by.
+    const qs = new URLSearchParams();
+    qs.set('destinations', item.type === 'hotel' ? (item.destinationCode ?? '') : item.code);
+    qs.set('destinationLabel', item.name);
     navigate(`/results?${qs.toString()}`);
     setMobileOpen(false);
   };
