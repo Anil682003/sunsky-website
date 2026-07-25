@@ -710,6 +710,23 @@ describe('resilience', () => {
     expect(screen.getAllByText('Popular destinations').length).toBeGreaterThan(0);
     expect(cards().length).toBeGreaterThan(0);
   });
+
+  // The empty-search teaser uses the FAST external-only cache path. The slow half of a
+  // 'combined' search is Diana (SOAP): an 8-destination combined search measured ~17s cold and
+  // tripped the cache gateway → the 502 the user hit. The teaser doesn't need the secondary
+  // supplier, so it must not pay that cost.
+  it('prices the empty-search teaser with the fast external-only source', async () => {
+    renderResults('?');
+    await settled();
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    expect(lastCall().get('source')).toBe('external');
+  });
+
+  it('keeps the full combined supplier set for a real, place-specific search', async () => {
+    renderResults('?destination=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1');
+    await settled();
+    expect(lastCall().get('source')).toBe('combined');
+  });
 });
 
 // The content API is asked for the big optional payloads ONLY when the page will use them.
