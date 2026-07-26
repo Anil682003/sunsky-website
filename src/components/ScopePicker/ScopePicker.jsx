@@ -3,13 +3,11 @@ import styles from './ScopePicker.module.css';
 import { fetchDestinations, fetchZones } from '../../api/filters';
 
 /**
- * Where-picker for the results sidebar, built as a ROUTE: country → city → area,
- * three stations strung along a dotted flight path. Each station opens one
- * searchable list, so the rail never stacks three scrolling lists at once.
+ * Where-picker for the results sidebar: countries → cities → areas.
  *
- * Cities are fetched for every ticked country in a single call and grouped under
- * country headers; areas group under their city. Codes (PMI, AYT) ride on the
- * right of each row — the same boarding-pass language the rest of the site uses.
+ * Three collapsible sections, one open at a time, so the rail never stacks three
+ * scrolling lists. Cities load for every ticked country in a single call and group
+ * under country headings; areas group under their city.
  *
  * The parent owns the committed scope; this drafts locally and calls
  * onApply({ countries, destinations, zones }) on commit.
@@ -20,8 +18,8 @@ import { fetchDestinations, fetchZones } from '../../api/filters';
 const zoneKey  = (z) => `${z.destinationCode}:${z.zoneCode}`;
 const zoneCity = (key) => String(key).split(':')[0];
 
-const Tick = () => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+const Check = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
 );
 
 function Flag({ flagUrl, flag, className }) {
@@ -30,11 +28,10 @@ function Flag({ flagUrl, flag, className }) {
     : <span className={className || styles.flag} data-emoji="true">{flag || '\u{1F3F3}️'}</span>;
 }
 
-/** One selectable row: tick, optional flag, name, and its code as a tag. */
 function Row({ label, code, checked, onToggle, flagUrl, flag }) {
   return (
     <button type="button" className={`${styles.row} ${checked ? styles.rowOn : ''}`} onClick={onToggle}>
-      <span className={`${styles.tick} ${checked ? styles.tickOn : ''}`}>{checked && <Tick />}</span>
+      <span className={`${styles.box} ${checked ? styles.boxOn : ''}`}>{checked && <Check />}</span>
       {(flagUrl || flag) && <Flag flagUrl={flagUrl} flag={flag} />}
       <span className={styles.rowName}>{label}</span>
       {code && <span className={styles.code}>{code}</span>}
@@ -42,23 +39,29 @@ function Row({ label, code, checked, onToggle, flagUrl, flag }) {
   );
 }
 
-/** A station on the route: dot + label on the flight path, body below. */
-function Leg({ label, sub, count, open, locked, onToggle, children }) {
+function Section({ title, summary, count, open, locked, onToggle, children }) {
   return (
-    <div className={`${styles.leg} ${open ? styles.legOpen : ''} ${locked ? styles.legLocked : ''}`}>
-      <button type="button" className={styles.legHead} onClick={locked ? undefined : onToggle} aria-expanded={open}>
-        <span className={`${styles.dot} ${count > 0 ? styles.dotOn : ''}`}>
-          {count > 0 ? count : <span className={styles.dotPip} />}
+    <div className={`${styles.section} ${open ? styles.sectionOpen : ''} ${locked ? styles.locked : ''}`}>
+      <button type="button" className={styles.sectionHead} onClick={locked ? undefined : onToggle} aria-expanded={open}>
+        <span className={styles.sectionText}>
+          <span className={styles.sectionTitle}>{title}</span>
+          <span className={styles.sectionSummary}>{summary}</span>
         </span>
-        <span className={styles.legText}>
-          <span className={styles.legLabel}>{label}</span>
-          <span className={styles.legSub}>{sub}</span>
-        </span>
+        {count > 0 && <span className={styles.badge}>{count}</span>}
         {!locked && (
-          <svg className={`${styles.chev} ${open ? styles.chevOpen : ''}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+          <svg className={`${styles.chev} ${open ? styles.chevOpen : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
         )}
       </button>
-      {open && !locked && <div className={styles.legBody}>{children}</div>}
+      {open && !locked && <div className={styles.sectionBody}>{children}</div>}
+    </div>
+  );
+}
+
+function Search({ value, onChange, placeholder }) {
+  return (
+    <div className={styles.searchWrap}>
+      <svg className={styles.searchIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
+      <input className={styles.search} type="text" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
     </div>
   );
 }
@@ -72,7 +75,7 @@ export default function ScopePicker({
   const [draftCountries, setDraftCountries] = useState(() => new Set(value.countries));
   const [draftCities, setDraftCities]       = useState(() => new Set(value.destinations));
   const [draftZones, setDraftZones]         = useState(() => new Set(value.zones));
-  const [leg, setLeg] = useState(1);
+  const [open, setOpen] = useState('country');
 
   const [countrySearch, setCountrySearch] = useState('');
   const [citySearch, setCitySearch]       = useState('');
@@ -148,12 +151,12 @@ export default function ScopePicker({
   });
 
   const clearAll = () => {
-    setDraftCountries(new Set()); setDraftCities(new Set()); setDraftZones(new Set()); setLeg(1);
+    setDraftCountries(new Set()); setDraftCities(new Set()); setDraftZones(new Set()); setOpen('country');
   };
 
-  const countryOf = (code) => countries.find((c) => c.code === code);
-  const cityOf    = (code) => cities.find((c) => c.code === code);
-  const nameOfZone = (key) => zones.find((z) => zoneKey(z) === key)?.name || key;
+  const countryOf   = (code) => countries.find((c) => c.code === code);
+  const cityOf      = (code) => cities.find((c) => c.code === code);
+  const nameOfZone  = (key) => zones.find((z) => zoneKey(z) === key)?.name || key;
 
   const hit = (q, ...fields) => {
     const s = q.trim().toLowerCase();
@@ -185,8 +188,8 @@ export default function ScopePicker({
     return [...by.values()];
   }, [zones, zoneSearch]);
 
-  // Select-all / clear for one country's cities — the shortcut a long list needs.
-  const toggleWholeCountry = (group) => {
+  // Select-all / clear for one group — the shortcut a 27-city country needs.
+  const toggleAllCities = (group) => {
     const all = group.items.map((i) => i.code);
     const every = all.every((c) => draftCities.has(c));
     setDraftCities((prev) => {
@@ -195,6 +198,16 @@ export default function ScopePicker({
         all.forEach((c) => next.delete(c));
         setDraftZones((zs) => new Set([...zs].filter((z) => !all.includes(zoneCity(z)))));
       } else all.forEach((c) => next.add(c));
+      return next;
+    });
+  };
+
+  const toggleAllZones = (group) => {
+    const all = group.items.map(zoneKey);
+    const every = all.every((k) => draftZones.has(k));
+    setDraftZones((prev) => {
+      const next = new Set(prev);
+      all.forEach((k) => (every ? next.delete(k) : next.add(k)));
       return next;
     });
   };
@@ -210,52 +223,52 @@ export default function ScopePicker({
 
   return (
     <div className={styles.wrap}>
-      {/* ── Ticket stub: everything picked so far ── */}
       {total > 0 && (
-        <div className={styles.stub}>
-          <div className={styles.stubTop}>
-            <span className={styles.stubLabel}>Your route</span>
-            <button type="button" className={styles.clearAll} onClick={clearAll}>Clear all</button>
+        <div className={styles.selected}>
+          <div className={styles.selectedHead}>
+            <span className={styles.selectedLabel}>Selected</span>
+            <button type="button" className={styles.clear} onClick={clearAll}>Clear all</button>
           </div>
-          <div className={styles.stubTags}>
+          <div className={styles.pills}>
             {[...draftCountries].map((c) => {
               const m = countryOf(c);
               return (
-                <span className={`${styles.tag} ${styles.tagCountry}`} key={`c-${c}`}>
-                  {m && <Flag flagUrl={m.flagUrl} flag={m.flag} className={styles.tagFlag} />}
+                <span className={styles.pill} key={`c-${c}`}>
+                  {m && <Flag flagUrl={m.flagUrl} flag={m.flag} className={styles.pillFlag} />}
                   {m?.name || c}
-                  <button className={styles.tagX} onClick={() => toggleCountry(c)} aria-label={`Remove ${m?.name || c}`}>&times;</button>
+                  <button className={styles.pillX} onClick={() => toggleCountry(c)} aria-label={`Remove ${m?.name || c}`}>
+                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                  </button>
                 </span>
               );
             })}
             {[...draftCities].map((c) => (
-              <span className={`${styles.tag} ${styles.tagCity}`} key={`d-${c}`}>
-                <em className={styles.tagCode}>{c}</em>
+              <span className={styles.pill} key={`d-${c}`}>
                 {cityOf(c)?.name || c}
-                <button className={styles.tagX} onClick={() => toggleCity(c)} aria-label={`Remove ${cityOf(c)?.name || c}`}>&times;</button>
+                <button className={styles.pillX} onClick={() => toggleCity(c)} aria-label={`Remove ${cityOf(c)?.name || c}`}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
               </span>
             ))}
             {[...draftZones].map((z) => (
-              <span className={`${styles.tag} ${styles.tagZone}`} key={`z-${z}`}>
+              <span className={styles.pill} key={`z-${z}`}>
                 {nameOfZone(z)}
-                <button className={styles.tagX} onClick={() => toggleZone(z)} aria-label={`Remove ${nameOfZone(z)}`}>&times;</button>
+                <button className={styles.pillX} onClick={() => toggleZone(z)} aria-label={`Remove ${nameOfZone(z)}`}>
+                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
+                </button>
               </span>
             ))}
           </div>
         </div>
       )}
 
-      {/* ── The route: three stations on a dotted flight path ── */}
-      <div className={styles.route}>
-        <Leg
-          label="Country" count={draftCountries.size}
-          sub={draftCountries.size ? `${draftCountries.size} picked` : 'Where in the world?'}
-          open={leg === 1} onToggle={() => setLeg(leg === 1 ? 0 : 1)}
+      <div className={styles.sections}>
+        <Section
+          title="Countries" count={draftCountries.size}
+          summary={draftCountries.size ? `${draftCountries.size} selected` : 'Any country'}
+          open={open === 'country'} onToggle={() => setOpen(open === 'country' ? null : 'country')}
         >
-          <input
-            className={styles.search} type="text" placeholder="Search countries…"
-            value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)}
-          />
+          <Search value={countrySearch} onChange={setCountrySearch} placeholder="Search countries" />
           <div className={styles.list}>
             {shownCountries.length === 0 && <p className={styles.note}>No country matches that.</p>}
             {shownCountries.map((c) => (
@@ -265,20 +278,17 @@ export default function ScopePicker({
               />
             ))}
           </div>
-        </Leg>
+        </Section>
 
-        <Leg
-          label="City" count={draftCities.size} locked={draftCountries.size === 0}
-          sub={draftCountries.size === 0 ? 'Pick a country first'
-            : citiesBusy ? 'Loading…'
-            : draftCities.size ? `${draftCities.size} picked`
-            : `${cities.length} available — searching all`}
-          open={leg === 2} onToggle={() => setLeg(leg === 2 ? 0 : 2)}
+        <Section
+          title="Cities" count={draftCities.size} locked={draftCountries.size === 0}
+          summary={draftCountries.size === 0 ? 'Select a country first'
+            : citiesBusy ? 'Loading'
+            : draftCities.size ? `${draftCities.size} selected`
+            : `All ${cities.length} cities`}
+          open={open === 'city'} onToggle={() => setOpen(open === 'city' ? null : 'city')}
         >
-          <input
-            className={styles.search} type="text" placeholder="Search cities…"
-            value={citySearch} onChange={(e) => setCitySearch(e.target.value)}
-          />
+          <Search value={citySearch} onChange={setCitySearch} placeholder="Search cities" />
           <div className={styles.list}>
             {citiesBusy && <p className={styles.note}>Loading cities&hellip;</p>}
             {!citiesBusy && cityGroups.length === 0 && <p className={styles.note}>No city matches that.</p>}
@@ -287,11 +297,10 @@ export default function ScopePicker({
               return (
                 <div className={styles.group} key={g.code}>
                   <div className={styles.groupHead}>
-                    <Flag flagUrl={g.flagUrl} flag={g.flag} />
+                    <Flag flagUrl={g.flagUrl} flag={g.flag} className={styles.groupFlag} />
                     <span className={styles.groupName}>{g.name}</span>
-                    <em className={styles.groupCount}>{g.items.length}</em>
-                    <button type="button" className={styles.groupAll} onClick={() => toggleWholeCountry(g)}>
-                      {every ? 'None' : 'All'}
+                    <button type="button" className={styles.groupAll} onClick={() => toggleAllCities(g)}>
+                      {every ? 'Clear' : 'Select all'}
                     </button>
                   </div>
                   {g.items.map((c) => (
@@ -301,36 +310,38 @@ export default function ScopePicker({
               );
             })}
           </div>
-        </Leg>
+        </Section>
 
-        <Leg
-          label="Area" count={draftZones.size} locked={draftCities.size === 0}
-          sub={draftCities.size === 0 ? 'Pick a city first'
-            : zonesBusy ? 'Loading…'
-            : draftZones.size ? `${draftZones.size} picked`
-            : zones.length ? `${zones.length} available` : 'None listed'}
-          open={leg === 3} onToggle={() => setLeg(leg === 3 ? 0 : 3)}
+        <Section
+          title="Areas" count={draftZones.size} locked={draftCities.size === 0}
+          summary={draftCities.size === 0 ? 'Select a city first'
+            : zonesBusy ? 'Loading'
+            : draftZones.size ? `${draftZones.size} selected`
+            : zones.length ? `All ${zones.length} areas` : 'None available'}
+          open={open === 'area'} onToggle={() => setOpen(open === 'area' ? null : 'area')}
         >
-          <input
-            className={styles.search} type="text" placeholder="Search areas…"
-            value={zoneSearch} onChange={(e) => setZoneSearch(e.target.value)}
-          />
+          <Search value={zoneSearch} onChange={setZoneSearch} placeholder="Search areas" />
           <div className={styles.list}>
             {zonesBusy && <p className={styles.note}>Loading areas&hellip;</p>}
-            {!zonesBusy && zoneGroups.length === 0 && <p className={styles.note}>No areas listed for these cities.</p>}
-            {zoneGroups.map((g) => (
-              <div className={styles.group} key={g.code}>
-                <div className={styles.groupHead}>
-                  <span className={styles.groupName}>{g.name}</span>
-                  <em className={styles.groupCount}>{g.items.length}</em>
+            {!zonesBusy && zoneGroups.length === 0 && <p className={styles.note}>No areas available for these cities.</p>}
+            {zoneGroups.map((g) => {
+              const every = g.items.every((i) => draftZones.has(zoneKey(i)));
+              return (
+                <div className={styles.group} key={g.code}>
+                  <div className={styles.groupHead}>
+                    <span className={styles.groupName}>{g.name}</span>
+                    <button type="button" className={styles.groupAll} onClick={() => toggleAllZones(g)}>
+                      {every ? 'Clear' : 'Select all'}
+                    </button>
+                  </div>
+                  {g.items.map((z) => (
+                    <Row key={zoneKey(z)} label={z.name} checked={draftZones.has(zoneKey(z))} onToggle={() => toggleZone(zoneKey(z))} />
+                  ))}
                 </div>
-                {g.items.map((z) => (
-                  <Row key={zoneKey(z)} label={z.name} checked={draftZones.has(zoneKey(z))} onToggle={() => toggleZone(zoneKey(z))} />
-                ))}
-              </div>
-            ))}
+              );
+            })}
           </div>
-        </Leg>
+        </Section>
       </div>
 
       <button
@@ -338,8 +349,7 @@ export default function ScopePicker({
         disabled={!dirty || total === 0}
         onClick={() => onApply({ countries: [...draftCountries], destinations: [...draftCities], zones: [...draftZones] })}
       >
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
-        {total === 0 ? 'Pick a destination' : `Search ${total} place${total === 1 ? '' : 's'}`}
+        {total === 0 ? 'Select a destination' : `Search ${total} place${total === 1 ? '' : 's'}`}
       </button>
     </div>
   );
