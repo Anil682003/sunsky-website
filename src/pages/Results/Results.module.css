@@ -318,7 +318,7 @@
 
 /* ════════ Sidebar ════════ */
 .sidebar {
-  width: 296px; flex-shrink: 0;
+  width: 364px; flex-shrink: 0;
   position: sticky; top: 92px;
   max-height: calc(100vh - 108px);
   overflow-y: auto; overflow-x: hidden;

@@ -3,14 +3,16 @@ import styles from './ScopePicker.module.css';
 import { fetchDestinations, fetchZones } from '../../api/filters';
 
 /**
- * Cascading Where-picker for the results sidebar: countries → cities → zones.
+ * Where-picker for the results sidebar, built as a ROUTE: country → city → area,
+ * three stations strung along a dotted flight path. Each station opens one
+ * searchable list, so the rail never stacks three scrolling lists at once.
  *
- * Each level unlocks the next and is its own collapsible step, so a narrow sidebar
- * shows one searchable list at a time instead of three stacked ones. Cities are
- * grouped under their country (with flag), zones under their city.
+ * Cities are fetched for every ticked country in a single call and grouped under
+ * country headers; areas group under their city. Codes (PMI, AYT) ride on the
+ * right of each row — the same boarding-pass language the rest of the site uses.
  *
- * The parent owns the committed scope; this component drafts locally and calls
- * onApply({ countries, destinations, zones }) when the traveller commits.
+ * The parent owns the committed scope; this drafts locally and calls
+ * onApply({ countries, destinations, zones }) on commit.
  */
 
 // zoneCode is unique only inside a destination, so a picked area is keyed by both:
@@ -18,45 +20,45 @@ import { fetchDestinations, fetchZones } from '../../api/filters';
 const zoneKey  = (z) => `${z.destinationCode}:${z.zoneCode}`;
 const zoneCity = (key) => String(key).split(':')[0];
 
-const Chevron = ({ open }) => (
-  <svg className={`${styles.chev} ${open ? styles.chevOpen : ''}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-);
-
 const Tick = () => (
-  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+  <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
 );
 
-function Flag({ flagUrl, flag }) {
+function Flag({ flagUrl, flag, className }) {
   return flagUrl
-    ? <img className={styles.flag} src={flagUrl} alt="" loading="lazy" />
-    : <span className={styles.flag} data-emoji="true">{flag || '\u{1F3F3}️'}</span>;
+    ? <img className={className || styles.flag} src={flagUrl} alt="" loading="lazy" />
+    : <span className={className || styles.flag} data-emoji="true">{flag || '\u{1F3F3}️'}</span>;
 }
 
-/** One selectable row with a checkbox tick. */
-function Row({ label, sub, checked, onToggle, flagUrl, flag }) {
+/** One selectable row: tick, optional flag, name, and its code as a tag. */
+function Row({ label, code, checked, onToggle, flagUrl, flag }) {
   return (
     <button type="button" className={`${styles.row} ${checked ? styles.rowOn : ''}`} onClick={onToggle}>
       <span className={`${styles.tick} ${checked ? styles.tickOn : ''}`}>{checked && <Tick />}</span>
       {(flagUrl || flag) && <Flag flagUrl={flagUrl} flag={flag} />}
       <span className={styles.rowName}>{label}</span>
-      {sub != null && <em className={styles.rowSub}>{sub}</em>}
+      {code && <span className={styles.code}>{code}</span>}
     </button>
   );
 }
 
-/** A collapsible cascade step. */
-function Step({ n, title, hint, count, open, onToggle, disabled, children }) {
+/** A station on the route: dot + label on the flight path, body below. */
+function Leg({ label, sub, count, open, locked, onToggle, children }) {
   return (
-    <div className={`${styles.step} ${open ? styles.stepOpen : ''} ${disabled ? styles.stepOff : ''}`}>
-      <button type="button" className={styles.stepHead} onClick={disabled ? undefined : onToggle} aria-expanded={open}>
-        <span className={`${styles.stepNum} ${count > 0 ? styles.stepNumOn : ''}`}>{count > 0 ? count : n}</span>
-        <span className={styles.stepText}>
-          <span className={styles.stepTitle}>{title}</span>
-          <span className={styles.stepHint}>{hint}</span>
+    <div className={`${styles.leg} ${open ? styles.legOpen : ''} ${locked ? styles.legLocked : ''}`}>
+      <button type="button" className={styles.legHead} onClick={locked ? undefined : onToggle} aria-expanded={open}>
+        <span className={`${styles.dot} ${count > 0 ? styles.dotOn : ''}`}>
+          {count > 0 ? count : <span className={styles.dotPip} />}
         </span>
-        {!disabled && <Chevron open={open} />}
+        <span className={styles.legText}>
+          <span className={styles.legLabel}>{label}</span>
+          <span className={styles.legSub}>{sub}</span>
+        </span>
+        {!locked && (
+          <svg className={`${styles.chev} ${open ? styles.chevOpen : ''}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
+        )}
       </button>
-      {open && !disabled && <div className={styles.stepBody}>{children}</div>}
+      {open && !locked && <div className={styles.legBody}>{children}</div>}
     </div>
   );
 }
@@ -70,10 +72,10 @@ export default function ScopePicker({
   const [draftCountries, setDraftCountries] = useState(() => new Set(value.countries));
   const [draftCities, setDraftCities]       = useState(() => new Set(value.destinations));
   const [draftZones, setDraftZones]         = useState(() => new Set(value.zones));
-  const [step, setStep] = useState(1);
+  const [leg, setLeg] = useState(1);
 
-  const [citySearch, setCitySearch]       = useState('');
   const [countrySearch, setCountrySearch] = useState('');
+  const [citySearch, setCitySearch]       = useState('');
   const [zoneSearch, setZoneSearch]       = useState('');
 
   const [cities, setCities]         = useState([]);
@@ -94,7 +96,6 @@ export default function ScopePicker({
   const countryKey = useMemo(() => [...draftCountries].sort().join(','), [draftCountries]);
   const cityKey    = useMemo(() => [...draftCities].sort().join(','), [draftCities]);
 
-  // Cities for every ticked country, in one request.
   const cityReq = useRef(0);
   useEffect(() => {
     if (!countryKey) { setCities([]); return; }
@@ -106,7 +107,6 @@ export default function ScopePicker({
       .finally(() => { if (seq === cityReq.current) setCitiesBusy(false); });
   }, [countryKey]);
 
-  // Zones for every ticked city.
   const zoneReq = useRef(0);
   useEffect(() => {
     if (!cityKey) { setZones([]); return; }
@@ -118,7 +118,7 @@ export default function ScopePicker({
       .finally(() => { if (seq === zoneReq.current) setZonesBusy(false); });
   }, [cityKey]);
 
-  // Dropping a country drops the cities it owned; dropping a city drops its zones.
+  // Dropping a country drops the cities it owned; dropping a city drops its areas.
   const toggleCountry = (code) => setDraftCountries((prev) => {
     const next = new Set(prev);
     if (next.has(code)) {
@@ -141,47 +141,63 @@ export default function ScopePicker({
     return next;
   });
 
-  const toggleZone = (code) => setDraftZones((prev) => {
+  const toggleZone = (key) => setDraftZones((prev) => {
     const next = new Set(prev);
-    if (next.has(code)) next.delete(code); else next.add(code);
+    if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
 
-  const clearAll = () => { setDraftCountries(new Set()); setDraftCities(new Set()); setDraftZones(new Set()); setStep(1); };
+  const clearAll = () => {
+    setDraftCountries(new Set()); setDraftCities(new Set()); setDraftZones(new Set()); setLeg(1);
+  };
 
-  const nameOfCountry = (code) => countries.find((c) => c.code === code)?.name || code;
-  const nameOfCity    = (code) => cities.find((c) => c.code === code)?.name || code;
-  const nameOfZone    = (key) => zones.find((z) => zoneKey(z) === key)?.name || key;
+  const countryOf = (code) => countries.find((c) => c.code === code);
+  const cityOf    = (code) => cities.find((c) => c.code === code);
+  const nameOfZone = (key) => zones.find((z) => zoneKey(z) === key)?.name || key;
 
-  const match = (q) => (s) => !q || String(s).toLowerCase().includes(q.toLowerCase());
+  const hit = (q, ...fields) => {
+    const s = q.trim().toLowerCase();
+    return !s || fields.some((f) => String(f || '').toLowerCase().includes(s));
+  };
 
-  const shownCountries = countries.filter((c) => match(countrySearch)(c.name) || match(countrySearch)(c.code));
+  const shownCountries = countries.filter((c) => hit(countrySearch, c.name, c.code));
 
-  // Cities grouped under their country, search applied inside each group.
   const cityGroups = useMemo(() => {
-    const q = citySearch.trim();
-    const byCountry = new Map();
+    const by = new Map();
     for (const c of cities) {
-      if (q && !match(q)(c.name) && !match(q)(c.code)) continue;
-      const g = byCountry.get(c.countryCode) || { code: c.countryCode, name: c.countryName, flag: c.flag, flagUrl: c.flagUrl, items: [] };
+      if (!hit(citySearch, c.name, c.code)) continue;
+      const g = by.get(c.countryCode)
+        || { code: c.countryCode, name: c.countryName, flag: c.flag, flagUrl: c.flagUrl, items: [] };
       g.items.push(c);
-      byCountry.set(c.countryCode, g);
+      by.set(c.countryCode, g);
     }
-    return [...byCountry.values()];
+    return [...by.values()];
   }, [cities, citySearch]);
 
-  // Zones grouped under their city.
   const zoneGroups = useMemo(() => {
-    const q = zoneSearch.trim();
-    const byCity = new Map();
+    const by = new Map();
     for (const z of zones) {
-      if (q && !match(q)(z.name)) continue;
-      const g = byCity.get(z.destinationCode) || { code: z.destinationCode, name: z.destinationName, items: [] };
+      if (!hit(zoneSearch, z.name)) continue;
+      const g = by.get(z.destinationCode) || { code: z.destinationCode, name: z.destinationName, items: [] };
       g.items.push(z);
-      byCity.set(z.destinationCode, g);
+      by.set(z.destinationCode, g);
     }
-    return [...byCity.values()];
+    return [...by.values()];
   }, [zones, zoneSearch]);
+
+  // Select-all / clear for one country's cities — the shortcut a long list needs.
+  const toggleWholeCountry = (group) => {
+    const all = group.items.map((i) => i.code);
+    const every = all.every((c) => draftCities.has(c));
+    setDraftCities((prev) => {
+      const next = new Set(prev);
+      if (every) {
+        all.forEach((c) => next.delete(c));
+        setDraftZones((zs) => new Set([...zs].filter((z) => !all.includes(zoneCity(z)))));
+      } else all.forEach((c) => next.add(c));
+      return next;
+    });
+  };
 
   const total = draftCountries.size + draftCities.size + draftZones.size;
   const dirty =
@@ -194,119 +210,135 @@ export default function ScopePicker({
 
   return (
     <div className={styles.wrap}>
+      {/* ── Ticket stub: everything picked so far ── */}
       {total > 0 && (
-        <div className={styles.chips}>
-          {[...draftCountries].map((c) => {
-            const meta = countries.find((x) => x.code === c);
-            return (
-              <span className={`${styles.chip} ${styles.chipCountry}`} key={`c-${c}`}>
-                {meta && <Flag flagUrl={meta.flagUrl} flag={meta.flag} />}
-                {nameOfCountry(c)}
-                <button className={styles.chipX} onClick={() => toggleCountry(c)} aria-label={`Remove ${nameOfCountry(c)}`}>&times;</button>
+        <div className={styles.stub}>
+          <div className={styles.stubTop}>
+            <span className={styles.stubLabel}>Your route</span>
+            <button type="button" className={styles.clearAll} onClick={clearAll}>Clear all</button>
+          </div>
+          <div className={styles.stubTags}>
+            {[...draftCountries].map((c) => {
+              const m = countryOf(c);
+              return (
+                <span className={`${styles.tag} ${styles.tagCountry}`} key={`c-${c}`}>
+                  {m && <Flag flagUrl={m.flagUrl} flag={m.flag} className={styles.tagFlag} />}
+                  {m?.name || c}
+                  <button className={styles.tagX} onClick={() => toggleCountry(c)} aria-label={`Remove ${m?.name || c}`}>&times;</button>
+                </span>
+              );
+            })}
+            {[...draftCities].map((c) => (
+              <span className={`${styles.tag} ${styles.tagCity}`} key={`d-${c}`}>
+                <em className={styles.tagCode}>{c}</em>
+                {cityOf(c)?.name || c}
+                <button className={styles.tagX} onClick={() => toggleCity(c)} aria-label={`Remove ${cityOf(c)?.name || c}`}>&times;</button>
               </span>
-            );
-          })}
-          {[...draftCities].map((c) => (
-            <span className={`${styles.chip} ${styles.chipCity}`} key={`d-${c}`}>
-              {nameOfCity(c)}
-              <button className={styles.chipX} onClick={() => toggleCity(c)} aria-label={`Remove ${nameOfCity(c)}`}>&times;</button>
-            </span>
-          ))}
-          {[...draftZones].map((z) => (
-            <span className={`${styles.chip} ${styles.chipZone}`} key={`z-${z}`}>
-              {nameOfZone(z)}
-              <button className={styles.chipX} onClick={() => toggleZone(z)} aria-label={`Remove ${nameOfZone(z)}`}>&times;</button>
-            </span>
-          ))}
-          <button type="button" className={styles.clearAll} onClick={clearAll}>Clear</button>
+            ))}
+            {[...draftZones].map((z) => (
+              <span className={`${styles.tag} ${styles.tagZone}`} key={`z-${z}`}>
+                {nameOfZone(z)}
+                <button className={styles.tagX} onClick={() => toggleZone(z)} aria-label={`Remove ${nameOfZone(z)}`}>&times;</button>
+              </span>
+            ))}
+          </div>
         </div>
       )}
 
-      <Step
-        n="1" title="Countries" count={draftCountries.size}
-        hint={draftCountries.size ? `${draftCountries.size} selected` : 'Pick where to fly'}
-        open={step === 1} onToggle={() => setStep(step === 1 ? 0 : 1)}
-      >
-        <input
-          className={styles.search} type="text" placeholder="Search countries…"
-          value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)}
-        />
-        <div className={styles.list}>
-          {shownCountries.length === 0 && <p className={styles.note}>No match.</p>}
-          {shownCountries.map((c) => (
-            <Row
-              key={c.code} label={c.name} flagUrl={c.flagUrl} flag={c.flag}
-              checked={draftCountries.has(c.code)} onToggle={() => toggleCountry(c.code)}
-            />
-          ))}
-        </div>
-      </Step>
+      {/* ── The route: three stations on a dotted flight path ── */}
+      <div className={styles.route}>
+        <Leg
+          label="Country" count={draftCountries.size}
+          sub={draftCountries.size ? `${draftCountries.size} picked` : 'Where in the world?'}
+          open={leg === 1} onToggle={() => setLeg(leg === 1 ? 0 : 1)}
+        >
+          <input
+            className={styles.search} type="text" placeholder="Search countries…"
+            value={countrySearch} onChange={(e) => setCountrySearch(e.target.value)}
+          />
+          <div className={styles.list}>
+            {shownCountries.length === 0 && <p className={styles.note}>No country matches that.</p>}
+            {shownCountries.map((c) => (
+              <Row
+                key={c.code} label={c.name} flagUrl={c.flagUrl} flag={c.flag}
+                checked={draftCountries.has(c.code)} onToggle={() => toggleCountry(c.code)}
+              />
+            ))}
+          </div>
+        </Leg>
 
-      <Step
-        n="2" title="Cities" count={draftCities.size} disabled={draftCountries.size === 0}
-        hint={draftCountries.size === 0 ? 'Pick a country first'
-          : citiesBusy ? 'Loading…'
-          : draftCities.size ? `${draftCities.size} selected`
-          : `${cities.length} available — all by default`}
-        open={step === 2} onToggle={() => setStep(step === 2 ? 0 : 2)}
-      >
-        <input
-          className={styles.search} type="text" placeholder="Search cities…"
-          value={citySearch} onChange={(e) => setCitySearch(e.target.value)}
-        />
-        <div className={styles.list}>
-          {citiesBusy && <p className={styles.note}>Loading cities&hellip;</p>}
-          {!citiesBusy && cityGroups.length === 0 && <p className={styles.note}>No cities match.</p>}
-          {cityGroups.map((g) => (
-            <div className={styles.group} key={g.code}>
-              <div className={styles.groupHead}>
-                <Flag flagUrl={g.flagUrl} flag={g.flag} />
-                {g.name}
-                <em className={styles.groupCount}>{g.items.length}</em>
-              </div>
-              {g.items.map((c) => (
-                <Row key={c.code} label={c.name} checked={draftCities.has(c.code)} onToggle={() => toggleCity(c.code)} />
-              ))}
-            </div>
-          ))}
-        </div>
-      </Step>
+        <Leg
+          label="City" count={draftCities.size} locked={draftCountries.size === 0}
+          sub={draftCountries.size === 0 ? 'Pick a country first'
+            : citiesBusy ? 'Loading…'
+            : draftCities.size ? `${draftCities.size} picked`
+            : `${cities.length} available — searching all`}
+          open={leg === 2} onToggle={() => setLeg(leg === 2 ? 0 : 2)}
+        >
+          <input
+            className={styles.search} type="text" placeholder="Search cities…"
+            value={citySearch} onChange={(e) => setCitySearch(e.target.value)}
+          />
+          <div className={styles.list}>
+            {citiesBusy && <p className={styles.note}>Loading cities&hellip;</p>}
+            {!citiesBusy && cityGroups.length === 0 && <p className={styles.note}>No city matches that.</p>}
+            {cityGroups.map((g) => {
+              const every = g.items.every((i) => draftCities.has(i.code));
+              return (
+                <div className={styles.group} key={g.code}>
+                  <div className={styles.groupHead}>
+                    <Flag flagUrl={g.flagUrl} flag={g.flag} />
+                    <span className={styles.groupName}>{g.name}</span>
+                    <em className={styles.groupCount}>{g.items.length}</em>
+                    <button type="button" className={styles.groupAll} onClick={() => toggleWholeCountry(g)}>
+                      {every ? 'None' : 'All'}
+                    </button>
+                  </div>
+                  {g.items.map((c) => (
+                    <Row key={c.code} label={c.name} code={c.code} checked={draftCities.has(c.code)} onToggle={() => toggleCity(c.code)} />
+                  ))}
+                </div>
+              );
+            })}
+          </div>
+        </Leg>
 
-      <Step
-        n="3" title="Areas" count={draftZones.size} disabled={draftCities.size === 0}
-        hint={draftCities.size === 0 ? 'Pick a city first'
-          : zonesBusy ? 'Loading…'
-          : draftZones.size ? `${draftZones.size} selected`
-          : zones.length ? `${zones.length} available` : 'None listed'}
-        open={step === 3} onToggle={() => setStep(step === 3 ? 0 : 3)}
-      >
-        <input
-          className={styles.search} type="text" placeholder="Search areas…"
-          value={zoneSearch} onChange={(e) => setZoneSearch(e.target.value)}
-        />
-        <div className={styles.list}>
-          {zonesBusy && <p className={styles.note}>Loading areas&hellip;</p>}
-          {!zonesBusy && zoneGroups.length === 0 && <p className={styles.note}>No areas listed for these cities.</p>}
-          {zoneGroups.map((g) => (
-            <div className={styles.group} key={g.code}>
-              <div className={styles.groupHead}>
-                {g.name}
-                <em className={styles.groupCount}>{g.items.length}</em>
+        <Leg
+          label="Area" count={draftZones.size} locked={draftCities.size === 0}
+          sub={draftCities.size === 0 ? 'Pick a city first'
+            : zonesBusy ? 'Loading…'
+            : draftZones.size ? `${draftZones.size} picked`
+            : zones.length ? `${zones.length} available` : 'None listed'}
+          open={leg === 3} onToggle={() => setLeg(leg === 3 ? 0 : 3)}
+        >
+          <input
+            className={styles.search} type="text" placeholder="Search areas…"
+            value={zoneSearch} onChange={(e) => setZoneSearch(e.target.value)}
+          />
+          <div className={styles.list}>
+            {zonesBusy && <p className={styles.note}>Loading areas&hellip;</p>}
+            {!zonesBusy && zoneGroups.length === 0 && <p className={styles.note}>No areas listed for these cities.</p>}
+            {zoneGroups.map((g) => (
+              <div className={styles.group} key={g.code}>
+                <div className={styles.groupHead}>
+                  <span className={styles.groupName}>{g.name}</span>
+                  <em className={styles.groupCount}>{g.items.length}</em>
+                </div>
+                {g.items.map((z) => (
+                  <Row key={zoneKey(z)} label={z.name} checked={draftZones.has(zoneKey(z))} onToggle={() => toggleZone(zoneKey(z))} />
+                ))}
               </div>
-              {g.items.map((z) => (
-                <Row key={zoneKey(z)} label={z.name} checked={draftZones.has(zoneKey(z))} onToggle={() => toggleZone(zoneKey(z))} />
-              ))}
-            </div>
-          ))}
-        </div>
-      </Step>
+            ))}
+          </div>
+        </Leg>
+      </div>
 
       <button
         type="button" className={styles.apply}
         disabled={!dirty || total === 0}
         onClick={() => onApply({ countries: [...draftCountries], destinations: [...draftCities], zones: [...draftZones] })}
       >
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
         {total === 0 ? 'Pick a destination' : `Search ${total} place${total === 1 ? '' : 's'}`}
       </button>
     </div>
