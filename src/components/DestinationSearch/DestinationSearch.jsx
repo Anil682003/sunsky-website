@@ -64,6 +64,22 @@ const RowThumb = ({ image, broken, onBroken, fallbackClass, children }) => {
   );
 };
 
+// A destination row's leading square: the country flag from geo data — the flagcdn SVG when we
+// have a clean ISO code, else the emoji, else the pin icon. `contain` (not cover) so the 3:2 flag
+// isn't cropped. Self-contained broken-state so a 404 flag falls back to the pin.
+const FlagTile = ({ flag, flagUrl }) => {
+  const [broken, setBroken] = useState(false);
+  if (flagUrl && !broken) {
+    return (
+      <span className={`${styles.itemIcon} ${styles.itemFlag}`}>
+        <img src={flagUrl} alt="" loading="lazy" decoding="async" aria-hidden="true" onError={() => setBroken(true)} />
+      </span>
+    );
+  }
+  if (flag) return <span className={`${styles.itemIcon} ${styles.iconDest} ${styles.flagEmoji}`}>{flag}</span>;
+  return <span className={`${styles.itemIcon} ${styles.iconDest}`}><PinIcon /></span>;
+};
+
 // ── Recent searches (localStorage) ──────────────────────────────────────────
 const RECENTS_KEY = 'sunsky.recentSearches';
 const RECENTS_MAX = 4;
@@ -258,14 +274,18 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                   key={`r-${r.name}-${i}`} type="button" className={styles.item}
                   onClick={() => choose(r)}
                 >
-                  <RowThumb
-                    image={r.kind === 'hotel' ? r.image : null}
-                    broken={brokenImg[r.hotelCode]}
-                    onBroken={() => markBroken(r.hotelCode)}
-                    fallbackClass={styles.iconRecent}
-                  >
-                    {r.kind === 'hotel' ? <HotelIcon /> : <PinIcon />}
-                  </RowThumb>
+                  {r.kind === 'destination'
+                    ? <FlagTile flag={r.flag} flagUrl={r.flagUrl} />
+                    : (
+                      <RowThumb
+                        image={r.image}
+                        broken={brokenImg[r.hotelCode]}
+                        onBroken={() => markBroken(r.hotelCode)}
+                        fallbackClass={styles.iconRecent}
+                      >
+                        <HotelIcon />
+                      </RowThumb>
+                    )}
                   <span className={styles.itemText}>
                     <span className={styles.itemMain}>{r.name}</span>
                     <span className={styles.itemSub}>{r.kind === 'hotel' ? [r.destinationName, r.country].filter(Boolean).join(', ') : (r.country || 'Destination')}</span>
@@ -324,7 +344,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                   onMouseEnter={() => setActive(i)}
                   onClick={() => choose({ kind: 'destination', ...d })}
                 >
-                  <span className={`${styles.itemIcon} ${styles.iconDest}`}><PinIcon /></span>
+                  <FlagTile flag={d.flag} flagUrl={d.flagUrl} />
                   <span className={styles.itemText}>
                     <span className={styles.itemMain}>{d.name}</span>
                     <span className={styles.itemSub}>{d.country || 'Destination'}</span>

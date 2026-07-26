@@ -246,6 +246,23 @@
   display: block;
 }
 
+/* Country flag in the icon slot — same 38px square as the hotel thumbnail, so destination and
+   hotel rows align. `contain` (not cover) keeps the 3:2 flag whole rather than cropping it, on a
+   soft blue wash matching the pin tile it replaces. */
+.itemFlag {
+  overflow: hidden;
+  background: rgba(31, 79, 216, 0.08);
+  box-shadow: inset 0 0 0 1px rgba(16, 32, 58, 0.06);
+}
+.itemFlag img {
+  width: 26px; height: 100%;
+  object-fit: contain;
+  display: block;
+  border-radius: 3px;
+}
+/* Emoji-flag fallback — sized up to read as a flag, centered in the same tile. */
+.flagEmoji { font-size: 20px; line-height: 1; }
+
 .itemText { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 2px; }
 .itemMainRow { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .itemMain {
