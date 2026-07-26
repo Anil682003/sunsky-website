@@ -66,13 +66,16 @@ function selectionLabel({ countries = [], places = [] } = {}) {
   return shown + more + suffix;
 }
 
-// Splits a title string and wraps the word "sun" in the script-font span.
+// Wraps the "sun" word in the script-font span so it keeps the yellow flourish.
+// Both the English "sun" and the Dutch "zon" qualify, so the client can translate
+// the CMS heading to "Waar ga jij de zon achterna?" and the styling follows the word.
 // Falls back to the hardcoded JSX if no CMS title has loaded yet.
+const HERO_SCRIPT_WORDS = new Set(['sun', 'zon']);
 function renderHeroTitle(raw, scriptClass) {
   if (!raw) return null;
-  const parts = raw.split(/\b(sun)\b/i);
+  const parts = raw.split(/\b(sun|zon)\b/i);
   return parts.map((p, i) =>
-    p.toLowerCase() === 'sun' ? <span key={i} className={scriptClass}>{p}</span> : p
+    HERO_SCRIPT_WORDS.has(p.toLowerCase()) ? <span key={i} className={scriptClass}>{p}</span> : p
   );
 }
 
