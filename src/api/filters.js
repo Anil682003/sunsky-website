@@ -42,16 +42,36 @@ export async function searchDestinationsAndHotels(q, limit = 6, { signal } = {})
   }
 }
 
-/** Countries that have hotels → [{ code, name }]. Cascade level 1. */
+/** Countries that have hotels → [{ code, isoCode, name, flag, flagUrl }]. Cascade level 1. */
 export async function fetchCountries() {
   const { data } = await axiosInstance.get('/hotel-filters/countries');
   return data?.data ?? [];
 }
 
-/** Destinations in a country that have hotels → [{ code, name }]. Cascade level 2. */
+/**
+ * Destinations (cities) in one or more countries that have hotels. Cascade level 2.
+ * @param {string|string[]} countryCode one code or a list
+ * @returns {Promise<{code,name,countryCode,countryName,flag,flagUrl}[]>}
+ */
 export async function fetchDestinations(countryCode) {
-  if (!countryCode) return [];
-  const { data } = await axiosInstance.get('/hotel-filters/destinations', { params: { countryCode } });
+  const codes = Array.isArray(countryCode) ? countryCode : [countryCode].filter(Boolean);
+  if (!codes.length) return [];
+  const { data } = await axiosInstance.get('/hotel-filters/destinations', {
+    params: { countryCode: codes.join(',') },
+  });
+  return data?.data ?? [];
+}
+
+/**
+ * Zones inside the given destinations that have hotels. Cascade level 3.
+ * @returns {Promise<{zoneCode,name,destinationCode,destinationName}[]>}
+ */
+export async function fetchZones(destinationCodes) {
+  const codes = Array.isArray(destinationCodes) ? destinationCodes : [destinationCodes].filter(Boolean);
+  if (!codes.length) return [];
+  const { data } = await axiosInstance.get('/hotel-filters/zones', {
+    params: { destinationCodes: codes.join(',') },
+  });
   return data?.data ?? [];
 }
 
@@ -96,11 +116,12 @@ export async function fetchMatchingHotels({ destinationCode, countryCode, themes
  *   facets:{ holiday, stars, facilities, activities, accommodation, kids, beachDistance, centreDistance }
  * }>}
  */
-export async function fetchFacets({ countries = [], destinations = [] } = {}, filters = {}, opts = {}) {
+export async function fetchFacets({ countries = [], destinations = [], zones = [] } = {}, filters = {}, opts = {}) {
   const { codes = true, attrs = true, signal } = opts;
   const params = {};
   if (countries.length)    params.countries = countries.join(',');
   if (destinations.length) params.destinations = destinations.join(',');
+  if (zones.length)        params.zones = zones.join(',');
   const join = (a) => (a && a.length ? a.join(',') : undefined);
   if (join(filters.themes))        params.themes        = join(filters.themes);
   if (join(filters.stars))         params.stars         = join(filters.stars);

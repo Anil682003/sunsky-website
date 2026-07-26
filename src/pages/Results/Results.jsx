@@ -2,9 +2,10 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
-import { fetchFacets, fetchCountries, fetchDestinations } from '../../api/filters';
+import { fetchFacets, fetchCountries } from '../../api/filters';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
+import ScopePicker from '../../components/ScopePicker/ScopePicker';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -213,6 +214,7 @@ export default function Results() {
   // The home destination picker (Hero + DestinationModal) sends chosen CITIES as `cities`
   // (Hotelbeds destination codes) — treat them as scope destinations, same as `destinations`.
   const urlCities       = params.get('cities')       || '';
+  const urlZones        = params.get('zones')        || '';
   const legacyDest      = params.get('destination')  || '';
   const urlLabel        = params.get('destinationLabel') || params.get('label') || '';
   // A specific hotel picked from the home typeahead → restrict results to just that hotel.
@@ -223,17 +225,18 @@ export default function Results() {
     // single `destination` only when neither is present (old links still work).
     const dests = [...new Set([...csv(urlDestinations), ...csv(urlCities)])];
     const countries = csv(urlCountries);
+    const zones = csv(urlZones);
     const explicit = dests.length ? dests : (legacyDest ? [legacyDest] : []);
     // EMPTY SEARCH → no country and no destination chosen (e.g. the traveller clicked Search on
     // the home page without picking a place). Rather than a blank "pick a destination" wall, we
     // default to a curated set of popular sun destinations that actually have priced inventory,
     // sorted cheapest-first — a "best deals" landing. The traveller refines via the Where filter.
     if (!countries.length && !explicit.length) {
-      return { scope: { countries: [], destinations: DEFAULT_DESTINATIONS }, usingDefaultScope: true };
+      return { scope: { countries: [], destinations: DEFAULT_DESTINATIONS, zones: [] }, usingDefaultScope: true };
     }
-    return { scope: { countries, destinations: explicit }, usingDefaultScope: false };
-  }, [urlCountries, urlDestinations, urlCities, legacyDest]);
-  const scopeKey  = `${scope.countries.join(',')}|${scope.destinations.join(',')}`;
+    return { scope: { countries, destinations: explicit, zones }, usingDefaultScope: false };
+  }, [urlCountries, urlDestinations, urlCities, urlZones, legacyDest]);
+  const scopeKey  = `${scope.countries.join(',')}|${scope.destinations.join(',')}|${scope.zones.join(',')}`;
   // Always have a scope now (the default fills it), so the results page is never blank.
   const hasScope  = scope.countries.length > 0 || scope.destinations.length > 0;
 
@@ -363,14 +366,10 @@ export default function Results() {
   // resolution below; the price fetch is gated on it.
   const [priceScope, setPriceScope]   = useState(null);
 
-  // Scope selection UI (draft, applied via the button so we don't refetch per checkbox).
+  // Scope selection UI — the cascading picker drafts internally and hands back a
+  // committed { countries, destinations, zones } on Apply.
   const [countryOptions, setCountryOptions]   = useState([]);
   const [countriesStatus, setCountriesStatus] = useState('loading');
-  const [countrySearch, setCountrySearch]     = useState('');
-  const [draftCountries, setDraftCountries]       = useState(() => new Set(scope.countries));
-  const [draftDestinations, setDraftDestinations] = useState(() => new Set(scope.destinations));
-  const [browseCountry, setBrowseCountry]         = useState('');
-  const [browseDestOptions, setBrowseDestOptions] = useState([]);
 
   const [loading, setLoading]         = useState(true);
   const [filtering, setFiltering]     = useState(false);
@@ -453,16 +452,6 @@ export default function Results() {
     return () => clearTimeout(t);
   }, [filters]);
 
-  // Keep the scope draft in sync when the URL scope changes (e.g. back/forward navigation).
-  // Adjust-state-during-render (React's documented pattern for resetting state on changed
-  // inputs) rather than an effect, so the draft is correct on the very next render.
-  const [draftScopeKey, setDraftScopeKey] = useState(scopeKey);
-  if (draftScopeKey !== scopeKey) {
-    setDraftScopeKey(scopeKey);
-    setDraftCountries(new Set(scope.countries));
-    setDraftDestinations(new Set(scope.destinations));
-  }
-
   // Load the country list once (only countries that actually have hotels).
   useEffect(() => {
     let live = true;
@@ -471,16 +460,6 @@ export default function Results() {
       .catch(() => { if (live) setCountriesStatus('error'); });
     return () => { live = false; };
   }, []);
-
-  // Load destinations for the "browse" country (the destination picker in the scope editor).
-  useEffect(() => {
-    if (!browseCountry) return;
-    let live = true;
-    fetchDestinations(browseCountry).then((d) => { if (live) setBrowseDestOptions(d); }).catch(() => { if (live) setBrowseDestOptions([]); });
-    return () => { live = false; };
-  }, [browseCountry]);
-  // Options actually shown (empty unless a browse country is selected — no effect setState needed).
-  const destPickerOptions = browseCountry ? browseDestOptions : [];
 
   // ── FACETS RESOLUTION ──────────────────────────────────────────────────────────
   // When the scope OR the selected content facets change, ask the admin content API for the
@@ -993,25 +972,13 @@ export default function Results() {
     setFetchParams((prev) => ({ ...prev, checkOut }));
   };
 
-  // ── Scope editor helpers ────────────────────────────────────────────────────────
-  const toggleDraft = (setter) => (code) => setter((prev) => {
-    const next = new Set(prev);
-    if (next.has(code)) next.delete(code); else next.add(code);
-    return next;
-  });
-  const toggleDraftCountry     = toggleDraft(setDraftCountries);
-  const toggleDraftDestination = toggleDraft(setDraftDestinations);
-
-  const countryName = (code) => countryOptions.find((c) => c.code === code)?.name || code;
-
-  // Apply the drafted scope — re-navigate the results page (keeps dates + occupancy, shareable URL).
-  const applyScope = () => {
-    const countries    = [...draftCountries];
-    const destinations = [...draftDestinations];
+  // Apply the picked scope — re-navigate the results page (keeps dates + occupancy, shareable URL).
+  const applyScope = ({ countries, destinations, zones }) => {
     if (!countries.length && !destinations.length) return;
     const qp = new URLSearchParams();
     if (countries.length)    qp.set('countries', countries.join(','));
     if (destinations.length) qp.set('destinations', destinations.join(','));
+    if (zones.length)        qp.set('zones', zones.join(','));
     qp.set('checkIn', fetchParams.checkIn);
     qp.set('checkOut', fetchParams.checkOut);
     qp.set('adults', fetchParams.adults);
@@ -1020,15 +987,6 @@ export default function Results() {
     if (fetchParams.childAges) qp.set('childAges', fetchParams.childAges);
     navigate({ search: qp.toString() });
   };
-  const scopeDirty =
-    draftCountries.size !== scope.countries.length ||
-    draftDestinations.size !== scope.destinations.length ||
-    scope.countries.some((c) => !draftCountries.has(c)) ||
-    scope.destinations.some((d) => !draftDestinations.has(d));
-  const draftCount = draftCountries.size + draftDestinations.size;
-
-  const filteredCountries = countryOptions.filter((c) =>
-    !countrySearch || c.name.toLowerCase().includes(countrySearch.toLowerCase()) || c.code.toLowerCase().includes(countrySearch.toLowerCase()));
 
   const guestSummary = `${fetchParams.adults} Adult${fetchParams.adults !== '1' ? 's' : ''}${fetchParams.children !== '0' ? `, ${fetchParams.children} Child${fetchParams.children !== '1' ? 'ren' : ''}` : ''}`;
 
@@ -1118,65 +1076,12 @@ export default function Results() {
       {/* WHERE — multi-country / multi-destination scope. Pick whole countries and/or
           individual destinations, then Apply. */}
       <FilterSection title="Where" defaultOpen>
-        {countriesStatus === 'error' ? (
-          <p className={styles.filterEmpty}>Destination filter unavailable (content service unreachable).</p>
-        ) : countryOptions.length === 0 ? (
-          <p className={styles.filterEmpty}>Loading countries…</p>
-        ) : (
-          <>
-            {(draftCountries.size > 0 || draftDestinations.size > 0) && (
-              <div className={styles.scopeChips}>
-                {[...draftCountries].map((c) => (
-                  <span key={`c-${c}`} className={styles.scopeChip}>
-                    {countryName(c)}
-                    <button className={styles.scopeChipX} onClick={() => toggleDraftCountry(c)} aria-label={`Remove ${countryName(c)}`}>×</button>
-                  </span>
-                ))}
-                {[...draftDestinations].map((d) => (
-                  <span key={`d-${d}`} className={styles.scopeChip}>
-                    {d}
-                    <button className={styles.scopeChipX} onClick={() => toggleDraftDestination(d)} aria-label={`Remove ${d}`}>×</button>
-                  </span>
-                ))}
-              </div>
-            )}
-
-            <div className={styles.scopeGroupLabel}>Countries</div>
-            <input
-              type="text"
-              className={styles.scopeSearch}
-              placeholder="Search countries…"
-              value={countrySearch}
-              onChange={(e) => setCountrySearch(e.target.value)}
-            />
-            <div className={styles.scopeList}>
-              {filteredCountries.map((c) => (
-                <FilterCheck key={c.code} label={c.name} checked={draftCountries.has(c.code)} onChange={() => toggleDraftCountry(c.code)} />
-              ))}
-            </div>
-
-            <div className={styles.scopeGroupLabel}>Add destinations</div>
-            <label className={styles.cascadeLabel}>
-              <select className={styles.cascadeSelect} value={browseCountry} onChange={(e) => setBrowseCountry(e.target.value)}>
-                <option value="">Browse a country…</option>
-                {countryOptions.map((c) => <option key={c.code} value={c.code}>{c.name}</option>)}
-              </select>
-            </label>
-            {browseCountry && (
-              <div className={styles.scopeList}>
-                {destPickerOptions.length === 0
-                  ? <p className={styles.filterEmpty}>Loading destinations…</p>
-                  : destPickerOptions.map((d) => (
-                    <FilterCheck key={d.code} label={d.name} checked={draftDestinations.has(d.code)} onChange={() => toggleDraftDestination(d.code)} />
-                  ))}
-              </div>
-            )}
-
-            <button className={styles.applyScopeBtn} onClick={applyScope} disabled={!scopeDirty || draftCount === 0}>
-              {draftCount === 0 ? 'Pick a country or destination' : `Search ${draftCount} place${draftCount === 1 ? '' : 's'}`}
-            </button>
-          </>
-        )}
+        <ScopePicker
+          countries={countryOptions}
+          status={countriesStatus}
+          value={scope}
+          onApply={applyScope}
+        />
       </FilterSection>
 
       {/* Price Range */}
