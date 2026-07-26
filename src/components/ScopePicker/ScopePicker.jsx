@@ -13,6 +13,11 @@ import { fetchDestinations, fetchZones } from '../../api/filters';
  * onApply({ countries, destinations, zones }) when the traveller commits.
  */
 
+// zoneCode is unique only inside a destination, so a picked area is keyed by both:
+// "AYT:16". Anything less collides with the same number in another city.
+const zoneKey  = (z) => `${z.destinationCode}:${z.zoneCode}`;
+const zoneCity = (key) => String(key).split(':')[0];
+
 const Chevron = ({ open }) => (
   <svg className={`${styles.chev} ${open ? styles.chevOpen : ''}`} width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
 );
@@ -121,7 +126,7 @@ export default function ScopePicker({
       const orphan = new Set(cities.filter((c) => c.countryCode === code).map((c) => c.code));
       if (orphan.size) {
         setDraftCities((cs) => new Set([...cs].filter((c) => !orphan.has(c))));
-        setDraftZones((zs) => new Set([...zs].filter((z) => !zones.some((zz) => zz.zoneCode === z && orphan.has(zz.destinationCode)))));
+        setDraftZones((zs) => new Set([...zs].filter((z) => !orphan.has(zoneCity(z)))));
       }
     } else next.add(code);
     return next;
@@ -131,7 +136,7 @@ export default function ScopePicker({
     const next = new Set(prev);
     if (next.has(code)) {
       next.delete(code);
-      setDraftZones((zs) => new Set([...zs].filter((z) => !zones.some((zz) => zz.zoneCode === z && zz.destinationCode === code))));
+      setDraftZones((zs) => new Set([...zs].filter((z) => zoneCity(z) !== code)));
     } else next.add(code);
     return next;
   });
@@ -146,7 +151,7 @@ export default function ScopePicker({
 
   const nameOfCountry = (code) => countries.find((c) => c.code === code)?.name || code;
   const nameOfCity    = (code) => cities.find((c) => c.code === code)?.name || code;
-  const nameOfZone    = (code) => zones.find((z) => z.zoneCode === code)?.name || code;
+  const nameOfZone    = (key) => zones.find((z) => zoneKey(z) === key)?.name || key;
 
   const match = (q) => (s) => !q || String(s).toLowerCase().includes(q.toLowerCase());
 
@@ -289,7 +294,7 @@ export default function ScopePicker({
                 <em className={styles.groupCount}>{g.items.length}</em>
               </div>
               {g.items.map((z) => (
-                <Row key={z.zoneCode} label={z.name} checked={draftZones.has(z.zoneCode)} onToggle={() => toggleZone(z.zoneCode)} />
+                <Row key={zoneKey(z)} label={z.name} checked={draftZones.has(zoneKey(z))} onToggle={() => toggleZone(zoneKey(z))} />
               ))}
             </div>
           ))}
