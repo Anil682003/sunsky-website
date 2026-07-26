@@ -66,16 +66,21 @@ function selectionLabel({ countries = [], places = [] } = {}) {
   return shown + more + suffix;
 }
 
-// Wraps the "sun" word in the script-font span so it keeps the yellow flourish.
-// Both the English "sun" and the Dutch "zon" qualify, so the client can translate
-// the CMS heading to "Waar ga jij de zon achterna?" and the styling follows the word.
-// Falls back to the hardcoded JSX if no CMS title has loaded yet.
-const HERO_SCRIPT_WORDS = new Set(['sun', 'zon']);
+// The hero heading shows part of its text in the gold Caveat script. The client
+// controls WHICH part from the CMS by wrapping it in *asterisks* — any word or
+// phrase, any language: "Waar ga jij de *zon* achterna?", "*Jouw droomreis* wacht".
+//
+// Split on *…* keeps the delimiters via the capture group, so String.split hands
+// back [text, highlighted, text, highlighted, …] — every odd index is a marked
+// segment. A stray unmatched "*" simply stays as literal text.
+//
+// Legacy safety net: a title saved before this syntax (no asterisks at all) still
+// highlights the literal sun/zon, so the flourish never silently disappears.
 function renderHeroTitle(raw, scriptClass) {
   if (!raw) return null;
-  const parts = raw.split(/\b(sun|zon)\b/i);
-  return parts.map((p, i) =>
-    HERO_SCRIPT_WORDS.has(p.toLowerCase()) ? <span key={i} className={scriptClass}>{p}</span> : p
+  const pattern = raw.includes('*') ? /\*([^*]+)\*/g : /\b(sun|zon)\b/i;
+  return raw.split(pattern).map((p, i) =>
+    i % 2 === 1 ? <span key={i} className={scriptClass}>{p}</span> : p
   );
 }
 
