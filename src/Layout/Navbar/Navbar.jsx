@@ -112,6 +112,15 @@ export default function Navbar() {
   // Pages with a dark hero band — navbar starts transparent and blends in
   const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
 
+  // The header search (cluster on desktop, in-drawer on mobile) rides on every
+  // screen EXCEPT the hotel detail page (which has its own booking form) and the
+  // auth screens. Login/register render without this layout anyway, but they are
+  // excluded explicitly so the intent is clear if that ever changes.
+  const showHeaderSearch =
+    !location.pathname.startsWith('/hotel/') &&
+    location.pathname !== '/login' &&
+    location.pathname !== '/register';
+
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
     window.addEventListener('scroll', onScroll, { passive: true });
@@ -244,7 +253,7 @@ export default function Navbar() {
           block (not absolutely positioned) so the browser's own layout fills the gap between
           them — it can never overlap either side, on any resize, with no JS measurement. Hidden
           on mobile, where it moves into the drawer. */}
-      {isHome && (
+      {showHeaderSearch && (
         <div className={styles.headerSearch}>
           <HeaderMenu
             label="Popular destinations"
@@ -374,7 +383,7 @@ export default function Navbar() {
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className={styles.mobile}>
-          {isHome && (
+          {showHeaderSearch && (
             <div className={styles.mobileSearch}>
               <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
             </div>
