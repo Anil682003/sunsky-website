@@ -19,8 +19,14 @@ vi.mock('../../api', () => ({
 }));
 // The content-filter API (admin) is a separate transport from the price cache (fetch). Stubbed
 // so these tests exercise the PRICE contract deterministically, with no real axios traffic.
-// `facetCalls` records what was asked for, so the payload opt-ins can be asserted.
+// `facetCalls` records what was asked for, so the payload opt-ins can be asserted, and
+// `facetLists` lets a test hand the sidebar real facet rows to render checkboxes from.
 const facetCalls = [];
+const NO_FACETS = {
+  holiday: [], stars: [], facilities: [], activities: [],
+  accommodation: [], kids: [], beachDistance: [], centreDistance: [],
+};
+let facetLists = NO_FACETS;
 vi.mock('../../api/filters', () => ({
   fetchFacets: vi.fn((scope, filters, opts = {}) => {
     facetCalls.push({ scope, filters, opts });
@@ -29,14 +35,14 @@ vi.mock('../../api/filters', () => ({
       matchedDestinations: scope.destinations ?? [],
       included: { hotelCodes: Boolean(opts.codes), attributes: Boolean(opts.codes && opts.attrs) },
       ...(opts.codes ? { hotelCodes: [] } : {}),
-      facets: {
-        holiday: [], stars: [], facilities: [], activities: [],
-        accommodation: [], kids: [], beachDistance: [], centreDistance: [],
-      },
+      facets: facetLists,
     });
   }),
   fetchCountries: vi.fn(() => Promise.resolve([{ code: 'TR', name: 'Turkey' }])),
   fetchDestinations: vi.fn(() => Promise.resolve([])),
+  // The Where filter's ScopePicker resolves zones on mount; a factory that omits an export the
+  // tree imports throws at render, not at import, so every test in the file fails at once.
+  fetchZones: vi.fn(() => Promise.resolve([])),
   fetchThemes: vi.fn(() => Promise.resolve([])),
   searchDestinationsAndHotels: vi.fn(() => Promise.resolve({ destinations: [], hotels: [] })),
   fetchMatchingHotels: vi.fn(() => Promise.resolve({ count: 0, hotelCodes: [], attributes: {} })),
@@ -162,6 +168,7 @@ function cheapest(qs) {
 beforeEach(() => {
   calls = [];
   facetCalls.length = 0;
+  facetLists = NO_FACETS;
   latency = () => 0;
   internalSource = () => false;
   globalThis.fetch = vi.fn((url, opts) => {
@@ -757,5 +764,177 @@ describe('content-facet payload opt-ins', () => {
     expect(lastFacetCall().opts.attrs).toBe(false);
     await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'distance_beach');
     await waitFor(() => expect(lastFacetCall().opts.attrs).toBe(true));
+  });
+});
+
+// The homepage vacation-type cards link into a PRE-FILTERED search. The sidebar checkboxes
+// compare their facet id by identity against the filter array, so a value seeded with the wrong
+// type narrows the results while its box stays unticked — the traveller sees a short list with
+// no visible reason and no way to undo it. Every case below is about that boundary.
+describe('URL-seeded filters (vacation-type cards)', () => {
+  const lastFacetCall = () => facetCalls[facetCalls.length - 1];
+  const seeded = (extra) =>
+    `?destination=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1&${extra}`;
+
+  // Facet rows as the content API returns them: ids are NUMBERS, and an activity row carries the
+  // group it came from. 620 appears twice on purpose — the activity groups reuse codes, which is
+  // why a card stores "74:620" rather than a bare 620.
+  const SEED_FACETS = {
+    ...NO_FACETS,
+    stars: [{ stars: 5, hotels: 12 }, { stars: 4, hotels: 30 }],
+    facilities: [{ code: 574, name: 'Private beach area', hotels: 9 }],
+    accommodation: [{ code: 2, name: 'apartment', hotels: 7 }],
+    activities: [
+      { code: 620, name: 'Spa centre', group: 'Health',        groupCode: 74, hotels: 8 },
+      { code: 620, name: 'Waterpark',  group: 'Entertainment', groupCode: 73, hotels: 3 },
+      { code: 390, name: 'Golf',       group: 'Sports',        groupCode: 90, hotels: 4 },
+    ],
+    beachDistance: [{ maxMetres: 500, hotels: 6 }],
+  };
+  const openSection = (user, title) => user.click(screen.getAllByText(title)[0]);
+
+  it('seeds a star rating as a NUMBER, so its checkbox renders checked', async () => {
+    facetLists = SEED_FACETS;
+    renderResults(seeded('stars=5'));
+    await settled();
+
+    const stars = lastFacetCall().filters.stars;
+    expect(stars).toEqual([5]);
+    // A string "5" would still filter — and leave the box below unticked.
+    expect(stars.map((s) => typeof s)).toEqual(['number']);
+    expect(sidebarCheck('★★★★★ 5-star')).toBeChecked();
+    expect(sidebarCheck('★★★★ 4-star')).not.toBeChecked();
+  });
+
+  it('drops a star value no facet row could ever show', async () => {
+    renderResults(seeded('stars=9'));
+    await settled();
+    expect(lastFacetCall().filters.stars).toEqual([]);
+  });
+
+  it('seeds facility and accommodation codes as numbers and ticks their boxes', async () => {
+    const user = userEvent.setup();
+    facetLists = SEED_FACETS;
+    renderResults(seeded('facilities=574&accommodation=2'));
+    await settled();
+
+    expect(lastFacetCall().filters.facilities).toEqual([574]);
+    expect(lastFacetCall().filters.accommodation).toEqual([2]);
+
+    await openSection(user, 'Facilities');
+    expect(sidebarCheck('Private beach area')).toBeChecked();
+    await openSection(user, 'Accommodation Type');
+    expect(sidebarCheck('Apartment')).toBeChecked();
+  });
+
+  it('keeps a group-qualified activity a string and a bare one a number', async () => {
+    renderResults(seeded('activities=74:620,390'));
+    await settled();
+    expect(lastFacetCall().filters.activities).toEqual(['74:620', 390]);
+  });
+
+  it('ticks the sidebar box for a group-qualified activity', async () => {
+    const user = userEvent.setup();
+    facetLists = SEED_FACETS;
+    renderResults(seeded('activities=74:620'));
+    await settled();
+    await openSection(user, 'Activities');
+    expect(sidebarCheck('Spa centre')).toBeChecked();
+    expect(sidebarCheck('Golf')).not.toBeChecked();
+    // Waterpark shares code 620 with Spa centre. Identity that ignored the group would tick this
+    // box for a filter that excludes waterparks — the sidebar claiming a filter that is not on.
+    expect(sidebarCheck('Waterpark')).not.toBeChecked();
+  });
+
+  it('keeps two activities that share a code independent', async () => {
+    const user = userEvent.setup();
+    facetLists = SEED_FACETS;
+    renderResults(seeded('activities=74:620'));
+    await settled();
+    await openSection(user, 'Activities');
+
+    // Code-only identity would treat this as "already on" and REMOVE the spa filter the traveller
+    // arrived with, from a box they had not ticked.
+    await user.click(sidebarCheck('Waterpark'));
+    await waitFor(() => expect(lastFacetCall().filters.activities).toEqual(['74:620', '73:620']));
+    expect(sidebarCheck('Spa centre')).toBeChecked();
+
+    await user.click(sidebarCheck('Spa centre'));
+    await waitFor(() => expect(lastFacetCall().filters.activities).toEqual(['73:620']));
+    expect(sidebarCheck('Waterpark')).toBeChecked();
+  });
+
+  it('stores the qualified form when an activity is ticked in the sidebar', async () => {
+    const user = userEvent.setup();
+    facetLists = SEED_FACETS;
+    renderResults();
+    await settled();
+
+    await openSection(user, 'Activities');
+    await user.click(sidebarCheck('Golf'));
+    // Bare 390 would also match group 73/74; the count beside the box is group 90 only.
+    await waitFor(() => expect(lastFacetCall().filters.activities).toEqual(['90:390']));
+
+    await user.click(sidebarCheck('Golf'));
+    await waitFor(() => expect(lastFacetCall().filters.activities).toEqual([]));
+  });
+
+  it('seeds a max distance as metres, not as a string', async () => {
+    const user = userEvent.setup();
+    facetLists = SEED_FACETS;
+    renderResults(seeded('maxBeach=500'));
+    await settled();
+
+    expect(lastFacetCall().filters.maxBeach).toBe(500);
+    await openSection(user, 'Distance');
+    expect(sidebarCheck('≤ 500 m')).toBeChecked();
+  });
+
+  it('still seeds the board and adults-only params the older cards link with', async () => {
+    renderResults(seeded('boards=ai&adultsOnly=yes'));
+    await settled();
+    expect(lastCall().get('boards')).toBe('AI');
+    expect(lastFacetCall().filters.adultsOnly).toBe(true);
+  });
+
+  it('names what the card applied and takes exactly those filters back off', async () => {
+    const user = userEvent.setup();
+    facetLists = SEED_FACETS;
+    renderResults(seeded('stars=5&facilities=574&cardLabel=Barefoot%20Luxury&filterLabels=5-star%7CPrivate%20beach'));
+    await settled();
+
+    expect(screen.getByText('Barefoot Luxury')).toBeInTheDocument();
+    expect(screen.getByText('5-star')).toBeInTheDocument();
+    expect(screen.getByText('Private beach')).toBeInTheDocument();
+
+    await user.click(screen.getByRole('button', { name: /remove these filters/i }));
+    await waitFor(() => expect(lastFacetCall().filters.stars).toEqual([]));
+    expect(lastFacetCall().filters.facilities).toEqual([]);
+    expect(screen.queryByText('Barefoot Luxury')).not.toBeInTheDocument();
+  });
+
+  it('falls back to the facet names when the link carries no labels', async () => {
+    facetLists = SEED_FACETS;
+    renderResults(seeded('facilities=574'));
+    await settled();
+    await waitFor(() => expect(screen.getByText('Private beach area')).toBeInTheDocument());
+  });
+
+  it('withdraws the summary once the filters it names are gone', async () => {
+    const user = userEvent.setup();
+    facetLists = SEED_FACETS;
+    renderResults(seeded('stars=5&cardLabel=Five%20Star'));
+    await settled();
+
+    expect(screen.getByText('Five Star')).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: /clear all/i })[0]);
+    await waitFor(() => expect(screen.queryByText('Five Star')).not.toBeInTheDocument());
+  });
+
+  it('leaves the results untouched when the URL carries no filters', async () => {
+    renderResults();
+    await settled();
+    expect(screen.queryByRole('button', { name: /remove these filters/i })).not.toBeInTheDocument();
+    expect(lastCall().get('boards')).toBeNull();
   });
 });

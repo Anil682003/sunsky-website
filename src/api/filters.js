@@ -126,6 +126,10 @@ export async function fetchFacets({ countries = [], destinations = [], zones = [
   if (join(filters.themes))        params.themes        = join(filters.themes);
   if (join(filters.stars))         params.stars         = join(filters.stars);
   if (join(filters.facilities))    params.facilities    = join(filters.facilities);
+  // `activities` entries are either a bare code (620) or a group-qualified "74:620" string, and
+  // they go over the wire VERBATIM. Coercing to Number would drop the group and silently widen
+  // "Spa centre" to every group that reuses code 620 (73 Waterpark), which is the over-matching
+  // the qualified form exists to stop.
   if (join(filters.activities))    params.activities    = join(filters.activities);
   if (join(filters.accommodation)) params.accommodation = join(filters.accommodation);
   if (join(filters.kids))          params.kids          = join(filters.kids);

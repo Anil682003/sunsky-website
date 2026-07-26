@@ -171,6 +171,9 @@
 /* shell — entrance animation + drop-shadow (traces the mask cut-outs) */
 .card {
   display: flex;
+  /* the chips are nowrap, so without this a long CMS label raises the grid item's min-content
+     width and steals the other two columns' share of the 1fr track */
+  min-width: 0;
   filter: drop-shadow(0 14px 24px rgba(31, 79, 216, 0.10)) drop-shadow(0 2px 6px rgba(31, 79, 216, 0.05));
   transition: filter 0.35s var(--ease);
   animation: fadeUp 0.7s var(--ease) both;
@@ -287,6 +290,8 @@
 .cardBody {
   flex: 1;
   padding: 20px 22px 16px;
+  /* column flex so the chip row can be pinned to the bottom of the body */
+  display: flex; flex-direction: column;
 }
 .vacTitle {
   font-family: 'Sora', sans-serif;
@@ -297,6 +302,38 @@
 .vacDesc {
   font-size: 0.9rem; color: var(--text-sec);
   line-height: 1.65; margin-top: 8px;
+}
+
+/* Fare-condition chips — the filters the card's link applies, printed in the same dashed
+   ink as the .stamp so they read as part of the same print run. */
+.chips {
+  display: flex; flex-wrap: wrap; gap: 6px;
+  /* auto margin pins the row to the perforation so cards of unequal description length still
+     line their chips up; the padding is the minimum gap when there is no slack to absorb */
+  margin-top: auto;
+  padding-top: 14px;
+}
+.chip {
+  font-family: 'Sora', sans-serif;
+  font-size: 9.5px; font-weight: 700;
+  text-transform: uppercase; letter-spacing: 0.9px;
+  color: var(--blue-deep);
+  background: var(--blue-light);
+  border: 1px dashed rgba(31, 79, 216, 0.3);
+  border-radius: 7px;
+  padding: 4.5px 9px;
+  /* a long facility name must clip, never widen the ticket past its grid column */
+  min-width: 0; max-width: 100%;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+/* a star rating is a glyph run, not a facility name — gold ink and its own spacing */
+.chipStar {
+  color: #B87400;
+  background: rgba(255, 209, 102, 0.24);
+  border-color: rgba(255, 159, 28, 0.5);
+  font-size: 10.5px; letter-spacing: 1.4px;
+  /* letter-spacing trails the last star, so trim the right padding back to match the left */
+  padding-right: 7.6px;
 }
 
 /* Ticket stub — below the perforation: route code, barcode, CTA */

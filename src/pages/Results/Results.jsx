@@ -322,37 +322,73 @@ export default function Results() {
     adults: initAdults, children: initChildren, rooms: initRooms,
   });
 
-  // Filters can arrive in the URL — the homepage links into pre-filtered searches:
-  //   ?boards=AI        board code(s)         (vacation-type cards, popular-dest links)
-  //   ?themes=12        holiday type id(s)    (popular-destination links)
-  //   ?kids=340         kids amenity code(s)  ("Family Friendly" vacation-type card)
-  //   ?adultsOnly=1     only-adults hotels    ("Adults Only" vacation-type card)
+  // Filters can arrive in the URL — the homepage vacation-type cards link into pre-filtered
+  // searches, one query param per sidebar filter:
+  //   ?boards=AI          board code(s)              (vacation-type cards, popular-dest links)
+  //   ?themes=12          holiday type id(s)         (popular-destination links)
+  //   ?kids=340           kids amenity code(s)       ("Family Friendly" card)
+  //   ?stars=5            star rating(s)
+  //   ?facilities=574     facility code(s), group 70
+  //   ?accommodation=2    accommodation type code(s), group 20
+  //   ?activities=74:620  activity code(s), bare or group-qualified (see actCode)
+  //   ?adultsOnly=1       only-adults hotels         ("Adults Only" card)
+  //   ?maxBeach=500       max distance (m) to the beach / to the city centre
   // Seeded once, on entry; from then on the sidebar owns them like any other filter.
-  // Theme/kids ids are numbers because the facet lists compare against numeric ids.
+  //
+  // Every value is coerced to the type its facet list uses, because the sidebar checkboxes
+  // compare by identity: a string "5" in `stars` still narrows the search but leaves the 5-star
+  // box unticked — a half-applied filter the traveller can neither see nor undo.
   const seedFilters = () => {
+    const nums = (name) => csv(params.get(name) || '').map((n) => Number(n)).filter((n) => Number.isFinite(n));
+    // Distances are single-valued, and 0 metres is indistinguishable from "no bound".
+    const metres = (name) => {
+      const n = Number(params.get(name));
+      return Number.isFinite(n) && n > 0 ? n : null;
+    };
     const boards = csv(params.get('boards') || '')
       .map((c) => c.trim().toUpperCase())
       .filter(Boolean);
-    const themes = csv(params.get('themes') || '')
-      .map((n) => Number(n))
-      .filter((n) => Number.isFinite(n));
-    const kids = csv(params.get('kids') || '')
-      .map((n) => Number(n))
-      .filter((n) => Number.isFinite(n));
+    const themes        = nums('themes');
+    const kids          = nums('kids');
+    const facilities    = nums('facilities');
+    const accommodation = nums('accommodation');
+    // A rating outside 1..5 (or a fractional one) has no facet row to tick, so it would narrow
+    // the search from a checkbox that does not exist.
+    const stars = nums('stars').filter((n) => Number.isInteger(n) && n >= 1 && n <= 5);
+    // The activities array deliberately mixes both forms: a bare code searches every activity
+    // group (legacy), "74:620" pins the group so a code reused across groups 73/74/90 cannot
+    // over-match. Same grammar the content API parses, so anything else is dropped here.
+    const activities = csv(params.get('activities') || '')
+      .map((v) => v.match(/^(?:(\d+):)?(\d+)$/))
+      .filter(Boolean)
+      .map((m) => (m[1] ? `${m[1]}:${m[2]}` : Number(m[2])));
     const adultsOnly = ['1', 'true', 'yes'].includes((params.get('adultsOnly') || '').toLowerCase());
-    if (!boards.length && !themes.length && !kids.length && !adultsOnly) return EMPTY_FILTERS;
-    return {
-      ...EMPTY_FILTERS,
-      ...(boards.length ? { boards } : {}),
-      ...(themes.length ? { themes } : {}),
-      ...(kids.length ? { kids } : {}),
-      ...(adultsOnly ? { adultsOnly: true } : {}),
+    const maxBeach  = metres('maxBeach');
+    const maxCentre = metres('maxCentre');
+    const seed = {
+      ...(boards.length        ? { boards } : {}),
+      ...(themes.length        ? { themes } : {}),
+      ...(kids.length          ? { kids } : {}),
+      ...(stars.length         ? { stars } : {}),
+      ...(facilities.length    ? { facilities } : {}),
+      ...(accommodation.length ? { accommodation } : {}),
+      ...(activities.length    ? { activities } : {}),
+      ...(adultsOnly           ? { adultsOnly: true } : {}),
+      ...(maxBeach  != null    ? { maxBeach } : {}),
+      ...(maxCentre != null    ? { maxCentre } : {}),
     };
+    // Deriving the guard from the seed itself means a filter added above can never be left out
+    // of it and silently ignored.
+    return Object.keys(seed).length ? { ...EMPTY_FILTERS, ...seed } : EMPTY_FILTERS;
   };
 
   // Result filters. `filters` drives the UI (instant); `applied` is the debounced copy.
-  const [filters, setFilters] = useState(seedFilters);
-  const [applied, setApplied] = useState(seedFilters);
+  // The seed is kept as well, so the "applied from this card" summary can take back off exactly
+  // what the URL put on.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const seeded = useMemo(() => seedFilters(), []);
+  const [filters, setFilters] = useState(seeded);
+  const [applied, setApplied] = useState(seeded);
 
   // ── FACETS (from the admin content API over the scope) ──────────────────────────
   // holiday / stars / facilities / activities, each with a hotel count. `facetsStatus`:
@@ -917,6 +953,28 @@ export default function Results() {
     [key]: f[key].includes(code) ? f[key].filter((x) => x !== code) : [...f[key], code],
   }));
 
+  // An activities entry is either a bare code (620) or a group-qualified string ("74:620").
+  const actCode = (v) => Number(String(v).split(':').pop());
+  // Identity has to carry the group, because the activity groups REUSE codes: 620 is Spa centre
+  // in group 74 and Waterpark in 73, 410 is Hot tub in 74 and Surfing in 90. Matching on the code
+  // alone would tick Waterpark's box for a spa filter and, worse, make one click on that box strip
+  // the spa filter the traveller never chose to remove. A bare entry is the legacy "this code in
+  // any activity group", so it still matches every row sharing it.
+  const actMatches = (entry, row) => (
+    String(entry).includes(':')
+      ? String(entry) === `${row.groupCode}:${row.code}`
+      : actCode(entry) === row.code
+  );
+
+  // Ticking a row stores the QUALIFIED form whenever the facet knows its group, so the result set
+  // finally agrees with the hotel count printed beside the box.
+  const toggleActivity = (f) => setFilters((prev) => ({
+    ...prev,
+    activities: prev.activities.some((a) => actMatches(a, f))
+      ? prev.activities.filter((a) => !actMatches(a, f))
+      : [...prev.activities, f.groupCode ? `${f.groupCode}:${f.code}` : f.code],
+  }));
+
   const setFilter = (key, value) => setFilters((f) => ({ ...f, [key]: value }));
   // Distance is single-select per type: re-picking the active bucket clears it ("Any distance").
   const setMaxDistance = (key, metres) => setFilter(key, filters[key] === metres ? '' : metres);
@@ -928,6 +986,59 @@ export default function Results() {
   };
 
   const clearFilters = () => setFilters(EMPTY_FILTERS);
+
+  // ── "APPLIED FROM THIS CARD" ───────────────────────────────────────────────────
+  // Which keys the entry URL seeded — every other key still holds its EMPTY_FILTERS value.
+  const seededKeys = useMemo(
+    () => Object.keys(EMPTY_FILTERS).filter((k) => (
+      Array.isArray(seeded[k]) ? seeded[k].length > 0 : seeded[k] !== EMPTY_FILTERS[k]
+    )),
+    [seeded]
+  );
+  // The card ships its own wording (`cardLabel` + `filterLabels`) so the results page never has
+  // to fetch the facility catalogue just to say what it applied. Links written before those
+  // params existed carry neither, hence the fallback to the facet lists — which can only name a
+  // code once the facets have resolved, so the summary fills in rather than blocking.
+  const cardSummary = useMemo(() => {
+    if (!seededKeys.length) return null;
+    const named = (list, code) => list.find((x) => x.code === code)?.name;
+    const given = (params.get('filterLabels') || '').split('|').map((s) => s.trim()).filter(Boolean);
+    const labels = given.length ? given : seededKeys.flatMap((k) => {
+      const v = seeded[k];
+      switch (k) {
+        case 'boards':        return v.map(getBoardLabel);
+        case 'stars':         return v.map((n) => `${'★'.repeat(n)} ${n}-star`);
+        case 'themes':        return v.map((id) => facets.holiday.find((t) => t.id === id)?.name);
+        case 'facilities':    return v.map((c) => named(facets.facilities, c));
+        case 'accommodation': return v.map((c) => cap(named(facets.accommodation, c)));
+        case 'kids':          return v.map((c) => named(facets.kids, c));
+        case 'activities':    return v.map((a) => facets.activities.find((x) => actMatches(a, x))?.name);
+        case 'adultsOnly':    return ['Adults only'];
+        case 'maxBeach':      return [`Beach ${metresLabel(v)}`];
+        case 'maxCentre':     return [`Centre ${metresLabel(v)}`];
+        default:              return [];
+      }
+    }).filter(Boolean);
+    const title = params.get('cardLabel') || params.get('boardLabel') || '';
+    return title || labels.length ? { title, labels } : null;
+  }, [seededKeys, seeded, params, facets]);
+  // The summary must never claim a filter that is no longer on, so it disappears as soon as one
+  // of the card's values is unticked — including via Clear all.
+  const cardApplied = !!cardSummary && seededKeys.every((k) => (
+    Array.isArray(seeded[k]) ? seeded[k].every((v) => filters[k].includes(v)) : filters[k] === seeded[k]
+  ));
+  // Removing it takes off exactly what the card applied; anything ticked since stays — so an array
+  // key loses only the seeded values, not the whole group.
+  const clearCardFilters = () => setFilters((f) => {
+    const next = { ...f };
+    for (const k of seededKeys) {
+      if (!Array.isArray(seeded[k])) { next[k] = EMPTY_FILTERS[k]; continue; }
+      next[k] = k === 'activities'
+        ? f[k].filter((v) => !seeded[k].some((s) => actCode(s) === actCode(v)))
+        : f[k].filter((v) => !seeded[k].includes(v));
+    }
+    return next;
+  });
 
   const ceiling = priceCeiling ?? PRICE_CEILING_FALLBACK;
   const sliderMin = filters.minPrice === '' ? 0 : Math.min(Number(filters.minPrice), ceiling);
@@ -1205,14 +1316,16 @@ export default function Results() {
         )}
       </FilterSection>
 
-      {/* Activities — DYNAMIC from the admin facets (groups 73/74/90), unique with counts. */}
+      {/* Activities — DYNAMIC from the admin facets (groups 73/74/90 + 71 catering), with counts.
+          Keyed by group AND code: the same code appears in several groups under different names
+          (410 is both Hot tub and Surfing), so the bare code is not a unique row identity. */}
       <FilterSection title="Activities" defaultOpen={false}>
         {facets.activities.length === 0 ? (
           <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No activities data for this search.'}</p>
         ) : (
           <div className={styles.facetScroll}>
             {facets.activities.map((a) => (
-              <FilterCheck key={a.code} label={`${a.name} (${a.hotels})`} checked={filters.activities.includes(a.code)} onChange={() => toggleCode('activities', a.code)} />
+              <FilterCheck key={`${a.groupCode ?? ''}:${a.code}`} label={`${a.name} (${a.hotels})`} checked={filters.activities.some((x) => actMatches(x, a))} onChange={() => toggleActivity(a)} />
             ))}
           </div>
         )}
@@ -1401,6 +1514,30 @@ export default function Results() {
 
         <section className={styles.results}>
           <div className={`${styles.resultsList} ${filtering ? styles.listBusy : ''}`}>
+            {/* What the vacation-type card the traveller came from asked for, and the way back
+                out of it — the sidebar alone never explains why the list arrived pre-narrowed. */}
+            {cardApplied && (
+              <div className={styles.cardApplied}>
+                <span className={styles.cardAppliedIcon}>
+                  <Icon d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" size={15} sw={1.8} />
+                </span>
+                <div className={styles.cardAppliedText}>
+                  <span className={styles.cardAppliedTitle}>{cardSummary.title || 'Filters from your pick'}</span>
+                  {cardSummary.labels.length > 0 && (
+                    <span className={styles.cardAppliedChips}>
+                      {cardSummary.labels.map((l, li) => (
+                        <span key={`${li}-${l}`} className={styles.cardAppliedChip}>{l}</span>
+                      ))}
+                    </span>
+                  )}
+                </div>
+                <button type="button" className={styles.cardAppliedX} onClick={clearCardFilters} aria-label="Remove these filters">
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
+                    <path d="M18 6L6 18M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+            )}
             {loading ? (
               [0, 1, 2].map((i) => (
                 <div key={i} className={styles.skeletonCard} style={{ animationDelay: `${i * 0.1}s` }}>

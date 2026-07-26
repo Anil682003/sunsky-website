@@ -13,6 +13,57 @@ const boardUrl = (code, label) => {
 };
 const searchUrl = (params) => `/results?${new URLSearchParams(params).toString()}`;
 
+// A dashboard card can carry a list of filter criteria instead of a single board code. Each is
+// { filterKey, value, label }; criteria sharing a filterKey OR together, which is exactly how the
+// results sidebar already treats a multi-ticked group. Values stay verbatim — an activity may be
+// group-qualified ("74:620"), and coercing it to a number would silently match another group.
+const starGlyphs = (value) => {
+  const n = Math.round(Number(value));
+  return n >= 1 && n <= 5 ? '★'.repeat(n) : '';
+};
+// `label` is captured in the dashboard at pick time, so the homepage never has to load the
+// facility catalogue just to name a filter — and never invents a name it cannot verify.
+const criterionText = (c) => (c?.filterKey === 'stars' ? starGlyphs(c.value) : String(c?.label ?? '').trim());
+const criterionLabel = (c) => String(c?.label ?? '').trim() || criterionText(c);
+
+// The query string collapses a repeated criterion on its own, so drop it here too — otherwise the
+// card prints the same chip twice while the link filters on it once.
+const uniqueCriteria = (criteria) => {
+  const seen = new Set();
+  return criteria.filter((c) => {
+    const k = `${c?.filterKey}:${c?.value}`;
+    if (seen.has(k)) return false;
+    seen.add(k);
+    return true;
+  });
+};
+
+const criteriaUrl = (criteria, cardTitle) => {
+  const byKey = new Map();
+  for (const c of criteria) {
+    const key = String(c?.filterKey || '').trim();
+    if (!key) continue;
+    // adultsOnly is the one boolean dimension; the results page reads it as `?adultsOnly=1`.
+    if (key === 'adultsOnly') { if (c.value) byKey.set(key, new Set(['1'])); continue; }
+    const value = String(c?.value ?? '').trim();
+    if (!value) continue;
+    if (!byKey.has(key)) byKey.set(key, new Set());
+    byKey.get(key).add(value);
+  }
+  // Nothing usable in the list — leave the card non-clickable rather than ship a button that
+  // lands on an unfiltered search while claiming to be a vacation type.
+  if (!byKey.size) return null;
+
+  const qs = new URLSearchParams();
+  for (const [key, values] of byKey) qs.set(key, [...values].join(','));
+  // Results names what was applied from these two; without them it can only fall back to the
+  // facet catalogue, which is not loaded yet on first paint.
+  if (cardTitle) qs.set('cardLabel', cardTitle);
+  const labels = criteria.map(criterionLabel).filter(Boolean);
+  if (labels.length) qs.set('filterLabels', labels.join('|'));
+  return `/results?${qs.toString()}`;
+};
+
 const FALLBACK_TYPES = [
   { label:'Worry-Free',    title:'All Inclusive',    desc:'Everything taken care of. Just relax and enjoy.',     img:'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80', href: boardUrl('AI', 'All Inclusive') },
   { label:'Premium Escape',title:'Adults Only',      desc:'Tranquil retreats for couples and friends.',           img:'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800&q=80', href: searchUrl({ adultsOnly: '1' }) },
@@ -29,15 +80,28 @@ export default function VacationTypes({ cms }) {
   const subtitle = sh?.subtitle || 'Curated experiences designed around how you love to travel.';
 
   const types = (cms?.vacationTypes?.length > 0)
-    ? cms.vacationTypes.map((v) => ({
-        label: v.label,
-        title: v.title,
-        desc:  v.description || v.desc || '',
-        img:   v.imageUrl,
-        buttonText: v.buttonText || 'Explore',
-        // Set in the dashboard; without it the card stays non-clickable.
-        href:  v.boardCode ? boardUrl(v.boardCode, v.title) : null,
-      }))
+    ? cms.vacationTypes.map((v) => {
+        const criteria = uniqueCriteria(Array.isArray(v.search?.criteria) ? v.search.criteria : []);
+        // Criteria win over boardCode, which the dashboard keeps mirrored so a stale bundle that
+        // predates criteria still links somewhere sane. With neither the card stays non-clickable.
+        const href = criteria.length ? criteriaUrl(criteria, v.title)
+                   : v.boardCode    ? boardUrl(v.boardCode, v.title)
+                   : null;
+        return {
+          label: v.label,
+          title: v.title,
+          desc:  v.description || v.desc || '',
+          img:   v.imageUrl,
+          buttonText: v.buttonText || 'Explore',
+          href,
+          // The chips name what the link applies, so a criteria list that produced no usable
+          // filter prints none of them rather than promising a search the button cannot run.
+          chips: (href && criteria.length && v.search?.showFacts !== false)
+            ? criteria.map((c) => ({ text: criterionText(c), star: c?.filterKey === 'stars' }))
+                      .filter((c) => c.text)
+            : [],
+        };
+      })
     : FALLBACK_TYPES;
 
   // Split the CMS title so the last word gets the cursive golden accent
@@ -109,6 +173,15 @@ export default function VacationTypes({ cms }) {
                   <div className={styles.cardBody}>
                     <h3 className={styles.vacTitle}>{t.title}</h3>
                     <p className={styles.vacDesc}>{t.desc}</p>
+                    {/* the filters this card's link applies — stays above the perforation so the
+                        stub keeps its fixed 62px height and the notch mask stays aligned */}
+                    {t.chips?.length > 0 && (
+                      <div className={styles.chips}>
+                        {t.chips.map((c, ci) => (
+                          <span key={ci} className={`${styles.chip} ${c.star ? styles.chipStar : ''}`}>{c.text}</span>
+                        ))}
+                      </div>
+                    )}
                   </div>
                   <div className={styles.cardFoot}>
                     <span className={styles.footMeta}>
