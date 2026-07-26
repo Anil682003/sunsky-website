@@ -381,10 +381,62 @@ export default function DestinationModal({
                   {isOpen && !isLoading && !isError && group && (
                     <div className={styles.blockBody}>
                       {renderChips({ ...group, name: c.name }, 'region', group.regions || [])}
-                      {renderChips({ ...group, name: c.name }, 'city', group.cities || [])}
-                      {!(group.regions || []).length && !(group.cities || []).length && (
-                        <p className={styles.blockNote}>No regions or cities listed yet — we&rsquo;ll search the whole country.</p>
-                      )}
+                      {(() => {
+                        const allCities = group.cities || [];
+                        if (!allCities.length) {
+                          if (!(group.regions || []).length)
+                            return <p className={styles.blockNote}>No regions or cities listed yet — we&rsquo;ll search the whole country.</p>;
+                          return null;
+                        }
+                        const themed = new Map();
+                        const ungrouped = [];
+                        for (const city of allCities) {
+                          if (city.themes?.length) {
+                            for (const t of city.themes) {
+                              const bucket = themed.get(t.id) || { name: t.name, icon: t.icon, cities: [] };
+                              bucket.cities.push(city);
+                              themed.set(t.id, bucket);
+                            }
+                          } else {
+                            ungrouped.push(city);
+                          }
+                        }
+                        if (!themed.size)
+                          return renderChips({ ...group, name: c.name }, 'city', allCities);
+                        const groupCtx = { ...group, name: c.name };
+                        return (
+                          <>
+                            {[...themed.entries()].map(([themeId, bucket]) => (
+                              <div className={styles.group} key={`theme-${themeId}`}>
+                                <span className={styles.groupLabel}>
+                                  {bucket.icon && <span className={styles.themeIcon}>{bucket.icon}</span>}
+                                  {bucket.name}
+                                  <em className={styles.groupCount}>{bucket.cities.length}</em>
+                                </span>
+                                <div className={styles.chips}>
+                                  {bucket.cities.map((item) => {
+                                    const key = placeKey('city', item.id);
+                                    const active = selectedKeys.has(key);
+                                    return (
+                                      <button
+                                        key={key}
+                                        type="button"
+                                        className={`${styles.chip} ${active ? styles.chipActive : ''}`}
+                                        onClick={() => togglePlace(groupCtx, 'city', item)}
+                                      >
+                                        <Flag flagUrl={groupCtx.flagUrl} flag={groupCtx.flag} className={styles.chipFlag} />
+                                        {item.name}
+                                        {active && <span className={styles.chipCheck}><CheckIcon size={10} /></span>}
+                                      </button>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            ))}
+                            {ungrouped.length > 0 && renderChips(groupCtx, 'city', ungrouped)}
+                          </>
+                        );
+                      })()}
                     </div>
                   )}
                 </div>
