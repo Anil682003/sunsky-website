@@ -319,7 +319,11 @@ export default function DestinationModal({
               const isOpen = activeId === c.id;
 
               return (
-                <div className={`${styles.block} ${isOpen ? styles.blockOpen : ''}`} key={c.id}>
+                <div
+                  className={`${styles.block} ${isOpen ? styles.blockOpen : ''}`}
+                  key={c.id}
+                  ref={isOpen ? (el) => el?.scrollIntoView({ behavior: 'smooth', block: 'nearest' }) : undefined}
+                >
                   <div
                     className={styles.blockHead}
                     onClick={() => setActiveId(isOpen ? null : c.id)}
