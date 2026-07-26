@@ -1,6 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import styles from './Hero.module.css';
 import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
@@ -85,7 +84,6 @@ function renderHeroTitle(raw, scriptClass) {
 }
 
 export default function Hero() {
-  const { isAuthenticated } = useSelector((s) => s.auth);
   const navigate = useNavigate();
 
   const { data: cmsConfig } = useHomepageConfig();
@@ -876,19 +874,6 @@ export default function Hero() {
         </div>
         )}
 
-        {!isAuthenticated && (
-          <div className={styles.memberStrip}>
-            <span className={styles.memberText}>
-              Create an account for member-only prices
-            </span>
-            <Link to="/register" className={styles.memberCta}>
-              Register
-              <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
-            </Link>
-            <span className={styles.memberOr}>or</span>
-            <Link to="/login" className={styles.memberSignIn}>Sign in</Link>
-          </div>
-        )}
       </div>
 
       <DestinationModal
