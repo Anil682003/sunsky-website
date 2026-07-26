@@ -726,26 +726,27 @@
   width:fit-content;
   margin-bottom:14px;
   padding:10px 20px;
-  background:rgba(7,14,31,0.42);
-  backdrop-filter:blur(16px) saturate(140%);
-  -webkit-backdrop-filter:blur(16px) saturate(140%);
-  border:1px solid rgba(255,255,255,0.18);
+  background:rgba(255,255,255,0.88);
+  backdrop-filter:blur(24px) saturate(160%);
+  -webkit-backdrop-filter:blur(24px) saturate(160%);
+  border:1px solid rgba(255,255,255,0.65);
   border-radius:var(--r-full);
+  box-shadow:0 4px 24px rgba(7,20,60,0.12);
 }
 .tripTypeOpt {
   display:flex; align-items:center; gap:8px;
   cursor:pointer; font-size:13px; font-weight:600;
-  color:rgba(255,255,255,0.6);
+  color:rgba(51,65,85,0.55);
   transition:color 0.2s;
   background:none; border:none; padding:0;
   font-family:inherit;
 }
-.tripTypeOpt:hover { color:rgba(255,255,255,0.85); }
-.tripTypeOptActive { color:#fff; }
+.tripTypeOpt:hover { color:#334155; }
+.tripTypeOptActive { color:#0f172a; }
 .tripRadio {
   width:18px; height:18px;
   border-radius:50%;
-  border:2px solid rgba(255,255,255,0.3);
+  border:2px solid rgba(100,116,139,0.3);
   display:flex; align-items:center; justify-content:center;
   transition:all 0.25s;
   flex-shrink:0;
@@ -758,26 +759,26 @@
   content:'';
   width:7px; height:7px;
   border-radius:50%;
-  background:var(--dark);
+  background:#fff;
 }
 .tripTypeDivider {
   width:1px; height:20px;
-  background:rgba(255,255,255,0.12);
+  background:rgba(100,116,139,0.18);
 }
 .directCheck {
   display:flex; align-items:center; gap:8px;
   cursor:pointer; font-size:13px; font-weight:500;
-  color:rgba(255,255,255,0.5);
+  color:rgba(51,65,85,0.5);
   transition:color 0.2s;
   background:none; border:none; padding:0;
   font-family:inherit;
 }
-.directCheck:hover { color:rgba(255,255,255,0.8); }
-.directCheckActive { color:rgba(255,255,255,0.8); }
+.directCheck:hover { color:#334155; }
+.directCheckActive { color:#334155; }
 .directCb {
   width:17px; height:17px;
   border-radius:5px;
-  border:2px solid rgba(255,255,255,0.25);
+  border:2px solid rgba(100,116,139,0.3);
   display:flex; align-items:center; justify-content:center;
   transition:all 0.25s;
   flex-shrink:0;
