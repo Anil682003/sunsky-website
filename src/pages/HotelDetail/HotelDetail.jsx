@@ -169,10 +169,15 @@ const PHOTO_TYPES = {
   BAR:  'Bar',
   SPA:  'Spa',
   GIM:  'Gym',
+  DEP:  'Sports & Leisure',
   LOB:  'Lobby',
   COM:  'Common Areas',
   SAL:  'Meeting Rooms',
+  CON:  'Conference Rooms',
 };
+// Hotelbeds stores beach photos as PLA (playa); the dashboard dictionary says PLY.
+// Fold the live code into the canonical one so beach photos never show as "Pla".
+const PHOTO_TYPE_ALIAS = { PLA: 'PLY' };
 const PHOTO_TYPE_ORDER = Object.keys(PHOTO_TYPES); // overview → sleep → water → outdoors → food → wellness → indoors
 const PHOTO_TYPE_ICONS = {
   GEN:  <S><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></S>,
@@ -189,6 +194,8 @@ const PHOTO_TYPE_ICONS = {
   LOB:  <S><path d="M19 9V6a2 2 0 00-2-2H7a2 2 0 00-2 2v3" /><path d="M3 16a2 2 0 002 2h14a2 2 0 002-2v-5a2 2 0 00-4 0v2H7v-2a2 2 0 00-4 0z" /><path d="M5 18v2M19 18v2" /></S>,
   COM:  <S><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></S>,
   SAL:  <S><rect x="3" y="4" width="18" height="12" rx="1" /><path d="M12 16v4M8 20h8" /></S>,
+  DEP:  <S><path d="M22 12h-4l-3 9L9 3l-3 9H2" /></S>,
+  CON:  <S><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></S>,
 };
 
 /* ── Flight card sub-component ── */
@@ -405,7 +412,8 @@ export default function HotelDetail() {
     const sorted = [...info.images].sort((a, b) => (a.order ?? a.visualOrder ?? 999) - (b.order ?? b.visualOrder ?? 999));
     for (const im of sorted) {
       if (!im?.url) continue;
-      const code = typeof PHOTO_TYPES[im.imageTypeCode] === 'string' ? im.imageTypeCode : 'GEN';
+      const raw = PHOTO_TYPE_ALIAS[im.imageTypeCode] || im.imageTypeCode;
+      const code = typeof PHOTO_TYPES[raw] === 'string' ? raw : 'GEN';
       if (!by.has(code)) by.set(code, []);
       by.get(code).push(im.url);
     }
