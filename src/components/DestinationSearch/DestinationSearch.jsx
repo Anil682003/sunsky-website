@@ -36,14 +36,20 @@ const SunIcon = () => (
   </svg>
 );
 
-const Stars = ({ n }) => {
-  const count = Math.max(0, Math.min(5, Math.round(n || 0)));
+// A hotel's rating marks — stars for hotels, keys for apartments. Hotelbeds rates apartments in
+// keys (llaves), not stars. Accepts the backend's `rating: { kind, value }`; falls back to a
+// bare star count `n` for older callers.
+const Stars = ({ rating, n }) => {
+  const kind = rating?.kind === 'key' ? 'key' : 'star';
+  const count = Math.max(0, Math.min(5, Math.round((rating?.value ?? n) || 0)));
   if (!count) return null;
+  const KEY = 'M7 14a5 5 0 1 1 4.9-6h8.1a1 1 0 0 1 .7.3l1.6 1.6a1 1 0 0 1 0 1.4l-2.3 2.3a1 1 0 0 1-1.4 0l-.8-.8-1 1-.9-.9-1 1-1.3-1.3H11.9A5 5 0 0 1 7 14Zm-1.6-3.4a1.4 1.4 0 1 0 0-2 1.4 1.4 0 0 0 0 2Z';
+  const STAR = 'M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.6 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z';
   return (
-    <span className={styles.stars} aria-label={`${count} star`}>
+    <span className={styles.stars} aria-label={`${count} ${kind}`}>
       {Array.from({ length: count }).map((_, i) => (
-        <svg key={i} width="11" height="11" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
-          <path d="M12 2l2.9 6.3 6.9.7-5.1 4.6 1.4 6.8L12 17.6 5.9 20.4l1.4-6.8L2.2 9l6.9-.7z" />
+        <svg key={i} width={kind === 'key' ? 12 : 11} height={kind === 'key' ? 12 : 11} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+          <path d={kind === 'key' ? KEY : STAR} />
         </svg>
       ))}
     </span>
@@ -379,7 +385,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                     <span className={styles.itemText}>
                       <span className={styles.itemMainRow}>
                         <span className={styles.itemMain}>{h.name}</span>
-                        <Stars n={h.stars} />
+                        <Stars rating={h.rating} n={h.stars} />
                       </span>
                       <span className={styles.itemSub}>{h.destinationName}{h.country ? `, ${h.country}` : ''}</span>
                     </span>
