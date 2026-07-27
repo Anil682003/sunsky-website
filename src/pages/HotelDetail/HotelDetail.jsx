@@ -7,6 +7,8 @@ import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
+import RatingMarks from '../../components/RatingMarks/RatingMarks';
+import { ratingLabel } from '../../utils/rating';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
@@ -332,6 +334,9 @@ export default function HotelDetail() {
   // Never invent a rating: unknown star data renders NO stars (the old `|| 5`
   // fallback showed budget hotels as "5-star").
   const stars = Number(hotel?.stars) || Number(info?.stars) || 0;
+  // Star (hotel) vs key (apartment) rating. Apartments are rated in keys, not stars — the bulk
+  // info record carries the kind; fall back to a star rating from the star count.
+  const dispRating = info?.rating || (stars > 0 ? { kind: 'star', value: stars } : null);
   const locLabel = hotel?.loc || info?.city || 'Greece, Zakynthos, Agios Sostis';
   const currency = hotel?.currency || '€';
   const ccy = currency === 'EUR' ? '€' : currency;
@@ -342,8 +347,12 @@ export default function HotelDetail() {
   // (default-size) URLs; each <HotelImg> below requests the size its box needs and falls back
   // safely if that size is missing — so the array is also safe to hand to checkout/favourites
   // as a plain reference.
+  //
+  // MASTER-FIRST: sorted by the admin's visualOrder (the promoted master image has the lowest
+  // value), so the hero and the first gallery tile are always the master image.
+  const imgOrder = (im) => im?.visualOrder ?? im?.order ?? 999;
   const realImages = Array.isArray(info?.images) && info.images.length
-    ? [...info.images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999)).map((im) => im.url).filter(Boolean)
+    ? [...info.images].sort((a, b) => imgOrder(a) - imgOrder(b)).map((im) => im.url).filter(Boolean)
     : null;
   const images = realImages && realImages.length ? realImages.slice(0, 30) : [hotel?.img || GALLERY[0], ...GALLERY.slice(1)];
   const photoCount = realImages?.length || 48;
@@ -829,10 +838,10 @@ export default function HotelDetail() {
 
           <div className="sd-hero-main">
             <div className="sd-hero-left">
-              <div className="sd-hero-eyebrow">{ICON.shield} Verified stay{stars > 0 ? ` · ${Math.min(stars, 5)}-star hotel` : ''}</div>
+              <div className="sd-hero-eyebrow">{ICON.shield} Verified stay{ratingLabel(dispRating) ? ` · ${ratingLabel(dispRating)}` : ''}</div>
               <h1 className="hhn">{hotelName}</h1>
               <div className="hhm">
-                <span className="hhs">{'★'.repeat(Math.min(stars, 5))}</span>
+                <span className="hhs"><RatingMarks rating={dispRating} keySize={16} /></span>
                 <span className="hhl">{ICON.pin} {locLabel}</span>
                 {/* TripAdvisor rating, /10. From the harvested store (info.review) — no live
                     call — with the live one as a fallback for a not-yet-harvested hotel.

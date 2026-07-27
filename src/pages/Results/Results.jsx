@@ -7,6 +7,8 @@ import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import ScopePicker from '../../components/ScopePicker/ScopePicker';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
+import RatingMarks from '../../components/RatingMarks/RatingMarks';
+import { ratingLabel, ratingValue } from '../../utils/rating';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -24,17 +26,22 @@ const MANY_DESTINATIONS = 8;
 // needs (`bigger` for a card, `original` for the lightbox) and falls back if that size is
 // missing — many Hotelbeds images lack the larger variants (`xl` 403s), which is what left
 // gallery frames blank. The card box is ~360px (720 on a 2x screen); the lightbox is full.
+//
+// Sort key = the admin's `visualOrder` (the MASTER image the admin promoted has the lowest
+// value, so it sorts FIRST). `order` mirrors it; both fall back to 999 so images with no order
+// sink to the end without disturbing the master.
+const imgOrder = (im) => im?.visualOrder ?? im?.order ?? 999;
 const bestImg = (images, fallback) => {
   if (!Array.isArray(images) || images.length === 0) return fallback;
-  const sorted = [...images].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+  const sorted = [...images].sort((a, b) => imgOrder(a) - imgOrder(b));
   return sorted[0]?.url || fallback;
 };
 
-// All of a hotel's photo URLs, ordered — feeds the inline card slider and the lightbox.
+// All of a hotel's photo URLs, master-first — feeds the inline card slider and the lightbox.
 const allImgs = (images) => {
   if (!Array.isArray(images) || images.length === 0) return [];
   return [...images]
-    .sort((a, b) => (a.order ?? 999) - (b.order ?? 999))
+    .sort((a, b) => imgOrder(a) - imgOrder(b))
     .map((im) => im?.url)
     .filter(Boolean);
 };
@@ -1607,6 +1614,9 @@ export default function Results() {
                 const info      = infoMap[String(h.hotelCode)];
                 const dispName  = info?.name?.trim() || h.name;
                 const dispStars = info?.stars ?? attrMap[String(h.hotelCode)]?.stars ?? h.stars;
+                // Star (hotel) vs key (apartment) rating. The bulk info record carries the kind;
+                // fall back to a plain star rating from the star count when info isn't in yet.
+                const dispRating = info?.rating || (dispStars > 0 ? { kind: 'star', value: dispStars } : null);
                 const dispImg   = info ? bestImg(info.images, FALLBACK_IMG) : h.img;
                 const infoReady = !!info;
                 // The hotel's OWN destination, from its info record — a country or multi-city
@@ -1696,10 +1706,10 @@ export default function Results() {
                   </div>
 
                   <div className={styles.rcContent}>
-                    {dispStars > 0 && (
+                    {ratingValue(dispRating) > 0 && (
                       <div className={styles.rcStars}>
-                        {'★'.repeat(Math.min(dispStars, 5))}
-                        <span className={styles.rcStarLabel}>{Math.min(dispStars, 5)}-star hotel</span>
+                        <RatingMarks rating={dispRating} keySize={15} />
+                        <span className={styles.rcStarLabel}>{ratingLabel(dispRating)}</span>
                       </div>
                     )}
                     {dispName
