@@ -152,6 +152,45 @@ const GALLERY = [
   'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&q=80',
 ];
 
+/* ── Photo categories ──────────────────────────────────────────────────────
+   Hotelbeds image-type dictionary — the SAME codes the admin dashboard's
+   Gallery tab groups by (IMAGE_TYPE_LABELS in hotel.controller.js). Every
+   image row from /hotels/bulk carries `imageTypeCode`; unknown/null codes
+   fold into General so nothing is ever dropped. */
+const PHOTO_TYPES = {
+  GEN:  'General',
+  RES:  'Exterior',
+  HAB:  'Rooms',
+  PIS:  'Pool',
+  PLY:  'Beach',
+  TER:  'Terrace',
+  JAR:  'Garden',
+  REST: 'Restaurant',
+  BAR:  'Bar',
+  SPA:  'Spa',
+  GIM:  'Gym',
+  LOB:  'Lobby',
+  COM:  'Common Areas',
+  SAL:  'Meeting Rooms',
+};
+const PHOTO_TYPE_ORDER = Object.keys(PHOTO_TYPES); // overview → sleep → water → outdoors → food → wellness → indoors
+const PHOTO_TYPE_ICONS = {
+  GEN:  <S><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></S>,
+  RES:  <S><path d="M3 21h18" /><path d="M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" /><path d="M9 7h1M14 7h1M9 11h1M14 11h1M9 15h1M14 15h1" /></S>,
+  HAB:  <S><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8" /><path d="M2 17h20" /><path d="M6 10V7a2 2 0 012-2h8a2 2 0 012 2v3" /></S>,
+  PIS:  <S><path d="M2 6c1.5-1.5 3.5-1.5 5 0s3.5 1.5 5 0 3.5-1.5 5 0 3.5 1.5 5 0" /><path d="M2 12c1.5-1.5 3.5-1.5 5 0s3.5 1.5 5 0 3.5-1.5 5 0 3.5 1.5 5 0" /><path d="M2 18c1.5-1.5 3.5-1.5 5 0s3.5 1.5 5 0 3.5-1.5 5 0 3.5 1.5 5 0" /></S>,
+  PLY:  <S><path d="M12 2a9 9 0 019 9H3a9 9 0 019-9z" /><path d="M12 11v8a3 3 0 006 0" /><path d="M12 2v2" /></S>,
+  TER:  <S><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4" /></S>,
+  JAR:  <S><path d="M7 21h10" /><path d="M12 21V11" /><path d="M12 11C12 7 9 4 4 4c0 5 3 8 8 7z" /><path d="M12 14c0-3 2.5-5.5 7-5.5 0 4-2.5 6.5-7 5.5z" /></S>,
+  REST: <S><path d="M3 2v7a2 2 0 002 2h4a2 2 0 002-2V2" /><path d="M7 2v20" /><path d="M21 15V2a5 5 0 00-5 5v6a2 2 0 002 2h3z" /><path d="M21 15v7" /></S>,
+  BAR:  <S><path d="M8 22h8" /><path d="M12 15v7" /><path d="M12 15a5 5 0 005-5c0-2-.5-4-2-8H9c-1.5 4-2 6-2 8a5 5 0 005 5z" /></S>,
+  SPA:  <S><path d="M12 2s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z" /></S>,
+  GIM:  <S><path d="M6.5 6.5l11 11" /><path d="M21 21l-1-1M3 3l1 1" /><path d="M18 22l4-4M2 6l4-4" /><path d="M3 10l7-7M14 21l7-7" /></S>,
+  LOB:  <S><path d="M19 9V6a2 2 0 00-2-2H7a2 2 0 00-2 2v3" /><path d="M3 16a2 2 0 002 2h14a2 2 0 002-2v-5a2 2 0 00-4 0v2H7v-2a2 2 0 00-4 0z" /><path d="M5 18v2M19 18v2" /></S>,
+  COM:  <S><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></S>,
+  SAL:  <S><rect x="3" y="4" width="18" height="12" rx="1" /><path d="M12 16v4M8 20h8" /></S>,
+};
+
 /* ── Flight card sub-component ── */
 function FlightCard({ f, selected, onSelect }) {
   const [expanded, setExpanded] = useState(false);
@@ -357,6 +396,25 @@ export default function HotelDetail() {
   const images = realImages && realImages.length ? realImages.slice(0, 30) : [hotel?.img || GALLERY[0], ...GALLERY.slice(1)];
   const photoCount = realImages?.length || 48;
 
+  // Group the real photos by imageTypeCode (the admin dashboard's categories: General,
+  // Rooms, Pool, Beach, Bar…). Demo/fallback images carry no type, so `photoCats` stays
+  // null there and the categorized explorer simply isn't offered.
+  const photoCats = (() => {
+    if (!Array.isArray(info?.images) || !info.images.length) return null;
+    const by = new Map();
+    const sorted = [...info.images].sort((a, b) => (a.order ?? a.visualOrder ?? 999) - (b.order ?? b.visualOrder ?? 999));
+    for (const im of sorted) {
+      if (!im?.url) continue;
+      const code = typeof PHOTO_TYPES[im.imageTypeCode] === 'string' ? im.imageTypeCode : 'GEN';
+      if (!by.has(code)) by.set(code, []);
+      by.get(code).push(im.url);
+    }
+    if (!by.size) return null;
+    return [...by.entries()]
+      .map(([code, imgs]) => ({ code, label: PHOTO_TYPES[code], imgs }))
+      .sort((a, b) => PHOTO_TYPE_ORDER.indexOf(a.code) - PHOTO_TYPE_ORDER.indexOf(b.code));
+  })();
+
   // Search context (for the live calendar + availability calls). URL params are the
   // fallback so a new tab / shared link still prices the same stay.
   const destination  = state?.destination || qp('destination');
@@ -403,7 +461,12 @@ export default function HotelDetail() {
   const [selectedFlight, setSelectedFlight] = useState(0);
   const [modalFlight, setModalFlight] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
+  // Lightbox now carries its OWN photo list, so it can show either the full set
+  // (mosaic tiles) or one category from the explorer: { imgs, i, label|null }.
   const [lightbox, setLightbox] = useState(null);
+  // Full-screen categorized photo explorer (only offered when photoCats exists).
+  const [explorer, setExplorer] = useState(false);
+  const [explorerCat, setExplorerCat] = useState('ALL');
   const [sidebarChecked, setSidebarChecked] = useState({});
   const [showAllFac, setShowAllFac] = useState(false);
   const [reviewsSeen, setReviewsSeen] = useState(false);
@@ -443,11 +506,12 @@ export default function HotelDetail() {
   }, [modalOpen]);
 
   // lightbox: scroll lock + keyboard nav
+  const openLightbox  = (imgs, i = 0, label = null) => setLightbox({ imgs, i, label });
   const closeLightbox = () => setLightbox(null);
-  const prevImg = (e) => { e?.stopPropagation(); setLightbox((i) => (i - 1 + images.length) % images.length); };
-  const nextImg = (e) => { e?.stopPropagation(); setLightbox((i) => (i + 1) % images.length); };
+  const prevImg = (e) => { e?.stopPropagation(); setLightbox((lb) => lb && { ...lb, i: (lb.i - 1 + lb.imgs.length) % lb.imgs.length }); };
+  const nextImg = (e) => { e?.stopPropagation(); setLightbox((lb) => lb && { ...lb, i: (lb.i + 1) % lb.imgs.length }); };
   useEffect(() => {
-    if (lightbox === null) return;
+    if (!lightbox) return;
     document.body.style.overflow = 'hidden';
     const onKey = (e) => {
       if (e.key === 'Escape') closeLightbox();
@@ -455,9 +519,21 @@ export default function HotelDetail() {
       else if (e.key === 'ArrowRight') nextImg();
     };
     window.addEventListener('keydown', onKey);
+    // Closing the lightbox must NOT unlock scroll if the explorer is still open underneath.
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = explorer ? 'hidden' : ''; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lightbox, explorer]);
+
+  // explorer: scroll lock + Escape (only when the lightbox isn't open above it)
+  const openExplorer = (cat = 'ALL') => { setExplorerCat(cat); setExplorer(true); };
+  useEffect(() => {
+    if (!explorer) return;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape' && !lightbox) setExplorer(false); };
+    window.addEventListener('keydown', onKey);
     return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = ''; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [lightbox]);
+  }, [explorer, lightbox]);
 
   // animate rating bars once Reviews tab is opened
   useEffect(() => { if (activeTab === 'Reviews') setReviewsSeen(true); }, [activeTab]);
@@ -864,18 +940,18 @@ export default function HotelDetail() {
             </div>
 
             <div className="sd-hero-photos">
-              <div className="gi gi-hero" onClick={() => setLightbox(0)}>
+              <div className="gi gi-hero" onClick={() => openLightbox(images, 0)}>
                 <HotelImg src={images[0]} size="bigger" alt={hotelName} fetchPriority="high" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
               </div>
               {images.slice(1, 5).map((src, i) => (
-                <div className="gi" key={i} onClick={() => setLightbox(i + 1)}>
+                <div className="gi" key={i} onClick={() => (i === 3 && photoCats && photoCount > 5 ? openExplorer('ALL') : openLightbox(images, i + 1))}>
                   <HotelImg src={src} size="bigger" alt={`${hotelName} ${i + 2}`} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                   {i === 3 && photoCount > 5 && <span className="gi-more">+{photoCount - 5}</span>}
                   <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
                 </div>
               ))}
-              <button className="ga" onClick={() => setLightbox(0)}>{ICON.gallery} View all {photoCount} photos</button>
+              <button className="ga" onClick={() => (photoCats ? openExplorer('ALL') : openLightbox(images, 0))}>{ICON.gallery} View all {photoCount} photos</button>
             </div>
           </div>
         </div>
@@ -1569,10 +1645,66 @@ export default function HotelDetail() {
         </div>
       </div>
 
+      {/* Categorized photo explorer — the admin dashboard's image categories
+          (General, Rooms, Pool, Beach…) as a full-screen light gallery. */}
+      {explorer && photoCats && (
+        <div className="px-overlay" role="dialog" aria-modal="true" aria-label={`${hotelName} photos`}>
+          <div className="px-head">
+            <div className="px-title">
+              <span className="px-eyebrow">Photo gallery</span>
+              <h2 className="px-name hd">{hotelName}</h2>
+            </div>
+            <span className="px-count hd">{photoCount} photos</span>
+            <button className="px-close" onClick={() => setExplorer(false)} aria-label="Close gallery" autoFocus>
+              <S size={20} sw={2.2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
+            </button>
+          </div>
+
+          <div className="px-cats">
+            <button className={`px-cat${explorerCat === 'ALL' ? ' active' : ''}`} onClick={() => setExplorerCat('ALL')}>
+              {ICON.gallery} All photos <em>{photoCount}</em>
+            </button>
+            {photoCats.map((c) => (
+              <button key={c.code} className={`px-cat${explorerCat === c.code ? ' active' : ''}`} onClick={() => setExplorerCat(c.code)}>
+                {PHOTO_TYPE_ICONS[c.code]} {c.label} <em>{c.imgs.length}</em>
+              </button>
+            ))}
+          </div>
+
+          {/* Keyed on the active category so switching chips starts at the top,
+              not wherever the previous (longer) list was scrolled to. */}
+          <div className="px-body" key={explorerCat}>
+            {(explorerCat === 'ALL' ? photoCats : photoCats.filter((c) => c.code === explorerCat)).map((c) => (
+              <section className="px-sec" key={c.code}>
+                <div className="px-sec-head">
+                  <span className="px-sec-ic">{PHOTO_TYPE_ICONS[c.code]}</span>
+                  <h3 className="px-sec-title hd">{c.label}</h3>
+                  <em className="px-sec-count">{c.imgs.length} photo{c.imgs.length === 1 ? '' : 's'}</em>
+                  <span className="px-sec-rule" />
+                </div>
+                <div className="px-grid">
+                  {c.imgs.map((src, i) => (
+                    <button
+                      className="px-ph" key={`${c.code}-${i}`}
+                      onClick={() => openLightbox(c.imgs, i, c.label)}
+                      style={{ animationDelay: `${Math.min(i * 0.045, 0.45)}s` }}
+                      aria-label={`${c.label} photo ${i + 1}`}
+                    >
+                      <HotelImg src={src} size="bigger" alt={`${hotelName} — ${c.label} ${i + 1}`} loading="lazy" onError={(e) => { e.currentTarget.closest('button').style.display = 'none'; }} />
+                      <span className="px-zoom"><S size={15} sw={2.2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
+                    </button>
+                  ))}
+                </div>
+              </section>
+            ))}
+          </div>
+        </div>
+      )}
+
       {/* Photo lightbox */}
-      {lightbox !== null && (
+      {lightbox && (
         <div className="lb-overlay" onClick={closeLightbox}>
-          <div className="lb-counter">{lightbox + 1} / {images.length}</div>
+          <div className="lb-counter">{lightbox.i + 1} / {lightbox.imgs.length}{lightbox.label ? ` · ${lightbox.label}` : ''}</div>
           <button className="lb-close" onClick={closeLightbox} aria-label="Close">
             <S size={22} sw={2.2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
           </button>
@@ -1583,14 +1715,14 @@ export default function HotelDetail() {
             {/* Full-screen inspection — request `original` (2048x1365), the sharpest source. If
                 a given image lacks it, HotelImg steps down (bigger → default) rather than
                 failing to open, which is what happened before for some hotels. */}
-            <HotelImg className="lb-img" key={lightbox} src={images[lightbox]} size="original" alt={`${hotelName} photo ${lightbox + 1}`} />
+            <HotelImg className="lb-img" key={`${lightbox.label}-${lightbox.i}`} src={lightbox.imgs[lightbox.i]} size="original" alt={`${hotelName} photo ${lightbox.i + 1}`} />
           </div>
           <button className="lb-nav lb-next" onClick={nextImg} aria-label="Next">
             <S size={26} sw={2.2}><path d="M9 18l6-6-6-6" /></S>
           </button>
           <div className="lb-thumbs" onClick={(e) => e.stopPropagation()}>
-            {images.map((src, i) => (
-              <button key={i} className={`lb-thumb${i === lightbox ? ' active' : ''}`} onClick={() => setLightbox(i)}>
+            {lightbox.imgs.map((src, i) => (
+              <button key={i} className={`lb-thumb${i === lightbox.i ? ' active' : ''}`} onClick={() => setLightbox((lb) => ({ ...lb, i }))}>
                 {/* The strip thumbnails are ~64px — `small` is all they need. */}
                 <HotelImg src={src} size="small" alt="" />
               </button>
