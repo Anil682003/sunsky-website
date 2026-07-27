@@ -1,22 +1,27 @@
 import { describe, it, expect } from 'vitest';
-import { formatReview } from './reviewBadge';
+import { formatReview, scoreWord } from './reviewBadge';
 
-describe('formatReview', () => {
-  it('builds the badge values from a normal rating', () => {
+describe('formatReview (/10 presentation of a /5 source)', () => {
+  it('scales the raw /5 rating to /10', () => {
     expect(formatReview({ rate: 4.4, count: 756, type: 'TRIPADVISOR', outOf: 5 })).toEqual({
-      score: '4.4',
-      fillPct: 88,                       // 4.4 / 5
+      score: '8.8',                      // 4.4 / 5 → 8.8 / 10
+      outOf: 10,
+      fillPct: 88,
       label: 'TripAdvisor',
       count: 756,
       meta: 'TripAdvisor · 756 reviews',
-      title: '4.4 of 5 on TripAdvisor from 756 reviews',
+      title: '8.8 / 10 on TripAdvisor from 756 reviews',
     });
   });
 
-  it('returns the numeric count (0 when unknown) for the caller to format', () => {
-    expect(formatReview({ rate: 4.1, count: 12456, type: 'TRIPADVISOR', outOf: 5 }).count).toBe(12456);
-    expect(formatReview({ rate: 4.1, count: 0, type: 'TRIPADVISOR', outOf: 5 }).count).toBe(0);
-    expect(formatReview({ rate: 4.1, type: 'TRIPADVISOR', outOf: 5 }).count).toBe(0);
+  it('maps the ends of the scale correctly', () => {
+    expect(formatReview({ rate: 5, count: 10, type: 'TRIPADVISOR', outOf: 5 }).score).toBe('10.0');
+    expect(formatReview({ rate: 2.5, count: 10, type: 'TRIPADVISOR', outOf: 5 }).score).toBe('5.0');
+    expect(formatReview({ rate: 3.6, count: 10, type: 'TRIPADVISOR', outOf: 5 }).score).toBe('7.2');
+  });
+
+  it('defaults the source scale to /5 when outOf is missing', () => {
+    expect(formatReview({ rate: 4, count: 1, type: 'TRIPADVISOR' }).score).toBe('8.0');
   });
 
   it('groups the review count with thousands separators', () => {
@@ -25,15 +30,10 @@ describe('formatReview', () => {
     expect(r.title).toContain('12,456 reviews');
   });
 
-  it('always shows one decimal place in the score', () => {
-    expect(formatReview({ rate: 5, count: 10, type: 'TRIPADVISOR', outOf: 5 }).score).toBe('5.0');
-    expect(formatReview({ rate: 3.25, count: 10, type: 'TRIPADVISOR', outOf: 5 }).score).toBe('3.3');
-  });
-
-  it('drops the count from meta and title when it is missing', () => {
+  it('drops the count from meta/title when it is missing', () => {
     const r = formatReview({ rate: 4.2, count: 0, type: 'TRIPADVISOR', outOf: 5 });
     expect(r.meta).toBe('TripAdvisor');
-    expect(r.title).toBe('4.2 of 5 on TripAdvisor');
+    expect(r.title).toBe('8.4 / 10 on TripAdvisor');
   });
 
   it('labels a non-TripAdvisor source generically', () => {
@@ -42,26 +42,31 @@ describe('formatReview', () => {
     expect(r.meta).toBe('Guest rating · 5 reviews');
   });
 
-  it('clamps the fill to 0–100 even if the API returns something odd', () => {
+  it('clamps the fill to 0–100 even if the source returns something odd', () => {
     expect(formatReview({ rate: 9, count: 1, type: 'TRIPADVISOR', outOf: 5 }).fillPct).toBe(100);
+    expect(formatReview({ rate: 9, count: 1, type: 'TRIPADVISOR', outOf: 5 }).score).toBe('10.0');
   });
 
-  it('honours a non-5 scale if one is ever sent', () => {
-    // Defensive: TripAdvisor is /5 today, but the maths should follow outOf.
-    expect(formatReview({ rate: 5, count: 1, type: 'X', outOf: 10 }).fillPct).toBe(50);
-  });
-
-  it('defaults the scale to 5 when outOf is absent or invalid', () => {
-    expect(formatReview({ rate: 4, count: 1, type: 'TRIPADVISOR' }).fillPct).toBe(80);
-    expect(formatReview({ rate: 4, count: 1, type: 'TRIPADVISOR', outOf: 0 }).fillPct).toBe(80);
-  });
-
-  it('returns null for an unrated hotel — never a "0 stars" badge', () => {
+  it('returns null for an unrated hotel — never a "0" badge', () => {
     expect(formatReview({ rate: 0, count: 3, type: 'TRIPADVISOR', outOf: 5 })).toBeNull();
     expect(formatReview({ rate: null, count: 3 })).toBeNull();
     expect(formatReview({ rate: 'n/a', count: 3 })).toBeNull();
     expect(formatReview(null)).toBeNull();
     expect(formatReview(undefined)).toBeNull();
     expect(formatReview({})).toBeNull();
+  });
+});
+
+describe('scoreWord', () => {
+  it('describes a /10 score in words', () => {
+    expect(scoreWord('9.2')).toBe('Excellent');
+    expect(scoreWord('8.8')).toBe('Very good');
+    expect(scoreWord('7.1')).toBe('Good');
+    expect(scoreWord('6.4')).toBe('Pleasant');
+    expect(scoreWord('5.0')).toBe('Fair');
+  });
+  it('is safe on junk input', () => {
+    expect(scoreWord('')).toBe('');
+    expect(scoreWord(undefined)).toBe('');
   });
 });

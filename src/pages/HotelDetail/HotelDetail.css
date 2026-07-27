@@ -92,22 +92,22 @@
   box-shadow:0 6px 18px rgba(7,14,31,.22);
   animation:sdRatingIn .5s var(--ease) both;
 }
-/* Solid gold score chip — the anchor of the badge, echoing the gold stars. */
+/* Solid gold score chip — the anchor of the badge, echoing the gold stars. Shows the /10
+   score with a smaller "/10" so the scale is unmistakable. */
 .sd .sd-rating-badge {
-  display:flex; align-items:center; justify-content:center;
-  min-width:38px; height:34px; padding:0 9px; border-radius:calc(var(--r-full) - 4px);
+  display:flex; align-items:baseline; justify-content:center;
+  min-width:44px; height:36px; padding:0 10px; border-radius:calc(var(--r-full) - 4px);
   background:linear-gradient(135deg,var(--gold),var(--sun));
-  color:#1a2744; font-family:'Sora',sans-serif; font-size:16px; font-weight:800; line-height:1;
+  color:#1a2744; font-family:'Sora',sans-serif; font-size:18px; font-weight:800; line-height:1;
   box-shadow:inset 0 1px 0 rgba(255,255,255,.5), 0 2px 8px rgba(255,159,28,.35);
   font-variant-numeric:tabular-nums;
 }
-.sd .sd-rating-body { display:flex; flex-direction:column; gap:3px; min-width:0; }
-.sd .sd-rating-bubbles { position:relative; display:inline-block; font-size:12px; letter-spacing:3px; line-height:1; white-space:nowrap; }
-.sd .sd-rating-bubbles-base { color:rgba(255,255,255,.28); }
-.sd .sd-rating-bubbles-fill { position:absolute; top:0; left:0; overflow:hidden; color:var(--gold); }
+.sd .sd-rating-outof { font-size:10px; font-weight:700; opacity:.6; margin-left:1px; }
+.sd .sd-rating-body { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.sd .sd-rating-word { font-family:'Sora',sans-serif; font-size:12.5px; font-weight:800; color:#fff; line-height:1; letter-spacing:.1px; }
 .sd .sd-rating-meta { display:flex; align-items:baseline; gap:6px; line-height:1; white-space:nowrap; }
-.sd .sd-rating-src { font-family:'Sora',sans-serif; font-size:11px; font-weight:700; color:#fff; letter-spacing:.2px; }
-.sd .sd-rating-count { font-size:11px; font-weight:500; color:rgba(255,255,255,.7); }
+.sd .sd-rating-src { font-size:11px; font-weight:600; color:rgba(255,255,255,.82); }
+.sd .sd-rating-count { font-size:11px; font-weight:500; color:rgba(255,255,255,.66); }
 .sd .sd-rating-count::before { content:'· '; }
 @keyframes sdRatingIn { from { opacity:0; transform:translateY(4px) scale(.96); } to { opacity:1; transform:none; } }
 @media(max-width:560px){ .sd .sd-rating-count { display:none; } }

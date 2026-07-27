@@ -6,7 +6,7 @@ import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
-import { formatReview } from '../../utils/reviewBadge';
+import { formatReview, scoreWord } from '../../utils/reviewBadge';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
@@ -273,12 +273,11 @@ function GuestRating({ review }) {
   if (!r) return null;
   return (
     <span className="sd-rating" title={r.title}>
-      <span className="sd-rating-badge">{r.score}</span>
+      <span className="sd-rating-badge">
+        {r.score}<span className="sd-rating-outof">/{r.outOf}</span>
+      </span>
       <span className="sd-rating-body">
-        <span className="sd-rating-bubbles" aria-hidden="true">
-          <span className="sd-rating-bubbles-base">{'●●●●●'}</span>
-          <span className="sd-rating-bubbles-fill" style={{ width: `${r.fillPct}%` }}>{'●●●●●'}</span>
-        </span>
+        <span className="sd-rating-word">{scoreWord(r.score)}</span>
         <span className="sd-rating-meta">
           <span className="sd-rating-src">{r.label}</span>
           {r.count > 0 && <span className="sd-rating-count">{r.count.toLocaleString('en-GB')} reviews</span>}
@@ -407,9 +406,10 @@ export default function HotelDetail() {
   const [calData, setCalData]       = useState(null);   // [{date, price, currency, isLowest}]
   const [calLoading, setCalLoading] = useState(false);
   const [liveRooms, setLiveRooms]   = useState(null);   // {loading?|error?|rooms[]|cheapest}
-  // The hotel's TripAdvisor rating: { rate, count, type, outOf } or null. Comes only from the
-  // live availability API (it is NOT in the content we sync), and is hotel-static, so it is
-  // fetched once and kept regardless of which date the traveller later picks.
+  // The hotel's TripAdvisor rating: { rate, count, type, outOf } or null. Primary source is the
+  // harvested store, served on the bulk hotel-info record (`info.review`) — no live call. This
+  // state is only a FALLBACK for a hotel the harvest hasn't covered yet: if the traveller picks
+  // a date, the availability response carries a live rating we adopt (see selectDay).
   const [review, setReview]         = useState(null);
   const [liveFlights, setLiveFlights] = useState(null); // {loading?|error?|flights[]|cheapest}
   // airport→hotel transfer add-on: everything is derived from the page context
@@ -834,9 +834,10 @@ export default function HotelDetail() {
               <div className="hhm">
                 <span className="hhs">{'★'.repeat(Math.min(stars, 5))}</span>
                 <span className="hhl">{ICON.pin} {locLabel}</span>
-                {/* Real TripAdvisor rating from the live availability API; renders nothing
-                    until it arrives, and nothing at all for an unrated hotel. */}
-                <GuestRating review={review} />
+                {/* TripAdvisor rating, /10. From the harvested store (info.review) — no live
+                    call — with the live one as a fallback for a not-yet-harvested hotel.
+                    Renders nothing at all for an unrated hotel. */}
+                <GuestRating review={info?.review ?? review} />
               </div>
               <span className="sd-hero-rule" />
               <div className="sd-hero-chips">
