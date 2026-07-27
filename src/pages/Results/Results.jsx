@@ -6,6 +6,7 @@ import { fetchFacets, fetchCountries } from '../../api/filters';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import ScopePicker from '../../components/ScopePicker/ScopePicker';
+import { formatReview, scoreWord } from '../../utils/reviewBadge';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -1619,6 +1620,8 @@ export default function Results() {
                 const total = Number(h.totalAmount);
                 const [totalMajorRaw, totalDec] = Number.isFinite(total) ? total.toFixed(2).split('.') : ['—', null];
                 const totalMajor = totalDec != null ? Number(totalMajorRaw).toLocaleString('en-GB') : totalMajorRaw;
+                // TripAdvisor rating (/10), from the harvested store on the bulk info record.
+                const rev = formatReview(info?.review);
                 return (
                 <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
                   <div className={styles.rcImg}>
@@ -1706,6 +1709,14 @@ export default function Results() {
                       <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z M12 13a3 3 0 100-6 3 3 0 000 6z" size={13} sw={1.6} />
                       {h.loc}
                     </div>
+
+                    {rev && (
+                      <div className={styles.rcReview} title={rev.title}>
+                        <span className={styles.rcReviewScore}>{rev.score}<span className={styles.rcReviewOutOf}>/{rev.outOf}</span></span>
+                        <span className={styles.rcReviewWord}>{scoreWord(rev.score)}</span>
+                        {rev.count > 0 && <span className={styles.rcReviewCount}>{rev.count.toLocaleString('en-GB')} reviews</span>}
+                      </div>
+                    )}
 
                     {(h.boardTags.length > 0 || h.roomLabel) && (
                       <div className={styles.rcAmenities}>

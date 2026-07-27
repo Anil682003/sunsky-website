@@ -1,36 +1,56 @@
-// Turn the normalised review from the availability API into the values the hero badge draws,
-// or null when there is nothing worth showing. Kept separate from the JSX so the rounding,
-// clamping and label rules are testable without rendering the whole hotel-detail page.
+// Turn the stored review (from the harvested hotelReviews store, served on the bulk hotel-info
+// response) into the values the rating badges draw, or null when there's nothing to show.
+// Kept separate from the JSX so the scaling, rounding and label rules are testable without
+// rendering a page.
 //
-// Input shape (from the backend's normaliseReview):
-//   { rate: 4.4, count: 756, type: 'TRIPADVISOR', outOf: 5 }
+// Input shape (from the backend):
+//   { rate: 4.4, count: 756, type: 'TRIPADVISOR', outOf: 5 }   // rate is the RAW 1–5 value
+//
+// We present it on a /10 basis (the business's chosen scale, like Booking.com): 4.4/5 → 8.8/10.
+// The raw value stays the source of truth in the DB; only the display scale lives here.
 //
 // Output:
-//   { score: '4.4', fillPct: 88, label: 'TripAdvisor', meta: 'TripAdvisor · 756 reviews',
-//     title: '4.4 of 5 on TripAdvisor from 756 reviews' }
+//   { score: '8.8', outOf: 10, fillPct: 88, label: 'TripAdvisor', count: 756,
+//     meta: 'TripAdvisor · 756 reviews', title: '8.8 / 10 on TripAdvisor from 756 reviews' }
 //   or null
+
+const DISPLAY_SCALE = 10;   // show ratings out of 10, not the provider's native 5
 
 export function formatReview(review) {
   const rate = Number(review?.rate);
-  if (!Number.isFinite(rate) || rate <= 0) return null;   // unrated → no badge, never "0 stars"
+  if (!Number.isFinite(rate) || rate <= 0) return null;   // unrated → no badge, never "0"
 
-  const outOf = Number(review?.outOf) > 0 ? Number(review.outOf) : 5;
-  const fillPct = Math.round(Math.max(0, Math.min(1, rate / outOf)) * 100);
+  const sourceScale = Number(review?.outOf) > 0 ? Number(review.outOf) : 5;   // TripAdvisor = /5
+  const proportion = Math.max(0, Math.min(1, rate / sourceScale));
+  const score = (proportion * DISPLAY_SCALE).toFixed(1);   // "8.8"
+  const fillPct = Math.round(proportion * 100);            // 0–100, for a bar/meter
+
   const count = Number(review?.count);
   const hasCount = Number.isFinite(count) && count > 0;
-
   const label = String(review?.type).toUpperCase() === 'TRIPADVISOR' ? 'TripAdvisor' : 'Guest rating';
   const countText = hasCount ? `${count.toLocaleString('en-GB')} reviews` : '';
-  const score = rate.toFixed(1);
 
   return {
-    score,                                               // "4.4"
-    fillPct,                                             // 0–100, for the bubble fill width
+    score,                                               // "8.8" (out of 10)
+    outOf: DISPLAY_SCALE,                                // 10
+    fillPct,                                             // 0–100
     label,                                               // "TripAdvisor" | "Guest rating"
     count: hasCount ? count : 0,                         // numeric review count (0 = unknown)
     meta: [label, countText].filter(Boolean).join(' · '),
-    title: `${score} of ${outOf} on ${label}${hasCount ? ` from ${countText}` : ''}`,
+    title: `${score} / ${DISPLAY_SCALE} on ${label}${hasCount ? ` from ${countText}` : ''}`,
   };
+}
+
+// A short word for the score, so a card can print "Excellent 8.8" like the reference sites.
+export function scoreWord(score) {
+  if (score == null || score === '') return '';
+  const s = Number(score);
+  if (!Number.isFinite(s)) return '';
+  if (s >= 9) return 'Excellent';
+  if (s >= 8) return 'Very good';
+  if (s >= 7) return 'Good';
+  if (s >= 6) return 'Pleasant';
+  return 'Fair';
 }
 
 export default formatReview;

@@ -777,6 +777,23 @@
 }
 .rcLocation svg { color: var(--blue-ocean); flex-shrink: 0; }
 
+/* TripAdvisor rating on a result card, /10: a solid blue score chip, the word rating, then the
+   review count — the pattern travellers know from Booking.com. */
+.rcReview {
+  display: flex; align-items: center; gap: 8px; margin-top: 9px;
+}
+.rcReviewScore {
+  display: inline-flex; align-items: baseline; justify-content: center;
+  min-width: 38px; padding: 3px 7px; border-radius: 7px 7px 7px 2px;
+  background: linear-gradient(135deg, var(--blue-deep, #1f4fd8), var(--blue-ocean, #2f6bff));
+  color: #fff; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 14px; line-height: 1;
+  font-variant-numeric: tabular-nums;
+}
+.rcReviewOutOf { font-size: 9px; font-weight: 700; opacity: 0.72; margin-left: 1px; }
+.rcReviewWord { font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; color: var(--text, #10203a); }
+.rcReviewCount { font-size: 12px; font-weight: 500; color: var(--text-sec, #5e7291); }
+.rcReviewCount::before { content: '· '; }
+
 /* Amenities */
 .rcAmenities { display: flex; flex-wrap: wrap; gap: 7px; margin-top: 10px; }
 .rcAmenity {
