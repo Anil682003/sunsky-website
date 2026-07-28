@@ -22,8 +22,12 @@ export function formatReview(review) {
 
   const sourceScale = Number(review?.outOf) > 0 ? Number(review.outOf) : 5;   // TripAdvisor = /5
   const proportion = Math.max(0, Math.min(1, rate / sourceScale));
-  const score = (proportion * DISPLAY_SCALE).toFixed(1);   // "8.8"
-  const fillPct = Math.round(proportion * 100);            // 0–100, for a bar/meter
+  // Prefer the STORED 10-point score (the DB is the source of truth per the rating spec); fall
+  // back to deriving it (rate × 2) for a live review that hasn't been persisted yet.
+  const stored10 = Number(review?.rating10);
+  const ten = Number.isFinite(stored10) && stored10 > 0 ? stored10 : proportion * DISPLAY_SCALE;
+  const score = ten.toFixed(1);                             // "8.8"
+  const fillPct = Math.round((ten / DISPLAY_SCALE) * 100);  // 0–100, for a bar/meter
 
   const count = Number(review?.count);
   const hasCount = Number.isFinite(count) && count > 0;
