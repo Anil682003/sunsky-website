@@ -24,6 +24,17 @@ describe('formatReview (/10 presentation of a /5 source)', () => {
     expect(formatReview({ rate: 4, count: 1, type: 'TRIPADVISOR' }).score).toBe('8.0');
   });
 
+  it('prefers the STORED 10-point score when present', () => {
+    // The DB is the source of truth: use rating10 verbatim, not a re-derivation.
+    const r = formatReview({ rate: 4.3, rating10: 8.6, count: 100, type: 'TRIPADVISOR', outOf: 5 });
+    expect(r.score).toBe('8.6');
+    expect(r.fillPct).toBe(86);
+  });
+
+  it('falls back to rate × 2 when no stored 10-point value is given', () => {
+    expect(formatReview({ rate: 4.4, count: 1, type: 'TRIPADVISOR', outOf: 5 }).score).toBe('8.8');
+  });
+
   it('groups the review count with thousands separators', () => {
     const r = formatReview({ rate: 4.1, count: 12456, type: 'TRIPADVISOR', outOf: 5 });
     expect(r.meta).toBe('TripAdvisor · 12,456 reviews');

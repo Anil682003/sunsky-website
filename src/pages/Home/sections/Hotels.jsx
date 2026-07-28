@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { hotelDetailHref } from '../../../utils/searchDefaults';
+import { formatReview } from '../../../utils/reviewBadge';
 import styles from './Hotels.module.css';
 
 // The CMS-picked cards carry the hotel's real identity (hotelCode + destinationCode), so each
@@ -40,10 +41,15 @@ export default function Hotels({ cms }) {
 
   const hotels = (cms?.popularHotels?.length > 0)
     ? cms.popularHotels.map((h) => {
+        // The real stored TripAdvisor rating (/10) wins over the manual marketing "score" — the
+        // spec wants the homepage to show the stored rating. `rev` is null when the hotel has no
+        // fresh rating, and the card then falls back to the CMS score.
+        const rev = formatReview(h.review);
         const card = {
           name:  h.name,
           loc:   h.location || h.loc,
-          score: h.score,
+          score:      rev ? rev.score : h.score,
+          scoreLabel: rev ? rev.label : 'Guest score',
           stars: h.stars || 5,
           price: h.price,
           img:   h.imageUrl || h.img,
@@ -52,7 +58,7 @@ export default function Hotels({ cms }) {
         };
         return { ...card, href: hotelDetailHref(card) };
       })
-    : FALLBACK_HOTELS.map((h) => ({ ...h, href: null }));
+    : FALLBACK_HOTELS.map((h) => ({ ...h, href: null, scoreLabel: 'Guest score' }));
 
   // Split the CMS title so the last word can carry the cursive accent
   const titleWords = String(title).trim().split(/\s+/);
@@ -147,7 +153,7 @@ export default function Hotels({ cms }) {
                     {h.score && (
                       <div className={styles.score}>
                         <span className={styles.scoreNum}>{h.score}</span>
-                        <span className={styles.scoreLbl}>Guest score</span>
+                        <span className={styles.scoreLbl}>{h.scoreLabel || 'Guest score'}</span>
                       </div>
                     )}
                   </div>

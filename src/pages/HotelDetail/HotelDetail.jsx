@@ -376,7 +376,11 @@ export default function HotelDetail() {
   const info = state?.info || fetchedInfo;
 
   // Header / booking facts, preferring the richest source available.
-  const hotelName = hotel?.name || info?.name?.trim() || 'Cavo Vezal';
+  // The REAL name from the hotel-info record (bulk) wins over the carried-in name, because the
+  // price cache often has no hotelName and the card then passes a "Hotel {code}" placeholder —
+  // which must never override the actual name once the info loads.
+  const carriedName = hotel?.name && !/^Hotel\s+\d+$/i.test(hotel.name.trim()) ? hotel.name.trim() : '';
+  const hotelName = info?.name?.trim() || carriedName || `Hotel ${hotelCode}`;
   // Never invent a rating: unknown star data renders NO stars (the old `|| 5`
   // fallback showed budget hotels as "5-star").
   const stars = Number(hotel?.stars) || Number(info?.stars) || 0;
