@@ -1770,78 +1770,82 @@ export default function Results() {
                   </div>
 
                   <div className={styles.rcContent}>
-                    {ratingValue(dispRating) > 0 && (
-                      <div className={styles.rcRating}>
-                        {/* Keys arrive pre-tilted from KeyMark (the 🔑 spec) — no CSS rotation here. */}
-                        <span className={`${styles.rcRatingMarks} ${dispRating?.kind === 'key' ? styles.rcKeysRow : ''}`}>
-                          <RatingMarks rating={dispRating} keySize={14} />
-                        </span>
-                        <span className={styles.rcRatingLabel}>{ratingLabel(dispRating)}</span>
-                      </div>
-                    )}
-                    {dispName
-                      ? <h3 className={styles.rcName}>{dispName}</h3>
-                      : <div className={`${styles.rcNameSkel} ${styles.skeletonLine}`} />}
+                    {/* Head: identity on the left, guest score big on the right — the pattern
+                        travellers know from Booking.com. Dates/nights pills are GONE from the
+                        body: every card repeated the toolbar's values, which was pure noise. */}
+                    <div className={styles.rcHead}>
+                      <div className={styles.rcHeadMain}>
+                        {ratingValue(dispRating) > 0 && (
+                          <div className={styles.rcRating}>
+                            {/* Keys arrive pre-tilted from KeyMark (the 🔑 spec) — no CSS rotation here. */}
+                            <span className={`${styles.rcRatingMarks} ${dispRating?.kind === 'key' ? styles.rcKeysRow : ''}`}>
+                              <RatingMarks rating={dispRating} keySize={17} />
+                            </span>
+                            <span className={styles.rcRatingLabel}>{ratingLabel(dispRating)}</span>
+                          </div>
+                        )}
+                        {dispName
+                          ? <h3 className={styles.rcName}>{dispName}</h3>
+                          : <div className={`${styles.rcNameSkel} ${styles.skeletonLine}`} />}
 
-                    {/* The hotel's OWN place — flag · geo city · country code — not the search label. */}
-                    <div className={styles.rcPlace}>
-                      <CountryFlag code={cc} />
-                      <span className={styles.rcPlaceCity}>{cityDisp}</span>
-                      {cc && (
-                        <>
-                          <span className={styles.rcPlaceDot} aria-hidden="true">·</span>
-                          <span className={styles.rcPlaceCode}>{cc}</span>
-                        </>
+                        {/* The hotel's OWN place — flag · geo city · country code — not the search label. */}
+                        <div className={styles.rcPlace}>
+                          <CountryFlag code={cc} />
+                          <span className={styles.rcPlaceCity}>{cityDisp}</span>
+                          {cc && (
+                            <>
+                              <span className={styles.rcPlaceDot} aria-hidden="true">·</span>
+                              <span className={styles.rcPlaceCode}>{cc}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+
+                      {rev && (
+                        <div className={styles.rcReviewBox} title={rev.title}>
+                          <span className={styles.rcReviewScore}>{rev.score}<span className={styles.rcReviewOutOf}>/{rev.outOf}</span></span>
+                          <span className={styles.rcReviewWord}>{scoreWord(rev.score)}</span>
+                          {rev.count > 0 && <span className={styles.rcReviewCount}>{rev.count.toLocaleString('en-GB')} reviews</span>}
+                        </div>
                       )}
                     </div>
 
-                    {rev && (
-                      <div className={styles.rcReview} title={rev.title}>
-                        <span className={styles.rcReviewScore}>{rev.score}<span className={styles.rcReviewOutOf}>/{rev.outOf}</span></span>
-                        <span className={styles.rcReviewWord}>{scoreWord(rev.score)}</span>
-                        {rev.count > 0 && <span className={styles.rcReviewCount}>{rev.count.toLocaleString('en-GB')} reviews</span>}
-                      </div>
-                    )}
-
+                    {/* Amenities: borderless icon+label items — text, not chip soup. */}
                     {fac.top.length > 0 && (
                       <div className={styles.rcFacts} aria-label="Hotel facilities">
                         {fac.top.map((f) => (
                           <span key={f.icon} className={styles.rcFact}>
                             <span className={styles.rcFactIco}>
-                              <Icon d={FAC_ICON_D[f.icon] || FAC_ICON_D.fallback} size={12} sw={1.7} />
+                              <Icon d={FAC_ICON_D[f.icon] || FAC_ICON_D.fallback} size={14} sw={1.7} />
                             </span>
                             {f.label}
                           </span>
                         ))}
                         {fac.more > 0 && (
-                          <span className={styles.rcFactMore} title={`${fac.more} more facilities`}>+{fac.more}</span>
+                          <span className={styles.rcFactMore} title={`${fac.more} more facilities`}>+{fac.more} more</span>
                         )}
                       </div>
                     )}
 
+                    {/* What the deal includes — one quiet green line, not a row of pills.
+                        Each value keeps its own span so it stays individually findable. */}
                     {(h.boardTags.length > 0 || h.roomLabel) && (
-                      <div className={styles.rcAmenities}>
-                        {h.boardTags.map((b) => (<span key={b} className={styles.rcAmenity}><CheckIcon />{b}</span>))}
-                        {h.roomLabel && (<span className={styles.rcAmenity}><CheckIcon />{h.roomLabel}</span>)}
+                      <div className={styles.rcIncluded}>
+                        <CheckIcon />
+                        {h.boardTags.map((b, bi) => (
+                          <span key={b} className={styles.rcIncludedItem}>
+                            {bi > 0 && <span className={styles.rcIncludedDot} aria-hidden="true">·</span>}
+                            <span>{b}</span>
+                          </span>
+                        ))}
+                        {h.roomLabel && (
+                          <span className={styles.rcIncludedItem}>
+                            {h.boardTags.length > 0 && <span className={styles.rcIncludedDot} aria-hidden="true">·</span>}
+                            <span>{h.roomLabel}</span>
+                          </span>
+                        )}
                       </div>
                     )}
-
-                    <div className={styles.rcTrip}>
-                      {fetchParams.checkIn && (
-                        <div className={styles.rcTripDates}>
-                          <Icon d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" size={13} sw={1.6} />
-                          <span>{fmtDate(fetchParams.checkIn)}</span>
-                          <span className={styles.rcTripSep}>→</span>
-                          <span>{fmtDate(fetchParams.checkOut)}</span>
-                        </div>
-                      )}
-                      {nights > 0 && (
-                        <span className={styles.rcTripPill}>
-                          <Icon d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" size={11} sw={2} />
-                          {nights} nights
-                        </span>
-                      )}
-                    </div>
                   </div>
 
                   <div className={styles.rcPriceRail}>
@@ -1850,12 +1854,17 @@ export default function Results() {
                     <span className={styles.rcTear} aria-hidden="true" />
                     <div className={styles.rcPriceInfo}>
                       {/* Only rendered when the API says the rate IS refundable — the
-                          false case already has its own chip on the image. */}
+                          false case already has its own chip on the image. Text, not a pill:
+                          the stub is typography-only. */}
                       {h.refundable === true && (
-                        <span className={styles.rcRefundable}><CheckIcon />Refundable</span>
+                        <span className={styles.rcRefundable}><CheckIcon />Free cancellation</span>
                       )}
-                      <span className={styles.rcPriceLabel}>
-                        Total{nights > 0 ? ` · ${nights} nights` : ''}
+                      {/* What the total covers — the stay context that used to be two pills
+                          in the body, now one quiet qualifying line above the fare. */}
+                      <span className={styles.rcPriceContext}>
+                        {nights > 0 ? `${nights} nights` : 'Total'}
+                        {Number(fetchParams.adults) > 0 && ` · ${fetchParams.adults} adult${Number(fetchParams.adults) > 1 ? 's' : ''}`}
+                        {Number(fetchParams.children) > 0 && ` · ${fetchParams.children} child${Number(fetchParams.children) > 1 ? 'ren' : ''}`}
                       </span>
                       <div className={styles.rcPriceAmount}>
                         <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
@@ -1866,7 +1875,7 @@ export default function Results() {
                         <div className={styles.rcPriceMeta}>
                           {/* Same symbol as the headline — mixing € above with EUR here read
                               as two currencies. */}
-                          <strong>{CCY_SYMBOLS[h.currency] || h.currency} {(total / nights).toFixed(2)}</strong> / night
+                          {CCY_SYMBOLS[h.currency] || h.currency}{(total / nights).toFixed(2)} <span className={styles.rcPriceMetaUnit}>/ night</span>
                         </div>
                       )}
                       {/* Opens in the SAME tab (client-side nav). It stays a real link, so a

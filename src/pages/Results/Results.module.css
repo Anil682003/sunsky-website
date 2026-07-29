@@ -823,23 +823,30 @@
 
 /* ── Body ── */
 .rcContent {
-  flex: 1; padding: 16px 24px 16px;
+  flex: 1; padding: 18px 24px;
   display: flex; flex-direction: column; min-width: 0;
 }
+
+/* Head: identity left, guest score right. */
+.rcHead {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: 16px;
+}
+.rcHeadMain { flex: 1; min-width: 0; }
 
 /* Rating: ★ for hotels, tilted 🔑 for apartments. The tilt is baked into the
    KeyMark path itself (rotate(-45) in RatingMarks.jsx) — no CSS rotation here,
    a second transform would cancel it back to horizontal. */
 .rcRating {
-  display: flex; align-items: center; gap: 8px;
+  display: flex; align-items: center; gap: 9px;
   color: var(--sun-orange);
-  font-size: 13px; letter-spacing: 1.5px; line-height: 1;
-  margin-bottom: 4px;
+  font-size: 17px; letter-spacing: 2px; line-height: 1;
+  margin-bottom: 6px;
 }
 .rcRatingMarks { display: inline-flex; align-items: center; }
-.rcKeysRow { gap: 3px; letter-spacing: 0; }
+.rcKeysRow { gap: 4px; letter-spacing: 0; }
 .rcRatingLabel {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.6px;
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.7px;
   text-transform: uppercase; color: var(--text-sec);
 }
 
@@ -886,81 +893,63 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Review chip (score /10 + word + count) */
-.rcReview { display: flex; align-items: center; gap: 8px; margin-top: 8px; }
+/* Guest score — top-right of the head, stacked and BIG (the client asked for it
+   there and larger): score chip, then the word, then the count, right-aligned. */
+.rcReviewBox {
+  display: flex; flex-direction: column; align-items: flex-end;
+  gap: 3px; flex-shrink: 0; text-align: right;
+}
 .rcReviewScore {
   display: inline-flex; align-items: baseline; justify-content: center;
-  min-width: 36px; padding: 3px 7px; border-radius: 7px 7px 7px 2px;
+  min-width: 46px; padding: 6px 10px; border-radius: 10px 10px 2px 10px;
   background: linear-gradient(135deg, var(--blue-deep), var(--blue-mid));
-  color: #fff; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 13px; line-height: 1;
+  color: #fff; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 17px; line-height: 1;
   font-variant-numeric: tabular-nums;
+  box-shadow: 0 3px 10px rgba(31,79,216,0.22);
 }
-.rcReviewOutOf { font-size: 9px; font-weight: 700; opacity: 0.72; margin-left: 1px; }
-.rcReviewWord { font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 700; color: var(--text); }
-.rcReviewCount { font-size: 12px; font-weight: 500; color: var(--text-sec); }
-.rcReviewCount::before { content: '· '; }
+.rcReviewOutOf { font-size: 10px; font-weight: 700; opacity: 0.72; margin-left: 2px; }
+.rcReviewWord { font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; color: var(--text); }
+.rcReviewCount { font-size: 11.5px; font-weight: 500; color: var(--text-sec); }
 
-/* Curated facility chips — quiet ghost chips, one tone below the board tags. */
-.rcFacts { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 10px; }
-.rcFact {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 10px 4px 8px; border-radius: var(--r-full);
-  background: #f6f9ff; border: 1px solid #e6eefc;
-  color: var(--text-sec); font-size: 11.5px; font-weight: 600;
-  line-height: 1.4; white-space: nowrap;
-  transition: border-color 0.25s var(--ease), color 0.25s var(--ease), background 0.25s var(--ease);
+/* Curated amenities — borderless icon + label text. Boxes gone: the chip soup
+   (blue chips + green pills + date pills) is what read as congestion. */
+.rcFacts {
+  display: flex; flex-wrap: wrap; align-items: center;
+  gap: 8px 18px; margin-top: 16px;
 }
-.rcFact:hover { background: var(--blue-light); border-color: #cfe0f8; color: var(--text); }
-.rcFactIco { display: inline-flex; color: var(--blue-deep); opacity: 0.75; flex-shrink: 0; }
+.rcFact {
+  display: inline-flex; align-items: center; gap: 7px;
+  color: var(--text-sec); font-size: 12.5px; font-weight: 600;
+  line-height: 1.4; white-space: nowrap;
+  transition: color 0.25s var(--ease);
+}
+.rcFact:hover { color: var(--text); }
+.rcFactIco { display: inline-flex; color: var(--blue-deep); opacity: 0.8; flex-shrink: 0; }
 .rcFactMore {
   display: inline-flex; align-items: center;
-  padding: 4px 9px; border-radius: var(--r-full);
-  border: 1px dashed #c7d8f2; background: transparent;
-  color: var(--blue-deep); font-size: 11px; font-weight: 800;
-  letter-spacing: 0.2px; cursor: default;
-  transition: background 0.25s var(--ease), border-color 0.25s var(--ease);
+  color: var(--blue-deep); font-size: 12px; font-weight: 700;
+  letter-spacing: 0.1px; cursor: default;
+  border-bottom: 1px dashed #b7cdef;
+  transition: border-color 0.25s var(--ease);
 }
-.rcFactMore:hover { background: var(--blue-light); border-color: var(--blue-ocean); }
+.rcFactMore:hover { border-color: var(--blue-deep); }
 
-/* Board / room tags — the green "included in the deal" row */
-.rcAmenities { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.rcAmenity {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 4px 11px; border-radius: var(--r-full);
-  background: #ecfdf5; border: 1px solid #d3f5e4;
-  color: #059669; font-size: 11.5px; font-weight: 700;
-  white-space: nowrap;
+/* What the deal includes — one quiet green line (board · room), not pills. */
+.rcIncluded {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 7px;
+  margin-top: 10px;
+  color: #059669; font-size: 12.5px; font-weight: 600;
 }
+.rcIncluded > svg { flex-shrink: 0; }
+.rcIncludedItem { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
+.rcIncludedDot { color: #9fd6bd; font-weight: 700; }
 
-/* Trip dates + nights — pinned to the bottom of the body behind a hairline,
-   so the logistics row aligns as a system across every card in the list. */
-.rcTrip {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
-  margin-top: auto; padding-top: 12px;
-  border-top: 1px solid #eef3fb;
-}
-.rcTripDates {
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 5px 12px; border-radius: var(--r-full);
-  background: #f4f8ff; border: 1px solid #e4edfb;
-  font-size: 12px; font-weight: 700; color: var(--dark);
-  font-variant-numeric: tabular-nums;
-}
-.rcTripDates svg { color: var(--blue-deep); flex-shrink: 0; }
-.rcTripSep { color: var(--text-light); font-size: 11px; }
-.rcTripPill {
-  display: inline-flex; align-items: center; gap: 5px;
-  padding: 5px 12px; border-radius: var(--r-full);
-  background: #f4f8ff; border: 1px solid #e4edfb;
-  color: var(--blue-deep); font-size: 11.5px; font-weight: 700;
-}
-
-/* ── Price stub — dashed tear + punched notches ── */
+/* ── Price stub — dashed tear + punched notches, typography-only inside ── */
 .rcPriceRail {
-  width: clamp(224px, 18vw, 276px); flex-shrink: 0;
-  padding: 16px 20px;
+  width: clamp(232px, 19vw, 284px); flex-shrink: 0;
+  padding: 20px 22px;
   display: flex; flex-direction: column; justify-content: center;
-  background: linear-gradient(180deg, #fafcff, #eef5ff);
+  background: linear-gradient(180deg, #fcfdff, #f3f8ff);
   position: relative;
 }
 /* The tear line is a real element (not a border) so its perforation can march
@@ -995,45 +984,46 @@
   transition: transform 0.3s var(--ease);
 }
 .resultCard:hover .rcPriceInfo { transform: translateY(-1px); }
+/* Cancellation state as text — the stub carries no boxed elements at all. */
 .rcRefundable {
   display: inline-flex; align-items: center; gap: 5px;
-  padding: 3px 10px; border-radius: var(--r-full);
-  background: #ecfdf5; border: 1px solid #d3f5e4;
-  color: #059669; font-size: 11px; font-weight: 700;
-  margin-bottom: 4px;
+  color: #059669; font-size: 12px; font-weight: 700;
+  margin-bottom: 8px;
 }
-.rcPriceLabel {
-  font-size: 10px; font-weight: 800; letter-spacing: 0.7px;
-  text-transform: uppercase; color: var(--text-sec);
+/* What the fare covers — "7 nights · 2 adults". Replaces the caps TOTAL label
+   AND the dates/nights pills the body used to repeat on every card. */
+.rcPriceContext {
+  font-size: 11.5px; font-weight: 600; color: var(--text-sec);
+  letter-spacing: 0.1px;
 }
 .rcPriceAmount {
   font-family: 'Sora', sans-serif;
-  font-size: 30px; font-weight: 800;
-  color: var(--dark); line-height: 1;
-  letter-spacing: -0.8px;
+  font-size: 34px; font-weight: 800;
+  color: var(--dark); line-height: 1.05;
+  letter-spacing: -1px;
   font-variant-numeric: tabular-nums;
-  display: flex; align-items: baseline; gap: 3px;
+  display: flex; align-items: baseline; gap: 4px;
+  margin-top: 2px;
 }
-.rcPriceCcy { font-size: 15px; font-weight: 800; color: var(--text-sec); letter-spacing: 0; }
+.rcPriceCcy { font-size: 17px; font-weight: 800; color: var(--text-sec); letter-spacing: 0; }
 /* Superscript decimals */
 .rcPriceDec {
-  font-size: 13px; font-weight: 800; color: var(--text-light);
-  align-self: flex-start; margin-top: 3px; letter-spacing: 0;
+  font-size: 14px; font-weight: 800; color: var(--text-light);
+  align-self: flex-start; margin-top: 4px; letter-spacing: 0;
 }
+/* Per-night as plain text under the fare — the boxed pill was widget-speak. */
 .rcPriceMeta {
-  font-size: 11.5px; color: var(--text-sec);
-  background: #f1f6fd; border: 1px solid #e2ecfa;
-  padding: 3px 11px; border-radius: var(--r-full);
-  margin-top: 4px;
+  font-size: 13px; font-weight: 700; color: var(--text);
+  margin-top: 3px;
   font-variant-numeric: tabular-nums;
 }
-.rcPriceMeta strong { color: var(--text); font-weight: 700; }
+.rcPriceMetaUnit { color: var(--text-sec); font-weight: 500; }
 
 /* CTA — real <Link>, sun gradient, sheen sweep */
 .rcCta {
-  margin-top: 12px; width: 100%;
+  margin-top: 14px; width: 100%;
   text-decoration: none; box-sizing: border-box;
-  padding: 12px 18px; border-radius: var(--r-full);
+  padding: 13px 18px; border-radius: var(--r-full);
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
   color: #fff; font-family: 'Sora', sans-serif;
   font-size: 13.5px; font-weight: 700; letter-spacing: 0.1px;
@@ -1195,8 +1185,9 @@
 /* ════════ Responsive ════════ */
 @media (max-width: 1180px) {
   .rcImg, .skImg { width: 248px; }
-  .rcPriceRail, .skRail { width: 204px; padding: 16px; }
-  .rcPriceAmount { font-size: 27px; }
+  .rcPriceRail, .skRail { width: 212px; padding: 16px; }
+  .rcPriceAmount { font-size: 29px; }
+  .rcReviewScore { font-size: 15px; min-width: 42px; }
   .tripStrip { display: none; }
 }
 @media (max-width: 1024px) {
@@ -1249,6 +1240,9 @@
   .rcImg { height: 200px; }
   .rcContent { padding: 14px 16px 12px; }
   .rcName { font-size: 17px; }
+  .rcRating { font-size: 15px; }
+  .rcReviewScore { font-size: 14px; min-width: 40px; padding: 5px 8px; }
+  .rcReviewWord { font-size: 12px; }
   /* One-line swipe rail for the facility chips — masked fade hints at overflow. */
   .rcFacts {
     flex-wrap: nowrap; overflow-x: auto;
