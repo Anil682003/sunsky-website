@@ -5,11 +5,13 @@ import { ratingValue } from '../../utils/rating';
 // string; a key rating renders N key glyphs that inherit the surrounding gold colour. Renders
 // nothing when unrated.
 
-/** A single key glyph (inherits `currentColor`). */
+/** A single key glyph (inherits `currentColor`). Tilted ~45° like the 🔑 emoji — head at the
+ *  lower left, teeth pointing up-right — per the client's category display spec. The path's
+ *  farthest point sits ~11.2 units from the viewBox centre, so the rotation never clips. */
 export const KeyMark = ({ size = 14 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"
        style={{ display: 'inline-block', verticalAlign: '-0.12em' }}>
-    <path d="M7 14a5 5 0 1 1 4.9-6h8.1a1 1 0 0 1 .7.3l1.6 1.6a1 1 0 0 1 0 1.4l-2.3 2.3a1 1 0 0 1-1.4 0l-.8-.8-1 1-.9-.9-1 1-1.3-1.3H11.9A5 5 0 0 1 7 14Zm-1.6-3.4a1.4 1.4 0 1 0 0-2 1.4 1.4 0 0 0 0 2Z" />
+    <path transform="rotate(-45 12 12)" d="M7 14a5 5 0 1 1 4.9-6h8.1a1 1 0 0 1 .7.3l1.6 1.6a1 1 0 0 1 0 1.4l-2.3 2.3a1 1 0 0 1-1.4 0l-.8-.8-1 1-.9-.9-1 1-1.3-1.3H11.9A5 5 0 0 1 7 14Zm-1.6-3.4a1.4 1.4 0 1 0 0-2 1.4 1.4 0 0 0 0 2Z" />
   </svg>
 );
 
