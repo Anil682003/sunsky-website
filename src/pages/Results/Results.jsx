@@ -1849,9 +1849,6 @@ export default function Results() {
                   </div>
 
                   <div className={styles.rcPriceRail}>
-                    {/* The tear line is a real element (not a border) so its perforation can
-                        march on hover — the card's signature interaction. */}
-                    <span className={styles.rcTear} aria-hidden="true" />
                     <div className={styles.rcPriceInfo}>
                       {/* Only rendered when the API says the rate IS refundable — the
                           false case already has its own chip on the image. Text, not a pill:
