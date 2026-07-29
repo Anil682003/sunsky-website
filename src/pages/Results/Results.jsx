@@ -1827,22 +1827,15 @@ export default function Results() {
                       </div>
                     )}
 
-                    {/* What the deal includes — one quiet green line, not a row of pills.
-                        Each value keeps its own span so it stays individually findable. */}
+                    {/* What the deal includes — mint coupon pills (dashed border), one per
+                        value: the board basis and the room type each earn their own tag. */}
                     {(h.boardTags.length > 0 || h.roomLabel) && (
                       <div className={styles.rcIncluded}>
-                        <CheckIcon />
-                        {h.boardTags.map((b, bi) => (
-                          <span key={b} className={styles.rcIncludedItem}>
-                            {bi > 0 && <span className={styles.rcIncludedDot} aria-hidden="true">·</span>}
-                            <span>{b}</span>
-                          </span>
+                        {h.boardTags.map((b) => (
+                          <span key={b} className={styles.rcIncludedPill}><CheckIcon />{b}</span>
                         ))}
                         {h.roomLabel && (
-                          <span className={styles.rcIncludedItem}>
-                            {h.boardTags.length > 0 && <span className={styles.rcIncludedDot} aria-hidden="true">·</span>}
-                            <span>{h.roomLabel}</span>
-                          </span>
+                          <span className={styles.rcIncludedPill}><CheckIcon />{h.roomLabel}</span>
                         )}
                       </div>
                     )}
