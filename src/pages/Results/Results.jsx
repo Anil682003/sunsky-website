@@ -9,6 +9,9 @@ import ScopePicker from '../../components/ScopePicker/ScopePicker';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import { ratingLabel, ratingValue } from '../../utils/rating';
+import { topFacilities } from '../../utils/topFacilities';
+import { flagUrl } from '../../utils/countryFlag';
+import { toTitleCase } from '../../utils/textCase';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -171,6 +174,59 @@ const CheckIcon = () => (
     <path d="M20 6L9 17l-5-5" />
   </svg>
 );
+
+// ── Result-card helpers ──────────────────────────────────────────────────────
+
+// 12px line icons for the curated facility chips — one 24×24 stroke path per topFacilities()
+// icon key, rendered through the existing <Icon>. `fallback` covers any future ladder key.
+const FAC_ICON_D = {
+  pool:        'M2 17c1.7-1.4 3.3-1.4 5 0s3.3 1.4 5 0 3.3-1.4 5 0 3.3 1.4 5 0M13 14V6a2 2 0 012-2M18 14V6a2 2 0 012-2M13 8h5M13 11.5h5',
+  wifi:        'M5 12.55a11 11 0 0114 0M8.5 15.5a6.5 6.5 0 017 0M12 19h.01',
+  spa:         'M7.5 8c0-1.6.8-2.4.8-3.6S7.5 2.5 7.5 2.5M12 8c0-1.6.8-2.4.8-3.6S12 2.5 12 2.5M16.5 8c0-1.6.8-2.4.8-3.6s-.8-1.9-.8-1.9M4 13h16a8 8 0 01-16 0z',
+  gym:         'M6.5 6.5v11M17.5 6.5v11M3 9.5v5M21 9.5v5M6.5 12h11',
+  restaurant:  'M8 2v20M5 2v5.5a3 3 0 006 0V2M17 2v20M17 2c-2.4 1.6-3.4 4.4-3.4 8H17',
+  bar:         'M5 3h14l-7 8-7-8zM12 11v8M8.5 21h7M7.4 5.8h9.2',
+  beach:       'M2 21h20M12 3a8.5 8.5 0 00-8.5 8.5h17A8.5 8.5 0 0012 3zM12 11.5V21',
+  parking:     'M7 21V3h6a5 5 0 010 10H7',
+  shuttle:     'M5 17V6a2 2 0 012-2h10a2 2 0 012 2v11M5 17h14M5 11h14M7.5 19.5h.01M16.5 19.5h.01',
+  ac:          'M12 2v20M3.3 7l17.4 10M20.7 7L3.3 17',
+  kids:        'M12 21a9 9 0 100-18 9 9 0 000 18zM8.7 10h.01M15.3 10h.01M8.5 14.5a4.6 4.6 0 007 0',
+  'room-service': 'M3 17h18M5 17a7 7 0 0114 0M12 10V8M10.5 8h3',
+  reception:   'M12 21a9 9 0 100-18 9 9 0 000 18zM12 7v5l3.2 2.4',
+  terrace:     'M12 22V12M12 12C12 7 9.2 4.8 4.2 4.8c0 5 2.8 7.2 7.8 7.2zM12 12c0-5 2.8-7.2 7.8-7.2 0 5-2.8 7.2-7.8 7.2z',
+  pets:        'M8.3 8.2a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2zM15.7 8.2a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2zM4.6 12.4a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2zM19.4 12.4a1.6 1.6 0 100-3.2 1.6 1.6 0 000 3.2zM12 11.2c-3 0-5.8 2.6-5.8 5.4 0 1.9 1.5 2.9 3 2.4l2.8-1 2.8 1c1.5.5 3-.5 3-2.4 0-2.8-2.8-5.4-5.8-5.4z',
+  accessible:  'M12 5.5a1.75 1.75 0 100-3.5 1.75 1.75 0 000 3.5zM12 7.5V13h5l2.6 5.4M12 10.5H8.6M9.4 9.6a6 6 0 107.4 8.6',
+  fallback:    'M12 3l1.9 5.8L20 10.4l-6.1 1.6L12 18l-1.9-6L4 10.4l6.1-1.6z',
+};
+
+// Country flag with a broken-image fallback: flagcdn PNG when it loads, a quiet globe glyph
+// when the code is unknown to flagUrl() or the CDN image 404s.
+function CountryFlag({ code }) {
+  const [broken, setBroken] = useState(false);
+  if (!code) return null;
+  const src = flagUrl(code);
+  if (!src || broken) {
+    return (
+      <span className={styles.rcFlagFallback} aria-hidden="true">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round">
+          <circle cx="12" cy="12" r="9" />
+          <path d="M3 12h18M12 3a14.5 14.5 0 010 18M12 3a14.5 14.5 0 000 18" />
+        </svg>
+      </span>
+    );
+  }
+  return (
+    <img
+      className={styles.rcFlag}
+      src={src}
+      alt=""
+      width="18"
+      height="14"
+      loading="lazy"
+      onError={() => setBroken(true)}
+    />
+  );
+}
 
 function FilterSection({ title, defaultOpen, children }) {
   const [open, setOpen] = useState(defaultOpen);
@@ -1694,6 +1750,14 @@ export default function Results() {
                 const totalMajor = totalDec != null ? Number(totalMajorRaw).toLocaleString('en-GB') : totalMajorRaw;
                 // TripAdvisor rating (/10), from the harvested store on the bulk info record.
                 const rev = formatReview(info?.review);
+                // Curated top-5 amenities + overflow count for the chip row.
+                const fac = topFacilities(info?.facilities);
+                // Location line: clean geo name first, title-cased raw supplier city as
+                // fallback, the scope label as last resort (also what shows pre-info, which
+                // keeps the loading state and tests stable). Country code uppercased for
+                // display + flag lookup.
+                const cc = (info?.countryCode || '').toUpperCase();
+                const cityDisp = info?.cityName || (info?.city ? toTitleCase(info.city) : '') || h.loc;
                 return (
                 <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
                   <div className={styles.rcImg}>
@@ -1767,62 +1831,99 @@ export default function Results() {
                   </div>
 
                   <div className={styles.rcContent}>
-                    {ratingValue(dispRating) > 0 && (
-                      <div className={styles.rcStars}>
-                        <RatingMarks rating={dispRating} keySize={15} />
-                        <span className={styles.rcStarLabel}>{ratingLabel(dispRating)}</span>
-                      </div>
-                    )}
-                    {dispName
-                      ? <h3 className={styles.rcName}>{dispName}</h3>
-                      : <div className={`${styles.rcNameSkel} ${styles.skeletonLine}`} />}
-                    <div className={styles.rcLocation}>
-                      <Icon d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z M12 13a3 3 0 100-6 3 3 0 000 6z" size={13} sw={1.6} />
-                      {h.loc}
-                    </div>
+                    {/* Head: identity on the left, guest score big on the right — the pattern
+                        travellers know from Booking.com. Dates/nights pills are GONE from the
+                        body: every card repeated the toolbar's values, which was pure noise. */}
+                    <div className={styles.rcHead}>
+                      <div className={styles.rcHeadMain}>
+                        {ratingValue(dispRating) > 0 && (
+                          <div className={styles.rcRating}>
+                            {/* Keys arrive pre-tilted from KeyMark (the 🔑 spec) — no CSS rotation here. */}
+                            <span className={`${styles.rcRatingMarks} ${dispRating?.kind === 'key' ? styles.rcKeysRow : ''}`}>
+                              <RatingMarks rating={dispRating} keySize={22} />
+                            </span>
+                            <span className={styles.rcRatingLabel}>{ratingLabel(dispRating)}</span>
+                          </div>
+                        )}
+                        {dispName
+                          ? <h3 className={styles.rcName}>{dispName}</h3>
+                          : <div className={`${styles.rcNameSkel} ${styles.skeletonLine}`} />}
 
-                    {rev && (
-                      <div className={styles.rcReview} title={rev.title}>
-                        <span className={styles.rcReviewScore}>{rev.score}<span className={styles.rcReviewOutOf}>/{rev.outOf}</span></span>
-                        <span className={styles.rcReviewWord}>{scoreWord(rev.score)}</span>
-                        {rev.count > 0 && <span className={styles.rcReviewCount}>{rev.count.toLocaleString('en-GB')} reviews</span>}
+                        {/* The hotel's OWN place, small → large: flag · zone (district) ·
+                            geo city · country code — not the search label. */}
+                        <div className={styles.rcPlace}>
+                          <CountryFlag code={cc} />
+                          {/* Skip the zone when it just repeats the city ("Bodrum · Bodrum"). */}
+                          {info?.zoneName && info.zoneName.toLowerCase() !== String(cityDisp).toLowerCase() && (
+                            <>
+                              <span className={styles.rcPlaceZone}>{info.zoneName}</span>
+                              <span className={styles.rcPlaceDot} aria-hidden="true">·</span>
+                            </>
+                          )}
+                          <span className={styles.rcPlaceCity}>{cityDisp}</span>
+                          {cc && (
+                            <>
+                              <span className={styles.rcPlaceDot} aria-hidden="true">·</span>
+                              <span className={styles.rcPlaceCode}>{cc}</span>
+                            </>
+                          )}
+                        </div>
                       </div>
-                    )}
 
-                    {(h.boardTags.length > 0 || h.roomLabel) && (
-                      <div className={styles.rcAmenities}>
-                        {h.boardTags.map((b) => (<span key={b} className={styles.rcAmenity}><CheckIcon />{b}</span>))}
-                        {h.roomLabel && (<span className={styles.rcAmenity}><CheckIcon />{h.roomLabel}</span>)}
-                      </div>
-                    )}
-
-                    <div className={styles.rcTrip}>
-                      {fetchParams.checkIn && (
-                        <div className={styles.rcTripDates}>
-                          <Icon d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" size={13} sw={1.6} />
-                          <span>{fmtDate(fetchParams.checkIn)}</span>
-                          <span className={styles.rcTripSep}>→</span>
-                          <span>{fmtDate(fetchParams.checkOut)}</span>
+                      {rev && (
+                        <div className={styles.rcReviewBox} title={rev.title}>
+                          <span className={styles.rcReviewScore}>{rev.score}<span className={styles.rcReviewOutOf}>/{rev.outOf}</span></span>
+                          <span className={styles.rcReviewWord}>{scoreWord(rev.score)}</span>
+                          {rev.count > 0 && <span className={styles.rcReviewCount}>{rev.count.toLocaleString('en-GB')} reviews</span>}
                         </div>
                       )}
-                      {nights > 0 && (
-                        <span className={styles.rcTripPill}>
-                          <Icon d="M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z" size={11} sw={2} />
-                          {nights} nights
-                        </span>
-                      )}
                     </div>
+
+                    {/* Amenities: borderless icon+label items — text, not chip soup. */}
+                    {fac.top.length > 0 && (
+                      <div className={styles.rcFacts} aria-label="Hotel facilities">
+                        {fac.top.map((f) => (
+                          <span key={f.icon} className={styles.rcFact}>
+                            <span className={styles.rcFactIco}>
+                              <Icon d={FAC_ICON_D[f.icon] || FAC_ICON_D.fallback} size={14} sw={1.7} />
+                            </span>
+                            {f.label}
+                          </span>
+                        ))}
+                        {fac.more > 0 && (
+                          <span className={styles.rcFactMore} title={`${fac.more} more facilities`}>+{fac.more} more</span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* What the deal includes — mint coupon pills (dashed border), one per
+                        value: the board basis and the room type each earn their own tag. */}
+                    {(h.boardTags.length > 0 || h.roomLabel) && (
+                      <div className={styles.rcIncluded}>
+                        {h.boardTags.map((b) => (
+                          <span key={b} className={styles.rcIncludedPill}><CheckIcon />{b}</span>
+                        ))}
+                        {h.roomLabel && (
+                          <span className={styles.rcIncludedPill}><CheckIcon />{h.roomLabel}</span>
+                        )}
+                      </div>
+                    )}
                   </div>
 
                   <div className={styles.rcPriceRail}>
                     <div className={styles.rcPriceInfo}>
                       {/* Only rendered when the API says the rate IS refundable — the
-                          false case already has its own chip on the image. */}
+                          false case already has its own chip on the image. Text, not a pill:
+                          the stub is typography-only. */}
                       {h.refundable === true && (
-                        <span className={styles.rcRefundable}><CheckIcon />Refundable</span>
+                        <span className={styles.rcRefundable}><CheckIcon />Free cancellation</span>
                       )}
-                      <span className={styles.rcPriceLabel}>
-                        Total{nights > 0 ? ` · ${nights} nights` : ''}
+                      {/* What the total covers — the stay context that used to be two pills
+                          in the body, now one quiet qualifying line above the fare. */}
+                      <span className={styles.rcPriceContext}>
+                        {nights > 0 ? `${nights} nights` : 'Total'}
+                        {Number(fetchParams.adults) > 0 && ` · ${fetchParams.adults} adult${Number(fetchParams.adults) > 1 ? 's' : ''}`}
+                        {Number(fetchParams.children) > 0 && ` · ${fetchParams.children} child${Number(fetchParams.children) > 1 ? 'ren' : ''}`}
                       </span>
                       <div className={styles.rcPriceAmount}>
                         <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
@@ -1831,7 +1932,9 @@ export default function Results() {
                       </div>
                       {nights > 0 && Number.isFinite(total) && (
                         <div className={styles.rcPriceMeta}>
-                          <strong>{h.currency} {(total / nights).toFixed(2)}</strong> / night
+                          {/* Same symbol as the headline — mixing € above with EUR here read
+                              as two currencies. */}
+                          {CCY_SYMBOLS[h.currency] || h.currency}{(total / nights).toFixed(2)} <span className={styles.rcPriceMetaUnit}>/ night</span>
                         </div>
                       )}
                       {/* Opens in the SAME tab (client-side nav). It stays a real link, so a

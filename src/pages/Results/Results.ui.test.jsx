@@ -250,7 +250,9 @@ describe('result card', () => {
     const deal = within(card).getByRole('link', { name: /view deal/i });
     expect(deal).toHaveAttribute('href', expect.stringContaining('/hotel/200'));
     expect(within(card).getByText('Best Value')).toBeInTheDocument();      // cheapest card
-    expect(card.textContent).toMatch(/EUR/);
+    // Headline and per-night both use the display symbol now (€, not the ISO code) — mixing
+    // "€100.00" with "EUR 33.33" on one stub read as two currencies.
+    expect(card.textContent).toMatch(/€/);
     expect(card.textContent).toMatch(/\/ night/);
   });
 
