@@ -1779,7 +1779,7 @@ export default function Results() {
                           <div className={styles.rcRating}>
                             {/* Keys arrive pre-tilted from KeyMark (the 🔑 spec) — no CSS rotation here. */}
                             <span className={`${styles.rcRatingMarks} ${dispRating?.kind === 'key' ? styles.rcKeysRow : ''}`}>
-                              <RatingMarks rating={dispRating} keySize={17} />
+                              <RatingMarks rating={dispRating} keySize={22} />
                             </span>
                             <span className={styles.rcRatingLabel}>{ratingLabel(dispRating)}</span>
                           </div>

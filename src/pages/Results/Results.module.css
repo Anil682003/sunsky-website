@@ -838,9 +838,9 @@
    KeyMark path itself (rotate(-45) in RatingMarks.jsx) — no CSS rotation here,
    a second transform would cancel it back to horizontal. */
 .rcRating {
-  display: flex; align-items: center; gap: 9px;
+  display: flex; align-items: center; gap: 10px;
   color: var(--sun-orange);
-  font-size: 17px; letter-spacing: 2px; line-height: 1;
+  font-size: 22px; letter-spacing: 2.5px; line-height: 1;
   margin-bottom: 6px;
 }
 .rcRatingMarks { display: inline-flex; align-items: center; }
@@ -1240,7 +1240,7 @@
   .rcImg { height: 200px; }
   .rcContent { padding: 14px 16px 12px; }
   .rcName { font-size: 17px; }
-  .rcRating { font-size: 15px; }
+  .rcRating { font-size: 19px; }
   .rcReviewScore { font-size: 14px; min-width: 40px; padding: 5px 8px; }
   .rcReviewWord { font-size: 12px; }
   /* One-line swipe rail for the facility chips — masked fade hints at overflow. */
