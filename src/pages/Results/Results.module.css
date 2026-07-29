@@ -907,10 +907,10 @@
 .rcReviewScore {
   display: inline-flex; align-items: baseline; justify-content: center;
   min-width: 46px; padding: 6px 10px; border-radius: 10px 10px 2px 10px;
-  background: linear-gradient(160deg, #12234a, var(--dark2));
+  background: linear-gradient(135deg, var(--blue-deep), var(--blue-mid));
   color: #fff; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 17px; line-height: 1;
   font-variant-numeric: tabular-nums;
-  box-shadow: 0 3px 10px rgba(7,14,31,0.22);
+  box-shadow: 0 3px 10px rgba(31,79,216,0.22);
 }
 .rcReviewOutOf { font-size: 10px; font-weight: 700; opacity: 0.72; margin-left: 2px; }
 .rcReviewWord { font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700; color: var(--text); }
@@ -949,24 +949,17 @@
 .rcIncludedItem { display: inline-flex; align-items: center; gap: 7px; white-space: nowrap; }
 .rcIncludedDot { color: #9fd6bd; font-weight: 700; }
 
-/* ── Fare panel — a deep-navy inset tile. The one dark element on the page,
-   which is exactly why it reads expensive: the fare gets ink, everything
-   else stays air. Gold CTA finally has a surface it can pop against. ── */
+/* ── Fare panel — a LIGHT inset tile. Same gallery geometry as the photo,
+   airy sky wash, typography carries the zone. ── */
 .rcPriceRail {
   width: clamp(228px, 19vw, 276px); flex-shrink: 0;
   padding: 22px;
   display: flex; flex-direction: column; justify-content: center;
-  background: linear-gradient(165deg, #12234a 0%, var(--dark2) 55%, var(--dark) 100%);
+  background: linear-gradient(170deg, #fbfdff, #eef5ff);
+  border: 1px solid #e6eefb;
   border-radius: 16px;
   position: relative;
   overflow: hidden;
-}
-/* A faint sun-gold aura behind the fare — barely-there depth, not decoration. */
-.rcPriceRail::before {
-  content: ''; position: absolute; right: -46px; top: -46px;
-  width: 150px; height: 150px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255,159,28,0.16), transparent 68%);
-  pointer-events: none;
 }
 
 .rcPriceInfo {
@@ -976,40 +969,40 @@
   transition: transform 0.3s var(--ease);
 }
 .resultCard:hover .rcPriceInfo { transform: translateY(-1px); }
-/* Cancellation state — mint on navy. */
+/* Cancellation state as quiet green text. */
 .rcRefundable {
   display: inline-flex; align-items: center; gap: 5px;
-  color: #6ee7b7; font-size: 12px; font-weight: 700;
+  color: #059669; font-size: 12px; font-weight: 700;
   margin-bottom: 8px;
 }
 /* What the fare covers — "7 nights · 2 adults". Replaces the caps TOTAL label
    AND the dates/nights pills the body used to repeat on every card. */
 .rcPriceContext {
-  font-size: 11.5px; font-weight: 600; color: #93a7c9;
+  font-size: 11.5px; font-weight: 600; color: var(--text-sec);
   letter-spacing: 0.2px;
 }
 .rcPriceAmount {
   font-family: 'Sora', sans-serif;
   font-size: 34px; font-weight: 800;
-  color: #fff; line-height: 1.05;
+  color: var(--dark); line-height: 1.05;
   letter-spacing: -1px;
   font-variant-numeric: tabular-nums;
   display: flex; align-items: baseline; gap: 4px;
   margin-top: 2px;
 }
-.rcPriceCcy { font-size: 17px; font-weight: 800; color: #93a7c9; letter-spacing: 0; }
+.rcPriceCcy { font-size: 17px; font-weight: 800; color: var(--text-sec); letter-spacing: 0; }
 /* Superscript decimals */
 .rcPriceDec {
-  font-size: 14px; font-weight: 800; color: rgba(255,255,255,0.55);
+  font-size: 14px; font-weight: 800; color: var(--text-light);
   align-self: flex-start; margin-top: 4px; letter-spacing: 0;
 }
 /* Per-night as plain text under the fare. */
 .rcPriceMeta {
-  font-size: 13px; font-weight: 700; color: rgba(255,255,255,0.92);
+  font-size: 13px; font-weight: 700; color: var(--text);
   margin-top: 3px;
   font-variant-numeric: tabular-nums;
 }
-.rcPriceMetaUnit { color: #93a7c9; font-weight: 500; }
+.rcPriceMetaUnit { color: var(--text-sec); font-weight: 500; }
 
 /* CTA — real <Link>, sun gradient, sheen sweep. COMPACT: hugs its label
    instead of spanning the panel. */
@@ -1034,7 +1027,7 @@
 .rcCta:hover::before { transform: translateX(130%); }
 .rcCta:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(255,159,28,0.42); }
 .rcCta:active { transform: translateY(0); }
-.rcCta:focus-visible { outline: 2px solid var(--sun-gold); outline-offset: 3px; }
+.rcCta:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 3px; }
 .rcCta svg { transition: transform 0.3s var(--ease); }
 .rcCta:hover svg { transform: translateX(3px); }
 
@@ -1042,8 +1035,8 @@
 /* ════════ Skeleton — mirrors the pass: photo, body, stub with tear + notches ════════ */
 .skeletonCard {
   position: relative; display: flex; background: var(--white);
-  border-radius: 20px; overflow: hidden;
-  border: 1px solid #e9f0fa; min-height: 216px;
+  border-radius: 22px; overflow: hidden; padding: 12px;
+  border: 1px solid #eef2fa; min-height: 224px;
   box-shadow: 0 1px 2px rgba(15,40,100,0.04), 0 2px 12px rgba(15,40,100,0.05);
   animation: skFade 0.5s var(--ease) both;
 }
@@ -1061,8 +1054,8 @@
 .skLine, .skStar, .skChip, .skPill, .skDate, .skNights, .skImgIcon { background: #e5eefb; }
 
 .skImg {
-  position: relative; flex-shrink: 0;
-  width: clamp(280px, 24vw, 352px); min-height: 216px;
+  position: relative; flex-shrink: 0; border-radius: 16px;
+  width: clamp(268px, 23vw, 336px); min-height: 224px;
   background: linear-gradient(150deg, #e2ecfb 0%, #eef5ff 100%);
   display: flex; align-items: center; justify-content: center; overflow: hidden;
 }
@@ -1084,18 +1077,12 @@
 
 .skRail {
   position: relative; flex-shrink: 0;
-  width: clamp(224px, 18vw, 276px); padding: 20px;
+  width: clamp(228px, 19vw, 276px); padding: 20px;
   display: flex; flex-direction: column; align-items: flex-end; justify-content: center; gap: 12px;
-  background: linear-gradient(180deg, #fafcff, #eef5ff);
-  border-left: 1px dashed #c9daf3;
+  background: linear-gradient(170deg, #fbfdff, #eef5ff);
+  border: 1px solid #e6eefb;
+  border-radius: 16px;
 }
-.skRail::before, .skRail::after {
-  content: ''; position: absolute; left: -10px; z-index: 4;
-  width: 19px; height: 19px; border-radius: 50%;
-  background: var(--blue-bg); border: 1px solid #e2ecfa; pointer-events: none;
-}
-.skRail::before { top: -10px; }
-.skRail::after { bottom: -10px; }
 .skRailLabel { width: 58%; height: 10px; }
 .skRailPrice { width: 78%; height: 30px; }
 .skRailMeta  { width: 50%; height: 12px; }
