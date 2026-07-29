@@ -122,27 +122,37 @@ export default function ScopePicker({
   }, [cityKey]);
 
   // Dropping a country drops the cities it owned; dropping a city drops its areas.
-  const toggleCountry = (code) => setDraftCountries((prev) => {
-    const next = new Set(prev);
-    if (next.has(code)) {
-      next.delete(code);
-      const orphan = new Set(cities.filter((c) => c.countryCode === code).map((c) => c.code));
-      if (orphan.size) {
-        setDraftCities((cs) => new Set([...cs].filter((c) => !orphan.has(c))));
-        setDraftZones((zs) => new Set([...zs].filter((z) => !orphan.has(zoneCity(z)))));
-      }
-    } else next.add(code);
-    return next;
-  });
+  const toggleCountry = (code) => {
+    const adding = !draftCountries.has(code);
+    setDraftCountries((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) {
+        next.delete(code);
+        const orphan = new Set(cities.filter((c) => c.countryCode === code).map((c) => c.code));
+        if (orphan.size) {
+          setDraftCities((cs) => new Set([...cs].filter((c) => !orphan.has(c))));
+          setDraftZones((zs) => new Set([...zs].filter((z) => !orphan.has(zoneCity(z)))));
+        }
+      } else next.add(code);
+      return next;
+    });
+    // Picking a country drills down: reveal its cities (which then reveal areas on pick).
+    if (adding) setOpen('city');
+  };
 
-  const toggleCity = (code) => setDraftCities((prev) => {
-    const next = new Set(prev);
-    if (next.has(code)) {
-      next.delete(code);
-      setDraftZones((zs) => new Set([...zs].filter((z) => zoneCity(z) !== code)));
-    } else next.add(code);
-    return next;
-  });
+  const toggleCity = (code) => {
+    const adding = !draftCities.has(code);
+    setDraftCities((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) {
+        next.delete(code);
+        setDraftZones((zs) => new Set([...zs].filter((z) => zoneCity(z) !== code)));
+      } else next.add(code);
+      return next;
+    });
+    // Picking a city reveals its areas/zones (they were closed by default).
+    if (adding) setOpen('area');
+  };
 
   const toggleZone = (key) => setDraftZones((prev) => {
     const next = new Set(prev);
