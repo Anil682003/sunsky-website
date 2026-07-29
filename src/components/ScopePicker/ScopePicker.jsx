@@ -75,7 +75,16 @@ export default function ScopePicker({
   const [draftCountries, setDraftCountries] = useState(() => new Set(value.countries));
   const [draftCities, setDraftCities]       = useState(() => new Set(value.destinations));
   const [draftZones, setDraftZones]         = useState(() => new Set(value.zones));
-  const [open, setOpen] = useState('country');
+  // Which accordion sections are expanded. A Set (not a single key) so picking a country
+  // can reveal Cities AND Areas at once while Countries stays open — they behave like
+  // independent disclosures, not a one-at-a-time accordion.
+  const [open, setOpen] = useState(() => new Set(['country']));
+  const isOpen = (k) => open.has(k);
+  const toggleSection = (k) => setOpen((prev) => {
+    const next = new Set(prev);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    return next;
+  });
 
   const [countrySearch, setCountrySearch] = useState('');
   const [citySearch, setCitySearch]       = useState('');
@@ -136,8 +145,9 @@ export default function ScopePicker({
       } else next.add(code);
       return next;
     });
-    // Picking a country drills down: reveal its cities (which then reveal areas on pick).
-    if (adding) setOpen('city');
+    // Picking a country drills down: reveal Cities and Areas together (Areas stays locked
+    // until a city is ticked, then expands on its own since it's already marked open).
+    if (adding) setOpen((prev) => new Set([...prev, 'city', 'area']));
   };
 
   const toggleCity = (code) => {
@@ -151,7 +161,7 @@ export default function ScopePicker({
       return next;
     });
     // Picking a city reveals its areas/zones (they were closed by default).
-    if (adding) setOpen('area');
+    if (adding) setOpen((prev) => new Set([...prev, 'area']));
   };
 
   const toggleZone = (key) => setDraftZones((prev) => {
@@ -161,7 +171,7 @@ export default function ScopePicker({
   });
 
   const clearAll = () => {
-    setDraftCountries(new Set()); setDraftCities(new Set()); setDraftZones(new Set()); setOpen('country');
+    setDraftCountries(new Set()); setDraftCities(new Set()); setDraftZones(new Set()); setOpen(new Set(['country']));
   };
 
   const countryOf   = (code) => countries.find((c) => c.code === code);
@@ -276,7 +286,7 @@ export default function ScopePicker({
         <Section
           title="Countries" count={draftCountries.size}
           summary={draftCountries.size ? `${draftCountries.size} selected` : 'Any country'}
-          open={open === 'country'} onToggle={() => setOpen(open === 'country' ? null : 'country')}
+          open={isOpen('country')} onToggle={() => toggleSection('country')}
         >
           <Search value={countrySearch} onChange={setCountrySearch} placeholder="Search countries" />
           <div className={styles.list}>
@@ -296,7 +306,7 @@ export default function ScopePicker({
             : citiesBusy ? 'Loading'
             : draftCities.size ? `${draftCities.size} selected`
             : `All ${cities.length} cities`}
-          open={open === 'city'} onToggle={() => setOpen(open === 'city' ? null : 'city')}
+          open={isOpen('city')} onToggle={() => toggleSection('city')}
         >
           <Search value={citySearch} onChange={setCitySearch} placeholder="Search cities" />
           <div className={styles.list}>
@@ -328,7 +338,7 @@ export default function ScopePicker({
             : zonesBusy ? 'Loading'
             : draftZones.size ? `${draftZones.size} selected`
             : zones.length ? `All ${zones.length} areas` : 'None available'}
-          open={open === 'area'} onToggle={() => setOpen(open === 'area' ? null : 'area')}
+          open={isOpen('area')} onToggle={() => toggleSection('area')}
         >
           <Search value={zoneSearch} onChange={setZoneSearch} placeholder="Search areas" />
           <div className={styles.list}>

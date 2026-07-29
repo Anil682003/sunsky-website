@@ -140,28 +140,36 @@
 /* TripAdvisor rating — sits in the hero metric row beside the stars. A two-part glass pill: a
    solid gold score block, then the bubble rating over the source + review count. The bubbles
    are filled in the same gold as the star rating so both ratings read as one system. */
+/* Guest score, presented as a self-contained card so the gold score sits ON a surface
+   instead of floating as a glowing blob on the hero. Score block left, verdict + source
+   stacked to its right, all inside a hairline-bordered glass panel. */
 .sd .sd-rating {
-  display:inline-flex; align-items:center; gap:10px;
+  display:inline-flex; align-items:center; gap:11px;
+  padding:6px 15px 6px 6px;
+  border-radius:15px;
+  background:linear-gradient(180deg,rgba(255,255,255,.10),rgba(255,255,255,.035));
+  border:1px solid rgba(255,255,255,.13);
+  box-shadow:0 8px 24px rgba(4,10,25,.30), inset 0 1px 0 rgba(255,255,255,.07);
+  backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px);
   animation:sdRatingIn .5s var(--ease) both;
 }
-/* Solid gold score block — the anchor. One squared corner (Booking-style) makes it read as a
-   recognised "guest score", and the big number carries it. The "/10" sits small so the scale
-   is clear without shouting. */
+/* Solid gold score chip — flatter and calmer than before: even corners, a soft (not neon)
+   shadow, and the "/10" whispers the scale in the same ink as the number. */
 .sd .sd-rating-badge {
   display:flex; align-items:baseline; justify-content:center;
-  min-width:48px; height:40px; padding:0 11px;
-  border-radius:11px 11px 11px 3px;
+  min-width:50px; height:42px; padding:0 12px;
+  border-radius:11px;
   background:linear-gradient(150deg,var(--gold) 0%,var(--sun) 100%);
-  color:#16233f; font-family:'Sora',sans-serif; font-size:20px; font-weight:800; line-height:1;
-  letter-spacing:-.3px; font-variant-numeric:tabular-nums;
-  box-shadow:0 5px 14px rgba(255,159,28,.42), inset 0 1px 0 rgba(255,255,255,.55);
+  color:#16233f; font-family:'Sora',sans-serif; font-size:21px; font-weight:800; line-height:1;
+  letter-spacing:-.4px; font-variant-numeric:tabular-nums;
+  box-shadow:0 3px 10px rgba(255,159,28,.28), inset 0 1px 0 rgba(255,255,255,.55);
 }
-.sd .sd-rating-outof { font-size:11px; font-weight:700; opacity:.5; margin-left:2px; letter-spacing:0; }
+.sd .sd-rating-outof { font-size:11px; font-weight:700; color:rgba(22,35,63,.5); margin-left:2px; letter-spacing:0; }
 .sd .sd-rating-body { display:flex; flex-direction:column; gap:3px; min-width:0; }
-.sd .sd-rating-word { font-family:'Sora',sans-serif; font-size:14px; font-weight:800; color:#fff; line-height:1; letter-spacing:.1px; }
+.sd .sd-rating-word { font-family:'Sora',sans-serif; font-size:14.5px; font-weight:800; color:#fff; line-height:1; letter-spacing:.1px; }
 .sd .sd-rating-meta { display:flex; align-items:center; gap:5px; line-height:1; white-space:nowrap; }
-.sd .sd-rating-src { font-size:11.5px; font-weight:600; color:rgba(255,255,255,.85); }
-.sd .sd-rating-count { font-size:11.5px; font-weight:500; color:rgba(255,255,255,.62); }
+.sd .sd-rating-src { font-size:11.5px; font-weight:600; color:rgba(255,255,255,.82); }
+.sd .sd-rating-count { font-size:11.5px; font-weight:500; color:rgba(255,255,255,.6); }
 .sd .sd-rating-count::before { content:'·'; margin-right:5px; color:rgba(255,255,255,.4); }
 @keyframes sdRatingIn { from { opacity:0; transform:translateY(4px) scale(.96); } to { opacity:1; transform:none; } }
 @media(max-width:560px){ .sd .sd-rating-count { display:none; } }
