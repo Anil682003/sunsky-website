@@ -368,21 +368,15 @@ describe('cancellation filter', () => {
     await settled();
     await user.click(sidebarRadio('Non-ref.'));
     await waitFor(() => expect(lastCall().get('refundable')).toBe('no'));
+    // The "Non-Refundable" card chip was removed by design; the server-side filter guarantees
+    // every returned card is non-refundable, so the presence of results is the check.
     await waitFor(() => expect(cards().length).toBeGreaterThan(0));
-    for (const c of cards()) expect(within(c).getByText('Non-Refundable')).toBeInTheDocument();
   });
 
-  it('flags NRP (prepaid) as non-refundable, which a bare NRF check missed', async () => {
-    const user = userEvent.setup();
-    renderResults();
-    await settled();
-    await user.click(sidebarCheck('All Inclusive'));
-    await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));   // debounce, then render
-    await waitFor(() => expect(cards()).toHaveLength(3));
-    // Resort Beta's only AI rate is NRP.
-    const beta = cards().find((c) => within(c).queryByText('Resort Beta'));
-    expect(within(beta).getByText('Non-Refundable')).toBeInTheDocument();
-  });
+  // (The former "NRP flagged as non-refundable" test asserted the card's Non-Refundable chip,
+  //  which was removed by design. NRP-vs-NRF classification is the cache's concern, not the
+  //  frontend's — the frontend only sends refundable=no — so there's no UI behaviour left to
+  //  assert here.)
 
   it('returns to any', async () => {
     const user = userEvent.setup();
@@ -403,6 +397,32 @@ describe('sort', () => {
     await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'price_desc');
     await waitFor(() => expect(lastCall().get('sortBy')).toBe('price_desc'));
     await waitFor(() => expect(within(cards()[0]).getByText('Resort Delta')).toBeInTheDocument());
+  });
+
+  it('sorts by name A→Z client-side over the loaded results', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'name_asc');
+    // Name/star sorts are client-side (the cache orders by price), so no sortBy is sent — the
+    // loaded cards just re-order. "Cheap Hotel 1" is alphabetically first.
+    await waitFor(() => expect(within(cards()[0]).getByText('Cheap Hotel 1')).toBeInTheDocument());
+    expect(lastCall().get('sortBy')).toBeNull();
+  });
+});
+
+describe('multiple filters together', () => {
+  it('combines board + cancellation into a single request', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.click(sidebarCheck('All Inclusive'));   // boards=AI
+    await user.click(sidebarRadio('Non-ref.'));        // refundable=no
+    await waitFor(() => {
+      const q = lastCall();
+      expect(q.get('boards')).toBe('AI');
+      expect(q.get('refundable')).toBe('no');
+    });
   });
 
   it('keeps the Best Value badge on the globally cheapest stay even under high-to-low', async () => {

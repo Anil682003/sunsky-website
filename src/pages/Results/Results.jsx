@@ -83,6 +83,12 @@ const ROOM_FILTERS = ['DBL', 'DBT', 'TWN', 'TPL', 'FAM', 'SUI', 'JSU', 'STU', 'A
 const SORT_OPTIONS = [
   { value: 'price_asc',  label: 'Price: Low to High' },
   { value: 'price_desc', label: 'Price: High to Low' },
+  // Name + star sorts. Applied CLIENT-SIDE over the loaded results (the price cache orders by
+  // price, not name/stars); they reorder what's loaded and re-settle as more pages come in.
+  { value: 'name_asc',   label: 'Name: A to Z' },
+  { value: 'name_desc',  label: 'Name: Z to A' },
+  { value: 'stars_desc', label: 'Stars: 5 to 1' },
+  { value: 'stars_asc',  label: 'Stars: 1 to 5' },
   // Distance sorts. Applied CLIENT-SIDE using the distances from the admin content API (the
   // cache prices by price and does not know distances). Only reorders the hotels already loaded.
   { value: 'distance_beach',  label: 'Distance to beach' },
@@ -243,6 +249,33 @@ function FilterCheck({ label, checked, onChange }) {
       <input type="checkbox" checked={checked} onChange={onChange} />
       <span>{label}</span>
     </label>
+  );
+}
+
+// A capped facet list: shows the first `limit` rows and a "Show all (N) / Show less" toggle,
+// so a long facet (dozens of facilities/activities) doesn't turn the sidebar into an endless
+// scroll. Any currently-CHECKED row beyond the cap is pulled into the visible set, so a picked
+// filter never hides itself.
+function FacetList({ items, limit = 6, isChecked, render }) {
+  const [expanded, setExpanded] = useState(false);
+  let shown = items;
+  if (!expanded && items.length > limit) {
+    const head = items.slice(0, limit);
+    const checkedTail = isChecked ? items.slice(limit).filter(isChecked) : [];
+    shown = [...head, ...checkedTail];
+  }
+  return (
+    <>
+      {shown.map(render)}
+      {items.length > limit && (
+        <button type="button" className={styles.facetMore} onClick={() => setExpanded((e) => !e)}>
+          {expanded ? 'Show less' : `Show all ${items.length}`}
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}>
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </button>
+      )}
+    </>
   );
 }
 
@@ -920,17 +953,32 @@ export default function Results() {
       });
   }, [scopeLabel]);
 
-  // Distance sorts (client-side) using the admin attributes; the cache already ordered by price.
+  // Client-side sorts (name / stars / distance) over the loaded results. Price sorts are done by
+  // the cache; these reorder what's loaded, using the info/attribute data as it arrives.
   const hotels = useMemo(() => {
-    const field = applied.sortBy === 'distance_beach' ? 'beachMetres'
-                : applied.sortBy === 'distance_centre' ? 'centreMetres' : null;
-    if (!field) return allHotels;
-    const dist = (h) => {
-      const v = attrMap[String(h.hotelCode)]?.[field];
-      return typeof v === 'number' && v >= 0 ? v : Infinity;
-    };
-    return [...allHotels].sort((a, b) => dist(a) - dist(b));
-  }, [allHotels, applied.sortBy, attrMap]);
+    const sb = applied.sortBy;
+    const distField = sb === 'distance_beach' ? 'beachMetres' : sb === 'distance_centre' ? 'centreMetres' : null;
+    if (distField) {
+      const dist = (h) => {
+        const v = attrMap[String(h.hotelCode)]?.[distField];
+        return typeof v === 'number' && v >= 0 ? v : Infinity;
+      };
+      return [...allHotels].sort((a, b) => dist(a) - dist(b));
+    }
+    if (sb === 'name_asc' || sb === 'name_desc') {
+      const nameOf = (h) => (infoMap[String(h.hotelCode)]?.name || h.name || '').trim();
+      const dir = sb === 'name_asc' ? 1 : -1;
+      return [...allHotels].sort((a, b) => dir * nameOf(a).localeCompare(nameOf(b), 'en', { sensitivity: 'base' }));
+    }
+    if (sb === 'stars_asc' || sb === 'stars_desc') {
+      const starsOf = (h) => Number(infoMap[String(h.hotelCode)]?.stars ?? attrMap[String(h.hotelCode)]?.stars ?? 0) || 0;
+      const dir = sb === 'stars_desc' ? -1 : 1;
+      // Tie-break by name so equal-star hotels keep a stable, readable order.
+      const nameOf = (h) => (infoMap[String(h.hotelCode)]?.name || h.name || '').trim();
+      return [...allHotels].sort((a, b) => dir * (starsOf(a) - starsOf(b)) || nameOf(a).localeCompare(nameOf(b), 'en', { sensitivity: 'base' }));
+    }
+    return allHotels;
+  }, [allHotels, applied.sortBy, attrMap, infoMap]);
 
   // Lazily load real hotel info (name/images/stars) for all visible hotels
   useEffect(() => {
@@ -1292,14 +1340,18 @@ export default function Results() {
         ) : facets.holiday.length === 0 ? (
           <p className={styles.filterEmpty}>No holiday types for this search.</p>
         ) : (
-          facets.holiday.map((t) => (
-            <FilterCheck
-              key={t.id}
-              label={`${t.icon ? `${t.icon} ` : ''}${t.name} (${t.hotels})`}
-              checked={filters.themes.includes(t.id)}
-              onChange={() => toggleCode('themes', t.id)}
-            />
-          ))
+          <FacetList
+            items={facets.holiday}
+            isChecked={(t) => filters.themes.includes(t.id)}
+            render={(t) => (
+              <FilterCheck
+                key={t.id}
+                label={`${t.icon ? `${t.icon} ` : ''}${t.name} (${t.hotels})`}
+                checked={filters.themes.includes(t.id)}
+                onChange={() => toggleCode('themes', t.id)}
+              />
+            )}
+          />
         )}
       </FilterSection>
 
@@ -1325,11 +1377,13 @@ export default function Results() {
         {facets.accommodation.length === 0 ? (
           <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No accommodation data for this search.'}</p>
         ) : (
-          <div className={styles.facetScroll}>
-            {facets.accommodation.map((a) => (
+          <FacetList
+            items={facets.accommodation}
+            isChecked={(a) => filters.accommodation.includes(a.code)}
+            render={(a) => (
               <FilterCheck key={a.code} label={`${cap(a.name)} (${a.hotels})`} checked={filters.accommodation.includes(a.code)} onChange={() => toggleCode('accommodation', a.code)} />
-            ))}
-          </div>
+            )}
+          />
         )}
       </FilterSection>
 
@@ -1372,11 +1426,13 @@ export default function Results() {
         {facets.facilities.length === 0 ? (
           <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No facilities data for this search.'}</p>
         ) : (
-          <div className={styles.facetScroll}>
-            {facets.facilities.map((f) => (
+          <FacetList
+            items={facets.facilities}
+            isChecked={(f) => filters.facilities.includes(f.code)}
+            render={(f) => (
               <FilterCheck key={f.code} label={`${f.name} (${f.hotels})`} checked={filters.facilities.includes(f.code)} onChange={() => toggleCode('facilities', f.code)} />
-            ))}
-          </div>
+            )}
+          />
         )}
       </FilterSection>
 
@@ -1387,20 +1443,26 @@ export default function Results() {
         {facets.activities.length === 0 ? (
           <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No activities data for this search.'}</p>
         ) : (
-          <div className={styles.facetScroll}>
-            {facets.activities.map((a) => (
+          <FacetList
+            items={facets.activities}
+            isChecked={(a) => filters.activities.some((x) => actMatches(x, a))}
+            render={(a) => (
               <FilterCheck key={`${a.groupCode ?? ''}:${a.code}`} label={`${a.name} (${a.hotels})`} checked={filters.activities.some((x) => actMatches(x, a))} onChange={() => toggleActivity(a)} />
-            ))}
-          </div>
+            )}
+          />
         )}
       </FilterSection>
 
       {/* Family & Kids — curated child-friendly amenities (admin facets), with counts. */}
       {facets.kids.length > 0 && (
         <FilterSection title="Family & Kids" defaultOpen={false}>
-          {facets.kids.map((k) => (
-            <FilterCheck key={k.code} label={`${k.name} (${k.hotels})`} checked={filters.kids.includes(k.code)} onChange={() => toggleCode('kids', k.code)} />
-          ))}
+          <FacetList
+            items={facets.kids}
+            isChecked={(k) => filters.kids.includes(k.code)}
+            render={(k) => (
+              <FilterCheck key={k.code} label={`${k.name} (${k.hotels})`} checked={filters.kids.includes(k.code)} onChange={() => toggleCode('kids', k.code)} />
+            )}
+          />
         </FilterSection>
       )}
 
@@ -1766,7 +1828,6 @@ export default function Results() {
                         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
                       </svg>
                     </button>
-                    {h.refundable === false && (<div className={styles.rcNrfChip}>Non-Refundable</div>)}
                   </div>
 
                   <div className={styles.rcContent}>
