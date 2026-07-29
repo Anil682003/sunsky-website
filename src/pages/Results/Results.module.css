@@ -888,6 +888,13 @@
   background: var(--blue-light); color: var(--blue-deep);
   box-shadow: inset 0 0 0 1px rgba(31,79,216,0.12);
 }
+/* Zone (district) leads the line and carries the emphasis — it's the part that
+   differentiates hotels within one search. City may shrink first. */
+.rcPlaceZone {
+  color: var(--text); font-weight: 700;
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  flex-shrink: 0; max-width: 55%;
+}
 .rcPlaceCity { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .rcPlaceDot { color: var(--text-light); flex-shrink: 0; }
 .rcPlaceCode {
@@ -920,14 +927,14 @@
    pill families live on the card: sky (amenities) and mint (included). */
 .rcFacts {
   display: flex; flex-wrap: wrap; align-items: center;
-  gap: 8px 10px; margin-top: 16px;
+  gap: 6px 8px; margin-top: 14px;
 }
 .rcFact {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 6px 13px; border-radius: var(--r-full);
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 3px 11px; border-radius: var(--r-full);
   background: #f5f9ff; border: 1px dashed #bfd5f2;
-  color: #33507c; font-size: 12.5px; font-weight: 600;
-  line-height: 1.4; white-space: nowrap;
+  color: #33507c; font-size: 12px; font-weight: 600;
+  line-height: 1.5; white-space: nowrap;
   transition: background 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease), transform 0.25s var(--ease);
 }
 .rcFact:hover {
@@ -937,7 +944,7 @@
 .rcFactIco { display: inline-flex; color: var(--blue-deep); opacity: 0.85; flex-shrink: 0; }
 .rcFactMore {
   display: inline-flex; align-items: center;
-  padding: 6px 13px; border-radius: var(--r-full);
+  padding: 3px 11px; border-radius: var(--r-full);
   background: transparent; border: 1px dashed #a9c6ef;
   color: var(--blue-deep); font-size: 12px; font-weight: 700;
   letter-spacing: 0.1px; cursor: default; white-space: nowrap;
@@ -947,8 +954,8 @@
 
 /* What the deal includes — mint coupon pills, same dashed idiom one hue over. */
 .rcIncluded {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 8px 10px;
-  margin-top: 10px;
+  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 8px;
+  margin-top: 8px;
 }
 .rcIncludedPill {
   display: inline-flex; align-items: center; gap: 6px;

@@ -1788,9 +1788,17 @@ export default function Results() {
                           ? <h3 className={styles.rcName}>{dispName}</h3>
                           : <div className={`${styles.rcNameSkel} ${styles.skeletonLine}`} />}
 
-                        {/* The hotel's OWN place — flag · geo city · country code — not the search label. */}
+                        {/* The hotel's OWN place, small → large: flag · zone (district) ·
+                            geo city · country code — not the search label. */}
                         <div className={styles.rcPlace}>
                           <CountryFlag code={cc} />
+                          {/* Skip the zone when it just repeats the city ("Bodrum · Bodrum"). */}
+                          {info?.zoneName && info.zoneName.toLowerCase() !== String(cityDisp).toLowerCase() && (
+                            <>
+                              <span className={styles.rcPlaceZone}>{info.zoneName}</span>
+                              <span className={styles.rcPlaceDot} aria-hidden="true">·</span>
+                            </>
+                          )}
                           <span className={styles.rcPlaceCity}>{cityDisp}</span>
                           {cc && (
                             <>
