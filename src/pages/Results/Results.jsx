@@ -25,6 +25,7 @@ const CHILD_AGE_DEFAULT = 8;
 const LARGE_CODES = 150;
 const MANY_DESTINATIONS = 8;
 
+
 // Photo URLs are kept CANONICAL (default size); each <HotelImg> requests the size its box
 // needs (`bigger` for a card, `original` for the lightbox) and falls back if that size is
 // missing — many Hotelbeds images lack the larger variants (`xl` 403s), which is what left
