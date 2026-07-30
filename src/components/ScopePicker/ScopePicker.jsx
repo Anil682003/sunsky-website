@@ -57,15 +57,6 @@ function Section({ title, summary, count, open, locked, onToggle, children }) {
   );
 }
 
-function Search({ value, onChange, placeholder }) {
-  return (
-    <div className={styles.searchWrap}>
-      <svg className={styles.searchIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-      <input className={styles.search} type="text" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-
 export default function ScopePicker({
   countries = [],
   status = 'ok',
@@ -78,7 +69,14 @@ export default function ScopePicker({
   // Which accordion sections are expanded. A Set (not a single key) so picking a country
   // can reveal Cities AND Areas at once while Countries stays open — they behave like
   // independent disclosures, not a one-at-a-time accordion.
-  const [open, setOpen] = useState(() => new Set(['country']));
+  const [open, setOpen] = useState(() => {
+    // Countries is always open; Cities/Areas start open too when there's already a
+    // selection to show (e.g. reopening the picker after a destination search).
+    const s = new Set(['country']);
+    if (value.countries?.length || value.destinations?.length) s.add('city');
+    if (value.destinations?.length || value.zones?.length) s.add('area');
+    return s;
+  });
   const isOpen = (k) => open.has(k);
   const toggleSection = (k) => setOpen((prev) => {
     const next = new Set(prev);
@@ -86,9 +84,6 @@ export default function ScopePicker({
     return next;
   });
 
-  const [countrySearch, setCountrySearch] = useState('');
-  const [citySearch, setCitySearch]       = useState('');
-  const [zoneSearch, setZoneSearch]       = useState('');
 
   const [cities, setCities]         = useState([]);
   const [citiesBusy, setCitiesBusy] = useState(false);
@@ -178,35 +173,28 @@ export default function ScopePicker({
   const cityOf      = (code) => cities.find((c) => c.code === code);
   const nameOfZone  = (key) => zones.find((z) => zoneKey(z) === key)?.name || key;
 
-  const hit = (q, ...fields) => {
-    const s = q.trim().toLowerCase();
-    return !s || fields.some((f) => String(f || '').toLowerCase().includes(s));
-  };
-
-  const shownCountries = countries.filter((c) => hit(countrySearch, c.name, c.code));
+  const shownCountries = countries;
 
   const cityGroups = useMemo(() => {
     const by = new Map();
     for (const c of cities) {
-      if (!hit(citySearch, c.name, c.code)) continue;
       const g = by.get(c.countryCode)
         || { code: c.countryCode, name: c.countryName, flag: c.flag, flagUrl: c.flagUrl, items: [] };
       g.items.push(c);
       by.set(c.countryCode, g);
     }
     return [...by.values()];
-  }, [cities, citySearch]);
+  }, [cities]);
 
   const zoneGroups = useMemo(() => {
     const by = new Map();
     for (const z of zones) {
-      if (!hit(zoneSearch, z.name)) continue;
       const g = by.get(z.destinationCode) || { code: z.destinationCode, name: z.destinationName, items: [] };
       g.items.push(z);
       by.set(z.destinationCode, g);
     }
     return [...by.values()];
-  }, [zones, zoneSearch]);
+  }, [zones]);
 
   // Select-all / clear for one group — the shortcut a 27-city country needs.
   const toggleAllCities = (group) => {
@@ -288,7 +276,6 @@ export default function ScopePicker({
           summary={draftCountries.size ? `${draftCountries.size} selected` : 'Any country'}
           open={isOpen('country')} onToggle={() => toggleSection('country')}
         >
-          <Search value={countrySearch} onChange={setCountrySearch} placeholder="Search countries" />
           <div className={styles.list}>
             {shownCountries.length === 0 && <p className={styles.note}>No country matches that.</p>}
             {shownCountries.map((c) => (
@@ -308,7 +295,6 @@ export default function ScopePicker({
             : `All ${cities.length} cities`}
           open={isOpen('city')} onToggle={() => toggleSection('city')}
         >
-          <Search value={citySearch} onChange={setCitySearch} placeholder="Search cities" />
           <div className={styles.list}>
             {citiesBusy && <p className={styles.note}>Loading cities&hellip;</p>}
             {!citiesBusy && cityGroups.length === 0 && <p className={styles.note}>No city matches that.</p>}
@@ -340,7 +326,6 @@ export default function ScopePicker({
             : zones.length ? `All ${zones.length} areas` : 'None available'}
           open={isOpen('area')} onToggle={() => toggleSection('area')}
         >
-          <Search value={zoneSearch} onChange={setZoneSearch} placeholder="Search areas" />
           <div className={styles.list}>
             {zonesBusy && <p className={styles.note}>Loading areas&hellip;</p>}
             {!zonesBusy && zoneGroups.length === 0 && <p className={styles.note}>No areas available for these cities.</p>}
