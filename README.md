@@ -45,6 +45,42 @@ npm run preview     # preview the production build locally
 
 ---
 
+## Production server & link previews
+
+`dist/` is served by **`server/index.js`** (`npm start`, port 8080 behind Caddy) — plain
+`node:http`, no dependencies, so a deploy that skips `npm install` can't break it.
+
+It does two things:
+
+1. **Static + SPA fallback** — hashed `/assets/*` are served `immutable`, every unknown
+   route returns `index.html` for React Router.
+2. **Open Graph tags for `/hotel/:code`** — the hotel record is fetched from the cache API
+   and stamped into the `<head>` before the HTML goes out, so a shared hotel link previews
+   with its own name, location and photo in WhatsApp / Facebook / iMessage / Slack.
+
+Why it has to be server-side: this is a client-rendered SPA and preview crawlers do not run
+JavaScript. Without this, every hotel link previewed as the same generic site card.
+
+| Visitor | Behaviour |
+|---------|-----------|
+| Preview crawler (UA match) | Waits for the hotel record (2.5s cap), always gets the rich card |
+| Everyone else | Served instantly; tags are stamped only from the 6h in-memory cache, which the crawler's own visit warms |
+
+Defaults for all other routes live in `index.html`. **Keep its `<title>` on one line** — the
+server swaps it by regex.
+
+```bash
+npm start                          # serve ./dist on :8080
+PORT=8099 npm start                # different port
+SITE_ORIGIN=https://holidaybooking.be npm start   # og:url / canonical origin
+```
+
+> **Deploying this the first time changes the pm2 process.** Process id 2 currently runs a
+> plain static serve; it must become `npm start` (see `sunsky-admin/DEPLOYMENT.md`).
+> Node 18+ required (global `fetch`).
+
+---
+
 ## Environment Variables
 
 Create a `.env` file in the project root:
@@ -241,5 +277,7 @@ Switch via `VITE_PAYMENT_MODE` in the env file.
 npm run dev       # Start dev server (localhost:5173)
 npm run build     # Production build → /dist
 npm run preview   # Preview production build
+npm start         # Production static + Open Graph server (port 8080)
 npm run lint      # ESLint check
+npm test          # Vitest suite
 ```

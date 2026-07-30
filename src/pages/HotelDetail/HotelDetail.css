@@ -135,7 +135,11 @@
 .sd .hhn { font-family:'Sora',sans-serif; font-size:clamp(1.9rem,3.2vw,2.9rem); font-weight:800; color:#fff; letter-spacing:-.6px; line-height:1.1; }
 .sd .hhm { display:flex; align-items:center; gap:12px; margin-top:8px; flex-wrap:wrap; }
 .sd .hhs { color:var(--gold); font-size:16px; letter-spacing:1px; }
-.sd .hhl { font-size:13px; color:rgba(255,255,255,.85); display:flex; align-items:center; gap:4px; }
+.sd .hhl { font-size:13px; color:rgba(255,255,255,.85); display:flex; align-items:center; gap:6px; }
+/* Zone (district) leads in full-white weight — it's the part that differentiates this hotel
+   within its city; the city itself stays at the line's default (dimmer) weight. */
+.sd .hhl-zone { color:#fff; font-weight:700; }
+.sd .hhl-dot { color:rgba(255,255,255,.4); }
 
 /* TripAdvisor rating — sits in the hero metric row beside the stars. A two-part glass pill: a
    solid gold score block, then the bubble rating over the source + review count. The bubbles

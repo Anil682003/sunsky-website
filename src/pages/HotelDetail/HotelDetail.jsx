@@ -8,6 +8,7 @@ import HotelImg from '../../components/HotelImg/HotelImg';
 import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
+import ShareSheet from '../../components/ShareSheet/ShareSheet';
 import { ratingLabel } from '../../utils/rating';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
@@ -18,7 +19,17 @@ const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const calDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WK[d.getDay()]; };
 const calDate = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? iso : `${d.getDate()} ${MO[d.getMonth()]}`; };
-const addDaysISO = (iso, n) => { const d = new Date(iso + 'T00:00:00'); if (isNaN(d.getTime())) return iso; d.setDate(d.getDate() + n); return d.toISOString().split('T')[0]; };
+// NB: formatted from the LOCAL date parts, not toISOString(). The input is parsed at local
+// midnight, so serialising through UTC handed back the previous day for every traveller east
+// of Greenwich (IST: "20 Mar + 7 nights" → 26 Mar) — a whole night short in the availability
+// search, the checkout payload and the shared link.
+const addDaysISO = (iso, n) => {
+  const d = new Date(iso + 'T00:00:00');
+  if (isNaN(d.getTime())) return iso;
+  d.setDate(d.getDate() + n);
+  const p = (v) => String(v).padStart(2, '0');
+  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
+};
 const fmtTime = (s) => {
   if (!s) return '';
   const d = new Date(s);
@@ -387,7 +398,15 @@ export default function HotelDetail() {
   // Star (hotel) vs key (apartment) rating. Apartments are rated in keys, not stars — the bulk
   // info record carries the kind; fall back to a star rating from the star count.
   const dispRating = info?.rating || (stars > 0 ? { kind: 'star', value: stars } : null);
-  const locLabel = hotel?.loc || info?.city || 'Greece, Zakynthos, Agios Sostis';
+  // Prefer the clean geo city (info.cityName) over the raw supplier text (info.city) and over
+  // hotel.loc — the latter is the SEARCH SCOPE label (e.g. "Costa del Sol" for a multi-city
+  // search), not necessarily this hotel's own city.
+  const locLabel = info?.cityName || info?.city || hotel?.loc || 'Greece, Zakynthos, Agios Sostis';
+  // The hotel's district ("Gumbet", "Taksim"), shown next to the city — skipped when it just
+  // repeats the city name.
+  const zoneLabel = info?.zoneName && info.zoneName.toLowerCase() !== String(locLabel).toLowerCase()
+    ? info.zoneName
+    : '';
   const currency = hotel?.currency || '€';
   const ccy = currency === 'EUR' ? '€' : currency;
   const nights = state?.nights || Number(qp('nights')) || 7;
@@ -587,6 +606,46 @@ export default function HotelDetail() {
   const pMin = priceDays.length ? Math.min(...priceDays.map((p) => p.price)) : 0;
   const pMax = priceDays.length ? Math.max(...priceDays.map((p) => p.price)) : 1;
   const pd = selectedPrice != null ? priceDays[selectedPrice] : null;
+
+  // ── shareable link ──────────────────────────────────────────────────────────
+  // A shared link must re-open the SAME stay, so the whole search context rides in
+  // the query string (this page reads those as its fallback when there's no in-app
+  // router state) — same contract as the Results card's deep link, minus the long
+  // image URL, which the page re-fetches anyway. Dates follow the day the traveller
+  // has actually picked in the calendar, not just the one they arrived with.
+  const shareCheckIn  = pd?.iso || baseCheckIn;
+  const shareCheckOut = pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut;
+  const shareUrl = (() => {
+    const qs = new URLSearchParams();
+    const put = (k, v) => { if (v != null && String(v).trim() !== '' && String(v) !== 'undefined') qs.set(k, String(v)); };
+    put('checkIn', shareCheckIn);   put('checkOut', shareCheckOut);
+    put('adults', sAdults);         put('children', sChildren);
+    put('rooms', sRooms);           put('childAges', sChildAges);
+    put('nights', nights);          put('destination', destination);
+    // display fallbacks, so the recipient never sees "Hotel 123456" while the record loads
+    put('name', hotelName);         put('loc', locLabel);
+    put('stars', stars || '');      put('currency', hotel?.currency || '');
+    put('total', hotel?.totalAmount);
+    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    const q = qs.toString();
+    return `${origin}/hotel/${hotelCode}${q ? `?${q}` : ''}`;
+  })();
+
+  // Only a REAL "from" figure goes in the message — never the demo placeholder, and never
+  // the €0 the price cache returns for a day it hasn't costed yet.
+  const shareFrom = Number(pd?.price) > 0
+    ? Math.round(pd.price)
+    : (Number(hotel?.totalAmount) > 0 ? ppPrice : null);
+  const shareDates = shareCheckIn
+    ? `${calDate(shareCheckIn)}${shareCheckOut ? ` – ${calDate(shareCheckOut)}` : ''}`
+    : '';
+  const sharePax = `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}${Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}`;
+  const shareMeta = [shareDates, `${nights} nights`, sharePax].filter(Boolean).join(' · ');
+  const shareText = [
+    `${hotelName} — ${locLabel}`,
+    shareMeta,
+    shareFrom != null ? `from ${ccy}${shareFrom} p.p.` : '',
+  ].filter(Boolean).join('\n');
 
   // live selection → live price shown in the Book Now card / mobile bar / checkout
   const liveRoom = liveRooms?.rooms?.length ? liveRooms.rooms[selectedRoom.live ?? 0] : null;
@@ -917,7 +976,18 @@ export default function HotelDetail() {
               <span style={{ color: '#fff' }}>{hotelName}</span>
             </div>
             <div className="hha">
-              <button className="hhb">{ICON.share} Share</button>
+              <ShareSheet
+                url={shareUrl}
+                title={hotelName}
+                text={shareText}
+                subject={`${hotelName} — ${locLabel}`}
+                meta={shareMeta}
+                image={images[0]}
+                buttonClassName="hhb"
+                buttonIcon={ICON.share}
+                onCopy={() => showToast('Link copied — ready to paste', 'success')}
+                onError={() => showToast('Couldn’t copy the link. Select it and copy manually.', 'error')}
+              />
               <button className={`hhb${saved ? ' saved' : ''}`} onClick={handleSave}>
                 {ICON.heart} {saved ? 'Saved' : 'Save'}
               </button>
@@ -930,7 +1000,11 @@ export default function HotelDetail() {
               <h1 className="hhn">{hotelName}</h1>
               <div className="hhm">
                 <span className="hhs"><RatingMarks rating={dispRating} keySize={16} /></span>
-                <span className="hhl">{ICON.pin} {locLabel}</span>
+                <span className="hhl">
+                  {ICON.pin}
+                  {zoneLabel && <><span className="hhl-zone">{zoneLabel}</span><span className="hhl-dot">·</span></>}
+                  {locLabel}
+                </span>
                 {/* TripAdvisor rating, /10. From the harvested store (info.review) — no live
                     call — with the live one as a fallback for a not-yet-harvested hotel.
                     Renders nothing at all for an unrated hotel. */}
@@ -1394,10 +1468,16 @@ export default function HotelDetail() {
                           <div><div className="inf-loc-lbl">Address</div><div className="inf-loc-val">{info.address}</div></div>
                         </div>
                       )}
-                      {info.city && (
+                      {zoneLabel && (
+                        <div className="inf-loc-row">
+                          <div className="inf-loc-icon"><S sw={2}><path d="M12 21c-4.5-1.4-7.5-5.4-7.5-10A7.5 7.5 0 0112 3a7.5 7.5 0 017.5 8c0 4.6-3 8.6-7.5 10z" /><circle cx="12" cy="11" r="2.5" /></S></div>
+                          <div><div className="inf-loc-lbl">Zone / Area</div><div className="inf-loc-val">{zoneLabel}</div></div>
+                        </div>
+                      )}
+                      {(info?.cityName || info?.city) && (
                         <div className="inf-loc-row">
                           <div className="inf-loc-icon"><S sw={2}><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></S></div>
-                          <div><div className="inf-loc-lbl">City / Region</div><div className="inf-loc-val">{info.city}</div></div>
+                          <div><div className="inf-loc-lbl">City / Region</div><div className="inf-loc-val">{info.cityName || info.city}</div></div>
                         </div>
                       )}
                       {info.latitude && (
