@@ -57,15 +57,6 @@ function Section({ title, summary, count, open, locked, onToggle, children }) {
   );
 }
 
-function Search({ value, onChange, placeholder }) {
-  return (
-    <div className={styles.searchWrap}>
-      <svg className={styles.searchIcon} width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5" /></svg>
-      <input className={styles.search} type="text" placeholder={placeholder} value={value} onChange={(e) => onChange(e.target.value)} />
-    </div>
-  );
-}
-
 export default function ScopePicker({
   countries = [],
   status = 'ok',
@@ -75,11 +66,24 @@ export default function ScopePicker({
   const [draftCountries, setDraftCountries] = useState(() => new Set(value.countries));
   const [draftCities, setDraftCities]       = useState(() => new Set(value.destinations));
   const [draftZones, setDraftZones]         = useState(() => new Set(value.zones));
-  const [open, setOpen] = useState('country');
+  // Which accordion sections are expanded. A Set (not a single key) so picking a country
+  // can reveal Cities AND Areas at once while Countries stays open — they behave like
+  // independent disclosures, not a one-at-a-time accordion.
+  const [open, setOpen] = useState(() => {
+    // Countries is always open; Cities/Areas start open too when there's already a
+    // selection to show (e.g. reopening the picker after a destination search).
+    const s = new Set(['country']);
+    if (value.countries?.length || value.destinations?.length) s.add('city');
+    if (value.destinations?.length || value.zones?.length) s.add('area');
+    return s;
+  });
+  const isOpen = (k) => open.has(k);
+  const toggleSection = (k) => setOpen((prev) => {
+    const next = new Set(prev);
+    if (next.has(k)) next.delete(k); else next.add(k);
+    return next;
+  });
 
-  const [countrySearch, setCountrySearch] = useState('');
-  const [citySearch, setCitySearch]       = useState('');
-  const [zoneSearch, setZoneSearch]       = useState('');
 
   const [cities, setCities]         = useState([]);
   const [citiesBusy, setCitiesBusy] = useState(false);
@@ -122,27 +126,38 @@ export default function ScopePicker({
   }, [cityKey]);
 
   // Dropping a country drops the cities it owned; dropping a city drops its areas.
-  const toggleCountry = (code) => setDraftCountries((prev) => {
-    const next = new Set(prev);
-    if (next.has(code)) {
-      next.delete(code);
-      const orphan = new Set(cities.filter((c) => c.countryCode === code).map((c) => c.code));
-      if (orphan.size) {
-        setDraftCities((cs) => new Set([...cs].filter((c) => !orphan.has(c))));
-        setDraftZones((zs) => new Set([...zs].filter((z) => !orphan.has(zoneCity(z)))));
-      }
-    } else next.add(code);
-    return next;
-  });
+  const toggleCountry = (code) => {
+    const adding = !draftCountries.has(code);
+    setDraftCountries((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) {
+        next.delete(code);
+        const orphan = new Set(cities.filter((c) => c.countryCode === code).map((c) => c.code));
+        if (orphan.size) {
+          setDraftCities((cs) => new Set([...cs].filter((c) => !orphan.has(c))));
+          setDraftZones((zs) => new Set([...zs].filter((z) => !orphan.has(zoneCity(z)))));
+        }
+      } else next.add(code);
+      return next;
+    });
+    // Picking a country drills down: reveal Cities and Areas together (Areas stays locked
+    // until a city is ticked, then expands on its own since it's already marked open).
+    if (adding) setOpen((prev) => new Set([...prev, 'city', 'area']));
+  };
 
-  const toggleCity = (code) => setDraftCities((prev) => {
-    const next = new Set(prev);
-    if (next.has(code)) {
-      next.delete(code);
-      setDraftZones((zs) => new Set([...zs].filter((z) => zoneCity(z) !== code)));
-    } else next.add(code);
-    return next;
-  });
+  const toggleCity = (code) => {
+    const adding = !draftCities.has(code);
+    setDraftCities((prev) => {
+      const next = new Set(prev);
+      if (next.has(code)) {
+        next.delete(code);
+        setDraftZones((zs) => new Set([...zs].filter((z) => zoneCity(z) !== code)));
+      } else next.add(code);
+      return next;
+    });
+    // Picking a city reveals its areas/zones (they were closed by default).
+    if (adding) setOpen((prev) => new Set([...prev, 'area']));
+  };
 
   const toggleZone = (key) => setDraftZones((prev) => {
     const next = new Set(prev);
@@ -151,42 +166,35 @@ export default function ScopePicker({
   });
 
   const clearAll = () => {
-    setDraftCountries(new Set()); setDraftCities(new Set()); setDraftZones(new Set()); setOpen('country');
+    setDraftCountries(new Set()); setDraftCities(new Set()); setDraftZones(new Set()); setOpen(new Set(['country']));
   };
 
   const countryOf   = (code) => countries.find((c) => c.code === code);
   const cityOf      = (code) => cities.find((c) => c.code === code);
   const nameOfZone  = (key) => zones.find((z) => zoneKey(z) === key)?.name || key;
 
-  const hit = (q, ...fields) => {
-    const s = q.trim().toLowerCase();
-    return !s || fields.some((f) => String(f || '').toLowerCase().includes(s));
-  };
-
-  const shownCountries = countries.filter((c) => hit(countrySearch, c.name, c.code));
+  const shownCountries = countries;
 
   const cityGroups = useMemo(() => {
     const by = new Map();
     for (const c of cities) {
-      if (!hit(citySearch, c.name, c.code)) continue;
       const g = by.get(c.countryCode)
         || { code: c.countryCode, name: c.countryName, flag: c.flag, flagUrl: c.flagUrl, items: [] };
       g.items.push(c);
       by.set(c.countryCode, g);
     }
     return [...by.values()];
-  }, [cities, citySearch]);
+  }, [cities]);
 
   const zoneGroups = useMemo(() => {
     const by = new Map();
     for (const z of zones) {
-      if (!hit(zoneSearch, z.name)) continue;
       const g = by.get(z.destinationCode) || { code: z.destinationCode, name: z.destinationName, items: [] };
       g.items.push(z);
       by.set(z.destinationCode, g);
     }
     return [...by.values()];
-  }, [zones, zoneSearch]);
+  }, [zones]);
 
   // Select-all / clear for one group — the shortcut a 27-city country needs.
   const toggleAllCities = (group) => {
@@ -266,9 +274,8 @@ export default function ScopePicker({
         <Section
           title="Countries" count={draftCountries.size}
           summary={draftCountries.size ? `${draftCountries.size} selected` : 'Any country'}
-          open={open === 'country'} onToggle={() => setOpen(open === 'country' ? null : 'country')}
+          open={isOpen('country')} onToggle={() => toggleSection('country')}
         >
-          <Search value={countrySearch} onChange={setCountrySearch} placeholder="Search countries" />
           <div className={styles.list}>
             {shownCountries.length === 0 && <p className={styles.note}>No country matches that.</p>}
             {shownCountries.map((c) => (
@@ -286,9 +293,8 @@ export default function ScopePicker({
             : citiesBusy ? 'Loading'
             : draftCities.size ? `${draftCities.size} selected`
             : `All ${cities.length} cities`}
-          open={open === 'city'} onToggle={() => setOpen(open === 'city' ? null : 'city')}
+          open={isOpen('city')} onToggle={() => toggleSection('city')}
         >
-          <Search value={citySearch} onChange={setCitySearch} placeholder="Search cities" />
           <div className={styles.list}>
             {citiesBusy && <p className={styles.note}>Loading cities&hellip;</p>}
             {!citiesBusy && cityGroups.length === 0 && <p className={styles.note}>No city matches that.</p>}
@@ -318,9 +324,8 @@ export default function ScopePicker({
             : zonesBusy ? 'Loading'
             : draftZones.size ? `${draftZones.size} selected`
             : zones.length ? `All ${zones.length} areas` : 'None available'}
-          open={open === 'area'} onToggle={() => setOpen(open === 'area' ? null : 'area')}
+          open={isOpen('area')} onToggle={() => toggleSection('area')}
         >
-          <Search value={zoneSearch} onChange={setZoneSearch} placeholder="Search areas" />
           <div className={styles.list}>
             {zonesBusy && <p className={styles.note}>Loading areas&hellip;</p>}
             {!zonesBusy && zoneGroups.length === 0 && <p className={styles.note}>No areas available for these cities.</p>}
