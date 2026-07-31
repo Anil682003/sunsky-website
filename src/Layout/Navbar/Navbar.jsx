@@ -240,6 +240,12 @@ export default function Navbar() {
             const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
             if (w && h) setLogoAspect(w / h);
           }}
+          onError={(e) => {
+            if (e.currentTarget.src !== mainLogoFallback) {
+              e.currentTarget.src = mainLogoFallback;
+              setLogoAspect(null);
+            }
+          }}
         />
         {/* Hidden only for a wordmark logo, which already prints the name. */}
         {!isWordmark && (
