@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import styles from './Footer.module.css';
 import { useHomepageConfig, useFooterConfig } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
+import mainLogoFallback from '../../assets/main-logo.png';
 
 // Shown only until the footer CMS answers (or if it is unreachable), so the
 // footer never renders blank.
@@ -57,7 +58,12 @@ export default function Footer() {
         <div className={styles.brand}>
           <div className={styles.logo} onClick={() => navigate('/')}>
             {logoUrl ? (
-              <img src={logoUrl} alt={brandName} className={styles.logoImg} />
+              <img
+                src={logoUrl}
+                alt={brandName}
+                className={styles.logoImg}
+                onError={(e) => { if (e.currentTarget.src !== mainLogoFallback) e.currentTarget.src = mainLogoFallback; }}
+              />
             ) : (
               <span className={styles.logoText}>{brandName}</span>
             )}
