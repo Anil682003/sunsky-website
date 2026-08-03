@@ -287,7 +287,9 @@
 .imgClip img {
   width: 100%; height: 100%; object-fit: cover;
   transition: transform 0.6s var(--ease);
+  position: relative; z-index: 1;
 }
+.imgClip > div { position: absolute; inset: 0; z-index: 0; }
 .card:hover .imgClip img { transform: scale(1.06); }
 .imgClip::after {
   content: '';

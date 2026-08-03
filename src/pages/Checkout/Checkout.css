@@ -398,7 +398,8 @@
 .ck-aside { position:sticky; top:64px; animation:ckFadeUp .6s var(--ease) .22s both; }
 .ck-sum { background:#fff; border:1px solid var(--border-light); border-radius:var(--r-lg); overflow:hidden; box-shadow:var(--shadow-lg); }
 .ck-sum-img { position:relative; height:158px; overflow:hidden; }
-.ck-sum-img img { width:100%; height:100%; object-fit:cover; transition:transform 6s var(--ease); }
+.ck-sum-img img { width:100%; height:100%; object-fit:cover; transition:transform 6s var(--ease); position:relative; z-index:1; }
+.ck-sum-img .hotel-fallback-fill { position:absolute; inset:0; z-index:0; }
 .ck-sum:hover .ck-sum-img img { transform:scale(1.07); }
 .ck-sum-imgov { position:absolute; inset:0; background:linear-gradient(180deg,rgba(7,14,31,.05) 30%,rgba(7,14,31,.78)); }
 .ck-sum-imgtxt { position:absolute; left:16px; right:16px; bottom:13px; }

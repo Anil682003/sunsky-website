@@ -1269,12 +1269,13 @@ function CheckoutContent({ stripe, elements }) {
           <aside className="ck-aside">
             <div className="ck-sum">
               <div className="ck-sum-img">
-                {/* A hotel with no photo set now arrives here with no `img` at all (the detail
-                    page stopped substituting stock beaches) — draw the illustrated stand-in
-                    rather than an empty band under the hotel name. */}
+                {/* A hotel with no photo set arrives with no `img`, and a CDN error hides the
+                    <img>; either way the illustrated stand-in sits behind it, so the band is
+                    never empty under the hotel name. */}
                 {booking.img
                   ? <img src={booking.img} alt={booking.hotelName} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                  : <HotelPhotoFallback variant="tile" seed={booking.hotelCode || booking.hotelName} />}
+                  : null}
+                <div className="hotel-fallback-fill"><HotelPhotoFallback variant="tile" seed={booking.hotelCode || booking.hotelName} /></div>
                 <div className="ck-sum-imgov" />
                 <div className="ck-sum-imgtxt">
                   <div className="ck-sum-stars">{'★'.repeat(Math.min(booking.stars, 5))}</div>

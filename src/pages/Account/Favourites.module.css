@@ -99,7 +99,8 @@
 }
 
 .imgWrap { position: relative; height: 194px; flex-shrink: 0; background: var(--blue-light); overflow: hidden; }
-.imgWrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.7s var(--ease); }
+.imgWrap img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform 0.7s var(--ease); position: relative; z-index: 1; }
+.imgWrap > div { position: absolute; inset: 0; z-index: 0; }
 .card:hover .imgWrap img { transform: scale(1.07); }
 .imgWrap::after {
   content: ''; position: absolute; inset: 0; pointer-events: none;
