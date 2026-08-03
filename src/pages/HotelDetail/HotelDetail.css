@@ -41,6 +41,10 @@
 .sd .lb-overlay { position:fixed; inset:0; z-index:1200; background:rgba(5,9,20,.93); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); display:flex; align-items:center; justify-content:center; padding:84px 24px 120px; animation:sdFadeIn .25s ease both; }
 .sd .lb-stage { display:flex; align-items:center; justify-content:center; max-width:1120px; max-height:100%; }
 .sd .lb-img { max-width:100%; max-height:78vh; border-radius:14px; object-fit:contain; box-shadow:0 30px 90px rgba(0,0,0,.55); animation:sdLbPop .35s var(--ease) both; }
+.sd .lb-frame { display:flex; align-items:center; justify-content:center; max-width:100%; }
+/* the frame holds an <img> normally; a <div> means every CDN size failed and the
+   illustrated stand-in took its place — that one needs a box of its own. */
+.sd .lb-frame > div { width:min(940px,86vw); aspect-ratio:16/10; max-height:78vh; border-radius:14px; box-shadow:0 30px 90px rgba(0,0,0,.55); animation:sdLbPop .35s var(--ease) both; }
 .sd .lb-counter { position:fixed; top:30px; left:50%; transform:translateX(-50%); color:rgba(255,255,255,.85); font-family:'Sora',sans-serif; font-size:14px; font-weight:700; letter-spacing:.5px; }
 .sd .lb-close { position:fixed; top:22px; right:26px; width:46px; height:46px; border-radius:50%; background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.2); color:#fff; display:flex; align-items:center; justify-content:center; transition:all .25s var(--ease); }
 .sd .lb-close:hover { background:rgba(255,255,255,.22); transform:rotate(90deg); }
@@ -259,6 +263,19 @@
 .sd .ga { position:absolute; bottom:14px; right:14px; padding:11px 22px; border-radius:var(--r-full); background:rgba(255,255,255,.95); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); font-size:13px; font-weight:700; color:var(--dark); box-shadow:0 8px 24px rgba(7,14,31,.22); transition:all .3s var(--ease); z-index:4; display:flex; align-items:center; gap:8px; border:1px solid rgba(255,255,255,.6); animation:sdFadeUp .5s var(--ease) .55s both; }
 .sd .ga svg { color:var(--blue); }
 .sd .ga:hover { background:#fff; transform:translateY(-2px); box-shadow:0 14px 34px rgba(7,14,31,.3); }
+/* ONE PHOTO, OR NONE — the five-tile mosaic can't be composed, so the panel goes full-bleed
+   instead of leaving four empty boxes next to a lone image. */
+.sd-hero-photos-solo { grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
+.sd-hero-photos-solo .gi-hero { border-radius:24px; }
+/* the illustrated no-photo panel supplies its own light scene: drop the navy bedding,
+   the hover lift and the zoom affordance that belong to real, clickable photography. */
+.sd .gi-empty { grid-row:span 2; border-radius:24px; background:#E4EEFF; cursor:default; border-color:rgba(31,79,216,.14); }
+.sd .gi-empty::before, .sd .gi-empty::after { display:none; }
+.sd .gi-empty:hover { transform:none; box-shadow:0 12px 32px rgba(7,14,31,.35); }
+/* waiting on /hotels/bulk — hold the mosaic's shape rather than flashing the fallback */
+.sd .gi-skel { background:linear-gradient(100deg,#D7E6FF 18%,#EEF4FF 42%,#D7E6FF 66%); background-size:220% 100%; animation:sdTileIn .55s var(--ease) both, sdSkel 1.4s linear infinite; cursor:default; }
+.sd .gi-skel:hover { transform:none; box-shadow:0 12px 32px rgba(7,14,31,.35); }
+@keyframes sdSkel { from { background-position:130% 0; } to { background-position:-130% 0; } }
 .sd .grid { display:grid; grid-template-columns:1fr 360px; gap:32px; align-items:start; margin-top:calc(var(--overhang) + 28px); }
 
 /* BOOKING CARD */
@@ -727,6 +744,7 @@
 /* RESPONSIVE */
 @media (prefers-reduced-motion: reduce) {
   .sd-hero-left > *, .sd-hero-photos .gi, .sd .ga, .sd-hero-glow2, .sd .hhb.saved svg, .sd .px-ph, .sd .px-overlay { animation:none; }
+  .sd .gi-skel { animation:none; background:#E4EEFF; }
   .sd .gi img { transition:none; }
 }
 @media(max-width:1100px){
@@ -762,6 +780,8 @@
   .sd .gi-hero{grid-column:1 / -1;grid-row:auto;height:200px;border-radius:18px}
   .sd-hero-photos .gi:nth-child(3){border-radius:14px}
   .sd-hero-photos .gi:nth-child(n+4){display:none}
+  .sd-hero-photos-solo{grid-auto-rows:auto}
+  .sd-hero-photos-solo .gi-hero,.sd .gi-empty{height:246px;grid-column:1 / -1;grid-row:auto;border-radius:18px}
   .sd-hero-photos .ga{display:none}
   .sd .gi-more{display:flex}
   .sd-hero-rating{flex-wrap:wrap;gap:12px}
