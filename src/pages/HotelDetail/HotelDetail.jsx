@@ -346,7 +346,10 @@ function GuestRating({ review }) {
 // A mosaic tile. HotelImg already steps down through the smaller CDN sizes; when even the
 // last one fails the tile used to `display:none` itself and leave a navy gap in the hero —
 // now it swaps in the illustrated fallback, so the mosaic keeps its five-tile composition.
-function HeroPhoto({ src, seed, ...rest }) {
+// `onFail` tells the page which sources are dead, so a hotel whose WHOLE set 404s (they
+// exist: 18684 carries 31 rows and the CDN serves none of them) collapses to one panel
+// instead of five near-identical illustrations.
+function HeroPhoto({ src, seed, onFail, ...rest }) {
   // Derive-during-render (same pattern as HotelImg): a new src un-breaks the tile without
   // an effect and its extra render pass.
   const [broken, setBroken] = useState({ src, failed: false });
@@ -354,7 +357,7 @@ function HeroPhoto({ src, seed, ...rest }) {
   if (broken.src !== src) setBroken({ src, failed: false });
 
   if (!src || failed) return <HotelPhotoFallback variant="tile" seed={seed} />;
-  return <HotelImg src={src} onError={() => setBroken({ src, failed: true })} {...rest} />;
+  return <HotelImg src={src} onError={() => { setBroken({ src, failed: true }); onFail?.(src); }} {...rest} />;
 }
 
 export default function HotelDetail() {
@@ -444,12 +447,25 @@ export default function HotelDetail() {
   // fallback rather than someone else's hotel.
   const cardImg = typeof hotel?.img === 'string' && hotel.img.trim() ? hotel.img.trim() : null;
   const images = realImages && realImages.length ? realImages.slice(0, 30) : (cardImg ? [cardImg] : []);
+
+  // Sources the CDN refused, collected from the tiles. A record can list photos that do not
+  // exist at any size (18684: 31 rows, none served), and five separate "this one failed"
+  // illustrations read as a broken page — so when the whole mosaic is dead we treat the hotel
+  // as photo-less and show the single panel.
+  const [deadImages, setDeadImages] = useState(() => new Set());
+  const markDead = (src) => setDeadImages((prev) => (prev.has(src) ? prev : new Set(prev).add(src)));
+  const mosaic = images.slice(0, 5);
+  const mosaicDead = mosaic.length > 0 && mosaic.every((src) => deadImages.has(src));
+
   const photoCount = realImages?.length || images.length;
-  const hasPhotos = images.length > 0;
+  const hasPhotos = images.length > 0 && !mosaicDead;
   // Still waiting on /hotels/bulk and nothing to show meanwhile — skeleton, not fallback.
-  const photosLoading = !hasPhotos && !infoSettled;
+  const photosLoading = !hasPhotos && !mosaicDead && !infoSettled;
   // One photo (or none) can't fill a five-tile mosaic, so the panel goes full-bleed instead.
-  const soloPhoto = !photosLoading && images.length < 2;
+  const soloPhoto = !photosLoading && (!hasPhotos || images.length < 2);
+  // What checkout, favourites and the share card should use as the thumbnail — nothing at all
+  // when the set is dead, so they draw their own stand-in instead of a broken <img>.
+  const heroImage = hasPhotos ? images[0] : undefined;
 
   // Group the real photos by imageTypeCode (the admin dashboard's categories: General,
   // Rooms, Pool, Beach, Bar…). Demo/fallback images carry no type, so `photoCats` stays
@@ -504,7 +520,7 @@ export default function HotelDetail() {
     if (!was) rememberDestCode(hotelCode, destination);
     const req = was
       ? removeFavourite(hotelCode)
-      : addFavourite({ hotelCode, hotelName, destination: locLabel, stars, imageUrl: images[0], destinationCode: destination });
+      : addFavourite({ hotelCode, hotelName, destination: locLabel, stars, imageUrl: heroImage, destinationCode: destination });
     req
       .then(() => showToast(was ? 'Removed from favourites' : 'Saved to favourites', 'success'))
       .catch(() => {
@@ -921,7 +937,7 @@ export default function HotelDetail() {
       state: {
         booking: {
           hotelCode, hotelName, stars: Math.min(stars, 5), loc: locLabel,
-          img: images[0], board,
+          img: heroImage, board,
           nights, adults: pax, currency: ccy,
           ppPrice: useLive ? perPerson : (pd?.price ?? ppPrice), origPrice: useLive ? null : (pd?.orig ?? null),
           dateLabel,
@@ -1008,7 +1024,7 @@ export default function HotelDetail() {
                 text={shareText}
                 subject={`${hotelName} — ${locLabel}`}
                 meta={shareMeta}
-                image={images[0]}
+                image={heroImage}
                 buttonClassName="hhb"
                 buttonIcon={ICON.share}
                 onCopy={() => showToast('Link copied — ready to paste', 'success')}
@@ -1066,12 +1082,14 @@ export default function HotelDetail() {
               ) : (
                 <>
                   <div className="gi gi-hero" onClick={() => openLightbox(images, 0)}>
-                    <HeroPhoto src={images[0]} seed={hotelCode} size="bigger" alt={hotelName} fetchPriority="high" />
+                    <HeroPhoto src={images[0]} seed={hotelCode} onFail={markDead} size="bigger" alt={hotelName} fetchPriority="high" />
                     <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
                   </div>
                   {images.slice(1, 5).map((src, i) => (
                     <div className="gi" key={i} onClick={() => (i === 3 && photoCats && photoCount > 5 ? openExplorer('ALL') : openLightbox(images, i + 1))}>
-                      <HeroPhoto src={src} seed={`${hotelCode}-${i}`} size="bigger" alt={`${hotelName} ${i + 2}`} loading="lazy" />
+                      {/* eager, not lazy: these four sit inside the hero, so lazy only delayed
+                          the moment a dead source could report itself and collapse the mosaic */}
+                      <HeroPhoto src={src} seed={`${hotelCode}-${i}`} onFail={markDead} size="bigger" alt={`${hotelName} ${i + 2}`} />
                       {i === 3 && photoCount > 5 && <span className="gi-more">+{photoCount - 5}</span>}
                       <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
                     </div>
