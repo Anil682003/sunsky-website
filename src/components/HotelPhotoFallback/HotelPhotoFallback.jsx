@@ -42,6 +42,7 @@ export default function HotelPhotoFallback({
   location = '',
   seed = '',
   variant = 'hero',
+  badge = 'Photos on the way',
   className = '',
 }) {
   const uid = useId().replace(/:/g, '');
@@ -209,9 +210,12 @@ export default function HotelPhotoFallback({
         <span className={styles.tileMark}><Camera /></span>
       ) : (
         <div className={styles.overlay}>
+          <span className={styles.badge}><Camera />{badge}</span>
           {name && <p className={styles.name}>{name}</p>}
           {location && <p className={styles.loc}><Pin />{location}</p>}
-          <p className={styles.note}>No images available</p>
+          <p className={styles.note}>
+            This property hasn’t sent its photo set yet. Rooms, board options and live prices below are real — you can book today.
+          </p>
         </div>
       )}
     </div>
