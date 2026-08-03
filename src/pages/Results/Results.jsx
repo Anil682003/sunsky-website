@@ -5,6 +5,7 @@ import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries } from '../../api/filters';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
+import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import ScopePicker from '../../components/ScopePicker/ScopePicker';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
@@ -126,7 +127,6 @@ const EMPTY_FILTERS = {
   transport: 'hotel_only',
 };
 
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80';
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 // Display symbol for the headline price only — fine print keeps the ISO code.
 const CCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', TRY: '₺' };
@@ -770,7 +770,7 @@ export default function Results() {
       currency:     c.currency,
       nightlyBreakdown: c.nightlyBreakdown || [],
       badge:        null,
-      img:          FALLBACK_IMG,
+      img:          null,
       loc:          label,
     };
   };
@@ -1739,7 +1739,7 @@ export default function Results() {
                 // Star (hotel) vs key (apartment) rating. The bulk info record carries the kind;
                 // fall back to a plain star rating from the star count when info isn't in yet.
                 const dispRating = info?.rating || (dispStars > 0 ? { kind: 'star', value: dispStars } : null);
-                const dispImg   = info ? bestImg(info.images, FALLBACK_IMG) : h.img;
+                const dispImg   = info ? bestImg(info.images, null) : h.img;
                 const infoReady = !!info;
                 // The hotel's OWN destination, from its info record — a country or multi-city
                 // search must not deep-link every card to the first destination in the scope.
@@ -1766,7 +1766,10 @@ export default function Results() {
                 <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
                   <div className={styles.rcImg}>
                     {infoReady
-                      ? <HotelImg key={curImg} src={curImg} size="bigger" alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
+                      ? (<>
+                          {curImg && <HotelImg key={curImg} src={curImg} size="bigger" alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
+                          <div className={styles.rcImgFallback}><HotelPhotoFallback variant="tile" seed={h.hotelCode} /></div>
+                        </>)
                       : <div className={styles.rcImgSkel} />}
                     <div className={styles.rcImgOverlay} />
                     {infoReady && gallery.length > 0 && (
@@ -2007,13 +2010,11 @@ export default function Results() {
 
             <HotelImg
               key={lightbox.index}
-              // Full-screen inspection → request `original` (2048x1365); HotelImg steps down if
-              // a given image lacks it, so the lightbox always opens something.
               src={lightbox.images[lightbox.index]}
               size="original"
               alt={`${lightbox.name} — photo ${lightbox.index + 1}`}
               className={styles.lbImg}
-              onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }}
+              onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
 
             {lightbox.images.length > 1 && (
@@ -2040,7 +2041,7 @@ export default function Results() {
                   aria-label={`Go to photo ${idx + 1}`}
                   aria-current={idx === lightbox.index}
                 >
-                  <img src={src} alt="" loading="lazy" onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }} />
+                  <img src={src} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
                 </button>
               ))}
             </div>

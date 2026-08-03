@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import { hotelDetailHref } from '../../../utils/searchDefaults';
 import { formatReview } from '../../../utils/reviewBadge';
+import HotelPhotoFallback from '../../../components/HotelPhotoFallback/HotelPhotoFallback';
 import styles from './Hotels.module.css';
 
 // The CMS-picked cards carry the hotel's real identity (hotelCode + destinationCode), so each
@@ -147,7 +148,10 @@ export default function Hotels({ cms }) {
 
                   <div className={styles.imgWrap}>
                     <div className={styles.imgClip}>
-                      <img src={h.img} alt={h.name} loading="lazy" />
+                      {h.img
+                        ? <img src={h.img} alt={h.name} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                        : null}
+                      <HotelPhotoFallback variant="tile" seed={h.hotelCode || h.name} />
                     </div>
                     <button type="button" className={styles.fav} aria-label={`Save ${h.name} to favourites`}><Heart /></button>
                     {h.score && (

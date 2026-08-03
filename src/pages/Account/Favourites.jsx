@@ -3,9 +3,8 @@ import { Link } from 'react-router-dom';
 import { useFavourites, removeFavourite } from '../../api';
 import { recallDestCode } from '../../utils/favDest';
 import { useToast } from '../../context/ToastContext';
+import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import styles from './Favourites.module.css';
-
-const FALLBACK_IMG = 'https://images.unsplash.com/photo-1566073771259-6a8506099945?auto=format&fit=crop&w=600&q=60';
 
 // Opening a saved hotel starts a fresh default search: check-in 2 days out, 7 nights,
 // 2 adults — the params HotelDetail needs for its live price calendar.
@@ -136,12 +135,10 @@ export default function Favourites() {
               {/* Collection index — 01, 02, … */}
               <span className={styles.num} aria-hidden="true">{String(i + 1).padStart(2, '0')}</span>
               <div className={styles.imgWrap}>
-                <img
-                  src={f.imageUrl || FALLBACK_IMG}
-                  alt={f.hotelName || 'Hotel'}
-                  loading="lazy"
-                  onError={(e) => { e.currentTarget.src = FALLBACK_IMG; }}
-                />
+                {f.imageUrl
+                  ? <img src={f.imageUrl} alt={f.hotelName || 'Hotel'} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  : null}
+                <HotelPhotoFallback variant="tile" seed={f.hotelCode} />
                 <button
                   type="button"
                   className={styles.heart}

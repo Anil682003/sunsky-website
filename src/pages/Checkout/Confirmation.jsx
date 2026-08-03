@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useToast } from '../../context/ToastContext';
+import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import './Confirmation.css';
 
 /* ── tiny SVG helper (same pattern as Checkout) ── */
@@ -257,7 +258,10 @@ export default function Confirmation({
         <div className="ckc-ticket">
           <div className="ckc-ticket-main">
             <div className="ckc-ticket-img">
-              <img src={booking.img} alt={booking.hotelName} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+              {booking.img
+                ? <img src={booking.img} alt={booking.hotelName} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                : null}
+              <div className="hotel-fallback-fill"><HotelPhotoFallback variant="tile" seed={booking.hotelCode || booking.hotelName} /></div>
               <div className="ckc-ticket-imgov" />
               <div className="ckc-ticket-imgtxt">
                 <span className="ckc-ticket-stars">{'★'.repeat(Math.min(booking.stars, 5))}</span>
