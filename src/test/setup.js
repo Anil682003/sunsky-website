@@ -22,6 +22,16 @@ globalThis.__IO__ = MockIntersectionObserver;
 
 Element.prototype.scrollIntoView = vi.fn();
 
+// Also absent from jsdom. ShareSheet reads it during render (not in an effect), so any test
+// that mounts a page containing it throws before a single assertion runs. Reports desktop.
+if (typeof window !== 'undefined' && !window.matchMedia) {
+  window.matchMedia = (query) => ({
+    matches: false, media: query, onchange: null,
+    addEventListener: () => {}, removeEventListener: () => {},
+    addListener: () => {}, removeListener: () => {}, dispatchEvent: () => false,
+  });
+}
+
 afterEach(() => {
   cleanup();
   MockIntersectionObserver.instances = [];
