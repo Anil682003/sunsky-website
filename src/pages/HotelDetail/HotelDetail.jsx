@@ -7,7 +7,12 @@ import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
+import { rateDetails } from '../../utils/rateDetails';
+import {
+  splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS,
+} from '../../utils/flightFilters';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
+import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
 import { ratingLabel } from '../../utils/rating';
@@ -40,6 +45,8 @@ const fmtTime = (s) => {
 };
 const fmtDur = (min) => { const m = Number(min); if (!m || m <= 0) return ''; return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`; };
 const fmtDateLong = (s) => { if (!s) return ''; const d = new Date(s); if (isNaN(d.getTime())) return ''; return `${WK[d.getDay()]} ${d.getDate()} ${MO[d.getMonth()]}. ${d.getFullYear()}`; };
+/** "1 Sep" — short enough to sit inside a chip. Takes a Date (cancellation deadlines are parsed). */
+const fmtDay = (d) => (d instanceof Date && !isNaN(d.getTime())) ? `${d.getDate()} ${MO[d.getMonth()]}` : '';
 
 /* ── tiny SVG helper ── */
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -63,10 +70,26 @@ const ICON = {
   noTransfer: <S><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /></S>,
   clock: <S><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></S>,
   arrow: <S sw={2.5}><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></S>,
+  arrowBack: <S><path d="M9 14l-4-4 4-4" /><path d="M5 10h11a4 4 0 010 8h-1" /></S>,
   warn:  <S><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></S>,
   info:  <S><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></S>,
   tag:   <S><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" /><line x1="7" y1="7" x2="7.01" y2="7" /></S>,
+  bag:   <S><path d="M6 9a6 6 0 0112 0v9a2 2 0 01-2 2H8a2 2 0 01-2-2z" /><path d="M9 9V6a3 3 0 016 0v3" /><line x1="10" y1="13" x2="14" y2="13" /></S>,
+  checkedBag: <S><rect x="5" y="7" width="14" height="13" rx="2" /><path d="M9 7V4h6v3" /><line x1="10" y1="11" x2="10" y2="16" /><line x1="14" y1="11" x2="14" y2="16" /></S>,
+  seat:  <S><path d="M5 4v9a3 3 0 003 3h6" /><path d="M5 16l-1 4M14 16l1 4" /><path d="M19 20a2 2 0 01-2-2v-2a3 3 0 00-3-3" /></S>,
+  lock:  <S><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></S>,
+  spark: <S><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4-6.2-4.6-6.2 4.6 2.4-7.4L2 9.4h7.6z" /></S>,
 };
+
+// The live availability response carries no baggage/service fields, but these are bundled
+// Airtuerk package fares (the card's "Including" fare type) — checked baggage, a cabin bag,
+// a meal and a seat are the standard inclusion for them. Shown on the card as fare inclusions.
+const FLIGHT_INCLUSIONS = [
+  { icon: ICON.bag, label: 'Cabin bag' },
+  { icon: ICON.checkedBag, label: 'Checked baggage' },
+  { icon: ICON.board, label: 'Meal on board' },
+  { icon: ICON.seat, label: 'Seat included' },
+];
 
 const TAB_ICON = {
   Prices: <S sw={2}><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z" /><path d="M6 9.01V9" /></S>,
@@ -98,21 +121,20 @@ const PRICE_DAYS = [
 ];
 const PRICE_MIN = Math.min(...PRICE_DAYS.map((p) => p.price));
 const PRICE_MAX = Math.max(...PRICE_DAYS.map((p) => p.price));
+// Demo flights shown before a live search (direct visits). Leg-shaped like the live data
+// so both flow through the same card. Times are local-airport ISO (no tz) — see fmtTime.
+const leg = (from, to, departure, arrival, airline, flightNumber, duration) =>
+  ({ from, to, departure, arrival, airline, flightNumber, duration });
 const FLIGHTS = [
-  { outDate: 'Fri 10 Apr. 2026', outAirline: 'ARKEFLY', outDep: '07:00', outArr: '11:50', outDur: '3h 50m', outFrom: 'Amsterdam (Schiphol)', outTo: 'Antalya Intl', retDate: 'Wed 15 Apr. 2026', retAirline: 'TRANSAVIA', retDep: '12:45', retArr: '16:00', retDur: '4h 15m', retFrom: 'Antalya Intl', retTo: 'Amsterdam (Schiphol)' },
-  { outDate: 'Fri 10 Apr. 2026', outAirline: 'ARKEFLY', outDep: '07:00', outArr: '11:50', outDur: '3h 50m', outFrom: 'Amsterdam (Schiphol)', outTo: 'Antalya Intl', retDate: 'Wed 15 Apr. 2026', retAirline: 'ARKEFLY', retDep: '22:45', retArr: '02:10', retDur: '4h 25m', retFrom: 'Antalya Intl', retTo: 'Amsterdam (Schiphol)', warning: 'Note: you arrive on Thursday.' },
+  { outLegs: [leg('BRU', 'AYT', '2026-04-10T07:00:00', '2026-04-10T11:50:00', 'TB', '1742', 230)],
+    retLegs: [leg('AYT', 'BRU', '2026-04-15T12:45:00', '2026-04-15T16:00:00', 'HV', '6035', 255)] },
+  { outLegs: [leg('BRU', 'AYT', '2026-04-10T07:00:00', '2026-04-10T11:50:00', 'TB', '1742', 230)],
+    retLegs: [leg('AYT', 'BRU', '2026-04-15T22:45:00', '2026-04-16T02:10:00', 'TB', '1743', 265)],
+    warning: 'Note: you arrive on Thursday.' },
 ];
-const MODAL_FLIGHTS = [
-  { outDate: 'Fri 01 May 2026', outAirline: 'ARKEFLY', outDep: '07:00', outArr: '11:50', outDur: '3h 50m', outFrom: 'Amsterdam (Schiphol)', outTo: 'Antalya Intl', retDate: 'Wed 06 May 2026', retAirline: 'TRANSAVIA', retDep: '12:45', retArr: '16:00', retDur: '4h 15m', retFrom: 'Antalya Intl', retTo: 'Amsterdam (Schiphol)' },
-  { outDate: 'Fri 01 May 2026', outAirline: 'ARKEFLY', outDep: '07:00', outArr: '11:50', outDur: '3h 50m', outFrom: 'Amsterdam (Schiphol)', outTo: 'Antalya Intl', retDate: 'Wed 06 May 2026', retAirline: 'ARKEFLY', retDep: '22:45', retArr: '02:10', retDur: '4h 25m', retFrom: 'Antalya Intl', retTo: 'Amsterdam (Schiphol)', warning: 'Note: you arrive on Thursday.' },
-  { outDate: 'Fri 01 May 2026', outAirline: 'ARKEFLY', outDep: '07:00', outArr: '11:50', outDur: '3h 50m', outFrom: 'Amsterdam (Schiphol)', outTo: 'Antalya Intl', retDate: 'Wed 06 May 2026', retAirline: 'ARKEFLY', retDep: '22:00', retArr: '01:25', retDur: '4h 25m', retFrom: 'Antalya Intl', retTo: 'Amsterdam (Schiphol)' },
-  { outDate: 'Fri 01 May 2026', outAirline: 'TRANSAVIA', outDep: '14:30', outArr: '18:20', outDur: '3h 50m', outFrom: 'Amsterdam (Schiphol)', outTo: 'Antalya Intl', retDate: 'Wed 06 May 2026', retAirline: 'TRANSAVIA', retDep: '12:45', retArr: '16:00', retDur: '4h 15m', retFrom: 'Antalya Intl', retTo: 'Amsterdam (Schiphol)' },
-];
-const SIDEBAR_FILTERS = [
-  { title: 'Departure time outbound', opts: ['Early morning 00:00 - 06:59', 'Morning 07:00 - 11:59', 'Afternoon 12:00 - 17:59', 'Evening 18:00 - 23:59'] },
-  { title: 'Departure time return', opts: ['Early morning 00:00 - 06:59', 'Morning 07:00 - 11:59', 'Afternoon 12:00 - 17:59', 'Evening 18:00 - 23:59'] },
-  { title: 'Stopover', opts: ['Direct flights'] },
-];
+// MODAL_FLIGHTS / SIDEBAR_FILTERS removed: the modal now renders the live result set and
+// builds its filter groups from `flightFacets`, so a hardcoded flight list and a fixed list
+// of filter options can no longer disagree with what was actually searched.
 const ALT_AIRPORTS = [
   { name: 'Weeze', extra: '+€ 6 p.p.' }, { name: 'Charleroi', extra: '+€ 7 p.p.' },
   { name: 'Düsseldorf', extra: '+€ 23 p.p.' }, { name: 'Brussels', extra: '+€ 33 p.p.' },
@@ -206,81 +228,117 @@ const PHOTO_TYPE_ICONS = {
   CON:  <S><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 21V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v16" /></S>,
 };
 
-/* ── Flight card sub-component ── */
-function FlightCard({ f, selected, onSelect }) {
-  const [expanded, setExpanded] = useState(false);
+/* ── Flight card sub-component — a boarding-pass row per direction ── */
+const layoverMin = (a, b) => {
+  if (!a?.arrival || !b?.departure) return null;
+  const da = new Date(a.arrival), db = new Date(b.departure);
+  if (isNaN(da) || isNaN(db)) return null;
+  const m = Math.round((db - da) / 60000);
+  return m > 0 ? m : null;
+};
+const stopsLabel = (n) => (n <= 0 ? 'Direct' : `${n} stop${n > 1 ? 's' : ''}`);
 
-  const Leg = ({ dir, date, airline, dep, arr, dur, from, to, stopsLabel }) => (
-    <div className="flight-leg">
-      <div className="flight-leg-dir">{dir}</div>
-      <div className="flight-leg-date">{date}</div>
-      <div className="flight-airline">{airline}</div>
-      <div className="flight-times">
-        <div className="flight-time">{dep}</div>
-        <div className="flight-path">
-          <div className="flight-duration">{dur}</div>
-          <div className="flight-line" />
-          <div className="flight-direct">{stopsLabel || 'Direct flight'}</div>
-        </div>
-        <div className="flight-time">{arr}</div>
+// One direction, summarised across its legs: airline of the first leg, endpoints, total
+// gate-to-gate time and stop count. The middle "via" line names the layover airports.
+function Journey({ dir, legs }) {
+  if (!legs?.length) return null;
+  const first = legs[0], last = legs[legs.length - 1];
+  const durMin = legs.reduce((s, l) => s + (Number(l.duration) || 0), 0);
+  const stops = legs.length - 1;
+  const vias = legs.slice(1).map((l) => airportName(l.from));
+  return (
+    <div className="bp-journey">
+      <div className="bp-jhead">
+        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
+        <span className="bp-jdate">{fmtDateLong(first.departure)}</span>
+        <span className="bp-airline">
+          <span className="bp-airmark" aria-hidden="true">{airlineName(first.airline).charAt(0)}</span>
+          <span className="bp-airname">{airlineName(first.airline)}</span>
+          <span className="bp-flno">{flightNumber(first)}</span>
+        </span>
       </div>
-      <div className="flight-airports"><span className="flight-airport">{from}</span><span className="flight-airport">{to}</span></div>
+      <div className="bp-route">
+        <div className="bp-end">
+          <div className="bp-time">{fmtTime(first.departure)}</div>
+          <div className="bp-city" title={airportName(first.from)}>{airportName(first.from)}</div>
+          <div className="bp-code">{first.from}</div>
+        </div>
+        <div className="bp-mid">
+          <div className="bp-dur">{fmtDur(durMin)}</div>
+          <div className="bp-track"><span className="bp-plane">{ICON.plane}</span></div>
+          <div className={`bp-stops${stops ? ' has' : ''}`}>{stopsLabel(stops)}</div>
+        </div>
+        <div className="bp-end bp-end-r">
+          <div className="bp-time">{fmtTime(last.arrival)}</div>
+          <div className="bp-city" title={airportName(last.to)}>{airportName(last.to)}</div>
+          <div className="bp-code">{last.to}</div>
+        </div>
+      </div>
+      {stops > 0 && <div className="bp-via">{ICON.clock} Via {vias.join(', ')}</div>}
     </div>
   );
+}
 
-  const layoverMin = (a, b) => {
-    if (!a?.arrival || !b?.departure) return null;
-    const da = new Date(a.arrival), db = new Date(b.departure);
-    if (isNaN(da) || isNaN(db)) return null;
-    const m = Math.round((db - da) / 60000);
-    return m > 0 ? m : null;
-  };
-
-  const renderTimeline = (legs, label, date) => {
-    if (!legs?.length) return null;
-    return (
-      <div className="fd-journey">
-        <div className="fd-dir"><span className="fd-dir-label">{label}</span><span className="fd-dir-date">{date}</span></div>
-        {legs.map((leg, i) => (
-          <div key={i} className="fd-seg-wrap">
-            {i > 0 && (() => {
-              const lay = layoverMin(legs[i - 1], leg);
-              return lay ? <div className="fd-layover"><span className="fd-lay-icon">{ICON.clock}</span> {fmtDur(lay)} layover in {leg.from}</div> : null;
-            })()}
-            <div className="fd-segment">
-              <div className="fd-seg-timeline">
-                <div className="fd-dot" />
-                <div className="fd-line" />
-                <div className="fd-dot" />
-              </div>
-              <div className="fd-seg-body">
-                <div className="fd-seg-row"><span className="fd-seg-airport">{leg.from}</span><span className="fd-seg-time">{fmtTime(leg.departure)}</span></div>
-                <div className="fd-seg-meta"><span className="fd-seg-air">{leg.airline} {leg.flightNumber}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
-                <div className="fd-seg-row"><span className="fd-seg-airport">{leg.to}</span><span className="fd-seg-time">{fmtTime(leg.arrival)}</span></div>
-              </div>
+// The per-segment timeline shown when a card is expanded (airline, flight number, each
+// leg's own gate times, and the layover between legs).
+function JourneyTimeline({ label, legs }) {
+  if (!legs?.length) return null;
+  return (
+    <div className="fd-journey">
+      <div className="fd-dir"><span className="fd-dir-label">{label}</span><span className="fd-dir-date">{fmtDateLong(legs[0].departure)}</span></div>
+      {legs.map((leg, i) => (
+        <div key={i} className="fd-seg-wrap">
+          {i > 0 && (() => {
+            const lay = layoverMin(legs[i - 1], leg);
+            return lay ? <div className="fd-layover">{ICON.clock} {fmtDur(lay)} layover in {airportName(leg.from)}</div> : null;
+          })()}
+          <div className="fd-segment">
+            <div className="fd-seg-timeline"><div className="fd-dot" /><div className="fd-line" /><div className="fd-dot" /></div>
+            <div className="fd-seg-body">
+              <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.from)} <em>{leg.from}</em></span><span className="fd-seg-time">{fmtTime(leg.departure)}</span></div>
+              <div className="fd-seg-meta"><span className="fd-seg-air"><span className="fd-seg-mark">{airlineName(leg.airline).charAt(0)}</span>{airlineName(leg.airline)} · {flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
+              <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.to)} <em>{leg.to}</em></span><span className="fd-seg-time">{fmtTime(leg.arrival)}</span></div>
             </div>
           </div>
-        ))}
-      </div>
-    );
-  };
+        </div>
+      ))}
+    </div>
+  );
+}
 
-  const paxLabel = (t) => t === 'ADT' ? 'Adult' : t === 'CHD' ? 'Child' : 'Infant';
-  const hasDetails = f.outLegs?.length > 0 || f.fareBreakdown?.length > 0;
+function FlightCard({ f, selected, onSelect }) {
+  const [expanded, setExpanded] = useState(false);
+  const out = f.outLegs || [];
+  const ret = f.retLegs || [];
+  const hasDetails = out.length > 0;
 
   return (
     <div className={`flight-card${selected ? ' selected' : ''}${expanded ? ' expanded' : ''}`}>
-      <div className="flight-row">
-        <Leg dir="Outbound" date={f.outDate} airline={f.outAirline} dep={f.outDep} arr={f.outArr} dur={f.outDur} from={f.outFrom} to={f.outTo} stopsLabel={f.outStops} />
-        {(f.retDep || f.retDate) && <Leg dir="Return" date={f.retDate} airline={f.retAirline} dep={f.retDep} arr={f.retArr} dur={f.retDur} from={f.retFrom} to={f.retTo} stopsLabel={f.retStops} />}
+      <div className="bp-body">
+        <Journey dir="Outbound" legs={out} />
+        {ret.length > 0 && (<><div className="bp-tear" /><Journey dir="Return" legs={ret} /></>)}
       </div>
+
+      <div className="bp-incl" aria-label="Included in this fare">
+        {FLIGHT_INCLUSIONS.map((x) => (
+          <span key={x.label} className="bp-chip">{x.icon}{x.label}</span>
+        ))}
+      </div>
+
       <div className="flight-bottom">
-        {hasDetails
-          ? <button className="flight-details-btn" onClick={(e) => { e.stopPropagation(); setExpanded((x) => !x); }}>{expanded ? 'Hide details' : 'View details'}</button>
-          : <button className="flight-details-btn">View details</button>}
-        <div style={{ display: 'flex', gap: 10, alignItems: 'center' }}>
-          {f.price != null && <b className="live-price">€{f.price}</b>}
-          <span className="flight-incl">{ICON.check} Including</span>
+        <button className="flight-details-btn" onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }} disabled={!hasDetails}>
+          {expanded ? 'Hide flight details' : 'View flight details'}
+        </button>
+        <div className="bp-buy">
+          <div className="bp-price">
+            {f.price != null && <b className="live-price">€{f.price.toLocaleString('en-GB')}</b>}
+            {/* What this fare costs ON TOP of the cheapest one on offer. Absolute prices are
+                hard to rank at a glance when every card reads "€1,969"; the gap is the number
+                the traveller is actually deciding on. `delta === 0` is the cheapest itself. */}
+            {f.delta === 0 && <span className="bp-delta bp-delta-best">{ICON.spark} Lowest fare</span>}
+            {f.delta > 0 && <span className="bp-delta">+€{Math.round(f.delta).toLocaleString('en-GB')}</span>}
+          </div>
+          <span className="flight-incl">{ICON.check} All-in fare</span>
           {selected
             ? <div className="flight-selected-badge">{ICON.check} Selected</div>
             : <button className="flight-select-btn" onClick={onSelect}>Select</button>}
@@ -291,26 +349,9 @@ function FlightCard({ f, selected, onSelect }) {
       {expanded && hasDetails && (
         <div className="fd-panel">
           <div className="fd-journeys">
-            {renderTimeline(f.outLegs, 'Outbound', f.outDate)}
-            {renderTimeline(f.retLegs, 'Return', f.retDate)}
+            <JourneyTimeline label="Outbound" legs={out} />
+            <JourneyTimeline label="Return" legs={ret} />
           </div>
-          {f.fareBreakdown?.length > 0 && (
-            <div className="fd-fare">
-              <div className="fd-fare-title">{ICON.tag} Fare breakdown</div>
-              {f.fareBreakdown.map((fb, i) => (
-                <div key={i} className="fd-fare-row">
-                  <span className="fd-fare-pax">{fb.quantity} × {paxLabel(fb.paxType)}</span>
-                  <span className="fd-fare-calc">€{Number(fb.basePrice).toFixed(2)} + €{Number(fb.tax).toFixed(2)} tax</span>
-                  <span className="fd-fare-pp">€{Number(fb.totalPerPax).toFixed(2)} /pp</span>
-                  <span className="fd-fare-sub">€{Number(fb.subtotal).toFixed(2)}</span>
-                </div>
-              ))}
-              <div className="fd-fare-total">
-                <span>Total</span>
-                <span>€{Number(f.rawPrice || f.price || 0).toFixed(2)}</span>
-              </div>
-            </div>
-          )}
         </div>
       )}
     </div>
@@ -532,7 +573,8 @@ export default function HotelDetail() {
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [liveChecked, setLiveChecked] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState(0);
-  const [modalFlight, setModalFlight] = useState(1);
+  // The modal selects into `selectedFlight` directly — it used to hold its own separate
+  // index, so picking a flight there changed nothing on the page behind it.
   const [modalOpen, setModalOpen] = useState(false);
   // Lightbox now carries its OWN photo list, so it can show either the full set
   // (mosaic tiles) or one category from the explorer: { imgs, i, label|null }.
@@ -540,7 +582,6 @@ export default function HotelDetail() {
   // Full-screen categorized photo explorer (only offered when photoCats exists).
   const [explorer, setExplorer] = useState(false);
   const [explorerCat, setExplorerCat] = useState('ALL');
-  const [sidebarChecked, setSidebarChecked] = useState({});
   const [showAllFac, setShowAllFac] = useState(false);
   const [reviewsSeen, setReviewsSeen] = useState(false);
   // selected room index per stay; meal index per `${stay}-${room}`
@@ -619,7 +660,6 @@ export default function HotelDetail() {
   }, []);
 
   const toggleExpand = (id) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
-  const toggleSidebar = (key) => setSidebarChecked((p) => ({ ...p, [key]: !p[key] }));
 
   // ── 7-day price calendar ──
   useEffect(() => {
@@ -698,11 +738,57 @@ export default function HotelDetail() {
   // `liveRooms.rooms` array by index, so the booking hand-off keeps the exact rateKey.
   const roomGroups = useMemo(() => groupRoomsByBoard(liveRooms?.rooms), [liveRooms]);
   const nBoards = useMemo(() => boardCount(roomGroups), [roomGroups]);
+
+  // Per-rate facts for the cards: board wording, occupancy, per-night / per-guest splits and
+  // the real cancellation position. Keyed by the rate's index in the flat `rooms` array —
+  // the same handle selection and the booking hand-off already use.
+  const rateInfo = useMemo(() => {
+    const out = new Map();
+    for (const g of roomGroups) {
+      for (const b of g.boards) {
+        out.set(b.index, rateDetails(b, { nights, adults: Number(sAdults) || 2, children: Number(sChildren) || 0 }));
+      }
+    }
+    return out;
+  }, [roomGroups, nights, sAdults, sChildren]);
+
+  // The single cheapest bookable rate in the hotel — earns the "Lowest price" flag. Groups are
+  // already cheapest-first, so this is the first board of the first group.
+  const cheapestIndex = roomGroups[0]?.cheapest?.index ?? null;
+
   // Big resorts return 15+ room types; show a readable set and let the traveller open the rest.
   const [showAllRooms, setShowAllRooms] = useState(false);
   const ROOMS_COLLAPSED = 6;
   const visibleGroups = showAllRooms ? roomGroups : roomGroups.slice(0, ROOMS_COLLAPSED);
   const liveFlight = liveFlights?.flights?.length ? liveFlights.flights[selectedFlight] : null;
+
+  // ── Flight modal: real filtering and sorting over the LIVE result set ──────────────
+  // Every flight keeps `idx`, its position in `liveFlights.flights`, because that is what
+  // `selectedFlight` addresses and what the booking hand-off reads for `flightKeys`.
+  // Filtering and sorting reorder the view only — never the array underneath the selection.
+  // Memoised so its identity is stable across renders — otherwise the `|| []` minted a fresh
+  // array every render, and the `[allFlights]` effect below (clearFlightFilters) fired on
+  // every render, each setState re-rendering: an infinite "maximum update depth" loop.
+  const allFlights = useMemo(() => liveFlights?.flights || [], [liveFlights]);
+  const cheapestFare = allFlights.length ? Math.min(...allFlights.map((f) => f.totalPrice || Infinity)) : null;
+  const facets = useMemo(() => flightFacets(allFlights), [allFlights]);
+  const [fSort, setFSort] = useState('price');
+  const [fOut, setFOut] = useState([]);
+  const [fRet, setFRet] = useState([]);
+  const [fDirect, setFDirect] = useState(false);
+
+  const modalFlights = useMemo(() => {
+    const tagged = allFlights.map((f, idx) => ({ ...f, idx }));
+    return sortFlights(applyFlightFilters(tagged, { outbound: fOut, return: fRet, direct: fDirect }), fSort);
+  }, [allFlights, fOut, fRet, fDirect, fSort]);
+
+  const activeFilterCount = fOut.length + fRet.length + (fDirect ? 1 : 0);
+  const clearFlightFilters = () => { setFOut([]); setFRet([]); setFDirect(false); };
+  const toggleBand = (setter) => (id) =>
+    setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  // A filter set that survives one search rarely fits the next — reset when results change.
+  useEffect(() => { clearFlightFilters(); }, [allFlights]);
+
   const liveTransfer = (selectedTransfer >= 0 && liveTransfers?.services?.length)
     ? liveTransfers.services[selectedTransfer] : null;
   const transferPrice = liveTransfer ? Math.round(liveTransfer.price || 0) : 0;
@@ -738,13 +824,6 @@ export default function HotelDetail() {
       console.log('[Detail] flight-availability response', data?.results);
       const raw = data?.results?.airtuerk?.flights || [];
       const origin = DEFAULT_ORIGIN.toUpperCase();
-      const outbound = [], inbound = [];
-      raw.forEach((f) => {
-        const legs = f.legs || [];
-        if (!legs.length) return;
-        if ((legs[0].from || '').toUpperCase() === origin) outbound.push(f);
-        else if ((legs[legs.length - 1].to || '').toUpperCase() === origin) inbound.push(f);
-      });
       // The API's bookable keys are `flightKey`/`flightKeys` — they are REQUIRED
       // for live price verification and the Airtuerk reservation. (The old code
       // read a non-existent `offerKey` field, so packages booked from this page
@@ -752,28 +831,62 @@ export default function HotelDetail() {
       const keysOf = (x) => (Array.isArray(x?.flightKeys) && x.flightKeys.length
         ? x.flightKeys
         : [x?.flightKey].filter(Boolean));
-      let flights = [];
-      if (outbound.length && inbound.length) {
-        for (const ob of outbound) {
-          for (const ib of inbound) {
+
+      // Each round-trip flight already carries its own direction split in
+      // `outbound`/`inbound`. Read those directly — the previous code re-derived
+      // the split from the flat `legs` array (out + return concatenated) and, since
+      // every round-trip's first leg departs the origin, filed EVERY flight as an
+      // outbound with none inbound. The card then took legs[0].from → legs[last].to,
+      // i.e. BRU → …→ BRU, printing "BRU → BRU · 1 stop" for a direct return trip.
+      let flights = raw
+        .map((f) => {
+          let outLegs = f.outbound?.legs?.length ? f.outbound.legs : (f.legs || []);
+          let retLegs = f.inbound?.legs?.length ? f.inbound.legs : [];
+          if (!outLegs.length) return null;
+          // Airtuerk marks the split on SOME round trips and not others. When it doesn't,
+          // every leg arrives in one array — the card then reads legs[0].from → legs[last].to
+          // and prints "BRU → BRU · 1 stop" with the return half missing, and the return-time
+          // filter has no departure to read. Recover the split from the stay-length gap.
+          if (!retLegs.length) {
+            const split = splitRoundTrip(outLegs, origin);
+            outLegs = split.outLegs; retLegs = split.retLegs;
+          }
+          return {
+            totalPrice: f.totalPrice || 0,
+            currency: f.currency || 'EUR',
+            outLegs, retLegs,
+            stops: Math.max(outLegs.length - 1, retLegs.length - 1, 0),
+            fareBreakdown: f.fareBreakdown || [],
+            flightKeys: keysOf(f),
+          };
+        })
+        .filter(Boolean);
+
+      // Fallback for a supplier that returns separate one-way flights (no per-flight
+      // outbound/inbound): pair each outbound with each inbound by origin airport.
+      if (!flights.some((f) => f.retLegs.length)) {
+        const outs = [], ins = [];
+        raw.forEach((f) => {
+          const legs = f.legs || [];
+          if (!legs.length) return;
+          if ((legs[0].from || '').toUpperCase() === origin) outs.push(f);
+          else if ((legs[legs.length - 1].to || '').toUpperCase() === origin) ins.push(f);
+        });
+        if (outs.length && ins.length) {
+          flights = [];
+          for (const ob of outs) for (const ib of ins) {
             flights.push({
               totalPrice: (ob.totalPrice || 0) + (ib.totalPrice || 0),
               currency: ob.currency || 'EUR',
               outLegs: ob.legs || [], retLegs: ib.legs || [],
-              stops: Math.max((ob.legs || []).length - 1, (ib.legs || []).length - 1),
+              stops: Math.max((ob.legs || []).length - 1, (ib.legs || []).length - 1, 0),
               fareBreakdown: [...(ob.fareBreakdown || []), ...(ib.fareBreakdown || [])],
               flightKeys: [...keysOf(ob), ...keysOf(ib)],
             });
           }
         }
-        flights.sort((a, b) => a.totalPrice - b.totalPrice);
-      } else {
-        flights = raw.map((f) => ({
-          totalPrice: f.totalPrice || 0, currency: f.currency || 'EUR',
-          outLegs: f.legs || [], retLegs: [], stops: (f.legs || []).length - 1,
-          fareBreakdown: f.fareBreakdown || [], flightKeys: keysOf(f),
-        }));
       }
+      flights.sort((a, b) => a.totalPrice - b.totalPrice);
       setSelectedFlight(0);
       setLiveFlights({ flights, cheapest: data?.results?.cheapest || null });
     }).catch((e) => setLiveFlights({ error: e?.response?.data?.message || e?.message || 'Could not load live flights' }));
@@ -925,18 +1038,27 @@ export default function HotelDetail() {
     // booked — if no live flight is available/selected, flight is null (the old
     // code fell back to a DEMO flight while api.flight was null: the customer saw
     // an ARKEFLY itinerary that was never part of the booking).
+    // Flatten a pair of leg arrays into the summary shape the checkout/voucher read.
+    const flatFlight = (oL, rL, oDate, rDate) => ({
+      outDep: fmtTime(oL[0]?.departure), outArr: fmtTime(oL[oL.length - 1]?.arrival),
+      outFrom: oL[0]?.from || DEFAULT_ORIGIN, outTo: oL[oL.length - 1]?.to || destination,
+      outDate: oDate, outAirline: airlineName(oL[0]?.airline),
+      outDur: fmtDur(oL.reduce((s, l) => s + (Number(l.duration) || 0), 0)),
+      ...(rL.length ? {
+        retDep: fmtTime(rL[0]?.departure), retArr: fmtTime(rL[rL.length - 1]?.arrival),
+        retFrom: rL[0]?.from, retTo: rL[rL.length - 1]?.to,
+        retDate: rDate, retAirline: airlineName(rL[0]?.airline),
+        retDur: fmtDur(rL.reduce((s, l) => s + (Number(l.duration) || 0), 0)),
+      } : {}),
+    });
+    const demoFlight = FLIGHTS[selectedFlight] || FLIGHTS[0];
     const dispFlight = (useLive && liveFlight && allLegs.length)
-      ? {
-          outDep: fmtTime(outLg[0]?.departure), outArr: fmtTime(outLg[outLg.length - 1]?.arrival),
-          outFrom: outLg[0]?.from || DEFAULT_ORIGIN, outTo: outLg[outLg.length - 1]?.to || destination,
-          outDate: pd?.date, outAirline: outLg[0]?.airline,
-          ...(retLg.length ? {
-            retDep: fmtTime(retLg[0]?.departure), retArr: fmtTime(retLg[retLg.length - 1]?.arrival),
-            retFrom: retLg[0]?.from, retTo: retLg[retLg.length - 1]?.to,
-            retDate: calDate(checkout), retAirline: retLg[0]?.airline,
-          } : {}),
-        }
-      : (useLive ? null : (FLIGHTS[selectedFlight] || FLIGHTS[0]));
+      ? flatFlight(outLg, retLg, pd?.date, calDate(checkout))
+      : (useLive ? null : flatFlight(
+          demoFlight.outLegs || [], demoFlight.retLegs || [],
+          fmtDateLong(demoFlight.outLegs?.[0]?.departure),
+          fmtDateLong(demoFlight.retLegs?.[0]?.departure),
+        ));
 
     const outLabel = dispFlight?.outDate?.replace('.', '') || '';
     const retLabel = dispFlight?.retDate?.replace('.', '') || '';
@@ -1157,94 +1279,101 @@ export default function HotelDetail() {
                 </div>
               </div>
 
-              <div className="fc-panel">
-                {calLoading && !usingLive ? (
-                  <div className="fc-strip">
-                    {[62, 78, 50, 88, 58, 72, 46].map((h, i) => (
-                      <div key={i} className="fc-col fc-skel">
-                        <div className="fc-barzone"><div className="fc-bar" style={{ height: `${h}%` }} /></div>
-                        <div className="fc-under"><span className="fc-line" /><span className="fc-line sm" /></div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <>
-                    <div className="fc-strip">
-                      {priceDays.map((p, i) => {
-                        const h = priceVaries ? Math.round(42 + 46 * ((p.price - pMin) / ((pMax - pMin) || 1))) : 60;
-                        const sel = selectedPrice === i;
-                        const isLow = p.lowest && priceVaries;
-                        return (
-                          <button type="button" key={p.iso || i}
-                            className={`fc-col${sel ? ' sel' : ''}${isLow ? ' low' : ''}`}
-                            onClick={() => pickDay(i)}
-                            aria-pressed={sel}
-                            aria-label={`${p.day} ${p.date}, from €${p.price}, ${p.nights} nights`}>
-                            <span className="fc-barzone">
-                              {isLow && <span className="fc-lowlab">Lowest price!</span>}
-                              <span className="fc-bar" style={{ height: `${h}%` }}>
-                                <span className="fc-from">from</span>
-                                <span className="fc-amt">€{p.price}</span>
-                                <span className="fc-nts">{p.nights} {p.nights === 1 ? 'night' : 'nights'}</span>
-                              </span>
-                            </span>
-                            <span className="fc-under">
-                              <span className="fc-wk">{(p.day || '').substring(0, 3)}</span>
-                              <span className="fc-date">{p.date}</span>
-                              <span className="fc-dot" aria-hidden="true" />
-                            </span>
-                          </button>
-                        );
-                      })}
+              {calLoading && !usingLive ? (
+                <div className="fc-strip">
+                  {[62, 78, 50, 88, 58, 72, 46].map((h, i) => (
+                    <div key={i} className="fc-col fc-skel">
+                      <div className="fc-barzone"><div className="fc-bar" style={{ height: `${h}%` }} /></div>
+                      <div className="fc-under"><span className="fc-line" /><span className="fc-line sm" /></div>
                     </div>
-
-                    {pd && (
-                      <div className="fc-arrow-row" aria-hidden="true">
-                        <div className="fc-arrow" style={{ gridColumn: selectedPrice + 1 }} />
-                      </div>
-                    )}
-
-                    {pd && !liveChecked && (
-                      <div className="fc-cta-row">
-                        <button type="button" className="fc-cta" onClick={checkAvailability}>
-                          Check price &amp; availability
-                        </button>
-                        <div className="fc-cta-sub">{pd.day} {pd.date} · {nights} {nights === 1 ? 'night' : 'nights'} · from €{pd.price}</div>
-                      </div>
-                    )}
-                  </>
-                )}
-              </div>
-
-              {liveChecked && (
-                <div className="avail-banner show">
-                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                  <div>
-                    <div className="avail-text">
-                      {liveRooms?.loading ? 'Checking live availability…'
-                        : liveRooms?.error ? 'Showing estimated price'
-                        : liveRoom ? 'Your holiday is available!'
-                        : 'Your holiday is available!'}
-                    </div>
-                    <div className="avail-sub">
-                      {pd && `Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}
-                      {liveRoom ? ` · ${liveRoom.supplier}` : ''}
-                    </div>
-                  </div>
-                  <div className="avail-price">
-                    <div className="avail-price-label">{liveRoom ? 'live price' : 'from'}</div>
-                    <div className="avail-price-val">
-                      {liveRooms?.loading
-                        ? <span className="avail-spin" />
-                        : <><small>€</small>{liveRoom ? Math.round(liveRoom.price) : pd?.price}</>}
-                    </div>
-                    <div className="avail-you-low">
-                      {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'night' : 'nights'}`
-                        : liveRooms?.error ? 'Live price unavailable — estimate shown'
-                        : (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')}
-                    </div>
-                  </div>
+                  ))}
                 </div>
+              ) : (
+                <>
+                  <div className="fc-strip">
+                    {priceDays.map((p, i) => {
+                      // height and colour depth both scale with the price across the week
+                      const frac = priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
+                      const h = Math.round(44 + 44 * frac);
+                      const tier = `t${Math.min(5, Math.floor(frac * 5) + 1)}`;
+                      const sel = selectedPrice === i;
+                      const isLow = p.lowest && priceVaries;
+                      return (
+                        <button type="button" key={p.iso || i}
+                          className={`fc-col${sel ? ' sel' : ''}`}
+                          onClick={() => pickDay(i)}
+                          aria-pressed={sel}
+                          aria-label={`${p.day} ${p.date}, from €${p.price}, ${p.nights} nights`}>
+                          <span className="fc-barzone">
+                            {isLow && <span className="fc-lowtag">Lowest price</span>}
+                            <span className={`fc-bar ${tier}`} style={{ height: `${h}%` }}>
+                              <span className="fc-from">from</span>
+                              <span className="fc-amt">€{p.price}</span>
+                              <span className="fc-nts">{p.nights} {p.nights === 1 ? 'night' : 'nights'}</span>
+                            </span>
+                          </span>
+                          <span className="fc-under">
+                            <span className="fc-wk">{(p.day || '').substring(0, 3)}</span>
+                            <span className="fc-date">{p.date}</span>
+                            <span className="fc-dot" aria-hidden="true" />
+                          </span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {pd ? (
+                    <div className="fc-pop">
+                      <span className="fc-caret" style={{ left: `${((selectedPrice + 0.5) / priceDays.length) * 100}%` }} aria-hidden="true" />
+                      {!liveChecked ? (
+                        <div className="fc-act">
+                          <div className="fc-act-info">
+                            <span className="fc-act-date">
+                              {pd.iso
+                                ? `${calDay(pd.iso)} ${calDate(pd.iso)} – ${calDay(addDaysISO(pd.iso, nights))} ${calDate(addDaysISO(pd.iso, nights))}`
+                                : `${pd.day} ${pd.date}`}
+                            </span>
+                            <span className="fc-act-meta">{nights} {nights === 1 ? 'night' : 'nights'} · estimated from €{pd.price}</span>
+                          </div>
+                          <button type="button" className="fc-cta" onClick={checkAvailability}>
+                            Check price &amp; availability
+                          </button>
+                        </div>
+                      ) : (
+                        <div className="fc-res">
+                          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                          <div>
+                            <div className="avail-text">
+                              {liveRooms?.loading ? 'Checking live availability…'
+                                : liveRooms?.error ? 'Showing estimated price'
+                                : liveRoom ? 'Your holiday is available!'
+                                : 'Your holiday is available!'}
+                            </div>
+                            <div className="avail-sub">
+                              {`Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}
+                              {liveRoom ? ` · ${liveRoom.supplier}` : ''}
+                            </div>
+                          </div>
+                          <div className="avail-price">
+                            <div className="avail-price-label">{liveRoom ? 'live price' : 'from'}</div>
+                            <div className="avail-price-val">
+                              {liveRooms?.loading
+                                ? <span className="avail-spin" />
+                                : <><small>€</small>{liveRoom ? Math.round(liveRoom.price) : pd?.price}</>}
+                            </div>
+                            <div className="avail-you-low">
+                              {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'night' : 'nights'}`
+                                : liveRooms?.error ? 'Live price unavailable — estimate shown'
+                                : (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')}
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  ) : (
+                    <div className="fc-hint">Pick a departure day to check live prices</div>
+                  )}
+                </>
               )}
 
               {/* Flights */}
@@ -1257,28 +1386,22 @@ export default function HotelDetail() {
                     <div className="live-error">{ICON.warn} {liveFlights.error}</div>
                   ) : liveFlights.flights?.length ? (
                     <>
-                      <div className="flight-note">Live fares from {DEFAULT_ORIGIN} for your selected dates:</div>
-                      {liveFlights.flights.slice(0, 6).map((f, i) => {
-                        const oF = f.outLegs[0], oL = f.outLegs[f.outLegs.length - 1];
-                        const rF = f.retLegs[0], rL = f.retLegs[f.retLegs.length - 1];
-                        const oStops = Math.max(0, f.outLegs.length - 1);
-                        const rStops = Math.max(0, f.retLegs.length - 1);
-                        const cardData = {
-                          outDate: fmtDateLong(oF?.departure), outAirline: `${oF?.airline || ''} ${oF?.flightNumber || ''}`.trim(),
-                          outDep: fmtTime(oF?.departure), outArr: fmtTime(oL?.arrival),
-                          outDur: fmtDur(f.outLegs.reduce((s, l) => s + (Number(l.duration) || 0), 0)),
-                          outFrom: oF?.from || '', outTo: oL?.to || '',
-                          outStops: oStops === 0 ? 'Direct flight' : `${oStops} stop${oStops > 1 ? 's' : ''}`,
-                          retDate: rF ? fmtDateLong(rF.departure) : '', retAirline: rF ? `${rF.airline || ''} ${rF.flightNumber || ''}`.trim() : '',
-                          retDep: fmtTime(rF?.departure), retArr: fmtTime(rL?.arrival),
-                          retDur: f.retLegs.length ? fmtDur(f.retLegs.reduce((s, l) => s + (Number(l.duration) || 0), 0)) : '',
-                          retFrom: rF?.from || '', retTo: rL?.to || '',
-                          retStops: rStops === 0 ? 'Direct flight' : `${rStops} stop${rStops > 1 ? 's' : ''}`,
-                          price: Math.round(f.totalPrice), rawPrice: f.totalPrice,
-                          outLegs: f.outLegs, retLegs: f.retLegs, fareBreakdown: f.fareBreakdown,
-                        };
-                        return <FlightCard key={i} f={cardData} selected={selectedFlight === i} onSelect={() => setSelectedFlight(i)} />;
-                      })}
+                      <div className="flight-note">Live fares from {airportName(DEFAULT_ORIGIN)} for your selected dates:</div>
+                      {liveFlights.flights.slice(0, 6).map((f, i) => (
+                        <FlightCard
+                          key={i}
+                          f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
+                          selected={selectedFlight === i}
+                          onSelect={() => setSelectedFlight(i)}
+                        />
+                      ))}
+                      {/* The inline list is capped at 6. Without this the remaining fares were
+                          unreachable — the modal existed but only the demo branch could open it. */}
+                      {liveFlights.flights.length > 6 && (
+                        <button className="show-more-flights" onClick={() => setModalOpen(true)}>
+                          {ICON.plane} Show all {liveFlights.flights.length} flights
+                        </button>
+                      )}
                     </>
                   ) : (
                     <div className="live-empty">{ICON.plane} No live flights found for these dates.</div>
@@ -1370,16 +1493,50 @@ export default function HotelDetail() {
                       {/* One card per ROOM TYPE; inside it, every board that room can be booked
                           on, cheapest first. Boards were previously invisible: the flat list was
                           sorted by price, so the cheapest board crowded out all the others. */}
-                      {visibleGroups.map((g) => (
+                      {visibleGroups.map((g) => {
+                        const gInfo = rateInfo.get(g.cheapest.index);
+                        // Only worth showing a spread when the room really has one.
+                        const dearest = g.boards[g.boards.length - 1];
+                        const spread = dearest.price - g.cheapest.price;
+                        return (
                         <div className="room-group" key={g.key}>
                           <div className="room-group-head">
-                            <div className="room-group-name">{g.name}</div>
+                            <div className="room-group-id">
+                              <div className="room-group-name">{g.name}</div>
+                              {g.cheapest.roomCode && <span className="room-code">{g.cheapest.roomCode}</span>}
+                            </div>
                             <div className="room-group-from">
-                              {g.boards.length} option{g.boards.length === 1 ? '' : 's'} · from €{Math.round(g.cheapest.price)}
+                              <span className="rgf-count">{g.boards.length} option{g.boards.length === 1 ? '' : 's'}</span>
+                              <span className="rgf-price">from {ccy}{Math.round(g.cheapest.price).toLocaleString('en-GB')}</span>
                             </div>
                           </div>
+
+                          {/* What this room sleeps and what the stay costs, before the traveller
+                              has to compare a single board line. */}
+                          <div className="room-group-meta">
+                            {gInfo?.guests != null && (
+                              <span className="rgm">{ICON.users}
+                                {gInfo.adults} adult{gInfo.adults === 1 ? '' : 's'}
+                                {gInfo.children > 0 ? ` · ${gInfo.children} child${gInfo.children === 1 ? '' : 'ren'}` : ''}
+                                {gInfo.rooms > 1 ? ` · ${gInfo.rooms} rooms` : ''}
+                              </span>
+                            )}
+                            <span className="rgm">{ICON.moon}{nights} night{nights === 1 ? '' : 's'}</span>
+                            {gInfo?.perNight != null && (
+                              <span className="rgm">{ICON.tag}{ccy}{Math.round(gInfo.perNight).toLocaleString('en-GB')} / night</span>
+                            )}
+                            {spread > 1 && (
+                              <span className="rgm rgm-spread">{ICON.arrow}{ccy}{Math.round(spread).toLocaleString('en-GB')} between cheapest and dearest board</span>
+                            )}
+                          </div>
+
                           {g.boards.map((b) => {
                             const isSel = selectedRoom.live === b.index;
+                            const d = rateInfo.get(b.index);
+                            const isCheapest = b.index === cheapestIndex;
+                            // Against the cheapest board of THIS room — a like-for-like comparison
+                            // the traveller is actually making on screen.
+                            const extra = b.price - g.cheapest.price;
                             return (
                               <div
                                 key={b.index}
@@ -1388,22 +1545,73 @@ export default function HotelDetail() {
                               >
                                 <div className="room-radio" />
                                 <div className="room-info">
-                                  <div className="room-name">{b.boardLabel}</div>
-                                  {b.supplier && <div className="room-cap">{b.supplier}</div>}
-                                  {b.cancellation?.length > 0 ? (
-                                    <div className="room-cancel room-cancel-nr">
-                                      {ICON.warn} Non-refundable — cancel before {(() => { const d = new Date(b.cancellation[0].from); return isNaN(d.getTime()) ? b.cancellation[0].from : `${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`; })()} or pay €{Number(b.cancellation[0].amount).toFixed(0)} penalty
+                                  <div className="room-name">
+                                    {d?.board.label || b.boardLabel}
+                                    {isCheapest && <span className="room-flag room-flag-best">{ICON.spark} Lowest price</span>}
+                                  </div>
+                                  {d?.board.gloss && <div className="room-cap">{d.board.gloss}</div>}
+
+                                  <div className="room-chips">
+                                    {/* Cancellation is the single fact people get wrong, so it
+                                        leads and states the deadline instead of a bare word. */}
+                                    {d?.cancel.kind === 'free' && (
+                                      <span className="rchip rchip-free">{ICON.shield} Free cancellation until {fmtDay(d.cancel.until)}</span>
+                                    )}
+                                    {d?.cancel.kind === 'partial' && (
+                                      <span className="rchip rchip-warn">{ICON.warn} Cancel now costs {ccy}{Math.round(d.cancel.amount).toLocaleString('en-GB')}</span>
+                                    )}
+                                    {d?.cancel.kind === 'none' && (
+                                      <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
+                                    )}
+                                    {d?.cancel.kind === 'unknown' && d?.nonRefundable === true && (
+                                      <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
+                                    )}
+                                    {d?.packageRate && <span className="rchip rchip-mute">Package rate</span>}
+                                    {b.supplier && <span className="rchip rchip-mute">{b.supplier}</span>}
+                                  </div>
+
+                                  {/* The full arithmetic, opened only for the row being considered —
+                                      every other row stays scannable. */}
+                                  {isSel && d && (
+                                    <div className="room-breakdown">
+                                      <div className="rbd-row">
+                                        <span>{nights} night{nights === 1 ? '' : 's'} × {ccy}{Math.round(d.perNight).toLocaleString('en-GB')}</span>
+                                        <span className="rbd-val">{ccy}{Math.round(b.price).toLocaleString('en-GB')}</span>
+                                      </div>
+                                      {d.perGuestNight != null && (
+                                        <div className="rbd-row">
+                                          <span>Per guest, per night</span>
+                                          <span className="rbd-val">{ccy}{Math.round(d.perGuestNight).toLocaleString('en-GB')}</span>
+                                        </div>
+                                      )}
+                                      {d.cancel.kind === 'free' && d.cancel.amount != null && (
+                                        <div className="rbd-row rbd-note">
+                                          <span>After {fmtDay(d.cancel.until)}</span>
+                                          <span className="rbd-val">{d.cancel.full ? 'No refund' : `${ccy}${Math.round(d.cancel.amount).toLocaleString('en-GB')} charge`}</span>
+                                        </div>
+                                      )}
+                                      <div className="rbd-row rbd-note">
+                                        <span>Price shown is the total for the stay{d.guests ? ` for ${d.guests} guest${d.guests === 1 ? '' : 's'}` : ''}</span>
+                                      </div>
                                     </div>
-                                  ) : b.refundable === true ? (
-                                    <div className="room-cancel room-cancel-free">{ICON.check} Free cancellation</div>
-                                  ) : null}
+                                  )}
                                 </div>
-                                <div className="room-price">€{Math.round(b.price)}</div>
+
+                                <div className="room-price-col">
+                                  <div className="room-price">{ccy}{Math.round(b.price).toLocaleString('en-GB')}</div>
+                                  {d?.perNight != null && (
+                                    <div className="room-price-sub">{ccy}{Math.round(d.perNight).toLocaleString('en-GB')} / night</div>
+                                  )}
+                                  {extra > 1 && (
+                                    <div className="room-price-delta">+{ccy}{Math.round(extra).toLocaleString('en-GB')} vs cheapest</div>
+                                  )}
+                                </div>
                               </div>
                             );
                           })}
                         </div>
-                      ))}
+                        );
+                      })}
 
                       {roomGroups.length > ROOMS_COLLAPSED && (
                         <button type="button" className="room-more" onClick={() => setShowAllRooms((s) => !s)}>
@@ -1942,36 +2150,95 @@ export default function HotelDetail() {
         </div>
       )}
 
-      {/* Flight modal */}
+      {/* Flight modal — every control here acts on the live result set. The groups are built
+          from `facets`, which only offers a filter that can actually change the list, so a
+          one-way search shows no return-time group and an all-direct set shows no stopover box. */}
       <div className={`modal-overlay${modalOpen ? ' show' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false); }}>
         <div className="modal">
           <div className="modal-head">
             <div className="modal-title">Choose your flights</div>
-            <div className="modal-sort">Sort: <select><option>Price</option><option>Duration</option><option>Departure</option></select></div>
+            <div className="modal-sort">
+              <label htmlFor="fsort">Sort:</label>
+              <select id="fsort" value={fSort} onChange={(e) => setFSort(e.target.value)}>
+                {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+              </select>
+            </div>
             <button className="modal-close" onClick={() => setModalOpen(false)}>
               <S sw={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
             </button>
           </div>
           <div className="modal-body">
             <div className="modal-sidebar">
-              {SIDEBAR_FILTERS.map((g) => (
-                <div className="modal-filter-group" key={g.title}>
-                  <div className="modal-filter-title">{g.title}</div>
-                  {g.opts.map((o) => {
-                    const key = `${g.title}-${o}`;
-                    return (
-                      <div key={o} className={`modal-filter-opt${sidebarChecked[key] ? ' checked' : ''}`} onClick={() => toggleSidebar(key)}>
-                        <div className="modal-filter-cb">{sidebarChecked[key] && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}</div>{o}
-                      </div>
-                    );
-                  })}
+              <div className="modal-filter-head">
+                <span className="modal-filter-count">
+                  {modalFlights.length} of {allFlights.length} flight{allFlights.length === 1 ? '' : 's'}
+                </span>
+                {activeFilterCount > 0 && (
+                  <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>Clear all</button>
+                )}
+              </div>
+
+              {facets.outbound.length > 0 && (
+                <div className="modal-filter-group">
+                  <div className="modal-filter-title">Departure time outbound</div>
+                  {facets.outbound.map((b) => (
+                    <div key={b.id} className={`modal-filter-opt${fOut.includes(b.id) ? ' checked' : ''}`}
+                      onClick={() => toggleBand(setFOut)(b.id)}>
+                      <div className="modal-filter-cb">{fOut.includes(b.id) && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}</div>
+                      <span className="mfo-label">{b.label} <em>{b.range}</em></span>
+                      <span className="mfo-count">{b.count}</span>
+                    </div>
+                  ))}
                 </div>
-              ))}
+              )}
+
+              {facets.return.length > 0 && (
+                <div className="modal-filter-group">
+                  <div className="modal-filter-title">Departure time return</div>
+                  {facets.return.map((b) => (
+                    <div key={b.id} className={`modal-filter-opt${fRet.includes(b.id) ? ' checked' : ''}`}
+                      onClick={() => toggleBand(setFRet)(b.id)}>
+                      <div className="modal-filter-cb">{fRet.includes(b.id) && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}</div>
+                      <span className="mfo-label">{b.label} <em>{b.range}</em></span>
+                      <span className="mfo-count">{b.count}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              {facets.direct && (
+                <div className="modal-filter-group">
+                  <div className="modal-filter-title">Stopover</div>
+                  <div className={`modal-filter-opt${fDirect ? ' checked' : ''}`} onClick={() => setFDirect((v) => !v)}>
+                    <div className="modal-filter-cb">{fDirect && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}</div>
+                    <span className="mfo-label">Direct flights only</span>
+                    <span className="mfo-count">{facets.direct.count}</span>
+                  </div>
+                </div>
+              )}
+
+              {!facets.outbound.length && !facets.return.length && !facets.direct && (
+                <div className="modal-filter-none">
+                  All {allFlights.length} flight{allFlights.length === 1 ? '' : 's'} share the same
+                  times and stops, so there is nothing to filter on.
+                </div>
+              )}
             </div>
+
             <div className="modal-flights">
-              {MODAL_FLIGHTS.map((f, i) => (
-                <FlightCard key={i} f={f} selected={modalFlight === i} onSelect={() => setModalFlight(i)} />
-              ))}
+              {modalFlights.length ? modalFlights.map((f) => (
+                <FlightCard
+                  key={f.idx}
+                  f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
+                  selected={selectedFlight === f.idx}
+                  onSelect={() => setSelectedFlight(f.idx)}
+                />
+              )) : (
+                <div className="live-empty">
+                  {ICON.plane} No flights match these filters.
+                  <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>Clear all filters</button>
+                </div>
+              )}
             </div>
           </div>
           <div className="modal-save-bar">
