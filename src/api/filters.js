@@ -28,7 +28,10 @@ export async function fetchThemes(destinationCode) {
  * Pass an AbortSignal so a superseded keystroke's request is cancelled rather than merely
  * ignored; an aborted call resolves to the empty result, never throws.
  *
- * @returns {Promise<{ destinations:{code,name,country}[], hotels:{hotelCode,name,destinationCode,destinationName,country,stars,image}[] }>}
+ * Each hotel also carries `zoneName` — its resort area inside the city ("Side" in Antalya) — or
+ * null when it sits in no zone. The dropdown shows it ahead of the city.
+ *
+ * @returns {Promise<{ destinations:{code,name,country}[], hotels:{hotelCode,name,destinationCode,destinationName,zoneName,country,stars,image}[] }>}
  */
 export async function searchDestinationsAndHotels(q, limit = 6, { signal } = {}) {
   const query = String(q ?? '').trim();

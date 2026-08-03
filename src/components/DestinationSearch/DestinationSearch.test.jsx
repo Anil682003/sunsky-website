@@ -9,8 +9,9 @@ import DestinationSearch from './DestinationSearch';
 //
 // Contract with the admin content API:
 //   { destinations: [{ code, name, country }],
-//     hotels:       [{ hotelCode, name, destinationCode, destinationName, country, stars, image }] }
+//     hotels:       [{ hotelCode, name, destinationCode, destinationName, zoneName, country, stars, image }] }
 // `image` is the hotel's master photo as a thumbnail URL, or null.
+// `zoneName` is the resort area inside the city ("Belek" in Antalya), or null.
 
 const searchSpy = vi.fn();
 vi.mock('../../api/filters', () => ({
@@ -20,11 +21,11 @@ vi.mock('../../api/filters', () => ({
 const IMG = 'https://photos.hotelbeds.com/giata/small/00/032243/032243a_hb_a_001.jpg';
 const HOTEL = {
   hotelCode: '32243', name: 'Rixos Premium Belek', destinationCode: 'AYT',
-  destinationName: 'Antalya', country: 'Turkey', stars: 5, image: IMG,
+  destinationName: 'Antalya', zoneName: 'Belek', country: 'Turkey', stars: 5, image: IMG,
 };
 const HOTEL_2 = {
   hotelCode: '55555', name: 'Rixos Downtown', destinationCode: 'AYT',
-  destinationName: 'Antalya', country: 'Turkey', stars: 4,
+  destinationName: 'Antalya', zoneName: 'Lara', country: 'Turkey', stars: 4,
   image: 'https://photos.hotelbeds.com/giata/small/00/055555/a.jpg',
 };
 const HOTEL_NO_IMAGE = { ...HOTEL, hotelCode: '99', name: 'Rixos Unphotographed', image: null };
@@ -119,8 +120,24 @@ describe('hotel images in the matching list', () => {
     await type('rixos');
     await waitFor(() => expect(screen.getByText('Rixos Premium Belek')).toBeInTheDocument());
     const el = row('Rixos Premium Belek');
-    expect(within(el).getByText('Antalya, Turkey')).toBeInTheDocument();
+    // Zone first: the resort area is what travellers search by ("is it in Belek or in Lara?").
+    expect(within(el).getByText('Belek, Antalya, Turkey')).toBeInTheDocument();
     expect(within(el).getByLabelText('5 star')).toBeInTheDocument();
+  });
+
+  it('falls back to city + country for a hotel that sits in no zone', async () => {
+    answer({ destinations: [], hotels: [{ ...HOTEL, zoneName: null }] });
+    await type('rixos');
+    await waitFor(() => expect(screen.getByText('Rixos Premium Belek')).toBeInTheDocument());
+    expect(within(row('Rixos Premium Belek')).getByText('Antalya, Turkey')).toBeInTheDocument();
+  });
+
+  it('does not print the place twice when the zone repeats the city', async () => {
+    // Real data: hotels in Antalya's city-centre zone come back as zone "Antalya".
+    answer({ destinations: [], hotels: [{ ...HOTEL, zoneName: 'antalya' }] });
+    await type('rixos');
+    await waitFor(() => expect(screen.getByText('Rixos Premium Belek')).toBeInTheDocument());
+    expect(within(row('Rixos Premium Belek')).getByText('antalya, Turkey')).toBeInTheDocument();
   });
 
   it('omits stars entirely rather than inventing a rating', async () => {
@@ -131,7 +148,7 @@ describe('hotel images in the matching list', () => {
   });
 
   it('drops the place line to just the destination when country is missing', async () => {
-    answer({ destinations: [], hotels: [{ ...HOTEL, country: null }] });
+    answer({ destinations: [], hotels: [{ ...HOTEL, zoneName: null, country: null }] });
     await type('rixos');
     await waitFor(() => expect(screen.getByText('Rixos Premium Belek')).toBeInTheDocument());
     expect(within(row('Rixos Premium Belek')).getByText('Antalya')).toBeInTheDocument();
@@ -148,7 +165,7 @@ describe('picking a result', () => {
 
     expect(onSelect).toHaveBeenCalledWith({
       type: 'hotel', hotelCode: '32243', name: 'Rixos Premium Belek',
-      destinationCode: 'AYT', destinationName: 'Antalya', country: 'Turkey',
+      destinationCode: 'AYT', destinationName: 'Antalya', zoneName: 'Belek', country: 'Turkey',
       stars: 5, image: IMG,
     });
   });
@@ -176,7 +193,7 @@ describe('picking a result', () => {
     await user.click(row('Rixos Premium Belek'));
 
     expect(screen.getByRole('textbox')).toHaveValue('Rixos Premium Belek');
-    await waitFor(() => expect(screen.queryByText('Antalya, Turkey')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Belek, Antalya, Turkey')).not.toBeInTheDocument());
   });
 
   it('clearing empties the field and tells the caller the selection is gone', async () => {
@@ -331,7 +348,16 @@ describe('recent searches', () => {
 
     const saved = storedRecents();
     expect(saved).toHaveLength(1);
-    expect(saved[0]).toMatchObject({ kind: 'hotel', hotelCode: '32243', image: IMG });
+    expect(saved[0]).toMatchObject({ kind: 'hotel', hotelCode: '32243', zoneName: 'Belek', image: IMG });
+  });
+
+  it('shows a remembered hotel with the same zone line the result row had', async () => {
+    seedRecents([{ kind: 'hotel', hotelCode: '32243', name: 'Rixos Premium Belek', destinationName: 'Antalya', zoneName: 'Belek', country: 'Turkey', image: IMG }]);
+    const { user } = setup();
+    await user.click(screen.getByRole('textbox'));
+
+    await waitFor(() => expect(screen.getByText('Recent searches')).toBeInTheDocument());
+    expect(within(row('Rixos Premium Belek')).getByText('Belek, Antalya, Turkey')).toBeInTheDocument();
   });
 
   it('shows a remembered hotel with its photo, not a generic icon', async () => {

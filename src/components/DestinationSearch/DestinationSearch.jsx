@@ -56,6 +56,19 @@ const Stars = ({ rating, n }) => {
   );
 };
 
+// A hotel row's location line: zone → city → country ("Side, Antalya, Turkey"). The zone is the
+// resort area travellers actually name, so it leads. Any level can be missing (a hotel outside
+// any zone, a city with no ENG name), and a zone that merely repeats the city ("Antalya, Antalya")
+// is dropped rather than shown twice.
+const hotelLocation = (h) => {
+  const parts = [h.zoneName, h.destinationName, h.country]
+    .map((p) => (typeof p === 'string' ? p.trim() : p))
+    .filter(Boolean);
+  return parts
+    .filter((p, i) => parts.findIndex((q) => q.toLowerCase() === p.toLowerCase()) === i)
+    .join(', ');
+};
+
 // A row's leading square: the hotel's MASTER image when it has one, else the icon. Shared by
 // the results manifest and the recents list so a hotel looks the same wherever it appears.
 // About 8% of hotels carry no photo, and any CDN URL can 404 — both land on the icon.
@@ -209,9 +222,10 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
     setActive(-1);
     setRecents(saveRecent(item));
     if (item.kind === 'hotel') {
-      // `image` rides along so a hotel picked today still shows its photo when it comes back
-      // as a recent search tomorrow — recents are stored from exactly this object.
-      onSelect({ type: 'hotel', hotelCode: item.hotelCode, name: item.name, destinationCode: item.destinationCode, destinationName: item.destinationName, country: item.country, stars: item.stars, image: item.image ?? null });
+      // `zoneName` and `image` ride along so a hotel picked today still shows its resort area and
+      // its photo when it comes back as a recent search tomorrow — recents are stored from
+      // exactly this object.
+      onSelect({ type: 'hotel', hotelCode: item.hotelCode, name: item.name, destinationCode: item.destinationCode, destinationName: item.destinationName, zoneName: item.zoneName ?? null, country: item.country, stars: item.stars, image: item.image ?? null });
     } else {
       onSelect({ type: 'destination', code: item.code, name: item.name, country: item.country });
     }
@@ -294,7 +308,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                     )}
                   <span className={styles.itemText}>
                     <span className={styles.itemMain}>{r.name}</span>
-                    <span className={styles.itemSub}>{r.kind === 'hotel' ? [r.destinationName, r.country].filter(Boolean).join(', ') : (r.country || 'Destination')}</span>
+                    <span className={styles.itemSub}>{r.kind === 'hotel' ? hotelLocation(r) : (r.country || 'Destination')}</span>
                   </span>
                 </button>
               ))}
@@ -387,7 +401,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                         <span className={styles.itemMain}>{h.name}</span>
                         <Stars rating={h.rating} n={h.stars} />
                       </span>
-                      <span className={styles.itemSub}>{h.destinationName}{h.country ? `, ${h.country}` : ''}</span>
+                      <span className={styles.itemSub}>{hotelLocation(h)}</span>
                     </span>
                     <span className={`${styles.tag} ${styles.tagHotel}`}>Hotel</span>
                   </button>
