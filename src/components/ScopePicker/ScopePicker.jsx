@@ -220,7 +220,26 @@ export default function ScopePicker({
     });
   };
 
-  const total = draftCountries.size + draftCities.size + draftZones.size;
+  // How many places this search actually covers. NOT the sum of the three tiers: a ticked
+  // area already IS its city (the zone scope narrows the priced set to that area — see
+  // `needCodes` in Results), and a ticked city already IS part of its country. Summing them
+  // billed "Antalya + Lara" — one narrowed search — as two places.
+  //
+  // So count LEAVES: the deepest thing ticked on each branch is what gets searched, and an
+  // ancestor only counts when nothing below it was picked (Spain with no city = all of Spain).
+  const zoneCities = useMemo(() => new Set([...draftZones].map(zoneCity)), [draftZones]);
+  const narrowedCountries = useMemo(() => {
+    const s = new Set();
+    for (const code of draftCities) {
+      const c = cities.find((x) => x.code === code);
+      if (c?.countryCode) s.add(c.countryCode);
+    }
+    return s;
+  }, [draftCities, cities]);
+  const total =
+    [...draftCountries].filter((c) => !narrowedCountries.has(c)).length +
+    [...draftCities].filter((c) => !zoneCities.has(c)).length +
+    draftZones.size;
   const dirty =
     countryKey !== [...value.countries].sort().join(',') ||
     cityKey !== [...value.destinations].sort().join(',') ||
