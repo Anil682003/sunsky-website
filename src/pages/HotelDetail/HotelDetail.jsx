@@ -530,6 +530,7 @@ export default function HotelDetail() {
   };
   const [selectedDur, setSelectedDur] = useState(1);
   const [selectedPrice, setSelectedPrice] = useState(null);
+  const [liveChecked, setLiveChecked] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState(0);
   const [modalFlight, setModalFlight] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
@@ -553,7 +554,7 @@ export default function HotelDetail() {
   // The hotel's TripAdvisor rating: { rate, count, type, outOf } or null. Primary source is the
   // harvested store, served on the bulk hotel-info record (`info.review`) — no live call. This
   // state is only a FALLBACK for a hotel the harvest hasn't covered yet: if the traveller picks
-  // a date, the availability response carries a live rating we adopt (see selectDay).
+  // a date, the availability response carries a live rating we adopt (see checkAvailability).
   const [review, setReview]         = useState(null);
   const [liveFlights, setLiveFlights] = useState(null); // {loading?|error?|flights[]|cheapest}
   // airport→hotel transfer add-on: everything is derived from the page context
@@ -647,6 +648,7 @@ export default function HotelDetail() {
     : PRICE_DAYS;
   const pMin = priceDays.length ? Math.min(...priceDays.map((p) => p.price)) : 0;
   const pMax = priceDays.length ? Math.max(...priceDays.map((p) => p.price)) : 1;
+  const priceVaries = pMin !== pMax;
   const pd = selectedPrice != null ? priceDays[selectedPrice] : null;
 
   // ── shareable link ──────────────────────────────────────────────────────────
@@ -816,7 +818,7 @@ export default function HotelDetail() {
   // availability API, and firing that call on every page open — before the traveller has
   // engaged with anything — is exactly the kind of eager live-supplier hit we avoid. The
   // rating instead rides on the availability response that the FIRST date selection already
-  // triggers (see selectDay), so the badge appears once live prices are being loaded and costs
+  // triggers (see checkAvailability), so the badge appears once live prices are being loaded and costs
   // no extra supplier call.
 
   // ── keep the transfer pickup aligned with the SELECTED flight's arrival time —
@@ -833,13 +835,22 @@ export default function HotelDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedArrivalISO]);
 
-  // ── select a day → fetch live hotel + flight availability ──
-  const selectDay = (i) => {
+  // ── pick a day: selection only — nothing is fetched until the traveller asks ──
+  const pickDay = (i) => {
     setSelectedPrice(i);
-    const day = priceDays[i];
+    setLiveChecked(false);
+    setLiveRooms(null);
+    setLiveFlights(null);
+  };
+
+  // ── "Check price & availability" → fetch live hotel + flight availability ──
+  const checkAvailability = () => {
+    if (selectedPrice == null) return;
+    setLiveChecked(true);
+    const day = priceDays[selectedPrice];
     const checkin = day?.iso || baseCheckIn;
     const checkout = checkin ? addDaysISO(checkin, nights) : '';
-    console.log('[Detail] day clicked → live availability', { hotelCode, destination, checkin, checkout });
+    console.log('[Detail] check availability →', { hotelCode, destination, checkin, checkout });
     if (!hotelCode || !checkin) { setLiveRooms(null); setLiveFlights(null); return; }
 
     // Live hotel rooms
@@ -1146,55 +1157,95 @@ export default function HotelDetail() {
                 </div>
               </div>
 
-              {calLoading && !usingLive ? (
-                <div className="price-boxes">
-                  {[0, 1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="price-box pb-skel" />)}
-                </div>
-              ) : (
-                <div className="price-boxes">
-                  {priceDays.map((p, i) => (
-                    <div key={p.iso || i}
-                      className={`price-box${p.lowest ? ' lowest' : ''}${selectedPrice === i ? ' selected' : ''}`}
-                      onClick={() => selectDay(i)}>
-                      <div className="pb-day">{(p.day || '').substring(0, 3)}</div>
-                      <div className="pb-date">{p.date}</div>
-                      <div className="pb-from">from</div>
-                      <div className="pb-price">€{p.price}</div>
-                      <div className="pb-nights">{p.nights} {p.nights === 1 ? 'night' : 'nights'}</div>
-                      <div className="pb-bar"><span style={{ height: `${Math.round(35 + 65 * ((p.price - pMin) / ((pMax - pMin) || 1)))}%` }} /></div>
+              <div className="fc-panel">
+                {calLoading && !usingLive ? (
+                  <div className="fc-strip">
+                    {[62, 78, 50, 88, 58, 72, 46].map((h, i) => (
+                      <div key={i} className="fc-col fc-skel">
+                        <div className="fc-barzone"><div className="fc-bar" style={{ height: `${h}%` }} /></div>
+                        <div className="fc-under"><span className="fc-line" /><span className="fc-line sm" /></div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <>
+                    <div className="fc-strip">
+                      {priceDays.map((p, i) => {
+                        const h = priceVaries ? Math.round(42 + 46 * ((p.price - pMin) / ((pMax - pMin) || 1))) : 60;
+                        const sel = selectedPrice === i;
+                        const isLow = p.lowest && priceVaries;
+                        return (
+                          <button type="button" key={p.iso || i}
+                            className={`fc-col${sel ? ' sel' : ''}${isLow ? ' low' : ''}`}
+                            onClick={() => pickDay(i)}
+                            aria-pressed={sel}
+                            aria-label={`${p.day} ${p.date}, from €${p.price}, ${p.nights} nights`}>
+                            <span className="fc-barzone">
+                              {isLow && <span className="fc-lowlab">Lowest price!</span>}
+                              <span className="fc-bar" style={{ height: `${h}%` }}>
+                                <span className="fc-from">from</span>
+                                <span className="fc-amt">€{p.price}</span>
+                                <span className="fc-nts">{p.nights} {p.nights === 1 ? 'night' : 'nights'}</span>
+                              </span>
+                            </span>
+                            <span className="fc-under">
+                              <span className="fc-wk">{(p.day || '').substring(0, 3)}</span>
+                              <span className="fc-date">{p.date}</span>
+                              <span className="fc-dot" aria-hidden="true" />
+                            </span>
+                          </button>
+                        );
+                      })}
                     </div>
-                  ))}
+
+                    {pd && (
+                      <div className="fc-arrow-row" aria-hidden="true">
+                        <div className="fc-arrow" style={{ gridColumn: selectedPrice + 1 }} />
+                      </div>
+                    )}
+
+                    {pd && !liveChecked && (
+                      <div className="fc-cta-row">
+                        <button type="button" className="fc-cta" onClick={checkAvailability}>
+                          Check price &amp; availability
+                        </button>
+                        <div className="fc-cta-sub">{pd.day} {pd.date} · {nights} {nights === 1 ? 'night' : 'nights'} · from €{pd.price}</div>
+                      </div>
+                    )}
+                  </>
+                )}
+              </div>
+
+              {liveChecked && (
+                <div className="avail-banner show">
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <div>
+                    <div className="avail-text">
+                      {liveRooms?.loading ? 'Checking live availability…'
+                        : liveRooms?.error ? 'Showing estimated price'
+                        : liveRoom ? 'Your holiday is available!'
+                        : 'Your holiday is available!'}
+                    </div>
+                    <div className="avail-sub">
+                      {pd && `Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}
+                      {liveRoom ? ` · ${liveRoom.supplier}` : ''}
+                    </div>
+                  </div>
+                  <div className="avail-price">
+                    <div className="avail-price-label">{liveRoom ? 'live price' : 'from'}</div>
+                    <div className="avail-price-val">
+                      {liveRooms?.loading
+                        ? <span className="avail-spin" />
+                        : <><small>€</small>{liveRoom ? Math.round(liveRoom.price) : pd?.price}</>}
+                    </div>
+                    <div className="avail-you-low">
+                      {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'night' : 'nights'}`
+                        : liveRooms?.error ? 'Live price unavailable — estimate shown'
+                        : (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')}
+                    </div>
+                  </div>
                 </div>
               )}
-
-              <div className={`avail-banner${pd ? ' show' : ''}`}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                <div>
-                  <div className="avail-text">
-                    {liveRooms?.loading ? 'Checking live availability…'
-                      : liveRooms?.error ? 'Showing estimated price'
-                      : liveRoom ? 'Your holiday is available!'
-                      : 'Your holiday is available!'}
-                  </div>
-                  <div className="avail-sub">
-                    {pd && `Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}
-                    {liveRoom ? ` · ${liveRoom.supplier}` : ''}
-                  </div>
-                </div>
-                <div className="avail-price">
-                  <div className="avail-price-label">{liveRoom ? 'live price' : 'from'}</div>
-                  <div className="avail-price-val">
-                    {liveRooms?.loading
-                      ? <span className="avail-spin" />
-                      : <><small>€</small>{liveRoom ? Math.round(liveRoom.price) : pd?.price}</>}
-                  </div>
-                  <div className="avail-you-low">
-                    {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'night' : 'nights'}`
-                      : liveRooms?.error ? 'Live price unavailable — estimate shown'
-                      : (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')}
-                  </div>
-                </div>
-              </div>
 
               {/* Flights */}
               <div className="flight-section reveal">
@@ -1294,8 +1345,8 @@ export default function HotelDetail() {
               </div>
               )}
 
-              {/* Rooms — live availability, revealed only after a date is picked */}
-              {selectedPrice != null && (
+              {/* Rooms — live availability, revealed once the traveller checks a date */}
+              {liveChecked && (
               <div className="room-section reveal vis">
                 <div className="section-title"><span className="st-step">2</span> Choose your room</div>
                 {liveRooms ? (
@@ -1882,8 +1933,9 @@ export default function HotelDetail() {
           <div className="lb-thumbs" onClick={(e) => e.stopPropagation()}>
             {lightbox.imgs.map((src, i) => (
               <button key={i} className={`lb-thumb${i === lightbox.i ? ' active' : ''}`} onClick={() => setLightbox((lb) => ({ ...lb, i }))}>
-                {/* The strip thumbnails are ~64px — `small` is all they need. */}
-                <HotelImg src={src} size="small" alt="" />
+                {/* The strip thumbnails are ~64px — `small` is all they need. A dead thumb
+                    hides rather than showing a torn-image glyph. */}
+                <HotelImg src={src} size="small" alt="" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
               </button>
             ))}
           </div>
