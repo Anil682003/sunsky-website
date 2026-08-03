@@ -483,28 +483,46 @@
 .sd .dur-chip:hover { border-color:var(--blue-soft); color:var(--blue); background:var(--blue-pale); transform:translateY(-1px); }
 .sd .dur-chip.act { border-color:transparent; color:#fff; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); box-shadow:0 4px 12px rgba(31,79,216,.25); }
 
-/* PRICE BOXES — fare calendar with price-level bars */
-.sd .price-boxes { display:grid; grid-template-columns:repeat(7,1fr); gap:10px; padding:12px 0 6px; margin-bottom:24px; }
-.sd .price-boxes::-webkit-scrollbar { display:none; }
-.sd .price-box { border-radius:16px; padding:13px 8px 10px; text-align:center; cursor:pointer; transition:all .3s var(--ease); position:relative; background:var(--white); border:1.5px solid var(--border-light); box-shadow:var(--shadow-xs); }
-.sd .price-box:hover { transform:translateY(-4px); box-shadow:var(--shadow-md); border-color:var(--blue-soft); }
-.sd .price-box.selected { background:linear-gradient(170deg,var(--blue) 0%,var(--blue-mid) 100%); border-color:var(--blue); transform:translateY(-4px); box-shadow:0 14px 30px rgba(31,79,216,.32); }
-.sd .price-box.selected .pb-day, .sd .price-box.selected .pb-date, .sd .price-box.selected .pb-price, .sd .price-box.selected .pb-nights, .sd .price-box.selected .pb-from { color:#fff; }
-.sd .price-box.lowest { background:linear-gradient(180deg,#fffdf7,#fff4dd); border-color:var(--gold); }
-.sd .price-box.lowest.selected { background:linear-gradient(170deg,var(--sun),var(--gold)); border-color:var(--sun); box-shadow:0 14px 30px rgba(255,159,28,.38); }
-.sd .price-box.lowest.selected .pb-day, .sd .price-box.lowest.selected .pb-date, .sd .price-box.lowest.selected .pb-price, .sd .price-box.lowest.selected .pb-nights, .sd .price-box.lowest.selected .pb-from { color:var(--dark); }
-.sd .price-box.lowest::before { content:'Lowest'; position:absolute; top:-10px; left:50%; transform:translateX(-50%); font-size:8.5px; font-weight:800; color:#fff; background:linear-gradient(135deg,var(--sun),var(--gold)); padding:3px 10px; border-radius:var(--r-full); white-space:nowrap; letter-spacing:.5px; text-transform:uppercase; box-shadow:0 4px 10px rgba(255,159,28,.35); z-index:1; }
-.sd .pb-day { font-size:10px; color:var(--text-light); margin-bottom:1px; font-weight:800; text-transform:uppercase; letter-spacing:.5px; }
-.sd .pb-date { font-family:'Sora',sans-serif; font-size:13px; font-weight:800; color:var(--dark); margin-bottom:8px; }
-.sd .pb-from { font-size:9px; color:var(--text-light); text-transform:uppercase; letter-spacing:.3px; }
-.sd .pb-price { font-family:'Sora',sans-serif; font-size:19px; font-weight:800; color:var(--blue); line-height:1.15; }
-.sd .price-box.lowest .pb-price { color:#b45309; }
-.sd .pb-nights { font-size:9px; color:var(--text-light); margin-top:3px; font-weight:600; }
-.sd .pb-bar { height:30px; display:flex; align-items:flex-end; justify-content:center; margin-top:9px; }
-.sd .pb-bar span { display:block; width:26px; border-radius:5px 5px 2px 2px; background:linear-gradient(180deg,var(--blue-light),var(--blue)); opacity:.75; transition:height .5s var(--ease), background .3s; }
-.sd .price-box.lowest .pb-bar span { background:linear-gradient(180deg,var(--gold),var(--sun)); opacity:1; }
-.sd .price-box.selected .pb-bar span { background:rgba(255,255,255,.85); opacity:1; }
-.sd .price-box.lowest.selected .pb-bar span { background:rgba(255,255,255,.75); }
+/* FARE CALENDAR — chunky price bars standing on a sun baseline (TUI-style) */
+.sd .fc-panel { background:linear-gradient(180deg,#f7fbff,#edf4fe); border:1px solid #e2edfb; border-radius:22px; padding:24px 18px 16px; margin-bottom:34px; }
+.sd .fc-strip { display:grid; grid-template-columns:repeat(7,1fr); }
+.sd .fc-strip::-webkit-scrollbar { display:none; }
+.sd .fc-col { appearance:none; background:none; border:none; font-family:inherit; display:flex; flex-direction:column; padding:0; cursor:pointer; min-width:0; }
+.sd .fc-barzone { height:212px; width:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:2.5px solid var(--sun); }
+.sd .fc-lowlab { font-size:10px; font-weight:800; color:#b45309; margin-bottom:6px; white-space:nowrap; }
+.sd .fc-bar { width:calc(100% - 10px); min-height:84px; border-radius:12px 12px 0 0; background:linear-gradient(180deg,#2f66e9 0%,var(--blue) 100%); display:flex; flex-direction:column; align-items:center; padding:13px 4px 9px; transition:height .55s var(--ease), background .25s, filter .2s; }
+.sd .fc-col:hover .fc-bar { filter:brightness(1.09); }
+.sd .fc-col.low .fc-bar { box-shadow:inset 0 3px 0 var(--gold); }
+.sd .fc-col.sel .fc-bar { background:linear-gradient(180deg,var(--blue-light) 0%,#3e7ef2 100%); }
+.sd .fc-from { font-size:10px; font-weight:600; color:rgba(255,255,255,.85); }
+.sd .fc-amt { font-family:'Sora',sans-serif; font-size:17px; font-weight:800; color:#fff; letter-spacing:-.01em; margin-top:1px; max-width:100%; }
+.sd .fc-col.sel .fc-amt { background:var(--gold); color:var(--dark); padding:1px 8px; border-radius:7px; }
+.sd .fc-nts { margin-top:auto; font-size:9.5px; font-weight:600; color:rgba(255,255,255,.82); white-space:nowrap; }
+.sd .fc-under { padding:11px 0 4px; display:flex; flex-direction:column; align-items:center; gap:1px; }
+.sd .fc-wk { color:var(--text-light); }
+.sd .fc-date { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--dark); white-space:nowrap; }
+.sd .fc-col.sel .fc-date { color:var(--blue); }
+.sd .fc-dot { width:19px; height:19px; border-radius:50%; border:2px solid #c7d6ef; background:#fff; margin-top:7px; transition:all .25s var(--ease); }
+.sd .fc-col:hover .fc-dot { border-color:var(--blue-soft); }
+.sd .fc-col.sel .fc-dot { border-color:var(--blue); background-color:var(--blue); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E"); background-position:center; background-size:11px; background-repeat:no-repeat; box-shadow:0 4px 10px rgba(31,79,216,.3); }
+
+/* ribbon arrow: your pick flows down to the check button */
+.sd .fc-arrow-row { display:grid; grid-template-columns:repeat(7,1fr); height:54px; margin-top:4px; }
+.sd .fc-arrow { justify-self:center; width:min(82%,92px); height:100%; background:linear-gradient(180deg,#cfe3ff,#9ec5ff); clip-path:polygon(0 0,100% 0,100% 38%,50% 100%,0 38%); animation:fcDrop .4s var(--ease); }
+@keyframes fcDrop { from { opacity:0; transform:translateY(-12px); } to { opacity:1; transform:none; } }
+
+/* check-availability CTA */
+.sd .fc-cta-row { text-align:center; padding:12px 0 8px; animation:sdSlideUp .35s var(--ease); }
+.sd .fc-cta { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--dark); background:linear-gradient(135deg,var(--sun),var(--gold)); border:none; border-radius:var(--r-full); padding:17px 52px; cursor:pointer; box-shadow:0 10px 30px rgba(255,159,28,.38); transition:all .3s var(--ease); }
+.sd .fc-cta:hover { transform:translateY(-2px); box-shadow:0 14px 38px rgba(255,159,28,.45); }
+.sd .fc-cta:active { transform:translateY(0); }
+.sd .fc-cta-sub { margin-top:9px; font-size:12px; font-weight:600; color:var(--text-sec); }
+
+/* loading skeleton */
+.sd .fc-skel { pointer-events:none; }
+.sd .fc-skel .fc-bar { min-height:0; background:linear-gradient(90deg,#e2edfc 25%,#f0f6ff 50%,#e2edfc 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+.sd .fc-line { width:44px; height:11px; border-radius:6px; margin-top:12px; background:linear-gradient(90deg,#e2edfc 25%,#f0f6ff 50%,#e2edfc 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; }
+.sd .fc-line.sm { width:28px; height:9px; margin-top:5px; }
 
 /* AVAIL BANNER */
 .sd .avail-banner { display:none; align-items:center; gap:14px; padding:18px 24px; border-radius:18px; background:linear-gradient(120deg,#ecfdf5,#d9f7ea); border:1px solid #a7f3d0; box-shadow:0 10px 26px rgba(16,185,129,.12); margin-bottom:30px; animation:sdSlideUp .4s var(--ease); }
@@ -737,6 +755,7 @@
 @media (prefers-reduced-motion: reduce) {
   .sd-hero-left > *, .sd-hero-photos .gi, .sd .ga, .sd-hero-glow2, .sd .hhb.saved svg, .sd .px-ph, .sd .px-overlay { animation:none; }
   .sd .gi-skel { animation:none; background:#E4EEFF; }
+  .sd .fc-arrow, .sd .fc-cta-row, .sd .fc-skel .fc-bar, .sd .fc-line { animation:none; }
   .sd .gi img { transition:none; }
 }
 @media(max-width:1100px){
@@ -747,8 +766,11 @@
   .sd-hero-rating{max-width:none}
 }
 @media(max-width:900px){
-  .sd .price-boxes{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding:12px 0 10px}
-  .sd .price-box{flex:0 0 104px}
+  .sd .fc-panel{padding:16px 10px 12px}
+  .sd .fc-strip{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
+  .sd .fc-col{flex:0 0 96px}
+  .sd .fc-barzone{height:172px}
+  .sd .fc-arrow-row{display:none}
 }
 @media(max-width:1024px){
   .sd-hero{padding:96px 0 0}
@@ -787,7 +809,8 @@
   .sd .hh{flex-direction:column;gap:10px}
   .sd .fg{grid-template-columns:1fr 1fr}
   .sd .rs{flex-direction:column;align-items:flex-start}
-  .sd .price-box{flex:0 0 96px}
+  .sd .fc-col{flex:0 0 88px}
+  .sd .fc-cta{padding:15px 34px;font-size:14px}
   .sd .tw{top:calc(var(--nav-h) + 4px)}
   .sd .flight-times{gap:8px}
   .sd .flight-time{font-size:16px}
@@ -832,19 +855,14 @@
 .sd .wd { font-size:10px; }
 
 /* one overline spec for every uppercase micro-label */
-.sd .filter-label, .sd .filter-foot-label, .sd .pb-day, .sd .pb-from, .sd .flight-leg-dir, .sd .flight-airline, .sd .avail-price-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
-.sd .price-box.lowest::before { font-size:9px; letter-spacing:.08em; padding:3px 9px; }
+.sd .filter-label, .sd .filter-foot-label, .sd .fc-wk, .sd .flight-leg-dir, .sd .flight-airline, .sd .avail-price-label { font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; }
 
 /* tabular lining figures on every numeral */
-.sd .pb-price, .sd .pb-date, .sd .flight-time, .sd .flight-duration, .sd .bkpr, .sd .bkp-total,
+.sd .fc-amt, .sd .fc-date, .sd .flight-time, .sd .flight-duration, .sd .bkpr, .sd .bkp-total,
 .sd .overview-total-val, .sd .overview-row-val, .sd .meal-price, .sd .avail-price-val, .sd .avail-price-old,
 .sd .room-price, .sd .rrv, .sd .rvs, .sd .alt-chip-price, .sd .mbp, .sd .wt {
   font-variant-numeric:tabular-nums lining-nums; font-feature-settings:'tnum' 1;
 }
-.sd .pb-price { font-size:20px; letter-spacing:-.01em; }
-.sd .pb-date { font-size:14px; margin-bottom:10px; }
-.sd .pb-nights { font-size:10px; margin-top:4px; }
-.sd .pb-bar { margin-top:10px; height:32px; }
 .sd .flight-time { letter-spacing:-.02em; }
 .sd .bkpr { font-size:32px; letter-spacing:-.02em; }
 .sd .overview-total-val { font-size:30px; letter-spacing:-.02em; }
@@ -858,9 +876,9 @@
 .sd .tp.act { padding-top:32px; }
 .sd .grid { margin-top:calc(var(--overhang) + 32px); }
 .sd .filter-bar { margin-bottom:24px; }
-.sd .price-boxes { margin-bottom:48px; }
+.sd .fc-panel { margin-bottom:34px; }
 .sd .avail-banner { margin-bottom:48px; }
-.sd .avail-banner.show { margin-top:-24px; }
+.sd .avail-banner.show { margin-top:0; }
 .sd .flight-section, .sd .room-section, .sd .transfer-section { margin-bottom:56px; }
 .sd .stay-block { margin-bottom:32px; }
 .sd .ds { margin-bottom:40px; }
@@ -880,8 +898,6 @@
 /* gold = conversion only */
 .sd .sd-chip-price { background:rgba(255,255,255,.92); border-color:transparent; color:var(--dark); }
 .sd .sd-chip-price svg { color:var(--sun); }
-.sd .price-box.lowest { background:var(--white); border-color:var(--gold); }
-.sd .price-box.lowest::before { background:var(--sun); box-shadow:none; }
 .sd .sd-hc-score { box-shadow:none; }
 .sd .bks { box-shadow:none; }
 .sd .rb { box-shadow:var(--shadow-sm); }
@@ -919,9 +935,8 @@
 .sd .flight-card.selected { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
 .sd .room-option { border:1px solid var(--border); }
 .sd .room-option.selected { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
-.sd .price-box { border:1px solid var(--border); padding:14px 8px 12px; }
-.sd .price-box.selected { transform:translateY(-2px); box-shadow:0 0 0 3px rgba(31,79,216,.18); }
-.sd .price-box.lowest.selected { box-shadow:0 0 0 3px rgba(255,159,28,.25); }
+.sd .fc-col.sel .fc-bar { box-shadow:0 6px 18px rgba(31,79,216,.22); }
+.sd .fc-col.low.sel .fc-bar { box-shadow:inset 0 3px 0 var(--gold), 0 6px 18px rgba(31,79,216,.22); }
 .sd .meal-row { border-width:1px; }
 .sd .meal-row.meal-selected { box-shadow:none; }
 .sd .dur-chip, .sd .alt-chip, .sd .hhb, .sd .flight-details-btn, .sd .show-more-flights, .sd .flight-selected-badge { border-width:1px; }
@@ -931,7 +946,7 @@
 /* ── radius system: 10 / 12 / 16 / 20 / 24 ── */
 .sd .bkdk, .sd .rvs, .sd .lb-thumb, .sd .fi-ico, .sd .stay-icon, .sd .st-step, .sd .ds h3 svg:first-child, .sd .section-title > svg:first-child { border-radius:10px; }
 .sd .room-meals, .sd .flight-airline { border-radius:12px; }
-.sd .fi, .sd .wc, .sd .price-box, .sd .room-option, .sd .rv, .sd .flight-card, .sd .avail-banner, .sd .lb-img { border-radius:16px; }
+.sd .fi, .sd .wc, .sd .room-option, .sd .rv, .sd .flight-card, .sd .avail-banner, .sd .lb-img { border-radius:16px; }
 .sd .filter-bar, .sd .mc, .sd .bk, .sd .overview-card, .sd .sd-hero-rating { border-radius:20px; }
 .sd .modal { border-radius:24px; }
 
@@ -952,7 +967,6 @@
 /* two-tier hover lift: cards -2px, buttons -1px */
 .sd .gi:hover { transform:translateY(-2px); }
 .sd .alt-chip:hover { transform:translateY(-2px); }
-.sd .price-box:hover { transform:translateY(-2px); }
 .sd .bkc:hover, .sd .overview-book-btn:hover, .sd .mb:hover, .sd .ga:hover, .sd .modal-save-btn:hover { transform:translateY(-1px); }
 
 /* consistent keyboard focus */
@@ -966,8 +980,6 @@
 .sd .ws::-webkit-scrollbar-track { background:transparent; }
 
 /* ═══════════════════ LIVE DATA (calendar / availability) ═══════════════════ */
-.sd .pb-skel { background:linear-gradient(90deg,#e8f1ff 25%,#f3f8ff 50%,#e8f1ff 75%); background-size:200% 100%; animation:shimmer 1.4s infinite; border:none; min-height:118px; cursor:default; }
-.sd .pb-skel:hover { transform:none; box-shadow:none; }
 
 .sd .live-loading { display:flex; align-items:center; gap:11px; padding:22px 20px; font-size:13.5px; font-weight:600; color:var(--text-sec); background:var(--white); border:1px solid var(--border-light); border-radius:16px; }
 .sd .live-spin { width:18px; height:18px; border-radius:50%; border:2.5px solid #d6e3f8; border-top-color:var(--blue); animation:sdSpin .7s linear infinite; flex-shrink:0; }
