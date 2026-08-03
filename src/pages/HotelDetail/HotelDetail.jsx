@@ -530,6 +530,7 @@ export default function HotelDetail() {
   };
   const [selectedDur, setSelectedDur] = useState(1);
   const [selectedPrice, setSelectedPrice] = useState(null);
+  const [liveChecked, setLiveChecked] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState(0);
   const [modalFlight, setModalFlight] = useState(1);
   const [modalOpen, setModalOpen] = useState(false);
@@ -647,6 +648,7 @@ export default function HotelDetail() {
     : PRICE_DAYS;
   const pMin = priceDays.length ? Math.min(...priceDays.map((p) => p.price)) : 0;
   const pMax = priceDays.length ? Math.max(...priceDays.map((p) => p.price)) : 1;
+  const priceVaries = pMin !== pMax;
   const pd = selectedPrice != null ? priceDays[selectedPrice] : null;
 
   // ── shareable link ──────────────────────────────────────────────────────────
@@ -833,13 +835,22 @@ export default function HotelDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedArrivalISO]);
 
-  // ── select a day → fetch live hotel + flight availability ──
-  const selectDay = (i) => {
+  // ── pick a day (visual only — no fetch until "Check availability" is clicked) ──
+  const pickDay = (i) => {
     setSelectedPrice(i);
-    const day = priceDays[i];
+    setLiveChecked(false);
+    setLiveRooms(null);
+    setLiveFlights(null);
+  };
+
+  // ── check live availability for the picked day ──
+  const checkAvailability = () => {
+    if (selectedPrice == null) return;
+    setLiveChecked(true);
+    const day = priceDays[selectedPrice];
     const checkin = day?.iso || baseCheckIn;
     const checkout = checkin ? addDaysISO(checkin, nights) : '';
-    console.log('[Detail] day clicked → live availability', { hotelCode, destination, checkin, checkout });
+    console.log('[Detail] check availability →', { hotelCode, destination, checkin, checkout });
     if (!hotelCode || !checkin) { setLiveRooms(null); setLiveFlights(null); return; }
 
     // Live hotel rooms
@@ -1147,54 +1158,73 @@ export default function HotelDetail() {
               </div>
 
               {calLoading && !usingLive ? (
-                <div className="price-boxes">
-                  {[0, 1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="price-box pb-skel" />)}
+                <div className="pc-strip">
+                  {[0, 1, 2, 3, 4, 5, 6].map((i) => <div key={i} className="pc-col pc-skel"><div className="pc-bar-wrap"><div className="pc-bar" /></div><div className="pc-label" /></div>)}
                 </div>
               ) : (
-                <div className="price-boxes">
-                  {priceDays.map((p, i) => (
-                    <div key={p.iso || i}
-                      className={`price-box${p.lowest ? ' lowest' : ''}${selectedPrice === i ? ' selected' : ''}`}
-                      onClick={() => selectDay(i)}>
-                      <div className="pb-day">{(p.day || '').substring(0, 3)}</div>
-                      <div className="pb-date">{p.date}</div>
-                      <div className="pb-from">from</div>
-                      <div className="pb-price">€{p.price}</div>
-                      <div className="pb-nights">{p.nights} {p.nights === 1 ? 'night' : 'nights'}</div>
-                      <div className="pb-bar"><span style={{ height: `${Math.round(35 + 65 * ((p.price - pMin) / ((pMax - pMin) || 1)))}%` }} /></div>
-                    </div>
-                  ))}
+                <div className="pc-strip">
+                  {priceDays.map((p, i) => {
+                    const h = Math.round(40 + 60 * ((p.price - pMin) / ((pMax - pMin) || 1)));
+                    const sel = selectedPrice === i;
+                    return (
+                      <div key={p.iso || i} className={`pc-col${sel ? ' sel' : ''}${p.lowest && priceVaries ? ' low' : ''}`} onClick={() => pickDay(i)}>
+                        <div className="pc-price-tag">
+                          <span className="pc-from">from</span>
+                          <span className="pc-amt">€{p.price}</span>
+                        </div>
+                        {p.lowest && priceVaries && <div className="pc-low-badge">Lowest price!</div>}
+                        <div className="pc-bar-wrap">
+                          <div className="pc-bar" style={{ height: `${h}%` }} />
+                        </div>
+                        <div className="pc-day">{(p.day || '').substring(0, 3)}</div>
+                        <div className="pc-date">{p.date}</div>
+                        <div className="pc-nights">{p.nights} {p.nights === 1 ? 'night' : 'nights'}</div>
+                        {sel && <div className="pc-arrow" />}
+                      </div>
+                    );
+                  })}
                 </div>
               )}
 
-              <div className={`avail-banner${pd ? ' show' : ''}`}>
-                <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                <div>
-                  <div className="avail-text">
-                    {liveRooms?.loading ? 'Checking live availability…'
-                      : liveRooms?.error ? 'Showing estimated price'
-                      : liveRoom ? 'Your holiday is available!'
-                      : 'Your holiday is available!'}
+              {pd && !liveChecked && (
+                <div className="pc-cta-wrap">
+                  <button className="pc-cta" onClick={checkAvailability}>
+                    Check price &amp; availability
+                  </button>
+                  <div className="pc-cta-sub">{pd.day} {pd.date} · {nights} {nights === 1 ? 'night' : 'nights'}</div>
+                </div>
+              )}
+
+              {liveChecked && (
+                <div className={`avail-banner show`}>
+                  <svg width="28" height="28" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                  <div>
+                    <div className="avail-text">
+                      {liveRooms?.loading ? 'Checking live availability…'
+                        : liveRooms?.error ? 'Showing estimated price'
+                        : liveRoom ? 'Your holiday is available!'
+                        : 'Your holiday is available!'}
+                    </div>
+                    <div className="avail-sub">
+                      {pd && `Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}
+                      {liveRoom ? ` · ${liveRoom.supplier}` : ''}
+                    </div>
                   </div>
-                  <div className="avail-sub">
-                    {pd && `Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}
-                    {liveRoom ? ` · ${liveRoom.supplier}` : ''}
+                  <div className="avail-price">
+                    <div className="avail-price-label">{liveRoom ? 'live price' : 'from'}</div>
+                    <div className="avail-price-val">
+                      {liveRooms?.loading
+                        ? <span className="avail-spin" />
+                        : <><small>€</small>{liveRoom ? Math.round(liveRoom.price) : pd?.price}</>}
+                    </div>
+                    <div className="avail-you-low">
+                      {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'night' : 'nights'}`
+                        : liveRooms?.error ? 'Live price unavailable — estimate shown'
+                        : (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')}
+                    </div>
                   </div>
                 </div>
-                <div className="avail-price">
-                  <div className="avail-price-label">{liveRoom ? 'live price' : 'from'}</div>
-                  <div className="avail-price-val">
-                    {liveRooms?.loading
-                      ? <span className="avail-spin" />
-                      : <><small>€</small>{liveRoom ? Math.round(liveRoom.price) : pd?.price}</>}
-                  </div>
-                  <div className="avail-you-low">
-                    {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'night' : 'nights'}`
-                      : liveRooms?.error ? 'Live price unavailable — estimate shown'
-                      : (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')}
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Flights */}
               <div className="flight-section reveal">
@@ -1294,8 +1324,8 @@ export default function HotelDetail() {
               </div>
               )}
 
-              {/* Rooms — live availability, revealed only after a date is picked */}
-              {selectedPrice != null && (
+              {/* Rooms — live availability, revealed only after Check Availability is clicked */}
+              {liveChecked && (
               <div className="room-section reveal vis">
                 <div className="section-title"><span className="st-step">2</span> Choose your room</div>
                 {liveRooms ? (
