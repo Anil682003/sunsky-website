@@ -5,6 +5,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import axiosInstance from '../../services/axiosInstance';
 import Confirmation from './Confirmation';
+import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import './Checkout.css';
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
@@ -1268,7 +1269,12 @@ function CheckoutContent({ stripe, elements }) {
           <aside className="ck-aside">
             <div className="ck-sum">
               <div className="ck-sum-img">
-                <img src={booking.img} alt={booking.hotelName} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                {/* A hotel with no photo set now arrives here with no `img` at all (the detail
+                    page stopped substituting stock beaches) — draw the illustrated stand-in
+                    rather than an empty band under the hotel name. */}
+                {booking.img
+                  ? <img src={booking.img} alt={booking.hotelName} onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+                  : <HotelPhotoFallback variant="tile" seed={booking.hotelCode || booking.hotelName} />}
                 <div className="ck-sum-imgov" />
                 <div className="ck-sum-imgtxt">
                   <div className="ck-sum-stars">{'★'.repeat(Math.min(booking.stars, 5))}</div>

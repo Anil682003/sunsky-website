@@ -5,6 +5,7 @@ import axiosInstance from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
+import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
@@ -155,13 +156,9 @@ const REVIEWS = [
   { n: 'Marco B.', init: 'MB', d: 'February 2026', s: 9.2, t: 'Perfect adults-only getaway. The spa treatments were world-class and the private beach felt truly exclusive.' },
   { n: 'Sophie L.', init: 'SL', d: 'January 2026', s: 9.4, t: 'We celebrated our anniversary here and it was magical. The attention to detail and the incredible cocktail bar made this trip unforgettable.' },
 ];
-const GALLERY = [
-  'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=900&q=80',
-  'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=500&q=80',
-  'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=500&q=80',
-  'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500&q=80',
-  'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500&q=80',
-];
+/* NB: there is deliberately no stock-photo fallback here any more. A hotel with no images
+   used to borrow five Unsplash beaches, so the page showed a property the traveller was
+   never going to stay in. Missing photos now render <HotelPhotoFallback> instead. */
 
 /* ── Photo categories ──────────────────────────────────────────────────────
    Hotelbeds image-type dictionary — the SAME codes the admin dashboard's
@@ -346,6 +343,20 @@ function GuestRating({ review }) {
   );
 }
 
+// A mosaic tile. HotelImg already steps down through the smaller CDN sizes; when even the
+// last one fails the tile used to `display:none` itself and leave a navy gap in the hero —
+// now it swaps in the illustrated fallback, so the mosaic keeps its five-tile composition.
+function HeroPhoto({ src, seed, ...rest }) {
+  // Derive-during-render (same pattern as HotelImg): a new src un-breaks the tile without
+  // an effect and its extra render pass.
+  const [broken, setBroken] = useState({ src, failed: false });
+  const failed = broken.src === src && broken.failed;
+  if (broken.src !== src) setBroken({ src, failed: false });
+
+  if (!src || failed) return <HotelPhotoFallback variant="tile" seed={seed} />;
+  return <HotelImg src={src} onError={() => setBroken({ src, failed: true })} {...rest} />;
+}
+
 export default function HotelDetail() {
   const { hotelCode } = useParams();
   const { state } = useLocation();
@@ -371,6 +382,10 @@ export default function HotelDetail() {
   // Full content record (images, description, facilities). Handed over in-app; when the page
   // is opened cold we fetch it ourselves so the gallery/description are real, not the demo set.
   const [fetchedInfo, setFetchedInfo] = useState(null);
+  // Whether that fetch has finished (either way). The hero needs it to tell "no photos yet,
+  // still loading" from "this hotel genuinely has none" — the first shows a skeleton, the
+  // second the illustrated fallback, and flashing the fallback mid-load would look broken.
+  const [infoSettled, setInfoSettled] = useState(!!state?.info || !hotelCode);
   useEffect(() => {
     if (state?.info || !hotelCode) return;
     let cancelled = false;
@@ -380,8 +395,8 @@ export default function HotelDetail() {
       body: JSON.stringify({ hotelCodes: [String(hotelCode)] }),
     })
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => { const rec = d?.data?.[0]; if (!cancelled && rec) setFetchedInfo(rec); })
-      .catch(() => { /* keep whatever the URL gave us */ });
+      .then((d) => { const rec = d?.data?.[0]; if (cancelled) return; if (rec) setFetchedInfo(rec); setInfoSettled(true); })
+      .catch(() => { if (!cancelled) setInfoSettled(true); /* keep whatever the URL gave us */ });
     return () => { cancelled = true; };
   }, [hotelCode, state?.info]);
   const info = state?.info || fetchedInfo;
@@ -423,8 +438,18 @@ export default function HotelDetail() {
   const realImages = Array.isArray(info?.images) && info.images.length
     ? [...info.images].sort((a, b) => imgOrder(a) - imgOrder(b)).map((im) => im.url).filter(Boolean)
     : null;
-  const images = realImages && realImages.length ? realImages.slice(0, 30) : [hotel?.img || GALLERY[0], ...GALLERY.slice(1)];
-  const photoCount = realImages?.length || 48;
+  //
+  // When the record has none, the only honest candidate left is the thumbnail the results
+  // card carried in; with neither, `images` is EMPTY and the hero paints the illustrated
+  // fallback rather than someone else's hotel.
+  const cardImg = typeof hotel?.img === 'string' && hotel.img.trim() ? hotel.img.trim() : null;
+  const images = realImages && realImages.length ? realImages.slice(0, 30) : (cardImg ? [cardImg] : []);
+  const photoCount = realImages?.length || images.length;
+  const hasPhotos = images.length > 0;
+  // Still waiting on /hotels/bulk and nothing to show meanwhile — skeleton, not fallback.
+  const photosLoading = !hasPhotos && !infoSettled;
+  // One photo (or none) can't fill a five-tile mosaic, so the panel goes full-bleed instead.
+  const soloPhoto = !photosLoading && images.length < 2;
 
   // Group the real photos by imageTypeCode (the admin dashboard's categories: General,
   // Rooms, Pool, Beach, Bar…). Demo/fallback images carry no type, so `photoCats` stays
@@ -537,7 +562,8 @@ export default function HotelDetail() {
   }, [modalOpen]);
 
   // lightbox: scroll lock + keyboard nav
-  const openLightbox  = (imgs, i = 0, label = null) => setLightbox({ imgs, i, label });
+  // No photos at all → nothing to open (the hero panel is an illustration, not a picture).
+  const openLightbox  = (imgs, i = 0, label = null) => { if (imgs?.length) setLightbox({ imgs, i, label }); };
   const closeLightbox = () => setLightbox(null);
   const prevImg = (e) => { e?.stopPropagation(); setLightbox((lb) => lb && { ...lb, i: (lb.i - 1 + lb.imgs.length) % lb.imgs.length }); };
   const nextImg = (e) => { e?.stopPropagation(); setLightbox((lb) => lb && { ...lb, i: (lb.i + 1) % lb.imgs.length }); };
@@ -1025,19 +1051,38 @@ export default function HotelDetail() {
               </div>
             </div>
 
-            <div className="sd-hero-photos">
-              <div className="gi gi-hero" onClick={() => openLightbox(images, 0)}>
-                <HotelImg src={images[0]} size="bigger" alt={hotelName} fetchPriority="high" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
-              </div>
-              {images.slice(1, 5).map((src, i) => (
-                <div className="gi" key={i} onClick={() => (i === 3 && photoCats && photoCount > 5 ? openExplorer('ALL') : openLightbox(images, i + 1))}>
-                  <HotelImg src={src} size="bigger" alt={`${hotelName} ${i + 2}`} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
-                  {i === 3 && photoCount > 5 && <span className="gi-more">+{photoCount - 5}</span>}
-                  <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
+            <div className={`sd-hero-photos${soloPhoto ? ' sd-hero-photos-solo' : ''}`}>
+              {photosLoading ? (
+                /* the record is still in flight — hold the mosaic's shape */
+                <>
+                  <div className="gi gi-hero gi-skel" />
+                  {[0, 1, 2, 3].map((i) => <div className="gi gi-skel" key={i} />)}
+                </>
+              ) : !hasPhotos ? (
+                /* no photo anywhere for this hotel: illustrated panel, never stock photography */
+                <div className="gi gi-hero gi-empty">
+                  <HotelPhotoFallback name={hotelName} location={zoneLabel ? `${zoneLabel} · ${locLabel}` : locLabel} seed={hotelCode} />
                 </div>
-              ))}
-              <button className="ga" onClick={() => (photoCats ? openExplorer('ALL') : openLightbox(images, 0))}>{ICON.gallery} View all {photoCount} photos</button>
+              ) : (
+                <>
+                  <div className="gi gi-hero" onClick={() => openLightbox(images, 0)}>
+                    <HeroPhoto src={images[0]} seed={hotelCode} size="bigger" alt={hotelName} fetchPriority="high" />
+                    <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
+                  </div>
+                  {images.slice(1, 5).map((src, i) => (
+                    <div className="gi" key={i} onClick={() => (i === 3 && photoCats && photoCount > 5 ? openExplorer('ALL') : openLightbox(images, i + 1))}>
+                      <HeroPhoto src={src} seed={`${hotelCode}-${i}`} size="bigger" alt={`${hotelName} ${i + 2}`} loading="lazy" />
+                      {i === 3 && photoCount > 5 && <span className="gi-more">+{photoCount - 5}</span>}
+                      <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
+                    </div>
+                  ))}
+                </>
+              )}
+              {hasPhotos && (
+                <button className="ga" onClick={() => (photoCats ? openExplorer('ALL') : openLightbox(images, 0))}>
+                  {ICON.gallery} View {photoCount === 1 ? 'photo' : `all ${photoCount} photos`}
+                </button>
+              )}
             </div>
           </div>
         </div>
@@ -1807,7 +1852,11 @@ export default function HotelDetail() {
             {/* Full-screen inspection — request `original` (2048x1365), the sharpest source. If
                 a given image lacks it, HotelImg steps down (bigger → default) rather than
                 failing to open, which is what happened before for some hotels. */}
-            <HotelImg className="lb-img" key={`${lightbox.label}-${lightbox.i}`} src={lightbox.imgs[lightbox.i]} size="original" alt={`${hotelName} photo ${lightbox.i + 1}`} />
+            {/* …and when even `default` 404s, the stage shows the illustration rather than
+                an empty black frame. */}
+            <div className="lb-frame">
+              <HeroPhoto className="lb-img" key={`${lightbox.label}-${lightbox.i}`} src={lightbox.imgs[lightbox.i]} seed={`${hotelCode}-lb`} size="original" alt={`${hotelName} photo ${lightbox.i + 1}`} />
+            </div>
           </div>
           <button className="lb-nav lb-next" onClick={nextImg} aria-label="Next">
             <S size={26} sw={2.2}><path d="M9 18l6-6-6-6" /></S>
