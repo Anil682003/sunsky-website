@@ -497,11 +497,9 @@
 .sd .fc-col { appearance:none; background:none; border:none; font-family:inherit; display:flex; flex-direction:column; padding:0; cursor:pointer; min-width:0; }
 .sd .fc-barzone { height:212px; width:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:1.5px solid #cfdcee; }
 .sd .fc-lowtag { font-size:8.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:#8a5a06; background:var(--sun); padding:3px 9px; border-radius:var(--r-full); margin-bottom:7px; white-space:nowrap; }
-/* solid, filled bars — height AND colour depth both track the price */
-.sd .fc-bar { width:calc(100% - 12px); min-height:68px; border-radius:10px 10px 0 0; background:#2f6ae4; display:flex; flex-direction:column; align-items:center; padding:12px 4px 9px; transition:height .45s var(--ease), background-color .25s, box-shadow .25s; }
-.sd .fc-bar.t1 { background:#7aa8f5; } .sd .fc-bar.t2 { background:#5b91f0; } .sd .fc-bar.t3 { background:#3f79e8; }
-.sd .fc-bar.t4 { background:#2a62dd; } .sd .fc-bar.t5 { background:#1d4fc8; }
-.sd .fc-col:hover .fc-bar { filter:saturate(1.08) brightness(1.05); }
+/* solid, evenly-weighted bars — height alone carries the price, nothing sits faded */
+.sd .fc-bar { width:calc(100% - 12px); min-height:68px; border-radius:10px 10px 0 0; background:#2456c8; display:flex; flex-direction:column; align-items:center; padding:12px 4px 9px; transition:height .45s var(--ease), background-color .25s, box-shadow .25s; }
+.sd .fc-col:hover .fc-bar { background:#1d49b0; }
 .sd .fc-col.sel .fc-bar { background:#0f2f7a; box-shadow:0 14px 30px rgba(15,47,122,.3); }
 .sd .fc-from { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.78); }
 .sd .fc-amt { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:#fff; letter-spacing:-.01em; margin-top:2px; max-width:100%; }

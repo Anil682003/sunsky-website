@@ -20,7 +20,22 @@ import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
-const DEFAULT_ORIGIN = 'BRU'; // departure airport used for the live flight search
+const DEFAULT_ORIGIN = 'BRU'; // departure airport the flight search starts from
+// Hotelbeds 400s on a child with no age, so a newly-added child gets this until asked.
+const CHILD_AGE_DEFAULT = 8;
+// Departure airports offered in the "Transport" filter — the agency's catchment.
+const ORIGINS = ['BRU', 'CRL', 'AMS', 'EIN', 'RTM', 'NRN', 'DUS'];
+// "Care (Meals)" options. `match` tests the supplier's board name/code on a live room.
+const BOARD_PREFS = [
+  { id: '',   label: 'No preference' },
+  { id: 'RO', label: 'Room only',      match: /room\s*only|^RO$|self.?cater/i },
+  { id: 'BB', label: 'Bed & breakfast', match: /breakfast|^BB$/i },
+  { id: 'HB', label: 'Half board',      match: /half\s*board|^HB$/i },
+  { id: 'FB', label: 'Full board',      match: /full\s*board|^FB$/i },
+  { id: 'AI', label: 'All inclusive',   match: /all\s*inclusive|^AI$/i },
+];
+// Trip lengths the Duration filter offers, in nights.
+const NIGHT_OPTIONS = [3, 4, 5, 6, 7, 10, 14];
 const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const calDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WK[d.getDay()]; };
@@ -306,6 +321,57 @@ function JourneyTimeline({ label, legs }) {
   );
 }
 
+/* ── Loading skeletons ──────────────────────────────────────────────────────────
+   Each one mirrors the real card's geometry, so the block doesn't jump when the data
+   lands. A shared `.sk-sh` shimmer drives the sweep; `aria-busy` + a visually-hidden
+   caption keep the wait announced to a screen reader instead of silently blank. */
+const Sk = ({ w, h = 12, r = 6, style }) => (
+  <span className="sk-sh" style={{ width: w, height: h, borderRadius: r, ...style }} />
+);
+
+function FlightCardSkeleton() {
+  return (
+    <div className="flight-card sk-card" aria-hidden="true">
+      {[0, 1].map((k) => (
+        <div key={k}>
+          {k === 1 && <div className="bp-tear" />}
+          <div className="bp-journey">
+            <div className="bp-jhead"><Sk w={86} h={20} r={999} /><Sk w={110} /><span style={{ marginLeft: 'auto', display: 'flex', gap: 8, alignItems: 'center' }}><Sk w={23} h={23} r={7} /><Sk w={92} /></span></div>
+            <div className="bp-route">
+              <div><Sk w={78} h={26} r={8} /><Sk w={64} style={{ marginTop: 8 }} /></div>
+              <div className="bp-mid"><Sk w={52} h={10} /><Sk w="100%" h={2} r={2} /><Sk w={44} h={10} /></div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}><Sk w={78} h={26} r={8} /><Sk w={64} style={{ marginTop: 8 }} /></div>
+            </div>
+          </div>
+        </div>
+      ))}
+      <div className="bp-incl">{[74, 104, 92, 88].map((w, i) => <Sk key={i} w={w} h={26} r={999} />)}</div>
+      <div className="flight-bottom"><Sk w={132} h={30} r={999} /><span style={{ display: 'flex', gap: 10, alignItems: 'center' }}><Sk w={62} h={20} /><Sk w={84} h={32} r={999} /></span></div>
+    </div>
+  );
+}
+
+function RoomCardSkeleton() {
+  return (
+    <div className="room-group sk-card" aria-hidden="true">
+      <div className="sk-room-head"><Sk w={44} h={44} r={12} /><span style={{ flex: 1 }}><Sk w="46%" h={15} /><Sk w="28%" style={{ marginTop: 7 }} /></span><Sk w={78} h={26} r={8} /></div>
+      {[0, 1].map((i) => (
+        <div className="sk-room-row" key={i}><Sk w={124} h={22} r={999} /><Sk w="30%" /><Sk w={66} h={20} style={{ marginLeft: 'auto' }} /></div>
+      ))}
+    </div>
+  );
+}
+
+function SkeletonBlock({ label, children }) {
+  return (
+    <div className="sk-wrap" role="status" aria-busy="true">
+      <span className="sr-only">{label}</span>
+      <div className="sk-note"><span className="live-spin" /> {label}</div>
+      {children}
+    </div>
+  );
+}
+
 function FlightCard({ f, selected, onSelect }) {
   const [expanded, setExpanded] = useState(false);
   const out = f.outLegs || [];
@@ -468,7 +534,13 @@ export default function HotelDetail() {
     : '';
   const currency = hotel?.currency || '€';
   const ccy = currency === 'EUR' ? '€' : currency;
-  const nights = state?.nights || Number(qp('nights')) || 7;
+  // ── the "Compare the lowest prices" bar edits the search IN PLACE ───────────
+  // Every field starts at what the traveller searched (router state → URL param) and
+  // an entry in `ovr` overrides it. Keeping the override separate means an untouched
+  // filter still reflects the original search, and "reset" is just clearing the key.
+  const [ovr, setOvr] = useState({});
+  const paramNights = state?.nights || Number(qp('nights')) || 7;
+  const nights = ovr.nights ?? paramNights;
   const ppPrice = hotel?.totalAmount ? Math.round(hotel.totalAmount / 2) : 765;
 
   // real photos from the bulk hotel record (fallback to demo gallery). Kept as the CANONICAL
@@ -531,13 +603,30 @@ export default function HotelDetail() {
   // Search context (for the live calendar + availability calls). URL params are the
   // fallback so a new tab / shared link still prices the same stay.
   const destination  = state?.destination || qp('destination');
-  const baseCheckIn  = state?.checkIn  || qp('checkIn');
-  const baseCheckOut = state?.checkOut || qp('checkOut');
-  const sAdults   = String(state?.adults   ?? (qp('adults')   || '2'));
-  const sChildren = String(state?.children ?? (qp('children') || '0'));
-  const sRooms    = String(state?.rooms    ?? (qp('rooms')    || '1'));
+  const paramCheckIn  = state?.checkIn  || qp('checkIn');
+  const paramCheckOut = state?.checkOut || qp('checkOut');
+  const baseCheckIn  = ovr.checkIn ?? paramCheckIn;
+  // Check-out follows check-in + nights once EITHER has been edited; an untouched bar
+  // keeps the searched check-out verbatim (it may not be checkIn+nights apart).
+  const baseCheckOut = (ovr.checkIn != null || ovr.nights != null)
+    ? (baseCheckIn ? addDaysISO(baseCheckIn, nights) : paramCheckOut)
+    : paramCheckOut;
+  const sAdults   = String(ovr.adults   ?? state?.adults   ?? (qp('adults')   || '2'));
+  const sChildren = String(ovr.children ?? state?.children ?? (qp('children') || '0'));
+  const sRooms    = String(state?.rooms  ?? (qp('rooms')  || '1'));
   // children's ages (csv) — HotelBeds requires an age per child for availability
-  const sChildAges = String(state?.childAges ?? qp('childAges'));
+  const paramChildAges = String(state?.childAges ?? qp('childAges'));
+  // Trim/pad the age list to the chosen child count — HB 400s on a child with no age.
+  const sChildAges = (() => {
+    const n = parseInt(sChildren, 10) || 0;
+    if (!n) return '';
+    const ages = paramChildAges.split(',').map((a) => a.trim()).filter(Boolean);
+    return Array.from({ length: n }, (_, i) => ages[i] || String(CHILD_AGE_DEFAULT)).join(',');
+  })();
+  // Departure airport — the traveller can fly from a different one (was hardcoded BRU).
+  const origin = ovr.origin ?? DEFAULT_ORIGIN;
+  // Board preference: '' = no preference, else a boardRank key the room list filters on.
+  const boardPref = ovr.board ?? '';
 
   const [activeTab, setActiveTab] = useState('Prices');
   const [saved, setSaved] = useState(false);
@@ -736,7 +825,19 @@ export default function HotelDetail() {
 
   // Live rates as "room type → its board options". Selection still addresses the flat
   // `liveRooms.rooms` array by index, so the booking hand-off keeps the exact rateKey.
-  const roomGroups = useMemo(() => groupRoomsByBoard(liveRooms?.rooms), [liveRooms]);
+  const allRoomGroups = useMemo(() => groupRoomsByBoard(liveRooms?.rooms), [liveRooms]);
+  // "Care (Meals)" narrows the rates on show. Filtering happens AFTER grouping so each
+  // surviving board keeps its original `index` — that handle is the rateKey the booking
+  // hand-off needs, and re-indexing a filtered input would book the wrong rate.
+  const roomGroups = useMemo(() => {
+    const pref = BOARD_PREFS.find((b) => b.id === boardPref);
+    if (!pref?.match) return allRoomGroups;
+    return allRoomGroups
+      .map((g) => ({ ...g, boards: g.boards.filter((b) => pref.match.test(`${b.boardLabel} ${b.boardCode || ''}`)) }))
+      .filter((g) => g.boards.length > 0)
+      .map((g) => ({ ...g, cheapest: g.boards[0] }));
+  }, [allRoomGroups, boardPref]);
+  const boardFilterHidAll = allRoomGroups.length > 0 && roomGroups.length === 0;
   const nBoards = useMemo(() => boardCount(roomGroups), [roomGroups]);
 
   // Per-rate facts for the cards: board wording, occupancy, per-night / per-guest splits and
@@ -804,13 +905,35 @@ export default function HotelDetail() {
     const d = new Date(`${iso}T00:00:00`);
     return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   };
-  const liveFilters = FILTERS.map((f) => {
-    if (f.label === 'Departure date') { const v = niceDate(pd?.iso || baseCheckIn); return v ? { ...f, val: v } : f; }
-    if (f.label === 'Travelling company' && state) return { ...f, val: `${ovPax} person${ovPax > 1 ? 's' : ''}` };
-    if (f.label === 'Transport' && destination) return { ...f, val: `${DEFAULT_ORIGIN} → ${destination}` };
-    if (f.label === 'Duration' && state?.nights) return { ...f, val: `${nights} nights` };
-    return f;
-  });
+  // Editing any field re-prices the stay, so every live result gathered under the OLD
+  // parameters is dropped: keeping them would show a price for a search the traveller
+  // has just changed. The calendar re-fetches on its own (these values are its deps).
+  const applyFilter = (patch) => {
+    setOvr((p) => ({ ...p, ...patch }));
+    setSelectedPrice(null);
+    setLiveChecked(false);
+    setLiveRooms(null);
+    setLiveFlights(null);
+    setLiveTransfers(null);
+    setSelectedTransfer(-1);
+  };
+  const filtersTouched = Object.keys(ovr).length > 0;
+  const resetFilters = () => { setOvr({}); setSelectedPrice(null); setLiveChecked(false); setLiveRooms(null); setLiveFlights(null); setLiveTransfers(null); setSelectedTransfer(-1); };
+
+  // Departure dates offered: every day from today to 11 months out. The traveller can
+  // also click a day in the price strip, which is the faster path for small moves.
+  const dateOptions = useMemo(() => {
+    const out = [];
+    const start = new Date();
+    start.setHours(12, 0, 0, 0);
+    for (let i = 0; i < 330; i++) {
+      const d = new Date(start);
+      d.setDate(d.getDate() + i);
+      const p = (v) => String(v).padStart(2, '0');
+      out.push(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
+    }
+    return out;
+  }, []);
   const ovBase = liveTotal != null ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
 
   // ── shared flight fetch (used on mount + day-click) ──
@@ -818,12 +941,12 @@ export default function HotelDetail() {
     if (!destination) { setLiveFlights(null); return; }
     setLiveFlights({ loading: true });
     axiosInstance.post('/flight-availability/search', {
-      from: DEFAULT_ORIGIN, to: destination, depdate: checkin, retdate: checkout,
+      from: origin, to: destination, depdate: checkin, retdate: checkout,
       adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
     }).then(({ data }) => {
       console.log('[Detail] flight-availability response', data?.results);
       const raw = data?.results?.airtuerk?.flights || [];
-      const origin = DEFAULT_ORIGIN.toUpperCase();
+      const originCode = origin.toUpperCase();
       // The API's bookable keys are `flightKey`/`flightKeys` — they are REQUIRED
       // for live price verification and the Airtuerk reservation. (The old code
       // read a non-existent `offerKey` field, so packages booked from this page
@@ -869,8 +992,8 @@ export default function HotelDetail() {
         raw.forEach((f) => {
           const legs = f.legs || [];
           if (!legs.length) return;
-          if ((legs[0].from || '').toUpperCase() === origin) outs.push(f);
-          else if ((legs[legs.length - 1].to || '').toUpperCase() === origin) ins.push(f);
+          if ((legs[0].from || '').toUpperCase() === originCode) outs.push(f);
+          else if ((legs[legs.length - 1].to || '').toUpperCase() === originCode) ins.push(f);
         });
         if (outs.length && ins.length) {
           flights = [];
@@ -1259,23 +1382,83 @@ export default function HotelDetail() {
 
               <div className="filter-bar">
                 <div className="filter-fields">
-                  {liveFilters.map((f) => (
-                    <div className="filter-item" key={f.label}>
-                      <span className="fi-ico">{f.icon}</span>
-                      <div className="fi-body">
-                        <div className="filter-label">{f.label}</div>
-                        <select className="filter-val"><option>{f.val}</option></select>
-                      </div>
+                  <div className="filter-item">
+                    <span className="fi-ico">{ICON.cal}</span>
+                    <div className="fi-body">
+                      <div className="filter-label">Departure date</div>
+                      <select className="filter-val" value={baseCheckIn || ''} disabled={!baseCheckIn}
+                        onChange={(e) => applyFilter({ checkIn: e.target.value })}>
+                        {baseCheckIn && !dateOptions.includes(baseCheckIn) && <option value={baseCheckIn}>{niceDate(baseCheckIn)}</option>}
+                        {dateOptions.map((d) => <option key={d} value={d}>{niceDate(d)}</option>)}
+                      </select>
                     </div>
-                  ))}
+                  </div>
+
+                  <div className="filter-item">
+                    <span className="fi-ico">{ICON.users}</span>
+                    <div className="fi-body">
+                      <div className="filter-label">Travelling company</div>
+                      <select className="filter-val" value={`${sAdults}-${sChildren}`}
+                        onChange={(e) => {
+                          const [a, c] = e.target.value.split('-');
+                          applyFilter({ adults: a, children: c });
+                        }}>
+                        {[1, 2, 3, 4, 5, 6].map((a) => [0, 1, 2, 3].map((c) => (
+                          <option key={`${a}-${c}`} value={`${a}-${c}`}>
+                            {a} adult{a > 1 ? 's' : ''}{c ? ` + ${c} child${c > 1 ? 'ren' : ''}` : ''}
+                          </option>
+                        )))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="filter-item">
+                    <span className="fi-ico">{ICON.board}</span>
+                    <div className="fi-body">
+                      <div className="filter-label">Care (Meals)</div>
+                      <select className="filter-val" value={boardPref}
+                        onChange={(e) => setOvr((p) => ({ ...p, board: e.target.value }))}>
+                        {BOARD_PREFS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="filter-item">
+                    <span className="fi-ico">{ICON.plane}</span>
+                    <div className="fi-body">
+                      <div className="filter-label">Transport</div>
+                      <select className="filter-val" value={origin}
+                        onChange={(e) => applyFilter({ origin: e.target.value })}>
+                        {ORIGINS.map((o) => (
+                          <option key={o} value={o}>{airportName(o)} ({o}){destination ? ` → ${destination}` : ''}</option>
+                        ))}
+                      </select>
+                    </div>
+                  </div>
+
+                  <div className="filter-item">
+                    <span className="fi-ico">{ICON.moon}</span>
+                    <div className="fi-body">
+                      <div className="filter-label">Duration</div>
+                      <select className="filter-val" value={String(nights)}
+                        onChange={(e) => applyFilter({ nights: Number(e.target.value) })}>
+                        {(NIGHT_OPTIONS.includes(nights) ? NIGHT_OPTIONS : [...NIGHT_OPTIONS, nights].sort((a, b) => a - b))
+                          .map((n) => <option key={n} value={String(n)}>{n} nights</option>)}
+                      </select>
+                    </div>
+                  </div>
                 </div>
                 <div className="filter-foot">
                   <span className="filter-foot-label">Exact duration</span>
                   <div className="dur-chips">
-                    {DURATIONS.map((d, i) => (
-                      <button key={d} className={`dur-chip${selectedDur === i ? ' act' : ''}`} onClick={() => setSelectedDur(i)}>{d}</button>
+                    {NIGHT_OPTIONS.filter((n) => n >= 5 && n <= 10).map((n) => (
+                      <button key={n} className={`dur-chip${nights === n ? ' act' : ''}`}
+                        onClick={() => applyFilter({ nights: n })}>{n + 1} days</button>
                     ))}
                   </div>
+                  {filtersTouched && (
+                    <button type="button" className="filter-reset" onClick={resetFilters}>Reset to my search</button>
+                  )}
                 </div>
               </div>
 
@@ -1292,10 +1475,10 @@ export default function HotelDetail() {
                 <>
                   <div className="fc-strip">
                     {priceDays.map((p, i) => {
-                      // height and colour depth both scale with the price across the week
+                      // bar height scales with the price across the week; every bar keeps the
+                      // same solid weight so no day reads as faded or unavailable
                       const frac = priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
                       const h = Math.round(44 + 44 * frac);
-                      const tier = `t${Math.min(5, Math.floor(frac * 5) + 1)}`;
                       const sel = selectedPrice === i;
                       const isLow = p.lowest && priceVaries;
                       return (
@@ -1306,7 +1489,7 @@ export default function HotelDetail() {
                           aria-label={`${p.day} ${p.date}, from €${p.price}, ${p.nights} nights`}>
                           <span className="fc-barzone">
                             {isLow && <span className="fc-lowtag">Lowest price</span>}
-                            <span className={`fc-bar ${tier}`} style={{ height: `${h}%` }}>
+                            <span className="fc-bar" style={{ height: `${h}%` }}>
                               <span className="fc-from">from</span>
                               <span className="fc-amt">€{p.price}</span>
                               <span className="fc-nts">{p.nights} {p.nights === 1 ? 'night' : 'nights'}</span>
@@ -1351,7 +1534,7 @@ export default function HotelDetail() {
                             </div>
                             <div className="avail-sub">
                               {`Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}
-                              {liveRoom ? ` · ${liveRoom.supplier}` : ''}
+                              {liveRoom?.board ? ` · ${liveRoom.board.toLowerCase()}` : ''}
                             </div>
                           </div>
                           <div className="avail-price">
@@ -1567,7 +1750,10 @@ export default function HotelDetail() {
                                       <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
                                     )}
                                     {d?.packageRate && <span className="rchip rchip-mute">Package rate</span>}
-                                    {b.supplier && <span className="rchip rchip-mute">{b.supplier}</span>}
+                                    {/* The supplier (Hotelbeds / Diana) is never shown to the
+                                        traveller — who we source a rate from is our commercial
+                                        relationship, not part of the offer. It still rides on the
+                                        rate object for the booking hand-off. */}
                                   </div>
 
                                   {/* The full arithmetic, opened only for the row being considered —
