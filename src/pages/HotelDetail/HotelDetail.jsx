@@ -35,7 +35,9 @@ const BOARD_PREFS = [
   { id: 'AI', label: 'All inclusive',   match: /all\s*inclusive|^AI$/i },
 ];
 // Trip lengths the Duration filter offers, in nights.
-const NIGHT_OPTIONS = [3, 4, 5, 6, 7, 10, 14];
+const NIGHT_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 21];
+// The quick chips under the bar, in nights — printed as nights+1 days, so 5→"6 days".
+const DURATION_CHIPS = [5, 6, 7, 8, 9];
 const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const calDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WK[d.getDay()]; };
@@ -117,14 +119,6 @@ const TAB_ICON = {
 
 /* ── static demo data (from the design) ── */
 const TABS = ['Prices', 'Information', 'Facilities' /*, 'Weather', 'Map', 'Reviews' */];
-const FILTERS = [
-  { label: 'Departure date', val: 'Thu, 19 March 2026', icon: ICON.cal },
-  { label: 'Travelling company', val: '4 persons', icon: ICON.users },
-  { label: 'Care (Meals)', val: 'No preference', icon: ICON.board },
-  { label: 'Transport', val: 'All airports', icon: ICON.plane },
-  { label: 'Duration', val: '6–10 days', icon: ICON.moon },
-];
-const DURATIONS = ['6 days', '7 days', '8 days', '9 days', '10 days'];
 const PRICE_DAYS = [
   { day: 'Monday', date: '16 Mar.', price: 395, orig: 420, nights: 7 },
   { day: 'Tuesday', date: '17 Mar.', price: 378, orig: 410, nights: 7 },
@@ -658,7 +652,6 @@ export default function HotelDetail() {
         showToast('Couldn’t update favourites. Please try again.', 'error');
       });
   };
-  const [selectedDur, setSelectedDur] = useState(1);
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [liveChecked, setLiveChecked] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState(0);
@@ -1451,7 +1444,7 @@ export default function HotelDetail() {
                 <div className="filter-foot">
                   <span className="filter-foot-label">Exact duration</span>
                   <div className="dur-chips">
-                    {NIGHT_OPTIONS.filter((n) => n >= 5 && n <= 10).map((n) => (
+                    {DURATION_CHIPS.map((n) => (
                       <button key={n} className={`dur-chip${nights === n ? ' act' : ''}`}
                         onClick={() => applyFilter({ nights: n })}>{n + 1} days</button>
                     ))}
@@ -1564,7 +1557,9 @@ export default function HotelDetail() {
                 <div className="section-title"><span className="st-step">3</span> Your flights</div>
                 {liveFlights ? (
                   liveFlights.loading ? (
-                    <div className="live-loading"><span className="live-spin" /> Checking live flight prices…</div>
+                    <SkeletonBlock label="Checking live flight prices…">
+                      <FlightCardSkeleton /><FlightCardSkeleton />
+                    </SkeletonBlock>
                   ) : liveFlights.error ? (
                     <div className="live-error">{ICON.warn} {liveFlights.error}</div>
                   ) : liveFlights.flights?.length ? (
@@ -1657,9 +1652,16 @@ export default function HotelDetail() {
                 <div className="section-title"><span className="st-step">2</span> Choose your room</div>
                 {liveRooms ? (
                   liveRooms.loading ? (
-                    <div className="live-loading"><span className="live-spin" /> Checking live room availability…</div>
+                    <SkeletonBlock label="Checking live room availability…">
+                      <RoomCardSkeleton /><RoomCardSkeleton /><RoomCardSkeleton />
+                    </SkeletonBlock>
                   ) : liveRooms.error ? (
                     <div className="live-error">{ICON.warn} {liveRooms.error}</div>
+                  ) : boardFilterHidAll ? (
+                    <div className="live-empty">
+                      {ICON.board} No {(BOARD_PREFS.find((b) => b.id === boardPref)?.label || '').toLowerCase()} rate at this hotel for these dates.
+                      <button type="button" className="filter-reset" style={{ marginLeft: 10 }} onClick={() => setOvr((p) => ({ ...p, board: '' }))}>Show all meal plans</button>
+                    </div>
                   ) : roomGroups.length ? (
                     <div className="stay-block">
                       <div className="stay-header">
