@@ -612,7 +612,10 @@ export default function Results() {
   //   codes — only when a content facet is on; that is the only time the cache is restricted
   //           to a hotelCode set. A pinned ?hotelCode= supplies its own single code.
   //   attrs — only for a distance sort, the one thing computed client-side from them.
-  const needCodes = hasContentFacet(applied);
+  // A ZONE scope must restrict the priced set, not just the facet counts: with hotelCodes left
+  // null the cache prices the whole city, so picking the area "Side" would quietly return every
+  // hotel in Antalya. The admin narrows the codes by the (destination, zone) pair for us.
+  const needCodes = hasContentFacet(applied) || scope.zones.length > 0;
   const needAttrs = applied.sortBy === 'distance_beach' || applied.sortBy === 'distance_centre';
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state

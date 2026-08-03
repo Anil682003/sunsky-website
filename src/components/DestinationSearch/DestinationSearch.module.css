@@ -231,6 +231,9 @@
 .iconDest   { background: rgba(31, 79, 216, 0.10); color: var(--blue-deep, #1f4fd8); }
 .iconHotel  { background: linear-gradient(135deg, rgba(255, 159, 28, 0.18), rgba(255, 209, 102, 0.22)); color: #e07d0a; }
 .iconRecent { background: rgba(31, 79, 216, 0.07); color: var(--blue-deep, #1f4fd8); }
+/* An area sits between a place and a hotel, so it stays in the destination BLUE rather than
+   introducing a third hue — separated from it by weight, not colour. */
+.iconZone   { background: rgba(31, 79, 216, 0.16); color: var(--blue-deep, #1f4fd8); }
 
 /* Hotel master image in the icon slot — same 38px square as the icon it replaces, so a row
    with a photo and a row without line up exactly. The tinted background shows through while
@@ -282,6 +285,8 @@
 }
 .tagHotel { background: rgba(255, 159, 28, 0.07); border: 1px solid rgba(199, 119, 0, 0.35); color: #c7770a; }
 .tagDest  { background: rgba(31, 79, 216, 0.05); border: 1px solid rgba(31, 79, 216, 0.30); color: var(--blue-deep, #1f4fd8); }
+/* Same blue as Place, filled rather than outlined — an area is a narrower kind of place. */
+.tagZone  { background: rgba(31, 79, 216, 0.13); border: 1px solid rgba(31, 79, 216, 0.42); color: var(--blue-deep, #1f4fd8); }
 
 /* ── Popular chips (idle panel) ── */
 .chipRow { display: flex; flex-wrap: wrap; gap: 8px; padding: 4px 12px 12px; }

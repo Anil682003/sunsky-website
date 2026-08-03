@@ -212,9 +212,26 @@ export default function Navbar() {
       });
       if (href) { navigate(href); setMobileOpen(false); return; }
     }
-    // A destination — or a hotel result that arrived without a code to navigate by.
+    // An AREA (zone) is a narrower destination: the results page needs the parent city as the
+    // scope AND the zone to narrow it to, because `zones` alone would leave the scope empty and
+    // fall back to the default destinations. Keyed as `<destinationCode>:<zoneCode>`, the same
+    // pair form the sidebar's ScopePicker applies — a zoneCode is ambiguous on its own.
+    if (item.type === 'zone' && item.destinationCode && item.zoneCode != null) {
+      const qs = new URLSearchParams();
+      qs.set('destinations', item.destinationCode);
+      qs.set('zones', `${item.destinationCode}:${item.zoneCode}`);
+      qs.set('destinationLabel', item.name);
+      navigate(`/results?${qs.toString()}`);
+      setMobileOpen(false);
+      return;
+    }
+    // A destination — or a hotel/area result that arrived without a code to navigate by.
+    // The scope code is only set when we actually have one: `destinations=undefined` reads as a
+    // real destination downstream and prices nothing, where an absent param correctly falls back
+    // to the default scope.
     const qs = new URLSearchParams();
-    qs.set('destinations', item.type === 'hotel' ? (item.destinationCode ?? '') : item.code);
+    const scopeCode = item.type === 'destination' ? item.code : item.destinationCode;
+    if (scopeCode) qs.set('destinations', scopeCode);
     qs.set('destinationLabel', item.name);
     navigate(`/results?${qs.toString()}`);
     setMobileOpen(false);

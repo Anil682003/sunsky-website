@@ -20,7 +20,11 @@ export async function fetchThemes(destinationCode) {
 }
 
 /**
- * Home-page typeahead: search destinations AND hotels by name in one call.
+ * Home-page typeahead: search destinations, AREAS and hotels by name in one call.
+ *
+ * Three kinds of answer to "Side": the city it is in, the AREA itself (every hotel in Side —
+ * `zones`, each with a `hotels` count and the (destinationCode, zoneCode) pair that scopes a
+ * results URL), and hotels whose name contains it.
  *
  * Each hotel carries `image` — the URL of its master photo as a thumbnail, or null when the
  * hotel has none (~8% of them), in which case the caller keeps its icon.
@@ -31,15 +35,16 @@ export async function fetchThemes(destinationCode) {
  * Each hotel also carries `zoneName` — its resort area inside the city ("Side" in Antalya) — or
  * null when it sits in no zone. The dropdown shows it ahead of the city.
  *
- * @returns {Promise<{ destinations:{code,name,country}[], hotels:{hotelCode,name,destinationCode,destinationName,zoneName,country,stars,image}[] }>}
+ * @returns {Promise<{ destinations:{code,name,country}[], zones:{zoneCode,name,destinationCode,destinationName,country,hotels}[], hotels:{hotelCode,name,destinationCode,destinationName,zoneName,country,stars,image}[] }>}
  */
 export async function searchDestinationsAndHotels(q, limit = 6, { signal } = {}) {
   const query = String(q ?? '').trim();
-  const empty = { destinations: [], hotels: [] };
+  const empty = { destinations: [], zones: [], hotels: [] };
   if (query.length < 2) return empty;
   try {
     const { data } = await axiosInstance.get('/hotel-filters/search', { params: { q: query, limit }, signal });
-    return data?.data ?? empty;
+    // `zones` defaulted, so a response from an older backend can't crash the dropdown.
+    return { ...empty, ...(data?.data ?? {}) };
   } catch {
     return empty;
   }

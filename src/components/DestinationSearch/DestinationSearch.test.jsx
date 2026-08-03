@@ -31,6 +31,10 @@ const HOTEL_2 = {
 const HOTEL_NO_IMAGE = { ...HOTEL, hotelCode: '99', name: 'Rixos Unphotographed', image: null };
 const DEST = { code: 'AYT', name: 'Antalya', country: 'Turkey' };
 const DEST_2 = { code: 'BJV', name: 'Bodrum', country: 'Turkey' };
+const ZONE = {
+  zoneCode: '15', name: 'Side', destinationCode: 'AYT',
+  destinationName: 'Antalya', country: 'Turkey', hotels: 267,
+};
 
 const RECENTS_KEY = 'sunsky.recentSearches';
 const answer = (data) => { searchSpy.mockResolvedValue(data); };
@@ -152,6 +156,90 @@ describe('hotel images in the matching list', () => {
     await type('rixos');
     await waitFor(() => expect(screen.getByText('Rixos Premium Belek')).toBeInTheDocument());
     expect(within(row('Rixos Premium Belek')).getByText('Antalya')).toBeInTheDocument();
+  });
+});
+
+// ── AREAS (zones) ────────────────────────────────────────────────────────────
+//
+// Typing "Side" must offer the AREA Side — every hotel in it — not only the hotels with "Side"
+// in their name. It is the level travellers actually book by, one step below the city.
+
+describe('areas', () => {
+  it('offers the area as its own row, with the city and how many hotels it holds', async () => {
+    answer({ destinations: [], zones: [ZONE], hotels: [] });
+    await type('side');
+    await waitFor(() => expect(screen.getByText('Side')).toBeInTheDocument());
+    const el = row('Side');
+    expect(within(el).getByText('Antalya, Turkey · 267 hotels')).toBeInTheDocument();
+    expect(within(el).getByText('Area')).toBeInTheDocument();
+  });
+
+  it('counts areas separately from places and hotels in the tally', async () => {
+    answer({ destinations: [DEST], zones: [ZONE], hotels: [HOTEL] });
+    await type('side');
+    await waitFor(() => expect(screen.getByText('Side')).toBeInTheDocument());
+    expect(screen.getByText('1 place · 1 area · 1 hotel')).toBeInTheDocument();
+  });
+
+  it('hands the area back keyed by the (destination, zone) pair', async () => {
+    answer({ destinations: [], zones: [ZONE], hotels: [] });
+    const { user, onSelect } = await type('side');
+    await waitFor(() => expect(screen.getByText('Side')).toBeInTheDocument());
+    await user.click(row('Side'));
+
+    expect(onSelect).toHaveBeenCalledWith({
+      type: 'zone', zoneCode: '15', name: 'Side',
+      destinationCode: 'AYT', destinationName: 'Antalya', country: 'Turkey', hotels: 267,
+    });
+  });
+
+  it('walks places, then areas, then hotels — the order they are rendered', async () => {
+    answer({ destinations: [DEST], zones: [ZONE], hotels: [HOTEL] });
+    const { user, onSelect } = await type('side');
+    await waitFor(() => expect(screen.getByText('Side')).toBeInTheDocument());
+
+    await user.keyboard('{ArrowDown}{ArrowDown}');   // 1st = Antalya (place), 2nd = Side (area)
+    await user.keyboard('{Enter}');
+    expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ type: 'zone', name: 'Side' }));
+  });
+
+  it('remembers a picked area and shows it again as a recent', async () => {
+    answer({ destinations: [], zones: [ZONE], hotels: [] });
+    const { user } = await type('side');
+    await waitFor(() => expect(screen.getByText('Side')).toBeInTheDocument());
+    await user.click(row('Side'));
+
+    expect(storedRecents()[0]).toMatchObject({ kind: 'zone', zoneCode: '15', destinationCode: 'AYT' });
+  });
+
+  it('discards a stored area that lost half its pair — a bare zoneCode points nowhere', async () => {
+    seedRecents([
+      { kind: 'zone', name: 'Side', zoneCode: '15' },                                // no destination
+      { kind: 'zone', name: 'Belek', zoneCode: '12', destinationCode: 'AYT' },       // usable
+    ]);
+    const { user } = setup();
+    await user.click(screen.getByRole('textbox'));
+
+    await waitFor(() => expect(screen.getByText('Recent searches')).toBeInTheDocument());
+    expect(screen.getByText('Belek')).toBeInTheDocument();
+    expect(screen.queryByText('Side')).not.toBeInTheDocument();
+  });
+
+  it('keeps an area and a city of the same name apart in recents', async () => {
+    // "Antalya" is both a city and one of its own zones — two different searches.
+    answer({ destinations: [DEST], zones: [{ ...ZONE, name: 'Antalya', zoneCode: '10' }], hotels: [] });
+    const { user } = await type('antal');
+    await waitFor(() => expect(screen.getAllByText('Antalya').length).toBeGreaterThan(1));
+
+    await user.click(screen.getAllByText('Antalya')[0].closest('button'));
+    await user.click(screen.getByRole('textbox'));
+    await user.clear(screen.getByRole('textbox'));
+    await user.type(screen.getByRole('textbox'), 'antal');
+    await waitFor(() => expect(screen.getAllByText('Antalya').length).toBeGreaterThan(1));
+    await user.click(screen.getAllByText('Antalya')[1].closest('button'));
+
+    expect(storedRecents()).toHaveLength(2);
+    expect(storedRecents().map((r) => r.kind).sort()).toEqual(['destination', 'zone']);
   });
 });
 

@@ -37,12 +37,16 @@ const HOTEL = {
   image: 'https://photos.hotelbeds.com/giata/00/032243/a.jpg',
 };
 const DEST = { code: 'AYT', name: 'Antalya', country: 'Turkey' };
+const ZONE = {
+  zoneCode: '15', name: 'Side', destinationCode: 'AYT',
+  destinationName: 'Antalya', country: 'Turkey', hotels: 267,
+};
 
 beforeEach(() => {
   localStorage.clear();
   navigateSpy.mockReset();
   searchSpy.mockReset();
-  searchSpy.mockResolvedValue({ destinations: [DEST], hotels: [HOTEL] });
+  searchSpy.mockResolvedValue({ destinations: [DEST], zones: [ZONE], hotels: [HOTEL] });
 });
 
 // The header search only renders on the home page.
@@ -105,11 +109,34 @@ describe('picking a HOTEL', () => {
 
 describe('picking a DESTINATION', () => {
   it('opens the results list for that place, as before', async () => {
-    searchSpy.mockResolvedValue({ destinations: [DEST], hotels: [] });
+    searchSpy.mockResolvedValue({ destinations: [DEST], zones: [], hotels: [] });
     const to = await searchAndPick('antal', 'Antalya');
     expect(to.split('?')[0]).toBe('/results');
     const q = new URLSearchParams(to.split('?')[1]);
     expect(q.get('destinations')).toBe('AYT');
     expect(q.get('destinationLabel')).toBe('Antalya');
+  });
+});
+
+describe('picking an AREA (zone)', () => {
+  it('opens the results list narrowed to that area, inside its city', async () => {
+    searchSpy.mockResolvedValue({ destinations: [], zones: [ZONE], hotels: [] });
+    const to = await searchAndPick('side', 'Side');
+    expect(to.split('?')[0]).toBe('/results');
+    const q = new URLSearchParams(to.split('?')[1]);
+    // The parent city IS the scope — `zones` alone leaves it empty and the results page falls
+    // back to its default destinations, silently showing the wrong places.
+    expect(q.get('destinations')).toBe('AYT');
+    expect(q.get('zones')).toBe('AYT:15');
+    expect(q.get('destinationLabel')).toBe('Side');
+  });
+
+  it('never emits a bare zoneCode, which is ambiguous across cities', async () => {
+    searchSpy.mockResolvedValue({ destinations: [], zones: [{ ...ZONE, destinationCode: null }], hotels: [] });
+    const to = await searchAndPick('side', 'Side');
+    const q = new URLSearchParams(to.split('?')[1]);
+    expect(q.get('zones')).toBeNull();
+    expect(to).not.toContain('undefined');
+    expect(to).not.toContain('null');
   });
 });

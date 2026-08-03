@@ -777,6 +777,15 @@ describe('content-facet payload opt-ins', () => {
     expect(lastFacetCall().filters.adultsOnly).toBe(true);
   });
 
+  // An AREA search carries no content facet, so without this the cache would price the whole
+  // city and "Side" would silently return every hotel in Antalya.
+  it('asks for hotelCodes when the scope is narrowed to an area', async () => {
+    renderResults('?destinations=AYT&zones=AYT:15&destinationLabel=Side&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1');
+    await settled();
+    expect(lastFacetCall().opts.codes).toBe(true);
+    expect(lastFacetCall().scope.zones).toEqual(['AYT:15']);
+  });
+
   it('asks for attributes only when a distance sort is chosen', async () => {
     const user = userEvent.setup();
     renderResults();

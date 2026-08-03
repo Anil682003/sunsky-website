@@ -20,6 +20,13 @@ const PinIcon = () => (
     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z" /><circle cx="12" cy="10" r="3" />
   </svg>
 );
+// An AREA (zone) — a district inside a city, drawn as a bounded patch with a marker, so it reads
+// as "a part of a place" next to the destination pin and the hotel building.
+const AreaIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M3 7.5l6-3 6 3 6-3v13l-6 3-6-3-6 3z" /><path d="M9 4.5v13M15 7.5v13" />
+  </svg>
+);
 const HotelIcon = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
     <path d="M3 21h18M5 21V5a2 2 0 012-2h10a2 2 0 012 2v16" /><path d="M9 7h.01M13 7h.01M9 11h.01M13 11h.01M9 15h6v6H9z" />
@@ -104,12 +111,15 @@ const RECENTS_KEY = 'sunsky.recentSearches';
 const RECENTS_MAX = 4;
 
 // A stored entry is only usable if it still carries the identity the caller navigates by:
-// a hotel needs its hotelCode, a destination its code. Without this guard a half-written or
-// older-format entry sails through to `/results?hotelCode=undefined`, which prices nothing.
+// a hotel needs its hotelCode, a destination its code, an area BOTH halves of its pair (a
+// zoneCode alone means nothing — zone 15 is Side in Antalya and something else in Madrid).
+// Without this guard a half-written or older-format entry sails through to
+// `/results?hotelCode=undefined`, which prices nothing.
 const isUsableRecent = (r) =>
   !!r && typeof r.name === 'string' && r.name.trim() !== '' &&
   ((r.kind === 'hotel' && r.hotelCode != null && String(r.hotelCode) !== '') ||
-   (r.kind === 'destination' && !!r.code));
+   (r.kind === 'destination' && !!r.code) ||
+   (r.kind === 'zone' && !!r.destinationCode && r.zoneCode != null && String(r.zoneCode) !== ''));
 
 const loadRecents = () => {
   try {
@@ -118,10 +128,13 @@ const loadRecents = () => {
   } catch { return []; }   // unparseable, or storage blocked (Safari private mode)
 };
 const saveRecent = (item) => {
-  // De-dupe on kind+identity, not name: a hotel and a city can share a name ("Antalya"), and
-  // the same hotel renamed upstream must still replace its own entry rather than pile up.
-  const sameAs = (r) => r.kind === item.kind &&
-    (item.kind === 'hotel' ? String(r.hotelCode) === String(item.hotelCode) : r.code === item.code);
+  // De-dupe on kind+identity, not name: a hotel, an area and a city can share a name ("Antalya"),
+  // and the same hotel renamed upstream must still replace its own entry rather than pile up.
+  const identity = (r) =>
+    r.kind === 'hotel' ? String(r.hotelCode)
+    : r.kind === 'zone' ? `${r.destinationCode}:${r.zoneCode}`
+    : r.code;
+  const sameAs = (r) => r.kind === item.kind && identity(r) === identity(item);
   const next = [item, ...loadRecents().filter((r) => !sameAs(r))].slice(0, RECENTS_MAX);
   try {
     localStorage.setItem(RECENTS_KEY, JSON.stringify(next));
@@ -160,7 +173,7 @@ const useTypewriter = (names, active) => {
 
 export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggestions = [], placeholder = 'Search hotels & destinations' }) {
   const [query, setQuery]     = useState('');
-  const [results, setResults] = useState({ destinations: [], hotels: [] });
+  const [results, setResults] = useState({ destinations: [], zones: [], hotels: [] });
   const [open, setOpen]       = useState(false);
   const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -179,7 +192,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
   // Debounced search — only the latest request's result is applied (reqRef guards races).
   useEffect(() => {
     const q = query.trim();
-    if (q.length < 2) { setResults({ destinations: [], hotels: [] }); setLoading(false); return; }
+    if (q.length < 2) { setResults({ destinations: [], zones: [], hotels: [] }); setLoading(false); return; }
     setLoading(true);
     const id = ++reqRef.current;
     const t = setTimeout(async () => {
@@ -190,6 +203,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
         setResults({
           hotels: (r.hotels || []).map((h) => ({ ...h, name: (h.name || '').trim() })),
           destinations: (r.destinations || []).map((d) => ({ ...d, name: (d.name || '').trim() })),
+          zones: (r.zones || []).map((z) => ({ ...z, name: (z.name || '').trim() })),
         });
         setLoading(false);
       }
@@ -210,9 +224,10 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
   const typed = useTypewriter(typeNames, !focused && query === '');
   const showTyped = typed !== null && !focused && query === '';
 
-  // Flat list in render order (DESTINATIONS then hotels) so keyboard nav maps to what's shown.
+  // Flat list in render order (destinations → AREAS → hotels) so keyboard nav maps to what's shown.
   const flat = [
     ...results.destinations.map((d) => ({ kind: 'destination', ...d })),
+    ...results.zones.map((z) => ({ kind: 'zone', ...z })),
     ...results.hotels.map((h) => ({ kind: 'hotel', ...h })),
   ];
 
@@ -226,12 +241,16 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
       // its photo when it comes back as a recent search tomorrow — recents are stored from
       // exactly this object.
       onSelect({ type: 'hotel', hotelCode: item.hotelCode, name: item.name, destinationCode: item.destinationCode, destinationName: item.destinationName, zoneName: item.zoneName ?? null, country: item.country, stars: item.stars, image: item.image ?? null });
+    } else if (item.kind === 'zone') {
+      // An AREA scopes the results to every hotel in it — the city it belongs to travels along,
+      // because a zone is only addressable as the (destination, zone) pair.
+      onSelect({ type: 'zone', zoneCode: String(item.zoneCode), name: item.name, destinationCode: item.destinationCode, destinationName: item.destinationName, country: item.country, hotels: item.hotels ?? 0 });
     } else {
       onSelect({ type: 'destination', code: item.code, name: item.name, country: item.country });
     }
   };
 
-  const clear = () => { setQuery(''); setResults({ destinations: [], hotels: [] }); setActive(-1); onSelect(null); inputRef.current?.focus(); };
+  const clear = () => { setQuery(''); setResults({ destinations: [], zones: [], hotels: [] }); setActive(-1); onSelect(null); inputRef.current?.focus(); };
 
   const onKeyDown = (e) => {
     if (e.key === 'ArrowDown') { e.preventDefault(); setOpen(true); setActive((a) => Math.min(a + 1, flat.length - 1)); }
@@ -247,6 +266,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
   const showIdle = open && !hasQuery && (recents.length > 0 || suggestions.length > 0);
   const nHotels = results.hotels.length;
   const nDests = results.destinations.length;
+  const nZones = results.zones.length;
 
   return (
     <div className={styles.wrap} ref={boxRef}>
@@ -296,6 +316,8 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                 >
                   {r.kind === 'destination'
                     ? <FlagTile flag={r.flag} flagUrl={r.flagUrl} />
+                    : r.kind === 'zone'
+                    ? <span className={`${styles.itemIcon} ${styles.iconZone}`}><AreaIcon /></span>
                     : (
                       <RowThumb
                         image={r.image}
@@ -308,7 +330,11 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                     )}
                   <span className={styles.itemText}>
                     <span className={styles.itemMain}>{r.name}</span>
-                    <span className={styles.itemSub}>{r.kind === 'hotel' ? hotelLocation(r) : (r.country || 'Destination')}</span>
+                    <span className={styles.itemSub}>
+                      {r.kind === 'hotel' ? hotelLocation(r)
+                        : r.kind === 'zone' ? [r.destinationName, r.country].filter(Boolean).join(', ')
+                        : (r.country || 'Destination')}
+                    </span>
                   </span>
                 </button>
               ))}
@@ -340,9 +366,11 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
           {flat.length > 0 && (
             <div className={styles.tallyStrip}>
               <span className={styles.tally}>
-                {nDests > 0 && `${nDests} place${nDests === 1 ? '' : 's'}`}
-                {nDests > 0 && nHotels > 0 && ' · '}
-                {nHotels > 0 && `${nHotels} hotel${nHotels === 1 ? '' : 's'}`}
+                {[
+                  nDests > 0 && `${nDests} place${nDests === 1 ? '' : 's'}`,
+                  nZones > 0 && `${nZones} area${nZones === 1 ? '' : 's'}`,
+                  nHotels > 0 && `${nHotels} hotel${nHotels === 1 ? '' : 's'}`,
+                ].filter(Boolean).join(' · ')}
               </span>
             </div>
           )}
@@ -375,11 +403,42 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
             </div>
           )}
 
+          {/* AREAS — a district inside a city. Picking one searches every hotel in it, which is
+              what a traveller typing "Side" or "Belek" almost always means. The hotel count is
+              shown because it is the reason to pick the area over the whole city. */}
+          {results.zones.length > 0 && (
+            <div className={styles.section}>
+              <div className={styles.group}><AreaIcon /><span>Areas</span></div>
+              {results.zones.map((z, i) => {
+                const idx = nDests + i;
+                return (
+                  <button
+                    key={`z-${z.destinationCode}-${z.zoneCode}`} type="button"
+                    className={`${styles.item} ${styles.itemRise} ${active === idx ? styles.itemActive : ''}`}
+                    style={{ animationDelay: `${Math.min(idx, 6) * 20}ms` }}
+                    onMouseEnter={() => setActive(idx)}
+                    onClick={() => choose({ kind: 'zone', ...z })}
+                  >
+                    <span className={`${styles.itemIcon} ${styles.iconZone}`}><AreaIcon /></span>
+                    <span className={styles.itemText}>
+                      <span className={styles.itemMain}>{z.name}</span>
+                      <span className={styles.itemSub}>
+                        {[z.destinationName, z.country].filter(Boolean).join(', ')}
+                        {z.hotels > 0 && ` · ${z.hotels} hotel${z.hotels === 1 ? '' : 's'}`}
+                      </span>
+                    </span>
+                    <span className={`${styles.tag} ${styles.tagZone}`}>Area</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           {results.hotels.length > 0 && (
             <div className={styles.section}>
               <div className={styles.group}><HotelIcon /><span>Hotels</span></div>
               {results.hotels.map((h, i) => {
-                const idx = nDests + i;
+                const idx = nDests + nZones + i;
                 return (
                   <button
                     key={`h-${h.hotelCode}`} type="button"
