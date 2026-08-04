@@ -11,7 +11,7 @@ import { rateDetails } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS,
 } from '../../utils/flightFilters';
-import { formatReview, scoreWord } from '../../utils/reviewBadge';
+import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
@@ -429,13 +429,20 @@ function FlightCard({ f, selected, onSelect }) {
 function GuestRating({ review }) {
   const r = formatReview(review);
   if (!r) return null;
+  // The band drives the colour, so the badge can never celebrate a score its own word calls
+  // "Fair". `title` keeps the full sentence available to screen readers and on hover.
   return (
-    <span className="sd-rating" title={r.title}>
+    <span className={`sd-rating sd-rating-${scoreBand(r.score)}`} title={r.title}>
       <span className="sd-rating-badge">
         {r.score}<span className="sd-rating-outof">/{r.outOf}</span>
       </span>
       <span className="sd-rating-body">
         <span className="sd-rating-word">{scoreWord(r.score)}</span>
+        {/* A number alone makes the reader do the work of placing 6.4 on a scale; the meter
+            shows the proportion at a glance. Decorative — the score beside it is the content. */}
+        <span className="sd-rating-meter" aria-hidden="true">
+          <span className="sd-rating-fill" style={{ width: `${r.fillPct}%` }} />
+        </span>
         <span className="sd-rating-meta">
           <span className="sd-rating-src">{r.label}</span>
           {r.count > 0 && <span className="sd-rating-count">{r.count.toLocaleString('en-GB')} reviews</span>}
@@ -536,7 +543,8 @@ export default function HotelDetail() {
   const [ovr, setOvr] = useState({});
   const paramNights = state?.nights || Number(qp('nights')) || 7;
   const nights = ovr.nights ?? paramNights;
-  const ppPrice = hotel?.totalAmount ? Math.round(hotel.totalAmount / 2) : 765;
+  // NOTE: the page-wide "from" figure is `fromPP` (see below). There is deliberately no
+  // hardcoded fallback price — a cold visit shows "Pick a date", never an invented number.
 
   // real photos from the bulk hotel record (fallback to demo gallery). Kept as the CANONICAL
   // (default-size) URLs; each <HotelImg> below requests the size its box needs and falls back
@@ -798,11 +806,24 @@ export default function HotelDetail() {
     return `${origin}/hotel/${hotelCode}${q ? `?${q}` : ''}`;
   })();
 
-  // Only a REAL "from" figure goes in the message — never the demo placeholder, and never
-  // the €0 the price cache returns for a day it hasn't costed yet.
-  const shareFrom = Number(pd?.price) > 0
-    ? Math.round(pd.price)
-    : (Number(hotel?.totalAmount) > 0 ? ppPrice : null);
+  // Editing the bar changed only component state, so the address bar disagreed with the screen:
+  // a refresh threw the edits away and Back left the page instead of undoing them. Push the
+  // edited context into the URL (replace, so one Back still leaves the hotel) — the page already
+  // reads these params as its cold-start fallback, which is what makes a refresh survive.
+  useEffect(() => {
+    if (!filtersTouched || typeof window === 'undefined') return;
+    const url = new URL(window.location.href);
+    const set = (k, v) => { if (v != null && String(v).trim() !== '') url.searchParams.set(k, String(v)); };
+    set('checkIn', baseCheckIn);  set('checkOut', baseCheckOut);
+    set('adults', sAdults);       set('children', sChildren);
+    set('rooms', sRooms);         set('childAges', sChildAges);
+    set('nights', nights);
+    if (url.toString() !== window.location.href) window.history.replaceState(window.history.state, '', url);
+  }, [filtersTouched, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms, sChildAges, nights]);
+
+  // Only a REAL "from" figure goes in the message; `stayFrom` already refuses the €0 the price
+  // cache returns for an uncosted day and the total of a search that has since been edited.
+  const shareFrom = fromPP;
   const shareDates = shareCheckIn
     ? `${calDate(shareCheckIn)}${shareCheckOut ? ` – ${calDate(shareCheckOut)}` : ''}`
     : '';
@@ -888,7 +909,7 @@ export default function HotelDetail() {
     ? liveTransfers.services[selectedTransfer] : null;
   const transferPrice = liveTransfer ? Math.round(liveTransfer.price || 0) : 0;
   const liveTotal = liveRoom ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0) + transferPrice) : null;
-  const displayTotal = liveTotal != null ? liveTotal : (hotel?.totalAmount ? Math.round(hotel.totalAmount) : ppPrice * 2);
+  const displayTotal = liveTotal != null ? liveTotal : stayFrom;
   // live-aware overview card numbers (hotel+flight base; transfer & SGR listed separately)
   const ovPax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
 
@@ -904,14 +925,40 @@ export default function HotelDetail() {
   // has just changed. The calendar re-fetches on its own (these values are its deps).
   const applyFilter = (patch) => {
     setOvr((p) => ({ ...p, ...patch }));
-    setSelectedPrice(null);
+    // Every live result was priced under the OLD parameters, so it goes — a rate fetched for
+    // dates the traveller has just changed must never stay on screen, let alone be bookable.
     setLiveChecked(false);
     setLiveRooms(null);
     setLiveFlights(null);
     setLiveTransfers(null);
     setSelectedTransfer(-1);
+    // The PICKED DAY is a different matter. Changing the departure airport or a child's age
+    // doesn't move the stay, and changing its length doesn't move the departure day — the day
+    // is still in the strip, so clearing it made the traveller re-pick for nothing. Only a
+    // change of check-in (or of who is travelling, which re-prices every day) drops it.
+    const keepsTheDay = Object.keys(patch).every((k) => k === 'origin' || k === 'childAges' || k === 'nights');
+    if (!keepsTheDay) setSelectedPrice(null);
   };
   const filtersTouched = Object.keys(ovr).length > 0;
+  // ── the one "from" figure the page quotes ────────────────────────────────────
+  // Everything headline-priced (hero chip, Book card, mobile bar, share text, the
+  // checkout hand-off) reads this, so those can never disagree with each other.
+  //
+  // It follows what the traveller has actually asked for: the day they picked, else the
+  // cheapest day the calendar just returned. Once ANY filter is touched it will not fall
+  // back to the total the results card arrived with — that number priced the search they
+  // just changed, and showing it beside a re-priced calendar quotes two different stays at
+  // once. When there is nothing true to quote it is null and the UI says so, rather than
+  // inventing a figure (this used to read a hardcoded 765 on a cold visit).
+  const paxCount = Math.max(1, (Number(sAdults) || 1) + (Number(sChildren) || 0));
+  const stayFrom = (() => {
+    if (Number(pd?.price) > 0) return Number(pd.price);
+    if (usingLive && pMin > 0) return pMin;
+    if (!filtersTouched && Number(hotel?.totalAmount) > 0) return Number(hotel.totalAmount);
+    return null;
+  })();
+  // Per person — the calendar prices a whole stay for the whole party.
+  const fromPP = stayFrom != null ? Math.round(stayFrom / paxCount) : null;
   const resetFilters = () => { setOvr({}); setSelectedPrice(null); setLiveChecked(false); setLiveRooms(null); setLiveFlights(null); setLiveTransfers(null); setSelectedTransfer(-1); };
 
   // Departure dates offered: every day from today to 11 months out. The traveller can
@@ -1136,9 +1183,12 @@ export default function HotelDetail() {
     // ppPrice covers hotel+flight only — the transfer is priced PER VEHICLE and is
     // added by the checkout as its own line (never multiplied by travellers).
     // EXACT sum (no rounding) — this is what the backend will charge.
+    // Without a live rate the stay total is whatever the page is quoting — the picked day or
+    // the cheapest day in the calendar (`stayFrom`), NOT the total the results card arrived
+    // with, which may price a search the traveller has since edited.
     const total = useLive
       ? (liveRoom.price || 0) + (liveFlight?.totalPrice || 0)
-      : (hotel?.totalAmount ? Math.round(hotel.totalAmount) : ppPrice * pax);
+      : (stayFrom != null ? stayFrom : 0);
     // EXACT per-person value — checkout multiplies back by pax, so any rounding
     // here would make the displayed total drift ±€1/pax from the amount charged.
     const perPerson = Math.max(0.01, total / pax);
@@ -1189,7 +1239,9 @@ export default function HotelDetail() {
           hotelCode, hotelName, stars: Math.min(stars, 5), loc: locLabel,
           img: heroImage, board,
           nights, adults: pax, currency: ccy,
-          ppPrice: useLive ? perPerson : (pd?.price ?? ppPrice), origPrice: useLive ? null : (pd?.orig ?? null),
+          // `perPerson` both times: checkout multiplies this back by pax, so handing it a
+          // whole-party stay total (as `pd.price` is) billed every traveller for the group.
+          ppPrice: perPerson, origPrice: useLive ? null : (pd?.orig ?? null),
           dateLabel,
           flight: dispFlight,
           room: roomName,
@@ -1307,7 +1359,7 @@ export default function HotelDetail() {
                 <span className="sd-chip">{ICON.board} {hotel?.board || 'All inclusive'}</span>
                 <span className="sd-chip">{ICON.moon} {nights} nights</span>
                 <span className="sd-chip">{ICON.users} {Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</span>
-                <span className="sd-chip sd-chip-price">{ICON.tag} from {ccy}{ppPrice} p.p.</span>
+                {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} from {ccy}{fromPP} p.p.</span>}
               </div>
               <div className="sd-hero-trust">
                 <span className="sd-hc-item">{ICON.check} Secure online payment</span>
@@ -2143,12 +2195,16 @@ export default function HotelDetail() {
             <div className="bk">
               {/* bkr review score removed — no real review data yet */}
               <div className="bkp">
-                <div className="bkpl">{liveTotal != null ? `live price · ${pd?.day} ${pd?.date}` : 'per person from'}</div>
-                <div className="bkpr hd">{ccy}{liveTotal != null ? liveTotal.toLocaleString('en-GB') : ppPrice} {liveTotal == null && <span>p.p.</span>}</div>
+                <div className="bkpl">{liveTotal != null ? `live price · ${pd?.day} ${pd?.date}` : fromPP != null ? 'per person from' : 'no price yet'}</div>
+                <div className="bkpr hd">{liveTotal != null
+                  ? <>{ccy}{liveTotal.toLocaleString('en-GB')}</>
+                  : fromPP != null ? <>{ccy}{fromPP} <span>p.p.</span></> : <span className="bkpr-none">Pick a date</span>}</div>
                 <div className="bkp-total">
                   {liveTotal != null
                     ? `${liveRoom ? 'Room' : ''}${liveRoom && liveFlight ? ' + flight' : liveFlight ? 'Flight' : ''} · ${sAdults} ${Number(sAdults) === 1 ? 'adult' : 'adults'}`
-                    : `${ccy}${displayTotal.toLocaleString('en-GB')} total · ${ovPax} traveller${ovPax > 1 ? 's' : ''}`}
+                    : displayTotal != null
+                      ? `${ccy}${displayTotal.toLocaleString('en-GB')} total · ${ovPax} traveller${ovPax > 1 ? 's' : ''}`
+                      : `Pick a day in the calendar to price ${ovPax} traveller${ovPax > 1 ? 's' : ''}`}
                 </div>
               </div>
               <div className="bkd">
@@ -2177,7 +2233,8 @@ export default function HotelDetail() {
       {/* Mobile sticky bar */}
       <div className="mbar">
         <div className="mbi">
-          <div className="mbp"><small>{liveTotal != null ? 'live total' : 'per person from'}</small>{ccy}{liveTotal != null ? liveTotal.toLocaleString('en-GB') : ppPrice}</div>
+          <div className="mbp"><small>{liveTotal != null ? 'live total' : fromPP != null ? 'per person from' : 'no price yet'}</small>{liveTotal != null
+            ? `${ccy}${liveTotal.toLocaleString('en-GB')}` : fromPP != null ? `${ccy}${fromPP}` : '—'}</div>
           <button className="mbc" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
             {liveFlights?.loading ? 'Checking…' : `${liveTotal != null ? 'Book now' : 'Check price'} →`}
           </button>
