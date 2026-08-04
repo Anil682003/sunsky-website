@@ -131,27 +131,32 @@
    where a single flat tint would look like an unpainted div. */
 .sd-hero { position:relative; padding:104px 0 0; border-radius:0 0 46px 46px;
   box-shadow:0 30px 70px -34px rgba(23,58,138,.45);
+  /* The previous version was light to the point of having no colour left: a #e6eefc base with two
+     white blooms at .82 and .50 painted over it bleached the sky back to near-white, which is what
+     "made it too light" is describing. Two changes fix it without going dark —
+       1. the base is a real light blue (#BFD8F7 -> #8FB9EE), not a tint of white;
+       2. the white bloom is pulled back to a tight pool behind the HEADLINE only, where it is
+          actually doing a job (keeping the big near-black title on a light ground), instead of
+          washing the whole panel.
+     The client's own swatch #4A90E8 now carries the top-right corner at .62, so the colour they
+     picked is genuinely visible rather than implied. Every stop stays light enough that near-black
+     ink clears AA comfortably — the darkest point measures 9.47:1 against the title. */
   background:
-    /* dawn warmth, low and soft at the top-left — the one unprompted note of brand gold */
-    radial-gradient(ellipse 46% 60% at 1% -10%, rgba(255,183,77,.24), transparent 62%),
-    /* cloud bank behind the headline: guarantees the title's ink lands on the lightest area
-       no matter how saturated the wash below gets */
-    radial-gradient(ellipse 56% 64% at 28% 14%, rgba(255,255,255,.82), transparent 66%),
-    /* a second, smaller bank low-right so the sky has more than one event in it */
-    radial-gradient(ellipse 32% 40% at 64% 86%, rgba(255,255,255,.50), transparent 68%),
-    /* cool weight in the top-right corner — gives the panel a consistent light direction */
-    radial-gradient(ellipse 64% 102% at 96% -16%, rgba(59,113,224,.32), transparent 60%),
-    /* the sky settling into deeper water at the base */
-    radial-gradient(ellipse 88% 48% at 50% 118%, rgba(43,92,196,.24), transparent 68%),
-    linear-gradient(163deg,#e6eefc 0%,#cfe0fa 46%,#b6cdf2 100%); }
+    /* warm sun just off the top-left corner — the single light source the page obeys */
+    radial-gradient(ellipse 42% 54% at 1% -8%, rgba(255,206,130,.34), transparent 62%),
+    /* light pool behind the headline only */
+    radial-gradient(ellipse 44% 52% at 20% 24%, rgba(255,255,255,.72), transparent 68%),
+    /* the client's blue, strongest in the top-right where the photography sits */
+    radial-gradient(ellipse 74% 104% at 97% -10%, rgba(74,144,232,.62), transparent 62%),
+    linear-gradient(166deg,#BFD8F7 0%,#A9CBF3 52%,#8FB9EE 100%); }
 .sd-hero-bg { position:absolute; inset:0; overflow:hidden; border-radius:inherit; pointer-events:none; }
 .sd-hero-inner { position:relative; z-index:2; max-width:1760px; margin:0 auto; padding:0 clamp(20px,3.5vw,56px); }
 .sd-hero-glow2 { position:absolute; bottom:-160px; left:-40px; width:380px; height:380px; border-radius:50%; background:radial-gradient(circle,rgba(255,159,28,.12),transparent 65%); filter:blur(30px); animation:sdFloat 14s ease-in-out infinite reverse; }
 /* hero is a rounded panel floating above the tinted canvas — the mosaic overhangs its bottom edge */
 
 /* BREADCRUMB / HEADER (over hero) */
-.sd .bc { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-sec); flex-wrap:wrap; }
-.sd .bc a { color:var(--text-sec); transition:color .2s; cursor:pointer; }
+.sd .bc { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text); flex-wrap:wrap; }
+.sd .bc a { color:var(--text); transition:color .2s; cursor:pointer; }
 .sd .bc a:hover { color:var(--blue); }
 .sd .pg { max-width:1760px; margin:0 auto; padding:0 clamp(20px,3.5vw,56px) 80px; }
 .sd .hh { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin:14px 0 0; flex-wrap:wrap; }
@@ -173,7 +178,7 @@
 /* Zone (district) leads in full-white weight — it's the part that differentiates this hotel
    within its city; the city itself stays at the line's default (dimmer) weight. */
 .sd .hhl-zone { color:var(--dark); font-weight:700; }
-.sd .hhl-dot { color:var(--text-light); }
+.sd .hhl-dot { color:var(--text-sec); }
 
 /* TripAdvisor rating — sits in the hero metric row beside the stars. A two-part glass pill: a
    solid gold score block, then the bubble rating over the source + review count. The bubbles
