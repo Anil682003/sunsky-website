@@ -169,32 +169,35 @@
   display:inline-flex; align-items:center; gap:10px;
   animation:sdRatingIn .5s var(--ease) both;
 }
-/* Flat, evenly-weighted chip. Its COLOUR carries the verdict (see --rt/--rb below), which is
-   why there is no gradient or coloured shadow to fight it. */
+/* Flat chip; its COLOUR carries the verdict (see --rt/--rb below), so there is no gradient or
+   coloured shadow to fight it. Fixed height, and the two text lines are centred against it —
+   the block must sit on the same optical line as the stars and the location beside it. */
+/* inline-block + line-height == height centres the score with no flex-baseline games, and lets
+   the "/10" sit on the score's own baseline as ordinary inline text. An earlier flex version
+   aligned to the first baseline instead, which pushed the whole block 4px below the stars and
+   the location it shares a row with. */
 .sd .sd-rating-badge {
-  display:flex; align-items:baseline; justify-content:center;
-  min-width:46px; height:44px; padding:0 11px;
-  border-radius:12px;
+  display:inline-block; text-align:center;
+  min-width:54px; height:42px; line-height:42px; padding:0 11px;
+  border-radius:11px;
   background:var(--rb); color:var(--rt);
-  font-family:'Sora',sans-serif; font-size:19px; font-weight:800; line-height:1;
-  letter-spacing:-.4px; font-variant-numeric:tabular-nums lining-nums;
-  box-shadow:inset 0 1px 0 rgba(255,255,255,.28);
+  font-family:'Sora',sans-serif; font-size:18px; font-weight:800;
+  letter-spacing:-.3px; font-variant-numeric:tabular-nums lining-nums;
 }
-.sd .sd-rating-outof { font-size:10.5px; font-weight:700; color:currentColor; opacity:.5; margin-left:2px; letter-spacing:0; }
-.sd .sd-rating-body { display:flex; flex-direction:column; gap:5px; min-width:0; }
-.sd .sd-rating-word { font-family:'Sora',sans-serif; font-size:14px; font-weight:800; color:#fff; line-height:1; letter-spacing:.1px; }
-/* Proportional meter: places the score on its scale without the reader doing the arithmetic. */
-.sd .sd-rating-meter { display:block; width:100%; min-width:84px; height:3px; border-radius:var(--r-full); background:rgba(255,255,255,.16); overflow:hidden; }
-.sd .sd-rating-fill { display:block; height:100%; border-radius:inherit; background:var(--rb); transition:width .6s var(--ease); }
-.sd .sd-rating-meta { display:flex; align-items:center; gap:5px; line-height:1; white-space:nowrap; }
-.sd .sd-rating-src { font-size:11px; font-weight:600; color:rgba(255,255,255,.78); }
-.sd .sd-rating-count { font-size:11px; font-weight:500; color:rgba(255,255,255,.55); }
-.sd .sd-rating-count::before { content:'·'; margin-right:5px; color:rgba(255,255,255,.35); }
+.sd .sd-rating-outof { font-size:10px; font-weight:700; color:currentColor; opacity:.6; margin-left:1px; letter-spacing:0; }
+/* justify-content:center keeps the pair vertically centred on the chip whatever the text
+   wraps to; min-width:0 lets a long source name ellipsis rather than widen the hero row. */
+.sd .sd-rating-body { display:flex; flex-direction:column; justify-content:center; gap:4px; min-width:0; }
+.sd .sd-rating-word { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:#fff; line-height:1.1; letter-spacing:.1px; }
+.sd .sd-rating-meta { display:flex; align-items:center; gap:5px; line-height:1.1; white-space:nowrap; min-width:0; }
+.sd .sd-rating-src { font-size:11.5px; font-weight:600; color:rgba(255,255,255,.72); overflow:hidden; text-overflow:ellipsis; }
+.sd .sd-rating-count { font-size:11.5px; font-weight:500; color:rgba(255,255,255,.5); }
+.sd .sd-rating-count::before { content:'·'; margin-right:5px; color:rgba(255,255,255,.3); }
 
 /* ── Score bands ──────────────────────────────────────────────────────────────
    Gold used to be worn by every score, so it signalled nothing. Reserving green for a genuinely
    strong hotel keeps amber honest for a middling one and states a weak score plainly.
-   `--rb` = chip background / meter fill, `--rt` = ink on the chip. */
+   `--rb` = chip background, `--rt` = ink on the chip. */
 /* White ink on every filled chip — the orange band follows the site-wide CTA rule, and green
    and slate match it so the three bands read as one family rather than three decisions. */
 .sd .sd-rating-high { --rb:#0E9E70; --rt:#fff; }
@@ -1309,4 +1312,22 @@
   /* Give the fare/flight controls a real thumb target. */
   .sd .flight-details-btn, .sd .flight-select-btn, .sd .flight-selected-badge { min-height:42px; }
   .sd .fc-cta { min-height:46px; }
+}
+
+@media (max-width:768px) {
+  /* The fare strip becomes a horizontal scroller here, so a pointer drawn from the
+     picked column can end up aimed at nothing once the strip is scrolled — or scrolled
+     off-screen entirely. Drop the ribbon and let the card carry the selection instead:
+     it already names the chosen dates, and a navy top edge ties it to the navy column. */
+  .sd .fc-tail { display:none; }
+  .sd .fc-strip { padding-bottom:0; }
+  .sd .fc-pop { border-top:3px solid #0f2f7a; }
+  .sd .fc-col.sel .fc-under::before { border-radius:0 0 6px 6px; }
+
+  /* A sticky rail with a pill-shaped background lets the page show through around it.
+     Give it a full-bleed backdrop so content scrolling underneath is cleanly covered. */
+  .sd .tw { background:var(--page-bg); padding:6px 0 8px; }
+  .sd .tw::before {
+    content:''; position:absolute; inset:0 -16px; z-index:-1; background:var(--page-bg);
+  }
 }
