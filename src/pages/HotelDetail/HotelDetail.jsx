@@ -120,44 +120,17 @@ const TAB_ICON = {
 
 /* ── static demo data (from the design) ── */
 const TABS = ['Prices', 'Information', 'Facilities' /*, 'Weather', 'Map', 'Reviews' */];
-const PRICE_DAYS = [
-  { day: 'Monday', date: '16 Mar.', price: 395, orig: 420, nights: 7 },
-  { day: 'Tuesday', date: '17 Mar.', price: 378, orig: 410, nights: 7 },
-  { day: 'Wednesday', date: '18 Mar.', price: 365, orig: 399, nights: 7 },
-  { day: 'Thursday', date: '19 Mar.', price: 345, orig: 389, nights: 7, lowest: true },
-  { day: 'Friday', date: '20 Mar.', price: 361, orig: 395, nights: 7 },
-  { day: 'Saturday', date: '21 Mar.', price: 382, orig: 415, nights: 7 },
-  { day: 'Sunday', date: '22 Mar.', price: 398, orig: 430, nights: 7 },
-];
-const PRICE_MIN = Math.min(...PRICE_DAYS.map((p) => p.price));
-const PRICE_MAX = Math.max(...PRICE_DAYS.map((p) => p.price));
-// Demo flights shown before a live search (direct visits). Leg-shaped like the live data
-// so both flow through the same card. Times are local-airport ISO (no tz) — see fmtTime.
-const leg = (from, to, departure, arrival, airline, flightNumber, duration) =>
-  ({ from, to, departure, arrival, airline, flightNumber, duration });
-const FLIGHTS = [
-  { outLegs: [leg('BRU', 'AYT', '2026-04-10T07:00:00', '2026-04-10T11:50:00', 'TB', '1742', 230)],
-    retLegs: [leg('AYT', 'BRU', '2026-04-15T12:45:00', '2026-04-15T16:00:00', 'HV', '6035', 255)] },
-  { outLegs: [leg('BRU', 'AYT', '2026-04-10T07:00:00', '2026-04-10T11:50:00', 'TB', '1742', 230)],
-    retLegs: [leg('AYT', 'BRU', '2026-04-15T22:45:00', '2026-04-16T02:10:00', 'TB', '1743', 265)],
-    warning: 'Note: you arrive on Thursday.' },
-];
+// PRICE_DAYS / PRICE_MIN / PRICE_MAX / FLIGHTS removed: the fare strip and the flight list
+// now render live data or an honest empty state. The demo week (7 hardcoded March fares with
+// invented "was" prices) and the two hardcoded TUI fly / Transavia itineraries were shown
+// whenever a call failed, the hotel was full, or a filter was edited — indistinguishable from
+// real results, and both fed the checkout hand-off.
 // MODAL_FLIGHTS / SIDEBAR_FILTERS removed: the modal now renders the live result set and
 // builds its filter groups from `flightFacets`, so a hardcoded flight list and a fixed list
 // of filter options can no longer disagree with what was actually searched.
-const MEAL_PLANS = [
-  { id: 'ro', name: 'Room Only', desc: 'No meals included', price: 420 },
-  { id: 'bb', name: 'Bed & Breakfast', desc: 'Breakfast included', price: 460 },
-  { id: 'hb', name: 'Half Board', desc: 'Breakfast + Dinner', price: 530 },
-  { id: 'ai', name: 'All Inclusive', desc: 'All meals + drinks', price: 690 },
-];
-const ROOM_TYPES = [
-  { name: 'Double Room Design Room', included: true, cap: 'min. 2 / max. 2 persons.', avail: null, lowAvail: null },
-  { name: 'Double Room Premium', included: false, extra: '+€ 24', cap: 'min. 2 / max. 2 persons.', avail: 'Only 7 available!', lowAvail: 'Only 7 rooms available!' },
-  { name: 'Double Room Penthouse', included: false, extra: '+€ 34', cap: 'min. 2 / max. 2 persons.', avail: 'Only 5 available!', lowAvail: 'Only 5 rooms available!' },
-  { name: 'Double Room Junior Suite', included: false, extra: '+€ 56', cap: 'min. 2 / max. 2 persons.', avail: 'Only 2 available!', lowAvail: 'Only 1 room available!' },
-];
-const STAYS = [{ stayNum: 1, guests: '2 adults' }, { stayNum: 2, guests: '2 adults' }];
+// MEAL_PLANS / ROOM_TYPES / STAYS removed with the demo room list. ROOM_TYPES in particular
+// carried invented scarcity ("Only 2 available!", "Only 1 room available!") on rooms that had
+// never been searched — urgency applied to stock nobody had checked.
 const FACILITIES = ['Swimming pool', 'Private beach', 'Restaurant', 'Spa & wellness', 'Fitness center', 'Pool bar', 'Free WiFi', 'Air conditioning', 'Elevator', 'Free parking', 'Room service', 'Fine dining'];
 const MORE_FACILITIES = ['Tennis court', 'Bike rental', 'Water sports', 'Babysitting', 'Business center', 'Live music'];
 const FAC_ICON = {
@@ -696,12 +669,18 @@ export default function HotelDetail() {
   const [explorerCat, setExplorerCat] = useState('ALL');
   const [showAllFac, setShowAllFac] = useState(false);
   const [reviewsSeen, setReviewsSeen] = useState(false);
-  // selected room index per stay; meal index per `${stay}-${room}`
-  const [selectedRoom, setSelectedRoom] = useState({ 1: 0, 2: 0 });
-  const [selectedMeal, setSelectedMeal] = useState({ '1-0': 1, '2-0': 1 });
+  // `.live` holds the chosen rate's index in the flat live-rooms array. The old per-stay /
+  // per-meal keys went with the demo room list.
+  const [selectedRoom, setSelectedRoom] = useState({});
 
   // live data: 7-day calendar + per-day availability
+  // null = never asked (no dates yet) · [] = asked, nothing on offer · [...] = live prices.
+  // `calError` separates "the price service failed" from "this hotel is genuinely full",
+  // because the traveller needs a different answer to each and the old code showed a
+  // hardcoded demo week for both.
   const [calData, setCalData]       = useState(null);   // [{date, price, currency, isLowest}]
+  const [calError, setCalError]     = useState(false);
+  const [calReload, setCalReload]   = useState(0);      // bumped by the Try again button
   const [calLoading, setCalLoading] = useState(false);
   const [liveRooms, setLiveRooms]   = useState(null);   // {loading?|error?|rooms[]|cheapest}
   // The hotel's TripAdvisor rating: { rate, count, type, outOf } or null. Primary source is the
@@ -775,8 +754,9 @@ export default function HotelDetail() {
 
   // ── 7-day price calendar ──
   useEffect(() => {
-    if (!hotelCode || !destination || !baseCheckIn || !baseCheckOut) { setCalData(null); return; }
+    if (!hotelCode || !destination || !baseCheckIn || !baseCheckOut) { setCalData(null); setCalError(false); return; }
     setCalLoading(true);
+    setCalError(false);
     const roomsN = Math.max(1, parseInt(sRooms, 10) || 1);
     const qs = new URLSearchParams({
       hotelCode: String(hotelCode), destination, checkIn: baseCheckIn, checkOut: baseCheckOut,
@@ -786,18 +766,28 @@ export default function HotelDetail() {
     });
     let cancelled = false;
     fetch(`${CONTRACTS_API}/contracts/hotel-price-calendar?${qs.toString()}`)
-      .then((r) => r.json())
+      // A 4xx/5xx that returns an HTML error page used to land in .catch() looking exactly
+      // like a network failure; check the status so a real outage is reported as one.
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
       .then((j) => { if (!cancelled) setCalData(Array.isArray(j?.calendar) ? j.calendar : []); })
-      .catch(() => { if (!cancelled) setCalData([]); })
+      .catch(() => { if (!cancelled) { setCalData([]); setCalError(true); } })
       .finally(() => { if (!cancelled) setCalLoading(false); });
     return () => { cancelled = true; };
-  }, [hotelCode, destination, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms]);
+  }, [hotelCode, destination, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms, calReload]);
 
-  // calendar drives the price boxes; fall back to the demo set when no live data
+  // Live prices only. There is deliberately NO demo fallback: this strip used to drop to a
+  // hardcoded week of March 2026 fares whenever the call failed OR the hotel was genuinely
+  // full, rendered identically to real data — so an outage and a sold-out hotel both looked
+  // like seven bookable days, and the day the traveller clicked carried no date to price.
   const usingLive = Array.isArray(calData) && calData.length > 0;
   const priceDays = usingLive
     ? calData.map((c) => ({ iso: c.date, day: calDay(c.date), date: calDate(c.date), price: Math.round(c.price), currency: c.currency || 'EUR', lowest: !!c.isLowest, nights }))
-    : PRICE_DAYS;
+    : [];
+  // Why the strip is empty, so the copy can say something true.
+  const calState = usingLive ? 'live'
+    : calData === null ? 'nodates'
+    : calError ? 'failed'
+    : 'none';
   const pMin = priceDays.length ? Math.min(...priceDays.map((p) => p.price)) : 0;
   const pMax = priceDays.length ? Math.max(...priceDays.map((p) => p.price)) : 1;
   const priceVaries = pMin !== pMax;
@@ -1269,6 +1259,16 @@ export default function HotelDetail() {
     // package contents (and the total) aren't final yet. The Book button is also
     // disabled in this state; this is the belt-and-braces guard.
     if (liveFlights?.loading || liveTransfers?.loading) return;
+    // A booking needs a rate the supplier actually quoted. This used to be papered over by
+    // the demo room/flight/meal, which gave the checkout something to show; with those gone
+    // an unchecked booking would hand over a €0 stay, so send the traveller to the check
+    // instead of to payment.
+    if (!useLive) {
+      showToast('Check availability first so we can price your stay.', 'info');
+      setActiveTab('Prices');
+      document.querySelector('.fc-strip, .fc-blank')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     // Seed the checkout traveller forms with the FULL searched party (adults +
     // children) — the server re-prices flight/transfer from the travellers'
     // actual dates of birth, so the form count must match the searched occupancy.
@@ -1288,9 +1288,9 @@ export default function HotelDetail() {
     // here would make the displayed total drift ±€1/pax from the amount charged.
     const perPerson = Math.max(0.01, total / pax);
 
-    const staticRoom = ROOM_TYPES[selectedRoom[1] ?? 0];
-    const staticMeal = MEAL_PLANS[selectedMeal[`1-${selectedRoom[1] ?? 0}`] ?? 1];
-    const roomName = useLive ? liveRoom.name : staticRoom.name;
+    // Only a room that was really returned by availability. Naming a demo room ("Double Room
+    // Design Room") on the payment summary described a room that had never been priced.
+    const roomName = useLive ? liveRoom.name : '';
     const board = useLive ? (liveRoom.board || hotel?.board || 'All inclusive') : (hotel?.board || 'All inclusive');
 
     const outLg = liveFlight?.outLegs || [];
@@ -1313,14 +1313,12 @@ export default function HotelDetail() {
         retDur: fmtDur(rL.reduce((s, l) => s + (Number(l.duration) || 0), 0)),
       } : {}),
     });
-    const demoFlight = FLIGHTS[selectedFlight] || FLIGHTS[0];
-    const dispFlight = (useLive && liveFlight && allLegs.length)
+    // Only ever a flight that was really searched and selected. The non-live branch used to
+    // hand the DEMO itinerary to checkout, so a customer who never ran an availability check
+    // reached the payment summary looking at a 07:00 TUI fly departure that did not exist.
+    const dispFlight = (liveFlight && allLegs.length)
       ? flatFlight(outLg, retLg, pd?.date, calDate(checkout))
-      : (useLive ? null : flatFlight(
-          demoFlight.outLegs || [], demoFlight.retLegs || [],
-          fmtDateLong(demoFlight.outLegs?.[0]?.departure),
-          fmtDateLong(demoFlight.retLegs?.[0]?.departure),
-        ));
+      : null;
 
     const outLabel = dispFlight?.outDate?.replace('.', '') || '';
     const retLabel = dispFlight?.retDate?.replace('.', '') || '';
@@ -1336,13 +1334,16 @@ export default function HotelDetail() {
           nights, adults: pax, currency: ccy,
           // `perPerson` both times: checkout multiplies this back by pax, so handing it a
           // whole-party stay total (as `pd.price` is) billed every traveller for the group.
-          ppPrice: perPerson, origPrice: useLive ? null : (pd?.orig ?? null),
+          // No `origPrice`: the only source of a struck-through "was" price was the demo
+          // week's invented `orig` field, so it advertised a discount that never existed.
+          ppPrice: perPerson, origPrice: null,
           dateLabel,
           flight: dispFlight,
           room: roomName,
           roomExtra: 0,
-          meal: useLive ? (liveRoom.board || 'Room only') : staticMeal.name,
-          mealPrice: useLive ? 0 : staticMeal.price,
+          // The board the supplier actually quoted, never a demo meal plan at a made-up price.
+          meal: useLive ? (liveRoom.board || 'Room only') : '',
+          mealPrice: 0,
           // display info for the selected airport transfer (package add-on)
           transfer: liveTransfer ? {
             from: liveTransfer.pickup?.from || `${destination} Airport`,
@@ -1550,6 +1551,29 @@ export default function HotelDetail() {
                     </div>
                   ))}
                 </div>
+              ) : !usingLive ? (
+                /* No invented week here. Each case gets the answer that is actually true,
+                   and a way forward: pick dates, retry the service, or widen the search. */
+                <div className="fc-blank">
+                  <span className="fc-blank-ico">{calState === 'failed' ? ICON.warn : ICON.cal}</span>
+                  {calState === 'nodates' ? (
+                    <>
+                      <p className="fc-blank-title">Choose your dates to see live prices</p>
+                      <p className="fc-blank-sub">Set a departure date and party size above and we’ll price this hotel for real.</p>
+                    </>
+                  ) : calState === 'failed' ? (
+                    <>
+                      <p className="fc-blank-title">We couldn’t load live prices</p>
+                      <p className="fc-blank-sub">The price service didn’t answer. Your dates are still saved.</p>
+                      <button type="button" className="fc-blank-btn" onClick={() => setCalReload((n) => n + 1)}>Try again</button>
+                    </>
+                  ) : (
+                    <>
+                      <p className="fc-blank-title">No availability for these dates</p>
+                      <p className="fc-blank-sub">This hotel has nothing on offer for {niceDate(baseCheckIn) || 'your dates'}. Try another date or a different length of stay.</p>
+                    </>
+                  )}
+                </div>
               ) : (
                 <>
                   <div className="fc-strip">
@@ -1680,11 +1704,16 @@ export default function HotelDetail() {
                   )
                 ) : (
                   <>
-                    <div className="flight-note">We have selected the cheapest flight for you:</div>
-                    {FLIGHTS.map((f, i) => (
-                      <FlightCard key={i} f={f} selected={selectedFlight === i} onSelect={() => setSelectedFlight(i)} />
-                    ))}
-                    <button className="show-more-flights" onClick={() => setModalOpen(true)}>{ICON.plane} Show more flights</button>
+                    {/* This used to print two hardcoded TUI fly / Transavia itineraries under
+                        the heading "We have selected the cheapest flight for you" — real-looking
+                        flight numbers and times for flights that were never searched, and which
+                        the checkout hand-off then carried through as the booked itinerary. */}
+                    <div className="live-empty">
+                      {ICON.plane}
+                      {destination
+                        ? 'Pick a departure date above and check availability to see live fares.'
+                        : 'Add a destination to your search to see live fares.'}
+                    </div>
                     {/* One-click departure-airport switch — the same action as the Transport
                         field in the search bar, so picking one re-runs the flight search from
                         there. These used to be inert <div>s quoting invented "+€ N p.p."
@@ -1917,56 +1946,15 @@ export default function HotelDetail() {
                     <div className="live-empty">{ICON.bed} No live rooms found for these dates.</div>
                   )
                 ) : (
-                  STAYS.map((stay) => (
-                  <div className="stay-block" key={stay.stayNum}>
-                    <div className="stay-header">
-                      <div className="stay-icon">{ICON.bed}</div>
-                      <div className="stay-title">Stay {stay.stayNum} <span className="stay-guests">({stay.guests})</span></div>
-                    </div>
-                    {ROOM_TYPES.map((rm, ri) => {
-                      const isSel = selectedRoom[stay.stayNum] === ri;
-                      const mealKey = `${stay.stayNum}-${ri}`;
-                      return (
-                        <div key={ri}
-                          className={`room-option${isSel ? ' selected' : ''}`}
-                          onClick={() => setSelectedRoom((p) => ({ ...p, [stay.stayNum]: ri }))}>
-                          <div className="room-radio" />
-                          <div className="room-info">
-                            <div className="room-name">{rm.name} <span className="room-name-info">{ICON.info}</span></div>
-                            <div className="room-cap">{rm.cap}</div>
-                            {rm.avail && <div className="room-avail">{rm.avail}</div>}
-                          </div>
-                          {rm.included
-                            ? <div className="room-price included">{ICON.check}&nbsp;Including</div>
-                            : <div className="room-price">{rm.extra}</div>}
-
-                          {/* meal panel (shown when room selected via CSS) */}
-                          <div className="room-meals">
-                            {MEAL_PLANS.map((m, mi) => {
-                              const mealSel = (selectedMeal[mealKey] ?? 1) === mi;
-                              return (
-                                <div key={m.id}
-                                  className={`meal-row${mealSel ? ' meal-selected' : ''}`}
-                                  onClick={(e) => { e.stopPropagation(); setSelectedMeal((p) => ({ ...p, [mealKey]: mi })); }}>
-                                  <div className="meal-radio" />
-                                  <div className="meal-info">
-                                    <div className="meal-name">{m.name}</div>
-                                    <div className="meal-desc">{m.desc}</div>
-                                  </div>
-                                  <div className="meal-price">€{m.price}</div>
-                                  {mealSel
-                                    ? <span className="meal-action selected-badge">{ICON.check} Selected</span>
-                                    : <button className="meal-action select-btn">Select</button>}
-                                </div>
-                              );
-                            })}
-                          </div>
-                          {isSel && rm.lowAvail && <div className="room-low-avail">{ICON.warn} {rm.lowAvail}</div>}
-                        </div>
-                      );
-                    })}
+                  /* Was a hardcoded pair of "Stay 1 / Stay 2" blocks listing four invented
+                     room types with fabricated scarcity ("Only 2 available!", "Only 1 room
+                     available!") and four meal plans at made-up prices. None of it was
+                     searched, it ignored the real party size, and the selected room + meal
+                     were carried into the checkout summary. */
+                  <div className="live-empty">
+                    {ICON.bed} Pick a departure date above and check availability to see this
+                    hotel’s real rooms and board options.
                   </div>
-                  ))
                 )}
               </div>
               )}
@@ -1983,15 +1971,18 @@ export default function HotelDetail() {
                     <div className="overview-dates">{ICON.cal} {(() => {
                       const ci = pd?.iso || baseCheckIn;
                       const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
-                      return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} - ${niceDate(co)}` : 'Friday 10 April 2026 - Wednesday 15 April 2026';
+                      // No invented April dates when the search carries none.
+                      return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} - ${niceDate(co)}` : 'Dates not selected yet';
                     })()} <span style={{ color: 'var(--text-light)' }}>({nights} nights)</span></div>
                     </div>
                     {/* overview-score removed — no real review data yet */}
                   </div>
                   <div className="overview-body">
+                    {/* Was a hardcoded "4 × €361 p.p. — €1,444" for any hotel with no live
+                        rate yet: a quote for a party size and a price nobody had asked for. */}
                     {ovBase != null
                       ? <div className="overview-row"><span className="overview-row-label">{ICON.users} {ovPax} × {ccy}{Math.round(ovBase / ovPax).toLocaleString('en-GB')} p.p.</span><span className="overview-leader" /><span className="overview-row-val">{ccy} {ovBase.toLocaleString('en-GB')}</span></div>
-                      : <div className="overview-row"><span className="overview-row-label">{ICON.users} 4 × {ccy}361 p.p.</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 1,444</span></div>}
+                      : <div className="overview-row"><span className="overview-row-label">{ICON.users} Stay for {ovPax} {ovPax === 1 ? 'traveller' : 'travellers'}</span><span className="overview-leader" /><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>not priced yet</span></div>}
                     <div className="overview-row"><span className="overview-row-label">{ICON.shield} SGR Guarantee Fund</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 20</span></div>
                     {liveTransfer
                       ? <div className="overview-row"><span className="overview-row-label">{ICON.check} Airport transfer — {liveTransfer.vehicle || 'Transfer'} ({liveTransfer.transferType === 'SHARED' ? 'shared' : 'private'})</span><span className="overview-leader" /><span className="overview-row-val">{ccy} {Math.round(liveTransfer.price)}</span></div>
@@ -2001,10 +1992,19 @@ export default function HotelDetail() {
                       {liveFlight != null && <div className="overview-extra">{ICON.check} Hand luggage included</div>}
                     </div>
                   </div>
-                  <div className="overview-total"><span className="overview-total-label">Total for {ovBase != null ? ovPax : 4} people</span><span className="overview-total-val">{ccy}{ovBase != null ? (ovBase + transferPrice + 20).toLocaleString('en-GB') : (1424 + transferPrice).toLocaleString('en-GB')}</span></div>
+                  <div className="overview-total">
+                    <span className="overview-total-label">Total for {ovPax} {ovPax === 1 ? 'person' : 'people'}</span>
+                    <span className="overview-total-val">
+                      {ovBase != null
+                        ? `${ccy}${(ovBase + transferPrice + 20).toLocaleString('en-GB')}`
+                        : '—'}
+                    </span>
+                  </div>
                   <div className="overview-book-wrap">
                     <button className="overview-book-btn" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
-                      {liveFlights?.loading ? <>Checking flight prices…</> : <>Now book {ICON.arrow}</>}
+                      {liveFlights?.loading ? <>Checking flight prices…</>
+                        : ovBase == null ? <>Check availability {ICON.arrow}</>
+                        : <>Now book {ICON.arrow}</>}
                     </button>
                   </div>
                   <div className="overview-urgency"><div className="overview-urgency-text">{ICON.clock} Prices are live and may change until your booking is completed.</div></div>
@@ -2336,7 +2336,9 @@ export default function HotelDetail() {
               </div>
               <div className="bkcw">
                 <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
-                  {liveFlights?.loading ? 'Checking flights…' : <>Book Now {ICON.arrow}</>}
+                  {liveFlights?.loading ? 'Checking flights…'
+                    : liveTotal == null ? <>Check availability {ICON.arrow}</>
+                    : <>Book Now {ICON.arrow}</>}
                 </button>
                 <div className="bkc-note">{ICON.check} Secure payment · {ICON.check} Instant confirmation</div>
               </div>
