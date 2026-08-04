@@ -1612,6 +1612,10 @@ export default function HotelDetail() {
                     {priceDays.map((p, i) => {
                       const hasPrice = Number(p.price) > 0;
                       const isEmpty = checkedEmpty.has(p.iso);
+                      // Is THIS the day the traveller has picked. Referenced by isLoading, the
+                      // `sel` class and aria-pressed below; losing it throws a ReferenceError on
+                      // every render and blanks the whole page, so it must stay above isLoading.
+                      const sel = pickedIdx === i;
                       const isLoading = sel && liveChecked && liveRooms?.loading;
                       const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
                       const h = Math.round(44 + 44 * frac);
