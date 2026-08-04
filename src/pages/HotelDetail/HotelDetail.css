@@ -495,7 +495,9 @@
 .sd .dur-chip.act { border-color:transparent; color:#fff; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); box-shadow:0 4px 12px rgba(31,79,216,.25); }
 
 /* FARE CALENDAR — seven days of prices, one quiet accent (fc-*) */
-.sd .fc-strip { display:grid; grid-template-columns:repeat(7,1fr); padding-top:6px; }
+/* align-items:start keeps each column its content height — stretched columns left a
+   few px of slack under the ribbon, so its point stopped short of the card. */
+.sd .fc-strip { display:grid; grid-template-columns:repeat(7,1fr); padding-top:6px; align-items:start; }
 .sd .fc-strip::-webkit-scrollbar { display:none; }
 .sd .fc-col { appearance:none; background:none; border:none; font-family:inherit; display:flex; flex-direction:column; padding:0; cursor:pointer; min-width:0; }
 .sd .fc-barzone { height:212px; width:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:1.5px solid #cfdcee; }
@@ -508,7 +510,15 @@
 .sd .fc-amt { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:#fff; letter-spacing:-.01em; margin-top:2px; max-width:100%; }
 .sd .fc-nts { margin-top:auto; font-size:9.5px; font-weight:600; color:rgba(255,255,255,.8); white-space:nowrap; }
 .sd .fc-col.sel .fc-amt { background:var(--sun); color:#22303f; padding:1px 9px; border-radius:6px; }
-.sd .fc-under { padding:11px 0 4px; display:flex; flex-direction:column; align-items:center; gap:1px; }
+.sd .fc-under { padding:11px 0 4px; display:flex; flex-direction:column; align-items:center; gap:1px; position:relative; }
+/* The picked day's label band is tinted so the bar, the date and the ribbon below
+   read as ONE column dropping into the action card. */
+.sd .fc-col.sel .fc-under::before {
+  content:''; position:absolute; inset:0 6px; z-index:0;
+  background:linear-gradient(180deg,#dbe8ff,#e8f1ff);
+  border-radius:0 0 4px 4px;
+}
+.sd .fc-under > * { position:relative; z-index:1; }
 .sd .fc-wk { color:var(--text-light); }
 .sd .fc-date { font-family:'Sora',sans-serif; font-size:13px; font-weight:800; color:var(--dark); white-space:nowrap; }
 .sd .fc-col.sel .fc-date { color:var(--blue); }
@@ -516,9 +526,23 @@
 .sd .fc-col:hover .fc-dot { border-color:var(--blue-soft); }
 .sd .fc-col.sel .fc-dot { border-color:var(--blue); background-color:var(--blue); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E"); background-position:center; background-size:9px; background-repeat:no-repeat; }
 
-/* anchored action card — the caret tracks the picked day */
+/* ── the ribbon that ties the picked day to the action card ───────────────────
+   Every column reserves this strip, so choosing a day never reflows the row; only
+   the selected one paints. It runs the bar's width, then tapers to a point that
+   lands on the card below — the column literally hands the date to the CTA.
+   Living INSIDE the column means it tracks the right day for free, including
+   while the strip is scrolled sideways on mobile (the old caret was positioned by
+   percentage and had to be hidden there). */
+.sd .fc-tail { display:block; height:26px; width:100%; }
+.sd .fc-col.sel .fc-tail {
+  background:linear-gradient(180deg,#e8f1ff,#dce9ff);
+  clip-path:polygon(6px 0, calc(100% - 6px) 0, calc(100% - 6px) 42%, 50% 100%, 6px 42%);
+  animation:sdTailDrop .32s var(--ease) both;
+}
+@keyframes sdTailDrop { from { opacity:0; transform:translateY(-7px); } to { opacity:1; transform:none; } }
+
+/* anchored action card — the ribbon points straight at it */
 .sd .fc-pop { position:relative; background:var(--white); border:1px solid #e4ebf6; border-radius:18px; padding:16px 20px; box-shadow:0 16px 38px rgba(23,43,99,.08); animation:sdSlideUp .35s var(--ease); }
-.sd .fc-caret { position:absolute; top:-7px; width:13px; height:13px; margin-left:-7px; background:var(--white); border-left:1px solid #e4ebf6; border-top:1px solid #e4ebf6; border-top-left-radius:3px; transform:rotate(45deg); transition:left .35s var(--ease); }
 .sd .fc-act { display:flex; align-items:center; gap:18px; }
 .sd .fc-act-info { display:flex; flex-direction:column; gap:3px; min-width:0; }
 .sd .fc-act-date { font-family:'Sora',sans-serif; font-size:14.5px; font-weight:800; color:var(--dark); }
@@ -893,7 +917,7 @@
   .sd-hero-left > *, .sd-hero-photos .gi, .sd .ga, .sd-hero-glow2, .sd .hhb.saved svg, .sd .px-ph, .sd .px-overlay { animation:none; }
   .sd .gi-skel { animation:none; background:#E4EEFF; }
   .sd .fc-pop, .sd .fc-skel .fc-bar, .sd .fc-line { animation:none; }
-  .sd .fc-caret { transition:none; }
+  .sd .fc-col.sel .fc-tail { animation:none; }
   .sd .gi img { transition:none; }
 }
 @media(max-width:1100px){
@@ -907,7 +931,7 @@
   .sd .fc-strip{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
   .sd .fc-col{flex:0 0 96px}
   .sd .fc-barzone{height:168px}
-  .sd .fc-caret{display:none}
+  .sd .fc-tail{height:20px}
 }
 @media(max-width:1024px){
   .sd-hero{padding:96px 0 0}
@@ -1017,7 +1041,8 @@
 .sd .filter-bar { margin-bottom:24px; }
 .sd .fc-strip { margin-bottom:34px; }
 .sd .fc-strip:has(+ .fc-pop), .sd .fc-strip:has(+ .fc-hint) { margin-bottom:0; }
-.sd .fc-pop { margin-top:14px; margin-bottom:34px; }
+/* No top margin: the ribbon's point has to land ON the card, not near it. */
+.sd .fc-pop { margin-top:0; margin-bottom:34px; }
 .sd .fc-hint { margin-bottom:34px; }
 .sd .avail-banner { margin-bottom:48px; }
 .sd .avail-banner.show { margin-top:0; }
