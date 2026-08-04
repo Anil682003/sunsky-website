@@ -596,10 +596,9 @@
 
 /* zero-price: "check live price" text */
 .sd .fc-check { font-size:10px; font-weight:700; color:rgba(255,255,255,.9); text-align:center; line-height:1.35; letter-spacing:.02em; }
-/* dead (live-checked, no availability): greyed out + disabled */
-.sd .fc-col.fc-dead { cursor:not-allowed; opacity:.5; pointer-events:none; }
-.sd .fc-col.fc-dead .fc-bar { background:#94a3b8; }
-.sd .fc-sold { font-size:10px; font-weight:700; color:rgba(255,255,255,.8); text-align:center; letter-spacing:.02em; }
+/* live-checked empty: greyed out + disabled */
+.sd .fc-col.fc-empty { cursor:not-allowed; opacity:.45; pointer-events:none; }
+.sd .fc-col.fc-empty .fc-bar { background:#94a3b8; }
 
 /* anchored action card — the ribbon points straight at it */
 .sd .fc-pop { position:relative; background:var(--white); border:1px solid #e4ebf6; border-radius:18px; padding:16px 20px; box-shadow:0 16px 38px rgba(23,43,99,.08); animation:sdSlideUp .35s var(--ease); }

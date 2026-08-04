@@ -681,7 +681,6 @@ export default function HotelDetail() {
   };
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [liveChecked, setLiveChecked] = useState(false);
-  const [deadDays, setDeadDays] = useState(new Set());
   const [selectedFlight, setSelectedFlight] = useState(0);
   // The modal selects into `selectedFlight` directly — it used to hold its own separate
   // index, so picking a flight there changed nothing on the page behind it.
@@ -708,6 +707,7 @@ export default function HotelDetail() {
   const [calReload, setCalReload]   = useState(0);      // bumped by the Try again button
   const [calLoading, setCalLoading] = useState(false);
   const [liveRooms, setLiveRooms]   = useState(null);   // {loading?|error?|rooms[]|cheapest}
+  const [checkedEmpty, setCheckedEmpty] = useState(new Set());
   // The hotel's TripAdvisor rating: { rate, count, type, outOf } or null. Primary source is the
   // harvested store, served on the bulk hotel-info record (`info.review`) — no live call. This
   // state is only a FALLBACK for a hotel the harvest hasn't covered yet: if the traveller picks
@@ -1069,7 +1069,7 @@ export default function HotelDetail() {
     const keepsTheDay = Object.keys(patch).every((k) => k === 'origin' || k === 'childAges' || k === 'nights');
     if (!keepsTheDay) setSelectedPrice(null);
   };
-  const resetFilters = () => { setOvr({}); setSelectedPrice(null); setLiveChecked(false); setLiveRooms(null); setLiveFlights(null); setLiveTransfers(null); setSelectedTransfer(-1); setDeadDays(new Set()); };
+  const resetFilters = () => { setOvr({}); setSelectedPrice(null); setLiveChecked(false); setLiveRooms(null); setLiveFlights(null); setLiveTransfers(null); setSelectedTransfer(-1); setCheckedEmpty(new Set()); };
 
   // Departure dates offered: every day from today to 11 months out. The traveller can
   // also click a day in the price strip, which is the faster path for small moves.
@@ -1224,7 +1224,7 @@ export default function HotelDetail() {
 
   const pickDay = (i) => {
     const day = priceDays[i];
-    if (day && deadDays.has(day.iso)) return;
+    if (day && checkedEmpty.has(day.iso)) return;
     setSelectedPrice(i);
     setLiveChecked(false);
     setLiveRooms(null);
@@ -1268,8 +1268,11 @@ export default function HotelDetail() {
         net: r.net ?? null, dianaHotelId: r.dianaHotelId || null,
       })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
       setSelectedRoom((p) => ({ ...p, live: 0 }));
-      setLiveRooms({ rooms, cheapest: data?.results?.cheapest || null });
-      if (rooms.length === 0 && checkin) setDeadDays((prev) => new Set(prev).add(checkin));
+      const cheapest = data?.results?.cheapest || null;
+      setLiveRooms({ rooms, cheapest });
+      if (rooms.length === 0 && (!cheapest || !Number(cheapest.price))) {
+        setCheckedEmpty((prev) => new Set(prev).add(checkin));
+      }
       if (data?.review) setReview((prev) => prev ?? data.review);
     }).catch((e) => setLiveRooms({ error: friendlyError(e, 'room') }));
 
@@ -1608,23 +1611,25 @@ export default function HotelDetail() {
                   <div className="fc-strip">
                     {priceDays.map((p, i) => {
                       const hasPrice = Number(p.price) > 0;
-                      const isDead = deadDays.has(p.iso);
+                      const isEmpty = checkedEmpty.has(p.iso);
+                      const isLoading = sel && liveChecked && liveRooms?.loading;
                       const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
                       const h = Math.round(44 + 44 * frac);
-                      const sel = pickedIdx === i;
                       const isLow = p.lowest && priceVaries && hasPrice;
                       return (
                         <button type="button" key={p.iso || i}
-                          className={`fc-col${sel ? ' sel' : ''}${isDead ? ' fc-dead' : ''}`}
+                          className={`fc-col${sel ? ' sel' : ''}${isEmpty ? ' fc-empty' : !hasPrice ? ' fc-nopr' : ''}`}
                           onClick={() => pickDay(i)}
-                          disabled={isDead}
+                          disabled={isEmpty}
                           aria-pressed={sel}
-                          aria-label={isDead ? `${p.day} ${p.date}, not available` : hasPrice ? `${p.day} ${p.date}, from €${p.price}, ${p.nights} nights` : `${p.day} ${p.date}, check live price`}>
+                          aria-label={isEmpty ? `${p.day} ${p.date}, not available` : hasPrice ? `${p.day} ${p.date}, from ${ccy}${p.price}, ${p.nights} nights` : `${p.day} ${p.date}, check live price`}>
                           <span className="fc-barzone">
                             {isLow && <span className="fc-lowtag">Lowest price</span>}
                             <span className="fc-bar" style={{ height: `${h}%` }}>
-                              {isDead ? (
-                                <span className="fc-sold">Sold out</span>
+                              {isEmpty ? (
+                                <span className="fc-check">Not available</span>
+                              ) : isLoading ? (
+                                <span className="fc-check">Checking…</span>
                               ) : hasPrice ? (
                                 <>
                                   <span className="fc-from">from</span>
