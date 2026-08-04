@@ -1986,10 +1986,20 @@ export default function Results() {
                           {CCY_SYMBOLS[h.currency] || h.currency}{(total / nights).toFixed(2)} <span className={styles.rcPriceMetaUnit}>/ night</span>
                         </div>
                       )}
-                      {/* Opens in the SAME tab (client-side nav). It stays a real link, so a
-                          power user can still cmd/ctrl/middle-click to open a new tab by choice
-                          — we just no longer force one on every click. */}
-                      <Link className={styles.rcCta} to={detailHref(h, dispName, dispStars, hotelDest, curImg)}>
+                      {/* Opens in a NEW TAB, so the search results survive: comparing hotels is
+                          the whole job of this page, and going back used to mean re-running the
+                          search and losing scroll position and any loaded pages.
+                          `rel="noopener"` is not optional — without it the opened tab gets a
+                          window.opener handle back to this one (reverse tabnabbing). "noreferrer"
+                          rides along for older browsers that ignore noopener.
+                          It stays a real <Link>, so cmd/ctrl/middle-click and "copy link address"
+                          all still behave; target only changes the default click. */}
+                      <Link
+                        className={styles.rcCta}
+                        to={detailHref(h, dispName, dispStars, hotelDest, curImg)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                      >
                         View Deal
                         <Icon d="M5 12h14M12 5l7 7-7 7" size={14} sw={2.2} />
                       </Link>
