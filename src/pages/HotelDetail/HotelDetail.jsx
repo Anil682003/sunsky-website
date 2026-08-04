@@ -87,6 +87,8 @@ const todayISO = () => {
 // Days shown at once. The cache endpoint returns exactly this many, forward from the check-in
 // it is given, so a "week" of the strip and one request are the same thing.
 const CAL_DAYS = 7;
+// Where a day the traveller picks gets parked: dead centre, three days visible either side.
+const CAL_CENTRE = Math.floor(CAL_DAYS / 2);
 const fmtTime = (s) => {
   if (!s) return '';
   const d = new Date(s);
@@ -935,6 +937,10 @@ export default function HotelDetail() {
   const pMin = priced.length ? Math.min(...priced) : 0;
   const pMax = priced.length ? Math.max(...priced) : 1;
   const priceVaries = pMin !== pMax;
+  // Which day carries the "Lowest price" flag. Days routinely TIE at the cheapest figure, and
+  // matching on price alone badged every one of them — three bars all shouting "lowest" tells
+  // the traveller nothing. The earliest day at that price wins the flag.
+  const lowIdx = priceDays.findIndex((p) => p.price > 0 && p.price === pMin);
   // The strip opens with the traveller's OWN departure date already selected, so the check
   // button is there for the date they searched instead of asking them to re-pick it. Derived
   // rather than stored: an explicit pick always wins, and because `applyFilter` clears the
@@ -1339,6 +1345,11 @@ export default function HotelDetail() {
   const pickDay = (iso) => {
     if (!iso || checkedEmpty.has(iso)) return;
     setSelectedISO(iso);
+    // Re-centre on the chosen day, so the three days either side are on screen to compare
+    // against — which is the whole reason for picking a date here rather than in the date
+    // field. Clamped like every other window move: a day in the first half-week sits as near
+    // the middle as today allows rather than dragging the strip into the past.
+    setWin({ base: baseCheckIn, start: notBeforeToday(addDaysISO(iso, -CAL_CENTRE)) });
     setLiveChecked(false);
     setLiveRooms(null);
     setLiveFlights(null);
@@ -1748,10 +1759,10 @@ export default function HotelDetail() {
                       const isLoading = sel && liveChecked && liveRooms?.loading;
                       const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
                       const h = Math.round(44 + 44 * frac);
-                      // Cheapest of the week ON SCREEN. The API flags the lowest of whichever
-                      // week it answered, which would leave several days badged "Lowest price"
-                      // at once now that the strip stitches weeks together.
-                      const isLow = hasPrice && priceVaries && p.price === pMin;
+                      // Cheapest of the week ON SCREEN, and only the first day at that price.
+                      // The API flags the lowest of whichever week it answered, which would
+                      // badge several days at once now that the strip stitches weeks together.
+                      const isLow = priceVaries && i === lowIdx;
                       return (
                         // Keyed by POSITION, not by date. Reusing the same node for slot i is what
                         // makes a one-day step read as motion: each bar animates to its
