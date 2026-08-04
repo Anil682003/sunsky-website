@@ -681,6 +681,7 @@ export default function HotelDetail() {
   };
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [liveChecked, setLiveChecked] = useState(false);
+  const [deadDays, setDeadDays] = useState(new Set());
   const [selectedFlight, setSelectedFlight] = useState(0);
   // The modal selects into `selectedFlight` directly — it used to hold its own separate
   // index, so picking a flight there changed nothing on the page behind it.
@@ -1068,7 +1069,7 @@ export default function HotelDetail() {
     const keepsTheDay = Object.keys(patch).every((k) => k === 'origin' || k === 'childAges' || k === 'nights');
     if (!keepsTheDay) setSelectedPrice(null);
   };
-  const resetFilters = () => { setOvr({}); setSelectedPrice(null); setLiveChecked(false); setLiveRooms(null); setLiveFlights(null); setLiveTransfers(null); setSelectedTransfer(-1); };
+  const resetFilters = () => { setOvr({}); setSelectedPrice(null); setLiveChecked(false); setLiveRooms(null); setLiveFlights(null); setLiveTransfers(null); setSelectedTransfer(-1); setDeadDays(new Set()); };
 
   // Departure dates offered: every day from today to 11 months out. The traveller can
   // also click a day in the price strip, which is the faster path for small moves.
@@ -1221,19 +1222,23 @@ export default function HotelDetail() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedArrivalISO]);
 
-  // ── pick a day: selection only — nothing is fetched until the traveller asks ──
   const pickDay = (i) => {
+    const day = priceDays[i];
+    if (day && deadDays.has(day.iso)) return;
     setSelectedPrice(i);
     setLiveChecked(false);
     setLiveRooms(null);
     setLiveFlights(null);
+    if (day && Number(day.price) === 0) {
+      setTimeout(() => checkAvailabilityForDay(i), 0);
+    }
   };
 
-  // ── "Check price & availability" → fetch live hotel + flight availability ──
-  const checkAvailability = () => {
-    if (pickedIdx == null) return;
+  const checkAvailabilityForDay = (dayIdx) => {
+    const idx = dayIdx ?? pickedIdx;
+    if (idx == null) return;
     setLiveChecked(true);
-    const day = priceDays[pickedIdx];
+    const day = priceDays[idx];
     const checkin = day?.iso || baseCheckIn;
     const checkout = checkin ? addDaysISO(checkin, nights) : '';
     console.log('[Detail] check availability →', { hotelCode, destination, checkin, checkout });
@@ -1264,8 +1269,7 @@ export default function HotelDetail() {
       })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
       setSelectedRoom((p) => ({ ...p, live: 0 }));
       setLiveRooms({ rooms, cheapest: data?.results?.cheapest || null });
-      // The rating rides on the availability response — this is the ONLY place it is read, so
-      // opening a hotel costs no extra supplier call. Keep the first one we see (hotel-static).
+      if (rooms.length === 0 && checkin) setDeadDays((prev) => new Set(prev).add(checkin));
       if (data?.review) setReview((prev) => prev ?? data.review);
     }).catch((e) => setLiveRooms({ error: friendlyError(e, 'room') }));
 
@@ -1273,6 +1277,7 @@ export default function HotelDetail() {
     fetchFlights(checkin, checkout);
     fetchTransfers(checkin);
   };
+  const checkAvailability = () => checkAvailabilityForDay(pickedIdx);
 
   // goReviews removed — Reviews tab commented out for now
 
@@ -1602,24 +1607,33 @@ export default function HotelDetail() {
                 <>
                   <div className="fc-strip">
                     {priceDays.map((p, i) => {
-                      // bar height scales with the price across the week; every bar keeps the
-                      // same solid weight so no day reads as faded or unavailable
-                      const frac = priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
+                      const hasPrice = Number(p.price) > 0;
+                      const isDead = deadDays.has(p.iso);
+                      const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
                       const h = Math.round(44 + 44 * frac);
                       const sel = pickedIdx === i;
-                      const isLow = p.lowest && priceVaries;
+                      const isLow = p.lowest && priceVaries && hasPrice;
                       return (
                         <button type="button" key={p.iso || i}
-                          className={`fc-col${sel ? ' sel' : ''}`}
+                          className={`fc-col${sel ? ' sel' : ''}${isDead ? ' fc-dead' : ''}`}
                           onClick={() => pickDay(i)}
+                          disabled={isDead}
                           aria-pressed={sel}
-                          aria-label={`${p.day} ${p.date}, from €${p.price}, ${p.nights} nights`}>
+                          aria-label={isDead ? `${p.day} ${p.date}, not available` : hasPrice ? `${p.day} ${p.date}, from €${p.price}, ${p.nights} nights` : `${p.day} ${p.date}, check live price`}>
                           <span className="fc-barzone">
                             {isLow && <span className="fc-lowtag">Lowest price</span>}
                             <span className="fc-bar" style={{ height: `${h}%` }}>
-                              <span className="fc-from">from</span>
-                              <span className="fc-amt">€{p.price}</span>
-                              <span className="fc-nts">{p.nights} {p.nights === 1 ? 'day' : 'days'}</span>
+                              {isDead ? (
+                                <span className="fc-sold">Sold out</span>
+                              ) : hasPrice ? (
+                                <>
+                                  <span className="fc-from">from</span>
+                                  <span className="fc-amt">{ccy}{p.price}</span>
+                                  <span className="fc-nts">{p.nights} {p.nights === 1 ? 'day' : 'days'}</span>
+                                </>
+                              ) : (
+                                <span className="fc-check">Check live price</span>
+                              )}
                             </span>
                           </span>
                           <span className="fc-under">
@@ -1627,9 +1641,6 @@ export default function HotelDetail() {
                             <span className="fc-date">{p.date}</span>
                             <span className="fc-dot" aria-hidden="true" />
                           </span>
-                          {/* Reserved in EVERY column so selecting a day never changes the
-                              row height; only the picked one paints, dropping a tapered
-                              ribbon onto the availability card directly beneath it. */}
                           <span className="fc-tail" aria-hidden="true" />
                         </button>
                       );
