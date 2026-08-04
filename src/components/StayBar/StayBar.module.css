@@ -110,6 +110,10 @@
   padding: 6px 8px; border: 1.5px solid #dbe6f5; border-radius: 8px; background: var(--white, #fff); cursor: pointer;
 }
 .ageHint { margin: 8px 2px 0; font-size: 11px; line-height: 1.45; color: var(--text-light, #8fa5c6); }
+.listHint {
+  margin: 10px 2px 0; padding-top: 9px; border-top: 1px solid #f2f6fc;
+  font-size: 11px; line-height: 1.45; color: var(--text-light, #8fa5c6);
+}
 
 /* per-room occupancy cards */
 .roomScroll { max-height: min(48vh, 400px); overflow-y: auto; scrollbar-width: thin; margin: -2px -2px 0; padding: 2px; }

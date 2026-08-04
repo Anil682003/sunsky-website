@@ -98,7 +98,7 @@ function splitRooms(totalAdults, totalChildren, roomCount) {
 export default function StayBar({
   checkIn, dateOptions = [], formatDate,
   adults, children: childCount, childAges = '', rooms: roomCount = 1,
-  board = '', boardOptions = [],
+  board = '', boardOptions = [], boardHint = '',
   origin, originOptions = [], originLabel = (c) => c, destination = '',
   nights, nightOptions = [], durationChips = [],
   touched = false, onChange, onBoardChange, onChildAges, onReset,
@@ -251,6 +251,7 @@ export default function StayBar({
           open={openField === 'board'} onToggle={toggle}>
           <OptionList current={board} options={boardOptions}
             onPick={(id) => { onBoardChange?.(id); close(); }} />
+          {boardHint && <p className={styles.listHint}>{boardHint}</p>}
         </Field>
 
         <Field id="origin" icon={ICONS.plane} label="Transport" open={openField === 'origin'} onToggle={toggle}
