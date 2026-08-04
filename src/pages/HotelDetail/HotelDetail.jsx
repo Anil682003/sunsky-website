@@ -608,7 +608,7 @@ export default function HotelDetail() {
     : paramCheckOut;
   const sAdults   = String(ovr.adults   ?? state?.adults   ?? (qp('adults')   || '2'));
   const sChildren = String(ovr.children ?? state?.children ?? (qp('children') || '0'));
-  const sRooms    = String(state?.rooms  ?? (qp('rooms')  || '1'));
+  const sRooms    = String(ovr.rooms ?? state?.rooms  ?? (qp('rooms')  || '1'));
   // children's ages (csv) — HotelBeds requires an age per child for availability
   const paramChildAges = String(ovr.childAges ?? state?.childAges ?? qp('childAges'));
   // Trim/pad the age list to the chosen child count — HB 400s on a child with no age.
@@ -1377,6 +1377,7 @@ export default function HotelDetail() {
               <StayBar
                 checkIn={baseCheckIn} dateOptions={dateOptions} formatDate={niceDate}
                 adults={Number(sAdults) || 1} children={Number(sChildren) || 0} childAges={sChildAges}
+                rooms={Number(sRooms) || 1}
                 board={boardPref} boardOptions={BOARD_PREFS}
                 origin={origin} originOptions={ORIGINS} originLabel={airportName} destination={destination}
                 nights={nights} nightOptions={NIGHT_OPTIONS} durationChips={DURATION_CHIPS}
