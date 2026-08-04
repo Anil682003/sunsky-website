@@ -13,6 +13,10 @@
   --shadow-xs:0 1px 3px rgba(15,40,100,.04); --shadow-sm:0 2px 8px rgba(15,40,100,.06);
   --shadow-md:0 8px 28px rgba(15,40,100,.08); --shadow-lg:0 16px 48px rgba(15,40,100,.1);
   --shadow-glow:0 4px 20px rgba(255,159,28,.3);
+  /* The site CTA gradient, one step deeper. White ink on the global --cta-grad's #EE8A12 stop
+     is only 2.5:1; this pair's lightest stop (#C2540A) carries white at 4.6:1. A token rather
+     than literals in the price chip, so a future brand-orange change has one place to follow. */
+  --cta-grad-deep:linear-gradient(135deg,#A64707,#C2540A);
   --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px; --r-full:9999px;
   --ease:cubic-bezier(.22,1,.36,1); --ease-spring:cubic-bezier(.175,.885,.32,1.275);
   --nav-h:64px; --overhang:64px;
@@ -118,71 +122,101 @@
 .sd .reveal { opacity:0; transform:translateY(20px); transition:opacity .6s var(--ease),transform .6s var(--ease); }
 .sd .reveal.vis { opacity:1; transform:translateY(0); }
 
-/* ── HERO ─────────────────────────────────────────────────────────────────────
-   A daylight sky, not a night one. The hero was a near-black navy panel, which made the
-   brightest, most photographic part of the page the darkest thing on screen and left the whole
-   product feeling heavier than the holidays it sells.
-   Depth now comes from stacked atmosphere rather than darkness — four layers, back to front:
-     1. a cloudy-blue base wash
-     2. a white cloud bloom behind the title, so the ink always lands on the lightest area
-     3. cool blue weight in the top-right corner, giving the panel a light direction
-     4. a warm sun hint at the bottom-left — the one place the brand gold appears unprompted
-   Keeping all four means the panel still reads as a designed surface up close AND at 1920px,
-   where a single flat tint would look like an unpainted div. */
+/* ── HERO: SKY DIMENSION ──────────────────────────────────────────────────────
+   The old hero was a flat pale wash — light, but with no depth left in it. This is a
+   DIMENSIONAL daylight sky, still strictly light (the client forbids dark surfaces):
+   an altitude gradient that saturates into the client's own #4A90E8 where the mosaic
+   overhangs, two cloud layers drifting at different speeds (the parallax that sells
+   depth), one warm sun in the upper-left that every shadow on the panel obeys, and a
+   bright horizon rim where sky meets the saturated band. Three altitudes, back to
+   front: sky (z0) → identity card (z2, long soft shadow) → photo tiles (z3, deepest
+   shadows, nearest the viewer). */
 .sd-hero { position:relative; padding:104px 0 0; border-radius:0 0 46px 46px;
-  box-shadow:0 30px 70px -34px rgba(23,58,138,.45);
-  /* The previous version was light to the point of having no colour left: a #e6eefc base with two
-     white blooms at .82 and .50 painted over it bleached the sky back to near-white, which is what
-     "made it too light" is describing. Two changes fix it without going dark —
-       1. the base is a real light blue (#BFD8F7 -> #8FB9EE), not a tint of white;
-       2. the white bloom is pulled back to a tight pool behind the HEADLINE only, where it is
-          actually doing a job (keeping the big near-black title on a light ground), instead of
-          washing the whole panel.
-     The client's own swatch #4A90E8 now carries the top-right corner at .62, so the colour they
-     picked is genuinely visible rather than implied. Every stop stays light enough that near-black
-     ink clears AA comfortably — the darkest point measures 9.47:1 against the title. */
+  /* one long blue throw + a tight contact shadow; bright inner rim keeps the lip lit */
+  box-shadow:
+    0 46px 90px -42px rgba(31,79,216,.55),
+    0 18px 40px -24px rgba(23,58,138,.28),
+    inset 0 -1px 0 rgba(255,255,255,.45);
   background:
-    /* warm sun just off the top-left corner — the single light source the page obeys */
-    radial-gradient(ellipse 42% 54% at 1% -8%, rgba(255,206,130,.34), transparent 62%),
-    /* light pool behind the headline only */
-    radial-gradient(ellipse 44% 52% at 20% 24%, rgba(255,255,255,.72), transparent 68%),
-    /* the client's blue, strongest in the top-right where the photography sits */
-    radial-gradient(ellipse 74% 104% at 97% -10%, rgba(74,144,232,.62), transparent 62%),
-    linear-gradient(166deg,#BFD8F7 0%,#A9CBF3 52%,#8FB9EE 100%); }
+    /* crisp horizon rim. Anchored to the BOTTOM in px, not a % of height: the panel's
+       height changes wildly between desktop and stacked mobile, and a %-anchored line
+       sliced through mid-content on tall layouts. */
+    linear-gradient(180deg,
+      transparent 0 calc(100% - 182px),
+      rgba(255,255,255,.55) calc(100% - 178px),
+      rgba(255,255,255,0) calc(100% - 164px),
+      transparent 100%),
+    /* warm sun wash from the upper-left — the single light source */
+    radial-gradient(ellipse 46% 44% at 5% -6%, rgba(255,214,140,.5), rgba(255,214,140,0) 62%),
+    /* light pool behind the card so its shadow has something bright to fall from */
+    radial-gradient(ellipse 40% 46% at 18% 30%, rgba(255,255,255,.55), transparent 66%),
+    /* the client's blue massed upper-right, opposite the sun */
+    radial-gradient(ellipse 70% 92% at 96% -8%, rgba(74,144,232,.5), transparent 64%),
+    /* altitude gradient: pale zenith → saturated #4A90E8 at the mosaic's feet */
+    linear-gradient(180deg, #E3EFFC 0%, #CDE1FA 34%, #A9CCF5 60%, #77AAEE 82%, #4A90E8 100%); }
 .sd-hero-bg { position:absolute; inset:0; overflow:hidden; border-radius:inherit; pointer-events:none; }
+/* near clouds — big blooms, heavy blur, drifting like weather */
+.sd-hero-bg::before {
+  content:''; position:absolute; inset:-10% -20%; pointer-events:none; will-change:transform;
+  background:
+    radial-gradient(ellipse 34% 26% at 22% 62%, rgba(255,255,255,.85), transparent 70%),
+    radial-gradient(ellipse 26% 20% at 36% 54%, rgba(255,255,255,.68), transparent 70%),
+    radial-gradient(ellipse 30% 24% at 72% 44%, rgba(255,255,255,.5), transparent 70%);
+  filter:blur(18px);
+  animation:sdCloudDrift 64s ease-in-out infinite alternate;
+}
+/* distant clouds — small, crisper, counter-drifting: the parallax that sells depth */
+.sd-hero-bg::after {
+  content:''; position:absolute; inset:-6% -12%; pointer-events:none; will-change:transform;
+  background:
+    radial-gradient(ellipse 12% 8% at 58% 16%, rgba(255,255,255,.75), transparent 70%),
+    radial-gradient(ellipse 9% 6% at 82% 30%, rgba(255,255,255,.6), transparent 70%),
+    radial-gradient(ellipse 14% 9% at 10% 18%, rgba(255,255,255,.55), transparent 70%),
+    radial-gradient(ellipse 7% 5% at 44% 10%, rgba(255,255,255,.5), transparent 70%);
+  filter:blur(6px);
+  animation:sdCloudDrift 96s ease-in-out infinite alternate-reverse;
+}
+@keyframes sdCloudDrift { from { transform:translateX(-1.6%); } to { transform:translateX(1.6%); } }
 .sd-hero-inner { position:relative; z-index:2; max-width:1760px; margin:0 auto; padding:0 clamp(20px,3.5vw,56px); }
-.sd-hero-glow2 { position:absolute; bottom:-160px; left:-40px; width:380px; height:380px; border-radius:50%; background:radial-gradient(circle,rgba(255,159,28,.12),transparent 65%); filter:blur(30px); animation:sdFloat 14s ease-in-out infinite reverse; }
+/* the sun itself — top-left, where the light comes from; every shadow falls away from it */
+.sd-hero-glow2 { position:absolute; top:-150px; left:-70px; bottom:auto; width:480px; height:480px; border-radius:50%;
+  background:radial-gradient(circle, rgba(255,209,102,.5), rgba(255,159,28,.18) 46%, transparent 68%);
+  filter:blur(26px); animation:sdBreathe 11s ease-in-out infinite; }
 /* hero is a rounded panel floating above the tinted canvas — the mosaic overhangs its bottom edge */
 
 /* BREADCRUMB / HEADER (over hero) */
-.sd .bc { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text); flex-wrap:wrap; }
-.sd .bc a { color:var(--text); transition:color .2s; cursor:pointer; }
+/* A white-glass pill rather than bare ink on the open sky: the crumbs' contrast stops
+   depending on which part of the (now much more active) sky they land on, and the pill
+   speaks the same lit-surface language as the card and chips below it. */
+.sd .bc { display:inline-flex; align-items:center; gap:7px; font-size:12.5px; color:var(--text); flex-wrap:wrap;
+  padding:8px 16px; border-radius:var(--r-full);
+  background:rgba(255,255,255,.88); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.95); box-shadow:0 6px 20px rgba(20,55,150,.22); }
+.sd .bc a { color:var(--text); font-weight:600; transition:color .2s; cursor:pointer; }
 .sd .bc a:hover { color:var(--blue); }
-/* The breadcrumb sits on the sky, not on the panel, so it keeps the darker ink. The current page
-   is the heaviest of the three — it was previously an inline #fff and effectively invisible. */
 .sd .bc .bc-now { color:var(--dark); font-weight:700; }
-.sd .bc .bc-sep { color:var(--text-sec); }
+.sd .bc .bc-sep { color:#3D5170; }
 .sd .pg { max-width:1760px; margin:0 auto; padding:0 clamp(20px,3.5vw,56px) 80px; }
 .sd .hh { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin:14px 0 0; flex-wrap:wrap; }
-.sd .hhn { font-family:'Sora',sans-serif; font-size:clamp(1.9rem,3.2vw,2.9rem); font-weight:800; color:var(--dark); letter-spacing:-.6px; line-height:1.1; }
+.sd .hhn { font-family:'Sora',sans-serif; font-size:clamp(1.9rem,3.2vw,2.9rem); font-weight:800; color:var(--dark); letter-spacing:-.6px; line-height:1.1; text-shadow:0 1px 0 rgba(255,255,255,.6); }
 /* The meta row carries two different kinds of fact: what the hotel IS (class, place) and what
    guests THOUGHT of it. They were run together with equal spacing, so the row read as four
    unrelated fragments. A hairline before the score separates the two without adding chrome,
    and a shared 44px height stops the tall rating pill from making the line lumpy. */
 .sd .hhm { display:flex; align-items:center; gap:10px 14px; margin-top:12px; flex-wrap:wrap; row-gap:10px; }
-.sd .hhs { color:#E5890C; font-size:16px; letter-spacing:1px; display:inline-flex; align-items:center; }
+.sd .hhs { color:#D9700F; font-size:16px; letter-spacing:1px; display:inline-flex; align-items:center; filter:drop-shadow(0 1px 2px rgba(255,159,28,.35)); }
 .sd .hhl { font-size:13px; color:var(--text); display:flex; align-items:center; gap:6px; }
 .sd .hhl svg { width:14px; height:14px; opacity:.7; flex-shrink:0; }
 /* Divider only when the score follows — an unrated hotel must not end the row on a stray rule. */
 .sd .hhm .sd-rating::before {
   content:''; align-self:stretch; width:1px; margin-right:4px;
-  background:linear-gradient(180deg,transparent,rgba(31,79,216,.20),transparent);
+  background:linear-gradient(180deg, transparent, rgba(255,159,28,.4) 35%, rgba(31,79,216,.25) 65%, transparent);
 }
 @media(max-width:640px){ .sd .hhm .sd-rating::before { display:none; } }
 /* Zone (district) leads in full-white weight — it's the part that differentiates this hotel
    within its city; the city itself stays at the line's default (dimmer) weight. */
 .sd .hhl-zone { color:var(--dark); font-weight:700; }
-.sd .hhl-dot { color:var(--text-sec); }
+.sd .hhl-dot { color:#4C5F80; }
 
 /* TripAdvisor rating — sits in the hero metric row beside the stars. A two-part glass pill: a
    solid gold score block, then the bubble rating over the source + review count. The bubbles
@@ -218,9 +252,11 @@
 .sd .sd-rating-body { display:flex; flex-direction:column; justify-content:center; gap:4px; min-width:0; }
 .sd .sd-rating-word { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--dark); line-height:1.1; letter-spacing:.1px; }
 .sd .sd-rating-meta { display:flex; align-items:center; gap:5px; line-height:1.1; white-space:nowrap; min-width:0; }
-.sd .sd-rating-src { font-size:11.5px; font-weight:600; color:var(--text-sec); overflow:hidden; text-overflow:ellipsis; }
-.sd .sd-rating-count { font-size:11.5px; font-weight:500; color:var(--text-light); }
-.sd .sd-rating-count::before { content:'·'; margin-right:5px; color:var(--text-light); }
+/* Two steps darker than the site's muted greys: this is 11.5px print on a near-white glass
+   card — #4C5F80 holds 6.3:1 where --text-light only managed ~3:1. */
+.sd .sd-rating-src { font-size:11.5px; font-weight:600; color:#4C5F80; overflow:hidden; text-overflow:ellipsis; }
+.sd .sd-rating-count { font-size:11.5px; font-weight:500; color:#4C5F80; }
+.sd .sd-rating-count::before { content:'·'; margin-right:5px; color:#4C5F80; }
 
 /* ── Score bands ──────────────────────────────────────────────────────────────
    Gold used to be worn by every score, so it signalled nothing. Reserving green for a genuinely
@@ -235,42 +271,55 @@
 @keyframes sdRatingIn { from { opacity:0; transform:translateY(4px) scale(.96); } to { opacity:1; transform:none; } }
 @media(max-width:560px){ .sd .sd-rating-count { display:none; } }
 .sd .hha { display:flex; gap:8px; flex-shrink:0; }
-.sd .hhb { display:flex; align-items:center; gap:6px; padding:9px 17px; border-radius:var(--r-full); border:1px solid rgba(255,255,255,.9); background:#fff; box-shadow:0 4px 14px rgba(23,58,138,.13); font-size:12.5px; font-weight:600; color:var(--text-sec); transition:all .25s var(--ease); }
-.sd .hhb:hover { border-color:var(--blue); color:var(--blue); box-shadow:0 4px 14px rgba(31,79,216,.14); }
-.sd .hhb.saved { border-color:transparent; background:rgba(255,107,107,.92); color:#fff; }
+.sd .hhb { display:flex; align-items:center; gap:6px; padding:9px 17px; border-radius:var(--r-full); border:1px solid rgba(255,255,255,.95); background:linear-gradient(180deg,#fff,#F5F9FF); box-shadow:0 10px 24px -8px rgba(23,58,138,.32), inset 0 1px 0 #fff; font-size:12.5px; font-weight:600; color:#43567A; transition:all .25s var(--ease); }
+.sd .hhb:hover { border-color:var(--blue); color:var(--blue); box-shadow:0 12px 28px -8px rgba(31,79,216,.3), inset 0 1px 0 #fff; }
+/* Deepened from the old rgba(255,107,107,.92): white on that coral was ~2.9:1. #D63838 carries
+   white at 4.7:1 and still reads as the same warm "saved" red. */
+.sd .hhb.saved { border-color:transparent; background:#D63838; color:#fff; }
 .sd .hhb.saved svg { fill:currentColor; animation:sdHeartPop .35s var(--ease-spring); }
 
 /* HERO LAYOUT */
+/* Gold-thread motif in place of the old chart grid — fine diagonal craft lines catching the
+   light across the blue mass, white counter-threads between them. Low alpha and masked to the
+   upper sky: the threads are z0 ornament (the opaque card and photo tiles cover them), so the
+   mask's job is to fade them out before the open sky meets the horizon band. */
 .sd-hero-grid { position:absolute; inset:0; pointer-events:none;
-  background-image:linear-gradient(rgba(23,58,138,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(23,58,138,.07) 1px,transparent 1px);
-  background-size:54px 54px;
-  -webkit-mask-image:radial-gradient(ellipse 55% 95% at 16% 0%,#000 25%,transparent 70%);
-  mask-image:radial-gradient(ellipse 55% 95% at 16% 0%,#000 25%,transparent 70%); }
+  background-image:
+    repeating-linear-gradient(112deg, transparent 0 138px, rgba(255,183,77,.28) 138px 139px),
+    repeating-linear-gradient(112deg, transparent 0 46px, rgba(255,255,255,.20) 46px 47px);
+  -webkit-mask-image:radial-gradient(ellipse 62% 58% at 100% 0%, #000 18%, transparent 72%);
+  mask-image:radial-gradient(ellipse 62% 58% at 100% 0%, #000 18%, transparent 72%); }
 .sd-hero-top { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .sd-hero-main { display:grid; grid-template-columns:minmax(420px,1fr) minmax(560px,1.3fr); gap:clamp(28px,3vw,52px); align-items:start; margin-top:26px; }
-/* The copy sat directly on the sky, so the section had no edges — it read as text floating in an
-   empty area rather than as a block. Lifting it onto a frosted white panel gives it a boundary and
-   makes it the brightest thing on the page, which is what "highlight this section" needs.
-   It also puts every piece of copy on white, so legibility stops depending on which part of the
-   gradient a line happens to land on. */
+/* The identity card floats at LOW altitude in the scene: an oversized soft blue shadow thrown
+   down-and-right (away from the sun in the upper-left — the offset is what makes the scene's
+   single-light-source claim literally true), a sunlit top rim, and near-opaque white so every
+   line of copy keeps its ink regardless of what the sky behind it is doing. */
 .sd-hero-left {
   position:relative;
   min-width:0;
   padding:34px 38px 36px;
-  border-radius:24px;
+  border-radius:26px;
   background:
     /* a whisper of warmth in the lower right so the card is lit, not flat paper */
-    radial-gradient(ellipse 70% 80% at 88% 96%, rgba(255,238,214,.55), transparent 62%),
-    rgba(255,255,255,.90);
-  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  border:1px solid rgba(255,255,255,.95);
-  box-shadow:0 20px 48px rgba(23,58,138,.16), 0 2px 6px rgba(23,58,138,.06);
+    radial-gradient(ellipse 70% 80% at 88% 96%, rgba(255,238,214,.5), transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,.97), rgba(255,255,255,.93));
+  backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
+  border:1px solid #fff;
+  box-shadow:
+    22px 40px 80px -30px rgba(31,79,216,.4),   /* long altitude throw, down-right of the sun */
+    0 16px 34px -18px rgba(23,58,138,.28),     /* mid shadow */
+    0 2px 6px rgba(23,58,138,.08),             /* contact */
+    inset 0 1px 0 #fff;                        /* sunlit top rim */
 }
-/* NO corner ornament here, deliberately. Gold scrollwork was tried and removed: this card's
-   content fills it edge to edge, so at 1440px a 128px corner motif ran through both the 49px
-   headline and the trust list. Ornament that collides with type is not ornament. If this card
-   ever needs decoration, it needs the space for it first. */
-/* The content must sit above both ornament layers. */
+/* One gold thread along the card's top edge — INSIDE the 34px top padding, so unlike the corner
+   scrollwork that was tried and removed (it ran through the headline at 1440px), this ornament
+   structurally cannot collide with type. */
+.sd-hero-left::before {
+  content:''; position:absolute; left:26px; right:26px; top:12px; height:1px; z-index:0;
+  background:linear-gradient(90deg, transparent, rgba(255,159,28,.55) 18%, rgba(255,209,102,.9) 50%, rgba(255,159,28,.55) 82%, transparent);
+}
+/* The content must sit above the ornament layer. */
 .sd-hero-left > * { position:relative; z-index:1; }
 .sd-hero-left > * { animation:sdFadeUp .6s var(--ease) both; }
 .sd-hero-left > :nth-child(1) { animation-delay:.05s; }
@@ -278,9 +327,15 @@
 .sd-hero-left > :nth-child(3) { animation-delay:.19s; }
 .sd-hero-left > :nth-child(5) { animation-delay:.26s; }
 .sd-hero-left > :nth-child(6) { animation-delay:.33s; }
-.sd-hero-rule { display:block; width:46px; height:3px; border-radius:var(--r-full); background:linear-gradient(115deg,var(--sun),var(--gold)); margin:16px 0 2px; transform-origin:left; }
+/* longer, tapering off to nothing like a stroke of light, with a real glow */
+.sd-hero-rule { display:block; width:64px; height:3px; border-radius:var(--r-full); background:linear-gradient(90deg, var(--sun), var(--gold) 55%, rgba(255,209,102,0)); box-shadow:0 2px 10px rgba(255,159,28,.4); margin:16px 0 2px; transform-origin:left; }
 .sd-hero-left > .sd-hero-rule { animation:sdRuleIn .5s var(--ease) .45s both; }
-.sd-hero-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--blue); margin-bottom:12px; }
+/* A pill rather than bare text: the sky→gold wash is the one place the card quotes the scene
+   behind it. Worst-case ink-on-wash is 6.0:1. */
+.sd-hero-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--blue); margin-bottom:12px;
+  padding:5px 12px; border-radius:var(--r-full);
+  background:linear-gradient(90deg, rgba(163,204,255,.32), rgba(255,209,102,.25));
+  border:1px solid rgba(31,79,216,.16); }
 .sd-hero-eyebrow svg { width:14px; height:14px; }
 
 /* HERO CHIPS */
@@ -288,10 +343,12 @@
 /* Solid white on the light sky, not a translucent wash: over a pale, actively-gradiented
    background a glass chip picks up whatever is behind it and its contrast wanders across the
    row. White with a hairline reads the same wherever it lands. */
-.sd-chip { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:var(--r-full); background:#fff; border:1px solid rgba(255,255,255,.9); box-shadow:0 4px 14px rgba(23,58,138,.13); color:var(--text); font-size:13px; font-weight:600; }
+.sd-chip { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:var(--r-full); background:linear-gradient(180deg,#fff,#F6FAFF); border:1px solid rgba(255,255,255,.95); box-shadow:0 10px 22px -8px rgba(23,58,138,.3), inset 0 1px 0 #fff; color:var(--text); font-size:13px; font-weight:600; }
 .sd-chip svg { color:var(--blue); }
-.sd-chip-price { background:var(--cta-grad); border-color:transparent; color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); font-weight:800; }
-.sd-chip-price svg { color:var(--dark); }
+/* The deep CTA token, not the global one: white ink needs the darker pair to clear AA (4.6:1
+   at the lightest stop). Gold ring + gold icon make it the card's one warm focal point. */
+.sd-chip-price { background:var(--cta-grad-deep); border-color:rgba(255,209,102,.55); color:#fff; text-shadow:none; font-weight:800; box-shadow:0 10px 24px -8px rgba(194,84,10,.55); }
+.sd-chip-price svg { color:var(--gold); }
 
 /* HERO RATING / TRUST BAND — clickable, jumps to Reviews */
 .sd-hero-rating { display:flex; align-items:center; gap:16px; margin-top:26px; max-width:600px; width:100%;
@@ -313,13 +370,16 @@
 .sd-hero-rating:hover .sd-hc-go { transform:translateX(3px); color:var(--blue); }
 .sd-hero-trust { display:grid; grid-template-columns:1fr 1fr; gap:8px 18px; margin-top:22px; max-width:420px; }
 .sd-hero-trust .sd-hc-item { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--text); white-space:nowrap; }
-.sd-hero-trust .sd-hc-item svg { width:14px; height:14px; color:#D9700F; flex-shrink:0; }
+.sd-hero-trust .sd-hc-item svg { width:14px; height:14px; color:#D9700F; flex-shrink:0; filter:drop-shadow(0 1px 1px rgba(255,159,28,.3)); }
 
 /* GALLERY */
 /* IN-HERO PHOTO MOSAIC — overhangs the panel's bottom edge onto the canvas */
 .sd-hero-photos { display:grid; grid-template-columns:1.5fr 1fr 1fr; grid-template-rows:repeat(2,1fr); gap:10px; height:clamp(420px,34vw,500px); position:relative; z-index:3; margin-bottom:calc(var(--overhang) * -1); }
-.sd .gi { position:relative; overflow:hidden; cursor:pointer; border-radius:14px; border:1px solid rgba(255,255,255,.9); background:linear-gradient(135deg,#dbe8fa,#c3d8f4); box-shadow:0 10px 28px rgba(31,79,216,.16); transition:box-shadow .35s var(--ease), transform .35s var(--ease); animation:sdTileIn .55s var(--ease) both; }
-.sd .gi:hover { box-shadow:0 20px 44px rgba(7,14,31,.45); transform:translateY(-3px); }
+/* Highest altitude in the scene: 2px "postcard" white frames pop the tiles off the saturated
+   horizon band, and the deepest shadows on the page — still blue, never black — are thrown
+   slightly right of the upper-left sun like everything else. */
+.sd .gi { position:relative; overflow:hidden; cursor:pointer; border-radius:14px; border:2px solid rgba(255,255,255,.95); background:linear-gradient(135deg,#dbe8fa,#c3d8f4); box-shadow:6px 22px 44px -16px rgba(23,58,138,.42), 0 8px 18px -8px rgba(31,79,216,.25), 0 1px 0 rgba(255,255,255,.8); transition:box-shadow .35s var(--ease), transform .35s var(--ease); animation:sdTileIn .55s var(--ease) both; }
+.sd .gi:hover { box-shadow:8px 30px 56px -18px rgba(23,58,138,.5), 0 10px 22px -8px rgba(31,79,216,.3); transform:translateY(-3px); }
 .sd-hero-photos .gi:nth-child(1) { animation-delay:.18s; }
 .sd-hero-photos .gi:nth-child(2) { animation-delay:.26s; }
 .sd-hero-photos .gi:nth-child(3) { animation-delay:.33s; }
@@ -338,9 +398,10 @@
 .sd .gi-zoom { position:absolute; top:50%; left:50%; transform:translate(-50%,-50%) scale(.6); width:48px; height:48px; border-radius:50%; background:rgba(255,255,255,.94); backdrop-filter:blur(6px); -webkit-backdrop-filter:blur(6px); display:flex; align-items:center; justify-content:center; color:var(--blue); opacity:0; transition:all .4s var(--ease-spring); z-index:3; box-shadow:0 6px 18px rgba(0,0,0,.2); }
 .sd .gi:hover .gi-zoom { opacity:1; transform:translate(-50%,-50%) scale(1); }
 .sd .gi-more { position:absolute; inset:0; z-index:3; display:none; align-items:center; justify-content:center; background:rgba(7,14,31,.52); backdrop-filter:blur(2px); -webkit-backdrop-filter:blur(2px); color:#fff; font-family:'Sora',sans-serif; font-size:17px; font-weight:800; letter-spacing:.5px; }
-.sd .ga { position:absolute; bottom:14px; right:14px; padding:11px 22px; border-radius:var(--r-full); background:rgba(255,255,255,.95); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); font-size:13px; font-weight:700; color:var(--dark); box-shadow:0 8px 24px rgba(7,14,31,.22); transition:all .3s var(--ease); z-index:4; display:flex; align-items:center; gap:8px; border:1px solid rgba(255,255,255,.6); animation:sdFadeUp .5s var(--ease) .55s both; }
+/* white pill ringed in gold thread — the one button sitting ON the photography */
+.sd .ga { position:absolute; bottom:14px; right:14px; padding:11px 22px; border-radius:var(--r-full); background:linear-gradient(180deg,#fff,#F7FAFF); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px); font-size:13px; font-weight:700; color:var(--dark); box-shadow:0 10px 26px -8px rgba(23,58,138,.4), 0 0 0 4px rgba(255,255,255,.3); transition:all .3s var(--ease); z-index:4; display:flex; align-items:center; gap:8px; border:1px solid rgba(255,209,102,.75); animation:sdFadeUp .5s var(--ease) .55s both; }
 .sd .ga svg { color:var(--blue); }
-.sd .ga:hover { background:#fff; transform:translateY(-2px); box-shadow:0 14px 34px rgba(7,14,31,.3); }
+.sd .ga:hover { background:#fff; transform:translateY(-2px); box-shadow:0 16px 36px -10px rgba(23,58,138,.5), 0 0 0 4px rgba(255,255,255,.45); }
 /* ONE PHOTO, OR NONE — the five-tile mosaic can't be composed, so the panel goes full-bleed
    instead of leaving four empty boxes next to a lone image. */
 .sd-hero-photos-solo { grid-template-columns:1fr; grid-template-rows:1fr 1fr; }
@@ -349,10 +410,10 @@
    the hover lift and the zoom affordance that belong to real, clickable photography. */
 .sd .gi-empty { grid-row:span 2; border-radius:24px; background:#E4EEFF; cursor:default; border-color:rgba(31,79,216,.14); }
 .sd .gi-empty::before, .sd .gi-empty::after { display:none; }
-.sd .gi-empty:hover { transform:none; box-shadow:0 12px 32px rgba(7,14,31,.35); }
+.sd .gi-empty:hover { transform:none; box-shadow:0 12px 32px rgba(23,58,138,.3); }
 /* waiting on /hotels/bulk — hold the mosaic's shape rather than flashing the fallback */
 .sd .gi-skel { background:linear-gradient(100deg,#D7E6FF 18%,#EEF4FF 42%,#D7E6FF 66%); background-size:220% 100%; animation:sdTileIn .55s var(--ease) both, sdSkel 1.4s linear infinite; cursor:default; }
-.sd .gi-skel:hover { transform:none; box-shadow:0 12px 32px rgba(7,14,31,.35); }
+.sd .gi-skel:hover { transform:none; box-shadow:0 12px 32px rgba(23,58,138,.3); }
 @keyframes sdSkel { from { background-position:130% 0; } to { background-position:-130% 0; } }
 /* minmax(0,1fr), never a bare 1fr: a 1fr track's automatic minimum is min-content, so
    the widest thing inside (the fare strip, which is 7 fixed-width columns) pushed the
@@ -1055,6 +1116,7 @@
 /* RESPONSIVE */
 @media (prefers-reduced-motion: reduce) {
   .sd-hero-left > *, .sd-hero-photos .gi, .sd .ga, .sd-hero-glow2, .sd .hhb.saved svg, .sd .px-ph, .sd .px-overlay { animation:none; }
+  .sd-hero-bg::before, .sd-hero-bg::after { animation:none; }
   .sd .gi-skel { animation:none; background:#E4EEFF; }
   .sd .fc-pop, .sd .fc-skel .fc-bar, .sd .fc-line { animation:none; }
   .sd .fc-col.sel .fc-tail { animation:none; }
@@ -1089,6 +1151,10 @@
 @media(max-width:768px){
   .sd{--overhang:36px}
   .sd-hero{padding:86px 0 0}
+  /* Two big blurred, animated cloud layers are a paint cost small phones shouldn't pay:
+     halve the blur and stop the drift — the layered sky itself still reads. */
+  .sd-hero-bg::before{filter:blur(10px);animation:none}
+  .sd-hero-bg::after{filter:blur(4px);animation:none}
   .sd-hero-main{gap:8px;margin-top:16px}
   .sd-hero-left{padding:22px 18px 24px;border-radius:20px}
   .sd .bc{font-size:11.5px}
@@ -1210,9 +1276,9 @@
 .sd .rvs { background:var(--blue-bg); color:var(--blue); box-shadow:none; }
 .sd .st-step { background:var(--dark); box-shadow:none; }
 
-/* gold = conversion only */
-.sd .sd-chip-price { background:rgba(255,255,255,.92); border-color:transparent; color:var(--dark); }
-.sd .sd-chip-price svg { color:var(--sun); }
+/* The "gold = conversion only" demotion that used to live here is deliberately gone: the Sky
+   Dimension hero makes the price chip the card's single warm focal point (deep CTA gradient,
+   white ink at 4.6:1 — see .sd-chip-price in the hero section). */
 .sd .sd-hc-score { box-shadow:none; }
 .sd .bks { box-shadow:none; }
 .sd .rb { box-shadow:var(--shadow-sm); }
