@@ -16,9 +16,7 @@ import { DURATION_BANDS, bandByLabel, bandForNights, lengthsInBand } from '../..
 const MIN_ADULTS = 1, MAX_ADULTS = 6;      // per room
 const MIN_CHILDREN = 0, MAX_CHILDREN = 4;  // per room
 const MAX_ROOMS = 5;
-const CHILD_AGE_MAX = 17;
 const DEFAULT_CHILD_AGE = 8;   // HotelBeds rejects a child with no age; matches the page's default
-const NEARBY_SPAN = 12;   // how many "nearby departures" to list before the date input takes over
 
 const Chevron = () => (
   <svg className={styles.chev} width="14" height="14" viewBox="0 0 24 24" fill="none"
@@ -98,7 +96,7 @@ function splitRooms(totalAdults, totalChildren, roomCount) {
 }
 
 export default function StayBar({
-  checkIn, dateOptions = [], formatDate,
+  checkIn, formatDate,
   adults, children: childCount, childAges = '', rooms: roomCount = 1,
   board = '', boardOptions = [], boardHint = '',
   origin, originOptions = [], originLabel = (c) => c, destination = '',
@@ -184,15 +182,14 @@ export default function StayBar({
   const dirty = `${dAdults}|${dChildren}|${draft.length}|${dChildren ? draftAgesStr : ''}`
     !== `${adults}|${childCount}|${roomCount}|${childCount ? childAges : ''}`;
 
-  const today = new Date().toISOString().slice(0, 10);
-  // The page can offer a year of departures; a 300-row scroller is no better than the old
-  // <select>. Any date is reachable through the input above, so the list only shows a short
-  // window around the current pick.
-  const nearby = (() => {
-    if (dateOptions.length <= NEARBY_SPAN) return dateOptions;
-    const at = Math.max(0, dateOptions.findIndex((d) => d >= (checkIn || today)));
-    const start = Math.min(Math.max(0, at - 3), Math.max(0, dateOptions.length - NEARBY_SPAN));
-    return dateOptions.slice(start, start + NEARBY_SPAN);
+  // LOCAL date parts, not toISOString(). This is the `min` on the departure picker and the `max`
+  // on the children's dates of birth, and UTC is the wrong day for part of every night: at 00:30
+  // in Brussels toISOString() still reports yesterday, which would have let a traveller pick a
+  // departure date that had already passed.
+  const today = (() => {
+    const d = new Date();
+    const p = (v) => String(v).padStart(2, '0');
+    return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   })();
   const paxLabel = `${adults} adult${adults === 1 ? '' : 's'}`
     + (childCount ? `, ${childCount} child${childCount === 1 ? '' : 'ren'}` : '')

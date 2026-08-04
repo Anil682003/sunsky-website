@@ -819,27 +819,33 @@
   margin-bottom:14px; border:1px solid var(--border); border-radius:16px;
   background:var(--white); overflow:hidden; box-shadow:var(--shadow-xs);
 }
+/* Solid brand blue rather than the old near-white wash, so each room type reads as its own
+   titled block when several are stacked. Everything on it is white — nothing here is allowed
+   to drop to a grey that was picked for a pale background. */
 .sd .room-group-head {
   display:flex; align-items:center; justify-content:space-between; gap:12px; flex-wrap:wrap;
   padding:12px 18px;
-  background:linear-gradient(180deg,#eef5ff,#e6efff);
-  border-bottom:1px solid #dbe7fb;
+  background:linear-gradient(135deg,#63a0f7,#4585f0);
+  border-bottom:none;
 }
 .sd .room-group-id { display:flex; align-items:center; gap:9px; min-width:0; flex-wrap:wrap; }
 .sd .room-group-name {
-  font-family:'Sora',sans-serif; font-size:14.5px; font-weight:800; color:var(--dark);
+  font-family:'Sora',sans-serif; font-size:14.5px; font-weight:800; color:#fff;
   letter-spacing:.1px;
 }
 /* The supplier's room code — useful when confirming with the hotel, so it stays visible,
    but it is reference data and must never compete with the room name. */
 .sd .room-code {
-  font-size:10px; font-weight:700; letter-spacing:.04em; color:var(--text-sec);
-  padding:2px 7px; border-radius:var(--r-full); background:rgba(255,255,255,.75); border:1px solid #d3e2fa;
+  font-size:10px; font-weight:700; letter-spacing:.04em; color:#fff;
+  padding:2px 7px; border-radius:var(--r-full);
+  background:rgba(255,255,255,.20); border:1px solid rgba(255,255,255,.42);
   font-variant-numeric:tabular-nums;
 }
 .sd .room-group-from { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
-.sd .rgf-count { font-size:11.5px; font-weight:600; color:var(--text-sec); }
-.sd .rgf-price { font-family:'Sora',sans-serif; font-size:13px; font-weight:800; color:var(--dark); font-variant-numeric:tabular-nums lining-nums; }
+/* .88 rather than the usual muted grey: on blue, anything fainter stops being readable, so
+   this steps back through opacity only as far as it can afford to. */
+.sd .rgf-count { font-size:11.5px; font-weight:600; color:rgba(255,255,255,.88); }
+.sd .rgf-price { font-family:'Sora',sans-serif; font-size:13px; font-weight:800; color:#fff; font-variant-numeric:tabular-nums lining-nums; }
 
 /* Who the room sleeps and for how long — stated once, inside the card, above the boards. */
 .sd .room-group-meta {
