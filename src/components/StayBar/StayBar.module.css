@@ -199,7 +199,11 @@
 @media (max-width: 560px) {
   .field, .fieldWide { flex: 1 1 100%; border-right: none !important; }
   .field:nth-child(2) { border-top: 1px solid #eef2f9; }
-  .reset { margin-left: 0; }
+  .reset { margin-left: 0; min-height: 40px; }
+  /* 32px is under what a thumb reliably hits — give the chips a real target. */
+  .chip { min-height: 40px; padding: 9px 16px; }
+  .chips { gap: 8px; }
+  .pop { max-width: calc(100vw - 32px); }
 }
 
 @media (prefers-reduced-motion: reduce) {
