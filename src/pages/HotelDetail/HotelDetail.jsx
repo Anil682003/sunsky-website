@@ -15,6 +15,7 @@ import { formatReview, scoreWord } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
+import StayBar from '../../components/StayBar/StayBar';
 import { ratingLabel } from '../../utils/rating';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
@@ -35,7 +36,9 @@ const BOARD_PREFS = [
   { id: 'AI', label: 'All inclusive',   match: /all\s*inclusive|^AI$/i },
 ];
 // Trip lengths the Duration filter offers, in nights.
-const NIGHT_OPTIONS = [3, 4, 5, 6, 7, 10, 14];
+const NIGHT_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 21];
+// The quick chips under the bar, in nights — printed as nights+1 days, so 5→"6 days".
+const DURATION_CHIPS = [5, 6, 7, 8, 9];
 const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const calDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WK[d.getDay()]; };
@@ -117,14 +120,6 @@ const TAB_ICON = {
 
 /* ── static demo data (from the design) ── */
 const TABS = ['Prices', 'Information', 'Facilities' /*, 'Weather', 'Map', 'Reviews' */];
-const FILTERS = [
-  { label: 'Departure date', val: 'Thu, 19 March 2026', icon: ICON.cal },
-  { label: 'Travelling company', val: '4 persons', icon: ICON.users },
-  { label: 'Care (Meals)', val: 'No preference', icon: ICON.board },
-  { label: 'Transport', val: 'All airports', icon: ICON.plane },
-  { label: 'Duration', val: '6–10 days', icon: ICON.moon },
-];
-const DURATIONS = ['6 days', '7 days', '8 days', '9 days', '10 days'];
 const PRICE_DAYS = [
   { day: 'Monday', date: '16 Mar.', price: 395, orig: 420, nights: 7 },
   { day: 'Tuesday', date: '17 Mar.', price: 378, orig: 410, nights: 7 },
@@ -615,7 +610,7 @@ export default function HotelDetail() {
   const sChildren = String(ovr.children ?? state?.children ?? (qp('children') || '0'));
   const sRooms    = String(state?.rooms  ?? (qp('rooms')  || '1'));
   // children's ages (csv) — HotelBeds requires an age per child for availability
-  const paramChildAges = String(state?.childAges ?? qp('childAges'));
+  const paramChildAges = String(ovr.childAges ?? state?.childAges ?? qp('childAges'));
   // Trim/pad the age list to the chosen child count — HB 400s on a child with no age.
   const sChildAges = (() => {
     const n = parseInt(sChildren, 10) || 0;
@@ -658,7 +653,6 @@ export default function HotelDetail() {
         showToast('Couldn’t update favourites. Please try again.', 'error');
       });
   };
-  const [selectedDur, setSelectedDur] = useState(1);
   const [selectedPrice, setSelectedPrice] = useState(null);
   const [liveChecked, setLiveChecked] = useState(false);
   const [selectedFlight, setSelectedFlight] = useState(0);
@@ -1380,87 +1374,18 @@ export default function HotelDetail() {
             <div className={`tp${activeTab === 'Prices' ? ' act' : ''}`}>
               <div className="section-title"><span className="st-step">1</span> Compare the lowest prices</div>
 
-              <div className="filter-bar">
-                <div className="filter-fields">
-                  <div className="filter-item">
-                    <span className="fi-ico">{ICON.cal}</span>
-                    <div className="fi-body">
-                      <div className="filter-label">Departure date</div>
-                      <select className="filter-val" value={baseCheckIn || ''} disabled={!baseCheckIn}
-                        onChange={(e) => applyFilter({ checkIn: e.target.value })}>
-                        {baseCheckIn && !dateOptions.includes(baseCheckIn) && <option value={baseCheckIn}>{niceDate(baseCheckIn)}</option>}
-                        {dateOptions.map((d) => <option key={d} value={d}>{niceDate(d)}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="filter-item">
-                    <span className="fi-ico">{ICON.users}</span>
-                    <div className="fi-body">
-                      <div className="filter-label">Travelling company</div>
-                      <select className="filter-val" value={`${sAdults}-${sChildren}`}
-                        onChange={(e) => {
-                          const [a, c] = e.target.value.split('-');
-                          applyFilter({ adults: a, children: c });
-                        }}>
-                        {[1, 2, 3, 4, 5, 6].map((a) => [0, 1, 2, 3].map((c) => (
-                          <option key={`${a}-${c}`} value={`${a}-${c}`}>
-                            {a} adult{a > 1 ? 's' : ''}{c ? ` + ${c} child${c > 1 ? 'ren' : ''}` : ''}
-                          </option>
-                        )))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="filter-item">
-                    <span className="fi-ico">{ICON.board}</span>
-                    <div className="fi-body">
-                      <div className="filter-label">Care (Meals)</div>
-                      <select className="filter-val" value={boardPref}
-                        onChange={(e) => setOvr((p) => ({ ...p, board: e.target.value }))}>
-                        {BOARD_PREFS.map((b) => <option key={b.id} value={b.id}>{b.label}</option>)}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="filter-item">
-                    <span className="fi-ico">{ICON.plane}</span>
-                    <div className="fi-body">
-                      <div className="filter-label">Transport</div>
-                      <select className="filter-val" value={origin}
-                        onChange={(e) => applyFilter({ origin: e.target.value })}>
-                        {ORIGINS.map((o) => (
-                          <option key={o} value={o}>{airportName(o)} ({o}){destination ? ` → ${destination}` : ''}</option>
-                        ))}
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="filter-item">
-                    <span className="fi-ico">{ICON.moon}</span>
-                    <div className="fi-body">
-                      <div className="filter-label">Duration</div>
-                      <select className="filter-val" value={String(nights)}
-                        onChange={(e) => applyFilter({ nights: Number(e.target.value) })}>
-                        {(NIGHT_OPTIONS.includes(nights) ? NIGHT_OPTIONS : [...NIGHT_OPTIONS, nights].sort((a, b) => a - b))
-                          .map((n) => <option key={n} value={String(n)}>{n} nights</option>)}
-                      </select>
-                    </div>
-                  </div>
-                </div>
-                <div className="filter-foot">
-                  <span className="filter-foot-label">Exact duration</span>
-                  <div className="dur-chips">
-                    {NIGHT_OPTIONS.filter((n) => n >= 5 && n <= 10).map((n) => (
-                      <button key={n} className={`dur-chip${nights === n ? ' act' : ''}`}
-                        onClick={() => applyFilter({ nights: n })}>{n + 1} days</button>
-                    ))}
-                  </div>
-                  {filtersTouched && (
-                    <button type="button" className="filter-reset" onClick={resetFilters}>Reset to my search</button>
-                  )}
-                </div>
-              </div>
+              <StayBar
+                checkIn={baseCheckIn} dateOptions={dateOptions} formatDate={niceDate}
+                adults={Number(sAdults) || 1} children={Number(sChildren) || 0} childAges={sChildAges}
+                board={boardPref} boardOptions={BOARD_PREFS}
+                origin={origin} originOptions={ORIGINS} originLabel={airportName} destination={destination}
+                nights={nights} nightOptions={NIGHT_OPTIONS} durationChips={DURATION_CHIPS}
+                touched={filtersTouched}
+                onChange={applyFilter}
+                onBoardChange={(id) => setOvr((p) => ({ ...p, board: id }))}
+                onChildAges={(csv) => applyFilter({ childAges: csv })}
+                onReset={resetFilters}
+              />
 
               {calLoading && !usingLive ? (
                 <div className="fc-strip">
@@ -1468,6 +1393,7 @@ export default function HotelDetail() {
                     <div key={i} className="fc-col fc-skel">
                       <div className="fc-barzone"><div className="fc-bar" style={{ height: `${h}%` }} /></div>
                       <div className="fc-under"><span className="fc-line" /><span className="fc-line sm" /></div>
+                      <span className="fc-tail" aria-hidden="true" />
                     </div>
                   ))}
                 </div>
@@ -1500,6 +1426,10 @@ export default function HotelDetail() {
                             <span className="fc-date">{p.date}</span>
                             <span className="fc-dot" aria-hidden="true" />
                           </span>
+                          {/* Reserved in EVERY column so selecting a day never changes the
+                              row height; only the picked one paints, dropping a tapered
+                              ribbon onto the availability card directly beneath it. */}
+                          <span className="fc-tail" aria-hidden="true" />
                         </button>
                       );
                     })}
@@ -1507,7 +1437,6 @@ export default function HotelDetail() {
 
                   {pd ? (
                     <div className="fc-pop">
-                      <span className="fc-caret" style={{ left: `${((selectedPrice + 0.5) / priceDays.length) * 100}%` }} aria-hidden="true" />
                       {!liveChecked ? (
                         <div className="fc-act">
                           <div className="fc-act-info">
@@ -1564,7 +1493,9 @@ export default function HotelDetail() {
                 <div className="section-title"><span className="st-step">3</span> Your flights</div>
                 {liveFlights ? (
                   liveFlights.loading ? (
-                    <div className="live-loading"><span className="live-spin" /> Checking live flight prices…</div>
+                    <SkeletonBlock label="Checking live flight prices…">
+                      <FlightCardSkeleton /><FlightCardSkeleton />
+                    </SkeletonBlock>
                   ) : liveFlights.error ? (
                     <div className="live-error">{ICON.warn} {liveFlights.error}</div>
                   ) : liveFlights.flights?.length ? (
@@ -1657,9 +1588,16 @@ export default function HotelDetail() {
                 <div className="section-title"><span className="st-step">2</span> Choose your room</div>
                 {liveRooms ? (
                   liveRooms.loading ? (
-                    <div className="live-loading"><span className="live-spin" /> Checking live room availability…</div>
+                    <SkeletonBlock label="Checking live room availability…">
+                      <RoomCardSkeleton /><RoomCardSkeleton /><RoomCardSkeleton />
+                    </SkeletonBlock>
                   ) : liveRooms.error ? (
                     <div className="live-error">{ICON.warn} {liveRooms.error}</div>
+                  ) : boardFilterHidAll ? (
+                    <div className="live-empty">
+                      {ICON.board} No {(BOARD_PREFS.find((b) => b.id === boardPref)?.label || '').toLowerCase()} rate at this hotel for these dates.
+                      <button type="button" className="filter-reset" style={{ marginLeft: 10 }} onClick={() => setOvr((p) => ({ ...p, board: '' }))}>Show all meal plans</button>
+                    </div>
                   ) : roomGroups.length ? (
                     <div className="stay-block">
                       <div className="stay-header">
