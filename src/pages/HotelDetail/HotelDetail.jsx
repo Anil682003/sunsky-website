@@ -1738,19 +1738,14 @@ export default function HotelDetail() {
                   ) : liveFlights.flights?.length ? (
                     <>
                       <div className="flight-note">Live fares from {airportName(DEFAULT_ORIGIN)} for your selected dates:</div>
-                      {liveFlights.flights.slice(0, 6).map((f, i) => (
-                        <FlightCard
-                          key={i}
-                          f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
-                          selected={selectedFlight === i}
-                          onSelect={() => setSelectedFlight(i)}
-                        />
-                      ))}
-                      {/* The inline list is capped at 6. Without this the remaining fares were
-                          unreachable — the modal existed but only the demo branch could open it. */}
-                      {liveFlights.flights.length > 6 && (
+                      <FlightCard
+                        f={{ ...liveFlights.flights[selectedFlight], price: Math.round(liveFlights.flights[selectedFlight].totalPrice), delta: 0 }}
+                        selected
+                        onSelect={() => {}}
+                      />
+                      {liveFlights.flights.length > 1 && (
                         <button className="show-more-flights" onClick={() => setModalOpen(true)}>
-                          {ICON.plane} Show all {liveFlights.flights.length} flights
+                          {ICON.plane} Change flight · {liveFlights.flights.length - 1} more option{liveFlights.flights.length - 1 === 1 ? '' : 's'}
                         </button>
                       )}
                     </>
