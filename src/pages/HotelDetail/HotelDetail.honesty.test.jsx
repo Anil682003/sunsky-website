@@ -172,6 +172,48 @@ describe('flights and rooms are live-only', () => {
   });
 });
 
+// axios describes its own internals — "timeout of 15000ms exceeded", "Network Error" — and
+// those strings were printed verbatim under "Choose your room". A shopper can do nothing with
+// a millisecond count; they need to know whether to retry.
+describe('supplier failures are reported in words a traveller can use', () => {
+  it('translates a timeout instead of printing the axios message', async () => {
+    const user = userEvent.setup();
+    const timeout = Object.assign(new Error('timeout of 15000ms exceeded'), { code: 'ECONNABORTED' });
+    post.mockImplementation((url) => (String(url).includes('hotel-availability')
+      ? Promise.reject(timeout)
+      : Promise.resolve({ data: {} })));
+
+    renderPage();
+    await runCheck(user);
+
+    expect(await screen.findByText(/taking longer than usual/i)).toBeInTheDocument();
+    expect(screen.queryByText(/timeout of \d+ms exceeded/i)).not.toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /try again/i }).length).toBeGreaterThan(0);
+  });
+
+  it('offers a retry that re-runs the search', async () => {
+    const user = userEvent.setup();
+    const timeout = Object.assign(new Error('timeout of 15000ms exceeded'), { code: 'ECONNABORTED' });
+    let attempt = 0;
+    post.mockImplementation((url) => {
+      if (!String(url).includes('hotel-availability')) return Promise.resolve({ data: {} });
+      attempt += 1;
+      return attempt === 1
+        ? Promise.reject(timeout)
+        : Promise.resolve({ data: { results: { hotelbeds: { rooms: RATES } } } });
+    });
+
+    renderPage();
+    await runCheck(user);
+    await screen.findByText(/taking longer than usual/i);
+
+    const [retry] = screen.getAllByRole('button', { name: /try again/i });
+    await user.click(retry);
+
+    expect(await screen.findByText(/sea view double/i)).toBeInTheDocument();
+  });
+});
+
 describe('checkout is only reachable with a real quote', () => {
   it('sends an unpriced booking to the availability check instead of to payment', async () => {
     const user = userEvent.setup();

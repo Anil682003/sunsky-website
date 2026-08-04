@@ -22,6 +22,27 @@ import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 const DEFAULT_ORIGIN = 'BRU'; // departure airport the flight search starts from
+
+/* Turn a failed supplier call into something a traveller can act on.
+ * axios reports its own internals — "timeout of 15000ms exceeded", "Network Error",
+ * "Request failed with status code 502" — and these were being printed verbatim on the
+ * booking page. A shopper cannot do anything with a millisecond count; they need to know
+ * whether to wait, retry, or change their dates. `what` names the thing being searched. */
+const friendlyError = (e, what) => {
+  const msg = String(e?.message || '');
+  const status = e?.response?.status;
+  if (e?.code === 'ECONNABORTED' || /timeout/i.test(msg)) {
+    return `The ${what} search is taking longer than usual. Suppliers can be slow at busy times — please try again.`;
+  }
+  if (e?.code === 'ERR_NETWORK' || /network error/i.test(msg)) {
+    return `We couldn’t reach the ${what} service. Check your connection and try again.`;
+  }
+  if (status === 429) return `A lot of searches are running right now. Please wait a moment and try again.`;
+  if (status >= 500) return `The ${what} service is having trouble at the moment. Please try again shortly.`;
+  // Our own API writes its messages for people; anything else is an internal string.
+  const fromServer = e?.response?.data?.message;
+  return fromServer || `We couldn’t load ${what} for these dates. Please try again.`;
+};
 // Hotelbeds 400s on a child with no age, so a newly-added child gets this until asked.
 const CHILD_AGE_DEFAULT = 8;
 // Departure airports offered in the "Transport" filter — the agency's catchment.
@@ -1138,7 +1159,7 @@ export default function HotelDetail() {
       flights.sort((a, b) => a.totalPrice - b.totalPrice);
       setSelectedFlight(0);
       setLiveFlights({ flights, cheapest: data?.results?.cheapest || null });
-    }).catch((e) => setLiveFlights({ error: e?.response?.data?.message || e?.message || 'Could not load live flights' }));
+    }).catch((e) => setLiveFlights({ error: friendlyError(e, 'flight') }));
   };
 
   // ── shared transfer fetch — NO manual codes: airport comes from the flight
@@ -1164,7 +1185,7 @@ export default function HotelDetail() {
       const services = data?.results?.hotelbeds?.services || [];
       setSelectedTransfer(-1);
       setLiveTransfers({ services, pickupISO: validISO });
-    }).catch((e) => setLiveTransfers({ error: e?.response?.data?.message || e?.message || 'Could not load transfers' }));
+    }).catch((e) => setLiveTransfers({ error: friendlyError(e, 'transfer') }));
   };
 
   // ── fetch flights + transfers on mount using dates from results screen ──
@@ -1243,7 +1264,7 @@ export default function HotelDetail() {
       // The rating rides on the availability response — this is the ONLY place it is read, so
       // opening a hotel costs no extra supplier call. Keep the first one we see (hotel-static).
       if (data?.review) setReview((prev) => prev ?? data.review);
-    }).catch((e) => setLiveRooms({ error: e?.response?.data?.message || e?.message || 'Could not load live room prices' }));
+    }).catch((e) => setLiveRooms({ error: friendlyError(e, 'room') }));
 
     // Live flights + transfers for the newly picked dates
     fetchFlights(checkin, checkout);
@@ -1679,7 +1700,14 @@ export default function HotelDetail() {
                       <FlightCardSkeleton /><FlightCardSkeleton />
                     </SkeletonBlock>
                   ) : liveFlights.error ? (
-                    <div className="live-error">{ICON.warn} {liveFlights.error}</div>
+                    <div className="live-error">
+                      {ICON.warn}
+                      <span className="live-error-msg">{liveFlights.error}</span>
+                      <button type="button" className="live-retry"
+                        onClick={() => fetchFlights(pd?.iso || baseCheckIn, pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut)}>
+                        Try again
+                      </button>
+                    </div>
                   ) : liveFlights.flights?.length ? (
                     <>
                       <div className="flight-note">Live fares from {airportName(DEFAULT_ORIGIN)} for your selected dates:</div>
@@ -1745,7 +1773,12 @@ export default function HotelDetail() {
                 {liveTransfers.loading ? (
                   <div className="live-loading"><span className="live-spin" /> Checking transfer availability…</div>
                 ) : liveTransfers.error ? (
-                  <div className="live-error">{ICON.warn} {liveTransfers.error}</div>
+                  <div className="live-error">
+                    {ICON.warn}
+                    <span className="live-error-msg">{liveTransfers.error}</span>
+                    <button type="button" className="live-retry"
+                      onClick={() => fetchTransfers(pd?.iso || baseCheckIn)}>Try again</button>
+                  </div>
                 ) : liveTransfers.services?.length ? (
                   <div className="stay-block">
                     <div className="flight-note">From {destination} airport to your hotel on arrival day{liveTransfers.pickupISO ? ` · pickup ~${liveTransfers.pickupISO.slice(11, 16)} (follows your flight)` : ''} — live prices:</div>
@@ -1789,7 +1822,13 @@ export default function HotelDetail() {
                       <RoomCardSkeleton rows={3} i={0} /><RoomCardSkeleton rows={2} i={1} /><RoomCardSkeleton rows={2} i={2} />
                     </SkeletonBlock>
                   ) : liveRooms.error ? (
-                    <div className="live-error">{ICON.warn} {liveRooms.error}</div>
+                    <div className="live-error">
+                      {ICON.warn}
+                      <span className="live-error-msg">{liveRooms.error}</span>
+                      {/* A timeout is the most common failure here and the one most likely to
+                          succeed on a second attempt — don't make the traveller re-pick a day. */}
+                      <button type="button" className="live-retry" onClick={checkAvailability}>Try again</button>
+                    </div>
                   ) : boardFilterHidAll ? (
                     <div className="live-empty">
                       {ICON.board} No {(BOARD_PREFS.find((b) => b.id === boardPref)?.label || '').toLowerCase()} rate at this hotel for these dates.

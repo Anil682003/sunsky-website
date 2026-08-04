@@ -114,19 +114,18 @@ const INSURANCES = [
   },
 ];
 
-const FALLBACK_BOOKING = {
-  hotelCode: 'demo', hotelName: 'Cavo Vezal', stars: 5,
-  loc: 'Greece, Zakynthos, Agios Sostis',
-  img: 'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=900&q=80',
-  board: 'All inclusive', nights: 7, adults: 2, currency: '€',
-  ppPrice: 365, origPrice: 399, dateLabel: 'Fri 10 Apr — Wed 15 Apr 2026',
-  flight: {
-    outDate: 'Fri 10 Apr. 2026', outAirline: 'ARKEFLY', outDep: '07:00', outArr: '11:50',
-    outDur: '3h 50m', outFrom: 'Amsterdam (Schiphol)', outTo: 'Antalya Intl',
-    retDate: 'Wed 15 Apr. 2026', retAirline: 'TRANSAVIA', retDep: '12:45', retArr: '16:00',
-    retDur: '4h 15m', retFrom: 'Antalya Intl', retTo: 'Amsterdam (Schiphol)',
-  },
-  room: 'Double Room Design Room', roomExtra: 0, meal: 'Bed & Breakfast',
+// Reaching /checkout with no router state used to render a COMPLETE fabricated booking —
+// "Cavo Vezal", a 5-star Greek hotel, an ARKEFLY/TRANSAVIA itinerary, €365 p.p. struck
+// through from €399 — which the traveller could take all the way to Stripe. The dangerous
+// path was not a stray URL but a REFRESH: react-router state does not survive one, so a
+// customer reloading mid-checkout silently had their real booking replaced by this one.
+//
+// This shell exists only so the hooks below can run before the "nothing to check out" panel
+// renders. It names no hotel, no flight, no room and no price.
+const EMPTY_BOOKING = {
+  hotelCode: '', hotelName: '', stars: 0, loc: '', img: '',
+  board: '', nights: 0, adults: 1, currency: '€',
+  ppPrice: 0, dateLabel: '', flight: null, room: '', roomExtra: 0, meal: '',
 };
 
 const SGR_FEE = 20;
@@ -228,7 +227,10 @@ const emptyTraveller = () => ({
 function CheckoutContent({ stripe, elements }) {
   const { state } = useLocation();
   const navigate = useNavigate();
-  const booking = state?.booking || FALLBACK_BOOKING;
+  // No booking in router state means there is nothing to pay for — say so rather than
+  // inventing one. Guarded at render (below), since the hooks must still run.
+  const hasBooking = !!state?.booking;
+  const booking = state?.booking || EMPTY_BOOKING;
   const isFlight = booking.kind === 'flight';
   const isTransfer = booking.kind === 'transfer';
   const { isAuthenticated, user } = useSelector((s) => s.auth);
@@ -628,6 +630,28 @@ function CheckoutContent({ stripe, elements }) {
         ccy={ccy}
         reservationPending={reservationPending}
       />
+    );
+  }
+
+  /* ═══ nothing to check out ═══
+     Router state is lost on refresh, so this is the state a customer lands in when they
+     reload mid-checkout. It must never resolve to somebody else's holiday. */
+  if (!hasBooking) {
+    return (
+      <div className="ck">
+        <div className="ck-gone">
+          <div className="ck-gone-ico">{ICON.briefcase}</div>
+          <h1 className="ck-gone-title hd">There’s no booking to pay for</h1>
+          <p className="ck-gone-sub">
+            Checkout details aren’t kept when a page is reloaded. Nothing has been charged —
+            open your hotel again and re-check availability to pick your dates back up.
+          </p>
+          <div className="ck-gone-actions">
+            <button type="button" className="ck-gone-btn" onClick={() => navigate('/results')}>Back to search</button>
+            <button type="button" className="ck-gone-link" onClick={() => navigate('/')}>Go to homepage</button>
+          </div>
+        </div>
+      </div>
     );
   }
 
