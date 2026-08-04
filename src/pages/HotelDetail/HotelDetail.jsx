@@ -352,8 +352,10 @@ function RoomCardSkeleton({ rows = 2, i = 0 }) {
         <div className="room-group-id"><Sk w={172} h={15} /><Sk w={58} h={15} r={999} /></div>
         <div className="room-group-from"><Sk w={52} h={12} /><Sk w={70} h={13} /></div>
       </div>
+      {/* Two facts, matching the real meta line (occupancy + length) — it used to draw three,
+          which left the block visibly reflowing when the third never arrived. */}
       <div className="room-group-meta">
-        <Sk w={88} h={12} /><Sk w={64} h={12} /><Sk w={96} h={12} />
+        <Sk w={88} h={12} /><Sk w={64} h={12} />
       </div>
       {Array.from({ length: rows }, (_, i) => (
         <div className="room-option sk-room-option" key={i}>
@@ -363,9 +365,10 @@ function RoomCardSkeleton({ rows = 2, i = 0 }) {
             <Sk w={102} h={11} style={{ marginTop: 7 }} />
             <div className="sk-chips"><Sk w={i === 0 ? 168 : 116} h={22} r={999} /><Sk w={78} h={22} r={999} /></div>
           </div>
+          {/* Price, then the "vs cheapest" delta on every row but the first — the real card
+              shows no delta on its own cheapest board. */}
           <div className="room-price-col">
             <Sk w={74} h={30} r={999} />
-            <Sk w={58} h={11} />
             {i > 0 && <Sk w={86} h={11} />}
           </div>
         </div>
@@ -1852,9 +1855,6 @@ export default function HotelDetail() {
                           sorted by price, so the cheapest board crowded out all the others. */}
                       {visibleGroups.map((g) => {
                         const gInfo = rateInfo.get(g.cheapest.index);
-                        // Only worth showing a spread when the room really has one.
-                        const dearest = g.boards[g.boards.length - 1];
-                        const spread = dearest.price - g.cheapest.price;
                         return (
                         <div className="room-group" key={g.key}>
                           <div className="room-group-head">
@@ -1868,8 +1868,10 @@ export default function HotelDetail() {
                             </div>
                           </div>
 
-                          {/* What this room sleeps and what the stay costs, before the traveller
-                              has to compare a single board line. */}
+                          {/* Who the room sleeps and for how long — the two facts that apply to
+                              every board below. Per-night and per-guest arithmetic deliberately
+                              left out: the traveller is choosing a board here, and a second price
+                              beside every real price is noise, not help. */}
                           <div className="room-group-meta">
                             {gInfo?.guests != null && (
                               <span className="rgm">{ICON.users}
@@ -1879,12 +1881,6 @@ export default function HotelDetail() {
                               </span>
                             )}
                             <span className="rgm">{ICON.moon}{nights} day{nights === 1 ? '' : 's'}</span>
-                            {gInfo?.perNight != null && (
-                              <span className="rgm">{ICON.tag}{ccy}{Math.round(gInfo.perNight).toLocaleString('en-GB')} / night</span>
-                            )}
-                            {spread > 1 && (
-                              <span className="rgm rgm-spread">{ICON.arrow}{ccy}{Math.round(spread).toLocaleString('en-GB')} between cheapest and dearest board</span>
-                            )}
                           </div>
 
                           {g.boards.map((b) => {
@@ -1930,38 +1926,14 @@ export default function HotelDetail() {
                                         rate object for the booking hand-off. */}
                                   </div>
 
-                                  {/* The full arithmetic, opened only for the row being considered —
-                                      every other row stays scannable. */}
-                                  {isSel && d && (
-                                    <div className="room-breakdown">
-                                      <div className="rbd-row">
-                                        <span>{nights} night{nights === 1 ? '' : 's'} × {ccy}{Math.round(d.perNight).toLocaleString('en-GB')}</span>
-                                        <span className="rbd-val">{ccy}{Math.round(b.price).toLocaleString('en-GB')}</span>
-                                      </div>
-                                      {d.perGuestNight != null && (
-                                        <div className="rbd-row">
-                                          <span>Per guest, per night</span>
-                                          <span className="rbd-val">{ccy}{Math.round(d.perGuestNight).toLocaleString('en-GB')}</span>
-                                        </div>
-                                      )}
-                                      {d.cancel.kind === 'free' && d.cancel.amount != null && (
-                                        <div className="rbd-row rbd-note">
-                                          <span>After {fmtDay(d.cancel.until)}</span>
-                                          <span className="rbd-val">{d.cancel.full ? 'No refund' : `${ccy}${Math.round(d.cancel.amount).toLocaleString('en-GB')} charge`}</span>
-                                        </div>
-                                      )}
-                                      <div className="rbd-row rbd-note">
-                                        <span>Price shown is the total for the stay{d.guests ? ` for ${d.guests} guest${d.guests === 1 ? '' : 's'}` : ''}</span>
-                                      </div>
-                                    </div>
-                                  )}
                                 </div>
 
+                                {/* One price, and what it costs over the cheapest board of this
+                                    room. The per-night figure that used to sit here, and the
+                                    breakdown panel that opened underneath, are gone: the board
+                                    and its total are the decision. */}
                                 <div className="room-price-col">
                                   <div className="room-price">{ccy}{Math.round(b.price).toLocaleString('en-GB')}</div>
-                                  {d?.perNight != null && (
-                                    <div className="room-price-sub">{ccy}{Math.round(d.perNight).toLocaleString('en-GB')} / night</div>
-                                  )}
                                   {extra > 1 && (
                                     <div className="room-price-delta">+{ccy}{Math.round(extra).toLocaleString('en-GB')} vs cheapest</div>
                                   )}
