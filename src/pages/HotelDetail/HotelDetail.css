@@ -1297,6 +1297,19 @@
   .sd .section-title { font-size:16px; }
 }
 
+@media (max-width:360px) {
+  /* On a 320px phone the price column left the room details ~120px, so every line of the
+     price breakdown broke in half ("7 nights ×" / "€125"). Drop the price onto its own row,
+     indented under the name, and the details get the whole card back. */
+  .sd .room-option { flex-wrap:wrap; }
+  .sd .room-price-col {
+    flex:1 0 100%; flex-direction:row; align-items:baseline; justify-content:flex-start;
+    /* per-night and the "vs cheapest" delta are nowrap, so the ROW has to wrap or they
+       run off the card. */
+    flex-wrap:wrap; gap:4px 8px; margin-left:34px;   /* radio (20) + its gap (14) */
+  }
+}
+
 @media (max-width:380px) {
   .sd .pg { padding-left:12px; padding-right:12px; }
   .sd .fc-col { flex:0 0 78px; }
@@ -1312,6 +1325,12 @@
   /* Give the fare/flight controls a real thumb target. */
   .sd .flight-details-btn, .sd .flight-select-btn, .sd .flight-selected-badge { min-height:42px; }
   .sd .fc-cta { min-height:46px; }
+
+  /* The "Lowest price" flag rides in the board-name row. On a phone that left the name
+     ~140px and broke "Bed & breakfast" across two lines with the flag wedged between them.
+     Wrapping the row drops the flag onto its own line and gives the name the width it needs. */
+  .sd .room-name { flex-wrap:wrap; }
+  .sd .room-flag { margin-top:2px; }
 }
 
 @media (max-width:768px) {
