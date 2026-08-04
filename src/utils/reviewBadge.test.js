@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { formatReview, scoreWord } from './reviewBadge';
+import { formatReview, scoreWord, scoreBand } from './reviewBadge';
 
 describe('formatReview (/10 presentation of a /5 source)', () => {
   it('scales the raw /5 rating to /10', () => {
@@ -79,5 +79,30 @@ describe('scoreWord', () => {
   it('is safe on junk input', () => {
     expect(scoreWord('')).toBe('');
     expect(scoreWord(undefined)).toBe('');
+  });
+});
+
+describe('scoreBand', () => {
+  it('never celebrates a middling score the way it celebrates a great one', () => {
+    // The whole point of banding: these two must not render identically.
+    expect(scoreBand('9.4')).toBe('high');
+    expect(scoreBand('6.4')).toBe('mid');
+    expect(scoreBand('9.4')).not.toBe(scoreBand('6.4'));
+  });
+
+  it('agrees with the word at every boundary', () => {
+    // A green badge reading "Fair" would be a contradiction on screen.
+    const pairs = [['9.0', 'Excellent'], ['8.0', 'Very good'], ['7.9', 'Good'], ['6.0', 'Pleasant'], ['5.9', 'Fair']];
+    for (const [score, word] of pairs) {
+      expect(scoreWord(score)).toBe(word);
+      const band = scoreBand(score);
+      if (word === 'Excellent' || word === 'Very good') expect(band).toBe('high');
+      else if (word === 'Good' || word === 'Pleasant') expect(band).toBe('mid');
+      else expect(band).toBe('low');
+    }
+  });
+
+  it('falls back to the neutral band on junk rather than to green', () => {
+    for (const bad of ['', null, undefined, 'abc']) expect(scoreBand(bad)).toBe('mid');
   });
 });

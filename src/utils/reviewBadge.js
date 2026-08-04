@@ -45,6 +45,31 @@ export function formatReview(review) {
   };
 }
 
+/**
+ * Which colour band a score belongs to.
+ *
+ * The badge used to be gold at every score, so a 6.4 "Pleasant" was presented with exactly the
+ * celebration a 9.4 "Excellent" got — the strongest visual signal in the hero, pointing at a
+ * middling hotel. Banding keeps gold meaningful: green is earned, amber is honest, and a weak
+ * score is stated plainly rather than dressed up.
+ *
+ * Bands line up with `scoreWord`, so the colour and the word can never disagree.
+ *   high — 8.0+  (Excellent / Very good)
+ *   mid  — 6.0+  (Good / Pleasant)
+ *   low  — under 6 (Fair)
+ */
+export function scoreBand(score) {
+  // Guard empty/null FIRST, exactly as scoreWord does: Number('') and Number(null) are both 0,
+  // which is finite — so a missing score would otherwise be banded as the WORST rating rather
+  // than as "no opinion".
+  if (score == null || score === '') return 'mid';
+  const s = Number(score);
+  if (!Number.isFinite(s)) return 'mid';
+  if (s >= 8) return 'high';
+  if (s >= 6) return 'mid';
+  return 'low';
+}
+
 // A short word for the score, so a card can print "Excellent 8.8" like the reference sites.
 export function scoreWord(score) {
   if (score == null || score === '') return '';

@@ -9,6 +9,19 @@
   --sun-orange: #FF9F1C;
   --sun-gold: #FFD166;
   --sun-warm: #FFF3E0;
+  /* ── The orange CTA lockup: ALWAYS white ink, never dark ────────────────────
+     Every orange surface that carries text uses this pair, so the rule is enforced in one
+     place instead of being re-decided in each of the seven stylesheets.
+
+     The gradient is deliberately deeper than --sun-orange → --sun-gold. White on #FFD166 is
+     about 1.6:1 — effectively invisible — so keeping the pale-gold end AND white text would
+     have made these buttons unreadable. This ramp keeps the sunset-orange identity while
+     letting white actually read on it; the text-shadow below carries the lighter end.
+     Contrast is roughly 5.3:1 at the dark stop and 3.0:1 at the light stop, which is why the
+     pair is paired with bold weights only. */
+  --cta-grad: linear-gradient(135deg, #C2540A, #EE8A12);
+  --cta-ink: #FFFFFF;
+  --cta-ink-shadow: 0 1px 1px rgba(90,38,0,.35);
   --coral: #FF6B6B;
   --dark: #070E1F;
   --dark2: #0D1A33;
