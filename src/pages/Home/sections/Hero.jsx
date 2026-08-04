@@ -4,19 +4,18 @@ import styles from './Hero.module.css';
 import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
+import { DURATION_BANDS, bandByLabel } from '../../../utils/durations';
 
 // Duration bands shown in the search box. Each band is a day-range with a representative stay
 // length in nights — the concrete duration the search prices for that band. Picking a band + a
 // departure date therefore "picks the dates": checkOut = checkIn + that band's nights.
 // (minNights/maxNights ride along in the URL so the results page can offer the full range later.)
-const DURATIONS = [
-  { label: '2-5 days',   nights: 4,  minNights: 2,  maxNights: 5 },
-  { label: '6-10 days',  nights: 7,  minNights: 6,  maxNights: 10 },
-  { label: '11-16 days', nights: 14, minNights: 11, maxNights: 16 },
-  { label: '17-24 days', nights: 21, minNights: 17, maxNights: 24 },
-  { label: '25+ days',   nights: 28, minNights: 25, maxNights: 35 },
-];
-const findBand = (label) => DURATIONS.find((d) => d.label === label) ?? DURATIONS[1];
+//
+// Shared with the hotel page's Duration filter — see utils/durations. They were separate lists
+// speaking different languages ("6-10 days" here, "7 nights · 8 days" there), so a search made
+// on this page appeared to have been lost by the time the traveller reached a hotel.
+const DURATIONS = DURATION_BANDS;
+const findBand = bandByLabel;
 
 const MAX_ROOMS = 8;
 

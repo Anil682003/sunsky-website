@@ -500,3 +500,34 @@
   font-size:13px; font-weight:600;
 }
 .ck-submit-err svg { width:16px; height:16px; flex-shrink:0; }
+
+/* ═══ nothing to check out ═══
+   Shown when /checkout is reached with no booking in router state — most often a refresh
+   mid-checkout. Replaces a hardcoded demo booking that a customer could have paid for. */
+.ck .ck-gone {
+  max-width: 560px; margin: 0 auto; padding: 120px 24px 140px; text-align: center;
+  display: flex; flex-direction: column; align-items: center;
+}
+.ck .ck-gone-ico {
+  display: grid; place-items: center; width: 60px; height: 60px; margin-bottom: 20px;
+  border-radius: 18px; background: var(--blue-bg); color: var(--blue);
+}
+.ck .ck-gone-ico svg { width: 26px; height: 26px; }
+.ck .ck-gone-title { margin: 0; font-size: clamp(1.35rem, 3vw, 1.85rem); font-weight: 800; color: var(--dark); letter-spacing: -.5px; }
+.ck .ck-gone-sub { margin: 12px 0 0; font-size: 14px; line-height: 1.65; color: var(--text-sec); max-width: 46ch; }
+.ck .ck-gone-actions { display: flex; align-items: center; gap: 14px; margin-top: 28px; flex-wrap: wrap; justify-content: center; }
+.ck .ck-gone-btn {
+  font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 800; color: #fff;
+  background: var(--blue); border: none; border-radius: var(--r-full); padding: 14px 30px; cursor: pointer;
+  transition: background .2s var(--ease), transform .2s var(--ease);
+}
+.ck .ck-gone-btn:hover { background: var(--blue-mid); transform: translateY(-1px); }
+.ck .ck-gone-link {
+  font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--text-sec);
+  background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
+}
+.ck .ck-gone-link:hover { color: var(--blue); }
+@media (max-width: 560px) {
+  .ck .ck-gone { padding: 90px 18px 110px; }
+  .ck .ck-gone-btn { width: 100%; min-height: 48px; }
+}

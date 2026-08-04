@@ -1297,6 +1297,19 @@
   .sd .section-title { font-size:16px; }
 }
 
+@media (max-width:360px) {
+  /* On a 320px phone the price column left the room details ~120px, so every line of the
+     price breakdown broke in half ("7 nights ×" / "€125"). Drop the price onto its own row,
+     indented under the name, and the details get the whole card back. */
+  .sd .room-option { flex-wrap:wrap; }
+  .sd .room-price-col {
+    flex:1 0 100%; flex-direction:row; align-items:baseline; justify-content:flex-start;
+    /* per-night and the "vs cheapest" delta are nowrap, so the ROW has to wrap or they
+       run off the card. */
+    flex-wrap:wrap; gap:4px 8px; margin-left:34px;   /* radio (20) + its gap (14) */
+  }
+}
+
 @media (max-width:380px) {
   .sd .pg { padding-left:12px; padding-right:12px; }
   .sd .fc-col { flex:0 0 78px; }
@@ -1312,6 +1325,12 @@
   /* Give the fare/flight controls a real thumb target. */
   .sd .flight-details-btn, .sd .flight-select-btn, .sd .flight-selected-badge { min-height:42px; }
   .sd .fc-cta { min-height:46px; }
+
+  /* The "Lowest price" flag rides in the board-name row. On a phone that left the name
+     ~140px and broke "Bed & breakfast" across two lines with the flag wedged between them.
+     Wrapping the row drops the flag onto its own line and gives the name the width it needs. */
+  .sd .room-name { flex-wrap:wrap; }
+  .sd .room-flag { margin-top:2px; }
 }
 
 @media (max-width:768px) {
@@ -1358,4 +1377,17 @@
 @media (max-width:560px) {
   .sd .fc-blank { padding:30px 18px; }
   .sd .fc-blank-btn { min-height:44px; }
+}
+
+/* Error rows carry a retry, and the message takes the free space so the button stays right. */
+.sd .live-error { flex-wrap:wrap; }
+.sd .live-error-msg { flex:1; min-width:0; }
+.sd .live-retry {
+  flex-shrink:0; font-family:'Sora',sans-serif; font-size:12.5px; font-weight:800;
+  color:#fff; background:#b45309; border:none; border-radius:var(--r-full);
+  padding:9px 20px; cursor:pointer; transition:background .2s var(--ease);
+}
+.sd .live-retry:hover { background:#92400e; }
+@media (max-width:560px) {
+  .sd .live-retry { width:100%; min-height:44px; }
 }

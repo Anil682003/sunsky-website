@@ -2,7 +2,8 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
-import { fetchFacets, fetchCountries } from '../../api/filters';
+import { fetchFacets, fetchCountries, fetchDestinations, fetchZones } from '../../api/filters';
+import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
@@ -25,6 +26,8 @@ const CHILD_AGE_DEFAULT = 8;
 // whole-country content-filter set (thousands of hotelCodes) is far too long for a URL.
 const LARGE_CODES = 150;
 const MANY_DESTINATIONS = 8;
+// Stable empty geo lists — a fresh [] each render would re-run every memo that reads them.
+const NO_GEO = { key: '', list: [] };
 
 
 // Photo URLs are kept CANONICAL (default size); each <HotelImg> requests the size its box
@@ -595,6 +598,36 @@ export default function Results() {
     return () => { live = false; };
   }, []);
 
+  // Names + parentage for the codes in the scope. A results URL is shareable, so it carries
+  // codes only ("countries=TR&destinations=AYT") — without the cascade's own lists the hero
+  // would read "Stays in AYT" and would count Turkey and Antalya as two separate places.
+  // Same two calls the picker makes, and only when the scope has something to resolve.
+  const scopeCountryKey = scope.countries.join(',');
+  const scopeCityKey    = scope.destinations.join(',');
+  const scopeZoneKey    = scope.zones.join(',');
+  // Each list is stamped with the scope key it was fetched for, so a scope change falls back to
+  // codes immediately instead of labelling the new search with the old search's names.
+  const [cityList, setCityList] = useState(NO_GEO);
+  const [zoneList, setZoneList] = useState(NO_GEO);
+  useEffect(() => {
+    if (!scopeCountryKey) return;
+    let live = true;
+    fetchDestinations(scopeCountryKey.split(','))
+      .then((d) => { if (live) setCityList({ key: scopeCountryKey, list: d }); })
+      .catch(() => { if (live) setCityList({ key: scopeCountryKey, list: [] }); });
+    return () => { live = false; };
+  }, [scopeCountryKey]);
+  useEffect(() => {
+    if (!scopeZoneKey || !scopeCityKey) return;
+    let live = true;
+    fetchZones(scopeCityKey.split(','))
+      .then((z) => { if (live) setZoneList({ key: scopeCityKey, list: z }); })
+      .catch(() => { if (live) setZoneList({ key: scopeCityKey, list: [] }); });
+    return () => { live = false; };
+  }, [scopeCityKey, scopeZoneKey]);
+  const scopeCities = cityList.key === scopeCountryKey ? cityList.list : NO_GEO.list;
+  const scopeZones  = zoneList.key === scopeCityKey    ? zoneList.list : NO_GEO.list;
+
   // ── FACETS RESOLUTION ──────────────────────────────────────────────────────────
   // When the scope OR the selected content facets change, ask the admin content API for the
   // facet counts + the matching hotelCodes (narrowed by the selected facets) + the matched
@@ -777,18 +810,27 @@ export default function Results() {
 
   // Scope label for the hero. Default (empty) search → "Popular destinations";
   // a single place → its name; otherwise "N places".
+  //
+  // Counts LEAVES, like the picker's badge: ticking Antalya inside Turkey keeps Turkey in the
+  // scope, and picking the area "Side" keeps Antalya — one narrowed search, not two or three
+  // places (utils/scopeLeaves). Names come from the cascade lists, falling back to the raw
+  // code while they load, since a code still beats a blank hero.
   const scopeLabel = useMemo(() => {
     if (usingDefaultScope) return 'Popular destinations';
     if (urlLabel) return urlLabel;
-    const names = countryOptions.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
+    const countryName = countryOptions.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
+    const cityName = scopeCities.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
+    const zoneName = scopeZones.reduce((m, z) => { m[zoneKey(z)] = z.name; return m; }, {});
+    const leaves = scopeLeaves(scope, scopeCities);
     const parts = [
-      ...scope.countries.map((c) => names[c] || c),
-      ...scope.destinations,
+      ...leaves.countries.map((c) => countryName[c] || c),
+      ...leaves.destinations.map((d) => cityName[d] || d),
+      ...leaves.zones.map((z) => zoneName[z] || cityName[String(z).split(':')[0]] || z),
     ];
     if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0];
     return `${parts.length} places`;
-  }, [usingDefaultScope, urlLabel, scope, countryOptions]);
+  }, [usingDefaultScope, urlLabel, scope, countryOptions, scopeCities, scopeZones]);
 
   // "A different search" (vs. a different filter): scope or head-counts/dates changed.
   const searchKey = `${scopeKey}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${fetchParams.childAges ?? childAges}`;
