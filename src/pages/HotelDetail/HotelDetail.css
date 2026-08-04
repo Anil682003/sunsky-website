@@ -286,7 +286,7 @@
 /* GALLERY */
 /* IN-HERO PHOTO MOSAIC — overhangs the panel's bottom edge onto the canvas */
 .sd-hero-photos { display:grid; grid-template-columns:1.5fr 1fr 1fr; grid-template-rows:repeat(2,1fr); gap:10px; height:clamp(420px,34vw,500px); position:relative; z-index:3; margin-bottom:calc(var(--overhang) * -1); }
-.sd .gi { position:relative; overflow:hidden; cursor:pointer; border-radius:14px; border:1px solid rgba(255,255,255,.9); background:linear-gradient(135deg,#10245E,#1F4FD8); box-shadow:0 10px 28px rgba(31,79,216,.16); transition:box-shadow .35s var(--ease), transform .35s var(--ease); animation:sdTileIn .55s var(--ease) both; }
+.sd .gi { position:relative; overflow:hidden; cursor:pointer; border-radius:14px; border:1px solid rgba(255,255,255,.9); background:linear-gradient(135deg,#dbe8fa,#c3d8f4); box-shadow:0 10px 28px rgba(31,79,216,.16); transition:box-shadow .35s var(--ease), transform .35s var(--ease); animation:sdTileIn .55s var(--ease) both; }
 .sd .gi:hover { box-shadow:0 20px 44px rgba(7,14,31,.45); transform:translateY(-3px); }
 .sd-hero-photos .gi:nth-child(1) { animation-delay:.18s; }
 .sd-hero-photos .gi:nth-child(2) { animation-delay:.26s; }
@@ -330,11 +330,11 @@
 
 /* BOOKING CARD */
 .sd .bk { position:sticky; top:calc(var(--nav-h) + 16px); background:var(--white); border-radius:22px; border:1px solid var(--border-light); box-shadow:0 18px 44px rgba(15,40,100,.12); overflow:hidden; }
-.sd .bkr { display:flex; align-items:center; gap:13px; padding:18px 22px; background:linear-gradient(125deg,#0A1430 0%,#10245E 60%,#1f4fd8 150%); position:relative; overflow:hidden; }
-.sd .bkr::after { content:''; position:absolute; top:-60px; right:-30px; width:170px; height:170px; border-radius:50%; background:radial-gradient(circle,rgba(95,168,255,.28),transparent 65%); pointer-events:none; }
+.sd .bkr { display:flex; align-items:center; gap:13px; padding:18px 22px; background:linear-gradient(135deg,#e8f0fd 0%,#d6e5fa 55%,#c6d9f6 100%); border-bottom:1px solid #cfdff8; position:relative; overflow:hidden; }
+.sd .bkr::after { content:''; position:absolute; top:-60px; right:-30px; width:170px; height:170px; border-radius:50%; background:radial-gradient(circle,rgba(59,113,224,.16),transparent 65%); pointer-events:none; }
 .sd .bks { width:46px; height:46px; border-radius:14px; background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); display:flex; align-items:center; justify-content:center; font-family:'Sora',sans-serif; font-size:17px; font-weight:800; box-shadow:0 6px 16px rgba(255,159,28,.4); position:relative; }
-.sd .bkl { font-family:'Sora',sans-serif; font-size:14px; font-weight:800; color:#fff; position:relative; }
-.sd .bkn { font-size:12px; color:rgba(255,255,255,.65); position:relative; }
+.sd .bkl { font-family:'Sora',sans-serif; font-size:14px; font-weight:800; color:var(--dark); position:relative; }
+.sd .bkn { font-size:12px; color:var(--text-sec); position:relative; }
 .sd .bkp { padding:18px 22px; background:linear-gradient(135deg,var(--sun-warm),#fff3e0); border-bottom:1px solid var(--border-light); }
 .sd .bkp-total { display:inline-flex; margin-top:7px; padding:5px 12px; border-radius:var(--r-full); background:rgba(255,255,255,.75); border:1px solid #ffe2b8; font-size:11.5px; font-weight:700; color:var(--text-sec); }
 .sd .bkpl { font-size:11.5px; color:var(--text-sec); }
@@ -555,21 +555,21 @@
 /* solid, evenly-weighted bars — height alone carries the price, nothing sits faded */
 .sd .fc-bar { width:calc(100% - 12px); min-height:68px; border-radius:10px 10px 0 0; background:#2456c8; display:flex; flex-direction:column; align-items:center; padding:12px 4px 9px; transition:height .45s var(--ease), background-color .25s, box-shadow .25s; }
 .sd .fc-col:hover .fc-bar { background:#1d49b0; }
-.sd .fc-col.sel .fc-bar { background:#0f2f7a; box-shadow:0 14px 30px rgba(15,47,122,.3); }
+.sd .fc-col.sel .fc-bar { background:linear-gradient(170deg,#3b82f6,#60a5fa); box-shadow:0 10px 28px rgba(59,130,246,.35); }
 .sd .fc-from { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.78); }
 .sd .fc-amt { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:#fff; letter-spacing:-.01em; margin-top:2px; max-width:100%; }
 .sd .fc-nts { margin-top:auto; font-size:9.5px; font-weight:600; color:rgba(255,255,255,.8); white-space:nowrap; }
-.sd .fc-col.sel .fc-amt { background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); padding:1px 9px; border-radius:6px; }
+.sd .fc-col.sel .fc-amt { background:rgba(255,255,255,.22); padding:1px 9px; border-radius:6px; }
 .sd .fc-under { padding:11px 0 4px; display:flex; flex-direction:column; align-items:center; gap:1px; position:relative; }
 /* The picked day's label band carries the BAR's own navy down past the date and into
    the ribbon, so bar → date → arrow read as one solid column pointing at the card. */
 .sd .fc-col.sel .fc-under::before {
   content:''; position:absolute; inset:0 6px; z-index:0;
-  background:#0f2f7a;
+  background:#3b82f6;
 }
 .sd .fc-under > * { position:relative; z-index:1; }
 /* The hairline under the strip would otherwise cut the column in half. */
-.sd .fc-col.sel .fc-barzone { border-bottom-color:#0f2f7a; }
+.sd .fc-col.sel .fc-barzone { border-bottom-color:#3b82f6; }
 .sd .fc-wk { color:var(--text-light); }
 .sd .fc-date { font-family:'Sora',sans-serif; font-size:13px; font-weight:800; color:var(--dark); white-space:nowrap; }
 .sd .fc-col.sel .fc-wk { color:rgba(255,255,255,.72); }
@@ -577,7 +577,7 @@
 .sd .fc-dot { width:16px; height:16px; border-radius:50%; border:1.5px solid #c5d4ea; background:var(--white); margin-top:7px; transition:border-color .2s, background-color .2s; }
 .sd .fc-col:hover .fc-dot { border-color:var(--blue-soft); }
 /* White disc with a navy tick — a blue dot on the navy band had almost no contrast. */
-.sd .fc-col.sel .fc-dot { border-color:#fff; background-color:#fff; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f2f7a' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E"); background-position:center; background-size:9px; background-repeat:no-repeat; }
+.sd .fc-col.sel .fc-dot { border-color:#fff; background-color:#fff; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%233b82f6' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E"); background-position:center; background-size:9px; background-repeat:no-repeat; }
 
 /* ── the ribbon that ties the picked day to the action card ───────────────────
    Every column reserves this strip, so choosing a day never reflows the row; only
@@ -588,7 +588,7 @@
    percentage and had to be hidden there). */
 .sd .fc-tail { display:block; height:26px; width:100%; }
 .sd .fc-col.sel .fc-tail {
-  background:#0f2f7a;
+  background:#3b82f6;
   clip-path:polygon(6px 0, calc(100% - 6px) 0, calc(100% - 6px) 42%, 50% 100%, 6px 42%);
   animation:sdTailDrop .32s var(--ease) both;
 }
@@ -874,16 +874,16 @@
 /* OVERVIEW */
 .sd .overview-section { margin-top:4px; }
 .sd .overview-card { background:var(--white); border-radius:22px; border:1px solid var(--border-light); box-shadow:var(--shadow-md); overflow:hidden; }
-.sd .overview-head { padding:24px 26px; background:linear-gradient(125deg,#0A1430 0%,#10245E 55%,#1f4fd8 140%); position:relative; overflow:hidden; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.sd .overview-head { padding:24px 26px; background:linear-gradient(135deg,#e8f0fd 0%,#d6e5fa 55%,#c6d9f6 100%); border-bottom:1px solid #cfdff8; position:relative; overflow:hidden; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .sd .overview-head-main { min-width:0; }
 .sd .overview-score { position:relative; display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:var(--r-full); background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); color:#fff; font-family:'Sora',sans-serif; font-size:12.5px; font-weight:800; white-space:nowrap; }
-.sd .overview-score b { color:var(--gold); }
-.sd .overview-head::after { content:''; position:absolute; top:-70px; right:-40px; width:220px; height:220px; border-radius:50%; background:radial-gradient(circle,rgba(95,168,255,.25),transparent 65%); pointer-events:none; }
-.sd .overview-hotel { font-family:'Sora',sans-serif; font-size:18px; font-weight:800; color:#fff; position:relative; }
-.sd .overview-stars { color:var(--gold); font-size:13px; margin-top:2px; letter-spacing:1px; position:relative; }
-.sd .overview-loc { font-size:12.5px; color:rgba(255,255,255,.75); margin-top:4px; display:flex; align-items:center; gap:5px; position:relative; }
-.sd .overview-dates { font-size:13px; color:rgba(255,255,255,.85); margin-top:10px; display:flex; align-items:center; gap:6px; position:relative; }
-.sd .overview-dates span { color:rgba(255,255,255,.55) !important; }
+.sd .overview-score b { color:#D9700F; }
+.sd .overview-head::after { content:''; position:absolute; top:-70px; right:-40px; width:220px; height:220px; border-radius:50%; background:radial-gradient(circle,rgba(59,113,224,.15),transparent 65%); pointer-events:none; }
+.sd .overview-hotel { font-family:'Sora',sans-serif; font-size:18px; font-weight:800; color:var(--dark); position:relative; }
+.sd .overview-stars { color:#E5890C; font-size:13px; margin-top:2px; letter-spacing:1px; position:relative; }
+.sd .overview-loc { font-size:12.5px; color:var(--text-sec); margin-top:4px; display:flex; align-items:center; gap:5px; position:relative; }
+.sd .overview-dates { font-size:13px; color:var(--text); margin-top:10px; display:flex; align-items:center; gap:6px; position:relative; }
+.sd .overview-dates span { color:var(--text-light) !important; }
 .sd .overview-body { padding:20px 24px; }
 .sd .overview-row { display:flex; align-items:center; padding:9px 0; font-size:13.5px; }
 .sd .overview-leader { flex:1; border-bottom:2px dotted #cfdef5; margin:0 10px 4px; align-self:flex-end; min-width:24px; }
@@ -1176,7 +1176,7 @@
 .sd .flight-card.selected { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
 .sd .room-option { border:1px solid var(--border); }
 .sd .room-option.selected { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
-.sd .fc-col.sel .fc-bar { box-shadow:0 10px 24px rgba(31,79,216,.18); }
+.sd .fc-col.sel .fc-bar { box-shadow:0 10px 24px rgba(59,130,246,.22); }
 .sd .meal-row { border-width:1px; }
 .sd .meal-row.meal-selected { box-shadow:none; }
 .sd .dur-chip, .sd .alt-chip, .sd .hhb, .sd .flight-details-btn, .sd .show-more-flights, .sd .flight-selected-badge { border-width:1px; }
