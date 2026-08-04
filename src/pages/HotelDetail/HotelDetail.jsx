@@ -351,9 +351,9 @@ function FlightCardSkeleton() {
  *
  * `rows` varies per card so the wait doesn't look like N identical stamped copies.
  */
-function RoomCardSkeleton({ rows = 2 }) {
+function RoomCardSkeleton({ rows = 2, i = 0 }) {
   return (
-    <div className="room-group sk-card" aria-hidden="true">
+    <div className="room-group sk-card" aria-hidden="true" style={{ '--i': i }}>
       <div className="room-group-head">
         <div className="room-group-id"><Sk w={172} h={15} /><Sk w={58} h={15} r={999} /></div>
         <div className="room-group-from"><Sk w={52} h={12} /><Sk w={70} h={13} /></div>
@@ -1676,7 +1676,7 @@ export default function HotelDetail() {
                     <SkeletonBlock label="Checking live room availability…">
                       {/* Uneven board counts — a real hotel never returns three identically
                           shaped rooms, and three identical placeholders read as a stuck screen. */}
-                      <RoomCardSkeleton rows={3} /><RoomCardSkeleton rows={2} /><RoomCardSkeleton rows={2} />
+                      <RoomCardSkeleton rows={3} i={0} /><RoomCardSkeleton rows={2} i={1} /><RoomCardSkeleton rows={2} i={2} />
                     </SkeletonBlock>
                   ) : liveRooms.error ? (
                     <div className="live-error">{ICON.warn} {liveRooms.error}</div>
