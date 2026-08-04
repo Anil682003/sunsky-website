@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import styles from './StayBar.module.css';
+import { DURATION_BANDS, bandByLabel, bandForNights, lengthsInBand } from '../../utils/durations';
 
 // The "edit my search" bar on the hotel page: departure date, who's travelling, board,
 // departure airport and length of stay.
@@ -87,12 +88,13 @@ function OptionList({ options, current, onPick, scroll }) {
 
 // Spread flat totals across N rooms, biggest rooms first — the page only stores totals plus a
 // room count, so the per-room breakdown has to be reconstructed each time the popover opens.
+// Each room carries a `dobs` array (one empty string per child) for the DOB pickers.
 function splitRooms(totalAdults, totalChildren, roomCount) {
   const n = Math.max(1, roomCount);
-  return Array.from({ length: n }, (_, i) => ({
-    adults: Math.floor(totalAdults / n) + (i < totalAdults % n ? 1 : 0),
-    children: Math.floor(totalChildren / n) + (i < totalChildren % n ? 1 : 0),
-  }));
+  return Array.from({ length: n }, (_, i) => {
+    const ch = Math.floor(totalChildren / n) + (i < totalChildren % n ? 1 : 0);
+    return { adults: Math.floor(totalAdults / n) + (i < totalAdults % n ? 1 : 0), children: ch, dobs: Array(ch).fill('') };
+  });
 }
 
 export default function StayBar({
@@ -100,11 +102,12 @@ export default function StayBar({
   adults, children: childCount, childAges = '', rooms: roomCount = 1,
   board = '', boardOptions = [], boardHint = '',
   origin, originOptions = [], originLabel = (c) => c, destination = '',
-  nights, nightOptions = [], durationChips = [],
+  nights,
   touched = false, onChange, onBoardChange, onChildAges, onReset,
 }) {
   const [openField, setOpenField] = useState(null);
   const barRef = useRef(null);
+  const dateRef = useRef(null);
   const toggle = (f) => setOpenField((p) => (p === f ? null : f));
   const close = () => setOpenField(null);
 
@@ -122,32 +125,63 @@ export default function StayBar({
   // every tap, so nothing is committed until "Save". Re-seeded from the committed values whenever
   // the popover opens, so dismissing it discards the draft.
   const [draft, setDraft] = useState(() => splitRooms(adults, childCount, roomCount));
-  const [draftAges, setDraftAges] = useState(() => childAges);
   // Re-seed on every OPEN, not when the committed values change — otherwise a draft abandoned by
   // clicking away survives and reappears the next time the popover is opened.
   const paxOpen = openField === 'pax';
   const [wasPaxOpen, setWasPaxOpen] = useState(paxOpen);
   if (paxOpen !== wasPaxOpen) {
     setWasPaxOpen(paxOpen);
-    if (paxOpen) { setDraft(splitRooms(adults, childCount, roomCount)); setDraftAges(childAges); }
+    if (paxOpen) setDraft(splitRooms(adults, childCount, roomCount));
   }
 
   const dAdults = draft.reduce((s, r) => s + r.adults, 0);
   const dChildren = draft.reduce((s, r) => s + r.children, 0);
-  const dAges = (() => {
-    const list = draftAges ? draftAges.split(',').map((a) => parseInt(a, 10) || 0) : [];
-    return Array.from({ length: dChildren }, (_, i) => list[i] ?? DEFAULT_CHILD_AGE);
-  })();
-  const setRoom = (i, key, v) => setDraft((p) => p.map((r, k) => (k === i ? { ...r, [key]: v } : r)));
-  const addRoom = () => setDraft((p) => (p.length >= MAX_ROOMS ? p : [...p, { adults: 2, children: 0 }]));
+
+  const setRoom = (i, key, v) => setDraft((p) => p.map((r, k) => {
+    if (k !== i) return r;
+    if (key === 'children') {
+      const n = Math.max(0, Math.min(MAX_CHILDREN, v));
+      const dobs = r.dobs.slice(0, n);
+      while (dobs.length < n) dobs.push('');
+      return { ...r, children: n, dobs };
+    }
+    return { ...r, [key]: v };
+  }));
+  const updateChildDob = (roomIdx, childIdx, val) =>
+    setDraft((p) => p.map((r, i) =>
+      i === roomIdx ? { ...r, dobs: r.dobs.map((d, j) => (j === childIdx ? val : d)) } : r
+    ));
+  const addRoom = () => setDraft((p) => (p.length >= MAX_ROOMS ? p : [...p, { adults: 2, children: 0, dobs: [] }]));
   const removeRoom = (i) => setDraft((p) => (p.length <= 1 ? p : p.filter((_, k) => k !== i)));
-  const setDraftAge = (i, v) => setDraftAges(dAges.map((a, k) => (k === i ? v : a)).join(','));
+
+  const ageFromDob = (dob) => {
+    if (!dob) return null;
+    const b = new Date(dob + 'T00:00:00');
+    if (isNaN(b.getTime())) return null;
+    const ref = checkIn ? new Date(checkIn + 'T00:00:00') : new Date();
+    let a = ref.getFullYear() - b.getFullYear();
+    const m = ref.getMonth() - b.getMonth();
+    if (m < 0 || (m === 0 && ref.getDate() < b.getDate())) a -= 1;
+    return a >= 0 ? a : 0;
+  };
+
   const saveOccupancy = () => {
     onChange({ adults: String(dAdults), children: String(dChildren), rooms: String(draft.length) });
-    if (dChildren > 0) onChildAges?.(dAges.join(','));
+    if (dChildren > 0) {
+      const ages = draft.flatMap((r) => r.dobs).map((dob) => {
+        const a = ageFromDob(dob);
+        return a != null ? a : DEFAULT_CHILD_AGE;
+      });
+      onChildAges?.(ages.join(','));
+    }
     close();
   };
-  const dirty = `${dAdults}|${dChildren}|${draft.length}|${dChildren ? dAges.join(',') : ''}`
+
+  const draftAgesStr = draft.flatMap((r) => r.dobs).map((dob) => {
+    const a = ageFromDob(dob);
+    return a != null ? a : DEFAULT_CHILD_AGE;
+  }).join(',');
+  const dirty = `${dAdults}|${dChildren}|${draft.length}|${dChildren ? draftAgesStr : ''}`
     !== `${adults}|${childCount}|${roomCount}|${childCount ? childAges : ''}`;
 
   const today = new Date().toISOString().slice(0, 10);
@@ -164,35 +198,33 @@ export default function StayBar({
     + (childCount ? `, ${childCount} child${childCount === 1 ? '' : 'ren'}` : '')
     + (roomCount > 1 ? ` · ${roomCount} rooms` : '');
   const boardLabel = boardOptions.find((b) => b.id === board)?.label || 'No preference';
-  const nightList = (nightOptions.includes(nights) ? nightOptions : [...nightOptions, nights].sort((a, b) => a - b));
+  // Duration speaks in the home page's day-bands. The field names the band the current stay
+  // falls in, and the row underneath narrows it to one exact length WITHIN that band — so the
+  // two controls are coarse-then-fine rather than two competing lists.
+  const band = bandForNights(nights);
+  const exactLengths = lengthsInBand(band);
 
   return (
     <div className={styles.bar} ref={barRef}>
       <div className={styles.fields}>
-        <Field id="date" icon={ICONS.cal} label="Departure date" open={openField === 'date'} onToggle={toggle}
-          value={checkIn ? formatDate(checkIn) : 'Pick a date'} wide>
-          <label className={styles.dateWrap}>
-            <span className={styles.popTitle}>Choose any date</span>
-            <input type="date" className={styles.dateInput} value={checkIn || ''} min={today}
-              onChange={(e) => { if (e.target.value) { onChange({ checkIn: e.target.value }); close(); } }} />
-          </label>
-          {nearby.length > 0 && (
-            <>
-              <div className={styles.popTitle}>Nearby departures</div>
-              <OptionList scroll current={checkIn}
-                options={nearby.map((d) => ({ id: d, label: formatDate(d) }))}
-                onPick={(d) => { onChange({ checkIn: d }); close(); }} />
-            </>
-          )}
-        </Field>
+        <div className={`${styles.field} ${styles.fieldWide}`}>
+          <button type="button" className={styles.trigger}
+            onClick={() => { dateRef.current?.showPicker?.(); dateRef.current?.focus(); }}>
+            <span className={styles.ico}>{ICONS.cal}</span>
+            <span className={styles.body}>
+              <span className={styles.label}>Departure date</span>
+              <span className={styles.value}>{checkIn ? formatDate(checkIn) : 'Pick a date'}</span>
+            </span>
+            <Chevron />
+          </button>
+          <input ref={dateRef} type="date" className={styles.dateHidden} value={checkIn || ''} min={today}
+            onChange={(e) => { if (e.target.value) onChange({ checkIn: e.target.value }); }} />
+        </div>
 
         <Field id="pax" icon={ICONS.users} label="Travelling company" value={paxLabel}
           open={openField === 'pax'} onToggle={toggle} wide>
           <div className={styles.roomScroll}>
             {draft.map((room, ri) => {
-              // children are numbered across the whole party, so room 2's first child
-              // continues room 1's count — that ordering is what the age list carries
-              const before = draft.slice(0, ri).reduce((s, r) => s + r.children, 0);
               return (
                 <div className={styles.roomCard} key={ri}>
                   <div className={styles.roomHead}>
@@ -207,25 +239,23 @@ export default function StayBar({
                     min={MIN_ADULTS} max={MAX_ADULTS} onChange={(v) => setRoom(ri, 'adults', v)} />
                   <Stepper label="Children" sub="0 to 17 years" value={room.children}
                     min={MIN_CHILDREN} max={MAX_CHILDREN} onChange={(v) => setRoom(ri, 'children', v)} />
-                  {room.children > 0 && onChildAges && (
-                    <div className={styles.ages}>
-                      <div className={styles.popTitle}>Age at check-in</div>
-                      {Array.from({ length: room.children }, (_, ci) => {
-                        const idx = before + ci;
+                  {room.children > 0 && (
+                    <div className={styles.dobSection}>
+                      <span className={styles.dobTitle}>Children's date of birth</span>
+                      {room.dobs.map((dob, ci) => {
+                        const age = ageFromDob(dob);
                         return (
-                          <div className={styles.ageRow} key={ci}>
-                            <span className={styles.ageLabel}>Child {ci + 1}</span>
-                            <select className={styles.ageSelect} value={dAges[idx] ?? DEFAULT_CHILD_AGE}
-                              onChange={(e) => setDraftAge(idx, Number(e.target.value))}
-                              aria-label={`Age of child ${ci + 1} in room ${ri + 1}`}>
-                              {Array.from({ length: CHILD_AGE_MAX + 1 }, (_, a) => (
-                                <option key={a} value={a}>{a === 0 ? 'Under 1' : `${a} year${a === 1 ? '' : 's'}`}</option>
-                              ))}
-                            </select>
+                          <div className={styles.dobRow} key={ci}>
+                            <span className={styles.dobLabel}>
+                              Child {ci + 1}{age != null ? <em className={styles.dobAge}>{age} yr{age === 1 ? '' : 's'}</em> : ''}
+                            </span>
+                            <input type="date" className={styles.dobInput} value={dob} max={today}
+                              onChange={(e) => updateChildDob(ri, ci, e.target.value)}
+                              aria-label={`Date of birth of child ${ci + 1} in room ${ri + 1}`} />
                           </div>
                         );
                       })}
-                      <p className={styles.ageHint}>Hotels price children by age, so this changes the rate.</p>
+                      <span className={styles.dobHint}>Children's ages help us price rooms &amp; flights correctly.</span>
                     </div>
                   )}
                 </div>
@@ -264,22 +294,25 @@ export default function StayBar({
             onPick={(o) => { onChange({ origin: o }); close(); }} />
         </Field>
 
-        <Field id="nights" icon={ICONS.moon} label="Duration" value={`${nights} night${nights === 1 ? '' : 's'}`}
+        {/* Day-bands, worded exactly as the home page words them — a traveller who searched
+            "6-10 days" sees "6-10 days" here, not a nights figure they have to re-derive.
+            Picking a band jumps to that band's representative length. */}
+        <Field id="nights" icon={ICONS.moon} label="Duration" value={band.label}
           open={openField === 'nights'} onToggle={toggle}>
-          <OptionList scroll current={nights}
-            options={nightList.map((n) => ({
-              id: n, label: `${n} night${n === 1 ? '' : 's'}`, note: `${n + 1} days`,
-            }))}
-            onPick={(n) => { onChange({ nights: Number(n) }); close(); }} />
+          <OptionList current={band.label}
+            options={DURATION_BANDS.map((b) => ({ id: b.label, label: b.label }))}
+            onPick={(label) => { onChange({ nights: bandByLabel(label).nights }); close(); }} />
         </Field>
       </div>
 
       <div className={styles.foot}>
-        <span className={styles.footLabel}>Exact duration</span>
+        <span className={styles.footLabel}>Exact length</span>
         <div className={styles.chips}>
-          {durationChips.map((n) => (
+          {exactLengths.map((n) => (
             <button type="button" key={n} className={`${styles.chip}${nights === n ? ` ${styles.chipOn}` : ''}`}
-              onClick={() => onChange({ nights: n })} aria-pressed={nights === n}>{n + 1} days</button>
+              onClick={() => onChange({ nights: n })} aria-pressed={nights === n}>
+              {n} days
+            </button>
           ))}
         </div>
         {touched && <button type="button" className={styles.reset} onClick={onReset}>Reset to my search</button>}

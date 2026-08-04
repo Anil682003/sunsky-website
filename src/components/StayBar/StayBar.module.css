@@ -92,24 +92,39 @@
 .optOn .optNote { color: var(--blue-mid, #3a6fe8); }
 .tick { flex-shrink: 0; color: var(--blue, #1f4fd8); }
 
-/* date field */
-.dateWrap { display: block; margin-bottom: 4px; }
-.dateInput {
-  width: 100%; font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--dark, #16233a);
-  padding: 10px 12px; border: 1.5px solid #dbe6f5; border-radius: 10px; background: var(--white, #fff);
-  cursor: pointer;
+/* date field — visually hidden input, only used for the native calendar picker */
+.dateHidden {
+  position: absolute; bottom: 0; left: 16px; width: 0; height: 0; opacity: 0;
+  pointer-events: none; border: none; padding: 0;
 }
-.dateInput:focus { outline: none; border-color: var(--blue, #1f4fd8); }
 
-/* child ages */
-.ages { margin-top: 12px; padding-top: 12px; border-top: 1px solid #f2f6fc; }
-.ageRow { display: flex; align-items: center; gap: 10px; padding: 4px 2px; }
-.ageLabel { flex: 1; font-size: 12.5px; font-weight: 600; color: var(--text-sec, #4a5f80); }
-.ageSelect {
-  font-family: inherit; font-size: 12.5px; font-weight: 700; color: var(--dark, #16233a);
-  padding: 6px 8px; border: 1.5px solid #dbe6f5; border-radius: 8px; background: var(--white, #fff); cursor: pointer;
+/* child date-of-birth pickers */
+.dobSection {
+  margin-top: 6px; padding-top: 14px; border-top: 1px solid #f2f6fc;
+  display: flex; flex-direction: column; gap: 8px;
 }
-.ageHint { margin: 8px 2px 0; font-size: 11px; line-height: 1.45; color: var(--text-light, #8fa5c6); }
+.dobTitle {
+  font-size: 11px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-light, #8fa5c6);
+}
+.dobRow { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
+.dobLabel {
+  font-size: 13.5px; font-weight: 500; color: var(--dark, #16233a);
+  white-space: nowrap; display: inline-flex; align-items: center; gap: 8px;
+}
+.dobAge {
+  font-style: normal; font-size: 11px; font-weight: 700;
+  color: var(--dark, #16233a); background: #fff3dc;
+  padding: 2px 8px; border-radius: 999px;
+}
+.dobInput {
+  flex: 0 0 auto; width: 152px; padding: 9px 12px; border-radius: 10px;
+  border: 1px solid #dbe6f5; background: var(--white, #fff);
+  font-family: inherit; font-size: 13px; font-weight: 600; color: var(--dark, #16233a);
+  cursor: pointer; transition: border-color .2s, box-shadow .2s;
+}
+.dobInput:focus { outline: none; border-color: var(--blue, #1f4fd8); box-shadow: 0 0 0 3px rgba(31, 79, 216, .14); }
+.dobHint { font-size: 11.5px; color: var(--text-light, #8fa5c6); line-height: 1.45; }
 .listHint {
   margin: 10px 2px 0; padding-top: 9px; border-top: 1px solid #f2f6fc;
   font-size: 11px; line-height: 1.45; color: var(--text-light, #8fa5c6);
