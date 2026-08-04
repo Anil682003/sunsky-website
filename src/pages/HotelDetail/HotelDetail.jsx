@@ -1743,9 +1743,21 @@ export default function HotelDetail() {
                         selected
                         onSelect={() => {}}
                       />
-                      {liveFlights.flights.length > 1 && (
+                      {(() => {
+                        const altIdx = liveFlights.flights.findIndex((_, i) => i !== selectedFlight);
+                        if (altIdx === -1) return null;
+                        const alt = liveFlights.flights[altIdx];
+                        return (
+                          <FlightCard
+                            f={{ ...alt, price: Math.round(alt.totalPrice), delta: cheapestFare == null ? null : alt.totalPrice - cheapestFare }}
+                            selected={false}
+                            onSelect={() => setSelectedFlight(altIdx)}
+                          />
+                        );
+                      })()}
+                      {liveFlights.flights.length > 2 && (
                         <button className="show-more-flights" onClick={() => setModalOpen(true)}>
-                          {ICON.plane} Change flight · {liveFlights.flights.length - 1} more option{liveFlights.flights.length - 1 === 1 ? '' : 's'}
+                          {ICON.plane} Change flight · {liveFlights.flights.length - 2} more option{liveFlights.flights.length - 2 === 1 ? '' : 's'}
                         </button>
                       )}
                     </>
