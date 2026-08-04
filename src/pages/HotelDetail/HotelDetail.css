@@ -626,6 +626,22 @@
 }
 @keyframes sdTailDrop { from { opacity:0; transform:translateY(-7px); } to { opacity:1; transform:none; } }
 
+/* week paging: arrows flank the strip and share its row, so the bars keep the full width
+   between them rather than sitting under an overlay. */
+.sd .fc-week { display:flex; align-items:center; gap:12px; }
+.sd .fc-weekmain { flex:1 1 auto; min-width:0; }
+.sd .fc-arrow {
+  flex:0 0 auto; width:44px; height:44px; border-radius:50%; cursor:pointer;
+  display:grid; place-items:center; color:var(--blue,#1f4fd8);
+  background:var(--white,#fff); border:1.5px solid #dbe6f5;
+  box-shadow:0 6px 18px rgba(23,43,99,.10);
+  transition:background-color .2s var(--ease), border-color .2s var(--ease), transform .2s var(--ease);
+}
+.sd .fc-arrow:hover:not(:disabled) { background:#eaf1fe; border-color:var(--blue,#1f4fd8); transform:scale(1.06); }
+.sd .fc-arrow:focus-visible { outline:2px solid var(--blue-mid,#3a6fe8); outline-offset:2px; }
+/* Disabled = "today is as far back as this goes", not "broken" — keep it legible. */
+.sd .fc-arrow:disabled { opacity:.35; cursor:not-allowed; box-shadow:none; }
+
 /* zero-price: "check live price" text */
 .sd .fc-check { font-size:10px; font-weight:700; color:rgba(255,255,255,.9); text-align:center; line-height:1.35; letter-spacing:.02em; }
 /* live-checked empty: greyed out + disabled */
@@ -1037,6 +1053,10 @@
   .sd .fc-col{flex:0 0 96px}
   .sd .fc-barzone{height:168px}
   .sd .fc-tail{height:20px}
+  /* Narrower arrows so the swipeable strip keeps as much width as possible; still a 40px
+     target, which is the smallest a thumb hits reliably. */
+  .sd .fc-week{gap:6px}
+  .sd .fc-arrow{width:40px;height:40px}
 }
 @media(max-width:1024px){
   .sd-hero{padding:96px 0 0}
@@ -1145,7 +1165,11 @@
 .sd .grid { margin-top:calc(var(--overhang) + 32px); }
 .sd .filter-bar { margin-bottom:24px; }
 .sd .fc-strip { margin-bottom:34px; }
-.sd .fc-strip:has(+ .fc-pop), .sd .fc-strip:has(+ .fc-hint) { margin-bottom:0; }
+/* The strip now sits inside the paging row, so the gap that used to close up between it and
+   the action card belongs to that row instead — the ribbon still has to land ON the card. */
+.sd .fc-week .fc-strip { margin-bottom:0; }
+.sd .fc-week { margin-bottom:34px; }
+.sd .fc-week:has(+ .fc-pop), .sd .fc-week:has(+ .fc-hint) { margin-bottom:0; }
 /* No top margin: the ribbon's point has to land ON the card, not near it. */
 .sd .fc-pop { margin-top:0; margin-bottom:34px; }
 .sd .fc-hint { margin-bottom:34px; }
