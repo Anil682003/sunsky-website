@@ -1423,3 +1423,499 @@
 @media (max-width:560px) {
   .sd .live-retry { width:100%; min-height:44px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════════
+   THE STAY CARD — hero
+   One light source, high and to the LEFT. Every shadow in this block falls down
+   and to the right. Warm stock, cold ink: no hairline in here is brown.
+   Appended at EOF so it beats both the refinement layer (1059–1219) and the
+   responsive layer (1279–1425).
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+.sd {
+  /* stock — the lower-right stop is deep enough that the paper reads as paper and
+     not as "a white card", while still clearing 4.5:1 for --ink-3 (5.48:1). */
+  --stock-1:#FFFDF8; --stock-2:#FAF5EA; --stock-3:#F3ECDF;
+  --card-stock-1:#FBF7EF; --card-stock-2:#EFE7D9;
+  /* COLD ink — this is what stops ivory reading as wedding stationery */
+  --rule:rgba(38,54,86,.17);
+  --rule-soft:rgba(38,54,86,.10);
+  --rule-hard:rgba(38,54,86,.34);
+  --ink:#070E1F;            /* == --dark */
+  --ink-2:#1A2744;          /* == --text */
+  --ink-3:#4B5F80;          /* replaces --text-sec in the hero; --text-sec fails on both grounds */
+  --ink-blue:#1B44BC;
+  /* the ONE warm object */
+  --terra:#A8480A; --terra-hi:#94400A;
+  /* geometry — the card is the GROUND: it spans the whole hero and bleeds to both
+     screen edges, and the sleeve lies ON it, inset from the left so photography is
+     visible on BOTH sides of the paper. */
+  --emerge:clamp(26px,2.2vw,34px);  /* card above the sleeve's top edge */
+  --pad-x:clamp(20px,3.5vw,56px);   /* mirrors .sd-hero-inner's padding */
+  --hero-pad-b:clamp(30px,3vw,54px);/* counter below the sleeve; the card fills it */
+  --sleeve-inset:clamp(16px,3vw,52px); /* how far the paper sits INTO the photograph */
+  --sleeve-px:clamp(20px,1.8vw,32px);
+  --sleeve-pt:clamp(22px,1.9vw,32px);
+  --sleeve-pb:clamp(22px,2vw,32px);
+}
+
+/* ── THE COUNTER ───────────────────────────────────────────────────────────────
+   Only the top band of the counter is ever visible — the card covers everything
+   below it — so the wash is three layers that all live in that band, not seven
+   that get painted under a photograph. Radius goes to 0 for the same reason: the
+   full-bleed card covers the hero's bottom corners.
+   padding-top is deliberately NOT redeclared: line 132 already sets 104px and the
+   responsive layer steps it down to 96/86px, which a (0,2,0) rule would defeat. */
+.sd .sd-hero {
+  border-radius:0;
+  /* clip is the only overflow value that lets overflow-y stay visible, so the
+     mosaic's --overhang still escapes the bottom edge. It is also what lets the
+     card bleed the last few px past the client edge without a scrollbar. */
+  overflow-x:clip; overflow-y:visible;
+  box-shadow:none;
+  /* THE COUNTER — the client's own blue (#4A90E8), used at full strength as the top stop so the
+     colour they chose is the one you actually see. Three earlier attempts died here by diluting
+     it into a pale wash; this does the opposite and lets the sky be a real colour.
+     It can be this saturated ONLY because no body copy sits on it — the copy lives on the warm
+     sleeve. The two things that DO sit here (breadcrumb, Share/Save) are handled below.
+     It lightens downward like a real sky toward its horizon, which also means every stop is
+     lighter than #4A90E8 and therefore SAFER for the near-black ink, not riskier.
+     Light source is high and to the LEFT, matching the shadow the sleeve already casts. */
+  background:
+    /* the sun, just off the top-left corner */
+    radial-gradient(ellipse 44% 58% at 4% -8%, rgba(255,221,158,.50), transparent 62%),
+    /* horizon haze where the paper meets the sky */
+    radial-gradient(ellipse 130% 62% at 50% 116%, rgba(232,243,255,.92), transparent 72%),
+    linear-gradient(176deg,#4A90E8 0%,#63A2ED 42%,#8FBFF4 74%,#C3DBF9 100%);
+}
+/* counter under the paper: without it the sleeve's bottom edge is flush with the
+   hero's and reads as "the container ended". At ≤1100 the card is in flow and
+   already fills that band, so the reserve is zeroed there. */
+.sd .sd-hero-inner { padding-bottom:var(--hero-pad-b); }
+/* graph paper and the floating orange orb are the two clearest template tells here */
+.sd .sd-hero-glow2, .sd .sd-hero-grid { display:none; }
+
+/* ── HEADER ROW, on the counter ────────────────────────────────────────────── */
+.sd .sd-hero-top { align-items:flex-end; gap:14px 20px; }
+/* The breadcrumb is one of only two things sitting DIRECTLY on the blue counter, so it cannot use
+   --ink-3: measured against #4A90E8 that is 1.99:1, effectively invisible. --ink is 5.81:1 and
+   --ink-2 is 4.54:1, both of which clear AA at this size. */
+.sd .bc { font-size:11px; font-weight:700; letter-spacing:.12em; text-transform:uppercase;
+          color:var(--ink); gap:8px; }
+/* line 154 `.sd .bc a` is (0,2,1) and beats `.sd .bc` — it must be named explicitly */
+.sd .bc a { color:var(--ink); }
+.sd .bc a:hover { color:var(--ink-blue); }
+.sd .bc .bc-sep { color:var(--ink-2); opacity:1; }
+.sd .bc .bc-now { color:var(--ink); font-size:11.5px; letter-spacing:.02em;
+                  text-transform:none; font-weight:700; }
+
+.sd .hhb {
+  border-radius:4px; padding:9px 15px;
+  font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+  background:linear-gradient(180deg,#FFFDF8,#F8F3EA);
+  border:1px solid rgba(38,54,86,.18);
+  color:var(--ink-3);
+  box-shadow:1px 2px 0 rgba(20,44,92,.06);
+}
+.sd .hhb:hover { border-color:var(--ink-blue); color:var(--ink-blue);
+                 box-shadow:1px 2px 0 rgba(27,68,188,.16); }
+/* saved = a second saturated object competing with the price bar. Ink instead:
+   white on #1A2744 is 12.3:1 and leaves exactly one warm thing on the screen. */
+.sd .hhb.saved { background:var(--ink-2); border-color:var(--ink-2); color:#fff; }
+
+/* ── THE COMPOSITION ───────────────────────────────────────────────────────────
+   position:relative because the card is taken OUT of flow and stretched across
+   this box. That is what makes its height deterministic: the sleeve alone sizes
+   the row, and the card is exactly (sleeve + --emerge + --overhang + --hero-pad-b)
+   tall for every hotel, whatever pixel dimensions the CDN returns. */
+.sd .sd-hero-main {
+  position:relative;
+  display:grid;
+  grid-template-columns:minmax(300px,.82fr) minmax(360px,1.18fr);
+  gap:0; align-items:start; margin-top:clamp(30px,3.4vw,52px);
+}
+
+/* ── THE SLEEVE — paper lying ON the photograph ────────────────────────────── */
+.sd .sd-hero-left {
+  grid-area:1/1/2/2; z-index:4; align-self:center;
+  position:relative; min-width:0; overflow:visible;
+  max-width:560px;
+  margin-left:var(--sleeve-inset);
+  padding:var(--sleeve-pt) var(--sleeve-px) var(--sleeve-pb);
+  border-radius:3px;
+  background:linear-gradient(158deg,var(--stock-1) 0%,var(--stock-2) 46%,var(--stock-3) 100%);
+  border:1px solid var(--rule);
+  /* one light source, high and to the left: contact line, then a graded bloom,
+     all of it falling onto the photograph the paper is resting on. */
+  box-shadow:
+    inset 0 1px 0 rgba(255,255,255,.95),
+    2px 3px 0 rgba(20,44,92,.07),
+    18px 22px 34px -16px rgba(20,44,92,.34),
+    46px 64px 88px -50px rgba(20,44,92,.50);
+}
+/* THE THUMB NOTCH — a die-cut half-round in the paper's right edge, big enough to
+   read as a cut rather than as a scrollbar thumb, casting onto the photograph.
+   The old ::after "mouth" is gone: it drew the slot a card slides into, and in
+   this composition nothing slides in — the paper lies on top. */
+.sd .sd-hero-notch {
+  position:absolute; z-index:5; right:-34px; top:50%;
+  width:34px; height:74px; transform:translateY(-50%);
+  border-radius:0 999px 999px 0;
+  background:linear-gradient(122deg,#FFFDF8,#F4EDE0);
+  border:1px solid var(--rule); border-left:0;
+  box-shadow:8px 9px 16px -4px rgba(20,44,92,.42);
+  pointer-events:none;
+}
+
+/* class-based entrance delays — the positional :nth-child ladder at 244–248 is
+   order-fragile and breaks the moment .sd-hero-score is inserted */
+.sd .sd-hero-left > * { animation:sdFadeUp .55s var(--ease) var(--d,0s) both; }
+.sd .sd-hero-left > :nth-child(n) { animation-delay:var(--d,0s); }  /* (0,3,0) kills 244–248 */
+.sd .sd-hero-left .sd-hero-eyebrow { --d:.04s; }
+.sd .sd-hero-left .hhn             { --d:.10s; }
+.sd .sd-hero-left .hhm             { --d:.16s; }
+.sd .sd-hero-left .sd-hero-rule    { --d:.22s; }
+.sd .sd-hero-left .sd-hero-score   { --d:.27s; }
+.sd .sd-hero-left .sd-hero-facts   { --d:.33s; }
+.sd .sd-hero-left .sd-hero-price   { --d:.39s; }
+.sd .sd-hero-left .sd-hero-trust   { --d:.45s; }
+/* the notch is geometry, not a line of copy — it must not slide in. (0,3,0), and it
+   has to land AFTER the ladder above or `> *` would hand it sdFadeUp anyway. */
+.sd .sd-hero-left .sd-hero-notch   { animation:none; }
+
+/* ── PRINTED FACE ──────────────────────────────────────────────────────────── */
+/* kicker + rule, not a badge: flat, orthogonal, ink-blue, no shield, no foil */
+/* THE RHYTHM. Eight blocks used to sit on one uniform ~15px space, so nothing was
+   grouped and nothing was separated. Three groups now, with real breaks between:
+     identity (eyebrow 9 → h1 7 → meta)   ── 26 ──   rule
+     rule 17 → score 9 → facts            ── 26 ──   price bar
+     price bar                            ── 26 ──   trust band (bled to the paper's edge) */
+.sd .sd-hero-eyebrow {
+  display:grid; grid-template-columns:auto 1fr; align-items:center; gap:10px;
+  margin:0 0 9px; padding:0;
+  font-size:10.5px; font-weight:800; letter-spacing:.16em; text-transform:uppercase;
+  color:var(--ink-blue); background:none; border:0;
+}
+.sd .sd-hero-eyebrow::after { content:''; height:1px; background:var(--rule); }
+
+.sd .sd-hero-left .hhn {
+  font-family:'Sora',sans-serif; font-weight:800;
+  font-size:clamp(2rem,2.6vw,3rem); letter-spacing:-.03em; line-height:1.02;
+  color:var(--ink); margin:0; overflow-wrap:anywhere; text-wrap:balance;
+}
+.sd .sd-hero-left .hhm { gap:8px 12px; margin-top:7px; align-items:center; }
+.sd .sd-hero-left .hhs { color:var(--ink-2); font-size:17px; letter-spacing:1.5px; }
+.sd .sd-hero-left .hhl-rt {
+  font-size:10.5px; font-weight:800; letter-spacing:.12em; text-transform:uppercase;
+  color:var(--ink-3); padding-left:12px; border-left:1px solid var(--rule);
+}
+.sd .sd-hero-left .hhl      { font-size:12.5px; color:var(--ink-3); }
+.sd .sd-hero-left .hhl svg  { opacity:.85; color:var(--ink-3); }
+.sd .sd-hero-left .hhl-zone { color:var(--ink); font-weight:700; }
+.sd .sd-hero-left .hhl-dot  { color:var(--ink-3); }
+
+/* the rule — same element, same sdRuleIn scaleX, now the full width of the column */
+.sd .sd-hero-left .sd-hero-rule {
+  display:block; width:100%; height:1px; border-radius:0; margin:26px 0 0;
+  transform-origin:left;
+  background:linear-gradient(90deg, var(--rule-hard), rgba(38,54,86,.12) 72%, transparent);
+  animation:sdRuleIn .55s var(--ease) var(--d,.22s) both;
+}
+
+/* ── THE SCORE AS A FIGURE ─────────────────────────────────────────────────── */
+/* GuestRating returns null for an unrated hotel → the wrapper is truly empty */
+.sd .sd-hero-score { margin-top:17px; }
+.sd .sd-hero-score:empty { display:none; margin:0; }
+.sd .sd-hero-score .sd-rating { display:flex; align-items:flex-end; gap:15px; animation:none; }
+.sd .sd-hero-score .sd-rating::before { content:none; }
+.sd .sd-hero-score .sd-rating-badge {
+  display:block; min-width:0; height:auto; padding:0 0 8px; border-radius:0;
+  background:none; color:var(--ink);
+  font-size:clamp(2.1rem,2.6vw,2.6rem); line-height:.84; letter-spacing:-.045em;
+  border-bottom:4px solid var(--rb);
+  font-variant-numeric:tabular-nums lining-nums;
+}
+/* NOT opacity: .55 of --ink composites to 4.20:1 on this stock at 10–12.5px, which
+   fails 1.4.3. --ink-3 is the same ink the source/count below already use: 5.5–6:1. */
+.sd .sd-hero-score .sd-rating-outof {
+  font-size:.30em; font-weight:700; opacity:1; color:var(--ink-3);
+  margin-left:.08em; vertical-align:.66em;
+}
+.sd .sd-hero-score .sd-rating-body { gap:5px; padding-bottom:11px; }
+.sd .sd-hero-score .sd-rating-word { font-size:14.5px; color:var(--rw); letter-spacing:-.01em; }
+.sd .sd-hero-score .sd-rating-meta { gap:6px; font-size:10.5px; letter-spacing:.11em;
+                                     text-transform:uppercase; }
+/* font-size:inherit — .sd .sd-rating-src/-count carry their own 11.5px at (0,2,0),
+   which would otherwise ignore the 10.5px set on .sd-rating-meta above. */
+.sd .sd-hero-score .sd-rating-src,
+.sd .sd-hero-score .sd-rating-count,
+.sd .sd-hero-score .sd-rating-count::before { color:var(--ink-3); font-weight:700; font-size:inherit; }
+/* bands: colour now paints a 4px rule and a 14.5px word — never white-on-fill.
+   The old chips were 3.35–4.23:1 white-on-colour and failed. */
+.sd .sd-hero-score .sd-rating-high { --rb:#0B7A57; --rw:#0B7A57; }
+.sd .sd-hero-score .sd-rating-mid  { --rb:#8A5A12; --rw:#8A5A12; }
+.sd .sd-hero-score .sd-rating-low  { --rb:#526580; --rw:#526580; }
+
+/* ── THE FACT BLOCK — pills destroyed ──────────────────────────────────────── */
+/* margin-top:9px — the score and the docket are ONE group (both answer "what is
+   this stay"), which is why the break before the price bar can be 26px. */
+.sd .sd-hero-facts {
+  display:grid; grid-template-columns:repeat(3,minmax(0,1fr));
+  margin-top:9px; gap:0;
+  border-top:1px solid var(--rule); border-bottom:1px solid var(--rule);
+}
+.sd .sd-fact { min-width:0; padding:10px 13px; border-left:1px solid var(--rule-soft); }
+.sd .sd-fact:first-child { border-left:0; padding-left:0; }
+.sd .sd-fact-l {
+  display:block; margin-bottom:4px;
+  font-size:11px; font-weight:700; letter-spacing:.13em; text-transform:uppercase;
+  color:var(--ink-3);
+}
+.sd .sd-fact-v {
+  display:block; font-family:'Sora',sans-serif; font-weight:700;
+  font-size:clamp(13.5px,1.05vw,15px); line-height:1.25; letter-spacing:-.01em;
+  color:var(--ink); overflow-wrap:anywhere;
+  font-variant-numeric:tabular-nums lining-nums;
+}
+
+/* ── THE ONE FILLED OBJECT, AND IT IS A BUTTON ─────────────────────────────── */
+.sd .sd-hero-price {
+  display:flex; align-items:center; gap:clamp(12px,2vw,20px); width:100%;
+  margin-top:26px; padding:13px 16px;
+  border:0; border-radius:3px; cursor:pointer; text-align:left;
+  background:var(--terra); color:#fff;
+  /* flat, never --cta-grad: the gradient's #EE8A12 end gives white ~2.6:1 and would
+     fail the site's own white-on-orange rule at this size */
+  box-shadow:2px 3px 0 rgba(20,44,92,.10), 12px 16px 26px -14px rgba(120,48,4,.55);
+  transition:background .2s var(--ease), transform .2s var(--ease);
+}
+.sd .sd-hero-price:hover  { background:var(--terra-hi); transform:translateY(-1px); }
+.sd .sd-hero-price:active { transform:none; }
+.sd .sd-hero-price:focus-visible { outline:2px solid var(--ink); outline-offset:3px; }
+.sd .sd-hero-price-l {
+  display:block; margin-bottom:3px;
+  font-size:10.5px; font-weight:800; letter-spacing:.14em; text-transform:uppercase; color:#fff;
+}
+.sd .sd-hero-price-v {
+  display:block; font-family:'Sora',sans-serif; font-weight:800; line-height:1;
+  font-size:clamp(1.35rem,1.8vw,1.7rem); letter-spacing:-.02em; color:#fff;
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.sd .sd-hero-price-v .cur { opacity:.85; }
+/* the rule turns 200–300px of flat orange between two text clusters into a second
+   printed field, so the bar reads as a two-column docket, not a stretched button */
+.sd .sd-hero-price-go {
+  margin-left:auto; align-self:stretch;
+  display:inline-flex; align-items:center; gap:7px; white-space:nowrap;
+  padding-left:clamp(14px,2.2vw,22px); border-left:1px solid rgba(255,255,255,.30);
+  font-size:12px; font-weight:800; letter-spacing:.04em; color:#fff;
+}
+.sd .sd-hero-price-go svg { width:15px; height:15px; }
+/* No price yet — the bar STAYS filled. It is the only saturated object in the hero
+   and `fromPP == null` is the first-paint state on every direct URL and every
+   cache outage; an outlined ghost there leaves the whole screen colourless and
+   drops the control's boundary to 1.9:1. Only the claim shrinks, not the object. */
+.sd .sd-hero-price.is-empty .sd-hero-price-v {
+  font-size:clamp(1.02rem,1.3vw,1.24rem); letter-spacing:-.01em;
+}
+
+/* ── SMALL PRINT — a printed footer band, bled to the paper's own edges ──────
+   The four guarantees were the eighth item in one flat stack. They are now a
+   tinted band ruled off at the foot of the sleeve: a different kind of object in
+   a different place, which is what stops the column reading as a restyle. */
+.sd .sd-hero-trust {
+  display:grid; grid-template-columns:1fr 1fr; gap:9px 20px; max-width:none;
+  margin:26px calc(var(--sleeve-px) * -1) calc(var(--sleeve-pb) * -1);
+  padding:14px var(--sleeve-px) var(--sleeve-pb);
+  border-top:1px solid var(--rule); border-radius:0 0 2px 2px;
+  background:rgba(38,54,86,.045);
+}
+.sd .sd-hero-trust .sd-hc-item {
+  font-size:12.5px; font-weight:600; color:var(--ink-2); white-space:normal;
+}
+.sd .sd-hero-trust .sd-hc-item svg { width:13px; height:13px; color:var(--ink); }
+
+/* ── THE CARD — the ground, not a right-hand module ────────────────────────────
+   Out of flow and stretched from --emerge above the sleeve to --overhang below the
+   hero, bleeding to both screen edges. Two consequences, both deliberate:
+     · its height is exact and identical for every hotel — the row is sized by the
+       sleeve alone, so no CDN aspect ratio can stretch it and the sleeve can never
+       float in dead space;
+     · the sleeve sits ON it with photography visible on BOTH sides (≈90px left,
+       ≈840px right at 1440), above it and below it. That is the whole composition:
+       one object plainly lying on another, not two columns with a 60px kiss. */
+.sd .sd-hero-photos {
+  position:absolute; grid-area:auto; z-index:3;
+  top:calc(var(--emerge) * -1);
+  bottom:calc(-1 * (var(--overhang) + var(--hero-pad-b)));
+  left:calc(var(--pad-x) * -1);
+  right:calc(var(--pad-x) * -1);
+  margin:0; height:auto; min-height:0;
+  grid-template-columns:1fr 1fr 1.72fr; grid-template-rows:repeat(2,1fr);
+  gap:3px; padding:6px;
+  border-radius:2px; overflow:hidden;
+  background:linear-gradient(158deg,var(--card-stock-1),var(--card-stock-2));
+  border:1px solid rgba(38,54,86,.16);
+  box-shadow:0 2px 3px rgba(20,44,92,.10), 0 30px 54px -28px rgba(20,44,92,.36);
+  /* the card arrives as ONE object. Five tiles sliding in on a stagger is the
+     Airbnb grid entrance the fused face exists to escape. */
+  animation:sdFadeUp .6s var(--ease) .06s both;
+}
+/* Past 1760px `margin/inset: -(--pad-x)` is capped at the content edge and the card
+   stops ~80px short of the screen on a 1920 monitor. `50% - 50vw` reaches the real
+   edge; 100vw overshoots by the classic Windows scrollbar, which overflow-x:clip on
+   .sd-hero absorbs — so the breakout is gated on clip actually being supported. */
+@supports (overflow: clip) {
+  .sd .sd-hero-photos { left:calc(50% - 50vw); right:calc(50% - 50vw); }
+}
+/* tiles fuse into one printed face */
+.sd .sd-hero-photos .gi {
+  border-radius:0; border:0; box-shadow:none; animation:none;
+  background:linear-gradient(135deg,#EFE7D9,#E2D7C3);
+}
+.sd .sd-hero-photos .gi:hover { transform:none; box-shadow:none; }   /* beats 290 AND 1207 */
+/* the card is overflow:hidden and the tiles sit 6px inside it, so an outset ring is
+   clipped on three sides of every edge tile. Inset instead. */
+.sd .sd-hero-photos .gi:focus-visible { outline-offset:-3px; }
+/* the navy bedding banded five times across a fused face. one card-level tone instead. */
+.sd .sd-hero-photos .gi::before { display:none; }
+/* The big tile moves to the RIGHT column: the sleeve now covers the card's left
+   third, and leaving the hero photograph under it would hide the best image on the
+   page. The four small tiles take the left, where the paper only obscures two. */
+.sd .sd-hero-photos .gi-hero { grid-column:3; grid-row:1 / span 2; border-radius:0; }
+/* hover affordance is now the only affordance — give the disc an edge so it
+   survives a blown-out pool photo */
+.sd .sd-hero-photos .gi-zoom { border-radius:4px; width:42px; height:42px;
+  box-shadow:0 0 0 1px rgba(7,14,31,.16), 0 6px 18px rgba(0,0,0,.22); }
+/* warm fallbacks — all three branches were cool blue inside a warm object */
+.sd .sd-hero-photos .gi-skel  { border-radius:0; border:0;
+  background:linear-gradient(100deg,#EDE4D4 18%,#FAF6EE 42%,#EDE4D4 66%); background-size:220% 100%;
+  animation:sdSkel 1.4s linear infinite; }
+.sd .sd-hero-photos-solo { grid-template-columns:minmax(0,1fr); grid-template-rows:1fr 1fr; }
+.sd .sd-hero-photos-solo .gi-hero { grid-column:1; grid-row:1 / -1; border-radius:0; }
+/* a hotel with no usable photography got a one-third-wide illustrated panel and two
+   empty columns of bare stock. It fills the card. */
+.sd .sd-hero-photos .gi-empty {
+  grid-column:1 / -1; grid-row:1 / -1; border-radius:0; background:#F2EADC; border:0;
+}
+/* the gallery entry sits ON the photography, bottom-right, as a printed label. The
+   46px caption strip it used to live in was 650–820px of blank cream with one small
+   button at its far left, and it was entirely blank whenever a hotel had no photos. */
+.sd .sd-hero-photos .ga {
+  position:absolute; left:auto; right:14px; bottom:14px; z-index:6;
+  display:inline-flex; min-height:36px; padding:0 15px; gap:8px;
+  border-radius:3px; background:rgba(255,253,248,.96);
+  backdrop-filter:none; -webkit-backdrop-filter:none;
+  /* .62, not .42: the fill is near-white and the label now sits on photography, so
+     over a blown-out pool shot the border is the only boundary. .62 composites to
+     3.84:1 on white and 5.5:1 on black — either way past the 3:1 non-text bar. */
+  border:1px solid rgba(38,54,86,.62);
+  box-shadow:1px 2px 0 rgba(20,44,92,.10), 0 8px 20px rgba(7,14,31,.26);
+  font-size:11px; font-weight:800; letter-spacing:.1em; text-transform:uppercase;
+  color:var(--ink); animation:none;
+}
+.sd .sd-hero-photos .ga svg { color:var(--ink-3); width:14px; height:14px; }
+.sd .sd-hero-photos .ga:hover { background:#fff; transform:none;
+  border-color:var(--ink-blue); color:var(--ink-blue);
+  box-shadow:1px 2px 0 rgba(27,68,188,.14), 0 8px 20px rgba(7,14,31,.26); }
+
+/* ═══════════ ≤1100px — the card slides out of the BOTTOM of the sleeve ═════
+   Back into flow: position, insets and margins all have to be unwound, or the
+   `50% - 50vw` offsets above would apply as relative shifts and drag the card
+   20px off the left edge. */
+@media (max-width:1100px) {
+  .sd { --emerge:26px; --hero-pad-b:0px; }
+  .sd .sd-hero-main { position:static; grid-template-columns:minmax(0,1fr); gap:0; margin-top:20px; }
+  .sd .sd-hero-left { grid-area:auto; align-self:auto; max-width:none; margin-left:0; }
+  .sd .sd-hero-photos {
+    position:relative; grid-area:auto; align-self:auto;
+    top:auto; right:auto; bottom:auto; left:auto;
+    /* a definite height again: with height:auto the two 1fr rows size off whatever
+       aspect ratio the CDN returns, which made the same page 581px tall for one
+       hotel and 802px for the next. */
+    height:clamp(300px,42vw,430px); min-height:0;
+    margin-top:calc(var(--emerge) * -1);
+    margin-left:calc(var(--pad-x) * -1);
+    margin-right:calc(var(--pad-x) * -1);
+    margin-bottom:calc(var(--overhang) * -1);   /* ← --overhang UNCHANGED. */
+    border-radius:0;
+  }
+  .sd .sd-hero-notch {
+    right:auto; left:22%; top:auto; bottom:-34px;
+    width:74px; height:34px; transform:none;
+    border-radius:0 0 999px 999px;
+    border:1px solid var(--rule); border-top:0; border-left:1px solid var(--rule);
+    box-shadow:8px 10px 16px -4px rgba(20,44,92,.42);
+  }
+}
+
+/* ═══════════ ≤768px — two columns, explicit row heights ═══════════════════
+   The ≤768 mosaic rules at 1025–1030 are (0,1,0)/(0,2,0) and are DEFEATED by the
+   (0,2,0)/(0,3,0) card rules above, so the collapse has to be restated here at
+   matching weight. grid-template-rows must be cleared too: leaving the desktop
+   `repeat(2,1fr)` standing punched an 83px hole of bare stock through the middle
+   of the "fused face" everywhere between ~548px and 768px. */
+@media (max-width:768px) {
+  .sd .sd-hero-photos {
+    grid-template-columns:1fr 1fr; grid-template-rows:none; grid-auto-rows:auto;
+    height:auto; min-height:0; gap:3px; padding:5px;
+    /* still standing from 1028: .gi:nth-child(n+4){display:none} */
+  }
+  .sd .sd-hero-photos .gi { height:132px; }
+  .sd .sd-hero-photos .gi-hero { grid-column:1 / -1; grid-row:auto; height:200px; }
+  .sd .sd-hero-photos-solo { grid-auto-rows:auto; }
+  .sd .sd-hero-photos-solo .gi-hero,
+  .sd .sd-hero-photos .gi-empty { height:246px; grid-column:1 / -1; grid-row:auto; }
+  .sd .sd-hero-photos .gi,
+  .sd .sd-hero-photos .gi-hero,
+  .sd .sd-hero-photos .gi:nth-child(3),      /* beats line 1027 */
+  .sd .sd-hero-photos .gi-empty,
+  .sd .sd-hero-photos-solo .gi-hero { border-radius:0; }
+  /* line 1031 hides .ga at ≤768 AND .gi-more sits on a 5th tile that nth-child(n+4)
+     also hides — so today there is no gallery entry point on a phone at all. */
+  .sd .sd-hero-photos .ga { display:inline-flex; left:auto; right:9px; bottom:9px; }
+}
+
+/* ═══════════ ≤560px — the fact block becomes a ruled docket ════════════════
+   Also buys back ~90px of sleeve height so the photograph clears the fold on a
+   375×667 phone instead of starting below it. */
+@media (max-width:560px) {
+  .sd { --emerge:36px; }
+  .sd .sd-hero-main { margin-top:16px; }
+  .sd .sd-hero-left .hhn { font-size:1.8rem; }
+  .sd .sd-hero-score .sd-rating-badge { font-size:2rem; }
+  /* line 227 hides the review count; that was written for the old inline chip in a
+     width-constrained nowrap row. The score is a block-level figure now, and 8.7
+     from 1,204 reviews is a different claim from 8.7 from 4. */
+  .sd .sd-hero-score .sd-rating-count { display:inline; }
+  .sd .sd-hero-facts { grid-template-columns:minmax(0,1fr); border-bottom:0; }
+  .sd .sd-fact {
+    display:flex; align-items:baseline; justify-content:space-between; gap:14px;
+    padding:8px 0; border-left:0; border-bottom:1px solid var(--rule-soft);
+  }
+  .sd .sd-fact-l { margin-bottom:0; flex-shrink:0; }
+  .sd .sd-fact-v { text-align:right; }
+  .sd .sd-hero-left .hhl-rt { padding-left:0; border-left:0; }
+  .sd .sd-hero-price { padding:11px 13px; margin-top:20px; }
+  .sd .sd-hero-price-go { padding-left:13px; }
+  .sd .sd-hero-price-go span { display:none; }   /* arrow only */
+  .sd .sd-hero-trust { grid-template-columns:1fr 1fr; gap:8px 14px; margin-top:20px; }
+  .sd .sd-hero-trust .sd-hc-item { font-size:11.5px; }
+}
+
+/* ═══════════ REDUCED MOTION ════════════════════════════════════════════════
+   My rules above are (0,2,0)/(0,3,0) and land AFTER the block at line 989,
+   so they would otherwise re-enable the animations it disables. */
+@media (prefers-reduced-motion: reduce) {
+  .sd .sd-hero-left > *,
+  .sd .sd-hero-left > :nth-child(n),
+  .sd .sd-hero-left .sd-hero-rule,
+  .sd .sd-hero-photos,
+  .sd .sd-hero-photos .gi,
+  .sd .sd-hero-photos .ga { animation:none; }
+  .sd .sd-hero-photos .gi img { transition:none; }
+  .sd .sd-hero-photos .gi-skel { animation:none; background:#F0E8D9; }
+  /* the only motion this hero adds that the 989 block never knew about */
+  .sd .sd-hero-price { transition:none; }
+  .sd .sd-hero-price:hover { transform:none; }
+}
