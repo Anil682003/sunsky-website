@@ -446,6 +446,13 @@ function FlightCard({ f, selected, onSelect }) {
 // The rating is drawn as five circles filled proportionally to `rate/outOf` (TripAdvisor's own
 // convention), with the numeric score and, when we have it, the review count. `count === 0`
 // means "rated, but the count wasn't returned" — we show the score without a misleading "0".
+// The mosaic tiles are <div onClick> — a pointer-only affordance. Enter/Space forward to
+// the same click handler so the lightbox is reachable from the keyboard; role="button"
+// also lets the page-wide focus ring at HotelDetail.css:1212 find them.
+const clickOnKey = (e) => {
+  if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); e.currentTarget.click(); }
+};
+
 function GuestRating({ review }) {
   const r = formatReview(review);
   if (!r) return null;
@@ -1432,9 +1439,19 @@ export default function HotelDetail() {
     });
   };
 
+  // Hero price block is the page's only in-hero CTA: same destination as the
+  // "check availability first" path in goCheckout.
+  const goToPrices = () => {
+    setActiveTab('Prices');
+    requestAnimationFrame(() => {
+      document.querySelector('.fc-strip, .fc-blank')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+  };
+
   return (
     <div className="sd" ref={pageRef}>
-      {/* Hero — blends into the transparent app navbar; mosaic lives inside it */}
+      {/* Hero — the counter, the sleeve and the photographic card. The app navbar above
+          is opaque cream and fixed, which is what padding-top:104px clears. */}
       <header className="sd-hero">
         <div className="sd-hero-bg">
           <span className="sd-hero-glow2" />
@@ -1443,9 +1460,9 @@ export default function HotelDetail() {
         <div className="sd-hero-inner">
           <div className="sd-hero-top">
             <div className="bc">
-              <Link to="/">Home</Link><span style={{ opacity: .4 }}>›</span>
-              <a onClick={() => navigate(-1)}>Results</a><span style={{ opacity: .4 }}>›</span>
-              <span style={{ color: '#fff' }}>{hotelName}</span>
+              <Link to="/">Home</Link><span className="bc-sep" aria-hidden="true">/</span>
+              <a onClick={() => navigate(-1)}>Results</a><span className="bc-sep" aria-hidden="true">/</span>
+              <span className="bc-now">{hotelName}</span>
             </div>
             <div className="hha">
               <ShareSheet
@@ -1468,33 +1485,69 @@ export default function HotelDetail() {
 
           <div className="sd-hero-main">
             <div className="sd-hero-left">
-              <div className="sd-hero-eyebrow">{ICON.shield} Verified stay{ratingLabel(dispRating) ? ` · ${ratingLabel(dispRating)}` : ''}</div>
+              <div className="sd-hero-eyebrow">Verified stay</div>
               <h1 className="hhn">{hotelName}</h1>
               <div className="hhm">
                 <span className="hhs"><RatingMarks rating={dispRating} keySize={16} /></span>
+                {/* the class/key label sits WITH the marks it explains ("4-star hotel",
+                    "5-key apartment") rather than restating them up in the eyebrow */}
+                {ratingLabel(dispRating) && <span className="hhl-rt">{ratingLabel(dispRating)}</span>}
                 <span className="hhl">
                   {ICON.pin}
                   {zoneLabel && <><span className="hhl-zone">{zoneLabel}</span><span className="hhl-dot">·</span></>}
                   {locLabel}
                 </span>
-                {/* TripAdvisor rating, /10. From the harvested store (info.review) — no live
-                    call — with the live one as a fallback for a not-yet-harvested hotel.
-                    Renders nothing at all for an unrated hotel. */}
-                <GuestRating review={info?.review ?? review} />
               </div>
               <span className="sd-hero-rule" />
-              <div className="sd-hero-chips">
-                <span className="sd-chip">{ICON.board} {hotel?.board || 'All inclusive'}</span>
-                <span className="sd-chip">{ICON.moon} {nights} days</span>
-                <span className="sd-chip">{ICON.users} {Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</span>
-                {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} from {ccy}{fromPP} p.p.</span>}
+              {/* TripAdvisor rating, /10. From the harvested store (info.review) — no live
+                  call — with the live one as a fallback for a not-yet-harvested hotel. Set
+                  as a figure rather than a chip; GuestRating renders nothing at all for an
+                  unrated hotel, so the wrapper is :empty and collapses. */}
+              <div className="sd-hero-score"><GuestRating review={info?.review ?? review} /></div>
+              <div className="sd-hero-facts">
+                <span className="sd-fact">
+                  <span className="sd-fact-l">Board basis</span>
+                  <span className="sd-fact-v">{hotel?.board || 'All inclusive'}</span>
+                </span>
+                <span className="sd-fact">
+                  <span className="sd-fact-l">Duration</span>
+                  <span className="sd-fact-v">{nights} days</span>
+                </span>
+                <span className="sd-fact">
+                  <span className="sd-fact-l">Travellers</span>
+                  <span className="sd-fact-v">
+                    {Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}
+                    {Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}
+                  </span>
+                </span>
               </div>
+              {/* The accessible name deliberately does NOT read "from €N": the fare strip's
+                  seven day buttons are identified by exactly that phrase, and a second
+                  match in the hero would make "the cheapest day" ambiguous. */}
+              <button
+                className={`sd-hero-price${fromPP == null ? ' is-empty' : ''}`}
+                onClick={goToPrices}
+                aria-label={fromPP != null
+                  ? `See prices — ${ccy}${fromPP.toLocaleString('en-GB')} per person`
+                  : 'See prices for your dates'}
+              >
+                <span>
+                  <span className="sd-hero-price-l">{fromPP != null ? 'Per person from' : 'Per person'}</span>
+                  <span className="sd-hero-price-v">
+                    {fromPP != null
+                      ? <><span className="cur">{ccy}</span>{fromPP.toLocaleString('en-GB')}</>
+                      : 'Check your dates'}
+                  </span>
+                </span>
+                <span className="sd-hero-price-go"><span>See prices</span>{ICON.arrow}</span>
+              </button>
               <div className="sd-hero-trust">
                 <span className="sd-hc-item">{ICON.check} Secure online payment</span>
                 <span className="sd-hc-item">{ICON.check} No booking fees</span>
                 <span className="sd-hc-item">{ICON.check} Best price guarantee</span>
                 <span className="sd-hc-item">{ICON.check} Instant confirmation</span>
               </div>
+              <span className="sd-hero-notch" aria-hidden="true" />
             </div>
 
             <div className={`sd-hero-photos${soloPhoto ? ' sd-hero-photos-solo' : ''}`}>
@@ -1511,12 +1564,12 @@ export default function HotelDetail() {
                 </div>
               ) : (
                 <>
-                  <div className="gi gi-hero" onClick={() => openLightbox(images, 0)}>
+                  <div className="gi gi-hero" role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => openLightbox(images, 0)}>
                     <HeroPhoto src={images[0]} seed={hotelCode} onFail={markDead} size="bigger" alt={hotelName} fetchPriority="high" />
                     <span className="gi-zoom"><S size={18} sw={2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
                   </div>
                   {images.slice(1, 5).map((src, i) => (
-                    <div className="gi" key={i} onClick={() => (i === 3 && photoCats && photoCount > 5 ? openExplorer('ALL') : openLightbox(images, i + 1))}>
+                    <div className="gi" key={i} role="button" tabIndex={0} onKeyDown={clickOnKey} onClick={() => (i === 3 && photoCats && photoCount > 5 ? openExplorer('ALL') : openLightbox(images, i + 1))}>
                       {/* eager, not lazy: these four sit inside the hero, so lazy only delayed
                           the moment a dead source could report itself and collapse the mosaic */}
                       <HeroPhoto src={src} seed={`${hotelCode}-${i}`} onFail={markDead} size="bigger" alt={`${hotelName} ${i + 2}`} />
@@ -1612,9 +1665,6 @@ export default function HotelDetail() {
                     {priceDays.map((p, i) => {
                       const hasPrice = Number(p.price) > 0;
                       const isEmpty = checkedEmpty.has(p.iso);
-                      // Is THIS the day the traveller has picked. Referenced by isLoading, the
-                      // `sel` class and aria-pressed below; losing it throws a ReferenceError on
-                      // every render and blanks the whole page, so it must stay above isLoading.
                       const sel = pickedIdx === i;
                       const isLoading = sel && liveChecked && liveRooms?.loading;
                       const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
