@@ -57,9 +57,9 @@ const BOARD_PREFS = [
   { id: 'AI', label: 'All inclusive',   match: /all\s*inclusive|^AI$/i },
 ];
 // Trip lengths the Duration filter offers, in nights.
-const NIGHT_OPTIONS = [3, 4, 5, 6, 7, 8, 9, 10, 11, 14, 21];
+
 // The quick chips under the bar, in nights — printed as nights+1 days, so 5→"6 days".
-const DURATION_CHIPS = [5, 6, 7, 8, 9];
+
 const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const calDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WK[d.getDay()]; };
@@ -915,7 +915,7 @@ export default function HotelDetail() {
     ? `${calDate(shareCheckIn)}${shareCheckOut ? ` – ${calDate(shareCheckOut)}` : ''}`
     : '';
   const sharePax = `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}${Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}`;
-  const shareMeta = [shareDates, `${nights} nights`, sharePax].filter(Boolean).join(' · ');
+  const shareMeta = [shareDates, `${nights} days`, sharePax].filter(Boolean).join(' · ');
   const shareText = [
     `${hotelName} — ${locLabel}`,
     shareMeta,
@@ -1474,7 +1474,7 @@ export default function HotelDetail() {
               <span className="sd-hero-rule" />
               <div className="sd-hero-chips">
                 <span className="sd-chip">{ICON.board} {hotel?.board || 'All inclusive'}</span>
-                <span className="sd-chip">{ICON.moon} {nights} nights</span>
+                <span className="sd-chip">{ICON.moon} {nights} days</span>
                 <span className="sd-chip">{ICON.users} {Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</span>
                 {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} from {ccy}{fromPP} p.p.</span>}
               </div>
@@ -1554,7 +1554,7 @@ export default function HotelDetail() {
                     ? `Meal plans this hotel sells on ${pd?.day || ''} ${pd?.date || niceDate(pickedIso) || ''}`.trim() + '.'
                     : 'Check a date to see which meal plans this hotel actually offers.'}
                 origin={origin} originOptions={ORIGINS} originLabel={airportName} destination={destination}
-                nights={nights} nightOptions={NIGHT_OPTIONS} durationChips={DURATION_CHIPS}
+                nights={nights}
                 touched={filtersTouched}
                 onChange={applyFilter}
                 onBoardChange={(id) => setOvr((p) => ({ ...p, board: id }))}
@@ -1616,7 +1616,7 @@ export default function HotelDetail() {
                             <span className="fc-bar" style={{ height: `${h}%` }}>
                               <span className="fc-from">from</span>
                               <span className="fc-amt">€{p.price}</span>
-                              <span className="fc-nts">{p.nights} {p.nights === 1 ? 'night' : 'nights'}</span>
+                              <span className="fc-nts">{p.nights} {p.nights === 1 ? 'day' : 'days'}</span>
                             </span>
                           </span>
                           <span className="fc-under">
@@ -1646,7 +1646,7 @@ export default function HotelDetail() {
                             {/* The cache returns 0 for a day it hasn't costed — quote nothing
                                 rather than "estimated from €0". */}
                             <span className="fc-act-meta">
-                              {nights} {nights === 1 ? 'night' : 'nights'}
+                              {nights} {nights === 1 ? 'day' : 'days'}
                               {Number(pd.price) > 0 ? ` · estimated from ${ccy}${pd.price}` : ' · price on request'}
                             </span>
                           </div>
@@ -1665,7 +1665,7 @@ export default function HotelDetail() {
                                 : 'Your holiday is available!'}
                             </div>
                             <div className="avail-sub">
-                              {`Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'night' : 'nights'}`}
+                              {`Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'day' : 'days'}`}
                               {liveRoom?.board ? ` · ${liveRoom.board.toLowerCase()}` : ''}
                             </div>
                           </div>
@@ -1677,7 +1677,7 @@ export default function HotelDetail() {
                                 : <><small>€</small>{liveRoom ? Math.round(liveRoom.price) : pd?.price}</>}
                             </div>
                             <div className="avail-you-low">
-                              {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'night' : 'nights'}`
+                              {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'day' : 'days'}`
                                 : liveRooms?.error ? 'Live price unavailable — estimate shown'
                                 : (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')}
                             </div>
@@ -1878,7 +1878,7 @@ export default function HotelDetail() {
                                 {gInfo.rooms > 1 ? ` · ${gInfo.rooms} rooms` : ''}
                               </span>
                             )}
-                            <span className="rgm">{ICON.moon}{nights} night{nights === 1 ? '' : 's'}</span>
+                            <span className="rgm">{ICON.moon}{nights} day{nights === 1 ? '' : 's'}</span>
                             {gInfo?.perNight != null && (
                               <span className="rgm">{ICON.tag}{ccy}{Math.round(gInfo.perNight).toLocaleString('en-GB')} / night</span>
                             )}
@@ -2012,7 +2012,7 @@ export default function HotelDetail() {
                       const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
                       // No invented April dates when the search carries none.
                       return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} - ${niceDate(co)}` : 'Dates not selected yet';
-                    })()} <span style={{ color: 'var(--text-light)' }}>({nights} nights)</span></div>
+                    })()} <span style={{ color: 'var(--text-light)' }}>({nights} days)</span></div>
                     </div>
                     {/* overview-score removed — no real review data yet */}
                   </div>
@@ -2371,7 +2371,7 @@ export default function HotelDetail() {
                 <div className="bkdi"><span className="bkdk">{ICON.users}</span>{Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.plane}</span>{destination ? `Brussels (${DEFAULT_ORIGIN}) → ${destination}` : `Brussels (${DEFAULT_ORIGIN})`}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.board}</span>{hotel?.board || 'All inclusive'}</div>
-                <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nights} nights</div>
+                <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nights} days</div>
               </div>
               <div className="bkcw">
                 <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
