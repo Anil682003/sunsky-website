@@ -1240,3 +1240,73 @@
 .sd .flight-section { order:2; }
 .sd .transfer-section { order:3; margin-bottom:38px; }
 .sd .overview-section { order:4; }
+
+/* ═══════════════════ RESPONSIVE LAYER ═══════════════════
+   Last in the file so it beats the refinement layer above. Everything here is a
+   narrow-viewport correction; the desktop layout is untouched. */
+
+/* Nothing on this page may widen the document. The fare strip and the tab rail are
+   deliberately scrollable, but a `1fr` grid track takes its automatic minimum from
+   min-content, so without minmax(0,…) their content pushed the whole page sideways. */
+.sd, .sd .pg, .sd .grid, .sd .tp { max-width:100%; }
+.sd .grid > *, .sd .tp > * { min-width:0; }
+.sd .fc-strip, .sd .tabs { max-width:100%; }
+
+@media (max-width:900px) {
+  /* Flight card: stack the fare row so the CTA gets a full-width hit area instead of
+     being squeezed against "View flight details" with no gap between them. */
+  .sd .flight-bottom { flex-direction:column; align-items:stretch; gap:11px; padding:14px 16px; }
+  .sd .flight-bottom::before, .sd .flight-bottom::after { display:none; }
+  .sd .flight-details-btn { width:100%; padding:11px 16px; }
+  .sd .bp-buy { width:100%; justify-content:space-between; gap:10px; }
+  .sd .flight-select-btn, .sd .flight-selected-badge { justify-content:center; padding:11px 22px; }
+}
+
+@media (max-width:560px) {
+  /* Fare calendar */
+  .sd .fc-col { flex:0 0 84px; }
+  .sd .fc-barzone { height:150px; }
+  .sd .fc-tail { height:18px; }
+  .sd .fc-amt { font-size:15px; }
+  .sd .fc-pop { padding:14px; }
+
+  /* Boarding-pass journey: the three-column route needs the middle rail to give way
+     first, otherwise the times and city names lose their space. */
+  .sd .bp-journey { padding:14px 15px; }
+  .sd .bp-incl { padding:0 15px 13px; }
+  .sd .bp-route { gap:6px; }
+  .sd .bp-mid { min-width:74px; }
+  .sd .bp-track { min-width:44px; }
+  .sd .bp-time { font-size:18px; }
+  .sd .bp-city { font-size:11.5px; }
+  .sd .bp-jhead { gap:7px; }
+  .sd .bp-airline { margin-left:0; }        /* wraps to its own line rather than crushing the date */
+  .sd .bp-chip { font-size:10.5px; padding:5px 9px; }
+
+  /* Comfortable touch targets — 32px chips are below what a thumb reliably hits. */
+  .sd .dur-chip, .sd .alt-chip { min-height:40px; }
+  .sd .alt-chip { padding:7px 13px; }
+  .sd .bc a { padding:3px 0; }
+
+  /* Rooms + transfers stack rather than truncate */
+  .sd .room-group .room-option { flex-wrap:wrap; }
+  .sd .stay-header { gap:9px; }
+  .sd .section-title { font-size:16px; }
+}
+
+@media (max-width:380px) {
+  .sd .pg { padding-left:12px; padding-right:12px; }
+  .sd .fc-col { flex:0 0 78px; }
+  .sd .bp-mid { min-width:60px; }
+  .sd .bp-track { min-width:32px; }
+  .sd .bp-time { font-size:17px; }
+}
+
+@media (max-width:560px) {
+  /* Trust row: a hard 1fr 1fr with nowrap items can't fit two ~150px labels on a
+     narrow phone, so it was the last thing widening the document. */
+  .sd .sd-hero-trust { grid-template-columns:1fr; max-width:100%; }
+  /* Give the fare/flight controls a real thumb target. */
+  .sd .flight-details-btn, .sd .flight-select-btn, .sd .flight-selected-badge { min-height:42px; }
+  .sd .fc-cta { min-height:46px; }
+}
