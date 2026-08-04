@@ -503,20 +503,23 @@
 .sd .fc-nts { margin-top:auto; font-size:9.5px; font-weight:600; color:rgba(255,255,255,.8); white-space:nowrap; }
 .sd .fc-col.sel .fc-amt { background:var(--sun); color:#22303f; padding:1px 9px; border-radius:6px; }
 .sd .fc-under { padding:11px 0 4px; display:flex; flex-direction:column; align-items:center; gap:1px; position:relative; }
-/* The picked day's label band is tinted so the bar, the date and the ribbon below
-   read as ONE column dropping into the action card. */
+/* The picked day's label band carries the BAR's own navy down past the date and into
+   the ribbon, so bar → date → arrow read as one solid column pointing at the card. */
 .sd .fc-col.sel .fc-under::before {
   content:''; position:absolute; inset:0 6px; z-index:0;
-  background:linear-gradient(180deg,#dbe8ff,#e8f1ff);
-  border-radius:0 0 4px 4px;
+  background:#0f2f7a;
 }
 .sd .fc-under > * { position:relative; z-index:1; }
+/* The hairline under the strip would otherwise cut the column in half. */
+.sd .fc-col.sel .fc-barzone { border-bottom-color:#0f2f7a; }
 .sd .fc-wk { color:var(--text-light); }
 .sd .fc-date { font-family:'Sora',sans-serif; font-size:13px; font-weight:800; color:var(--dark); white-space:nowrap; }
-.sd .fc-col.sel .fc-date { color:var(--blue); }
+.sd .fc-col.sel .fc-wk { color:rgba(255,255,255,.72); }
+.sd .fc-col.sel .fc-date { color:#fff; }
 .sd .fc-dot { width:16px; height:16px; border-radius:50%; border:1.5px solid #c5d4ea; background:var(--white); margin-top:7px; transition:border-color .2s, background-color .2s; }
 .sd .fc-col:hover .fc-dot { border-color:var(--blue-soft); }
-.sd .fc-col.sel .fc-dot { border-color:var(--blue); background-color:var(--blue); background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.6' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E"); background-position:center; background-size:9px; background-repeat:no-repeat; }
+/* White disc with a navy tick — a blue dot on the navy band had almost no contrast. */
+.sd .fc-col.sel .fc-dot { border-color:#fff; background-color:#fff; background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230f2f7a' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E"); background-position:center; background-size:9px; background-repeat:no-repeat; }
 
 /* ── the ribbon that ties the picked day to the action card ───────────────────
    Every column reserves this strip, so choosing a day never reflows the row; only
@@ -527,7 +530,7 @@
    percentage and had to be hidden there). */
 .sd .fc-tail { display:block; height:26px; width:100%; }
 .sd .fc-col.sel .fc-tail {
-  background:linear-gradient(180deg,#e8f1ff,#dce9ff);
+  background:#0f2f7a;
   clip-path:polygon(6px 0, calc(100% - 6px) 0, calc(100% - 6px) 42%, 50% 100%, 6px 42%);
   animation:sdTailDrop .32s var(--ease) both;
 }
