@@ -12,9 +12,11 @@ import styles from './StayBar.module.css';
 // It owns no search state. Every change is reported through `onChange` (a patch for the page's
 // filter override) so the page stays the single source of truth.
 
-const MIN_ADULTS = 1, MAX_ADULTS = 6;
-const MIN_CHILDREN = 0, MAX_CHILDREN = 4;
+const MIN_ADULTS = 1, MAX_ADULTS = 6;      // per room
+const MIN_CHILDREN = 0, MAX_CHILDREN = 4;  // per room
+const MAX_ROOMS = 5;
 const CHILD_AGE_MAX = 17;
+const DEFAULT_CHILD_AGE = 8;   // HotelBeds rejects a child with no age; matches the page's default
 const NEARBY_SPAN = 12;   // how many "nearby departures" to list before the date input takes over
 
 const Chevron = () => (
@@ -83,9 +85,19 @@ function OptionList({ options, current, onPick, scroll }) {
   );
 }
 
+// Spread flat totals across N rooms, biggest rooms first — the page only stores totals plus a
+// room count, so the per-room breakdown has to be reconstructed each time the popover opens.
+function splitRooms(totalAdults, totalChildren, roomCount) {
+  const n = Math.max(1, roomCount);
+  return Array.from({ length: n }, (_, i) => ({
+    adults: Math.floor(totalAdults / n) + (i < totalAdults % n ? 1 : 0),
+    children: Math.floor(totalChildren / n) + (i < totalChildren % n ? 1 : 0),
+  }));
+}
+
 export default function StayBar({
   checkIn, dateOptions = [], formatDate,
-  adults, children: childCount, childAges = '',
+  adults, children: childCount, childAges = '', rooms: roomCount = 1,
   board = '', boardOptions = [],
   origin, originOptions = [], originLabel = (c) => c, destination = '',
   nights, nightOptions = [], durationChips = [],
@@ -106,6 +118,38 @@ export default function StayBar({
     return () => { document.removeEventListener('mousedown', onDown); document.removeEventListener('keydown', onKey); };
   }, [openField]);
 
+  // Occupancy is edited as a DRAFT: a stepper click must not fire a fresh availability search on
+  // every tap, so nothing is committed until "Save". Re-seeded from the committed values whenever
+  // the popover opens, so dismissing it discards the draft.
+  const [draft, setDraft] = useState(() => splitRooms(adults, childCount, roomCount));
+  const [draftAges, setDraftAges] = useState(() => childAges);
+  // Re-seed on every OPEN, not when the committed values change — otherwise a draft abandoned by
+  // clicking away survives and reappears the next time the popover is opened.
+  const paxOpen = openField === 'pax';
+  const [wasPaxOpen, setWasPaxOpen] = useState(paxOpen);
+  if (paxOpen !== wasPaxOpen) {
+    setWasPaxOpen(paxOpen);
+    if (paxOpen) { setDraft(splitRooms(adults, childCount, roomCount)); setDraftAges(childAges); }
+  }
+
+  const dAdults = draft.reduce((s, r) => s + r.adults, 0);
+  const dChildren = draft.reduce((s, r) => s + r.children, 0);
+  const dAges = (() => {
+    const list = draftAges ? draftAges.split(',').map((a) => parseInt(a, 10) || 0) : [];
+    return Array.from({ length: dChildren }, (_, i) => list[i] ?? DEFAULT_CHILD_AGE);
+  })();
+  const setRoom = (i, key, v) => setDraft((p) => p.map((r, k) => (k === i ? { ...r, [key]: v } : r)));
+  const addRoom = () => setDraft((p) => (p.length >= MAX_ROOMS ? p : [...p, { adults: 2, children: 0 }]));
+  const removeRoom = (i) => setDraft((p) => (p.length <= 1 ? p : p.filter((_, k) => k !== i)));
+  const setDraftAge = (i, v) => setDraftAges(dAges.map((a, k) => (k === i ? v : a)).join(','));
+  const saveOccupancy = () => {
+    onChange({ adults: String(dAdults), children: String(dChildren), rooms: String(draft.length) });
+    if (dChildren > 0) onChildAges?.(dAges.join(','));
+    close();
+  };
+  const dirty = `${dAdults}|${dChildren}|${draft.length}|${dChildren ? dAges.join(',') : ''}`
+    !== `${adults}|${childCount}|${roomCount}|${childCount ? childAges : ''}`;
+
   const today = new Date().toISOString().slice(0, 10);
   // The page can offer a year of departures; a 300-row scroller is no better than the old
   // <select>. Any date is reachable through the input above, so the list only shows a short
@@ -116,14 +160,9 @@ export default function StayBar({
     const start = Math.min(Math.max(0, at - 3), Math.max(0, dateOptions.length - NEARBY_SPAN));
     return dateOptions.slice(start, start + NEARBY_SPAN);
   })();
-  const ages = childAges ? childAges.split(',').map((a) => parseInt(a, 10) || 0) : [];
-  const setAge = (i, v) => {
-    const next = Array.from({ length: childCount }, (_, k) => (k === i ? v : (ages[k] ?? 8)));
-    onChildAges?.(next.join(','));
-  };
-
   const paxLabel = `${adults} adult${adults === 1 ? '' : 's'}`
-    + (childCount ? `, ${childCount} child${childCount === 1 ? '' : 'ren'}` : '');
+    + (childCount ? `, ${childCount} child${childCount === 1 ? '' : 'ren'}` : '')
+    + (roomCount > 1 ? ` · ${roomCount} rooms` : '');
   const boardLabel = boardOptions.find((b) => b.id === board)?.label || 'No preference';
   const nightList = (nightOptions.includes(nights) ? nightOptions : [...nightOptions, nights].sort((a, b) => a - b));
 
@@ -149,30 +188,62 @@ export default function StayBar({
 
         <Field id="pax" icon={ICONS.users} label="Travelling company" value={paxLabel}
           open={openField === 'pax'} onToggle={toggle} wide>
-          <Stepper label="Adults" sub="18 and over" value={adults} min={MIN_ADULTS} max={MAX_ADULTS}
-            onChange={(v) => onChange({ adults: String(v) })} />
-          <Stepper label="Children" sub="0 to 17 years" value={childCount} min={MIN_CHILDREN} max={MAX_CHILDREN}
-            onChange={(v) => onChange({ children: String(v) })} />
-          {childCount > 0 && onChildAges && (
-            <div className={styles.ages}>
-              <div className={styles.popTitle}>Age at check-in</div>
-              {Array.from({ length: childCount }, (_, i) => (
-                <div className={styles.ageRow} key={i}>
-                  <span className={styles.ageLabel}>Child {i + 1}</span>
-                  <select className={styles.ageSelect} value={ages[i] ?? 8}
-                    onChange={(e) => setAge(i, Number(e.target.value))} aria-label={`Age of child ${i + 1}`}>
-                    {Array.from({ length: CHILD_AGE_MAX + 1 }, (_, a) => (
-                      <option key={a} value={a}>{a === 0 ? 'Under 1' : `${a} year${a === 1 ? '' : 's'}`}</option>
-                    ))}
-                  </select>
+          <div className={styles.roomScroll}>
+            {draft.map((room, ri) => {
+              // children are numbered across the whole party, so room 2's first child
+              // continues room 1's count — that ordering is what the age list carries
+              const before = draft.slice(0, ri).reduce((s, r) => s + r.children, 0);
+              return (
+                <div className={styles.roomCard} key={ri}>
+                  <div className={styles.roomHead}>
+                    <span className={styles.roomTitle}>
+                      <span className={styles.roomBadge}>{ri + 1}</span> Room {ri + 1}
+                    </span>
+                    {ri > 0 && (
+                      <button type="button" className={styles.roomRemove} onClick={() => removeRoom(ri)}>Remove</button>
+                    )}
+                  </div>
+                  <Stepper label="Adults" sub="from 18 years" value={room.adults}
+                    min={MIN_ADULTS} max={MAX_ADULTS} onChange={(v) => setRoom(ri, 'adults', v)} />
+                  <Stepper label="Children" sub="0 to 17 years" value={room.children}
+                    min={MIN_CHILDREN} max={MAX_CHILDREN} onChange={(v) => setRoom(ri, 'children', v)} />
+                  {room.children > 0 && onChildAges && (
+                    <div className={styles.ages}>
+                      <div className={styles.popTitle}>Age at check-in</div>
+                      {Array.from({ length: room.children }, (_, ci) => {
+                        const idx = before + ci;
+                        return (
+                          <div className={styles.ageRow} key={ci}>
+                            <span className={styles.ageLabel}>Child {ci + 1}</span>
+                            <select className={styles.ageSelect} value={dAges[idx] ?? DEFAULT_CHILD_AGE}
+                              onChange={(e) => setDraftAge(idx, Number(e.target.value))}
+                              aria-label={`Age of child ${ci + 1} in room ${ri + 1}`}>
+                              {Array.from({ length: CHILD_AGE_MAX + 1 }, (_, a) => (
+                                <option key={a} value={a}>{a === 0 ? 'Under 1' : `${a} year${a === 1 ? '' : 's'}`}</option>
+                              ))}
+                            </select>
+                          </div>
+                        );
+                      })}
+                      <p className={styles.ageHint}>Hotels price children by age, so this changes the rate.</p>
+                    </div>
+                  )}
                 </div>
-              ))}
-              <p className={styles.ageHint}>Hotels price children by age, so this changes the rate.</p>
-            </div>
-          )}
+              );
+            })}
+            {draft.length < MAX_ROOMS && (
+              <button type="button" className={styles.addRoom} onClick={addRoom}>
+                <span className={styles.addRoomIcon}>+</span> Add extra room
+              </button>
+            )}
+          </div>
           <div className={styles.popFoot}>
-            <span className={styles.popSummary}>{paxLabel}</span>
-            <button type="button" className={styles.doneBtn} onClick={close}>Done</button>
+            <span className={styles.popSummary}>
+              {dAdults} adult{dAdults === 1 ? '' : 's'}
+              {dChildren ? `, ${dChildren} child${dChildren === 1 ? '' : 'ren'}` : ''}
+              {' · '}{draft.length} room{draft.length === 1 ? '' : 's'}
+            </span>
+            <button type="button" className={styles.saveBtn} onClick={saveOccupancy} disabled={!dirty}>Save</button>
           </div>
         </Field>
 
