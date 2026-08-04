@@ -626,6 +626,19 @@
 }
 @keyframes sdTailDrop { from { opacity:0; transform:translateY(-7px); } to { opacity:1; transform:none; } }
 
+/* Stepping a day at a time: the bar element itself is reused so its height transition carries
+   the movement, and only the wording inside it is replaced — fading in so the numbers don't
+   snap to another day's price while the bar is still gliding. Full height so .fc-nts keeps its
+   margin-top:auto footing at the bottom of the bar. */
+.sd .fc-barin { display:flex; flex-direction:column; align-items:center; width:100%; height:100%; min-height:0; animation:fcFade .34s var(--ease); }
+.sd .fc-under { animation:fcFade .34s var(--ease); }
+@keyframes fcFade { from { opacity:0; } to { opacity:1; } }
+/* Motion is the affordance here, not decoration — but never at the cost of accessibility. */
+@media (prefers-reduced-motion: reduce) {
+  .sd .fc-barin, .sd .fc-under { animation:none; }
+  .sd .fc-bar { transition:none; }
+}
+
 /* week paging: arrows flank the strip and share its row, so the bars keep the full width
    between them rather than sitting under an overlay. */
 .sd .fc-week { display:flex; align-items:center; gap:12px; }
