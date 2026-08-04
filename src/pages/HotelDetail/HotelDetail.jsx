@@ -638,10 +638,21 @@ export default function HotelDetail() {
   const destination  = state?.destination || qp('destination');
   const paramCheckIn  = state?.checkIn  || qp('checkIn');
   const paramCheckOut = state?.checkOut || qp('checkOut');
-  const baseCheckIn  = ovr.checkIn ?? paramCheckIn;
+  // Today is the floor for EVERY departure date on this page. Clamped here, at the single place
+  // the whole page reads its check-in from, rather than at each consumer: a bookmarked or shared
+  // link months old used to leave the search bar advertising a departure that had already
+  // happened while the price strip quietly showed this week — two different stays on one screen,
+  // and a flight search run for a date no airline will sell.
+  const today = todayISO();
+  const notBeforeToday = (iso) => (iso && iso < today ? today : iso);
+  const rawCheckIn   = ovr.checkIn ?? paramCheckIn;
+  const baseCheckIn  = notBeforeToday(rawCheckIn);
+  const checkInWasPast = !!rawCheckIn && baseCheckIn !== rawCheckIn;
   // Check-out follows check-in + nights once EITHER has been edited; an untouched bar
-  // keeps the searched check-out verbatim (it may not be checkIn+nights apart).
-  const baseCheckOut = (ovr.checkIn != null || ovr.nights != null)
+  // keeps the searched check-out verbatim (it may not be checkIn+nights apart). A clamped
+  // check-in counts as an edit — keeping the old check-out verbatim would put it BEFORE the
+  // check-in and price a negative stay.
+  const baseCheckOut = (ovr.checkIn != null || ovr.nights != null || checkInWasPast)
     ? (baseCheckIn ? addDaysISO(baseCheckIn, nights) : paramCheckOut)
     : paramCheckOut;
   const sAdults   = String(ovr.adults   ?? state?.adults   ?? (qp('adults')   || '2'));
@@ -804,8 +815,8 @@ export default function HotelDetail() {
   // The cache endpoint always returns CAL_DAYS days FORWARD from the check-in it is handed, so
   // paging is nothing more than asking again from a different day. Today is the hard floor: the
   // traveller can step back as far as the current week and no further.
-  const today = todayISO();
-  const notBeforeToday = (iso) => (iso && iso < today ? today : iso);
+  // `today` / `notBeforeToday` are defined up with baseCheckIn — the clamp has to happen before
+  // anything reads the check-in, not just before the strip does.
   const winStart = (win.base === baseCheckIn && win.start) ? win.start : notBeforeToday(baseCheckIn);
   const canPageBack = !!winStart && winStart > today;
   // ONE DAY per press, not one week: the strip walks along the calendar the way the traveller
@@ -1188,20 +1199,6 @@ export default function HotelDetail() {
   };
   const resetFilters = () => { setOvr({}); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); setLiveRooms(null); setLiveFlights(null); setLiveTransfers(null); setSelectedTransfer(-1); setCheckedEmpty(new Set()); };
 
-  // Departure dates offered: every day from today to 11 months out. The traveller can
-  // also click a day in the price strip, which is the faster path for small moves.
-  const dateOptions = useMemo(() => {
-    const out = [];
-    const start = new Date();
-    start.setHours(12, 0, 0, 0);
-    for (let i = 0; i < 330; i++) {
-      const d = new Date(start);
-      d.setDate(d.getDate() + i);
-      const p = (v) => String(v).padStart(2, '0');
-      out.push(`${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`);
-    }
-    return out;
-  }, []);
   const ovBase = liveTotal != null ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
 
   // ── shared flight fetch (used on mount + day-click) ──
@@ -1675,7 +1672,7 @@ export default function HotelDetail() {
               <div className="section-title"><span className="st-step">1</span> Compare the lowest prices</div>
 
               <StayBar
-                checkIn={baseCheckIn} dateOptions={dateOptions} formatDate={niceDate}
+                checkIn={baseCheckIn} formatDate={niceDate}
                 adults={Number(sAdults) || 1} children={Number(sChildren) || 0} childAges={sChildAges}
                 rooms={Number(sRooms) || 1}
                 board={boardPref} boardOptions={boardOptions}
