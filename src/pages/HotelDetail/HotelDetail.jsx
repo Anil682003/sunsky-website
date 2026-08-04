@@ -459,13 +459,11 @@ function GuestRating({ review }) {
       <span className="sd-rating-badge">
         {r.score}<span className="sd-rating-outof">/{r.outOf}</span>
       </span>
+      {/* Two lines, nothing else. A proportional meter lived here briefly and was a mistake:
+          in a flex column it stretched to the width of the review-count line, so it read as a
+          stray rule floating between the verdict and the source rather than as a scale. */}
       <span className="sd-rating-body">
         <span className="sd-rating-word">{scoreWord(r.score)}</span>
-        {/* A number alone makes the reader do the work of placing 6.4 on a scale; the meter
-            shows the proportion at a glance. Decorative — the score beside it is the content. */}
-        <span className="sd-rating-meter" aria-hidden="true">
-          <span className="sd-rating-fill" style={{ width: `${r.fillPct}%` }} />
-        </span>
         <span className="sd-rating-meta">
           <span className="sd-rating-src">{r.label}</span>
           {r.count > 0 && <span className="sd-rating-count">{r.count.toLocaleString('en-GB')} reviews</span>}
@@ -897,6 +895,33 @@ export default function HotelDetail() {
       .map((g) => ({ ...g, cheapest: g.boards[0] }));
   }, [allRoomGroups, boardPref]);
   const boardFilterHidAll = allRoomGroups.length > 0 && roomGroups.length === 0;
+
+  // ── which meal plans this hotel actually sells ───────────────────────────────
+  // The picker used to offer all six unconditionally, so a hotel that only sells room-only
+  // still advertised All Inclusive and the traveller found out only after running a check.
+  // Nothing in the content record helps: `/hotels/bulk` has a `boards` field but the cache
+  // leaves it empty for every hotel tested. The live availability response is the one
+  // authoritative source, so once rates are in we list only the boards they contain, each
+  // with the cheapest price on it. Before that we cannot know, and say so rather than imply
+  // the list is this hotel's.
+  const boardsKnown = allRoomGroups.length > 0;
+  const boardOptions = useMemo(() => {
+    if (!boardsKnown) return BOARD_PREFS;
+    const rates = allRoomGroups.flatMap((g) => g.boards);
+    const cheapestOn = (pref) => rates
+      .filter((b) => pref.match.test(`${b.boardLabel} ${b.boardCode || ''}`))
+      .reduce((lo, b) => (lo == null || b.price < lo ? b.price : lo), null);
+    const offered = BOARD_PREFS.filter((b) => b.match).map((b) => ({ ...b, price: cheapestOn(b) }));
+    return [
+      { id: '', label: 'No preference' },
+      ...offered.filter((b) => b.price != null)
+        .map((b) => ({ id: b.id, label: b.label, note: `from ${ccy}${Math.round(b.price)}` })),
+      // A board the traveller has chosen that these dates don't offer stays visible and
+      // labelled, so the list never silently drops the option they are looking at.
+      ...offered.filter((b) => b.price == null && b.id === boardPref)
+        .map((b) => ({ id: b.id, label: b.label, note: 'not on these dates' })),
+    ];
+  }, [boardsKnown, allRoomGroups, boardPref, ccy]);
   const nBoards = useMemo(() => boardCount(roomGroups), [roomGroups]);
 
   // Per-rate facts for the cards: board wording, occupancy, per-night / per-guest splits and
@@ -1454,7 +1479,10 @@ export default function HotelDetail() {
                 checkIn={baseCheckIn} dateOptions={dateOptions} formatDate={niceDate}
                 adults={Number(sAdults) || 1} children={Number(sChildren) || 0} childAges={sChildAges}
                 rooms={Number(sRooms) || 1}
-                board={boardPref} boardOptions={BOARD_PREFS}
+                board={boardPref} boardOptions={boardOptions}
+                boardHint={boardsKnown
+                  ? 'Meal plans this hotel offers on the dates you checked.'
+                  : 'Check a date to see which meal plans this hotel actually offers.'}
                 origin={origin} originOptions={ORIGINS} originLabel={airportName} destination={destination}
                 nights={nights} nightOptions={NIGHT_OPTIONS} durationChips={DURATION_CHIPS}
                 touched={filtersTouched}
