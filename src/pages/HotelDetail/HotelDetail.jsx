@@ -145,12 +145,6 @@ const FLIGHTS = [
 // MODAL_FLIGHTS / SIDEBAR_FILTERS removed: the modal now renders the live result set and
 // builds its filter groups from `flightFacets`, so a hardcoded flight list and a fixed list
 // of filter options can no longer disagree with what was actually searched.
-const ALT_AIRPORTS = [
-  { name: 'Weeze', extra: '+€ 6 p.p.' }, { name: 'Charleroi', extra: '+€ 7 p.p.' },
-  { name: 'Düsseldorf', extra: '+€ 23 p.p.' }, { name: 'Brussels', extra: '+€ 33 p.p.' },
-  { name: 'Eindhoven', extra: '+€ 67 p.p.' }, { name: 'Schiphol', extra: '+€ 68 p.p.' },
-  { name: 'Rotterdam', extra: '+€ 113 p.p.' },
-];
 const MEAL_PLANS = [
   { id: 'ro', name: 'Room Only', desc: 'No meals included', price: 420 },
   { id: 'bb', name: 'Bed & Breakfast', desc: 'Breakfast included', price: 460 },
@@ -346,12 +340,41 @@ function FlightCardSkeleton() {
   );
 }
 
-function RoomCardSkeleton() {
+/**
+ * Room placeholder, built on the REAL card's own classes (`room-group-head`, `room-group-meta`,
+ * `room-option`, `room-info`, `room-price-col`).
+ *
+ * The previous version drew its own boxes — a 44px avatar the card doesn't have, and flat rows
+ * with none of the card's structure — so the block visibly re-laid-out the moment rates landed.
+ * Borrowing the layout classes means the placeholder is the card's geometry by construction and
+ * cannot drift from it again when the card changes.
+ *
+ * `rows` varies per card so the wait doesn't look like N identical stamped copies.
+ */
+function RoomCardSkeleton({ rows = 2 }) {
   return (
     <div className="room-group sk-card" aria-hidden="true">
-      <div className="sk-room-head"><Sk w={44} h={44} r={12} /><span style={{ flex: 1 }}><Sk w="46%" h={15} /><Sk w="28%" style={{ marginTop: 7 }} /></span><Sk w={78} h={26} r={8} /></div>
-      {[0, 1].map((i) => (
-        <div className="sk-room-row" key={i}><Sk w={124} h={22} r={999} /><Sk w="30%" /><Sk w={66} h={20} style={{ marginLeft: 'auto' }} /></div>
+      <div className="room-group-head">
+        <div className="room-group-id"><Sk w={172} h={15} /><Sk w={58} h={15} r={999} /></div>
+        <div className="room-group-from"><Sk w={52} h={12} /><Sk w={70} h={13} /></div>
+      </div>
+      <div className="room-group-meta">
+        <Sk w={88} h={12} /><Sk w={64} h={12} /><Sk w={96} h={12} />
+      </div>
+      {Array.from({ length: rows }, (_, i) => (
+        <div className="room-option sk-room-option" key={i}>
+          <Sk w={20} h={20} r={999} />
+          <div className="room-info">
+            <Sk w={i === 0 ? 128 : 154} h={14} />
+            <Sk w={102} h={11} style={{ marginTop: 7 }} />
+            <div className="sk-chips"><Sk w={i === 0 ? 168 : 116} h={22} r={999} /><Sk w={78} h={22} r={999} /></div>
+          </div>
+          <div className="room-price-col">
+            <Sk w={74} h={30} r={999} />
+            <Sk w={58} h={11} />
+            {i > 0 && <Sk w={86} h={11} />}
+          </div>
+        </div>
       ))}
     </div>
   );
@@ -782,6 +805,27 @@ export default function HotelDetail() {
   const priceVaries = pMin !== pMax;
   const pd = selectedPrice != null ? priceDays[selectedPrice] : null;
 
+  const filtersTouched = Object.keys(ovr).length > 0;
+  // ── the one "from" figure the page quotes ────────────────────────────────────
+  // Everything headline-priced (hero chip, Book card, mobile bar, share text, the checkout
+  // hand-off) reads this, so those can never disagree with each other.
+  //
+  // It follows what the traveller actually asked for: the day they picked, else the cheapest
+  // day the calendar just returned. Once ANY filter is touched it will NOT fall back to the
+  // total the results card arrived with — that number priced the search they just changed, and
+  // showing it beside a re-priced calendar quotes two different stays at once. When there is
+  // nothing true to quote it is null and the UI says so, rather than inventing a figure (this
+  // used to read a hardcoded 765 on a cold visit).
+  const paxCount = Math.max(1, (Number(sAdults) || 1) + (Number(sChildren) || 0));
+  const stayFrom = (() => {
+    if (Number(pd?.price) > 0) return Number(pd.price);
+    if (usingLive && pMin > 0) return pMin;
+    if (!filtersTouched && Number(hotel?.totalAmount) > 0) return Number(hotel.totalAmount);
+    return null;
+  })();
+  // Per person — the calendar prices a whole stay for the whole party.
+  const fromPP = stayFrom != null ? Math.round(stayFrom / paxCount) : null;
+
   // ── shareable link ──────────────────────────────────────────────────────────
   // A shared link must re-open the SAME stay, so the whole search context rides in
   // the query string (this page reads those as its fallback when there's no in-app
@@ -939,26 +983,6 @@ export default function HotelDetail() {
     const keepsTheDay = Object.keys(patch).every((k) => k === 'origin' || k === 'childAges' || k === 'nights');
     if (!keepsTheDay) setSelectedPrice(null);
   };
-  const filtersTouched = Object.keys(ovr).length > 0;
-  // ── the one "from" figure the page quotes ────────────────────────────────────
-  // Everything headline-priced (hero chip, Book card, mobile bar, share text, the
-  // checkout hand-off) reads this, so those can never disagree with each other.
-  //
-  // It follows what the traveller has actually asked for: the day they picked, else the
-  // cheapest day the calendar just returned. Once ANY filter is touched it will not fall
-  // back to the total the results card arrived with — that number priced the search they
-  // just changed, and showing it beside a re-priced calendar quotes two different stays at
-  // once. When there is nothing true to quote it is null and the UI says so, rather than
-  // inventing a figure (this used to read a hardcoded 765 on a cold visit).
-  const paxCount = Math.max(1, (Number(sAdults) || 1) + (Number(sChildren) || 0));
-  const stayFrom = (() => {
-    if (Number(pd?.price) > 0) return Number(pd.price);
-    if (usingLive && pMin > 0) return pMin;
-    if (!filtersTouched && Number(hotel?.totalAmount) > 0) return Number(hotel.totalAmount);
-    return null;
-  })();
-  // Per person — the calendar prices a whole stay for the whole party.
-  const fromPP = stayFrom != null ? Math.round(stayFrom / paxCount) : null;
   const resetFilters = () => { setOvr({}); setSelectedPrice(null); setLiveChecked(false); setLiveRooms(null); setLiveFlights(null); setLiveTransfers(null); setSelectedTransfer(-1); };
 
   // Departure dates offered: every day from today to 11 months out. The traveller can
@@ -1580,14 +1604,22 @@ export default function HotelDetail() {
                       <FlightCard key={i} f={f} selected={selectedFlight === i} onSelect={() => setSelectedFlight(i)} />
                     ))}
                     <button className="show-more-flights" onClick={() => setModalOpen(true)}>{ICON.plane} Show more flights</button>
+                    {/* One-click departure-airport switch — the same action as the Transport
+                        field in the search bar, so picking one re-runs the flight search from
+                        there. These used to be inert <div>s quoting invented "+€ N p.p."
+                        deltas from the design mock; a real delta would cost one live supplier
+                        search per airport, so the price line is gone rather than faked. */}
                     <div className="alt-airports">
-                      <div className="alt-airports-label">Or flying from another airport?</div>
+                      <div className="alt-airports-label">Flying from another airport?</div>
                       <div className="alt-airport-chips">
-                        {ALT_AIRPORTS.map((a) => (
-                          <div className="alt-chip" key={a.name}>
-                            <div className="alt-chip-name">{a.name}</div>
-                            <div className="alt-chip-price">{a.extra}</div>
-                          </div>
+                        {ORIGINS.map((code) => (
+                          <button type="button" key={code}
+                            className={`alt-chip${origin === code ? ' act' : ''}`}
+                            aria-pressed={origin === code}
+                            onClick={() => applyFilter({ origin: code })}>
+                            <span className="alt-chip-name">{airportName(code)}</span>
+                            <span className="alt-chip-code">{code}</span>
+                          </button>
                         ))}
                       </div>
                     </div>
@@ -1642,7 +1674,9 @@ export default function HotelDetail() {
                 {liveRooms ? (
                   liveRooms.loading ? (
                     <SkeletonBlock label="Checking live room availability…">
-                      <RoomCardSkeleton /><RoomCardSkeleton /><RoomCardSkeleton />
+                      {/* Uneven board counts — a real hotel never returns three identically
+                          shaped rooms, and three identical placeholders read as a stuck screen. */}
+                      <RoomCardSkeleton rows={3} /><RoomCardSkeleton rows={2} /><RoomCardSkeleton rows={2} />
                     </SkeletonBlock>
                   ) : liveRooms.error ? (
                     <div className="live-error">{ICON.warn} {liveRooms.error}</div>
