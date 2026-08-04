@@ -808,69 +808,93 @@ export default function HotelDetail() {
   const notBeforeToday = (iso) => (iso && iso < today ? today : iso);
   const winStart = (win.base === baseCheckIn && win.start) ? win.start : notBeforeToday(baseCheckIn);
   const canPageBack = !!winStart && winStart > today;
-  const pageWeek = (delta) => {
+  // ONE DAY per press, not one week: the strip walks along the calendar the way the traveller
+  // reads it, so stepping back off Monday the 4th lands on Sunday the 3rd rather than skipping a
+  // week out of view.
+  const pageDay = (delta) => {
     if (!winStart) return;
-    setWin({ base: baseCheckIn, start: notBeforeToday(addDaysISO(winStart, delta * CAL_DAYS)) });
+    const next = notBeforeToday(addDaysISO(winStart, delta));
+    if (next === winStart) return;           // already against the floor — nothing to redraw
+    setWin({ base: baseCheckIn, start: next });
   };
 
   // Prices only compare within one search, so this is the identity the cached days belong to.
   // `calReload` is part of it, which is what makes the "Try again" button re-fetch.
   const calScope = [hotelCode, destination, nights, sAdults, sChildren, sRooms, calReload].join('|');
 
-  // Which weeks have already been asked for, so paging back never re-fetches. A ref rather than
-  // state because writing it must not itself re-run the effect that reads it.
-  const askedRef = useRef({ scope: '', weeks: new Set() });
+  // Every day already asked for, so stepping never re-requests one. A ref rather than state
+  // because writing it must not itself re-run the effect that reads it.
+  const askedRef = useRef({ scope: '', days: new Set() });
 
   useEffect(() => {
     if (!hotelCode || !destination || !winStart) { setCalError(false); return; }
     const asked = askedRef.current;
-    if (asked.scope !== calScope) { asked.scope = calScope; asked.weeks = new Set(); }
-    if (asked.weeks.has(winStart)) return;   // already priced this week under this search
-    asked.weeks.add(winStart);
+    if (asked.scope !== calScope) { asked.scope = calScope; asked.days = new Set(); }
 
-    setCalLoading(true);
-    setCalError(false);
-    const roomsN = Math.max(1, parseInt(sRooms, 10) || 1);
-    const qs = new URLSearchParams({
-      // checkOut is derived from the VISIBLE week, not the searched one: the endpoint reads the
-      // stay length off this pair, so sending the original check-out would re-price a paged week
-      // at the wrong number of nights.
-      hotelCode: String(hotelCode), destination, checkIn: winStart, checkOut: addDaysISO(winStart, nights),
-      adults: sAdults, children: sChildren, rooms: String(roomsN), source: 'combined',
-      maxAdultsPerRoom: String(Math.ceil((parseInt(sAdults, 10) || 1) / roomsN)),
-      maxChildrenPerRoom: String(Math.ceil((parseInt(sChildren, 10) || 0) / roomsN)),
-    });
     let cancelled = false;
-    let settled = false;
-    fetch(`${CONTRACTS_API}/contracts/hotel-price-calendar?${qs.toString()}`)
-      // A 4xx/5xx that returns an HTML error page used to land in .catch() looking exactly
-      // like a network failure; check the status so a real outage is reported as one.
-      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
-      .then((j) => {
-        settled = true;
-        if (cancelled) return;
-        const rows = Array.isArray(j?.calendar) ? j.calendar : [];
-        setCal((prev) => {
-          const keep = prev.scope === calScope;
-          const byDate = keep ? { ...prev.byDate } : {};
-          for (const c of rows) if (c?.date) byDate[c.date] = c;
-          return { scope: calScope, byDate };
-        });
-      })
-      .catch(() => {
-        settled = true;
-        // Let a failed week be retried rather than cached as "asked and empty".
-        asked.weeks.delete(winStart);
-        if (!cancelled) setCalError(true);
-      })
-      .finally(() => { if (!cancelled) setCalLoading(false); });
-    return () => {
-      cancelled = true;
-      // Dropped mid-flight (the traveller paged on): forget it, or that week would sit blank
-      // for good with nothing left to trigger a re-fetch.
-      if (!settled) asked.weeks.delete(winStart);
+    const roomsN = Math.max(1, parseInt(sRooms, 10) || 1);
+
+    // One request, covering CAL_DAYS days forward from `blockStart`.
+    const load = (blockStart, visible) => {
+      for (let k = 0; k < CAL_DAYS; k++) asked.days.add(addDaysISO(blockStart, k));
+      const qs = new URLSearchParams({
+        // checkOut is derived from the block, not from the original search: the endpoint reads
+        // the stay length off this pair, so sending the searched check-out would re-price a
+        // stepped-to day at the wrong number of nights.
+        hotelCode: String(hotelCode), destination, checkIn: blockStart, checkOut: addDaysISO(blockStart, nights),
+        adults: sAdults, children: sChildren, rooms: String(roomsN), source: 'combined',
+        maxAdultsPerRoom: String(Math.ceil((parseInt(sAdults, 10) || 1) / roomsN)),
+        maxChildrenPerRoom: String(Math.ceil((parseInt(sChildren, 10) || 0) / roomsN)),
+      });
+      if (visible) { setCalLoading(true); setCalError(false); }
+      fetch(`${CONTRACTS_API}/contracts/hotel-price-calendar?${qs.toString()}`)
+        // A 4xx/5xx that returns an HTML error page used to land in .catch() looking exactly
+        // like a network failure; check the status so a real outage is reported as one.
+        .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+        .then((j) => {
+          // Days are keyed by date, so a block that arrives after the traveller has stepped on
+          // is still worth keeping — only a stale SEARCH is discarded.
+          if (askedRef.current.scope !== calScope) return;
+          const rows = Array.isArray(j?.calendar) ? j.calendar : [];
+          setCal((prev) => {
+            const keep = prev.scope === calScope;
+            const byDate = keep ? { ...prev.byDate } : {};
+            for (const c of rows) if (c?.date) byDate[c.date] = c;
+            return { scope: calScope, byDate };
+          });
+        })
+        .catch(() => {
+          // Let a failed block be retried rather than remembered as "asked and empty".
+          for (let k = 0; k < CAL_DAYS; k++) asked.days.delete(addDaysISO(blockStart, k));
+          if (visible && !cancelled) setCalError(true);
+        })
+        .finally(() => { if (visible && !cancelled) setCalLoading(false); });
     };
-  }, [hotelCode, destination, winStart, nights, sAdults, sChildren, sRooms, calScope]);
+
+    // Cover a week either side of the visible seven days, so a run of single-day steps never
+    // waits on the network. Blocks are laid end to end from the first uncovered day.
+    // Clamped inline rather than through the render-scoped helper: that helper is a new function
+    // every render, so depending on it would re-run this effect on every single one.
+    const back = addDaysISO(winStart, -CAL_DAYS);
+    const first = back < today ? today : back;
+    const last = addDaysISO(winStart, CAL_DAYS * 2 - 1);
+    const blocks = [];
+    for (let d = first; d <= last; d = addDaysISO(d, 1)) {
+      if (asked.days.has(d)) continue;
+      blocks.push(d);
+      d = addDaysISO(d, CAL_DAYS - 1);       // this block covers the next CAL_DAYS days
+    }
+
+    // The block holding the days actually on screen goes first and owns the loading state; the
+    // neighbours are only pre-warming, so they wait a beat rather than tripling the work of
+    // every page view for travellers who never touch the arrows.
+    const onScreen = blocks.find((b) => b <= winStart && winStart < addDaysISO(b, CAL_DAYS));
+    if (onScreen) load(onScreen, true);
+    const rest = blocks.filter((b) => b !== onScreen);
+    const warm = rest.length ? setTimeout(() => rest.forEach((b) => load(b, false)), 500) : null;
+
+    return () => { cancelled = true; if (warm) clearTimeout(warm); };
+  }, [hotelCode, destination, winStart, nights, sAdults, sChildren, sRooms, calScope, today]);
 
   // Live prices only. There is deliberately NO demo fallback: this strip used to drop to a
   // hardcoded week of March 2026 fares whenever the call failed OR the hotel was genuinely
@@ -1673,10 +1697,10 @@ export default function HotelDetail() {
                   that came back empty — otherwise a blank week is a dead end with no way back. */}
               <div className="fc-week">
                 {winStart && (
-                  <button type="button" className="fc-arrow" onClick={() => pageWeek(-1)}
+                  <button type="button" className="fc-arrow" onClick={() => pageDay(-1)}
                     disabled={!canPageBack}
-                    title={canPageBack ? 'Earlier dates' : 'These are the earliest dates you can still book'}
-                    aria-label="Show the previous seven days">
+                    title={canPageBack ? 'One day earlier' : 'These are the earliest dates you can still book'}
+                    aria-label="Show one day earlier">
                     <S sw={2.5}><path d="M15 18l-6-6 6-6" /></S>
                   </button>
                 )}
@@ -1732,7 +1756,12 @@ export default function HotelDetail() {
                       // at once now that the strip stitches weeks together.
                       const isLow = hasPrice && priceVaries && p.price === pMin;
                       return (
-                        <button type="button" key={p.iso || i}
+                        // Keyed by POSITION, not by date. Reusing the same node for slot i is what
+                        // makes a one-day step read as motion: each bar animates to its
+                        // neighbour's height through the transition .fc-bar already carries, so
+                        // the whole price profile glides sideways. Keying by date would unmount
+                        // all seven and snap.
+                        <button type="button" key={i}
                           className={`fc-col${sel ? ' sel' : ''}${isEmpty ? ' fc-empty' : !hasPrice ? ' fc-nopr' : ''}`}
                           onClick={() => pickDay(p.iso)}
                           disabled={isEmpty}
@@ -1741,22 +1770,27 @@ export default function HotelDetail() {
                           <span className="fc-barzone">
                             {isLow && <span className="fc-lowtag">Lowest price</span>}
                             <span className="fc-bar" style={{ height: `${h}%` }}>
-                              {isEmpty ? (
-                                <span className="fc-check">Not available</span>
-                              ) : isLoading ? (
-                                <span className="fc-check">Checking…</span>
-                              ) : hasPrice ? (
-                                <>
-                                  <span className="fc-from">from</span>
-                                  <span className="fc-amt">{ccy}{p.price}</span>
-                                  <span className="fc-nts">{p.nights} {p.nights === 1 ? 'day' : 'days'}</span>
-                                </>
-                              ) : (
-                                <span className="fc-check">Check live price</span>
-                              )}
+                              {/* The BAR is reused so its height can animate; its wording is keyed
+                                  to the date so the figures cross-fade instead of snapping to a
+                                  different day's price mid-glide. */}
+                              <span className="fc-barin" key={p.iso}>
+                                {isEmpty ? (
+                                  <span className="fc-check">Not available</span>
+                                ) : isLoading ? (
+                                  <span className="fc-check">Checking…</span>
+                                ) : hasPrice ? (
+                                  <>
+                                    <span className="fc-from">from</span>
+                                    <span className="fc-amt">{ccy}{p.price}</span>
+                                    <span className="fc-nts">{p.nights} {p.nights === 1 ? 'day' : 'days'}</span>
+                                  </>
+                                ) : (
+                                  <span className="fc-check">Check live price</span>
+                                )}
+                              </span>
                             </span>
                           </span>
-                          <span className="fc-under">
+                          <span className="fc-under" key={p.iso}>
                             <span className="fc-wk">{(p.day || '').substring(0, 3)}</span>
                             <span className="fc-date">{p.date}</span>
                             <span className="fc-dot" aria-hidden="true" />
@@ -1770,8 +1804,8 @@ export default function HotelDetail() {
               )}
                 </div>
                 {winStart && (
-                  <button type="button" className="fc-arrow" onClick={() => pageWeek(1)}
-                    title="Later dates" aria-label="Show the next seven days">
+                  <button type="button" className="fc-arrow" onClick={() => pageDay(1)}
+                    title="One day later" aria-label="Show one day later">
                     <S sw={2.5}><path d="M9 18l6-6-6-6" /></S>
                   </button>
                 )}
