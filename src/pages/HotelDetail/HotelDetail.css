@@ -158,6 +158,10 @@
 .sd .bc { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text); flex-wrap:wrap; }
 .sd .bc a { color:var(--text); transition:color .2s; cursor:pointer; }
 .sd .bc a:hover { color:var(--blue); }
+/* The breadcrumb sits on the sky, not on the panel, so it keeps the darker ink. The current page
+   is the heaviest of the three — it was previously an inline #fff and effectively invisible. */
+.sd .bc .bc-now { color:var(--dark); font-weight:700; }
+.sd .bc .bc-sep { color:var(--text-sec); }
 .sd .pg { max-width:1760px; margin:0 auto; padding:0 clamp(20px,3.5vw,56px) 80px; }
 .sd .hh { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin:14px 0 0; flex-wrap:wrap; }
 .sd .hhn { font-family:'Sora',sans-serif; font-size:clamp(1.9rem,3.2vw,2.9rem); font-weight:800; color:var(--dark); letter-spacing:-.6px; line-height:1.1; }
@@ -244,7 +248,30 @@
   mask-image:radial-gradient(ellipse 55% 95% at 16% 0%,#000 25%,transparent 70%); }
 .sd-hero-top { display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .sd-hero-main { display:grid; grid-template-columns:minmax(420px,1fr) minmax(560px,1.3fr); gap:clamp(28px,3vw,52px); align-items:start; margin-top:26px; }
-.sd-hero-left { min-width:0; padding-bottom:38px; }
+/* The copy sat directly on the sky, so the section had no edges — it read as text floating in an
+   empty area rather than as a block. Lifting it onto a frosted white panel gives it a boundary and
+   makes it the brightest thing on the page, which is what "highlight this section" needs.
+   It also puts every piece of copy on white, so legibility stops depending on which part of the
+   gradient a line happens to land on. */
+.sd-hero-left {
+  position:relative;
+  min-width:0;
+  padding:34px 38px 36px;
+  border-radius:24px;
+  background:
+    /* a whisper of warmth in the lower right so the card is lit, not flat paper */
+    radial-gradient(ellipse 70% 80% at 88% 96%, rgba(255,238,214,.55), transparent 62%),
+    rgba(255,255,255,.90);
+  backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,.95);
+  box-shadow:0 20px 48px rgba(23,58,138,.16), 0 2px 6px rgba(23,58,138,.06);
+}
+/* NO corner ornament here, deliberately. Gold scrollwork was tried and removed: this card's
+   content fills it edge to edge, so at 1440px a 128px corner motif ran through both the 49px
+   headline and the trust list. Ornament that collides with type is not ornament. If this card
+   ever needs decoration, it needs the space for it first. */
+/* The content must sit above both ornament layers. */
+.sd-hero-left > * { position:relative; z-index:1; }
 .sd-hero-left > * { animation:sdFadeUp .6s var(--ease) both; }
 .sd-hero-left > :nth-child(1) { animation-delay:.05s; }
 .sd-hero-left > :nth-child(2) { animation-delay:.12s; }
@@ -1024,7 +1051,7 @@
   .sd{--overhang:36px}
   .sd-hero{padding:86px 0 0}
   .sd-hero-main{gap:8px;margin-top:16px}
-  .sd-hero-left{padding-bottom:22px}
+  .sd-hero-left{padding:22px 18px 24px;border-radius:20px}
   .sd .bc{font-size:11.5px}
   .sd .pg{padding:0 16px 100px}
   .sd-hero-photos{grid-template-columns:1fr 1fr;grid-auto-rows:108px;height:auto;gap:8px}

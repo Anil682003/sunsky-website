@@ -1443,9 +1443,13 @@ export default function HotelDetail() {
         <div className="sd-hero-inner">
           <div className="sd-hero-top">
             <div className="bc">
-              <Link to="/">Home</Link><span style={{ opacity: .4 }}>›</span>
-              <a onClick={() => navigate(-1)}>Results</a><span style={{ opacity: .4 }}>›</span>
-              <span style={{ color: '#fff' }}>{hotelName}</span>
+              {/* The current page was hardcoded to #fff — a leftover from when this hero was dark
+                  navy. On the light sky that is ~1.3:1, so the hotel's own name was the one
+                  unreadable thing in the breadcrumb. Colour now comes from the stylesheet, which
+                  is the only place that knows what the background currently is. */}
+              <Link to="/">Home</Link><span className="bc-sep">›</span>
+              <a onClick={() => navigate(-1)}>Results</a><span className="bc-sep">›</span>
+              <span className="bc-now">{hotelName}</span>
             </div>
             <div className="hha">
               <ShareSheet
