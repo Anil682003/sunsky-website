@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './ScopePicker.module.css';
 import { fetchDestinations, fetchZones } from '../../api/filters';
+import { zoneKey, zoneCity, scopeLeafCount } from '../../utils/scopeLeaves';
 
 /**
  * Where-picker for the results sidebar: countries → cities → areas.
@@ -12,11 +13,6 @@ import { fetchDestinations, fetchZones } from '../../api/filters';
  * The parent owns the committed scope; this drafts locally and calls
  * onApply({ countries, destinations, zones }) on commit.
  */
-
-// zoneCode is unique only inside a destination, so a picked area is keyed by both:
-// "AYT:16". Anything less collides with the same number in another city.
-const zoneKey  = (z) => `${z.destinationCode}:${z.zoneCode}`;
-const zoneCity = (key) => String(key).split(':')[0];
 
 const Check = () => (
   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
@@ -220,26 +216,15 @@ export default function ScopePicker({
     });
   };
 
-  // How many places this search actually covers. NOT the sum of the three tiers: a ticked
-  // area already IS its city (the zone scope narrows the priced set to that area — see
-  // `needCodes` in Results), and a ticked city already IS part of its country. Summing them
-  // billed "Antalya + Lara" — one narrowed search — as two places.
-  //
-  // So count LEAVES: the deepest thing ticked on each branch is what gets searched, and an
-  // ancestor only counts when nothing below it was picked (Spain with no city = all of Spain).
-  const zoneCities = useMemo(() => new Set([...draftZones].map(zoneCity)), [draftZones]);
-  const narrowedCountries = useMemo(() => {
-    const s = new Set();
-    for (const code of draftCities) {
-      const c = cities.find((x) => x.code === code);
-      if (c?.countryCode) s.add(c.countryCode);
-    }
-    return s;
-  }, [draftCities, cities]);
-  const total =
-    [...draftCountries].filter((c) => !narrowedCountries.has(c)).length +
-    [...draftCities].filter((c) => !zoneCities.has(c)).length +
-    draftZones.size;
+  // How many places this search actually covers — leaves, not the sum of the three tiers
+  // (see utils/scopeLeaves). The results hero counts the committed scope the same way.
+  const total = useMemo(
+    () => scopeLeafCount(
+      { countries: [...draftCountries], destinations: [...draftCities], zones: [...draftZones] },
+      cities,
+    ),
+    [draftCountries, draftCities, draftZones, cities],
+  );
   const dirty =
     countryKey !== [...value.countries].sort().join(',') ||
     cityKey !== [...value.destinations].sort().join(',') ||
