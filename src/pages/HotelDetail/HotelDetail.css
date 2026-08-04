@@ -118,43 +118,62 @@
 .sd .reveal { opacity:0; transform:translateY(20px); transition:opacity .6s var(--ease),transform .6s var(--ease); }
 .sd .reveal.vis { opacity:1; transform:translateY(0); }
 
-/* HERO — blends into the transparent app navbar */
+/* ── HERO ─────────────────────────────────────────────────────────────────────
+   A daylight sky, not a night one. The hero was a near-black navy panel, which made the
+   brightest, most photographic part of the page the darkest thing on screen and left the whole
+   product feeling heavier than the holidays it sells.
+   Depth now comes from stacked atmosphere rather than darkness — four layers, back to front:
+     1. a cloudy-blue base wash
+     2. a white cloud bloom behind the title, so the ink always lands on the lightest area
+     3. cool blue weight in the top-right corner, giving the panel a light direction
+     4. a warm sun hint at the bottom-left — the one place the brand gold appears unprompted
+   Keeping all four means the panel still reads as a designed surface up close AND at 1920px,
+   where a single flat tint would look like an unpainted div. */
 .sd-hero { position:relative; padding:104px 0 0; border-radius:0 0 46px 46px;
-  box-shadow:0 30px 60px -24px rgba(10,20,48,.5);
+  box-shadow:0 30px 70px -34px rgba(23,58,138,.45);
   background:
-    radial-gradient(ellipse 70% 120% at 85% -10%, rgba(95,168,255,.28), transparent 55%),
-    radial-gradient(ellipse 60% 100% at 8% 120%, rgba(31,79,216,.45), transparent 60%),
-    linear-gradient(125deg,#0A1430 0%,#10245E 48%,#1f4fd8 120%); }
+    /* dawn warmth, low and soft at the top-left — the one unprompted note of brand gold */
+    radial-gradient(ellipse 46% 60% at 1% -10%, rgba(255,183,77,.24), transparent 62%),
+    /* cloud bank behind the headline: guarantees the title's ink lands on the lightest area
+       no matter how saturated the wash below gets */
+    radial-gradient(ellipse 56% 64% at 28% 14%, rgba(255,255,255,.82), transparent 66%),
+    /* a second, smaller bank low-right so the sky has more than one event in it */
+    radial-gradient(ellipse 32% 40% at 64% 86%, rgba(255,255,255,.50), transparent 68%),
+    /* cool weight in the top-right corner — gives the panel a consistent light direction */
+    radial-gradient(ellipse 64% 102% at 96% -16%, rgba(59,113,224,.32), transparent 60%),
+    /* the sky settling into deeper water at the base */
+    radial-gradient(ellipse 88% 48% at 50% 118%, rgba(43,92,196,.24), transparent 68%),
+    linear-gradient(163deg,#e6eefc 0%,#cfe0fa 46%,#b6cdf2 100%); }
 .sd-hero-bg { position:absolute; inset:0; overflow:hidden; border-radius:inherit; pointer-events:none; }
 .sd-hero-inner { position:relative; z-index:2; max-width:1760px; margin:0 auto; padding:0 clamp(20px,3.5vw,56px); }
 .sd-hero-glow2 { position:absolute; bottom:-160px; left:-40px; width:380px; height:380px; border-radius:50%; background:radial-gradient(circle,rgba(255,159,28,.12),transparent 65%); filter:blur(30px); animation:sdFloat 14s ease-in-out infinite reverse; }
 /* hero is a rounded panel floating above the tinted canvas — the mosaic overhangs its bottom edge */
 
 /* BREADCRUMB / HEADER (over hero) */
-.sd .bc { display:flex; align-items:center; gap:6px; font-size:12.5px; color:rgba(255,255,255,.55); flex-wrap:wrap; }
-.sd .bc a { color:rgba(255,255,255,.78); transition:color .2s; cursor:pointer; }
-.sd .bc a:hover { color:#fff; }
+.sd .bc { display:flex; align-items:center; gap:6px; font-size:12.5px; color:var(--text-sec); flex-wrap:wrap; }
+.sd .bc a { color:var(--text-sec); transition:color .2s; cursor:pointer; }
+.sd .bc a:hover { color:var(--blue); }
 .sd .pg { max-width:1760px; margin:0 auto; padding:0 clamp(20px,3.5vw,56px) 80px; }
 .sd .hh { display:flex; justify-content:space-between; align-items:flex-start; gap:16px; margin:14px 0 0; flex-wrap:wrap; }
-.sd .hhn { font-family:'Sora',sans-serif; font-size:clamp(1.9rem,3.2vw,2.9rem); font-weight:800; color:#fff; letter-spacing:-.6px; line-height:1.1; }
+.sd .hhn { font-family:'Sora',sans-serif; font-size:clamp(1.9rem,3.2vw,2.9rem); font-weight:800; color:var(--dark); letter-spacing:-.6px; line-height:1.1; }
 /* The meta row carries two different kinds of fact: what the hotel IS (class, place) and what
    guests THOUGHT of it. They were run together with equal spacing, so the row read as four
    unrelated fragments. A hairline before the score separates the two without adding chrome,
    and a shared 44px height stops the tall rating pill from making the line lumpy. */
 .sd .hhm { display:flex; align-items:center; gap:10px 14px; margin-top:12px; flex-wrap:wrap; row-gap:10px; }
-.sd .hhs { color:var(--gold); font-size:16px; letter-spacing:1px; display:inline-flex; align-items:center; }
-.sd .hhl { font-size:13px; color:rgba(255,255,255,.85); display:flex; align-items:center; gap:6px; }
+.sd .hhs { color:#E5890C; font-size:16px; letter-spacing:1px; display:inline-flex; align-items:center; }
+.sd .hhl { font-size:13px; color:var(--text); display:flex; align-items:center; gap:6px; }
 .sd .hhl svg { width:14px; height:14px; opacity:.7; flex-shrink:0; }
 /* Divider only when the score follows — an unrated hotel must not end the row on a stray rule. */
 .sd .hhm .sd-rating::before {
   content:''; align-self:stretch; width:1px; margin-right:4px;
-  background:linear-gradient(180deg,transparent,rgba(255,255,255,.22),transparent);
+  background:linear-gradient(180deg,transparent,rgba(31,79,216,.20),transparent);
 }
 @media(max-width:640px){ .sd .hhm .sd-rating::before { display:none; } }
 /* Zone (district) leads in full-white weight — it's the part that differentiates this hotel
    within its city; the city itself stays at the line's default (dimmer) weight. */
-.sd .hhl-zone { color:#fff; font-weight:700; }
-.sd .hhl-dot { color:rgba(255,255,255,.4); }
+.sd .hhl-zone { color:var(--dark); font-weight:700; }
+.sd .hhl-dot { color:var(--text-light); }
 
 /* TripAdvisor rating — sits in the hero metric row beside the stars. A two-part glass pill: a
    solid gold score block, then the bubble rating over the source + review count. The bubbles
@@ -188,11 +207,11 @@
 /* justify-content:center keeps the pair vertically centred on the chip whatever the text
    wraps to; min-width:0 lets a long source name ellipsis rather than widen the hero row. */
 .sd .sd-rating-body { display:flex; flex-direction:column; justify-content:center; gap:4px; min-width:0; }
-.sd .sd-rating-word { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:#fff; line-height:1.1; letter-spacing:.1px; }
+.sd .sd-rating-word { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--dark); line-height:1.1; letter-spacing:.1px; }
 .sd .sd-rating-meta { display:flex; align-items:center; gap:5px; line-height:1.1; white-space:nowrap; min-width:0; }
-.sd .sd-rating-src { font-size:11.5px; font-weight:600; color:rgba(255,255,255,.72); overflow:hidden; text-overflow:ellipsis; }
-.sd .sd-rating-count { font-size:11.5px; font-weight:500; color:rgba(255,255,255,.5); }
-.sd .sd-rating-count::before { content:'·'; margin-right:5px; color:rgba(255,255,255,.3); }
+.sd .sd-rating-src { font-size:11.5px; font-weight:600; color:var(--text-sec); overflow:hidden; text-overflow:ellipsis; }
+.sd .sd-rating-count { font-size:11.5px; font-weight:500; color:var(--text-light); }
+.sd .sd-rating-count::before { content:'·'; margin-right:5px; color:var(--text-light); }
 
 /* ── Score bands ──────────────────────────────────────────────────────────────
    Gold used to be worn by every score, so it signalled nothing. Reserving green for a genuinely
@@ -207,14 +226,14 @@
 @keyframes sdRatingIn { from { opacity:0; transform:translateY(4px) scale(.96); } to { opacity:1; transform:none; } }
 @media(max-width:560px){ .sd .sd-rating-count { display:none; } }
 .sd .hha { display:flex; gap:8px; flex-shrink:0; }
-.sd .hhb { display:flex; align-items:center; gap:6px; padding:9px 17px; border-radius:var(--r-full); border:1.5px solid rgba(255,255,255,.25); background:rgba(255,255,255,.1); backdrop-filter:blur(8px); -webkit-backdrop-filter:blur(8px); font-size:12.5px; font-weight:600; color:#fff; transition:all .25s var(--ease); }
-.sd .hhb:hover { border-color:rgba(255,255,255,.55); background:rgba(255,255,255,.2); }
+.sd .hhb { display:flex; align-items:center; gap:6px; padding:9px 17px; border-radius:var(--r-full); border:1px solid rgba(255,255,255,.9); background:#fff; box-shadow:0 4px 14px rgba(23,58,138,.13); font-size:12.5px; font-weight:600; color:var(--text-sec); transition:all .25s var(--ease); }
+.sd .hhb:hover { border-color:var(--blue); color:var(--blue); box-shadow:0 4px 14px rgba(31,79,216,.14); }
 .sd .hhb.saved { border-color:transparent; background:rgba(255,107,107,.92); color:#fff; }
 .sd .hhb.saved svg { fill:currentColor; animation:sdHeartPop .35s var(--ease-spring); }
 
 /* HERO LAYOUT */
 .sd-hero-grid { position:absolute; inset:0; pointer-events:none;
-  background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-image:linear-gradient(rgba(23,58,138,.07) 1px,transparent 1px),linear-gradient(90deg,rgba(23,58,138,.07) 1px,transparent 1px);
   background-size:54px 54px;
   -webkit-mask-image:radial-gradient(ellipse 55% 95% at 16% 0%,#000 25%,transparent 70%);
   mask-image:radial-gradient(ellipse 55% 95% at 16% 0%,#000 25%,transparent 70%); }
@@ -229,43 +248,45 @@
 .sd-hero-left > :nth-child(6) { animation-delay:.33s; }
 .sd-hero-rule { display:block; width:46px; height:3px; border-radius:var(--r-full); background:linear-gradient(115deg,var(--sun),var(--gold)); margin:16px 0 2px; transform-origin:left; }
 .sd-hero-left > .sd-hero-rule { animation:sdRuleIn .5s var(--ease) .45s both; }
-.sd-hero-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--blue-soft); margin-bottom:12px; }
+.sd-hero-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; letter-spacing:.6px; text-transform:uppercase; color:var(--blue); margin-bottom:12px; }
 .sd-hero-eyebrow svg { width:14px; height:14px; }
 
 /* HERO CHIPS */
 .sd-hero-chips { display:flex; flex-wrap:wrap; gap:10px; margin-top:18px; }
-.sd-chip { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:var(--r-full); background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); color:#fff; font-size:13px; font-weight:600; }
-.sd-chip svg { color:var(--blue-soft); }
+/* Solid white on the light sky, not a translucent wash: over a pale, actively-gradiented
+   background a glass chip picks up whatever is behind it and its contrast wanders across the
+   row. White with a hairline reads the same wherever it lands. */
+.sd-chip { display:inline-flex; align-items:center; gap:7px; padding:8px 16px; border-radius:var(--r-full); background:#fff; border:1px solid rgba(255,255,255,.9); box-shadow:0 4px 14px rgba(23,58,138,.13); color:var(--text); font-size:13px; font-weight:600; }
+.sd-chip svg { color:var(--blue); }
 .sd-chip-price { background:var(--cta-grad); border-color:transparent; color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); font-weight:800; }
 .sd-chip-price svg { color:var(--dark); }
 
 /* HERO RATING / TRUST BAND — clickable, jumps to Reviews */
 .sd-hero-rating { display:flex; align-items:center; gap:16px; margin-top:26px; max-width:600px; width:100%;
   padding:14px 18px; border-radius:20px; text-align:left; cursor:pointer;
-  background:linear-gradient(165deg,rgba(255,255,255,.13),rgba(255,255,255,.06));
-  border:1px solid rgba(255,255,255,.18);
-  backdrop-filter:blur(16px); -webkit-backdrop-filter:blur(16px);
-  box-shadow:0 16px 40px rgba(7,14,31,.25);
+  background:#fff;
+  border:1px solid #dbe7fb;
+  box-shadow:0 12px 34px rgba(23,58,138,.16);
   transition:transform .3s var(--ease), border-color .3s, box-shadow .3s; }
-.sd-hero-rating:hover { transform:translateY(-2px); border-color:rgba(255,255,255,.34); box-shadow:0 22px 50px rgba(7,14,31,.32); }
+.sd-hero-rating:hover { transform:translateY(-2px); border-color:#fff; box-shadow:0 18px 44px rgba(23,58,138,.22); }
 .sd-hc-score { width:48px; height:48px; border-radius:14px; flex-shrink:0; background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); font-family:'Sora',sans-serif; font-size:19px; font-weight:800; display:flex; align-items:center; justify-content:center; box-shadow:0 6px 18px rgba(255,159,28,.4); }
 .sd-hc-meta { display:flex; flex-direction:column; flex-shrink:0; }
-.sd-hc-label { font-family:'Sora',sans-serif; font-size:15px; font-weight:800; color:#fff; line-height:1.2; }
-.sd-hc-sub { font-size:11.5px; color:rgba(255,255,255,.68); margin-top:2px; }
-.sd-hc-divider { width:1px; height:44px; background:rgba(255,255,255,.16); flex-shrink:0; }
+.sd-hc-label { font-family:'Sora',sans-serif; font-size:15px; font-weight:800; color:var(--dark); line-height:1.2; }
+.sd-hc-sub { font-size:11.5px; color:var(--text-sec); margin-top:2px; }
+.sd-hc-divider { width:1px; height:44px; background:var(--border); flex-shrink:0; }
 .sd-hc-trust { display:grid; grid-template-columns:1fr 1fr; gap:7px 16px; flex:1; min-width:0; }
-.sd-hc-item { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:rgba(255,255,255,.92); white-space:nowrap; }
-.sd-hc-item svg { width:14px; height:14px; color:var(--gold); flex-shrink:0; }
-.sd-hc-go { color:rgba(255,255,255,.55); flex-shrink:0; transition:transform .3s var(--ease), color .3s; }
-.sd-hero-rating:hover .sd-hc-go { transform:translateX(3px); color:#fff; }
+.sd-hc-item { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--text); white-space:nowrap; }
+.sd-hc-item svg { width:14px; height:14px; color:#D9700F; flex-shrink:0; }
+.sd-hc-go { color:var(--text-light); flex-shrink:0; transition:transform .3s var(--ease), color .3s; }
+.sd-hero-rating:hover .sd-hc-go { transform:translateX(3px); color:var(--blue); }
 .sd-hero-trust { display:grid; grid-template-columns:1fr 1fr; gap:8px 18px; margin-top:22px; max-width:420px; }
-.sd-hero-trust .sd-hc-item { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:rgba(255,255,255,.92); white-space:nowrap; }
-.sd-hero-trust .sd-hc-item svg { width:14px; height:14px; color:var(--gold); flex-shrink:0; }
+.sd-hero-trust .sd-hc-item { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--text); white-space:nowrap; }
+.sd-hero-trust .sd-hc-item svg { width:14px; height:14px; color:#D9700F; flex-shrink:0; }
 
 /* GALLERY */
 /* IN-HERO PHOTO MOSAIC — overhangs the panel's bottom edge onto the canvas */
 .sd-hero-photos { display:grid; grid-template-columns:1.5fr 1fr 1fr; grid-template-rows:repeat(2,1fr); gap:10px; height:clamp(420px,34vw,500px); position:relative; z-index:3; margin-bottom:calc(var(--overhang) * -1); }
-.sd .gi { position:relative; overflow:hidden; cursor:pointer; border-radius:14px; border:1px solid rgba(255,255,255,.22); background:linear-gradient(135deg,#10245E,#1F4FD8); box-shadow:0 12px 32px rgba(7,14,31,.35); transition:box-shadow .35s var(--ease), transform .35s var(--ease); animation:sdTileIn .55s var(--ease) both; }
+.sd .gi { position:relative; overflow:hidden; cursor:pointer; border-radius:14px; border:1px solid rgba(255,255,255,.9); background:linear-gradient(135deg,#10245E,#1F4FD8); box-shadow:0 10px 28px rgba(31,79,216,.16); transition:box-shadow .35s var(--ease), transform .35s var(--ease); animation:sdTileIn .55s var(--ease) both; }
 .sd .gi:hover { box-shadow:0 20px 44px rgba(7,14,31,.45); transform:translateY(-3px); }
 .sd-hero-photos .gi:nth-child(1) { animation-delay:.18s; }
 .sd-hero-photos .gi:nth-child(2) { animation-delay:.26s; }
@@ -572,6 +593,13 @@
   animation:sdTailDrop .32s var(--ease) both;
 }
 @keyframes sdTailDrop { from { opacity:0; transform:translateY(-7px); } to { opacity:1; transform:none; } }
+
+/* zero-price: "check live price" text */
+.sd .fc-check { font-size:10px; font-weight:700; color:rgba(255,255,255,.9); text-align:center; line-height:1.35; letter-spacing:.02em; }
+/* dead (live-checked, no availability): greyed out + disabled */
+.sd .fc-col.fc-dead { cursor:not-allowed; opacity:.5; pointer-events:none; }
+.sd .fc-col.fc-dead .fc-bar { background:#94a3b8; }
+.sd .fc-sold { font-size:10px; font-weight:700; color:rgba(255,255,255,.8); text-align:center; letter-spacing:.02em; }
 
 /* anchored action card — the ribbon points straight at it */
 .sd .fc-pop { position:relative; background:var(--white); border:1px solid #e4ebf6; border-radius:18px; padding:16px 20px; box-shadow:0 16px 38px rgba(23,43,99,.08); animation:sdSlideUp .35s var(--ease); }
