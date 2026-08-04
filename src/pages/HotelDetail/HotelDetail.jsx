@@ -801,7 +801,16 @@ export default function HotelDetail() {
   const pMin = priceDays.length ? Math.min(...priceDays.map((p) => p.price)) : 0;
   const pMax = priceDays.length ? Math.max(...priceDays.map((p) => p.price)) : 1;
   const priceVaries = pMin !== pMax;
-  const pd = selectedPrice != null ? priceDays[selectedPrice] : null;
+  // The strip opens with the traveller's OWN departure date already selected, so the check
+  // button is there for the date they searched instead of asking them to re-pick it. Derived
+  // rather than stored: an explicit pick always wins, and because `applyFilter` clears the
+  // pick, editing the search falls back to whatever the new departure date is — no effect, no
+  // extra render pass, nothing to keep in sync.
+  const defaultDayIdx = priceDays.length
+    ? Math.max(0, priceDays.findIndex((p) => p.iso === baseCheckIn))
+    : null;
+  const pickedIdx = selectedPrice ?? defaultDayIdx;
+  const pd = pickedIdx != null ? priceDays[pickedIdx] : null;
 
   const filtersTouched = Object.keys(ovr).length > 0;
   // ── the one "from" figure the page quotes ────────────────────────────────────
@@ -823,6 +832,31 @@ export default function HotelDetail() {
   })();
   // Per person — the calendar prices a whole stay for the whole party.
   const fromPP = stayFrom != null ? Math.round(stayFrom / paxCount) : null;
+
+  // ── the meal plans that exist on the SELECTED day ────────────────────────────
+  // Live availability is authoritative but it is a SUPPLIER hit, made only when the traveller
+  // asks for it. The cache's own `cheapest` endpoint answers the narrower question for free:
+  // asked for one hotel on one date it returns `boardFacets` — e.g. {"RO":1,"BB":1} — so the
+  // picker can name this hotel's real meal plans for the day on show without calling a
+  // supplier at all. (Verified per hotel: 130163 sells RO+BB where 300984 sells only RO.)
+  const [dateBoards, setDateBoards] = useState(null);
+  const pickedIso = pd?.iso || baseCheckIn;
+  useEffect(() => {
+    if (!hotelCode || !destination || !pickedIso) { setDateBoards(null); return; }
+    const roomsN = Math.max(1, parseInt(sRooms, 10) || 1);
+    const qs = new URLSearchParams({
+      destinations: destination, hotelCodes: String(hotelCode),
+      checkIn: pickedIso, checkOut: addDaysISO(pickedIso, nights),
+      adults: sAdults, children: sChildren, rooms: String(roomsN),
+      pageSize: '1', source: 'combined',
+    });
+    let cancelled = false;
+    fetch(`${CONTRACTS_API}/contracts/cheapest?${qs.toString()}`)
+      .then((r) => r.json())
+      .then((j) => { if (!cancelled) setDateBoards(Object.keys(j?.boardFacets || {})); })
+      .catch(() => { if (!cancelled) setDateBoards(null); });
+    return () => { cancelled = true; };
+  }, [hotelCode, destination, pickedIso, nights, sAdults, sChildren, sRooms]);
 
   // ── shareable link ──────────────────────────────────────────────────────────
   // A shared link must re-open the SAME stay, so the whole search context rides in
@@ -906,7 +940,19 @@ export default function HotelDetail() {
   // the list is this hotel's.
   const boardsKnown = allRoomGroups.length > 0;
   const boardOptions = useMemo(() => {
-    if (!boardsKnown) return BOARD_PREFS;
+    // No live rates yet, but the cache already told us which boards this hotel sells on the
+    // selected day — list exactly those (no prices; the cache only reports which exist).
+    if (!boardsKnown) {
+      if (!dateBoards) return BOARD_PREFS;
+      const onDate = BOARD_PREFS.filter((b) => b.id && dateBoards.includes(b.id));
+      if (!onDate.length) return BOARD_PREFS;
+      return [
+        { id: '', label: 'No preference' },
+        ...onDate.map((b) => ({ id: b.id, label: b.label })),
+        ...BOARD_PREFS.filter((b) => b.id && b.id === boardPref && !dateBoards.includes(b.id))
+          .map((b) => ({ id: b.id, label: b.label, note: 'not on this date' })),
+      ];
+    }
     const rates = allRoomGroups.flatMap((g) => g.boards);
     const cheapestOn = (pref) => rates
       .filter((b) => pref.match.test(`${b.boardLabel} ${b.boardCode || ''}`))
@@ -921,7 +967,7 @@ export default function HotelDetail() {
       ...offered.filter((b) => b.price == null && b.id === boardPref)
         .map((b) => ({ id: b.id, label: b.label, note: 'not on these dates' })),
     ];
-  }, [boardsKnown, allRoomGroups, boardPref, ccy]);
+  }, [boardsKnown, allRoomGroups, boardPref, ccy, dateBoards]);
   const nBoards = useMemo(() => boardCount(roomGroups), [roomGroups]);
 
   // Per-rate facts for the cards: board wording, occupancy, per-night / per-guest splits and
@@ -1171,9 +1217,9 @@ export default function HotelDetail() {
 
   // ── "Check price & availability" → fetch live hotel + flight availability ──
   const checkAvailability = () => {
-    if (selectedPrice == null) return;
+    if (pickedIdx == null) return;
     setLiveChecked(true);
-    const day = priceDays[selectedPrice];
+    const day = priceDays[pickedIdx];
     const checkin = day?.iso || baseCheckIn;
     const checkout = checkin ? addDaysISO(checkin, nights) : '';
     console.log('[Detail] check availability →', { hotelCode, destination, checkin, checkout });
@@ -1482,7 +1528,9 @@ export default function HotelDetail() {
                 board={boardPref} boardOptions={boardOptions}
                 boardHint={boardsKnown
                   ? 'Meal plans this hotel offers on the dates you checked.'
-                  : 'Check a date to see which meal plans this hotel actually offers.'}
+                  : dateBoards?.length
+                    ? `Meal plans this hotel sells on ${pd?.day || ''} ${pd?.date || niceDate(pickedIso) || ''}`.trim() + '.'
+                    : 'Check a date to see which meal plans this hotel actually offers.'}
                 origin={origin} originOptions={ORIGINS} originLabel={airportName} destination={destination}
                 nights={nights} nightOptions={NIGHT_OPTIONS} durationChips={DURATION_CHIPS}
                 touched={filtersTouched}
@@ -1510,7 +1558,7 @@ export default function HotelDetail() {
                       // same solid weight so no day reads as faded or unavailable
                       const frac = priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
                       const h = Math.round(44 + 44 * frac);
-                      const sel = selectedPrice === i;
+                      const sel = pickedIdx === i;
                       const isLow = p.lowest && priceVaries;
                       return (
                         <button type="button" key={p.iso || i}
@@ -1550,7 +1598,12 @@ export default function HotelDetail() {
                                 ? `${calDay(pd.iso)} ${calDate(pd.iso)} – ${calDay(addDaysISO(pd.iso, nights))} ${calDate(addDaysISO(pd.iso, nights))}`
                                 : `${pd.day} ${pd.date}`}
                             </span>
-                            <span className="fc-act-meta">{nights} {nights === 1 ? 'night' : 'nights'} · estimated from €{pd.price}</span>
+                            {/* The cache returns 0 for a day it hasn't costed — quote nothing
+                                rather than "estimated from €0". */}
+                            <span className="fc-act-meta">
+                              {nights} {nights === 1 ? 'night' : 'nights'}
+                              {Number(pd.price) > 0 ? ` · estimated from ${ccy}${pd.price}` : ' · price on request'}
+                            </span>
                           </div>
                           <button type="button" className="fc-cta" onClick={checkAvailability}>
                             Check price &amp; availability
