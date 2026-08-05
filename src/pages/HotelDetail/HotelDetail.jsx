@@ -1906,6 +1906,35 @@ export default function HotelDetail() {
                 onReset={resetFilters}
               />
 
+              {/* What the strip's colours and heights MEAN. The chart encodes four things at
+                  once — bar height is the price, the gold tag is the week's cheapest, pale
+                  blue is the day you're on, grey is sold out — and none of that is legible
+                  without being told. Shown only alongside real bars: over a skeleton or a
+                  "choose your dates" panel it would explain colours that aren't on screen. */}
+              {usingLive && (
+                <div className="fc-legend">
+                  <span className="fc-legend-title">Reading this chart</span>
+                  <span className="fc-legend-items">
+                    <span className="fc-legend-item">
+                      <span className="fc-legend-swatch fc-legend-tall" aria-hidden="true" />
+                      Taller bar = pricier day
+                    </span>
+                    <span className="fc-legend-item">
+                      <span className="fc-legend-swatch fc-legend-low" aria-hidden="true" />
+                      Cheapest of the week
+                    </span>
+                    <span className="fc-legend-item">
+                      <span className="fc-legend-swatch fc-legend-sel" aria-hidden="true" />
+                      Your selected day
+                    </span>
+                    <span className="fc-legend-item">
+                      <span className="fc-legend-swatch fc-legend-out" aria-hidden="true" />
+                      Not available
+                    </span>
+                  </span>
+                </div>
+              )}
+
               {/* The arrows live OUTSIDE the three states below so they stay reachable on a week
                   that came back empty — otherwise a blank week is a dead end with no way back. */}
               <div className="fc-week">
