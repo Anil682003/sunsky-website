@@ -2075,10 +2075,10 @@ export default function HotelDetail() {
                 {transport === 'hotel_only' ? (
                   <div className="own-transport">
                     <div className="own-transport-row">
-                      {ICON.car}
+                      {ICON.bed}
                       <div className="own-transport-text">
-                        <div className="own-transport-title">You're travelling by your own transport</div>
-                        <div className="own-transport-sub">No flights are included in this price.</div>
+                        <div className="own-transport-title">Hotel only — no flights included</div>
+                        <div className="own-transport-sub">You're arranging your own way there. The price above is the stay alone.</div>
                       </div>
                     </div>
                     <button type="button" className="own-transport-add"
@@ -2794,8 +2794,8 @@ export default function HotelDetail() {
                 <div className="bkdi"><span className="bkdk">{ICON.users}</span>{Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</div>
                 {/* The route the traveller actually chose — this printed "Brussels (BRU)"
                     no matter which airport the fares were searched from. */}
-                <div className="bkdi"><span className="bkdk">{transport === 'hotel_only' ? ICON.car : ICON.plane}</span>{transport === 'hotel_only'
-                  ? 'Own transport'
+                <div className="bkdi"><span className="bkdk">{transport === 'hotel_only' ? ICON.bed : ICON.plane}</span>{transport === 'hotel_only'
+                  ? 'Hotel only'
                   : destination ? `${airportName(origin)} (${origin}) → ${destination}` : `${airportName(origin)} (${origin})`}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.board}</span>{hotel?.board || 'All inclusive'}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nights} days</div>

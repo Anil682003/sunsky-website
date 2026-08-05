@@ -115,7 +115,7 @@ const REFUNDABLE_OPTIONS = [
 // ever priced into the total. It now names what it actually does, and the airport picker
 // below it is what turns it into a real flight search on the hotel page.
 const TRANSPORT_OPTIONS = [
-  { value: 'hotel_only', label: 'Own transport' },
+  { value: 'hotel_only', label: 'Hotel only' },
   { value: 'package',    label: 'Incl. flight' },
 ];
 const PRICE_BASIS_OPTIONS = [
@@ -2056,6 +2056,13 @@ export default function Results() {
                         {Number(fetchParams.adults) > 0 && ` · ${fetchParams.adults} adult${Number(fetchParams.adults) > 1 ? 's' : ''}`}
                         {Number(fetchParams.children) > 0 && ` · ${fetchParams.children} child${Number(fetchParams.children) > 1 ? 'ren' : ''}`}
                       </span>
+                      {/* With "Incl. flight" on, this figure is still the HOTEL price — the
+                          flight is searched live on the hotel page. Saying so on every card
+                          is what makes the transport toggle visibly do something here, and
+                          it stops €210 from reading as a flight-inclusive total. */}
+                      {filters.transport === 'package' && (
+                        <span className={styles.rcFlightNote}>+ flight from {airportCity(filters.origin)} · priced on hotel page</span>
+                      )}
                       <div className={styles.rcPriceAmount}>
                         <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
                         {totalMajor}

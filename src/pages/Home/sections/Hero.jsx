@@ -352,15 +352,65 @@ export default function Hero() {
       <div className={styles.sfDivider} />
       {/* Flying from — the transport decision made HERE travels the whole journey:
           results sidebar, hotel-page flight search, checkout. Value reads the mode,
-          not just an airport, so "Own transport" never masquerades as a flight. */}
+          not just an airport, so "Hotel only" never masquerades as a flight.
+          The panel is nested INSIDE the field (which is position:relative), so it always
+          opens directly under this field — the shared bar-wide dropdown slot put it under
+          the middle of the bar, nowhere near the control that opened it. stopPropagation
+          keeps clicks inside the panel from re-toggling the field shut. */}
       <div className={`${styles.sf} ${openField === 'transport' ? styles.sfActive : ''}`} onClick={() => toggleField('transport')}>
         <span className={styles.sfIcon}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
         </span>
         <div className={styles.sfText}>
           <span className={styles.sfLabel}>Flying from</span>
-          <span className={styles.sfValue}>{transport === 'hotel_only' ? 'Own transport' : `${airportCity(origin)} (${origin})`}</span>
+          <span className={styles.sfValue}>{transport === 'hotel_only' ? 'Hotel only' : `${airportCity(origin)} (${origin})`}</span>
         </div>
+        {openField === 'transport' && (
+          <div className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.tspTabs} role="radiogroup" aria-label="Transport mode">
+              <button type="button" role="radio" aria-checked={transport === 'package'}
+                className={`${styles.tspTab} ${transport === 'package' ? styles.tspTabOn : ''}`}
+                onClick={() => setTransport('package')}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+                Incl. flight
+              </button>
+              <button type="button" role="radio" aria-checked={transport === 'hotel_only'}
+                className={`${styles.tspTab} ${transport === 'hotel_only' ? styles.tspTabOn : ''}`}
+                onClick={() => { setTransport('hotel_only'); setOpenField(null); }}>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8"/><path d="M4 10V6a2 2 0 012-2h12a2 2 0 012 2v4"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+                Hotel only
+              </button>
+            </div>
+            {transport === 'package' && (
+              <>
+                <div className={styles.tspSub}>Popular</div>
+                <div className={styles.tspGrid}>
+                  {POPULAR_AIRPORTS.map((a) => (
+                    <button type="button" key={a.code}
+                      className={`${styles.tspRow} ${origin === a.code ? styles.tspRowOn : ''}`}
+                      onClick={() => { setOrigin(a.code); setOpenField(null); }}>
+                      <span className={styles.tspFlag}>{a.country}</span>
+                      <span className={styles.tspName}>{a.label}</span>
+                      <span className={styles.tspCode}>{a.code}</span>
+                    </button>
+                  ))}
+                </div>
+                <div className={styles.tspSub}>All airports</div>
+                <div className={styles.tspGrid}>
+                  {OTHER_AIRPORTS.map((a) => (
+                    <button type="button" key={a.code}
+                      className={`${styles.tspRow} ${origin === a.code ? styles.tspRowOn : ''}`}
+                      onClick={() => { setOrigin(a.code); setOpenField(null); }}>
+                      <span className={styles.tspFlag}>{a.country}</span>
+                      <span className={styles.tspName}>{a.label}</span>
+                      <span className={styles.tspCode}>{a.code}</span>
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )}
       </div>
       <div className={styles.sfDivider} />
       <div className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`} onClick={() => toggleField('travelers')}>
@@ -377,55 +427,6 @@ export default function Hero() {
 
   const stayDropdowns = (
     <>
-      {openField === 'transport' && (
-        <div className={`${styles.dropdown} ${styles.tspDropdown}`}>
-          {/* Mode first: an airport list under "Own transport" would ask a question with
-              no bearing on anything the traveller will be shown. */}
-          <div className={styles.tspTabs} role="radiogroup" aria-label="Transport mode">
-            <button type="button" role="radio" aria-checked={transport === 'package'}
-              className={`${styles.tspTab} ${transport === 'package' ? styles.tspTabOn : ''}`}
-              onClick={() => setTransport('package')}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-              Incl. flight
-            </button>
-            <button type="button" role="radio" aria-checked={transport === 'hotel_only'}
-              className={`${styles.tspTab} ${transport === 'hotel_only' ? styles.tspTabOn : ''}`}
-              onClick={() => { setTransport('hotel_only'); setOpenField(null); }}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 11l1.5-4.5A2 2 0 018.4 5h7.2a2 2 0 011.9 1.5L19 11"/><path d="M3 16v-3a2 2 0 012-2h14a2 2 0 012 2v3"/><circle cx="7" cy="16" r="1.6"/><circle cx="17" cy="16" r="1.6"/><path d="M3 19h18"/></svg>
-              Own transport
-            </button>
-          </div>
-          {transport === 'package' && (
-            <>
-              <div className={styles.tspHeading}>I want to fly from:</div>
-              <div className={styles.tspSub}>Popular</div>
-              <div className={styles.destGrid}>
-                {POPULAR_AIRPORTS.map((a) => (
-                  <div key={a.code}
-                    className={`${styles.destItem} ${origin === a.code ? styles.destItemActive : ''}`}
-                    onClick={() => { setOrigin(a.code); setTransport('package'); setOpenField(null); }}>
-                    <span>{a.country}</span>
-                    <span className={styles.destItemLabel}>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
-              <div className={styles.tspSub}>All airports</div>
-              <div className={styles.destGrid}>
-                {OTHER_AIRPORTS.map((a) => (
-                  <div key={a.code}
-                    className={`${styles.destItem} ${origin === a.code ? styles.destItemActive : ''}`}
-                    onClick={() => { setOrigin(a.code); setTransport('package'); setOpenField(null); }}>
-                    <span>{a.country}</span>
-                    <span className={styles.destItemLabel}>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
-            </>
-          )}
-        </div>
-      )}
       {openField === 'duration' && (
         <div className={`${styles.dropdown} ${styles.durDropdown}`}>
           <div className={styles.durList}>

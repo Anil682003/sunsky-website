@@ -1065,6 +1065,13 @@
   font-size: 11.5px; font-weight: 600; color: var(--text-sec);
   letter-spacing: 0.2px;
 }
+/* "Incl. flight" reminder on every card: the fare above is hotel-only */
+.rcFlightNote {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-size: 10.5px; font-weight: 700; color: var(--blue-deep);
+  background: var(--blue-pale, #f0f6ff);
+  padding: 3px 8px; border-radius: var(--r-full);
+}
 .rcPriceAmount {
   font-family: 'Sora', sans-serif;
   font-size: 34px; font-weight: 800;
