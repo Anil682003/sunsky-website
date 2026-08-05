@@ -891,6 +891,8 @@
 .sd .avail-price-val { font-family:'Sora',sans-serif; font-size:26px; font-weight:800; color:#065f46; }
 .sd .avail-price-val small { font-size:11px; font-weight:400; }
 .sd .avail-you-low { font-size:11px; color:var(--green); font-weight:700; margin-top:2px; }
+/* The "no estimate to quote" dash — quieter than a figure, never mistakable for one. */
+.sd .avail-price-none { font-size:19px; font-weight:700; color:var(--text-light); }
 
 /* ── TRIP NOT AVAILABLE — the red counterpart of .fc-res ─────────────────────
    Shown when the live check for the picked day returned no rooms. Same card
@@ -1551,7 +1553,7 @@
 }
 @keyframes sdSkSweep { from { background-position:130% 0; } to { background-position:-130% 0; } }
 .sd .sk-wrap { display:flex; flex-direction:column; gap:12px; }
-.sd .sk-note { display:flex; align-items:center; gap:9px; font-size:12.5px; font-weight:600; color:var(--text-sec); }
+/* .sk-note removed with its markup: loading sections now show placeholders only, no status line. */
 .sd .sk-card { pointer-events:none; }
 /* The room placeholder reuses the real card's layout classes, so it only needs the
    interactive dressing switched off — the geometry already matches by construction. */
