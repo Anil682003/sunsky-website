@@ -1045,6 +1045,11 @@ export default function HotelDetail() {
     }
     : null;
 
+  // The picked day was live-checked and came back with NO bookable rooms. It stays selected
+  // on screen (pickDay refuses re-picks, not the original selection), so the action card must
+  // say so — not quote the stale cache estimate under a green "available" tick.
+  const dayUnavailable = !!(pd && checkedEmpty.has(pd.iso));
+
   const filtersTouched = Object.keys(ovr).length > 0;
   // ── the one "from" figure the page quotes ────────────────────────────────────
   // Everything headline-priced (hero chip, Book card, mobile bar, share text, the checkout
@@ -1058,6 +1063,11 @@ export default function HotelDetail() {
   // used to read a hardcoded 765 on a cold visit).
   const paxCount = Math.max(1, (Number(sAdults) || 1) + (Number(sChildren) || 0));
   const stayFrom = (() => {
+    // The supplier was asked about the picked day and said no. Whatever the cache once
+    // estimated for it is not a price anyone can pay — the hero chip, Book card and mobile
+    // bar all read this figure, and each of them would otherwise quote €X beside the red
+    // "not available" card.
+    if (dayUnavailable) return null;
     if (Number(pd?.price) > 0) return Number(pd.price);
     if (usingLive && pMin > 0) return pMin;
     if (!filtersTouched && Number(hotel?.totalAmount) > 0) return Number(hotel.totalAmount);
@@ -1313,6 +1323,10 @@ export default function HotelDetail() {
     // dates the traveller has just changed must never stay on screen, let alone be bookable.
     setLiveChecked(false);
     setLiveRooms(null);
+    // Same for the days found EMPTY: they were empty for that duration and party. Keeping
+    // them would leave bars disabled — and the "not available" card up — against criteria
+    // nobody has checked yet.
+    setCheckedEmpty(new Set());
     invalidateFlights();
     setLiveFlights(null);
     invalidateTransfers();
@@ -2011,8 +2025,51 @@ export default function HotelDetail() {
               </div>
 
               {usingLive && (pd ? (
-                    <div className="fc-pop">
-                      {!liveChecked ? (
+                    <div className={`fc-pop${dayUnavailable ? ' fc-pop-unavail' : ''}`}>
+                      {dayUnavailable ? (
+                        /* The honest counterpart of the green card: the supplier was asked and
+                           said no. Restates the exact criteria that produced the "no" so the
+                           traveller can see WHAT to adjust — and the strip above stays live for
+                           picking a different day. */
+                        <div className="fc-unavail" role="status">
+                          <div className="fc-unavail-head">
+                            <span className="fc-unavail-dot" aria-hidden="true" />
+                            <div className="fc-unavail-msg">
+                              <div className="fc-unavail-title">This trip is not available.</div>
+                              <div className="fc-unavail-sub">Please try a different departure date or adjust your search criteria.</div>
+                            </div>
+                          </div>
+                          <div className="fc-unavail-crit">
+                            <span className="fc-unavail-caption">Your current selection</span>
+                            <div className="fc-unavail-grid">
+                              <div className="fcu-item">
+                                <span className="fcu-k">{ICON.cal} Departure</span>
+                                <span className="fcu-v">{pd.day} {pd.date}</span>
+                              </div>
+                              <div className="fcu-item">
+                                <span className="fcu-k">{ICON.cal} Return</span>
+                                <span className="fcu-v">{calDay(addDaysISO(pd.iso, nights))} {calDate(addDaysISO(pd.iso, nights))}</span>
+                              </div>
+                              <div className="fcu-item">
+                                <span className="fcu-k">{ICON.moon} Duration</span>
+                                <span className="fcu-v">{nights} {nights === 1 ? 'day' : 'days'}</span>
+                              </div>
+                              <div className="fcu-item">
+                                <span className="fcu-k">{transport === 'hotel_only' ? ICON.bed : ICON.plane} {transport === 'hotel_only' ? 'Transport' : 'Airport'}</span>
+                                <span className="fcu-v">{transport === 'hotel_only' ? 'Hotel only' : `${airportName(origin)} (${origin})`}</span>
+                              </div>
+                              <div className="fcu-item">
+                                <span className="fcu-k">{ICON.users} Guests</span>
+                                <span className="fcu-v">{sharePax}{Number(sRooms) > 1 ? ` · ${sRooms} rooms` : ''}</span>
+                              </div>
+                              <div className="fcu-item">
+                                <span className="fcu-k">{ICON.board} Board basis</span>
+                                <span className="fcu-v">{BOARD_PREFS.find((b) => b.id === boardPref)?.label || 'No preference'}</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      ) : !liveChecked ? (
                         <div className="fc-act">
                           <div className="fc-act-info">
                             <span className="fc-act-date">
@@ -2020,11 +2077,12 @@ export default function HotelDetail() {
                                 ? `${calDay(pd.iso)} ${calDate(pd.iso)} – ${calDay(addDaysISO(pd.iso, nights))} ${calDate(addDaysISO(pd.iso, nights))}`
                                 : `${pd.day} ${pd.date}`}
                             </span>
-                            {/* The cache returns 0 for a day it hasn't costed — quote nothing
-                                rather than "estimated from €0". */}
+                            {/* The hotel's name, not an "estimated from" price: the selected
+                                strip cell above already quotes that figure, so repeating it
+                                here said nothing new — while the name anchors WHAT is being
+                                checked right next to the button that checks it. */}
                             <span className="fc-act-meta">
-                              {nights} {nights === 1 ? 'day' : 'days'}
-                              {Number(pd.price) > 0 ? ` · estimated from ${ccy}${pd.price}` : ' · price on request'}
+                              {nights} {nights === 1 ? 'day' : 'days'} · {hotelName}
                             </span>
                           </div>
                           <button type="button" className="fc-cta" onClick={checkAvailability}>
@@ -2038,7 +2096,6 @@ export default function HotelDetail() {
                             <div className="avail-text">
                               {liveRooms?.loading ? 'Checking live availability…'
                                 : liveRooms?.error ? 'Showing estimated price'
-                                : liveRoom ? 'Your holiday is available!'
                                 : 'Your holiday is available!'}
                             </div>
                             <div className="avail-sub">
@@ -2069,7 +2126,11 @@ export default function HotelDetail() {
               {/* Flights. Own transport renders a statement, not a search — the traveller
                   said on the results page they don't want to fly, so no supplier is asked.
                   The affordance to change their mind keeps the live ROOM prices (see
-                  applyFilter: transport edits don't drop them). */}
+                  applyFilter: transport edits don't drop them). Hidden entirely while the
+                  picked day is UNAVAILABLE: flights for a stay with no room are not a
+                  package anyone can book, and every section below the red card would
+                  contradict it. */}
+              {!dayUnavailable && (
               <div className="flight-section reveal">
                 <div className="section-title"><span className="st-step">3</span> Your flights</div>
                 {transport === 'hotel_only' ? (
@@ -2215,13 +2276,14 @@ export default function HotelDetail() {
                   </>
                 )}
               </div>
+              )}
 
               {/* Airport transfer — auto-derived add-on (airport from the flight search,
                   hotel from this page); shown right below the flights section. The
                   transport gate is belt-and-braces on top of the fetch guards: an
                   own-transport stay must never show an airport pickup, even if a stale
                   response somehow reached the state. */}
-              {transport === 'package' && liveTransfers && (
+              {transport === 'package' && liveTransfers && !dayUnavailable && (
               <div className="transfer-section reveal vis">
                 <div className="section-title"><span className="st-step">4</span> Airport transfer <span className="stay-guests">(optional)</span></div>
                 {liveTransfers.loading ? (
@@ -2264,8 +2326,10 @@ export default function HotelDetail() {
               </div>
               )}
 
-              {/* Rooms — live availability, revealed once the traveller checks a date */}
-              {liveChecked && (
+              {/* Rooms — live availability, revealed once the traveller checks a date.
+                  An unavailable day has no rooms by definition — the red card already
+                  says so, a "Choose your room: none found" section under it would nag. */}
+              {liveChecked && !dayUnavailable && (
               <div className="room-section reveal vis">
                 <div className="section-title"><span className="st-step">2</span> Choose your room</div>
                 {liveRooms ? (

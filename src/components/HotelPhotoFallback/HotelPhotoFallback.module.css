@@ -9,6 +9,10 @@
   border-radius: inherit;
   background: #E4EEFF;
   isolation: isolate;
+  /* Declares this element as the query container for the tile label's size rule below.
+     Without it that @container query silently never matches. `size` (not inline-size) because
+     the rule asks about HEIGHT, and the wrap is always given a definite box by its parent. */
+  container-type: size;
 }
 
 .scene {
@@ -97,12 +101,23 @@
 /* TILE — one broken photo inside a mosaic of good ones: scene only, no copy */
 .tile .scene { filter: saturate(.96) brightness(1.02); }
 
-.tileMark {
+/* The mark and its label are centred as ONE stack, so the pair stays optically centred on the
+   tile — centring the icon and then hanging text off it leaves the group sitting high. */
+.tileNote {
   position: absolute;
   z-index: 2;
   left: 50%;
   top: 50%;
   transform: translate(-50%, -50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px;
+  text-align: center;
+  pointer-events: none;
+}
+.tileMark {
   width: 42px;
   height: 42px;
   border-radius: 50%;
@@ -113,8 +128,30 @@
   border: 1px solid rgba(31, 79, 216, .12);
   box-shadow: 0 6px 16px rgba(15, 40, 100, .16);
   color: #3A6FE8;
+  flex-shrink: 0;
 }
 .tileMark svg { width: 19px; height: 19px; }
+/* On a white pill rather than bare on the illustration: the scene runs from pale sky to warm
+   sand, so text laid straight onto it would change contrast across the tile. On the pill it is
+   a fixed 8.2:1 wherever the tile crops. */
+.tileLabel {
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.3;
+  letter-spacing: .01em;
+  color: #33507F;
+  background: rgba(255, 255, 255, .88);
+  border: 1px solid rgba(31, 79, 216, .10);
+  border-radius: 999px;
+  padding: 4px 10px;
+  white-space: nowrap;
+  box-shadow: 0 4px 12px rgba(15, 40, 100, .12);
+}
+/* A card image can be short; below ~120px the pair does not fit, so the label steps aside and
+   the mark carries the meaning alone rather than the two overlapping. */
+@container (max-height: 120px) {
+  .tileLabel { display: none; }
+}
 
 /* motion — slow enough to read as light, not as a loading state */
 /* transform-box:fill-box so `transform-origin:center` means the circle's own centre —

@@ -127,13 +127,25 @@ export default function Hero() {
   const [destSelection, setDestSelection] = useState({ countries: [], places: [] });
   const [date, setDate] = useState('');
   const [duration, setDuration] = useState('6-10 days');   // band label (default: ~1 week)
-  // How the traveller gets there + from which airport. Defaults to own transport so an
-  // untouched search behaves exactly as before this field existed; picking an airport in
-  // the dropdown is what opts the whole journey (results sidebar → hotel page flight
-  // search → checkout) into flights. Both ride the /results URL — the results page and
-  // the hotel page already read them from there.
-  const [transport, setTransport] = useState('hotel_only');
-  const [origin, setOrigin] = useState(DEFAULT_ORIGIN);
+  // How the traveller gets there + from which airport. Defaults to FLIGHT INCLUDED: a package
+  // is the product being sold, so an untouched search should price the trip the way most
+  // travellers actually buy it rather than making them find the toggle first. Choosing
+  // "Hotel only" is the deliberate opt-OUT.
+  // This decision travels the whole journey (results sidebar → hotel page flight search →
+  // checkout) and rides the /results URL alongside `origin`, which the results page and the
+  // hotel page already read from there.
+  const [transport, setTransport] = useState('package');
+  // Airports the traveller can leave from — MULTI-select, because "Brussels or Charleroi,
+  // whichever works out" is how people actually shop. The FIRST pick is the airport the
+  // search prices from (`origin` in the URL — single-valued everywhere downstream); the
+  // whole list rides along as `origins` so the choice is never silently narrowed to one.
+  const [origins, setOrigins] = useState([DEFAULT_ORIGIN]);
+  // Toggle, never below one: an empty "Flying from" has no honest label and no airport
+  // to search from, so the last ticked row cannot be un-ticked.
+  const toggleOrigin = (code) =>
+    setOrigins((prev) => (prev.includes(code)
+      ? (prev.length === 1 ? prev : prev.filter((c) => c !== code))
+      : [...prev, code]));
   // Occupancy is per room — each room carries its own adults, children and one
   // date-of-birth slot per child. The search still sends totals.
   const [roomsList, setRoomsList] = useState([{ adults: 2, children: 0, dobs: [] }]);
@@ -271,7 +283,8 @@ export default function Hero() {
     // page's flight search. Origin rides even in own-transport mode so flipping to
     // "incl. flight" later starts from the airport picked here, not from the default.
     qs.set('transport', transport === 'package' ? 'package' : 'hotel_only');
-    qs.set('origin', origin);
+    qs.set('origin', origins[0] || DEFAULT_ORIGIN);
+    if (origins.length > 1) qs.set('origins', origins.join(','));
     return qs;
   };
 
@@ -324,6 +337,30 @@ export default function Hero() {
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  // "Flying from" field text: one airport reads as itself, several read as a count —
+  // "4 airports" tells the traveller their whole selection is held, in space one name takes.
+  const originsLabel = origins.length === 1
+    ? `${airportCity(origins[0])} (${origins[0]})`
+    : `${origins.length} airports`;
+
+  // One airport row of the picker — a CHECKBOX, not a radio: several can be on at once,
+  // and clicking one must not close the panel mid-selection.
+  const airportRow = (a) => {
+    const on = origins.includes(a.code);
+    return (
+      <button type="button" key={a.code} role="checkbox" aria-checked={on}
+        className={`${styles.tspRow} ${on ? styles.tspRowOn : ''}`}
+        onClick={() => toggleOrigin(a.code)}>
+        <span className={styles.tspFlag}>{a.country}</span>
+        <span className={styles.tspName}>{a.label}</span>
+        <span className={styles.tspCode}>{a.code}</span>
+        <span className={`${styles.tspTick} ${on ? styles.tspTickOn : ''}`} aria-hidden="true">
+          {on && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
+        </span>
+      </button>
+    );
+  };
+
   // Shared "Departure + Duration + Travelers" fields — used by BOTH the Package and Search tabs
   // (same state), so the two tabs differ only in how the destination is chosen.
   const stayFields = (
@@ -363,7 +400,7 @@ export default function Hero() {
         </span>
         <div className={styles.sfText}>
           <span className={styles.sfLabel}>Flying from</span>
-          <span className={styles.sfValue}>{transport === 'hotel_only' ? 'Hotel only' : `${airportCity(origin)} (${origin})`}</span>
+          <span className={styles.sfValue}>{transport === 'hotel_only' ? 'Hotel only' : originsLabel}</span>
         </div>
         {openField === 'transport' && (
           <div className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
@@ -385,27 +422,17 @@ export default function Hero() {
               <>
                 <div className={styles.tspSub}>Popular</div>
                 <div className={styles.tspGrid}>
-                  {POPULAR_AIRPORTS.map((a) => (
-                    <button type="button" key={a.code}
-                      className={`${styles.tspRow} ${origin === a.code ? styles.tspRowOn : ''}`}
-                      onClick={() => { setOrigin(a.code); setOpenField(null); }}>
-                      <span className={styles.tspFlag}>{a.country}</span>
-                      <span className={styles.tspName}>{a.label}</span>
-                      <span className={styles.tspCode}>{a.code}</span>
-                    </button>
-                  ))}
+                  {POPULAR_AIRPORTS.map(airportRow)}
                 </div>
                 <div className={styles.tspSub}>All airports</div>
                 <div className={styles.tspGrid}>
-                  {OTHER_AIRPORTS.map((a) => (
-                    <button type="button" key={a.code}
-                      className={`${styles.tspRow} ${origin === a.code ? styles.tspRowOn : ''}`}
-                      onClick={() => { setOrigin(a.code); setOpenField(null); }}>
-                      <span className={styles.tspFlag}>{a.country}</span>
-                      <span className={styles.tspName}>{a.label}</span>
-                      <span className={styles.tspCode}>{a.code}</span>
-                    </button>
-                  ))}
+                  {OTHER_AIRPORTS.map(airportRow)}
+                </div>
+                <div className={styles.tspFoot}>
+                  <span className={styles.tspFootLabel}>
+                    {origins.length} airport{origins.length > 1 ? 's' : ''} selected
+                  </span>
+                  <button type="button" className={styles.doneBtn} onClick={() => setOpenField(null)}>Done</button>
                 </div>
               </>
             )}
