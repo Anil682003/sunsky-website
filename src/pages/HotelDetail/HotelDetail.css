@@ -709,37 +709,43 @@
    It restyles the whole selected column — bar, label band, hairline, ribbon and tick — because
    the selected state is drawn from five separate rules and recolouring only the bar would leave
    a green bar handing the date to a blue arrow.
-   The green is #10b981 — the SAME green as the availability tick on the card below, so the bar
-   and the "Your holiday is available!" confirmation read as one statement rather than two
-   different greens.
-   Because that green is light, THE TYPE ON THIS BAR FLIPS TO DARK INK. White on #10b981 is
-   2.54:1 and unreadable at the 9px this bar uses; near-black on it is 7.46:1 at the dark end of
-   the gradient and 9.84:1 at the light end. This is the one column on the strip with dark type,
-   which is a feature — it is also the one column reporting a fact rather than an estimate. */
+   The green is the mint family of the availability tick on the card below, so the bar and the
+   "Your holiday is available!" confirmation read as one statement rather than two greens.
+   THE TYPE ON THIS BAR IS DARK, because the mint is light: white on it is ~2.2:1 and
+   unreadable at the 9px this bar uses, while near-black is 8:1 and better. This is the one
+   column on the strip with dark type, which suits it — it is also the one column reporting a
+   fact rather than an estimate.
+   The lighter the mint, the MORE headroom the dark ink has, so lightening this bar improves
+   legibility rather than threatening it: the range below measures 8.05:1 to 10.15:1. */
 .sd .fc-col.sel.fc-ok .fc-bar,
 .sd .fc-col.sel.fc-ok.fc-nopr .fc-bar {
-  background:linear-gradient(170deg,#10B981,#34D399);
-  box-shadow:0 10px 28px rgba(16,185,129,.34);
+  background:linear-gradient(170deg,#34D399,#6EE7B7);
+  /* A wider, greener glow than the other states get — this is the success moment in the whole
+     flow, and the halo is what makes the column read as lit rather than merely coloured. */
+  box-shadow:0 12px 34px rgba(52,211,153,.48), 0 2px 6px rgba(6,95,70,.14);
 }
 .sd .fc-col.sel.fc-ok .fc-under::before,
 .sd .fc-col.sel.fc-ok .fc-tail,
 .sd .fc-col.sel.fc-ok.fc-nopr .fc-under::before,
-.sd .fc-col.sel.fc-ok.fc-nopr .fc-tail { background:#10B981; }
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-tail { background:#34D399; }
 .sd .fc-col.sel.fc-ok .fc-barzone,
-.sd .fc-col.sel.fc-ok.fc-nopr .fc-barzone { border-bottom-color:#10B981; }
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-barzone { border-bottom-color:#34D399; }
 
 /* Ink flip. These beat the .fc-col.sel rules that set white, which are (0,3,0) — these are
    (0,4,0) — so the whole column's type inverts together and nothing is left white on mint. */
-/* Alphas are high on purpose. These inks sit on mint, so a translucent one composites TOWARD
-   the background and loses contrast fast — the softer values normally used for secondary type
-   here (.78 / .72) measure 4.06:1 and 3.60:1 once composited, and both fail AA at 9px.
-   At these values the whole column lands between 4.77:1 and 6.10:1. */
-.sd .fc-col.sel.fc-ok .fc-from { color:rgba(6,42,30,.92); }
-.sd .fc-col.sel.fc-ok .fc-amt  { color:#062A1E; background:rgba(255,255,255,.42); }
-.sd .fc-col.sel.fc-ok .fc-nts  { color:rgba(6,42,30,.92); }
-.sd .fc-col.sel.fc-ok .fc-check { color:#062A1E; }
-.sd .fc-col.sel.fc-ok .fc-wk   { color:rgba(6,42,30,.86); }
-.sd .fc-col.sel.fc-ok .fc-date { color:#062A1E; }
+/* Alphas stay high: a translucent ink on mint composites TOWARD the background and loses
+   contrast fast — the softer values normally used for secondary type here (.78 / .72) measured
+   4.06:1 and 3.60:1 once composited on the previous, darker mint, and both failed AA at 9px.
+   The ink is a deep forest rather than pure black, so the column reads as a green object that
+   is lit rather than a black-on-green warning. */
+.sd .fc-col.sel.fc-ok .fc-from { color:rgba(4,49,34,.92); }
+/* The price is the payoff of the whole strip, so it gets a near-solid white chip — on this
+   lighter mint the old .42 wash had almost nothing to push against. */
+.sd .fc-col.sel.fc-ok .fc-amt  { color:#04311F; background:rgba(255,255,255,.78); }
+.sd .fc-col.sel.fc-ok .fc-nts  { color:rgba(4,49,34,.92); }
+.sd .fc-col.sel.fc-ok .fc-check { color:#04311F; }
+.sd .fc-col.sel.fc-ok .fc-wk   { color:rgba(4,49,34,.88); }
+.sd .fc-col.sel.fc-ok .fc-date { color:#04311F; }
 /* White disc, green tick — matching the tick on the confirmation card. */
 .sd .fc-col.sel.fc-ok .fc-dot {
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310B981' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
