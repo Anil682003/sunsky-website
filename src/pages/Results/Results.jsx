@@ -14,6 +14,7 @@ import { ratingLabel, ratingValue } from '../../utils/rating';
 import { topFacilities } from '../../utils/topFacilities';
 import { flagUrl } from '../../utils/countryFlag';
 import { toTitleCase } from '../../utils/textCase';
+import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -104,10 +105,18 @@ const REFUNDABLE_OPTIONS = [
   { value: 'yes', label: 'Refundable' },
   { value: 'no',  label: 'Non-ref.' },
 ];
-// Transport type. Maps to the cache `searchType` (see buildRequest).
+// How the traveller gets there. Two jobs ride on this one choice:
+//   1. the cache `searchType` (see buildRequest) — PACKAGE unlocks Hotelbeds' opaque
+//      rates, the ones only sellable bundled with a flight;
+//   2. whether the hotel page searches flights at all, and from which airport.
+//
+// The second label used to read "Flight + hotel", which was a promise the page did not keep:
+// picking it changed which hotel rates were legal to quote and nothing else — no flight was
+// ever priced into the total. It now names what it actually does, and the airport picker
+// below it is what turns it into a real flight search on the hotel page.
 const TRANSPORT_OPTIONS = [
   { value: 'hotel_only', label: 'Own transport' },
-  { value: 'package',    label: 'Flight + hotel' },
+  { value: 'package',    label: 'Incl. flight' },
 ];
 const PRICE_BASIS_OPTIONS = [
   { value: 'total',     label: 'Total stay' },
@@ -128,6 +137,10 @@ const EMPTY_FILTERS = {
   adultsOnly: false,                     // "Only Adults" hotels (facility 203/group 85)
   // Transport type. 'hotel_only' → cache searchType=HOTEL_ONLY; 'package' → PACKAGE.
   transport: 'hotel_only',
+  // Departure airport, carried to the hotel page's flight search. Only meaningful while
+  // transport === 'package'; kept when the traveller toggles back so switching to own
+  // transport and back doesn't lose the airport they already chose.
+  origin: DEFAULT_ORIGIN,
 };
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -302,6 +315,20 @@ function Segmented({ options, value, onChange, ariaLabel }) {
   );
 }
 
+// One departure airport in the "I want to fly from" list. A radio, not a checkbox: the
+// flight search departs from exactly one airport, and a multi-select would mean one live
+// supplier call per ticked airport on every hotel page.
+function OriginOption({ airport, checked, onPick }) {
+  return (
+    <label className={`${styles.originOption} ${checked ? styles.originOptionOn : ''}`}>
+      <input type="radio" name="originAirport" checked={checked} onChange={onPick} />
+      <span className={styles.originFlag} aria-hidden="true">{airport.country}</span>
+      <span className={styles.originName}>{airport.label}</span>
+      <span className={styles.originCode}>{airport.code}</span>
+    </label>
+  );
+}
+
 export default function Results() {
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -466,6 +493,11 @@ export default function Results() {
     const adultsOnly = ['1', 'true', 'yes'].includes((params.get('adultsOnly') || '').toLowerCase());
     const maxBeach  = metres('maxBeach');
     const maxCentre = metres('maxCentre');
+    // Transport + departure airport arrive from the home search bar and from a shared link.
+    // An unrecognised airport falls back to the default rather than being passed to the
+    // supplier verbatim (see normaliseOrigin).
+    const transport = params.get('transport') === 'package' ? 'package' : null;
+    const origin    = params.get('origin') ? normaliseOrigin(params.get('origin')) : null;
     const seed = {
       ...(boards.length        ? { boards } : {}),
       ...(themes.length        ? { themes } : {}),
@@ -477,6 +509,8 @@ export default function Results() {
       ...(adultsOnly           ? { adultsOnly: true } : {}),
       ...(maxBeach  != null    ? { maxBeach } : {}),
       ...(maxCentre != null    ? { maxCentre } : {}),
+      ...(transport            ? { transport } : {}),
+      ...(origin               ? { origin } : {}),
     };
     // Deriving the guard from the seed itself means a filter added above can never be left out
     // of it and silently ignored.
@@ -584,8 +618,15 @@ export default function Results() {
   const seenCodesRef   = useRef(new Set());
 
   // Debounce the UI filters into the committed set that actually drives fetching.
+  // `origin` is deliberately excluded from the comparison: the departure airport never
+  // reaches the cache (flights are priced on the hotel page), so committing a copy that
+  // differs only by origin would re-fire an IDENTICAL search — the page-1 effect keys on
+  // this object — and reset the grid and scroll position for nothing.
   useEffect(() => {
-    const t = setTimeout(() => setApplied(filters), 300);
+    const t = setTimeout(() => setApplied((prev) => {
+      const key = (f) => JSON.stringify(f, (k, v) => (k === 'origin' ? undefined : v));
+      return key(prev) === key(filters) ? prev : filters;
+    }), 300);
     return () => clearTimeout(t);
   }, [filters]);
 
@@ -1086,6 +1127,14 @@ export default function Results() {
     if (Number.isFinite(Number(h.totalAmount))) qs.set('total', String(h.totalAmount));
     const ages = childAgesRef.current;
     if (ages) qs.set('childAges', ages);
+    // How the traveller gets there, decided HERE and honoured on the hotel page: own
+    // transport → the hotel page runs no flight search at all; incl. flight → it prices
+    // flights from this airport first. Read from `filters` (the instant copy), not
+    // `applied` — a click a moment after toggling must carry what the screen shows.
+    // Both ride in the URL because the card opens in a NEW TAB: router state doesn't
+    // survive that jump, the query string does.
+    qs.set('transport', filters.transport === 'package' ? 'package' : 'hotel_only');
+    qs.set('origin', normaliseOrigin(filters.origin));
     return `/hotel/${h.hotelCode}?${qs.toString()}`;
   };
 
@@ -1265,6 +1314,11 @@ export default function Results() {
   }
   if (nights > 0) heroChips.push({ icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z', text: `${nights} nights` });
   heroChips.push({ icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75', text: guestSummary });
+  // Transport rides in the header only when it changes what the traveller will be shown —
+  // "own transport" is the default and adds nothing worth a chip.
+  if (filters.transport === 'package') {
+    heroChips.push({ icon: 'M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-1 .1-1.1.6l-.1.5c-.1.4.1.9.5 1.1L9 11l-4 4H2l-1 2 4 1 1 4 2-1v-3l4-4 2.7 4.8c.2.4.7.6 1.1.5l.5-.1c.5-.1.7-.6.6-1.1z', text: `Incl. flight · from ${airportCity(filters.origin)}` });
+  }
 
   const sidebar = (
     <>
@@ -1372,9 +1426,37 @@ export default function Results() {
         <Segmented options={PRICE_BASIS_OPTIONS} value={filters.priceBasis} onChange={setPriceBasis} ariaLabel="Price basis" />
       </FilterSection>
 
-      {/* Transport type */}
+      {/* Transport type + departure airport. The airport only appears once a flight is
+          actually wanted — offering "flying from" next to "own transport" asks the traveller
+          to answer a question that has no bearing on anything they will be shown. */}
       <FilterSection title="Transport" defaultOpen>
         <Segmented options={TRANSPORT_OPTIONS} value={filters.transport} onChange={(v) => setFilter('transport', v)} ariaLabel="Transport type" />
+        {filters.transport === 'package' && (
+          <div className={styles.originPicker} role="radiogroup" aria-label="Departure airport">
+            <div className={styles.originLabel}>I want to fly from</div>
+            <div className={styles.originGroup}>
+              {POPULAR_AIRPORTS.map((a) => (
+                <OriginOption key={a.code} airport={a} checked={filters.origin === a.code}
+                  onPick={() => setFilter('origin', a.code)} />
+              ))}
+            </div>
+            {/* An airport picked under "Other" must not hide its own selection when the
+                traveller collapses the list — keep it open while one of its rows is current. */}
+            <details className={styles.originMore} open={OTHER_AIRPORTS.some((a) => a.code === filters.origin) || undefined}>
+              <summary className={styles.originMoreSummary}>Other airports</summary>
+              <div className={styles.originGroup}>
+                {OTHER_AIRPORTS.map((a) => (
+                  <OriginOption key={a.code} airport={a} checked={filters.origin === a.code}
+                    onPick={() => setFilter('origin', a.code)} />
+                ))}
+              </div>
+            </details>
+            <p className={styles.originNote}>
+              Flights are priced on the hotel page, from this airport first. If a route isn’t
+              flown from here, we’ll show you the nearest airports that do.
+            </p>
+          </div>
+        )}
       </FilterSection>
 
       {/* Holiday Type — DYNAMIC from the admin facets (only themes that apply to the scope, with counts). */}

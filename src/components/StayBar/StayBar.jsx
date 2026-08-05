@@ -100,6 +100,7 @@ export default function StayBar({
   adults, children: childCount, childAges = '', rooms: roomCount = 1,
   board = '', boardOptions = [], boardHint = '',
   origin, originOptions = [], originLabel = (c) => c, destination = '',
+  transport = 'package',
   nights,
   touched = false, onChange, onBoardChange, onChildAges, onReset,
 }) {
@@ -281,14 +282,36 @@ export default function StayBar({
           {boardHint && <p className={styles.listHint}>{boardHint}</p>}
         </Field>
 
+        {/* The field states the MODE, not just an airport — an own-transport stay used to
+            read "Brussels (BRU) → AYT" here, advertising a flight that was never searched. */}
         <Field id="origin" icon={ICONS.plane} label="Transport" open={openField === 'origin'} onToggle={toggle}
-          value={`${originLabel(origin)} (${origin})${destination ? ` → ${destination}` : ''}`} wide>
-          <div className={styles.popTitle}>Flying from</div>
-          <OptionList scroll current={origin}
-            options={originOptions.map((o) => ({
-              id: o, label: `${originLabel(o)} (${o})`, note: destination ? `→ ${destination}` : null,
-            }))}
-            onPick={(o) => { onChange({ origin: o }); close(); }} />
+          value={transport === 'hotel_only'
+            ? 'Own transport'
+            : `${originLabel(origin)} (${origin})${destination ? ` → ${destination}` : ''}`} wide>
+          <div className={styles.modeRow} role="radiogroup" aria-label="Transport mode">
+            <button type="button"
+              className={`${styles.modeBtn}${transport !== 'hotel_only' ? ` ${styles.modeBtnOn}` : ''}`}
+              role="radio" aria-checked={transport !== 'hotel_only'}
+              onClick={() => onChange({ transport: 'package' })}>
+              Incl. flight
+            </button>
+            <button type="button"
+              className={`${styles.modeBtn}${transport === 'hotel_only' ? ` ${styles.modeBtnOn}` : ''}`}
+              role="radio" aria-checked={transport === 'hotel_only'}
+              onClick={() => { onChange({ transport: 'hotel_only' }); close(); }}>
+              Own transport
+            </button>
+          </div>
+          {transport !== 'hotel_only' && (
+            <>
+              <div className={styles.popTitle}>Flying from</div>
+              <OptionList scroll current={origin}
+                options={originOptions.map((o) => ({
+                  id: o, label: `${originLabel(o)} (${o})`, note: destination ? `→ ${destination}` : null,
+                }))}
+                onPick={(o) => { onChange({ origin: o }); close(); }} />
+            </>
+          )}
         </Field>
 
         {/* Day-bands, worded exactly as the home page words them — a traveller who searched
