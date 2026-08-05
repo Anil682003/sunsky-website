@@ -790,9 +790,21 @@
    cheapest-of-week, green is confirmed available, grey is unavailable) — and its LIGHTNESS is
    the message: every dark bar on this strip states money, and a day with nothing quoted must
    not carry that weight. Pale bar, dark ink: "nothing here yet, press to find out". */
+/* #EBE8F7 is so close to the page that these bars were dissolving into it — they read as gaps
+   in the chart rather than as days you can act on. A dashed outline gives them an edge without
+   darkening the fill, and dashed rather than solid is the honest choice: a solid border would
+   make them look as settled as the priced bars, whereas dashed says the figure is still
+   provisional. Drawn with an inset shadow, not `border`, so it costs no layout — a real border
+   would add 3px to every un-cached bar and break the height comparison across the strip. */
 .sd .fc-col.fc-nopr .fc-bar {
   background:#EBE8F7;
+  outline:1.5px dashed #A99BF0;
+  outline-offset:-1.5px;   /* sits INSIDE the bar, so it follows the 10px top radius */
 }
+.sd .fc-col.fc-nopr:hover .fc-bar { outline-color:#7B68DC; }
+/* The selected day is solid and saturated — it no longer needs the outline to be found, and
+   keeping it would read as a stray edge on the one bar that is already unmistakable. */
+.sd .fc-col.fc-nopr.sel .fc-bar { outline:none; }
 /* Ink flip, same move as the confirmed-green day: white on #EBE8F7 is unreadable, so the
    label takes the family's deep end — #4F40B0 measures 6.5:1 on the bar and 5.7:1 on its
    hover, both clear of AA at the 10px bold this label uses. */
