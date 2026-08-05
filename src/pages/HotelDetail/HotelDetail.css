@@ -853,6 +853,20 @@
 .sd .alt-chip-name { font-weight:700; font-size:11.5px; }
 .sd .alt-chip-code { font-size:10.5px; font-weight:700; letter-spacing:.08em; color:var(--text-light); }
 .sd .alt-chip.act .alt-chip-code { color:var(--blue); opacity:.75; }
+/* an alternative WITH a live price found by the fallback probe */
+.sd .alt-chip-priced { border-color:var(--blue-soft); background:var(--blue-pale); }
+.sd .alt-chip-price { font-size:11px; font-weight:800; color:var(--blue); margin-top:2px; }
+.sd .alt-airports-muted { opacity:.85; }
+.sd .alt-airports + .alt-airports { margin-top:14px; }
+
+/* own transport — the flight section's statement card when no flights were asked for */
+.sd .own-transport { display:flex; align-items:center; justify-content:space-between; gap:14px; flex-wrap:wrap; padding:18px 20px; border-radius:16px; border:1px solid var(--border); background:var(--blue-pale, #f4f8fe); }
+.sd .own-transport-row { display:flex; align-items:center; gap:12px; color:var(--blue); }
+.sd .own-transport-text { display:flex; flex-direction:column; gap:2px; }
+.sd .own-transport-title { font-weight:800; font-size:13.5px; color:var(--dark); }
+.sd .own-transport-sub { font-size:12px; color:var(--text-sec); }
+.sd .own-transport-add { display:inline-flex; align-items:center; gap:7px; padding:9px 16px; border-radius:999px; border:1px solid var(--blue-soft); background:var(--white); color:var(--blue); font-family:inherit; font-size:12px; font-weight:700; cursor:pointer; transition:all .25s var(--ease); }
+.sd .own-transport-add:hover { background:var(--blue-bg); transform:translateY(-1px); box-shadow:var(--shadow-xs); }
 
 /* ROOMS */
 .sd .room-section { margin-bottom:38px; }

@@ -57,6 +57,24 @@
 }
 .popTitle + .popTitle, .list + .popTitle { margin-top: 12px; }
 
+/* Incl. flight / Own transport toggle at the top of the Transport popover */
+.modeRow {
+  display: flex; gap: 4px; margin-bottom: 12px;
+  background: #f1f6fd; padding: 4px; border-radius: 999px;
+}
+.modeBtn {
+  flex: 1; padding: 8px 10px; border: none; background: transparent;
+  border-radius: 999px; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 700;
+  color: var(--text-light, #8fa5c6); white-space: nowrap;
+  transition: all 0.2s ease;
+}
+.modeBtn:hover { color: var(--dark, #16233a); }
+.modeBtnOn {
+  background: #fff; color: var(--blue-deep, #1f4fd8);
+  box-shadow: 0 2px 8px rgba(31,79,216,0.16);
+}
+
 /* steppers */
 .stepRow { display: flex; align-items: center; gap: 16px; padding: 9px 2px; }
 .stepRow + .stepRow { border-top: 1px solid #f2f6fc; }

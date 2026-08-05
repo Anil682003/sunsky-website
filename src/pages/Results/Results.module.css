@@ -633,6 +633,58 @@
   color: var(--blue-deep, #1f4fd8);
 }
 .facetMore:hover { text-decoration: underline; }
+
+/* ── "I want to fly from" — departure airport under the Transport toggle ── */
+.originPicker { margin-top: 12px; }
+.originLabel {
+  font-size: 12.5px; font-weight: 800; color: var(--dark);
+  margin-bottom: 4px;
+}
+.originGroup { display: flex; flex-direction: column; }
+.originOption {
+  display: flex; align-items: center; gap: 10px;
+  padding: 6px 0; cursor: pointer; font-size: 13.5px;
+  color: var(--text-sec); transition: color 0.2s;
+}
+.originOption:hover { color: var(--dark); }
+/* Same drawn control as .filterCheck, but ROUND — one airport, not many. */
+.originOption input[type="radio"] {
+  appearance: none; -webkit-appearance: none;
+  width: 19px; height: 19px; border-radius: 50%;
+  border: 2px solid #d7e3f5; flex-shrink: 0;
+  transition: all 0.2s var(--ease-spring); position: relative; cursor: pointer;
+}
+.originOption input:hover { border-color: var(--blue-ocean); }
+.originOption input:checked {
+  background: linear-gradient(135deg, var(--blue-deep), var(--blue-mid));
+  border-color: var(--blue-deep);
+  box-shadow: 0 3px 10px rgba(31,79,216,0.3);
+}
+.originOption input:checked::after {
+  content: ''; position: absolute; inset: 4.5px;
+  border-radius: 50%; background: #fff;
+  animation: scaleIn 0.2s var(--ease-spring) both;
+}
+.originFlag { font-size: 14px; line-height: 1; flex-shrink: 0; }
+.originName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.originOptionOn .originName { color: var(--dark); font-weight: 600; }
+.originCode {
+  font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em;
+  color: var(--text-light); flex-shrink: 0;
+}
+.originOptionOn .originCode { color: var(--blue-deep); }
+.originMore { margin-top: 2px; }
+.originMoreSummary {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 4px 2px; cursor: pointer; list-style: none;
+  font-size: 12.5px; font-weight: 700; color: var(--blue-deep, #1f4fd8);
+}
+.originMoreSummary::-webkit-details-marker { display: none; }
+.originMoreSummary:hover { text-decoration: underline; }
+.originNote {
+  margin: 8px 0 0; font-size: 11.5px; line-height: 1.45;
+  color: var(--text-light);
+}
 .facetMore svg { transition: transform 0.2s ease; }
 /* Selected-scope chips */
 .scopeChips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }

@@ -13,6 +13,7 @@ import {
 } from '../../utils/flightFilters';
 import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
+import { DEPARTURE_AIRPORTS, AIRPORT_CODES, DEFAULT_ORIGIN, normaliseOrigin } from '../../utils/airports';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
 import StayBar from '../../components/StayBar/StayBar';
@@ -21,7 +22,6 @@ import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
-const DEFAULT_ORIGIN = 'BRU'; // departure airport the flight search starts from
 
 /* Turn a failed supplier call into something a traveller can act on.
  * axios reports its own internals — "timeout of 15000ms exceeded", "Network Error",
@@ -45,8 +45,83 @@ const friendlyError = (e, what) => {
 };
 // Hotelbeds 400s on a child with no age, so a newly-added child gets this until asked.
 const CHILD_AGE_DEFAULT = 8;
-// Departure airports offered in the "Transport" filter — the agency's catchment.
-const ORIGINS = ['BRU', 'CRL', 'AMS', 'EIN', 'RTM', 'NRN', 'DUS'];
+// Live flight quotes older than this are not re-used — a fare cached at page-open time
+// should not still be answering an airport switch made ten minutes later.
+const FLIGHT_CACHE_TTL_MS = 5 * 60 * 1000;
+
+/* Normalise a raw /flight-availability/search response into the card shape, cheapest first.
+ * Pure — the SAME code path serves the traveller's chosen airport and every alternative the
+ * fallback probe prices, so a probed fare can never disagree with the fare shown after
+ * clicking that alternative. `originCode` matters: the round-trip split and the one-way
+ * pairing below both key on which airport counts as "home". */
+function transformFlights(data, originCode) {
+  const raw = data?.results?.airtuerk?.flights || [];
+  const home = String(originCode || '').toUpperCase();
+  // The API's bookable keys are `flightKey`/`flightKeys` — they are REQUIRED
+  // for live price verification and the Airtuerk reservation. (The old code
+  // read a non-existent `offerKey` field, so packages booked from this page
+  // carried no keys at all.)
+  const keysOf = (x) => (Array.isArray(x?.flightKeys) && x.flightKeys.length
+    ? x.flightKeys
+    : [x?.flightKey].filter(Boolean));
+
+  // Each round-trip flight already carries its own direction split in
+  // `outbound`/`inbound`. Read those directly — the previous code re-derived
+  // the split from the flat `legs` array (out + return concatenated) and, since
+  // every round-trip's first leg departs the origin, filed EVERY flight as an
+  // outbound with none inbound. The card then took legs[0].from → legs[last].to,
+  // i.e. BRU → …→ BRU, printing "BRU → BRU · 1 stop" for a direct return trip.
+  let flights = raw
+    .map((f) => {
+      let outLegs = f.outbound?.legs?.length ? f.outbound.legs : (f.legs || []);
+      let retLegs = f.inbound?.legs?.length ? f.inbound.legs : [];
+      if (!outLegs.length) return null;
+      // Airtuerk marks the split on SOME round trips and not others. When it doesn't,
+      // every leg arrives in one array — the card then reads legs[0].from → legs[last].to
+      // and prints "BRU → BRU · 1 stop" with the return half missing, and the return-time
+      // filter has no departure to read. Recover the split from the stay-length gap.
+      if (!retLegs.length) {
+        const split = splitRoundTrip(outLegs, home);
+        outLegs = split.outLegs; retLegs = split.retLegs;
+      }
+      return {
+        totalPrice: f.totalPrice || 0,
+        currency: f.currency || 'EUR',
+        outLegs, retLegs,
+        stops: Math.max(outLegs.length - 1, retLegs.length - 1, 0),
+        fareBreakdown: f.fareBreakdown || [],
+        flightKeys: keysOf(f),
+      };
+    })
+    .filter(Boolean);
+
+  // Fallback for a supplier that returns separate one-way flights (no per-flight
+  // outbound/inbound): pair each outbound with each inbound by origin airport.
+  if (!flights.some((f) => f.retLegs.length)) {
+    const outs = [], ins = [];
+    raw.forEach((f) => {
+      const legs = f.legs || [];
+      if (!legs.length) return;
+      if ((legs[0].from || '').toUpperCase() === home) outs.push(f);
+      else if ((legs[legs.length - 1].to || '').toUpperCase() === home) ins.push(f);
+    });
+    if (outs.length && ins.length) {
+      flights = [];
+      for (const ob of outs) for (const ib of ins) {
+        flights.push({
+          totalPrice: (ob.totalPrice || 0) + (ib.totalPrice || 0),
+          currency: ob.currency || 'EUR',
+          outLegs: ob.legs || [], retLegs: ib.legs || [],
+          stops: Math.max((ob.legs || []).length - 1, (ib.legs || []).length - 1, 0),
+          fareBreakdown: [...(ob.fareBreakdown || []), ...(ib.fareBreakdown || [])],
+          flightKeys: [...keysOf(ob), ...keysOf(ib)],
+        });
+      }
+    }
+  }
+  flights.sort((a, b) => a.totalPrice - b.totalPrice);
+  return flights;
+}
 // "Care (Meals)" options. `match` tests the supplier's board name/code on a live room.
 const BOARD_PREFS = [
   { id: '',   label: 'No preference' },
@@ -121,6 +196,7 @@ const ICON = {
   bed:   <S><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8" /><path d="M4 10V6a2 2 0 012-2h12a2 2 0 012 2v4" /><line x1="2" y1="20" x2="22" y2="20" /></S>,
   shield:<S><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></S>,
   noTransfer: <S><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /></S>,
+  car:   <S><path d="M5 11l1.5-4.5A2 2 0 018.4 5h7.2a2 2 0 011.9 1.5L19 11" /><path d="M3 16v-3a2 2 0 012-2h14a2 2 0 012 2v3" /><circle cx="7" cy="16" r="1.6" /><circle cx="17" cy="16" r="1.6" /><path d="M3 19h18" /></S>,
   clock: <S><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></S>,
   arrow: <S sw={2.5}><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></S>,
   arrowBack: <S><path d="M9 14l-4-4 4-4" /><path d="M5 10h11a4 4 0 010 8h-1" /></S>,
@@ -669,8 +745,16 @@ export default function HotelDetail() {
     const ages = paramChildAges.split(',').map((a) => a.trim()).filter(Boolean);
     return Array.from({ length: n }, (_, i) => ages[i] || String(CHILD_AGE_DEFAULT)).join(',');
   })();
-  // Departure airport — the traveller can fly from a different one (was hardcoded BRU).
-  const origin = ovr.origin ?? DEFAULT_ORIGIN;
+  // Departure airport — priority order: an in-page edit, then the airport chosen on the
+  // results page (URL — the card opens in a new tab, so only the query string arrives),
+  // then the default. `normaliseOrigin` guards the URL value: an airport we don't sell
+  // from would be handed to the supplier verbatim and come back empty with no explanation.
+  const origin = normaliseOrigin(ovr.origin ?? state?.origin ?? qp('origin') ?? DEFAULT_ORIGIN);
+  // How the traveller gets there, decided on the results page and honoured here: own
+  // transport runs NO flight (or transfer) search at all — a supplier call for a flight
+  // the traveller said they don't want. Links that predate the parameter (bookmarks,
+  // favourites, OG shares) keep the historic behaviour: flights shown.
+  const transport = ovr.transport ?? ((state?.transport || qp('transport')) === 'hotel_only' ? 'hotel_only' : 'package');
   // Board preference: '' = no preference, else a boardRank key the room list filters on.
   const boardPref = ovr.board ?? '';
 
@@ -1022,13 +1106,17 @@ export default function HotelDetail() {
     put('adults', sAdults);         put('children', sChildren);
     put('rooms', sRooms);           put('childAges', sChildAges);
     put('nights', nights);          put('destination', destination);
+    // the recipient sees the same trip: same transport mode, same departure airport
+    put('transport', transport);    put('origin', origin);
     // display fallbacks, so the recipient never sees "Hotel 123456" while the record loads
     put('name', hotelName);         put('loc', locLabel);
     put('stars', stars || '');      put('currency', hotel?.currency || '');
     put('total', hotel?.totalAmount);
-    const origin = typeof window !== 'undefined' ? window.location.origin : '';
+    // `siteOrigin`, NOT `origin` — that name is the departure airport in this component,
+    // and shadowing it here put the airport param above into a temporal dead zone.
+    const siteOrigin = typeof window !== 'undefined' ? window.location.origin : '';
     const q = qs.toString();
-    return `${origin}/hotel/${hotelCode}${q ? `?${q}` : ''}`;
+    return `${siteOrigin}/hotel/${hotelCode}${q ? `?${q}` : ''}`;
   })();
 
   // Editing the bar changed only component state, so the address bar disagreed with the screen:
@@ -1043,8 +1131,9 @@ export default function HotelDetail() {
     set('adults', sAdults);       set('children', sChildren);
     set('rooms', sRooms);         set('childAges', sChildAges);
     set('nights', nights);
+    set('transport', transport);  set('origin', origin);
     if (url.toString() !== window.location.href) window.history.replaceState(window.history.state, '', url);
-  }, [filtersTouched, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms, sChildAges, nights]);
+  }, [filtersTouched, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms, sChildAges, nights, transport, origin]);
 
   // Only a REAL "from" figure goes in the message; `stayFrom` already refuses the €0 the price
   // cache returns for an uncosted day and the total of a search that has since been edited.
@@ -1169,7 +1258,10 @@ export default function HotelDetail() {
   // A filter set that survives one search rarely fits the next — reset when results change.
   useEffect(() => { clearFlightFilters(); }, [allFlights]);
 
-  const liveTransfer = (selectedTransfer >= 0 && liveTransfers?.services?.length)
+  // Gated on transport here, at the single source every consumer reads (transferPrice,
+  // liveTotal, both checkout payloads) — an own-transport booking can never carry an
+  // airport pickup, whatever state a stale response managed to leave behind.
+  const liveTransfer = (transport === 'package' && selectedTransfer >= 0 && liveTransfers?.services?.length)
     ? liveTransfers.services[selectedTransfer] : null;
   const transferPrice = liveTransfer ? Math.round(liveTransfer.price || 0) : 0;
   const liveTotal = liveRoom ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0) + transferPrice) : null;
@@ -1188,103 +1280,183 @@ export default function HotelDetail() {
   // parameters is dropped: keeping them would show a price for a search the traveller
   // has just changed. The calendar re-fetches on its own (these values are its deps).
   const applyFilter = (patch) => {
+    const keys = Object.keys(patch);
+    // HOW the traveller gets there (transport mode, departure airport) is not WHEN or WHO:
+    // the live ROOM rates were priced for dates and occupancy that these edits don't touch,
+    // so they stay on screen — clearing them forced a pointless second availability check.
+    // Only the flight is re-resolved (and the transfer, when flights are toggled).
+    if (keys.length && keys.every((k) => k === 'origin' || k === 'transport')) {
+      setOvr((p) => ({ ...p, ...patch }));
+      invalidateFlights();          // orphan any in-flight flight response
+      setSelectedFlight(0);
+      const nextTransport = patch.transport ?? transport;
+      const nextOrigin = patch.origin ?? origin;
+      if (nextTransport === 'hotel_only') {
+        // Flights off: the flight AND its dependent transfer leave the price. The room stays.
+        setLiveFlights(null);
+        invalidateTransfers();
+        setLiveTransfers(null); setSelectedTransfer(-1);
+        lastTransferPickupRef.current = null;
+        return;
+      }
+      const checkin = pd?.iso || baseCheckIn;
+      if (!checkin || !destination) { setLiveFlights(null); return; }
+      const checkout = pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut;
+      fetchFlights(checkin, checkout, nextOrigin);
+      // Transfers run destination-side — the departure airport doesn't change them, so an
+      // origin switch keeps them. Turning flights back ON re-fetches what "off" cleared.
+      if (patch.transport === 'package') fetchTransfers(checkin);
+      return;
+    }
     setOvr((p) => ({ ...p, ...patch }));
     // Every live result was priced under the OLD parameters, so it goes — a rate fetched for
     // dates the traveller has just changed must never stay on screen, let alone be bookable.
     setLiveChecked(false);
     setLiveRooms(null);
+    invalidateFlights();
     setLiveFlights(null);
+    invalidateTransfers();
     setLiveTransfers(null);
     setSelectedTransfer(-1);
-    // The PICKED DAY is a different matter. Changing the departure airport or a child's age
-    // doesn't move the stay, and changing its length doesn't move the departure day — the day
-    // is still in the strip, so clearing it made the traveller re-pick for nothing. Only a
-    // change of check-in (or of who is travelling, which re-prices every day) drops it.
-    const keepsTheDay = Object.keys(patch).every((k) => k === 'origin' || k === 'childAges' || k === 'nights');
+    // The PICKED DAY is a different matter. Changing a child's age doesn't move the stay,
+    // and changing its length doesn't move the departure day — the day is still in the
+    // strip, so clearing it made the traveller re-pick for nothing. Only a change of
+    // check-in (or of who is travelling, which re-prices every day) drops it.
+    const keepsTheDay = keys.every((k) => k === 'childAges' || k === 'nights');
     if (!keepsTheDay) setSelectedISO(null);
   };
-  const resetFilters = () => { setOvr({}); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); setLiveRooms(null); setLiveFlights(null); setLiveTransfers(null); setSelectedTransfer(-1); setCheckedEmpty(new Set()); };
+  const resetFilters = () => { setOvr({}); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); invalidateTransfers(); setLiveTransfers(null); setSelectedTransfer(-1); setCheckedEmpty(new Set()); };
 
   const ovBase = liveTotal != null ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
 
-  // ── shared flight fetch (used on mount + day-click) ──
-  const fetchFlights = (checkin, checkout) => {
-    if (!destination) { setLiveFlights(null); return; }
-    setLiveFlights({ loading: true });
-    axiosInstance.post('/flight-availability/search', {
-      from: origin, to: destination, depdate: checkin, retdate: checkout,
+  // ── shared flight fetch (used on mount + day-click + airport/transport switches) ──
+  //
+  // Race guard: `flightSeqRef` is a monotonic id. Every fetch takes the next id and only
+  // the CURRENT id may write results — a slow response from an airport or a date the
+  // traveller has since moved away from is dropped, never painted. Anything that clears
+  // `liveFlights` without starting a new fetch must bump the id too (invalidateFlights),
+  // or the orphaned response would land on the cleared screen.
+  //
+  // Cache: raw supplier responses keyed by route+dates+pax, TTL 5 min. This is what makes
+  // the fallback probe free to apply — clicking "fly from AMS instead" replays the probe's
+  // cached response through the same transform instead of paying a second supplier call.
+  const flightSeqRef = useRef(0);
+  const flightCacheRef = useRef(new Map());
+  const invalidateFlights = () => { flightSeqRef.current += 1; };
+  const flightSearchKey = (from, checkin, checkout) =>
+    `${from}|${checkin}|${checkout}|${Number(sAdults) || 2}|${Number(sChildren) || 0}`;
+  const readFlightCache = (key) => {
+    const hit = flightCacheRef.current.get(key);
+    if (!hit) return null;
+    if (Date.now() - hit.at > FLIGHT_CACHE_TTL_MS) { flightCacheRef.current.delete(key); return null; }
+    return hit.data;
+  };
+  const searchFlightsRaw = (from, checkin, checkout) => {
+    const key = flightSearchKey(from, checkin, checkout);
+    const cached = readFlightCache(key);
+    if (cached) return Promise.resolve(cached);
+    return axiosInstance.post('/flight-availability/search', {
+      from, to: destination, depdate: checkin, retdate: checkout,
       adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
     }).then(({ data }) => {
-      console.log('[Detail] flight-availability response', data?.results);
-      const raw = data?.results?.airtuerk?.flights || [];
-      const originCode = origin.toUpperCase();
-      // The API's bookable keys are `flightKey`/`flightKeys` — they are REQUIRED
-      // for live price verification and the Airtuerk reservation. (The old code
-      // read a non-existent `offerKey` field, so packages booked from this page
-      // carried no keys at all.)
-      const keysOf = (x) => (Array.isArray(x?.flightKeys) && x.flightKeys.length
-        ? x.flightKeys
-        : [x?.flightKey].filter(Boolean));
-
-      // Each round-trip flight already carries its own direction split in
-      // `outbound`/`inbound`. Read those directly — the previous code re-derived
-      // the split from the flat `legs` array (out + return concatenated) and, since
-      // every round-trip's first leg departs the origin, filed EVERY flight as an
-      // outbound with none inbound. The card then took legs[0].from → legs[last].to,
-      // i.e. BRU → …→ BRU, printing "BRU → BRU · 1 stop" for a direct return trip.
-      let flights = raw
-        .map((f) => {
-          let outLegs = f.outbound?.legs?.length ? f.outbound.legs : (f.legs || []);
-          let retLegs = f.inbound?.legs?.length ? f.inbound.legs : [];
-          if (!outLegs.length) return null;
-          // Airtuerk marks the split on SOME round trips and not others. When it doesn't,
-          // every leg arrives in one array — the card then reads legs[0].from → legs[last].to
-          // and prints "BRU → BRU · 1 stop" with the return half missing, and the return-time
-          // filter has no departure to read. Recover the split from the stay-length gap.
-          if (!retLegs.length) {
-            const split = splitRoundTrip(outLegs, origin);
-            outLegs = split.outLegs; retLegs = split.retLegs;
-          }
-          return {
-            totalPrice: f.totalPrice || 0,
-            currency: f.currency || 'EUR',
-            outLegs, retLegs,
-            stops: Math.max(outLegs.length - 1, retLegs.length - 1, 0),
-            fareBreakdown: f.fareBreakdown || [],
-            flightKeys: keysOf(f),
-          };
-        })
-        .filter(Boolean);
-
-      // Fallback for a supplier that returns separate one-way flights (no per-flight
-      // outbound/inbound): pair each outbound with each inbound by origin airport.
-      if (!flights.some((f) => f.retLegs.length)) {
-        const outs = [], ins = [];
-        raw.forEach((f) => {
-          const legs = f.legs || [];
-          if (!legs.length) return;
-          if ((legs[0].from || '').toUpperCase() === originCode) outs.push(f);
-          else if ((legs[legs.length - 1].to || '').toUpperCase() === originCode) ins.push(f);
-        });
-        if (outs.length && ins.length) {
-          flights = [];
-          for (const ob of outs) for (const ib of ins) {
-            flights.push({
-              totalPrice: (ob.totalPrice || 0) + (ib.totalPrice || 0),
-              currency: ob.currency || 'EUR',
-              outLegs: ob.legs || [], retLegs: ib.legs || [],
-              stops: Math.max((ob.legs || []).length - 1, (ib.legs || []).length - 1, 0),
-              fareBreakdown: [...(ob.fareBreakdown || []), ...(ib.fareBreakdown || [])],
-              flightKeys: [...keysOf(ob), ...keysOf(ib)],
-            });
-          }
-        }
-      }
-      flights.sort((a, b) => a.totalPrice - b.totalPrice);
-      setSelectedFlight(0);
-      setLiveFlights({ flights, cheapest: data?.results?.cheapest || null });
-    }).catch((e) => setLiveFlights({ error: friendlyError(e, 'flight') }));
+      flightCacheRef.current.set(key, { data, at: Date.now() });
+      return data;
+    });
   };
+
+  const fetchFlights = (checkin, checkout, fromOverride = null) => {
+    if (!destination) { invalidateFlights(); setLiveFlights(null); return; }
+    // `fromOverride` exists because `origin` is read from this render's closure — the
+    // airport-switch handlers fetch for the airport just picked, not the one on screen.
+    const from = normaliseOrigin(fromOverride || origin);
+    const seq = ++flightSeqRef.current;
+    setLiveFlights({ loading: true });
+    searchFlightsRaw(from, checkin, checkout).then((data) => {
+      if (seq !== flightSeqRef.current) return;
+      console.log('[Detail] flight-availability response', data?.results);
+      const flights = transformFlights(data, from);
+      setSelectedFlight(0);
+      if (!flights.length) {
+        // The chosen airport doesn't fly this route on these dates. Say so, and go find
+        // the airports that do — with prices — rather than leaving a dead end. And drop
+        // any transfer still on screen: its pickup time (and rateKey) encode the ARRIVAL
+        // of a flight that just ceased to exist — bookable, it would put a paid airport
+        // pickup timed to an abandoned itinerary on a flightless booking.
+        dropFlightTimedTransfer();
+        setLiveFlights({ flights: [], empty: true, from, checkin, checkout, probing: true, alternatives: null, unprobed: [] });
+        probeAlternatives(from, checkin, checkout, seq);
+        return;
+      }
+      setLiveFlights({ flights, cheapest: data?.results?.cheapest || null, from });
+    }).catch((e) => {
+      // NO alternative probe on error: a supplier that's down is down for every airport,
+      // and multiplying a failing call by four would only hammer it. Retry is offered.
+      // The flight-timed transfer goes here too — same hazard as the empty branch.
+      if (seq === flightSeqRef.current) {
+        dropFlightTimedTransfer();
+        setLiveFlights({ error: friendlyError(e, 'flight') });
+      }
+    });
+  };
+
+  // A transfer whose pickup follows a flight must not outlive that flight. Clearing
+  // `lastTransferPickupRef` matters: without it the same-datetime dedupe would swallow
+  // the next legitimate re-fetch as "already have these results".
+  const dropFlightTimedTransfer = () => {
+    invalidateTransfers();
+    setLiveTransfers(null);
+    setSelectedTransfer(-1);
+    lastTransferPickupRef.current = null;
+  };
+
+  // ── the smart fallback: price the popular alternatives in parallel ──
+  // Bounded (3-4 calls), allSettled so one dead airport can't sink the rest, seq-guarded so
+  // a probe for abandoned dates can never paint, and cached so applying a result is free.
+  const probeAlternatives = (from, checkin, checkout, seq) => {
+    const candidates = DEPARTURE_AIRPORTS.filter((a) => a.popular && a.code !== from).map((a) => a.code);
+    const pax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
+    Promise.allSettled(
+      candidates.map((code) => searchFlightsRaw(code, checkin, checkout).then((data) => ({ code, data })))
+    ).then((settled) => {
+      if (seq !== flightSeqRef.current) return;
+      const alternatives = [];
+      const ruledOut = new Set([from]);
+      settled.forEach((s, i) => {
+        if (s.status !== 'fulfilled') return; // network-failed probe: unknown, stays offerable
+        const { code, data } = s.value;
+        const flights = transformFlights(data, code);
+        if (!flights.length) { ruledOut.add(candidates[i]); return; } // probed empty: don't re-offer
+        const best = flights[0];
+        alternatives.push({
+          code,
+          total: best.totalPrice,
+          perPax: Math.max(1, Math.round(best.totalPrice / Math.max(1, pax))),
+          currency: best.currency,
+          options: flights.length,
+        });
+      });
+      alternatives.sort((a, b) => a.total - b.total);
+      alternatives.forEach((a) => ruledOut.add(a.code));
+      // Airports we did NOT probe (the long tail) stay available as plain chips — a manual
+      // pick runs a real search. Ones that priced or came back empty never repeat there.
+      const unprobed = AIRPORT_CODES.filter((c) => !ruledOut.has(c));
+      setLiveFlights((prev) => (
+        prev && prev.empty && prev.from === from && seq === flightSeqRef.current
+          ? { ...prev, probing: false, alternatives, unprobed }
+          : prev
+      ));
+    });
+  };
+
+  // One click on a priced alternative: adopt that airport and show its flights. The raw
+  // response is already in the cache from the probe, so this paints without a supplier call.
+  const applyAlternative = (code) => {
+    const checkin = liveFlights?.checkin || pd?.iso || baseCheckIn;
+    const checkout = liveFlights?.checkout || (pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut);
+    setOvr((p) => ({ ...p, origin: code }));
+    fetchFlights(checkin, checkout, code);
+  };
+
 
   // ── shared transfer fetch — NO manual codes: airport comes from the flight
   //    search destination, the hotel is this page's code (= HotelBeds ATLAS code).
@@ -1292,13 +1464,20 @@ export default function HotelDetail() {
   //    time (the rateKey encodes it, so it becomes the booked pickup time). Falls
   //    back to midday on the check-in date until a flight is known. ──
   const lastTransferPickupRef = useRef(null);
+  // Same monotonic-id guard as flights, for the same reason: switching to own transport
+  // clears the transfer section, but it cannot recall a request already on the wire — a
+  // slow response used to land afterwards and repaint an airport transfer under the
+  // "you're travelling by your own transport" card, bookable against a flightless stay.
+  const transferSeqRef = useRef(0);
+  const invalidateTransfers = () => { transferSeqRef.current += 1; };
   const fetchTransfers = (checkin, pickupISO = null) => {
-    if (!destination || !hotelCode || !checkin) { setLiveTransfers(null); return; }
+    if (!destination || !hotelCode || !checkin) { invalidateTransfers(); setLiveTransfers(null); return; }
     const validISO = pickupISO && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(pickupISO)
       ? pickupISO.slice(0, 16) + ':00'
       : `${checkin}T12:00:00`;
     if (lastTransferPickupRef.current === validISO && liveTransfers?.services) return; // same datetime → keep results
     lastTransferPickupRef.current = validISO;
+    const seq = ++transferSeqRef.current;
     setLiveTransfers({ loading: true });
     axiosInstance.post('/transfer-availability/search', {
       fromType: 'IATA', fromCode: destination,
@@ -1306,15 +1485,20 @@ export default function HotelDetail() {
       outbound: validISO,
       adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
     }).then(({ data }) => {
+      if (seq !== transferSeqRef.current) return;   // a newer search (or a clear) owns the screen
       const services = data?.results?.hotelbeds?.services || [];
       setSelectedTransfer(-1);
       setLiveTransfers({ services, pickupISO: validISO });
-    }).catch((e) => setLiveTransfers({ error: friendlyError(e, 'transfer') }));
+    }).catch((e) => {
+      if (seq === transferSeqRef.current) setLiveTransfers({ error: friendlyError(e, 'transfer') });
+    });
   };
 
   // ── fetch flights + transfers on mount using dates from results screen ──
+  // Own transport fetches NEITHER: no flight was asked for, and an airport transfer
+  // for a traveller arriving by car answers a question nobody posed.
   useEffect(() => {
-    if (baseCheckIn && destination) {
+    if (baseCheckIn && destination && transport === 'package') {
       fetchFlights(baseCheckIn, baseCheckOut);
       fetchTransfers(baseCheckIn);
     }
@@ -1352,6 +1536,7 @@ export default function HotelDetail() {
     setWin({ base: baseCheckIn, start: notBeforeToday(addDaysISO(iso, -CAL_CENTRE)) });
     setLiveChecked(false);
     setLiveRooms(null);
+    invalidateFlights();
     setLiveFlights(null);
     // A day the cache never costed goes straight to the supplier — there is no estimate to
     // show, so making the traveller press a second button would tell them nothing.
@@ -1400,9 +1585,12 @@ export default function HotelDetail() {
       if (data?.review) setReview((prev) => prev ?? data.review);
     }).catch((e) => setLiveRooms({ error: friendlyError(e, 'room') }));
 
-    // Live flights + transfers for the newly picked dates
-    fetchFlights(checkin, checkout);
-    fetchTransfers(checkin);
+    // Live flights + transfers for the newly picked dates — but only for a traveller who
+    // asked to fly. Own transport prices the room alone.
+    if (transport === 'package') {
+      fetchFlights(checkin, checkout);
+      fetchTransfers(checkin);
+    }
   };
   const checkAvailability = () => checkAvailabilityForDay(pickedISO);
 
@@ -1459,7 +1647,7 @@ export default function HotelDetail() {
     // Flatten a pair of leg arrays into the summary shape the checkout/voucher read.
     const flatFlight = (oL, rL, oDate, rDate) => ({
       outDep: fmtTime(oL[0]?.departure), outArr: fmtTime(oL[oL.length - 1]?.arrival),
-      outFrom: oL[0]?.from || DEFAULT_ORIGIN, outTo: oL[oL.length - 1]?.to || destination,
+      outFrom: oL[0]?.from || origin, outTo: oL[oL.length - 1]?.to || destination,
       outDate: oDate, outAirline: airlineName(oL[0]?.airline),
       outDur: fmtDur(oL.reduce((s, l) => s + (Number(l.duration) || 0), 0)),
       ...(rL.length ? {
@@ -1523,7 +1711,9 @@ export default function HotelDetail() {
             },
             flight: (useLive && liveFlight)
               ? {
-                  from: DEFAULT_ORIGIN, to: destination, depdate: checkin, retdate: checkout,
+                  // The airport the fare was REALLY searched from — this was hardcoded to
+                  // Brussels, so a booking flown from Eindhoven was recorded as ex-BRU.
+                  from: origin, to: destination, depdate: checkin, retdate: checkout,
                   price: liveFlight.totalPrice, currency: ccy, legs: allLegs,
                   fareBreakdown: liveFlight.fareBreakdown || [],
                   // Opaque Airtuerk bookable keys — REQUIRED for live re-pricing
@@ -1692,7 +1882,8 @@ export default function HotelDetail() {
                   : dateBoards?.length
                     ? `Meal plans this hotel sells on ${pd?.day || ''} ${pd?.date || niceDate(pickedIso) || ''}`.trim() + '.'
                     : 'Check a date to see which meal plans this hotel actually offers.'}
-                origin={origin} originOptions={ORIGINS} originLabel={airportName} destination={destination}
+                origin={origin} originOptions={AIRPORT_CODES} originLabel={airportName} destination={destination}
+                transport={transport}
                 nights={nights}
                 touched={filtersTouched}
                 onChange={applyFilter}
@@ -1875,10 +2066,27 @@ export default function HotelDetail() {
                     <div className="fc-hint">Pick a departure day to check live prices</div>
                   ))}
 
-              {/* Flights */}
+              {/* Flights. Own transport renders a statement, not a search — the traveller
+                  said on the results page they don't want to fly, so no supplier is asked.
+                  The affordance to change their mind keeps the live ROOM prices (see
+                  applyFilter: transport edits don't drop them). */}
               <div className="flight-section reveal">
                 <div className="section-title"><span className="st-step">3</span> Your flights</div>
-                {liveFlights ? (
+                {transport === 'hotel_only' ? (
+                  <div className="own-transport">
+                    <div className="own-transport-row">
+                      {ICON.car}
+                      <div className="own-transport-text">
+                        <div className="own-transport-title">You're travelling by your own transport</div>
+                        <div className="own-transport-sub">No flights are included in this price.</div>
+                      </div>
+                    </div>
+                    <button type="button" className="own-transport-add"
+                      onClick={() => applyFilter({ transport: 'package' })}>
+                      {ICON.plane} Add flights from {airportName(origin)}
+                    </button>
+                  </div>
+                ) : liveFlights ? (
                   liveFlights.loading ? (
                     <SkeletonBlock label="Checking live flight prices…">
                       <FlightCardSkeleton /><FlightCardSkeleton />
@@ -1894,7 +2102,9 @@ export default function HotelDetail() {
                     </div>
                   ) : liveFlights.flights?.length ? (
                     <>
-                      <div className="flight-note">Live fares from {airportName(DEFAULT_ORIGIN)} for your selected dates:</div>
+                      {/* The airport the fares were REALLY searched from — this line used to
+                          hardcode Brussels while quoting Eindhoven prices. */}
+                      <div className="flight-note">Live fares from {airportName(liveFlights.from || origin)} for your selected dates, cheapest first:</div>
                       <FlightCard
                         f={{ ...liveFlights.flights[selectedFlight], price: Math.round(liveFlights.flights[selectedFlight].totalPrice), delta: 0 }}
                         selected
@@ -1916,6 +2126,56 @@ export default function HotelDetail() {
                         <button className="show-more-flights" onClick={() => setModalOpen(true)}>
                           {ICON.plane} Change flight · {liveFlights.flights.length - 2} more option{liveFlights.flights.length - 2 === 1 ? '' : 's'}
                         </button>
+                      )}
+                    </>
+                  ) : liveFlights.empty ? (
+                    <>
+                      <div className="live-empty">
+                        {ICON.plane} No flights from {airportName(liveFlights.from || origin)} for these dates.
+                      </div>
+                      {liveFlights.probing ? (
+                        <div className="live-loading"><span className="live-spin" /> Checking nearby departure airports…</div>
+                      ) : liveFlights.alternatives?.length ? (
+                        <div className="alt-airports">
+                          <div className="alt-airports-label">These airports do fly this route — cheapest first:</div>
+                          <div className="alt-airport-chips">
+                            {liveFlights.alternatives.map((alt) => (
+                              <button type="button" key={alt.code} className="alt-chip alt-chip-priced"
+                                onClick={() => applyAlternative(alt.code)}>
+                                <span className="alt-chip-name">{airportName(alt.code)}</span>
+                                <span className="alt-chip-code">{alt.code}</span>
+                                <span className="alt-chip-price">from {ccy}{alt.perPax} p.p.</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+                      ) : liveFlights.alternatives ? (
+                        // Probed, and NOBODY flies it on these dates. An honest dead end with
+                        // two real ways forward — not an empty panel.
+                        <div className="alt-airports">
+                          <div className="alt-airports-label">
+                            None of our departure airports fly this route on these dates.
+                            Try different dates — or continue with the hotel only.
+                          </div>
+                          <button type="button" className="own-transport-add"
+                            onClick={() => applyFilter({ transport: 'hotel_only' })}>
+                            {ICON.car} Continue without flights
+                          </button>
+                        </div>
+                      ) : null}
+                      {!liveFlights.probing && liveFlights.unprobed?.length > 0 && (
+                        <div className="alt-airports alt-airports-muted">
+                          <div className="alt-airports-label">Or search another airport:</div>
+                          <div className="alt-airport-chips">
+                            {liveFlights.unprobed.map((code) => (
+                              <button type="button" key={code} className="alt-chip"
+                                onClick={() => applyFilter({ origin: code })}>
+                                <span className="alt-chip-name">{airportName(code)}</span>
+                                <span className="alt-chip-code">{code}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
                       )}
                     </>
                   ) : (
@@ -1941,7 +2201,7 @@ export default function HotelDetail() {
                     <div className="alt-airports">
                       <div className="alt-airports-label">Flying from another airport?</div>
                       <div className="alt-airport-chips">
-                        {ORIGINS.map((code) => (
+                        {AIRPORT_CODES.map((code) => (
                           <button type="button" key={code}
                             className={`alt-chip${origin === code ? ' act' : ''}`}
                             aria-pressed={origin === code}
@@ -1957,8 +2217,11 @@ export default function HotelDetail() {
               </div>
 
               {/* Airport transfer — auto-derived add-on (airport from the flight search,
-                  hotel from this page); shown right below the flights section */}
-              {liveTransfers && (
+                  hotel from this page); shown right below the flights section. The
+                  transport gate is belt-and-braces on top of the fetch guards: an
+                  own-transport stay must never show an airport pickup, even if a stale
+                  response somehow reached the state. */}
+              {transport === 'package' && liveTransfers && (
               <div className="transfer-section reveal vis">
                 <div className="section-title"><span className="st-step">4</span> Airport transfer <span className="stay-guests">(optional)</span></div>
                 {liveTransfers.loading ? (
@@ -2529,7 +2792,11 @@ export default function HotelDetail() {
                   return short(ci) && short(co) ? `${short(ci)} — ${short(co)}` : 'Select your dates above';
                 })()}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.users}</span>{Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</div>
-                <div className="bkdi"><span className="bkdk">{ICON.plane}</span>{destination ? `Brussels (${DEFAULT_ORIGIN}) → ${destination}` : `Brussels (${DEFAULT_ORIGIN})`}</div>
+                {/* The route the traveller actually chose — this printed "Brussels (BRU)"
+                    no matter which airport the fares were searched from. */}
+                <div className="bkdi"><span className="bkdk">{transport === 'hotel_only' ? ICON.car : ICON.plane}</span>{transport === 'hotel_only'
+                  ? 'Own transport'
+                  : destination ? `${airportName(origin)} (${origin}) → ${destination}` : `${airportName(origin)} (${origin})`}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.board}</span>{hotel?.board || 'All inclusive'}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nights} days</div>
               </div>
