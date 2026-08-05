@@ -312,14 +312,28 @@
   border-color:var(--sun-orange);
 }
 
-/* Transport dropdown — mode toggle on top, then the departure airports */
-.tspDropdown {
-  padding:16px;
-  max-width:520px;
-  left:auto;
-  right:0;
-  max-height:min(60vh, 480px);
+/* "Flying from" panel — anchored to ITS OWN field (the field is position:relative),
+   not to the bar-wide dropdown slot that opened it under the middle of the search bar. */
+.tspPanel {
+  position:absolute;
+  top:calc(100% + 14px);
+  /* centred with margin, NOT transform — the scaleIn animation (fill-mode both)
+     overwrites the transform property, which shoved the panel off to the right */
+  left:50%;
+  margin-left:-220px;   /* half of width */
+  width:440px;
+  max-height:min(70vh, 560px);
   overflow-y:auto;
+  background:rgba(255,255,255,0.98);
+  backdrop-filter:blur(24px);
+  border:1px solid rgba(15,40,100,0.08);
+  border-radius:var(--r-lg);
+  padding:14px;
+  box-shadow:0 24px 70px rgba(7,20,60,0.25);
+  animation:scaleIn 0.2s var(--ease) both;
+  z-index:12;
+  cursor:default;
+  text-align:left;
 }
 .tspTabs {
   display:flex;
@@ -327,7 +341,7 @@
   background:var(--blue-bg2, #eef4fd);
   padding:4px;
   border-radius:999px;
-  margin-bottom:14px;
+  margin-bottom:12px;
 }
 .tspTab {
   flex:1;
@@ -335,7 +349,7 @@
   align-items:center;
   justify-content:center;
   gap:7px;
-  padding:9px 12px;
+  padding:10px 12px;
   border:none;
   background:transparent;
   border-radius:999px;
@@ -345,27 +359,66 @@
   font-weight:700;
   color:var(--text-sec, #5c6f91);
   transition:all .2s ease;
+  white-space:nowrap;
 }
 .tspTabOn {
   background:#fff;
   color:var(--sun-orange, #ff9f1c);
   box-shadow:0 2px 8px rgba(15,40,100,0.12);
 }
-.tspHeading {
-  font-size:13.5px;
-  font-weight:800;
-  color:var(--dark, #16233a);
-  margin-bottom:10px;
-}
 .tspSub {
-  font-size:10.5px;
+  font-size:10px;
   font-weight:700;
-  letter-spacing:.08em;
+  letter-spacing:.1em;
   text-transform:uppercase;
   color:var(--text-light, #8fa5c6);
-  margin:10px 0 8px;
+  margin:12px 4px 6px;
 }
-.tspSub:first-of-type { margin-top:0; }
+.tspSub:first-of-type { margin-top:2px; }
+.tspGrid {
+  display:grid;
+  grid-template-columns:repeat(2, 1fr);
+  gap:4px;
+}
+.tspRow {
+  display:flex;
+  align-items:center;
+  gap:9px;
+  padding:10px 12px;
+  border:1.5px solid transparent;
+  border-radius:var(--r-md, 10px);
+  background:transparent;
+  cursor:pointer;
+  font-family:inherit;
+  text-align:left;
+  min-width:0;
+  transition:all .15s ease;
+}
+.tspRow:hover { background:var(--blue-bg2, #eef4fd); }
+.tspRowOn {
+  border-color:var(--sun-orange, #ff9f1c);
+  background:var(--sun-warm, #fff4e3);
+}
+.tspFlag { font-size:15px; line-height:1; flex-shrink:0; }
+.tspName {
+  flex:1;
+  min-width:0;
+  font-size:13px;
+  font-weight:600;
+  color:var(--text, #2a3b58);
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.tspRowOn .tspName { color:var(--dark, #16233a); }
+.tspCode {
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.06em;
+  color:var(--text-light, #8fa5c6);
+  flex-shrink:0;
+}
+.tspRowOn .tspCode { color:var(--sun-orange, #ff9f1c); }
 
 /* Duration dropdown — vertical list, check on the selected band */
 .durDropdown {
@@ -1007,6 +1060,10 @@
 @media(max-width:768px) {
   .searchBar { flex-direction:column; border-radius:var(--r-lg); padding:16px; gap:0; }
   .sf { padding:14px 16px; }
+  /* Stacked fields are full-width — the panel follows suit instead of a fixed 440px
+     that would spill off a phone screen. */
+  .tspPanel { left:0; right:0; margin-left:0; width:auto; }
+  .tspGrid { grid-template-columns:1fr; }
   .sfDivider { width:100%; height:1px; }
   .searchBtn { width:100%; justify-content:center; padding:16px; }
   .title { letter-spacing:-0.5px; }

@@ -282,11 +282,11 @@ export default function StayBar({
           {boardHint && <p className={styles.listHint}>{boardHint}</p>}
         </Field>
 
-        {/* The field states the MODE, not just an airport — an own-transport stay used to
+        {/* The field states the MODE, not just an airport — a hotel-only stay used to
             read "Brussels (BRU) → AYT" here, advertising a flight that was never searched. */}
         <Field id="origin" icon={ICONS.plane} label="Transport" open={openField === 'origin'} onToggle={toggle}
           value={transport === 'hotel_only'
-            ? 'Own transport'
+            ? 'Hotel only'
             : `${originLabel(origin)} (${origin})${destination ? ` → ${destination}` : ''}`} wide>
           <div className={styles.modeRow} role="radiogroup" aria-label="Transport mode">
             <button type="button"
@@ -299,7 +299,7 @@ export default function StayBar({
               className={`${styles.modeBtn}${transport === 'hotel_only' ? ` ${styles.modeBtnOn}` : ''}`}
               role="radio" aria-checked={transport === 'hotel_only'}
               onClick={() => { onChange({ transport: 'hotel_only' }); close(); }}>
-              Own transport
+              Hotel only
             </button>
           </div>
           {transport !== 'hotel_only' && (
