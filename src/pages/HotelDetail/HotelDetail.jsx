@@ -903,7 +903,11 @@ export default function HotelDetail() {
   // traveller can step back as far as the current week and no further.
   // `today` / `notBeforeToday` are defined up with baseCheckIn — the clamp has to happen before
   // anything reads the check-in, not just before the strip does.
-  const winStart = (win.base === baseCheckIn && win.start) ? win.start : notBeforeToday(baseCheckIn);
+  // The DEFAULT window (arriving from results, or after a search edit drops the pick) centres
+  // the searched day — three days either side to compare against, exactly like pickDay does —
+  // instead of parking it as the leftmost bar. Near-today departures sit as close to centre as
+  // the floor allows.
+  const winStart = (win.base === baseCheckIn && win.start) ? win.start : notBeforeToday(addDaysISO(baseCheckIn, -CAL_CENTRE));
   const canPageBack = !!winStart && winStart > today;
   // ONE DAY per press, not one week: the strip walks along the calendar the way the traveller
   // reads it, so stepping back off Monday the 4th lands on Sunday the 3rd rather than skipping a

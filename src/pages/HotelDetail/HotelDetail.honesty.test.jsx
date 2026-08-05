@@ -44,8 +44,10 @@ const CHECK_IN = iso(30);
 const RATES = [
   { roomName: 'Sea View Double', roomCode: 'DBL.SV', boardName: 'ALL INCLUSIVE', boardCode: 'AI', sellingRate: 1180, currency: 'EUR', rateKey: 'k1', cancellationPolicies: [] },
 ];
+// The strip CENTRES the searched day (three days either side, like pickDay), so the priced
+// week the mock serves runs from CHECK_IN − 3.
 const CALENDAR = Array.from({ length: 7 }, (_, i) => ({
-  date: iso(30 + i), price: 260 + i * 12, currency: 'EUR', isLowest: i === 0,
+  date: iso(27 + i), price: 260 + i * 12, currency: 'EUR', isLowest: i === 0,
 }));
 
 // `calendar` controls what the price service returns: an array, [] for a full hotel, or
