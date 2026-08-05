@@ -118,11 +118,13 @@ npm run lint     # ESLint
 ## Deploy
 Git repo: `Anil682003/sunsky-website`, branch: `master`
 
-On the server (pm2 process id 2):
+Server path: `C:\projects\sunsky-website\sunsky-website` on 91.134.71.79 (SSH key `~/.ssh/sunsky_deploy`, same as admin/cache). PM2 process is **id 4** (`sunsky-website`) — an old process id 2 no longer exists, check `pm2 ls` if in doubt. NB: the server clock runs a day behind CET-evening (US timezone) — don't misread `dir` timestamps as stale builds.
+
+One-prompt deploy:
 ```
-git pull && npm run build && pm2 restart 2
+ssh -i ~/.ssh/sunsky_deploy -o BatchMode=yes admin@91.134.71.79 "cd /d C:\projects\sunsky-website\sunsky-website && git pull && npm run build && pm2 restart 4 && pm2 logs 4 --lines 6 --nostream"
 ```
-No `npm install` — that's why server/index.js must be dependency-free.
+No `npm install` — that's why server/index.js must be dependency-free. The server repo carries local commits (env files) — `git pull` merges; that's normal.
 
 ## Env Vars
 Build-time (baked into bundle by Vite):

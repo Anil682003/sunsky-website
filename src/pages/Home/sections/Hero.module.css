@@ -312,6 +312,61 @@
   border-color:var(--sun-orange);
 }
 
+/* Transport dropdown — mode toggle on top, then the departure airports */
+.tspDropdown {
+  padding:16px;
+  max-width:520px;
+  left:auto;
+  right:0;
+  max-height:min(60vh, 480px);
+  overflow-y:auto;
+}
+.tspTabs {
+  display:flex;
+  gap:4px;
+  background:var(--blue-bg2, #eef4fd);
+  padding:4px;
+  border-radius:999px;
+  margin-bottom:14px;
+}
+.tspTab {
+  flex:1;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  gap:7px;
+  padding:9px 12px;
+  border:none;
+  background:transparent;
+  border-radius:999px;
+  cursor:pointer;
+  font-family:inherit;
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--text-sec, #5c6f91);
+  transition:all .2s ease;
+}
+.tspTabOn {
+  background:#fff;
+  color:var(--sun-orange, #ff9f1c);
+  box-shadow:0 2px 8px rgba(15,40,100,0.12);
+}
+.tspHeading {
+  font-size:13.5px;
+  font-weight:800;
+  color:var(--dark, #16233a);
+  margin-bottom:10px;
+}
+.tspSub {
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.08em;
+  text-transform:uppercase;
+  color:var(--text-light, #8fa5c6);
+  margin:10px 0 8px;
+}
+.tspSub:first-of-type { margin-top:0; }
+
 /* Duration dropdown — vertical list, check on the selected band */
 .durDropdown {
   padding:10px;

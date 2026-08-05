@@ -5,6 +5,7 @@ import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { DURATION_BANDS, bandByLabel } from '../../../utils/durations';
+import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, airportCity } from '../../../utils/airports';
 
 // Duration bands shown in the search box. Each band is a day-range with a representative stay
 // length in nights — the concrete duration the search prices for that band. Picking a band + a
@@ -126,6 +127,13 @@ export default function Hero() {
   const [destSelection, setDestSelection] = useState({ countries: [], places: [] });
   const [date, setDate] = useState('');
   const [duration, setDuration] = useState('6-10 days');   // band label (default: ~1 week)
+  // How the traveller gets there + from which airport. Defaults to own transport so an
+  // untouched search behaves exactly as before this field existed; picking an airport in
+  // the dropdown is what opts the whole journey (results sidebar → hotel page flight
+  // search → checkout) into flights. Both ride the /results URL — the results page and
+  // the hotel page already read them from there.
+  const [transport, setTransport] = useState('hotel_only');
+  const [origin, setOrigin] = useState(DEFAULT_ORIGIN);
   // Occupancy is per room — each room carries its own adults, children and one
   // date-of-birth slot per child. The search still sends totals.
   const [roomsList, setRoomsList] = useState([{ adults: 2, children: 0, dobs: [] }]);
@@ -259,6 +267,11 @@ export default function Hero() {
     qs.set('minNights', String(band.minNights));
     qs.set('maxNights', String(band.maxNights));
     if (childAges.length) qs.set('childAges', childAges.join(','));
+    // The transport decision, carried to the results sidebar and on into every hotel
+    // page's flight search. Origin rides even in own-transport mode so flipping to
+    // "incl. flight" later starts from the airport picked here, not from the default.
+    qs.set('transport', transport === 'package' ? 'package' : 'hotel_only');
+    qs.set('origin', origin);
     return qs;
   };
 
@@ -337,6 +350,19 @@ export default function Hero() {
         </div>
       </div>
       <div className={styles.sfDivider} />
+      {/* Flying from — the transport decision made HERE travels the whole journey:
+          results sidebar, hotel-page flight search, checkout. Value reads the mode,
+          not just an airport, so "Own transport" never masquerades as a flight. */}
+      <div className={`${styles.sf} ${openField === 'transport' ? styles.sfActive : ''}`} onClick={() => toggleField('transport')}>
+        <span className={styles.sfIcon}>
+          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+        </span>
+        <div className={styles.sfText}>
+          <span className={styles.sfLabel}>Flying from</span>
+          <span className={styles.sfValue}>{transport === 'hotel_only' ? 'Own transport' : `${airportCity(origin)} (${origin})`}</span>
+        </div>
+      </div>
+      <div className={styles.sfDivider} />
       <div className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`} onClick={() => toggleField('travelers')}>
         <span className={styles.sfIcon}>
           <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
@@ -351,6 +377,55 @@ export default function Hero() {
 
   const stayDropdowns = (
     <>
+      {openField === 'transport' && (
+        <div className={`${styles.dropdown} ${styles.tspDropdown}`}>
+          {/* Mode first: an airport list under "Own transport" would ask a question with
+              no bearing on anything the traveller will be shown. */}
+          <div className={styles.tspTabs} role="radiogroup" aria-label="Transport mode">
+            <button type="button" role="radio" aria-checked={transport === 'package'}
+              className={`${styles.tspTab} ${transport === 'package' ? styles.tspTabOn : ''}`}
+              onClick={() => setTransport('package')}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+              Incl. flight
+            </button>
+            <button type="button" role="radio" aria-checked={transport === 'hotel_only'}
+              className={`${styles.tspTab} ${transport === 'hotel_only' ? styles.tspTabOn : ''}`}
+              onClick={() => { setTransport('hotel_only'); setOpenField(null); }}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 11l1.5-4.5A2 2 0 018.4 5h7.2a2 2 0 011.9 1.5L19 11"/><path d="M3 16v-3a2 2 0 012-2h14a2 2 0 012 2v3"/><circle cx="7" cy="16" r="1.6"/><circle cx="17" cy="16" r="1.6"/><path d="M3 19h18"/></svg>
+              Own transport
+            </button>
+          </div>
+          {transport === 'package' && (
+            <>
+              <div className={styles.tspHeading}>I want to fly from:</div>
+              <div className={styles.tspSub}>Popular</div>
+              <div className={styles.destGrid}>
+                {POPULAR_AIRPORTS.map((a) => (
+                  <div key={a.code}
+                    className={`${styles.destItem} ${origin === a.code ? styles.destItemActive : ''}`}
+                    onClick={() => { setOrigin(a.code); setTransport('package'); setOpenField(null); }}>
+                    <span>{a.country}</span>
+                    <span className={styles.destItemLabel}>{a.label}</span>
+                    <span className={styles.airportCode}>{a.code}</span>
+                  </div>
+                ))}
+              </div>
+              <div className={styles.tspSub}>All airports</div>
+              <div className={styles.destGrid}>
+                {OTHER_AIRPORTS.map((a) => (
+                  <div key={a.code}
+                    className={`${styles.destItem} ${origin === a.code ? styles.destItemActive : ''}`}
+                    onClick={() => { setOrigin(a.code); setTransport('package'); setOpenField(null); }}>
+                    <span>{a.country}</span>
+                    <span className={styles.destItemLabel}>{a.label}</span>
+                    <span className={styles.airportCode}>{a.code}</span>
+                  </div>
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      )}
       {openField === 'duration' && (
         <div className={`${styles.dropdown} ${styles.durDropdown}`}>
           <div className={styles.durList}>
