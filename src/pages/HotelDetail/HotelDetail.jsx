@@ -467,11 +467,16 @@ function RoomCardSkeleton({ rows = 2, i = 0 }) {
   );
 }
 
+/* While a section is loading it shows ONLY its placeholders — no heading, no status line.
+   The shapes already say "something is coming"; the extra "Checking live room availability…"
+   line and the step heading above it were three separate things all announcing the same wait,
+   and with three sections loading at once the page read as a stack of status messages.
+   The label stays for screen readers via .sr-only — visually silent, still announced, since
+   removing it would leave a non-sighted user with no signal at all. */
 function SkeletonBlock({ label, children }) {
   return (
     <div className="sk-wrap" role="status" aria-busy="true">
       <span className="sr-only">{label}</span>
-      <div className="sk-note"><span className="live-spin" /> {label}</div>
       {children}
     </div>
   );
@@ -1053,6 +1058,10 @@ export default function HotelDetail() {
   // on screen (pickDay refuses re-picks, not the original selection), so the action card must
   // say so — not quote the stale cache estimate under a green "available" tick.
   const dayUnavailable = !!(pd && checkedEmpty.has(pd.iso));
+  // Whether the picked day carries a cache estimate at all. A lavender (un-cached) day has
+  // price 0 — every card that would print "from €{pd.price}" must check this first, or a
+  // failed live check quotes "from €0" as if it were a fare.
+  const pdEstimate = Number(pd?.price) > 0;
 
   const filtersTouched = Object.keys(ovr).length > 0;
   // ── the one "from" figure the page quotes ────────────────────────────────────
@@ -1554,11 +1563,11 @@ export default function HotelDetail() {
     setLiveRooms(null);
     invalidateFlights();
     setLiveFlights(null);
-    // A day the cache never costed goes straight to the supplier — there is no estimate to
-    // show, so making the traveller press a second button would tell them nothing.
-    if (!Number(byDate[iso]?.price)) {
-      setTimeout(() => checkAvailabilityForDay(iso), 0);
-    }
+    // Un-cached (lavender) days used to skip the button and hit the supplier on the click
+    // itself. Client call: EVERY day is picked first and priced on demand — one flow, one
+    // button — so selecting a lavender bar shows the same "Check price & availability" card
+    // as a priced one ("price on request" instead of an estimate), and no live search fires
+    // until the traveller asks for it.
   };
 
   const checkAvailabilityForDay = (dayISO) => {
@@ -2137,7 +2146,7 @@ export default function HotelDetail() {
                           <div>
                             <div className="avail-text">
                               {liveRooms?.loading ? 'Checking live availability…'
-                                : liveRooms?.error ? 'Showing estimated price'
+                                : liveRooms?.error ? (pdEstimate ? 'Showing estimated price' : 'Live price unavailable')
                                 : 'Your holiday is available!'}
                             </div>
                             <div className="avail-sub">
@@ -2146,16 +2155,21 @@ export default function HotelDetail() {
                             </div>
                           </div>
                           <div className="avail-price">
-                            <div className="avail-price-label">{liveRoom ? 'live price' : 'from'}</div>
+                            {/* A lavender day has no estimate — €0 is not a price and must
+                                never be printed as one. A quiet dash says "nothing to quote". */}
+                            <div className="avail-price-label">{liveRoom ? 'live price' : pdEstimate ? 'from' : ''}</div>
                             <div className="avail-price-val">
                               {liveRooms?.loading
                                 ? <span className="avail-spin" />
-                                : <><small>€</small>{liveRoom ? Math.round(liveRoom.price) : pd?.price}</>}
+                                : liveRoom ? <><small>€</small>{Math.round(liveRoom.price)}</>
+                                : pdEstimate ? <><small>€</small>{pd.price}</>
+                                : <span className="avail-price-none">—</span>}
                             </div>
                             <div className="avail-you-low">
                               {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'day' : 'days'}`
-                                : liveRooms?.error ? 'Live price unavailable — estimate shown'
-                                : (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')}
+                                : liveRooms?.error ? (pdEstimate ? 'Live price unavailable — estimate shown' : 'No estimate for this day — try again')
+                                : pdEstimate ? (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')
+                                : 'No cached estimate'}
                             </div>
                           </div>
                         </div>
@@ -2175,7 +2189,7 @@ export default function HotelDetail() {
                   can book, and every section below the red card would contradict it. */}
               {liveChecked && !dayUnavailable && (
               <div className="flight-section reveal">
-                <div className="section-title"><span className="st-step">3</span> Your flights</div>
+                {!liveFlights?.loading && <div className="section-title"><span className="st-step">3</span> Your flights</div>}
                 {transport === 'hotel_only' ? (
                   <div className="own-transport">
                     <div className="own-transport-row">
@@ -2328,9 +2342,13 @@ export default function HotelDetail() {
                   response somehow reached the state. */}
               {transport === 'package' && liveTransfers && liveChecked && !dayUnavailable && (
               <div className="transfer-section reveal vis">
-                <div className="section-title"><span className="st-step">4</span> Airport transfer <span className="stay-guests">(optional)</span></div>
+                {!liveTransfers.loading && <div className="section-title"><span className="st-step">4</span> Airport transfer <span className="stay-guests">(optional)</span></div>}
                 {liveTransfers.loading ? (
-                  <div className="live-loading"><span className="live-spin" /> Checking transfer availability…</div>
+                  /* Placeholders rather than a spinner-and-sentence, matching rooms and flights —
+                     this was the one live section still announcing its wait in words. */
+                  <SkeletonBlock label="Checking transfer availability…">
+                    <FlightCardSkeleton />
+                  </SkeletonBlock>
                 ) : liveTransfers.error ? (
                   <div className="live-error">
                     {ICON.warn}
@@ -2374,7 +2392,7 @@ export default function HotelDetail() {
                   says so, a "Choose your room: none found" section under it would nag. */}
               {liveChecked && !dayUnavailable && (
               <div className="room-section reveal vis">
-                <div className="section-title"><span className="st-step">2</span> Choose your room</div>
+                {!liveRooms?.loading && <div className="section-title"><span className="st-step">2</span> Choose your room</div>}
                 {liveRooms ? (
                   liveRooms.loading ? (
                     <SkeletonBlock label="Checking live room availability…">
