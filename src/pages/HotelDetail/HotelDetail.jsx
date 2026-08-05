@@ -1315,6 +1315,10 @@ export default function HotelDetail() {
       }
       const checkin = pd?.iso || baseCheckIn;
       if (!checkin || !destination) { setLiveFlights(null); return; }
+      // Before any availability check the flight/transfer sections aren't on screen at all,
+      // so re-resolving them here would be a supplier hit nobody sees. The check itself
+      // fetches both under whatever transport/origin is set by then.
+      if (!liveChecked) { setLiveFlights(null); return; }
       const checkout = pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut;
       fetchFlights(checkin, checkout, nextOrigin);
       // Transfers run destination-side — the departure airport doesn't change them, so an
@@ -1512,16 +1516,10 @@ export default function HotelDetail() {
     });
   };
 
-  // ── fetch flights + transfers on mount using dates from results screen ──
-  // Own transport fetches NEITHER: no flight was asked for, and an airport transfer
-  // for a traveller arriving by car answers a question nobody posed.
-  useEffect(() => {
-    if (baseCheckIn && destination && transport === 'package') {
-      fetchFlights(baseCheckIn, baseCheckOut);
-      fetchTransfers(baseCheckIn);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  // NO flight/transfer fetch on mount. The sections are revealed by the availability check
+  // (liveChecked), so a page-open fetch would hit two live suppliers for content nobody can
+  // see yet — and for dates the traveller may never check. checkAvailabilityForDay fetches
+  // both, with the picked day, at the moment they become visible.
 
   // NOTE: the TripAdvisor rating is NOT fetched on mount. It comes only from the live
   // availability API, and firing that call on every page open — before the traveller has
@@ -2170,11 +2168,12 @@ export default function HotelDetail() {
               {/* Flights. Own transport renders a statement, not a search — the traveller
                   said on the results page they don't want to fly, so no supplier is asked.
                   The affordance to change their mind keeps the live ROOM prices (see
-                  applyFilter: transport edits don't drop them). Hidden entirely while the
-                  picked day is UNAVAILABLE: flights for a stay with no room are not a
-                  package anyone can book, and every section below the red card would
-                  contradict it. */}
-              {!dayUnavailable && (
+                  applyFilter: transport edits don't drop them). Revealed only once a date
+                  has been CHECKED (liveChecked) — like the rooms — so no flight list
+                  appears for dates nobody priced. Hidden again while the picked day is
+                  UNAVAILABLE: flights for a stay with no room are not a package anyone
+                  can book, and every section below the red card would contradict it. */}
+              {liveChecked && !dayUnavailable && (
               <div className="flight-section reveal">
                 <div className="section-title"><span className="st-step">3</span> Your flights</div>
                 {transport === 'hotel_only' ? (
@@ -2327,7 +2326,7 @@ export default function HotelDetail() {
                   transport gate is belt-and-braces on top of the fetch guards: an
                   own-transport stay must never show an airport pickup, even if a stale
                   response somehow reached the state. */}
-              {transport === 'package' && liveTransfers && !dayUnavailable && (
+              {transport === 'package' && liveTransfers && liveChecked && !dayUnavailable && (
               <div className="transfer-section reveal vis">
                 <div className="section-title"><span className="st-step">4</span> Airport transfer <span className="stay-guests">(optional)</span></div>
                 {liveTransfers.loading ? (
