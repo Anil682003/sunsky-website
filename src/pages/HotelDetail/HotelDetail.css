@@ -648,7 +648,18 @@
 /* Each swatch is drawn from the SAME value the bar it explains uses, so a restyle of the
    strip can't leave the legend quietly describing colours that no longer exist. */
 .sd .fc-legend-swatch { width:13px; border-radius:3px 3px 0 0; flex-shrink:0; }
-.sd .fc-legend-tall { height:17px; background:#2456c8; }
+/* Same angle, same #3a6ad4 and same dashed cap as .fc-col.fc-nopr .fc-bar, but the hatch is
+   scaled DOWN: the bar's 5px/11px rhythm fits barely one stripe across a 13px swatch, which
+   reads as a smudge rather than as hatching. 2px/5px gives the swatch the same *texture* at
+   the size it is actually drawn — a legend has to match what the eye compares, and here that
+   is the pattern, not the pixel measurements. Contrast is raised to .16 for the same reason. */
+.sd .fc-legend-nopr {
+  height:17px;
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.16) 0 2px, transparent 2px 5px),
+    #3a6ad4;
+  border-top:2px dashed rgba(255,255,255,.5);
+}
 .sd .fc-legend-low  { height:17px; background:var(--sun); }
 .sd .fc-legend-sel  { height:17px; background:linear-gradient(170deg,#3b82f6,#60a5fa); }
 .sd .fc-legend-out  { height:17px; background:#94a3b8; opacity:.5; }
@@ -699,6 +710,37 @@
   animation:sdTailDrop .32s var(--ease) both;
 }
 @keyframes sdTailDrop { from { opacity:0; transform:translateY(-7px); } to { opacity:1; transform:none; } }
+
+/* ── CONFIRMED AVAILABLE ──────────────────────────────────────────────────────
+   The picked day after a live check came back WITH rooms. Everywhere else on this strip a
+   price is a cached guess; this is the one place availability is a fact, so it earns its own
+   colour rather than another shade of the same blue.
+   It restyles the whole selected column — bar, label band, hairline, ribbon and tick — because
+   the selected state is drawn from five separate rules and recolouring only the bar would leave
+   a green bar handing the date to a blue arrow.
+   Greens are DARK on purpose: the bar carries 9px and 9.5px white text, and the mid-greens that
+   would better match the light blue (#10b981, #0E9E70) measure ~3.4:1 against white and fail AA.
+   This pair measures 7.28:1 at the top of the bar and 5.07:1 at the bottom. */
+.sd .fc-col.sel.fc-ok .fc-bar {
+  background:linear-gradient(170deg,#096346,#0D7E59);
+  box-shadow:0 10px 28px rgba(13,126,89,.35);
+}
+.sd .fc-col.sel.fc-ok .fc-under::before { background:#0D7E59; }
+.sd .fc-col.sel.fc-ok .fc-barzone { border-bottom-color:#0D7E59; }
+.sd .fc-col.sel.fc-ok .fc-tail { background:#0D7E59; }
+/* The tick inside the white disc has to change too — a blue tick on a green column reads as a
+   leftover from the previous selection. */
+.sd .fc-col.sel.fc-ok .fc-dot {
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230D7E59' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
+}
+/* A confirmed day that had no cached price keeps the hatch — the hatch says "this figure was
+   not cached", which stays true after the live check. Only the colour graduates. */
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-bar {
+  background:
+    repeating-linear-gradient(135deg, rgba(255,255,255,.13) 0 5px, transparent 5px 11px),
+    linear-gradient(170deg,#096346,#0D7E59);
+  border-top-color:rgba(255,255,255,.6);
+}
 
 /* Stepping a day at a time: the bar element itself is reused so its height transition carries
    the movement, and only the wording inside it is replaced — fading in so the numbers don't
