@@ -649,7 +649,8 @@
    strip can't leave the legend quietly describing colours that no longer exist. */
 .sd .fc-legend-swatch { width:13px; border-radius:3px 3px 0 0; flex-shrink:0; }
 /* The same flat violet the bar uses — no scaling games now the hatch is gone. */
-.sd .fc-legend-nopr { height:17px; background:#5B4BC4; }
+/* Pale swatch on a pale legend needs its own edge to exist at 13px. */
+.sd .fc-legend-nopr { height:17px; background:#EBE8F7; box-shadow:inset 0 0 0 1px #C9C0EA; }
 .sd .fc-legend-low  { height:17px; background:var(--sun); }
 .sd .fc-legend-sel  { height:17px; background:linear-gradient(170deg,#3b82f6,#60a5fa); }
 .sd .fc-legend-out  { height:17px; background:#94a3b8; opacity:.5; }
@@ -708,31 +709,41 @@
    It restyles the whole selected column — bar, label band, hairline, ribbon and tick — because
    the selected state is drawn from five separate rules and recolouring only the bar would leave
    a green bar handing the date to a blue arrow.
-   Greens are DARK on purpose: the bar carries 9px and 9.5px white text, and the mid-greens that
-   would better match the light blue (#10b981, #0E9E70) measure ~3.4:1 against white and fail AA.
-   This pair measures 7.28:1 at the top of the bar and 5.07:1 at the bottom. */
-.sd .fc-col.sel.fc-ok .fc-bar {
-  background:linear-gradient(170deg,#096346,#0D7E59);
-  box-shadow:0 10px 28px rgba(13,126,89,.35);
-}
-.sd .fc-col.sel.fc-ok .fc-under::before { background:#0D7E59; }
-.sd .fc-col.sel.fc-ok .fc-barzone { border-bottom-color:#0D7E59; }
-.sd .fc-col.sel.fc-ok .fc-tail { background:#0D7E59; }
-/* The tick inside the white disc has to change too — a blue tick on a green column reads as a
-   leftover from the previous selection. */
-.sd .fc-col.sel.fc-ok .fc-dot {
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230D7E59' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
-}
-/* Once live confirms rooms, an un-cached day is simply confirmed — it goes fully green like any
-   other confirmed day. This rule exists only to beat the violet selected rule below it on
-   specificity; without it a confirmed day would stay violet and the green would never show. */
+   The green is #10b981 — the SAME green as the availability tick on the card below, so the bar
+   and the "Your holiday is available!" confirmation read as one statement rather than two
+   different greens.
+   Because that green is light, THE TYPE ON THIS BAR FLIPS TO DARK INK. White on #10b981 is
+   2.54:1 and unreadable at the 9px this bar uses; near-black on it is 7.46:1 at the dark end of
+   the gradient and 9.84:1 at the light end. This is the one column on the strip with dark type,
+   which is a feature — it is also the one column reporting a fact rather than an estimate. */
+.sd .fc-col.sel.fc-ok .fc-bar,
 .sd .fc-col.sel.fc-ok.fc-nopr .fc-bar {
-  background:linear-gradient(170deg,#096346,#0D7E59);
-  box-shadow:0 10px 28px rgba(13,126,89,.35);
+  background:linear-gradient(170deg,#10B981,#34D399);
+  box-shadow:0 10px 28px rgba(16,185,129,.34);
 }
+.sd .fc-col.sel.fc-ok .fc-under::before,
+.sd .fc-col.sel.fc-ok .fc-tail,
 .sd .fc-col.sel.fc-ok.fc-nopr .fc-under::before,
-.sd .fc-col.sel.fc-ok.fc-nopr .fc-tail { background:#0D7E59; }
-.sd .fc-col.sel.fc-ok.fc-nopr .fc-barzone { border-bottom-color:#0D7E59; }
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-tail { background:#10B981; }
+.sd .fc-col.sel.fc-ok .fc-barzone,
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-barzone { border-bottom-color:#10B981; }
+
+/* Ink flip. These beat the .fc-col.sel rules that set white, which are (0,3,0) — these are
+   (0,4,0) — so the whole column's type inverts together and nothing is left white on mint. */
+/* Alphas are high on purpose. These inks sit on mint, so a translucent one composites TOWARD
+   the background and loses contrast fast — the softer values normally used for secondary type
+   here (.78 / .72) measure 4.06:1 and 3.60:1 once composited, and both fail AA at 9px.
+   At these values the whole column lands between 4.77:1 and 6.10:1. */
+.sd .fc-col.sel.fc-ok .fc-from { color:rgba(6,42,30,.92); }
+.sd .fc-col.sel.fc-ok .fc-amt  { color:#062A1E; background:rgba(255,255,255,.42); }
+.sd .fc-col.sel.fc-ok .fc-nts  { color:rgba(6,42,30,.92); }
+.sd .fc-col.sel.fc-ok .fc-check { color:#062A1E; }
+.sd .fc-col.sel.fc-ok .fc-wk   { color:rgba(6,42,30,.86); }
+.sd .fc-col.sel.fc-ok .fc-date { color:#062A1E; }
+/* White disc, green tick — matching the tick on the confirmation card. */
+.sd .fc-col.sel.fc-ok .fc-dot {
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%2310B981' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
+}
 
 /* Stepping a day at a time: the bar element itself is reused so its height transition carries
    the movement, and only the wording inside it is replaced — fading in so the numbers don't
@@ -774,17 +785,25 @@
    different label, and on a hotel with no cached fares the whole strip looked identical.
    It must not borrow the grey either: grey is the one state that means "do not bother".
    The diagonal hatch this used to carry was dropped at the client's request — a flat colour
-   now does the whole job. Violet is the one hue on the strip that is not already spoken for:
-   blue is a cached price, gold is cheapest-of-week, green is confirmed available and grey is
-   unavailable, so a fifth state needs a fifth hue rather than another blue nobody can tell
-   apart from the priced bars. */
+   now does the whole job, in the client-picked light lavender (#EBE8F7). Lavender keeps the
+   violet family (the one hue not already spoken for: blue is a cached price, gold is
+   cheapest-of-week, green is confirmed available, grey is unavailable) — and its LIGHTNESS is
+   the message: every dark bar on this strip states money, and a day with nothing quoted must
+   not carry that weight. Pale bar, dark ink: "nothing here yet, press to find out". */
 .sd .fc-col.fc-nopr .fc-bar {
-  /* #5B4BC4 carries the 10px white label at 6.47:1, comfortably clear of AA. */
-  background:#5B4BC4;
+  background:#EBE8F7;
 }
-.sd .fc-col.fc-nopr:hover .fc-bar { background:#4F40B0; }
-/* Selected: lighter violet rather than the strip's blue selected gradient, so choosing an
-   un-cached day does not make it look like a day we have a price for. */
+/* Ink flip, same move as the confirmed-green day: white on #EBE8F7 is unreadable, so the
+   label takes the family's deep end — #4F40B0 measures 6.5:1 on the bar and 5.7:1 on its
+   hover, both clear of AA at the 10px bold this label uses. */
+.sd .fc-col.fc-nopr .fc-check { color:#4F40B0; }
+.sd .fc-col.fc-nopr:hover .fc-bar { background:#DED7F3; }
+/* Selected: the family's saturated end rather than the strip's blue selected gradient — the
+   active choice still pops, while staying recognisably "no price yet" (same hue as the pale
+   bars, deeper cut). Its label returns to WHITE: the pale-bar ink above would otherwise paint
+   violet on violet. The confirmed-green day is excluded — its dark-green ink (declared
+   earlier, same specificity without the :not) must keep winning there. */
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-check { color:rgba(255,255,255,.92); }
 .sd .fc-col.fc-nopr.sel .fc-bar {
   background:linear-gradient(170deg,#5B4BC4,#7C6BE0);
   box-shadow:0 10px 28px rgba(91,75,196,.35);
