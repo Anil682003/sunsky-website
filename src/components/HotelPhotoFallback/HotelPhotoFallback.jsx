@@ -206,7 +206,16 @@ export default function HotelPhotoFallback({
       </svg>
 
       {tile ? (
-        <span className={styles.tileMark}><Camera /></span>
+        /* The camera mark alone said nothing: on a results card a traveller sees an illustrated
+           beach where a photo should be and has no way to tell whether it is still loading, the
+           image broke, or the property simply has none. The label answers that in three words —
+           the same sentence the hero variant already ends on, so the two read as one system.
+           Not the hotel NAME though: every surface that uses this tile prints the name right
+           beside it, and repeating it inside the picture is noise. */
+        <span className={styles.tileNote}>
+          <span className={styles.tileMark}><Camera /></span>
+          <span className={styles.tileLabel}>No images available</span>
+        </span>
       ) : (
         <div className={styles.overlay}>
           {name && <p className={styles.name}>{name}</p>}

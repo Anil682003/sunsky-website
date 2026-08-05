@@ -419,6 +419,41 @@
   flex-shrink:0;
 }
 .tspRowOn .tspCode { color:var(--sun-orange, #ff9f1c); }
+/* Multi-select affordance: every row carries a checkbox circle — hollow when off,
+   sun-orange with a white tick when on — so several airports can visibly be
+   selected at once (the row highlight alone read as a radio). */
+.tspTick {
+  flex-shrink:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:16px;
+  height:16px;
+  border-radius:50%;
+  border:1.5px solid rgba(15,40,100,0.18);
+  background:transparent;
+  transition:all .15s ease;
+}
+.tspTickOn {
+  border-color:var(--sun-orange, #ff9f1c);
+  background:var(--sun-orange, #ff9f1c);
+}
+/* Footer under the airport grids: running count + Done, so a multi-pick has an
+   explicit way out (rows no longer close the panel — they toggle). */
+.tspFoot {
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+  margin-top:12px;
+  padding-top:12px;
+  border-top:1px solid rgba(15,40,100,0.08);
+}
+.tspFootLabel {
+  font-size:12px;
+  font-weight:600;
+  color:var(--text-sec, #5c6f91);
+}
 
 /* Duration dropdown — vertical list, check on the selected band */
 .durDropdown {
