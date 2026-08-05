@@ -804,15 +804,30 @@
    violet on violet. The confirmed-green day is excluded — its dark-green ink (declared
    earlier, same specificity without the :not) must keep winning there. */
 .sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-check { color:rgba(255,255,255,.92); }
+/* Lighter than the violet this used to be, to sit in the same family as the pale un-selected
+   no-cache bars rather than looming over them.
+   Lightening it forces the type dark: #5B4BC4 carried white at 6.47:1, but its light end was
+   already only 4.17:1, and anything lighter fails outright. The mid-tones in between are the
+   worst of both worlds — on #7B68DC white is 4.4:1 and near-black is 4.44:1, so neither works.
+   Going properly light and inking it dark clears comfortably: 6.65:1 at the top of the bar,
+   7.89:1 at the foot. It also matches the un-selected bars, which already use dark violet ink. */
 .sd .fc-col.fc-nopr.sel .fc-bar {
-  background:linear-gradient(170deg,#5B4BC4,#7C6BE0);
-  box-shadow:0 10px 28px rgba(91,75,196,.35);
+  background:linear-gradient(170deg,#9B8BEA,#B9ADF4);
+  box-shadow:0 10px 28px rgba(123,104,220,.32);
 }
-.sd .fc-col.fc-nopr.sel .fc-under::before { background:#6E5DD4; }
-.sd .fc-col.fc-nopr.sel .fc-barzone { border-bottom-color:#6E5DD4; }
-.sd .fc-col.fc-nopr.sel .fc-tail { background:#6E5DD4; }
+.sd .fc-col.fc-nopr.sel .fc-under::before { background:#9B8BEA; }
+.sd .fc-col.fc-nopr.sel .fc-barzone { border-bottom-color:#9B8BEA; }
+.sd .fc-col.fc-nopr.sel .fc-tail { background:#9B8BEA; }
+/* Ink flip, same reasoning as the confirmed-green column: alphas stay high because a
+   translucent ink on a light ground composites toward it and loses contrast fast. */
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-check { color:#150E3A; }
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-from  { color:rgba(21,14,58,.92); }
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-amt   { color:#150E3A; background:rgba(255,255,255,.42); }
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-nts   { color:rgba(21,14,58,.92); }
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-wk    { color:rgba(21,14,58,.86); }
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-date  { color:#150E3A; }
 .sd .fc-col.fc-nopr.sel .fc-dot {
-  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%236E5DD4' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%237B68DC' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
 }
 
 /* live-checked empty: greyed out + disabled */
