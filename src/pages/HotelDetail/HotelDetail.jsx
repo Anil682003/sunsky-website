@@ -1915,9 +1915,13 @@ export default function HotelDetail() {
                 <div className="fc-legend">
                   <span className="fc-legend-title">Reading this chart</span>
                   <span className="fc-legend-items">
+                    {/* The hatched state, not "taller bar = pricier day": bar height is
+                        self-evident from the chart, whereas a hatched bar is the one mark on the
+                        strip whose meaning cannot be guessed. It is also the state a traveller is
+                        most likely to misread as "unavailable", so it is the one worth the row. */}
                     <span className="fc-legend-item">
-                      <span className="fc-legend-swatch fc-legend-tall" aria-hidden="true" />
-                      Taller bar = pricier day
+                      <span className="fc-legend-swatch fc-legend-nopr" aria-hidden="true" />
+                      Price not cached — check it
                     </span>
                     <span className="fc-legend-item">
                       <span className="fc-legend-swatch fc-legend-low" aria-hidden="true" />
@@ -1991,6 +1995,13 @@ export default function HotelDetail() {
                       // every render and blanks the whole page, so it must stay above isLoading.
                       const sel = pickedIdx === i;
                       const isLoading = sel && liveChecked && liveRooms?.loading;
+                      // Live came back with rooms for THIS day — the only point in the flow where
+                      // availability is a fact rather than a cached guess, so it gets its own
+                      // colour. Every clause matters: still loading, an error, or zero rooms are
+                      // all "not confirmed", and painting any of them green would promise a room
+                      // we have not actually been offered.
+                      const isLiveOk = sel && liveChecked && !liveRooms?.loading
+                        && !liveRooms?.error && (liveRooms?.rooms?.length > 0);
                       const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
                       const h = Math.round(44 + 44 * frac);
                       // Cheapest of the week ON SCREEN, and only the first day at that price.
@@ -2004,7 +2015,7 @@ export default function HotelDetail() {
                         // the whole price profile glides sideways. Keying by date would unmount
                         // all seven and snap.
                         <button type="button" key={i}
-                          className={`fc-col${sel ? ' sel' : ''}${isEmpty ? ' fc-empty' : !hasPrice ? ' fc-nopr' : ''}`}
+                          className={`fc-col${sel ? ' sel' : ''}${isLiveOk ? ' fc-ok' : ''}${isEmpty ? ' fc-empty' : !hasPrice ? ' fc-nopr' : ''}`}
                           onClick={() => pickDay(p.iso)}
                           disabled={isEmpty}
                           aria-pressed={sel}
