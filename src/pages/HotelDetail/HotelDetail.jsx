@@ -7,6 +7,7 @@ import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
+import { nightsToDays } from '../../utils/durations';
 import { rateDetails } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS,
@@ -1165,7 +1166,7 @@ export default function HotelDetail() {
     ? `${calDate(shareCheckIn)}${shareCheckOut ? ` – ${calDate(shareCheckOut)}` : ''}`
     : '';
   const sharePax = `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}${Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}`;
-  const shareMeta = [shareDates, `${nights} days`, sharePax].filter(Boolean).join(' · ');
+  const shareMeta = [shareDates, `${nightsToDays(nights)} days`, sharePax].filter(Boolean).join(' · ');
   const shareText = [
     `${hotelName} — ${locLabel}`,
     shareMeta,
@@ -1828,7 +1829,7 @@ export default function HotelDetail() {
               <span className="sd-hero-rule" />
               <div className="sd-hero-chips">
                 <span className="sd-chip">{ICON.board} {hotel?.board || 'All inclusive'}</span>
-                <span className="sd-chip">{ICON.moon} {nights} days</span>
+                <span className="sd-chip">{ICON.moon} {nightsToDays(nights)} days</span>
                 <span className="sd-chip">{ICON.users} {Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</span>
                 {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} from {ccy}{fromPP} p.p.</span>}
               </div>
@@ -2560,7 +2561,7 @@ export default function HotelDetail() {
                       const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
                       // No invented April dates when the search carries none.
                       return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} - ${niceDate(co)}` : 'Dates not selected yet';
-                    })()} <span style={{ color: 'var(--text-light)' }}>({nights} days)</span></div>
+                    })()} <span style={{ color: 'var(--text-light)' }}>({nightsToDays(nights)} days)</span></div>
                     </div>
                     {/* overview-score removed — no real review data yet */}
                   </div>
@@ -2923,7 +2924,7 @@ export default function HotelDetail() {
                   ? 'Hotel only'
                   : destination ? `${airportName(origin)} (${origin}) → ${destination}` : `${airportName(origin)} (${origin})`}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.board}</span>{hotel?.board || 'All inclusive'}</div>
-                <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nights} days</div>
+                <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nightsToDays(nights)} days</div>
               </div>
               <div className="bkcw">
                 <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
