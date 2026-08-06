@@ -4,7 +4,7 @@ import styles from './Hero.module.css';
 import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
-import { DURATION_BANDS, bandByLabel } from '../../../utils/durations';
+import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
 import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, airportCity } from '../../../utils/airports';
 
 // Duration bands shown in the search box. Each band is a day-range with a representative stay
@@ -258,7 +258,7 @@ export default function Hero() {
   // Params common to every search (dates, occupancy, duration band).
   const buildBaseParams = () => {
     const band = findBand(duration);
-    const nights = band.nights;
+    const nights = daysToNights(band.days);   // "7 days" band → 6 nights
     let checkOut = '';
     if (date) {
       // Compute in UTC so the checkout never shifts a day in a positive-offset timezone
@@ -276,8 +276,9 @@ export default function Hero() {
       rooms:    String(roomsList.length),
     });
     qs.set('duration', band.label);
-    qs.set('minNights', String(band.minNights));
-    qs.set('maxNights', String(band.maxNights));
+    // The results "Travel time" filter reads these as NIGHTS, so convert the band's day range.
+    qs.set('minNights', String(daysToNights(band.minDays)));
+    qs.set('maxNights', String(daysToNights(band.maxDays)));
     if (childAges.length) qs.set('childAges', childAges.join(','));
     // The transport decision, carried to the results sidebar and on into every hotel
     // page's flight search. Origin rides even in own-transport mode so flipping to
