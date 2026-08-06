@@ -151,6 +151,18 @@ const addDaysISO = (iso, n) => {
   const p = (v) => String(v).padStart(2, '0');
   return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
 };
+// Nights between two ISO dates (checkout − checkin), or null if either is missing/invalid.
+// Parsed in UTC so an offset boundary can't shift the count. This is the SOURCE OF TRUTH for the
+// stay length — the searched dates decide the nights, never a hardcoded default. N nights shows
+// as N+1 days on the label (see durations.js).
+const nightsBetween = (ci, co) => {
+  if (!ci || !co) return null;
+  const a = Date.parse(`${ci}T00:00:00Z`);
+  const b = Date.parse(`${co}T00:00:00Z`);
+  if (Number.isNaN(a) || Number.isNaN(b)) return null;
+  const n = Math.round((b - a) / 86400000);
+  return n > 0 ? n : null;
+};
 // Today, as a local ISO date. This is the floor for paging the fare strip backwards — the
 // traveller can walk back to the current week and no further, because a departure that has
 // already happened cannot be sold. Built from LOCAL parts for the same reason addDaysISO is:
@@ -655,7 +667,12 @@ export default function HotelDetail() {
   // an entry in `ovr` overrides it. Keeping the override separate means an untouched
   // filter still reflects the original search, and "reset" is just clearing the key.
   const [ovr, setOvr] = useState({});
-  const paramNights = state?.nights || Number(qp('nights')) || 7;
+  // Stay length: the searched check-in/check-out dates are the source of truth (a "7 day" search
+  // is checkOut − checkIn = 6 nights). Only when no dates are present do we fall back to an
+  // explicit nights value, then to 6 (a one-week "7 day" default). This stops the page inventing
+  // a 7-night stay for a 6-night search and pushing the checkout a day late.
+  const paramNights = nightsBetween(state?.checkIn || qp('checkIn'), state?.checkOut || qp('checkOut'))
+    ?? (Number(state?.nights || qp('nights')) || 6);
   const nights = ovr.nights ?? paramNights;
   // NOTE: the page-wide "from" figure is `fromPP` (see below). There is deliberately no
   // hardcoded fallback price — a cold visit shows "Pick a date", never an invented number.
