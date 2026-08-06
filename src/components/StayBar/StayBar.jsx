@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import styles from './StayBar.module.css';
-import { DURATION_BANDS, bandByLabel, bandForNights, lengthsInBand } from '../../utils/durations';
+import { DURATION_BANDS, bandByLabel, bandForNights, daysInBand, daysToNights } from '../../utils/durations';
 
 // The "edit my search" bar on the hotel page: departure date, who's travelling, board,
 // departure airport and length of stay.
@@ -200,7 +200,7 @@ export default function StayBar({
   // falls in, and the row underneath narrows it to one exact length WITHIN that band — so the
   // two controls are coarse-then-fine rather than two competing lists.
   const band = bandForNights(nights);
-  const exactLengths = lengthsInBand(band);
+  const exactDays = daysInBand(band);   // selectable lengths, in DAYS
 
   return (
     <div className={styles.bar} ref={barRef}>
@@ -321,19 +321,22 @@ export default function StayBar({
           open={openField === 'nights'} onToggle={toggle}>
           <OptionList current={band.label}
             options={DURATION_BANDS.map((b) => ({ id: b.label, label: b.label }))}
-            onPick={(label) => { onChange({ nights: bandByLabel(label).nights }); close(); }} />
+            onPick={(label) => { onChange({ nights: daysToNights(bandByLabel(label).days) }); close(); }} />
         </Field>
       </div>
 
       <div className={styles.foot}>
         <span className={styles.footLabel}>Exact length</span>
         <div className={styles.chips}>
-          {exactLengths.map((n) => (
-            <button type="button" key={n} className={`${styles.chip}${nights === n ? ` ${styles.chipOn}` : ''}`}
-              onClick={() => onChange({ nights: n })} aria-pressed={nights === n}>
-              {n} days
-            </button>
-          ))}
+          {exactDays.map((d) => {
+            const n = daysToNights(d);   // "7 days" chip → 6 nights
+            return (
+              <button type="button" key={d} className={`${styles.chip}${nights === n ? ` ${styles.chipOn}` : ''}`}
+                onClick={() => onChange({ nights: n })} aria-pressed={nights === n}>
+                {d} days
+              </button>
+            );
+          })}
         </div>
         {touched && <button type="button" className={styles.reset} onClick={onReset}>Reset to my search</button>}
       </div>
