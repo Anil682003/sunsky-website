@@ -759,6 +759,11 @@ export default function HotelDetail() {
   const sAdults   = String(ovr.adults   ?? state?.adults   ?? (qp('adults')   || '2'));
   const sChildren = String(ovr.children ?? state?.children ?? (qp('children') || '0'));
   const sRooms    = String(ovr.rooms ?? state?.rooms  ?? (qp('rooms')  || '1'));
+  // Numeric party size, for the places that recap the search back to the traveller rather than
+  // send it to a supplier. Defaults match sAdults/sChildren/sRooms above.
+  const availAdults   = Number(sAdults)   || 2;
+  const availChildren = Number(sChildren) || 0;
+  const availRooms    = Number(sRooms)    || 1;
   // children's ages (csv) — HotelBeds requires an age per child for availability
   const paramChildAges = String(ovr.childAges ?? state?.childAges ?? qp('childAges'));
   // Trim/pad the age list to the chosen child count — HB 400s on a child with no age.
@@ -2167,9 +2172,19 @@ export default function HotelDetail() {
                                 : liveRooms?.error ? (pdEstimate ? 'Showing estimated price' : 'Live price unavailable')
                                 : 'Your holiday is available!'}
                             </div>
+                            {/* Everything the traveller actually chose in the search — day, length,
+                                who is going, how many rooms — restated so the price above is
+                                visibly a price FOR THAT. The board is deliberately absent: it is
+                                chosen further down the page, on the rate rows, and echoing it here
+                                made this line look like the decision rather than a recap. */}
                             <div className="avail-sub">
-                              {`Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'day' : 'days'}`}
-                              {liveRoom?.board ? ` · ${liveRoom.board.toLowerCase()}` : ''}
+                              {[
+                                `Selected ${pd.day} ${pd.date}`,
+                                `${nights} ${nights === 1 ? 'day' : 'days'}`,
+                                `${availAdults} adult${availAdults === 1 ? '' : 's'}`,
+                                availChildren > 0 ? `${availChildren} child${availChildren === 1 ? '' : 'ren'}` : null,
+                                availRooms > 1 ? `${availRooms} rooms` : null,
+                              ].filter(Boolean).join(' · ')}
                             </div>
                           </div>
                           <div className="avail-price">
