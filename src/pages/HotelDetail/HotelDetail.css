@@ -1032,9 +1032,12 @@
 .sd .stay-guests { font-size:12px; color:var(--text-sec); margin-left:4px; font-weight:400; }
 .sd .room-option { display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:16px; border:1.5px solid var(--border-light); background:var(--white); margin-bottom:10px; cursor:pointer; transition:all .3s var(--ease); flex-wrap:wrap; box-shadow:var(--shadow-xs); }
 .sd .room-option:hover { border-color:#cfe0f8; box-shadow:var(--shadow-sm); }
-.sd .room-option.selected { border-color:var(--blue); background:linear-gradient(180deg,#fdfeff,#f8fbff); box-shadow:0 0 0 4px rgba(31,79,216,.08), 0 10px 26px rgba(31,79,216,.1); }
+/* Green, not blue: the whole page is blue, so a blue-ringed card read as chrome rather than as
+   "this is the rate you picked". Confirmation-green is the one colour on the page that already
+   means yes — the tick, the free-cancellation line, the included badge all use it. */
+.sd .room-option.selected { border-color:var(--green); background:linear-gradient(180deg,#fbfffd,#f1fcf7); box-shadow:0 0 0 4px rgba(5,150,105,.10), 0 10px 26px rgba(5,150,105,.10); }
 .sd .room-radio { width:20px; height:20px; border-radius:50%; border:2px solid #d7e3f5; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all .25s var(--ease-spring); }
-.sd .room-option.selected .room-radio { border-color:var(--blue); background:var(--blue); box-shadow:0 3px 10px rgba(31,79,216,.3); }
+.sd .room-option.selected .room-radio { border-color:var(--green); background:var(--green); box-shadow:0 3px 10px rgba(5,150,105,.3); }
 .sd .room-option.selected .room-radio::after { content:''; display:block; width:8px; height:8px; border-radius:50%; background:#fff; }
 /* ── Room type → its board options ────────────────────────────────────────────
    A room is one card; the boards it can be booked on are the rows inside it. The
@@ -1062,14 +1065,6 @@
 .sd .room-group-name {
   font-family:'Sora',sans-serif; font-size:14.5px; font-weight:800; color:#fff;
   letter-spacing:.1px;
-}
-/* The supplier's room code — useful when confirming with the hotel, so it stays visible,
-   but it is reference data and must never compete with the room name. */
-.sd .room-code {
-  font-size:10px; font-weight:700; letter-spacing:.04em; color:#fff;
-  padding:2px 7px; border-radius:var(--r-full);
-  background:rgba(255,255,255,.20); border:1px solid rgba(255,255,255,.42);
-  font-variant-numeric:tabular-nums;
 }
 .sd .room-group-from { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
 /* .88 rather than the usual muted grey: on blue, anything fainter stops being readable, so
@@ -1153,9 +1148,9 @@
 .sd .meal-row { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px; transition:all .25s var(--ease); cursor:pointer; margin-bottom:4px; border:1.5px solid transparent; }
 .sd .meal-row:last-child { margin-bottom:0; }
 .sd .meal-row:hover { background:#fff; border-color:#dce9fc; }
-.sd .meal-row.meal-selected { background:#fff; border-color:var(--blue); box-shadow:0 4px 14px rgba(31,79,216,.1); }
+.sd .meal-row.meal-selected { background:#fff; border-color:var(--green); box-shadow:0 4px 14px rgba(5,150,105,.1); }
 .sd .meal-radio { width:18px; height:18px; border-radius:50%; border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all .2s; }
-.sd .meal-row.meal-selected .meal-radio { border-color:var(--blue); background:var(--blue); }
+.sd .meal-row.meal-selected .meal-radio { border-color:var(--green); background:var(--green); }
 .sd .meal-row.meal-selected .meal-radio::after { content:''; display:block; width:7px; height:7px; border-radius:50%; background:#fff; }
 .sd .meal-info { flex:1; }
 .sd .meal-name { font-family:'Sora',sans-serif; font-size:13px; font-weight:700; color:var(--dark); }
@@ -1488,7 +1483,12 @@
 .sd .flight-card { border:1px solid var(--border); }
 .sd .flight-card.selected { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
 .sd .room-option { border:1px solid var(--border); }
-.sd .room-option.selected { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
+/* Thicker than the 1px hairline the other cards get (it snaps back to 1px at DPR 1, but holds on
+   retina): this is the one card on the page carrying a decision. */
+.sd .room-option.selected { border:1.5px solid var(--green); box-shadow:0 0 0 3px rgba(5,150,105,.13); }
+/* The price of the rate you chose confirms in the same green as the ring, instead of staying a
+   blue pill that now reads as belonging to a different state. */
+.sd .room-option.selected .room-price { color:#047857; background:#ecfdf5; border-color:#a7f3d0; }
 .sd .fc-col.sel .fc-bar { box-shadow:0 10px 24px rgba(59,130,246,.22); }
 .sd .meal-row { border-width:1px; }
 .sd .meal-row.meal-selected { box-shadow:none; }
