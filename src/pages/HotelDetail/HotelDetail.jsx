@@ -2434,9 +2434,12 @@ export default function HotelDetail() {
                         return (
                         <div className="room-group" key={g.key}>
                           <div className="room-group-head">
+                            {/* No room code chip. "DBL.ST" is the supplier's identifier, not
+                                anything a traveller books on, and it sat next to the room name
+                                competing with it. It still travels on the rate for the booking
+                                hand-off; it is just not shown. */}
                             <div className="room-group-id">
                               <div className="room-group-name">{g.name}</div>
-                              {g.cheapest.roomCode && <span className="room-code">{g.cheapest.roomCode}</span>}
                             </div>
                             <div className="room-group-from">
                               <span className="rgf-count">{g.boards.length} option{g.boards.length === 1 ? '' : 's'}</span>
@@ -2481,11 +2484,10 @@ export default function HotelDetail() {
                                   {d?.board.gloss && <div className="room-cap">{d.board.gloss}</div>}
 
                                   <div className="room-chips">
-                                    {/* Cancellation is the single fact people get wrong, so it
-                                        leads and states the deadline instead of a bare word. */}
-                                    {d?.cancel.kind === 'free' && (
-                                      <span className="rchip rchip-free">{ICON.shield} Free cancellation until {fmtDay(d.cancel.until)}</span>
-                                    )}
+                                    {/* No "Free cancellation until X" chip. A dated promise on
+                                        the rate card is a commitment we don't want to make from
+                                        a live supplier quote; the warnings below stay, because
+                                        under-promising costs nobody a refund. */}
                                     {d?.cancel.kind === 'partial' && (
                                       <span className="rchip rchip-warn">{ICON.warn} Cancel now costs {ccy}{Math.round(d.cancel.amount).toLocaleString('en-GB')}</span>
                                     )}

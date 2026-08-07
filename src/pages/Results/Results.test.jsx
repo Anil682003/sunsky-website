@@ -361,31 +361,34 @@ describe('room type filter', () => {
   });
 });
 
-describe('cancellation filter', () => {
-  it('sends refundable=no and shows only non-refundable stays', async () => {
-    const user = userEvent.setup();
+describe('cancellation', () => {
+  // The Cancellation filter was REMOVED: the site no longer states a rate's cancellation
+  // terms anywhere (card, sidebar, hotel page), so filtering by them offered a distinction
+  // nothing else would show. These two tests lock the removal in — the control is gone, and
+  // `refundable` must never reach the cache again.
+  it('offers no cancellation control in the sidebar', async () => {
     renderResults();
     await settled();
-    await user.click(sidebarRadio('Non-ref.'));
-    await waitFor(() => expect(lastCall().get('refundable')).toBe('no'));
-    // The "Non-Refundable" card chip was removed by design; the server-side filter guarantees
-    // every returned card is non-refundable, so the presence of results is the check.
-    await waitFor(() => expect(cards().length).toBeGreaterThan(0));
+    expect(screen.queryByText('Cancellation')).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Non-ref.' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Refundable' })).not.toBeInTheDocument();
   });
 
-  // (The former "NRP flagged as non-refundable" test asserted the card's Non-Refundable chip,
-  //  which was removed by design. NRP-vs-NRF classification is the cache's concern, not the
-  //  frontend's — the frontend only sends refundable=no — so there's no UI behaviour left to
-  //  assert here.)
-
-  it('returns to any', async () => {
+  it('never sends refundable to the cache', async () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(sidebarRadio('Non-ref.'));
-    await waitFor(() => expect(lastCall().get('refundable')).toBe('no'));
-    await user.click(sidebarRadio('Any'));
-    await waitFor(() => expect(lastCall().get('refundable')).toBeNull());
+    expect(lastCall().get('refundable')).toBeNull();
+    // …and it stays absent once another filter has re-fired the request.
+    await user.click(sidebarCheck('All Inclusive'));
+    await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
+    expect(lastCall().get('refundable')).toBeNull();
+  });
+
+  it('does not advertise free cancellation on a card', async () => {
+    renderResults();
+    await settled();
+    expect(screen.queryByText('Free cancellation')).not.toBeInTheDocument();
   });
 });
 
@@ -412,16 +415,16 @@ describe('sort', () => {
 });
 
 describe('multiple filters together', () => {
-  it('combines board + cancellation into a single request', async () => {
+  it('combines board + sort into a single request', async () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
     await user.click(sidebarCheck('All Inclusive'));   // boards=AI
-    await user.click(sidebarRadio('Non-ref.'));        // refundable=no
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'price_desc');
     await waitFor(() => {
       const q = lastCall();
       expect(q.get('boards')).toBe('AI');
-      expect(q.get('refundable')).toBe('no');
+      expect(q.get('sortBy')).toBe('price_desc');
     });
   });
 
@@ -609,16 +612,16 @@ describe('infinite scroll', () => {
     renderResults();
     await settled();
 
-    await user.click(sidebarRadio('Non-ref.'));
-    await waitFor(() => expect(lastCall().get('refundable')).toBe('no'));
-    await waitFor(() => expect(cards()).toHaveLength(20));
+    await user.click(sidebarCheck('All Inclusive'));
+    await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
+    await waitFor(() => expect(cards().length).toBeGreaterThan(0));
 
     globalThis.__IO__.trigger();
 
     await waitFor(() => {
       const p2 = calls.find((c) => c.get('page') === '2');
       expect(p2).toBeTruthy();
-      expect(p2.get('refundable')).toBe('no');   // page 2 must not silently drop the filter
+      expect(p2.get('boards')).toBe('AI');   // page 2 must not silently drop the filter
     });
   });
 
@@ -655,7 +658,7 @@ describe('clear all + empty state', () => {
     await settled();
 
     await user.click(sidebarCheck('All Inclusive'));
-    await user.click(sidebarRadio('Non-ref.'));
+    await user.click(sidebarCheck('Half Board'));
     await waitFor(() => expect(screen.getAllByText('2')[0]).toBeInTheDocument());
 
     await user.click(screen.getAllByRole('button', { name: /clear all/i })[0]);
