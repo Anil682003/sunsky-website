@@ -2495,32 +2495,36 @@ export default function HotelDetail() {
                               >
                                 <div className="room-radio" />
                                 <div className="room-info">
+                                  {/* Board, its flag and its cancellation terms on ONE line. The
+                                      terms used to hang two rows below the board name, under the
+                                      gloss, which is where people stopped reading — so the single
+                                      fact that decides whether a rate is bookable was the last
+                                      thing on the row. It now sits beside the name it qualifies. */}
                                   <div className="room-name">
                                     {d?.board.label || b.boardLabel}
                                     {isCheapest && <span className="room-flag room-flag-best">{ICON.spark} Lowest price</span>}
+                                    <div className="room-chips">
+                                      {/* No "Free cancellation until X" chip. A dated promise on
+                                          the rate card is a commitment we don't want to make from
+                                          a live supplier quote; the warnings below stay, because
+                                          under-promising costs nobody a refund. */}
+                                      {d?.cancel.kind === 'partial' && (
+                                        <span className="rchip rchip-warn">{ICON.warn} Cancel now costs {ccy}{Math.round(d.cancel.amount).toLocaleString('en-GB')}</span>
+                                      )}
+                                      {d?.cancel.kind === 'none' && (
+                                        <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
+                                      )}
+                                      {d?.cancel.kind === 'unknown' && d?.nonRefundable === true && (
+                                        <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
+                                      )}
+                                      {d?.packageRate && <span className="rchip rchip-mute">Package rate</span>}
+                                      {/* The supplier (Hotelbeds / Diana) is never shown to the
+                                          traveller — who we source a rate from is our commercial
+                                          relationship, not part of the offer. It still rides on the
+                                          rate object for the booking hand-off. */}
+                                    </div>
                                   </div>
                                   {d?.board.gloss && <div className="room-cap">{d.board.gloss}</div>}
-
-                                  <div className="room-chips">
-                                    {/* No "Free cancellation until X" chip. A dated promise on
-                                        the rate card is a commitment we don't want to make from
-                                        a live supplier quote; the warnings below stay, because
-                                        under-promising costs nobody a refund. */}
-                                    {d?.cancel.kind === 'partial' && (
-                                      <span className="rchip rchip-warn">{ICON.warn} Cancel now costs {ccy}{Math.round(d.cancel.amount).toLocaleString('en-GB')}</span>
-                                    )}
-                                    {d?.cancel.kind === 'none' && (
-                                      <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
-                                    )}
-                                    {d?.cancel.kind === 'unknown' && d?.nonRefundable === true && (
-                                      <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
-                                    )}
-                                    {d?.packageRate && <span className="rchip rchip-mute">Package rate</span>}
-                                    {/* The supplier (Hotelbeds / Diana) is never shown to the
-                                        traveller — who we source a rate from is our commercial
-                                        relationship, not part of the offer. It still rides on the
-                                        rate object for the booking hand-off. */}
-                                  </div>
 
                                 </div>
 
