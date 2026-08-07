@@ -686,7 +686,14 @@
 .sd .fc-strip { display:grid; grid-template-columns:repeat(7,1fr); padding-top:6px; align-items:start; }
 .sd .fc-strip::-webkit-scrollbar { display:none; }
 .sd .fc-col { appearance:none; background:none; border:none; font-family:inherit; display:flex; flex-direction:column; padding:0; cursor:pointer; min-width:0; }
-.sd .fc-barzone { height:212px; width:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:1.5px solid #cfdcee; }
+.sd .fc-barzone { height:212px; width:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:1.5px solid #cfdcee; transition:height .45s var(--ease); }
+/* Every day the same price: no profile to plot, no "Lowest price" tag to clear, so the canvas
+   drops to what the bar's own contents need. The 212px version left a band of white between the
+   estimate notice and the bars that read as a chart that hadn't finished drawing.
+   The canvas transitions on the same curve the bars already use, because paging one day at a
+   time can cross between a flat week and a varying one — without it the whole strip snaps. */
+.sd .fc-strip.fc-flat .fc-barzone { height:138px; }
+@media (prefers-reduced-motion: reduce) { .sd .fc-barzone { transition:none; } }
 .sd .fc-lowtag { font-size:8.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:#8a5a06; background:var(--sun); padding:3px 9px; border-radius:var(--r-full); margin-bottom:7px; white-space:nowrap; }
 /* solid, evenly-weighted bars — height alone carries the price, nothing sits faded */
 .sd .fc-bar { width:calc(100% - 12px); min-height:68px; border-radius:10px 10px 0 0; background:#2456c8; display:flex; flex-direction:column; align-items:center; padding:12px 4px 9px; transition:height .45s var(--ease), background-color .25s, box-shadow .25s; }

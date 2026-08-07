@@ -2026,7 +2026,12 @@ export default function HotelDetail() {
                 </div>
               ) : (
                 <>
-                  <div className="fc-strip">
+                  {/* A flat week gets a shorter canvas. When every day costs the same the bar
+                      heights carry no information, so the 212px the strip reserves for a price
+                      profile is 70px of dead air between the estimate notice and the bars — the
+                      chart looked like it had failed to draw. Nothing is lost: there is no
+                      profile to show and no "Lowest price" tag to leave room for. */}
+                  <div className={`fc-strip${priceVaries ? '' : ' fc-flat'}`}>
                     {priceDays.map((p, i) => {
                       const hasPrice = Number(p.price) > 0;
                       const isEmpty = checkedEmpty.has(p.iso);
@@ -2043,7 +2048,9 @@ export default function HotelDetail() {
                       const isLiveOk = sel && liveChecked && !liveRooms?.loading
                         && !liveRooms?.error && (liveRooms?.rooms?.length > 0);
                       const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
-                      const h = Math.round(44 + 44 * frac);
+                      // A flat week fills its (shorter) canvas: with no profile to draw, a bar
+                      // stopping two-thirds up is just a gap, not a reading.
+                      const h = priceVaries ? Math.round(44 + 44 * frac) : 100;
                       // Cheapest of the week ON SCREEN, and only the first day at that price.
                       // The API flags the lowest of whichever week it answered, which would
                       // badge several days at once now that the strip stitches weeks together.
