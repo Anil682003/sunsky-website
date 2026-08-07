@@ -14,6 +14,7 @@ import { ratingLabel, ratingValue } from '../../utils/rating';
 import { topFacilities } from '../../utils/topFacilities';
 import { flagUrl } from '../../utils/countryFlag';
 import { toTitleCase } from '../../utils/textCase';
+import { nightsToDays } from '../../utils/durations';
 import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
@@ -1383,7 +1384,7 @@ export default function Results() {
           {dayOptions.map((n) => (
             <FilterCheck
               key={n}
-              label={`${n} days${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString()})` : ''}`}
+              label={`${nightsToDays(n)} days${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString()})` : ''}`}
               checked={searchedNights === n}
               onChange={() => applyDuration(n)}
             />
