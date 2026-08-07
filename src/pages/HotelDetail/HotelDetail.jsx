@@ -1973,6 +1973,21 @@ export default function HotelDetail() {
                 </div>
               )}
 
+              {/* Says the quiet part out loud: these bars are cached estimates, and the live
+                  price is the one that gets booked. Worded as a fact about the prices rather
+                  than an apology about our cache — a traveller does not care that we are
+                  warming an index, they care whether the number they are looking at is the
+                  number they will pay, and what to do about it. */}
+              {usingLive && (
+                <div className="fc-estimate" role="note">
+                  <span className="fc-estimate-ico" aria-hidden="true">{ICON.info}</span>
+                  <span className="fc-estimate-text">
+                    <b>These are estimated prices.</b> We refresh them continuously, so the live
+                    price can differ — pick a date and check it to see the exact price for your stay.
+                  </span>
+                </div>
+              )}
+
               {/* The arrows live OUTSIDE the three states below so they stay reachable on a week
                   that came back empty — otherwise a blank week is a dead end with no way back. */}
               <div className="fc-week">

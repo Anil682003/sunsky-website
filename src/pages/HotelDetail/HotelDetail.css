@@ -642,6 +642,34 @@
    few px of slack under the ribbon, so its point stopped short of the card. */
 /* ── fare-strip legend — what the colours and heights mean ── */
 .sd .fc-legend { display:flex; align-items:center; flex-wrap:wrap; gap:10px 18px; margin-bottom:14px; padding:11px 16px; border-radius:14px; background:var(--blue-pale,#f4f8fe); border:1px solid #e4ebf6; }
+/* ── Estimate notice ──────────────────────────────────────────────────────────
+   Sits directly under the legend and is deliberately its sibling in shape — same radius, same
+   hairline, same rhythm — so the two read as one explanatory block under the chart rather than
+   as a chart plus an alert.
+   Blue, NOT amber. Nothing is wrong here: a cached estimate is the normal state of this strip,
+   and dressing it as a warning would make every hotel page look like it had a problem. The
+   left rule and the gentle tint carry the emphasis instead. */
+.sd .fc-estimate {
+  display:flex; align-items:flex-start; gap:11px;
+  margin:-6px 0 16px; padding:11px 15px;
+  border-radius:14px;
+  background:linear-gradient(180deg,#f2f7ff,#eaf2fe);
+  border:1px solid #dbe7fb; border-left:3px solid var(--blue);
+  animation:sdFadeUp .45s var(--ease) both;
+}
+.sd .fc-estimate-ico { display:flex; flex-shrink:0; margin-top:1px; color:var(--blue); }
+.sd .fc-estimate-ico svg { width:16px; height:16px; }
+/* Not --text-sec: on this tint it measures 4.46:1 at 12.5px, a hair under AA. This clears at
+   5.92:1 while staying clearly secondary to the lead clause. */
+.sd .fc-estimate-text { font-size:12.5px; line-height:1.55; color:#4B5F80; }
+/* The lead clause is the fact; the rest is the consequence and the way out. */
+.sd .fc-estimate-text b { font-weight:800; color:var(--text); }
+@media(max-width:560px){
+  .sd .fc-estimate { padding:10px 13px; gap:9px; }
+  .sd .fc-estimate-text { font-size:12px; }
+}
+@media(prefers-reduced-motion:reduce){ .sd .fc-estimate { animation:none; } }
+
 .sd .fc-legend-title { font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--text-light); }
 .sd .fc-legend-items { display:flex; align-items:center; flex-wrap:wrap; gap:9px 18px; }
 .sd .fc-legend-item { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--text-sec); white-space:nowrap; }
