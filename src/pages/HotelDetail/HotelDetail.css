@@ -1062,9 +1062,12 @@
   border-bottom:none;
 }
 .sd .room-group-id { display:flex; align-items:center; gap:9px; min-width:0; flex-wrap:wrap; }
+/* Uppercase, and tracked out to match: supplier room names arrive in whatever casing the hotel
+   typed them in — "1-bedroom apart room, Annex building" next to "1 bedroom apartment Standard" —
+   so a stack of them looked like a data dump. Caps flatten the inconsistency away. */
 .sd .room-group-name {
   font-family:'Sora',sans-serif; font-size:14.5px; font-weight:800; color:#fff;
-  letter-spacing:.1px;
+  text-transform:uppercase; letter-spacing:.04em;
 }
 .sd .room-group-from { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
 /* .88 rather than the usual muted grey: on blue, anything fainter stops being readable, so
@@ -1132,7 +1135,11 @@
 .sd .room-more:hover { border-color:var(--blue); background:var(--blue-bg); }
 
 .sd .room-info { flex:1; min-width:0; }
-.sd .room-name { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; color:var(--dark); display:flex; align-items:center; gap:6px; }
+/* Same treatment as the room name above, so the board and the room it belongs to read as one
+   labelling system. The chips riding inside it are sentence-case sentences, not labels — they
+   opt back out. */
+.sd .room-name { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; color:var(--dark); display:flex; align-items:center; gap:6px; text-transform:uppercase; letter-spacing:.04em; }
+.sd .room-name .room-flag, .sd .room-name .stay-guests { text-transform:none; letter-spacing:normal; }
 .sd .room-name-info { width:16px; height:16px; border-radius:50%; border:1.5px solid var(--border); display:inline-flex; align-items:center; justify-content:center; color:var(--text-light); cursor:help; transition:all .2s; }
 .sd .room-name-info:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
 .sd .room-cap { font-size:11.5px; color:var(--text-light); margin-top:2px; }
