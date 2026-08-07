@@ -438,44 +438,35 @@ function FlightCardSkeleton() {
 }
 
 /**
- * Room placeholder, built on the REAL card's own classes (`room-group-head`, `room-group-meta`,
- * `room-option`, `room-info`, `room-price-col`).
+ * Rooms are the one wait on this page that is genuinely slow — a live round-trip to the supplier,
+ * seconds not milliseconds. Three grey card outlines held that wait silently, and a shimmer that
+ * long stops reading as "loading" and starts reading as "broken": nothing on screen ever said
+ * what was happening or that it was still happening.
  *
- * The previous version drew its own boxes — a 44px avatar the card doesn't have, and flat rows
- * with none of the card's structure — so the block visibly re-laid-out the moment rates landed.
- * Borrowing the layout classes means the placeholder is the card's geometry by construction and
- * cannot drift from it again when the card changes.
- *
- * `rows` varies per card so the wait doesn't look like N identical stamped copies.
+ * So the rooms get a named wait instead of a skeleton. The doors fill left-to-right on a loop, so
+ * there is always visible forward motion, and the caption cycles through what is actually going on
+ * — purely in CSS, so a slow supplier costs no timers and no re-renders.
  */
-function RoomCardSkeleton({ rows = 2, i = 0 }) {
+function RoomsLoading() {
   return (
-    <div className="room-group sk-card" aria-hidden="true" style={{ '--i': i }}>
-      <div className="room-group-head">
-        <div className="room-group-id"><Sk w={172} h={15} /><Sk w={58} h={15} r={999} /></div>
-        <div className="room-group-from"><Sk w={52} h={12} /><Sk w={70} h={13} /></div>
-      </div>
-      {/* Two facts, matching the real meta line (occupancy + length) — it used to draw three,
-          which left the block visibly reflowing when the third never arrived. */}
-      <div className="room-group-meta">
-        <Sk w={88} h={12} /><Sk w={64} h={12} />
-      </div>
-      {Array.from({ length: rows }, (_, i) => (
-        <div className="room-option sk-room-option" key={i}>
-          <Sk w={20} h={20} r={999} />
-          <div className="room-info">
-            <Sk w={i === 0 ? 128 : 154} h={14} />
-            <Sk w={102} h={11} style={{ marginTop: 7 }} />
-            <div className="sk-chips"><Sk w={i === 0 ? 168 : 116} h={22} r={999} /><Sk w={78} h={22} r={999} /></div>
-          </div>
-          {/* Price, then the "vs cheapest" delta on every row but the first — the real card
-              shows no delta on its own cheapest board. */}
-          <div className="room-price-col">
-            <Sk w={74} h={30} r={999} />
-            {i > 0 && <Sk w={86} h={11} />}
+    <div className="rooms-loading" role="status" aria-busy="true">
+      <span className="sr-only">Checking live room availability…</span>
+      <div className="rl-head" aria-hidden="true">
+        <span className="rl-badge">{ICON.bed}</span>
+        <div className="rl-copy">
+          <div className="rl-title">Finding your rooms<i className="rl-dot" /><i className="rl-dot" /><i className="rl-dot" /></div>
+          {/* Stacked and cross-faded on one 10.5s loop; the box is sized by the first line so the
+              others can sit on top of it without the card changing height mid-wait. */}
+          <div className="rl-lines">
+            <span>Knocking on the hotel&apos;s door</span>
+            <span>Reading back today&apos;s live rates</span>
+            <span>Sorting the boards, cheapest first</span>
           </div>
         </div>
-      ))}
+      </div>
+      <div className="rl-doors" aria-hidden="true">
+        {[0, 1, 2, 3].map((d) => <span key={d} className="rl-door" style={{ '--d': d }} />)}
+      </div>
     </div>
   );
 }
@@ -2443,11 +2434,7 @@ export default function HotelDetail() {
                 {!liveRooms?.loading && <div className="section-title"><span className="st-step">2</span> Choose your room</div>}
                 {liveRooms ? (
                   liveRooms.loading ? (
-                    <SkeletonBlock label="Checking live room availability…">
-                      {/* Uneven board counts — a real hotel never returns three identically
-                          shaped rooms, and three identical placeholders read as a stuck screen. */}
-                      <RoomCardSkeleton rows={3} i={0} /><RoomCardSkeleton rows={2} i={1} /><RoomCardSkeleton rows={2} i={2} />
-                    </SkeletonBlock>
+                    <RoomsLoading />
                   ) : liveRooms.error ? (
                     <div className="live-error">
                       {ICON.warn}

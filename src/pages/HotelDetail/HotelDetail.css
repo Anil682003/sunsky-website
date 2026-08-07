@@ -1606,12 +1606,6 @@
 .sd .sk-wrap { display:flex; flex-direction:column; gap:12px; }
 /* .sk-note removed with its markup: loading sections now show placeholders only, no status line. */
 .sd .sk-card { pointer-events:none; }
-/* The room placeholder reuses the real card's layout classes, so it only needs the
-   interactive dressing switched off — the geometry already matches by construction. */
-.sd .sk-room-option { cursor:default; }
-.sd .sk-room-option:hover { border-color:var(--border); box-shadow:var(--shadow-xs); }
-.sd .sk-room-option .room-info { display:flex; flex-direction:column; gap:0; }
-.sd .sk-chips { display:flex; gap:6px; margin-top:7px; }
 /* A placeholder must never out-shout the content it stands in for: the shimmer is dimmed
    and the rows fade in one after another, so a long wait reads as calm rather than as
    three flashing bars. */
@@ -1624,6 +1618,85 @@
 @media (prefers-reduced-motion: reduce) { .sd .sk-wrap > .sk-card { animation:none; } }
 .sd .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 @media (prefers-reduced-motion: reduce) { .sd .sk-sh { animation:none; } }
+
+/* ── Rooms: a named wait, not a skeleton ─────────────────────────────────────
+   The live-rates call is a supplier round-trip measured in seconds, and three shimmering
+   card outlines held it without ever saying what was happening. This says it: one card,
+   a lit key badge, a caption that cycles through the actual steps, and four "doors" that
+   fill left to right on a loop so there is always visible forward motion. All CSS — a
+   slow supplier costs no timers and no re-renders. */
+.sd .rooms-loading {
+  border:1px solid var(--border); border-radius:16px; background:var(--white);
+  box-shadow:var(--shadow-xs); padding:22px 24px; overflow:hidden;
+  animation:sdSkIn .45s var(--ease) both;
+}
+.sd .rl-head { display:flex; align-items:center; gap:14px; }
+/* The badge breathes rather than spins: a spinner next to a caption that is already
+   animating reads as two separate things loading. */
+.sd .rl-badge {
+  width:44px; height:44px; border-radius:13px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--blue-bg); color:var(--blue);
+  animation:sdRlBreathe 2.2s var(--ease) infinite;
+}
+.sd .rl-badge svg { width:21px; height:21px; }
+@keyframes sdRlBreathe {
+  0%,100% { transform:scale(1);    box-shadow:0 0 0 0 rgba(31,79,216,.18); }
+  50%     { transform:scale(1.06); box-shadow:0 0 0 9px rgba(31,79,216,0); }
+}
+.sd .rl-copy { min-width:0; }
+.sd .rl-title {
+  font-family:'Sora',sans-serif; font-size:15px; font-weight:800; color:var(--dark);
+  display:flex; align-items:baseline; gap:3px;
+}
+.sd .rl-dot {
+  width:3.5px; height:3.5px; border-radius:50%; background:var(--blue); display:block;
+  animation:sdRlDot 1.4s var(--ease) infinite;
+}
+.sd .rl-dot:first-of-type { margin-left:3px; }
+.sd .rl-dot:nth-of-type(2) { animation-delay:.18s; }
+.sd .rl-dot:nth-of-type(3) { animation-delay:.36s; }
+@keyframes sdRlDot { 0%,60%,100% { opacity:.22; transform:translateY(0); } 30% { opacity:1; transform:translateY(-3px); } }
+/* All three captions share one grid cell, so they stack without leaving the flow: the box is as
+   tall as the longest of them at whatever width it gets, and the card cannot change height as the
+   caption cycles. (Absolute positioning did the stacking too, but a line that wrapped on a narrow
+   screen would have escaped the box and landed on the doors.) */
+.sd .rl-lines { display:grid; margin-top:3px; font-size:12.5px; color:var(--text-sec); }
+.sd .rl-lines span { grid-area:1 / 1; animation:sdRlLine 10.5s var(--ease) infinite; }
+.sd .rl-lines span:nth-child(2) { animation-delay:-7s; }
+.sd .rl-lines span:nth-child(3) { animation-delay:-3.5s; }
+@keyframes sdRlLine {
+  0%      { opacity:0; transform:translateY(5px); }
+  4%,30%  { opacity:1; transform:none; }
+  34%,100%{ opacity:0; transform:translateY(-5px); }
+}
+/* Four doors down a corridor, lighting in turn — the progress is honest about being
+   indeterminate (it loops) while still moving. */
+.sd .rl-doors { display:flex; gap:7px; margin-top:18px; }
+.sd .rl-door {
+  flex:1; height:6px; border-radius:var(--r-full); background:#eaf1fd; overflow:hidden;
+  position:relative;
+}
+.sd .rl-door::after {
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  background:linear-gradient(90deg,var(--blue-mid),var(--blue));
+  transform:scaleX(0); transform-origin:left;
+  animation:sdRlDoor 2.4s var(--ease) infinite;
+  animation-delay:calc(var(--d) * .2s);
+}
+@keyframes sdRlDoor {
+  0%      { transform:scaleX(0);   opacity:1; }
+  45%,60% { transform:scaleX(1);   opacity:1; }
+  100%    { transform:scaleX(1);   opacity:0; }
+}
+/* Reduced motion keeps the card and its meaning, and drops every loop. The caption stops on
+   the first line rather than disappearing with the animation that was revealing it. */
+@media (prefers-reduced-motion: reduce) {
+  .sd .rooms-loading, .sd .rl-badge, .sd .rl-dot, .sd .rl-door::after { animation:none; }
+  .sd .rl-lines span { animation:none; }
+  .sd .rl-lines span + span { visibility:hidden; }
+  .sd .rl-door::after { transform:scaleX(1); opacity:.35; }
+}
 
 .sd .live-legs { display:flex; flex-direction:column; gap:8px; padding:16px 20px; }
 .sd .live-legs-ret { border-top:1px dashed var(--border); }
