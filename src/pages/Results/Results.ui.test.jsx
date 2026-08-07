@@ -114,10 +114,13 @@ describe('sidebar layout', () => {
     // Travel time / Distance / Family & Kids are conditional — they appear only when the URL
     // carries a night range, or when the scope actually has those content facets (it doesn't
     // here). Everything else is unconditional and this is the order it ships in.
+    // No 'Cancellation': the filter was removed because the site no longer states a rate's
+    // cancellation terms anywhere in the journey, so offering to filter by them promised a
+    // distinction nothing downstream would show.
     expect(headings).toEqual([
       'Dates & Guests', 'Where', 'Price Range', 'Transport', 'Holiday Type', 'Star Rating',
       'Accommodation Type', 'Board Type', 'Facilities', 'Activities', 'Adults only',
-      'Room Type', 'Cancellation',
+      'Room Type',
     ]);
   });
 
@@ -132,12 +135,14 @@ describe('sidebar layout', () => {
     renderResults();
     await settled();
     const groups = screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label'));
-    expect(groups).toEqual(['Price basis', 'Transport type', 'Cancellation policy']);
+    // 'Cancellation policy' is gone with its filter.
+    expect(groups).toEqual(['Price basis', 'Transport type']);
 
     // Exactly one option selected per group, and it reflects the default.
     expect(screen.getByRole('radio', { name: 'Total stay' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'Any' })).toHaveAttribute('aria-checked', 'true');
     expect(screen.getByRole('radio', { name: 'Per person' })).toHaveAttribute('aria-checked', 'false');
+    // The 'Any' radio belonged to the cancellation group — it must not have survived it.
+    expect(screen.queryByRole('radio', { name: 'Any' })).not.toBeInTheDocument();
   });
 
   it('shows every board option the cache reported, with its hotel count', async () => {
@@ -175,9 +180,10 @@ describe('sidebar layout', () => {
     for (const code of ['NOR', 'NRF', 'NRP', 'PAQ', 'DIS', 'SEN', 'RFE']) {
       expect(screen.queryByText(new RegExp(`\\b${code}\\b`))).not.toBeInTheDocument();
     }
-    // ...and the old "Rate Type" section is gone, replaced by plain-English Cancellation.
+    // ...and the old "Rate Type" section is gone. Its plain-English replacement, Cancellation,
+    // has since been removed too, so neither spelling of this filter may reappear.
     expect(screen.queryByText('Rate Type')).not.toBeInTheDocument();
-    expect(screen.getByText('Cancellation')).toBeInTheDocument();
+    expect(screen.queryByText('Cancellation')).not.toBeInTheDocument();
   });
 });
 
@@ -203,9 +209,12 @@ describe('mobile drawer', () => {
     const panel = document.querySelector('div[class*="drawer"] [class*="drawerBody"]')
       ?? screen.getAllByRole('heading', { name: 'Filters', level: 2 })[1].closest('div').parentElement;
 
-    for (const t of ['Price Range', 'Board Type', 'Room Type', 'Cancellation']) {
+    for (const t of ['Price Range', 'Board Type', 'Room Type']) {
       expect(within(panel).getByText(t)).toBeInTheDocument();
     }
+    // The drawer mirrors the sidebar, so the removed filter must be absent from BOTH — a
+    // drawer that kept it would be the likeliest place for it to survive unnoticed.
+    expect(within(panel).queryByText('Cancellation')).not.toBeInTheDocument();
     // The drawer mounts a second, complete copy of the controls.
     expect(screen.getAllByRole('slider').length).toBe(before * 2);
   });

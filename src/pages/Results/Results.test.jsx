@@ -612,8 +612,13 @@ describe('infinite scroll', () => {
     renderResults();
     await settled();
 
-    await user.click(sidebarCheck('All Inclusive'));
-    await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
+    // Price basis, not a board: this test is about page 2 CARRYING the active filter, so the
+    // filter has to change the request without shrinking the result set below one page.
+    // `boards=AI` matches only four hotels in the mock, so hasMore goes false and there is no
+    // page 2 left to assert on — the test then fails for the opposite reason to the one it is
+    // guarding. priceBasis is echoed in the query but filters nothing.
+    await user.click(sidebarRadio('Per person'));
+    await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
     await waitFor(() => expect(cards().length).toBeGreaterThan(0));
 
     globalThis.__IO__.trigger();
@@ -621,7 +626,7 @@ describe('infinite scroll', () => {
     await waitFor(() => {
       const p2 = calls.find((c) => c.get('page') === '2');
       expect(p2).toBeTruthy();
-      expect(p2.get('boards')).toBe('AI');   // page 2 must not silently drop the filter
+      expect(p2.get('priceBasis')).toBe('perPerson');   // page 2 must not silently drop the filter
     });
   });
 
