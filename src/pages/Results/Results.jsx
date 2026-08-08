@@ -101,11 +101,6 @@ const SORT_OPTIONS = [
   { value: 'distance_beach',  label: 'Distance to beach' },
   { value: 'distance_centre', label: 'Distance to centre' },
 ];
-const REFUNDABLE_OPTIONS = [
-  { value: 'any', label: 'Any' },
-  { value: 'yes', label: 'Refundable' },
-  { value: 'no',  label: 'Non-ref.' },
-];
 // How the traveller gets there. Two jobs ride on this one choice:
 //   1. the cache `searchType` (see buildRequest) — PACKAGE unlocks Hotelbeds' opaque
 //      rates, the ones only sellable bundled with a flight;
@@ -1611,10 +1606,10 @@ export default function Results() {
         ))}
       </FilterSection>
 
-      {/* Cancellation — server-side (`refundable`) */}
-      <FilterSection title="Cancellation" defaultOpen>
-        <Segmented options={REFUNDABLE_OPTIONS} value={filters.refundable} onChange={(v) => setFilter('refundable', v)} ariaLabel="Cancellation policy" />
-      </FilterSection>
+      {/* No Cancellation filter. We don't state a rate's cancellation terms anywhere in the
+          journey any more, so offering to filter by them promised a distinction the rest of
+          the site then refused to show. `refundable` stays in the filter model at its 'any'
+          default (and buildRequest still omits it at that value), so nothing is sent. */}
     </>
   );
 
@@ -2044,12 +2039,9 @@ export default function Results() {
 
                   <div className={styles.rcPriceRail}>
                     <div className={styles.rcPriceInfo}>
-                      {/* Only rendered when the API says the rate IS refundable — the
-                          false case already has its own chip on the image. Text, not a pill:
-                          the stub is typography-only. */}
-                      {h.refundable === true && (
-                        <span className={styles.rcRefundable}><CheckIcon />Free cancellation</span>
-                      )}
+                      {/* No "Free cancellation" line. It advertised on the card a term the
+                          hotel page no longer states and the sidebar no longer filters by, so
+                          the promise was made exactly where it could not be checked. */}
                       {/* What the total covers — the stay context that used to be two pills
                           in the body, now one quiet qualifying line above the fare. */}
                       <span className={styles.rcPriceContext}>

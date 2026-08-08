@@ -642,6 +642,34 @@
    few px of slack under the ribbon, so its point stopped short of the card. */
 /* ── fare-strip legend — what the colours and heights mean ── */
 .sd .fc-legend { display:flex; align-items:center; flex-wrap:wrap; gap:10px 18px; margin-bottom:14px; padding:11px 16px; border-radius:14px; background:var(--blue-pale,#f4f8fe); border:1px solid #e4ebf6; }
+/* ── Estimate notice ──────────────────────────────────────────────────────────
+   Sits directly under the legend and is deliberately its sibling in shape — same radius, same
+   hairline, same rhythm — so the two read as one explanatory block under the chart rather than
+   as a chart plus an alert.
+   Blue, NOT amber. Nothing is wrong here: a cached estimate is the normal state of this strip,
+   and dressing it as a warning would make every hotel page look like it had a problem. The
+   left rule and the gentle tint carry the emphasis instead. */
+.sd .fc-estimate {
+  display:flex; align-items:flex-start; gap:11px;
+  margin:-6px 0 16px; padding:11px 15px;
+  border-radius:14px;
+  background:linear-gradient(180deg,#f2f7ff,#eaf2fe);
+  border:1px solid #dbe7fb; border-left:3px solid var(--blue);
+  animation:sdFadeUp .45s var(--ease) both;
+}
+.sd .fc-estimate-ico { display:flex; flex-shrink:0; margin-top:1px; color:var(--blue); }
+.sd .fc-estimate-ico svg { width:16px; height:16px; }
+/* Not --text-sec: on this tint it measures 4.46:1 at 12.5px, a hair under AA. This clears at
+   5.92:1 while staying clearly secondary to the lead clause. */
+.sd .fc-estimate-text { font-size:12.5px; line-height:1.55; color:#4B5F80; }
+/* The lead clause is the fact; the rest is the consequence and the way out. */
+.sd .fc-estimate-text b { font-weight:800; color:var(--text); }
+@media(max-width:560px){
+  .sd .fc-estimate { padding:10px 13px; gap:9px; }
+  .sd .fc-estimate-text { font-size:12px; }
+}
+@media(prefers-reduced-motion:reduce){ .sd .fc-estimate { animation:none; } }
+
 .sd .fc-legend-title { font-size:10px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:var(--text-light); }
 .sd .fc-legend-items { display:flex; align-items:center; flex-wrap:wrap; gap:9px 18px; }
 .sd .fc-legend-item { display:inline-flex; align-items:center; gap:7px; font-size:12px; font-weight:600; color:var(--text-sec); white-space:nowrap; }
@@ -658,7 +686,14 @@
 .sd .fc-strip { display:grid; grid-template-columns:repeat(7,1fr); padding-top:6px; align-items:start; }
 .sd .fc-strip::-webkit-scrollbar { display:none; }
 .sd .fc-col { appearance:none; background:none; border:none; font-family:inherit; display:flex; flex-direction:column; padding:0; cursor:pointer; min-width:0; }
-.sd .fc-barzone { height:212px; width:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:1.5px solid #cfdcee; }
+.sd .fc-barzone { height:212px; width:100%; display:flex; flex-direction:column; justify-content:flex-end; align-items:center; border-bottom:1.5px solid #cfdcee; transition:height .45s var(--ease); }
+/* Every day the same price: no profile to plot, no "Lowest price" tag to clear, so the canvas
+   drops to what the bar's own contents need. The 212px version left a band of white between the
+   estimate notice and the bars that read as a chart that hadn't finished drawing.
+   The canvas transitions on the same curve the bars already use, because paging one day at a
+   time can cross between a flat week and a varying one — without it the whole strip snaps. */
+.sd .fc-strip.fc-flat .fc-barzone { height:138px; }
+@media (prefers-reduced-motion: reduce) { .sd .fc-barzone { transition:none; } }
 .sd .fc-lowtag { font-size:8.5px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:#8a5a06; background:var(--sun); padding:3px 9px; border-radius:var(--r-full); margin-bottom:7px; white-space:nowrap; }
 /* solid, evenly-weighted bars — height alone carries the price, nothing sits faded */
 .sd .fc-bar { width:calc(100% - 12px); min-height:68px; border-radius:10px 10px 0 0; background:#2456c8; display:flex; flex-direction:column; align-items:center; padding:12px 4px 9px; transition:height .45s var(--ease), background-color .25s, box-shadow .25s; }
@@ -1032,9 +1067,12 @@
 .sd .stay-guests { font-size:12px; color:var(--text-sec); margin-left:4px; font-weight:400; }
 .sd .room-option { display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:16px; border:1.5px solid var(--border-light); background:var(--white); margin-bottom:10px; cursor:pointer; transition:all .3s var(--ease); flex-wrap:wrap; box-shadow:var(--shadow-xs); }
 .sd .room-option:hover { border-color:#cfe0f8; box-shadow:var(--shadow-sm); }
-.sd .room-option.selected { border-color:var(--blue); background:linear-gradient(180deg,#fdfeff,#f8fbff); box-shadow:0 0 0 4px rgba(31,79,216,.08), 0 10px 26px rgba(31,79,216,.1); }
+/* Green, not blue: the whole page is blue, so a blue-ringed card read as chrome rather than as
+   "this is the rate you picked". Confirmation-green is the one colour on the page that already
+   means yes — the tick, the free-cancellation line, the included badge all use it. */
+.sd .room-option.selected { border-color:var(--green); background:linear-gradient(180deg,#fbfffd,#f1fcf7); box-shadow:0 0 0 4px rgba(5,150,105,.10), 0 10px 26px rgba(5,150,105,.10); }
 .sd .room-radio { width:20px; height:20px; border-radius:50%; border:2px solid #d7e3f5; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all .25s var(--ease-spring); }
-.sd .room-option.selected .room-radio { border-color:var(--blue); background:var(--blue); box-shadow:0 3px 10px rgba(31,79,216,.3); }
+.sd .room-option.selected .room-radio { border-color:var(--green); background:var(--green); box-shadow:0 3px 10px rgba(5,150,105,.3); }
 .sd .room-option.selected .room-radio::after { content:''; display:block; width:8px; height:8px; border-radius:50%; background:#fff; }
 /* ── Room type → its board options ────────────────────────────────────────────
    A room is one card; the boards it can be booked on are the rows inside it. The
@@ -1059,17 +1097,12 @@
   border-bottom:none;
 }
 .sd .room-group-id { display:flex; align-items:center; gap:9px; min-width:0; flex-wrap:wrap; }
+/* Uppercase, and tracked out to match: supplier room names arrive in whatever casing the hotel
+   typed them in — "1-bedroom apart room, Annex building" next to "1 bedroom apartment Standard" —
+   so a stack of them looked like a data dump. Caps flatten the inconsistency away. */
 .sd .room-group-name {
   font-family:'Sora',sans-serif; font-size:14.5px; font-weight:800; color:#fff;
-  letter-spacing:.1px;
-}
-/* The supplier's room code — useful when confirming with the hotel, so it stays visible,
-   but it is reference data and must never compete with the room name. */
-.sd .room-code {
-  font-size:10px; font-weight:700; letter-spacing:.04em; color:#fff;
-  padding:2px 7px; border-radius:var(--r-full);
-  background:rgba(255,255,255,.20); border:1px solid rgba(255,255,255,.42);
-  font-variant-numeric:tabular-nums;
+  text-transform:uppercase; letter-spacing:.04em;
 }
 .sd .room-group-from { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
 /* .88 rather than the usual muted grey: on blue, anything fainter stops being readable, so
@@ -1088,10 +1121,13 @@
 /* Boards sit INSIDE the card, so they drop the old indent-and-left-rule that was standing in
    for the grouping the card now does properly. */
 .sd .room-group .room-option {
-  margin:0 12px 10px; border-left:none; align-items:center;
+  margin:0 12px 10px; border-left:none; align-items:flex-start;
 }
 .sd .room-group .room-option:first-of-type { margin-top:2px; }
-.sd .room-group .room-option .room-radio { margin-top:0; }
+/* Top-aligned, not centred: with the gloss line below, centring floated the dot into the gap
+   between the two rows and it stopped reading as belonging to the board name. The nudge lines
+   its centre up with the cap-height of the name it selects. */
+.sd .room-group .room-option .room-radio { margin-top:2px; }
 
 /* ── Rate badges ──────────────────────────────────────────────────────────────
    Cancellation is the fact travellers most often get wrong, so it is a chip with a
@@ -1108,7 +1144,15 @@
 .sd .rchip svg { width:12px; height:12px; flex-shrink:0; }
 .sd .rchip-free { background:var(--green-light); color:#047857; border-color:#a7f3d0; }
 .sd .rchip-warn { background:var(--sun-warm); color:#b45309; border-color:#ffe9c7; }
-.sd .rchip-nr   { background:#f1f5f9; color:#475569; border-color:#e2e8f0; }
+/* Non-refundable is the one term on the card that can cost somebody the whole booking, and as a
+   slate-grey chip it read as metadata — the same weight as "Package rate". It is a warning, so it
+   is dressed as one: rose ground, rose ink, caps, and a soft ring so it separates from the board
+   name it now sits beside. Louder than the amber partial-cancel chip, which only costs a fee. */
+.sd .rchip-nr {
+  background:#fff1f2; color:#be123c; border-color:#fecdd3;
+  text-transform:uppercase; letter-spacing:.05em; font-size:10px;
+  box-shadow:0 0 0 3px rgba(190,18,60,.06);
+}
 .sd .rchip-mute { background:transparent; color:var(--text-light); border-color:var(--border); font-weight:600; text-transform:capitalize; }
 
 /* Lowest price in the whole hotel — gold, and only ever on one row. */
@@ -1126,7 +1170,9 @@
    same total three ways, made the row harder to read rather than more trustworthy. */
 
 /* Price column: the total leads, the gap to this room's cheapest board ranks it. */
-.sd .room-price-col { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; }
+/* The row top-aligns so the radio meets the board name; the price opts back out and stays
+   optically centred against the whole row, where it has always sat. */
+.sd .room-price-col { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; align-self:center; }
 .sd .room-price-delta { font-size:10.5px; font-weight:700; color:var(--text-light); white-space:nowrap; font-variant-numeric:tabular-nums lining-nums; }
 .sd .room-more {
   width:100%; padding:11px 16px; margin-top:2px;
@@ -1137,7 +1183,14 @@
 .sd .room-more:hover { border-color:var(--blue); background:var(--blue-bg); }
 
 .sd .room-info { flex:1; min-width:0; }
-.sd .room-name { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; color:var(--dark); display:flex; align-items:center; gap:6px; }
+/* Same treatment as the room name above, so the board and the room it belongs to read as one
+   labelling system. The chips riding inside it are sentence-case sentences, not labels — they
+   opt back out. */
+.sd .room-name { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; color:var(--dark); display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-transform:uppercase; letter-spacing:.04em; }
+.sd .room-name .room-flag, .sd .room-name .stay-guests { text-transform:none; letter-spacing:normal; }
+/* The chips now ride on the board-name line rather than under it, so they lose the stacked row's
+   top margin and inherit nothing from the uppercase label they sit beside. */
+.sd .room-name .room-chips { margin-top:0; text-transform:none; letter-spacing:normal; }
 .sd .room-name-info { width:16px; height:16px; border-radius:50%; border:1.5px solid var(--border); display:inline-flex; align-items:center; justify-content:center; color:var(--text-light); cursor:help; transition:all .2s; }
 .sd .room-name-info:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
 .sd .room-cap { font-size:11.5px; color:var(--text-light); margin-top:2px; }
@@ -1153,9 +1206,9 @@
 .sd .meal-row { display:flex; align-items:center; gap:12px; padding:10px 14px; border-radius:10px; transition:all .25s var(--ease); cursor:pointer; margin-bottom:4px; border:1.5px solid transparent; }
 .sd .meal-row:last-child { margin-bottom:0; }
 .sd .meal-row:hover { background:#fff; border-color:#dce9fc; }
-.sd .meal-row.meal-selected { background:#fff; border-color:var(--blue); box-shadow:0 4px 14px rgba(31,79,216,.1); }
+.sd .meal-row.meal-selected { background:#fff; border-color:var(--green); box-shadow:0 4px 14px rgba(5,150,105,.1); }
 .sd .meal-radio { width:18px; height:18px; border-radius:50%; border:2px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all .2s; }
-.sd .meal-row.meal-selected .meal-radio { border-color:var(--blue); background:var(--blue); }
+.sd .meal-row.meal-selected .meal-radio { border-color:var(--green); background:var(--green); }
 .sd .meal-row.meal-selected .meal-radio::after { content:''; display:block; width:7px; height:7px; border-radius:50%; background:#fff; }
 .sd .meal-info { flex:1; }
 .sd .meal-name { font-family:'Sora',sans-serif; font-size:13px; font-weight:700; color:var(--dark); }
@@ -1488,7 +1541,12 @@
 .sd .flight-card { border:1px solid var(--border); }
 .sd .flight-card.selected { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
 .sd .room-option { border:1px solid var(--border); }
-.sd .room-option.selected { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
+/* Thicker than the 1px hairline the other cards get (it snaps back to 1px at DPR 1, but holds on
+   retina): this is the one card on the page carrying a decision. */
+.sd .room-option.selected { border:1.5px solid var(--green); box-shadow:0 0 0 3px rgba(5,150,105,.13); }
+/* The price of the rate you chose confirms in the same green as the ring, instead of staying a
+   blue pill that now reads as belonging to a different state. */
+.sd .room-option.selected .room-price { color:#047857; background:#ecfdf5; border-color:#a7f3d0; }
 .sd .fc-col.sel .fc-bar { box-shadow:0 10px 24px rgba(59,130,246,.22); }
 .sd .meal-row { border-width:1px; }
 .sd .meal-row.meal-selected { box-shadow:none; }
@@ -1555,12 +1613,6 @@
 .sd .sk-wrap { display:flex; flex-direction:column; gap:12px; }
 /* .sk-note removed with its markup: loading sections now show placeholders only, no status line. */
 .sd .sk-card { pointer-events:none; }
-/* The room placeholder reuses the real card's layout classes, so it only needs the
-   interactive dressing switched off — the geometry already matches by construction. */
-.sd .sk-room-option { cursor:default; }
-.sd .sk-room-option:hover { border-color:var(--border); box-shadow:var(--shadow-xs); }
-.sd .sk-room-option .room-info { display:flex; flex-direction:column; gap:0; }
-.sd .sk-chips { display:flex; gap:6px; margin-top:7px; }
 /* A placeholder must never out-shout the content it stands in for: the shimmer is dimmed
    and the rows fade in one after another, so a long wait reads as calm rather than as
    three flashing bars. */
@@ -1573,6 +1625,85 @@
 @media (prefers-reduced-motion: reduce) { .sd .sk-wrap > .sk-card { animation:none; } }
 .sd .sr-only { position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); white-space:nowrap; border:0; }
 @media (prefers-reduced-motion: reduce) { .sd .sk-sh { animation:none; } }
+
+/* ── Rooms: a named wait, not a skeleton ─────────────────────────────────────
+   The live-rates call is a supplier round-trip measured in seconds, and three shimmering
+   card outlines held it without ever saying what was happening. This says it: one card,
+   a lit key badge, a caption that cycles through the actual steps, and four "doors" that
+   fill left to right on a loop so there is always visible forward motion. All CSS — a
+   slow supplier costs no timers and no re-renders. */
+.sd .rooms-loading {
+  border:1px solid var(--border); border-radius:16px; background:var(--white);
+  box-shadow:var(--shadow-xs); padding:22px 24px; overflow:hidden;
+  animation:sdSkIn .45s var(--ease) both;
+}
+.sd .rl-head { display:flex; align-items:center; gap:14px; }
+/* The badge breathes rather than spins: a spinner next to a caption that is already
+   animating reads as two separate things loading. */
+.sd .rl-badge {
+  width:44px; height:44px; border-radius:13px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--blue-bg); color:var(--blue);
+  animation:sdRlBreathe 2.2s var(--ease) infinite;
+}
+.sd .rl-badge svg { width:21px; height:21px; }
+@keyframes sdRlBreathe {
+  0%,100% { transform:scale(1);    box-shadow:0 0 0 0 rgba(31,79,216,.18); }
+  50%     { transform:scale(1.06); box-shadow:0 0 0 9px rgba(31,79,216,0); }
+}
+.sd .rl-copy { min-width:0; }
+.sd .rl-title {
+  font-family:'Sora',sans-serif; font-size:15px; font-weight:800; color:var(--dark);
+  display:flex; align-items:baseline; gap:3px;
+}
+.sd .rl-dot {
+  width:3.5px; height:3.5px; border-radius:50%; background:var(--blue); display:block;
+  animation:sdRlDot 1.4s var(--ease) infinite;
+}
+.sd .rl-dot:first-of-type { margin-left:3px; }
+.sd .rl-dot:nth-of-type(2) { animation-delay:.18s; }
+.sd .rl-dot:nth-of-type(3) { animation-delay:.36s; }
+@keyframes sdRlDot { 0%,60%,100% { opacity:.22; transform:translateY(0); } 30% { opacity:1; transform:translateY(-3px); } }
+/* All three captions share one grid cell, so they stack without leaving the flow: the box is as
+   tall as the longest of them at whatever width it gets, and the card cannot change height as the
+   caption cycles. (Absolute positioning did the stacking too, but a line that wrapped on a narrow
+   screen would have escaped the box and landed on the doors.) */
+.sd .rl-lines { display:grid; margin-top:3px; font-size:12.5px; color:var(--text-sec); }
+.sd .rl-lines span { grid-area:1 / 1; animation:sdRlLine 10.5s var(--ease) infinite; }
+.sd .rl-lines span:nth-child(2) { animation-delay:-7s; }
+.sd .rl-lines span:nth-child(3) { animation-delay:-3.5s; }
+@keyframes sdRlLine {
+  0%      { opacity:0; transform:translateY(5px); }
+  4%,30%  { opacity:1; transform:none; }
+  34%,100%{ opacity:0; transform:translateY(-5px); }
+}
+/* Four doors down a corridor, lighting in turn — the progress is honest about being
+   indeterminate (it loops) while still moving. */
+.sd .rl-doors { display:flex; gap:7px; margin-top:18px; }
+.sd .rl-door {
+  flex:1; height:6px; border-radius:var(--r-full); background:#eaf1fd; overflow:hidden;
+  position:relative;
+}
+.sd .rl-door::after {
+  content:''; position:absolute; inset:0; border-radius:inherit;
+  background:linear-gradient(90deg,var(--blue-mid),var(--blue));
+  transform:scaleX(0); transform-origin:left;
+  animation:sdRlDoor 2.4s var(--ease) infinite;
+  animation-delay:calc(var(--d) * .2s);
+}
+@keyframes sdRlDoor {
+  0%      { transform:scaleX(0);   opacity:1; }
+  45%,60% { transform:scaleX(1);   opacity:1; }
+  100%    { transform:scaleX(1);   opacity:0; }
+}
+/* Reduced motion keeps the card and its meaning, and drops every loop. The caption stops on
+   the first line rather than disappearing with the animation that was revealing it. */
+@media (prefers-reduced-motion: reduce) {
+  .sd .rooms-loading, .sd .rl-badge, .sd .rl-dot, .sd .rl-door::after { animation:none; }
+  .sd .rl-lines span { animation:none; }
+  .sd .rl-lines span + span { visibility:hidden; }
+  .sd .rl-door::after { transform:scaleX(1); opacity:.35; }
+}
 
 .sd .live-legs { display:flex; flex-direction:column; gap:8px; padding:16px 20px; }
 .sd .live-legs-ret { border-top:1px dashed var(--border); }

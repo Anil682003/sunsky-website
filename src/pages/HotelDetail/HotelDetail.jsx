@@ -438,44 +438,35 @@ function FlightCardSkeleton() {
 }
 
 /**
- * Room placeholder, built on the REAL card's own classes (`room-group-head`, `room-group-meta`,
- * `room-option`, `room-info`, `room-price-col`).
+ * Rooms are the one wait on this page that is genuinely slow — a live round-trip to the supplier,
+ * seconds not milliseconds. Three grey card outlines held that wait silently, and a shimmer that
+ * long stops reading as "loading" and starts reading as "broken": nothing on screen ever said
+ * what was happening or that it was still happening.
  *
- * The previous version drew its own boxes — a 44px avatar the card doesn't have, and flat rows
- * with none of the card's structure — so the block visibly re-laid-out the moment rates landed.
- * Borrowing the layout classes means the placeholder is the card's geometry by construction and
- * cannot drift from it again when the card changes.
- *
- * `rows` varies per card so the wait doesn't look like N identical stamped copies.
+ * So the rooms get a named wait instead of a skeleton. The doors fill left-to-right on a loop, so
+ * there is always visible forward motion, and the caption cycles through what is actually going on
+ * — purely in CSS, so a slow supplier costs no timers and no re-renders.
  */
-function RoomCardSkeleton({ rows = 2, i = 0 }) {
+function RoomsLoading() {
   return (
-    <div className="room-group sk-card" aria-hidden="true" style={{ '--i': i }}>
-      <div className="room-group-head">
-        <div className="room-group-id"><Sk w={172} h={15} /><Sk w={58} h={15} r={999} /></div>
-        <div className="room-group-from"><Sk w={52} h={12} /><Sk w={70} h={13} /></div>
-      </div>
-      {/* Two facts, matching the real meta line (occupancy + length) — it used to draw three,
-          which left the block visibly reflowing when the third never arrived. */}
-      <div className="room-group-meta">
-        <Sk w={88} h={12} /><Sk w={64} h={12} />
-      </div>
-      {Array.from({ length: rows }, (_, i) => (
-        <div className="room-option sk-room-option" key={i}>
-          <Sk w={20} h={20} r={999} />
-          <div className="room-info">
-            <Sk w={i === 0 ? 128 : 154} h={14} />
-            <Sk w={102} h={11} style={{ marginTop: 7 }} />
-            <div className="sk-chips"><Sk w={i === 0 ? 168 : 116} h={22} r={999} /><Sk w={78} h={22} r={999} /></div>
-          </div>
-          {/* Price, then the "vs cheapest" delta on every row but the first — the real card
-              shows no delta on its own cheapest board. */}
-          <div className="room-price-col">
-            <Sk w={74} h={30} r={999} />
-            {i > 0 && <Sk w={86} h={11} />}
+    <div className="rooms-loading" role="status" aria-busy="true">
+      <span className="sr-only">Checking live room availability…</span>
+      <div className="rl-head" aria-hidden="true">
+        <span className="rl-badge">{ICON.bed}</span>
+        <div className="rl-copy">
+          <div className="rl-title">Finding your rooms<i className="rl-dot" /><i className="rl-dot" /><i className="rl-dot" /></div>
+          {/* Stacked and cross-faded on one 10.5s loop; the box is sized by the first line so the
+              others can sit on top of it without the card changing height mid-wait. */}
+          <div className="rl-lines">
+            <span>Knocking on the hotel&apos;s door</span>
+            <span>Reading back today&apos;s live rates</span>
+            <span>Sorting the boards, cheapest first</span>
           </div>
         </div>
-      ))}
+      </div>
+      <div className="rl-doors" aria-hidden="true">
+        {[0, 1, 2, 3].map((d) => <span key={d} className="rl-door" style={{ '--d': d }} />)}
+      </div>
     </div>
   );
 }
@@ -759,6 +750,11 @@ export default function HotelDetail() {
   const sAdults   = String(ovr.adults   ?? state?.adults   ?? (qp('adults')   || '2'));
   const sChildren = String(ovr.children ?? state?.children ?? (qp('children') || '0'));
   const sRooms    = String(ovr.rooms ?? state?.rooms  ?? (qp('rooms')  || '1'));
+  // Numeric party size, for the places that recap the search back to the traveller rather than
+  // send it to a supplier. Defaults match sAdults/sChildren/sRooms above.
+  const availAdults   = Number(sAdults)   || 2;
+  const availChildren = Number(sChildren) || 0;
+  const availRooms    = Number(sRooms)    || 1;
   // children's ages (csv) — HotelBeds requires an age per child for availability
   const paramChildAges = String(ovr.childAges ?? state?.childAges ?? qp('childAges'));
   // Trim/pad the age list to the chosen child count — HB 400s on a child with no age.
@@ -1977,6 +1973,21 @@ export default function HotelDetail() {
                 </div>
               )}
 
+              {/* Says the quiet part out loud: these bars are cached estimates, and the live
+                  price is the one that gets booked. Worded as a fact about the prices rather
+                  than an apology about our cache — a traveller does not care that we are
+                  warming an index, they care whether the number they are looking at is the
+                  number they will pay, and what to do about it. */}
+              {usingLive && (
+                <div className="fc-estimate" role="note">
+                  <span className="fc-estimate-ico" aria-hidden="true">{ICON.info}</span>
+                  <span className="fc-estimate-text">
+                    <b>These are estimated prices.</b> We refresh them continuously, so the live
+                    price can differ — pick a date and check it to see the exact price for your stay.
+                  </span>
+                </div>
+              )}
+
               {/* The arrows live OUTSIDE the three states below so they stay reachable on a week
                   that came back empty — otherwise a blank week is a dead end with no way back. */}
               <div className="fc-week">
@@ -2024,7 +2035,12 @@ export default function HotelDetail() {
                 </div>
               ) : (
                 <>
-                  <div className="fc-strip">
+                  {/* A flat week gets a shorter canvas. When every day costs the same the bar
+                      heights carry no information, so the 212px the strip reserves for a price
+                      profile is 70px of dead air between the estimate notice and the bars — the
+                      chart looked like it had failed to draw. Nothing is lost: there is no
+                      profile to show and no "Lowest price" tag to leave room for. */}
+                  <div className={`fc-strip${priceVaries ? '' : ' fc-flat'}`}>
                     {priceDays.map((p, i) => {
                       const hasPrice = Number(p.price) > 0;
                       const isEmpty = checkedEmpty.has(p.iso);
@@ -2041,7 +2057,9 @@ export default function HotelDetail() {
                       const isLiveOk = sel && liveChecked && !liveRooms?.loading
                         && !liveRooms?.error && (liveRooms?.rooms?.length > 0);
                       const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
-                      const h = Math.round(44 + 44 * frac);
+                      // A flat week fills its (shorter) canvas: with no profile to draw, a bar
+                      // stopping two-thirds up is just a gap, not a reading.
+                      const h = priceVaries ? Math.round(44 + 44 * frac) : 100;
                       // Cheapest of the week ON SCREEN, and only the first day at that price.
                       // The API flags the lowest of whichever week it answered, which would
                       // badge several days at once now that the strip stitches weeks together.
@@ -2176,9 +2194,19 @@ export default function HotelDetail() {
                                 : liveRooms?.error ? (pdEstimate ? 'Showing estimated price' : 'Live price unavailable')
                                 : 'Your holiday is available!'}
                             </div>
+                            {/* Everything the traveller actually chose in the search — day, length,
+                                who is going, how many rooms — restated so the price above is
+                                visibly a price FOR THAT. The board is deliberately absent: it is
+                                chosen further down the page, on the rate rows, and echoing it here
+                                made this line look like the decision rather than a recap. */}
                             <div className="avail-sub">
-                              {`Selected ${pd.day} ${pd.date} · ${nights} ${nights === 1 ? 'day' : 'days'}`}
-                              {liveRoom?.board ? ` · ${liveRoom.board.toLowerCase()}` : ''}
+                              {[
+                                `Selected ${pd.day} ${pd.date}`,
+                                `${nights} ${nights === 1 ? 'day' : 'days'}`,
+                                `${availAdults} adult${availAdults === 1 ? '' : 's'}`,
+                                availChildren > 0 ? `${availChildren} child${availChildren === 1 ? '' : 'ren'}` : null,
+                                availRooms > 1 ? `${availRooms} rooms` : null,
+                              ].filter(Boolean).join(' · ')}
                             </div>
                           </div>
                           <div className="avail-price">
@@ -2422,11 +2450,7 @@ export default function HotelDetail() {
                 {!liveRooms?.loading && <div className="section-title"><span className="st-step">2</span> Choose your room</div>}
                 {liveRooms ? (
                   liveRooms.loading ? (
-                    <SkeletonBlock label="Checking live room availability…">
-                      {/* Uneven board counts — a real hotel never returns three identically
-                          shaped rooms, and three identical placeholders read as a stuck screen. */}
-                      <RoomCardSkeleton rows={3} i={0} /><RoomCardSkeleton rows={2} i={1} /><RoomCardSkeleton rows={2} i={2} />
-                    </SkeletonBlock>
+                    <RoomsLoading />
                   ) : liveRooms.error ? (
                     <div className="live-error">
                       {ICON.warn}
@@ -2461,9 +2485,12 @@ export default function HotelDetail() {
                         return (
                         <div className="room-group" key={g.key}>
                           <div className="room-group-head">
+                            {/* No room code chip. "DBL.ST" is the supplier's identifier, not
+                                anything a traveller books on, and it sat next to the room name
+                                competing with it. It still travels on the rate for the booking
+                                hand-off; it is just not shown. */}
                             <div className="room-group-id">
                               <div className="room-group-name">{g.name}</div>
-                              {g.cheapest.roomCode && <span className="room-code">{g.cheapest.roomCode}</span>}
                             </div>
                             <div className="room-group-from">
                               <span className="rgf-count">{g.boards.length} option{g.boards.length === 1 ? '' : 's'}</span>
@@ -2501,33 +2528,36 @@ export default function HotelDetail() {
                               >
                                 <div className="room-radio" />
                                 <div className="room-info">
+                                  {/* Board, its flag and its cancellation terms on ONE line. The
+                                      terms used to hang two rows below the board name, under the
+                                      gloss, which is where people stopped reading — so the single
+                                      fact that decides whether a rate is bookable was the last
+                                      thing on the row. It now sits beside the name it qualifies. */}
                                   <div className="room-name">
                                     {d?.board.label || b.boardLabel}
                                     {isCheapest && <span className="room-flag room-flag-best">{ICON.spark} Lowest price</span>}
+                                    <div className="room-chips">
+                                      {/* No "Free cancellation until X" chip. A dated promise on
+                                          the rate card is a commitment we don't want to make from
+                                          a live supplier quote; the warnings below stay, because
+                                          under-promising costs nobody a refund. */}
+                                      {d?.cancel.kind === 'partial' && (
+                                        <span className="rchip rchip-warn">{ICON.warn} Cancel now costs {ccy}{Math.round(d.cancel.amount).toLocaleString('en-GB')}</span>
+                                      )}
+                                      {d?.cancel.kind === 'none' && (
+                                        <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
+                                      )}
+                                      {d?.cancel.kind === 'unknown' && d?.nonRefundable === true && (
+                                        <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
+                                      )}
+                                      {d?.packageRate && <span className="rchip rchip-mute">Package rate</span>}
+                                      {/* The supplier (Hotelbeds / Diana) is never shown to the
+                                          traveller — who we source a rate from is our commercial
+                                          relationship, not part of the offer. It still rides on the
+                                          rate object for the booking hand-off. */}
+                                    </div>
                                   </div>
                                   {d?.board.gloss && <div className="room-cap">{d.board.gloss}</div>}
-
-                                  <div className="room-chips">
-                                    {/* Cancellation is the single fact people get wrong, so it
-                                        leads and states the deadline instead of a bare word. */}
-                                    {d?.cancel.kind === 'free' && (
-                                      <span className="rchip rchip-free">{ICON.shield} Free cancellation until {fmtDay(d.cancel.until)}</span>
-                                    )}
-                                    {d?.cancel.kind === 'partial' && (
-                                      <span className="rchip rchip-warn">{ICON.warn} Cancel now costs {ccy}{Math.round(d.cancel.amount).toLocaleString('en-GB')}</span>
-                                    )}
-                                    {d?.cancel.kind === 'none' && (
-                                      <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
-                                    )}
-                                    {d?.cancel.kind === 'unknown' && d?.nonRefundable === true && (
-                                      <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
-                                    )}
-                                    {d?.packageRate && <span className="rchip rchip-mute">Package rate</span>}
-                                    {/* The supplier (Hotelbeds / Diana) is never shown to the
-                                        traveller — who we source a rate from is our commercial
-                                        relationship, not part of the offer. It still rides on the
-                                        rate object for the booking hand-off. */}
-                                  </div>
 
                                 </div>
 

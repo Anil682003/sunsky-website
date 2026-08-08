@@ -317,7 +317,7 @@ export default function StayBar({
         {/* Day-bands, worded exactly as the home page words them — a traveller who searched
             "6-10 days" sees "6-10 days" here, not a nights figure they have to re-derive.
             Picking a band jumps to that band's representative length. */}
-        <Field id="nights" icon={ICONS.moon} label="Duration" value={band.label}
+        <Field id="nights" icon={ICONS.sun} label="Duration" value={band.label}
           open={openField === 'nights'} onToggle={toggle}>
           <OptionList current={band.label}
             options={DURATION_BANDS.map((b) => ({ id: b.label, label: b.label }))}
@@ -361,8 +361,13 @@ const ICONS = {
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
       strokeLinecap="round" strokeLinejoin="round"><path d="M2 14l20-8-8 20-2.5-8.5L2 14z" /></svg>
   ),
-  moon: (
+  /* A sun, not a moon. This field measures the trip in DAYS ("6-10 days"), so a crescent was
+     illustrating the opposite unit — it dates from when the same field counted nights. */
+  sun: (
     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9"
-      strokeLinecap="round" strokeLinejoin="round"><path d="M20 14.5A8.5 8.5 0 1 1 10 4a6.7 6.7 0 0 0 10 10.5z" /></svg>
+      strokeLinecap="round" strokeLinejoin="round">
+      <circle cx="12" cy="12" r="4.2" />
+      <path d="M12 2.4v2.3M12 19.3v2.3M4.2 12H1.9M22.1 12h-2.3M6.5 6.5 4.9 4.9M19.1 19.1l-1.6-1.6M17.5 6.5l1.6-1.6M4.9 19.1l1.6-1.6" />
+    </svg>
   ),
 };
