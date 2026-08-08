@@ -1606,18 +1606,24 @@ export default function HotelDetail() {
       rooms: Number(sRooms) || 1,
     }).then(({ data }) => {
       console.log('[Detail] hotel-availability response', data?.results);
-      const hb = data?.results?.hotelbeds, dn = data?.results?.diana;
+      const hb = data?.results?.hotelbeds, dn = data?.results?.diana, wm = data?.results?.w2m;
       const dianaHotelId = dn?.dianaHotelId ?? dn?.hotelId ?? null;
+      const w2mHotelCode = wm?.w2mHotelCode ?? null;
       const rooms = [
         ...((hb?.rooms) || []).map((r) => ({ ...r, supplier: 'hotelbeds' })),
         ...((dn?.rooms) || []).map((r) => ({ ...r, supplier: 'diana', dianaHotelId })),
+        ...((wm?.rooms) || []).map((r) => ({ ...r, supplier: 'w2m', w2mHotelCode })),
       ].map((r) => ({
         name: r.roomName || 'Room', board: r.boardName || r.boardCode || '',
         price: r.sellingRate ?? r.net ?? r.price ?? null, currency: r.currency || 'EUR', supplier: r.supplier,
-        refundable: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies.length === 0 : undefined,
+        // Prefer the supplier's explicit refundable flag (W2M sets it); else derive from policies.
+        refundable: r.refundable !== undefined ? r.refundable
+          : (Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies.length === 0 : undefined),
         cancellation: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies : [],
         rateKey: r.rateKey || null, roomCode: r.roomCode || null, boardCode: r.boardCode || null,
         net: r.net ?? null, dianaHotelId: r.dianaHotelId || null,
+        // World2Meet bookable identity — carried into the checkout hand-off.
+        bookingCode: r.bookingCode || null, w2mHotelCode: r.w2mHotelCode || null,
       })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
       setSelectedRoom((p) => ({ ...p, live: 0 }));
       const cheapest = data?.results?.cheapest || null;
@@ -1750,6 +1756,9 @@ export default function HotelDetail() {
               roomCode: useLive ? (liveRoom.roomCode || null) : null,
               boardCode: useLive ? (liveRoom.boardCode || null) : null,
               dianaHotelId: useLive ? (liveRoom.dianaHotelId || null) : null,
+              // World2Meet bookable identity (opaque BookingCode + its HotelCode).
+              bookingCode: useLive ? (liveRoom.bookingCode || null) : null,
+              w2mHotelCode: useLive ? (liveRoom.w2mHotelCode || null) : null,
               price: useLive ? liveRoom.price : total, currency: ccy,
             },
             flight: (useLive && liveFlight)
