@@ -392,6 +392,11 @@ const emptyTraveller = () => ({
   // read-only until the traveller asks to change it, and it is what a re-price is measured
   // against. `dobLocked` follows it and is dropped by the Change button.
   searchDob: '', dobLocked: false,
+  // The age this SLOT was priced at, and the fact that the search called it a child. Set on
+  // every child the search described, whether or not a date came with it — it is what a date
+  // typed here is measured against, so a slot quoted as a 10-year-old cannot quietly become
+  // an adult (or the reverse) between the search and the payment.
+  isSearchChild: false, searchAge: null,
 });
 
 /**
@@ -409,11 +414,19 @@ const seedTravellers = (booking) => {
   const adults = Math.max(1, Number(s.adults) || Number(booking.adults) || 2);
   const children = Math.max(0, Number(s.children) || 0);
   const dobs = String(s.childDobs || '').split(',').map((d) => d.trim()).filter(Boolean);
-  // Only lock what we really know: as many children as we have dates for.
+  const ages = String(s.childAges || '').split(',').map((a) => a.trim()).filter((a) => a !== '');
+  // Only LOCK what we really know — as many children as we have dates for — but every child
+  // slot remembers the age it was priced at, so a slot with no date still cannot be filled
+  // with a birthday that contradicts the quote.
   const rows = Array.from({ length: adults }, emptyTraveller);
   for (let i = 0; i < children; i++) {
     const dob = dobs[i] || '';
-    rows.push({ ...emptyTraveller(), dateOfBirth: dob, searchDob: dob, dobLocked: !!dob });
+    const age = ages[i] !== undefined ? Number(ages[i]) : null;
+    rows.push({
+      ...emptyTraveller(),
+      dateOfBirth: dob, searchDob: dob, dobLocked: !!dob,
+      isSearchChild: true, searchAge: Number.isFinite(age) ? age : null,
+    });
   }
   // Older hand-offs carry only a pax total (booking.adults counted everyone) — keep that
   // shape rather than dropping rows the traveller would have to add back by hand.
@@ -541,13 +554,20 @@ function CheckoutContent({ stripe, elements }) {
   const [reprice, setReprice] = useState(null);
   const repriceSeq = useRef(0);
 
-  // The searched children, in search order, with the ages their current dates imply.
-  const searchedChildren = travellers.filter((t) => t.searchDob);
-  const searchedAges = String(srch.childAges || '').split(',').map((a) => a.trim()).filter(Boolean);
+  /* ── does what was typed still match what was priced? ──
+     EVERY child slot the search described is measured, not only the ones a date arrived for.
+     A holiday quoted for a 10-year-old and then booked for a 30-year-old is the cheapest
+     obvious way to game a price, and the slot with no date is exactly where that would be
+     tried: the results page lets a child's AGE be edited, and an edited age used to arrive
+     here as an empty, unguarded field. The age the slot was PRICED at is remembered
+     regardless, so the date typed here always has something to be checked against. */
+  const searchedChildren = travellers.filter((t) => t.isSearchChild);
+  const searchedAges = searchedChildren.map((t) => t.searchAge);
   const currentChildAges = searchedChildren.map((t) => ageAtCheckIn(t.dateOfBirth, srch.checkin));
   const agesReady = currentChildAges.every((a) => a != null);
+  const pricedKnown = searchedAges.every((a) => a != null);
   const agesSignature = agesReady ? currentChildAges.join(',') : null;
-  const searchedSignature = searchedAges.join(',');
+  const searchedSignature = pricedKnown ? searchedAges.join(',') : null;
   // Only a change of AGE can move a price — every supplier call we make carries ages, never
   // dates. Correcting the day of a birthday inside the same year is therefore free, and
   // asking the supplier about it would be a call whose answer we already know.
@@ -1577,7 +1597,9 @@ function CheckoutContent({ stripe, elements }) {
                               ok={!t.dobLocked && !!t.dateOfBirth}
                               hint={t.dobLocked ? 'From your search — this set the price'
                                 : t.searchDob ? 'Changing this re-checks price and availability'
-                                : undefined}>
+                                : t.isSearchChild && t.searchAge != null
+                                  ? `Priced as a ${t.searchAge}-year-old — another age re-checks the price`
+                                  : undefined}>
                               {t.dobLocked ? (
                                 <div className="ck-dob-lock">
                                   <span className="ck-dob-val">{dmy(t.dateOfBirth)}</span>

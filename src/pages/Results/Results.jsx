@@ -15,7 +15,7 @@ import { topFacilities } from '../../utils/topFacilities';
 import { flagUrl } from '../../utils/countryFlag';
 import { toTitleCase } from '../../utils/textCase';
 import { nightsToDays } from '../../utils/durations';
-import { dobsMatchAges } from '../../utils/childDob';
+import { dobsMatchAges, ageAtCheckIn } from '../../utils/childDob';
 import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
@@ -413,17 +413,32 @@ export default function Results() {
   const [localCheckIn,  setLocalCheckIn]  = useState(initCheckIn);
   const [localCheckOut, setLocalCheckOut] = useState(initCheckOut);
 
-  // PER-ROOM occupancy. One entry per room, each with its own adults + children + a child age
-  // per child. The flat totals the cache needs are DERIVED below.
+  // PER-ROOM occupancy. One entry per room, each with its own adults + children and a DATE OF
+  // BIRTH per child. The flat totals the cache needs — including the ages — are DERIVED below.
+  //
+  // Dates, not ages, for one reason: the checkout books on the date. While this panel edited
+  // ages directly, an edit here left the date behind, and the checkout was then handed an
+  // empty, unguarded field where the child's birthday should have been — the one place a
+  // holiday quoted for a 10-year-old could quietly be booked for an adult. The date is now the
+  // only thing anybody edits, and the age is derived from it wherever a supplier needs one.
   const [roomsConfig, setRoomsConfig] = useState(() => {
     const nRooms    = Math.max(1, parseInt(initRooms, 10) || 1);
     const nAdults   = Math.max(1, parseInt(initAdults, 10) || 2);
     const nChildren = Math.max(0, parseInt(initChildren, 10) || 0);
+    const dobs = childDobs ? childDobs.split(',').map((d) => d.trim()).filter(Boolean) : [];
     const ages = childAges ? childAges.split(',').map((a) => parseInt(a, 10)).filter((a) => Number.isFinite(a)) : [];
-    const rooms = Array.from({ length: nRooms }, () => ({ adults: 0, children: 0, ages: [] }));
+    const rooms = Array.from({ length: nRooms }, () => ({ adults: 0, children: 0, dobs: [], ages: [] }));
     for (let i = 0; i < nAdults; i++) rooms[i % nRooms].adults++;
-    let ai = 0;
-    for (let i = 0; i < nChildren; i++) { const r = rooms[i % nRooms]; r.children++; r.ages.push(ages[ai++] ?? CHILD_AGE_DEFAULT); }
+    let ci = 0;
+    for (let i = 0; i < nChildren; i++) {
+      const r = rooms[i % nRooms];
+      r.children++;
+      r.dobs.push(dobs[ci] || '');
+      // The age is a fallback for an older link that carried ages and no dates; once a date is
+      // present it wins, because it is what the booking will be made on.
+      r.ages.push(ages[ci] ?? CHILD_AGE_DEFAULT);
+      ci++;
+    }
     for (const r of rooms) if (r.adults < 1) r.adults = 1;   // every room needs ≥1 adult
     return rooms;
   });
@@ -432,7 +447,13 @@ export default function Results() {
   const totalAdults        = roomsConfig.reduce((s, r) => s + r.adults, 0);
   const totalChildren      = roomsConfig.reduce((s, r) => s + r.children, 0);
   const roomsN             = roomsConfig.length;
-  const allChildAges       = roomsConfig.flatMap((r) => r.ages);
+  // A date always wins over a carried age: it is what the checkout will book on, so the price
+  // has to be asked for the age that date implies, not the age a stale link mentioned.
+  const allChildDobs       = roomsConfig.flatMap((r) => r.dobs);
+  const allChildAges       = roomsConfig.flatMap((r, ri) => r.dobs.map((dob, ci) => {
+    const fromDob = ageAtCheckIn(dob, localCheckIn);
+    return fromDob != null ? fromDob : (roomsConfig[ri].ages[ci] ?? CHILD_AGE_DEFAULT);
+  }));
   const maxAdultsPerRoom   = Math.max(1, ...roomsConfig.map((r) => r.adults));
   const maxChildrenPerRoom = Math.max(0, ...roomsConfig.map((r) => r.children));
 
@@ -443,12 +464,14 @@ export default function Results() {
       if (idx !== i) return r;
       const n = Math.max(0, Math.min(4, r.children + delta));
       const ages = r.ages.slice(0, n);
+      const dobs = r.dobs.slice(0, n);
       while (ages.length < n) ages.push(CHILD_AGE_DEFAULT);
-      return { ...r, children: n, ages };
+      while (dobs.length < n) dobs.push('');
+      return { ...r, children: n, ages, dobs };
     }));
-  const setChildAge = (i, ci, age) => setRoomsConfig((rc) =>
-    rc.map((r, idx) => (idx === i ? { ...r, ages: r.ages.map((a, j) => (j === ci ? age : a)) } : r)));
-  const addRoom    = () => setRoomsConfig((rc) => (rc.length < 5 ? [...rc, { adults: 2, children: 0, ages: [] }] : rc));
+  const setChildDob = (i, ci, dob) => setRoomsConfig((rc) =>
+    rc.map((r, idx) => (idx === i ? { ...r, dobs: r.dobs.map((d, j) => (j === ci ? dob : d)) } : r)));
+  const addRoom    = () => setRoomsConfig((rc) => (rc.length < 5 ? [...rc, { adults: 2, children: 0, ages: [], dobs: [] }] : rc));
   const removeRoom = (i) => setRoomsConfig((rc) => (rc.length > 1 ? rc.filter((_, idx) => idx !== i) : rc));
 
   // Committed params that drive the API fetch
@@ -1219,9 +1242,12 @@ export default function Results() {
     if (starsVal)   qs.set('stars', String(starsVal));
     if (h.currency) qs.set('currency', h.currency);
     if (Number.isFinite(Number(h.totalAmount))) qs.set('total', String(h.totalAmount));
-    const ages = childAgesRef.current;
+    // The COMMITTED search wins over the URL the page was opened with: a traveller who edited
+    // a child's date of birth here and pressed Update Search must open the hotel with that
+    // date, not the one the link arrived carrying.
+    const ages = fetchParams.childAges ?? childAgesRef.current;
     if (ages) qs.set('childAges', ages);
-    const dobs = childDobsRef.current;
+    const dobs = fetchParams.childDobs ?? childDobsRef.current;
     if (dobs && dobsMatchAges(dobs, ages, fetchParams.checkIn)) qs.set('childDobs', dobs);
     // How the traveller gets there, decided HERE and honoured on the hotel page: own
     // transport → the hotel page runs no flight search at all; incl. flight → it prices
@@ -1368,6 +1394,7 @@ export default function Results() {
       children: String(totalChildren),
       rooms:    String(roomsN),
       childAges:          allChildAges.join(','),
+      childDobs:          allChildDobs.filter(Boolean).length === allChildDobs.length ? allChildDobs.join(',') : '',
       maxAdultsPerRoom:   String(maxAdultsPerRoom),
       maxChildrenPerRoom: String(maxChildrenPerRoom),
     }));
@@ -1457,14 +1484,16 @@ export default function Results() {
             </div>
             {room.children > 0 && (
               <div className={styles.childAges}>
-                {room.ages.map((age, ci) => (
-                  <label key={ci} className={styles.childAge}>
-                    <span>Child {ci + 1} age</span>
-                    <select value={age} onChange={(e) => setChildAge(i, ci, parseInt(e.target.value, 10))}>
-                      {Array.from({ length: 18 }, (_, a) => <option key={a} value={a}>{a}</option>)}
-                    </select>
-                  </label>
-                ))}
+                {room.dobs.map((dob, ci) => {
+                  const age = ageAtCheckIn(dob, localCheckIn);
+                  return (
+                    <label key={ci} className={styles.childAge}>
+                      <span>Child {ci + 1} date of birth{age != null ? ` · ${age}` : ''}</span>
+                      <input type="date" value={dob} max={localCheckIn || undefined}
+                        onChange={(e) => setChildDob(i, ci, e.target.value)} />
+                    </label>
+                  );
+                })}
               </div>
             )}
           </div>
