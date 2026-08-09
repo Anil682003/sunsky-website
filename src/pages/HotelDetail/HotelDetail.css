@@ -901,7 +901,18 @@
 .sd .fc-cta { margin-left:auto; flex-shrink:0; font-family:'Sora',sans-serif; font-size:14.5px; font-weight:700; color:#fff; background:linear-gradient(135deg,var(--sun),var(--gold)); border:none; border-radius:var(--r-full); padding:14px 30px; cursor:pointer; box-shadow:0 6px 16px rgba(255,159,28,.32); transition:filter .25s, box-shadow .25s, transform .25s; }
 .sd .fc-cta:hover { filter:brightness(1.04); box-shadow:0 10px 22px rgba(255,159,28,.4); transform:translateY(-1px); }
 .sd .fc-cta:active { transform:translateY(0); }
-.sd .fc-res { display:flex; align-items:center; gap:14px; }
+.sd .fc-res { display:flex; flex-direction:column; gap:14px; }
+.sd .fc-res-head { display:flex; align-items:center; gap:14px; }
+/* The trip written out under the green head — same panel/grid anatomy as the red
+   "not available" card (.fc-unavail-crit), tinted green instead of rose so a yes and
+   a no are read in the same places. */
+.sd .fc-facts { background:var(--white); border:1px solid #cdeee0; border-radius:14px; padding:12px 16px 14px; }
+.sd .fc-facts-caption { display:block; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); margin-bottom:10px; }
+/* 124px, narrower than the red card's 140: five facts then sit in ONE row at card
+   width, where anything wider stranded "Transfer" on a second line of its own. */
+.sd .fc-facts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(124px,1fr)); gap:12px 14px; }
+.sd .fc-facts .fcu-k svg { color:#34d399; }
+.sd .fcu-sub { font-size:11.5px; font-weight:600; color:var(--text-sec); font-variant-numeric:tabular-nums lining-nums; }
 .sd .fc-hint { text-align:center; font-size:12.5px; font-weight:600; color:var(--text-light); padding:14px 0 0; }
 
 /* loading skeleton */
@@ -1407,7 +1418,10 @@
   .sd .fc-col{flex:0 0 88px}
   .sd .fc-act{flex-direction:column;align-items:stretch;gap:12px;text-align:center}
   .sd .fc-cta{margin-left:0;padding:14px 24px;font-size:14px}
-  .sd .fc-res{flex-direction:column;text-align:center}
+  /* The head stacks and centres on a phone; the fact rows stay left-aligned — a
+     labelled list reads as a list only when the labels line up. */
+  .sd .fc-res-head{flex-direction:column;text-align:center}
+  .sd .fc-facts-grid{grid-template-columns:1fr 1fr;gap:12px}
   .sd .tw{top:calc(var(--nav-h) + 4px)}
   .sd .bp-route{gap:8px}
   .sd .bp-time{font-size:20px}

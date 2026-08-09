@@ -140,6 +140,17 @@ const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const calDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WK[d.getDay()]; };
 const calDate = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? iso : `${d.getDate()} ${MO[d.getMonth()]}`; };
+// The confirmation voice — "Saturday 07 September 2026". Written out in full for the
+// availability recap, where "7 Sep" is too terse to be checked against a passport or a
+// day off work. Assembled from local parts rather than toLocaleDateString because en-GB
+// slips a comma in after the weekday on some engines and drops the leading zero.
+const WKL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
+const MOL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const longDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WKL[d.getDay()]; };
+const longDate = (iso) => {
+  const d = new Date(iso + 'T00:00:00');
+  return isNaN(d.getTime()) ? '' : `${String(d.getDate()).padStart(2, '0')} ${MOL[d.getMonth()]} ${d.getFullYear()}`;
+};
 // NB: formatted from the LOCAL date parts, not toISOString(). The input is parsed at local
 // midnight, so serialising through UTC handed back the previous day for every traveller east
 // of Greenwich (IST: "20 Mar + 7 nights" → 26 Mar) — a whole night short in the availability
@@ -2187,6 +2198,7 @@ export default function HotelDetail() {
                         </div>
                       ) : (
                         <div className="fc-res">
+                          <div className="fc-res-head">
                           <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                           <div>
                             <div className="avail-text">
@@ -2194,14 +2206,12 @@ export default function HotelDetail() {
                                 : liveRooms?.error ? (pdEstimate ? 'Showing estimated price' : 'Live price unavailable')
                                 : 'Your holiday is available!'}
                             </div>
-                            {/* Everything the traveller actually chose in the search — day, length,
-                                who is going, how many rooms — restated so the price above is
-                                visibly a price FOR THAT. The board is deliberately absent: it is
-                                chosen further down the page, on the rate rows, and echoing it here
-                                made this line look like the decision rather than a recap. */}
+                            {/* Who is travelling, and for how long. The dates, airport, board and
+                                transfer used to live on this one line too; they now have their own
+                                labelled rows below, where they can be read off and checked one by
+                                one instead of scanned out of a dot-separated run-on. */}
                             <div className="avail-sub">
                               {[
-                                `Selected ${pd.day} ${pd.date}`,
                                 `${nights} ${nights === 1 ? 'day' : 'days'}`,
                                 `${availAdults} adult${availAdults === 1 ? '' : 's'}`,
                                 availChildren > 0 ? `${availChildren} child${availChildren === 1 ? '' : 'ren'}` : null,
@@ -2225,6 +2235,59 @@ export default function HotelDetail() {
                                 : liveRooms?.error ? (pdEstimate ? 'Live price unavailable — estimate shown' : 'No estimate for this day — try again')
                                 : pdEstimate ? (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')
                                 : 'No cached estimate'}
+                            </div>
+                          </div>
+                          </div>
+                          {/* The trip, spelled out. Same anatomy as the red card's "your current
+                              selection" panel, because a traveller comparing a yes to a no should
+                              be reading the same six facts in the same places. Every value is
+                              derived, never assumed: the board is the one on the live rate that
+                              produced the price above, and the transfer says "add it below" rather
+                              than implying an airport pickup nobody has chosen yet. */}
+                          <div className="fc-facts">
+                            <span className="fc-facts-caption">Your holiday</span>
+                            <div className="fc-facts-grid">
+                              <div className="fcu-item">
+                                <span className="fcu-k">{ICON.plane} Departure</span>
+                                <span className="fcu-v">{longDay(pd.iso) || pd.day}</span>
+                                <span className="fcu-sub">{longDate(pd.iso) || pd.date}</span>
+                              </div>
+                              <div className="fcu-item">
+                                <span className="fcu-k">{ICON.cal} Return</span>
+                                <span className="fcu-v">{longDay(addDaysISO(pd.iso, nights)) || calDay(addDaysISO(pd.iso, nights))}</span>
+                                <span className="fcu-sub">{longDate(addDaysISO(pd.iso, nights)) || calDate(addDaysISO(pd.iso, nights))}</span>
+                              </div>
+                              <div className="fcu-item">
+                                <span className="fcu-k">{transport === 'hotel_only' ? ICON.bed : ICON.plane} Airport</span>
+                                <span className="fcu-v">
+                                  {transport === 'hotel_only' ? 'Hotel only' : `${airportName(origin)} (${origin})`}
+                                </span>
+                                {transport === 'hotel_only' && <span className="fcu-sub">No flights included</span>}
+                              </div>
+                              <div className="fcu-item">
+                                <span className="fcu-k">{ICON.board} Board type</span>
+                                <span className="fcu-v">
+                                  {liveRoom?.board
+                                    || BOARD_PREFS.find((b) => b.id === boardPref && b.id)?.label
+                                    || 'Choose with your room'}
+                                </span>
+                              </div>
+                              {transport === 'package' && (
+                                <div className="fcu-item">
+                                  <span className="fcu-k">{liveTransfer ? ICON.check : ICON.noTransfer} Transfer</span>
+                                  <span className="fcu-v">
+                                    {liveTransfer
+                                      ? `${liveTransfer.vehicle || 'Transfer'} · ${ccy}${Math.round(liveTransfer.price || 0)}`
+                                      : liveTransfers?.loading ? 'Checking options…'
+                                      : liveTransfers?.error || (liveTransfers && !liveTransfers.services?.length)
+                                        ? 'None for this hotel'
+                                        : 'To be added below'}
+                                  </span>
+                                  {!liveTransfer && !liveTransfers?.loading && (
+                                    <span className="fcu-sub">Optional extra</span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                         </div>
