@@ -387,6 +387,24 @@ const BagTraveller = ({ index, name, children }) => (
   </div>
 );
 
+/**
+ * A traveller field: label above, control, and the "done" tick in its own column beside it.
+ *
+ * The tick's column is reserved whether or not it is showing, so a field never jumps sideways
+ * the moment it becomes valid — and putting it outside the control means the date of birth's
+ * three lists can share one tick between them, which is what they are: one date.
+ */
+const TravField = ({ label, req, err, hint, ok, children }) => (
+  <div className={`ck-tvf${err ? ' ck-err' : ''}`}>
+    <label className="ck-tvf-label">{label}{req && <span className="ck-req"> *</span>}</label>
+    <div className="ck-tvf-row">
+      <div className="ck-tvf-control">{children}</div>
+      <span className="ck-tvf-tick">{ok ? ICON.check : null}</span>
+    </div>
+    {err ? <div className="ck-errmsg">{err}</div> : hint ? <div className="ck-hint">{hint}</div> : null}
+  </div>
+);
+
 /** The courtesy title a ticket carries, from the gender — not a fourth dropdown to fill. */
 const titleFor = (gender) => (gender === 'MALE' ? 'Mr' : gender === 'FEMALE' ? 'Ms' : '');
 
@@ -909,14 +927,10 @@ function CheckoutContent({ stripe, elements }) {
     }
   };
 
-  // Transfers: the vehicle has a hard passenger capacity from the supplier.
-  const paxCap = isTransfer ? Math.min(booking.maxPax || 9, 9) : 9;
-  const addTraveller = () => { if (pax < paxCap) setTravellers((ts) => [...ts, emptyTraveller()]); };
-  const removeTraveller = (i) => {
-    if (pax <= 1) return;
-    setTravellers((ts) => ts.filter((_, ti) => ti !== i));
-    setErrors({});
-  };
+  // The party is FIXED by the search. Adding a traveller here would have added a person the
+  // room, the fare and the transfer were never priced for — the supplier quoted an occupancy,
+  // and a fourth name on a room quoted for three is not a booking anyone can honour. To travel
+  // with more people, the search is where that is decided.
   const copyCustomerToLead = () => {
     setTravellers((ts) => ts.map((t, i) => (i === 0 ? {
       ...t,
@@ -1577,59 +1591,57 @@ function CheckoutContent({ stripe, elements }) {
                               {i === 0 && !isCompany && (priv.firstName || priv.lastName) && (
                                 <button className="ck-link-btn" onClick={copyCustomerToLead}>{ICON.check} Same as me</button>
                               )}
-                              {pax > 1 && (
-                                <button className="ck-remove-btn" onClick={() => removeTraveller(i)} aria-label="Remove traveller">{ICON.x}</button>
-                              )}
                             </div>
                           </div>
 
-                          <div className="ck-boxed">
-                            <div className={`ck-genderline${errors[`t${i}.gender`] ? ' ck-err' : ''}`}>
-                              <span className="ck-genderline-label">Gender <span className="ck-req">*</span></span>
+                          {/* Labels ABOVE the field here, not inside it. A boxed label is fine
+                              over one input; over three side-by-side date lists it collides
+                              with the first one and the row stops reading as a single date.
+                              The tick sits OUTSIDE the control, in a column of its own, so
+                              nothing shifts sideways when it appears. */}
+                          <div className="ck-tvf-grid">
+                            <div className={`ck-tvf ck-tvf-full${errors[`t${i}.gender`] ? ' ck-err' : ''}`}>
+                              <label className="ck-tvf-label">Gender <span className="ck-req">*</span></label>
                               <GenderPick name={`ck-gender-${i}`} value={t.gender} onChange={setT(i, 'gender')} />
-                              {errors[`t${i}.gender`] && <span className="ck-errmsg">{errors[`t${i}.gender`]}</span>}
+                              {errors[`t${i}.gender`] && <div className="ck-errmsg">{errors[`t${i}.gender`]}</div>}
                             </div>
 
-                            <div className="ck-row">
-                              <Field label="First name" req err={errors[`t${i}.firstName`]} ok={!!t.firstName.trim()}>
-                                <input className="ck-input" value={t.firstName} onChange={(e) => setT(i, 'firstName')(e.target.value)} placeholder="As in passport" maxLength={100} />
-                              </Field>
-                              <Field label="Last name" req err={errors[`t${i}.lastName`]} ok={!!t.lastName.trim()}>
-                                <input className="ck-input" value={t.lastName} onChange={(e) => setT(i, 'lastName')(e.target.value)} placeholder="As in passport" maxLength={100} />
-                              </Field>
-                            </div>
+                            <TravField label="First name" req err={errors[`t${i}.firstName`]} ok={!!t.firstName.trim()}>
+                              <input className="ck-input" value={t.firstName} onChange={(e) => setT(i, 'firstName')(e.target.value)} placeholder="As in passport" maxLength={100} />
+                            </TravField>
+                            <TravField label="Last name" req err={errors[`t${i}.lastName`]} ok={!!t.lastName.trim()}>
+                              <input className="ck-input" value={t.lastName} onChange={(e) => setT(i, 'lastName')(e.target.value)} placeholder="As in passport" maxLength={100} />
+                            </TravField>
 
-                            <div className="ck-row">
-                              {/* A child whose date of birth came from the search opens READ-ONLY.
-                                  That date is what the stay and the fare were priced on, so it is
-                                  not a field to be casually retyped — but it is also the one thing
-                                  a traveller might genuinely need to fix, so there is a way in,
-                                  behind a warning that says what will happen. */}
-                              <Field label="Date of birth" req err={errors[`t${i}.dateOfBirth`]}
-                                ok={!t.dobLocked && !!t.dateOfBirth}
-                                hint={t.dobLocked ? 'From your search — this set the price'
-                                  : t.searchDob ? 'Changing this re-checks price and availability'
-                                  : undefined}>
-                                {t.dobLocked ? (
-                                  <div className="ck-dob-lock">
-                                    <span className="ck-dob-val">{dmy(t.dateOfBirth)}</span>
-                                    <span className="ck-dob-age">{ageType(t.dateOfBirth).label}</span>
-                                    <button type="button" className="ck-dob-change" onClick={() => setDobPrompt(i)}>
-                                      Change
-                                    </button>
-                                  </div>
-                                ) : (
-                                  <DobPicker value={t.dateOfBirth} onChange={setT(i, 'dateOfBirth')}
-                                    autoFocus={dobUnlocked === i} />
-                                )}
-                              </Field>
-                              <Field label="Nationality" req err={errors[`t${i}.nationality`]} ok={!!t.nationality}>
-                                <select className="ck-input ck-select" value={t.nationality} onChange={(e) => setT(i, 'nationality')(e.target.value)}>
-                                  <option value="">Select…</option>
-                                  {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
-                                </select>
-                              </Field>
-                            </div>
+                            {/* A child whose date of birth came from the search opens READ-ONLY.
+                                That date is what the stay and the fare were priced on, so it is
+                                not a field to be casually retyped — but it is also the one thing
+                                a traveller might genuinely need to fix, so there is a way in,
+                                behind a warning that says what will happen. */}
+                            <TravField label="Date of birth" req err={errors[`t${i}.dateOfBirth`]}
+                              ok={!t.dobLocked && !!t.dateOfBirth}
+                              hint={t.dobLocked ? 'From your search — this set the price'
+                                : t.searchDob ? 'Changing this re-checks price and availability'
+                                : undefined}>
+                              {t.dobLocked ? (
+                                <div className="ck-dob-lock">
+                                  <span className="ck-dob-val">{dmy(t.dateOfBirth)}</span>
+                                  <span className="ck-dob-age">{ageType(t.dateOfBirth).label}</span>
+                                  <button type="button" className="ck-dob-change" onClick={() => setDobPrompt(i)}>
+                                    Change
+                                  </button>
+                                </div>
+                              ) : (
+                                <DobPicker value={t.dateOfBirth} onChange={setT(i, 'dateOfBirth')}
+                                  autoFocus={dobUnlocked === i} />
+                              )}
+                            </TravField>
+                            <TravField label="Nationality" req err={errors[`t${i}.nationality`]} ok={!!t.nationality}>
+                              <select className="ck-input ck-select" value={t.nationality} onChange={(e) => setT(i, 'nationality')(e.target.value)}>
+                                <option value="">Select…</option>
+                                {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+                              </select>
+                            </TravField>
                           </div>
 
                           {/* The warning the traveller sees BEFORE the field opens — the whole
@@ -1658,13 +1670,6 @@ function CheckoutContent({ stripe, elements }) {
                         </div>
                       );
                     })}
-
-                    {pax < paxCap && (
-                      <button className="ck-add-trav" onClick={addTraveller}>{ICON.plus} Add another traveller</button>
-                    )}
-                    {isTransfer && pax >= paxCap && (
-                      <div className="ck-hint" style={{ marginTop: 8 }}>This vehicle seats a maximum of {paxCap} passengers.</div>
-                    )}
 
                     {/* ── what the supplier said about the corrected party ──
                         Every branch of the spec lands here: waiting, unchanged, dearer or

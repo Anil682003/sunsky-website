@@ -236,11 +236,15 @@
 .ck-err > .ck-check .ck-check-box { border-color:var(--coral); animation:ckShake .4s var(--ease); }
 
 /* ════ TRAVELLERS ════ */
-.ck-trav { border:1.5px solid var(--border-light); border-radius:var(--r-md); padding:18px; margin-bottom:14px;
-  background:linear-gradient(180deg,#fbfdff,#fff); display:flex; flex-direction:column; gap:14px;
+/* Room to breathe: the head sits on its own line above a hairline, the fields below it. The
+   old 14px flex gap put the name badge, the gender radios and the first input within a few
+   pixels of each other and the card read as one dense block. */
+.ck-trav { border:1.5px solid var(--border-light); border-radius:var(--r-md); padding:4px 20px 22px; margin-bottom:16px;
+  background:var(--white); display:flex; flex-direction:column;
   animation:ckFadeUp .5s var(--ease) both; transition:border-color .3s, box-shadow .3s; }
 .ck-trav:hover { border-color:var(--blue-soft); box-shadow:var(--shadow-sm); }
-.ck-trav-head { display:flex; align-items:center; gap:11px; flex-wrap:wrap; }
+.ck-trav-head { display:flex; align-items:center; gap:11px; flex-wrap:wrap;
+  padding:16px 0 14px; margin-bottom:18px; border-bottom:1px solid var(--border-light); }
 .ck-trav-av { width:34px; height:34px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-family:'Sora',sans-serif; font-size:14px; font-weight:800;
   box-shadow:0 4px 12px rgba(31,79,216,.28); }
@@ -581,6 +585,30 @@
 .ck-boxed select.ck-input + .ck-tick { right:34px; }   /* clear of the chevron */
 .ck-boxed .ck-errmsg, .ck-boxed .ck-hint { padding-left:2px; }
 
+/* ════ TRAVELLER FIELDS ════
+   Label above, control, tick beside it. Two columns that hold their alignment: first and last
+   name on one line, then the date of birth (three lists reading as ONE field, sharing one
+   tick) beside the nationality. The tick's column is reserved whether or not it shows, so a
+   field never jumps sideways the moment it becomes valid. */
+.ck-tvf-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px 24px; padding-top:4px; }
+.ck-tvf-full { grid-column:1 / -1; }
+.ck-tvf { min-width:0; }
+.ck-tvf-label { display:block; margin-bottom:7px; font-size:12.5px; font-weight:700; color:var(--text); }
+.ck-tvf-label .ck-req { color:var(--coral); }
+.ck-tvf-row { display:flex; align-items:center; gap:11px; }
+.ck-tvf-control { flex:1; min-width:0; }
+.ck-tvf-tick { flex:none; width:18px; height:18px; display:flex; align-items:center; justify-content:center; color:var(--green); }
+.ck-tvf-tick svg { width:17px; height:17px; animation:ckPop .3s var(--ease-spring) both; }
+.ck-tvf .ck-input { height:48px; }
+.ck-tvf .ck-errmsg, .ck-tvf .ck-hint { margin-top:5px; padding-right:29px; }
+.ck-tvf.ck-err .ck-input, .ck-tvf.ck-err select.ck-input { border-color:var(--coral); }
+/* The locked child date sits in the same 48px band as every other control. */
+.ck-tvf .ck-dob-lock { min-height:48px; }
+
+@media (max-width: 640px) {
+  .ck-tvf-grid { grid-template-columns:1fr; gap:16px; }
+}
+
 /* Gender — two options, so radios rather than a dropdown that hides both. */
 .ck-genderline { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
 .ck-genderline-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--blue); }
@@ -597,7 +625,10 @@
 
 /* Date of birth as day / month / year — a native picker opens on this month, so a 1995
    birthday is twelve clicks away or a guess about the keyboard. */
-.ck-dob3 { display:grid; grid-template-columns:0.85fr 1.3fr 1fr; gap:8px; }
+/* Day narrower than month, year in between: the three read as one date rather than as three
+   equal dropdowns that happen to sit together. */
+.ck-dob3 { display:grid; grid-template-columns:0.8fr 1.35fr 1fr; gap:10px; }
+.ck-dob3 .ck-input { padding-left:12px; padding-right:26px; background-position:right 9px center; }
 .ck-boxed .ck-dob3 .ck-input { padding:26px 8px 10px 12px; background-position:right 8px center; }
 
 /* Business customer — one tick on the same form, the way signup asks it. */

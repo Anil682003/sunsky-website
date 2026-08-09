@@ -20,13 +20,15 @@ const setValue = (el, value) => {
   el.dispatchEvent(new Event('change', { bubbles: true }));
 };
 
-const labelOf = (field) => (field.querySelector('.ck-label')?.textContent || '')
+// Two field shapes on step 1: the contact card's boxed fields (label inside the frame) and
+// the traveller cards' label-above fields. Both are found the same way — by their label.
+const labelOf = (field) => (field.querySelector('.ck-label, .ck-tvf-label')?.textContent || '')
   .replace(/\*/g, '').trim().toLowerCase();
 
-/** The .ck-field whose label starts with `label`, searched inside `root`. */
+/** The field whose label starts with `label`, searched inside `root`. */
 export const fieldByLabel = (label, root = document) => {
   const want = label.toLowerCase();
-  return [...root.querySelectorAll('.ck-field')].find((f) => labelOf(f).startsWith(want));
+  return [...root.querySelectorAll('.ck-field, .ck-tvf')].find((f) => labelOf(f).startsWith(want));
 };
 
 /** Set one field by label. Selects take the first real option when given `true`. */
