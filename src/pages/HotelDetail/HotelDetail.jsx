@@ -8,7 +8,7 @@ import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
 import { nightsToDays } from '../../utils/durations';
-import { rateDetails } from '../../utils/rateDetails';
+import { rateDetails, boardInfo } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS,
 } from '../../utils/flightFilters';
@@ -1199,6 +1199,12 @@ export default function HotelDetail() {
 
   // live selection → live price shown in the Book Now card / mobile bar / checkout
   const liveRoom = liveRooms?.rooms?.length ? liveRooms.rooms[selectedRoom.live ?? 0] : null;
+  // The board of THAT rate, named exactly as the room rows name it — the availability recap
+  // has to move with the traveller's choice, so picking half board over the cheapest all-in
+  // rate changes the price and the board type together. Derived straight from the selected
+  // rate rather than from rateInfo, whose map only covers the rates a board FILTER left on
+  // screen; the selection can point outside it.
+  const liveBoard = liveRoom ? boardInfo(liveRoom.boardCode, liveRoom.board).label : null;
 
   // Live rates as "room type → its board options". Selection still addresses the flat
   // `liveRooms.rooms` array by index, so the booking hand-off keeps the exact rateKey.
@@ -2267,7 +2273,7 @@ export default function HotelDetail() {
                               <div className="fcu-item">
                                 <span className="fcu-k">{ICON.board} Board type</span>
                                 <span className="fcu-v">
-                                  {liveRoom?.board
+                                  {liveBoard
                                     || BOARD_PREFS.find((b) => b.id === boardPref && b.id)?.label
                                     || 'Choose with your room'}
                                 </span>
@@ -2281,7 +2287,7 @@ export default function HotelDetail() {
                                       : liveTransfers?.loading ? 'Checking options…'
                                       : liveTransfers?.error || (liveTransfers && !liveTransfers.services?.length)
                                         ? 'None for this hotel'
-                                        : 'To be added below'}
+                                        : 'To be booked on the next page'}
                                   </span>
                                   {!liveTransfer && !liveTransfers?.loading && (
                                     <span className="fcu-sub">Optional extra</span>

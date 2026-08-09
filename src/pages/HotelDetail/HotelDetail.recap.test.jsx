@@ -120,10 +120,43 @@ describe('the availability card spells the trip out', () => {
     expect(row('airport')).toHaveTextContent('Brussels (BRU)');
 
     // The board on the rate that priced the card — the traveller set no preference.
-    expect(row('board type')).toHaveTextContent('All Inclusive');
+    expect(row('board type')).toHaveTextContent('All inclusive');
 
-    // Not yet chosen, and said so — no implied pickup.
-    expect(row('transfer')).toHaveTextContent(/to be added below/i);
+    // Booked on the checkout page, not here — and never implied to be in the price.
+    expect(row('transfer')).toHaveTextContent(/to be booked on the next page/i);
+  });
+
+  it('follows the room the traveller picks, not the cheapest one', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await checkFirstDay(user);
+
+    const facts = await waitFor(() => {
+      const el = container.querySelector('.fc-facts');
+      expect(el).toBeTruthy();
+      return el;
+    });
+    const boardRow = () => [...facts.querySelectorAll('.fcu-item')]
+      .find((el) => el.querySelector('.fcu-k')?.textContent.trim().toLowerCase() === 'board type');
+
+    const quoted = () => container.querySelector('.avail-price-val')?.textContent;
+
+    // Opens on the cheapest rate.
+    await waitFor(() => expect(boardRow()).toHaveTextContent('All inclusive'));
+    expect(quoted()).toBe('€384');
+
+    // Upgrading to half board re-prices the card AND renames the board with it — the recap
+    // is a statement about the rate that is selected, so the two can never disagree.
+    const hb = await waitFor(() => {
+      const found = [...container.querySelectorAll('.room-option')].find((el) => /half board/i.test(el.textContent));
+      expect(found).toBeTruthy();
+      return found;
+    });
+    await user.click(hb);
+
+    await waitFor(() => expect(boardRow()).toHaveTextContent('Half board'));
+    expect(boardRow()).not.toHaveTextContent('All inclusive');
+    expect(quoted()).toBe('€441');
   });
 
   it('quotes the board of the rate it quotes the price of', async () => {
@@ -144,7 +177,7 @@ describe('the availability card spells the trip out', () => {
       expect(el).toBeTruthy();
       return el;
     });
-    await waitFor(() => expect(within(facts).getByText('Half Board')).toBeInTheDocument());
-    expect(within(facts).queryByText('All Inclusive')).toBeNull();
+    await waitFor(() => expect(within(facts).getByText('Half board')).toBeInTheDocument());
+    expect(within(facts).queryByText('All inclusive')).toBeNull();
   });
 });
