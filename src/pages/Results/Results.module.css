@@ -647,10 +647,12 @@
   color: var(--text-sec); transition: color 0.2s;
 }
 .originOption:hover { color: var(--dark); }
-/* Same drawn control as .filterCheck, but ROUND — one airport, not many. */
+/* Visually identical to .filterCheck — the sidebar has ONE tick, and a round control here
+   read as a different kind of thing when it behaves the same way. (These stay <input
+   type="radio"> for behaviour and screen readers: one airport, not many.) */
 .originOption input[type="radio"] {
   appearance: none; -webkit-appearance: none;
-  width: 19px; height: 19px; border-radius: 50%;
+  width: 19px; height: 19px; border-radius: 6px;
   border: 2px solid #d7e3f5; flex-shrink: 0;
   transition: all 0.2s var(--ease-spring); position: relative; cursor: pointer;
 }
@@ -661,8 +663,9 @@
   box-shadow: 0 3px 10px rgba(31,79,216,0.3);
 }
 .originOption input:checked::after {
-  content: ''; position: absolute; inset: 4.5px;
-  border-radius: 50%; background: #fff;
+  content: '✓'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 11px; font-weight: 700;
   animation: scaleIn 0.2s var(--ease-spring) both;
 }
 .originFlag { font-size: 14px; line-height: 1; flex-shrink: 0; }

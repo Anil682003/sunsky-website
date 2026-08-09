@@ -459,6 +459,20 @@ describe('arrival airport ("Flying to")', () => {
     });
   });
 
+  // REGRESSION: most searches arrive scoped by DESTINATION only ("?destination=AYT" from the
+  // hero) and carry no `countries`. A country-keyed fetch never fired for them, so the filter
+  // was invisible on the most common path while working fine on a country search.
+  it('appears on a destination-only search, which carries no country', async () => {
+    const user = userEvent.setup();
+    renderResults();   // default fixture: ?destination=AYT, no countries=
+    await settled();
+    await openTransport(user);
+    // AYT is in scope, so the airports serving it are offered.
+    expect(await screen.findByRole('radio', { name: /Antalya/ })).toBeInTheDocument();
+    // Dalaman serves nothing in an Antalya-only scope and must not be offered.
+    expect(screen.queryByRole('radio', { name: /Marmaris/ })).not.toBeInTheDocument();
+  });
+
   it('is absent when the scope has no linked airports', async () => {
     const { fetchArrivalAirports } = await import('../../api/filters');
     fetchArrivalAirports.mockResolvedValueOnce([]);

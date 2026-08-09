@@ -552,7 +552,7 @@ export default function Results() {
   // ── ARRIVAL AIRPORTS ("Flying to") ──────────────────────────────────────────────
   // Fetched, never hardcoded: the admin endpoint only returns airports linked to a
   // destination that actually has hotels, so every option narrows to something real.
-  const [arrivalList, setArrivalList] = useState(NO_GEO);
+  const [arrivalAirports, setArrivalAirports] = useState([]);
 
   // Scope selection UI — the cascading picker drafts internally and hands back a
   // committed { countries, destinations, zones } on Apply.
@@ -686,22 +686,23 @@ export default function Results() {
   const scopeCities = cityList.key === scopeCountryKey ? cityList.list : NO_GEO.list;
   const scopeZones  = zoneList.key === scopeCityKey    ? zoneList.list : NO_GEO.list;
 
-  // "Flying to" options for this search's countries. Stamped with the scope key it was
-  // fetched for — the same pattern as cityList/zoneList above — so a list that arrives after
-  // the traveller has changed country is ignored rather than offering Turkish airports on a
-  // Spanish search. A country-less scope (the empty-search teaser) asks for nothing.
+  // "Flying to" options, fetched ONCE on mount and scoped afterwards in `arrivalOptions`.
+  //
+  // This deliberately does NOT key on the country: most searches arrive scoped by
+  // DESTINATION only ("?destination=AYT" from the hero), which leaves `scope.countries`
+  // empty — a country-keyed fetch never fired for them and the filter simply never appeared.
+  // The whole list is ~10 rows and the endpoint caches for 10 minutes, so fetching it once
+  // and filtering client-side is both cheaper and impossible to get wrong.
   useEffect(() => {
-    if (!scopeCountryKey) return;
     let live = true;
     const ctrl = new AbortController();
-    fetchArrivalAirports(scopeCountryKey.split(','), { signal: ctrl.signal })
-      .then((a) => { if (live) setArrivalList({ key: scopeCountryKey, list: a }); })
+    fetchArrivalAirports([], { signal: ctrl.signal })
+      .then((a) => { if (live) setArrivalAirports(a); })
       // A failed lookup hides the filter rather than showing a stale one; the rest of the
       // search is unaffected.
-      .catch(() => { if (live) setArrivalList({ key: scopeCountryKey, list: [] }); });
+      .catch(() => { if (live) setArrivalAirports([]); });
     return () => { live = false; ctrl.abort(); };
-  }, [scopeCountryKey]);
-  const arrivalAirports = arrivalList.key === scopeCountryKey ? arrivalList.list : NO_GEO.list;
+  }, []);
 
   // Only offer airports whose destinations are actually inside the current scope. Searching
   // "Bodrum" must not offer Dalaman just because both are Turkish — picking it could only
@@ -711,8 +712,7 @@ export default function Results() {
     [scope.destinations, priceScope]
   );
   const arrivalOptions = useMemo(() => {
-    if (!arrivalAirports.length) return [];
-    if (!scopeDestSet.size) return arrivalAirports;      // scope not resolved yet — offer all
+    if (!arrivalAirports.length || !scopeDestSet.size) return [];
     return arrivalAirports.filter((a) => a.destinations.some((d) => scopeDestSet.has(d)));
   }, [arrivalAirports, scopeDestSet]);
 
