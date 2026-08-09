@@ -57,13 +57,13 @@ const renderCheckout = () => render(
 const toExtras = async (user) => {
   const fields = [...document.querySelectorAll('.ck-field')];
   const input = (i) => fields[i].querySelector('input, select');
-  await user.type(input(0), 'Ali'); await user.type(input(1), 'Benli');
-  await user.selectOptions(input(4), input(4).options[1].value);
-  await user.type(input(6), 'ali@example.com'); await user.type(input(7), '+32475123456');
-  await user.type(input(15), 'Ali'); await user.type(input(16), 'Benli');
-  await user.selectOptions(input(18), input(18).options[1].value); await user.type(input(19), '1990-01-01');
-  await user.type(input(23), 'Aylin'); await user.type(input(24), 'Benli');
-  await user.selectOptions(input(26), input(26).options[1].value); await user.type(input(27), '1992-05-05');
+  fill(input(0), 'Ali'); fill(input(1), 'Benli');
+  fill(input(4), input(4).options[1].value);
+  fill(input(6), 'ali@example.com'); fill(input(7), '+32475123456');
+  fill(input(15), 'Ali'); fill(input(16), 'Benli');
+  fill(input(18), input(18).options[1].value); fill(input(19), '1990-01-01');
+  fill(input(23), 'Aylin'); fill(input(24), 'Benli');
+  fill(input(26), input(26).options[1].value); fill(input(27), '1992-05-05');
 
   await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
   await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());
@@ -73,6 +73,17 @@ const toExtras = async (user) => {
 };
 
 const transferCall = () => post.mock.calls.find(([url]) => String(url).includes('transfer-availability'));
+
+// Filling a form field is not what these tests are about, and user-event types one character
+// at a time — across a dozen fields that is most of the test's wall clock. Set the value the
+// way React reads it (native setter + input event) and keep user-event for the clicks that
+// ARE the behaviour under test.
+const fill = (el, value) => {
+  const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+};
 
 beforeEach(() => {
   post.mockReset();

@@ -43,8 +43,8 @@ const renderCheckout = () => render(
 const fillStepOne = async (user, { lastNames = ['Benli', 'Vanli'] } = {}) => {
   const fields = [...document.querySelectorAll('.ck-field')];
   const input = (i) => fields[i].querySelector('input, select');
-  const type = async (i, v) => { await user.clear(input(i)); await user.type(input(i), v); };
-  const pick = async (i) => user.selectOptions(input(i), input(i).options[1].value);
+  const type = async (i, v) => fill(input(i), v);
+  const pick = async (i) => fill(input(i), input(i).options[1].value);
 
   await type(0, 'Ali');                    // customer first name
   await type(1, lastNames[0]);             // customer last name
@@ -61,6 +61,17 @@ const fillStepOne = async (user, { lastNames = ['Benli', 'Vanli'] } = {}) => {
 const modal = () => document.querySelector('.ck-modal');
 const activeStep = () => document.querySelector('.ck-step.act')?.textContent || '';
 const confirmBtn = () => document.querySelector('.ck-rv-confirm');
+
+// Filling a form field is not what these tests are about, and user-event types one character
+// at a time — across a dozen fields that is most of the test's wall clock. Set the value the
+// way React reads it (native setter + input event) and keep user-event for the clicks that
+// ARE the behaviour under test.
+const fill = (el, value) => {
+  const proto = el instanceof HTMLSelectElement ? HTMLSelectElement.prototype : HTMLInputElement.prototype;
+  Object.getOwnPropertyDescriptor(proto, 'value').set.call(el, value);
+  el.dispatchEvent(new Event('input', { bubbles: true }));
+  el.dispatchEvent(new Event('change', { bubbles: true }));
+};
 
 beforeEach(() => { document.body.style.overflow = ''; });
 
