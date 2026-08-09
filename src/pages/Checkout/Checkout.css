@@ -448,6 +448,49 @@
 .ck-trust-item { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--text-sec); }
 .ck-trust-item svg { width:13px; height:13px; color:var(--green); flex-shrink:0; }
 
+/* ════ REVIEW YOUR DETAILS MODAL ════
+   Same light language as the cards behind it — white panel, blue heading, pale-blue
+   guidance rail. No dark overlay slab: a soft ink wash keeps the checkout visible
+   underneath, so the modal reads as a question about that page, not a new screen. */
+.ck-modal-wrap { position:fixed; inset:0; z-index:200; display:flex; align-items:center; justify-content:center;
+  padding:24px; background:rgba(13,26,51,.42); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  animation:ckFadeIn .22s var(--ease) both; }
+.ck-modal { width:100%; max-width:860px; max-height:calc(100vh - 48px); display:flex; flex-direction:column;
+  background:var(--white); border-radius:var(--r-xl); box-shadow:0 30px 80px rgba(7,14,31,.32);
+  overflow:hidden; animation:ckFadeUp .3s var(--ease-spring) both; }
+.ck-modal-head { display:flex; align-items:center; gap:12px; padding:20px 24px 16px; border-bottom:1px solid var(--border-light); }
+.ck-modal-title { flex:1; font-size:20px; font-weight:800; color:var(--blue); letter-spacing:-.3px; }
+.ck-modal-x { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--border-light); color:var(--text-sec); transition:all .25s var(--ease); }
+.ck-modal-x:hover { background:var(--blue-bg); color:var(--blue); }
+.ck-modal-x svg { width:15px; height:15px; }
+.ck-modal-body { display:grid; grid-template-columns:1fr 300px; gap:0; overflow-y:auto; }
+.ck-rv-main { padding:20px 24px 24px; }
+.ck-rv-lede { font-size:13.5px; color:var(--text-sec); line-height:1.65; margin-bottom:18px; }
+.ck-rv-trav { padding:14px 0; border-top:1px solid var(--border-light); }
+.ck-rv-trav:first-of-type { border-top:none; padding-top:4px; }
+.ck-rv-name { font-size:15px; font-weight:800; color:var(--text); margin-bottom:8px; }
+.ck-rv-dob { font-weight:600; color:var(--text-sec); font-variant-numeric:tabular-nums; }
+.ck-rv-trav.ok .ck-rv-name { color:var(--blue); }
+.ck-rv-aside { padding:20px; background:var(--blue-pale); border-left:1px solid var(--border-light); display:flex; flex-direction:column; gap:16px; }
+.ck-rv-tip { display:flex; align-items:flex-start; gap:10px; }
+.ck-rv-tip p { font-size:12.5px; line-height:1.6; color:var(--text-sec); }
+.ck-rv-tip b { color:var(--text); }
+.ck-rv-tick { flex:none; width:20px; height:20px; margin-top:1px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--green-light); color:#047857; }
+.ck-rv-tick svg { width:12px; height:12px; }
+.ck-modal-foot { display:flex; align-items:center; gap:14px; padding:16px 24px; border-top:1px solid var(--border-light); background:var(--white); }
+.ck-rv-edit { margin-right:auto; font-size:13.5px; font-weight:700; color:var(--blue); }
+.ck-rv-edit:hover { text-decoration:underline; }
+.ck-rv-confirm { display:inline-flex; align-items:center; gap:9px; padding:14px 26px; border-radius:var(--r-full);
+  background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow);
+  font-family:'Sora',sans-serif; font-size:14px; font-weight:800; box-shadow:var(--shadow-glow);
+  transition:all .3s var(--ease); }
+.ck-rv-confirm:hover:not(:disabled) { transform:translateY(-2px); }
+/* Disabled reads as "not yet", not as broken: it says what is missing and keeps a pointer. */
+.ck-rv-confirm:disabled { background:var(--border-light); color:var(--text-light); text-shadow:none; box-shadow:none; cursor:not-allowed; }
+.ck-rv-confirm svg { width:15px; height:15px; }
+
 /* ════ MOBILE BAR ════ */
 .ck-mbar { position:fixed; left:0; right:0; bottom:0; z-index:90; display:none; align-items:center; gap:13px;
   padding:11px 16px calc(11px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.94);
@@ -467,6 +510,12 @@
   .ck-sum-img { height:132px; }
 }
 @media (max-width: 860px) {
+  /* The guidance rail moves above the names — it is what you read BEFORE ticking. */
+  .ck-modal-body { grid-template-columns:1fr; }
+  .ck-rv-aside { order:-1; border-left:none; border-bottom:1px solid var(--border-light); }
+  .ck-modal-wrap { padding:12px; }
+  .ck-modal-foot { flex-wrap:wrap; }
+  .ck-rv-confirm { flex:1; justify-content:center; }
   .ck-stepper { gap:6px; padding:13px 14px; }
   .ck-step { padding:5px 6px; gap:9px; }
   .ck-step-sub { display:none; }

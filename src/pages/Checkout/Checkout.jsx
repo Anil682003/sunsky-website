@@ -145,6 +145,12 @@ const ageFromDob = (dob) => {
   if (m < 0 || (m === 0 && now.getDate() < b.getDate())) a--;
   return a;
 };
+// "1995-11-19" → "19/11/1995". Day-first, like every travel document a Belgian traveller
+// will be holding next to the screen while they check it.
+const dmy = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(iso || '');
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '');
+};
 // mirrors the admin traveller rules: <2 INF, <12 CHD, else ADT
 const ageType = (dob) => {
   const a = ageFromDob(dob);
@@ -261,6 +267,16 @@ function CheckoutContent({ stripe, elements }) {
   const [travellers, setTravellers] = useState(() =>
     Array.from({ length: booking.adults || 2 }, emptyTraveller));
 
+  /* ── the name check, between step 1 and the extras ──
+     A misspelled name is the one checkout mistake the traveller pays for later: airlines
+     charge to correct one, and some refuse outright. So leaving step 1 is gated on the
+     traveller reading their OWN typing back — one tick per person, against the name and
+     date of birth as we will send them. Editing any of those fields drops that person's
+     tick (see setT), because a confirmation of the previous spelling is worth nothing. */
+  const [reviewOpen, setReviewOpen] = useState(false);
+  const [reviewOk, setReviewOk] = useState({});
+  const allReviewed = travellers.every((_, i) => reviewOk[i]);
+
   /* ── step 2 : add-ons ── */
   const [insurance, setInsurance] = useState('none');
   const [holderIsLead, setHolderIsLead] = useState(true);
@@ -324,12 +340,26 @@ function CheckoutContent({ stripe, elements }) {
     return () => obs.disconnect();
   }, [step]);
 
+  /* ── review modal: Escape closes it, and the page behind it stops scrolling ── */
+  useEffect(() => {
+    if (!reviewOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setReviewOpen(false); };
+    window.addEventListener('keydown', onKey);
+    const prevOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    return () => { window.removeEventListener('keydown', onKey); document.body.style.overflow = prevOverflow; };
+  }, [reviewOpen]);
+
   /* ── field setters ── */
   const setP = (k) => (v) => { setPriv((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [`priv.${k}`]: undefined })); };
   const setB = (k) => (v) => { setPro((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [`pro.${k}`]: undefined })); };
   const setT = (i, k) => (v) => {
     setTravellers((ts) => ts.map((t, ti) => (ti === i ? { ...t, [k]: v } : t)));
     setErrors((e) => ({ ...e, [`t${i}.${k}`]: undefined }));
+    // Any edit to the identity we print on the ticket invalidates that traveller's tick.
+    if (k === 'firstName' || k === 'lastName' || k === 'title' || k === 'dateOfBirth') {
+      setReviewOk((r) => (r[i] ? { ...r, [i]: false } : r));
+    }
   };
 
   // Transfers: the vehicle has a hard passenger capacity from the supplier.
@@ -415,20 +445,39 @@ function CheckoutContent({ stripe, elements }) {
 
   const goStep = (i) => {
     if (i > furthest) return;
+    // The stepper is a shortcut, not a bypass: a traveller who came back to fix a spelling
+    // has an unticked name again, and clicking "Payment" in the header must land on the
+    // same check as the Continue button rather than sliding past it.
+    if (i > 0 && step === 0 && !allReviewed) return next();
     setDir(i > step ? 1 : -1);
     setStep(i);
   };
 
-  const next = () => {
-    if (step === 0) {
-      const e = validateInfo();
-      if (Object.keys(e).filter((k) => e[k]).length) return flashErrors(e);
-    }
+  const advance = () => {
     setErrors({});
     setDir(1);
     const n = Math.min(step + 1, 2);
     setStep(n);
     setFurthest((f) => Math.max(f, n));
+  };
+  const next = () => {
+    if (step === 0) {
+      const e = validateInfo();
+      if (Object.keys(e).filter((k) => e[k]).length) return flashErrors(e);
+      // Form is complete and internally valid — but "valid" and "spelled like the passport"
+      // are different claims, and only the traveller can make the second one. The modal is
+      // the last thing between a typo and a fee, so it opens even when they have already
+      // ticked everyone: re-reading two lines costs nothing next to an airline name change.
+      setReviewOpen(true);
+      return;
+    }
+    advance();
+  };
+  // Leaving the review modal is the only way past step 1, and it needs every traveller ticked.
+  const confirmReview = () => {
+    if (!allReviewed) return;
+    setReviewOpen(false);
+    advance();
   };
   const back = () => { setDir(-1); setStep((s) => Math.max(0, s - 1)); };
 
@@ -1414,6 +1463,71 @@ function CheckoutContent({ stripe, elements }) {
           {paying ? <span className="ck-spin" /> : <>{ctaLabel} {ICON.arrow}</>}
         </button>
       </div>
+
+      {/* ═══ REVIEW YOUR DETAILS — the gate out of step 1 ═══
+          Deliberately a modal and not another card: the traveller has just spent five
+          minutes typing and is in "next, next, next" mode, and a panel further down the
+          same page is read at that speed. What they are agreeing to is on the left, why it
+          matters on the right, and the only way forward needs every name ticked. */}
+      {reviewOpen && (
+        <div className="ck-modal-wrap" onClick={() => setReviewOpen(false)}>
+          <div className="ck-modal" role="dialog" aria-modal="true" aria-labelledby="ck-review-title"
+            onClick={(e) => e.stopPropagation()}>
+            <div className="ck-modal-head">
+              <h2 className="ck-modal-title hd" id="ck-review-title">Review your details</h2>
+              <button className="ck-modal-x" onClick={() => setReviewOpen(false)} aria-label="Close">{ICON.x}</button>
+            </div>
+
+            <div className="ck-modal-body">
+              <div className="ck-rv-main">
+                <p className="ck-rv-lede">
+                  It is important to review your details before you continue. Names and dates of
+                  birth cannot be changed free of charge once the booking is made — please check
+                  them against each traveller's passport or identity card.
+                </p>
+
+                {travellers.map((t, i) => {
+                  const name = [t.title, t.firstName, t.lastName].filter(Boolean).join(' ').trim();
+                  return (
+                    <div className={`ck-rv-trav${reviewOk[i] ? ' ok' : ''}`} key={i}>
+                      <div className="ck-rv-name hd">
+                        {name || `Traveller ${i + 1}`}
+                        {t.dateOfBirth && <span className="ck-rv-dob"> ({dmy(t.dateOfBirth)})</span>}
+                      </div>
+                      <Check checked={!!reviewOk[i]} onChange={(v) => setReviewOk((r) => ({ ...r, [i]: v }))}>
+                        Yes, this is my first name, last name and date of birth exactly as they
+                        appear on my passport or identity card.
+                      </Check>
+                    </div>
+                  );
+                })}
+              </div>
+
+              <aside className="ck-rv-aside">
+                <div className="ck-rv-tip">
+                  <span className="ck-rv-tick">{ICON.check}</span>
+                  <p>Enter only the <b>first (given) name</b> and the <b>last name</b> as shown on the
+                    travel document. No nicknames, no initials, no middle names.</p>
+                </div>
+                <div className="ck-rv-tip">
+                  <span className="ck-rv-tick">{ICON.check}</span>
+                  <p>Check the <b>date of birth</b> too — it sets the fare type for each traveller,
+                    so a wrong year can change the price of the trip.</p>
+                </div>
+              </aside>
+            </div>
+
+            <div className="ck-modal-foot">
+              <button className="ck-rv-edit" onClick={() => setReviewOpen(false)}>Edit details</button>
+              <button className="ck-rv-confirm" onClick={confirmReview} disabled={!allReviewed}>
+                {allReviewed
+                  ? <>Yes, I have checked and confirmed {ICON.arrow}</>
+                  : <>Tick every traveller to continue</>}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
