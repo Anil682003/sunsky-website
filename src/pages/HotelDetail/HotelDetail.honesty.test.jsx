@@ -111,6 +111,44 @@ const runCheck = async (user) => {
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
+describe('a sold-out day disables the check button', () => {
+  // The supplier was asked and returned nothing. The button the traveller pressed must stay
+  // where it is and go dead — a control that vanishes reads as a glitch — and it must come
+  // back the moment they choose a different day in the strip.
+  const emptyAvailability = () => post.mockImplementation((url) => (
+    String(url).includes('hotel-availability')
+      ? Promise.resolve({ data: { results: { hotelbeds: { rooms: [] } } } })
+      : Promise.resolve({ data: {} })
+  ));
+
+  it('greys the button and renames it "Not Available"', async () => {
+    const user = userEvent.setup();
+    emptyAvailability();
+    renderPage();
+    await runCheck(user);
+
+    const btn = await screen.findByRole('button', { name: /^not available$/i });
+    expect(btn).toBeDisabled();
+    // The live "check" affordance must not still be offered for a day that has nothing.
+    expect(screen.queryByRole('button', { name: /check price & availability/i })).not.toBeInTheDocument();
+  });
+
+  it('re-enables the button when another day is picked', async () => {
+    const user = userEvent.setup();
+    emptyAvailability();
+    renderPage();
+    await runCheck(user);
+    await screen.findByRole('button', { name: /^not available$/i });
+
+    // A different day in the matrix is a different question, so the button is live again.
+    const days = screen.getAllByRole('button', { name: /from €\d+/i });
+    await user.click(days[1]);
+
+    expect(await screen.findByRole('button', { name: /check price & availability/i })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /^not available$/i })).not.toBeInTheDocument();
+  });
+});
+
 describe('the fare strip never invents a week', () => {
   it('asks for dates instead of quoting a demo week when the search carries none', async () => {
     renderPage({ withDates: false });

@@ -901,6 +901,13 @@
 .sd .fc-cta { margin-left:auto; flex-shrink:0; font-family:'Sora',sans-serif; font-size:14.5px; font-weight:700; color:#fff; background:linear-gradient(135deg,var(--sun),var(--gold)); border:none; border-radius:var(--r-full); padding:14px 30px; cursor:pointer; box-shadow:0 6px 16px rgba(255,159,28,.32); transition:filter .25s, box-shadow .25s, transform .25s; }
 .sd .fc-cta:hover { filter:brightness(1.04); box-shadow:0 10px 22px rgba(255,159,28,.4); transform:translateY(-1px); }
 .sd .fc-cta:active { transform:translateY(0); }
+/* Sold-out day: the same button, dead. Grey rather than gold so it reads as unavailable at a
+   glance, and `not-allowed` so the pointer says so before the click that would do nothing. */
+.sd .fc-cta-off, .sd .fc-cta-off:hover, .sd .fc-cta-off:active {
+  background:#e6ebf3; color:#8a99b2; box-shadow:none; cursor:not-allowed;
+  filter:none; transform:none;
+}
+.sd .fc-act-off { margin-top:16px; padding-top:16px; border-top:1px solid #f0e2e4; }
 .sd .fc-res { display:flex; flex-direction:column; gap:14px; }
 .sd .fc-res-head { display:flex; align-items:center; gap:14px; }
 /* The trip written out under the green head — same panel/grid anatomy as the red

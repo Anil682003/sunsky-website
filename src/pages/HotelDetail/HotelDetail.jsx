@@ -2210,6 +2210,24 @@ export default function HotelDetail() {
                               </div>
                             </div>
                           </div>
+                          {/* The button the traveller pressed stays put and goes dead, rather
+                              than vanishing with the action bar. A control that disappears
+                              reads as a glitch; one that greys out and says "Not Available"
+                              names the outcome and holds the traveller's place until they
+                              pick another day in the strip above, which re-enables it. */}
+                          <div className="fc-act fc-act-off">
+                            <div className="fc-act-info">
+                              <span className="fc-act-date">
+                                {`${calDay(pd.iso)} ${calDate(pd.iso)} – ${calDay(addDaysISO(pd.iso, nights))} ${calDate(addDaysISO(pd.iso, nights))}`}
+                              </span>
+                              <span className="fc-act-meta">
+                                {nights} {nights === 1 ? 'day' : 'days'} · {hotelName}
+                              </span>
+                            </div>
+                            <button type="button" className="fc-cta fc-cta-off" disabled>
+                              Not Available
+                            </button>
+                          </div>
                         </div>
                       ) : !liveChecked ? (
                         <div className="fc-act">

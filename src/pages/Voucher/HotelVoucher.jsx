@@ -188,7 +188,7 @@ export default function HotelVoucher() {
             <div className="hv-board">
               <span className="hv-board-ico">{ICON.meal}</span>
               <span className="hv-board-label">Board Basis</span>
-              <span className="hv-board-val">{v.board}</span>
+              <span className="hv-board-val hv-caps">{v.board}</span>
             </div>
           </div>
         </section>
@@ -231,9 +231,12 @@ export default function HotelVoucher() {
                 )}
               </div>
               <div className="hv-room-grid">
-                <Cell icon={ICON.bed} label="Room Type">{r.type}</Cell>
+                {/* Room and board in capitals, as on the checkout summary — a voucher is
+                    handed to a hotel desk, so the two fields they read off it are the two
+                    that must be unmistakable. */}
+                <Cell icon={ICON.bed} label="Room Type"><span className="hv-caps">{r.type}</span></Cell>
                 <Cell icon={ICON.users} label="Occupancy">{r.occupancy}</Cell>
-                <Cell icon={ICON.meal} label="Board Basis">{r.board}</Cell>
+                <Cell icon={ICON.meal} label="Board Basis"><span className="hv-caps">{r.board}</span></Cell>
                 <Cell icon={ICON.shieldCheck} label="Room Status">{r.status}</Cell>
               </div>
               {r.assigned?.length > 0 && (

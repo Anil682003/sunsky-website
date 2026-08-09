@@ -88,6 +88,9 @@
 .hv-board-ico svg { width:18px; height:18px; }
 .hv-board-label { font-size:10.5px; font-weight:700; text-transform:uppercase; letter-spacing:.6px; color:var(--muted); }
 .hv-board-val { font-size:14px; font-weight:700; color:var(--navy); margin-left:4px; }
+/* Room and board are always shown in capitals. In CSS, never in the string — these values
+   come from the stored booking and are re-read by the supplier. */
+.hv-caps { text-transform:uppercase; }
 
 /* ════ GENERIC SECTION ════ */
 .hv-sec { margin-top:16px; border:1px solid var(--border); border-radius:12px; padding:16px 20px 18px; }
