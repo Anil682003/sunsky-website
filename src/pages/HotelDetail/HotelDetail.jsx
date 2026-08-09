@@ -98,6 +98,10 @@ function transformFlights(data, originCode) {
         stops: Math.max(outLegs.length - 1, retLegs.length - 1, 0),
         fareBreakdown: f.fareBreakdown || [],
         flightKeys: keysOf(f),
+        // The fare's real allowance, straight from the supplier. Absent on an older cached
+        // response, which is why the card treats "no baggage object" as "say nothing" rather
+        // than as "nothing included".
+        baggage: f.baggage || null,
       };
     })
     .filter(Boolean);
@@ -882,10 +886,6 @@ export default function HotelDetail() {
   // a date, the availability response carries a live rating we adopt (see checkAvailability).
   const [review, setReview]         = useState(null);
   const [liveFlights, setLiveFlights] = useState(null); // {loading?|error?|flights[]|cheapest}
-  // airport→hotel transfer add-on: everything is derived from the page context
-  // (airport = flight-search destination, hotel = this page's HotelBeds/ATLAS code)
-  const [liveTransfers, setLiveTransfers] = useState(null); // {loading?|error?|services[]}
-  const [selectedTransfer, setSelectedTransfer] = useState(-1); // -1 = no transfer (opt-in)
 
   // Scroll-reveal.
   //
@@ -913,7 +913,7 @@ export default function HotelDetail() {
     // every render, which blanks the whole page. Same failure mode as the `sel` outage. The
     // underlying state changes at exactly the same moments, so the effect still re-runs when a
     // day's availability flips.
-  }, [activeTab, liveChecked, checkedEmpty, transport, liveRooms, liveFlights, liveTransfers]);
+  }, [activeTab, liveChecked, checkedEmpty, transport, liveRooms, liveFlights]);
 
   // lock body scroll when modal open
   useEffect(() => {
@@ -1352,13 +1352,9 @@ export default function HotelDetail() {
   // A filter set that survives one search rarely fits the next — reset when results change.
   useEffect(() => { clearFlightFilters(); }, [allFlights]);
 
-  // Gated on transport here, at the single source every consumer reads (transferPrice,
-  // liveTotal, both checkout payloads) — an own-transport booking can never carry an
-  // airport pickup, whatever state a stale response managed to leave behind.
-  const liveTransfer = (transport === 'package' && selectedTransfer >= 0 && liveTransfers?.services?.length)
-    ? liveTransfers.services[selectedTransfer] : null;
-  const transferPrice = liveTransfer ? Math.round(liveTransfer.price || 0) : 0;
-  const liveTotal = liveRoom ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0) + transferPrice) : null;
+  // Hotel + flight only. The airport transfer is priced and added at the checkout now, so
+  // this page never quotes a total that includes something it does not sell.
+  const liveTotal = liveRoom ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
   const displayTotal = liveTotal != null ? liveTotal : stayFrom;
   // live-aware overview card numbers (hotel+flight base; transfer & SGR listed separately)
   const ovPax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
@@ -1386,24 +1382,18 @@ export default function HotelDetail() {
       const nextTransport = patch.transport ?? transport;
       const nextOrigin = patch.origin ?? origin;
       if (nextTransport === 'hotel_only') {
-        // Flights off: the flight AND its dependent transfer leave the price. The room stays.
+        // Flights off: the flight leaves the price. The room stays.
         setLiveFlights(null);
-        invalidateTransfers();
-        setLiveTransfers(null); setSelectedTransfer(-1);
-        lastTransferPickupRef.current = null;
         return;
       }
       const checkin = pd?.iso || baseCheckIn;
       if (!checkin || !destination) { setLiveFlights(null); return; }
-      // Before any availability check the flight/transfer sections aren't on screen at all,
-      // so re-resolving them here would be a supplier hit nobody sees. The check itself
-      // fetches both under whatever transport/origin is set by then.
+      // Before any availability check the flight section isn't on screen at all, so
+      // re-resolving it here would be a supplier hit nobody sees. The check itself fetches
+      // under whatever transport/origin is set by then.
       if (!liveChecked) { setLiveFlights(null); return; }
       const checkout = pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut;
       fetchFlights(checkin, checkout, nextOrigin);
-      // Transfers run destination-side — the departure airport doesn't change them, so an
-      // origin switch keeps them. Turning flights back ON re-fetches what "off" cleared.
-      if (patch.transport === 'package') fetchTransfers(checkin);
       return;
     }
     setOvr((p) => ({ ...p, ...patch }));
@@ -1417,9 +1407,6 @@ export default function HotelDetail() {
     setCheckedEmpty(new Set());
     invalidateFlights();
     setLiveFlights(null);
-    invalidateTransfers();
-    setLiveTransfers(null);
-    setSelectedTransfer(-1);
     // The PICKED DAY is a different matter. Changing a child's age doesn't move the stay,
     // and changing its length doesn't move the departure day — the day is still in the
     // strip, so clearing it made the traveller re-pick for nothing. Only a change of
@@ -1429,7 +1416,7 @@ export default function HotelDetail() {
     const keepsTheDay = keys.every((k) => k === 'childAges' || k === 'childDobs' || k === 'nights');
     if (!keepsTheDay) setSelectedISO(null);
   };
-  const resetFilters = () => { setOvr({}); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); invalidateTransfers(); setLiveTransfers(null); setSelectedTransfer(-1); setCheckedEmpty(new Set()); };
+  const resetFilters = () => { setOvr({}); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); setCheckedEmpty(new Set()); };
 
   const ovBase = liveTotal != null ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
 
@@ -1482,11 +1469,7 @@ export default function HotelDetail() {
       setSelectedFlight(0);
       if (!flights.length) {
         // The chosen airport doesn't fly this route on these dates. Say so, and go find
-        // the airports that do — with prices — rather than leaving a dead end. And drop
-        // any transfer still on screen: its pickup time (and rateKey) encode the ARRIVAL
-        // of a flight that just ceased to exist — bookable, it would put a paid airport
-        // pickup timed to an abandoned itinerary on a flightless booking.
-        dropFlightTimedTransfer();
+        // the airports that do — with prices — rather than leaving a dead end.
         setLiveFlights({ flights: [], empty: true, from, checkin, checkout, probing: true, alternatives: null, unprobed: [] });
         probeAlternatives(from, checkin, checkout, seq);
         return;
@@ -1495,23 +1478,12 @@ export default function HotelDetail() {
     }).catch((e) => {
       // NO alternative probe on error: a supplier that's down is down for every airport,
       // and multiplying a failing call by four would only hammer it. Retry is offered.
-      // The flight-timed transfer goes here too — same hazard as the empty branch.
       if (seq === flightSeqRef.current) {
-        dropFlightTimedTransfer();
         setLiveFlights({ error: friendlyError(e, 'flight') });
       }
     });
   };
 
-  // A transfer whose pickup follows a flight must not outlive that flight. Clearing
-  // `lastTransferPickupRef` matters: without it the same-datetime dedupe would swallow
-  // the next legitimate re-fetch as "already have these results".
-  const dropFlightTimedTransfer = () => {
-    invalidateTransfers();
-    setLiveTransfers(null);
-    setSelectedTransfer(-1);
-    lastTransferPickupRef.current = null;
-  };
 
   // ── the smart fallback: price the popular alternatives in parallel ──
   // Bounded (3-4 calls), allSettled so one dead airport can't sink the rest, seq-guarded so
@@ -1560,69 +1532,6 @@ export default function HotelDetail() {
     setOvr((p) => ({ ...p, origin: code }));
     fetchFlights(checkin, checkout, code);
   };
-
-
-  // ── shared transfer fetch — NO manual codes: airport comes from the flight
-  //    search destination, the hotel is this page's code (= HotelBeds ATLAS code).
-  //    `pickupISO` is the pickup datetime — ideally the selected flight's ARRIVAL
-  //    time (the rateKey encodes it, so it becomes the booked pickup time). Falls
-  //    back to midday on the check-in date until a flight is known. ──
-  const lastTransferPickupRef = useRef(null);
-  // Same monotonic-id guard as flights, for the same reason: switching to own transport
-  // clears the transfer section, but it cannot recall a request already on the wire — a
-  // slow response used to land afterwards and repaint an airport transfer under the
-  // "you're travelling by your own transport" card, bookable against a flightless stay.
-  const transferSeqRef = useRef(0);
-  const invalidateTransfers = () => { transferSeqRef.current += 1; };
-  const fetchTransfers = (checkin, pickupISO = null) => {
-    if (!destination || !hotelCode || !checkin) { invalidateTransfers(); setLiveTransfers(null); return; }
-    const validISO = pickupISO && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(pickupISO)
-      ? pickupISO.slice(0, 16) + ':00'
-      : `${checkin}T12:00:00`;
-    if (lastTransferPickupRef.current === validISO && liveTransfers?.services) return; // same datetime → keep results
-    lastTransferPickupRef.current = validISO;
-    const seq = ++transferSeqRef.current;
-    setLiveTransfers({ loading: true });
-    axiosInstance.post('/transfer-availability/search', {
-      fromType: 'IATA', fromCode: destination,
-      toType: 'ATLAS', toCode: String(hotelCode),
-      outbound: validISO,
-      adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
-    }, { timeout: SUPPLIER_TIMEOUT }).then(({ data }) => {
-      if (seq !== transferSeqRef.current) return;   // a newer search (or a clear) owns the screen
-      const services = data?.results?.hotelbeds?.services || [];
-      setSelectedTransfer(-1);
-      setLiveTransfers({ services, pickupISO: validISO });
-    }).catch((e) => {
-      if (seq === transferSeqRef.current) setLiveTransfers({ error: friendlyError(e, 'transfer') });
-    });
-  };
-
-  // NO flight/transfer fetch on mount. The sections are revealed by the availability check
-  // (liveChecked), so a page-open fetch would hit two live suppliers for content nobody can
-  // see yet — and for dates the traveller may never check. checkAvailabilityForDay fetches
-  // both, with the picked day, at the moment they become visible.
-
-  // NOTE: the TripAdvisor rating is NOT fetched on mount. It comes only from the live
-  // availability API, and firing that call on every page open — before the traveller has
-  // engaged with anything — is exactly the kind of eager live-supplier hit we avoid. The
-  // rating instead rides on the availability response that the FIRST date selection already
-  // triggers (see checkAvailability), so the badge appears once live prices are being loaded and costs
-  // no extra supplier call.
-
-  // ── keep the transfer pickup aligned with the SELECTED flight's arrival time —
-  //    when the customer picks a different flight, the transfer availability is
-  //    re-fetched at that flight's landing datetime ──
-  const selectedArrivalISO = (() => {
-    const legs = liveFlights?.flights?.[selectedFlight]?.outLegs;
-    const arr = legs?.length ? legs[legs.length - 1]?.arrival : null;
-    return arr && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(arr)) ? String(arr).slice(0, 16) + ':00' : null;
-  })();
-  useEffect(() => {
-    if (!selectedArrivalISO) return;
-    fetchTransfers(selectedArrivalISO.slice(0, 10), selectedArrivalISO);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedArrivalISO]);
 
   const pickDay = (iso) => {
     if (!iso || checkedEmpty.has(iso)) return;
@@ -1693,12 +1602,10 @@ export default function HotelDetail() {
       if (data?.review) setReview((prev) => prev ?? data.review);
     }).catch((e) => setLiveRooms({ error: friendlyError(e, 'room') }));
 
-    // Live flights + transfers for the newly picked dates — but only for a traveller who
-    // asked to fly. Own transport prices the room alone.
-    if (transport === 'package') {
-      fetchFlights(checkin, checkout);
-      fetchTransfers(checkin);
-    }
+    // Live flights for the newly picked dates — but only for a traveller who asked to fly.
+    // Own transport prices the room alone. (The airport transfer is sold at the checkout,
+    // where the flight is already fixed, so no transfer call is made from this page.)
+    if (transport === 'package') fetchFlights(checkin, checkout);
   };
   const checkAvailability = () => checkAvailabilityForDay(pickedISO);
 
@@ -1710,7 +1617,7 @@ export default function HotelDetail() {
     // Never hand off while flight/transfer availability is still loading — the
     // package contents (and the total) aren't final yet. The Book button is also
     // disabled in this state; this is the belt-and-braces guard.
-    if (liveFlights?.loading || liveTransfers?.loading) return;
+    if (liveFlights?.loading) return;
     // A booking needs a rate the supplier actually quoted. This used to be papered over by
     // the demo room/flight/meal, which gave the checkout something to show; with those gone
     // an unchecked booking would hand over a €0 stay, so send the traveller to the check
@@ -1796,15 +1703,9 @@ export default function HotelDetail() {
           // The board the supplier actually quoted, never a demo meal plan at a made-up price.
           meal: useLive ? (liveRoom.board || 'Room only') : '',
           mealPrice: 0,
-          // display info for the selected airport transfer (package add-on)
-          transfer: liveTransfer ? {
-            from: liveTransfer.pickup?.from || `${destination} Airport`,
-            to: liveTransfer.pickup?.to || hotelName,
-            date: (liveTransfers?.pickupISO || checkin).slice(0, 10),
-            time: (liveTransfer.pickup?.time || liveTransfers?.pickupISO?.slice(11, 16) || '12:00').slice(0, 5),
-            type: liveTransfer.transferType, vehicle: liveTransfer.vehicle,
-            direction: liveTransfer.direction, maxPax: liveTransfer.maxPax,
-          } : null,
+          // No transfer travels from this page any more — it is chosen in the checkout's
+          // extras step, which fetches it against the flight arrival being booked.
+          transfer: null,
           // ── the search behind this quote ──
           // Everything the checkout needs to ASK THE SUPPLIER AGAIN: a traveller who corrects
           // a child's date of birth there changes the age the stay and the fare were priced
@@ -1858,24 +1759,11 @@ export default function HotelDetail() {
                   tripType: retLg.length ? 'roundtrip' : 'oneway', supplier: 'airtuerk',
                 }
               : null,
-            // Airport transfer add-on — the arrival flight number/airline are taken
-            // automatically from the selected flight (HotelBeds needs them for the
-            // booking's transferDetails).
-            transfer: liveTransfer ? {
-              fromType: 'IATA', fromCode: destination,
-              toType: 'ATLAS', toCode: String(hotelCode),
-              // The EXACT pickup datetime the displayed price was fetched with —
-              // the server re-prices with the same params, and the rateKey encodes
-              // this as the booked pickup time (aligned to the flight's arrival).
-              outbound: liveTransfers?.pickupISO || `${checkin}T12:00:00`,
-              price: liveTransfer.price, currency: 'EUR',
-              rateKey: liveTransfer.rateKey,
-              transferType: liveTransfer.transferType, vehicleCode: liveTransfer.vehicleCode,
-              vehicle: liveTransfer.vehicle, direction: liveTransfer.direction,
-              from: liveTransfer.pickup?.from, to: liveTransfer.pickup?.to,
-              flightNumber: (outLg[outLg.length - 1]?.flightNumber || '').slice(0, 7) || undefined,
-              companyName: outLg[outLg.length - 1]?.airline || undefined,
-            } : null,
+            // The airport transfer is added by the checkout's extras step (it fetches
+            // availability against the arrival below and builds this same shape), so nothing
+            // is sent from here. The flight identity it needs for the supplier's
+            // transferDetails travels on `flight.legs` above.
+            transfer: null,
           },
         },
       },
@@ -2353,18 +2241,9 @@ export default function HotelDetail() {
                               </div>
                               {transport === 'package' && (
                                 <div className="fcu-item">
-                                  <span className="fcu-k">{liveTransfer ? ICON.check : ICON.noTransfer} Transfer</span>
-                                  <span className="fcu-v">
-                                    {liveTransfer
-                                      ? `${liveTransfer.vehicle || 'Transfer'} · ${ccy}${Math.round(liveTransfer.price || 0)}`
-                                      : liveTransfers?.loading ? 'Checking options…'
-                                      : liveTransfers?.error || (liveTransfers && !liveTransfers.services?.length)
-                                        ? 'None for this hotel'
-                                        : 'To be booked on the next page'}
-                                  </span>
-                                  {!liveTransfer && !liveTransfers?.loading && (
-                                    <span className="fcu-sub">Optional extra</span>
-                                  )}
+                                  <span className="fcu-k">{ICON.noTransfer} Transfer</span>
+                                  <span className="fcu-v">To be booked on the next page</span>
+                                  <span className="fcu-sub">Optional extra</span>
                                 </div>
                               )}
                             </div>
@@ -2532,57 +2411,10 @@ export default function HotelDetail() {
               </div>
               )}
 
-              {/* Airport transfer — auto-derived add-on (airport from the flight search,
-                  hotel from this page); shown right below the flights section. The
-                  transport gate is belt-and-braces on top of the fetch guards: an
-                  own-transport stay must never show an airport pickup, even if a stale
-                  response somehow reached the state. */}
-              {transport === 'package' && liveTransfers && liveChecked && !dayUnavailable && (
-              <div className="transfer-section reveal vis">
-                {!liveTransfers.loading && <div className="section-title"><span className="st-step">4</span> Airport transfer <span className="stay-guests">(optional)</span></div>}
-                {liveTransfers.loading ? (
-                  /* Placeholders rather than a spinner-and-sentence, matching rooms and flights —
-                     this was the one live section still announcing its wait in words. */
-                  <SkeletonBlock label="Checking transfer availability…">
-                    <FlightCardSkeleton />
-                  </SkeletonBlock>
-                ) : liveTransfers.error ? (
-                  <div className="live-error">
-                    {ICON.warn}
-                    <span className="live-error-msg">{liveTransfers.error}</span>
-                    <button type="button" className="live-retry"
-                      onClick={() => fetchTransfers(pd?.iso || baseCheckIn)}>Try again</button>
-                  </div>
-                ) : liveTransfers.services?.length ? (
-                  <div className="stay-block">
-                    <div className="flight-note">From {destination} airport to your hotel on arrival day{liveTransfers.pickupISO ? ` · pickup ~${liveTransfers.pickupISO.slice(11, 16)} (follows your flight)` : ''} — live prices:</div>
-                    <div className={`room-option${selectedTransfer === -1 ? ' selected' : ''}`} onClick={() => setSelectedTransfer(-1)}>
-                      <div className="room-radio" />
-                      <div className="room-info">
-                        <div className="room-name">No transfer</div>
-                        <div className="room-cap">I'll arrange my own transport</div>
-                      </div>
-                      <div className="room-price included">{ICON.check}&nbsp;{ccy}0</div>
-                    </div>
-                    {liveTransfers.services.slice(0, 4).map((t, ti) => (
-                      <div key={ti} className={`room-option${selectedTransfer === ti ? ' selected' : ''}`} onClick={() => setSelectedTransfer(ti)}>
-                        <div className="room-radio" />
-                        <div className="room-info">
-                          <div className="room-name">{t.vehicle || 'Transfer'}{t.category ? ` · ${t.category}` : ''} <span className="stay-guests">({t.transferType === 'SHARED' ? 'Shared' : 'Private'})</span></div>
-                          <div className="room-cap">{t.pickup?.from || `${destination} Airport`} → {t.pickup?.to || hotelName}{t.maxPax ? ` · up to ${t.maxPax} passengers` : ''}</div>
-                          {Array.isArray(t.cancellationPolicies) && t.cancellationPolicies.length > 0 && (
-                            <div className="room-cancel room-cancel-free">{ICON.check} Free cancellation before {(() => { const d = new Date(t.cancellationPolicies[0].from); return isNaN(d.getTime()) ? t.cancellationPolicies[0].from : `${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`; })()}</div>
-                          )}
-                        </div>
-                        <div className="room-price">{ccy}{Math.round(t.price)}</div>
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="live-empty">{ICON.noTransfer} No transfers available for this hotel and date.</div>
-                )}
-              </div>
-              )}
+              {/* The airport transfer is no longer sold here. It is bought at the checkout, in
+                  the extras step, where the flight is already fixed so the pickup can be timed to
+                  the arrival that will actually be booked — and where every other paid extra is
+                  chosen. This page prices the holiday; the checkout sells the additions. */}
 
               {/* Rooms — live availability, revealed once the traveller checks a date.
                   An unavailable day has no rooms by definition — the red card already
@@ -2747,7 +2579,7 @@ export default function HotelDetail() {
 
               {/* Overview */}
               <div className="overview-section reveal vis">
-                <div className="section-title"><span className="st-step">{liveTransfers ? 5 : 4}</span> Overview of your holiday</div>
+                <div className="section-title"><span className="st-step">4</span> Overview of your holiday</div>
                 <div className="overview-card">
                   <div className="overview-head">
                     <div className="overview-head-main">
@@ -2770,9 +2602,11 @@ export default function HotelDetail() {
                       ? <div className="overview-row"><span className="overview-row-label">{ICON.users} {ovPax} × {ccy}{Math.round(ovBase / ovPax).toLocaleString('en-GB')} p.p.</span><span className="overview-leader" /><span className="overview-row-val">{ccy} {ovBase.toLocaleString('en-GB')}</span></div>
                       : <div className="overview-row"><span className="overview-row-label">{ICON.users} Stay for {ovPax} {ovPax === 1 ? 'traveller' : 'travellers'}</span><span className="overview-leader" /><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>not priced yet</span></div>}
                     <div className="overview-row"><span className="overview-row-label">{ICON.shield} SGR Guarantee Fund</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 20</span></div>
-                    {liveTransfer
-                      ? <div className="overview-row"><span className="overview-row-label">{ICON.check} Airport transfer — {liveTransfer.vehicle || 'Transfer'} ({liveTransfer.transferType === 'SHARED' ? 'shared' : 'private'})</span><span className="overview-leader" /><span className="overview-row-val">{ccy} {Math.round(liveTransfer.price)}</span></div>
-                      : <div className="overview-row"><span className="overview-row-label">{ICON.noTransfer} Transfer not included</span><span className="overview-leader" /><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>—</span></div>}
+                    {/* Not "not included" — that reads as unavailable. It is available, on the
+                        next page, priced against the flight being booked. */}
+                    {transport === 'package' && (
+                      <div className="overview-row"><span className="overview-row-label">{ICON.noTransfer} Airport transfer</span><span className="overview-leader" /><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>added at checkout</span></div>
+                    )}
                     <div className="overview-extras">
                       <div className="overview-extra">{ICON.check} No booking fees</div>
                       {liveFlight != null && <div className="overview-extra">{ICON.check} Hand luggage included</div>}
@@ -2782,12 +2616,12 @@ export default function HotelDetail() {
                     <span className="overview-total-label">Total for {ovPax} {ovPax === 1 ? 'person' : 'people'}</span>
                     <span className="overview-total-val">
                       {ovBase != null
-                        ? `${ccy}${(ovBase + transferPrice + 20).toLocaleString('en-GB')}`
+                        ? `${ccy}${(ovBase + 20).toLocaleString('en-GB')}`
                         : '—'}
                     </span>
                   </div>
                   <div className="overview-book-wrap">
-                    <button className="overview-book-btn" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
+                    <button className="overview-book-btn" onClick={goCheckout} disabled={liveFlights?.loading}>
                       {liveFlights?.loading ? <>Checking flight prices…</>
                         : ovBase == null ? <>Check availability {ICON.arrow}</>
                         : <>Now book {ICON.arrow}</>}
@@ -3125,7 +2959,7 @@ export default function HotelDetail() {
                 <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nightsToDays(nights)} days</div>
               </div>
               <div className="bkcw">
-                <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
+                <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading}>
                   {liveFlights?.loading ? 'Checking flights…'
                     : liveTotal == null ? <>Check availability {ICON.arrow}</>
                     : <>Book Now {ICON.arrow}</>}
@@ -3142,7 +2976,7 @@ export default function HotelDetail() {
         <div className="mbi">
           <div className="mbp"><small>{liveTotal != null ? 'live total' : fromPP != null ? 'per person from' : 'no price yet'}</small>{liveTotal != null
             ? `${ccy}${liveTotal.toLocaleString('en-GB')}` : fromPP != null ? `${ccy}${fromPP}` : '—'}</div>
-          <button className="mbc" onClick={goCheckout} disabled={liveFlights?.loading || liveTransfers?.loading}>
+          <button className="mbc" onClick={goCheckout} disabled={liveFlights?.loading}>
             {liveFlights?.loading ? 'Checking…' : `${liveTotal != null ? 'Book now' : 'Check price'} →`}
           </button>
         </div>

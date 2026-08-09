@@ -6,6 +6,8 @@ import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStri
 import axiosInstance from '../../services/axiosInstance';
 import { ageAtCheckIn } from '../../utils/childDob';
 import { cancellationState, parseRateKey } from '../../utils/rateDetails';
+import { DEFAULT_PRICING, priceInsurance, priceBasisLabel } from '../../utils/checkoutPricing';
+import { useCheckoutConfig } from '../../api';
 import Confirmation from './Confirmation';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import './Checkout.css';
@@ -93,27 +95,55 @@ const COUNTRIES = [
 ];
 const IDEAL_BANKS = ['ING', 'ABN AMRO', 'Rabobank', 'ASN Bank', 'SNS', 'Bunq', 'Knab', 'Revolut', 'N26'];
 
-const INSURANCES = [
-  {
-    id: 'none', name: 'No insurance', icon: ICON.ban, pct: 0,
-    desc: 'I accept the risk and travel without extra protection.',
-    covers: [],
-  },
-  {
-    id: 'cancel', name: 'Cancellation insurance', icon: ICON.cal, pct: 0.06,
+/**
+ * The insurance choices, built from the rates the dashboard holds.
+ *
+ * The prices are NOT written here any more: they come from /website/checkout-config, which is
+ * the same record the server re-prices the booking against. What stays here is the part that
+ * is genuinely presentation — the icon, the plain-English pitch and what each policy covers.
+ *
+ * `pricing.insurance.<key>.enabled = false` in the dashboard removes an option from sale, so
+ * the list is filtered rather than fixed.
+ */
+const INSURANCE_PRESENTATION = {
+  cancellation: {
+    id: 'cancel', icon: ICON.cal,
     desc: 'Get your money back if you unexpectedly can’t travel.',
     covers: ['Illness, accident or injury', 'Job loss or new employment', 'Damage to your home'],
   },
-  {
-    id: 'travel', name: 'Travel insurance', icon: ICON.umbrella, perDay: 3.2,
+  travel: {
+    id: 'travel', icon: ICON.umbrella,
     desc: 'Worldwide cover for you and your luggage while travelling.',
     covers: ['Medical expenses abroad', 'Luggage loss & theft', 'Delay & missed connection'],
   },
-  {
-    id: 'allin', name: 'All-in protection', icon: ICON.heartPulse, pct: 0.085, featured: true,
+  allin: {
+    id: 'allin', icon: ICON.heartPulse, featured: true,
     desc: 'Cancellation + travel insurance combined. Zero worries.',
     covers: ['Everything in Cancellation', 'Everything in Travel', 'Curtailment & repatriation'],
   },
+};
+const NO_INSURANCE = {
+  id: 'none', name: 'No insurance', icon: ICON.ban,
+  desc: 'I accept the risk and travel without extra protection.',
+  covers: [], option: null,
+};
+const buildInsurances = (pricing) => [
+  NO_INSURANCE,
+  ...Object.entries(pricing?.insurance || {})
+    .filter(([, o]) => o && o.enabled !== false)
+    .map(([key, option]) => {
+      const p = INSURANCE_PRESENTATION[key] || {};
+      return {
+        id: p.id || option.id || key,
+        name: option.label || key,
+        provider: option.provider || null,
+        icon: p.icon || ICON.shield,
+        desc: option.description || p.desc || '',
+        covers: p.covers || [],
+        featured: !!p.featured,
+        option,
+      };
+    }),
 ];
 
 // Reaching /checkout with no router state used to render a COMPLETE fabricated booking —
@@ -559,9 +589,24 @@ function CheckoutContent({ stripe, elements }) {
   });
 
   /* ── step 2 : add-ons ── */
+  // The rate card the dashboard holds — insurance rates, the booking fee, baggage prices,
+  // the deposit rule. Falls back to the shipped defaults (which mirror the server's) so a
+  // failed config call quotes the right numbers rather than none.
+  const { data: pricingCfg } = useCheckoutConfig();
+  const pricing = pricingCfg || DEFAULT_PRICING;
+  const insurances = useMemo(() => buildInsurances(pricing), [pricing]);
   const [insurance, setInsurance] = useState('none');
   const [holderIsLead, setHolderIsLead] = useState(true);
   const [holder, setHolder] = useState({ firstName: '', lastName: '' });
+
+  /* ── the airport transfer, bought here rather than on the hotel page ──
+     The flight is already chosen by now, so the pickup can be timed to the arrival that will
+     actually be booked — which is what the supplier's rateKey encodes. One call, on arrival
+     at this step, and never for a traveller who said they are making their own way there. */
+  const [transfers, setTransfers] = useState(null);      // {loading|error|services[]|pickupISO}
+  const [transferPick, setTransferPick] = useState(-1);  // -1 = no transfer (opt-in, always)
+  const pickedTransfer = (transferPick >= 0 && transfers?.services?.length)
+    ? transfers.services[transferPick] : null;
 
   /* ── step 3 : payment ── */
   const [payMethod, setPayMethod] = useState('card');
@@ -601,23 +646,27 @@ function CheckoutContent({ stripe, elements }) {
     : quotedNow !== quotedThen ? quotedNow
     : booking.ppPrice * pax;
   const roomExtraTotal = (booking.roomExtra || 0) * pax;
-  // Package add-on: a transfer attached to a hotel/flight booking is its own
-  // per-vehicle line. (For a transfer-only booking it's already in `base`.)
-  const transferTotal = !isTransfer && booking.api?.transfer
-    ? Math.round(Number(booking.api.transfer.price) || 0) : 0;
-  const subtotal = base + roomExtraTotal + transferTotal + SGR_FEE;
+  // Package add-on: the airport transfer, chosen HERE (extras step) and priced per vehicle,
+  // so it is never multiplied by the traveller count. A transfer-only booking has it in
+  // `base` already. `booking.api.transfer` is the legacy path — hand-offs from before the
+  // transfer moved to this page can still carry one.
+  const transferTotal = !isTransfer && pickedTransfer
+    ? Math.round(Number(pickedTransfer.price) || 0)
+    : (!isTransfer && booking.api?.transfer ? Math.round(Number(booking.api.transfer.price) || 0) : 0);
+  const serviceFee = Number(pricing?.fees?.serviceFee);
+  const SGR = Number.isFinite(serviceFee) ? serviceFee : SGR_FEE;
+  const subtotal = base + roomExtraTotal + transferTotal + SGR;
+  // Priced from the dashboard's rate card, by the same arithmetic the server will re-run.
   const insAmount = useMemo(() => {
-    const ins = INSURANCES.find((i) => i.id === insurance);
-    if (!ins || ins.id === 'none') return 0;
-    if (ins.perDay) return Math.round(ins.perDay * pax * booking.nights);
-    return Math.round(subtotal * ins.pct);
-  }, [insurance, pax, subtotal, booking.nights]);
+    const ins = insurances.find((i) => i.id === insurance);
+    return ins?.option ? priceInsurance(ins.option, { pax, nights: booking.nights, baseSubtotal: subtotal }) : 0;
+  }, [insurances, insurance, pax, subtotal, booking.nights]);
   const total = subtotal + insAmount;
   const animTotal = useCountUp(total);
   const money = (n) => `${ccy}${Math.round(n).toLocaleString('en-US')}`;
-  const insPrice = (ins) => ins.id === 'none' ? 0
-    : ins.perDay ? Math.round(ins.perDay * pax * booking.nights)
-    : Math.round(subtotal * ins.pct);
+  const insPrice = (ins) => (ins?.option
+    ? priceInsurance(ins.option, { pax, nights: booking.nights, baseSubtotal: subtotal })
+    : 0);
 
   /* ── scroll to top on step change + reveal anims ── */
   useEffect(() => {
@@ -631,6 +680,36 @@ function CheckoutContent({ stripe, elements }) {
     els.forEach((el) => obs.observe(el));
     return () => obs.disconnect();
   }, [step]);
+
+  /* ── fetch the airport transfer options, once, when the extras step opens ──
+     Not on mount: a traveller who never reaches step 2 costs the supplier nothing. The pickup
+     datetime is the ARRIVAL of the last outbound leg — the rateKey encodes it as the booked
+     pickup time, so a transfer bought here is timed to the flight in the same booking. With
+     no flight (hotel only, or own transport) there is nothing to meet and no call is made. */
+  const arrivalISO = (() => {
+    const legs = booking.api?.flight?.legs || [];
+    const outLegs = booking.api?.flight?.tripType === 'roundtrip' ? legs.slice(0, Math.ceil(legs.length / 2)) : legs;
+    const arr = outLegs.length ? outLegs[outLegs.length - 1]?.arrival : null;
+    return arr && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(arr)) ? `${String(arr).slice(0, 16)}:00` : null;
+  })();
+  const wantsTransfer = !isTransfer && !isFlight && srch.transport !== 'hotel_only'
+    && !!srch.destination && !!(booking.api?.hotel?.hotelCode || booking.hotelCode);
+  useEffect(() => {
+    if (step !== 1 || !wantsTransfer || transfers) return;
+    const checkin = srch.checkin || booking.api?.hotel?.checkin;
+    if (!checkin) return;
+    const outbound = arrivalISO || `${checkin}T12:00:00`;
+    setTransfers({ loading: true });
+    axiosInstance.post('/transfer-availability/search', {
+      fromType: 'IATA', fromCode: srch.destination,
+      toType: 'ATLAS', toCode: String(booking.api?.hotel?.hotelCode || booking.hotelCode),
+      outbound,
+      adults: Number(srch.adults) || pax, children: Number(srch.children) || 0, infants: 0,
+    })
+      .then(({ data }) => setTransfers({ services: data?.results?.hotelbeds?.services || [], pickupISO: outbound }))
+      .catch((e) => setTransfers({ error: friendlyReprice(e), pickupISO: outbound }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [step, wantsTransfer]);
 
   /* ── review modal: Escape closes it, and the page behind it stops scrolling ── */
   useEffect(() => {
@@ -851,9 +930,31 @@ function CheckoutContent({ stripe, elements }) {
             price: hotelPayload ? (quote.flight || api.flight.price) : (base + roomExtraTotal),
           }
         : null;
-      // Transfer price is per vehicle — fixed regardless of the traveller count.
-      // The backend independently re-prices it via transfer availability.
-      const transferPayload = api.transfer || null;
+      // Transfer price is per vehicle — fixed regardless of the traveller count. The backend
+      // independently re-prices it by re-running availability with these same params, which
+      // is also how it gets a fresh (unexpired) rateKey for the reservation. The flight
+      // number and airline come off the arrival leg: the supplier needs them to know which
+      // plane the driver is meeting.
+      const outLegs = api.flight?.legs || [];
+      const arrivalLeg = outLegs.length
+        ? outLegs[(api.flight?.tripType === 'roundtrip' ? Math.ceil(outLegs.length / 2) : outLegs.length) - 1]
+        : null;
+      const transferPayload = pickedTransfer
+        ? {
+            fromType: 'IATA', fromCode: srch.destination,
+            toType: 'ATLAS', toCode: String(api.hotel?.hotelCode || booking.hotelCode),
+            // The EXACT datetime the shown price was fetched with — the rateKey encodes it
+            // as the booked pickup time.
+            outbound: transfers?.pickupISO || `${srch.checkin}T12:00:00`,
+            price: pickedTransfer.price, currency: 'EUR',
+            rateKey: pickedTransfer.rateKey,
+            transferType: pickedTransfer.transferType, vehicleCode: pickedTransfer.vehicleCode,
+            vehicle: pickedTransfer.vehicle, direction: pickedTransfer.direction,
+            from: pickedTransfer.pickup?.from, to: pickedTransfer.pickup?.to,
+            flightNumber: (arrivalLeg?.flightNumber || '').slice(0, 7) || undefined,
+            companyName: arrivalLeg?.airline || undefined,
+          }
+        : (api.transfer || null);
       const insurancePayload = (selIns && selIns.id !== 'none' && insAmount > 0)
         ? { type: selIns.id, label: selIns.name, price: insAmount } : null;
       const contactPhone = customerType === 'professional' ? pro.primaryContactPhone : priv.phone;
@@ -886,7 +987,7 @@ function CheckoutContent({ stripe, elements }) {
         insurance: insurancePayload || undefined,
         // Booking & service fee (SGR) shown to the customer — recorded on the booking
         // so the stored grand total matches what was charged.
-        serviceFee: SGR_FEE,
+        serviceFee: SGR,
         passengers,
         contact: { phone: contactPhone },
         consents,
@@ -993,7 +1094,7 @@ function CheckoutContent({ stripe, elements }) {
   const lead = travellers[0];
   const leadName = `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim();
   const customerEmail = customerType === 'private' ? priv.email : pro.primaryContactEmail;
-  const selIns = INSURANCES.find((i) => i.id === insurance);
+  const selIns = insurances.find((i) => i.id === insurance);
 
   /* primary CTA per step (shared by bottom bar + mobile bar) */
   const ctaLabel = repriceBlocks && reprice.status === 'checking' ? 'Re-checking your price…'
@@ -1023,7 +1124,7 @@ function CheckoutContent({ stripe, elements }) {
         payMethod={payMethod}
         card={card}
         idealBank={idealBank}
-        pricing={{ base, roomExtraTotal, transferTotal, sgr: SGR_FEE, total, pax }}
+        pricing={{ base, roomExtraTotal, transferTotal, sgr: SGR, total, pax }}
         ccy={ccy}
         reservationPending={reservationPending}
         nonRefundable={nonRefundable}
@@ -1504,9 +1605,9 @@ function CheckoutContent({ stripe, elements }) {
                               </div>
                             </div>
                             <div className="ck-rp-prices">
-                              <span className="ck-rp-was">{money(reprice.was + roomExtraTotal + transferTotal + SGR_FEE + insAmount)}</span>
+                              <span className="ck-rp-was">{money(reprice.was + roomExtraTotal + transferTotal + SGR + insAmount)}</span>
                               <span className="ck-rp-arrow">{ICON.arrow}</span>
-                              <span className="ck-rp-now">{money(reprice.now + roomExtraTotal + transferTotal + SGR_FEE + insAmount)}</span>
+                              <span className="ck-rp-now">{money(reprice.now + roomExtraTotal + transferTotal + SGR + insAmount)}</span>
                               <span className={`ck-rp-diff${reprice.now > reprice.was ? ' up' : ' down'}`}>
                                 {reprice.now > reprice.was ? '+' : '−'}{money(Math.abs(reprice.now - reprice.was))}
                               </span>
@@ -1559,6 +1660,69 @@ function CheckoutContent({ stripe, elements }) {
               )}
 
               {/* ──────── STEP 2 : ADD-ONS ──────── */}
+              {step === 1 && wantsTransfer && (
+                /* The airport transfer. One choice for everyone in the booking — the vehicle
+                   carries the party, so it is priced per vehicle and never per traveller.
+                   "No transfer" is the default: an opt-in extra that arrives pre-selected is
+                   a charge nobody agreed to. */
+                <section className="ck-card ck-reveal">
+                  <div className="ck-card-head">
+                    <div className="ck-ico">{ICON.pin}</div>
+                    <div className="ck-card-titles">
+                      <h2 className="ck-card-title hd">Airport transfer</h2>
+                      <p className="ck-card-sub">
+                        From {srch.destination} airport to {booking.hotelName}
+                        {transfers?.pickupISO && arrivalISO ? ` — pickup ~${transfers.pickupISO.slice(11, 16)}, timed to your arrival` : ''}
+                      </p>
+                    </div>
+                    <span className="ck-optional-pill">Optional</span>
+                  </div>
+
+                  {transfers?.loading ? (
+                    <div className="ck-tr-wait"><span className="ck-spin" /> Checking transfer prices…</div>
+                  ) : transfers?.error ? (
+                    <div className="ck-tr-err">
+                      {ICON.ban} <span>{transfers.error} You can still book — add a transfer later by contacting us.</span>
+                    </div>
+                  ) : transfers?.services?.length ? (
+                    <div className="ck-tr-list">
+                      {transfers.services.slice(0, 5).map((t, ti) => (
+                        <button type="button" key={ti}
+                          className={`ck-tr${transferPick === ti ? ' act' : ''}`}
+                          onClick={() => setTransferPick(ti)}>
+                          <span className="ck-tr-radio">{transferPick === ti && <i />}</span>
+                          <span className="ck-tr-main">
+                            <span className="ck-tr-name hd">
+                              {t.vehicle || 'Transfer'}
+                              <em>{t.transferType === 'SHARED' ? 'Shared' : 'Private'}</em>
+                            </span>
+                            <span className="ck-tr-sub">
+                              {t.pickup?.from || `${srch.destination} Airport`} → {t.pickup?.to || booking.hotelName}
+                              {t.maxPax ? ` · up to ${t.maxPax} passengers` : ''}
+                            </span>
+                          </span>
+                          <span className="ck-tr-price">
+                            <small>total</small>{money(t.price)}
+                          </span>
+                        </button>
+                      ))}
+                      <button type="button" className={`ck-tr${transferPick === -1 ? ' act' : ''}`}
+                        onClick={() => setTransferPick(-1)}>
+                        <span className="ck-tr-radio">{transferPick === -1 && <i />}</span>
+                        <span className="ck-tr-main">
+                          <span className="ck-tr-name hd">No transfer</span>
+                          <span className="ck-tr-sub">I'll arrange my own way to the hotel</span>
+                        </span>
+                        <span className="ck-tr-price"><small>total</small>{money(0)}</span>
+                      </button>
+                      <p className="ck-tr-note">{ICON.check} Prices are for the whole party and cover the airport pickup on arrival day.</p>
+                    </div>
+                  ) : transfers ? (
+                    <div className="ck-tr-err">{ICON.ban} <span>No transfers are offered for this hotel on your arrival date.</span></div>
+                  ) : null}
+                </section>
+              )}
+
               {step === 1 && (
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
@@ -1570,7 +1734,7 @@ function CheckoutContent({ stripe, elements }) {
                   </div>
 
                   <div className="ck-ins-grid">
-                    {INSURANCES.map((ins, idx) => {
+                    {insurances.map((ins, idx) => {
                       const price = insPrice(ins);
                       const act = insurance === ins.id;
                       return (
@@ -1585,6 +1749,7 @@ function CheckoutContent({ stripe, elements }) {
                             <span className="ck-ins-radio">{act && <i />}</span>
                           </span>
                           <span className="ck-ins-name hd">{ins.name}</span>
+                          {ins.provider && <span className="ck-ins-by">Provided by {ins.provider}</span>}
                           <span className="ck-ins-desc">{ins.desc}</span>
                           {ins.covers.length > 0 && (
                             <span className="ck-ins-covers">
@@ -1594,7 +1759,10 @@ function CheckoutContent({ stripe, elements }) {
                           <span className="ck-ins-price">
                             {ins.id === 'none'
                               ? <b>{ccy}0</b>
-                              : <><b>+{money(price)}</b><small>{ins.perDay ? ` ${ccy}${ins.perDay.toFixed(2)} p.p. / day` : ' for your whole trip'}</small></>}
+                              /* The basis under the amount, in the dashboard's own terms —
+                                 "€4.00 per traveller, per day" explains a number that would
+                                 otherwise look arbitrary next to a percentage-priced option. */
+                              : <><b>+{money(price)}</b><small>{priceBasisLabel(ins.option, ccy)}</small></>}
                           </span>
                         </button>
                       );
@@ -1929,7 +2097,7 @@ function CheckoutContent({ stripe, elements }) {
                     : <div className="ck-sum-row"><span>{pax} × {money(booking.ppPrice)} p.p.</span><b>{money(base)}</b></div>}
                   {roomExtraTotal > 0 && <div className="ck-sum-row"><span>Room upgrade</span><b>{money(roomExtraTotal)}</b></div>}
                   {transferTotal > 0 && <div className="ck-sum-row"><span>Airport transfer (per vehicle)</span><b>{money(transferTotal)}</b></div>}
-                  <div className="ck-sum-row"><span>{isFlight ? 'Booking & service fee' : 'SGR Guarantee Fund'}</span><b>{money(SGR_FEE)}</b></div>
+                  <div className="ck-sum-row"><span>{isFlight ? 'Booking & service fee' : 'SGR Guarantee Fund'}</span><b>{money(SGR)}</b></div>
                   {insAmount > 0 && (
                     <div className="ck-sum-row ck-sum-row-ins" key={insurance}>
                       <span>{ICON.shieldCheck} {selIns?.name}</span><b>{money(insAmount)}</b>

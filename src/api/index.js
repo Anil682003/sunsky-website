@@ -95,6 +95,16 @@ export const useHomepageConfig = () =>
     transformResponse: (res) => (res?.success ? res.data.homepageConfig : null),
   });
 
+// Insurance rates, baggage prices, the booking fee and the deposit rule, as set in the
+// dashboard. The checkout falls back to DEFAULT_PRICING (utils/checkoutPricing.js) when this
+// cannot be read — the same defaults the server prices with, so a failed config call quotes
+// the right numbers rather than none.
+export const useCheckoutConfig = () =>
+  useApi(ENDPOINTS.checkoutConfig, {
+    immediate: true,
+    transformResponse: (res) => (res?.success ? res.data : null),
+  });
+
 // Header content managed in the dashboard (CMS → Layout → Header Settings):
 // the logo, its alt text and where it links.
 export const useHeaderConfig = () =>

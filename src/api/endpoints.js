@@ -27,6 +27,11 @@ export const ENDPOINTS = {
   geoPlaces: (countryIds) =>
     `/website/geo/places?countryIds=${countryIds.map((id) => encodeURIComponent(id)).join(',')}`,
 
+  // What SUNSKY charges for the things it sells itself — insurance rates, baggage prices,
+  // the booking fee, the deposit rule. The SAME record the server re-prices bookings with,
+  // so the checkout can never show a number the server will reject.
+  checkoutConfig:  '/website/checkout-config',
+
   // Holiday types (linked to countries in the admin dashboard)
   holidayTypes:    '/website/holiday-types',
   holidayTypeCountries: (idOrSlug) =>

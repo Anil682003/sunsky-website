@@ -653,9 +653,14 @@ describe('debounce + request ordering', () => {
 
     // Boards offered are exactly those the cache reported for this search, so pick three the
     // fixture actually contains — "Full Board" is not one of them.
-    await user.click(sidebarCheck('All Inclusive'));
-    await user.click(sidebarCheck('Half Board'));
-    await user.click(sidebarCheck('Ultra All Inclusive'));
+    //
+    // fireEvent, not user.click: this test measures a WALL-CLOCK debounce, and user-event
+    // awaits between clicks. On a loaded machine those awaits can themselves outlast the
+    // window, so the three toggles stop being a burst and the test fails on the clock rather
+    // than on the debounce. Firing them synchronously makes "a burst" true by construction.
+    fireEvent.click(sidebarCheck('All Inclusive'));
+    fireEvent.click(sidebarCheck('Half Board'));
+    fireEvent.click(sidebarCheck('Ultra All Inclusive'));
 
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI,HB,UAI'));
     await new Promise((r) => setTimeout(r, 400));
