@@ -749,27 +749,38 @@ function CheckoutContent({ stripe, elements }) {
      else — and if it belongs to an account, the way forward is to sign in rather than to
      carry on. Signing in also brings their saved details into this form.
 
+     Asked when the traveller LEAVES the field, and again before step 1 hands over — not on
+     every keystroke. An address is typed one character at a time and every prefix is a valid
+     string to POST: debouncing that is a dozen questions about addresses nobody has finished
+     writing, on an endpoint whose whole job is answering questions about addresses.
+
      `emailTaken`: null = unasked/unknown, false = free, true = an account exists. Anything
      other than a definite `true` lets the traveller continue: a checkout must not be held up
      by a check that failed to answer. */
   const [emailTaken, setEmailTaken] = useState(null);
   const emailAskedFor = useRef('');
-  useEffect(() => {
+  const checkEmail = async (raw) => {
     // Nothing to warn a signed-in customer about — this IS their address.
-    if (isAuthenticated) { setEmailTaken(null); return undefined; }
+    if (isAuthenticated) return false;
+    const email = String(raw || '').trim().toLowerCase();
+    if (!emailOk(email)) { setEmailTaken(null); emailAskedFor.current = ''; return false; }
+    if (emailAskedFor.current === email) return emailTaken === true;
+    emailAskedFor.current = email;
+    try {
+      const { data } = await axiosInstance.post(ENDPOINTS.emailCheck, { email });
+      const taken = data?.data?.exists === true;
+      setEmailTaken(taken);
+      return taken;
+    } catch {
+      setEmailTaken(null);          // unanswered is not "taken"
+      return false;
+    }
+  };
+  // A corrected address is a different question — drop the old answer as they retype.
+  useEffect(() => {
     const email = (priv.email || '').trim().toLowerCase();
-    if (!emailOk(email)) { setEmailTaken(null); emailAskedFor.current = ''; return undefined; }
-    if (emailAskedFor.current === email) return undefined;
-    // Debounced: an address is typed one character at a time and every prefix is a valid
-    // string to POST. 600ms is after the typing, before the tab-out.
-    const t = setTimeout(() => {
-      emailAskedFor.current = email;
-      axiosInstance.post(ENDPOINTS.emailCheck, { email })
-        .then(({ data }) => setEmailTaken(data?.data?.exists === true))
-        .catch(() => setEmailTaken(null));   // unanswered is not "taken"
-    }, 600);
-    return () => clearTimeout(t);
-  }, [priv.email, isAuthenticated]);
+    if (emailAskedFor.current && email !== emailAskedFor.current) setEmailTaken(null);
+  }, [priv.email]);
 
   // Where to come back to. The booking lives in router state, so it has to travel with them
   // or they return to an empty "nothing to check out" screen.
@@ -1097,10 +1108,16 @@ function CheckoutContent({ stripe, elements }) {
     setStep(n);
     setFurthest((f) => Math.max(f, n));
   };
-  const next = () => {
+  const next = async () => {
     if (step === 0) {
       const e = validateInfo();
       if (Object.keys(e).filter((k) => e[k]).length) return flashErrors(e);
+      // Somebody who typed their address and clicked straight on has never left the field, so
+      // it has never been checked. Ask now, rather than let them build a second account for
+      // themselves and lose this booking out of "my bookings".
+      if (!isAuthenticated && await checkEmail(priv.email)) {
+        return flashErrors({ 'priv.email': 'This email already has an account — please log in to continue' });
+      }
       // Form is complete and internally valid — but "valid" and "spelled like the passport"
       // are different claims, and only the traveller can make the second one. The modal is
       // the last thing between a typo and a fee, so it opens even when they have already
@@ -1670,7 +1687,10 @@ function CheckoutContent({ stripe, elements }) {
                           <input className="ck-input" type="tel" value={priv.phone} onChange={(e) => setP('phone')(e.target.value)} placeholder="+32 475 12 34 56" maxLength={30} />
                         </Field>
                         <Field label="Email address" req err={errors['priv.email']} ok={emailOk(priv.email) && emailTaken === false}>
-                          <input className="ck-input" type="email" value={priv.email} onChange={(e) => setP('email')(e.target.value)} placeholder="john@example.com" />
+                          <input className="ck-input" type="email" value={priv.email}
+                            onChange={(e) => setP('email')(e.target.value)}
+                            onBlur={(e) => checkEmail(e.target.value)}
+                            placeholder="john@example.com" />
                         </Field>
                       </div>
 

@@ -2,6 +2,9 @@ export const ENDPOINTS = {
   // Auth
   login:           '/website/auth/login',
   register:        '/website/auth/register',
+  // "Does this address already have a login?" — answers one boolean and nothing else, so a
+  // guest who already has an account is sent to sign in instead of creating a second one.
+  emailCheck:      '/website/auth/email-check',
   me:              '/website/auth/me',
   refresh:         '/website/auth/refresh',
   forgotPassword:  '/website/auth/forgot-password',

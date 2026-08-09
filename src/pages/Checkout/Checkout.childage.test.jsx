@@ -42,10 +42,15 @@ const BOOKING = {
 };
 
 const post = vi.fn();
-vi.mock('../../services/axiosInstance', () => ({
-  default: { post: (...a) => post(...a), get: vi.fn(() => Promise.resolve({ data: {} })) },
-  SUPPLIER_TIMEOUT: 25000,
-}));
+// The default export is CALLED as a function by useApi (an axios instance is callable) as
+// well as used as an object, so the mock has to be both — otherwise the checkout's config
+// fetch throws an unhandled rejection that has nothing to do with the test.
+vi.mock('../../services/axiosInstance', () => {
+  const instance = vi.fn(() => Promise.resolve({ data: {} }));
+  instance.post = (...a) => post(...a);
+  instance.get = vi.fn(() => Promise.resolve({ data: {} }));
+  return { default: instance, SUPPLIER_TIMEOUT: 25000 };
+});
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 
 const roomsAt = (price) => ({

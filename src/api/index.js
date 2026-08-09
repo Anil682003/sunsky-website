@@ -1,4 +1,4 @@
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch } from 'react-redux';
 import useApi from '../hooks/useApi';
 import axiosInstance from '../services/axiosInstance';
@@ -8,12 +8,18 @@ import { ENDPOINTS } from './endpoints';
 // Shared post-login side-effects used by both login and register
 const useAuthSuccess = () => {
   const navigate = useNavigate();
+  const location = useLocation();
   const dispatch = useDispatch();
   return (res) => {
     const { accessToken, refreshToken, user } = res.data;
     if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
     dispatch(loginSuccess({ user, accessToken }));
-    navigate('/account/bookings');
+    // Somebody sent here MID-TASK goes back to it, with whatever that page needs to resume —
+    // the checkout hands over its booking, which lives in router state and would otherwise be
+    // gone by the time they came back to an empty "nothing to check out" screen.
+    const { from, resume } = location.state || {};
+    if (from) navigate(from, { state: resume, replace: true });
+    else navigate('/account/bookings');
   };
 };
 
