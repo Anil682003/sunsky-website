@@ -34,6 +34,7 @@ vi.mock('../../api/filters', () => ({
   // The Where filter's ScopePicker resolves zones on mount; a factory that omits an export the
   // tree imports throws at render, not at import, so every test in the file fails at once.
   fetchZones: vi.fn(() => Promise.resolve([])),
+  fetchArrivalAirports: vi.fn(() => Promise.resolve([])),
   fetchThemes: vi.fn(() => Promise.resolve([])),
   searchDestinationsAndHotels: vi.fn(() => Promise.resolve({ destinations: [], hotels: [] })),
   fetchMatchingHotels: vi.fn(() => Promise.resolve({ count: 0, hotelCodes: [], attributes: {} })),

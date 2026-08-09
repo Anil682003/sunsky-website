@@ -27,12 +27,28 @@ const NO_FACETS = {
   accommodation: [], kids: [], beachDistance: [], centreDistance: [],
 };
 let facetLists = NO_FACETS;
+// What a country-wide scope resolves to. Deliberately wider than any one airport serves,
+// so narrowing by arrival airport has something to remove.
+const COUNTRY_DESTINATIONS = ['AYT', 'DLM', 'FET', 'BJV'];
+// Mirrors GET /api/hotel-filters/arrival-airports. DLM really does serve four destinations
+// in production (Marmaris, Fethiye, Kas, Kalkan) — the one-airport-many-cities case is
+// modelled here because it is where a naive "airport code == destination code" would break.
+const ARRIVAL_AIRPORTS = [
+  { code: 'AYT', name: 'Antalya, Antalya Airport', countryCode: 'TR', flag: '🇹🇷',
+    destinations: ['AYT'], cityNames: ['Antalya'], zoneCodes: [] },
+  { code: 'DLM', name: 'Dalaman, Dalaman Airport', countryCode: 'TR', flag: '🇹🇷',
+    destinations: ['DLM', 'FET'], cityNames: ['Marmaris', 'Fethiye'], zoneCodes: [] },
+];
 vi.mock('../../api/filters', () => ({
   fetchFacets: vi.fn((scope, filters, opts = {}) => {
     facetCalls.push({ scope, filters, opts });
     return Promise.resolve({
       scope: { countries: scope.countries ?? [], destinations: scope.destinations ?? [], hotelCount: 0 },
-      matchedDestinations: scope.destinations ?? [],
+      // A COUNTRY search resolves to the country's cities, exactly as the admin API does —
+      // otherwise a countries-only scope prices nothing and any test that narrows a
+      // multi-destination search has nothing to narrow.
+      matchedDestinations: (scope.destinations?.length ? scope.destinations : null)
+        ?? (scope.countries?.length ? COUNTRY_DESTINATIONS : []),
       included: { hotelCodes: Boolean(opts.codes), attributes: Boolean(opts.codes && opts.attrs) },
       ...(opts.codes ? { hotelCodes: [] } : {}),
       facets: facetLists,
@@ -43,6 +59,9 @@ vi.mock('../../api/filters', () => ({
   // The Where filter's ScopePicker resolves zones on mount; a factory that omits an export the
   // tree imports throws at render, not at import, so every test in the file fails at once.
   fetchZones: vi.fn(() => Promise.resolve([])),
+  // "Flying to" options, shaped exactly like the admin endpoint's rows. AYT serves one
+  // destination, DLM serves two — the many-to-many case is the one worth guarding.
+  fetchArrivalAirports: vi.fn(() => Promise.resolve(ARRIVAL_AIRPORTS)),
   fetchThemes: vi.fn(() => Promise.resolve([])),
   searchDestinationsAndHotels: vi.fn(() => Promise.resolve({ destinations: [], hotels: [] })),
   fetchMatchingHotels: vi.fn(() => Promise.resolve({ count: 0, hotelCodes: [], attributes: {} })),
@@ -389,6 +408,66 @@ describe('cancellation', () => {
     renderResults();
     await settled();
     expect(screen.queryByText('Free cancellation')).not.toBeInTheDocument();
+  });
+});
+
+// The arrival airport is not cosmetic like the departure one: each option carries the
+// destination codes it serves, and picking it narrows what the cache is asked to price.
+// The scope is a COUNTRY search so there is more than one destination to narrow away.
+describe('arrival airport ("Flying to")', () => {
+  const countryScope = '?countries=TR&destinationLabel=Turkey&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1';
+  // The picker lives under the departure airport, which only shows with flights included.
+  const openTransport = (user) => user.click(sidebarRadio('Incl. flight'));
+
+  it('names each airport by the CITY it serves, not its official name', async () => {
+    const user = userEvent.setup();
+    renderResults(countryScope);
+    await settled();
+    await openTransport(user);
+
+    // Dalaman serves two cities; "Marmaris, Fethiye" tells a traveller where they land.
+    expect(await screen.findByRole('radio', { name: /Marmaris, Fethiye/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Any airport/ })).toBeInTheDocument();
+  });
+
+  it('narrows the priced destinations to the ones that airport serves', async () => {
+    const user = userEvent.setup();
+    renderResults(countryScope);
+    await settled();
+    await openTransport(user);
+
+    await user.click(await screen.findByRole('radio', { name: /Marmaris, Fethiye/ }));
+    await waitFor(() => {
+      const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean).sort();
+      expect(dests).toEqual(['DLM', 'FET']);
+    });
+  });
+
+  it('restores the full scope on "Any airport"', async () => {
+    const user = userEvent.setup();
+    renderResults(countryScope);
+    await settled();
+    await openTransport(user);
+
+    await user.click(await screen.findByRole('radio', { name: /Marmaris, Fethiye/ }));
+    await waitFor(() => expect(lastCall().get('destinations')).toContain('DLM'));
+
+    await user.click(screen.getByRole('radio', { name: /Any airport/ }));
+    await waitFor(() => {
+      const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean);
+      expect(dests).not.toEqual(['DLM', 'FET']);
+    });
+  });
+
+  it('is absent when the scope has no linked airports', async () => {
+    const { fetchArrivalAirports } = await import('../../api/filters');
+    fetchArrivalAirports.mockResolvedValueOnce([]);
+    const user = userEvent.setup();
+    renderResults(countryScope);
+    await settled();
+    await openTransport(user);
+    // An empty control is worse than none: it implies the search can be narrowed when it can't.
+    await waitFor(() => expect(screen.queryByRole('radio', { name: /Any airport/ })).not.toBeInTheDocument());
   });
 });
 

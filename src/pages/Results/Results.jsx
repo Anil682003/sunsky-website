@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
-import { fetchFacets, fetchCountries, fetchDestinations, fetchZones } from '../../api/filters';
+import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports } from '../../api/filters';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
@@ -138,6 +138,10 @@ const EMPTY_FILTERS = {
   // transport === 'package'; kept when the traveller toggles back so switching to own
   // transport and back doesn't lose the airport they already chose.
   origin: DEFAULT_ORIGIN,
+  // Arrival airport (IATA) the traveller wants to fly INTO. '' = no preference. Unlike the
+  // departure airport, this one really filters: an airport maps to the destinations it
+  // serves, and the search is narrowed to those (see arrivalDestinations).
+  arrival: '',
 };
 
 const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
@@ -159,7 +163,8 @@ const countActiveFilters = (f) =>
   (f.adultsOnly ? 1 : 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
-  (f.transport && f.transport !== 'hotel_only' ? 1 : 0);
+  (f.transport && f.transport !== 'hotel_only' ? 1 : 0) +
+  (f.arrival ? 1 : 0);
 
 // Any content facet active means the cache must be restricted to the resolved hotelCodes.
 const hasContentFacet = (f) =>
@@ -500,6 +505,10 @@ export default function Results() {
     // supplier verbatim (see normaliseOrigin).
     const transport = params.get('transport') === 'package' ? 'package' : null;
     const origin    = params.get('origin') ? normaliseOrigin(params.get('origin')) : null;
+    // Arrival is validated against the fetched list, not a hardcoded one, so it is taken
+    // verbatim here — an airport that isn't in the list simply never matches and filters
+    // nothing (see arrivalDestinations), which is the safe failure.
+    const arrival   = (params.get('arrival') || '').trim().toUpperCase() || null;
     const seed = {
       ...(boards.length        ? { boards } : {}),
       ...(themes.length        ? { themes } : {}),
@@ -513,6 +522,7 @@ export default function Results() {
       ...(maxCentre != null    ? { maxCentre } : {}),
       ...(transport            ? { transport } : {}),
       ...(origin               ? { origin } : {}),
+      ...(arrival              ? { arrival } : {}),
     };
     // Deriving the guard from the seed itself means a filter added above can never be left out
     // of it and silently ignored.
@@ -538,6 +548,11 @@ export default function Results() {
   // restriction when a content facet is active (null = whole scope). Set by the facets
   // resolution below; the price fetch is gated on it.
   const [priceScope, setPriceScope]   = useState(null);
+
+  // ── ARRIVAL AIRPORTS ("Flying to") ──────────────────────────────────────────────
+  // Fetched, never hardcoded: the admin endpoint only returns airports linked to a
+  // destination that actually has hotels, so every option narrows to something real.
+  const [arrivalList, setArrivalList] = useState(NO_GEO);
 
   // Scope selection UI — the cascading picker drafts internally and hands back a
   // committed { countries, destinations, zones } on Apply.
@@ -671,6 +686,59 @@ export default function Results() {
   const scopeCities = cityList.key === scopeCountryKey ? cityList.list : NO_GEO.list;
   const scopeZones  = zoneList.key === scopeCityKey    ? zoneList.list : NO_GEO.list;
 
+  // "Flying to" options for this search's countries. Stamped with the scope key it was
+  // fetched for — the same pattern as cityList/zoneList above — so a list that arrives after
+  // the traveller has changed country is ignored rather than offering Turkish airports on a
+  // Spanish search. A country-less scope (the empty-search teaser) asks for nothing.
+  useEffect(() => {
+    if (!scopeCountryKey) return;
+    let live = true;
+    const ctrl = new AbortController();
+    fetchArrivalAirports(scopeCountryKey.split(','), { signal: ctrl.signal })
+      .then((a) => { if (live) setArrivalList({ key: scopeCountryKey, list: a }); })
+      // A failed lookup hides the filter rather than showing a stale one; the rest of the
+      // search is unaffected.
+      .catch(() => { if (live) setArrivalList({ key: scopeCountryKey, list: [] }); });
+    return () => { live = false; ctrl.abort(); };
+  }, [scopeCountryKey]);
+  const arrivalAirports = arrivalList.key === scopeCountryKey ? arrivalList.list : NO_GEO.list;
+
+  // Only offer airports whose destinations are actually inside the current scope. Searching
+  // "Bodrum" must not offer Dalaman just because both are Turkish — picking it could only
+  // ever return nothing.
+  const scopeDestSet = useMemo(
+    () => new Set(scope.destinations.length ? scope.destinations : (priceScope?.destinations ?? [])),
+    [scope.destinations, priceScope]
+  );
+  const arrivalOptions = useMemo(() => {
+    if (!arrivalAirports.length) return [];
+    if (!scopeDestSet.size) return arrivalAirports;      // scope not resolved yet — offer all
+    return arrivalAirports.filter((a) => a.destinations.some((d) => scopeDestSet.has(d)));
+  }, [arrivalAirports, scopeDestSet]);
+
+  // The destinations the chosen arrival airport narrows the search to, intersected with the
+  // scope the traveller already picked. `null` = no arrival filter. An EMPTY array is
+  // meaningful and distinct: the airport serves nothing inside this scope, so the search must
+  // return nothing rather than silently widening back to the whole scope.
+  const arrivalDestinations = useMemo(() => {
+    if (!applied.arrival) return null;
+    const airport = arrivalAirports.find((a) => a.code === applied.arrival);
+    if (!airport) return null;                            // list not loaded yet — don't filter
+    if (!scopeDestSet.size) return airport.destinations;
+    return airport.destinations.filter((d) => scopeDestSet.has(d));
+  }, [applied.arrival, arrivalAirports, scopeDestSet]);
+  // Identity of the narrowing, for effect deps. `null` and `[]` are different states (no
+  // filter vs. filter that matches nothing), so they must not collapse to the same key.
+  const arrivalKey = arrivalDestinations === null ? '' : `arr:${arrivalDestinations.join(',')}`;
+  // loadMore runs from an IntersectionObserver callback and reads the committed values
+  // through refs; without this, page 2 would be built from whatever narrowing was in scope
+  // when the callback was created and could silently widen the search mid-scroll.
+  const arrivalDestRef = useRef(arrivalDestinations);
+  // Keyed on `arrivalKey`, not the array identity: the memo returns a fresh array every time
+  // its inputs re-evaluate, which would make an identity dep fire on every render.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { arrivalDestRef.current = arrivalDestinations; }, [arrivalKey]);
+
   // ── FACETS RESOLUTION ──────────────────────────────────────────────────────────
   // When the scope OR the selected content facets change, ask the admin content API for the
   // facet counts + the matching hotelCodes (narrowed by the selected facets) + the matched
@@ -772,8 +840,17 @@ export default function Results() {
     const maxA = fp.maxAdultsPerRoom   ?? String(Math.ceil((parseInt(fp.adults, 10)   || 1) / roomsCount));
     const maxC = fp.maxChildrenPerRoom ?? String(Math.ceil((parseInt(fp.children, 10) || 0) / roomsCount));
 
+    // The arrival airport narrows the priced destinations to the ones it serves. Done HERE,
+    // the one place every cache request is built, so page 1, load-more and the duration
+    // counts can never disagree about what is being searched. Read through the ref so the
+    // observer-driven load-more sees the CURRENT narrowing, not the one it closed over.
+    const arrDests = arrivalDestRef.current;
+    const destinations = arrDests
+      ? ps.destinations.filter((d) => arrDests.includes(d))
+      : ps.destinations;
+
     const body = {
-      destinations:       ps.destinations,
+      destinations,
       checkIn:            fp.checkIn,
       checkOut:           over.checkOut ?? fp.checkOut,
       adults:             fp.adults,
@@ -813,8 +890,17 @@ export default function Results() {
       body.hotelCodes = ps.hotelCodes.length ? ps.hotelCodes : ['__none__'];
     }
 
-    const codeCount = Array.isArray(ps.hotelCodes) ? ps.hotelCodes.length : 0;
-    const usePost = codeCount > LARGE_CODES || ps.destinations.length > MANY_DESTINATIONS;
+    // The arrival airport served nothing inside this scope. The cache REQUIRES at least one
+    // destination, so an empty list would 400 and read as a broken search; the sentinel makes
+    // it return nothing, which is the honest answer. Destinations are restored to the scope so
+    // the request is still valid — `hotelCodes: ['__none__']` is what empties it.
+    if (arrDests && destinations.length === 0) {
+      body.destinations = ps.destinations;
+      body.hotelCodes   = ['__none__'];
+    }
+
+    const codeCount = Array.isArray(body.hotelCodes) ? body.hotelCodes.length : 0;
+    const usePost = codeCount > LARGE_CODES || body.destinations.length > MANY_DESTINATIONS;
     if (usePost) {
       return {
         url: `${CONTRACTS_API}/contracts/cheapest`,
@@ -968,7 +1054,11 @@ export default function Results() {
 
     return () => ctrl.abort();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeKey, fetchParams, applied, priceScopeKey]);
+    // `arrivalKey` is a dep in its own right: the airport list loads asynchronously, so an
+    // arrival seeded from the URL resolves to its destinations only AFTER `applied` has
+    // settled. Without it, a shared link with an arrival airport would render the unfiltered
+    // search and never correct itself.
+  }, [scopeKey, fetchParams, applied, priceScopeKey, arrivalKey]);
 
   // TRAVEL-TIME COUNTS. For each day option in the band, price the same scope at that stay length
   // (in the background) and record how many hotels come back — the number shown next to each
@@ -1464,6 +1554,37 @@ export default function Results() {
               Flights are priced on the hotel page, from this airport first. If a route isn’t
               flown from here, we’ll show you the nearest airports that do.
             </p>
+
+            {/* ── Flying to ── Unlike the departure airport, this one really filters: each
+                option carries the destinations it serves, and picking it narrows the search
+                to those. Rendered only when the scope HAS linked airports, so it never
+                appears as an empty control. */}
+            {arrivalOptions.length > 0 && (
+              <div className={styles.arrivalPicker} role="radiogroup" aria-label="Arrival airport">
+                <div className={styles.originLabel}>Flying to</div>
+                <div className={styles.originGroup}>
+                  <label className={`${styles.originOption} ${!filters.arrival ? styles.originOptionOn : ''}`}>
+                    <input type="radio" name="arrivalAirport" checked={!filters.arrival}
+                      onChange={() => setFilter('arrival', '')} />
+                    <span className={styles.originName}>Any airport</span>
+                  </label>
+                  {arrivalOptions.map((a) => (
+                    <label key={a.code}
+                      className={`${styles.originOption} ${filters.arrival === a.code ? styles.originOptionOn : ''}`}>
+                      <input type="radio" name="arrivalAirport" checked={filters.arrival === a.code}
+                        onChange={() => setFilter('arrival', a.code)} />
+                      <span className={styles.originFlag} aria-hidden="true">{a.flag}</span>
+                      {/* The CITY it serves, not the airport's official name: "Marmaris,
+                          Fethiye" tells a traveller what they get; "Dalaman Airport" doesn't. */}
+                      <span className={styles.originName} title={a.name}>
+                        {a.cityNames?.length ? a.cityNames.join(', ') : a.name}
+                      </span>
+                      <span className={styles.originCode}>{a.code}</span>
+                    </label>
+                  ))}
+                </div>
+              </div>
+            )}
           </div>
         )}
       </FilterSection>

@@ -84,6 +84,27 @@ export async function fetchZones(destinationCodes) {
 }
 
 /**
+ * Airports a traveller can fly INTO, each already resolved to the destination codes it
+ * serves — the "Flying to" filter's option list.
+ *
+ * The admin side only returns airports linked to at least one destination that has bookable
+ * hotels, so every option here narrows the search to something real. That is why the list is
+ * fetched rather than hardcoded: an airport the team links in the dashboard shows up on its
+ * own, and one with nothing behind it never appears.
+ *
+ * @param {string|string[]} countryCode scope the list to the countries in the current search
+ * @returns {Promise<{code,name,countryCode,countryName,flag,destinations:string[],cityNames:string[],zoneCodes:string[]}[]>}
+ */
+export async function fetchArrivalAirports(countryCode, { signal } = {}) {
+  const codes = Array.isArray(countryCode) ? countryCode : [countryCode].filter(Boolean);
+  const { data } = await axiosInstance.get('/hotel-filters/arrival-airports', {
+    params: codes.length ? { countryCode: codes.join(',') } : {},
+    signal,
+  });
+  return data?.data ?? [];
+}
+
+/**
  * Resolve the content filters to matching hotelCodes (+ attributes).
  * Pass the SEARCH destination so the set stays bounded and fast.
  *
