@@ -20,6 +20,7 @@ import ShareSheet from '../../components/ShareSheet/ShareSheet';
 import StayBar from '../../components/StayBar/StayBar';
 import { ratingLabel } from '../../utils/rating';
 import { dobsMatchAges } from '../../utils/childDob';
+import { earliestCheckInISO, departsTooSoon, MIN_LEAD_HOURS } from '../../utils/leadTime';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
@@ -130,8 +131,12 @@ function transformFlights(data, originCode) {
       }
     }
   }
-  flights.sort((a, b) => a.totalPrice - b.totalPrice);
-  return flights;
+  // A fare that leaves within the next 24 hours cannot be booked, confirmed and ticketed in
+  // time, so it is not offered — even on a date the strip allows. The date floor removes
+  // today; this removes the 06:00 departure tomorrow morning, which the floor cannot see.
+  const bookable = flights.filter((f) => !departsTooSoon(f.outLegs?.[0]?.departure));
+  bookable.sort((a, b) => a.totalPrice - b.totalPrice);
+  return bookable;
 }
 // "Care (Meals)" options. `match` tests the supplier's board name/code on a live room.
 const BOARD_PREFS = [
@@ -184,15 +189,12 @@ const nightsBetween = (ci, co) => {
   const n = Math.round((b - a) / 86400000);
   return n > 0 ? n : null;
 };
-// Today, as a local ISO date. This is the floor for paging the fare strip backwards — the
-// traveller can walk back to the current week and no further, because a departure that has
-// already happened cannot be sold. Built from LOCAL parts for the same reason addDaysISO is:
-// toISOString() would hand back yesterday for anyone east of Greenwich.
-const todayISO = () => {
-  const d = new Date();
-  const p = (v) => String(v).padStart(2, '0');
-  return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
-};
+// The floor for the fare strip and every date field on this page: 24 hours from now, in
+// BELGIAN time (see utils/leadTime.js). The strip pages backwards to that day and no further,
+// because a departure inside a day cannot be confirmed with the supplier and turned into
+// documents in time — and it is measured in Brussels rather than on the traveller's own clock,
+// so the same dates are offered wherever they are sitting.
+const todayISO = () => earliestCheckInISO();
 // Days shown at once. The cache endpoint returns exactly this many, forward from the check-in
 // it is given, so a "week" of the strip and one request are the same thing.
 const CAL_DAYS = 7;

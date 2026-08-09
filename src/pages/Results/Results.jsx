@@ -16,6 +16,7 @@ import { flagUrl } from '../../utils/countryFlag';
 import { toTitleCase } from '../../utils/textCase';
 import { nightsToDays } from '../../utils/durations';
 import { dobsMatchAges, ageAtCheckIn } from '../../utils/childDob';
+import { earliestCheckInISO } from '../../utils/leadTime';
 import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
@@ -1452,11 +1453,11 @@ export default function Results() {
       <FilterSection title="Dates & Guests" defaultOpen>
         <div className={styles.dateGroup}>
           <label className={styles.dateLabel}>Check-in</label>
-          <input type="date" className={styles.dateInput} value={localCheckIn} min={new Date().toISOString().split('T')[0]} onChange={(e) => setLocalCheckIn(e.target.value)} />
+          <input type="date" className={styles.dateInput} value={localCheckIn} min={earliestCheckInISO()} onChange={(e) => setLocalCheckIn(e.target.value)} />
         </div>
         <div className={styles.dateGroup}>
           <label className={styles.dateLabel}>Check-out</label>
-          <input type="date" className={styles.dateInput} value={localCheckOut} min={localCheckIn || new Date().toISOString().split('T')[0]} onChange={(e) => setLocalCheckOut(e.target.value)} />
+          <input type="date" className={styles.dateInput} value={localCheckOut} min={localCheckIn || earliestCheckInISO()} onChange={(e) => setLocalCheckOut(e.target.value)} />
         </div>
         {roomsConfig.map((room, i) => (
           <div key={i} className={styles.roomBlock}>

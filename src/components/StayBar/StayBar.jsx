@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import styles from './StayBar.module.css';
+import { earliestCheckInISO } from '../../utils/leadTime';
 import { DURATION_BANDS, bandByLabel, bandForNights, daysInBand, daysToNights } from '../../utils/durations';
 
 // The "edit my search" bar on the hotel page: departure date, who's travelling, board,
@@ -198,10 +199,14 @@ export default function StayBar({
   const dirty = `${dAdults}|${dChildren}|${draft.length}|${dChildren ? draftAgesStr : ''}`
     !== `${adults}|${childCount}|${roomCount}|${childCount ? childAges : ''}`;
 
-  // LOCAL date parts, not toISOString(). This is the `min` on the departure picker and the `max`
-  // on the children's dates of birth, and UTC is the wrong day for part of every night: at 00:30
-  // in Brussels toISOString() still reports yesterday, which would have let a traveller pick a
-  // departure date that had already passed.
+  // Two different floors, and they are not the same date.
+  //
+  // The DEPARTURE cannot be sooner than 24 hours from now in Belgian time — a same-day trip
+  // cannot be confirmed with the supplier and ticketed in time (utils/leadTime.js).
+  // A DATE OF BIRTH, on the other hand, only cannot be in the future, so it keeps today.
+  // Both are built from local/Brussels parts rather than toISOString(), which reports
+  // yesterday for part of every night here.
+  const earliest = earliestCheckInISO();
   const today = (() => {
     const d = new Date();
     const p = (v) => String(v).padStart(2, '0');
@@ -230,7 +235,7 @@ export default function StayBar({
             </span>
             <Chevron />
           </button>
-          <input ref={dateRef} type="date" className={styles.dateHidden} value={checkIn || ''} min={today}
+          <input ref={dateRef} type="date" className={styles.dateHidden} value={checkIn || ''} min={earliest}
             onChange={(e) => { if (e.target.value) onChange({ checkIn: e.target.value }); }} />
         </div>
 

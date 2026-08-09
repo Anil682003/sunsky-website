@@ -6,6 +6,7 @@ import DestinationModal from '../../../components/DestinationModal/DestinationMo
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
 import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, airportCity } from '../../../utils/airports';
+import { earliestCheckInISO } from '../../../utils/leadTime';
 
 // Duration bands shown in the search box. Each band is a day-range with a representative stay
 // length in nights — the concrete duration the search prices for that band. Picking a band + a
@@ -209,7 +210,9 @@ export default function Hero() {
     setOpenField((prev) => (prev === field ? null : field));
   };
 
-  const todayISO = new Date().toISOString().split('T')[0];
+  // Not today: the earliest departure anyone may pick is 24 hours out, in Belgian time
+  // (utils/leadTime.js). The name stays for the calendar code that reads it as "the floor".
+  const todayISO = earliestCheckInISO();
 
   const totalAdults   = roomsList.reduce((n, r) => n + r.adults, 0);
   const totalChildren = roomsList.reduce((n, r) => n + r.children, 0);
