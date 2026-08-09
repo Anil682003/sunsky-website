@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import axiosInstance from '../../services/axiosInstance';
+import { ageAtCheckIn } from '../../utils/childDob';
 import Confirmation from './Confirmation';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import './Checkout.css';
@@ -135,6 +136,13 @@ const MIN_PASSPORT_EXPIRY = new Date(Date.now() + 86400000).toISOString().split(
 
 /* ════════ helpers ════════ */
 const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || '');
+// Why a re-check failed, in words a traveller can act on — never the axios message.
+const friendlyReprice = (err) => {
+  const code = err?.code;
+  if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') return 'The supplier took too long to answer.';
+  if (code === 'ERR_NETWORK') return 'We could not reach the supplier.';
+  return 'We could not re-check the price just now.';
+};
 const phoneOk = (v) => /^\+[1-9]\d{6,14}$/.test((v || '').replace(/[\s\-.()]/g, ''));
 const urlOk = (v) => /^(https?:\/\/)?[\w-]+(\.[\w-]+)+\S*$/.test(v || '');
 
@@ -227,7 +235,69 @@ const Check = ({ checked, onChange, children }) => (
 const emptyTraveller = () => ({
   title: '', firstName: '', lastName: '', gender: '', nationality: '',
   dateOfBirth: '', passportNumber: '', passportExpiry: '',
+  // `searchDob` is the date this traveller's price was quoted for, carried from the search
+  // bar. Present only on the children the search actually described; it makes the row
+  // read-only until the traveller asks to change it, and it is what a re-price is measured
+  // against. `dobLocked` follows it and is dropped by the Change button.
+  searchDob: '', dobLocked: false,
 });
+
+/**
+ * The traveller rows a search implies: adults first, then one row per child pre-filled with
+ * the date of birth typed into the search bar.
+ *
+ * The children are the whole point. Their age is what priced the stay and the fare, so the
+ * checkout must not ask for it a second time and risk being told something different — and
+ * must not silently accept a change either (see the re-price gate). A search with no dates
+ * (an older link, or ages edited on the results page after the dates stopped matching) simply
+ * yields empty rows, exactly as before.
+ */
+const seedTravellers = (booking) => {
+  const s = booking.search || {};
+  const adults = Math.max(1, Number(s.adults) || Number(booking.adults) || 2);
+  const children = Math.max(0, Number(s.children) || 0);
+  const dobs = String(s.childDobs || '').split(',').map((d) => d.trim()).filter(Boolean);
+  // Only lock what we really know: as many children as we have dates for.
+  const rows = Array.from({ length: adults }, emptyTraveller);
+  for (let i = 0; i < children; i++) {
+    const dob = dobs[i] || '';
+    rows.push({ ...emptyTraveller(), dateOfBirth: dob, searchDob: dob, dobLocked: !!dob });
+  }
+  // Older hand-offs carry only a pax total (booking.adults counted everyone) — keep that
+  // shape rather than dropping rows the traveller would have to add back by hand.
+  if (!s.adults && !children && booking.adults > adults) {
+    while (rows.length < booking.adults) rows.push(emptyTraveller());
+  }
+  return rows;
+};
+
+/**
+ * How a party splits into fare types, using the SAME boundaries as the server's paxCounts
+ * (backend/website/services/priceValidation.service.js): under 2 an infant, under 12 a child,
+ * otherwise an adult, measured on the travel date. The two must agree — the server re-prices
+ * the flight from the passengers' dates of birth, so a client that classified them differently
+ * would send a total the server rejects as PRICE_CHANGED and the traveller would be stopped at
+ * the last step with nothing to fix.
+ *
+ * @param searchedAdults how many adults the search itself described (their rows carry no
+ *   searched date of birth, so they are counted, not derived)
+ * @param childAges ages of the searched children, in search order
+ */
+const splitFareTypes = (searchedAdults, childAges) => {
+  const grown = childAges.filter((a) => a >= 12).length;
+  return {
+    adults: searchedAdults + grown,
+    children: childAges.filter((a) => a >= 2 && a < 12).length,
+    infants: childAges.filter((a) => a < 2).length,
+    // Hotelbeds wants an age for every non-adult in the room, infants included.
+    childAges: childAges.filter((a) => a < 12),
+  };
+};
+/** Two itineraries are the same flight when every leg is the same number at the same minute. */
+const sameItinerary = (a = [], b = []) => a.length === b.length && a.every((leg, i) => (
+  String(leg.flightNumber || '') === String(b[i]?.flightNumber || '')
+  && String(leg.departure || '').slice(0, 16) === String(b[i]?.departure || '').slice(0, 16)
+));
 
 /* ════════════════════════════════════════════════════════ */
 function CheckoutContent({ stripe, elements }) {
@@ -264,8 +334,7 @@ function CheckoutContent({ stripe, elements }) {
     hasContactEmail: true, primaryContactEmail: user?.email || '', primaryContactPhone: '',
     primaryContactRole: '', preferredLanguage: 'en',
   });
-  const [travellers, setTravellers] = useState(() =>
-    Array.from({ length: booking.adults || 2 }, emptyTraveller));
+  const [travellers, setTravellers] = useState(() => seedTravellers(booking));
 
   /* ── the name check, between step 1 and the extras ──
      A misspelled name is the one checkout mistake the traveller pays for later: airlines
@@ -276,6 +345,166 @@ function CheckoutContent({ stripe, elements }) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewOk, setReviewOk] = useState({});
   const allReviewed = travellers.every((_, i) => reviewOk[i]);
+
+  /* ── unlocking a child's date of birth ──
+     `dobPrompt` is the traveller whose warning is on screen; `dobUnlocked` is the last one
+     opened, only so the date input takes focus when it appears. */
+  const [dobPrompt, setDobPrompt] = useState(null);
+  const [dobUnlocked, setDobUnlocked] = useState(null);
+  const unlockDob = (i) => {
+    setTravellers((ts) => ts.map((t, ti) => (ti === i ? { ...t, dobLocked: false } : t)));
+    setDobUnlocked(i);
+    setDobPrompt(null);
+  };
+
+  /* ══ re-pricing after a date-of-birth change ══════════════════════════════════
+     A corrected birthday can change what this holiday costs, or whether it exists at all:
+     the room was quoted for a party of certain ages and the fare for certain passenger
+     types. So the change is not accepted quietly — the supplier is asked again, nothing can
+     be paid while the answer is outstanding, and a new price has to be accepted by the
+     person paying it. The booking then carries the identifiers from THAT check (a fresh
+     rateKey, fresh flight keys), which is what makes the server's own re-price agree.
+
+     `quote` is the live hotel/flight pair the page prices from — it starts as whatever the
+     hotel page quoted and is replaced only by an accepted re-check. */
+  const S = booking.search || {};
+  const [quote, setQuote] = useState(() => ({
+    hotel: Number(booking.api?.hotel?.price) || 0,
+    flight: Number(booking.api?.flight?.price) || 0,
+    rateKey: booking.api?.hotel?.rateKey || null,
+    roomCode: booking.api?.hotel?.roomCode || null,
+    boardCode: booking.api?.hotel?.boardCode || null,
+    flightKeys: booking.api?.flight?.flightKeys || null,
+  }));
+  // null → nothing to settle. Otherwise: checking | same | changed | unavailable | error
+  const [reprice, setReprice] = useState(null);
+  const repriceSeq = useRef(0);
+
+  // The searched children, in search order, with the ages their current dates imply.
+  const searchedChildren = travellers.filter((t) => t.searchDob);
+  const searchedAges = String(S.childAges || '').split(',').map((a) => a.trim()).filter(Boolean);
+  const currentChildAges = searchedChildren.map((t) => ageAtCheckIn(t.dateOfBirth, S.checkin));
+  const agesReady = currentChildAges.every((a) => a != null);
+  const agesSignature = agesReady ? currentChildAges.join(',') : null;
+  const searchedSignature = searchedAges.join(',');
+  // Only a change of AGE can move a price — every supplier call we make carries ages, never
+  // dates. Correcting the day of a birthday inside the same year is therefore free, and
+  // asking the supplier about it would be a call whose answer we already know.
+  const needsReprice = !!(S.checkin && agesSignature && searchedSignature
+    && agesSignature !== searchedSignature);
+
+  const runReprice = async (ages) => {
+    const seq = ++repriceSeq.current;
+    const party = splitFareTypes(Number(S.adults) || 1, ages);
+    setReprice({ status: 'checking' });
+    try {
+      const hotelReq = axiosInstance.post('/hotel-availability/search', {
+        hotelCode: String(booking.api?.hotel?.hotelCode || booking.hotelCode),
+        checkin: S.checkin, checkout: S.checkout,
+        adults: party.adults, children: party.childAges.length,
+        childAges: party.childAges, rooms: Number(S.rooms) || 1,
+      });
+      // The fare is only re-searched when the PASSENGER MIX changed — an 11-year-old
+      // turning 12 is a different ticket, an 8-year-old turning 9 is not, and the flight
+      // search takes counts, not ages.
+      const mixChanged = party.adults !== (Number(S.adults) || 1) || party.infants > 0;
+      const flightReq = (mixChanged && booking.api?.flight && S.destination)
+        ? axiosInstance.post('/flight-availability/search', {
+            from: S.origin, to: S.destination,
+            depdate: S.checkin, retdate: S.checkout,
+            adults: party.adults, children: party.children, infants: party.infants,
+          })
+        : null;
+
+      const [hotelRes, flightRes] = await Promise.all([hotelReq, flightReq]);
+      if (seq !== repriceSeq.current) return;   // a newer edit owns the screen
+
+      // ── the room, re-priced for the corrected party ──
+      const raw = hotelRes?.data?.results;
+      const rooms = [...(raw?.hotelbeds?.rooms || []), ...(raw?.diana?.rooms || [])]
+        .map((r) => ({
+          price: r.sellingRate ?? r.net ?? r.price ?? null,
+          roomCode: r.roomCode || null, boardCode: r.boardCode || null,
+          rateKey: r.rateKey || null, name: r.roomName || 'Room',
+          board: r.boardName || r.boardCode || '',
+        }))
+        .filter((r) => r.price != null)
+        .sort((a, b) => a.price - b.price);
+      // Prefer the room and board that were actually chosen; a hotel that still has rooms
+      // but not THAT one is a changed offer, not an unavailable holiday, so fall back to
+      // the cheapest and let the new price be accepted or refused.
+      const match = rooms.find((r) => r.roomCode === quote.roomCode && r.boardCode === quote.boardCode)
+        || rooms.find((r) => r.boardCode === quote.boardCode)
+        || rooms[0];
+      if (!match) {
+        setReprice({ status: 'unavailable', reason: 'room', ages });
+        return;
+      }
+
+      // ── the flight, if it had to be re-searched ──
+      let flight = { price: quote.flight, keys: quote.flightKeys };
+      if (flightRes) {
+        const list = flightRes.data?.results;
+        const flights = Array.isArray(list) ? list : (list?.flights || []);
+        const wanted = booking.api.flight.legs || [];
+        const same = flights.find((f) => sameItinerary([...(f.outLegs || f.legs || [])], wanted))
+          || flights.find((f) => sameItinerary([...(f.legs || [])], wanted));
+        if (!same) {
+          setReprice({ status: 'unavailable', reason: 'flight', ages });
+          return;
+        }
+        flight = {
+          price: Number(same.totalPrice ?? same.price) || 0,
+          keys: same.flightKeys || same.flightKey ? [same.flightKey].filter(Boolean) : quote.flightKeys,
+        };
+      }
+
+      const nextQuote = {
+        hotel: Number(match.price) || 0,
+        flight: flight.price,
+        rateKey: match.rateKey, roomCode: match.roomCode, boardCode: match.boardCode,
+        flightKeys: flight.keys,
+      };
+      const was = quote.hotel + quote.flight;
+      const now = nextQuote.hotel + nextQuote.flight;
+      // Within a euro is the same price — supplier rounding is not a price change worth
+      // stopping a booking for.
+      if (Math.abs(now - was) < 1) {
+        setQuote(nextQuote);          // keep the fresh identifiers even when the money matches
+        setReprice({ status: 'same', ages });
+      } else {
+        setReprice({ status: 'changed', ages, was, now, next: nextQuote, room: match });
+      }
+    } catch (err) {
+      if (seq !== repriceSeq.current) return;
+      setReprice({ status: 'error', ages, message: friendlyReprice(err) });
+    }
+  };
+
+  // Debounced: a date input fires on every keystroke of a typed year, and each one would
+  // otherwise be a supplier call for a party that existed for 80 milliseconds.
+  useEffect(() => {
+    if (!needsReprice) { if (reprice) setReprice(null); return undefined; }
+    if (reprice && reprice.ages?.join(',') === agesSignature) return undefined;  // already settled
+    const t = setTimeout(() => runReprice(currentChildAges), 700);
+    return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [needsReprice, agesSignature]);
+
+  const acceptNewPrice = () => {
+    if (reprice?.status !== 'changed') return;
+    setQuote(reprice.next);
+    setReprice({ status: 'accepted', ages: reprice.ages });
+  };
+  // Putting the searched date back is the one-click way out of both the "changed" and the
+  // "not available" states — it restores the holiday that was actually priced.
+  const restoreSearchDob = () => {
+    setTravellers((ts) => ts.map((t) => (t.searchDob ? { ...t, dateOfBirth: t.searchDob, dobLocked: true } : t)));
+    setReprice(null);
+  };
+  // Nothing may be paid while an answer is outstanding, or while a new price is unaccepted,
+  // or when the corrected party has no holiday to book.
+  const repriceBlocks = !!reprice && ['checking', 'changed', 'unavailable', 'error'].includes(reprice.status);
 
   /* ── step 2 : add-ons ── */
   const [insurance, setInsurance] = useState('none');
@@ -307,7 +536,15 @@ function CheckoutContent({ stripe, elements }) {
   const pax = travellers.length;
   // Transfers are priced PER VEHICLE (the rate covers the whole party), so the
   // base is the fixed total — never multiplied by the traveller count.
-  const base = isTransfer ? booking.ppPrice : booking.ppPrice * pax;
+  // An ACCEPTED re-check replaces the quoted stay+fare; until then nothing about the money
+  // moves, so a booking nobody re-priced prices exactly as it did before this existed.
+  // `quotedThen` is read straight off the hand-off rather than from a ref — the payload is
+  // fixed for the life of the page, and a ref read during render is not.
+  const quotedNow = quote.hotel + quote.flight;
+  const quotedThen = (Number(booking.api?.hotel?.price) || 0) + (Number(booking.api?.flight?.price) || 0);
+  const base = isTransfer ? booking.ppPrice
+    : quotedNow !== quotedThen ? quotedNow
+    : booking.ppPrice * pax;
   const roomExtraTotal = (booking.roomExtra || 0) * pax;
   // Package add-on: a transfer attached to a hotel/flight booking is its own
   // per-vehicle line. (For a transfer-only booking it's already in `base`.)
@@ -483,6 +720,16 @@ function CheckoutContent({ stripe, elements }) {
 
   /* Booking flow: create → Stripe PaymentIntent → confirm card → record payment → supplier confirm. */
   const pay = async () => {
+    // "During this check, the customer must not be able to complete the booking/payment."
+    // Belt and braces: the button is already disabled, this is the path a stray Enter takes.
+    if (repriceBlocks) {
+      setErrors({ submit: reprice.status === 'checking'
+        ? 'We are re-checking your price — one moment.'
+        : reprice.status === 'unavailable'
+          ? 'This trip is not available for the updated traveller details.'
+          : 'Please review the updated price for your booking before paying.' });
+      return;
+    }
     const e = validatePayment();
     if (Object.keys(e).filter((k) => e[k]).length) return flashErrors(e);
     setErrors({});
@@ -518,14 +765,30 @@ function CheckoutContent({ stripe, elements }) {
       }));
 
       const api = booking.api || {};
-      const hotelPayload = api.hotel || null;
+      // The identifiers from the LAST SUCCESSFUL check, not from the search. After an accepted
+      // re-price the rateKey, room and board are the ones quoted for the corrected ages — send
+      // the old ones and the supplier would book a room priced for a child who doesn't exist,
+      // while the server's own re-price (which reads these dates of birth) rejects the total.
+      const hotelPayload = api.hotel
+        ? {
+            ...api.hotel,
+            rateKey: quote.rateKey ?? api.hotel.rateKey,
+            roomCode: quote.roomCode ?? api.hotel.roomCode,
+            boardCode: quote.boardCode ?? api.hotel.boardCode,
+            price: quote.hotel || api.hotel.price,
+          }
+        : null;
       // Flight price must reflect the ACTUAL travellers entered at checkout, not the
       // search-time pax count. For a flights-only booking the flight line total is
       // (per-person price × travellers) + any per-person extras = `base + roomExtraTotal`.
       // For packages the flight/hotel payloads already carry their own full totals, so
       // we leave them untouched.
       const flightPayload = api.flight
-        ? { ...api.flight, price: hotelPayload ? api.flight.price : (base + roomExtraTotal) }
+        ? {
+            ...api.flight,
+            flightKeys: quote.flightKeys ?? api.flight.flightKeys,
+            price: hotelPayload ? (quote.flight || api.flight.price) : (base + roomExtraTotal),
+          }
         : null;
       // Transfer price is per vehicle — fixed regardless of the traveller count.
       // The backend independently re-prices it via transfer availability.
@@ -655,8 +918,15 @@ function CheckoutContent({ stripe, elements }) {
   const selIns = INSURANCES.find((i) => i.id === insurance);
 
   /* primary CTA per step (shared by bottom bar + mobile bar) */
-  const ctaLabel = step === 0 ? 'Continue to add-ons' : step === 1 ? 'Continue to payment' : `Pay ${money(total)}`;
+  const ctaLabel = repriceBlocks && reprice.status === 'checking' ? 'Re-checking your price…'
+    : step === 0 ? 'Continue to add-ons'
+    : step === 1 ? 'Continue to payment'
+    : `Pay ${money(total)}`;
   const ctaAction = step === 2 ? pay : next;
+  // One rule for every way forward (button, mobile bar): an outstanding re-check, an
+  // unaccepted new price or an unavailable party stops the traveller here, at the panel that
+  // explains why, rather than at the payment sheet.
+  const ctaBlocked = paying || repriceBlocks;
 
   /* ═══ full-page confirmation after payment ═══ */
   if (paid) {
@@ -1045,10 +1315,54 @@ function CheckoutContent({ stripe, elements }) {
                                 {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
                               </select>
                             </Field>
-                            <Field label="Date of birth" req err={errors[`t${i}.dateOfBirth`]}>
-                              <input className="ck-input" type="date" value={t.dateOfBirth} onChange={(e) => setT(i, 'dateOfBirth')(e.target.value)} />
+                            {/* A child whose date of birth came from the search opens READ-ONLY.
+                                That date is what the stay and the fare were priced on, so it is
+                                not a field to be casually retyped — but it is also the one thing
+                                a traveller might genuinely need to fix, so there is a way in,
+                                behind a warning that says what will happen. */}
+                            <Field label="Date of birth" req err={errors[`t${i}.dateOfBirth`]}
+                              hint={t.dobLocked ? 'From your search — this set the price'
+                                : t.searchDob ? 'Changing this re-checks price and availability'
+                                : undefined}>
+                              {t.dobLocked ? (
+                                <div className="ck-dob-lock">
+                                  <span className="ck-dob-val">{dmy(t.dateOfBirth)}</span>
+                                  <span className="ck-dob-age">{ageType(t.dateOfBirth).label}</span>
+                                  <button type="button" className="ck-dob-change" onClick={() => setDobPrompt(i)}>
+                                    Change
+                                  </button>
+                                </div>
+                              ) : (
+                                <input className="ck-input" type="date" value={t.dateOfBirth}
+                                  autoFocus={dobUnlocked === i}
+                                  onChange={(e) => setT(i, 'dateOfBirth')(e.target.value)} />
+                              )}
                             </Field>
                           </div>
+
+                          {/* The warning the traveller sees BEFORE the field opens — the whole
+                              point is that changing this is not free, and saying so afterwards
+                              would be too late. Wording is the client's. */}
+                          {dobPrompt === i && (
+                            <div className="ck-dob-warn" role="alertdialog" aria-labelledby={`ck-dobw-${i}`}>
+                              <div className="ck-dob-warn-head">
+                                <span className="ck-dob-warn-ico">{ICON.clock}</span>
+                                <p id={`ck-dobw-${i}`}>
+                                  Changing the date of birth may affect the price or availability of your
+                                  trip. We will check this automatically before you continue.
+                                </p>
+                              </div>
+                              <div className="ck-dob-warn-btns">
+                                <button type="button" className="ck-dob-keep" onClick={() => setDobPrompt(null)}>
+                                  Keep {dmy(t.searchDob)}
+                                </button>
+                                <button type="button" className="ck-dob-go" onClick={() => unlockDob(i)}>
+                                  Change date of birth
+                                </button>
+                              </div>
+                            </div>
+                          )}
+
                           <div className="ck-pass">
                             <div className="ck-pass-label">{ICON.passport} Passport <small>(optional — required for some destinations)</small></div>
                             <div className="ck-row">
@@ -1075,6 +1389,91 @@ function CheckoutContent({ stripe, elements }) {
                     )}
                     {isTransfer && pax >= paxCap && (
                       <div className="ck-hint" style={{ marginTop: 8 }}>This vehicle seats a maximum of {paxCap} passengers.</div>
+                    )}
+
+                    {/* ── what the supplier said about the corrected party ──
+                        Every branch of the spec lands here: waiting, unchanged, dearer or
+                        cheaper, gone, or unreachable. The traveller stays in the checkout in
+                        all of them — nothing sends them back to the search. */}
+                    {reprice && (
+                      <div className={`ck-rp ck-rp-${reprice.status}`} role="status" aria-live="polite">
+                        {reprice.status === 'checking' && (
+                          <div className="ck-rp-row">
+                            <span className="ck-spin ck-rp-spin" />
+                            <div>
+                              <b>Re-checking price and availability…</b>
+                              <span>The dates of birth changed, so we are asking the hotel{booking.api?.flight ? ' and the airline' : ''} again. You can finish the rest of the form meanwhile.</span>
+                            </div>
+                          </div>
+                        )}
+                        {(reprice.status === 'same' || reprice.status === 'accepted') && (
+                          <div className="ck-rp-row">
+                            <span className="ck-rp-ok">{ICON.check}</span>
+                            <div>
+                              <b>{reprice.status === 'same' ? 'Your price is unchanged' : 'New price accepted'}</b>
+                              <span>Confirmed for the updated traveller details{reprice.status === 'accepted' ? ` — ${money(total)} total` : ''}.</span>
+                            </div>
+                          </div>
+                        )}
+                        {reprice.status === 'changed' && (
+                          <>
+                            <div className="ck-rp-row">
+                              <span className="ck-rp-warn">{ICON.clock}</span>
+                              <div>
+                                <b>The price for this holiday has changed</b>
+                                <span>The updated dates of birth change what the supplier charges. Accept the new price to continue, or put the original date back.</span>
+                              </div>
+                            </div>
+                            <div className="ck-rp-prices">
+                              <span className="ck-rp-was">{money(reprice.was + roomExtraTotal + transferTotal + SGR_FEE + insAmount)}</span>
+                              <span className="ck-rp-arrow">{ICON.arrow}</span>
+                              <span className="ck-rp-now">{money(reprice.now + roomExtraTotal + transferTotal + SGR_FEE + insAmount)}</span>
+                              <span className={`ck-rp-diff${reprice.now > reprice.was ? ' up' : ' down'}`}>
+                                {reprice.now > reprice.was ? '+' : '−'}{money(Math.abs(reprice.now - reprice.was))}
+                              </span>
+                            </div>
+                            <div className="ck-rp-btns">
+                              <button type="button" className="ck-rp-restore" onClick={restoreSearchDob}>Keep the original date</button>
+                              <button type="button" className="ck-rp-accept" onClick={acceptNewPrice}>Accept the new price</button>
+                            </div>
+                          </>
+                        )}
+                        {reprice.status === 'unavailable' && (
+                          <>
+                            <div className="ck-rp-row">
+                              <span className="ck-rp-no">{ICON.ban}</span>
+                              <div>
+                                <b>This trip is not available for the updated traveller details</b>
+                                <span>
+                                  {reprice.reason === 'flight'
+                                    ? 'The airline has no seats for this party on these flights.'
+                                    : 'The hotel has no room for this party on these dates.'}
+                                  {' '}You can put the original date of birth back, or change your dates on the hotel page.
+                                </span>
+                              </div>
+                            </div>
+                            <div className="ck-rp-btns">
+                              <button type="button" className="ck-rp-restore" onClick={restoreSearchDob}>Put the original date back</button>
+                              <button type="button" className="ck-rp-accept" onClick={() => navigate(-1)}>Change dates</button>
+                            </div>
+                          </>
+                        )}
+                        {reprice.status === 'error' && (
+                          <>
+                            <div className="ck-rp-row">
+                              <span className="ck-rp-warn">{ICON.ban}</span>
+                              <div>
+                                <b>{reprice.message}</b>
+                                <span>We will not take a payment on a price we could not verify. Try again in a moment.</span>
+                              </div>
+                            </div>
+                            <div className="ck-rp-btns">
+                              <button type="button" className="ck-rp-restore" onClick={restoreSearchDob}>Put the original date back</button>
+                              <button type="button" className="ck-rp-accept" onClick={() => runReprice(currentChildAges)}>Try again</button>
+                            </div>
+                          </>
+                        )}
+                      </div>
                     )}
                   </section>
                 </>
@@ -1329,10 +1728,13 @@ function CheckoutContent({ stripe, elements }) {
                 {step > 0
                   ? <button className="ck-back-btn" onClick={back}>{ICON.arrowL} Back</button>
                   : <button className="ck-back-btn" onClick={() => navigate(-1)}>{ICON.arrowL} {isFlight ? 'Back to flight' : isTransfer ? 'Back to transfers' : 'Back to hotel'}</button>}
-                <button className={`ck-next-btn${paying ? ' busy' : ''}`} onClick={ctaAction} disabled={paying}>
+                <button className={`ck-next-btn${paying ? ' busy' : ''}${repriceBlocks ? ' held' : ''}`}
+                  onClick={ctaAction} disabled={ctaBlocked}>
                   {paying
                     ? <><span className="ck-spin" /> Processing payment…</>
-                    : <>{step === 2 && ICON.lock} {ctaLabel} {step < 2 && ICON.arrow}</>}
+                    : repriceBlocks && reprice.status === 'checking'
+                      ? <><span className="ck-spin" /> {ctaLabel}</>
+                      : <>{step === 2 && ICON.lock} {ctaLabel} {step < 2 && ICON.arrow}</>}
                 </button>
               </div>
             </div>
@@ -1459,8 +1861,10 @@ function CheckoutContent({ stripe, elements }) {
       {/* ═══ MOBILE STICKY BAR ═══ */}
       <div className="ck-mbar">
         <div className="ck-mbar-price"><small>total</small>{ccy}{animTotal.toLocaleString('en-US')}</div>
-        <button className="ck-mbar-btn" onClick={ctaAction} disabled={paying}>
-          {paying ? <span className="ck-spin" /> : <>{ctaLabel} {ICON.arrow}</>}
+        <button className="ck-mbar-btn" onClick={ctaAction} disabled={ctaBlocked}>
+          {paying || (repriceBlocks && reprice.status === 'checking')
+            ? <span className="ck-spin" />
+            : <>{ctaLabel} {ICON.arrow}</>}
         </button>
       </div>
 

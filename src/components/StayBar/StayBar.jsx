@@ -87,22 +87,30 @@ function OptionList({ options, current, onPick, scroll }) {
 // Spread flat totals across N rooms, biggest rooms first — the page only stores totals plus a
 // room count, so the per-room breakdown has to be reconstructed each time the popover opens.
 // Each room carries a `dobs` array (one empty string per child) for the DOB pickers.
-function splitRooms(totalAdults, totalChildren, roomCount) {
+function splitRooms(totalAdults, totalChildren, roomCount, knownDobs = []) {
   const n = Math.max(1, roomCount);
+  // The dates already entered are handed back in, in the order they were collected, so
+  // re-opening the popover shows the birthdays the traveller typed rather than blank
+  // pickers they have to fill in again to change one adult.
+  const queue = [...knownDobs];
   return Array.from({ length: n }, (_, i) => {
     const ch = Math.floor(totalChildren / n) + (i < totalChildren % n ? 1 : 0);
-    return { adults: Math.floor(totalAdults / n) + (i < totalAdults % n ? 1 : 0), children: ch, dobs: Array(ch).fill('') };
+    return {
+      adults: Math.floor(totalAdults / n) + (i < totalAdults % n ? 1 : 0),
+      children: ch,
+      dobs: Array.from({ length: ch }, () => queue.shift() || ''),
+    };
   });
 }
 
 export default function StayBar({
   checkIn, formatDate,
-  adults, children: childCount, childAges = '', rooms: roomCount = 1,
+  adults, children: childCount, childAges = '', childDobs = '', rooms: roomCount = 1,
   board = '', boardOptions = [], boardHint = '',
   origin, originOptions = [], originLabel = (c) => c, destination = '',
   transport = 'package',
   nights,
-  touched = false, onChange, onBoardChange, onChildAges, onReset,
+  touched = false, onChange, onBoardChange, onChildAges, onChildDobs, onReset,
 }) {
   const [openField, setOpenField] = useState(null);
   const barRef = useRef(null);
@@ -123,14 +131,15 @@ export default function StayBar({
   // Occupancy is edited as a DRAFT: a stepper click must not fire a fresh availability search on
   // every tap, so nothing is committed until "Save". Re-seeded from the committed values whenever
   // the popover opens, so dismissing it discards the draft.
-  const [draft, setDraft] = useState(() => splitRooms(adults, childCount, roomCount));
+  const dobList = childDobs ? childDobs.split(',').map((d) => d.trim()) : [];
+  const [draft, setDraft] = useState(() => splitRooms(adults, childCount, roomCount, dobList));
   // Re-seed on every OPEN, not when the committed values change — otherwise a draft abandoned by
   // clicking away survives and reappears the next time the popover is opened.
   const paxOpen = openField === 'pax';
   const [wasPaxOpen, setWasPaxOpen] = useState(paxOpen);
   if (paxOpen !== wasPaxOpen) {
     setWasPaxOpen(paxOpen);
-    if (paxOpen) setDraft(splitRooms(adults, childCount, roomCount));
+    if (paxOpen) setDraft(splitRooms(adults, childCount, roomCount, dobList));
   }
 
   const dAdults = draft.reduce((s, r) => s + r.adults, 0);
@@ -167,11 +176,17 @@ export default function StayBar({
   const saveOccupancy = () => {
     onChange({ adults: String(dAdults), children: String(dChildren), rooms: String(draft.length) });
     if (dChildren > 0) {
-      const ages = draft.flatMap((r) => r.dobs).map((dob) => {
+      const dobs = draft.flatMap((r) => r.dobs);
+      const ages = dobs.map((dob) => {
         const a = ageFromDob(dob);
         return a != null ? a : DEFAULT_CHILD_AGE;
       });
       onChildAges?.(ages.join(','));
+      // The supplier prices on the AGE, but the booking is made on the DATE: an airline
+      // ticket and a hotel's child rate are both checked against the passport, not against
+      // an age we derived once. Both travel from here so the checkout can pre-fill the date
+      // the price was quoted for instead of asking for it a second time.
+      onChildDobs?.(dobs.join(','));
     }
     close();
   };

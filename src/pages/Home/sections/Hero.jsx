@@ -267,6 +267,9 @@ export default function Hero() {
       d.setUTCDate(d.getUTCDate() + nights);
       checkOut = d.toISOString().split('T')[0];
     }
+    // Ages are what the supplier prices on; the DATES are what gets booked and what the
+    // checkout has to pre-fill, so both ride along from the one place they were typed.
+    const childDobs = roomsList.flatMap((r) => r.dobs).filter(Boolean);
     const childAges = roomsList.flatMap((r) => r.dobs).map(ageFromDob).filter((a) => a != null);
     const qs = new URLSearchParams({
       checkIn:  date || '',
@@ -280,6 +283,7 @@ export default function Hero() {
     qs.set('minNights', String(daysToNights(band.minDays)));
     qs.set('maxNights', String(daysToNights(band.maxDays)));
     if (childAges.length) qs.set('childAges', childAges.join(','));
+    if (childDobs.length) qs.set('childDobs', childDobs.join(','));
     // The transport decision, carried to the results sidebar and on into every hotel
     // page's flight search. Origin rides even in own-transport mode so flipping to
     // "incl. flight" later starts from the airport picked here, not from the default.

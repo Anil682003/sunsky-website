@@ -19,6 +19,7 @@ import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
 import StayBar from '../../components/StayBar/StayBar';
 import { ratingLabel } from '../../utils/rating';
+import { dobsMatchAges } from '../../utils/childDob';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
@@ -780,6 +781,18 @@ export default function HotelDetail() {
     const ages = paramChildAges.split(',').map((a) => a.trim()).filter(Boolean);
     return Array.from({ length: n }, (_, i) => ages[i] || String(CHILD_AGE_DEFAULT)).join(',');
   })();
+  // The birthdays behind those ages, as typed in the search bar. Nothing on this page prices
+  // on them — the supplier takes the age — but the checkout books on the date, so they ride
+  // along rather than being asked for a second time. Only kept while they still agree with
+  // the ages actually being priced (`dobsMatchAges`), never padded with a guess.
+  const paramChildDobs = String(ovr.childDobs ?? state?.childDobs ?? qp('childDobs') ?? '');
+  const sChildDobs = (() => {
+    const n = parseInt(sChildren, 10) || 0;
+    if (!n || !paramChildDobs) return '';
+    const dobs = paramChildDobs.split(',').map((d) => d.trim()).filter(Boolean);
+    if (dobs.length !== n) return '';
+    return dobsMatchAges(dobs.join(','), sChildAges, baseCheckIn) ? dobs.join(',') : '';
+  })();
   // Departure airport — priority order: an in-page edit, then the airport chosen on the
   // results page (URL — the card opens in a new tab, so only the query string arrives),
   // then the default. `normaliseOrigin` guards the URL value: an airport we don't sell
@@ -1203,8 +1216,12 @@ export default function HotelDetail() {
     set('rooms', sRooms);         set('childAges', sChildAges);
     set('nights', nights);
     set('transport', transport);  set('origin', origin);
+    // The birthdays survive a refresh with everything else, and LEAVE the URL the moment they
+    // stop matching the ages being priced — a stale date is worse than none (see childDob.js).
+    if (sChildDobs) url.searchParams.set('childDobs', sChildDobs);
+    else url.searchParams.delete('childDobs');
     if (url.toString() !== window.location.href) window.history.replaceState(window.history.state, '', url);
-  }, [filtersTouched, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms, sChildAges, nights, transport, origin]);
+  }, [filtersTouched, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms, sChildAges, sChildDobs, nights, transport, origin]);
 
   // Only a REAL "from" figure goes in the message; `stayFrom` already refuses the €0 the price
   // cache returns for an uncosted day and the total of a search that has since been edited.
@@ -1407,7 +1424,9 @@ export default function HotelDetail() {
     // and changing its length doesn't move the departure day — the day is still in the
     // strip, so clearing it made the traveller re-pick for nothing. Only a change of
     // check-in (or of who is travelling, which re-prices every day) drops it.
-    const keepsTheDay = keys.every((k) => k === 'childAges' || k === 'nights');
+    // `childDobs` rides with `childAges` here: it prices nothing on this page, so a date
+    // arriving alongside an age the traveller just saved must not drop the picked day.
+    const keepsTheDay = keys.every((k) => k === 'childAges' || k === 'childDobs' || k === 'nights');
     if (!keepsTheDay) setSelectedISO(null);
   };
   const resetFilters = () => { setOvr({}); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); invalidateTransfers(); setLiveTransfers(null); setSelectedTransfer(-1); setCheckedEmpty(new Set()); };
@@ -1786,10 +1805,35 @@ export default function HotelDetail() {
             type: liveTransfer.transferType, vehicle: liveTransfer.vehicle,
             direction: liveTransfer.direction, maxPax: liveTransfer.maxPax,
           } : null,
+          // ── the search behind this quote ──
+          // Everything the checkout needs to ASK THE SUPPLIER AGAIN: a traveller who corrects
+          // a child's date of birth there changes the age the stay and the fare were priced
+          // on, and the only honest answer is a fresh availability call with the corrected
+          // party. Without these the checkout would have to guess the destination, the
+          // occupancy split and which rate to re-match, or send the old price on regardless.
+          search: {
+            destination, origin, transport,
+            checkin, checkout, nights,
+            adults: Number(sAdults) || 2,
+            children: Number(sChildren) || 0,
+            rooms: Number(sRooms) || 1,
+            childAges: sChildAges,
+            // Empty unless the dates still agree with the ages that were priced (childDob.js).
+            childDobs: sChildDobs,
+            // Which rate to look for again after a re-price — the rateKey is regenerated by
+            // every availability call, so the room/board pair is the stable identity.
+            roomCode: useLive ? (liveRoom.roomCode || null) : null,
+            boardCode: useLive ? (liveRoom.boardCode || null) : null,
+          },
           // ── payload for the backend Online-booking create call ──
           api: {
             hotel: {
               hotelCode: String(hotelCode), hotelName, checkin, checkout, nights,
+              // Refundability travels with the rate so the payment step can put the
+              // non-refundable warning in front of the traveller before they pay, instead
+              // of it surfacing for the first time in the cancellation policy.
+              refundable: useLive ? (liveRoom.refundable ?? null) : null,
+              cancellation: useLive ? (liveRoom.cancellation || []) : [],
               room: roomName, supplier: useLive ? (liveRoom.supplier || 'hotelbeds') : 'hotelbeds',
               // identifiers the supplier reservation needs (from the live availability response)
               rateKey: useLive ? (liveRoom.rateKey || null) : null,
@@ -1967,6 +2011,7 @@ export default function HotelDetail() {
               <StayBar
                 checkIn={baseCheckIn} formatDate={niceDate}
                 adults={Number(sAdults) || 1} children={Number(sChildren) || 0} childAges={sChildAges}
+                childDobs={sChildDobs}
                 rooms={Number(sRooms) || 1}
                 board={boardPref} boardOptions={boardOptions}
                 boardHint={boardsKnown
@@ -1981,6 +2026,7 @@ export default function HotelDetail() {
                 onChange={applyFilter}
                 onBoardChange={(id) => setOvr((p) => ({ ...p, board: id }))}
                 onChildAges={(csv) => applyFilter({ childAges: csv })}
+                onChildDobs={(csv) => applyFilter({ childDobs: csv })}
                 onReset={resetFilters}
               />
 

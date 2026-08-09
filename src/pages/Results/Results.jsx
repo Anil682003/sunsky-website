@@ -15,6 +15,7 @@ import { topFacilities } from '../../utils/topFacilities';
 import { flagUrl } from '../../utils/countryFlag';
 import { toTitleCase } from '../../utils/textCase';
 import { nightsToDays } from '../../utils/durations';
+import { dobsMatchAges } from '../../utils/childDob';
 import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
@@ -373,6 +374,11 @@ export default function Results() {
   const initChildren = params.get('children') || '0';
   const initRooms    = params.get('rooms')    || '1';
   const childAges    = params.get('childAges') || '';
+  // The children's birthdays as typed in the search. The results page prices on the AGES —
+  // that is all the supplier takes — and only carries the dates through to the hotel page and
+  // the checkout, which book on the date. Handed on ONLY while the two still agree (see
+  // `dobsMatchAges`): a stale date next to an edited age is worse than no date at all.
+  const childDobs    = params.get('childDobs') || '';
 
   // Travel-time (duration) filter — the day-range band chosen on the home page (e.g. "6-10 days")
   // plus its night bounds, so the results page can offer each individual length within the band
@@ -742,10 +748,12 @@ export default function Results() {
   // Refs so loadMore always sees latest values
   const fetchParamsRef = useRef(fetchParams);
   const childAgesRef   = useRef(childAges);
+  const childDobsRef   = useRef(childDobs);
   const appliedRef     = useRef(applied);
   const priceScopeRef  = useRef(priceScope);
   useEffect(() => { fetchParamsRef.current = fetchParams; }, [fetchParams]);
   useEffect(() => { childAgesRef.current   = childAges; },   [childAges]);
+  useEffect(() => { childDobsRef.current   = childDobs; },   [childDobs]);
   useEffect(() => { appliedRef.current     = applied; },     [applied]);
   useEffect(() => { priceScopeRef.current  = priceScope; },  [priceScope]);
 
@@ -1123,6 +1131,8 @@ export default function Results() {
     if (Number.isFinite(Number(h.totalAmount))) qs.set('total', String(h.totalAmount));
     const ages = childAgesRef.current;
     if (ages) qs.set('childAges', ages);
+    const dobs = childDobsRef.current;
+    if (dobs && dobsMatchAges(dobs, ages, fetchParams.checkIn)) qs.set('childDobs', dobs);
     // How the traveller gets there, decided HERE and honoured on the hotel page: own
     // transport → the hotel page runs no flight search at all; incl. flight → it prices
     // flights from this airport first. Read from `filters` (the instant copy), not
@@ -1299,6 +1309,9 @@ export default function Results() {
     qp.set('children', fetchParams.children);
     qp.set('rooms', fetchParams.rooms);
     if (fetchParams.childAges) qp.set('childAges', fetchParams.childAges);
+    if (childDobs && dobsMatchAges(childDobs, fetchParams.childAges, fetchParams.checkIn)) {
+      qp.set('childDobs', childDobs);
+    }
     navigate({ search: qp.toString() });
   };
 

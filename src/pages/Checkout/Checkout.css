@@ -448,6 +448,73 @@
 .ck-trust-item { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--text-sec); }
 .ck-trust-item svg { width:13px; height:13px; color:var(--green); flex-shrink:0; }
 
+/* ════ CHILD DATE OF BIRTH — locked, and the way out of it ════
+   The read-only row is styled as a FACT, not a disabled input: a filled field greyed out
+   reads as broken, while this reads as "we already know this". */
+.ck-dob-lock { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:var(--r-sm);
+  background:var(--blue-pale); border:1.5px solid var(--blue-bg); min-height:47px; }
+.ck-dob-val { font-family:'Sora',sans-serif; font-size:14px; font-weight:700; color:var(--text);
+  font-variant-numeric:tabular-nums lining-nums; }
+.ck-dob-age { padding:3px 9px; border-radius:var(--r-full); background:var(--white); border:1px solid var(--border);
+  font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-sec); }
+.ck-dob-change { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--blue); }
+.ck-dob-change:hover { text-decoration:underline; }
+/* Amber, the one warning voice in this codebase — not red: nothing has gone wrong yet. */
+.ck-dob-warn { margin-top:12px; padding:14px 16px; border-radius:var(--r-sm);
+  background:var(--sun-warm); border:1px solid #ffe9c7; animation:ckFadeUp .28s var(--ease) both; }
+.ck-dob-warn-head { display:flex; align-items:flex-start; gap:10px; }
+.ck-dob-warn-head p { font-size:13px; font-weight:600; color:#8a5200; line-height:1.55; }
+.ck-dob-warn-ico { flex:none; color:#b45309; }
+.ck-dob-warn-ico svg { width:16px; height:16px; }
+.ck-dob-warn-btns { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
+.ck-dob-keep { padding:9px 16px; border-radius:var(--r-full); background:var(--white); border:1.5px solid #ffe0b2;
+  font-size:12.5px; font-weight:700; color:#8a5200; }
+.ck-dob-keep:hover { border-color:#f5b95c; }
+.ck-dob-go { padding:9px 16px; border-radius:var(--r-full); background:var(--blue); color:#fff;
+  font-size:12.5px; font-weight:700; }
+.ck-dob-go:hover { background:var(--blue-mid); }
+
+/* ════ RE-PRICE PANEL ════
+   One box, five states. Colour carries the meaning — blue while we wait, green when nothing
+   moved, amber when the money changed, rose when there is nothing to book — and the buttons
+   are always "put it back" next to "go on from here". */
+.ck-rp { margin-top:16px; padding:15px 17px; border-radius:var(--r-md); border:1px solid var(--border);
+  background:var(--blue-pale); animation:ckFadeUp .3s var(--ease) both; }
+.ck-rp-row { display:flex; align-items:flex-start; gap:12px; }
+.ck-rp-row div { display:flex; flex-direction:column; gap:3px; }
+.ck-rp-row b { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--text); }
+.ck-rp-row span { font-size:12.5px; color:var(--text-sec); line-height:1.55; }
+.ck-rp-spin { flex:none; margin-top:2px; border-color:rgba(31,79,216,.25); border-top-color:var(--blue); }
+.ck-rp-ok, .ck-rp-warn, .ck-rp-no { flex:none; width:24px; height:24px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center; }
+.ck-rp-ok svg, .ck-rp-warn svg, .ck-rp-no svg { width:13px; height:13px; }
+.ck-rp-ok { background:var(--green-light); color:#047857; }
+.ck-rp-warn { background:var(--sun-warm); color:#b45309; }
+.ck-rp-no { background:#fff1f1; color:#c22; }
+.ck-rp-same, .ck-rp-accepted { background:var(--green-light); border-color:#a7f3d0; }
+.ck-rp-changed, .ck-rp-error { background:var(--sun-warm); border-color:#ffe9c7; }
+.ck-rp-unavailable { background:#fff5f5; border-color:#fecaca; }
+/* The two numbers side by side — the old total struck through, the new one in full weight.
+   A percentage or a bare delta makes the traveller do arithmetic before they can decide. */
+.ck-rp-prices { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:13px 0 0 36px;
+  font-family:'Sora',sans-serif; font-variant-numeric:tabular-nums lining-nums; }
+.ck-rp-was { font-size:15px; font-weight:700; color:var(--text-light); text-decoration:line-through; }
+.ck-rp-arrow { color:var(--text-light); display:flex; }
+.ck-rp-arrow svg { width:15px; height:15px; }
+.ck-rp-now { font-size:21px; font-weight:800; color:var(--text); letter-spacing:-.02em; }
+.ck-rp-diff { padding:3px 10px; border-radius:var(--r-full); font-size:11.5px; font-weight:800; }
+.ck-rp-diff.up { background:#fff1f1; color:#c22; }
+.ck-rp-diff.down { background:var(--green-light); color:#047857; }
+.ck-rp-btns { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 0 36px; }
+.ck-rp-restore { padding:10px 18px; border-radius:var(--r-full); background:var(--white); border:1.5px solid var(--border);
+  font-size:12.5px; font-weight:700; color:var(--text-sec); }
+.ck-rp-restore:hover { border-color:var(--blue-soft); color:var(--blue); }
+.ck-rp-accept { padding:10px 18px; border-radius:var(--r-full); background:var(--blue); color:#fff;
+  font-size:12.5px; font-weight:700; }
+.ck-rp-accept:hover { background:var(--blue-mid); }
+/* Held, not broken: the CTA keeps its shape and stops pulsing while an answer is outstanding. */
+.ck-next-btn.held { animation:none; opacity:.6; cursor:not-allowed; }
+
 /* ════ REVIEW YOUR DETAILS MODAL ════
    Same light language as the cards behind it — white panel, blue heading, pale-blue
    guidance rail. No dark overlay slab: a soft ink wash keeps the checkout visible

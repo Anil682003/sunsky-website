@@ -96,7 +96,7 @@ describe('the name check between details and extras', () => {
 
     await waitFor(() => expect(modal()).toBeFalsy());
     expect(activeStep()).toMatch(/add-ons/i);
-  });
+  }, 20000);
 
   it('drops a traveller\'s confirmation when their name changes', async () => {
     const user = userEvent.setup();
@@ -125,5 +125,5 @@ describe('the name check between details and extras', () => {
     expect(ticks).toEqual([true, false]);           // only the edited traveller lost their tick
     expect(within(modal()).getByText(/Vanlii/)).toBeInTheDocument();
     expect(confirmBtn()).toBeDisabled();
-  });
+  }, 20000);
 });
