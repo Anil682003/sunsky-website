@@ -7,6 +7,19 @@ const axiosInstance = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+/**
+ * Timeout for the LIVE-SUPPLIER endpoints (rooms, flights, transfers). These fan out to
+ * Hotelbeds / Diana / Airtuerk and are in a different class from our own CRUD: the shared
+ * 15s budget was shorter than the suppliers' own timeouts, so the browser routinely aborted
+ * a request the server went on to answer successfully. The customer saw "taking longer than
+ * usual" while a perfectly good set of rooms arrived at a closed socket.
+ *
+ * The admin endpoint now races its suppliers against a 12.5s deadline, so this sits above it
+ * with room for network latency — a timeout here means something is genuinely wrong, not
+ * merely slow.
+ */
+export const SUPPLIER_TIMEOUT = 25000;
+
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;

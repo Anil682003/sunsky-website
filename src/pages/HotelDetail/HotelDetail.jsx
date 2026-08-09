@@ -1,7 +1,7 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
-import axiosInstance from '../../services/axiosInstance';
+import axiosInstance, { SUPPLIER_TIMEOUT } from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
@@ -33,16 +33,21 @@ const friendlyError = (e, what) => {
   const msg = String(e?.message || '');
   const status = e?.response?.status;
   if (e?.code === 'ECONNABORTED' || /timeout/i.test(msg)) {
-    return `The ${what} search is taking longer than usual. Suppliers can be slow at busy times — please try again.`;
+    // Say what we could not do and what happens next — nothing else. The old wording
+    // ("taking longer than usual. Suppliers can be slow at busy times") narrated our own
+    // plumbing at a shopper who neither knows nor cares what a supplier is, described the
+    // failure as merely slow while showing it as an error, and then asked them to repeat
+    // the thing that had just failed. Nothing here is the traveller's to fix.
+    return `We couldn’t load live ${what} prices just now. Your dates are saved — try once more, or pick another date above.`;
   }
   if (e?.code === 'ERR_NETWORK' || /network error/i.test(msg)) {
-    return `We couldn’t reach the ${what} service. Check your connection and try again.`;
+    return `We couldn’t reach our ${what} prices. Check your connection and try again.`;
   }
-  if (status === 429) return `A lot of searches are running right now. Please wait a moment and try again.`;
-  if (status >= 500) return `The ${what} service is having trouble at the moment. Please try again shortly.`;
+  if (status === 429) return `Too many searches at once. Wait a few seconds, then try again.`;
+  if (status >= 500) return `Live ${what} prices are unavailable right now. Please try again shortly.`;
   // Our own API writes its messages for people; anything else is an internal string.
   const fromServer = e?.response?.data?.message;
-  return fromServer || `We couldn’t load ${what} for these dates. Please try again.`;
+  return fromServer || `We couldn’t load ${what} prices for these dates. Please try again.`;
 };
 // Hotelbeds 400s on a child with no age, so a newly-added child gets this until asked.
 const CHILD_AGE_DEFAULT = 8;
@@ -1420,7 +1425,7 @@ export default function HotelDetail() {
     return axiosInstance.post('/flight-availability/search', {
       from, to: destination, depdate: checkin, retdate: checkout,
       adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
-    }).then(({ data }) => {
+    }, { timeout: SUPPLIER_TIMEOUT }).then(({ data }) => {
       flightCacheRef.current.set(key, { data, at: Date.now() });
       return data;
     });
@@ -1546,7 +1551,7 @@ export default function HotelDetail() {
       toType: 'ATLAS', toCode: String(hotelCode),
       outbound: validISO,
       adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
-    }).then(({ data }) => {
+    }, { timeout: SUPPLIER_TIMEOUT }).then(({ data }) => {
       if (seq !== transferSeqRef.current) return;   // a newer search (or a clear) owns the screen
       const services = data?.results?.hotelbeds?.services || [];
       setSelectedTransfer(-1);
@@ -1617,7 +1622,7 @@ export default function HotelDetail() {
       // HB requires an age per child; rooms lets groups get multi-room rates
       childAges: sChildAges ? sChildAges.split(',').map(Number) : [],
       rooms: Number(sRooms) || 1,
-    }).then(({ data }) => {
+    }, { timeout: SUPPLIER_TIMEOUT }).then(({ data }) => {
       console.log('[Detail] hotel-availability response', data?.results);
       const hb = data?.results?.hotelbeds, dn = data?.results?.diana, wm = data?.results?.w2m;
       const dianaHotelId = dn?.dianaHotelId ?? dn?.hotelId ?? null;

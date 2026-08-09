@@ -28,6 +28,9 @@ const post = vi.fn();
 const showToast = vi.fn();
 vi.mock('../../services/axiosInstance', () => ({
   default: { post: (...a) => post(...a), get: vi.fn(() => Promise.resolve({ data: {} })) },
+  // The live-supplier endpoints pass this as a per-request override; a mock without it
+  // throws on property access the moment a search runs.
+  SUPPLIER_TIMEOUT: 25000,
 }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ showToast }) }));
 vi.mock('../../api', () => ({
@@ -188,8 +191,10 @@ describe('supplier failures are reported in words a traveller can use', () => {
     renderPage();
     await runCheck(user);
 
-    expect(await screen.findByText(/taking longer than usual/i)).toBeInTheDocument();
+    expect(await screen.findByText(/couldn’t load live room prices/i)).toBeInTheDocument();
     expect(screen.queryByText(/timeout of \d+ms exceeded/i)).not.toBeInTheDocument();
+    // "Suppliers" is our word, not a traveller's — the message must never name our plumbing.
+    expect(screen.queryByText(/supplier/i)).not.toBeInTheDocument();
     expect(screen.getAllByRole('button', { name: /try again/i }).length).toBeGreaterThan(0);
   });
 
@@ -207,7 +212,7 @@ describe('supplier failures are reported in words a traveller can use', () => {
 
     renderPage();
     await runCheck(user);
-    await screen.findByText(/taking longer than usual/i);
+    await screen.findByText(/couldn’t load live room prices/i);
 
     const [retry] = screen.getAllByRole('button', { name: /try again/i });
     await user.click(retry);
