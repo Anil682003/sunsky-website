@@ -59,6 +59,16 @@ const ICON = {
   umbrella: <S><path d="M23 12a11.05 11.05 0 00-22 0zm-5 7a3 3 0 01-6 0v-7" /></S>,
   heartPulse: <S><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /><path d="M3.5 12h4l2-3 3 6 2-3h5.5" /></S>,
   ban:    <S><circle cx="12" cy="12" r="10" /><line x1="4.93" y1="4.93" x2="19.07" y2="19.07" /></S>,
+  // Baggage, told apart by silhouette rather than by label: a rucksack under the seat, a
+  // wheeled cabin case, a hold suitcase.
+  bag:    <S><path d="M6 8V6a3 3 0 013-3h6a3 3 0 013 3v2" /><rect x="4" y="8" width="16" height="13" rx="2.5" /><path d="M10 12h4" /></S>,
+  cabinBag: <S><rect x="6" y="7" width="12" height="14" rx="2.5" /><path d="M10 7V4h4v3" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></S>,
+  checkedBag: <S><rect x="3" y="7" width="18" height="13" rx="2.5" /><path d="M9 7V4.5A1.5 1.5 0 0110.5 3h3A1.5 1.5 0 0115 4.5V7" /><line x1="8" y1="20" x2="8" y2="22" /><line x1="16" y1="20" x2="16" y2="22" /></S>,
+  planeOut: <S sw={1.8}><path d="M2 16l20-7-6 12-3-5-5-1z" /><line x1="2" y1="21" x2="22" y2="21" /></S>,
+  planeIn:  <S sw={1.8}><path d="M22 16L2 9l6 12 3-5 5-1z" /><line x1="2" y1="21" x2="22" y2="21" /></S>,
+  checkCircle: <S sw={2.2}><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></S>,
+  van:    <S sw={1.8}><path d="M3 17V8a1 1 0 011-1h9v10" /><path d="M13 10h4l4 4v3h-2" /><circle cx="7.5" cy="17.5" r="2" /><circle cx="17.5" cy="17.5" r="2" /><line x1="9.5" y1="17" x2="15.5" y2="17" /></S>,
+  plusCircle: <S sw={2.2}><circle cx="12" cy="12" r="9" /><line x1="12" y1="8.5" x2="12" y2="15.5" /><line x1="8.5" y1="12" x2="15.5" y2="12" /></S>,
 };
 
 /* ════════ static config ════════ */
@@ -334,6 +344,48 @@ const DobPicker = ({ value, onChange, autoFocus }) => {
     </div>
   );
 };
+
+/**
+ * One kind of baggage, shown per traveller and per direction.
+ *
+ * The layout is the client's: what the fare ALREADY carries is stated, not sold, and only the
+ * legs where it is missing offer anything. "Included" here is the supplier's own allowance
+ * (Airtuerk sends kilos and piece counts on the fare) — the site never guesses it, because
+ * telling somebody their bag is included when it is not is how people get charged at a desk.
+ *
+ * The prices to ADD are SunSky's, from the dashboard: no supplier sells us an ancillary yet,
+ * so anything bought here is arranged by hand with the airline afterwards.
+ */
+const BaggageCard = ({ icon, title, note, legend, children }) => (
+  <section className="ck-card ck-reveal">
+    <div className="ck-card-head">
+      <div className="ck-card-titles">
+        <h2 className="ck-card-title hd">Choose extras per traveller</h2>
+        <p className="ck-card-sub">See which baggage is included for each traveller on the outbound and return journey.</p>
+      </div>
+    </div>
+    <div className="ck-bagkind">
+      <span className="ck-bagkind-ico">{icon}</span>
+      <div className="ck-bagkind-text">
+        <b>{title}</b>
+        <span>{note}</span>
+      </div>
+    </div>
+    {children}
+    <div className="ck-bag-legend">{legend}</div>
+  </section>
+);
+
+/** One traveller's block inside a baggage card: their name, then a row per direction. */
+const BagTraveller = ({ index, name, children }) => (
+  <div className="ck-bagtrav">
+    <div className="ck-bagtrav-head">
+      <span className="ck-bagtrav-n">{index + 1}</span>
+      <span className="ck-bagtrav-name hd">Traveller {index + 1}{name ? <span className="ck-trav-who"> — {name}</span> : null}</span>
+    </div>
+    {children}
+  </div>
+);
 
 /** The courtesy title a ticket carries, from the gender — not a fourth dropdown to fill. */
 const titleFor = (gender) => (gender === 'MALE' ? 'Mr' : gender === 'FEMALE' ? 'Ms' : '');
@@ -663,9 +715,31 @@ function CheckoutContent({ stripe, elements }) {
   const { data: pricingCfg } = useCheckoutConfig();
   const pricing = pricingCfg || DEFAULT_PRICING;
   const insurances = useMemo(() => buildInsurances(pricing), [pricing]);
-  const [insurance, setInsurance] = useState('none');
-  const [holderIsLead, setHolderIsLead] = useState(true);
-  const [holder, setHolder] = useState({ firstName: '', lastName: '' });
+  /* Two separate decisions, because they are two separate policies:
+     — cancellation cover is bought ONCE for the whole booking (if one traveller cancels the
+       trip, the trip is cancelled), so it is a single yes/no;
+     — travel cover is per traveller, because it insures a person: a family can cover the
+       children and not the adult who is already covered by a card.
+     `null` on either means "not answered yet" — different from "no", so the step can ask. */
+  const [cancelIns, setCancelIns] = useState(null);
+  const [travelIns, setTravelIns] = useState({});
+  // The policy holder is the lead traveller. It stopped being a question when travel cover
+  // became per-traveller: each policy already names the person it covers.
+  const holderIsLead = true;
+  const holder = { firstName: '', lastName: '' };
+
+  /* Baggage the traveller ADDED, keyed `travellerIndex:direction`. What the fare already
+     includes is never in here — that comes from the supplier's own allowance and cannot be
+     bought twice. `cabin: true` or `checked: <kg>`. */
+  const [bags, setBags] = useState({});
+  const bagKey = (i, dir) => `${i}:${dir}`;
+  const setBag = (i, dir, patch) => setBags((b) => {
+    const key = bagKey(i, dir);
+    const next = { ...(b[key] || {}), ...patch };
+    if (next.cabin === false) delete next.cabin;
+    if (next.checked === null) delete next.checked;
+    return { ...b, [key]: next };
+  });
 
   /* ── the airport transfer, bought here rather than on the hotel page ──
      The flight is already chosen by now, so the pickup can be timed to the arrival that will
@@ -723,18 +797,52 @@ function CheckoutContent({ stripe, elements }) {
     : (!isTransfer && booking.api?.transfer ? Math.round(Number(booking.api.transfer.price) || 0) : 0);
   const serviceFee = Number(pricing?.fees?.serviceFee);
   const SGR = Number.isFinite(serviceFee) ? serviceFee : SGR_FEE;
-  const subtotal = base + roomExtraTotal + transferTotal + SGR;
+  /* ── baggage the traveller added ──
+     Every line is priced from the dashboard table and re-priced by the server from the same
+     row; an amount that appears here and not there would be money we display but never take. */
+  const bagRates = pricing?.baggage || DEFAULT_PRICING.baggage;
+  // What the FARE carries, from the supplier. A return trip merges its two options by MIN, so
+  // this is the allowance that survives both legs — which is what a traveller has to pack for.
+  const allowance = booking.api?.flight?.baggage || null;
+  const hasFlight = !!booking.api?.flight;
+  const directions = booking.api?.flight?.tripType === 'roundtrip'
+    ? [{ key: 'out', label: 'Outbound', icon: ICON.planeOut }, { key: 'ret', label: 'Return', icon: ICON.planeIn }]
+    : [{ key: 'out', label: 'Outbound', icon: ICON.planeOut }];
+  const travellerName = (t) => [titleFor(t.gender), t.firstName, t.lastName].filter(Boolean).join(' ').trim();
+  const extraLines = useMemo(() => {
+    const out = [];
+    Object.entries(bags).forEach(([key, sel]) => {
+      const [idx, direction] = key.split(':');
+      if (sel?.cabin) {
+        out.push({ code: 'baggage.cabin', travellerIndex: Number(idx), direction,
+          label: bagRates?.cabin?.label || 'Cabin baggage', price: Number(bagRates?.cabin?.price) || 0 });
+      }
+      if (sel?.checked) {
+        const row = (bagRates?.checked || []).find((r) => Number(r.kg) === Number(sel.checked));
+        if (row) {
+          out.push({ code: 'baggage.checked', travellerIndex: Number(idx), direction, kg: Number(row.kg),
+            label: `Checked baggage ${row.kg} kg`, price: Number(row.price) || 0 });
+        }
+      }
+    });
+    return out;
+  }, [bags, bagRates]);
+  const extrasTotal = extraLines.reduce((s, l) => s + l.price, 0);
+
+  const subtotal = base + roomExtraTotal + transferTotal + extrasTotal + SGR;
   // Priced from the dashboard's rate card, by the same arithmetic the server will re-run.
-  const insAmount = useMemo(() => {
-    const ins = insurances.find((i) => i.id === insurance);
-    return ins?.option ? priceInsurance(ins.option, { pax, nights: booking.nights, baseSubtotal: subtotal }) : 0;
-  }, [insurances, insurance, pax, subtotal, booking.nights]);
+  // Cancellation covers the party; travel cover is charged per traveller who took it.
+  const cancelOption = insurances.find((i) => i.id === 'cancel')?.option || null;
+  const travelOption = insurances.find((i) => i.id === 'travel')?.option || null;
+  const travelCount = travellers.filter((_, i) => travelIns[i]).length;
+  const cancelAmount = (cancelIns && cancelOption)
+    ? priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: subtotal }) : 0;
+  const travelAmount = (travelCount && travelOption)
+    ? priceInsurance(travelOption, { pax: travelCount, nights: booking.nights, baseSubtotal: subtotal }) : 0;
+  const insAmount = cancelAmount + travelAmount;
   const total = subtotal + insAmount;
   const animTotal = useCountUp(total);
   const money = (n) => `${ccy}${Math.round(n).toLocaleString('en-US')}`;
-  const insPrice = (ins) => (ins?.option
-    ? priceInsurance(ins.option, { pax, nights: booking.nights, baseSubtotal: subtotal })
-    : 0);
 
   /* ── scroll to top on step change + reveal anims ── */
   useEffect(() => {
@@ -1030,8 +1138,15 @@ function CheckoutContent({ stripe, elements }) {
             companyName: arrivalLeg?.airline || undefined,
           }
         : (api.transfer || null);
-      const insurancePayload = (selIns && selIns.id !== 'none' && insAmount > 0)
-        ? { type: selIns.id, label: selIns.name, price: insAmount } : null;
+      // One entry per POLICY. The server re-prices each from the same rate card with the count
+      // it was sold for, so travel cover taken by two of four travellers is charged for two —
+      // not for the party, and not for one.
+      const insurancesPayload = [
+        cancelAmount > 0 && { type: 'cancel', label: cancelOption?.label || 'Cancellation insurance', pax, price: cancelAmount },
+        travelAmount > 0 && { type: 'travel', label: travelOption?.label || 'Travel insurance', pax: travelCount, price: travelAmount },
+      ].filter(Boolean);
+      // Kept for older readers of the booking: the first policy.
+      const insurancePayload = insurancesPayload[0] || null;
       const contactPhone = priv.phone;
 
       // What the customer agreed to, in the words they were shown, with the moment they
@@ -1060,6 +1175,11 @@ function CheckoutContent({ stripe, elements }) {
         flight: flightPayload || undefined,
         transfer: transferPayload || undefined,
         insurance: insurancePayload || undefined,
+        insurances: insurancesPayload.length ? insurancesPayload : undefined,
+        // What was added on top of the fare. Prices are sent for comparison only — the server
+        // looks every line up in its own table and charges that.
+        extras: extraLines.length ? extraLines.map(({ code, travellerIndex, direction, kg }) => ({ code, travellerIndex, direction, kg })) : undefined,
+        extrasTotal: extrasTotal || undefined,
         // Booking & service fee (SGR) shown to the customer — recorded on the booking
         // so the stored grand total matches what was charged.
         serviceFee: SGR,
@@ -1166,13 +1286,19 @@ function CheckoutContent({ stripe, elements }) {
   };
 
   const brand = detectBrand(card.number);
-  const lead = travellers[0];
-  const leadName = `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim();
   // One person filled this in, company booking or not — there is no second set of contact
   // fields to choose between any more.
   const customerEmail = priv.email;
   const contactPhoneShown = priv.phone;
-  const selIns = insurances.find((i) => i.id === insurance);
+  // What the confirmation screen prints as "the cover you took".
+  const selIns = insAmount > 0
+    ? {
+        id: cancelAmount && travelAmount ? 'both' : cancelAmount ? 'cancel' : 'travel',
+        name: [cancelAmount && (cancelOption?.label || 'Cancellation insurance'),
+          travelAmount && (travelOption?.label || 'Travel insurance')].filter(Boolean).join(' + '),
+        covers: [],
+      }
+    : null;
 
   /* primary CTA per step (shared by bottom bar + mobile bar) */
   const ctaLabel = repriceBlocks && reprice.status === 'checking' ? 'Re-checking your price…'
@@ -1628,7 +1754,123 @@ function CheckoutContent({ stripe, elements }) {
                 </>
               )}
 
-              {/* ──────── STEP 2 : ADD-ONS ──────── */}
+              {/* ──────── STEP 2 : ADD-ONS ────────
+                  Baggage first (it belongs to the flight the traveller just chose), then the
+                  transfer, then the two insurance decisions. The client's order. */}
+              {step === 1 && hasFlight && bagRates?.enabled !== false && (
+                <>
+                  {/* A. Personal item — stated, never sold: every fare carries one, and an
+                      "add" button next to something already included is a trap. */}
+                  {bagRates?.personalItem?.included !== false && (
+                    <BaggageCard
+                      icon={ICON.bag}
+                      title={bagRates?.personalItem?.label || 'Personal item'}
+                      note={bagRates?.personalItem?.note || 'A small personal item that fits under the seat in front of you.'}
+                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span></>}>
+                      {travellers.map((t, i) => (
+                        <BagTraveller key={i} index={i} name={travellerName(t)}>
+                          {directions.map((d) => (
+                            <div className="ck-bagrow" key={d.key}>
+                              <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
+                              <span className="ck-bagrow-item">{ICON.bag} {bagRates?.personalItem?.label || 'Personal item'}</span>
+                              <span className="ck-bagrow-state"><span className="ck-chip-inc">Included</span>{ICON.checkCircle}</span>
+                            </div>
+                          ))}
+                        </BagTraveller>
+                      ))}
+                    </BaggageCard>
+                  )}
+
+                  {/* B. Cabin baggage — included when the fare says so (handKg), otherwise
+                      offered at the dashboard's price. */}
+                  {bagRates?.cabin?.enabled !== false && (
+                    <BaggageCard
+                      icon={ICON.cabinBag}
+                      title={bagRates?.cabin?.label || 'Cabin baggage'}
+                      note={bagRates?.cabin?.note || 'A cabin bag that is stored in the overhead compartment.'}
+                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span></>}>
+                      {travellers.map((t, i) => (
+                        <BagTraveller key={i} index={i} name={travellerName(t)}>
+                          {directions.map((d) => {
+                            const included = (allowance?.handKg || 0) > 0;
+                            const added = !!bags[bagKey(i, d.key)]?.cabin;
+                            return (
+                              <div className="ck-bagrow" key={d.key}>
+                                <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
+                                <span className="ck-bagrow-item">{ICON.cabinBag} {bagRates?.cabin?.label || 'Cabin baggage'}</span>
+                                <span className="ck-bagrow-state">
+                                  {included ? (
+                                    <><span className="ck-chip-inc">Included{allowance.handKg ? ` · ${allowance.handKg} kg` : ''}</span>{ICON.checkCircle}</>
+                                  ) : added ? (
+                                    <>
+                                      <span className="ck-chip-added">Added · {money(bagRates?.cabin?.price || 0)}</span>
+                                      <button type="button" className="ck-bag-remove" onClick={() => setBag(i, d.key, { cabin: false })}>Remove</button>
+                                    </>
+                                  ) : (
+                                    <>
+                                      <span className="ck-chip-not">Not included</span>
+                                      <button type="button" className="ck-bag-add" onClick={() => setBag(i, d.key, { cabin: true })}>
+                                        + Add cabin baggage · {money(bagRates?.cabin?.price || 0)}
+                                      </button>
+                                    </>
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </BagTraveller>
+                      ))}
+                    </BaggageCard>
+                  )}
+
+                  {/* C. Checked baggage — the allowance the fare carries, in the supplier's own
+                      kilos or pieces, and a weight menu on the legs that have none. */}
+                  {(bagRates?.checked || []).length > 0 && (
+                    <BaggageCard
+                      icon={ICON.checkedBag}
+                      title="Checked baggage"
+                      note="Baggage transported in the aircraft hold."
+                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span></>}>
+                      {travellers.map((t, i) => (
+                        <BagTraveller key={i} index={i} name={travellerName(t)}>
+                          {directions.map((d) => {
+                            const kg = allowance?.checkedKg || 0;
+                            const pieces = allowance?.checkedPieces || 0;
+                            const included = kg > 0 || pieces > 0;
+                            const chosen = bags[bagKey(i, d.key)]?.checked;
+                            return (
+                              <div className="ck-bagrow" key={d.key}>
+                                <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
+                                <span className="ck-bagrow-item">{ICON.checkedBag} Checked baggage</span>
+                                <span className="ck-bagrow-state">
+                                  {included ? (
+                                    <><span className="ck-chip-inc">Included · {kg > 0 ? `${kg} kg` : `${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`}</span>{ICON.checkCircle}</>
+                                  ) : (
+                                    <>
+                                      <span className={chosen ? 'ck-chip-added' : 'ck-chip-not'}>
+                                        {chosen ? `Added · ${chosen} kg` : 'Not included'}
+                                      </span>
+                                      <select className="ck-bag-select" value={chosen || ''}
+                                        aria-label={`Add checked baggage for traveller ${i + 1}, ${d.label.toLowerCase()}`}
+                                        onChange={(e) => setBag(i, d.key, { checked: e.target.value ? Number(e.target.value) : null })}>
+                                        <option value="">+ Add checked baggage</option>
+                                        {(bagRates?.checked || []).map((r) => (
+                                          <option key={r.kg} value={r.kg}>{r.kg} kg — {money(r.price)}</option>
+                                        ))}
+                                      </select>
+                                    </>
+                                  )}
+                                </span>
+                              </div>
+                            );
+                          })}
+                        </BagTraveller>
+                      ))}
+                    </BaggageCard>
+                  )}
+                </>
+              )}
+
               {step === 1 && wantsTransfer && (
                 /* The airport transfer. One choice for everyone in the booking — the vehicle
                    carries the party, so it is priced per vehicle and never per traveller.
@@ -1636,15 +1878,24 @@ function CheckoutContent({ stripe, elements }) {
                    a charge nobody agreed to. */
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
-                    <div className="ck-ico">{ICON.pin}</div>
                     <div className="ck-card-titles">
-                      <h2 className="ck-card-title hd">Airport transfer</h2>
-                      <p className="ck-card-sub">
+                      <h2 className="ck-card-title hd">Choose your transfer</h2>
+                      <p className="ck-card-sub">Select one transfer option for all travellers.</p>
+                    </div>
+                  </div>
+                  <div className="ck-bagkind">
+                    <span className="ck-bagkind-ico">{ICON.van}</span>
+                    <div className="ck-bagkind-text">
+                      <b>Airport transfer</b>
+                      <span>
                         From {srch.destination} airport to {booking.hotelName}
                         {transfers?.pickupISO && arrivalISO ? ` — pickup ~${transfers.pickupISO.slice(11, 16)}, timed to your arrival` : ''}
-                      </p>
+                      </span>
+                      <span className="ck-kind-chips">
+                        <span className="ck-kind-chip">{ICON.users} {pax} traveller{pax === 1 ? '' : 's'}</span>
+                        <span className="ck-kind-chip">{ICON.check} Arrival transfer</span>
+                      </span>
                     </div>
-                    <span className="ck-optional-pill">Optional</span>
                   </div>
 
                   {transfers?.loading ? (
@@ -1692,88 +1943,55 @@ function CheckoutContent({ stripe, elements }) {
                 </section>
               )}
 
-              {step === 1 && (
+              {/* D. Cancellation insurance — ONE decision for the booking. If one traveller
+                  cancels the holiday, the holiday is cancelled, so it is not a per-person
+                  choice; the client's screen says exactly that and so does this. */}
+              {step === 1 && cancelOption && (
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
-                    <div className="ck-ico">{ICON.shield}</div>
                     <div className="ck-card-titles">
-                      <h2 className="ck-card-title hd">Protect your holiday</h2>
-                      <p className="ck-card-sub">Optional cover — cancel or get help abroad without losing money</p>
+                      <h2 className="ck-card-title hd">Cancellation insurance</h2>
+                      <p className="ck-card-sub">Choose whether you would like cancellation insurance for all travellers.</p>
+                    </div>
+                  </div>
+                  <div className="ck-bagkind">
+                    <span className="ck-bagkind-ico">{ICON.shield}</span>
+                    <div className="ck-bagkind-text">
+                      <b>Protect your trip</b>
+                      <span>One selection applies to all travellers in this booking.</span>
+                      <span className="ck-kind-chips">
+                        <span className="ck-kind-chip">{ICON.users} {pax} traveller{pax === 1 ? '' : 's'}</span>
+                      </span>
                     </div>
                   </div>
 
-                  <div className="ck-ins-grid">
-                    {insurances.map((ins, idx) => {
-                      const price = insPrice(ins);
-                      const act = insurance === ins.id;
-                      return (
-                        <button
-                          key={ins.id}
-                          className={`ck-ins${act ? ' act' : ''}${ins.featured ? ' feat' : ''}`}
-                          style={{ animationDelay: `${idx * 0.08}s` }}
-                          onClick={() => setInsurance(ins.id)}>
-                          {ins.featured && <span className="ck-ins-pop">{ICON.sparkle} Most chosen</span>}
-                          <span className="ck-ins-top">
-                            <span className="ck-ins-ico">{ins.icon}</span>
-                            <span className="ck-ins-radio">{act && <i />}</span>
-                          </span>
-                          <span className="ck-ins-name hd">{ins.name}</span>
-                          {ins.provider && <span className="ck-ins-by">Provided by {ins.provider}</span>}
-                          <span className="ck-ins-desc">{ins.desc}</span>
-                          {ins.covers.length > 0 && (
-                            <span className="ck-ins-covers">
-                              {ins.covers.map((c) => <span key={c} className="ck-ins-cover">{ICON.check} {c}</span>)}
-                            </span>
-                          )}
-                          <span className="ck-ins-price">
-                            {ins.id === 'none'
-                              ? <b>{ccy}0</b>
-                              /* The basis under the amount, in the dashboard's own terms —
-                                 "€4.00 per traveller, per day" explains a number that would
-                                 otherwise look arbitrary next to a percentage-priced option. */
-                              : <><b>+{money(price)}</b><small>{priceBasisLabel(ins.option, ccy)}</small></>}
-                          </span>
-                        </button>
-                      );
-                    })}
+                  <div className="ck-tr-list">
+                    <button type="button" className={`ck-tr${cancelIns === true ? ' act' : ''}`}
+                      onClick={() => setCancelIns(true)}>
+                      <span className="ck-tr-radio">{cancelIns === true && <i />}</span>
+                      <span className="ck-tr-main">
+                        <span className="ck-tr-name hd">{cancelOption.label}</span>
+                        <span className="ck-tr-sub">{cancelOption.description || 'Cancellation insurance for all travellers'}</span>
+                        {cancelOption.provider && <span className="ck-ins-by">Provided by {cancelOption.provider}</span>}
+                      </span>
+                      <span className="ck-tr-price">
+                        <small>total</small>
+                        {money(priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: subtotal }))}
+                      </span>
+                    </button>
+                    <button type="button" className={`ck-tr${cancelIns === false ? ' act' : ''}`}
+                      onClick={() => setCancelIns(false)}>
+                      <span className="ck-tr-radio">{cancelIns === false && <i />}</span>
+                      <span className="ck-tr-main">
+                        <span className="ck-tr-name hd">No cancellation insurance</span>
+                        <span className="ck-tr-sub">Continue without cancellation cover</span>
+                      </span>
+                      <span className="ck-tr-price"><small>total</small>{money(0)}</span>
+                    </button>
                   </div>
+                  {cancelIns === null && <p className="ck-pick-note">Please select one option to continue.</p>}
 
-                  {/* insurance details panel */}
-                  <div className={`ck-ins-details${insurance !== 'none' ? ' open' : ''}`}>
-                    <div className="ck-ins-details-in">
-                      <div className="ck-subhead" style={{ marginTop: 0 }}>{ICON.shieldCheck} Insurance details — {selIns?.name}</div>
-                      <Check checked={holderIsLead} onChange={setHolderIsLead}>
-                        The lead traveller {leadName ? <b>({leadName})</b> : ''} is the policy holder
-                      </Check>
-                      {!holderIsLead && (
-                        <div className="ck-row">
-                          <Field label="Policy holder first name" req>
-                            <input className="ck-input" value={holder.firstName} onChange={(e) => setHolder((h) => ({ ...h, firstName: e.target.value }))} />
-                          </Field>
-                          <Field label="Policy holder last name" req>
-                            <input className="ck-input" value={holder.lastName} onChange={(e) => setHolder((h) => ({ ...h, lastName: e.target.value }))} />
-                          </Field>
-                        </div>
-                      )}
-                      <div className="ck-ins-meta">
-                        <div className="ck-ins-meta-item">{ICON.users} Covered travellers
-                          <div className="ck-ins-chips">
-                            {travellers.map((t, i) => (
-                              <span className="ck-chip-check" key={i}>{ICON.check} {t.firstName ? `${t.firstName} ${t.lastName}` : `Traveller ${i + 1}`}</span>
-                            ))}
-                          </div>
-                        </div>
-                        <div className="ck-ins-meta-item">{ICON.cal} Cover starts <b>today</b> and ends when you return home</div>
-                        <div className="ck-ins-meta-item">{ICON.mail} Policy documents are emailed to <b>{customerEmail || 'your email address'}</b></div>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Who is actually on the hook. SUNSKY sells the policy; the insurer
-                      underwrites it and owns the terms, so the traveller is pointed at the
-                      insurer's own documents rather than at our summary of them. Shown
-                      whenever a policy on offer names a provider. */}
-                  {insurances.some((i) => i.provider) && (
+                  {cancelOption.provider && (
                     <div className="ck-ins-legal">
                       {ICON.shield}
                       <p>
@@ -1785,6 +2003,81 @@ function CheckoutContent({ stripe, elements }) {
                   )}
                 </section>
               )}
+
+              {/* E. Travel insurance — PER TRAVELLER, because it insures a person: one of a
+                  party may already be covered by a card or by a policy of their own. */}
+              {step === 1 && travelOption && (
+                <section className="ck-card ck-reveal">
+                  <div className="ck-card-head">
+                    <div className="ck-card-titles">
+                      <h2 className="ck-card-title hd">Travel insurance</h2>
+                      <p className="ck-card-sub">Choose travel insurance separately for each traveller.</p>
+                    </div>
+                  </div>
+                  <div className="ck-bagkind">
+                    <span className="ck-bagkind-ico">{ICON.umbrella}</span>
+                    <div className="ck-bagkind-text">
+                      <b>{travelOption.label}</b>
+                      <span>{travelOption.description || 'Cover for you and your luggage while travelling.'}</span>
+                      <span className="ck-kind-chips">
+                        <span className="ck-kind-chip">{ICON.cal} {booking.nights} travel day{booking.nights === 1 ? '' : 's'}</span>
+                        <span className="ck-kind-chip">{ICON.shieldCheck} {priceBasisLabel(travelOption, ccy)}</span>
+                      </span>
+                      <span className="ck-kind-note">Each traveller can make a different choice.</span>
+                    </div>
+                  </div>
+
+                  {travellers.map((t, i) => {
+                    const each = priceInsurance(travelOption, { pax: 1, nights: booking.nights, baseSubtotal: subtotal });
+                    return (
+                      <div className="ck-bagtrav" key={i}>
+                        <div className="ck-bagtrav-head">
+                          <span className="ck-bagtrav-n">{i + 1}</span>
+                          <span className="ck-bagtrav-name hd">
+                            Traveller {i + 1}{travellerName(t) ? <span className="ck-trav-who"> — {travellerName(t)}</span> : null}
+                          </span>
+                        </div>
+                        <div className="ck-tr-list">
+                          <button type="button" className={`ck-tr${travelIns[i] === true ? ' act' : ''}`}
+                            onClick={() => setTravelIns((v) => ({ ...v, [i]: true }))}>
+                            <span className="ck-tr-radio">{travelIns[i] === true && <i />}</span>
+                            <span className="ck-tr-main">
+                              <span className="ck-tr-name hd">{travelOption.label}</span>
+                              <span className="ck-tr-sub">{priceBasisLabel(travelOption, ccy)} × {booking.nights} day{booking.nights === 1 ? '' : 's'}</span>
+                              {travelOption.provider && <span className="ck-ins-by">Provided by {travelOption.provider}</span>}
+                            </span>
+                            <span className="ck-tr-price"><small>total</small>{money(each)}</span>
+                          </button>
+                          <button type="button" className={`ck-tr${travelIns[i] === false ? ' act' : ''}`}
+                            onClick={() => setTravelIns((v) => ({ ...v, [i]: false }))}>
+                            <span className="ck-tr-radio">{travelIns[i] === false && <i />}</span>
+                            <span className="ck-tr-main">
+                              <span className="ck-tr-name hd">No travel insurance</span>
+                              <span className="ck-tr-sub">Continue without travel insurance</span>
+                            </span>
+                            <span className="ck-tr-price"><small>total</small>{money(0)}</span>
+                          </button>
+                        </div>
+                      </div>
+                    );
+                  })}
+                  {travellers.some((_, i) => travelIns[i] === undefined) && (
+                    <p className="ck-pick-note">Please select one option for each traveller to continue.</p>
+                  )}
+
+                  {travelOption.provider && (
+                    <div className="ck-ins-legal">
+                      {ICON.shield}
+                      <p>
+                        SUNSKY acts solely as an insurance intermediary. For complete information about
+                        the insurance, its coverage, exclusions and policy terms, please refer to the
+                        insurer's own documents.
+                      </p>
+                    </div>
+                  )}
+                </section>
+              )}
+
 
               {/* ──────── STEP 3 : OVERVIEW ────────
                   Everything about to be bought, in one place, before the card comes out. The
@@ -2203,9 +2496,19 @@ function CheckoutContent({ stripe, elements }) {
                   {roomExtraTotal > 0 && <div className="ck-sum-row"><span>Room upgrade</span><b>{money(roomExtraTotal)}</b></div>}
                   {transferTotal > 0 && <div className="ck-sum-row"><span>Airport transfer (per vehicle)</span><b>{money(transferTotal)}</b></div>}
                   <div className="ck-sum-row"><span>{isFlight ? 'Booking & service fee' : 'SGR Guarantee Fund'}</span><b>{money(SGR)}</b></div>
-                  {insAmount > 0 && (
-                    <div className="ck-sum-row ck-sum-row-ins" key={insurance}>
-                      <span>{ICON.shieldCheck} {selIns?.name}</span><b>{money(insAmount)}</b>
+                  {extrasTotal > 0 && (
+                    <div className="ck-sum-row"><span>Baggage ({extraLines.length})</span><b>{money(extrasTotal)}</b></div>
+                  )}
+                  {/* One row per policy: they are separate policies, and a merged
+                      "Insurance €91" says nothing about what was actually bought. */}
+                  {cancelAmount > 0 && (
+                    <div className="ck-sum-row ck-sum-row-ins">
+                      <span>{ICON.shieldCheck} {cancelOption?.label || 'Cancellation insurance'}</span><b>{money(cancelAmount)}</b>
+                    </div>
+                  )}
+                  {travelAmount > 0 && (
+                    <div className="ck-sum-row ck-sum-row-ins">
+                      <span>{ICON.shieldCheck} {travelOption?.label || 'Travel insurance'} × {travelCount}</span><b>{money(travelAmount)}</b>
                     </div>
                   )}
                 </div>

@@ -503,6 +503,67 @@
   font-size:12.5px; font-weight:700; }
 .ck-dob-go:hover { background:var(--blue-mid); }
 
+/* ════ EXTRAS: BAGGAGE, TRANSFER, INSURANCE ════
+   Each section names what it is once — an icon, a title, a sentence — and then repeats one
+   row per traveller and per direction. What the fare already carries is a green statement;
+   only the legs that carry nothing offer anything to buy. */
+.ck-bagkind { display:flex; align-items:flex-start; gap:14px; padding:16px 0 18px; margin-bottom:6px;
+  border-bottom:1px solid var(--border-light); }
+.ck-bagkind-ico { flex:none; width:46px; height:46px; border-radius:14px; display:flex; align-items:center; justify-content:center;
+  background:var(--blue-pale); border:1px solid var(--blue-bg); color:var(--blue); }
+.ck-bagkind-ico svg { width:22px; height:22px; }
+.ck-bagkind-text { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.ck-bagkind-text b { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--text); letter-spacing:-.2px; }
+.ck-bagkind-text > span { font-size:12.5px; color:var(--text-sec); line-height:1.55; }
+.ck-kind-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
+.ck-kind-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:var(--r-full);
+  background:var(--blue-pale); border:1px solid var(--blue-bg); font-size:11.5px; font-weight:700; color:var(--blue); }
+.ck-kind-chip svg { width:13px; height:13px; }
+.ck-kind-note { font-size:12px; color:var(--text-light); margin-top:6px; }
+
+.ck-bagtrav { border:1.5px solid var(--border); border-radius:var(--r-md); padding:4px 16px 8px; margin-top:14px; }
+.ck-bagtrav-head { display:flex; align-items:center; gap:10px; padding:13px 0 11px; border-bottom:1px solid var(--border-light); }
+.ck-bagtrav-n { flex:none; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--blue); color:#fff; font-family:'Sora',sans-serif; font-size:12px; font-weight:800; }
+.ck-bagtrav-name { font-size:14px; font-weight:800; color:var(--text); }
+
+/* One row: which leg, what the item is, and where it stands. Three columns on a desktop so
+   the states line up down the card and can be compared at a glance. */
+.ck-bagrow { display:grid; grid-template-columns:1fr 1fr auto; align-items:center; gap:12px;
+  padding:13px 0; border-bottom:1px dashed var(--border-light); }
+.ck-bagrow:last-child { border-bottom:none; }
+.ck-bagrow-dir, .ck-bagrow-item { display:inline-flex; align-items:center; gap:10px;
+  font-size:13.5px; font-weight:700; color:var(--text); }
+.ck-bagrow-dir svg, .ck-bagrow-item svg { width:19px; height:19px; color:var(--blue); flex:none; }
+.ck-bagrow-item { font-weight:600; color:var(--text-sec); }
+.ck-bagrow-state { display:inline-flex; align-items:center; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
+.ck-bagrow-state > svg { width:19px; height:19px; color:var(--green); flex:none; }
+.ck-chip-inc { padding:5px 12px; border-radius:var(--r-full); background:var(--green-light); color:#047857;
+  font-size:12px; font-weight:700; white-space:nowrap; }
+.ck-chip-not { font-size:12.5px; font-weight:600; color:var(--text-light); white-space:nowrap; }
+.ck-chip-added { padding:5px 12px; border-radius:var(--r-full); background:var(--blue-pale); border:1px solid var(--blue-bg);
+  color:var(--blue); font-size:12px; font-weight:700; white-space:nowrap; }
+.ck-bag-add, .ck-bag-select { padding:9px 15px; border-radius:var(--r-full); border:1.5px solid var(--blue-soft);
+  background:var(--white); color:var(--blue); font-size:12.5px; font-weight:700; cursor:pointer;
+  transition:all .2s var(--ease); }
+.ck-bag-add:hover, .ck-bag-select:hover { border-color:var(--blue); background:var(--blue-pale); }
+.ck-bag-select { appearance:none; -webkit-appearance:none; padding-right:32px;
+  background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231f4fd8' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat:no-repeat; background-position:right 13px center; }
+.ck-bag-remove { font-size:12px; font-weight:700; color:var(--text-light); }
+.ck-bag-remove:hover { color:var(--coral); text-decoration:underline; }
+.ck-bag-legend { display:flex; flex-wrap:wrap; gap:18px; margin-top:16px; padding-top:14px; border-top:1px solid var(--border-light); }
+.ck-lg { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--text-sec); }
+.ck-lg svg { width:15px; height:15px; }
+.ck-lg.ok svg { color:var(--green); }
+.ck-lg.add svg { color:var(--blue); }
+.ck-pick-note { margin-top:12px; font-size:12.5px; font-weight:600; color:var(--text-sec); }
+
+@media (max-width: 720px) {
+  .ck-bagrow { grid-template-columns:1fr; gap:8px; }
+  .ck-bagrow-state { justify-content:flex-start; }
+}
+
 /* ════ BOXED FIELDS (step 1) ════
    The label lives INSIDE the frame, small and blue, with the value under it. Step 1 is the
    densest form on the site — customer, address, then a card per traveller — and label-above

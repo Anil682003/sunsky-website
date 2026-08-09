@@ -1068,6 +1068,12 @@
 /* an alternative WITH a live price found by the fallback probe */
 .sd .alt-chip-priced { border-color:var(--blue-soft); background:var(--blue-pale); }
 .sd .alt-chip-price { font-size:11px; font-weight:800; color:var(--blue); margin-top:2px; }
+/* The difference, not the price. Grey by default because "+€35" is a cost, and green only
+   when the alternative is genuinely cheaper — a saving is the one case worth colouring. */
+.sd .alt-chip-delta { font-size:11.5px; font-weight:700; color:var(--text-sec); margin-top:3px;
+  font-variant-numeric:tabular-nums lining-nums; }
+.sd .alt-chip-delta.down { color:#047857; }
+.sd .alt-airports-label .live-spin { width:12px; height:12px; margin-right:7px; vertical-align:-1px; display:inline-block; }
 .sd .alt-airports-muted { opacity:.85; }
 .sd .alt-airports + .alt-airports { margin-top:14px; }
 

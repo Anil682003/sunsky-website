@@ -69,6 +69,12 @@ const toExtras = async (user) => {
 
 const transferCall = () => post.mock.calls.find(([url]) => String(url).includes('transfer-availability'));
 
+// The transfer card, by its heading — the insurance sections render the same option rows, so
+// a page-wide .ck-tr count would include them.
+const transferCard = () => [...document.querySelectorAll('.ck-card')]
+  .find((c) => /choose your transfer/i.test(c.querySelector('.ck-card-title')?.textContent || ''));
+const transferRows = () => [...(transferCard()?.querySelectorAll('.ck-tr') || [])];
+
 // Filling a form field is not what these tests are about, and user-event types one character
 // at a time — across a dozen fields that is most of the test's wall clock. Set the value the
 // way React reads it (native setter + input event) and keep user-event for the clicks that
@@ -112,10 +118,10 @@ describe('the airport transfer, bought at the extras step', () => {
     const user = userEvent.setup();
     renderCheckout();
     await toExtras(user);
-    await waitFor(() => expect(document.querySelectorAll('.ck-tr').length).toBe(3));  // 2 + "No transfer"
+    await waitFor(() => expect(transferRows()).toHaveLength(3));   // 2 offers + "No transfer"
 
     // Opt-in: the booking starts with no transfer and no transfer line in the summary.
-    expect(document.querySelector('.ck-tr.act')).toHaveTextContent(/no transfer/i);
+    expect(transferCard().querySelector('.ck-tr.act')).toHaveTextContent(/no transfer/i);
     expect(document.body.textContent).not.toMatch(/airport transfer \(per vehicle\)/i);
 
     await user.click(screen.getByRole('button', { name: /minibus/i }));
@@ -130,7 +136,7 @@ describe('the airport transfer, bought at the extras step', () => {
     const user = userEvent.setup();
     renderCheckout();
     await toExtras(user);
-    await waitFor(() => expect(document.querySelectorAll('.ck-tr').length).toBe(3));
+    await waitFor(() => expect(transferRows()).toHaveLength(3));
     await user.click(screen.getByRole('button', { name: /sedan/i }));
 
     await user.click(screen.getByRole('button', { name: /continue to payment/i }));

@@ -1526,7 +1526,15 @@ export default function HotelDetail() {
         probeAlternatives(from, checkin, checkout, seq);
         return;
       }
-      setLiveFlights({ flights, cheapest: data?.results?.cheapest || null, from });
+      // Found flights — and the traveller still deserves to know what the airport an hour up
+      // the motorway would have cost. The same bounded probe runs (3-4 popular airports,
+      // cached 5 min, seq-guarded), and its results are shown as a DIFFERENCE against this
+      // fare rather than as a bare price: "+€35 p.p." is a decision, "€287 p.p." is homework.
+      setLiveFlights({
+        flights, cheapest: data?.results?.cheapest || null, from,
+        checkin, checkout, probing: true, alternatives: null,
+      });
+      probeAlternatives(from, checkin, checkout, seq);
     }).catch((e) => {
       // NO alternative probe on error: a supplier that's down is down for every airport,
       // and multiplying a failing call by four would only hammer it. Retry is offered.
@@ -1568,8 +1576,10 @@ export default function HotelDetail() {
       // Airports we did NOT probe (the long tail) stay available as plain chips — a manual
       // pick runs a real search. Ones that priced or came back empty never repeat there.
       const unprobed = AIRPORT_CODES.filter((c) => !ruledOut.has(c));
+      // Lands on the result set it was started for, whether that set was empty or full — the
+      // `from` and seq checks are what stop a probe for abandoned dates from painting.
       setLiveFlights((prev) => (
-        prev && prev.empty && prev.from === from && seq === flightSeqRef.current
+        prev && prev.from === from && seq === flightSeqRef.current
           ? { ...prev, probing: false, alternatives, unprobed }
           : prev
       ));
@@ -1808,6 +1818,12 @@ export default function HotelDetail() {
                   // Opaque Airtuerk bookable keys — REQUIRED for live re-pricing
                   // and the basket/create reservation.
                   flightKeys: liveFlight.flightKeys || [],
+                  // What this FARE actually includes, from the supplier. The extras step needs
+                  // it to say "Included · 20 kg" against the right travellers instead of
+                  // offering to sell a bag the ticket already carries. For a return trip
+                  // Airtuerk's two options are merged by MIN, so it is the allowance that
+                  // survives both legs.
+                  baggage: liveFlight.baggage || null,
                   tripType: retLg.length ? 'roundtrip' : 'oneway', supplier: 'airtuerk',
                 }
               : null,
@@ -2317,7 +2333,7 @@ export default function HotelDetail() {
                   can book, and every section below the red card would contradict it. */}
               {liveChecked && !dayUnavailable && (
               <div className="flight-section reveal vis">
-                {!liveFlights?.loading && <div className="section-title"><span className="st-step">3</span> Your flights</div>}
+                {!liveFlights?.loading && <div className="section-title"><span className="st-step">2</span> Your flights</div>}
                 {transport === 'hotel_only' ? (
                   <div className="own-transport">
                     <div className="own-transport-row">
@@ -2373,6 +2389,47 @@ export default function HotelDetail() {
                           {ICON.plane} Change flight · {liveFlights.flights.length - 2} more option{liveFlights.flights.length - 2 === 1 ? '' : 's'}
                         </button>
                       )}
+
+                      {/* ── Or fly from another airport? ──
+                          What the popular alternatives cost, as a DIFFERENCE per person from
+                          the fare above. A traveller weighing an hour's extra drive against
+                          the price needs the gap, not two absolute numbers to subtract; and a
+                          minus sign is as honest as a plus, so a cheaper airport says so
+                          instead of being quietly re-ordered to the front and left unlabelled.
+                          Every figure is a real search — the same bounded, cached probe that
+                          serves the no-flights case. */}
+                      {liveFlights.probing ? (
+                        <div className="alt-airports alt-airports-muted">
+                          <div className="alt-airports-label">
+                            <span className="live-spin" /> Checking prices from other airports…
+                          </div>
+                        </div>
+                      ) : liveFlights.alternatives?.length ? (
+                        <div className="alt-airports">
+                          <div className="alt-airports-label">Or fly from another airport?</div>
+                          <div className="alt-airport-chips">
+                            {liveFlights.alternatives.map((alt) => {
+                              // Per person, against the cheapest fare on offer from the
+                              // airport currently searched — the figure the card above shows.
+                              const herePax = cheapestFare == null ? null
+                                : Math.max(1, Math.round(cheapestFare / Math.max(1, (Number(sAdults) || 2) + (Number(sChildren) || 0))));
+                              const delta = herePax == null ? null : alt.perPax - herePax;
+                              return (
+                                <button type="button" key={alt.code} className="alt-chip alt-chip-priced"
+                                  onClick={() => applyAlternative(alt.code)}>
+                                  <span className="alt-chip-name">{airportName(alt.code)}</span>
+                                  <span className="alt-chip-code">{alt.code}</span>
+                                  <span className={`alt-chip-delta${delta != null && delta < 0 ? ' down' : ''}`}>
+                                    {delta == null ? `${ccy}${alt.perPax} p.p.`
+                                      : delta === 0 ? 'same price p.p.'
+                                      : `${delta > 0 ? '+' : '−'} ${ccy}${Math.abs(delta)} p.p.`}
+                                  </span>
+                                </button>
+                              );
+                            })}
+                          </div>
+                        </div>
+                      ) : null}
                     </>
                   ) : liveFlights.empty ? (
                     <>
@@ -2473,7 +2530,7 @@ export default function HotelDetail() {
                   says so, a "Choose your room: none found" section under it would nag. */}
               {liveChecked && !dayUnavailable && (
               <div className="room-section reveal vis">
-                {!liveRooms?.loading && <div className="section-title"><span className="st-step">2</span> Choose your room</div>}
+                {!liveRooms?.loading && <div className="section-title"><span className="st-step">3</span> Choose your room</div>}
                 {liveRooms ? (
                   liveRooms.loading ? (
                     <RoomsLoading />
