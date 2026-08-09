@@ -623,14 +623,6 @@
 .ck-radio.on .ck-radio-dot { border-color:var(--blue); border-width:5px; }
 .ck-radio:hover .ck-radio-dot { border-color:var(--blue-soft); }
 
-/* Date of birth as day / month / year — a native picker opens on this month, so a 1995
-   birthday is twelve clicks away or a guess about the keyboard. */
-/* Day narrower than month, year in between: the three read as one date rather than as three
-   equal dropdowns that happen to sit together. */
-.ck-dob3 { display:grid; grid-template-columns:0.8fr 1.35fr 1fr; gap:10px; }
-.ck-dob3 .ck-input { padding-left:12px; padding-right:26px; background-position:right 9px center; }
-.ck-boxed .ck-dob3 .ck-input { padding:26px 8px 10px 12px; background-position:right 8px center; }
-
 /* Business customer — one tick on the same form, the way signup asks it. */
 .ck-biz { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; margin-bottom:18px; cursor:pointer;
   border-radius:var(--r-md); border:1.5px solid var(--border); background:var(--white); transition:all .25s var(--ease); }
@@ -651,10 +643,6 @@
 /* Traveller heading: number, then who this row is for once we know. */
 .ck-trav-who { font-weight:600; color:var(--text-sec); }
 
-@media (max-width: 560px) {
-  .ck-dob3 { grid-template-columns:1fr 1fr; }
-  .ck-dob3 > :last-child { grid-column:1 / -1; }
-}
 
 /* ════ YOUR TRIP (payment step overview) ════
    Label above value, two columns — the shape of a booking confirmation, because that is what

@@ -197,6 +197,11 @@ const isNonRefundableStay = (hotel) => {
 // passport number, no voucher or confirmation printed one — so they were two more fields
 // between a traveller and paying, collecting a document number we then did nothing with.
 
+// Latest selectable date of birth. The picker itself refuses tomorrow, so nobody has to be
+// told about it afterwards; the submit-time check stays as the guarantee. Computed at module
+// load so it is not an impure call during render.
+const TODAY_ISO = new Date().toISOString().split('T')[0];
+
 /* ════════ helpers ════════ */
 const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || '');
 // Why a re-check failed, in words a traveller can act on — never the axios message.
@@ -294,56 +299,6 @@ const Field = ({ label, req, err, hint, ok, children, span }) => (
     {err ? <div className="ck-errmsg">{err}</div> : hint ? <div className="ck-hint">{hint}</div> : null}
   </div>
 );
-
-/**
- * A date of birth as three dropdowns rather than a date input.
- *
- * A native picker opens on the current month, so entering 1995 means twelve clicks or knowing
- * to type it — and it renders differently in every browser. Three lists are the same in all of
- * them, and the year is one scroll away. Emits an ISO date, or '' while incomplete: a
- * half-filled date must not read as a valid one.
- */
-const DOB_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const DobPicker = ({ value, onChange, autoFocus }) => {
-  // The three parts are held HERE, not derived from `value`. A date is only emitted once all
-  // three are chosen, so deriving them would blank the day the moment it was picked — the
-  // parent's value is still '' at that point — and the traveller could never get past it.
-  const split = (v) => { const [yy, mm, dd] = (v || '').split('-'); return { d: dd || '', m: mm || '', y: yy || '' }; };
-  const [parts, setParts] = useState(() => split(value));
-  // Adopt a value set from outside (restoring the searched date of birth, for one).
-  useEffect(() => { if (value) setParts(split(value)); }, [value]);
-  const { d, m, y } = parts;
-  const emit = (nd, nm, ny) => {
-    setParts({ d: nd, m: nm, y: ny });
-    onChange((nd && nm && ny) ? `${ny}-${nm}-${nd}` : '');
-  };
-  // Days in the chosen month — 31 February is not a date of birth anybody has.
-  const daysIn = (mm, yy) => (mm && yy ? new Date(Number(yy), Number(mm), 0).getDate() : 31);
-  const thisYear = new Date().getFullYear();
-  return (
-    <div className="ck-dob3">
-      <select className="ck-input ck-select" value={d || ''} autoFocus={autoFocus}
-        onChange={(e) => emit(e.target.value, m, y)} aria-label="Day of birth">
-        <option value="">Day</option>
-        {Array.from({ length: daysIn(m, y) }, (_, i) => String(i + 1).padStart(2, '0'))
-          .map((dd) => <option key={dd} value={dd}>{Number(dd)}</option>)}
-      </select>
-      <select className="ck-input ck-select" value={m || ''}
-        onChange={(e) => emit(d, e.target.value, y)} aria-label="Month of birth">
-        <option value="">Month</option>
-        {DOB_MONTHS.map((name, i) => (
-          <option key={name} value={String(i + 1).padStart(2, '0')}>{name}</option>
-        ))}
-      </select>
-      <select className="ck-input ck-select" value={y || ''}
-        onChange={(e) => emit(d, m, e.target.value)} aria-label="Year of birth">
-        <option value="">Year</option>
-        {Array.from({ length: 120 }, (_, i) => String(thisYear - i))
-          .map((yy) => <option key={yy} value={yy}>{yy}</option>)}
-      </select>
-    </div>
-  );
-};
 
 /**
  * One kind of baggage, shown per traveller and per direction.
@@ -1632,8 +1587,10 @@ function CheckoutContent({ stripe, elements }) {
                                   </button>
                                 </div>
                               ) : (
-                                <DobPicker value={t.dateOfBirth} onChange={setT(i, 'dateOfBirth')}
-                                  autoFocus={dobUnlocked === i} />
+                                <input className="ck-input" type="date" value={t.dateOfBirth}
+                                  max={TODAY_ISO}
+                                  autoFocus={dobUnlocked === i}
+                                  onChange={(e) => setT(i, 'dateOfBirth')(e.target.value)} />
                               )}
                             </TravField>
                             <TravField label="Nationality" req err={errors[`t${i}.nationality`]} ok={!!t.nationality}>

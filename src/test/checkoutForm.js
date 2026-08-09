@@ -79,14 +79,11 @@ export const fillTraveller = (index, { firstName = 'Ali', lastName = 'Benli', do
   if (dob) setDob(card, dob);
 };
 
-/** The day / month / year selects. Order matters: a date is emitted only once all three are set. */
+/** The date-of-birth input inside a traveller card. False when the row arrived locked. */
 export const setDob = (root, iso) => {
-  const [y, m, d] = String(iso).split('-');
-  const selects = [...(root.querySelector('.ck-dob3')?.querySelectorAll('select') || [])];
-  if (selects.length !== 3) return false;
-  setValue(selects[0], d);
-  setValue(selects[1], m);
-  setValue(selects[2], y);
+  const el = fieldByLabel('date of birth', root)?.querySelector('input[type="date"]');
+  if (!el) return false;
+  setValue(el, iso);
   return true;
 };
 

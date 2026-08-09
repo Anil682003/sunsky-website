@@ -69,12 +69,10 @@ const dobRows = () => [...document.querySelectorAll('.ck-dob-lock')];
 const panel = () => document.querySelector('.ck-rp');
 const cta = () => screen.getByRole('button', { name: /continue to add-ons|re-checking/i });
 
-// What each traveller card's date of birth currently reads, composed from its day / month /
-// year selects (or from the locked row, which prints the date rather than offering it).
-const dobValues = () => [...document.querySelectorAll('.ck-trav')].map((card) => {
-  const three = [...(card.querySelector('.ck-dob3')?.querySelectorAll('select') || [])].map((s) => s.value);
-  return three.length === 3 && three.every(Boolean) ? `${three[2]}-${three[1]}-${three[0]}` : '';
-});
+// What each traveller card's editable date of birth reads. A locked row has no input at all —
+// it prints the date instead of offering it — so it contributes ''.
+const dobValues = () => [...document.querySelectorAll('.ck-trav')]
+  .map((card) => card.querySelector('input[type="date"]')?.value || '');
 
 // Open the child's date of birth and put a new one in. The child row is the third traveller
 // (2 adults + 1 child), and its is the only card with a locked date to open.
@@ -82,7 +80,7 @@ const changeChildDob = async (user, iso) => {
   await user.click(screen.getByRole('button', { name: /^change$/i }));
   await user.click(screen.getByRole('button', { name: /change date of birth/i }));
   const card = [...document.querySelectorAll('.ck-trav')][2];
-  expect(setDob(card, iso), 'the unlocked date selects').toBe(true);
+  expect(setDob(card, iso), 'the unlocked date field').toBe(true);
 };
 
 beforeEach(() => {
@@ -99,7 +97,7 @@ describe('a child date of birth from the search', () => {
     await waitFor(() => expect(dobRows()).toHaveLength(1));
     expect(dobRows()[0]).toHaveTextContent('07/09/2016');
     expect(dobRows()[0]).toHaveTextContent(/child/i);
-    // No editable field holds that date — the adults' own date selects are untouched by this.
+    // No editable field holds that date — the adults' own date fields are untouched by this.
     expect(dobValues()).not.toContain(CHILD_DOB);
 
     // The warning comes first, in the client's words, and can be declined.
