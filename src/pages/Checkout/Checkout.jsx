@@ -4,6 +4,7 @@ import { useSelector } from 'react-redux';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import axiosInstance from '../../services/axiosInstance';
+import { ENDPOINTS } from '../../api/endpoints';
 import { ageAtCheckIn } from '../../utils/childDob';
 import { cancellationState, parseRateKey, boardInfo } from '../../utils/rateDetails';
 import { DEFAULT_PRICING, priceInsurance, priceBasisLabel } from '../../utils/checkoutPricing';
@@ -495,7 +496,13 @@ function CheckoutContent({ stripe, elements }) {
     dateOfBirth: '', gender: '', nationality: '', preferredLanguage: 'en',
     hasEmail: true, email: user?.email || '', phone: user?.phone || '',
     street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
+    emergencyPhone: '',
   });
+  /* Traveller 1 is usually the person booking. Ticked, their name, gender, date of birth and
+     nationality FOLLOW that traveller — typed once, kept in step if they are corrected. What
+     the traveller form does not hold (company, address, phone, email, emergency contact) is
+     still filled in here either way. Unticked, all of it becomes independent again. */
+  const [leadIsBooker, setLeadIsBooker] = useState(true);
   const [pro, setPro] = useState({
     tradingName: '', legalName: '', vatNumber: '', industry: '', website: '',
     street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
@@ -734,6 +741,40 @@ function CheckoutContent({ stripe, elements }) {
     return { ...b, [key]: next };
   });
 
+  /* ══ does this email already have an account? ═══════════════════════════════
+     A guest typing an address they already have a login for is about to create a second
+     identity for themselves: the booking would land on a customer record their account
+     cannot see, and "my bookings" would be missing the holiday they just paid for. So the
+     address is checked as they type — by the SERVER, which answers one boolean and nothing
+     else — and if it belongs to an account, the way forward is to sign in rather than to
+     carry on. Signing in also brings their saved details into this form.
+
+     `emailTaken`: null = unasked/unknown, false = free, true = an account exists. Anything
+     other than a definite `true` lets the traveller continue: a checkout must not be held up
+     by a check that failed to answer. */
+  const [emailTaken, setEmailTaken] = useState(null);
+  const emailAskedFor = useRef('');
+  useEffect(() => {
+    // Nothing to warn a signed-in customer about — this IS their address.
+    if (isAuthenticated) { setEmailTaken(null); return undefined; }
+    const email = (priv.email || '').trim().toLowerCase();
+    if (!emailOk(email)) { setEmailTaken(null); emailAskedFor.current = ''; return undefined; }
+    if (emailAskedFor.current === email) return undefined;
+    // Debounced: an address is typed one character at a time and every prefix is a valid
+    // string to POST. 600ms is after the typing, before the tab-out.
+    const t = setTimeout(() => {
+      emailAskedFor.current = email;
+      axiosInstance.post(ENDPOINTS.emailCheck, { email })
+        .then(({ data }) => setEmailTaken(data?.data?.exists === true))
+        .catch(() => setEmailTaken(null));   // unanswered is not "taken"
+    }, 600);
+    return () => clearTimeout(t);
+  }, [priv.email, isAuthenticated]);
+
+  // Where to come back to. The booking lives in router state, so it has to travel with them
+  // or they return to an empty "nothing to check out" screen.
+  const goSignIn = (path) => navigate(path, { state: { from: '/checkout', resume: { booking } } });
+
   /* ── the airport transfer, bought here rather than on the hotel page ──
      The flight is already chosen by now, so the pickup can be timed to the arrival that will
      actually be booked — which is what the supplier's rateKey encodes. One call, on arrival
@@ -797,21 +838,58 @@ function CheckoutContent({ stripe, elements }) {
   // What the FARE carries, from the supplier. A return trip merges its two options by MIN, so
   // this is the allowance that survives both legs — which is what a traveller has to pack for.
   const allowance = booking.api?.flight?.baggage || null;
+
+  /* ── what the fare carries, and what may be added on top ──
+     Three rules, all the client's:
+     1. No baggage object at all means the airline told us NOTHING. That is not "not included"
+        — it is unknown, and it is said that way while still offering the bag for sale.
+     2. A fare with hold baggage carries a cabin bag too. Airtuerk reports `handLuggage` as 0
+        on every option seen, so reading it literally would offer to sell a cabin bag that the
+        ticket already includes.
+     3. Extra bags come from the AIRLINE when the airline offers them (`baggage.addOns`), and
+        only otherwise from our own table — and then they are ours to arrange by hand. Either
+        way the server re-prices from the same source, so nothing is quoted that cannot be
+        charged. Included does not mean nothing more can be bought: a second bag is still a
+        sale when the airline sells one. */
+  const bagKnown = !!allowance;
+  const checkedIncludedKg = Number(allowance?.checkedKg) || 0;
+  const checkedIncludedPieces = Number(allowance?.checkedPieces) || 0;
+  const checkedIncluded = checkedIncludedKg > 0 || checkedIncludedPieces > 0;
+  const cabinIncludedKg = Number(allowance?.handKg) || 0;
+  const cabinIncluded = cabinIncludedKg > 0 || checkedIncluded;
+  // Airline-offered extras first; our placeholder table only when the airline offers none.
+  const airlineAddOns = allowance?.addOns || null;
+  const cabinAddOns = (airlineAddOns?.cabin?.length ? airlineAddOns.cabin : null)
+    || (bagRates?.cabin?.enabled !== false && Number(bagRates?.cabin?.price)
+      ? [{ kg: Number(bagRates?.cabin?.kg) || null, price: Number(bagRates.cabin.price) }]
+      : []);
+  const checkedAddOns = (airlineAddOns?.checked?.length ? airlineAddOns.checked : null)
+    || (bagRates?.checked || []);
+  const addOnsAreOurs = !airlineAddOns;
   const hasFlight = !!booking.api?.flight;
   const directions = booking.api?.flight?.tripType === 'roundtrip'
     ? [{ key: 'out', label: 'Outbound', icon: ICON.planeOut }, { key: 'ret', label: 'Return', icon: ICON.planeIn }]
     : [{ key: 'out', label: 'Outbound', icon: ICON.planeOut }];
   const travellerName = (t) => [titleFor(t.gender), t.firstName, t.lastName].filter(Boolean).join(' ').trim();
+  // A selection is only a line if it is still on sale: the option it names has to exist in the
+  // list it came from. Anything else is dropped here exactly as the server drops it, so the
+  // two totals cannot diverge.
   const extraLines = useMemo(() => {
     const out = [];
     Object.entries(bags).forEach(([key, sel]) => {
       const [idx, direction] = key.split(':');
       if (sel?.cabin) {
-        out.push({ code: 'baggage.cabin', travellerIndex: Number(idx), direction,
-          label: bagRates?.cabin?.label || 'Cabin baggage', price: Number(bagRates?.cabin?.price) || 0 });
+        const row = cabinAddOns.find((r) => Number(r.kg || 0) === Number(sel.cabin === true ? (cabinAddOns[0]?.kg || 0) : sel.cabin || 0))
+          || cabinAddOns[0];
+        if (row) {
+          out.push({ code: 'baggage.cabin', travellerIndex: Number(idx), direction,
+            kg: row.kg ? Number(row.kg) : undefined,
+            label: row.kg ? `Cabin baggage ${row.kg} kg` : (bagRates?.cabin?.label || 'Cabin baggage'),
+            price: Number(row.price) || 0 });
+        }
       }
       if (sel?.checked) {
-        const row = (bagRates?.checked || []).find((r) => Number(r.kg) === Number(sel.checked));
+        const row = checkedAddOns.find((r) => Number(r.kg) === Number(sel.checked));
         if (row) {
           out.push({ code: 'baggage.checked', travellerIndex: Number(idx), direction, kg: Number(row.kg),
             label: `Checked baggage ${row.kg} kg`, price: Number(row.price) || 0 });
@@ -819,7 +897,7 @@ function CheckoutContent({ stripe, elements }) {
       }
     });
     return out;
-  }, [bags, bagRates]);
+  }, [bags, cabinAddOns, checkedAddOns, bagRates]);
   const extrasTotal = extraLines.reduce((s, l) => s + l.price, 0);
 
   const subtotal = base + roomExtraTotal + transferTotal + extrasTotal + SGR;
@@ -906,15 +984,29 @@ function CheckoutContent({ stripe, elements }) {
   // room, the fare and the transfer were never priced for — the supplier quoted an occupancy,
   // and a fourth name on a room quoted for three is not a booking anyone can honour. To travel
   // with more people, the search is where that is decided.
-  const copyCustomerToLead = () => {
-    setTravellers((ts) => ts.map((t, i) => (i === 0 ? {
-      ...t,
-      firstName: priv.firstName, lastName: priv.lastName,
-      gender: priv.gender === 'PREFER_NOT_TO_SAY' ? '' : priv.gender,
-      nationality: NATIONALITIES.includes(priv.nationality) ? priv.nationality : t.nationality,
-      dateOfBirth: priv.dateOfBirth || t.dateOfBirth,
-    } : t)));
-  };
+  /* ── traveller 1 is also the booker ──
+     The copy runs from the TRAVELLER to the booker, and keeps running: a name corrected on
+     the traveller card two minutes later has to reach the booker too, or the booking goes out
+     with the old spelling on the invoice. Only the four facts the traveller form actually
+     holds are copied — the address, phone, email, emergency number and company are the
+     booker's own and are never touched by this. */
+  const lead = travellers[0];
+  useEffect(() => {
+    if (!leadIsBooker || !lead) return;
+    setPriv((prv) => {
+      const next = {
+        ...prv,
+        firstName: lead.firstName,
+        lastName: lead.lastName,
+        gender: lead.gender,
+        dateOfBirth: lead.dateOfBirth,
+        nationality: lead.nationality,
+      };
+      const same = ['firstName', 'lastName', 'gender', 'dateOfBirth', 'nationality']
+        .every((k) => prv[k] === next[k]);
+      return same ? prv : next;      // no state churn when nothing moved
+    });
+  }, [leadIsBooker, lead?.firstName, lead?.lastName, lead?.gender, lead?.dateOfBirth, lead?.nationality]);
 
   /* ── validation ── */
   const validateInfo = () => {
@@ -926,7 +1018,19 @@ function CheckoutContent({ stripe, elements }) {
     if (!priv.lastName.trim()) e['priv.lastName'] = 'Last name is required';
     if (!priv.nationality) e['priv.nationality'] = 'Nationality is required';
     if (priv.hasEmail && !emailOk(priv.email)) e['priv.email'] = 'A valid email is required';
+    // An address that already has a login cannot go through as a guest — the booking would
+    // attach to a customer record their account cannot see. Only a definite `true` blocks:
+    // a check that failed to answer must not hold up a checkout.
+    else if (!isAuthenticated && emailTaken === true) {
+      e['priv.email'] = 'This email already has an account — please log in to continue';
+    }
     if (!phoneOk(priv.phone)) e['priv.phone'] = 'Use international format, e.g. +32475123456';
+    // The emergency number is the one field nobody wants to be missing when it is needed.
+    if (!phoneOk(priv.emergencyPhone)) e['priv.emergencyPhone'] = 'Use international format, e.g. +32476987654';
+    if (!priv.street.trim()) e['priv.street'] = 'Street is required';
+    if (!priv.houseNumber.trim()) e['priv.houseNumber'] = 'House number is required';
+    if (!priv.postalCode.trim()) e['priv.postalCode'] = 'Postal code is required';
+    if (!priv.city.trim()) e['priv.city'] = 'City is required';
     if (!priv.country) e['priv.country'] = 'Country is required';
     if (priv.dateOfBirth && new Date(priv.dateOfBirth) >= new Date()) e['priv.dateOfBirth'] = 'Date of birth must be in the past';
     if (isCompany) {
@@ -1173,7 +1277,10 @@ function CheckoutContent({ stripe, elements }) {
         // so the stored grand total matches what was charged.
         serviceFee: SGR,
         passengers,
-        contact: { phone: contactPhone },
+        // The number to ring, and the number to ring when that one cannot be reached — the
+        // second is the whole point of asking for it, so it travels with the booking rather
+        // than living only in a form the traveller closed.
+        contact: { phone: contactPhone, emergencyPhone: priv.emergencyPhone || undefined },
         consents,
       });
 
@@ -1465,50 +1572,75 @@ function CheckoutContent({ stripe, elements }) {
                         </div>
                       )}
 
+                      {/* Identity. When traveller 1 is also the booker these four follow
+                          that traveller and are shown read-only — the same person is not
+                          asked for the same name twice. Everything the traveller form does
+                          NOT hold (company, address, phone, email, emergency contact) is
+                          still filled in here, whatever the tick says. */}
                       <div className="ck-row">
-                        <Field label="First name" req err={errors['priv.firstName']} ok={!!priv.firstName.trim()}>
-                          <input className="ck-input" value={priv.firstName} onChange={(e) => setP('firstName')(e.target.value)} placeholder="John" maxLength={100} />
+                        <Field label="First name" req err={errors['priv.firstName']} ok={!!priv.firstName.trim()}
+                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
+                          <input className="ck-input" value={priv.firstName} readOnly={leadIsBooker}
+                            onChange={(e) => setP('firstName')(e.target.value)} placeholder="John" maxLength={100} />
                         </Field>
-                        <Field label="Last name" req err={errors['priv.lastName']} ok={!!priv.lastName.trim()}>
-                          <input className="ck-input" value={priv.lastName} onChange={(e) => setP('lastName')(e.target.value)} placeholder="Doe" maxLength={100} />
+                        <Field label="Last name" req err={errors['priv.lastName']} ok={!!priv.lastName.trim()}
+                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
+                          <input className="ck-input" value={priv.lastName} readOnly={leadIsBooker}
+                            onChange={(e) => setP('lastName')(e.target.value)} placeholder="Doe" maxLength={100} />
                         </Field>
                       </div>
 
                       <div className="ck-row">
-                        <Field label="Email address" req err={errors['priv.email']} ok={emailOk(priv.email)}>
-                          <input className="ck-input" type="email" value={priv.email} onChange={(e) => setP('email')(e.target.value)} placeholder="john@example.com" />
-                        </Field>
-                        <Field label="Phone number" req err={errors['priv.phone']} ok={phoneOk(priv.phone)} hint="International format, e.g. +32 475 12 34 56">
-                          <input className="ck-input" type="tel" value={priv.phone} onChange={(e) => setP('phone')(e.target.value)} placeholder="+32 475 12 34 56" maxLength={30} />
-                        </Field>
-                      </div>
-
-                      {/* Nationality, date of birth and gender belong to the PERSON, and a
-                          company booking still has one — the same fields, not a different set. */}
-                      <div className="ck-row-3">
-                        <Field label="Nationality" req err={errors['priv.nationality']} ok={!!priv.nationality}>
-                          <select className="ck-input ck-select" value={priv.nationality} onChange={(e) => setP('nationality')(e.target.value)}>
-                            <option value="">Select…</option>
-                            {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
-                          </select>
-                        </Field>
-                        <Field label="Date of birth" err={errors['priv.dateOfBirth']}>
-                          <input className="ck-input" type="date" value={priv.dateOfBirth} onChange={(e) => setP('dateOfBirth')(e.target.value)} />
-                        </Field>
-                        <Field label="Gender">
-                          <select className="ck-input ck-select" value={priv.gender} onChange={(e) => setP('gender')(e.target.value)}>
+                        <Field label="Gender" err={errors['priv.gender']} ok={!!priv.gender}
+                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
+                          <select className="ck-input ck-select" value={priv.gender} disabled={leadIsBooker}
+                            onChange={(e) => setP('gender')(e.target.value)}>
                             <option value="">Select…</option>
                             {GENDERS_CUSTOMER.map((g) => <option key={g.v} value={g.v}>{g.l}</option>)}
                           </select>
                         </Field>
+                        <Field label="Date of birth" err={errors['priv.dateOfBirth']} ok={!!priv.dateOfBirth}
+                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
+                          <input className="ck-input" type="date" value={priv.dateOfBirth} max={TODAY_ISO}
+                            readOnly={leadIsBooker}
+                            onChange={(e) => setP('dateOfBirth')(e.target.value)} />
+                        </Field>
                       </div>
 
-                      <div className="ck-subhead">{ICON.pin} {isCompany ? 'Company address' : 'Address'}</div>
+                      <div className="ck-row">
+                        <Field label="Nationality" req err={errors['priv.nationality']} ok={!!priv.nationality}
+                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
+                          <select className="ck-input ck-select" value={priv.nationality} disabled={leadIsBooker}
+                            onChange={(e) => setP('nationality')(e.target.value)}>
+                            <option value="">Select…</option>
+                            {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                        </Field>
+                        <span />
+                      </div>
+                    </div>
+                  </section>
+
+                  {/* ── Address ──
+                      Its own card, because it is a different kind of fact from a name and
+                      because a company booking addresses the COMPANY. The ways to reach this
+                      person live here too: they are the booking's contact details, not the
+                      traveller's identity. */}
+                  <section className="ck-card ck-reveal">
+                    <div className="ck-card-head">
+                      <div className="ck-ico">{ICON.pin}</div>
+                      <div className="ck-card-titles">
+                        <h2 className="ck-card-title hd">Address</h2>
+                        <p className="ck-card-sub">{isCompany ? 'Company address' : 'Where we send the invoice'}</p>
+                      </div>
+                    </div>
+
+                    <div className="ck-form ck-boxed">
                       <div className="ck-row-3">
-                        <Field label="Street" span={2}>
+                        <Field label="Street name" span={2} req err={errors['priv.street']} ok={!!priv.street.trim()}>
                           <input className="ck-input" value={priv.street} onChange={(e) => setP('street')(e.target.value)} placeholder="Rue de la Loi" maxLength={255} />
                         </Field>
-                        <Field label="House no.">
+                        <Field label="House no." req err={errors['priv.houseNumber']} ok={!!priv.houseNumber.trim()}>
                           <input className="ck-input" value={priv.houseNumber} onChange={(e) => setP('houseNumber')(e.target.value)} placeholder="42" maxLength={20} />
                         </Field>
                         <Field label="Box no." hint="Apartment, suite or bus">
@@ -1516,11 +1648,11 @@ function CheckoutContent({ stripe, elements }) {
                         </Field>
                       </div>
                       <div className="ck-row-3">
-                        <Field label="City" span={2}>
-                          <input className="ck-input" value={priv.city} onChange={(e) => setP('city')(e.target.value)} placeholder="Brussels" maxLength={100} />
-                        </Field>
-                        <Field label="Postal code">
+                        <Field label="Postal code" req err={errors['priv.postalCode']} ok={!!priv.postalCode.trim()}>
                           <input className="ck-input" value={priv.postalCode} onChange={(e) => setP('postalCode')(e.target.value)} placeholder="1000" maxLength={20} />
+                        </Field>
+                        <Field label="City" req err={errors['priv.city']} ok={!!priv.city.trim()}>
+                          <input className="ck-input" value={priv.city} onChange={(e) => setP('city')(e.target.value)} placeholder="Brussels" maxLength={100} />
                         </Field>
                         {/* Required, as at signup: it is the invoice country, and a company
                             record cannot be created without one. */}
@@ -1531,6 +1663,48 @@ function CheckoutContent({ stripe, elements }) {
                           </select>
                         </Field>
                       </div>
+
+                      <div className="ck-row">
+                        <Field label="Phone number" req err={errors['priv.phone']} ok={phoneOk(priv.phone)}
+                          hint="International format, e.g. +32 475 12 34 56">
+                          <input className="ck-input" type="tel" value={priv.phone} onChange={(e) => setP('phone')(e.target.value)} placeholder="+32 475 12 34 56" maxLength={30} />
+                        </Field>
+                        <Field label="Email address" req err={errors['priv.email']} ok={emailOk(priv.email) && emailTaken === false}>
+                          <input className="ck-input" type="email" value={priv.email} onChange={(e) => setP('email')(e.target.value)} placeholder="john@example.com" />
+                        </Field>
+                      </div>
+
+                      {/* This address already has a login. Said once, plainly, with the two
+                          things that actually help — and nothing about the account itself:
+                          not the name on it, not when it was made. Whoever typed the address
+                          learns only what they would learn by trying to sign in. */}
+                      {emailTaken === true && (
+                        <div className="ck-email-known" role="status">
+                          <span className="ck-email-known-ico">{ICON.user}</span>
+                          <div className="ck-email-known-text">
+                            <b>An account already exists with this email address.</b>
+                            <span>Please log in to continue — we'll bring your details into this booking.</span>
+                          </div>
+                          <div className="ck-email-known-btns">
+                            <button type="button" className="ck-email-login" onClick={() => goSignIn('/login')}>
+                              Log in
+                            </button>
+                            <button type="button" className="ck-email-forgot" onClick={() => goSignIn('/forgot-password')}>
+                              Forgot your password?
+                            </button>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* Someone to call who is NOT on the trip. Required, because the moment
+                          it is needed is the moment nobody has time to look for it. */}
+                      <Field label="Emergency contact phone number" req
+                        err={errors['priv.emergencyPhone']} ok={phoneOk(priv.emergencyPhone)}
+                        hint="Someone we can reach who is not travelling with you">
+                        <input className="ck-input" type="tel" value={priv.emergencyPhone}
+                          onChange={(e) => setP('emergencyPhone')(e.target.value)}
+                          placeholder="+32 476 98 76 54" maxLength={30} />
+                      </Field>
                     </div>
                   </section>
 
@@ -1562,12 +1736,23 @@ function CheckoutContent({ stripe, elements }) {
                             </div>
                             {i === 0 && <span className="ck-lead-badge">{ICON.sparkle} Lead</span>}
                             {at && <span className={`ck-age-badge ${at.code.toLowerCase()}`} key={at.code}>{at.label}</span>}
-                            <div className="ck-trav-actions">
-                              {i === 0 && !isCompany && (priv.firstName || priv.lastName) && (
-                                <button className="ck-link-btn" onClick={copyCustomerToLead}>{ICON.check} Same as me</button>
-                              )}
-                            </div>
                           </div>
+
+                          {/* Only on traveller 1, and only ever ONE direction: what is typed
+                              here fills the booker above. Nobody types their own name twice.
+                              Unticking makes the booker's details independent again — the two
+                              are the same person by default, not by assumption. */}
+                          {i === 0 && (
+                            <label className={`ck-biz ck-leadbook${leadIsBooker ? ' on' : ''}`}>
+                              <input type="checkbox" checked={leadIsBooker}
+                                onChange={(e) => setLeadIsBooker(e.target.checked)} />
+                              <span className="ck-biz-box">{leadIsBooker && ICON.check}</span>
+                              <span className="ck-biz-text">
+                                <b>This traveller is also the lead booker</b>
+                                <span>The lead booker details will be filled in automatically using this traveller's details.</span>
+                              </span>
+                            </label>
+                          )}
 
                           {/* Labels ABOVE the field here, not inside it. A boxed label is fine
                               over one input; over three side-by-side date lists it collides
@@ -1765,39 +1950,43 @@ function CheckoutContent({ stripe, elements }) {
                     </BaggageCard>
                   )}
 
-                  {/* B. Cabin baggage — included when the fare says so (handKg), otherwise
-                      offered at the dashboard's price. */}
-                  {bagRates?.cabin?.enabled !== false && (
+                  {/* B. Cabin baggage. Included when the fare states a hand allowance OR when
+                      it carries hold baggage — a ticket with a suitcase has a cabin bag, and
+                      Airtuerk reports handLuggage as 0 on every option, so reading it
+                      literally would sell a bag the traveller already has. An airline that
+                      offers extra cabin bags is offered here too, even on an included row. */}
+                  {(cabinAddOns.length > 0 || bagKnown) && (
                     <BaggageCard
                       icon={ICON.cabinBag}
                       title={bagRates?.cabin?.label || 'Cabin baggage'}
                       note={bagRates?.cabin?.note || 'A cabin bag that is stored in the overhead compartment.'}
-                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span></>}>
+                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span>{addOnsAreOurs && <span className="ck-lg note">Extra bags are arranged by SUNSKY after booking</span>}</>}>
                       {travellers.map((t, i) => (
                         <BagTraveller key={i} index={i} name={travellerName(t)}>
                           {directions.map((d) => {
-                            const included = (allowance?.handKg || 0) > 0;
                             const added = !!bags[bagKey(i, d.key)]?.cabin;
+                            const price = Number(cabinAddOns[0]?.price) || 0;
                             return (
                               <div className="ck-bagrow" key={d.key}>
                                 <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
                                 <span className="ck-bagrow-item">{ICON.cabinBag} {bagRates?.cabin?.label || 'Cabin baggage'}</span>
                                 <span className="ck-bagrow-state">
-                                  {included ? (
-                                    <><span className="ck-chip-inc">Included{allowance.handKg ? ` · ${allowance.handKg} kg` : ''}</span>{ICON.checkCircle}</>
+                                  {/* The state, then — separately — whether more can be bought.
+                                      An included bag and a second bag are different questions. */}
+                                  {cabinIncluded ? (
+                                    <><span className="ck-chip-inc">Included{cabinIncludedKg ? ` · ${cabinIncludedKg} kg` : ''}</span>{ICON.checkCircle}</>
                                   ) : added ? (
-                                    <>
-                                      <span className="ck-chip-added">Added · {money(bagRates?.cabin?.price || 0)}</span>
-                                      <button type="button" className="ck-bag-remove" onClick={() => setBag(i, d.key, { cabin: false })}>Remove</button>
-                                    </>
+                                    <span className="ck-chip-added">Added · {money(price)}</span>
                                   ) : (
-                                    <>
-                                      <span className="ck-chip-not">Not included</span>
-                                      <button type="button" className="ck-bag-add" onClick={() => setBag(i, d.key, { cabin: true })}>
-                                        + Add cabin baggage · {money(bagRates?.cabin?.price || 0)}
-                                      </button>
-                                    </>
+                                    <span className="ck-chip-not">{bagKnown ? 'Not included' : 'Not confirmed'}</span>
                                   )}
+                                  {added ? (
+                                    <button type="button" className="ck-bag-remove" onClick={() => setBag(i, d.key, { cabin: false })}>Remove</button>
+                                  ) : cabinAddOns.length > 0 ? (
+                                    <button type="button" className="ck-bag-add" onClick={() => setBag(i, d.key, { cabin: true })}>
+                                      + Add {cabinIncluded ? 'another cabin bag' : 'cabin baggage'} · {money(price)}
+                                    </button>
+                                  ) : null}
                                 </span>
                               </div>
                             );
@@ -1807,42 +1996,50 @@ function CheckoutContent({ stripe, elements }) {
                     </BaggageCard>
                   )}
 
-                  {/* C. Checked baggage — the allowance the fare carries, in the supplier's own
-                      kilos or pieces, and a weight menu on the legs that have none. */}
-                  {(bagRates?.checked || []).length > 0 && (
+                  {/* C. Checked baggage — the allowance the fare carries, in the airline's own
+                      kilos or pieces, and a weight menu wherever more can be bought: on a leg
+                      with none, and on a leg that has some but allows a second bag. */}
+                  {(checkedAddOns.length > 0 || bagKnown) && (
                     <BaggageCard
                       icon={ICON.checkedBag}
                       title="Checked baggage"
                       note="Baggage transported in the aircraft hold."
-                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span></>}>
+                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span>{addOnsAreOurs && <span className="ck-lg note">Extra bags are arranged by SUNSKY after booking</span>}</>}>
                       {travellers.map((t, i) => (
                         <BagTraveller key={i} index={i} name={travellerName(t)}>
                           {directions.map((d) => {
-                            const kg = allowance?.checkedKg || 0;
-                            const pieces = allowance?.checkedPieces || 0;
-                            const included = kg > 0 || pieces > 0;
+                            const kg = checkedIncludedKg;
+                            const pieces = checkedIncludedPieces;
+                            const included = checkedIncluded;
                             const chosen = bags[bagKey(i, d.key)]?.checked;
                             return (
                               <div className="ck-bagrow" key={d.key}>
                                 <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
                                 <span className="ck-bagrow-item">{ICON.checkedBag} Checked baggage</span>
                                 <span className="ck-bagrow-state">
+                                  {/* What the ticket carries, then — separately — what can be
+                                      added. An included allowance does not end the question:
+                                      a traveller with 20 kg may still want a second bag, and
+                                      the airline (or our table) may sell one. */}
                                   {included ? (
                                     <><span className="ck-chip-inc">Included · {kg > 0 ? `${kg} kg` : `${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`}</span>{ICON.checkCircle}</>
                                   ) : (
-                                    <>
-                                      <span className={chosen ? 'ck-chip-added' : 'ck-chip-not'}>
-                                        {chosen ? `Added · ${chosen} kg` : 'Not included'}
-                                      </span>
-                                      <select className="ck-bag-select" value={chosen || ''}
-                                        aria-label={`Add checked baggage for traveller ${i + 1}, ${d.label.toLowerCase()}`}
-                                        onChange={(e) => setBag(i, d.key, { checked: e.target.value ? Number(e.target.value) : null })}>
-                                        <option value="">+ Add checked baggage</option>
-                                        {(bagRates?.checked || []).map((r) => (
-                                          <option key={r.kg} value={r.kg}>{r.kg} kg — {money(r.price)}</option>
-                                        ))}
-                                      </select>
-                                    </>
+                                    <span className={chosen ? 'ck-chip-added' : 'ck-chip-not'}>
+                                      {chosen ? `Added · ${chosen} kg` : (bagKnown ? 'Not included' : 'Not confirmed')}
+                                    </span>
+                                  )}
+                                  {included && chosen ? (
+                                    <span className="ck-chip-added">+ {chosen} kg</span>
+                                  ) : null}
+                                  {checkedAddOns.length > 0 && (
+                                    <select className="ck-bag-select" value={chosen || ''}
+                                      aria-label={`Add checked baggage for traveller ${i + 1}, ${d.label.toLowerCase()}`}
+                                      onChange={(e) => setBag(i, d.key, { checked: e.target.value ? Number(e.target.value) : null })}>
+                                      <option value="">+ Add {included ? 'more baggage' : 'checked baggage'}</option>
+                                      {checkedAddOns.map((r) => (
+                                        <option key={r.kg} value={r.kg}>{r.kg} kg — {money(r.price)}</option>
+                                      ))}
+                                    </select>
                                   )}
                                 </span>
                               </div>
@@ -2097,9 +2294,12 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                     <div className="ck-ov-item">
                       <span className="ck-ov-k">Board</span>
-                      {/* Through boardInfo, like every other place a board is printed —
-                          suppliers SHOUT ("ALL INCLUSIVE") and the rest of the site doesn't. */}
-                      <span className="ck-ov-v">
+                      {/* Still normalised through boardInfo so the WORDING is ours and
+                          consistent ("All inclusive", never a supplier's stray spelling); the
+                          capitals are applied in CSS on top. Uppercasing here instead would
+                          put shouted text into `booking.board`, which is carried into the
+                          reservation payload — the display is the only thing that changes. */}
+                      <span className="ck-ov-v ck-caps">
                         {boardInfo(booking.api?.hotel?.boardCode, booking.board || booking.meal).label}
                       </span>
                     </div>
@@ -2113,8 +2313,9 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-ov-block">
                       <div className="ck-ov-title hd">Rooms</div>
                       <p className="ck-ov-line">
-                        {Number(srch.rooms) > 1 ? `${srch.rooms} × ` : '1 × '}{booking.room}
-                        {booking.board ? ` — ${booking.board}` : ''}
+                        {Number(srch.rooms) > 1 ? `${srch.rooms} × ` : '1 × '}
+                        <span className="ck-caps">{booking.room}</span>
+                        {booking.board ? <> — <span className="ck-caps">{booking.board}</span></> : ''}
                       </p>
                     </div>
                   )}
@@ -2419,7 +2620,7 @@ function CheckoutContent({ stripe, elements }) {
                   {isTransfer && <span className="ck-sum-chip">{ICON.pin} {booking.transfer?.type === 'SHARED' ? 'Shared' : 'Private'} transfer</span>}
                   {!isFlight && !isTransfer && <span className="ck-sum-chip">{ICON.moon} {booking.nights} nights</span>}
                   <span className="ck-sum-chip">{ICON.users} {pax} {pax === 1 ? 'traveller' : 'travellers'}</span>
-                  {!isFlight && !isTransfer && <span className="ck-sum-chip">{ICON.board} {booking.board}</span>}
+                  {!isFlight && !isTransfer && <span className="ck-sum-chip">{ICON.board} <span className="ck-caps">{booking.board}</span></span>}
                 </div>
 
                 {booking.transfer && (
@@ -2466,8 +2667,8 @@ function CheckoutContent({ stripe, elements }) {
                   <>
                     <div className="ck-sum-sec">{ICON.bed} Room & board</div>
                     <div className="ck-sum-room">
-                      <span>{booking.room}</span>
-                      <small>{booking.meal} · included in price</small>
+                      <span className="ck-caps">{booking.room}</span>
+                      <small><span className="ck-caps">{booking.meal}</span> · included in price</small>
                     </div>
                   </>
                 )}

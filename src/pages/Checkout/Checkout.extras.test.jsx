@@ -88,16 +88,47 @@ describe('baggage on the extras step', () => {
 
     const checked = card('Checked baggage');
     expect(checked).toBeTruthy();
-    // Two travellers × two directions, every one of them already covered by the fare.
+    // Two travellers × two directions, every one of them already covered by the fare — stated,
+    // never sold twice. A second bag is still offered, because carrying one does not mean
+    // nobody wants another.
     const rows = [...checked.querySelectorAll('.ck-bagrow')];
     expect(rows).toHaveLength(4);
     rows.forEach((r) => expect(r).toHaveTextContent('Included · 20 kg'));
-    // Nothing to buy, so nothing offering to.
-    expect(checked.querySelectorAll('.ck-bag-select')).toHaveLength(0);
+    expect(checked.querySelectorAll('.ck-bag-select')).toHaveLength(4);
 
+    // The client's rule: a fare with hold baggage carries a cabin bag too. The supplier
+    // reports handLuggage as 0 on every option, so reading it literally would offer to sell
+    // a bag the ticket already includes.
     const cabin = card('Cabin baggage');
     [...cabin.querySelectorAll('.ck-bagrow')].forEach((r) => expect(r).toHaveTextContent(/included/i));
-    expect(cabin.querySelectorAll('.ck-bag-add')).toHaveLength(0);
+    expect([...cabin.querySelectorAll('.ck-bag-add')].map((b) => b.textContent))
+      .toEqual(expect.arrayContaining([expect.stringMatching(/another cabin bag/i)]));
+  });
+
+  it('follows the checked allowance for the cabin bag, even when the airline reports none', async () => {
+    const user = userEvent.setup();
+    // 20 kg in the hold, handLuggage 0 — exactly what Airtuerk sends on a fare that does
+    // include a cabin bag.
+    renderCheckout(bookingWith({ checkedKg: 20, checkedPieces: 0, handKg: 0, infantKg: 0 }));
+    await toExtras(user);
+
+    const cabin = card('Cabin baggage');
+    [...cabin.querySelectorAll('.ck-bagrow')].forEach((r) => {
+      expect(r).toHaveTextContent(/included/i);
+      expect(r).not.toHaveTextContent(/not included/i);
+    });
+  });
+
+  it('says the allowance is unknown when the airline sent none at all', async () => {
+    const user = userEvent.setup();
+    renderCheckout(bookingWith(null));      // no baggage object on the fare
+    await toExtras(user);
+
+    // Not "Not included" — that is a claim about the ticket we have no basis for. The bag is
+    // still offered, which is the right thing to do when nobody has told us otherwise.
+    const cabin = card('Cabin baggage');
+    expect(cabin).toHaveTextContent(/not confirmed/i);
+    expect(cabin.querySelectorAll('.ck-bag-add').length).toBeGreaterThan(0);
   });
 
   it('charges an added bag once, for the traveller and leg it was added to', async () => {

@@ -25,10 +25,15 @@ const setValue = (el, value) => {
 const labelOf = (field) => (field.querySelector('.ck-label, .ck-tvf-label')?.textContent || '')
   .replace(/\*/g, '').trim().toLowerCase();
 
-/** The field whose label starts with `label`, searched inside `root`. */
+/**
+ * The field whose label starts with `label`. `root` may be an element to search inside OR an
+ * already-filtered list of fields — the customer details span more than one card, so the
+ * contact helpers pass a list ("every field that is not a traveller's") instead.
+ */
 export const fieldByLabel = (label, root = document) => {
   const want = label.toLowerCase();
-  return [...root.querySelectorAll('.ck-field, .ck-tvf')].find((f) => labelOf(f).startsWith(want));
+  const fields = Array.isArray(root) ? root : [...root.querySelectorAll('.ck-field, .ck-tvf')];
+  return fields.find((f) => labelOf(f).startsWith(want));
 };
 
 /** Set one field by label. Selects take the first real option when given `true`. */
@@ -43,23 +48,43 @@ export const fill = (label, value, root = document) => {
   return el;
 };
 
-/** The customer card — the person we contact about the booking. */
+/**
+ * The customer card — the person we contact about the booking.
+ *
+ * Scoped by what these fields are NOT — a traveller's — rather than by a layout class. The
+ * customer details have been split across cards more than once, and every time they were, a
+ * helper anchored on the first `.ck-boxed` silently started filling the wrong half.
+ */
+export const contactFields = () =>
+  [...document.querySelectorAll('.ck-field, .ck-tvf')].filter((f) => !f.closest('.ck-trav'));
+
 export const fillContact = ({
   firstName = 'Ali', lastName = 'Benli', email = 'ali@example.com',
-  phone = '+32475123456', country = true, nationality = true,
+  phone = '+32475123456', emergencyPhone = '+32476987654',
+  street = 'Rue de la Loi', houseNumber = '42', postalCode = '1000', city = 'Brussels',
+  country = true, nationality = true,
 } = {}) => {
-  const card = document.querySelector('.ck-boxed') || document;
+  // Names and nationality are SCOPED to the contact card — the traveller cards carry labels
+  // with the same words. The address and the ways to reach the booker live in their own card
+  // and are unique on the step, so they are found document-wide.
+  const card = contactFields();
   fill('first name', firstName, card);
   fill('last name', lastName, card);
-  fill('email', email, card);
-  fill('phone', phone, card);
   fill('nationality', nationality, card);
-  fill('country', country, card);
+
+  fill('street', street);
+  fill('house no', houseNumber);
+  fill('postal code', postalCode);
+  fill('city', city);
+  fill('country', country);
+  fill('phone number', phone);
+  fill('email', email);
+  fill('emergency contact phone', emergencyPhone);
 };
 
 /** Company details, once "I am a business customer" is ticked. */
 export const fillCompany = ({ name = 'SunSky Travel BV', vat = 'BE0123456789' } = {}) => {
-  const card = document.querySelector('.ck-boxed') || document;
+  const card = contactFields();
   fill('company name', name, card);
   fill('vat number', vat, card);
 };
