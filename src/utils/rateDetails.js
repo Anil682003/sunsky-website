@@ -37,7 +37,7 @@ export function boardInfo(boardCode, boardName) {
   const code = String(boardCode || '').trim().toUpperCase();
   const known = BOARD_MEANING[code];
   if (known) return { code, ...known };
-  const raw = String(boardName || '').trim();
+  const raw = decodeEntities(String(boardName || '')).trim();
   return {
     code: code || null,
     label: raw ? titleCase(raw) : 'Standard rate',
@@ -49,6 +49,37 @@ export function boardInfo(boardCode, boardName) {
 function titleCase(s) {
   const lower = String(s).toLowerCase();
   return lower.charAt(0).toUpperCase() + lower.slice(1);
+}
+
+/**
+ * Turn HTML entities in a supplier string back into characters.
+ *
+ * Supplier content is HTML-encoded at source, so a board called "BED &amp; BREAKFAST" and a
+ * room called "SUITE &quot;DELUXE&quot;" arrive with the entities intact. React escapes on
+ * output — correctly — so printing them raw shows the traveller a literal "&amp;".
+ *
+ * Deliberately a PURE STRING function, not the usual `textarea.innerHTML` trick: this module is
+ * reachable from `server/index.js`, which runs in Node with no DOM, and an innerHTML round-trip
+ * on supplier text is a needless HTML-injection surface even when it happens to work.
+ * Numeric forms are handled too — Hotelbeds emits `&#39;` for apostrophes in room names.
+ */
+// nbsp decodes to a NORMAL space, deliberately: in a room or board name a non-breaking
+// space is incidental supplier markup, and keeping it causes odd wrapping and is invisible
+// when debugging. The other entities decode to their true characters.
+const NAMED = { amp: '&', lt: '<', gt: '>', quot: '"', apos: "'", nbsp: ' ', ndash: '–', mdash: '—' };
+export function decodeEntities(s) {
+  if (!s) return '';
+  return String(s).replace(/&(#x?[0-9a-f]+|[a-z]+);/gi, (whole, body) => {
+    if (body[0] === '#') {
+      const cp = body[1] === 'x' || body[1] === 'X'
+        ? parseInt(body.slice(2), 16)
+        : parseInt(body.slice(1), 10);
+      // A bad code point must leave the text untouched rather than throw or print garbage.
+      return Number.isFinite(cp) && cp > 0 && cp <= 0x10FFFF ? String.fromCodePoint(cp) : whole;
+    }
+    const named = NAMED[body.toLowerCase()];
+    return named === undefined ? whole : named;
+  });
 }
 
 /**

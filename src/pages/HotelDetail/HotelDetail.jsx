@@ -8,7 +8,7 @@ import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
 import { nightsToDays } from '../../utils/durations';
-import { rateDetails, boardInfo } from '../../utils/rateDetails';
+import { rateDetails, boardInfo, decodeEntities } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS,
 } from '../../utils/flightFilters';
@@ -874,15 +874,33 @@ export default function HotelDetail() {
   const [liveTransfers, setLiveTransfers] = useState(null); // {loading?|error?|services[]}
   const [selectedTransfer, setSelectedTransfer] = useState(-1); // -1 = no transfer (opt-in)
 
-  // scroll-reveal
+  // Scroll-reveal.
+  //
+  // `.reveal` starts at opacity:0 and only becomes visible once this observer adds `.vis`. It
+  // therefore MUST re-run whenever new `.reveal` nodes can appear, or those nodes sit invisible
+  // forever — at full height, because opacity does not remove them from layout. That is exactly
+  // what happened to the flights and overview sections: they mount only after the availability
+  // check, long after this effect last ran on [activeTab], so the page showed the rooms and then
+  // several hundred pixels of blank space where two invisible sections were still taking up room.
+  // (room-section and transfer-section had been hand-patched with a literal `vis` to dodge this;
+  // the deps below fix the cause, so new sections don't need to remember that trick.)
+  //
+  // Re-running is cheap and idempotent: the query skips anything already revealed, and each
+  // element is unobserved the moment it fires.
   useEffect(() => {
     const els = pageRef.current?.querySelectorAll('.reveal:not(.vis)') || [];
+    if (!els.length) return undefined;
     const obs = new IntersectionObserver((entries) => {
       entries.forEach((e) => { if (e.isIntersecting) { e.target.classList.add('vis'); obs.unobserve(e.target); } });
     }, { threshold: 0.1 });
     els.forEach((el) => obs.observe(el));
     return () => obs.disconnect();
-  }, [activeTab]);
+    // `checkedEmpty`, not the `dayUnavailable` derived from it further down the component: a
+    // const referenced above its declaration is a temporal-dead-zone ReferenceError thrown on
+    // every render, which blanks the whole page. Same failure mode as the `sel` outage. The
+    // underlying state changes at exactly the same moments, so the effect still re-runs when a
+    // day's availability flips.
+  }, [activeTab, liveChecked, checkedEmpty, transport, liveRooms, liveFlights, liveTransfers]);
 
   // lock body scroll when modal open
   useEffect(() => {
@@ -1632,7 +1650,11 @@ export default function HotelDetail() {
         ...((dn?.rooms) || []).map((r) => ({ ...r, supplier: 'diana', dianaHotelId })),
         ...((wm?.rooms) || []).map((r) => ({ ...r, supplier: 'w2m', w2mHotelCode })),
       ].map((r) => ({
-        name: r.roomName || 'Room', board: r.boardName || r.boardCode || '',
+        // Supplier text is HTML-encoded at source, so "DOUBLE ROOM &amp; TERRACE" arrives with
+        // the entity intact and React — correctly — prints it literally. Decode on the way in,
+        // so every consumer downstream (card, grouping, checkout hand-off) gets real characters.
+        name: decodeEntities(r.roomName) || 'Room',
+        board: decodeEntities(r.boardName) || r.boardCode || '',
         price: r.sellingRate ?? r.net ?? r.price ?? null, currency: r.currency || 'EUR', supplier: r.supplier,
         // Prefer the supplier's explicit refundable flag (W2M sets it); else derive from policies.
         refundable: r.refundable !== undefined ? r.refundable
@@ -2317,7 +2339,7 @@ export default function HotelDetail() {
                   UNAVAILABLE: flights for a stay with no room are not a package anyone
                   can book, and every section below the red card would contradict it. */}
               {liveChecked && !dayUnavailable && (
-              <div className="flight-section reveal">
+              <div className="flight-section reveal vis">
                 {!liveFlights?.loading && <div className="section-title"><span className="st-step">3</span> Your flights</div>}
                 {transport === 'hotel_only' ? (
                   <div className="own-transport">
@@ -2678,7 +2700,7 @@ export default function HotelDetail() {
               )}
 
               {/* Overview */}
-              <div className="overview-section reveal">
+              <div className="overview-section reveal vis">
                 <div className="section-title"><span className="st-step">{liveTransfers ? 5 : 4}</span> Overview of your holiday</div>
                 <div className="overview-card">
                   <div className="overview-head">

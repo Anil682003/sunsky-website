@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { boardInfo, cancellationState, parseRateKey, rateDetails } from './rateDetails';
+import { boardInfo, cancellationState, parseRateKey, rateDetails, decodeEntities } from './rateDetails';
 
 // Verbatim rateKeys from a live /hotel-availability/search for hotel 72279 (Santa Sophia),
 // 6–13 Sep 2026, 1 room / 2 adults. Two rate classes are represented: PKG…NRF (locked in)
@@ -71,7 +71,49 @@ describe('cancellationState', () => {
   });
 });
 
+describe('decodeEntities', () => {
+  it('turns the entity the client actually saw back into a character', () => {
+    // Screenshot showed "BED &AMP; BREAKFAST" on a live hotel page.
+    expect(decodeEntities('BED &amp; BREAKFAST')).toBe('BED & BREAKFAST');
+  });
+
+  it('handles the rest of the common named set', () => {
+    expect(decodeEntities('&lt;a&gt;')).toBe('<a>');
+    expect(decodeEntities('&quot;Deluxe&quot;')).toBe('"Deluxe"');
+    expect(decodeEntities('King&apos;s Suite')).toBe("King's Suite");
+    expect(decodeEntities('Sea&nbsp;View')).toBe('Sea View');
+  });
+
+  it('handles numeric and hex forms — Hotelbeds emits &#39; in room names', () => {
+    expect(decodeEntities('King&#39;s Room')).toBe("King's Room");
+    expect(decodeEntities('caf&#xe9;')).toBe('café');
+  });
+
+  it('decodes repeatedly in one string', () => {
+    expect(decodeEntities('A &amp; B &amp; C')).toBe('A & B & C');
+  });
+
+  it('leaves text that is not an entity completely alone', () => {
+    expect(decodeEntities('Room & Board')).toBe('Room & Board');
+    expect(decodeEntities('100% & up')).toBe('100% & up');
+    expect(decodeEntities('&notanentity;')).toBe('&notanentity;');
+  });
+
+  it('leaves a malformed code point untouched instead of printing garbage', () => {
+    expect(decodeEntities('&#999999999;')).toBe('&#999999999;');
+    expect(decodeEntities('&#0;')).toBe('&#0;');
+  });
+
+  it('survives empty and non-string input', () => {
+    for (const bad of [null, undefined, '', 0]) expect(decodeEntities(bad)).toBe('');
+  });
+});
+
 describe('boardInfo', () => {
+  it('decodes an entity in a board name it does not have a mapping for', () => {
+    expect(boardInfo('ZZ', 'BED &amp; BREAKFAST').label).toBe('Bed & breakfast');
+  });
+
   it('turns a code into words a traveller can act on', () => {
     expect(boardInfo('BB')).toMatchObject({ label: 'Bed & breakfast', gloss: 'Breakfast included' });
     expect(boardInfo('AI').label).toBe('All inclusive');
