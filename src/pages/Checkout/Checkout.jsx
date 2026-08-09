@@ -5,6 +5,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import axiosInstance from '../../services/axiosInstance';
 import { ageAtCheckIn } from '../../utils/childDob';
+import { cancellationState, parseRateKey } from '../../utils/rateDetails';
 import Confirmation from './Confirmation';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import './Checkout.css';
@@ -130,6 +131,39 @@ const EMPTY_BOOKING = {
 };
 
 const SGR_FEE = 20;
+
+/* ── the non-refundable accommodation consent ──────────────────────────────────
+   Stored VERBATIM with the booking alongside the timestamp, because "the customer accepted
+   the terms" is worth nothing in a dispute without the words they were shown. Bump the
+   version whenever this text changes; old bookings keep the wording they actually saw. */
+const NR_CONSENT = {
+  code: 'NON_REFUNDABLE_ACCOMMODATION',
+  version: 'v1',
+  notice: 'This accommodation has a non-refundable rate. If you cancel the booking, 100% cancellation costs apply to this accommodation from the moment the booking is confirmed.',
+  accept: 'I understand and accept that 100% cancellation costs apply to the selected non-refundable accommodation.',
+};
+const TERMS_CONSENT = {
+  code: 'BOOKING_CONDITIONS',
+  version: 'v1',
+  accept: 'I agree to the booking conditions, the privacy policy and the terms of the travel providers.',
+};
+
+/**
+ * Is the booked room one where cancelling costs the whole price from today?
+ *
+ * Two independent signals, either of which is enough: the rateKey carries the supplier's own
+ * NRF flag, and the cancellation policies say what a cancellation costs right now. `kind:
+ * 'none'` means the penalty window has already opened — the traveller would lose the full
+ * amount — which is exactly the case the warning is for. A rate with a FUTURE deadline
+ * ('free' / 'partial') is not this, and must not be labelled non-refundable.
+ */
+const isNonRefundableStay = (hotel) => {
+  if (!hotel) return false;
+  const price = Number(hotel.price) || null;
+  const state = cancellationState(hotel.cancellation || [], price);
+  if (state.kind === 'none') return true;
+  return parseRateKey(hotel.rateKey).nonRefundable === true;
+};
 // Earliest selectable passport-expiry date (tomorrow). Computed at module load so it
 // isn't an impure call during render; the strict future-date check still runs on submit.
 const MIN_PASSPORT_EXPIRY = new Date(Date.now() + 86400000).toISOString().split('T')[0];
@@ -367,13 +401,17 @@ function CheckoutContent({ stripe, elements }) {
 
      `quote` is the live hotel/flight pair the page prices from — it starts as whatever the
      hotel page quoted and is replaced only by an accepted re-check. */
-  const S = booking.search || {};
+  // NB: not `S` — that is the inline SVG component this file renders every icon with.
+  const srch = booking.search || {};
   const [quote, setQuote] = useState(() => ({
     hotel: Number(booking.api?.hotel?.price) || 0,
     flight: Number(booking.api?.flight?.price) || 0,
     rateKey: booking.api?.hotel?.rateKey || null,
     roomCode: booking.api?.hotel?.roomCode || null,
     boardCode: booking.api?.hotel?.boardCode || null,
+    // Carried because refundability is a property of the RATE: a re-priced room can be
+    // non-refundable where the first one wasn't, and the warning has to follow it.
+    cancellation: booking.api?.hotel?.cancellation || [],
     flightKeys: booking.api?.flight?.flightKeys || null,
   }));
   // null → nothing to settle. Otherwise: checking | same | changed | unavailable | error
@@ -382,36 +420,36 @@ function CheckoutContent({ stripe, elements }) {
 
   // The searched children, in search order, with the ages their current dates imply.
   const searchedChildren = travellers.filter((t) => t.searchDob);
-  const searchedAges = String(S.childAges || '').split(',').map((a) => a.trim()).filter(Boolean);
-  const currentChildAges = searchedChildren.map((t) => ageAtCheckIn(t.dateOfBirth, S.checkin));
+  const searchedAges = String(srch.childAges || '').split(',').map((a) => a.trim()).filter(Boolean);
+  const currentChildAges = searchedChildren.map((t) => ageAtCheckIn(t.dateOfBirth, srch.checkin));
   const agesReady = currentChildAges.every((a) => a != null);
   const agesSignature = agesReady ? currentChildAges.join(',') : null;
   const searchedSignature = searchedAges.join(',');
   // Only a change of AGE can move a price — every supplier call we make carries ages, never
   // dates. Correcting the day of a birthday inside the same year is therefore free, and
   // asking the supplier about it would be a call whose answer we already know.
-  const needsReprice = !!(S.checkin && agesSignature && searchedSignature
+  const needsReprice = !!(srch.checkin && agesSignature && searchedSignature
     && agesSignature !== searchedSignature);
 
   const runReprice = async (ages) => {
     const seq = ++repriceSeq.current;
-    const party = splitFareTypes(Number(S.adults) || 1, ages);
+    const party = splitFareTypes(Number(srch.adults) || 1, ages);
     setReprice({ status: 'checking' });
     try {
       const hotelReq = axiosInstance.post('/hotel-availability/search', {
         hotelCode: String(booking.api?.hotel?.hotelCode || booking.hotelCode),
-        checkin: S.checkin, checkout: S.checkout,
+        checkin: srch.checkin, checkout: srch.checkout,
         adults: party.adults, children: party.childAges.length,
-        childAges: party.childAges, rooms: Number(S.rooms) || 1,
+        childAges: party.childAges, rooms: Number(srch.rooms) || 1,
       });
       // The fare is only re-searched when the PASSENGER MIX changed — an 11-year-old
       // turning 12 is a different ticket, an 8-year-old turning 9 is not, and the flight
       // search takes counts, not ages.
-      const mixChanged = party.adults !== (Number(S.adults) || 1) || party.infants > 0;
-      const flightReq = (mixChanged && booking.api?.flight && S.destination)
+      const mixChanged = party.adults !== (Number(srch.adults) || 1) || party.infants > 0;
+      const flightReq = (mixChanged && booking.api?.flight && srch.destination)
         ? axiosInstance.post('/flight-availability/search', {
-            from: S.origin, to: S.destination,
-            depdate: S.checkin, retdate: S.checkout,
+            from: srch.origin, to: srch.destination,
+            depdate: srch.checkin, retdate: srch.checkout,
             adults: party.adults, children: party.children, infants: party.infants,
           })
         : null;
@@ -427,6 +465,7 @@ function CheckoutContent({ stripe, elements }) {
           roomCode: r.roomCode || null, boardCode: r.boardCode || null,
           rateKey: r.rateKey || null, name: r.roomName || 'Room',
           board: r.boardName || r.boardCode || '',
+          cancellation: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies : [],
         }))
         .filter((r) => r.price != null)
         .sort((a, b) => a.price - b.price);
@@ -463,6 +502,7 @@ function CheckoutContent({ stripe, elements }) {
         hotel: Number(match.price) || 0,
         flight: flight.price,
         rateKey: match.rateKey, roomCode: match.roomCode, boardCode: match.boardCode,
+        cancellation: match.cancellation,
         flightKeys: flight.keys,
       };
       const was = quote.hotel + quote.flight;
@@ -494,6 +534,9 @@ function CheckoutContent({ stripe, elements }) {
   const acceptNewPrice = () => {
     if (reprice?.status !== 'changed') return;
     setQuote(reprice.next);
+    // A different rate means different cancellation terms: whatever was accepted was accepted
+    // about the OLD room, so the tick goes back to unticked.
+    setNrAccept(false);
     setReprice({ status: 'accepted', ages: reprice.ages });
   };
   // Putting the searched date back is the one-click way out of both the "changed" and the
@@ -505,6 +548,15 @@ function CheckoutContent({ stripe, elements }) {
   // Nothing may be paid while an answer is outstanding, or while a new price is unaccepted,
   // or when the corrected party has no holiday to book.
   const repriceBlocks = !!reprice && ['checking', 'changed', 'unavailable', 'error'].includes(reprice.status);
+
+  // Refundability of the rate CURRENTLY quoted — after an accepted re-price that is the new
+  // room's, not the one the traveller arrived with.
+  const nonRefundable = isNonRefundableStay(booking.api?.hotel && {
+    ...booking.api.hotel,
+    rateKey: quote.rateKey ?? booking.api.hotel.rateKey,
+    cancellation: quote.cancellation ?? booking.api.hotel.cancellation,
+    price: quote.hotel || booking.api.hotel.price,
+  });
 
   /* ── step 2 : add-ons ── */
   const [insurance, setInsurance] = useState('none');
@@ -520,6 +572,9 @@ function CheckoutContent({ stripe, elements }) {
   const [idealBank, setIdealBank] = useState('');
   const [billingSame, setBillingSame] = useState(true);
   const [agree, setAgree] = useState(false);
+  // Unticked by default, always — a pre-ticked acceptance of a 100% cancellation cost is not
+  // an acceptance. Only asked for when a selected rate really is non-refundable.
+  const [nrAccept, setNrAccept] = useState(false);
   const [paying, setPaying] = useState(false);
   const [paid, setPaid] = useState(false);
   const [bookingRef, setBookingRef] = useState('');
@@ -670,6 +725,8 @@ function CheckoutContent({ stripe, elements }) {
     }
     if (payMethod === 'ideal' && !idealBank) e.idealBank = 'Please choose your bank';
     if (!agree) e.agree = 'Please accept the booking conditions to continue';
+    // A separate, explicit tick — the general conditions checkbox does not stand in for it.
+    if (nonRefundable && !nrAccept) e.nrAccept = 'Please confirm you accept the cancellation costs for the non-refundable accommodation';
     return e;
   };
 
@@ -776,6 +833,10 @@ function CheckoutContent({ stripe, elements }) {
             roomCode: quote.roomCode ?? api.hotel.roomCode,
             boardCode: quote.boardCode ?? api.hotel.boardCode,
             price: quote.hotel || api.hotel.price,
+            // What the customer was SHOWN about this rate. The server refuses to create the
+            // booking when this is true and the matching consent is absent, so the record can
+            // never disagree with the screen.
+            nonRefundable,
           }
         : null;
       // Flight price must reflect the ACTUAL travellers entered at checkout, not the
@@ -797,6 +858,22 @@ function CheckoutContent({ stripe, elements }) {
         ? { type: selIns.id, label: selIns.name, price: insAmount } : null;
       const contactPhone = customerType === 'professional' ? pro.primaryContactPhone : priv.phone;
 
+      // What the customer agreed to, in the words they were shown, with the moment they
+      // agreed. A tick in a database column is not evidence; the text is.
+      const acceptedAt = new Date().toISOString();
+      const consents = [
+        { code: TERMS_CONSENT.code, version: TERMS_CONSENT.version, text: TERMS_CONSENT.accept, acceptedAt },
+        ...(nonRefundable ? [{
+          code: NR_CONSENT.code,
+          version: NR_CONSENT.version,
+          text: `${NR_CONSENT.notice} ${NR_CONSENT.accept}`,
+          acceptedAt,
+          // The rate it was accepted ABOUT — a re-price mid-checkout changes the terms, and
+          // the audit trail has to say which room's terms these were.
+          scope: { product: 'hotel', hotelCode: String(hotelPayload?.hotelCode || ''), rateKey: hotelPayload?.rateKey || null },
+        }] : []),
+      ];
+
       // Step 1 — create the booking
       const paymentMode = import.meta.env.VITE_PAYMENT_MODE || 'test';
       const createRes = await axiosInstance.post('/website/online-bookings', {
@@ -812,6 +889,7 @@ function CheckoutContent({ stripe, elements }) {
         serviceFee: SGR_FEE,
         passengers,
         contact: { phone: contactPhone },
+        consents,
       });
 
       const created = createRes.data?.data || createRes.data || {};
@@ -948,6 +1026,7 @@ function CheckoutContent({ stripe, elements }) {
         pricing={{ base, roomExtraTotal, transferTotal, sgr: SGR_FEE, total, pax }}
         ccy={ccy}
         reservationPending={reservationPending}
+        nonRefundable={nonRefundable}
       />
     );
   }
@@ -1700,6 +1779,30 @@ function CheckoutContent({ stripe, elements }) {
                   )}
 
                   <div className="ck-divider" />
+
+                  {/* ── non-refundable accommodation ──
+                      Said once on the room card, and again HERE, because this is the last
+                      moment it can still be avoided. Scoped deliberately to the accommodation:
+                      the flight, the transfer and the insurance have their own terms, and
+                      telling someone their whole holiday is non-refundable when only the hotel
+                      is would be a worse error than saying nothing. */}
+                  {nonRefundable && (
+                    <div className={`ck-nr${errors.nrAccept ? ' ck-err' : ''}`}>
+                      <div className="ck-nr-head">
+                        <span className="ck-nr-ico">{ICON.ban}</span>
+                        <div>
+                          <b>Non-refundable accommodation</b>
+                          <p>{NR_CONSENT.notice}</p>
+                        </div>
+                      </div>
+                      <div className="ck-nr-check">
+                        <Check checked={nrAccept} onChange={(v) => { setNrAccept(v); setErrors((er) => ({ ...er, nrAccept: undefined })); }}>
+                          {NR_CONSENT.accept}
+                        </Check>
+                        {errors.nrAccept && <div className="ck-errmsg" style={{ marginLeft: 30 }}>{errors.nrAccept}</div>}
+                      </div>
+                    </div>
+                  )}
 
                   <Check checked={billingSame} onChange={setBillingSame}>
                     Billing address is the same as my customer details

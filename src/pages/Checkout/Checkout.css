@@ -474,6 +474,21 @@
   font-size:12.5px; font-weight:700; }
 .ck-dob-go:hover { background:var(--blue-mid); }
 
+/* ════ NON-REFUNDABLE ACCOMMODATION ════
+   Amber, the codebase's warning voice — not red. Nothing has gone wrong; the traveller is
+   being told what this rate costs to cancel while they can still choose another. */
+.ck-nr { margin:4px 0 14px; padding:15px 17px; border-radius:var(--r-md);
+  background:var(--sun-warm); border:1px solid #ffe9c7; }
+.ck-nr-head { display:flex; align-items:flex-start; gap:11px; }
+.ck-nr-head b { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:#8a5200; }
+.ck-nr-head p { font-size:12.5px; color:#8a5200; line-height:1.6; margin-top:4px; }
+.ck-nr-ico { flex:none; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:#fff; color:#b45309; }
+.ck-nr-ico svg { width:14px; height:14px; }
+.ck-nr-check { margin-top:13px; padding-top:13px; border-top:1px dashed #f3d9a8; }
+.ck-nr-check .ck-check-label { color:#6d4200; }
+.ck-nr.ck-err { border-color:var(--coral); animation:ckShake .4s var(--ease); }
+
 /* ════ RE-PRICE PANEL ════
    One box, five states. Colour carries the meaning — blue while we wait, green when nothing
    moved, amber when the money changed, rose when there is nothing to book — and the buttons

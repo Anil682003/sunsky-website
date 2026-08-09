@@ -71,6 +71,9 @@ export default function Confirmation({
   insurance, insAmount, holderIsLead, holder,
   payMethod, card, idealBank, pricing, ccy,
   reservationPending = false,
+  // Decided at the checkout (it owns the live rate) and passed in, so this page never has to
+  // re-derive refundability from a rateKey and risk disagreeing with what was accepted.
+  nonRefundable = false,
 }) {
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -428,6 +431,23 @@ export default function Confirmation({
               <div className="ckc-kv-row total"><span>Paid with {payLabel}</span><b>{money(pricing.total)}</b></div>
             </div>
           </section>
+
+          {/* The non-refundable condition, repeated on the confirmation — the one document the
+              traveller keeps. Scoped to the accommodation, exactly as it was accepted. */}
+          {nonRefundable && (
+            <section className="ckc-card ckc-reveal ckc-nr">
+              <div className="ckc-card-head">
+                <span className="ckc-card-ico amber">{ICON.doc}</span>
+                <h3 className="hd">Non-refundable accommodation</h3>
+              </div>
+              <p className="ckc-nr-text">
+                This accommodation has a non-refundable rate. If you cancel the booking, 100%
+                cancellation costs apply to <b>this accommodation</b> from the moment the booking
+                is confirmed. Your flight, transfer and insurance follow their own conditions.
+              </p>
+              <div className="ckc-card-foot">You accepted this condition when you paid.</div>
+            </section>
+          )}
         </div>
 
         {/* ═══ WHAT HAPPENS NEXT ═══ */}

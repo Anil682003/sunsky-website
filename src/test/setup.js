@@ -1,6 +1,13 @@
 import '@testing-library/jest-dom/vitest';
-import { cleanup } from '@testing-library/react';
+import { cleanup, configure } from '@testing-library/react';
 import { afterEach, vi } from 'vitest';
+
+// `waitFor` and `findBy*` carry their OWN one-second budget, which vitest's testTimeout does
+// not raise. These suites mount whole pages and wait on a fetch → state → render round trip;
+// on a loaded machine that passes a second and the failure reads "unable to find role=button"
+// — a missing element, not the slow clock that actually caused it. Five seconds is still
+// short enough that a genuinely absent element fails fast.
+configure({ asyncUtilTimeout: 5000 });
 
 // jsdom implements neither of these, and Results uses both:
 // IntersectionObserver drives infinite scroll, scrollIntoView is called on nav.

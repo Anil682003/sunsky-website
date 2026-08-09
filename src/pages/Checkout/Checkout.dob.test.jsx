@@ -112,7 +112,7 @@ describe('a child date of birth from the search', () => {
     await user.click(screen.getByRole('button', { name: /change date of birth/i }));
     expect(dobRows()).toHaveLength(0);
     expect(editable()).toContain(CHILD_DOB);
-  }, 20000);
+  });
 
   it('asks the supplier again, blocks payment while it waits, and needs a changed price accepted', async () => {
     const user = userEvent.setup();
@@ -147,7 +147,7 @@ describe('a child date of birth from the search', () => {
     const stayLine = [...document.querySelectorAll('.ck-sum-row')][0];
     expect(stayLine).toHaveTextContent('€740');
     expect(panel()).toHaveTextContent('€760 total');
-  }, 20000);
+  });
 
   it('says so plainly when the corrected party has no room, and stays in the checkout', async () => {
     const user = userEvent.setup();
@@ -172,7 +172,7 @@ describe('a child date of birth from the search', () => {
     await waitFor(() => expect(panel()).toBeFalsy());
     expect(dobRows()[0]).toHaveTextContent('07/09/2016');
     expect(cta()).toBeEnabled();
-  }, 20000);
+  });
 
   it('does not call the supplier when only the day changes inside the same age', async () => {
     const user = userEvent.setup();
@@ -187,5 +187,5 @@ describe('a child date of birth from the search', () => {
     expect(post.mock.calls.filter(([url]) => String(url).includes('availability'))).toHaveLength(0);
     expect(panel()).toBeFalsy();
     expect(cta()).toBeEnabled();
-  }, 20000);
+  });
 });
