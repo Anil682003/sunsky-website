@@ -68,7 +68,6 @@ const STEPS = [
   { id: 'payment', name: 'Payment',      sub: 'Secure checkout',       icon: ICON.card },
 ];
 
-const TITLES = ['Mr', 'Mrs', 'Ms', 'Miss', 'Dr'];
 const GENDERS_TRAVELLER = [
   { v: 'MALE', l: 'Male' }, { v: 'FEMALE', l: 'Female' }, { v: 'OTHER', l: 'Other' },
 ];
@@ -78,16 +77,6 @@ const NATIONALITIES = [
   'Greek', 'Turkish', 'Austrian', 'Swiss', 'Polish', 'Swedish', 'Norwegian', 'Danish',
   'Irish', 'Luxembourgish', 'American', 'Canadian', 'Australian', 'Indian', 'Moroccan', 'Other',
 ];
-const LANGUAGES = [
-  { v: 'en', l: 'English' }, { v: 'nl', l: 'Dutch' }, { v: 'fr', l: 'French' },
-  { v: 'de', l: 'German' }, { v: 'es', l: 'Spanish' }, { v: 'it', l: 'Italian' },
-];
-const INDUSTRIES = [
-  'Travel & Tourism', 'IT & Software', 'Finance & Banking', 'Healthcare', 'Education',
-  'Retail & E-commerce', 'Manufacturing', 'Construction', 'Hospitality', 'Logistics',
-  'Media & Marketing', 'Government', 'Other',
-];
-const PAYMENT_TERMS = ['Prepaid', '7 days', '14 days', '30 days', '60 days'];
 const COUNTRIES = [
   'Belgium', 'Netherlands', 'Germany', 'France', 'United Kingdom', 'Spain', 'Italy',
   'Portugal', 'Greece', 'Turkey', 'Austria', 'Switzerland', 'Poland', 'Sweden', 'Norway',
@@ -194,9 +183,9 @@ const isNonRefundableStay = (hotel) => {
   if (state.kind === 'none') return true;
   return parseRateKey(hotel.rateKey).nonRefundable === true;
 };
-// Earliest selectable passport-expiry date (tomorrow). Computed at module load so it
-// isn't an impure call during render; the strict future-date check still runs on submit.
-const MIN_PASSPORT_EXPIRY = new Date(Date.now() + 86400000).toISOString().split('T')[0];
+// No passport fields. Nothing in the booking chain carried them — no supplier call sent a
+// passport number, no voucher or confirmation printed one — so they were two more fields
+// between a traveller and paying, collecting a document number we then did nothing with.
 
 /* ════════ helpers ════════ */
 const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || '');
@@ -208,7 +197,6 @@ const friendlyReprice = (err) => {
   return 'We could not re-check the price just now.';
 };
 const phoneOk = (v) => /^\+[1-9]\d{6,14}$/.test((v || '').replace(/[\s\-.()]/g, ''));
-const urlOk = (v) => /^(https?:\/\/)?[\w-]+(\.[\w-]+)+\S*$/.test(v || '');
 
 const ageFromDob = (dob) => {
   const b = new Date(dob); const now = new Date();
@@ -280,11 +268,86 @@ function useCountUp(value, dur = 650) {
 }
 
 /* ════════ small building blocks ════════ */
-const Field = ({ label, req, err, hint, children, span }) => (
-  <div className={`ck-field${err ? ' ck-err' : ''}${span ? ` ck-span-${span}` : ''}`}>
+/**
+ * `ok` draws the green tick that says "this one is done".
+ *
+ * Only ever passed inside the boxed sections (step 1), and only for fields where DONE is a
+ * fact rather than an opinion — a name that has been typed, a date that parses, a country
+ * that was picked. A tick next to an optional empty field would be meaningless, and a tick
+ * that appears on every keystroke of a half-typed name is noise.
+ */
+const Field = ({ label, req, err, hint, ok, children, span }) => (
+  <div className={`ck-field${err ? ' ck-err' : ''}${ok ? ' ck-done' : ''}${span ? ` ck-span-${span}` : ''}`}>
     <label className="ck-label">{label}{req && <span className="ck-req"> *</span>}</label>
     {children}
+    {ok && <span className="ck-tick">{ICON.check}</span>}
     {err ? <div className="ck-errmsg">{err}</div> : hint ? <div className="ck-hint">{hint}</div> : null}
+  </div>
+);
+
+/**
+ * A date of birth as three dropdowns rather than a date input.
+ *
+ * A native picker opens on the current month, so entering 1995 means twelve clicks or knowing
+ * to type it — and it renders differently in every browser. Three lists are the same in all of
+ * them, and the year is one scroll away. Emits an ISO date, or '' while incomplete: a
+ * half-filled date must not read as a valid one.
+ */
+const DOB_MONTHS = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
+const DobPicker = ({ value, onChange, autoFocus }) => {
+  // The three parts are held HERE, not derived from `value`. A date is only emitted once all
+  // three are chosen, so deriving them would blank the day the moment it was picked — the
+  // parent's value is still '' at that point — and the traveller could never get past it.
+  const split = (v) => { const [yy, mm, dd] = (v || '').split('-'); return { d: dd || '', m: mm || '', y: yy || '' }; };
+  const [parts, setParts] = useState(() => split(value));
+  // Adopt a value set from outside (restoring the searched date of birth, for one).
+  useEffect(() => { if (value) setParts(split(value)); }, [value]);
+  const { d, m, y } = parts;
+  const emit = (nd, nm, ny) => {
+    setParts({ d: nd, m: nm, y: ny });
+    onChange((nd && nm && ny) ? `${ny}-${nm}-${nd}` : '');
+  };
+  // Days in the chosen month — 31 February is not a date of birth anybody has.
+  const daysIn = (mm, yy) => (mm && yy ? new Date(Number(yy), Number(mm), 0).getDate() : 31);
+  const thisYear = new Date().getFullYear();
+  return (
+    <div className="ck-dob3">
+      <select className="ck-input ck-select" value={d || ''} autoFocus={autoFocus}
+        onChange={(e) => emit(e.target.value, m, y)} aria-label="Day of birth">
+        <option value="">Day</option>
+        {Array.from({ length: daysIn(m, y) }, (_, i) => String(i + 1).padStart(2, '0'))
+          .map((dd) => <option key={dd} value={dd}>{Number(dd)}</option>)}
+      </select>
+      <select className="ck-input ck-select" value={m || ''}
+        onChange={(e) => emit(d, e.target.value, y)} aria-label="Month of birth">
+        <option value="">Month</option>
+        {DOB_MONTHS.map((name, i) => (
+          <option key={name} value={String(i + 1).padStart(2, '0')}>{name}</option>
+        ))}
+      </select>
+      <select className="ck-input ck-select" value={y || ''}
+        onChange={(e) => emit(d, m, e.target.value)} aria-label="Year of birth">
+        <option value="">Year</option>
+        {Array.from({ length: 120 }, (_, i) => String(thisYear - i))
+          .map((yy) => <option key={yy} value={yy}>{yy}</option>)}
+      </select>
+    </div>
+  );
+};
+
+/** The courtesy title a ticket carries, from the gender — not a fourth dropdown to fill. */
+const titleFor = (gender) => (gender === 'MALE' ? 'Mr' : gender === 'FEMALE' ? 'Ms' : '');
+
+/** Male / female, as the ticket carries it. Radios, because there are two and both fit. */
+const GenderPick = ({ name, value, onChange }) => (
+  <div className="ck-radio-row">
+    {[{ v: 'MALE', l: 'Male' }, { v: 'FEMALE', l: 'Female' }].map((g) => (
+      <label key={g.v} className={`ck-radio${value === g.v ? ' on' : ''}`}>
+        <input type="radio" name={name} checked={value === g.v} onChange={() => onChange(g.v)} />
+        <span className="ck-radio-dot" />
+        {g.l}
+      </label>
+    ))}
   </div>
 );
 
@@ -298,7 +361,7 @@ const Check = ({ checked, onChange, children }) => (
 
 const emptyTraveller = () => ({
   title: '', firstName: '', lastName: '', gender: '', nationality: '',
-  dateOfBirth: '', passportNumber: '', passportExpiry: '',
+  dateOfBirth: '',
   // `searchDob` is the date this traveller's price was quoted for, carried from the search
   // bar. Present only on the children the search actually described; it makes the row
   // read-only until the traveller asks to change it, and it is what a re-price is measured
@@ -382,8 +445,13 @@ function CheckoutContent({ stripe, elements }) {
   const [furthest, setFurthest] = useState(0);
   const [dir, setDir] = useState(1);
 
-  /* ── step 1 : customer + travellers ── */
-  const [customerType, setCustomerType] = useState('private');
+  /* ── step 1 : customer + travellers ──
+     One form, not two behind a Private/Professional switch. Almost nobody arriving at a
+     checkout thinks of themselves as choosing a customer type; they think "this is for work"
+     — so it is a checkbox on the same form, exactly as the sign-up page asks it, and ticking
+     it registers a professional customer with this person as the primary contact. */
+  const [isCompany, setIsCompany] = useState(false);
+  const customerType = isCompany ? 'professional' : 'private';
   const [priv, setPriv] = useState({
     firstName: user?.firstName || '', lastName: user?.lastName || '',
     dateOfBirth: '', gender: '', nationality: '', preferredLanguage: 'en',
@@ -754,34 +822,29 @@ function CheckoutContent({ stripe, elements }) {
   /* ── validation ── */
   const validateInfo = () => {
     const e = {};
-    if (customerType === 'private') {
-      if (!priv.firstName.trim()) e['priv.firstName'] = 'First name is required';
-      if (!priv.lastName.trim()) e['priv.lastName'] = 'Last name is required';
-      if (!priv.nationality) e['priv.nationality'] = 'Nationality is required';
-      if (!priv.preferredLanguage) e['priv.preferredLanguage'] = 'Language is required';
-      if (priv.hasEmail && !emailOk(priv.email)) e['priv.email'] = 'A valid email is required';
-      if (!phoneOk(priv.phone)) e['priv.phone'] = 'Use international format, e.g. +32475123456';
-      if (priv.dateOfBirth && new Date(priv.dateOfBirth) >= new Date()) e['priv.dateOfBirth'] = 'Date of birth must be in the past';
-    } else {
-      if (!pro.tradingName.trim()) e['pro.tradingName'] = 'Trading name is required';
-      if (!pro.legalName.trim()) e['pro.legalName'] = 'Legal name is required';
+    // One set of rules for the person, whoever they are booking for. Country is required
+    // because a company record cannot be created without one, and asking for it only after
+    // the box is ticked moves a field around under the traveller's cursor.
+    if (!priv.firstName.trim()) e['priv.firstName'] = 'First name is required';
+    if (!priv.lastName.trim()) e['priv.lastName'] = 'Last name is required';
+    if (!priv.nationality) e['priv.nationality'] = 'Nationality is required';
+    if (priv.hasEmail && !emailOk(priv.email)) e['priv.email'] = 'A valid email is required';
+    if (!phoneOk(priv.phone)) e['priv.phone'] = 'Use international format, e.g. +32475123456';
+    if (!priv.country) e['priv.country'] = 'Country is required';
+    if (priv.dateOfBirth && new Date(priv.dateOfBirth) >= new Date()) e['priv.dateOfBirth'] = 'Date of birth must be in the past';
+    if (isCompany) {
+      // Two facts a company can always give: the name it is registered under and its VAT
+      // number. No trading name (it is the same string for almost every SME) and no industry.
+      if (!pro.legalName.trim()) e['pro.legalName'] = 'Company name is required';
       if (!pro.vatNumber.trim() || pro.vatNumber.trim().length < 3) e['pro.vatNumber'] = 'VAT number is required';
-      if (!pro.industry) e['pro.industry'] = 'Industry is required';
-      if (pro.website && !urlOk(pro.website)) e['pro.website'] = 'Enter a valid website URL';
-      if (!pro.country) e['pro.country'] = 'Country is required';
-      if (pro.hasInvoiceEmail && !emailOk(pro.invoiceEmail)) e['pro.invoiceEmail'] = 'A valid invoice email is required';
-      if (!pro.primaryContactFirstName.trim()) e['pro.primaryContactFirstName'] = 'First name is required';
-      if (!pro.primaryContactLastName.trim()) e['pro.primaryContactLastName'] = 'Last name is required';
-      if (pro.hasContactEmail && !emailOk(pro.primaryContactEmail)) e['pro.primaryContactEmail'] = 'A valid email is required';
-      if (!phoneOk(pro.primaryContactPhone)) e['pro.primaryContactPhone'] = 'Use international format, e.g. +32475123456';
     }
     travellers.forEach((t, i) => {
+      if (!t.gender) e[`t${i}.gender`] = 'Required';
       if (!t.firstName.trim()) e[`t${i}.firstName`] = 'Required';
       if (!t.lastName.trim()) e[`t${i}.lastName`] = 'Required';
       if (!t.nationality) e[`t${i}.nationality`] = 'Required';
       if (!t.dateOfBirth) e[`t${i}.dateOfBirth`] = 'Required';
       else if (new Date(t.dateOfBirth) >= new Date()) e[`t${i}.dateOfBirth`] = 'Must be in the past';
-      if (t.passportExpiry && new Date(t.passportExpiry) <= new Date()) e[`t${i}.passportExpiry`] = 'Must be a future date';
     });
     return e;
   };
@@ -871,15 +934,29 @@ function CheckoutContent({ stripe, elements }) {
     setErrors({});
     setPaying(true);
     try {
-      const customer = customerType === 'professional'
+      // One form, two records. Ticking "I am a business customer" registers a PROFESSIONAL
+      // customer — the same thing the sign-up page does — with the person who filled the form
+      // as its primary contact and their address as the company address. No trading name (the
+      // server defaults it to the legal name) and no industry: neither is something the
+      // person booking a holiday can answer better than an agent can later.
+      const address = {
+        street: priv.street, houseNumber: priv.houseNumber, boxNumber: priv.boxNumber,
+        city: priv.city, postalCode: priv.postalCode, country: priv.country,
+      };
+      const customer = isCompany
         ? {
             type: 'professional',
-            tradingName: pro.tradingName, legalName: pro.legalName, vatNumber: pro.vatNumber,
-            industry: pro.industry, website: pro.website || undefined,
-            preferredLanguage: pro.preferredLanguage || 'en',
-            address: { street: pro.street, houseNumber: pro.houseNumber, boxNumber: pro.boxNumber, city: pro.city, postalCode: pro.postalCode, country: pro.country },
-            primaryContact: { firstName: pro.primaryContactFirstName, lastName: pro.primaryContactLastName, phone: pro.primaryContactPhone, contactEmail: pro.primaryContactEmail || undefined, role: pro.primaryContactRole || undefined, hasContactEmail: pro.hasContactEmail },
-            invoicing: { hasInvoiceEmail: pro.hasInvoiceEmail, invoiceEmail: pro.invoiceEmail || undefined, paymentTerms: pro.paymentTerms || undefined, invoicingAddress: pro.invoicingAddress || undefined },
+            legalName: pro.legalName, vatNumber: pro.vatNumber,
+            address,
+            primaryContact: {
+              firstName: priv.firstName, lastName: priv.lastName,
+              phone: priv.phone,
+              contactEmail: priv.hasEmail ? priv.email : undefined,
+              hasContactEmail: priv.hasEmail,
+            },
+            // Invoicing terms are agreed with an agent, never collected at a checkout — but
+            // the invoice has to reach somebody, and that is the person who just paid.
+            invoicing: { hasInvoiceEmail: priv.hasEmail, invoiceEmail: priv.hasEmail ? priv.email : undefined },
           }
         : {
             type: 'private',
@@ -887,16 +964,14 @@ function CheckoutContent({ stripe, elements }) {
             dateOfBirth: priv.dateOfBirth || undefined,
             gender: priv.gender || undefined,
             nationality: priv.nationality,
-            preferredLanguage: priv.preferredLanguage || 'en',
             hasEmail: priv.hasEmail, email: priv.hasEmail ? priv.email : undefined,
             phone: priv.phone,
-            address: { street: priv.street, houseNumber: priv.houseNumber, boxNumber: priv.boxNumber, city: priv.city, postalCode: priv.postalCode, country: priv.country },
+            address,
           };
 
       const passengers = travellers.map((t, i) => ({
-        title: t.title || undefined, firstName: t.firstName, lastName: t.lastName,
+        title: titleFor(t.gender) || undefined, firstName: t.firstName, lastName: t.lastName,
         gender: t.gender || undefined, dateOfBirth: t.dateOfBirth,
-        passportNumber: t.passportNumber || undefined, passportExpiry: t.passportExpiry || undefined,
         nationality: t.nationality || undefined, isLead: i === 0,
       }));
 
@@ -957,7 +1032,7 @@ function CheckoutContent({ stripe, elements }) {
         : (api.transfer || null);
       const insurancePayload = (selIns && selIns.id !== 'none' && insAmount > 0)
         ? { type: selIns.id, label: selIns.name, price: insAmount } : null;
-      const contactPhone = customerType === 'professional' ? pro.primaryContactPhone : priv.phone;
+      const contactPhone = priv.phone;
 
       // What the customer agreed to, in the words they were shown, with the moment they
       // agreed. A tick in a database column is not evidence; the text is.
@@ -1025,7 +1100,7 @@ function CheckoutContent({ stripe, elements }) {
             + `?bookingId=${encodeURIComponent(bookingId)}&mode=${encodeURIComponent(paymentMode)}`;
           const payerName = (customerType === 'private'
             ? `${priv.firstName} ${priv.lastName}`
-            : (pro.tradingName || `${pro.primaryContactFirstName} ${pro.primaryContactLastName}`)).trim();
+            : (pro.legalName || `${priv.firstName} ${priv.lastName}`)).trim();
           const billing_details = { name: payerName || card.name || undefined, email: customerEmail || undefined };
 
           if (payMethod === 'card') {
@@ -1093,8 +1168,10 @@ function CheckoutContent({ stripe, elements }) {
   const brand = detectBrand(card.number);
   const lead = travellers[0];
   const leadName = `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim();
-  const customerEmail = customerType === 'private' ? priv.email : pro.primaryContactEmail;
-  const contactPhoneShown = customerType === 'private' ? priv.phone : pro.primaryContactPhone;
+  // One person filled this in, company booking or not — there is no second set of contact
+  // fields to choose between any more.
+  const customerEmail = priv.email;
+  const contactPhoneShown = priv.phone;
   const selIns = insurances.find((i) => i.id === insurance);
 
   /* primary CTA per step (shared by bottom bar + mobile bar) */
@@ -1230,212 +1307,116 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   )}
 
-                  {/* customer card */}
+                  {/* ── Contact person details ──
+                      One form. The private/professional tabs are gone: a traveller does not
+                      arrive thinking "which kind of customer am I", and making them choose
+                      before typing anything sent half of them into a nine-field company form
+                      they did not need. It is the same shape as signup now — the person, then
+                      an optional "I am a business customer" tick that asks the two things a
+                      company can always answer and registers them as a professional customer
+                      exactly as signup does.
+
+                      Boxed fields (label inside the frame) for this card only: it is the
+                      densest form on the site and the label-above layout doubled its height. */}
                   <section className="ck-card ck-reveal">
                     <div className="ck-card-head">
-                      <div className="ck-ico">{customerType === 'private' ? ICON.user : ICON.briefcase}</div>
+                      <div className="ck-ico">{isCompany ? ICON.briefcase : ICON.user}</div>
                       <div className="ck-card-titles">
-                        <h2 className="ck-card-title hd">Customer details</h2>
-                        <p className="ck-card-sub">The person or company making this booking</p>
+                        <h2 className="ck-card-title hd">Contact person details</h2>
+                        <p className="ck-card-sub">The person we contact about this booking</p>
                       </div>
                     </div>
 
-                    <div className="ck-seg" data-pos={customerType === 'private' ? 0 : 1}>
-                      <span className="ck-seg-thumb" />
-                      <button className={`ck-seg-btn${customerType === 'private' ? ' act' : ''}`} onClick={() => setCustomerType('private')}>
-                        {ICON.user} Private
-                      </button>
-                      <button className={`ck-seg-btn${customerType === 'professional' ? ' act' : ''}`} onClick={() => setCustomerType('professional')}>
-                        {ICON.briefcase} Professional
-                      </button>
-                    </div>
+                    <label className={`ck-biz${isCompany ? ' on' : ''}`}>
+                      <input type="checkbox" checked={isCompany}
+                        onChange={(e) => { setIsCompany(e.target.checked); setErrors({}); }} />
+                      <span className="ck-biz-box">{isCompany && ICON.check}</span>
+                      <span className="ck-biz-text">
+                        <b>I am a business customer</b>
+                        <span>Booking on behalf of a company. You stay the contact person on the booking.</span>
+                      </span>
+                      <span className="ck-biz-ico">{ICON.briefcase}</span>
+                    </label>
 
-                    {customerType === 'private' ? (
-                      <div className="ck-form" key="priv">
+                    <div className="ck-form ck-boxed">
+                      {isCompany && (
                         <div className="ck-row">
-                          <Field label="First name" req err={errors['priv.firstName']}>
-                            <input className="ck-input" value={priv.firstName} onChange={(e) => setP('firstName')(e.target.value)} placeholder="John" maxLength={100} />
+                          <Field label="Company name" req err={errors['pro.legalName']} ok={!!pro.legalName.trim()}>
+                            <input className="ck-input" value={pro.legalName} onChange={(e) => setB('legalName')(e.target.value)} placeholder="SunSky Travel BV" maxLength={150} />
                           </Field>
-                          <Field label="Last name" req err={errors['priv.lastName']}>
-                            <input className="ck-input" value={priv.lastName} onChange={(e) => setP('lastName')(e.target.value)} placeholder="Doe" maxLength={100} />
-                          </Field>
-                        </div>
-                        <div className="ck-row">
-                          <Field label="Date of birth" err={errors['priv.dateOfBirth']}>
-                            <input className="ck-input" type="date" value={priv.dateOfBirth} onChange={(e) => setP('dateOfBirth')(e.target.value)} />
-                          </Field>
-                          <Field label="Gender">
-                            <select className="ck-input ck-select" value={priv.gender} onChange={(e) => setP('gender')(e.target.value)}>
-                              <option value="">Select…</option>
-                              {GENDERS_CUSTOMER.map((g) => <option key={g.v} value={g.v}>{g.l}</option>)}
-                            </select>
-                          </Field>
-                        </div>
-                        <div className="ck-row">
-                          <Field label="Nationality" req err={errors['priv.nationality']}>
-                            <select className="ck-input ck-select" value={priv.nationality} onChange={(e) => setP('nationality')(e.target.value)}>
-                              <option value="">Select…</option>
-                              {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
-                            </select>
-                          </Field>
-                          <Field label="Preferred language" req err={errors['priv.preferredLanguage']}>
-                            <select className="ck-input ck-select" value={priv.preferredLanguage} onChange={(e) => setP('preferredLanguage')(e.target.value)}>
-                              {LANGUAGES.map((l) => <option key={l.v} value={l.v}>{l.l}</option>)}
-                            </select>
-                          </Field>
-                        </div>
-
-                        <Check checked={priv.hasEmail} onChange={(v) => setP('hasEmail')(v)}>
-                          I have an email address <small>(booking confirmation is sent by email)</small>
-                        </Check>
-
-                        <div className="ck-row">
-                          {priv.hasEmail && (
-                            <Field label="Email address" req err={errors['priv.email']}>
-                              <input className="ck-input" type="email" value={priv.email} onChange={(e) => setP('email')(e.target.value)} placeholder="john@example.com" />
-                            </Field>
-                          )}
-                          <Field label="Phone number" req err={errors['priv.phone']} hint="International format, e.g. +32 475 12 34 56">
-                            <input className="ck-input" type="tel" value={priv.phone} onChange={(e) => setP('phone')(e.target.value)} placeholder="+32 475 12 34 56" maxLength={30} />
-                          </Field>
-                        </div>
-
-                        <div className="ck-subhead">{ICON.pin} Home address <small>(optional)</small></div>
-                        <div className="ck-row-3">
-                          <Field label="Street" span={2}>
-                            <input className="ck-input" value={priv.street} onChange={(e) => setP('street')(e.target.value)} placeholder="Avenue Louise" maxLength={255} />
-                          </Field>
-                          <Field label="No.">
-                            <input className="ck-input" value={priv.houseNumber} onChange={(e) => setP('houseNumber')(e.target.value)} placeholder="12" maxLength={20} />
-                          </Field>
-                          <Field label="Box">
-                            <input className="ck-input" value={priv.boxNumber} onChange={(e) => setP('boxNumber')(e.target.value)} placeholder="A" maxLength={20} />
-                          </Field>
-                        </div>
-                        <div className="ck-row-3">
-                          <Field label="City" span={2}>
-                            <input className="ck-input" value={priv.city} onChange={(e) => setP('city')(e.target.value)} placeholder="Brussels" maxLength={100} />
-                          </Field>
-                          <Field label="Postal code">
-                            <input className="ck-input" value={priv.postalCode} onChange={(e) => setP('postalCode')(e.target.value)} placeholder="1000" maxLength={20} />
-                          </Field>
-                          <Field label="Country">
-                            <select className="ck-input ck-select" value={priv.country} onChange={(e) => setP('country')(e.target.value)}>
-                              <option value="">Select…</option>
-                              {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                          </Field>
-                        </div>
-                      </div>
-                    ) : (
-                      <div className="ck-form" key="pro">
-                        <div className="ck-row">
-                          <Field label="Trading name" req err={errors['pro.tradingName']}>
-                            <input className="ck-input" value={pro.tradingName} onChange={(e) => setB('tradingName')(e.target.value)} placeholder="SunTravel BV" maxLength={150} />
-                          </Field>
-                          <Field label="Legal name" req err={errors['pro.legalName']}>
-                            <input className="ck-input" value={pro.legalName} onChange={(e) => setB('legalName')(e.target.value)} placeholder="SunTravel Belgium BV" maxLength={150} />
-                          </Field>
-                        </div>
-                        <div className="ck-row">
-                          <Field label="VAT number" req err={errors['pro.vatNumber']}>
+                          <Field label="VAT number" req err={errors['pro.vatNumber']} ok={pro.vatNumber.trim().length > 2}>
                             <input className="ck-input" value={pro.vatNumber} onChange={(e) => setB('vatNumber')(e.target.value)} placeholder="BE 0123.456.789" maxLength={50} />
                           </Field>
-                          <Field label="Industry" req err={errors['pro.industry']}>
-                            <select className="ck-input ck-select" value={pro.industry} onChange={(e) => setB('industry')(e.target.value)}>
-                              <option value="">Select…</option>
-                              {INDUSTRIES.map((i) => <option key={i} value={i}>{i}</option>)}
-                            </select>
-                          </Field>
                         </div>
-                        <div className="ck-row">
-                          <Field label="Website" err={errors['pro.website']}>
-                            <input className="ck-input" value={pro.website} onChange={(e) => setB('website')(e.target.value)} placeholder="https://company.com" maxLength={255} />
-                          </Field>
-                          <Field label="Preferred language">
-                            <select className="ck-input ck-select" value={pro.preferredLanguage} onChange={(e) => setB('preferredLanguage')(e.target.value)}>
-                              {LANGUAGES.map((l) => <option key={l.v} value={l.v}>{l.l}</option>)}
-                            </select>
-                          </Field>
-                        </div>
+                      )}
 
-                        <div className="ck-subhead">{ICON.pin} Company address</div>
-                        <div className="ck-row-3">
-                          <Field label="Street" span={2}>
-                            <input className="ck-input" value={pro.street} onChange={(e) => setB('street')(e.target.value)} maxLength={255} />
-                          </Field>
-                          <Field label="No.">
-                            <input className="ck-input" value={pro.houseNumber} onChange={(e) => setB('houseNumber')(e.target.value)} maxLength={20} />
-                          </Field>
-                          <Field label="Box">
-                            <input className="ck-input" value={pro.boxNumber} onChange={(e) => setB('boxNumber')(e.target.value)} maxLength={20} />
-                          </Field>
-                        </div>
-                        <div className="ck-row-3">
-                          <Field label="City" span={2}>
-                            <input className="ck-input" value={pro.city} onChange={(e) => setB('city')(e.target.value)} maxLength={100} />
-                          </Field>
-                          <Field label="Postal code">
-                            <input className="ck-input" value={pro.postalCode} onChange={(e) => setB('postalCode')(e.target.value)} maxLength={20} />
-                          </Field>
-                          <Field label="Country" req err={errors['pro.country']}>
-                            <select className="ck-input ck-select" value={pro.country} onChange={(e) => setB('country')(e.target.value)}>
-                              <option value="">Select…</option>
-                              {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
-                            </select>
-                          </Field>
-                        </div>
-
-                        <div className="ck-subhead">{ICON.mail} Invoicing</div>
-                        <Check checked={pro.hasInvoiceEmail} onChange={(v) => setB('hasInvoiceEmail')(v)}>
-                          Invoices by email
-                        </Check>
-                        <div className="ck-row">
-                          {pro.hasInvoiceEmail && (
-                            <Field label="Invoice email" req err={errors['pro.invoiceEmail']}>
-                              <input className="ck-input" type="email" value={pro.invoiceEmail} onChange={(e) => setB('invoiceEmail')(e.target.value)} placeholder="invoices@company.com" />
-                            </Field>
-                          )}
-                          <Field label="Payment terms">
-                            <select className="ck-input ck-select" value={pro.paymentTerms} onChange={(e) => setB('paymentTerms')(e.target.value)}>
-                              <option value="">Select…</option>
-                              {PAYMENT_TERMS.map((t) => <option key={t} value={t}>{t}</option>)}
-                            </select>
-                          </Field>
-                        </div>
-                        <Field label="Invoicing address" hint="Only if different from the company address">
-                          <textarea className="ck-input ck-textarea" rows={2} value={pro.invoicingAddress} onChange={(e) => setB('invoicingAddress')(e.target.value)} placeholder="Street 1, 1000 Brussels, Belgium" />
+                      <div className="ck-row">
+                        <Field label="First name" req err={errors['priv.firstName']} ok={!!priv.firstName.trim()}>
+                          <input className="ck-input" value={priv.firstName} onChange={(e) => setP('firstName')(e.target.value)} placeholder="John" maxLength={100} />
                         </Field>
-
-                        <div className="ck-subhead">{ICON.user} Primary contact</div>
-                        <div className="ck-row">
-                          <Field label="First name" req err={errors['pro.primaryContactFirstName']}>
-                            <input className="ck-input" value={pro.primaryContactFirstName} onChange={(e) => setB('primaryContactFirstName')(e.target.value)} maxLength={100} />
-                          </Field>
-                          <Field label="Last name" req err={errors['pro.primaryContactLastName']}>
-                            <input className="ck-input" value={pro.primaryContactLastName} onChange={(e) => setB('primaryContactLastName')(e.target.value)} maxLength={100} />
-                          </Field>
-                        </div>
-                        <div className="ck-row">
-                          <Field label="Role / function">
-                            <input className="ck-input" value={pro.primaryContactRole} onChange={(e) => setB('primaryContactRole')(e.target.value)} placeholder="Office manager" maxLength={100} />
-                          </Field>
-                          <Field label="Phone number" req err={errors['pro.primaryContactPhone']} hint="International format, e.g. +32 475 12 34 56">
-                            <input className="ck-input" type="tel" value={pro.primaryContactPhone} onChange={(e) => setB('primaryContactPhone')(e.target.value)} placeholder="+32 475 12 34 56" maxLength={30} />
-                          </Field>
-                        </div>
-                        <Check checked={pro.hasContactEmail} onChange={(v) => setB('hasContactEmail')(v)}>
-                          Contact has an email address
-                        </Check>
-                        {pro.hasContactEmail && (
-                          <div className="ck-row">
-                            <Field label="Contact email" req err={errors['pro.primaryContactEmail']}>
-                              <input className="ck-input" type="email" value={pro.primaryContactEmail} onChange={(e) => setB('primaryContactEmail')(e.target.value)} placeholder="name@company.com" />
-                            </Field>
-                          </div>
-                        )}
+                        <Field label="Last name" req err={errors['priv.lastName']} ok={!!priv.lastName.trim()}>
+                          <input className="ck-input" value={priv.lastName} onChange={(e) => setP('lastName')(e.target.value)} placeholder="Doe" maxLength={100} />
+                        </Field>
                       </div>
-                    )}
+
+                      <div className="ck-row">
+                        <Field label="Email address" req err={errors['priv.email']} ok={emailOk(priv.email)}>
+                          <input className="ck-input" type="email" value={priv.email} onChange={(e) => setP('email')(e.target.value)} placeholder="john@example.com" />
+                        </Field>
+                        <Field label="Phone number" req err={errors['priv.phone']} ok={phoneOk(priv.phone)} hint="International format, e.g. +32 475 12 34 56">
+                          <input className="ck-input" type="tel" value={priv.phone} onChange={(e) => setP('phone')(e.target.value)} placeholder="+32 475 12 34 56" maxLength={30} />
+                        </Field>
+                      </div>
+
+                      {/* Nationality, date of birth and gender belong to the PERSON, and a
+                          company booking still has one — the same fields, not a different set. */}
+                      <div className="ck-row-3">
+                        <Field label="Nationality" req err={errors['priv.nationality']} ok={!!priv.nationality}>
+                          <select className="ck-input ck-select" value={priv.nationality} onChange={(e) => setP('nationality')(e.target.value)}>
+                            <option value="">Select…</option>
+                            {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+                          </select>
+                        </Field>
+                        <Field label="Date of birth" err={errors['priv.dateOfBirth']}>
+                          <input className="ck-input" type="date" value={priv.dateOfBirth} onChange={(e) => setP('dateOfBirth')(e.target.value)} />
+                        </Field>
+                        <Field label="Gender">
+                          <select className="ck-input ck-select" value={priv.gender} onChange={(e) => setP('gender')(e.target.value)}>
+                            <option value="">Select…</option>
+                            {GENDERS_CUSTOMER.map((g) => <option key={g.v} value={g.v}>{g.l}</option>)}
+                          </select>
+                        </Field>
+                      </div>
+
+                      <div className="ck-subhead">{ICON.pin} {isCompany ? 'Company address' : 'Address'}</div>
+                      <div className="ck-row-3">
+                        <Field label="Street" span={2}>
+                          <input className="ck-input" value={priv.street} onChange={(e) => setP('street')(e.target.value)} placeholder="Rue de la Loi" maxLength={255} />
+                        </Field>
+                        <Field label="House no.">
+                          <input className="ck-input" value={priv.houseNumber} onChange={(e) => setP('houseNumber')(e.target.value)} placeholder="42" maxLength={20} />
+                        </Field>
+                        <Field label="Box no." hint="Apartment, suite or bus">
+                          <input className="ck-input" value={priv.boxNumber} onChange={(e) => setP('boxNumber')(e.target.value)} placeholder="3A" maxLength={20} />
+                        </Field>
+                      </div>
+                      <div className="ck-row-3">
+                        <Field label="City" span={2}>
+                          <input className="ck-input" value={priv.city} onChange={(e) => setP('city')(e.target.value)} placeholder="Brussels" maxLength={100} />
+                        </Field>
+                        <Field label="Postal code">
+                          <input className="ck-input" value={priv.postalCode} onChange={(e) => setP('postalCode')(e.target.value)} placeholder="1000" maxLength={20} />
+                        </Field>
+                        {/* Required, as at signup: it is the invoice country, and a company
+                            record cannot be created without one. */}
+                        <Field label="Country" req err={errors['priv.country']} ok={!!priv.country}>
+                          <select className="ck-input ck-select" value={priv.country} onChange={(e) => setP('country')(e.target.value)}>
+                            <option value="">Select…</option>
+                            {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                          </select>
+                        </Field>
+                      </div>
+                    </div>
                   </section>
 
                   {/* travellers */}
@@ -1452,16 +1433,23 @@ function CheckoutContent({ stripe, elements }) {
                       const at = t.dateOfBirth ? ageType(t.dateOfBirth) : null;
                       return (
                         <div className="ck-trav" key={i} style={{ animationDelay: `${i * 0.07}s` }}>
+                          {/* The heading names the person as they will appear on the ticket —
+                              "Traveller 2 — Mr Ilhan Vanli" — so a party of four never becomes
+                              four identical blocks of fields. The courtesy title comes from the
+                              gender rather than from a fourth dropdown nobody wants to fill. */}
                           <div className="ck-trav-head">
                             <div className="ck-trav-av">{i + 1}</div>
                             <div className="ck-trav-name hd">
-                              {t.firstName || t.lastName ? `${t.firstName} ${t.lastName}` : `Traveller ${i + 1}`}
+                              Traveller {i + 1}
+                              {(t.firstName || t.lastName) && (
+                                <span className="ck-trav-who"> — {[titleFor(t.gender), t.firstName, t.lastName].filter(Boolean).join(' ')}</span>
+                              )}
                             </div>
-                            {i === 0 && <span className="ck-lead-badge">{ICON.sparkle} Lead traveller</span>}
-                            {at && <span className={`ck-age-badge ${at.code.toLowerCase()}`} key={at.code}>{at.label} · {at.code}</span>}
+                            {i === 0 && <span className="ck-lead-badge">{ICON.sparkle} Lead</span>}
+                            {at && <span className={`ck-age-badge ${at.code.toLowerCase()}`} key={at.code}>{at.label}</span>}
                             <div className="ck-trav-actions">
-                              {i === 0 && customerType === 'private' && (priv.firstName || priv.lastName) && (
-                                <button className="ck-link-btn" onClick={copyCustomerToLead}>{ICON.check} Same as customer</button>
+                              {i === 0 && !isCompany && (priv.firstName || priv.lastName) && (
+                                <button className="ck-link-btn" onClick={copyCustomerToLead}>{ICON.check} Same as me</button>
                               )}
                               {pax > 1 && (
                                 <button className="ck-remove-btn" onClick={() => removeTraveller(i)} aria-label="Remove traveller">{ICON.x}</button>
@@ -1469,56 +1457,53 @@ function CheckoutContent({ stripe, elements }) {
                             </div>
                           </div>
 
-                          <div className="ck-row-t1">
-                            <Field label="Title">
-                              <select className="ck-input ck-select" value={t.title} onChange={(e) => setT(i, 'title')(e.target.value)}>
-                                <option value="">—</option>
-                                {TITLES.map((x) => <option key={x} value={x}>{x}</option>)}
-                              </select>
-                            </Field>
-                            <Field label="First name" req err={errors[`t${i}.firstName`]}>
-                              <input className="ck-input" value={t.firstName} onChange={(e) => setT(i, 'firstName')(e.target.value)} placeholder="As in passport" maxLength={100} />
-                            </Field>
-                            <Field label="Last name" req err={errors[`t${i}.lastName`]}>
-                              <input className="ck-input" value={t.lastName} onChange={(e) => setT(i, 'lastName')(e.target.value)} placeholder="As in passport" maxLength={100} />
-                            </Field>
-                          </div>
-                          <div className="ck-row-3">
-                            <Field label="Gender">
-                              <select className="ck-input ck-select" value={t.gender} onChange={(e) => setT(i, 'gender')(e.target.value)}>
-                                <option value="">Select…</option>
-                                {GENDERS_TRAVELLER.map((g) => <option key={g.v} value={g.v}>{g.l}</option>)}
-                              </select>
-                            </Field>
-                            <Field label="Nationality" req err={errors[`t${i}.nationality`]}>
-                              <select className="ck-input ck-select" value={t.nationality} onChange={(e) => setT(i, 'nationality')(e.target.value)}>
-                                <option value="">Select…</option>
-                                {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
-                              </select>
-                            </Field>
-                            {/* A child whose date of birth came from the search opens READ-ONLY.
-                                That date is what the stay and the fare were priced on, so it is
-                                not a field to be casually retyped — but it is also the one thing
-                                a traveller might genuinely need to fix, so there is a way in,
-                                behind a warning that says what will happen. */}
-                            <Field label="Date of birth" req err={errors[`t${i}.dateOfBirth`]}
-                              hint={t.dobLocked ? 'From your search — this set the price'
-                                : t.searchDob ? 'Changing this re-checks price and availability'
-                                : undefined}>
-                              {t.dobLocked ? (
-                                <div className="ck-dob-lock">
-                                  <span className="ck-dob-val">{dmy(t.dateOfBirth)}</span>
-                                  <span className="ck-dob-age">{ageType(t.dateOfBirth).label}</span>
-                                  <button type="button" className="ck-dob-change" onClick={() => setDobPrompt(i)}>
-                                    Change
-                                  </button>
-                                </div>
-                              ) : (
-                                <input className="ck-input" type="date" value={t.dateOfBirth}
-                                  autoFocus={dobUnlocked === i}
-                                  onChange={(e) => setT(i, 'dateOfBirth')(e.target.value)} />
-                              )}
-                            </Field>
+                          <div className="ck-boxed">
+                            <div className={`ck-genderline${errors[`t${i}.gender`] ? ' ck-err' : ''}`}>
+                              <span className="ck-genderline-label">Gender <span className="ck-req">*</span></span>
+                              <GenderPick name={`ck-gender-${i}`} value={t.gender} onChange={setT(i, 'gender')} />
+                              {errors[`t${i}.gender`] && <span className="ck-errmsg">{errors[`t${i}.gender`]}</span>}
+                            </div>
+
+                            <div className="ck-row">
+                              <Field label="First name" req err={errors[`t${i}.firstName`]} ok={!!t.firstName.trim()}>
+                                <input className="ck-input" value={t.firstName} onChange={(e) => setT(i, 'firstName')(e.target.value)} placeholder="As in passport" maxLength={100} />
+                              </Field>
+                              <Field label="Last name" req err={errors[`t${i}.lastName`]} ok={!!t.lastName.trim()}>
+                                <input className="ck-input" value={t.lastName} onChange={(e) => setT(i, 'lastName')(e.target.value)} placeholder="As in passport" maxLength={100} />
+                              </Field>
+                            </div>
+
+                            <div className="ck-row">
+                              {/* A child whose date of birth came from the search opens READ-ONLY.
+                                  That date is what the stay and the fare were priced on, so it is
+                                  not a field to be casually retyped — but it is also the one thing
+                                  a traveller might genuinely need to fix, so there is a way in,
+                                  behind a warning that says what will happen. */}
+                              <Field label="Date of birth" req err={errors[`t${i}.dateOfBirth`]}
+                                ok={!t.dobLocked && !!t.dateOfBirth}
+                                hint={t.dobLocked ? 'From your search — this set the price'
+                                  : t.searchDob ? 'Changing this re-checks price and availability'
+                                  : undefined}>
+                                {t.dobLocked ? (
+                                  <div className="ck-dob-lock">
+                                    <span className="ck-dob-val">{dmy(t.dateOfBirth)}</span>
+                                    <span className="ck-dob-age">{ageType(t.dateOfBirth).label}</span>
+                                    <button type="button" className="ck-dob-change" onClick={() => setDobPrompt(i)}>
+                                      Change
+                                    </button>
+                                  </div>
+                                ) : (
+                                  <DobPicker value={t.dateOfBirth} onChange={setT(i, 'dateOfBirth')}
+                                    autoFocus={dobUnlocked === i} />
+                                )}
+                              </Field>
+                              <Field label="Nationality" req err={errors[`t${i}.nationality`]} ok={!!t.nationality}>
+                                <select className="ck-input ck-select" value={t.nationality} onChange={(e) => setT(i, 'nationality')(e.target.value)}>
+                                  <option value="">Select…</option>
+                                  {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+                                </select>
+                              </Field>
+                            </div>
                           </div>
 
                           {/* The warning the traveller sees BEFORE the field opens — the whole
@@ -1544,23 +1529,6 @@ function CheckoutContent({ stripe, elements }) {
                             </div>
                           )}
 
-                          <div className="ck-pass">
-                            <div className="ck-pass-label">{ICON.passport} Passport <small>(optional — required for some destinations)</small></div>
-                            <div className="ck-row">
-                              <Field label="Passport number">
-                                <input className="ck-input" value={t.passportNumber} onChange={(e) => setT(i, 'passportNumber')(e.target.value)} placeholder="EH123456" maxLength={30} />
-                              </Field>
-                              <Field label="Passport expiry" err={errors[`t${i}.passportExpiry`]}>
-                                <input
-                                  className="ck-input"
-                                  type="date"
-                                  value={t.passportExpiry}
-                                  min={MIN_PASSPORT_EXPIRY}
-                                  onChange={(e) => setT(i, 'passportExpiry')(e.target.value)}
-                                />
-                              </Field>
-                            </div>
-                          </div>
                         </div>
                       );
                     })}
@@ -2299,7 +2267,7 @@ function CheckoutContent({ stripe, elements }) {
                 </p>
 
                 {travellers.map((t, i) => {
-                  const name = [t.title, t.firstName, t.lastName].filter(Boolean).join(' ').trim();
+                  const name = [titleFor(t.gender), t.firstName, t.lastName].filter(Boolean).join(' ').trim();
                   return (
                     <div className={`ck-rv-trav${reviewOk[i] ? ' ok' : ''}`} key={i}>
                       <div className="ck-rv-name hd">

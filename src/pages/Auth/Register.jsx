@@ -102,7 +102,7 @@ const EMPTY_FORM = {
   dateOfBirth: '', gender: '', nationality: '', language: '',
   street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
   password: '',
-  tradingName: '', legalName: '', vatNumber: '',
+  legalName: '', vatNumber: '',
 };
 
 const toE164 = (code, number) => `+${code}${number.replace(/\D/g, '').replace(/^0+/, '')}`;
@@ -151,11 +151,8 @@ function validateField(key, form, isCompany) {
       if (!v) return 'Password is required';
       if (getPasswordStrength(form.password) < 4) return 'Use 8+ characters with an uppercase letter, a number and a symbol';
       break;
-    case 'tradingName':
-      if (isCompany && !v) return 'Trading name is required';
-      break;
     case 'legalName':
-      if (isCompany && !v) return 'Legal name is required';
+      if (isCompany && !v) return 'Company name is required';
       break;
     case 'vatNumber':
       if (isCompany && !v) return 'VAT number is required';
@@ -167,7 +164,7 @@ function validateField(key, form, isCompany) {
 
 const VALIDATED_FIELDS = [
   'firstName', 'lastName', 'email', 'phone', 'nationality',
-  'language', 'country', 'password', 'tradingName', 'legalName', 'vatNumber',
+  'language', 'country', 'password', 'legalName', 'vatNumber',
 ];
 
 // Stable component — defined outside Register to prevent React unmount on re-render
@@ -335,7 +332,7 @@ export default function Register() {
     setCompany(prev => {
       const next = !prev;
       // Drop stale errors for fields that stop applying either way.
-      setErrors(e => ({ ...e, nationality: '', tradingName: '', legalName: '', vatNumber: '' }));
+      setErrors(e => ({ ...e, nationality: '', legalName: '', vatNumber: '' }));
       return next;
     });
   };
@@ -372,8 +369,9 @@ export default function Register() {
     };
 
     if (isCompany) {
-      // The person above is stored as the company's primary contact.
-      payload.tradingName = form.tradingName.trim();
+      // The person above is stored as the company's primary contact. No trading name is
+      // asked for — for almost every SME it is the legal name typed a second time, and the
+      // server copies it across for the column that requires one.
       payload.legalName   = form.legalName.trim();
       payload.vatNumber   = form.vatNumber.trim();
     } else {
@@ -547,9 +545,7 @@ export default function Register() {
 
                 {isCompany && (
                   <div className={`${styles.formGrid} ${styles.companyFields}`}>
-                    <Field label="Trading Name" placeholder="SunSky Travel" required
-                      value={form.tradingName} onChange={set('tradingName')} onBlur={blur('tradingName')} error={errors.tradingName} />
-                    <Field label="Legal Name" placeholder="SunSky Travel BV" required
+                    <Field label="Company Name" placeholder="SunSky Travel BV" required
                       value={form.legalName} onChange={set('legalName')} onBlur={blur('legalName')} error={errors.legalName} />
                     <Field label="VAT Number" placeholder="BE0477.123.456" required
                       value={form.vatNumber} onChange={set('vatNumber')} onBlur={blur('vatNumber')} error={errors.vatNumber} />

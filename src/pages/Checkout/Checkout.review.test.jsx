@@ -5,6 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import Checkout from './Checkout';
+import { fillContact, fillTraveller, fieldByLabel } from '../../test/checkoutForm';
 
 // A misspelled traveller name is the one checkout mistake the customer pays for after the
 // fact — airlines charge to correct one and some refuse outright. So the way out of step 1
@@ -39,23 +40,12 @@ const renderCheckout = () => render(
   </Provider>
 );
 
-// The step-1 form, filled just enough to pass validation.
-const fillStepOne = async (user, { lastNames = ['Benli', 'Vanli'] } = {}) => {
-  const fields = [...document.querySelectorAll('.ck-field')];
-  const input = (i) => fields[i].querySelector('input, select');
-  const type = async (i, v) => fill(input(i), v);
-  const pick = async (i) => fill(input(i), input(i).options[1].value);
-
-  await type(0, 'Ali');                    // customer first name
-  await type(1, lastNames[0]);             // customer last name
-  await pick(4);                           // nationality
-  await type(6, 'ali@example.com');        // email
-  await type(7, '+32475123456');           // phone
-
-  await type(15, 'Ali'); await type(16, lastNames[0]);        // traveller 1
-  await pick(18); await type(19, '1995-11-19');
-  await type(23, 'Ilhan'); await type(24, lastNames[1]);      // traveller 2
-  await pick(26); await type(27, '2009-02-16');
+// The step-1 form, filled just enough to pass validation — by label, via the shared helper,
+// so a field moving does not break a test about the name check.
+const fillForm = ({ lastNames = ['Benli', 'Vanli'] } = {}) => {
+  fillContact({ lastName: lastNames[0] });
+  fillTraveller(0, { firstName: 'Ali', lastName: lastNames[0], dob: '1995-11-19' });
+  fillTraveller(1, { firstName: 'Ilhan', lastName: lastNames[1], dob: '2009-02-16' });
 };
 
 const modal = () => document.querySelector('.ck-modal');
@@ -79,7 +69,7 @@ describe('the name check between details and extras', () => {
   it('will not leave step 1 until every traveller is ticked', async () => {
     const user = userEvent.setup();
     renderCheckout();
-    await fillStepOne(user);
+    fillForm();
 
     await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
 
@@ -112,7 +102,7 @@ describe('the name check between details and extras', () => {
   it('drops a traveller\'s confirmation when their name changes', async () => {
     const user = userEvent.setup();
     renderCheckout();
-    await fillStepOne(user);
+    fillForm();
     await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
     await waitFor(() => expect(modal()).toBeTruthy());
 
@@ -124,7 +114,8 @@ describe('the name check between details and extras', () => {
     // Back to the form to fix a surname…
     await user.click(screen.getByRole('button', { name: /^back$/i }));
     await waitFor(() => expect(activeStep()).toMatch(/your details/i));
-    const lastName = [...document.querySelectorAll('.ck-field')][24].querySelector('input');
+    const travCard = [...document.querySelectorAll('.ck-trav')][1];
+    const lastName = fieldByLabel('last name', travCard).querySelector('input');
     await user.type(lastName, 'i');   // "Vanli" → "Vanlii"
 
     // …and the shortcut back to a step already reached lands on the gate, not past it.

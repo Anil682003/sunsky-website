@@ -5,6 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import Checkout from './Checkout';
+import { fillContact, fillTraveller } from '../../test/checkoutForm';
 
 // The airport transfer is bought here, in the extras step, and no longer on the hotel page.
 // By this point the flight is fixed, so the pickup can be timed to the arrival that will
@@ -55,15 +56,9 @@ const renderCheckout = () => render(
 );
 
 const toExtras = async (user) => {
-  const fields = [...document.querySelectorAll('.ck-field')];
-  const input = (i) => fields[i].querySelector('input, select');
-  fill(input(0), 'Ali'); fill(input(1), 'Benli');
-  fill(input(4), input(4).options[1].value);
-  fill(input(6), 'ali@example.com'); fill(input(7), '+32475123456');
-  fill(input(15), 'Ali'); fill(input(16), 'Benli');
-  fill(input(18), input(18).options[1].value); fill(input(19), '1990-01-01');
-  fill(input(23), 'Aylin'); fill(input(24), 'Benli');
-  fill(input(26), input(26).options[1].value); fill(input(27), '1992-05-05');
+  fillContact();
+  fillTraveller(0, { firstName: 'Ali', lastName: 'Benli', dob: '1990-01-01' });
+  fillTraveller(1, { firstName: 'Aylin', lastName: 'Benli', dob: '1992-05-05' });
 
   await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
   await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());

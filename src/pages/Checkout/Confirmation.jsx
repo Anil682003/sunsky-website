@@ -99,7 +99,9 @@ export default function Confirmation({
 
   const lead = travellers[0] || {};
   const destination = (booking.loc || '').split(',')[1]?.trim() || (booking.loc || '').split(',')[0]?.trim() || 'the sun';
-  const customerEmail = customerType === 'private' ? priv.email : pro.primaryContactEmail;
+  // One person fills the checkout whether or not it is a business booking, so the contact
+  // details are theirs either way — the company block below only adds who it was booked for.
+  const customerEmail = priv.email;
   const paidOn = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
   const payLabel = payMethod === 'card'
@@ -368,7 +370,6 @@ export default function Confirmation({
                     </div>
                     <div className="ckc-trav-meta">
                       {t.nationality}{t.dateOfBirth ? ` · born ${fmtDate(t.dateOfBirth)}` : ''}
-                      {t.passportNumber ? <span className="ckc-pass-chip">{ICON.passport} {t.passportNumber}</span> : ''}
                     </div>
                   </div>
                 </div>
@@ -380,28 +381,25 @@ export default function Confirmation({
           <section className="ckc-card ckc-reveal">
             <div className="ckc-card-head">
               <span className="ckc-card-ico">{customerType === 'private' ? ICON.user : ICON.briefcase}</span>
-              <h3 className="hd">{customerType === 'private' ? 'Booked by' : 'Company details'}</h3>
+              <h3 className="hd">Booked by</h3>
             </div>
-            {customerType === 'private' ? (
-              <div className="ckc-kv">
-                <div className="ckc-kv-row"><span>Name</span><b>{priv.firstName} {priv.lastName}</b></div>
-                {priv.hasEmail && priv.email && <div className="ckc-kv-row"><span>Email</span><b>{priv.email}</b></div>}
-                <div className="ckc-kv-row"><span>Phone</span><b>{priv.phone}</b></div>
-                <div className="ckc-kv-row"><span>Nationality</span><b>{priv.nationality}</b></div>
-                {(priv.street || priv.city) && (
-                  <div className="ckc-kv-row"><span>Address</span><b>{[`${priv.street} ${priv.houseNumber}`.trim(), priv.postalCode && `${priv.postalCode} ${priv.city}`.trim(), priv.country].filter(Boolean).join(', ')}</b></div>
-                )}
-              </div>
-            ) : (
-              <div className="ckc-kv">
-                <div className="ckc-kv-row"><span>Company</span><b>{pro.tradingName}</b></div>
-                <div className="ckc-kv-row"><span>VAT</span><b>{pro.vatNumber}</b></div>
-                <div className="ckc-kv-row"><span>Contact</span><b>{pro.primaryContactFirstName} {pro.primaryContactLastName}{pro.primaryContactRole ? ` · ${pro.primaryContactRole}` : ''}</b></div>
-                {pro.hasContactEmail && pro.primaryContactEmail && <div className="ckc-kv-row"><span>Email</span><b>{pro.primaryContactEmail}</b></div>}
-                <div className="ckc-kv-row"><span>Phone</span><b>{pro.primaryContactPhone}</b></div>
-                {pro.hasInvoiceEmail && pro.invoiceEmail && <div className="ckc-kv-row"><span>Invoices</span><b>{pro.invoiceEmail}</b></div>}
-              </div>
-            )}
+            <div className="ckc-kv">
+              <div className="ckc-kv-row"><span>Name</span><b>{priv.firstName} {priv.lastName}</b></div>
+              {priv.hasEmail && priv.email && <div className="ckc-kv-row"><span>Email</span><b>{priv.email}</b></div>}
+              <div className="ckc-kv-row"><span>Phone</span><b>{priv.phone}</b></div>
+              {priv.nationality && <div className="ckc-kv-row"><span>Nationality</span><b>{priv.nationality}</b></div>}
+              {(priv.street || priv.city) && (
+                <div className="ckc-kv-row"><span>Address</span><b>{[`${priv.street} ${priv.houseNumber}`.trim(), priv.postalCode && `${priv.postalCode} ${priv.city}`.trim(), priv.country].filter(Boolean).join(', ')}</b></div>
+              )}
+              {/* A business booking adds the company it was made for; the person above stays
+                  the contact, which is exactly how the customer record was created. */}
+              {customerType === 'professional' && (
+                <>
+                  <div className="ckc-kv-row"><span>Company</span><b>{pro.legalName}</b></div>
+                  <div className="ckc-kv-row"><span>VAT</span><b>{pro.vatNumber}</b></div>
+                </>
+              )}
+            </div>
           </section>
 
           {/* insurance */}

@@ -5,6 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import Checkout from './Checkout';
+import { fillContact, fillTraveller } from '../../test/checkoutForm';
 
 // A non-refundable room is the one condition a traveller cannot undo after paying, so it is
 // said again at the payment step and needs its OWN tick — the general conditions checkbox does
@@ -50,17 +51,8 @@ const renderCheckout = (booking) => render(
 
 // Fill step 1 for a single traveller and walk to the payment step through the name check.
 const reachPayment = async (user) => {
-  const fields = [...document.querySelectorAll('.ck-field')];
-  const input = (i) => fields[i].querySelector('input, select');
-  fill(input(0), 'Ali');
-  fill(input(1), 'Benli');
-  fill(input(4), input(4).options[1].value);
-  fill(input(6), 'ali@example.com');
-  fill(input(7), '+32475123456');
-  fill(input(15), 'Ali');
-  fill(input(16), 'Benli');
-  fill(input(18), input(18).options[1].value);
-  fill(input(19), '1995-11-19');
+  fillContact();
+  fillTraveller(0, { dob: '1995-11-19' });
 
   await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
   await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());

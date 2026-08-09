@@ -150,6 +150,39 @@
   background:var(--green-light); color:#067a57; font-size:11.5px; font-weight:700; }
 .ck-secure-pill svg { width:13px; height:13px; }
 
+/* ════ "I AM A BUSINESS CUSTOMER" ════
+   The whole of the old Private/Professional switch, replaced by one line on the form. Reads
+   as a statement about the booking rather than a mode to be chosen before typing. */
+.ck-biz { display:flex; align-items:center; gap:13px; margin-bottom:20px; padding:14px 16px; cursor:pointer;
+  border-radius:var(--r-md); border:1.5px solid var(--border); background:#fbfcff;
+  transition:border-color .25s var(--ease), background .25s var(--ease); }
+.ck-biz:hover { border-color:var(--blue-soft); }
+.ck-biz.on { border-color:var(--blue); background:var(--blue-pale); }
+.ck-biz input { position:absolute; opacity:0; pointer-events:none; }
+.ck-biz-box { flex:none; width:20px; height:20px; border-radius:6px; display:flex; align-items:center; justify-content:center;
+  border:2px solid var(--border); background:#fff; transition:all .25s var(--ease); }
+.ck-biz-box svg { width:12px; height:12px; color:#fff; }
+.ck-biz.on .ck-biz-box { background:var(--blue); border-color:var(--blue); }
+.ck-biz-text { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
+.ck-biz-text b { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--text); }
+.ck-biz-text span { font-size:12px; color:var(--text-sec); line-height:1.5; }
+.ck-biz-ico { flex:none; color:var(--text-light); }
+.ck-biz-ico svg { width:18px; height:18px; }
+.ck-biz.on .ck-biz-ico { color:var(--blue); }
+
+/* ── boxed fields: label INSIDE the frame ──
+   Used on the contact-details card only. It is the longest form on the site and the
+   label-above layout gave every field two rows of height; folding the label into the frame
+   halves the card without shrinking a single hit target. */
+.ck-boxed .ck-field { position:relative; }
+.ck-boxed .ck-label { position:absolute; top:9px; left:15px; z-index:1; margin:0; pointer-events:none;
+  font-size:10px; letter-spacing:.06em; color:var(--text-light); }
+.ck-boxed .ck-input { padding:26px 14px 10px; background:#fbfcff; }
+.ck-boxed .ck-select { padding-right:34px; }
+.ck-boxed .ck-field:focus-within .ck-label { color:var(--blue); }
+.ck-boxed .ck-errmsg, .ck-boxed .ck-hint { margin-top:5px; }
+.ck-boxed .ck-check, .ck-boxed .ck-subhead { position:static; }
+
 /* ════ SEGMENTED TOGGLE ════ */
 .ck-seg { position:relative; display:grid; grid-template-columns:1fr 1fr; background:var(--blue-pale);
   border:1px solid var(--border); border-radius:var(--r-md); padding:5px; margin-bottom:22px; }
@@ -231,10 +264,6 @@
   color:var(--text-light); background:var(--border-light); transition:all .25s var(--ease); }
 .ck-remove-btn:hover { background:#ffecec; color:var(--coral); transform:rotate(90deg); }
 .ck-remove-btn svg { width:13px; height:13px; }
-.ck-pass { border-top:1px dashed var(--border); padding-top:13px; }
-.ck-pass-label { display:flex; align-items:center; gap:7px; font-size:12px; font-weight:700; color:var(--text-sec); margin-bottom:10px; }
-.ck-pass-label svg { width:14px; height:14px; color:var(--blue); }
-.ck-pass-label small { font-weight:500; color:var(--text-light); }
 .ck-add-trav { display:flex; align-items:center; justify-content:center; gap:9px; width:100%; padding:14px;
   border:1.5px dashed var(--blue-soft); border-radius:var(--r-md); color:var(--blue); font-size:13.5px; font-weight:700;
   background:var(--blue-pale); transition:all .3s var(--ease); }
@@ -473,6 +502,67 @@
 .ck-dob-go { padding:9px 16px; border-radius:var(--r-full); background:var(--blue); color:#fff;
   font-size:12.5px; font-weight:700; }
 .ck-dob-go:hover { background:var(--blue-mid); }
+
+/* ════ BOXED FIELDS (step 1) ════
+   The label lives INSIDE the frame, small and blue, with the value under it. Step 1 is the
+   densest form on the site — customer, address, then a card per traveller — and label-above
+   spent a whole line of height on every field. Scoped to .ck-boxed so no other step changes.
+   The tick on the right says "done" for the fields where done is a fact, not an opinion. */
+.ck-boxed .ck-field { position:relative; }
+.ck-boxed .ck-label { position:absolute; top:9px; left:15px; z-index:1; margin:0; pointer-events:none;
+  font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--blue); }
+.ck-boxed .ck-input { height:auto; padding:26px 15px 10px; }
+.ck-boxed select.ck-input { padding-top:25px; background-position:right 14px center; }
+.ck-boxed .ck-field.ck-done .ck-input { border-color:#bfe7d5; }
+.ck-boxed .ck-tick { position:absolute; right:14px; top:26px; display:flex; color:var(--green);
+  animation:ckPop .3s var(--ease-spring) both; }
+.ck-boxed .ck-tick svg { width:15px; height:15px; }
+.ck-boxed select.ck-input + .ck-tick { right:34px; }   /* clear of the chevron */
+.ck-boxed .ck-errmsg, .ck-boxed .ck-hint { padding-left:2px; }
+
+/* Gender — two options, so radios rather than a dropdown that hides both. */
+.ck-genderline { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
+.ck-genderline-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--blue); }
+.ck-genderline.ck-err .ck-radio-dot { border-color:var(--coral); }
+.ck-radio-row { display:flex; align-items:center; gap:20px; }
+.ck-radio { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
+  font-size:13.5px; font-weight:600; color:var(--text-sec); }
+.ck-radio input { position:absolute; opacity:0; pointer-events:none; }
+.ck-radio-dot { width:18px; height:18px; border-radius:50%; border:2px solid var(--border); flex:none;
+  display:flex; align-items:center; justify-content:center; transition:border-color .2s var(--ease); }
+.ck-radio.on { color:var(--text); }
+.ck-radio.on .ck-radio-dot { border-color:var(--blue); border-width:5px; }
+.ck-radio:hover .ck-radio-dot { border-color:var(--blue-soft); }
+
+/* Date of birth as day / month / year — a native picker opens on this month, so a 1995
+   birthday is twelve clicks away or a guess about the keyboard. */
+.ck-dob3 { display:grid; grid-template-columns:0.85fr 1.3fr 1fr; gap:8px; }
+.ck-boxed .ck-dob3 .ck-input { padding:26px 8px 10px 12px; background-position:right 8px center; }
+
+/* Business customer — one tick on the same form, the way signup asks it. */
+.ck-biz { display:flex; align-items:flex-start; gap:12px; padding:14px 16px; margin-bottom:18px; cursor:pointer;
+  border-radius:var(--r-md); border:1.5px solid var(--border); background:var(--white); transition:all .25s var(--ease); }
+.ck-biz:hover { border-color:var(--blue-soft); }
+.ck-biz.on { border-color:var(--blue); background:var(--blue-pale); }
+.ck-biz input { position:absolute; opacity:0; pointer-events:none; }
+.ck-biz-box { flex:none; width:20px; height:20px; margin-top:1px; border-radius:6px; border:2px solid var(--border);
+  display:flex; align-items:center; justify-content:center; background:var(--white); }
+.ck-biz-box svg { width:12px; height:12px; color:#fff; }
+.ck-biz.on .ck-biz-box { background:linear-gradient(135deg,var(--blue),var(--blue-mid)); border-color:transparent; }
+.ck-biz-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.ck-biz-text b { font-size:13.5px; font-weight:700; color:var(--text); }
+.ck-biz-text span { font-size:12px; color:var(--text-sec); line-height:1.5; }
+.ck-biz-ico { margin-left:auto; color:var(--blue-soft); flex:none; }
+.ck-biz-ico svg { width:18px; height:18px; }
+.ck-biz.on .ck-biz-ico { color:var(--blue); }
+
+/* Traveller heading: number, then who this row is for once we know. */
+.ck-trav-who { font-weight:600; color:var(--text-sec); }
+
+@media (max-width: 560px) {
+  .ck-dob3 { grid-template-columns:1fr 1fr; }
+  .ck-dob3 > :last-child { grid-column:1 / -1; }
+}
 
 /* ════ YOUR TRIP (payment step overview) ════
    Label above value, two columns — the shape of a booking confirmation, because that is what
