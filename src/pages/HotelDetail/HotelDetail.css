@@ -1001,6 +1001,17 @@
 .sd .bp-incl { display:flex; flex-wrap:wrap; gap:7px; padding:2px 22px 15px; }
 .sd .bp-chip { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--text-sec); background:var(--white); border:1px solid var(--border-light); padding:5px 11px; border-radius:var(--r-full); box-shadow:var(--shadow-xs); }
 .sd .bp-chip svg { width:14px; height:14px; color:var(--blue); }
+/* Included in the fare — green, because this strip now only ever lists things the traveller
+   actually gets. Green is the page's "confirmed" colour (the available-day bar, the booking
+   tick), so a bag chip reads as the same kind of statement.
+   #0B7A57 rather than the lighter mint used on large surfaces: this is 11px bold text on a pale
+   ground, where the mint measures ~2.4:1 and fails. This clears at 5.3:1. */
+.sd .bp-chip-inc {
+  color:#0B7A57;
+  background:#F0FDF8;
+  border-color:#B6E8D4;
+}
+.sd .bp-chip-inc svg { color:#0B7A57; }
 .sd .bp-buy { display:flex; gap:10px; align-items:center; }
 
 /* boarding-pass stub: perforated tear line + punched notches */

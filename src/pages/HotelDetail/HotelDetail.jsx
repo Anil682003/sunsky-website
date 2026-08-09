@@ -261,16 +261,36 @@ const ICON = {
 function fareInclusions(baggage) {
   if (!baggage) return [];
   const out = [];
-  if (baggage.handKg > 0) out.push({ icon: ICON.bag, label: `Cabin bag ${baggage.handKg} kg` });
+  const hasChecked = baggage.checkedKg > 0 || baggage.checkedPieces > 0;
+
   if (baggage.checkedKg > 0) {
-    out.push({ icon: ICON.checkedBag, label: `Checked baggage ${baggage.checkedKg} kg` });
+    out.push({ icon: ICON.checkedBag, label: `Checked baggage ${baggage.checkedKg} kg`, ok: true });
   } else if (baggage.checkedPieces > 0) {
     // Some carriers price by piece rather than weight; say whichever one the fare uses.
     out.push({
       icon: ICON.checkedBag,
       label: `Checked baggage ${baggage.checkedPieces} ${baggage.checkedPieces === 1 ? 'piece' : 'pieces'}`,
+      ok: true,
     });
   }
+
+  // Cabin baggage.
+  //
+  // With a real figure we print it. Without one we still say "included" WHENEVER THE FARE
+  // CARRIES HOLD BAGGAGE, because no airline sells you a 25kg hold allowance and then refuses
+  // you a cabin bag — the two travel together. Airtuerk reports handLuggage as 0 on every
+  // option we have seen, which reads as "not itemised" rather than "not permitted".
+  //
+  // But note what is NOT claimed: no weight. The inference "a hold-baggage fare allows a cabin
+  // bag" is safe; "and it is 7kg" is not, and inventing that number is exactly the habit this
+  // whole change removed. If Tursys ever populates handLuggage, the real figure appears here
+  // automatically and this branch stops being used.
+  if (baggage.handKg > 0) {
+    out.unshift({ icon: ICON.bag, label: `Cabin bag ${baggage.handKg} kg`, ok: true });
+  } else if (hasChecked) {
+    out.unshift({ icon: ICON.bag, label: 'Cabin bag included', ok: true });
+  }
+
   return out;
 }
 
@@ -553,7 +573,7 @@ function FlightCard({ f, selected, onSelect }) {
       {fareIncludes.length > 0 && (
         <div className="bp-incl" aria-label="Included in this fare">
           {fareIncludes.map((x) => (
-            <span key={x.label} className="bp-chip">{x.icon}{x.label}</span>
+            <span key={x.label} className={`bp-chip${x.ok ? ' bp-chip-inc' : ''}`}>{x.icon}{x.label}</span>
           ))}
         </div>
       )}
