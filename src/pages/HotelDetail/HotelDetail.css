@@ -1752,12 +1752,13 @@
 .sd .live-leg-dur { margin-left:auto; font-size:11px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
 .sd .live-price { font-family:'Sora',sans-serif; font-size:18px; font-weight:800; color:var(--dark); letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
 
-/* Prices tab: rooms sit above flights, transfer follows flights, overview stays last */
-.sd .tp.act { display:flex; flex-direction:column; }
-.sd .room-section { order:1; }
-.sd .flight-section { order:2; }
-.sd .transfer-section { order:3; margin-bottom:38px; }
-.sd .overview-section { order:4; }
+/* The Prices tab reads in MARKUP order — check the dates, pick the flight, then the room,
+   then the overview. It used to be a flex column with an explicit `order` on each section,
+   from when rooms came first; when the sections were reordered in the JSX (and renumbered 2
+   and 3) this rule kept painting them the old way round, so the page showed "3 Choose your
+   room" above "2 Your flights". Nothing needs to override the document order here, so
+   nothing does. (The transfer section is gone from this page entirely — it is sold at the
+   checkout now.) */
 
 /* ═══════════════════ RESPONSIVE LAYER ═══════════════════
    Last in the file so it beats the refinement layer above. Everything here is a
