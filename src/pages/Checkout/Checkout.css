@@ -474,6 +474,32 @@
   font-size:12.5px; font-weight:700; }
 .ck-dob-go:hover { background:var(--blue-mid); }
 
+/* ════ YOUR TRIP (payment step overview) ════
+   Label above value, two columns — the shape of a booking confirmation, because that is what
+   the traveller is checking this against in their head. */
+.ck-ov-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px 24px; }
+.ck-ov-item { display:flex; flex-direction:column; gap:3px; min-width:0; }
+.ck-ov-k { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); }
+.ck-ov-v { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; color:var(--text); overflow-wrap:anywhere; }
+.ck-ov-block { margin-top:22px; padding-top:18px; border-top:1px solid var(--border-light); }
+.ck-ov-title { font-size:13px; font-weight:800; color:var(--blue); margin-bottom:8px; }
+.ck-ov-line { font-size:13.5px; color:var(--text); line-height:1.6; }
+.ck-ov-sub { font-size:12.5px; color:var(--text-sec); line-height:1.6; }
+.ck-ov-flights { display:flex; flex-direction:column; gap:12px; }
+.ck-ov-flight { display:flex; flex-direction:column; gap:2px; }
+.ck-ov-dir { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); }
+
+/* ════ CONDITIONS & BOOKING ════ */
+.ck-cond { margin:6px 0 14px; padding:16px 18px; border-radius:var(--r-md); background:var(--blue-pale); border:1px solid var(--border-light); }
+.ck-cond-title { font-size:14px; font-weight:800; color:var(--blue); margin-bottom:11px; }
+.ck-cond-list { display:flex; flex-direction:column; gap:9px; list-style:none; }
+.ck-cond-list li { display:grid; grid-template-columns:16px 1fr; gap:9px; font-size:12.5px; line-height:1.6; color:var(--text-sec); }
+.ck-cond-list svg { width:13px; height:13px; margin-top:4px; color:var(--green); }
+.ck-ins-legal { display:flex; align-items:flex-start; gap:11px; margin-top:18px; padding:14px 16px; border-radius:var(--r-md);
+  background:var(--blue-pale); border:1px solid var(--border-light); }
+.ck-ins-legal svg { width:16px; height:16px; flex:none; color:var(--blue); margin-top:1px; }
+.ck-ins-legal p { font-size:12.5px; line-height:1.6; color:var(--text-sec); }
+
 /* ════ AIRPORT TRANSFER (extras step) ════
    A radio list, not cards: one choice for the whole booking, read top to bottom against one
    another. Prices sit right-aligned on a common edge so they compare at a glance. */

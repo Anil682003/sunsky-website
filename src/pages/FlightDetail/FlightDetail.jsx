@@ -96,9 +96,9 @@ const FARE_RULES = [
   { id: 'change', icon: <S><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></S>, title: 'Date change', badge: 'Chargeable', tone: 'warn',
     rows: [['More than 72 hours', '€35 + fare difference'], ['24–72 hours', '€50 + fare difference'], ['Less than 24 hours', 'Not permitted']] },
   { id: 'seat', icon: <S><path d="M6 19v-7a6 6 0 0112 0v7" /><rect x="4" y="19" width="16" height="2" rx="1" /></S>, title: 'Seat selection', badge: 'Chargeable', tone: 'warn',
-    text: 'Standard seats from €5 per segment. Extra-legroom and preferred seats range €9–€22 depending on the route. Free seat assignment is given at check-in subject to availability.' },
+    text: 'Seat selection is offered by the operating airline and priced by them; the charge is shown before payment. A seat is assigned free at check-in if none is chosen.' },
   { id: 'meal', icon: <S><path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" /></S>, title: 'Meals', badge: 'Not included', tone: 'no',
-    text: 'Meals are not included in this fare. Pre-book online from €6 per segment, or purchase onboard subject to availability. Vegetarian and special meals can be pre-ordered up to 24h before departure.' },
+    text: 'Catering varies by airline and route. Where a meal is not part of the fare it can usually be pre-ordered or bought on board; any charge is shown before payment.' },
 ];
 
 export default function FlightDetail() {
@@ -183,29 +183,57 @@ export default function FlightDetail() {
     { id: 'fare', label: 'Fare Summary', icon: ICON.receipt },
   ];
 
-  const baggageFor = (leg, included) => (
-    <>
-      <div className="fd-bag-leglabel">{leg.dir === 'out' ? 'Outbound' : 'Return'}: {leg.fromCode} → {leg.toCode} ({leg.airline})</div>
-      <div className="fd-bag-card">
-        <div className="fd-bag-ic cabin">{ICON.bag}</div>
-        <div className="fd-bag-info">
-          <div className="fd-bag-title">Cabin baggage</div>
-          <div className="fd-bag-desc">1 piece, max <b>7 kg</b> (55 × 40 × 23 cm), plus one small personal item that fits under the seat.</div>
-          <span className="fd-bag-tag inc">Included</span>
+  /* Allowances are stated ONLY when the fare tells us what they are.
+     This block used to print "1 piece, max 7 kg (55 × 40 × 23 cm)", "max 23 kg (158 cm total)"
+     and an extra-bag price list of "15 kg (€18), 23 kg (€26), 30 kg (€34)". None of those
+     numbers came from anywhere: this page resolves its flight from generateFlights(), so the
+     figures were invented and then presented in bold as though they were the airline's terms.
+     Baggage allowance is a term of the carriage contract — a traveller turned away at a bag
+     drop is not a styling problem.
+     `leg.baggage` is the supplier's real allowance (kilos, 0 = not included) once this page is
+     fed live flights; until then it is absent and the card says plainly that the allowance is
+     confirmed with the fare rather than inventing one. */
+  const baggageFor = (leg, included) => {
+    const kg = Number(leg?.baggage?.checkedKg) || 0;
+    const pieces = Number(leg?.baggage?.checkedPieces) || 0;
+    const handKg = Number(leg?.baggage?.handKg) || 0;
+    const known = !!leg?.baggage;
+    const hasChecked = kg > 0 || pieces > 0;
+    return (
+      <>
+        <div className="fd-bag-leglabel">{leg.dir === 'out' ? 'Outbound' : 'Return'}: {leg.fromCode} → {leg.toCode} ({leg.airline})</div>
+        <div className="fd-bag-card">
+          <div className="fd-bag-ic cabin">{ICON.bag}</div>
+          <div className="fd-bag-info">
+            <div className="fd-bag-title">Cabin baggage</div>
+            <div className="fd-bag-desc">
+              {handKg > 0
+                ? <>Up to <b>{handKg} kg</b> of hand baggage, plus one small personal item.</>
+                : <>Hand baggage rules are set by the operating airline and are confirmed with your fare before payment.</>}
+            </div>
+            {handKg > 0 && <span className="fd-bag-tag inc">Included</span>}
+          </div>
         </div>
-      </div>
-      <div className="fd-bag-card">
-        <div className={`fd-bag-ic ${included ? 'checkin' : 'extra'}`}>{ICON.bag}</div>
-        <div className="fd-bag-info">
-          <div className="fd-bag-title">Check-in baggage</div>
-          {included
-            ? <div className="fd-bag-desc">1 piece, max <b>23 kg</b> (158 cm total). Fragile or oversized items may incur handling fees.</div>
-            : <div className="fd-bag-desc">Not in base fare. Add during booking: <b>15 kg</b> (€18), <b>23 kg</b> (€26), <b>30 kg</b> (€34).</div>}
-          <span className={`fd-bag-tag ${included ? 'inc' : 'paid'}`}>{included ? 'Included' : 'Paid add-on'}</span>
+        <div className="fd-bag-card">
+          <div className={`fd-bag-ic ${hasChecked ? 'checkin' : 'extra'}`}>{ICON.bag}</div>
+          <div className="fd-bag-info">
+            <div className="fd-bag-title">Check-in baggage</div>
+            <div className="fd-bag-desc">
+              {kg > 0 ? <><b>{kg} kg</b> of hold baggage is included in this fare.</>
+                : pieces > 0 ? <><b>{pieces} {pieces === 1 ? 'piece' : 'pieces'}</b> of hold baggage is included in this fare.</>
+                : known ? <>This fare includes no hold baggage. It can be added during booking — the price depends on the airline and the weight.</>
+                : <>Hold baggage allowance is confirmed with your fare before payment.</>}
+            </div>
+            {known && (
+              <span className={`fd-bag-tag ${hasChecked ? 'inc' : 'paid'}`}>
+                {hasChecked ? 'Included' : 'Paid add-on'}
+              </span>
+            )}
+          </div>
         </div>
-      </div>
-    </>
-  );
+      </>
+    );
+  };
 
   return (
     <div className="fd">

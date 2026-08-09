@@ -130,7 +130,7 @@ describe('the airport transfer, bought at the extras step', () => {
     await user.click(screen.getByRole('button', { name: /continue to payment/i }));
     await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/payment/i));
     await user.click(screen.getByRole('button', { name: /bancontact/i }));
-    await user.click([...document.querySelectorAll('.ck-check')].find((el) => /booking conditions/i.test(el.textContent)));
+    await user.click([...document.querySelectorAll('.ck-check')].find((el) => /i agree to the above conditions/i.test(el.textContent)));
     await user.click(screen.getByRole('button', { name: /^pay /i }));
 
     await waitFor(() => expect(post.mock.calls.some(([url]) => String(url).includes('online-bookings'))).toBe(true));

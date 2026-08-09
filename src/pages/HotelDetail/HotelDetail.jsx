@@ -244,15 +244,35 @@ const ICON = {
   spark: <S><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4-6.2-4.6-6.2 4.6 2.4-7.4L2 9.4h7.6z" /></S>,
 };
 
-// The live availability response carries no baggage/service fields, but these are bundled
-// Airtuerk package fares (the card's "Including" fare type) — checked baggage, a cabin bag,
-// a meal and a seat are the standard inclusion for them. Shown on the card as fare inclusions.
-const FLIGHT_INCLUSIONS = [
-  { icon: ICON.bag, label: 'Cabin bag' },
-  { icon: ICON.checkedBag, label: 'Checked baggage' },
-  { icon: ICON.board, label: 'Meal on board' },
-  { icon: ICON.seat, label: 'Seat included' },
-];
+/**
+ * What a fare actually includes, from the supplier's own allowance.
+ *
+ * The comment that used to sit here said the response "carries no baggage/service fields" and
+ * that a cabin bag, checked bag, meal and seat "are the standard inclusion" — so the card
+ * printed all four on every fare. Checking the live Airtuerk response showed the first half
+ * false and the second half unknowable: it DOES send `baggage` (kilos), `baggagePiece`,
+ * `handLuggage` and `cabinClass` on the same object as the flightKey, and it sends nothing at
+ * all about meals or seats.
+ *
+ * So: baggage is stated from data, and the meal/seat claims are gone. `0` from this supplier
+ * means "not included" and earns no chip; a missing baggage object means the supplier told us
+ * nothing, and the strip stays empty rather than inventing a reassurance.
+ */
+function fareInclusions(baggage) {
+  if (!baggage) return [];
+  const out = [];
+  if (baggage.handKg > 0) out.push({ icon: ICON.bag, label: `Cabin bag ${baggage.handKg} kg` });
+  if (baggage.checkedKg > 0) {
+    out.push({ icon: ICON.checkedBag, label: `Checked baggage ${baggage.checkedKg} kg` });
+  } else if (baggage.checkedPieces > 0) {
+    // Some carriers price by piece rather than weight; say whichever one the fare uses.
+    out.push({
+      icon: ICON.checkedBag,
+      label: `Checked baggage ${baggage.checkedPieces} ${baggage.checkedPieces === 1 ? 'piece' : 'pieces'}`,
+    });
+  }
+  return out;
+}
 
 const TAB_ICON = {
   Prices: <S sw={2}><path d="M9 5H2v7l6.29 6.29c.94.94 2.48.94 3.42 0l3.58-3.58c.94-.94.94-2.48 0-3.42L9 5z" /><path d="M6 9.01V9" /></S>,
@@ -512,6 +532,7 @@ function FlightCard({ f, selected, onSelect }) {
   const out = f.outLegs || [];
   const ret = f.retLegs || [];
   const hasDetails = out.length > 0;
+  const fareIncludes = fareInclusions(f.baggage);
 
   return (
     <div className={`flight-card${selected ? ' selected' : ''}${expanded ? ' expanded' : ''}`}>
@@ -520,11 +541,22 @@ function FlightCard({ f, selected, onSelect }) {
         {ret.length > 0 && (<><div className="bp-tear" /><Journey dir="Return" legs={ret} /></>)}
       </div>
 
-      <div className="bp-incl" aria-label="Included in this fare">
-        {FLIGHT_INCLUSIONS.map((x) => (
-          <span key={x.label} className="bp-chip">{x.icon}{x.label}</span>
-        ))}
-      </div>
+      {/* What this fare ACTUALLY includes, from the supplier's own allowance.
+          This strip used to be a fixed four — "Cabin bag · Checked baggage · Meal on board ·
+          Seat included" — printed identically on every fare, which told travellers a
+          hand-luggage-only fare included a checked bag and a meal. Baggage allowance is a term
+          of the airline's contract, not decoration.
+          Airtuerk returns `baggage` in KILOS and `baggagePiece` as a count; 0 means not
+          included. It sends no meal or seat field at all, so those two claims are gone rather
+          than guessed. When the supplier tells us nothing the strip renders nothing — silence
+          is honest, an unearned tick is not. */}
+      {fareIncludes.length > 0 && (
+        <div className="bp-incl" aria-label="Included in this fare">
+          {fareIncludes.map((x) => (
+            <span key={x.label} className="bp-chip">{x.icon}{x.label}</span>
+          ))}
+        </div>
+      )}
 
       <div className="flight-bottom">
         <button className="flight-details-btn" onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }} disabled={!hasDetails}>

@@ -96,7 +96,7 @@ describe('a non-refundable room at the payment step', () => {
 
     // Accepting the GENERAL conditions is not enough.
     const generalTick = [...document.querySelectorAll('.ck-check')]
-      .find((el) => /booking conditions/i.test(el.textContent));
+      .find((el) => /i agree to the above conditions/i.test(el.textContent));
     await user.click(generalTick);
     await user.click(payBtn());
     await waitFor(() => expect(warning()).toHaveTextContent(/please confirm you accept the cancellation costs/i));
@@ -127,7 +127,7 @@ describe('a non-refundable room at the payment step', () => {
 
     expect(warning()).toBeFalsy();
     const generalTick = [...document.querySelectorAll('.ck-check')]
-      .find((el) => /booking conditions/i.test(el.textContent));
+      .find((el) => /i agree to the above conditions/i.test(el.textContent));
     await user.click(generalTick);
     await user.click(payBtn());
 

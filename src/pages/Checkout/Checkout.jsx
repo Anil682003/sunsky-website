@@ -5,7 +5,7 @@ import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import axiosInstance from '../../services/axiosInstance';
 import { ageAtCheckIn } from '../../utils/childDob';
-import { cancellationState, parseRateKey } from '../../utils/rateDetails';
+import { cancellationState, parseRateKey, boardInfo } from '../../utils/rateDetails';
 import { DEFAULT_PRICING, priceInsurance, priceBasisLabel } from '../../utils/checkoutPricing';
 import { useCheckoutConfig } from '../../api';
 import Confirmation from './Confirmation';
@@ -1094,6 +1094,7 @@ function CheckoutContent({ stripe, elements }) {
   const lead = travellers[0];
   const leadName = `${lead?.firstName || ''} ${lead?.lastName || ''}`.trim();
   const customerEmail = customerType === 'private' ? priv.email : pro.primaryContactEmail;
+  const contactPhoneShown = customerType === 'private' ? priv.phone : pro.primaryContactPhone;
   const selIns = insurances.find((i) => i.id === insurance);
 
   /* primary CTA per step (shared by bottom bar + mobile bar) */
@@ -1799,6 +1800,119 @@ function CheckoutContent({ stripe, elements }) {
                       </div>
                     </div>
                   </div>
+
+                  {/* Who is actually on the hook. SUNSKY sells the policy; the insurer
+                      underwrites it and owns the terms, so the traveller is pointed at the
+                      insurer's own documents rather than at our summary of them. Shown
+                      whenever a policy on offer names a provider. */}
+                  {insurances.some((i) => i.provider) && (
+                    <div className="ck-ins-legal">
+                      {ICON.shield}
+                      <p>
+                        SUNSKY acts solely as an insurance intermediary. For complete information about
+                        the insurance, its coverage, exclusions and policy terms, please refer to the
+                        insurer's own documents.
+                      </p>
+                    </div>
+                  )}
+                </section>
+              )}
+
+              {/* ──────── STEP 3 : OVERVIEW ────────
+                  Everything about to be bought, in one place, before the card comes out. The
+                  sidebar summary is a running total; this is the record — the same facts a
+                  traveller will look for on the confirmation, in the same order. Nothing here
+                  is decorative: every line is something they could still go back and change. */}
+              {step === 2 && (
+                <section className="ck-card ck-reveal">
+                  <div className="ck-card-head">
+                    <div className="ck-ico">{ICON.check}</div>
+                    <div className="ck-card-titles">
+                      <h2 className="ck-card-title hd">Your trip</h2>
+                      <p className="ck-card-sub">Please check these details before you pay</p>
+                    </div>
+                  </div>
+
+                  <div className="ck-ov-grid">
+                    <div className="ck-ov-item">
+                      <span className="ck-ov-k">Accommodation</span>
+                      <span className="ck-ov-v">{booking.hotelName}</span>
+                    </div>
+                    <div className="ck-ov-item">
+                      <span className="ck-ov-k">Destination</span>
+                      <span className="ck-ov-v">{booking.loc || '—'}</span>
+                    </div>
+                    <div className="ck-ov-item">
+                      <span className="ck-ov-k">Travel start date</span>
+                      <span className="ck-ov-v">{dmy(srch.checkin || booking.api?.hotel?.checkin) || booking.dateLabel}</span>
+                    </div>
+                    <div className="ck-ov-item">
+                      <span className="ck-ov-k">Travel end date</span>
+                      <span className="ck-ov-v">{dmy(srch.checkout || booking.api?.hotel?.checkout) || '—'}</span>
+                    </div>
+                    <div className="ck-ov-item">
+                      <span className="ck-ov-k">Board</span>
+                      {/* Through boardInfo, like every other place a board is printed —
+                          suppliers SHOUT ("ALL INCLUSIVE") and the rest of the site doesn't. */}
+                      <span className="ck-ov-v">
+                        {boardInfo(booking.api?.hotel?.boardCode, booking.board || booking.meal).label}
+                      </span>
+                    </div>
+                    <div className="ck-ov-item">
+                      <span className="ck-ov-k">Transport</span>
+                      <span className="ck-ov-v">{booking.api?.flight ? 'Flight' : 'Own transport'}</span>
+                    </div>
+                  </div>
+
+                  {booking.room && (
+                    <div className="ck-ov-block">
+                      <div className="ck-ov-title hd">Rooms</div>
+                      <p className="ck-ov-line">
+                        {Number(srch.rooms) > 1 ? `${srch.rooms} × ` : '1 × '}{booking.room}
+                        {booking.board ? ` — ${booking.board}` : ''}
+                      </p>
+                    </div>
+                  )}
+
+                  {booking.flight && (
+                    <div className="ck-ov-block">
+                      <div className="ck-ov-title hd">Transport</div>
+                      <div className="ck-ov-flights">
+                        <div className="ck-ov-flight">
+                          <span className="ck-ov-dir">Outbound</span>
+                          <span className="ck-ov-line">
+                            {booking.flight.outDate ? `${booking.flight.outDate} · ` : ''}
+                            {booking.flight.outDep} {booking.flight.outFrom} → {booking.flight.outArr} {booking.flight.outTo}
+                          </span>
+                          {booking.flight.outAirline && <span className="ck-ov-sub">{booking.flight.outAirline}</span>}
+                        </div>
+                        {booking.flight.retDep && (
+                          <div className="ck-ov-flight">
+                            <span className="ck-ov-dir">Return</span>
+                            <span className="ck-ov-line">
+                              {booking.flight.retDate ? `${booking.flight.retDate} · ` : ''}
+                              {booking.flight.retDep} {booking.flight.retFrom} → {booking.flight.retArr} {booking.flight.retTo}
+                            </span>
+                            {booking.flight.retAirline && <span className="ck-ov-sub">{booking.flight.retAirline}</span>}
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="ck-ov-block">
+                    <div className="ck-ov-title hd">Your details</div>
+                    <p className="ck-ov-line">
+                      {[travellers[0]?.title, travellers[0]?.firstName, travellers[0]?.lastName].filter(Boolean).join(' ')}
+                      {travellers[0]?.dateOfBirth ? ` (${dmy(travellers[0].dateOfBirth)})` : ''}
+                    </p>
+                    <p className="ck-ov-sub">{customerEmail}{contactPhoneShown ? ` · ${contactPhoneShown}` : ''}</p>
+                    {travellers.length > 1 && (
+                      <p className="ck-ov-sub">
+                        Travelling with {travellers.slice(1).map((t) => [t.firstName, t.lastName].filter(Boolean).join(' ') || 'traveller').join(', ')}
+                      </p>
+                    )}
+                  </div>
                 </section>
               )}
 
@@ -1975,10 +2089,33 @@ function CheckoutContent({ stripe, elements }) {
                   <Check checked={billingSame} onChange={setBillingSame}>
                     Billing address is the same as my customer details
                   </Check>
+
+                  {/* ── Conditions & booking ──
+                      What accepting actually commits the traveller to, itemised, above the one
+                      tick that accepts all of it. A single "I agree to the conditions" line is
+                      technically the same consent and practically a different one: nobody reads
+                      a link, and this at least says what is behind them. */}
+                  <div className="ck-cond">
+                    <div className="ck-cond-title hd">Conditions &amp; booking</div>
+                    <ul className="ck-cond-list">
+                      <li>{ICON.check} I have read the information relating to this holiday.</li>
+                      <li>{ICON.check} I agree to the <Link className="ck-a" to="/p/terms-and-conditions" target="_blank">general terms and conditions</Link> and the <Link className="ck-a" to="/p/package-travel-information" target="_blank">package travel information</Link>.</li>
+                      {insAmount > 0 && (
+                        <li>{ICON.check} I accept the <Link className="ck-a" to="/p/insurance-conditions" target="_blank">insurance conditions</Link> for the cover I selected.</li>
+                      )}
+                      <li>{ICON.check} I am making a definite booking with an obligation to pay. It can only be
+                        cancelled against payment of <Link className="ck-a" to="/p/cancellation-costs" target="_blank">cancellation costs</Link>, which
+                        depend on how close to departure the cancellation is made.</li>
+                    </ul>
+                  </div>
+
                   <div className={errors.agree ? 'ck-err' : ''}>
                     <Check checked={agree} onChange={(v) => { setAgree(v); setErrors((er) => ({ ...er, agree: undefined })); }}>
-                      I agree to the <a className="ck-a" onClick={(e) => e.stopPropagation()}>booking conditions</a>, <a className="ck-a">privacy policy</a> and the terms of the travel providers
+                      Yes, I agree to the above conditions
                     </Check>
+                    <div className="ck-hint" style={{ marginLeft: 30 }}>
+                      You cannot confirm your booking unless you accept all applicable conditions.
+                    </div>
                     {errors.agree && <div className="ck-errmsg" style={{ marginLeft: 30 }}>{errors.agree}</div>}
                   </div>
 
