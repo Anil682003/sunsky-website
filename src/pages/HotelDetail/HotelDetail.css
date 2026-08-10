@@ -445,6 +445,15 @@
 .sd .bkc:hover::before { transform:translateX(120%); }
 .sd .bkc:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(255,159,28,.45); }
 
+/* Disabled book/check buttons — a sold-out date or a live search still running. Grey and
+   dead (matching the sold-out day CTA), with the gold sheen and lift suppressed so a
+   non-clickable button never reads as clickable. Covers every book/check CTA on the page. */
+.sd .bkc:disabled, .sd .overview-book-btn:disabled, .sd .mbc:disabled {
+  background:#e6ebf3; color:#8a99b2; box-shadow:none; cursor:not-allowed; transform:none; filter:none;
+}
+.sd .bkc:disabled:hover, .sd .overview-book-btn:disabled:hover, .sd .mbc:disabled:hover { transform:none; box-shadow:none; }
+.sd .bkc:disabled::before, .sd .overview-book-btn:disabled::before, .sd .mbc:disabled::before { display:none; }
+
 /* TABS — floating glass pill bar */
 .sd .tw { margin-top:6px; position:sticky; top:calc(var(--nav-h) + 10px); z-index:10; display:flex; }
 .sd .tabs { display:inline-flex; gap:4px; max-width:100%; padding:6px; border-radius:var(--r-full);
@@ -970,6 +979,11 @@
 .sd .flight-card { background:var(--white); border:1.5px solid var(--border-light); border-radius:18px; overflow:hidden; transition:all .3s var(--ease); margin-bottom:12px; box-shadow:var(--shadow-xs); }
 .sd .flight-card:hover { border-color:#d8e6fa; box-shadow:var(--shadow-sm); }
 .sd .flight-card.selected { border-color:var(--blue); box-shadow:0 0 0 4px rgba(31,79,216,.08), 0 10px 26px rgba(31,79,216,.12); }
+/* Cheapest fare — the same green frame the chosen room wears, so the best price reads the
+   same on both halves of the trip. Declared AFTER .selected so it wins when a card is both,
+   which is the usual case: the cheapest flight is the one selected by default. */
+.sd .flight-card.cheapest { border-color:var(--green); background:linear-gradient(180deg,#fbfffd,#f1fcf7); box-shadow:0 0 0 4px rgba(5,150,105,.10), 0 10px 26px rgba(5,150,105,.10); }
+.sd .flight-card.cheapest:hover { border-color:var(--green); }
 .sd .flight-note { font-size:13px; color:var(--text-sec); margin-bottom:14px; }
 
 /* ── Boarding-pass journey (collapsed card) — one row per direction ── */
@@ -1055,6 +1069,15 @@
 .sd .fd-seg-meta { display:flex; align-items:center; justify-content:space-between; padding:4px 0; }
 .sd .fd-seg-air { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-bg); padding:2px 9px 2px 3px; border-radius:var(--r-full); }
 .sd .fd-seg-mark { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:5px; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-family:'Sora',sans-serif; font-weight:800; font-size:9px; }
+
+/* A real airline logo in the slot the initial badge occupies. It keeps the badge's box so
+   nothing reflows when one carrier has a logo and the next does not, but drops the blue
+   tile and shadow: airline marks come in every shape and colour, and painting a brand on
+   our gradient made half of them unreadable. `contain` protects wide wordmarks from being
+   cropped to nonsense. */
+.sd .air-logo { background:none; box-shadow:none; object-fit:contain; padding:0; }
+.sd .bp-airmark.air-logo { width:26px; height:23px; border-radius:4px; }
+.sd .fd-seg-mark.air-logo { width:20px; height:16px; border-radius:3px; }
 .sd .fd-seg-dur { font-size:11px; font-weight:700; color:var(--text-light); }
 .sd .fd-layover { display:flex; align-items:center; gap:6px; padding:6px 0 6px 28px; font-size:11.5px; font-weight:600; color:#b45309; }
 .sd .fd-layover svg { width:13px; height:13px; }

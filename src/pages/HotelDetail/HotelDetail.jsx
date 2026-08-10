@@ -15,6 +15,7 @@ import {
 import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
 import { DEPARTURE_AIRPORTS, AIRPORT_CODES, DEFAULT_ORIGIN, normaliseOrigin } from '../../utils/airports';
+import { useAirlineLogos } from '../../utils/airlineLogos';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
 import StayBar from '../../components/StayBar/StayBar';
@@ -402,6 +403,31 @@ const layoverMin = (a, b) => {
 };
 const stopsLabel = (n) => (n <= 0 ? 'Direct' : `${n} stop${n > 1 ? 's' : ''}`);
 
+/**
+ * The airline's mark: its dashboard logo when we have one, otherwise the initial badge
+ * this has always drawn.
+ *
+ * The fallback is not a nicety. Logos are uploaded by hand, so a carrier the supplier
+ * returns may simply not have one yet, and a stored logo can 404 if the file moved. Both
+ * cases must land on the initial rather than a broken-image icon, which is why `onError`
+ * flips back rather than leaving the <img> to fail visibly. `className` is preserved so
+ * the same component serves the card head and the modal's per-leg rows, each keeping its
+ * own size from the existing CSS.
+ */
+function AirlineMark({ code, name, className }) {
+  const logos = useAirlineLogos();
+  const [failed, setFailed] = useState(false);
+  const hit = logos.get(String(code || '').trim().toUpperCase());
+  const label = name || airlineName(code);
+  if (!hit?.logo || failed) {
+    return <span className={className} aria-hidden="true">{label.charAt(0)}</span>;
+  }
+  return (
+    <img className={`${className} air-logo`} src={hit.logo} alt=""
+      loading="lazy" onError={() => setFailed(true)} />
+  );
+}
+
 // One direction, summarised across its legs: airline of the first leg, endpoints, total
 // gate-to-gate time and stop count. The middle "via" line names the layover airports.
 function Journey({ dir, legs }) {
@@ -416,7 +442,7 @@ function Journey({ dir, legs }) {
         <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
         <span className="bp-jdate">{fmtDateLong(first.departure)}</span>
         <span className="bp-airline">
-          <span className="bp-airmark" aria-hidden="true">{airlineName(first.airline).charAt(0)}</span>
+          <AirlineMark code={first.airline} className="bp-airmark" />
           <span className="bp-airname">{airlineName(first.airline)}</span>
           <span className="bp-flno">{flightNumber(first)}</span>
         </span>
@@ -460,7 +486,7 @@ function JourneyTimeline({ label, legs }) {
             <div className="fd-seg-timeline"><div className="fd-dot" /><div className="fd-line" /><div className="fd-dot" /></div>
             <div className="fd-seg-body">
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.from)} <em>{leg.from}</em></span><span className="fd-seg-time">{fmtTime(leg.departure)}</span></div>
-              <div className="fd-seg-meta"><span className="fd-seg-air"><span className="fd-seg-mark">{airlineName(leg.airline).charAt(0)}</span>{airlineName(leg.airline)} · {flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
+              <div className="fd-seg-meta"><span className="fd-seg-air"><AirlineMark code={leg.airline} className="fd-seg-mark" />{airlineName(leg.airline)} · {flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.to)} <em>{leg.to}</em></span><span className="fd-seg-time">{fmtTime(leg.arrival)}</span></div>
             </div>
           </div>
@@ -549,7 +575,7 @@ function SkeletonBlock({ label, children }) {
   );
 }
 
-function FlightCard({ f, selected, onSelect }) {
+function FlightCard({ f, selected, cheapest, onSelect }) {
   const [expanded, setExpanded] = useState(false);
   const out = f.outLegs || [];
   const ret = f.retLegs || [];
@@ -557,7 +583,10 @@ function FlightCard({ f, selected, onSelect }) {
   const fareIncludes = fareInclusions(f.baggage);
 
   return (
-    <div className={`flight-card${selected ? ' selected' : ''}${expanded ? ' expanded' : ''}`}>
+    // `cheapest` draws the same green frame the chosen room wears, so "this is the best
+    // price" reads identically on both halves of the trip. It is independent of `selected`:
+    // a traveller who moves to a pricier flight can still see which one was cheapest.
+    <div className={`flight-card${selected ? ' selected' : ''}${cheapest ? ' cheapest' : ''}${expanded ? ' expanded' : ''}`}>
       <div className="bp-body">
         <Journey dir="Outbound" legs={out} />
         {ret.length > 0 && (<><div className="bp-tear" /><Journey dir="Return" legs={ret} /></>)}
@@ -2397,6 +2426,7 @@ export default function HotelDetail() {
                       <FlightCard
                         f={{ ...liveFlights.flights[selectedFlight], price: Math.round(liveFlights.flights[selectedFlight].totalPrice), delta: 0 }}
                         selected
+                        cheapest={selectedFlight === 0}
                         onSelect={() => {}}
                       />
                       {(() => {
@@ -2407,6 +2437,7 @@ export default function HotelDetail() {
                           <FlightCard
                             f={{ ...alt, price: Math.round(alt.totalPrice), delta: cheapestFare == null ? null : alt.totalPrice - cheapestFare }}
                             selected={false}
+                            cheapest={altIdx === 0}
                             onSelect={() => setSelectedFlight(altIdx)}
                           />
                         );
@@ -2757,8 +2788,9 @@ export default function HotelDetail() {
                     </span>
                   </div>
                   <div className="overview-book-wrap">
-                    <button className="overview-book-btn" onClick={goCheckout} disabled={liveFlights?.loading}>
+                    <button className="overview-book-btn" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>
                       {liveFlights?.loading ? <>Checking flight prices…</>
+                        : dayUnavailable ? <>Not available for this date</>
                         : ovBase == null ? <>Check availability {ICON.arrow}</>
                         : <>Now book {ICON.arrow}</>}
                     </button>
@@ -3095,8 +3127,9 @@ export default function HotelDetail() {
                 <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nightsToDays(nights)} days</div>
               </div>
               <div className="bkcw">
-                <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading}>
+                <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>
                   {liveFlights?.loading ? 'Checking flights…'
+                    : dayUnavailable ? <>Not available for this date</>
                     : liveTotal == null ? <>Check availability {ICON.arrow}</>
                     : <>Book Now {ICON.arrow}</>}
                 </button>
@@ -3112,8 +3145,8 @@ export default function HotelDetail() {
         <div className="mbi">
           <div className="mbp"><small>{liveTotal != null ? 'live total' : fromPP != null ? 'per person from' : 'no price yet'}</small>{liveTotal != null
             ? `${ccy}${liveTotal.toLocaleString('en-GB')}` : fromPP != null ? `${ccy}${fromPP}` : '—'}</div>
-          <button className="mbc" onClick={goCheckout} disabled={liveFlights?.loading}>
-            {liveFlights?.loading ? 'Checking…' : `${liveTotal != null ? 'Book now' : 'Check price'} →`}
+          <button className="mbc" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>
+            {liveFlights?.loading ? 'Checking…' : dayUnavailable ? 'Not available' : `${liveTotal != null ? 'Book now' : 'Check price'} →`}
           </button>
         </div>
       </div>
@@ -3290,6 +3323,10 @@ export default function HotelDetail() {
                   key={f.idx}
                   f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
                   selected={selectedFlight === f.idx}
+                  // `flights` is sorted cheapest-first and `idx` is the position in THAT
+                  // array, so it survives the modal's own sorting and filtering — the green
+                  // frame stays on the genuinely cheapest fare, not on whatever is top.
+                  cheapest={f.idx === 0}
                   onSelect={() => setSelectedFlight(f.idx)}
                 />
               )) : (
