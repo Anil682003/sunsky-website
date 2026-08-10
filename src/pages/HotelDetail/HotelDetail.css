@@ -1148,8 +1148,8 @@
    pins it left so a run of cards aligns down its left edge instead of each mark floating to
    its own centre, and `contain` still protects the rare square one from being stretched. */
 .sd .air-logo { background:none; box-shadow:none; object-fit:contain; object-position:left center; padding:0; border-radius:0; }
-.sd .bp-airmark.air-logo { width:64px; height:20px; }
-.sd .fd-seg-mark.air-logo { width:44px; height:14px; }
+.sd .bp-airmark.air-logo { width:92px; height:28px; }
+.sd .fd-seg-mark.air-logo { width:62px; height:19px; }
 .sd .fd-seg-dur { font-size:11px; font-weight:700; color:var(--text-light); }
 .sd .fd-layover { display:flex; align-items:center; gap:6px; padding:6px 0 6px 28px; font-size:11.5px; font-weight:600; color:#b45309; }
 .sd .fd-layover svg { width:13px; height:13px; }
