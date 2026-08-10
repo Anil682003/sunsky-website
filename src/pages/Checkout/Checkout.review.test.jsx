@@ -84,9 +84,10 @@ describe('the name check between details and extras', () => {
 
     // Each traveller is named back with a day-first date of birth.
     const names = [...modal().querySelectorAll('.ck-rv-name')].map((n) => n.textContent);
-    expect(names[0]).toContain('Ali Benli');
+    // Surnames are stored capitalised, so the review names them the way the ticket will.
+    expect(names[0]).toContain('Ali BENLI');
     expect(names[0]).toContain('19/11/1995');
-    expect(names[1]).toContain('Ilhan Vanli');
+    expect(names[1]).toContain('Ilhan VANLI');
     expect(names[1]).toContain('16/02/2009');
 
     // Confirming is refused while a tick is missing, and says what is missing.
@@ -121,7 +122,7 @@ describe('the name check between details and extras', () => {
     await waitFor(() => expect(activeStep()).toMatch(/your details/i));
     const travCard = [...document.querySelectorAll('.ck-trav')][1];
     const lastName = fieldByLabel('last name', travCard).querySelector('input');
-    await user.type(lastName, 'i');   // "Vanli" → "Vanlii"
+    await user.type(lastName, 'i');   // "VANLI" → "VANLII" (typed lower, stored upper)
 
     // …and the shortcut back to a step already reached lands on the gate, not past it.
     await user.click(screen.getByRole('button', { name: /2\. Add-ons/i }));
@@ -130,7 +131,7 @@ describe('the name check between details and extras', () => {
 
     const ticks = [...modal().querySelectorAll('.ck-check')].map((c) => c.className.includes('on'));
     expect(ticks).toEqual([true, false]);           // only the edited traveller lost their tick
-    expect(within(modal()).getByText(/Vanlii/)).toBeInTheDocument();
+    expect(within(modal()).getByText(/VANLII/)).toBeInTheDocument();
     expect(confirmBtn()).toBeDisabled();
   });
 });

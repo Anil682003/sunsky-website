@@ -69,7 +69,10 @@ describe('traveller 1 is also the lead booker', () => {
 
     expect(booker('first name')).toHaveValue('Ali');
     expect(trav('first name')).toHaveValue('Ali');
-    expect(trav('last name')).toHaveValue('Benli');
+    // The surname is stored in capitals — it is printed on the ticket that way and the
+    // airline record is matched on it, so the VALUE is uppercased, not just its display.
+    expect(booker('last name')).toHaveValue('BENLI');
+    expect(trav('last name')).toHaveValue('BENLI');
     expect(trav('nationality')).toHaveValue('Belgian');
     expect(trav('date of birth')).toHaveValue('1995-11-19');
   });
@@ -129,7 +132,7 @@ describe('traveller 1 is also the lead booker', () => {
 
     await user.click(tickBox());                    // back on: the filled side wins, nothing is lost
     expect(trav('first name')).toHaveValue('Ali');
-    expect(trav('last name')).toHaveValue('Benli');
+    expect(trav('last name')).toHaveValue('BENLI');  // surnames are stored capitalised
     expect(booker('first name')).toHaveValue('Ali');
   });
 

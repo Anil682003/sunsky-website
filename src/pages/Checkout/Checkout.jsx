@@ -426,7 +426,10 @@ const seedTravellers = (booking, account) => {
   // with a birthday that contradicts the quote.
   const rows = Array.from({ length: adults }, emptyTraveller);
   if (account?.firstName || account?.lastName) {
-    rows[0] = { ...rows[0], firstName: account.firstName || '', lastName: account.lastName || '' };
+    // Capitalised on the way in as well, so a surname that arrived from the account looks
+    // exactly like one typed here — otherwise signing in produced a lower-case surname the
+    // traveller never chose and could only fix by retyping it.
+    rows[0] = { ...rows[0], firstName: account.firstName || '', lastName: (account.lastName || '').toUpperCase() };
   }
   for (let i = 0; i < children; i++) {
     const dob = dobs[i] || '';
@@ -500,7 +503,7 @@ function CheckoutContent({ stripe, elements }) {
   const [isCompany, setIsCompany] = useState(false);
   const customerType = isCompany ? 'professional' : 'private';
   const [priv, setPriv] = useState({
-    firstName: user?.firstName || '', lastName: user?.lastName || '',
+    firstName: user?.firstName || '', lastName: (user?.lastName || '').toUpperCase(),
     dateOfBirth: '', gender: '', nationality: '', preferredLanguage: 'en',
     hasEmail: true, email: user?.email || '', phone: user?.phone || '',
     street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
@@ -515,7 +518,7 @@ function CheckoutContent({ stripe, elements }) {
     tradingName: '', legalName: '', vatNumber: '', industry: '', website: '',
     street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
     hasInvoiceEmail: true, invoiceEmail: '', paymentTerms: '', invoicingAddress: '',
-    primaryContactFirstName: user?.firstName || '', primaryContactLastName: user?.lastName || '',
+    primaryContactFirstName: user?.firstName || '', primaryContactLastName: (user?.lastName || '').toUpperCase(),
     hasContactEmail: true, primaryContactEmail: user?.email || '', primaryContactPhone: '',
     primaryContactRole: '', preferredLanguage: 'en',
   });
@@ -988,11 +991,29 @@ function CheckoutContent({ stripe, elements }) {
   }, [reviewOpen]);
 
   /* ── field setters ── */
-  const setP = (k) => (v) => { setPriv((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [`priv.${k}`]: undefined })); };
+  /**
+   * The surname is stored in CAPITALS, not merely shown that way.
+   *
+   * It is printed on the ticket and the boarding pass in capitals, and the airline record is
+   * matched on it — so the value that reaches the supplier has to be the value the traveller
+   * saw and confirmed. Uppercasing in CSS would leave "yardimci" in the payload under a field
+   * reading "YARDIMCI", and the tick that says "this matches my passport" would be attesting
+   * to something the booking does not contain.
+   *
+   * Applied in the writers rather than on each input, so every surname field in checkout —
+   * booker, each traveller, and any added later — is covered by construction.
+   *
+   * `toUpperCase`, not `toLocaleUpperCase`: the latter follows the BROWSER's locale, so a
+   * Turkish user's "i" would become "İ" and a German "ß" could expand — neither of which the
+   * airline's ASCII name field accepts. Deterministic beats locale-aware here.
+   */
+  const capsIf = (k, v) => (k === 'lastName' && typeof v === 'string' ? v.toUpperCase() : v);
+  const setP = (k) => (v) => { const nv = capsIf(k, v); setPriv((p) => ({ ...p, [k]: nv })); setErrors((e) => ({ ...e, [`priv.${k}`]: undefined })); };
   const setB = (k) => (v) => { setPro((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [`pro.${k}`]: undefined })); };
   // The five facts traveller 1 and the lead booker share while they are the same person.
   const SHARED_WITH_LEAD = ['firstName', 'lastName', 'gender', 'dateOfBirth', 'nationality'];
-  const setT = (i, k) => (v) => {
+  const setT = (i, k) => (v0) => {
+    const v = capsIf(k, v0);
     setTravellers((ts) => ts.map((t, ti) => (ti === i ? { ...t, [k]: v } : t)));
     setErrors((e) => ({ ...e, [`t${i}.${k}`]: undefined }));
     // Traveller 1 IS the booker unless that was unticked, so an edit here lands in both records
