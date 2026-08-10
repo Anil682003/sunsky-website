@@ -13,7 +13,6 @@ import { checkoutLegalLinks } from '../../utils/legalLinks';
 import Confirmation from './Confirmation';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
-import { useAirlineName } from '../../utils/airlineLogos';
 import './Checkout.css';
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
@@ -944,7 +943,6 @@ function CheckoutContent({ stripe, elements }) {
   const checkedAddOns = (airlineAddOns?.checked?.length ? airlineAddOns.checked : null)
     || (bagRates?.checked || []);
   const hasFlight = !!booking.api?.flight;
-  const airName = useAirlineName();
   /**
    * The marketing code for each direction, which is what a logo is looked up by.
    *
@@ -2548,8 +2546,9 @@ function CheckoutContent({ stripe, elements }) {
                               to; a name alone was easy to skim past. */}
                           {(airlineCodes.out || booking.flight.outAirline) && (
                             <span className="ck-ov-sub ck-ov-air">
-                              <AirlineMark code={airlineCodes.out} className="ck-air-mark" />
-                              {airlineCodes.out ? airName(airlineCodes.out) : booking.flight.outAirline}
+                              {airlineCodes.out
+                                ? <AirlineMark code={airlineCodes.out} className="ck-air-mark" nameClassName="" />
+                                : booking.flight.outAirline}
                             </span>
                           )}
                         </div>
@@ -2562,8 +2561,9 @@ function CheckoutContent({ stripe, elements }) {
                             </span>
                             {(airlineCodes.ret || booking.flight.retAirline) && (
                               <span className="ck-ov-sub ck-ov-air">
-                                <AirlineMark code={airlineCodes.ret} className="ck-air-mark" />
-                                {airlineCodes.ret ? airName(airlineCodes.ret) : booking.flight.retAirline}
+                                {airlineCodes.ret
+                                  ? <AirlineMark code={airlineCodes.ret} className="ck-air-mark" nameClassName="" />
+                                  : booking.flight.retAirline}
                               </span>
                             )}
                           </div>

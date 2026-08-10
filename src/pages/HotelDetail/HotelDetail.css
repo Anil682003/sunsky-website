@@ -1458,7 +1458,11 @@
 /* FLIGHT MODAL */
 .sd .modal-overlay { display:none; position:fixed; inset:0; background:rgba(7,14,31,.5); z-index:1100; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
 .sd .modal-overlay.show { display:flex; }
-.sd .modal { width:95%; max-width:960px; max-height:88vh; background:var(--white); border-radius:var(--r-xl); overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); animation:sdSlideUp .35s var(--ease); }
+/* 1200 rather than 960. The body is a fixed 250px filter rail plus the flight cards, and each
+   card carries a full itinerary across its width: time, city, code, the duration track, then the
+   same again for the return. At 960 that left barely 700px for all of it, so the cards inside the
+   modal were more cramped than the identical cards on the page behind it. */
+.sd .modal { width:95%; max-width:1200px; max-height:88vh; background:var(--white); border-radius:var(--r-xl); overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); animation:sdSlideUp .35s var(--ease); }
 .sd .modal-head { display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid var(--border-light); background:linear-gradient(135deg,var(--blue-bg),var(--blue-pale)); }
 .sd .modal-title { font-family:'Sora',sans-serif; font-size:17px; font-weight:800; color:var(--dark); }
 .sd .modal-sort { font-size:12px; color:var(--text-sec); display:flex; align-items:center; gap:6px; }

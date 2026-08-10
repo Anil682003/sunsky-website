@@ -14,21 +14,34 @@ import { airlineName as staticAirlineName } from '../../utils/flightNames';
  * `className` is passed through rather than owned here, so each host keeps the size and shape
  * its own stylesheet already gives this slot: the boarding-pass card, the per-leg rows inside
  * the flight modal and the checkout summary all render the same component at three sizes.
+ *
+ * NAMING IS THE COMPONENT'S JOB, not the caller's. A logo is a wordmark — it already says
+ * "Turkish Airlines" in the airline's own type — so printing the name beside it said everything
+ * twice and crowded the row. But the name cannot simply be dropped by the caller either: when
+ * there is no logo, or when a stored one fails to load, all that is left is a single letter, and
+ * "T" is not an airline. So the two are decided together here. Pass `nameClassName` and the name
+ * appears exactly when the logo does not.
  */
-export default function AirlineMark({ code, name, className = '' }) {
+export default function AirlineMark({ code, name, className = '', nameClassName }) {
   const directory = useAirlineLogos();
   const [failed, setFailed] = useState(false);
   const hit = directory.get(String(code || '').trim().toUpperCase());
-  const label = name || hit?.name || staticAirlineName(code);
+  const label = String(name || hit?.name || staticAirlineName(code) || '');
 
   if (!hit?.logo || failed) {
-    return <span className={className} aria-hidden="true">{String(label || '').charAt(0)}</span>;
+    return (
+      <>
+        <span className={className} aria-hidden="true">{label.charAt(0)}</span>
+        {nameClassName !== undefined && <span className={nameClassName}>{label}</span>}
+      </>
+    );
   }
   return (
     <img
       className={`${className} air-logo`.trim()}
       src={hit.logo}
-      alt=""
+      // The name still reaches a screen reader, which cannot see the wordmark.
+      alt={label}
       loading="lazy"
       onError={() => setFailed(true)}
     />

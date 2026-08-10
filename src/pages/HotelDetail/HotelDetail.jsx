@@ -16,7 +16,6 @@ import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
 import { DEPARTURE_AIRPORTS, AIRPORT_CODES, DEFAULT_ORIGIN, normaliseOrigin } from '../../utils/airports';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
-import { useAirlineName } from '../../utils/airlineLogos';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
 import StayBar from '../../components/StayBar/StayBar';
@@ -409,9 +408,6 @@ const stopsLabel = (n) => (n <= 0 ? 'Direct' : `${n} stop${n > 1 ? 's' : ''}`);
 // One direction, summarised across its legs: airline of the first leg, endpoints, total
 // gate-to-gate time and stop count. The middle "via" line names the layover airports.
 function Journey({ dir, legs }) {
-  // The dashboard's name, not the hardcoded table's: suppliers send codes the static list has
-  // never heard of, and the card was printing "VF" where the airline has a name.
-  const airName = useAirlineName();
   if (!legs?.length) return null;
   const first = legs[0], last = legs[legs.length - 1];
   const durMin = legs.reduce((s, l) => s + (Number(l.duration) || 0), 0);
@@ -423,8 +419,7 @@ function Journey({ dir, legs }) {
         <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
         <span className="bp-jdate">{fmtDateLong(first.departure)}</span>
         <span className="bp-airline">
-          <AirlineMark code={first.airline} className="bp-airmark" />
-          <span className="bp-airname">{airName(first.airline)}</span>
+          <AirlineMark code={first.airline} className="bp-airmark" nameClassName="bp-airname" />
           <span className="bp-flno">{flightNumber(first)}</span>
         </span>
       </div>
@@ -453,7 +448,6 @@ function Journey({ dir, legs }) {
 // The per-segment timeline shown when a card is expanded (airline, flight number, each
 // leg's own gate times, and the layover between legs).
 function JourneyTimeline({ label, legs }) {
-  const airName = useAirlineName();
   if (!legs?.length) return null;
   return (
     <div className="fd-journey">
@@ -468,7 +462,7 @@ function JourneyTimeline({ label, legs }) {
             <div className="fd-seg-timeline"><div className="fd-dot" /><div className="fd-line" /><div className="fd-dot" /></div>
             <div className="fd-seg-body">
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.from)} <em>{leg.from}</em></span><span className="fd-seg-time">{fmtTime(leg.departure)}</span></div>
-              <div className="fd-seg-meta"><span className="fd-seg-air"><AirlineMark code={leg.airline} className="fd-seg-mark" />{airName(leg.airline)} · {flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
+              <div className="fd-seg-meta"><span className="fd-seg-air"><AirlineMark code={leg.airline} className="fd-seg-mark" nameClassName="" />{flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.to)} <em>{leg.to}</em></span><span className="fd-seg-time">{fmtTime(leg.arrival)}</span></div>
             </div>
           </div>
