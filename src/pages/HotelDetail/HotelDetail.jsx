@@ -2288,9 +2288,23 @@ export default function HotelDetail() {
                           </button>
                         </div>
                       ) : (
-                        <div className="fc-res">
+                        <div className={`fc-res${liveRooms?.loading ? ' checking' : ''}${liveRooms?.error ? ' failed' : ''}`}>
                           <div className="fc-res-head">
-                          <svg width="26" height="26" viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                          {/* The mark says only what the check has actually established.
+                              A green tick used to be printed the moment this block mounted —
+                              while the supplier request was still in flight — so "Checking live
+                              availability…" was announced underneath a confirmation badge, and
+                              anyone reading the icon rather than the sentence was told the
+                              holiday was available before anybody knew it was. In progress is a
+                              spinner, a failed check is amber, and the tick is earned only once
+                              rooms have actually come back. */}
+                          {liveRooms?.loading ? (
+                            <span className="fc-res-mark fc-res-mark-busy" aria-hidden="true" />
+                          ) : liveRooms?.error ? (
+                            <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f59e0b" /><path d="M12 7.4v5.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="16.4" r="1.35" fill="#fff" /></svg>
+                          ) : (
+                            <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                          )}
                           <div>
                             <div className="avail-text">
                               {liveRooms?.loading ? 'Checking live availability…'

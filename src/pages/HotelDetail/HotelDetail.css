@@ -929,6 +929,27 @@
 .sd .fc-facts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(124px,1fr)); gap:12px 14px; }
 .sd .fc-facts .fcu-k svg { color:#34d399; }
 .sd .fcu-sub { font-size:11.5px; font-weight:600; color:var(--text-sec); font-variant-numeric:tabular-nums lining-nums; }
+
+/* ── While the check is still running, nothing here may read as a confirmation ──
+   Green is this block's "yes" colour, and it was being worn from the instant the block
+   mounted: a tick, green fact icons, a green price caption, all under the words "Checking
+   live availability…". Colour is read before text, so the card answered the question before
+   the supplier had. Everything green is held back until there is something to be green about,
+   and it all turns together. */
+.sd .fc-res-mark { flex:none; }
+.sd .fc-res-mark-busy {
+  width:26px; height:26px; border-radius:50%;
+  border:3px solid #d7e3f5; border-top-color:var(--blue);
+  animation:sdSpin .7s linear infinite;
+}
+.sd .fc-res.checking .fc-facts { border-color:var(--border-light); }
+.sd .fc-res.checking .fc-facts .fcu-k svg { color:var(--text-light); }
+.sd .fc-res.checking .avail-you-low, .sd .fc-res.checking .avail-price-label { color:var(--text-light); }
+/* A failed check is amber, not green and not red: the estimate shown beside it is real, it
+   just isn't the live figure that was asked for. */
+.sd .fc-res.failed .fc-facts { border-color:#ffe2b8; }
+.sd .fc-res.failed .fc-facts .fcu-k svg { color:#f59e0b; }
+.sd .fc-res.failed .avail-you-low { color:#b45309; }
 .sd .fc-hint { text-align:center; font-size:12.5px; font-weight:600; color:var(--text-light); padding:14px 0 0; }
 
 /* loading skeleton */
