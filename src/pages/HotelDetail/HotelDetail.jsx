@@ -1406,6 +1406,13 @@ export default function HotelDetail() {
   // A filter set that survives one search rarely fits the next — reset when results change.
   useEffect(() => { clearFlightFilters(); }, [allFlights]);
 
+  // Flights and rooms are searched in parallel but must appear TOGETHER — a flight card
+  // shown before its rooms have loaded reads as "flight found, no hotel", and a stay with
+  // no available rooms isn't a bookable holiday at all. So both sections hold on the loading
+  // skeleton until BOTH results are in. Flights are only awaited for a package search; on
+  // own-transport there is no flight leg to wait for.
+  const liveBusy = (transport === 'package' && !!liveFlights?.loading) || !!liveRooms?.loading;
+
   // Hotel + flight only. The airport transfer is priced and added at the checkout now, so
   // this page never quotes a total that includes something it does not sell.
   const liveTotal = liveRoom ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
@@ -2351,9 +2358,13 @@ export default function HotelDetail() {
                   appears for dates nobody priced. Hidden again while the picked day is
                   UNAVAILABLE: flights for a stay with no room are not a package anyone
                   can book, and every section below the red card would contradict it. */}
-              {liveChecked && !dayUnavailable && (
+              {/* Hidden entirely while the live search runs: the single "Finding your rooms"
+                  animation below is the ONE loader for the whole package, so no flight
+                  skeleton competes with it. The section reappears — flights already loaded —
+                  the moment both results are in. */}
+              {liveChecked && !dayUnavailable && !liveBusy && (
               <div className="flight-section reveal vis">
-                {!liveFlights?.loading && <div className="section-title"><span className="st-step">2</span> Your flights</div>}
+                <div className="section-title"><span className="st-step">2</span> Your flights</div>
                 {transport === 'hotel_only' ? (
                   <div className="own-transport">
                     <div className="own-transport-row">
@@ -2369,11 +2380,7 @@ export default function HotelDetail() {
                     </button>
                   </div>
                 ) : liveFlights ? (
-                  liveFlights.loading ? (
-                    <SkeletonBlock label="Checking live flight prices…">
-                      <FlightCardSkeleton /><FlightCardSkeleton />
-                    </SkeletonBlock>
-                  ) : liveFlights.error ? (
+                  liveFlights.error ? (
                     <div className="live-error">
                       {ICON.warn}
                       <span className="live-error-msg">{liveFlights.error}</span>
@@ -2550,9 +2557,9 @@ export default function HotelDetail() {
                   says so, a "Choose your room: none found" section under it would nag. */}
               {liveChecked && !dayUnavailable && (
               <div className="room-section reveal vis">
-                {!liveRooms?.loading && <div className="section-title"><span className="st-step">3</span> Choose your room</div>}
+                {!liveBusy && <div className="section-title"><span className="st-step">3</span> Choose your room</div>}
                 {liveRooms ? (
-                  liveRooms.loading ? (
+                  liveBusy ? (
                     <RoomsLoading />
                   ) : liveRooms.error ? (
                     <div className="live-error">

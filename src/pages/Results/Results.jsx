@@ -2034,11 +2034,18 @@ export default function Results() {
                 const gallery   = info ? allImgs(info.images) : [];
                 const imgIdx    = gallery.length ? Math.min(cardIdx[h.hotelCode] || 0, gallery.length - 1) : 0;
                 const curImg    = gallery.length ? gallery[imgIdx] : dispImg;
-                // Headline price split into whole + decimals (toFixed FIRST, so
-                // 99.999 renders 100.00 — trunc-then-format would show 99.00).
+                // Headline price is PER PERSON — that's the figure a traveller compares and the
+                // one that stays meaningful on a package (the total here excludes the live flight).
+                // Prefer the cache's `perPerson` (computed against the searched occupancy incl.
+                // children); fall back to total ÷ party size only if it's missing.
                 const total = Number(h.totalAmount);
-                const [totalMajorRaw, totalDec] = Number.isFinite(total) ? total.toFixed(2).split('.') : ['—', null];
-                const totalMajor = totalDec != null ? Number(totalMajorRaw).toLocaleString('en-GB') : totalMajorRaw;
+                const partySize = Math.max(1, (Number(fetchParams.adults) || 0) + (Number(fetchParams.children) || 0));
+                const perPersonVal = Number.isFinite(Number(h.perPerson)) && Number(h.perPerson) > 0
+                  ? Number(h.perPerson)
+                  : (Number.isFinite(total) ? total / partySize : NaN);
+                // Split into whole + decimals (toFixed FIRST, so 99.999 → 100.00, not 99.00).
+                const [ppMajorRaw, ppDec] = Number.isFinite(perPersonVal) ? perPersonVal.toFixed(2).split('.') : ['—', null];
+                const ppMajor = ppDec != null ? Number(ppMajorRaw).toLocaleString('en-GB') : ppMajorRaw;
                 // TripAdvisor rating (/10), from the harvested store on the bulk info record.
                 const rev = formatReview(info?.review);
                 // Curated top-5 amenities + overflow count for the chip row.
@@ -2223,25 +2230,15 @@ export default function Results() {
                       {filters.transport === 'package' && (
                         <span className={styles.rcFlightNote}>+ flight from {airportCity(filters.origin)} · priced on hotel page</span>
                       )}
+                      {/* The headline is the PER-PERSON fare — the total is deliberately not
+                          shown: it's the figure a traveller actually compares, and on a package
+                          the total would mislead (the live flight isn't in it). */}
                       <div className={styles.rcPriceAmount}>
                         <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
-                        {totalMajor}
-                        {totalDec != null && <span className={styles.rcPriceDec}>.{totalDec}</span>}
+                        {ppMajor}
+                        {ppDec != null && <span className={styles.rcPriceDec}>.{ppDec}</span>}
                       </div>
-                      {/* PER PERSON, not per night. A nightly rate is not what anyone books —
-                          it invites comparing a figure nobody pays, and on a package it is
-                          doubly meaningless because the flight is not in this total. What a
-                          traveller actually checks is their own share.
-                          The cache's own `perPerson` is used rather than dividing here: it is
-                          computed against the searched occupancy (including children), which a
-                          naive total/adults would get wrong for a family. */}
-                      {Number.isFinite(Number(h.perPerson)) && Number(h.perPerson) > 0 && (
-                        <div className={styles.rcPriceMeta}>
-                          {/* Same symbol as the headline — mixing € above with EUR here read
-                              as two currencies. */}
-                          {CCY_SYMBOLS[h.currency] || h.currency}{Number(h.perPerson).toFixed(2)} <span className={styles.rcPriceMetaUnit}>per person</span>
-                        </div>
-                      )}
+                      <div className={styles.rcPricePer}>per person</div>
                       {/* Opens in a NEW TAB, so the search results survive: comparing hotels is
                           the whole job of this page, and going back used to mean re-running the
                           search and losing scroll position and any loaded pages.

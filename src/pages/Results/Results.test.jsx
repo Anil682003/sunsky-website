@@ -325,10 +325,11 @@ describe('board filter', () => {
     await waitFor(() => expect(cards()).toHaveLength(3));
 
     // Resort Alpha's cheapest rate overall is RO @700, but its AI rate is 800.
-    // Under an AI filter the card must show 800.
+    // Under an AI filter the winning rate must be the AI one. The card headline shows the
+    // PER-PERSON fare (2 adults), so AI reads €400 (800/2), never €350 (the RO 700/2).
     const alpha = cards().find((c) => within(c).queryByText('Resort Alpha'));
-    expect(within(alpha).getByText(/800/)).toBeInTheDocument();
-    expect(within(alpha).queryByText(/700/)).not.toBeInTheDocument();
+    expect(within(alpha).getByText(/400/)).toBeInTheDocument();
+    expect(within(alpha).queryByText(/350/)).not.toBeInTheDocument();
   });
 
   it('CSVs multiple boards', async () => {
@@ -554,9 +555,11 @@ describe('price range', () => {
     dragSlider('Minimum price', 200);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
     await waitFor(() => {
-      // Headline price renders as "€1,234.56" (symbol) — older cards said "EUR1234.56".
-      const prices = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/,/g, '')));
-      expect(Math.min(...prices)).toBeGreaterThanOrEqual(200);
+      // The headline is the PER-PERSON fare (2 adults); the minPrice bound is on the total.
+      // Reconstruct the total (×2) before checking it clears the bound.
+      const perPerson = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/,/g, '')));
+      const totals = perPerson.map((p) => p * 2);
+      expect(Math.min(...totals)).toBeGreaterThanOrEqual(200);
     });
   });
 

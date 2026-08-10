@@ -1103,6 +1103,12 @@
   font-variant-numeric: tabular-nums;
 }
 .rcPriceMetaUnit { color: var(--text-sec); font-weight: 500; }
+/* Caption under the headline fare — the amount shown IS the per-person price. */
+.rcPricePer {
+  font-size: 11px; font-weight: 700; color: var(--text-sec);
+  text-transform: uppercase; letter-spacing: 0.6px;
+  margin-top: 3px;
+}
 
 /* CTA — real <Link>, sun gradient, sheen sweep. COMPACT: hugs its label
    instead of spanning the panel. */
