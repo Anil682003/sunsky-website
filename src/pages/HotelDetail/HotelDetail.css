@@ -1270,7 +1270,14 @@
 .sd .room-group .room-option {
   margin:0 12px 10px; border-left:none; align-items:flex-start;
 }
-.sd .room-group .room-option:first-of-type { margin-top:2px; }
+/* Clearance above the first option, so its border does not sit flush against whatever block
+   precedes it. `:first-of-type` was used here and never matched: it counts by ELEMENT type,
+   and the first div in the card is always the head, so no .room-option is ever the first div.
+   The result was a selected room whose green frame butted straight into the blue title strip.
+   Matching on the preceding sibling instead works either way round, with or without the
+   best-priced note, and 10px pairs with the 10px below so the row is framed evenly. */
+.sd .room-group-head + .room-option,
+.sd .room-best-note + .room-option { margin-top:10px; }
 /* Top-aligned, not centred: with the gloss line below, centring floated the dot into the gap
    between the two rows and it stopped reading as belonging to the board name. The nudge lines
    its centre up with the cap-height of the name it selects. */
