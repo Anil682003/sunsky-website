@@ -1439,7 +1439,10 @@ export default function Results() {
   if (fetchParams.checkIn && fetchParams.checkOut) {
     heroChips.push({ icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z', text: `${fmtDate(fetchParams.checkIn)} — ${fmtDate(fetchParams.checkOut)}` });
   }
-  if (nights > 0) heroChips.push({ icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z', text: `${nights} nights` });
+  // DAYS, not nights, everywhere on this screen. The Travel-time filter beside it already
+  // counts in days ("7 days (122)"), so a "6 nights" chip next to a ticked "7 days" row
+  // described the same stay with two different numbers.
+  if (nights > 0) heroChips.push({ icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z', text: `${nightsToDays(nights)} days` });
   heroChips.push({ icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75', text: guestSummary });
   // Transport rides in the header only when it changes what the traveller will be shown —
   // "own transport" is the default and adds nothing worth a chip.
@@ -2209,7 +2212,7 @@ export default function Results() {
                       {/* What the total covers — the stay context that used to be two pills
                           in the body, now one quiet qualifying line above the fare. */}
                       <span className={styles.rcPriceContext}>
-                        {nights > 0 ? `${nights} nights` : 'Total'}
+                        {nights > 0 ? `${nightsToDays(nights)} days` : 'Total'}
                         {Number(fetchParams.adults) > 0 && ` · ${fetchParams.adults} adult${Number(fetchParams.adults) > 1 ? 's' : ''}`}
                         {Number(fetchParams.children) > 0 && ` · ${fetchParams.children} child${Number(fetchParams.children) > 1 ? 'ren' : ''}`}
                       </span>
@@ -2225,11 +2228,18 @@ export default function Results() {
                         {totalMajor}
                         {totalDec != null && <span className={styles.rcPriceDec}>.{totalDec}</span>}
                       </div>
-                      {nights > 0 && Number.isFinite(total) && (
+                      {/* PER PERSON, not per night. A nightly rate is not what anyone books —
+                          it invites comparing a figure nobody pays, and on a package it is
+                          doubly meaningless because the flight is not in this total. What a
+                          traveller actually checks is their own share.
+                          The cache's own `perPerson` is used rather than dividing here: it is
+                          computed against the searched occupancy (including children), which a
+                          naive total/adults would get wrong for a family. */}
+                      {Number.isFinite(Number(h.perPerson)) && Number(h.perPerson) > 0 && (
                         <div className={styles.rcPriceMeta}>
                           {/* Same symbol as the headline — mixing € above with EUR here read
                               as two currencies. */}
-                          {CCY_SYMBOLS[h.currency] || h.currency}{(total / nights).toFixed(2)} <span className={styles.rcPriceMetaUnit}>/ night</span>
+                          {CCY_SYMBOLS[h.currency] || h.currency}{Number(h.perPerson).toFixed(2)} <span className={styles.rcPriceMetaUnit}>per person</span>
                         </div>
                       )}
                       {/* Opens in a NEW TAB, so the search results survive: comparing hotels is

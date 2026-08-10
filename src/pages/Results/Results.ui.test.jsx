@@ -260,10 +260,15 @@ describe('result card', () => {
     const deal = within(card).getByRole('link', { name: /view deal/i });
     expect(deal).toHaveAttribute('href', expect.stringContaining('/hotel/200'));
     expect(within(card).getByText('Best Value')).toBeInTheDocument();      // cheapest card
-    // Headline and per-night both use the display symbol now (€, not the ISO code) — mixing
-    // "€100.00" with "EUR 33.33" on one stub read as two currencies.
+    // Headline and the per-person line both use the display symbol now (€, not the ISO code)
+    // — mixing "€100.00" with "EUR 33.33" on one stub read as two currencies.
     expect(card.textContent).toMatch(/€/);
-    expect(card.textContent).toMatch(/\/ night/);
+    // The secondary figure is the traveller's own share, not a nightly rate nobody books.
+    expect(card.textContent).toMatch(/per person/);
+    expect(card.textContent).not.toMatch(/\/ night/);
+    // …and the stay is stated in DAYS, matching the Travel-time filter beside it.
+    expect(card.textContent).toMatch(/\d+ days/);
+    expect(card.textContent).not.toMatch(/\d+ nights/);
   });
 
   it('shows a human room name rather than the raw inventory code', async () => {
