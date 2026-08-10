@@ -679,10 +679,15 @@ function CheckoutContent({ stripe, elements }) {
       // ── the flight, if it had to be re-searched ──
       let flight = { price: quote.flight, keys: quote.flightKeys };
       if (flightRes) {
-        const list = flightRes.data?.results;
-        const flights = Array.isArray(list) ? list : (list?.flights || []);
+        // The search answers as `results.airtuerk.flights`. This used to look for
+        // `results.flights`, which does not exist — so the list was always empty, no
+        // itinerary could ever match, and correcting a child's age on the checkout
+        // condemned every package to "flight unavailable" regardless of the seats
+        // actually on sale. The supplier now also returns the full diverse list rather
+        // than the 5 cheapest, so the flight being re-priced is very likely IN it.
+        const flights = flightRes.data?.results?.airtuerk?.flights || [];
         const wanted = booking.api.flight.legs || [];
-        const same = flights.find((f) => sameItinerary([...(f.outLegs || f.legs || [])], wanted))
+        const same = flights.find((f) => sameItinerary([...(f.outbound?.legs?.length ? [...f.outbound.legs, ...(f.inbound?.legs || [])] : (f.legs || []))], wanted))
           || flights.find((f) => sameItinerary([...(f.legs || [])], wanted));
         if (!same) {
           setReprice({ status: 'unavailable', reason: 'flight', ages });
@@ -690,7 +695,13 @@ function CheckoutContent({ stripe, elements }) {
         }
         flight = {
           price: Number(same.totalPrice ?? same.price) || 0,
-          keys: same.flightKeys || same.flightKey ? [same.flightKey].filter(Boolean) : quote.flightKeys,
+          // Both bookable keys when the supplier sends them. The old expression parsed as
+          // `(flightKeys || flightKey) ? [flightKey] : …` — a round trip carrying its keys
+          // in `flightKeys` with no legacy `flightKey` reduced to [], and the booking went
+          // on to be validated with no keys at all.
+          keys: (Array.isArray(same.flightKeys) && same.flightKeys.length)
+            ? same.flightKeys
+            : (same.flightKey ? [same.flightKey] : quote.flightKeys),
         };
       }
 
@@ -1269,6 +1280,8 @@ function CheckoutContent({ stripe, elements }) {
   const flashErrors = (e) => {
     setErrors(e);
     setTimeout(() => {
+      // The guard is for the test runner, where this timer can outlive the jsdom document.
+      if (typeof document === 'undefined') return;
       document.querySelector('.ck-err')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }, 60);
   };
