@@ -218,6 +218,11 @@
 .ck-row { display:grid; grid-template-columns:1fr 1fr; gap:14px; }
 .ck-row-3 { display:grid; grid-template-columns:2fr 1fr 1fr 1fr; gap:14px; }
 .ck-row-3 .ck-span-2 { grid-column:span 2; }
+/* Postal code / city / country. Three fields in a four-column grid left the last column empty
+   and handed the widest one to the postal code — the only field here that is never longer than
+   six characters, while "United Kingdom" was squeezed into a fifth of the row. Same five units,
+   redistributed: the short field takes one, the two that hold names take two each. */
+.ck-row-3.ck-addr { grid-template-columns:1fr 2fr 2fr; }
 .ck-row-t1 { display:grid; grid-template-columns:90px 1fr 1fr; gap:14px; }
 .ck-field { display:flex; flex-direction:column; min-width:0; }
 .ck-label { font-size:11.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--text-sec); margin-bottom:6px; }
@@ -873,7 +878,7 @@
   .ck-main { padding-bottom:130px; }
   .ck-mbar { display:flex; }
   .ck-navbtns .ck-next-btn { display:none; }
-  .ck-row, .ck-row-3, .ck-row-t1 { grid-template-columns:1fr; }
+  .ck-row, .ck-row-3, .ck-row-3.ck-addr, .ck-row-t1 { grid-template-columns:1fr; }
   .ck-row-3 .ck-span-2 { grid-column:auto; }
   .ck-step-name { font-size:0; }
   .ck-step-name::first-letter { font-size:13px; }

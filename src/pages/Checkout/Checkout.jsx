@@ -1691,7 +1691,7 @@ function CheckoutContent({ stripe, elements }) {
                           <input className="ck-input" value={priv.boxNumber} onChange={(e) => setP('boxNumber')(e.target.value)} placeholder="3A" maxLength={20} />
                         </Field>
                       </div>
-                      <div className="ck-row-3">
+                      <div className="ck-row-3 ck-addr">
                         <Field label="Postal code" req err={errors['priv.postalCode']} ok={!!priv.postalCode.trim()}>
                           <input className="ck-input" value={priv.postalCode} onChange={(e) => setP('postalCode')(e.target.value)} placeholder="1000" maxLength={20} />
                         </Field>
