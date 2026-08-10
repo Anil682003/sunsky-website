@@ -93,6 +93,28 @@ const COUNTRIES = [
   'Portugal', 'Greece', 'Turkey', 'Austria', 'Switzerland', 'Poland', 'Sweden', 'Norway',
   'Denmark', 'Ireland', 'Luxembourg', 'United States', 'Canada', 'Australia', 'India', 'Other',
 ];
+/**
+ * Dialling code per country in COUNTRIES, used to start the phone field off once an address
+ * country is chosen. Keyed by the exact strings in that list — a country without an entry
+ * here (currently only "Other", which names no single place) simply prefills nothing.
+ */
+const DIAL_CODES = {
+  Belgium: '+32', Netherlands: '+31', Germany: '+49', France: '+33',
+  'United Kingdom': '+44', Spain: '+34', Italy: '+39', Portugal: '+351',
+  Greece: '+30', Turkey: '+90', Austria: '+43', Switzerland: '+41',
+  Poland: '+48', Sweden: '+46', Norway: '+47', Denmark: '+45',
+  Ireland: '+353', Luxembourg: '+352', 'United States': '+1', Canada: '+1',
+  Australia: '+61', India: '+91',
+};
+
+/**
+ * Is this phone box still ours to fill? True when empty, or when it holds nothing but a
+ * dialling code we put there. Anything else is the traveller's own typing and is never
+ * touched — a Belgian invoice address with a UK mobile is entirely ordinary, and silently
+ * rewriting a number someone had already entered would be the worst outcome here.
+ */
+const isUntouchedPhone = (v) => /^\s*(\+\d{1,4})?\s*$/.test(String(v ?? ''));
+
 const IDEAL_BANKS = ['ING', 'ABN AMRO', 'Rabobank', 'ASN Bank', 'SNS', 'Bunq', 'Knab', 'Revolut', 'N26'];
 
 /**
@@ -509,11 +531,13 @@ function CheckoutContent({ stripe, elements }) {
     street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
     emergencyPhone: '',
   });
-  /* Traveller 1 is usually the person booking. Ticked, their name, gender, date of birth and
-     nationality FOLLOW that traveller — typed once, kept in step if they are corrected. What
-     the traveller form does not hold (company, address, phone, email, emergency contact) is
-     still filled in here either way. Unticked, all of it becomes independent again. */
-  const [leadIsBooker, setLeadIsBooker] = useState(true);
+  /* Traveller 1 is OFTEN — but not always — the person booking, so this starts UNTICKED:
+     the traveller and the lead booker are separate people until the traveller says otherwise.
+     Ticking it (joinLeadAndBooker) then populates the booker from the traveller (or vice versa)
+     and keeps the shared name, gender, date of birth and nationality in step. What the traveller
+     form does not hold (company, address, phone, email, emergency contact) is filled in here
+     either way. Unticking makes all of it independent again. */
+  const [leadIsBooker, setLeadIsBooker] = useState(false);
   const [pro, setPro] = useState({
     tradingName: '', legalName: '', vatNumber: '', industry: '', website: '',
     street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
@@ -887,7 +911,6 @@ function CheckoutContent({ stripe, elements }) {
       : []);
   const checkedAddOns = (airlineAddOns?.checked?.length ? airlineAddOns.checked : null)
     || (bagRates?.checked || []);
-  const addOnsAreOurs = !airlineAddOns;
   const hasFlight = !!booking.api?.flight;
   const directions = booking.api?.flight?.tripType === 'roundtrip'
     ? [{ key: 'out', label: 'Outbound', icon: ICON.planeOut }, { key: 'ret', label: 'Return', icon: ICON.planeIn }]
@@ -921,6 +944,26 @@ function CheckoutContent({ stripe, elements }) {
     return out;
   }, [bags, cabinAddOns, checkedAddOns, bagRates]);
   const extrasTotal = extraLines.reduce((s, l) => s + l.price, 0);
+
+  /**
+   * Baggage for the price breakdown, grouped by WHAT was bought rather than lumped into one
+   * "Baggage (3)" row. Each line already knows its own name — "Cabin baggage 10 kg",
+   * "Checked baggage 20 kg" — and a traveller checking a total needs to see which of those
+   * they are paying for; two different bags at the same price are indistinguishable
+   * otherwise. Grouped by label so the same bag bought for two travellers, or for both
+   * directions, stays one row with a count instead of repeating.
+   */
+  const baggageRows = useMemo(() => {
+    const by = new Map();
+    for (const l of extraLines) {
+      const g = by.get(l.label) || { label: l.label, count: 0, total: 0 };
+      g.count += 1;
+      g.total += l.price;
+      by.set(l.label, g);
+    }
+    // Cabin before checked, then heavier first — the order the extras step offers them in.
+    return [...by.values()].sort((a, b) => a.label.localeCompare(b.label));
+  }, [extraLines]);
 
   const subtotal = base + roomExtraTotal + transferTotal + extrasTotal + SGR;
   // Priced from the dashboard's rate card, by the same arithmetic the server will re-run.
@@ -1008,6 +1051,26 @@ function CheckoutContent({ stripe, elements }) {
    * airline's ASCII name field accepts. Deterministic beats locale-aware here.
    */
   const capsIf = (k, v) => (k === 'lastName' && typeof v === 'string' ? v.toUpperCase() : v);
+
+  /**
+   * Choosing the address country starts the phone number off with that country's dialling
+   * code — the country is asked for immediately above the phone, so by the time someone
+   * reaches the phone box the answer is already known and typing "+32" again is busywork.
+   *
+   * It is a STARTING POINT, not a constraint: the field stays a plain editable input, and
+   * the code is only written into a box that is empty or still holds nothing but a dial
+   * code we put there. The moment a real number is typed the country select stops touching
+   * it, because living in Belgium says nothing about which number someone answers on.
+   */
+  const setCountryWithDialCode = (v) => {
+    setErrors((e) => ({ ...e, 'priv.country': undefined, 'priv.phone': undefined }));
+    setPriv((p) => {
+      const next = { ...p, country: v };
+      const dial = DIAL_CODES[v];
+      if (dial && isUntouchedPhone(p.phone)) next.phone = `${dial} `;
+      return next;
+    });
+  };
   const setP = (k) => (v) => { const nv = capsIf(k, v); setPriv((p) => ({ ...p, [k]: nv })); setErrors((e) => ({ ...e, [`priv.${k}`]: undefined })); };
   const setB = (k) => (v) => { setPro((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [`pro.${k}`]: undefined })); };
   // The five facts traveller 1 and the lead booker share while they are the same person.
@@ -1722,7 +1785,7 @@ function CheckoutContent({ stripe, elements }) {
                         {/* Required, as at signup: it is the invoice country, and a company
                             record cannot be created without one. */}
                         <Field label="Country" req err={errors['priv.country']} ok={!!priv.country}>
-                          <select className="ck-input ck-select" value={priv.country} onChange={(e) => setP('country')(e.target.value)}>
+                          <select className="ck-input ck-select" value={priv.country} onChange={(e) => setCountryWithDialCode(e.target.value)}>
                             <option value="">Select…</option>
                             {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
                           </select>
@@ -2027,7 +2090,7 @@ function CheckoutContent({ stripe, elements }) {
                       icon={ICON.cabinBag}
                       title={bagRates?.cabin?.label || 'Cabin baggage'}
                       note={bagRates?.cabin?.note || 'A cabin bag that is stored in the overhead compartment.'}
-                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span>{addOnsAreOurs && <span className="ck-lg note">Extra bags are arranged by SUNSKY after booking</span>}</>}>
+                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span></>}>
                       {travellers.map((t, i) => (
                         <BagTraveller key={i} index={i} name={travellerName(t)}>
                           {directions.map((d) => {
@@ -2071,7 +2134,7 @@ function CheckoutContent({ stripe, elements }) {
                       icon={ICON.checkedBag}
                       title="Checked baggage"
                       note="Baggage transported in the aircraft hold."
-                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span>{addOnsAreOurs && <span className="ck-lg note">Extra bags are arranged by SUNSKY after booking</span>}</>}>
+                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span></>}>
                       {travellers.map((t, i) => (
                         <BagTraveller key={i} index={i} name={travellerName(t)}>
                           {directions.map((d) => {
@@ -2748,9 +2811,11 @@ function CheckoutContent({ stripe, elements }) {
                   {roomExtraTotal > 0 && <div className="ck-sum-row"><span>Room upgrade</span><b>{money(roomExtraTotal)}</b></div>}
                   {transferTotal > 0 && <div className="ck-sum-row"><span>Airport transfer (per vehicle)</span><b>{money(transferTotal)}</b></div>}
                   <div className="ck-sum-row"><span>{isFlight ? 'Booking & service fee' : 'SGR Guarantee Fund'}</span><b>{money(SGR)}</b></div>
-                  {extrasTotal > 0 && (
-                    <div className="ck-sum-row"><span>Baggage ({extraLines.length})</span><b>{money(extrasTotal)}</b></div>
-                  )}
+                  {baggageRows.map((g) => (
+                    <div className="ck-sum-row" key={g.label}>
+                      <span>{g.label}{g.count > 1 ? ` × ${g.count}` : ''}</span><b>{money(g.total)}</b>
+                    </div>
+                  ))}
                   {/* One row per policy: they are separate policies, and a merged
                       "Insurance €91" says nothing about what was actually bought. */}
                   {cancelAmount > 0 && (

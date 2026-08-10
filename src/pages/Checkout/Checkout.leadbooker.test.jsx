@@ -7,19 +7,20 @@ import { configureStore, createSlice } from '@reduxjs/toolkit';
 import Checkout from './Checkout';
 import { contactFields, fieldByLabel, fill } from '../../test/checkoutForm';
 
-// "This traveller is also the lead booker" is ticked when the page opens, because it almost
-// always is the same person and nobody should type their own name twice.
+// "This traveller is also the lead booker" starts UNticked: traveller 1 and the booker are two
+// separate people until the traveller says they're the same one. Ticking it then populates the
+// booker from the traveller (or vice versa — whichever side already has an answer wins) and
+// keeps the shared identity in step from then on; unticking makes them independent again.
 //
-// That makes traveller 1 and the booker ONE record shown in two places, and the binding has to
-// run in both directions. The first version ran one way — the booker's five identity fields
-// were read-only and fed from the traveller card below — and the booker card is the first
-// thing on the page. People arrived at a form whose opening fields refused the cursor, with
-// the reason several hundred pixels further down. A field that cannot be typed into is broken,
-// whatever its hint says.
+// The binding runs in both directions, and the booker's five identity fields must ALWAYS accept
+// the cursor. The first version fed them read-only from the traveller card several hundred
+// pixels below — the booker card is the first thing on the page, so people met a form whose
+// opening fields refused input for no visible reason. A field that cannot be typed into is
+// broken, whatever its hint says.
 //
-// What is NOT shared: the address, phone, email, emergency number and company. Those are the
-// booking's contact details, not a traveller's identity, and the traveller card has no place
-// to put them.
+// What is NOT shared, ever: the address, phone, email, emergency number and company. Those are
+// the booking's contact details, not a traveller's identity, and the traveller card has no
+// place to put them.
 
 const BOOKING = {
   hotelCode: '300984', hotelName: 'Test Hotel', stars: 4, loc: 'Alanya, Türkiye', img: '',
@@ -54,32 +55,37 @@ const trav = (label, i = 0) => fieldByLabel(label, travCard(i)).querySelector('i
 const tickBox = () => document.querySelector('.ck-leadbook');   // the label — the input is hidden
 
 describe('traveller 1 is also the lead booker', () => {
-  it('lets the booker card be typed into, and the typing reaches traveller 1', async () => {
+  it('starts UNticked — the traveller and the booker are separate until the user asks', () => {
+    renderCheckout();
+    expect(tickBox().querySelector('input[type="checkbox"]')).not.toBeChecked();
+  });
+
+  it('keeps the two apart until ticked, then populates the booker onto traveller 1', async () => {
     const user = userEvent.setup();
     renderCheckout();
 
-    // The bug, stated as an assertion: these five accept input.
+    // The booker's identity fields ALWAYS accept the cursor (the read-only bug must not return).
     ['first name', 'last name', 'date of birth'].forEach((l) => expect(booker(l)).not.toHaveAttribute('readonly'));
     ['gender', 'nationality'].forEach((l) => expect(booker(l)).toBeEnabled());
 
+    // Unticked: what's typed in the booker does NOT leak into traveller 1.
     await user.type(booker('first name'), 'Ali');
-    await user.type(booker('last name'), 'Benli');
-    fill('nationality', 'Belgian', contactFields());
-    fill('date of birth', '1995-11-19', contactFields());
+    expect(trav('first name')).toHaveValue('');
 
-    expect(booker('first name')).toHaveValue('Ali');
+    // Tick it: traveller 1 is populated from the booker, and from here both move together.
+    await user.click(tickBox());
     expect(trav('first name')).toHaveValue('Ali');
-    // The surname is stored in capitals — it is printed on the ticket that way and the
-    // airline record is matched on it, so the VALUE is uppercased, not just its display.
-    expect(booker('last name')).toHaveValue('BENLI');
+
+    await user.type(booker('last name'), 'Benli');
+    // The surname is stored in capitals — printed on the ticket that way and matched on by the
+    // airline — so the VALUE is uppercased, not just its display.
     expect(trav('last name')).toHaveValue('BENLI');
-    expect(trav('nationality')).toHaveValue('Belgian');
-    expect(trav('date of birth')).toHaveValue('1995-11-19');
   });
 
-  it('fills the booker from the traveller card too — either side, same record', async () => {
+  it('fills the booker from the traveller card too, once linked — either side, same record', async () => {
     const user = userEvent.setup();
     renderCheckout();
+    await user.click(tickBox());   // link the two
 
     await user.type(trav('first name'), 'Ilhan');
     fill('date of birth', '2001-02-16', travCard());
@@ -96,6 +102,7 @@ describe('traveller 1 is also the lead booker', () => {
   it('only shares the five identity fields — the address and contact details stay the booker\'s', async () => {
     const user = userEvent.setup();
     renderCheckout();
+    await user.click(tickBox());   // even linked, contact details are never shared
 
     fill('phone number', '+32475123456');
     fill('email', 'ali@example.com');
@@ -109,28 +116,30 @@ describe('traveller 1 is also the lead booker', () => {
     expect(fieldByLabel('email', travCard())).toBeUndefined();
   });
 
-  it('separates the two records when the tick comes off', async () => {
+  it('separates the two records again when the tick comes off', async () => {
     const user = userEvent.setup();
     renderCheckout();
 
+    await user.click(tickBox());                    // link them
     await user.type(booker('first name'), 'Ali');
-    await user.click(tickBox());
-    await user.type(trav('first name'), 'x');       // "Alix" on the traveller only
+    expect(trav('first name')).toHaveValue('Ali');
 
+    await user.click(tickBox());                    // unlink
+    await user.type(trav('first name'), 'x');       // "Alix" on the traveller only
     expect(trav('first name')).toHaveValue('Alix');
     expect(booker('first name')).toHaveValue('Ali');
   });
 
-  it('keeps whatever was already typed when the tick goes back on', async () => {
+  it('keeps whatever was already typed when the tick goes on', async () => {
     const user = userEvent.setup();
     renderCheckout();
 
-    await user.click(tickBox());                    // off — fill the booker in on its own
+    // Unticked by default — fill the booker in on its own first.
     await user.type(booker('first name'), 'Ali');
     await user.type(booker('last name'), 'Benli');
     expect(trav('first name')).toHaveValue('');
 
-    await user.click(tickBox());                    // back on: the filled side wins, nothing is lost
+    await user.click(tickBox());                    // on: the filled side wins, nothing is lost
     expect(trav('first name')).toHaveValue('Ali');
     expect(trav('last name')).toHaveValue('BENLI');  // surnames are stored capitalised
     expect(booker('first name')).toHaveValue('Ali');

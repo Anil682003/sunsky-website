@@ -146,15 +146,32 @@ describe('baggage on the extras step', () => {
     const selects = [...checked.querySelectorAll('.ck-bag-select')];
     expect(selects).toHaveLength(4);                 // 2 travellers × outbound + return
 
-    // Traveller 1's return leg: 20 kg at €35 from the dashboard's table.
+    // Traveller 1's return leg: 20 kg at €35 from the dashboard's table. The breakdown names
+    // the bag rather than saying "Baggage": two different bags at the same price are
+    // indistinguishable otherwise, and the traveller is checking what they are paying for.
     await user.selectOptions(selects[1], '20');
-    await waitFor(() => expect(sumRow('baggage')).toBeTruthy());
-    expect(sumRow('baggage')).toHaveTextContent('€35');
+    await waitFor(() => expect(sumRow('checked baggage 20 kg')).toBeTruthy());
+    expect(sumRow('checked baggage 20 kg')).toHaveTextContent('€35');
 
-    // A second bag adds, it does not replace.
+    // A second, DIFFERENT bag is its own line — not merged into a count.
     await user.selectOptions(selects[2], '15');
-    await waitFor(() => expect(sumRow('baggage')).toHaveTextContent('€60'));
-    expect(sumRow('baggage')).toHaveTextContent('Baggage (2)');
+    await waitFor(() => expect(sumRow('checked baggage 15 kg')).toBeTruthy());
+    expect(sumRow('checked baggage 15 kg')).toHaveTextContent('€25');
+    expect(sumRow('checked baggage 20 kg')).toHaveTextContent('€35');
+  });
+
+  it('keeps the same bag on one line, with a count', async () => {
+    const user = userEvent.setup();
+    renderCheckout(bookingWith({ checkedKg: 0, checkedPieces: 0, handKg: 8, infantKg: 0 }));
+    await toExtras(user);
+
+    const selects = [...card('Checked baggage').querySelectorAll('.ck-bag-select')];
+    // The SAME bag twice — outbound and return of traveller 1.
+    await user.selectOptions(selects[0], '20');
+    await user.selectOptions(selects[1], '20');
+
+    await waitFor(() => expect(sumRow('checked baggage 20 kg')).toHaveTextContent('× 2'));
+    expect(sumRow('checked baggage 20 kg')).toHaveTextContent('€70');
   });
 });
 
