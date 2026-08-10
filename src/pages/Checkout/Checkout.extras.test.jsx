@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import Checkout from './Checkout';
-import { fillContact, fillTraveller } from '../../test/checkoutForm';
+import { fillContact, fillTraveller, acceptConditions } from '../../test/checkoutForm';
 
 // The extras step sells three things on top of the fare, and each has a rule that matters
 // more than its layout:
@@ -200,7 +200,7 @@ describe('the two insurance decisions', () => {
     await user.click(screen.getByRole('button', { name: /continue to payment/i }));
     await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/payment/i));
     await user.click(screen.getByRole('button', { name: /bancontact/i }));
-    await user.click([...document.querySelectorAll('.ck-check')].find((el) => /i agree to the above conditions/i.test(el.textContent)));
+    acceptConditions();   // each condition has its own box now
     await user.click(screen.getByRole('button', { name: /^pay /i }));
 
     await waitFor(() => expect(post.mock.calls.some(([url]) => String(url).includes('online-bookings'))).toBe(true));

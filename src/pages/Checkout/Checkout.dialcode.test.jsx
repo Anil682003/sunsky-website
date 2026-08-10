@@ -1,11 +1,11 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import Checkout from './Checkout';
-import { contactFields, fieldByLabel, fill } from '../../test/checkoutForm';
+import { contactFields, fieldByLabel, fill, fillContact, fillTraveller } from '../../test/checkoutForm';
 
 // The address country is asked for immediately above the phone number, so by the time the
 // traveller reaches the phone box we already know where they are and can start the field
@@ -46,6 +46,75 @@ const renderCheckout = () => render(
 );
 
 const phone = () => fieldByLabel('phone number', contactFields()).querySelector('input');
+
+// The conditions live on the PAYMENT step, so every test below has to walk there first.
+const reachPayment = async (user) => {
+  fillContact();
+  [...document.querySelectorAll('.ck-trav')].forEach((_, i) =>
+    fillTraveller(i, { firstName: 'Ali', lastName: 'Benli', dob: '1990-01-01' }));
+
+  await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+  await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());
+  for (const t of document.querySelectorAll('.ck-modal .ck-check')) await user.click(t);
+  await user.click(document.querySelector('.ck-rv-confirm'));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/add-ons/i));
+  await user.click(screen.getByRole('button', { name: /continue to payment/i }));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/payment/i));
+};
+
+describe('the booking conditions', () => {
+  // Each condition carries its own box: a single "I agree to the above" lets someone accept a
+  // cancellation policy and an insurance policy with one tick they read as being about
+  // neither. The links were also dead — invented slugs like /p/cancellation-costs that were
+  // never CMS pages — so they now resolve against the same footer config the site publishes.
+  const conditions = () => [...document.querySelectorAll('.ck-cond-item')];
+
+  it('gives every condition its own checkbox', async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+    await reachPayment(user);
+    expect(conditions().length).toBeGreaterThanOrEqual(3);
+    conditions().forEach((c) => expect(c.querySelector('input[type="checkbox"]')).toBeTruthy());
+    // The old single catch-all tick is gone.
+    expect(document.body.textContent).not.toMatch(/i agree to the above conditions/i);
+  });
+
+  it('counts how many are still outstanding', async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+    await reachPayment(user);
+    const total = conditions().length;
+    expect(document.querySelector('.ck-cond-count').textContent).toBe(`0/${total}`);
+
+    await user.click(conditions()[0]);
+    expect(document.querySelector('.ck-cond-count').textContent).toBe(`1/${total}`);
+  });
+
+  it('keeps each sentence in ONE grid cell, so a link cannot stack it a word at a time', async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+    await reachPayment(user);
+    // The row is a two-column grid (box, sentence). Any extra child would become its own
+    // cell and wrap — which is exactly how the links used to break the layout.
+    conditions().forEach((row) => {
+      const cells = [...row.children].filter((el) => el.tagName !== 'INPUT');
+      expect(cells).toHaveLength(2);
+      expect(cells[1]).toHaveClass('ck-cond-text');
+    });
+  });
+
+  it('points the links at real pages, not invented slugs', async () => {
+    const user = userEvent.setup();
+    renderCheckout();
+    await reachPayment(user);
+    const hrefs = [...document.querySelectorAll('.ck-cond-text a')].map((a) => a.getAttribute('href'));
+    expect(hrefs.length).toBeGreaterThan(0);
+    for (const dead of ['/p/terms-and-conditions', '/p/package-travel-information',
+                        '/p/insurance-conditions', '/p/cancellation-costs']) {
+      expect(hrefs).not.toContain(dead);
+    }
+  });
+});
 
 describe('the summary names the hotel', () => {
   // It always rendered, but the photo carried z-index:1 while the caption was left on

@@ -8,7 +8,8 @@ import { ENDPOINTS } from '../../api/endpoints';
 import { ageAtCheckIn } from '../../utils/childDob';
 import { cancellationState, parseRateKey, boardInfo } from '../../utils/rateDetails';
 import { DEFAULT_PRICING, priceInsurance, priceBasisLabel } from '../../utils/checkoutPricing';
-import { useCheckoutConfig } from '../../api';
+import { useCheckoutConfig, useFooterConfig } from '../../api';
+import { checkoutLegalLinks } from '../../utils/legalLinks';
 import Confirmation from './Confirmation';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import './Checkout.css';
@@ -114,6 +115,14 @@ const DIAL_CODES = {
  * rewriting a number someone had already entered would be the worst outcome here.
  */
 const isUntouchedPhone = (v) => /^\s*(\+\d{1,4})?\s*$/.test(String(v ?? ''));
+
+/* A policy link inside a booking condition. Module scope, not defined in the component:
+   a component created during render is a NEW type every render, so React unmounts and
+   remounts the anchor each time — and it is what the "Cannot create components during
+   render" rule is there to catch. */
+const A = ({ to, children }) => (
+  <Link className="ck-a" to={to} target="_blank" rel="noreferrer">{children}</Link>
+);
 
 const IDEAL_BANKS = ['ING', 'ABN AMRO', 'Rabobank', 'ASN Bank', 'SNS', 'Bunq', 'Knab', 'Revolut', 'N26'];
 
@@ -748,6 +757,7 @@ function CheckoutContent({ stripe, elements }) {
   // the deposit rule. Falls back to the shipped defaults (which mirror the server's) so a
   // failed config call quotes the right numbers rather than none.
   const { data: pricingCfg } = useCheckoutConfig();
+  const { data: footerCfg } = useFooterConfig();
   const pricing = pricingCfg || DEFAULT_PRICING;
   const insurances = useMemo(() => buildInsurances(pricing), [pricing]);
   /* Two separate decisions, because they are two separate policies:
@@ -838,7 +848,16 @@ function CheckoutContent({ stripe, elements }) {
   const [stripeReady, setStripeReady] = useState({ number: false, expiry: false, cvc: false });
   const [idealBank, setIdealBank] = useState('');
   const [billingSame, setBillingSame] = useState(true);
-  const [agree, setAgree] = useState(false);
+  /* Conditions are accepted ONE BY ONE. A single "I agree to the above" is technically the
+     same consent and practically a different one — it lets someone accept a cancellation
+     policy and an insurance policy with a tick they read as being about neither. Each line
+     carries its own box, and `agree` below is simply "all of them", so every existing check
+     and the consent record keep working unchanged. */
+  const [conds, setConds] = useState({});
+  const tickCond = (id) => (v) => {
+    setConds((c) => ({ ...c, [id]: v }));
+    setErrors((er) => ({ ...er, agree: undefined }));
+  };
   // Unticked by default, always — a pre-ticked acceptance of a 100% cancellation cost is not
   // an acceptance. Only asked for when a selected rate really is non-refundable.
   const [nrAccept, setNrAccept] = useState(false);
@@ -976,6 +995,37 @@ function CheckoutContent({ stripe, elements }) {
   const travelAmount = (travelCount && travelOption)
     ? priceInsurance(travelOption, { pax: travelCount, nights: booking.nights, baseSubtotal: subtotal }) : 0;
   const insAmount = cancelAmount + travelAmount;
+
+  /* The conditions of THIS booking, each with its own tick. The insurance line appears only
+     when cover was actually bought — asking someone to accept insurance conditions they
+     declined is asking them to agree to nothing.
+     `text` is the plain-English record kept with the consent: a tick in a database column is
+     not evidence, the wording the traveller was shown is. */
+  // The legal pages come from the SAME CMS config the footer renders from, so a policy the
+  // client renames or moves in the dashboard is followed here without a release.
+  const legal = checkoutLegalLinks(footerCfg);
+  const CONDITIONS = useMemo(() => {
+    const rows = [
+      { id: 'holiday', text: 'I have read the information relating to this holiday.',
+        node: <>I have read the information relating to this holiday.</> },
+      { id: 'terms',
+        text: 'I agree to the general travel conditions and the package travel information.',
+        node: <>I agree to the <A to={legal.terms}>general travel conditions</A> and the <A to={legal.packageInfo}>package travel information</A>.</> },
+    ];
+    if (insAmount > 0) {
+      rows.push({ id: 'insurance',
+        text: 'I accept the insurance conditions for the cover I selected.',
+        node: <>I accept the <A to={legal.insurance}>insurance conditions</A> for the cover I selected.</> });
+    }
+    rows.push({ id: 'obligation',
+      text: 'I am making a definite booking with an obligation to pay. It can only be cancelled against payment of cancellation costs, which depend on how close to departure the cancellation is made.',
+      node: <>I am making a definite booking with an obligation to pay. It can only be cancelled against payment of <A to={legal.cancellation}>cancellation costs</A>, which depend on how close to departure the cancellation is made.</> });
+    return rows;
+  }, [insAmount, legal.terms, legal.packageInfo, legal.insurance, legal.cancellation]);
+
+  // "Agreed" is every condition ticked — nothing else in the file has to know it changed shape.
+  const agree = CONDITIONS.every((c) => conds[c.id]);
+
   const total = subtotal + insAmount;
   const animTotal = useCountUp(total);
   const money = (n) => `${ccy}${Math.round(n).toLocaleString('en-US')}`;
@@ -2671,28 +2721,31 @@ function CheckoutContent({ stripe, elements }) {
                       tick that accepts all of it. A single "I agree to the conditions" line is
                       technically the same consent and practically a different one: nobody reads
                       a link, and this at least says what is behind them. */}
-                  <div className="ck-cond">
-                    <div className="ck-cond-title hd">Conditions &amp; booking</div>
+                  <div className={`ck-cond${errors.agree ? ' ck-cond-err' : ''}`}>
+                    <div className="ck-cond-head">
+                      <div className="ck-cond-title hd">Conditions &amp; booking</div>
+                      <span className="ck-cond-count">{CONDITIONS.filter((c) => conds[c.id]).length}/{CONDITIONS.length}</span>
+                    </div>
                     <ul className="ck-cond-list">
-                      <li>{ICON.check} I have read the information relating to this holiday.</li>
-                      <li>{ICON.check} I agree to the <Link className="ck-a" to="/p/terms-and-conditions" target="_blank">general terms and conditions</Link> and the <Link className="ck-a" to="/p/package-travel-information" target="_blank">package travel information</Link>.</li>
-                      {insAmount > 0 && (
-                        <li>{ICON.check} I accept the <Link className="ck-a" to="/p/insurance-conditions" target="_blank">insurance conditions</Link> for the cover I selected.</li>
-                      )}
-                      <li>{ICON.check} I am making a definite booking with an obligation to pay. It can only be
-                        cancelled against payment of <Link className="ck-a" to="/p/cancellation-costs" target="_blank">cancellation costs</Link>, which
-                        depend on how close to departure the cancellation is made.</li>
+                      {CONDITIONS.map((c) => (
+                        <li key={c.id}>
+                          <label className={`ck-cond-item${conds[c.id] ? ' on' : ''}`}>
+                            <input type="checkbox" checked={!!conds[c.id]}
+                              onChange={(e) => tickCond(c.id)(e.target.checked)} />
+                            <span className="ck-cond-box" aria-hidden="true">{ICON.check}</span>
+                            {/* ONE element after the box. Each of these lines mixes text with
+                                links, and the row is a two-column grid — every inline child
+                                became its own cell, so a sentence with two links stacked one
+                                word per line. Wrapping the sentence keeps it a single cell. */}
+                            <span className="ck-cond-text">{c.node}</span>
+                          </label>
+                        </li>
+                      ))}
                     </ul>
-                  </div>
-
-                  <div className={errors.agree ? 'ck-err' : ''}>
-                    <Check checked={agree} onChange={(v) => { setAgree(v); setErrors((er) => ({ ...er, agree: undefined })); }}>
-                      Yes, I agree to the above conditions
-                    </Check>
-                    <div className="ck-hint" style={{ marginLeft: 30 }}>
+                    <div className="ck-cond-foot">
                       You cannot confirm your booking unless you accept all applicable conditions.
                     </div>
-                    {errors.agree && <div className="ck-errmsg" style={{ marginLeft: 30 }}>{errors.agree}</div>}
+                    {errors.agree && <div className="ck-errmsg ck-cond-errmsg">{errors.agree}</div>}
                   </div>
 
                   {errors.submit && (

@@ -120,4 +120,20 @@ export const fillStepOne = (opts = {}) => {
   });
 };
 
-export default { fill, fieldByLabel, fillContact, fillCompany, fillTraveller, fillStepOne, setDob };
+/**
+ * Tick every booking condition on the payment step.
+ *
+ * The conditions are accepted ONE BY ONE — there is no single "I agree to the above" box any
+ * more — and the list itself varies with the booking (the insurance line only appears when
+ * cover was bought). Tests that just want to reach the pay button ask for all of them here,
+ * so adding a condition later does not mean editing four test files.
+ *
+ * Returns how many were ticked, so a test can assert the list is the length it expects.
+ */
+export const acceptConditions = () => {
+  const boxes = [...document.querySelectorAll('.ck-cond-item input[type="checkbox"]')];
+  boxes.forEach((b) => { if (!b.checked) b.click(); });
+  return boxes.length;
+};
+
+export default { fill, fieldByLabel, fillContact, fillCompany, fillTraveller, fillStepOne, setDob, acceptConditions };

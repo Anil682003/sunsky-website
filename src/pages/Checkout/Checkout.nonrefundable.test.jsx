@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import Checkout from './Checkout';
-import { fillContact, fillTraveller } from '../../test/checkoutForm';
+import { fillContact, fillTraveller, acceptConditions } from '../../test/checkoutForm';
 
 // A non-refundable room is the one condition a traveller cannot undo after paying, so it is
 // said again at the payment step and needs its OWN tick — the general conditions checkbox does
@@ -102,10 +102,8 @@ describe('a non-refundable room at the payment step', () => {
     // Unticked by default — a pre-ticked acceptance is not an acceptance.
     expect(warning().querySelector('.ck-check.on')).toBeFalsy();
 
-    // Accepting the GENERAL conditions is not enough.
-    const generalTick = [...document.querySelectorAll('.ck-check')]
-      .find((el) => /i agree to the above conditions/i.test(el.textContent));
-    await user.click(generalTick);
+    // Accepting every GENERAL condition is not enough — this rate has its own.
+    acceptConditions();
     await user.click(payBtn());
     await waitFor(() => expect(warning()).toHaveTextContent(/please confirm you accept the cancellation costs/i));
     // Nothing was sent to the server.
@@ -134,9 +132,7 @@ describe('a non-refundable room at the payment step', () => {
     await reachPayment(user);
 
     expect(warning()).toBeFalsy();
-    const generalTick = [...document.querySelectorAll('.ck-check')]
-      .find((el) => /i agree to the above conditions/i.test(el.textContent));
-    await user.click(generalTick);
+    acceptConditions();
     await user.click(payBtn());
 
     await waitFor(() => expect(post.mock.calls.some(([url]) => String(url).includes('online-bookings'))).toBe(true));
