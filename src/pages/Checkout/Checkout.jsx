@@ -409,8 +409,13 @@ const emptyTraveller = () => ({
  * must not silently accept a change either (see the re-price gate). A search with no dates
  * (an older link, or ages edited on the results page after the dates stopped matching) simply
  * yields empty rows, exactly as before.
+ *
+ * A signed-in account also names traveller 1, because traveller 1 is the booker by default and
+ * the booker card is filled from the same account. If the two started out different the mirror
+ * between them would have to pick a winner on the very first render — and would have picked the
+ * empty row, blanking a name the account already knew.
  */
-const seedTravellers = (booking) => {
+const seedTravellers = (booking, account) => {
   const s = booking.search || {};
   const adults = Math.max(1, Number(s.adults) || Number(booking.adults) || 2);
   const children = Math.max(0, Number(s.children) || 0);
@@ -420,6 +425,9 @@ const seedTravellers = (booking) => {
   // slot remembers the age it was priced at, so a slot with no date still cannot be filled
   // with a birthday that contradicts the quote.
   const rows = Array.from({ length: adults }, emptyTraveller);
+  if (account?.firstName || account?.lastName) {
+    rows[0] = { ...rows[0], firstName: account.firstName || '', lastName: account.lastName || '' };
+  }
   for (let i = 0; i < children; i++) {
     const dob = dobs[i] || '';
     const age = ages[i] !== undefined ? Number(ages[i]) : null;
@@ -511,7 +519,7 @@ function CheckoutContent({ stripe, elements }) {
     hasContactEmail: true, primaryContactEmail: user?.email || '', primaryContactPhone: '',
     primaryContactRole: '', preferredLanguage: 'en',
   });
-  const [travellers, setTravellers] = useState(() => seedTravellers(booking));
+  const [travellers, setTravellers] = useState(() => seedTravellers(booking, user));
 
   /* ── the name check, between step 1 and the extras ──
      A misspelled name is the one checkout mistake the traveller pays for later: airlines
@@ -982,9 +990,18 @@ function CheckoutContent({ stripe, elements }) {
   /* ── field setters ── */
   const setP = (k) => (v) => { setPriv((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [`priv.${k}`]: undefined })); };
   const setB = (k) => (v) => { setPro((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [`pro.${k}`]: undefined })); };
+  // The five facts traveller 1 and the lead booker share while they are the same person.
+  const SHARED_WITH_LEAD = ['firstName', 'lastName', 'gender', 'dateOfBirth', 'nationality'];
   const setT = (i, k) => (v) => {
     setTravellers((ts) => ts.map((t, ti) => (ti === i ? { ...t, [k]: v } : t)));
     setErrors((e) => ({ ...e, [`t${i}.${k}`]: undefined }));
+    // Traveller 1 IS the booker unless that was unticked, so an edit here lands in both records
+    // at once. Doing it in the writer rather than in an effect keeps it to one render and makes
+    // the two directions — this one and setShared — the same single hop.
+    if (i === 0 && leadIsBooker && SHARED_WITH_LEAD.includes(k)) {
+      setPriv((p) => (p[k] === v ? p : { ...p, [k]: v }));
+      setErrors((e) => ({ ...e, [`priv.${k}`]: undefined }));
+    }
     // Any edit to the identity we print on the ticket invalidates that traveller's tick.
     if (k === 'firstName' || k === 'lastName' || k === 'title' || k === 'dateOfBirth') {
       setReviewOk((r) => (r[i] ? { ...r, [i]: false } : r));
@@ -996,28 +1013,39 @@ function CheckoutContent({ stripe, elements }) {
   // and a fourth name on a room quoted for three is not a booking anyone can honour. To travel
   // with more people, the search is where that is decided.
   /* ── traveller 1 is also the booker ──
-     The copy runs from the TRAVELLER to the booker, and keeps running: a name corrected on
-     the traveller card two minutes later has to reach the booker too, or the booking goes out
-     with the old spelling on the invoice. Only the four facts the traveller form actually
-     holds are copied — the address, phone, email, emergency number and company are the
-     booker's own and are never touched by this. */
+     ONE PERSON, shown in two places, and typing works in either. The first version made the
+     booker's five fields read-only and fed them from the traveller card below; the booker card
+     is the first thing on the page, so people arrived at a form whose opening fields could not
+     be typed into and whose source was several hundred pixels further down. A form that
+     refuses the cursor with no visible reason is broken, whatever it says in the hint.
+     Now: edit either side, both move. The address, phone, email, emergency number and company
+     are the booker's alone and are never touched by this. */
   const lead = travellers[0];
-  useEffect(() => {
-    if (!leadIsBooker || !lead) return;
-    setPriv((prv) => {
-      const next = {
-        ...prv,
-        firstName: lead.firstName,
-        lastName: lead.lastName,
-        gender: lead.gender,
-        dateOfBirth: lead.dateOfBirth,
-        nationality: lead.nationality,
-      };
-      const same = ['firstName', 'lastName', 'gender', 'dateOfBirth', 'nationality']
-        .every((k) => prv[k] === next[k]);
-      return same ? prv : next;      // no state churn when nothing moved
-    });
-  }, [leadIsBooker, lead?.firstName, lead?.lastName, lead?.gender, lead?.dateOfBirth, lead?.nationality]);
+
+  /** Edit a shared field from the BOOKER side: writes both records while they are joined. */
+  const setShared = (k) => (v) => {
+    setP(k)(v);
+    if (!leadIsBooker) return;
+    // Gender is a pair of radios on the traveller card. A booker-only answer ("prefer not to
+    // say") has nowhere to land there, so it stays on the booker rather than blanking them.
+    if (k === 'gender' && v !== 'MALE' && v !== 'FEMALE') return;
+    setT(0, k)(v);
+  };
+
+  /** Ticking joins the two records. Field by field, whichever side has an answer wins — the
+      traveller when both do — so nothing already typed is thrown away, including by somebody
+      who unticked, filled the booker in and changed their mind. */
+  const joinLeadAndBooker = (on) => {
+    setLeadIsBooker(on);
+    if (!on || !lead) return;
+    const merged = {};
+    SHARED_WITH_LEAD.forEach((k) => { merged[k] = lead[k] || priv[k] || ''; });
+    setPriv((p) => ({ ...p, ...merged }));
+    setTravellers((ts) => ts.map((row, i) => (i === 0 ? {
+      ...row, ...merged,
+      gender: merged.gender === 'MALE' || merged.gender === 'FEMALE' ? merged.gender : row.gender,
+    } : row)));
+  };
 
   /* ── validation ── */
   const validateInfo = () => {
@@ -1589,46 +1617,45 @@ function CheckoutContent({ stripe, elements }) {
                         </div>
                       )}
 
-                      {/* Identity. When traveller 1 is also the booker these four follow
-                          that traveller and are shown read-only — the same person is not
-                          asked for the same name twice. Everything the traveller form does
-                          NOT hold (company, address, phone, email, emergency contact) is
-                          still filled in here, whatever the tick says. */}
+                      {/* Identity. While traveller 1 is also the booker these five are ONE
+                          set of facts shown in two places — type here or on the traveller
+                          card, both move. Everything the traveller form does not hold
+                          (company, address, phone, email, emergency contact) is filled in
+                          here regardless of the tick. */}
                       <div className="ck-row">
                         <Field label="First name" req err={errors['priv.firstName']} ok={!!priv.firstName.trim()}
-                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
-                          <input className="ck-input" value={priv.firstName} readOnly={leadIsBooker}
-                            onChange={(e) => setP('firstName')(e.target.value)} placeholder="John" maxLength={100} />
+                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
+                          <input className="ck-input" value={priv.firstName}
+                            onChange={(e) => setShared('firstName')(e.target.value)} placeholder="John" maxLength={100} />
                         </Field>
                         <Field label="Last name" req err={errors['priv.lastName']} ok={!!priv.lastName.trim()}
-                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
-                          <input className="ck-input" value={priv.lastName} readOnly={leadIsBooker}
-                            onChange={(e) => setP('lastName')(e.target.value)} placeholder="Doe" maxLength={100} />
+                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
+                          <input className="ck-input" value={priv.lastName}
+                            onChange={(e) => setShared('lastName')(e.target.value)} placeholder="Doe" maxLength={100} />
                         </Field>
                       </div>
 
                       <div className="ck-row">
                         <Field label="Gender" err={errors['priv.gender']} ok={!!priv.gender}
-                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
-                          <select className="ck-input ck-select" value={priv.gender} disabled={leadIsBooker}
-                            onChange={(e) => setP('gender')(e.target.value)}>
+                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
+                          <select className="ck-input ck-select" value={priv.gender}
+                            onChange={(e) => setShared('gender')(e.target.value)}>
                             <option value="">Select…</option>
                             {GENDERS_CUSTOMER.map((g) => <option key={g.v} value={g.v}>{g.l}</option>)}
                           </select>
                         </Field>
                         <Field label="Date of birth" err={errors['priv.dateOfBirth']} ok={!!priv.dateOfBirth}
-                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
+                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
                           <input className="ck-input" type="date" value={priv.dateOfBirth} max={TODAY_ISO}
-                            readOnly={leadIsBooker}
-                            onChange={(e) => setP('dateOfBirth')(e.target.value)} />
+                            onChange={(e) => setShared('dateOfBirth')(e.target.value)} />
                         </Field>
                       </div>
 
                       <div className="ck-row">
                         <Field label="Nationality" req err={errors['priv.nationality']} ok={!!priv.nationality}
-                          hint={leadIsBooker ? 'From traveller 1' : undefined}>
-                          <select className="ck-input ck-select" value={priv.nationality} disabled={leadIsBooker}
-                            onChange={(e) => setP('nationality')(e.target.value)}>
+                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
+                          <select className="ck-input ck-select" value={priv.nationality}
+                            onChange={(e) => setShared('nationality')(e.target.value)}>
                             <option value="">Select…</option>
                             {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
                           </select>
@@ -1758,18 +1785,17 @@ function CheckoutContent({ stripe, elements }) {
                             {at && <span className={`ck-age-badge ${at.code.toLowerCase()}`} key={at.code}>{at.label}</span>}
                           </div>
 
-                          {/* Only on traveller 1, and only ever ONE direction: what is typed
-                              here fills the booker above. Nobody types their own name twice.
-                              Unticking makes the booker's details independent again — the two
-                              are the same person by default, not by assumption. */}
+                          {/* Only on traveller 1. While it is ticked this row and the booker card
+                              are one person: type in either, both move. Unticking separates them
+                              — the two are the same person by default, not by assumption. */}
                           {i === 0 && (
                             <label className={`ck-biz ck-leadbook${leadIsBooker ? ' on' : ''}`}>
                               <input type="checkbox" checked={leadIsBooker}
-                                onChange={(e) => setLeadIsBooker(e.target.checked)} />
+                                onChange={(e) => joinLeadAndBooker(e.target.checked)} />
                               <span className="ck-biz-box">{leadIsBooker && ICON.check}</span>
                               <span className="ck-biz-text">
                                 <b>This traveller is also the lead booker</b>
-                                <span>The lead booker details will be filled in automatically using this traveller's details.</span>
+                                <span>Name, gender, date of birth and nationality are shared with the lead booker section — fill in either one.</span>
                               </span>
                             </label>
                           )}
