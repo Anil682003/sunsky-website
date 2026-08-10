@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import axiosInstance from '../services/axiosInstance';
 import { resolveCmsImageUrl } from './cmsImage';
+import { airlineName as staticAirlineName } from './flightNames';
 
 /**
  * Airline logos, uploaded by the team in the dashboard (Products → Flights → Airlines).
@@ -17,18 +18,23 @@ import { resolveCmsImageUrl } from './cmsImage';
 
 let logoPromise = null;
 
-/** code (IATA, upper) → { name, logo } for airlines that HAVE a logo. */
+/**
+ * code (IATA, upper) → { name, logo }. EVERY row is kept, logo or not.
+ *
+ * Rows without a logo used to be dropped, on the grounds that the caller's fallback would
+ * render the same thing anyway. That threw away the name: the dashboard knows "VF" is
+ * Vietjet, and the static table in flightNames.js does not, so the card printed the bare
+ * code as though it were the airline. `logo` is null when there is no image, which is the
+ * only thing callers need to branch on.
+ */
 async function loadAirlineLogos() {
   const { data } = await axiosInstance.get('/flight-availability/airlines');
   const rows = Array.isArray(data?.data) ? data.data : [];
   const map = new Map();
   for (const a of rows) {
     const code = String(a?.iataCode || '').trim().toUpperCase();
-    // A row without a logo is not worth storing: the consumer's fallback (the airline's
-    // initial) is what it would render anyway, and an entry here means "there is a logo".
-    if (!code || !a?.logo) continue;
-    const url = resolveCmsImageUrl(a.logo);
-    if (url) map.set(code, { name: a.name || null, logo: url });
+    if (!code) continue;
+    map.set(code, { name: a.name || null, logo: (a.logo && resolveCmsImageUrl(a.logo)) || null });
   }
   return map;
 }
@@ -55,6 +61,23 @@ export function useAirlineLogos() {
     return () => { live = false; };
   }, []);
   return logos;
+}
+
+/**
+ * The airline's name for display, as a function of its code.
+ *
+ * The dashboard directory wins over the static table in flightNames.js: it is maintained by the
+ * team, it covers carriers the hardcoded list never heard of, and it is already being fetched
+ * for the logos. The static table stays as the fallback for the moment before the directory has
+ * loaded, and for any code the dashboard has not been told about — an unknown code still comes
+ * back as itself, so a card never renders a blank where an airline should be.
+ */
+export function useAirlineName() {
+  const directory = useAirlineLogos();
+  return (code) => {
+    const hit = directory.get(String(code || '').trim().toUpperCase());
+    return hit?.name || staticAirlineName(code);
+  };
 }
 
 /** Test seam: drop the shared cache so a suite can control what the next mount fetches. */

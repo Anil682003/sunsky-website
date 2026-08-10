@@ -15,7 +15,8 @@ import {
 import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
 import { DEPARTURE_AIRPORTS, AIRPORT_CODES, DEFAULT_ORIGIN, normaliseOrigin } from '../../utils/airports';
-import { useAirlineLogos } from '../../utils/airlineLogos';
+import AirlineMark from '../../components/AirlineMark/AirlineMark';
+import { useAirlineName } from '../../utils/airlineLogos';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
 import StayBar from '../../components/StayBar/StayBar';
@@ -404,34 +405,13 @@ const layoverMin = (a, b) => {
 };
 const stopsLabel = (n) => (n <= 0 ? 'Direct' : `${n} stop${n > 1 ? 's' : ''}`);
 
-/**
- * The airline's mark: its dashboard logo when we have one, otherwise the initial badge
- * this has always drawn.
- *
- * The fallback is not a nicety. Logos are uploaded by hand, so a carrier the supplier
- * returns may simply not have one yet, and a stored logo can 404 if the file moved. Both
- * cases must land on the initial rather than a broken-image icon, which is why `onError`
- * flips back rather than leaving the <img> to fail visibly. `className` is preserved so
- * the same component serves the card head and the modal's per-leg rows, each keeping its
- * own size from the existing CSS.
- */
-function AirlineMark({ code, name, className }) {
-  const logos = useAirlineLogos();
-  const [failed, setFailed] = useState(false);
-  const hit = logos.get(String(code || '').trim().toUpperCase());
-  const label = name || airlineName(code);
-  if (!hit?.logo || failed) {
-    return <span className={className} aria-hidden="true">{label.charAt(0)}</span>;
-  }
-  return (
-    <img className={`${className} air-logo`} src={hit.logo} alt=""
-      loading="lazy" onError={() => setFailed(true)} />
-  );
-}
 
 // One direction, summarised across its legs: airline of the first leg, endpoints, total
 // gate-to-gate time and stop count. The middle "via" line names the layover airports.
 function Journey({ dir, legs }) {
+  // The dashboard's name, not the hardcoded table's: suppliers send codes the static list has
+  // never heard of, and the card was printing "VF" where the airline has a name.
+  const airName = useAirlineName();
   if (!legs?.length) return null;
   const first = legs[0], last = legs[legs.length - 1];
   const durMin = legs.reduce((s, l) => s + (Number(l.duration) || 0), 0);
@@ -444,7 +424,7 @@ function Journey({ dir, legs }) {
         <span className="bp-jdate">{fmtDateLong(first.departure)}</span>
         <span className="bp-airline">
           <AirlineMark code={first.airline} className="bp-airmark" />
-          <span className="bp-airname">{airlineName(first.airline)}</span>
+          <span className="bp-airname">{airName(first.airline)}</span>
           <span className="bp-flno">{flightNumber(first)}</span>
         </span>
       </div>
@@ -473,6 +453,7 @@ function Journey({ dir, legs }) {
 // The per-segment timeline shown when a card is expanded (airline, flight number, each
 // leg's own gate times, and the layover between legs).
 function JourneyTimeline({ label, legs }) {
+  const airName = useAirlineName();
   if (!legs?.length) return null;
   return (
     <div className="fd-journey">
@@ -487,7 +468,7 @@ function JourneyTimeline({ label, legs }) {
             <div className="fd-seg-timeline"><div className="fd-dot" /><div className="fd-line" /><div className="fd-dot" /></div>
             <div className="fd-seg-body">
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.from)} <em>{leg.from}</em></span><span className="fd-seg-time">{fmtTime(leg.departure)}</span></div>
-              <div className="fd-seg-meta"><span className="fd-seg-air"><AirlineMark code={leg.airline} className="fd-seg-mark" />{airlineName(leg.airline)} · {flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
+              <div className="fd-seg-meta"><span className="fd-seg-air"><AirlineMark code={leg.airline} className="fd-seg-mark" />{airName(leg.airline)} · {flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.to)} <em>{leg.to}</em></span><span className="fd-seg-time">{fmtTime(leg.arrival)}</span></div>
             </div>
           </div>
@@ -1813,11 +1794,16 @@ export default function HotelDetail() {
       outDep: fmtTime(oL[0]?.departure), outArr: fmtTime(oL[oL.length - 1]?.arrival),
       outFrom: oL[0]?.from || origin, outTo: oL[oL.length - 1]?.to || destination,
       outDate: oDate, outAirline: airlineName(oL[0]?.airline),
+      // The raw marketing code travels alongside the display name, because a logo can only be
+      // looked up by code and the name has already been resolved to something unsearchable by
+      // the time the checkout reads it.
+      outAirlineCode: oL[0]?.airline || null,
       outDur: fmtDur(oL.reduce((s, l) => s + (Number(l.duration) || 0), 0)),
       ...(rL.length ? {
         retDep: fmtTime(rL[0]?.departure), retArr: fmtTime(rL[rL.length - 1]?.arrival),
         retFrom: rL[0]?.from, retTo: rL[rL.length - 1]?.to,
         retDate: rDate, retAirline: airlineName(rL[0]?.airline),
+        retAirlineCode: rL[0]?.airline || null,
         retDur: fmtDur(rL.reduce((s, l) => s + (Number(l.duration) || 0), 0)),
       } : {}),
     });

@@ -486,6 +486,17 @@
 .ck-sum-leg-dir.ret { background:var(--sun-warm); color:#c47207; }
 .ck-sum-leg-time { font-weight:700; color:var(--text); white-space:nowrap; }
 .ck-sum-leg-route { color:var(--text-light); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* The carrier's mark, pushed to the end of the leg row. `margin-left:auto` rather than a column,
+   so it sits flush right whatever length the route text runs to. Sized small: this is the
+   at-a-glance rail beside the form, not the itinerary itself.
+   The initial fallback keeps the blue tile it wears everywhere else; a real logo drops the tile
+   (see .air-logo) because airline marks come in every colour and painting one on our blue made
+   half of them unreadable. */
+.ck-sum-leg-air { margin-left:auto; flex-shrink:0; width:20px; height:20px; border-radius:5px;
+  display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff;
+  font-size:10px; font-weight:800; }
+img.ck-sum-leg-air { width:24px; height:20px; background:none; object-fit:contain; }
 .ck-sum-room { display:flex; flex-direction:column; gap:1px; font-size:13px; font-weight:700; }
 .ck-sum-room small { font-size:11.5px; font-weight:500; color:var(--text-sec); }
 .ck-sum-rows { display:flex; flex-direction:column; }
@@ -698,6 +709,14 @@
    would then be sent. Wrapping the display keeps the data exactly as quoted. */
 .ck-caps { text-transform:uppercase; }
 .ck-ov-sub { font-size:12.5px; color:var(--text-sec); line-height:1.6; }
+/* Carrier line on the review step: mark then name, on one baseline. `inline-flex` rather than
+   block, so it keeps sitting under the route line the way the plain name always did. */
+.ck-ov-air { display:inline-flex; align-items:center; gap:7px; }
+.ck-air-mark { flex-shrink:0; width:20px; height:20px; border-radius:5px;
+  display:inline-flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff;
+  font-size:10px; font-weight:800; }
+img.ck-air-mark { width:24px; height:20px; background:none; object-fit:contain; }
 .ck-ov-flights { display:flex; flex-direction:column; gap:12px; }
 .ck-ov-flight { display:flex; flex-direction:column; gap:2px; }
 .ck-ov-dir { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); }

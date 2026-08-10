@@ -12,6 +12,8 @@ import { useCheckoutConfig, useFooterConfig } from '../../api';
 import { checkoutLegalLinks } from '../../utils/legalLinks';
 import Confirmation from './Confirmation';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
+import AirlineMark from '../../components/AirlineMark/AirlineMark';
+import { useAirlineName } from '../../utils/airlineLogos';
 import './Checkout.css';
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
@@ -931,6 +933,24 @@ function CheckoutContent({ stripe, elements }) {
   const checkedAddOns = (airlineAddOns?.checked?.length ? airlineAddOns.checked : null)
     || (bagRates?.checked || []);
   const hasFlight = !!booking.api?.flight;
+  const airName = useAirlineName();
+  /**
+   * The marketing code for each direction, which is what a logo is looked up by.
+   *
+   * The hotel page now hands these over directly, but a booking that was already in flight when
+   * that shipped carries only the resolved NAME, and the voucher/booking pages read the same
+   * summary object. So this falls back to the legs on the raw API payload, which have always
+   * carried `airline`. Round trips are split down the middle exactly as `arrivalISO` splits
+   * them, so the return direction reports its own carrier rather than the outbound's.
+   */
+  const airlineCodes = useMemo(() => {
+    const legs = booking.api?.flight?.legs || [];
+    const half = booking.api?.flight?.tripType === 'roundtrip' ? Math.ceil(legs.length / 2) : legs.length;
+    return {
+      out: booking.flight?.outAirlineCode || legs[0]?.airline || null,
+      ret: booking.flight?.retAirlineCode || legs[half]?.airline || null,
+    };
+  }, [booking.api?.flight, booking.flight?.outAirlineCode, booking.flight?.retAirlineCode]);
   const directions = booking.api?.flight?.tripType === 'roundtrip'
     ? [{ key: 'out', label: 'Outbound', icon: ICON.planeOut }, { key: 'ret', label: 'Return', icon: ICON.planeIn }]
     : [{ key: 'out', label: 'Outbound', icon: ICON.planeOut }];
@@ -2510,7 +2530,15 @@ function CheckoutContent({ stripe, elements }) {
                             {booking.flight.outDate ? `${booking.flight.outDate} · ` : ''}
                             {booking.flight.outDep} {booking.flight.outFrom} → {booking.flight.outArr} {booking.flight.outTo}
                           </span>
-                          {booking.flight.outAirline && <span className="ck-ov-sub">{booking.flight.outAirline}</span>}
+                          {/* The carrier, with its mark. This is the last screen before payment,
+                              and who is flying the traveller is part of what they are agreeing
+                              to; a name alone was easy to skim past. */}
+                          {(airlineCodes.out || booking.flight.outAirline) && (
+                            <span className="ck-ov-sub ck-ov-air">
+                              <AirlineMark code={airlineCodes.out} className="ck-air-mark" />
+                              {airlineCodes.out ? airName(airlineCodes.out) : booking.flight.outAirline}
+                            </span>
+                          )}
                         </div>
                         {booking.flight.retDep && (
                           <div className="ck-ov-flight">
@@ -2519,7 +2547,12 @@ function CheckoutContent({ stripe, elements }) {
                               {booking.flight.retDate ? `${booking.flight.retDate} · ` : ''}
                               {booking.flight.retDep} {booking.flight.retFrom} → {booking.flight.retArr} {booking.flight.retTo}
                             </span>
-                            {booking.flight.retAirline && <span className="ck-ov-sub">{booking.flight.retAirline}</span>}
+                            {(airlineCodes.ret || booking.flight.retAirline) && (
+                              <span className="ck-ov-sub ck-ov-air">
+                                <AirlineMark code={airlineCodes.ret} className="ck-air-mark" />
+                                {airlineCodes.ret ? airName(airlineCodes.ret) : booking.flight.retAirline}
+                              </span>
+                            )}
                           </div>
                         )}
                       </div>
@@ -2834,12 +2867,14 @@ function CheckoutContent({ stripe, elements }) {
                         <span className="ck-sum-leg-dir">OUT</span>
                         <span className="ck-sum-leg-time">{booking.flight.outDep} → {booking.flight.outArr}</span>
                         <span className="ck-sum-leg-route">{booking.flight.outFrom.split(' ')[0]} – {booking.flight.outTo.split(' ')[0]}</span>
+                        {airlineCodes.out && <AirlineMark code={airlineCodes.out} className="ck-sum-leg-air" />}
                       </div>
                       {booking.flight.retDep && (
                         <div className="ck-sum-leg">
                           <span className="ck-sum-leg-dir ret">RET</span>
                           <span className="ck-sum-leg-time">{booking.flight.retDep} → {booking.flight.retArr}</span>
                           <span className="ck-sum-leg-route">{booking.flight.retFrom.split(' ')[0]} – {booking.flight.retTo.split(' ')[0]}</span>
+                          {airlineCodes.ret && <AirlineMark code={airlineCodes.ret} className="ck-sum-leg-air" />}
                         </div>
                       )}
                     </div>
