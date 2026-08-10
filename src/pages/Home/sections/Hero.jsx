@@ -7,6 +7,7 @@ import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
 import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, airportCity } from '../../../utils/airports';
 import { earliestCheckInISO } from '../../../utils/leadTime';
+import { loadPax, savePax } from '../../../utils/paxStore';
 
 // Duration bands shown in the search box. Each band is a day-range with a representative stay
 // length in nights — the concrete duration the search prices for that band. Picking a band + a
@@ -20,6 +21,36 @@ const DURATIONS = DURATION_BANDS;
 const findBand = bandByLabel;
 
 const MAX_ROOMS = 8;
+
+/**
+ * The rooms this search starts with: the party last committed anywhere on the site if it is
+ * still within its 48 hours (utils/paxStore), otherwise the two adults this has always
+ * assumed. Nothing arrives by link here — the home page carries no occupancy in its URL — so
+ * the store is the only thing that can answer, and a traveller who searched yesterday should
+ * not have to re-enter their children's birthdays to search again.
+ *
+ * The totals are spread back across the rooms the same way the results page spreads them,
+ * biggest first, since only the counts were stored and not which child sat in which room.
+ */
+const initialRooms = () => {
+  const pax = loadPax();
+  if (!pax) return [{ adults: 2, children: 0, dobs: [] }];
+  const nRooms = Math.max(1, Math.min(MAX_ROOMS, parseInt(pax.rooms, 10) || 1));
+  const nAdults = Math.max(1, parseInt(pax.adults, 10) || 2);
+  const nChildren = Math.max(0, parseInt(pax.children, 10) || 0);
+  const dobs = pax.childDobs ? pax.childDobs.split(',').map((d) => d.trim()) : [];
+  const rooms = Array.from({ length: nRooms }, () => ({ adults: 0, children: 0, dobs: [] }));
+  for (let i = 0; i < nAdults; i++) rooms[i % nRooms].adults++;
+  for (let i = 0; i < nChildren; i++) {
+    const r = rooms[i % nRooms];
+    r.children++;
+    // A blank keeps the child's row — a date that was never given is asked for again here
+    // rather than quietly dropping the child from the ones with birthdays.
+    r.dobs.push(dobs[i] || '');
+  }
+  for (const r of rooms) if (r.adults < 1) r.adults = 1;   // every room needs ≥1 adult
+  return rooms;
+};
 
 // Departure airports for the Belgian/Benelux market (the platform's flight
 // searches depart from this region — the old list was 8 UK airports).
@@ -149,7 +180,7 @@ export default function Hero() {
       : [...prev, code]));
   // Occupancy is per room — each room carries its own adults, children and one
   // date-of-birth slot per child. The search still sends totals.
-  const [roomsList, setRoomsList] = useState([{ adults: 2, children: 0, dobs: [] }]);
+  const [roomsList, setRoomsList] = useState(initialRooms);
   const [openField, setOpenField] = useState(null);
 
   const [tripType, setTripType] = useState('roundtrip');
@@ -287,6 +318,22 @@ export default function Hero() {
     qs.set('maxNights', String(daysToNights(band.maxDays)));
     if (childAges.length) qs.set('childAges', childAges.join(','));
     if (childDobs.length) qs.set('childDobs', childDobs.join(','));
+    // The traveller has just pressed search, so this party is their answer, not a draft:
+    // remember it for 48 hours (utils/paxStore) so returning to the site does not start them
+    // back at two adults with their children's birthdays to type out again. Every search
+    // handler on this page routes through here, so there is one place this can be forgotten.
+    // Both lists are POSITIONAL here — one entry per child, blanks kept — where the query
+    // string above drops the gaps. The store pairs the two by index, so a first child with no
+    // birthday and a second with one would otherwise file the second child's age against the
+    // first. 8 is the pages' CHILD_AGE_DEFAULT, used for the same reason: a price needs an age.
+    const paxDobs = roomsList.flatMap((r) => r.dobs);
+    savePax({
+      adults: String(totalAdults),
+      children: String(totalChildren),
+      rooms: String(roomsList.length),
+      childAges: paxDobs.map((d) => ageFromDob(d) ?? 8).join(','),
+      childDobs: paxDobs.join(','),
+    });
     // The transport decision, carried to the results sidebar and on into every hotel
     // page's flight search. Origin rides even in own-transport mode so flipping to
     // "incl. flight" later starts from the airport picked here, not from the default.

@@ -1005,7 +1005,49 @@
    which is the usual case: the cheapest flight is the one selected by default. */
 .sd .flight-card.cheapest { border-color:var(--green); background:linear-gradient(180deg,#fbfffd,#f1fcf7); box-shadow:0 0 0 4px rgba(5,150,105,.10), 0 10px 26px rgba(5,150,105,.10); }
 .sd .flight-card.cheapest:hover { border-color:var(--green); }
-.sd .flight-note { font-size:13px; color:var(--text-sec); margin-bottom:14px; }
+.sd .flight-note { font-size:13px; color:var(--text-sec); margin-bottom:14px; display:flex; align-items:center; gap:7px; }
+.sd .flight-note svg { width:14px; height:14px; color:var(--text-light); flex-shrink:0; }
+
+/* ── Headline flight banner ──────────────────────────────────────────────────────
+   The page shows ONE flight, so that card has to say which one it is and why, in words,
+   before a traveller reads a single time or price. The band does that; the white note beside
+   it answers the question the band raises ("cheapest of what?") without a tooltip.
+   Solid blue, not the green "cheapest" frame: green is this page's SELECTED colour, worn by
+   the chosen room, and a card that is both the cheapest and the selected one wearing green
+   twice said nothing twice. */
+.sd .flight-card.bannered { border-color:#bcd6fa; }
+.sd .flight-card.bannered:hover { border-color:#9dc2f6; }
+.sd .fc-banner {
+  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
+  padding:16px 20px; background:linear-gradient(135deg,#4a8bf2,#2f6fe4);
+}
+.sd .fc-banner-main { min-width:0; }
+.sd .fc-banner-title {
+  font-family:'Sora',sans-serif; font-size:15px; font-weight:800; color:#fff;
+  text-transform:uppercase; letter-spacing:.05em; line-height:1.25;
+}
+/* .9 rather than the page's muted grey: those greys were chosen against white and disappear
+   on blue. Opacity is as far back as this can afford to step. */
+.sd .fc-banner-sub { font-size:12.5px; font-weight:500; color:rgba(255,255,255,.9); margin-top:3px; }
+.sd .fc-banner-note {
+  display:flex; align-items:center; gap:9px; max-width:340px;
+  padding:10px 14px; border-radius:12px; background:var(--white);
+  font-size:11.5px; font-weight:600; color:var(--blue); line-height:1.4;
+}
+.sd .fc-banner-note svg { width:15px; height:15px; flex-shrink:0; }
+/* No punched notches under a banner: the tear-line circles are drawn in the page background
+   colour to look like holes, which only works where the card meets the page — under a solid
+   blue band they read as two blue dots. */
+.sd .flight-card.bannered .bp-body > .bp-journey:first-child { padding-top:18px; }
+
+/* Full width, because it is the only way to the other fares now and a centred pill read as
+   an afterthought beside a card this size. */
+.sd .show-more-flights.show-more-flights { width:100%; margin:14px 0 0; padding:14px 20px; }
+.sd .all-in-note {
+  display:flex; align-items:center; gap:8px; margin-top:12px;
+  font-size:12px; font-weight:600; color:var(--blue);
+}
+.sd .all-in-note svg { width:14px; height:14px; flex-shrink:0; }
 
 /* ── Boarding-pass journey (collapsed card) — one row per direction ── */
 .sd .bp-journey { padding:16px 22px; }
@@ -1151,6 +1193,10 @@
    means yes — the tick, the free-cancellation line, the included badge all use it. */
 .sd .room-option.selected { border-color:var(--green); background:linear-gradient(180deg,#fbfffd,#f1fcf7); box-shadow:0 0 0 4px rgba(5,150,105,.10), 0 10px 26px rgba(5,150,105,.10); }
 .sd .room-radio { width:20px; height:20px; border-radius:50%; border:2px solid #d7e3f5; flex-shrink:0; display:flex; align-items:center; justify-content:center; transition:all .25s var(--ease-spring); }
+/* The cheapest option's dot is outlined in green while it is unchosen, so the row the "best
+   priced" note points at is identifiable before anything is selected. It stays an OUTLINE —
+   filling it would claim a choice the traveller has not made. */
+.sd .room-option.cheapest .room-radio { border-color:var(--green); }
 .sd .room-option.selected .room-radio { border-color:var(--green); background:var(--green); box-shadow:0 3px 10px rgba(5,150,105,.3); }
 .sd .room-option.selected .room-radio::after { content:''; display:block; width:8px; height:8px; border-radius:50%; background:#fff; }
 /* ── Room type → its board options ────────────────────────────────────────────
@@ -1175,7 +1221,7 @@
   background:linear-gradient(135deg,#63a0f7,#4585f0);
   border-bottom:none;
 }
-.sd .room-group-id { display:flex; align-items:center; gap:9px; min-width:0; flex-wrap:wrap; }
+.sd .room-group-id { display:flex; flex-direction:column; align-items:flex-start; gap:5px; min-width:0; }
 /* Uppercase, and tracked out to match: supplier room names arrive in whatever casing the hotel
    typed them in — "1-bedroom apart room, Annex building" next to "1 bedroom apartment Standard" —
    so a stack of them looked like a data dump. Caps flatten the inconsistency away. */
@@ -1183,19 +1229,41 @@
   font-family:'Sora',sans-serif; font-size:14.5px; font-weight:800; color:#fff;
   text-transform:uppercase; letter-spacing:.04em;
 }
-.sd .room-group-from { display:flex; align-items:baseline; gap:8px; white-space:nowrap; }
-/* .88 rather than the usual muted grey: on blue, anything fainter stops being readable, so
-   this steps back through opacity only as far as it can afford to. */
-.sd .rgf-count { font-size:11.5px; font-weight:600; color:rgba(255,255,255,.88); }
-.sd .rgf-price { font-family:'Sora',sans-serif; font-size:13px; font-weight:800; color:#fff; font-variant-numeric:tabular-nums lining-nums; }
+.sd .room-group-from { display:flex; align-items:center; gap:11px; white-space:nowrap; }
+/* An outlined pill rather than loose text: it is a count, not a price, and side by side with
+   "From €991" as plain type the two ran together into one phrase. */
+.sd .rgf-count {
+  font-size:11.5px; font-weight:700; color:#fff;
+  padding:5px 12px; border-radius:var(--r-full);
+  border:1px solid rgba(255,255,255,.5); background:rgba(255,255,255,.12);
+}
+.sd .rgf-price { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:#fff; font-variant-numeric:tabular-nums lining-nums; }
 
-/* Who the room sleeps and for how long — stated once, inside the card, above the boards. */
+/* Who the room sleeps and for how long — stated once, on the room's own title block. */
 .sd .room-group-meta {
-  display:flex; flex-wrap:wrap; align-items:center; gap:6px 14px;
-  padding:10px 18px 2px; font-size:11.5px; color:var(--text-sec);
+  display:flex; flex-wrap:wrap; align-items:center; gap:4px 14px;
+  font-size:11.5px; color:rgba(255,255,255,.9);
 }
 .sd .rgm { display:inline-flex; align-items:center; gap:5px; font-weight:600; }
-.sd .rgm svg { width:13px; height:13px; color:var(--text-light); flex-shrink:0; }
+.sd .rgm svg { width:13px; height:13px; color:rgba(255,255,255,.8); flex-shrink:0; }
+
+/* ── "Best-priced option in this room" ──
+   The one place the price ordering is explained, on the room that holds the cheapest rate.
+   Pale blue on white, so it reads as a note about the list below rather than as another
+   selectable row in it. */
+.sd .room-best-note {
+  display:flex; align-items:center; gap:12px;
+  margin:0; padding:12px 18px;
+  background:#f2f7ff; border-bottom:1px solid #e2ecfb;
+}
+.sd .rbn-ico {
+  width:32px; height:32px; border-radius:10px; flex-shrink:0;
+  display:flex; align-items:center; justify-content:center;
+  background:#dfeafd; color:var(--blue);
+}
+.sd .rbn-ico svg { width:15px; height:15px; }
+.sd .rbn-title { font-size:12.5px; font-weight:700; color:var(--blue); }
+.sd .rbn-sub { font-size:11.5px; color:var(--text-sec); margin-top:2px; }
 
 /* Boards sit INSIDE the card, so they drop the old indent-and-left-rule that was standing in
    for the grouping the card now does properly. */
@@ -1243,6 +1311,13 @@
   box-shadow:0 3px 10px rgba(255,159,28,.28);
 }
 .sd .room-flag svg { width:11px; height:11px; }
+/* "Selected" — the page's green, matching the frame and the filled dot on the same row, so
+   the three say one thing rather than three. No shadow: it sits ON the pale green row and a
+   gold badge's lift would make it float off it. */
+.sd .room-flag.room-flag-sel {
+  background:#e7f9f1; color:#047857; border:1px solid #a7f3d0;
+  text-shadow:none; box-shadow:none; padding:3px 10px;
+}
 
 /* The per-night sub-price and the expanding breakdown panel (.room-breakdown / .rbd-*) were
    removed with their markup: a second price beside every real price, and a panel restating the
@@ -1254,22 +1329,25 @@
 .sd .room-price-col { display:flex; flex-direction:column; align-items:flex-end; gap:3px; flex-shrink:0; align-self:center; }
 .sd .room-price-delta { font-size:10.5px; font-weight:700; color:var(--text-light); white-space:nowrap; font-variant-numeric:tabular-nums lining-nums; }
 .sd .room-more {
-  width:100%; padding:11px 16px; margin-top:2px;
-  border-radius:14px; border:1.5px dashed var(--border); background:var(--white);
-  font-family:'Sora',sans-serif; font-size:12.5px; font-weight:700; color:var(--blue);
+  width:100%; padding:14px 16px; margin-top:2px;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  border-radius:14px; border:1.5px solid #c9dcf8; background:var(--white);
+  font-family:'Sora',sans-serif; font-size:13px; font-weight:700; color:var(--blue);
   cursor:pointer; transition:all .25s var(--ease);
 }
+.sd .room-more svg { width:16px; height:16px; flex-shrink:0; }
 .sd .room-more:hover { border-color:var(--blue); background:var(--blue-bg); }
 
 .sd .room-info { flex:1; min-width:0; }
-/* Same treatment as the room name above, so the board and the room it belongs to read as one
-   labelling system. The chips riding inside it are sentence-case sentences, not labels — they
-   opt back out. */
-.sd .room-name { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; color:var(--dark); display:flex; align-items:center; gap:8px; flex-wrap:wrap; text-transform:uppercase; letter-spacing:.04em; }
-.sd .room-name .room-flag, .sd .room-name .stay-guests { text-transform:none; letter-spacing:normal; }
-/* The chips now ride on the board-name line rather than under it, so they lose the stacked row's
-   top margin and inherit nothing from the uppercase label they sit beside. */
-.sd .room-name .room-chips { margin-top:0; text-transform:none; letter-spacing:normal; }
+/* Sentence case, unlike the room name above it. Caps were flattening away the inconsistent
+   casing suppliers type ROOM names in; board names arrive from our own fixed vocabulary —
+   "Ultra All Inclusive", "Half Board" — and have no inconsistency to flatten. Setting them in
+   caps too left every row of the card shouting, with nothing to tell the room apart from the
+   options inside it. */
+.sd .room-name { font-family:'Sora',sans-serif; font-size:14px; font-weight:700; color:var(--dark); display:flex; align-items:center; gap:8px; flex-wrap:wrap; }
+/* The chips ride on the board-name line rather than under it, so they lose the stacked row's
+   top margin. */
+.sd .room-name .room-chips { margin-top:0; }
 .sd .room-name-info { width:16px; height:16px; border-radius:50%; border:1.5px solid var(--border); display:inline-flex; align-items:center; justify-content:center; color:var(--text-light); cursor:help; transition:all .2s; }
 .sd .room-name-info:hover { border-color:var(--blue); color:var(--blue); background:var(--blue-bg); }
 .sd .room-cap { font-size:11.5px; color:var(--text-light); margin-top:2px; }
@@ -1302,30 +1380,46 @@
 /* OVERVIEW */
 .sd .overview-section { margin-top:4px; }
 .sd .overview-card { background:var(--white); border-radius:22px; border:1px solid var(--border-light); box-shadow:var(--shadow-md); overflow:hidden; }
-.sd .overview-head { padding:24px 26px; background:linear-gradient(135deg,#e8f0fd 0%,#d6e5fa 55%,#c6d9f6 100%); border-bottom:1px solid #cfdff8; position:relative; overflow:hidden; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+/* Warm, not blue. Everything above this card — the room bands, the flight banner, the section
+   steps — is blue, and the summary was reading as one more of those rather than as the end of
+   the sequence. It picks up the warm ground the total bar and the book button already stand on,
+   so the three parts of the decision (what it is, what it costs, book it) share one colour. */
+.sd .overview-head { padding:24px 26px; background:linear-gradient(135deg,#fdeed8 0%,#fce7cb 100%); border-bottom:1px solid #f6dfbe; position:relative; overflow:hidden; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .sd .overview-head-main { min-width:0; }
 .sd .overview-score { position:relative; display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:var(--r-full); background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); color:#fff; font-family:'Sora',sans-serif; font-size:12.5px; font-weight:800; white-space:nowrap; }
 .sd .overview-score b { color:#D9700F; }
-.sd .overview-head::after { content:''; position:absolute; top:-70px; right:-40px; width:220px; height:220px; border-radius:50%; background:radial-gradient(circle,rgba(59,113,224,.15),transparent 65%); pointer-events:none; }
-.sd .overview-hotel { font-family:'Sora',sans-serif; font-size:18px; font-weight:800; color:var(--dark); position:relative; }
-.sd .overview-stars { color:#E5890C; font-size:13px; margin-top:2px; letter-spacing:1px; position:relative; }
-.sd .overview-loc { font-size:12.5px; color:var(--text-sec); margin-top:4px; display:flex; align-items:center; gap:5px; position:relative; }
-.sd .overview-dates { font-size:13px; color:var(--text); margin-top:10px; display:flex; align-items:center; gap:6px; position:relative; }
-.sd .overview-dates span { color:var(--text-light) !important; }
-.sd .overview-body { padding:20px 24px; }
-.sd .overview-row { display:flex; align-items:center; padding:9px 0; font-size:13.5px; }
-.sd .overview-leader { flex:1; border-bottom:2px dotted #cfdef5; margin:0 10px 4px; align-self:flex-end; min-width:24px; }
-.sd .overview-row-label { color:var(--text-sec); display:flex; align-items:center; gap:6px; }
-.sd .overview-row-val { font-weight:700; color:var(--dark); }
-.sd .overview-extras { padding:10px 16px; background:#f1fcf6; border:1px solid #d9f5e6; border-radius:12px; margin-top:12px; }
-.sd .overview-extra { font-size:12px; color:#059669; font-weight:700; padding:3px 0; display:flex; align-items:center; gap:7px; }
+.sd .overview-head::after { content:''; position:absolute; top:-70px; right:-40px; width:220px; height:220px; border-radius:50%; background:radial-gradient(circle,rgba(224,150,59,.14),transparent 65%); pointer-events:none; }
+.sd .overview-hotel { font-family:'Sora',sans-serif; font-size:20px; font-weight:800; color:var(--dark); position:relative; letter-spacing:-.3px; }
+.sd .overview-stars { color:#C2740A; font-size:13px; margin-top:2px; letter-spacing:1px; position:relative; }
+/* #6B5537 rather than the page's grey: the greys are tuned against white and go muddy on a
+   warm ground. This is the same weight of step-back, in the ground's own hue. */
+.sd .overview-loc, .sd .overview-pax, .sd .overview-dates {
+  font-size:13px; color:#6B5537; margin-top:7px;
+  display:flex; align-items:center; gap:7px; position:relative;
+}
+.sd .overview-loc svg, .sd .overview-pax svg, .sd .overview-dates svg { width:15px; height:15px; color:#A8814A; flex-shrink:0; }
+.sd .overview-dates span { color:#8A7150; }
+.sd .overview-body { padding:8px 24px 20px; }
+/* A dashed rule under each row, in place of the dotted leader that used to run BETWEEN label
+   and value. The leader stretched and shrank with the label, so no two rows lined up and the
+   eye had nothing straight to travel along; a full-width rule gives every row the same one. */
+.sd .overview-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; font-size:13.5px; border-bottom:1px dashed #e2e8f2; }
+.sd .overview-leader { display:none; }
+.sd .overview-row-label { color:var(--text-sec); display:flex; align-items:center; gap:9px; min-width:0; }
+.sd .overview-row-label svg { width:16px; height:16px; color:#9db3d4; flex-shrink:0; }
+.sd .overview-row-val { font-family:'Sora',sans-serif; font-weight:800; color:var(--dark); white-space:nowrap; font-variant-numeric:tabular-nums lining-nums; }
+/* No tinted box. These are two short confirmations, and a panel around them gave them the
+   weight of a priced line without a price — they outranked the rows above that cost money. */
+.sd .overview-extras { padding:14px 0 0; }
+.sd .overview-extra { font-size:13px; color:#059669; font-weight:600; padding:4px 0; display:flex; align-items:center; gap:9px; }
+.sd .overview-extra svg { width:16px; height:16px; flex-shrink:0; }
 /* receipt tear-line above the total, with punched notches */
-.sd .overview-total { display:flex; align-items:center; justify-content:space-between; padding:20px 26px; background:linear-gradient(135deg,var(--sun-warm),#ffedc7); border-top:1.5px dashed #efd29c; position:relative; }
-.sd .overview-total::before, .sd .overview-total::after { content:''; position:absolute; top:-11px; width:20px; height:20px; border-radius:50%; background:var(--page-bg); border:1.5px solid var(--border-light); box-shadow:inset 0 2px 4px rgba(15,40,100,.06); }
-.sd .overview-total::before { left:-11px; }
-.sd .overview-total::after { right:-11px; }
+/* The same warm ground as the head, closing the card the way it opened. The perforated notches
+   and tear line went with the switch: they belong to a boarding pass, and borrowing them here
+   cut the summary in half at exactly the line a traveller most needs to read straight across. */
+.sd .overview-total { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:20px 26px; background:linear-gradient(135deg,#fdeed8 0%,#fce7cb 100%); position:relative; }
 .sd .overview-total-label { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--dark); }
-.sd .overview-total-val { font-family:'Sora',sans-serif; font-size:28px; font-weight:800; color:var(--dark); letter-spacing:-.5px; }
+.sd .overview-total-val { font-family:'Sora',sans-serif; font-size:32px; font-weight:800; color:var(--dark); letter-spacing:-.8px; font-variant-numeric:tabular-nums lining-nums; }
 .sd .overview-deposit { padding:12px 26px; font-size:12px; font-weight:600; color:var(--text-sec); background:var(--blue-pale); display:flex; align-items:center; gap:8px; }
 .sd .overview-deposit svg { color:var(--blue); flex-shrink:0; width:14px; height:14px; }
 .sd .overview-book-wrap { padding:18px 26px 22px; }
@@ -1338,8 +1432,12 @@
 .sd .overview-spot-costs-label svg { color:var(--text-light); width:13px; height:13px; }
 .sd .overview-spot-list { display:flex; gap:8px; flex-wrap:wrap; }
 .sd .overview-spot-cost { font-family:'Sora',sans-serif; font-size:12px; font-weight:800; color:var(--dark); padding:6px 14px; border-radius:var(--r-full); background:var(--blue-pale); border:1px solid #dce9fc; }
-.sd .overview-urgency { padding:4px 24px 20px; text-align:center; }
-.sd .overview-urgency-text { display:inline-flex; align-items:center; gap:7px; padding:9px 18px; border-radius:var(--r-full); background:var(--sun-warm); border:1px solid #ffe2b8; font-size:12px; font-weight:700; color:#b45309; }
+/* A plain line, not an amber pill. Amber on this page means "money at stake" — it is the
+   colour on the partial-cancellation chip — and wrapping a routine footnote in it made the
+   last thing under the book button read as a warning about the booking. */
+.sd .overview-urgency { padding:2px 24px 22px; text-align:center; }
+.sd .overview-urgency-text { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--text-sec); }
+.sd .overview-urgency-text svg { width:15px; height:15px; color:#9db3d4; flex-shrink:0; }
 
 /* FLIGHT MODAL */
 .sd .modal-overlay { display:none; position:fixed; inset:0; background:rgba(7,14,31,.5); z-index:1100; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
@@ -1389,6 +1487,9 @@
    Every card in a result set can read "€1,969"; what the traveller is choosing on is the
    difference. Gold marks the floor, a quiet "+€x" ranks the rest against it. */
 .sd .bp-price { display:flex; flex-direction:column; align-items:flex-end; gap:3px; }
+/* A four-figure sum with no unit beside it is read as per person by anyone who does not stop
+   to ask, and this is the last screen before a checkout. */
+.sd .bp-price-cap { font-size:10.5px; font-weight:600; color:var(--text-light); white-space:nowrap; }
 .sd .bp-delta {
   font-size:11px; font-weight:700; color:var(--text-light); white-space:nowrap;
   font-variant-numeric:tabular-nums lining-nums;
@@ -1634,7 +1735,6 @@
 .sd .meal-row.meal-selected { box-shadow:none; }
 .sd .dur-chip, .sd .alt-chip, .sd .hhb, .sd .flight-details-btn, .sd .show-more-flights, .sd .flight-selected-badge { border-width:1px; }
 .sd .flight-bottom { border-top:1px dashed #d4e2f8; }
-.sd .overview-total { border-top:1px dashed #efd29c; }
 
 /* ── radius system: 10 / 12 / 16 / 20 / 24 ── */
 .sd .bkdk, .sd .rvs, .sd .lb-thumb, .sd .fi-ico, .sd .stay-icon, .sd .st-step, .sd .ds h3 svg:first-child, .sd .section-title > svg:first-child { border-radius:10px; }
@@ -1653,9 +1753,7 @@
 .sd .dt.exp { -webkit-mask-image:none; mask-image:none; }
 .sd .dt::after { content:none; }
 /* ticket notches read as holes, not stickers */
-.sd .flight-bottom::before, .sd .flight-bottom::after, .sd .overview-total::before, .sd .overview-total::after { border:1px solid var(--border-light); box-shadow:none; }
-/* receipt leaders: hairline dots on the baseline */
-.sd .overview-leader { border-bottom:1px dotted #b9cdeb; margin:0 10px 5px; }
+.sd .flight-bottom::before, .sd .flight-bottom::after { border:1px solid var(--border-light); box-shadow:none; }
 
 /* two-tier hover lift: cards -2px, buttons -1px */
 .sd .gi:hover { transform:translateY(-2px); }

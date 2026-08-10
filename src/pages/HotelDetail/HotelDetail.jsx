@@ -21,6 +21,7 @@ import ShareSheet from '../../components/ShareSheet/ShareSheet';
 import StayBar from '../../components/StayBar/StayBar';
 import { ratingLabel } from '../../utils/rating';
 import { dobsMatchAges } from '../../utils/childDob';
+import { loadPax, savePax, hasPaxParams, agesForCheckIn } from '../../utils/paxStore';
 import { earliestCheckInISO, departsTooSoon, MIN_LEAD_HOURS } from '../../utils/leadTime';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
@@ -575,7 +576,16 @@ function SkeletonBlock({ label, children }) {
   );
 }
 
-function FlightCard({ f, selected, cheapest, onSelect }) {
+/**
+ * `banner` turns the card into the page's ONE headline flight: a titled blue band across the
+ * top saying which fare this is and why it was chosen. Only the on-page card passes it — the
+ * modal lists many cards and a banner on each would be noise, so there it stays undefined and
+ * the card renders exactly as before.
+ *
+ * A banner also suppresses the green `cheapest` frame, because the band already says in words
+ * what the frame said in colour, and both at once made the card shout twice.
+ */
+function FlightCard({ f, selected, cheapest, banner, onSelect }) {
   const [expanded, setExpanded] = useState(false);
   const out = f.outLegs || [];
   const ret = f.retLegs || [];
@@ -586,7 +596,18 @@ function FlightCard({ f, selected, cheapest, onSelect }) {
     // `cheapest` draws the same green frame the chosen room wears, so "this is the best
     // price" reads identically on both halves of the trip. It is independent of `selected`:
     // a traveller who moves to a pricier flight can still see which one was cheapest.
-    <div className={`flight-card${selected ? ' selected' : ''}${cheapest ? ' cheapest' : ''}${expanded ? ' expanded' : ''}`}>
+    <div className={`flight-card${banner ? ' bannered' : ''}${selected ? ' selected' : ''}${cheapest && !banner ? ' cheapest' : ''}${expanded ? ' expanded' : ''}`}>
+      {banner && (
+        <div className="fc-banner">
+          <div className="fc-banner-main">
+            <div className="fc-banner-title">{banner.title}</div>
+            <div className="fc-banner-sub">{banner.sub}</div>
+          </div>
+          {banner.note && (
+            <div className="fc-banner-note">{ICON.info}<span>{banner.note}</span></div>
+          )}
+        </div>
+      )}
       <div className="bp-body">
         <Journey dir="Outbound" legs={out} />
         {ret.length > 0 && (<><div className="bp-tear" /><Journey dir="Return" legs={ret} /></>)}
@@ -616,10 +637,15 @@ function FlightCard({ f, selected, cheapest, onSelect }) {
         <div className="bp-buy">
           <div className="bp-price">
             {f.price != null && <b className="live-price">€{f.price.toLocaleString('en-GB')}</b>}
+            {/* WHO the figure covers. A fare this size is read as per person by anyone who
+                doesn't ask, and being wrong about that on the way into a checkout is the
+                expensive kind of wrong. */}
+            {f.price != null && <span className="bp-price-cap">Total for all travellers</span>}
             {/* What this fare costs ON TOP of the cheapest one on offer. Absolute prices are
                 hard to rank at a glance when every card reads "€1,969"; the gap is the number
-                the traveller is actually deciding on. `delta === 0` is the cheapest itself. */}
-            {f.delta === 0 && <span className="bp-delta bp-delta-best">{ICON.spark} Lowest fare</span>}
+                the traveller is actually deciding on. `delta === 0` is the cheapest itself.
+                Suppressed under a banner, which already names the fare in words. */}
+            {!banner && f.delta === 0 && <span className="bp-delta bp-delta-best">{ICON.spark} Lowest fare</span>}
             {f.delta > 0 && <span className="bp-delta">+€{Math.round(f.delta).toLocaleString('en-GB')}</span>}
           </div>
           <span className="flight-incl">{ICON.check} All-in fare</span>
@@ -851,16 +877,29 @@ export default function HotelDetail() {
   const baseCheckOut = (ovr.checkIn != null || ovr.nights != null || checkInWasPast)
     ? (baseCheckIn ? addDaysISO(baseCheckIn, nights) : paramCheckOut)
     : paramCheckOut;
-  const sAdults   = String(ovr.adults   ?? state?.adults   ?? (qp('adults')   || '2'));
-  const sChildren = String(ovr.children ?? state?.children ?? (qp('children') || '0'));
-  const sRooms    = String(ovr.rooms ?? state?.rooms  ?? (qp('rooms')  || '1'));
+  // The party last committed anywhere on the site, kept for 48 hours (utils/paxStore). It is
+  // consulted ONLY when neither the router state nor the address bar says who is travelling —
+  // a shared or favourited link states its own occupancy and must keep it, or opening someone
+  // else's "2 adults" hotel would re-price it for the visitor's own family. `hasPaxParams`
+  // treats the three counts as one answer, so a link carrying only `adults` still owns all of
+  // them rather than borrowing a remembered second room.
+  const linkOwnsPax = state?.adults != null || state?.children != null || state?.rooms != null
+    || hasPaxParams(searchParams);
+  const [storedPax] = useState(() => (linkOwnsPax ? null : loadPax()));
+  const sAdults   = String(ovr.adults   ?? state?.adults   ?? (qp('adults')   || storedPax?.adults   || '2'));
+  const sChildren = String(ovr.children ?? state?.children ?? (qp('children') || storedPax?.children || '0'));
+  const sRooms    = String(ovr.rooms ?? state?.rooms  ?? (qp('rooms')  || storedPax?.rooms  || '1'));
   // Numeric party size, for the places that recap the search back to the traveller rather than
   // send it to a supplier. Defaults match sAdults/sChildren/sRooms above.
   const availAdults   = Number(sAdults)   || 2;
   const availChildren = Number(sChildren) || 0;
   const availRooms    = Number(sRooms)    || 1;
-  // children's ages (csv) — HotelBeds requires an age per child for availability
-  const paramChildAges = String(ovr.childAges ?? state?.childAges ?? qp('childAges'));
+  // children's ages (csv) — HotelBeds requires an age per child for availability.
+  // A restored party contributes ages RECOMPUTED for the date being searched rather than the
+  // ones filed 48 hours ago: the stored figure was true for whatever departure was open then,
+  // and a child who has had a birthday since is a year older to the hotel.
+  const storedChildAges = storedPax ? agesForCheckIn(storedPax, baseCheckIn) : '';
+  const paramChildAges = String(ovr.childAges ?? state?.childAges ?? (qp('childAges') || storedChildAges));
   // Trim/pad the age list to the chosen child count — HB 400s on a child with no age.
   const sChildAges = (() => {
     const n = parseInt(sChildren, 10) || 0;
@@ -872,7 +911,7 @@ export default function HotelDetail() {
   // on them — the supplier takes the age — but the checkout books on the date, so they ride
   // along rather than being asked for a second time. Only kept while they still agree with
   // the ages actually being priced (`dobsMatchAges`), never padded with a guess.
-  const paramChildDobs = String(ovr.childDobs ?? state?.childDobs ?? qp('childDobs') ?? '');
+  const paramChildDobs = String(ovr.childDobs ?? state?.childDobs ?? (qp('childDobs') || storedPax?.childDobs || ''));
   const sChildDobs = (() => {
     const n = parseInt(sChildren, 10) || 0;
     if (!n || !paramChildDobs) return '';
@@ -880,6 +919,16 @@ export default function HotelDetail() {
     if (dobs.length !== n) return '';
     return dobsMatchAges(dobs.join(','), sChildAges, baseCheckIn) ? dobs.join(',') : '';
   })();
+  // Remember the party for the next visit — but only once it has been EDITED here (`ovr`),
+  // never on arrival. A hotel link opened from a share, a favourite or a crawler carries
+  // somebody else's occupancy, and writing that on sight would overwrite the visitor's own
+  // family with two strangers and throw their children's birthdays away.
+  const paxEdited = ovr.adults != null || ovr.children != null || ovr.rooms != null
+    || ovr.childAges != null || ovr.childDobs != null;
+  useEffect(() => {
+    if (!paxEdited) return;
+    savePax({ adults: sAdults, children: sChildren, rooms: sRooms, childAges: sChildAges, childDobs: sChildDobs });
+  }, [paxEdited, sAdults, sChildren, sRooms, sChildAges, sChildDobs]);
   // Departure airport — priority order: an in-page edit, then the airport chosen on the
   // results page (URL — the card opens in a new tab, so only the query string arrives),
   // then the default. `normaliseOrigin` guards the URL value: an airport we don't sell
@@ -2436,31 +2485,41 @@ export default function HotelDetail() {
                     <>
                       {/* The airport the fares were REALLY searched from — this line used to
                           hardcode Brussels while quoting Eindhoven prices. */}
-                      <div className="flight-note">Live fares from {airportName(liveFlights.from || origin)} for your selected dates, cheapest first:</div>
-                      <FlightCard
-                        f={{ ...liveFlights.flights[selectedFlight], price: Math.round(liveFlights.flights[selectedFlight].totalPrice), delta: 0 }}
-                        selected
-                        cheapest={selectedFlight === 0}
-                        onSelect={() => {}}
-                      />
+                      <div className="flight-note">{ICON.clock} Live fares from {airportName(liveFlights.from || origin)} for your selected travel dates.</div>
+                      {/* ONE flight on the page, every other option behind "Change flight".
+                          Two cards side by side asked a traveller to compare before they had
+                          been told what they were comparing, and the second was whichever fare
+                          happened to sit next in the list — not a considered alternative. The
+                          cheapest is chosen for them and SAID to be chosen, in words, at the
+                          top of the card; the full list, with its filters and sorting, is one
+                          click away and is the right place to shop. */}
                       {(() => {
-                        const altIdx = liveFlights.flights.findIndex((_, i) => i !== selectedFlight);
-                        if (altIdx === -1) return null;
-                        const alt = liveFlights.flights[altIdx];
+                        const pick = liveFlights.flights[selectedFlight];
+                        const isCheapest = selectedFlight === 0;
                         return (
                           <FlightCard
-                            f={{ ...alt, price: Math.round(alt.totalPrice), delta: cheapestFare == null ? null : alt.totalPrice - cheapestFare }}
-                            selected={false}
-                            cheapest={altIdx === 0}
-                            onSelect={() => setSelectedFlight(altIdx)}
+                            f={{ ...pick, price: Math.round(pick.totalPrice), delta: cheapestFare == null || isCheapest ? 0 : pick.totalPrice - cheapestFare }}
+                            selected
+                            banner={isCheapest ? {
+                              title: 'Cheapest available flight',
+                              sub: 'Automatically selected for your travel dates.',
+                              note: 'This is the best-priced flight option we found for your selected dates.',
+                            } : {
+                              title: 'Your selected flight',
+                              sub: 'You picked this one over the cheapest fare.',
+                              note: cheapestFare == null ? null
+                                : `€${Math.round(pick.totalPrice - cheapestFare).toLocaleString('en-GB')} more than the cheapest option for these dates.`,
+                            }}
+                            onSelect={() => {}}
                           />
                         );
                       })()}
-                      {liveFlights.flights.length > 2 && (
+                      {liveFlights.flights.length > 1 && (
                         <button className="show-more-flights" onClick={() => setModalOpen(true)}>
-                          {ICON.plane} Change flight · {liveFlights.flights.length - 2} more option{liveFlights.flights.length - 2 === 1 ? '' : 's'}
+                          {ICON.plane} Change flight · {liveFlights.flights.length - 1} more option{liveFlights.flights.length - 1 === 1 ? '' : 's'}
                         </button>
                       )}
+                      <div className="all-in-note">{ICON.shield} All prices include taxes, fees and charges.</div>
 
                       {/* ── Or fly from another airport? ──
                           What the popular alternatives cost, as a DIFFERENCE per person from
@@ -2646,27 +2705,43 @@ export default function HotelDetail() {
                                 hand-off; it is just not shown. */}
                             <div className="room-group-id">
                               <div className="room-group-name">{g.name}</div>
+                              {/* Who the room sleeps and for how long — the two facts that apply
+                                  to every board below, so they belong to the room's own title
+                                  block rather than to a strip above the first option, where they
+                                  read as qualifying that option alone. Per-night and per-guest
+                                  arithmetic deliberately left out: the traveller is choosing a
+                                  board here, and a second price beside every real price is
+                                  noise, not help. */}
+                              <div className="room-group-meta">
+                                {gInfo?.guests != null && (
+                                  <span className="rgm">{ICON.users}
+                                    {gInfo.adults} adult{gInfo.adults === 1 ? '' : 's'}
+                                    {gInfo.children > 0 ? ` · ${gInfo.children} child${gInfo.children === 1 ? '' : 'ren'}` : ''}
+                                    {gInfo.rooms > 1 ? ` · ${gInfo.rooms} rooms` : ''}
+                                  </span>
+                                )}
+                                <span className="rgm">{ICON.moon}{nightsToDays(nights)} day{nightsToDays(nights) === 1 ? '' : 's'}</span>
+                              </div>
                             </div>
                             <div className="room-group-from">
                               <span className="rgf-count">{g.boards.length} option{g.boards.length === 1 ? '' : 's'}</span>
-                              <span className="rgf-price">from {ccy}{Math.round(g.cheapest.price).toLocaleString('en-GB')}</span>
+                              <span className="rgf-price">From {ccy}{Math.round(g.cheapest.price).toLocaleString('en-GB')}</span>
                             </div>
                           </div>
 
-                          {/* Who the room sleeps and for how long — the two facts that apply to
-                              every board below. Per-night and per-guest arithmetic deliberately
-                              left out: the traveller is choosing a board here, and a second price
-                              beside every real price is noise, not help. */}
-                          <div className="room-group-meta">
-                            {gInfo?.guests != null && (
-                              <span className="rgm">{ICON.users}
-                                {gInfo.adults} adult{gInfo.adults === 1 ? '' : 's'}
-                                {gInfo.children > 0 ? ` · ${gInfo.children} child${gInfo.children === 1 ? '' : 'ren'}` : ''}
-                                {gInfo.rooms > 1 ? ` · ${gInfo.rooms} rooms` : ''}
-                              </span>
-                            )}
-                            <span className="rgm">{ICON.moon}{nights} day{nights === 1 ? '' : 's'}</span>
-                          </div>
+                          {/* Said once, on the room that actually holds the cheapest rate, rather
+                              than as a badge repeated down every list. The rows below are already
+                              in price order; this explains that ordering instead of decorating
+                              the row it produced. */}
+                          {g.boards.some((b) => b.index === cheapestIndex) && (
+                            <div className="room-best-note">
+                              <span className="rbn-ico">{ICON.tag}</span>
+                              <div className="rbn-text">
+                                <div className="rbn-title">Best-priced option in this room</div>
+                                <div className="rbn-sub">The cheapest available option is shown first.</div>
+                              </div>
+                            </div>
+                          )}
 
                           {g.boards.map((b) => {
                             const isSel = selectedRoom.live === b.index;
@@ -2678,7 +2753,7 @@ export default function HotelDetail() {
                             return (
                               <div
                                 key={b.index}
-                                className={`room-option${isSel ? ' selected' : ''}`}
+                                className={`room-option${isSel ? ' selected' : ''}${isCheapest ? ' cheapest' : ''}`}
                                 onClick={() => setSelectedRoom((p) => ({ ...p, live: b.index }))}
                               >
                                 <div className="room-radio" />
@@ -2690,7 +2765,11 @@ export default function HotelDetail() {
                                       thing on the row. It now sits beside the name it qualifies. */}
                                   <div className="room-name">
                                     {d?.board.label || b.boardLabel}
-                                    {isCheapest && <span className="room-flag room-flag-best">{ICON.spark} Lowest price</span>}
+                                    {/* What the traveller has chosen, said on the row itself. The
+                                        green frame alone leaves someone scrolling a long list to
+                                        infer it from colour; the "Lowest price" badge that used to
+                                        sit here is now the one note at the top of the room. */}
+                                    {isSel && <span className="room-flag room-flag-sel">{ICON.check} Selected</span>}
                                     <div className="room-chips">
                                       {/* No "Free cancellation until X" chip. A dated promise on
                                           the rate card is a commitment we don't want to make from
@@ -2735,11 +2814,13 @@ export default function HotelDetail() {
 
                       {roomGroups.length > ROOMS_COLLAPSED && (
                         <button type="button" className="room-more" onClick={() => setShowAllRooms((s) => !s)}>
+                          {ICON.bed}
                           {showAllRooms
-                            ? 'Show fewer room types'
-                            : `Show all ${roomGroups.length} room types`}
+                            ? 'Show fewer rooms'
+                            : `Show more rooms · ${roomGroups.length - ROOMS_COLLAPSED} more`}
                         </button>
                       )}
+                      <div className="all-in-note">{ICON.shield} All prices include taxes, fees and charges.</div>
                     </div>
                   ) : (
                     <div className="live-empty">{ICON.bed} No live rooms found for these dates.</div>
@@ -2767,12 +2848,25 @@ export default function HotelDetail() {
                     <div className="overview-hotel">{hotelName}</div>
                     <div className="overview-stars">{'★'.repeat(Math.min(stars, 5))}</div>
                     <div className="overview-loc">{ICON.pin} {locLabel}</div>
+                    {/* Who is travelling, stated on the summary itself. It decided every figure
+                        below it and was readable nowhere on this card — someone who changed the
+                        party size two screens ago had no way to check the total was priced for
+                        the party they meant. */}
+                    <div className="overview-pax">{ICON.users} {(() => {
+                      const a = Number(sAdults) || 0;
+                      const c = Number(sChildren) || 0;
+                      if (!a && !c) return `${ovPax} ${ovPax === 1 ? 'traveller' : 'travellers'}`;
+                      return [
+                        a ? `${a} adult${a === 1 ? '' : 's'}` : null,
+                        c ? `${c} child${c === 1 ? '' : 'ren'}` : null,
+                      ].filter(Boolean).join(' · ');
+                    })()}</div>
                     <div className="overview-dates">{ICON.cal} {(() => {
                       const ci = pd?.iso || baseCheckIn;
                       const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
                       // No invented April dates when the search carries none.
                       return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} - ${niceDate(co)}` : 'Dates not selected yet';
-                    })()} <span style={{ color: 'var(--text-light)' }}>({nightsToDays(nights)} days)</span></div>
+                    })()} <span>({nightsToDays(nights)} days)</span></div>
                     </div>
                     {/* overview-score removed — no real review data yet */}
                   </div>
@@ -2809,7 +2903,7 @@ export default function HotelDetail() {
                         : <>Now book {ICON.arrow}</>}
                     </button>
                   </div>
-                  <div className="overview-urgency"><div className="overview-urgency-text">{ICON.clock} Prices are live and may change until your booking is completed.</div></div>
+                  <div className="overview-urgency"><div className="overview-urgency-text">{ICON.shield} Prices are in {ccy} and may change until your booking is completed.</div></div>
                 </div>
               </div>
             </div>

@@ -16,6 +16,7 @@ import { flagUrl } from '../../utils/countryFlag';
 import { toTitleCase } from '../../utils/textCase';
 import { nightsToDays } from '../../utils/durations';
 import { dobsMatchAges, ageAtCheckIn } from '../../utils/childDob';
+import { loadPax, savePax, hasPaxParams } from '../../utils/paxStore';
 import { earliestCheckInISO } from '../../utils/leadTime';
 import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
 import { useToast } from '../../context/ToastContext';
@@ -376,15 +377,22 @@ export default function Results() {
 
   const initCheckIn  = params.get('checkIn')  || defaultCheckIn;
   const initCheckOut = params.get('checkOut') || defaultCheckOut;
-  const initAdults   = params.get('adults')   || '2';
-  const initChildren = params.get('children') || '0';
-  const initRooms    = params.get('rooms')    || '1';
+  // The party last committed anywhere on the site, kept for 48 hours (utils/paxStore), used
+  // only when the link itself does not say who is travelling — a results URL that carries an
+  // occupancy is a search someone chose, whether they built it here or were sent it.
+  const storedPax = hasPaxParams(params) ? null : loadPax();
+  const initAdults   = params.get('adults')   || storedPax?.adults   || '2';
+  const initChildren = params.get('children') || storedPax?.children || '0';
+  const initRooms    = params.get('rooms')    || storedPax?.rooms    || '1';
+  // Ages are not restored from the store: the dates are, and the age is derived from them
+  // below against the check-in actually being searched. A stored age would be the answer to a
+  // departure date that has since moved.
   const childAges    = params.get('childAges') || '';
   // The children's birthdays as typed in the search. The results page prices on the AGES —
   // that is all the supplier takes — and only carries the dates through to the hotel page and
   // the checkout, which book on the date. Handed on ONLY while the two still agree (see
   // `dobsMatchAges`): a stale date next to an edited age is worse than no date at all.
-  const childDobs    = params.get('childDobs') || '';
+  const childDobs    = params.get('childDobs') || storedPax?.childDobs || '';
 
   // Travel-time (duration) filter — the day-range band chosen on the home page (e.g. "6-10 days")
   // plus its night bounds, so the results page can offer each individual length within the band
@@ -1399,6 +1407,19 @@ export default function Results() {
       maxAdultsPerRoom:   String(maxAdultsPerRoom),
       maxChildrenPerRoom: String(maxChildrenPerRoom),
     }));
+    // Committed, so it is worth remembering for the next visit (48 hours, utils/paxStore).
+    // Only here, on the traveller's own "Update search" — arriving on a link somebody else
+    // built is not a statement about who WE are travelling with.
+    savePax({
+      adults: String(totalAdults),
+      children: String(totalChildren),
+      rooms: String(roomsN),
+      childAges: allChildAges.join(','),
+      // Positional, blanks kept — unlike the search params above, which drop the whole list
+      // unless every child has a date. Here a child still being asked for should come back as
+      // an empty picker on their own row, not shift the next child's birthday up into it.
+      childDobs: allChildDobs.join(','),
+    });
   };
 
   // The stay length (nights) the current search is priced for — highlights the matching
