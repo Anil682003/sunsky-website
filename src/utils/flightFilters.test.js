@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   bandOf, hourOf, stopsOf, durationOf, flightFacets, applyFlightFilters, sortFlights, splitRoundTrip,
+  dedupeFares,
 } from './flightFilters';
 
 // Shape mirrors what HotelDetail builds from /flight-availability/search.
@@ -223,5 +224,61 @@ describe('stopsOf / durationOf', () => {
 
   it('adds up both directions for duration', () => {
     expect(durationOf({ outLegs: [{ duration: 100 }], retLegs: [{ duration: 50 }] })).toBe(150);
+  });
+});
+
+// The change-flight modal listed the same aircraft four times over — 17:40 BRU→ADB out,
+// 11:25 back, "Cabin bag included · Checked baggage 20 kg" on every one of them, at €1,112,
+// €1,120, €1,120 and €1,128. Those are Airtuerk's fare classes, not four flights, and two of
+// them did not even differ in price.
+describe('dedupeFares', () => {
+  // Same aircraft, same times, same allowance — only the fare class (and a few euros) differ.
+  const fareClass = (price) => flight({
+    totalPrice: price,
+    outLegs: [leg('2026-09-13T17:40:00', '2026-09-13T22:00:00', { airline: 'XQ', flightNumber: '1653', from: 'BRU', to: 'ADB' })],
+    retLegs: [leg('2026-09-19T11:25:00', '2026-09-19T14:05:00', { airline: 'XQ', flightNumber: '1652', from: 'ADB', to: 'BRU' })],
+    baggage: { checkedKg: 20, checkedPieces: 0, handKg: 0 },
+  });
+
+  it('shows one card for one flight, not one per fare class', () => {
+    const out = dedupeFares([fareClass(1112), fareClass(1120), fareClass(1120), fareClass(1128)]);
+    expect(out).toHaveLength(1);
+  });
+
+  it('keeps the cheapest of the group, with its booking keys', () => {
+    const cheap = { ...fareClass(1112), flightKeys: ['cheap-key'] };
+    const dear = { ...fareClass(1128), flightKeys: ['dear-key'] };
+    const out = dedupeFares([cheap, dear]);
+    expect(out[0].totalPrice).toBe(1112);
+    expect(out[0].flightKeys).toEqual(['cheap-key']);
+  });
+
+  // A cheaper fare that drops the hold bag is a genuinely different purchase. Collapsing it
+  // into the 20kg fare would hide the choice AND quote the wrong allowance for the price.
+  it('keeps fares apart when the baggage differs', () => {
+    const noBag = { ...fareClass(980), baggage: { checkedKg: 0, checkedPieces: 0, handKg: 0 } };
+    expect(dedupeFares([noBag, fareClass(1112)])).toHaveLength(2);
+  });
+
+  it('keeps genuinely different itineraries', () => {
+    const later = flight({
+      totalPrice: 1150,
+      outLegs: [leg('2026-09-13T06:15:00', '2026-09-13T10:35:00', { airline: 'XQ', flightNumber: '1655', from: 'BRU', to: 'ADB' })],
+      retLegs: [leg('2026-09-19T11:25:00', '2026-09-19T14:05:00', { airline: 'XQ', flightNumber: '1652', from: 'ADB', to: 'BRU' })],
+      baggage: { checkedKg: 20, checkedPieces: 0, handKg: 0 },
+    });
+    expect(dedupeFares([fareClass(1112), later])).toHaveLength(2);
+  });
+
+  // Nothing to compare on means nothing may be thrown away: a feed with no flight numbers and
+  // no departure times must not collapse every option into one.
+  it('passes through fares it cannot identify', () => {
+    const blank = { totalPrice: 500, outLegs: [{ from: 'BRU', to: 'ADB' }], retLegs: [] };
+    expect(dedupeFares([blank, { ...blank, totalPrice: 600 }])).toHaveLength(2);
+  });
+
+  it('survives junk input', () => {
+    expect(dedupeFares(null)).toEqual([]);
+    expect(() => dedupeFares([null, undefined])).not.toThrow();
   });
 });

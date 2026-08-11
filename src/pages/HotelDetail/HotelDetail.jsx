@@ -10,7 +10,7 @@ import { groupRoomsByBoard, boardCount } from '../../utils/roomBoards';
 import { nightsToDays } from '../../utils/durations';
 import { rateDetails, boardInfo, decodeEntities } from '../../utils/rateDetails';
 import {
-  splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS,
+  splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS, dedupeFares,
 } from '../../utils/flightFilters';
 import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
@@ -138,7 +138,9 @@ function transformFlights(data, originCode) {
   // today; this removes the 06:00 departure tomorrow morning, which the floor cannot see.
   const bookable = flights.filter((f) => !departsTooSoon(f.outLegs?.[0]?.departure));
   bookable.sort((a, b) => a.totalPrice - b.totalPrice);
-  return bookable;
+  // One card per thing a traveller can actually choose between — the supplier's duplicate
+  // fare classes for the same aircraft, times and baggage collapse to their cheapest.
+  return dedupeFares(bookable);
 }
 // "Care (Meals)" options. `match` tests the supplier's board name/code on a live room.
 const BOARD_PREFS = [
@@ -572,10 +574,16 @@ function FlightCard({ f, selected, cheapest, banner, onSelect }) {
   const fareIncludes = fareInclusions(f.baggage);
 
   return (
-    // `cheapest` draws the same green frame the chosen room wears, so "this is the best
-    // price" reads identically on both halves of the trip. It is independent of `selected`:
-    // a traveller who moves to a pricier flight can still see which one was cheapest.
-    <div className={`flight-card${banner ? ' bannered' : ''}${selected ? ' selected' : ''}${cheapest && !banner ? ' cheapest' : ''}${expanded ? ' expanded' : ''}`}>
+    // Green is this page's SELECTED colour — it is what the chosen room wears, and what the
+    // "Selected" badge on this very card has always been. So the green frame follows
+    // `selected`, and exactly one card can hold it at a time.
+    //
+    // `cheapest` used to draw that green frame independently, which meant the cheapest fare
+    // sat in green whether or not it was chosen: pick any other flight and two cards were lit
+    // at once, the green one on a flight the traveller had just moved away from. It now marks
+    // the best price in BLUE, and steps aside entirely on the selected card — the fare is
+    // still named in words by the "Lowest fare" chip, which is the honest place for it.
+    <div className={`flight-card${banner ? ' bannered' : ''}${selected ? ' selected' : ''}${cheapest && !selected && !banner ? ' cheapest' : ''}${expanded ? ' expanded' : ''}`}>
       {banner && (
         <div className="fc-banner">
           <div className="fc-banner-main">
@@ -1348,8 +1356,45 @@ export default function HotelDetail() {
     shareFrom != null ? `from ${ccy}${shareFrom} p.p.` : '',
   ].filter(Boolean).join('\n');
 
+  // Live rates as "room type → its board options". Selection still addresses the flat
+  // `liveRooms.rooms` array by index, so the booking hand-off keeps the exact rateKey.
+  const allRoomGroups = useMemo(() => groupRoomsByBoard(liveRooms?.rooms), [liveRooms]);
+  // "Care (Meals)" narrows the rates on show. Filtering happens AFTER grouping so each
+  // surviving board keeps its original `index` — that handle is the rateKey the booking
+  // hand-off needs, and re-indexing a filtered input would book the wrong rate.
+  const roomGroups = useMemo(() => {
+    const pref = BOARD_PREFS.find((b) => b.id === boardPref);
+    if (!pref?.match) return allRoomGroups;
+    return allRoomGroups
+      .map((g) => ({ ...g, boards: g.boards.filter((b) => pref.match.test(`${b.boardLabel} ${b.boardCode || ''}`)) }))
+      .filter((g) => g.boards.length > 0)
+      .map((g) => ({ ...g, cheapest: g.boards[0] }));
+  }, [allRoomGroups, boardPref]);
+  const boardFilterHidAll = allRoomGroups.length > 0 && roomGroups.length === 0;
+
+  // ── which rate the page is quoting ───────────────────────────────────────────
+  // The card above the room list and the room list itself must name the SAME rate. They did
+  // not: the card opened on index 0 of the flat array — the cheapest rate from any supplier,
+  // before the "Care (meals)" filter — while the list below only ever showed the rates that
+  // survived that filter. A traveller who had asked for Bed & Breakfast was quoted an All
+  // Inclusive price and board they could not see, could not have chosen, and could not undo
+  // except by clicking a room, which silently corrected the price they had already read.
+  //
+  // Derived rather than corrected in an effect: the fallback re-evaluates the moment the
+  // filter changes, so there is no render where the two disagree and no state to keep in step.
+  const visibleRateIndices = useMemo(
+    () => new Set(roomGroups.flatMap((g) => g.boards.map((b) => b.index))),
+    [roomGroups]
+  );
+  // An explicit pick wins for as long as it is still on screen; otherwise the cheapest rate
+  // the traveller can actually see. `roomGroups` and each group's boards are both sorted
+  // cheapest-first, so that is the first board of the first group.
+  const liveIndex = (selectedRoom.live != null && visibleRateIndices.has(selectedRoom.live))
+    ? selectedRoom.live
+    : (roomGroups[0]?.boards?.[0]?.index ?? null);
+
   // live selection → live price shown in the Book Now card / mobile bar / checkout
-  const liveRoom = liveRooms?.rooms?.length ? liveRooms.rooms[selectedRoom.live ?? 0] : null;
+  const liveRoom = (liveRooms?.rooms?.length && liveIndex != null) ? liveRooms.rooms[liveIndex] : null;
   // The board of THAT rate, named exactly as the room rows name it — the availability recap
   // has to move with the traveller's choice, so picking half board over the cheapest all-in
   // rate changes the price and the board type together. Derived straight from the selected
@@ -1389,22 +1434,6 @@ export default function HotelDetail() {
   const wasPP = ppOf(cacheWas);
   const nowPP = ppOf(liveNow);
   const ppMoved = (wasPP != null && nowPP != null && nowPP !== wasPP) ? nowPP - wasPP : null;
-
-  // Live rates as "room type → its board options". Selection still addresses the flat
-  // `liveRooms.rooms` array by index, so the booking hand-off keeps the exact rateKey.
-  const allRoomGroups = useMemo(() => groupRoomsByBoard(liveRooms?.rooms), [liveRooms]);
-  // "Care (Meals)" narrows the rates on show. Filtering happens AFTER grouping so each
-  // surviving board keeps its original `index` — that handle is the rateKey the booking
-  // hand-off needs, and re-indexing a filtered input would book the wrong rate.
-  const roomGroups = useMemo(() => {
-    const pref = BOARD_PREFS.find((b) => b.id === boardPref);
-    if (!pref?.match) return allRoomGroups;
-    return allRoomGroups
-      .map((g) => ({ ...g, boards: g.boards.filter((b) => pref.match.test(`${b.boardLabel} ${b.boardCode || ''}`)) }))
-      .filter((g) => g.boards.length > 0)
-      .map((g) => ({ ...g, cheapest: g.boards[0] }));
-  }, [allRoomGroups, boardPref]);
-  const boardFilterHidAll = allRoomGroups.length > 0 && roomGroups.length === 0;
 
   // ── which meal plans this hotel actually sells ───────────────────────────────
   // The picker used to offer all six unconditionally, so a hotel that only sells room-only
@@ -1754,7 +1783,11 @@ export default function HotelDetail() {
         // World2Meet bookable identity — carried into the checkout hand-off.
         bookingCode: r.bookingCode || null, w2mHotelCode: r.w2mHotelCode || null,
       })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
-      setSelectedRoom((p) => ({ ...p, live: 0 }));
+      // No pick yet for this day's results. Null rather than 0: index 0 is the cheapest rate
+      // from ANY supplier before the meal filter runs, which is exactly the rate the card used
+      // to quote while the list below showed something else. `liveIndex` resolves the default
+      // from what is actually on screen.
+      setSelectedRoom((p) => ({ ...p, live: null }));
       const cheapest = data?.results?.cheapest || null;
       setLiveRooms({ rooms, cheapest });
       if (rooms.length === 0 && (!cheapest || !Number(cheapest.price))) {
@@ -2852,7 +2885,9 @@ export default function HotelDetail() {
                           )}
 
                           {g.boards.map((b) => {
-                            const isSel = selectedRoom.live === b.index;
+                            // Compared against the index the CARD is quoting, not against the
+                            // raw pick, so the row ticked here is always the rate priced above.
+                            const isSel = liveIndex === b.index;
                             const d = rateInfo.get(b.index);
                             const isCheapest = b.index === cheapestIndex;
                             // Against the cheapest board of THIS room — a like-for-like comparison

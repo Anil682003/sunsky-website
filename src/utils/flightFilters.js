@@ -92,6 +92,52 @@ export function splitRoundTrip(legs, origin = null) {
   return { outLegs: list.slice(0, atIdx + 1), retLegs: list.slice(atIdx + 1) };
 }
 
+/* Collapse fares a traveller cannot tell apart.
+ *
+ * Airtuerk prices one row per bookable fare class, so the SAME physical flight comes back
+ * several times over: identical aircraft, identical times, identical baggage, a few euros
+ * apart. Rendered one card each, the change-flight modal showed four cards that differed in
+ * nothing — two of them at the very same price. That is not a choice, it is a list to scroll
+ * past, and it buries the itineraries that genuinely ARE different.
+ *
+ * Rows with the same itinerary AND the same baggage are one option; only the cheapest
+ * survives. Baggage is in the signature on purpose: a hand-luggage fare and a 20kg fare on
+ * the same aircraft are different things to buy, so both keep their card.
+ *
+ * Pass a list already sorted cheapest-first — the first row of each group is the one kept,
+ * and its `flightKeys` are what the booking is ultimately made with.
+ */
+export function dedupeFares(sorted) {
+  const legSig = (l) => [
+    String(l?.airline || '').toUpperCase(),
+    String(l?.flightNumber || ''),
+    String(l?.from || '').toUpperCase(),
+    String(l?.to || '').toUpperCase(),
+    String(l?.departure || ''),
+    String(l?.arrival || ''),
+  ].join('|');
+  const fareSig = (f) => [
+    (f.outLegs || []).map(legSig).join('>'),
+    (f.retLegs || []).map(legSig).join('>'),
+    f.baggage?.checkedKg ?? '',
+    f.baggage?.checkedPieces ?? '',
+    f.baggage?.handKg ?? '',
+  ].join('~');
+  // A feed that sends neither flight numbers nor departure times has no itinerary to compare,
+  // and collapsing on an empty signature would throw away every option but one. Those rows
+  // pass through untouched — this only ever acts on fares it can actually identify.
+  const identifiable = (f) => (f?.outLegs || []).some((l) => l?.departure || l?.flightNumber);
+
+  const seen = new Set();
+  return (Array.isArray(sorted) ? sorted : []).filter((f) => {
+    if (!identifiable(f)) return true;
+    const sig = fareSig(f);
+    if (seen.has(sig)) return false;
+    seen.add(sig);
+    return true;
+  });
+}
+
 /** Stops across the whole trip — a trip is "direct" only when BOTH directions are. */
 export function stopsOf(f) {
   if (!f) return 0;

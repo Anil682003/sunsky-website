@@ -1089,12 +1089,16 @@
 .sd .flight-section { margin-bottom:38px; }
 .sd .flight-card { background:var(--white); border:1.5px solid var(--border-light); border-radius:18px; overflow:hidden; transition:all .3s var(--ease); margin-bottom:12px; box-shadow:var(--shadow-xs); }
 .sd .flight-card:hover { border-color:#d8e6fa; box-shadow:var(--shadow-sm); }
-.sd .flight-card.selected { border-color:var(--blue); box-shadow:0 0 0 4px rgba(31,79,216,.08), 0 10px 26px rgba(31,79,216,.12); }
-/* Cheapest fare — the same green frame the chosen room wears, so the best price reads the
-   same on both halves of the trip. Declared AFTER .selected so it wins when a card is both,
-   which is the usual case: the cheapest flight is the one selected by default. */
-.sd .flight-card.cheapest { border-color:var(--green); background:linear-gradient(180deg,#fbfffd,#f1fcf7); box-shadow:0 0 0 4px rgba(5,150,105,.10), 0 10px 26px rgba(5,150,105,.10); }
-.sd .flight-card.cheapest:hover { border-color:var(--green); }
+/* The chosen flight wears the same green frame as the chosen room, because on this page green
+   means "this is the one you picked" — the card's own "Selected" badge has always been green.
+   Only ever one card at a time: the class is mutually exclusive with .cheapest in the JSX. */
+.sd .flight-card.selected { border-color:var(--green); background:linear-gradient(180deg,#fbfffd,#f1fcf7); box-shadow:0 0 0 4px rgba(5,150,105,.10), 0 10px 26px rgba(5,150,105,.10); }
+.sd .flight-card.selected:hover { border-color:var(--green); }
+/* Cheapest fare, when it is NOT the selected one — blue, so the best price is still findable
+   at a glance without competing with the green that means "chosen". Deselect a flight in
+   favour of another and this is the colour the old card falls back to. */
+.sd .flight-card.cheapest { border-color:var(--blue); box-shadow:0 0 0 4px rgba(31,79,216,.08), 0 10px 26px rgba(31,79,216,.12); }
+.sd .flight-card.cheapest:hover { border-color:var(--blue); }
 .sd .flight-note { font-size:13px; color:var(--text-sec); margin-bottom:14px; display:flex; align-items:center; gap:7px; }
 .sd .flight-note svg { width:14px; height:14px; color:var(--text-light); flex-shrink:0; }
 
@@ -1832,7 +1836,12 @@
 
 /* ── one selected-state recipe: hairline + ring ── */
 .sd .flight-card { border:1px solid var(--border); }
-.sd .flight-card.selected { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
+/* Deliberately the SAME recipe as .room-option.selected three lines below: the flight and the
+   room are the two decisions this page carries, and they now confirm in one another's colour.
+   This rule is last in the cascade, so it also beats .expanded — opening a selected card's
+   details no longer flips its frame back to blue. */
+.sd .flight-card.selected { border:1.5px solid var(--green); box-shadow:0 0 0 3px rgba(5,150,105,.13); }
+.sd .flight-card.cheapest { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
 .sd .room-option { border:1px solid var(--border); }
 /* Thicker than the 1px hairline the other cards get (it snaps back to 1px at DPR 1, but holds on
    retina): this is the one card on the page carrying a decision. */
