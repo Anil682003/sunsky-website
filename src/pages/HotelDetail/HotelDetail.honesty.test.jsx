@@ -187,7 +187,11 @@ describe('the fare strip never invents a week', () => {
       expect(found.length).toBe(7);
       return found;
     });
-    expect(days[0]).toHaveAccessibleName(/from €260/i);
+    // The figure the cache gave for this day, PER PERSON: the endpoint prices a whole stay
+    // for the whole party (€260 for the two adults searched), and the strip divides it so a
+    // family is not comparing a party total against the per-person prices quoted everywhere
+    // else. Still the supplier's own number — nothing here is invented.
+    expect(days[0]).toHaveAccessibleName(/from €130 per person/i);
   });
 });
 

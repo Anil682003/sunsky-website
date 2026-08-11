@@ -711,6 +711,47 @@
 .sd .fc-from { font-size:9px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:rgba(255,255,255,.78); }
 .sd .fc-amt { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:#fff; letter-spacing:-.01em; margin-top:2px; max-width:100%; }
 .sd .fc-nts { margin-top:auto; font-size:9.5px; font-weight:600; color:rgba(255,255,255,.8); white-space:nowrap; }
+/* "p.p." under every estimate. The calendar prices a whole stay for a whole party, so without
+   this a family of four compared a bar against a per-person figure everywhere else they shop. */
+.sd .fc-pp { font-size:8.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:rgba(255,255,255,.72); margin-top:1px; }
+
+/* ── the checked day, once the live price is in ──────────────────────────────
+   The estimate stays above the live figure, struck through: the traveller picked this day off
+   that number. Both are PER PERSON, like every other figure on this strip — the card below
+   runs the same comparison on party totals, and the two bases never cross.
+   THE BAR KEEPS THE HEIGHT ITS PRICE GIVES IT. There is deliberately no min-height override
+   here: a floor tall enough for the extra rows would push the cheapest day's bar UP, and the
+   whole point of this chart is that a shorter bar means a cheaper day. The two extra rows are
+   paid for by dropping the "from" label instead — a checked day is not quoting a "from" price
+   any more, it is quoting the price — which keeps the content inside even the 44% bar. */
+.sd .fc-was { font-family:'Sora',sans-serif; font-size:10.5px; font-weight:700; text-decoration:line-through; line-height:1.25; }
+.sd .fc-amt-live { font-size:17px; margin-top:1px; }
+.sd .fc-livetag {
+  font-size:7.5px; font-weight:800; letter-spacing:.06em; text-transform:uppercase;
+  padding:1.5px 7px; border-radius:var(--r-full); margin-top:3px; white-space:nowrap;
+  background:var(--green); color:var(--white);
+}
+/* The checked column runs four rows where the others run three, and the cheapest day's bar is
+   only 44% tall. Trimmed padding buys most of the room; `min-height:min-content` is the net
+   that guarantees the rest, so a larger font or a zoomed page grows the one bar rather than
+   clipping the price off it. Every OTHER bar is untouched, and this one still takes its height
+   from its own price in every case that fits — which, after the trim, is all of them. */
+.sd .fc-col.sel.fc-ok .fc-bar { padding-top:8px; padding-bottom:7px; min-height:min-content; }
+/* Sits in the slot the "Lowest price" flag uses, and replaces it once a day is checked: how the
+   price MOVED is newer than whether it was the cheapest guess of the week. Amber for a rise —
+   never red, which on this strip means a day with no rooms at all. */
+.sd .fc-movetag {
+  display:inline-flex; align-items:center; gap:4px;
+  font-size:8.5px; font-weight:800; letter-spacing:.05em; text-transform:uppercase;
+  padding:3px 9px; border-radius:var(--r-full); margin-bottom:7px; white-space:nowrap;
+}
+.sd .fc-movetag svg { width:10px; height:10px; flex-shrink:0; }
+.sd .fc-movetag.up   { background:#fde68a; color:#8a5a06; }
+.sd .fc-movetag.down { background:#a7f3d0; color:#065f46; }
+@media (max-width: 700px) {
+  .sd .fc-movetag { padding:3px 6px; gap:3px; }
+  .sd .fc-movetag-w { display:none; }
+}
 .sd .fc-col.sel .fc-amt { background:rgba(255,255,255,.22); padding:1px 9px; border-radius:6px; }
 .sd .fc-under { padding:11px 0 4px; display:flex; flex-direction:column; align-items:center; gap:1px; position:relative; }
 /* The picked day's label band carries the BAR's own navy down past the date and into
@@ -787,6 +828,10 @@
    lighter mint the old .42 wash had almost nothing to push against. */
 .sd .fc-col.sel.fc-ok .fc-amt  { color:#04311F; background:rgba(255,255,255,.78); }
 .sd .fc-col.sel.fc-ok .fc-nts  { color:rgba(4,49,34,.92); }
+/* The struck estimate on mint. Stepped back from the live figure beside it, but not so far
+   that it fails at 11px — .62 on this mint measures 4.9:1. */
+.sd .fc-col.sel.fc-ok .fc-was  { color:rgba(4,49,34,.62); }
+.sd .fc-col.sel.fc-ok .fc-pp   { color:rgba(4,49,34,.8); }
 .sd .fc-col.sel.fc-ok .fc-check { color:#04311F; }
 .sd .fc-col.sel.fc-ok .fc-wk   { color:rgba(4,49,34,.88); }
 .sd .fc-col.sel.fc-ok .fc-date { color:#04311F; }
@@ -971,9 +1016,54 @@
 .sd .avail-price { margin-left:auto; text-align:right; }
 .sd .avail-price-label { font-size:10px; color:#047857; text-transform:uppercase; letter-spacing:.3px; font-weight:600; }
 .sd .avail-price-old { font-size:14px; color:var(--text-light); text-decoration:line-through; font-family:'Sora',sans-serif; font-weight:600; }
+.sd .avail-price-old small { font-size:10px; font-weight:400; }
 .sd .avail-price-val { font-family:'Sora',sans-serif; font-size:26px; font-weight:800; color:#065f46; }
 .sd .avail-price-val small { font-size:11px; font-weight:400; }
-.sd .avail-you-low { font-size:11px; color:var(--green); font-weight:700; margin-top:2px; }
+
+/* ── THE LIVE PRICE AGAINST THE ESTIMATE IT REPLACED ─────────────────────────
+   Both figures on this card are PARTY TOTALS, and they sit on one line so they read as one
+   sentence: "was this, is now that". The strip above is priced per person and runs its own
+   comparison there; nothing on this card is ever struck against a per-person figure.
+
+   Direction is carried by the badge below, not by the price itself. The live figure stays
+   the card's deep green in both directions because it is the authoritative number either
+   way — recolouring it amber on an increase would make the price the traveller is being
+   asked to accept look like the error state. */
+.sd .avail-price-row { display:flex; align-items:baseline; justify-content:flex-end; gap:9px; }
+.sd .avail-moved-down .avail-price-val { color:#047857; }
+.sd .avail-moved-down .avail-price-label { color:#047857; }
+
+/* The direction badge. Green for a drop, amber for a rise — NEVER red: red on this page is
+   reserved for a day with no rooms at all, and a holiday that is available at a higher price
+   is not an error. */
+.sd .avail-move {
+  display:inline-flex; align-items:center; gap:7px; margin-top:7px;
+  padding:6px 12px; border-radius:999px; font-size:11.5px; font-weight:600; line-height:1.3;
+  text-align:left;
+}
+.sd .avail-move svg { width:14px; height:14px; flex-shrink:0; }
+.sd .avail-move b { font-family:'Sora',sans-serif; font-weight:800; }
+.sd .avail-move.down { background:#d1fae5; color:#065f46; }
+.sd .avail-move.up   { background:#fef3c7; color:#92400e; }
+
+/* Who the sum covers, and one share of it. Quiet — these qualify the figure above rather
+   than competing with it. */
+.sd .avail-forpax { font-size:11.5px; color:#047857; font-weight:600; margin-top:4px; }
+.sd .avail-pp {
+  display:inline-block; margin-top:6px; padding:3px 10px; border-radius:999px;
+  background:#d1fae5; font-family:'Sora',sans-serif; font-size:12px; font-weight:700; color:#065f46;
+}
+.sd .avail-you-low { font-size:11px; color:var(--green); font-weight:700; margin-top:6px; }
+
+/* "Price updated after live check", beside the green tick. Amber for the same reason as the
+   badge above: it qualifies an availability confirmation, it does not contradict it. */
+.sd .avail-updated {
+  display:inline-flex; align-items:center; gap:7px; margin-top:9px;
+  padding:6px 12px; border-radius:10px; background:#fffbeb; border:1px solid #fde68a;
+  font-size:11.5px; font-weight:600; color:#92400e;
+}
+.sd .avail-updated.down { background:#ecfdf5; border-color:#a7f3d0; color:#065f46; }
+.sd .avail-updated svg { width:14px; height:14px; flex-shrink:0; }
 /* The "no estimate to quote" dash — quieter than a figure, never mistakable for one. */
 .sd .avail-price-none { font-size:19px; font-weight:700; color:var(--text-light); }
 

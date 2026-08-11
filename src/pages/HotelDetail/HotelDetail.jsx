@@ -236,6 +236,10 @@ const ICON = {
   noTransfer: <S><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /></S>,
   car:   <S><path d="M5 11l1.5-4.5A2 2 0 018.4 5h7.2a2 2 0 011.9 1.5L19 11" /><path d="M3 16v-3a2 2 0 012-2h14a2 2 0 012 2v3" /><circle cx="7" cy="16" r="1.6" /><circle cx="17" cy="16" r="1.6" /><path d="M3 19h18" /></S>,
   clock: <S><circle cx="12" cy="12" r="10" /><polyline points="12 6 12 12 16 14" /></S>,
+  /* Which way the live price moved. A circled arrow rather than a bare one: these sit inside
+     a coloured pill at 8-11px, where an unenclosed stroke reads as a speck. */
+  arrowDown: <S sw={2.4}><circle cx="12" cy="12" r="9.5" /><path d="M12 7.6v8.8" /><path d="M8.4 12.8L12 16.4l3.6-3.6" /></S>,
+  arrowUp:   <S sw={2.4}><circle cx="12" cy="12" r="9.5" /><path d="M12 16.4V7.6" /><path d="M8.4 11.2L12 7.6l3.6 3.6" /></S>,
   arrow: <S sw={2.5}><path d="M5 12h14" /><path d="M12 5l7 7-7 7" /></S>,
   arrowBack: <S><path d="M9 14l-4-4 4-4" /><path d="M5 10h11a4 4 0 010 8h-1" /></S>,
   warn:  <S><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z" /><line x1="12" y1="9" x2="12" y2="13" /><line x1="12" y1="17" x2="12.01" y2="17" /></S>,
@@ -1353,6 +1357,39 @@ export default function HotelDetail() {
   // screen; the selection can point outside it.
   const liveBoard = liveRoom ? boardInfo(liveRoom.boardCode, liveRoom.board).label : null;
 
+  // ── the live price against the estimate it replaced ──────────────────────────
+  // The strip quotes a CACHED estimate per day; the check then asks the supplier what that day
+  // really costs. Either answer is worth stating outright — a saving the traveller was not
+  // told about is a saving they did not get, and an increase discovered at the checkout is
+  // worse than one shown here — so the estimate stays on screen struck through and the
+  // difference is named.
+  //
+  // The two figures are comparable, and it is worth saying why: the calendar endpoint takes no
+  // departure airport, so like `liveRoom.price` it prices the STAY for the whole party and
+  // neither carries a flight. Comparing the calendar figure against the room+flight total
+  // would manufacture a difference the size of an airfare.
+  //
+  // BASIS IS EVERYTHING, and it is why this computes the move twice. The strip is priced PER
+  // PERSON and the card quotes the party TOTAL; striking one against the other would invent a
+  // change of exactly the party size. Each surface compares against its own basis, and each
+  // subtraction is done on the ROUNDED figures actually printed, so "€286 → €305, €19 higher"
+  // adds up on screen rather than to a hidden third decimal.
+  const cacheWas = pdEstimate ? Number(pd.price) : null;
+  const liveNow = liveRoom ? Math.round(liveRoom.price) : null;
+  /** One traveller's share, to the cent — for the card, which has room to be exact. */
+  const perPersonOf = (total) => (total != null ? (total / paxCount).toFixed(2) : null);
+  /** One traveller's share in whole euros — for the strip, where a bar is 9px of type wide. */
+  const ppOf = (total) => (total != null ? Math.round(total / paxCount) : null);
+  // The move on the CARD's basis (party total) and on the STRIP's basis (per person). Null
+  // when there is nothing honest to compare: no live answer yet, or a day the cache never
+  // costed, where there is no earlier price to have moved from.
+  const priceMoved = (cacheWas != null && liveNow != null && liveNow !== cacheWas)
+    ? liveNow - cacheWas
+    : null;
+  const wasPP = ppOf(cacheWas);
+  const nowPP = ppOf(liveNow);
+  const ppMoved = (wasPP != null && nowPP != null && nowPP !== wasPP) ? nowPP - wasPP : null;
+
   // Live rates as "room type → its board options". Selection still addresses the flat
   // `liveRooms.rooms` array by index, so the booking hand-off keeps the exact rateKey.
   const allRoomGroups = useMemo(() => groupRoomsByBoard(liveRooms?.rooms), [liveRooms]);
@@ -2095,8 +2132,9 @@ export default function HotelDetail() {
                 <div className="fc-estimate" role="note">
                   <span className="fc-estimate-ico" aria-hidden="true">{ICON.info}</span>
                   <span className="fc-estimate-text">
-                    <b>These are estimated prices.</b> We refresh them continuously, so the live
-                    price can differ — pick a date and check it to see the exact price for your stay.
+                    <b>Prices from, per person.</b> The prices on the chart are estimates and may
+                    change. Pick a date and check it: the live price that comes back is the one
+                    your holiday is booked at.
                   </span>
                 </div>
               )}
@@ -2177,6 +2215,17 @@ export default function HotelDetail() {
                       // The API flags the lowest of whichever week it answered, which would
                       // badge several days at once now that the strip stitches weeks together.
                       const isLow = priceVaries && i === lowIdx;
+                      // EVERY figure on this strip is per person. The calendar prices a whole
+                      // stay for the whole party, so a family of four read a bar four times
+                      // the number they would compare against anywhere else they shop.
+                      // Dividing by a constant leaves the profile untouched: `h` above is still
+                      // computed from the party totals, so the bars keep exactly the heights
+                      // they had and the cheapest day is still the shortest.
+                      const pp = hasPrice ? ppOf(p.price) : 0;
+                      // The live answer, shown on the day it was checked and on this strip's
+                      // own per-person basis — never the party total, which would look like a
+                      // sudden jump the size of the party rather than a price change.
+                      const liveHere = isLiveOk && nowPP != null;
                       return (
                         // Keyed by POSITION, not by date. Reusing the same node for slot i is what
                         // makes a one-day step read as motion: each bar animates to its
@@ -2188,9 +2237,25 @@ export default function HotelDetail() {
                           onClick={() => pickDay(p.iso)}
                           disabled={isEmpty}
                           aria-pressed={sel}
-                          aria-label={isEmpty ? `${p.day} ${p.date}, not available` : hasPrice ? `${p.day} ${p.date}, from ${ccy}${p.price}, ${p.nights} nights` : `${p.day} ${p.date}, check live price`}>
+                          aria-label={isEmpty ? `${p.day} ${p.date}, not available`
+                            : liveHere ? `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${p.nights} nights`
+                            : hasPrice ? `${p.day} ${p.date}, from ${ccy}${pp} per person, ${p.nights} nights`
+                            : `${p.day} ${p.date}, check live price`}>
                           <span className="fc-barzone">
-                            {isLow && <span className="fc-lowtag">Lowest price</span>}
+                            {/* Only one flag fits above a bar. Once a day has been checked, how
+                                its price MOVED is newer and more useful than whether it was the
+                                cheapest guess of the week, so the move takes the slot. */}
+                            {liveHere && ppMoved != null ? (
+                              <span className={`fc-movetag${ppMoved < 0 ? ' down' : ' up'}`}>
+                                {ppMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
+                                {ccy}{Math.abs(ppMoved)}
+                                {/* Dropped on a phone, where a column is 78px wide and the
+                                    whole pill will not fit inside one. The arrow already
+                                    carries the direction; the card below spells it out in
+                                    words at any width. */}
+                                <span className="fc-movetag-w"> {ppMoved < 0 ? 'lower' : 'higher'}</span>
+                              </span>
+                            ) : isLow ? <span className="fc-lowtag">Lowest price</span> : null}
                             <span className="fc-bar" style={{ height: `${h}%` }}>
                               {/* The BAR is reused so its height can animate; its wording is keyed
                                   to the date so the figures cross-fade instead of snapping to a
@@ -2200,10 +2265,27 @@ export default function HotelDetail() {
                                   <span className="fc-check">Not available</span>
                                 ) : isLoading ? (
                                   <span className="fc-check">Checking…</span>
+                                ) : liveHere ? (
+                                  /* Checked. The live figure is the authoritative one for this
+                                     day and takes the price slot; the estimate it replaced stays
+                                     above it, struck through, because the traveller picked this
+                                     day off that number and is owed an explanation of where it
+                                     went. Both are per person — same basis, same strip. */
+                                  <>
+                                    {/* No "from" here: this day has been checked, so it is not
+                                        quoting a starting price any more. Dropping the label is
+                                        also what buys the two extra rows their space without
+                                        putting a floor under the bar and flattening the chart. */}
+                                    {ppMoved != null && <span className="fc-was">{ccy}{wasPP}</span>}
+                                    <span className="fc-amt fc-amt-live">{ccy}{nowPP}</span>
+                                    <span className="fc-livetag">Live price</span>
+                                    <span className="fc-nts">{p.nights} {p.nights === 1 ? 'day' : 'days'}</span>
+                                  </>
                                 ) : hasPrice ? (
                                   <>
                                     <span className="fc-from">from</span>
-                                    <span className="fc-amt">{ccy}{p.price}</span>
+                                    <span className="fc-amt">{ccy}{pp}</span>
+                                    <span className="fc-pp">p.p.</span>
                                     <span className="fc-nts">{p.nights} {p.nights === 1 ? 'day' : 'days'}</span>
                                   </>
                                 ) : (
@@ -2352,20 +2434,66 @@ export default function HotelDetail() {
                                 availRooms > 1 ? `${availRooms} rooms` : null,
                               ].filter(Boolean).join(' · ')}
                             </div>
+                            {/* Amber, not red. The holiday IS available — that is what the green
+                                tick beside this says — and the only thing that changed is the
+                                price. Red here would read as a failure and send people back to
+                                the strip looking for a day that had not "gone wrong". */}
+                            {priceMoved != null && (
+                              <div className={`avail-updated${priceMoved < 0 ? ' down' : ''}`}>
+                                {ICON.info} Price updated after live check
+                              </div>
+                            )}
                           </div>
-                          <div className="avail-price">
+                          <div className={`avail-price${priceMoved != null ? (priceMoved < 0 ? ' avail-moved-down' : ' avail-moved-up') : ''}`}>
                             {/* A lavender day has no estimate — €0 is not a price and must
                                 never be printed as one. A quiet dash says "nothing to quote". */}
-                            <div className="avail-price-label">{liveRoom ? 'live price' : pdEstimate ? 'from' : ''}</div>
-                            <div className="avail-price-val">
-                              {liveRooms?.loading
-                                ? <span className="avail-spin" />
-                                : liveRoom ? <><small>€</small>{Math.round(liveRoom.price)}</>
-                                : pdEstimate ? <><small>€</small>{pd.price}</>
-                                : <span className="avail-price-none">—</span>}
+                            <div className="avail-price-label">{liveRoom ? 'live total price' : pdEstimate ? 'from' : ''}</div>
+                            {/* THE TOTAL BASIS, both figures. The strip beside this is priced per
+                                person; striking a per-person estimate against a party total here
+                                would report a change of exactly the party size. The estimate is
+                                struck rather than removed because the traveller chose this day
+                                off that number and is owed an account of where it went. */}
+                            <div className="avail-price-row">
+                              {priceMoved != null && (
+                                <span className="avail-price-old"><small>€</small>{cacheWas}</span>
+                              )}
+                              <span className="avail-price-val">
+                                {liveRooms?.loading
+                                  ? <span className="avail-spin" />
+                                  : liveRoom ? <><small>€</small>{liveNow}</>
+                                  : pdEstimate ? <><small>€</small>{pd.price}</>
+                                  : <span className="avail-price-none">—</span>}
+                              </span>
                             </div>
+                            {/* Who the figure covers. A four-figure sum with nothing beside it
+                                gets read as per person by anyone who does not stop to check. */}
+                            {(liveRoom || pdEstimate) && (
+                              <div className="avail-forpax">
+                                {`for ${availAdults} adult${availAdults === 1 ? '' : 's'}`}
+                                {availChildren > 0 ? ` · ${availChildren} child${availChildren === 1 ? '' : 'ren'}` : ''}
+                              </div>
+                            )}
+                            {priceMoved != null && (
+                              <div className={`avail-move${priceMoved < 0 ? ' down' : ' up'}`}>
+                                {priceMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
+                                <span>
+                                  <b>€{Math.abs(priceMoved)}</b> {priceMoved < 0 ? 'lower' : 'higher'} than the earlier price
+                                </span>
+                              </div>
+                            )}
+                            {(liveNow != null || pdEstimate) && (
+                              <div className="avail-pp">
+                                €{perPersonOf(liveNow != null ? liveNow : Number(pd.price))} p.p.
+                              </div>
+                            )}
                             <div className="avail-you-low">
-                              {liveRoom ? `Live room price · ${nights} ${nights === 1 ? 'day' : 'days'}`
+                              {/* Named for what it actually covers. On a package the flight is
+                                  NOT in this figure, so calling it the total holiday price would
+                                  be a straight untruth — the Book card below quotes a bigger
+                                  number. On an own-transport stay the room IS the holiday. */}
+                              {liveRoom ? (transport === 'hotel_only'
+                                ? `Total holiday price · ${nights} ${nights === 1 ? 'day' : 'days'}`
+                                : `Live room price · ${nights} ${nights === 1 ? 'day' : 'days'}`)
                                 : liveRooms?.error ? (pdEstimate ? 'Live price unavailable — estimate shown' : 'No estimate for this day — try again')
                                 : pdEstimate ? (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')
                                 : 'No cached estimate'}
