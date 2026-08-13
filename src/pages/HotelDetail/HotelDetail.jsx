@@ -1096,8 +1096,17 @@ export default function HotelDetail() {
   // Weather is fetched only once the Information tab is actually opened, and only once per
   // hotel. Most visitors never leave the Prices tab, and the upstream plan is metered — asking
   // on page load would spend a call for every hotel anyone glances at.
+  // "Have we asked yet" is a ref, not the state below, and the difference is the whole bug:
+  // with `weather` in the dep array, setting it to {loading} re-ran this effect, whose cleanup
+  // flipped `cancelled` on the request still in flight — so the answer arrived and was thrown
+  // away, and the block never appeared. The ref keeps the guard out of the dependency graph.
+  const weatherAsked = useRef(null);
   useEffect(() => {
-    if (activeTab !== 'Information' || weather || !info?.latitude || !info?.longitude) return;
+    if (activeTab !== 'Information' || !info?.latitude || !info?.longitude) return undefined;
+    const key = `${info.latitude},${info.longitude}`;
+    if (weatherAsked.current === key) return undefined;
+    weatherAsked.current = key;
+
     let cancelled = false;
     setWeather({ loading: true });
     axiosInstance
@@ -1108,7 +1117,7 @@ export default function HotelDetail() {
       })
       .catch(() => { if (!cancelled) setWeather({ error: true }); });
     return () => { cancelled = true; };
-  }, [activeTab, weather, info?.latitude, info?.longitude]);
+  }, [activeTab, info?.latitude, info?.longitude]);
 
   const copyValue = async (value, key) => {
     const ok = await copyText(value);
