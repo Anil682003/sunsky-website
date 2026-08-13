@@ -55,19 +55,42 @@ describe('categoriseFacilities', () => {
     expect(names).toContain('Buffet dinner');
   });
 
-  it('spills a category with fewer than three items into Hotel Services', () => {
-    // Wi-fi is the only Internet-ish row here, and Internet can never hold more than two.
+  it('gives a one-row category its own card rather than burying it in the catch-all', () => {
+    // A hotel whose only online amenity is Wi-Fi is honestly described by an Internet card
+    // holding one row. Folding it away is what turned Hotel Services into a bin.
     const { categories } = categoriseFacilities(resort);
-    expect(categories.find((c) => c.title === 'Internet')).toBeUndefined();
-    const services = categories.find((c) => c.title === 'Hotel Services');
-    expect(services.items.map((i) => i.name)).toContain('Wi-fi');
+    const internet = categories.find((c) => c.title === 'Internet');
+    expect(internet).toBeDefined();
+    expect(internet.items.map((i) => i.name)).toContain('Wi-fi');
+    expect(categories.find((c) => c.title === 'Hotel Services').items.map((i) => i.name))
+      .not.toContain('Wi-fi');
   });
 
-  it('never renders a card below the minimum, however odd the hotel', () => {
-    const { categories } = categoriseFacilities(resort);
-    for (const c of categories) {
-      if (c.key !== 'services') expect(c.items.length).toBeGreaterThanOrEqual(3);
-    }
+  it('keeps the catch-all from swallowing the specific categories', () => {
+    // Regression: an aparthotel with 44 amenities rendered four cards, one holding 23 rows,
+    // because every specific rule that matched only once or twice was dissolved into it.
+    const apartHotel = [
+      ...['24-hour reception', 'Concierge', 'Luggage room', 'Room service'].map((n) => f('Facilities', n)),
+      f('Facilities', 'Wi-fi'),
+      f('Facilities', 'Wheelchair-accessible'),
+      f('Facilities', 'Lift access'),
+      f('Facilities', 'Terrace'),
+      f('Facilities', 'Grill/BBQ'),
+      f('Facilities', 'Hotel safe'),
+      f('Facilities', '24-hour security'),
+      f('Business', 'Meeting room'),
+      f('Entertainment', 'TV lounge'),
+      f('Things to keep in mind', 'Non-smoking establishment'),
+    ];
+    const { categories } = categoriseFacilities(apartHotel);
+    const titles = categories.map((c) => c.title);
+    expect(titles).toEqual(expect.arrayContaining([
+      'Internet', 'Accessibility', 'Outdoors', 'Safety & Security',
+      'Business & Meetings', 'Entertainment', 'Good to know',
+    ]));
+    // Nothing may hold more than a third of the hotel's amenities.
+    const biggest = Math.max(...categories.map((c) => c.items.length));
+    expect(biggest).toBeLessThan(apartHotel.length / 2);
   });
 
   it('drops structural, payment and distance groups', () => {

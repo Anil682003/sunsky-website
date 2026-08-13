@@ -2478,3 +2478,49 @@
   .sd .hi-rooms { gap: 10px; }
   .sd .hi-room { flex: 0 0 168px; }
 }
+
+/* ── Room rail: name and occupancy read first, photo anchors the right edge ──
+   Overrides the earlier stacked treatment above, which put a large low-resolution
+   supplier photo on top and the code beneath it in grey — the card led with its
+   weakest asset and buried the only thing a guest reads. */
+.sd .hi-rooms-wrap { position: relative; }
+.sd .hi-rooms { align-items: stretch; }
+
+.sd .hi-room {
+  flex: 0 0 268px;
+  display: grid; grid-template-columns: 1fr 96px; align-items: stretch;
+  background: var(--white); border: 1px solid var(--border-light);
+  border-radius: 14px; overflow: hidden;
+}
+.sd .hi-room-body { padding: 14px 12px 14px 14px; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+.sd .hi-room-name { font-size: 13px; font-weight: 800; color: var(--dark); line-height: 1.35; }
+.sd .hi-room-code { font-size: 11px; font-weight: 700; letter-spacing: .04em; color: var(--text-light); margin-top: 3px; }
+.sd .hi-room-pax { margin-top: 9px; color: var(--text-sec); font-size: 12px; font-weight: 600; }
+.sd .hi-room-photo { aspect-ratio: auto; width: 96px; height: 100%; border-radius: 0; }
+
+/* Rail arrows sit outside the cards, like the reference design. */
+.sd .hi-rail-nav {
+  position: absolute; top: 50%; transform: translateY(-50%); z-index: 2;
+  width: 34px; height: 34px; border-radius: 50%; cursor: pointer;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--white); border: 1px solid var(--border); color: var(--text-sec);
+  box-shadow: var(--shadow-sm); transition: all .3s var(--ease);
+}
+.sd .hi-rail-nav:hover { color: var(--blue); border-color: var(--blue); }
+.sd .hi-rail-nav--prev { left: -14px; }
+.sd .hi-rail-nav--next { right: -14px; }
+
+.sd .hi-roomsall {
+  margin-left: auto; padding: 9px 15px; border-radius: 12px; cursor: pointer;
+  background: var(--white); border: 1px solid var(--border);
+  font-family: inherit; font-size: 12px; font-weight: 700; color: var(--blue);
+  transition: all .3s var(--ease);
+}
+.sd .hi-roomsall:hover { border-color: var(--blue); background: var(--blue-bg); transform: translateY(-1px); }
+
+@media (max-width: 700px) {
+  .sd .hi-room { flex: 0 0 232px; grid-template-columns: 1fr 84px; }
+  .sd .hi-room-photo { width: 84px; }
+  /* Arrows would sit over the cards at this width; the rail is swipeable instead. */
+  .sd .hi-rail-nav { display: none; }
+}

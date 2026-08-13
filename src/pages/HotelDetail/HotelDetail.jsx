@@ -27,6 +27,7 @@ import {
   categoriseFacilities, popularFacilities, nearbyDistances, glanceFacts,
 } from '../../utils/facilityCategories';
 import { copyText } from '../../utils/copyText';
+import { roomNameFromCode } from '../../utils/roomNames';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
@@ -380,6 +381,8 @@ const FAC_SVG = {
   ski:           <S sw={2}><path d="M3 20l16-6" /><path d="M5 21l15-6" /><circle cx="15" cy="5" r="2" /><path d="M13 9l3 3-2 3" /></S>,
   plane:         <S sw={2}><path d="M17.8 19.2L16 11l3.5-3.5a2.1 2.1 0 00-3-3L13 8 4.8 6.2a.8.8 0 00-.8 1.3L8 11l-2 3H3l2 4 4 2 3-2v-3l3.7 4a.8.8 0 001.3-.8z" /></S>,
   bed:           <S sw={2}><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8" /><path d="M2 17h20" /><path d="M6 10V7a2 2 0 012-2h8a2 2 0 012 2v3" /></S>,
+  accessible:    <S sw={2}><circle cx="12" cy="4" r="2" /><path d="M9 8h6l-1 5h-3l3 8" /><path d="M12 13a5 5 0 11-4.5 7" /></S>,
+  shield:        <S sw={2}><path d="M12 2l8 4v6c0 5-3.4 8.7-8 10-4.6-1.3-8-5-8-10V6l8-4z" /><polyline points="9 12 11 14 15 10" /></S>,
   check:         <S sw={2.5}><polyline points="20 6 9 17 4 12" /></S>,
 };
 
@@ -1031,6 +1034,7 @@ export default function HotelDetail() {
   const [explorerCat, setExplorerCat] = useState('ALL');
   const [showAllFac, setShowAllFac] = useState(false);
   // Which category cards have had their "+N more" opened, keyed by category key.
+  const roomRailRef = useRef(null);
   const [openCats, setOpenCats] = useState(() => new Set());
   // Which value the copy buttons last put on the clipboard, so exactly one shows "Copied".
   const [copied, setCopied] = useState(null);
@@ -3395,12 +3399,12 @@ export default function HotelDetail() {
                     if (!im?.roomCode || !im?.url) continue;
                     if (!imagesByRoom.has(im.roomCode)) imagesByRoom.set(im.roomCode, im.url);
                   }
+                  // `liveRooms` is {rooms[], cheapest}, not an array — reading it as one both
+                  // lost every supplier name and would have thrown the moment a stay was priced.
                   const nameByCode = new Map();
-                  for (const lr of liveRooms || []) {
+                  for (const lr of liveRooms?.rooms || []) {
                     if (lr?.roomCode && lr?.name && !nameByCode.has(lr.roomCode)) nameByCode.set(lr.roomCode, lr.name);
                   }
-                  // A row of bare codes with no photo and no name says nothing worth a card.
-                  if (!imagesByRoom.size && !nameByCode.size) return null;
                   // Hotelbeds files a row per room/characteristic combination, so a large resort
                   // arrives with ~180 of them. Everything past the first dozen is noise in a
                   // strip the guest scrolls sideways, so the rest are counted, not rendered.
@@ -3409,7 +3413,9 @@ export default function HotelDetail() {
                     .filter((rm, i, arr) => arr.findIndex((r) => r.roomCode === rm.roomCode) === i)
                     .map((rm) => ({
                       code: rm.roomCode,
-                      name: nameByCode.get(rm.roomCode) || null,
+                      // A searched stay carries the supplier's own room name; without one the
+                      // code is decoded as far as it can be vouched for. Never invented.
+                      name: nameByCode.get(rm.roomCode) || roomNameFromCode(rm.roomCode),
                       img: imagesByRoom.get(rm.roomCode) || null,
                       minPax: rm.minPax,
                       maxPax: rm.maxPax,
@@ -3423,28 +3429,51 @@ export default function HotelDetail() {
                       <div className="hi-card-head">
                         <div className="hi-card-icon hi-card-icon--room">{ICON.bed}</div>
                         <h3 className="hi-card-title">Room Types</h3>
-                        <span className="hi-card-count">{all.length}</span>
+                        {photoCats?.some((c) => c.code === 'HAB') && (
+                          <button className="hi-roomsall" onClick={() => openExplorer('HAB')}>
+                            View all room types
+                          </button>
+                        )}
                       </div>
-                      <div className="hi-rooms">
-                        {cards.map((rm) => (
-                          <div className="hi-room" key={rm.code}>
-                            <div className="hi-room-photo">
-                              {rm.img
-                                ? <HotelImg src={rm.img} size="small" alt={rm.name || rm.code} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
-                                : <span className="hi-room-nophoto">{FAC_SVG.bed}</span>}
+                      <div className="hi-rooms-wrap">
+                        <button
+                          className="hi-rail-nav hi-rail-nav--prev"
+                          onClick={() => roomRailRef.current?.scrollBy({ left: -440, behavior: 'smooth' })}
+                          aria-label="Previous room types"
+                        >
+                          <S size={16} sw={2.5}><path d="M15 18l-6-6 6-6" /></S>
+                        </button>
+                        <div className="hi-rooms" ref={roomRailRef}>
+                          {cards.map((rm) => (
+                            <div className="hi-room" key={rm.code}>
+                              <div className="hi-room-body">
+                                <div className="hi-room-name">{rm.name || rm.code}</div>
+                                {rm.name && <div className="hi-room-code">{rm.code}</div>}
+                                {rm.maxPax != null && (
+                                  <div className="hi-room-pax">
+                                    <S size={13} sw={2}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></S>
+                                    {/* A single room sleeps "1 guest", not "1–1 guests". */}
+                                    {rm.minPax != null && rm.minPax !== rm.maxPax
+                                      ? `${rm.minPax}–${rm.maxPax} guests`
+                                      : `${rm.maxPax} guest${rm.maxPax === 1 ? '' : 's'}`}
+                                  </div>
+                                )}
+                              </div>
+                              <div className="hi-room-photo">
+                                {rm.img
+                                  ? <HotelImg src={rm.img} size="small" alt={rm.name || rm.code} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                                  : <span className="hi-room-nophoto">{FAC_SVG.bed}</span>}
+                              </div>
                             </div>
-                            <div className="hi-room-body">
-                              {rm.name && <div className="hi-room-name">{rm.name}</div>}
-                              <div className="hi-room-code">{rm.code}</div>
-                              {rm.minPax != null && rm.maxPax != null && (
-                                <div className="hi-room-pax">
-                                  <S size={13} sw={2}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></S>
-                                  {rm.minPax}–{rm.maxPax} guests
-                                </div>
-                              )}
-                            </div>
-                          </div>
-                        ))}
+                          ))}
+                        </div>
+                        <button
+                          className="hi-rail-nav hi-rail-nav--next"
+                          onClick={() => roomRailRef.current?.scrollBy({ left: 440, behavior: 'smooth' })}
+                          aria-label="More room types"
+                        >
+                          <S size={16} sw={2.5}><path d="M9 18l6-6-6-6" /></S>
+                        </button>
                       </div>
                       {hiddenRooms > 0 && (
                         <div className="hi-rooms-more">

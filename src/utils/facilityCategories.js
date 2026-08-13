@@ -93,6 +93,19 @@ const CATEGORIES = [
       /^(shop|supermarket|newspaper stand|launderette|laundry service|currency exchange facilities|library)$/i.test(n),
   },
   {
+    key: 'internet', title: 'Internet', icon: 'wifi',
+    match: (g, n) => g === 'Facilities' && /wi.?fi|wired internet/i.test(n),
+  },
+  {
+    key: 'accessibility', title: 'Accessibility', icon: 'accessible',
+    match: (g, n) => g === 'Facilities' && /wheelchair|lift access|universal accessib/i.test(n),
+  },
+  {
+    key: 'safety', title: 'Safety & Security', icon: 'shield',
+    match: (g, n) =>
+      g === 'Facilities' && /24-hour security|hotel safe|medical service|security/i.test(n),
+  },
+  {
     key: 'outdoors', title: 'Outdoors', icon: 'garden',
     match: (g, n) =>
       (g === 'Facilities' && /^(garden|terrace)$|bbq|grill/i.test(n)) ||
@@ -109,16 +122,24 @@ const CATEGORIES = [
   {
     key: 'goodtoknow', title: 'Good to know', icon: 'info',
     match: (g, n) =>
-      g === 'Things to keep in mind' &&
-      /only adults|lgtbiq|non-smoking|accessib|minimum check-?in age|pets/i.test(n),
+      (g === 'Things to keep in mind' &&
+        /only adults|lgtbiq|non-smoking|accessib|minimum check-?in age|pets|sustainable|zero waste/i.test(n)) ||
+      (g === 'Facilities' && /pets allowed/i.test(n)),
   },
   // Catch-all, and the home for anything a thin card spills into. Must stay last.
   { key: 'services', title: 'Hotel Services', icon: 'concierge', match: () => true },
 ];
 
-// A card with one or two rows looks broken next to a card with twenty, and "Internet" can never
-// hold more than Wi-fi and Wired Internet. Anything under this spills into Hotel Services.
-const MIN_CARD_ITEMS = 3;
+// A small card is not a broken card — a hotel that offers Wi-Fi and nothing else online is
+// honestly described by an Internet card holding one row, and the reference design shows
+// exactly that. What IS broken is a "Hotel Services" card holding twenty-three unrelated rows
+// because every specific category was dissolved into it, which is what a higher threshold here
+// produced: an aparthotel with Wi-Fi, a terrace, a meeting room, a TV lounge and a no-smoking
+// policy showed four categories, one of them a bin.
+//
+// So nothing spills. The catch-all is kept honest by the specific rules above claiming their
+// rows first, and the grid sorts by size so the substantial cards lead.
+const MIN_CARD_ITEMS = 1;
 
 /**
  * Bucket the raw rows into renderable category cards.
