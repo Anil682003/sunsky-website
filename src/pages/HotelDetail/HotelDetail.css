@@ -2171,3 +2171,310 @@
 @media (max-width:560px) {
   .sd .live-retry { width:100%; min-height:44px; }
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   INFORMATION + FACILITIES TABS
+   Placed after the refinement layer above so these inherit the page's real
+   design system rather than the older generation of classes they replace.
+   Tokens are the .sd short names (--blue, --sun, --blue-bg …), NOT the global
+   :root ones — .sd redefines several of them with different values.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── shared card surface ── */
+.sd .hi-card,
+.sd .hf-card {
+  background: var(--white);
+  border: 1px solid var(--border-light);
+  border-radius: 20px;
+  box-shadow: var(--shadow-xs);
+  transition: box-shadow .3s var(--ease), border-color .3s var(--ease), transform .3s var(--ease);
+}
+.sd .hi-card { padding: 28px 28px 24px; margin-bottom: 32px; }
+.sd .hf-card:hover { box-shadow: var(--shadow-sm); border-color: #d6e4f6; transform: translateY(-2px); }
+
+.sd .hi-card-head { display: flex; align-items: center; gap: 13px; margin-bottom: 20px; }
+.sd .hi-card-icon {
+  width: 42px; height: 42px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--blue-bg); color: var(--blue);
+}
+.sd .hi-card-icon--loc     { background: var(--sun-warm); color: var(--sun); }
+.sd .hi-card-icon--contact { background: #e7f7f0; color: var(--green); }
+.sd .hi-card-icon--room    { background: var(--blue-pale); color: var(--blue-mid); }
+.sd .hi-card-title {
+  font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 800;
+  color: var(--dark); letter-spacing: -.2px; margin: 0;
+}
+.sd .hi-card-count {
+  margin-left: auto; padding: 4px 11px; border-radius: var(--r-full);
+  background: var(--blue-bg); color: var(--text-light); font-size: 11px; font-weight: 700;
+}
+
+/* ── About + photo collage ── */
+.sd .hi-about { display: grid; grid-template-columns: 1fr 1fr; gap: 28px; align-items: start; }
+.sd .hi-desc {
+  font-size: 14px; line-height: 1.85; color: var(--text-sec);
+  display: -webkit-box; -webkit-line-clamp: 6; -webkit-box-orient: vertical; overflow: hidden;
+}
+.sd .hi-desc.exp { -webkit-line-clamp: unset; overflow: visible; }
+.sd .hi-link {
+  display: inline-flex; align-items: center; gap: 6px; margin-top: 12px; padding: 0;
+  background: none; border: 0; cursor: pointer;
+  font-family: inherit; font-size: 13px; font-weight: 700; color: var(--blue);
+  transition: gap .3s var(--ease);
+}
+.sd .hi-link:hover { gap: 9px; }
+
+.sd .hi-gallery { display: flex; flex-direction: column; gap: 8px; }
+.sd .hi-gallery-hero {
+  position: relative; display: block; width: 100%; aspect-ratio: 16/10;
+  padding: 0; border: 0; border-radius: 16px; overflow: hidden; cursor: pointer;
+  background: var(--blue-bg);
+}
+.sd .hi-gallery-hero img { width: 100%; height: 100%; object-fit: cover; display: block; transition: transform .5s var(--ease); }
+.sd .hi-gallery-hero:hover img { transform: scale(1.04); }
+.sd .hi-gallery-cta {
+  position: absolute; right: 12px; bottom: 12px;
+  display: inline-flex; align-items: center; gap: 7px;
+  padding: 8px 13px; border-radius: var(--r-full);
+  background: rgba(255,255,255,.94); backdrop-filter: blur(6px);
+  font-size: 12px; font-weight: 700; color: var(--dark);
+  box-shadow: var(--shadow-sm);
+}
+.sd .hi-gallery-strip { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+.sd .hi-gallery-thumb {
+  aspect-ratio: 1; padding: 0; border: 0; border-radius: 10px; overflow: hidden;
+  cursor: pointer; background: var(--blue-bg);
+}
+.sd .hi-gallery-thumb img { width: 100%; height: 100%; object-fit: cover; display: block; transition: opacity .3s var(--ease); }
+.sd .hi-gallery-thumb:hover img { opacity: .82; }
+
+/* ── Hotel at a glance ── */
+.sd .hi-glance { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 12px; }
+.sd .hi-glance-tile {
+  padding: 18px 14px; border-radius: 16px; text-align: center;
+  background: var(--blue-pale); border: 1px solid var(--border-light);
+}
+.sd .hi-glance-icon { color: var(--blue); margin-bottom: 9px; display: flex; justify-content: center; }
+.sd .hi-glance-value { font-family: 'Sora', sans-serif; font-size: 16px; font-weight: 800; color: var(--dark); }
+.sd .hi-glance-label {
+  margin-top: 3px; font-size: 10px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase; color: var(--text-light);
+}
+
+/* ── Location & surroundings ── */
+.sd .hi-loc { display: grid; grid-template-columns: 1.15fr 1fr; gap: 24px; align-items: start; }
+.sd .hi-map { border-radius: 16px; overflow: hidden; border: 1px solid var(--border-light); background: var(--blue-bg); }
+.sd .hi-map iframe { display: block; width: 100%; height: 340px; border: 0; }
+.sd .hi-loc-side { display: flex; flex-direction: column; gap: 14px; }
+
+.sd .hi-row { display: flex; gap: 11px; align-items: flex-start; }
+.sd .hi-row-icon {
+  width: 32px; height: 32px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--blue-bg); color: var(--blue);
+}
+.sd .hi-row-icon svg { width: 15px; height: 15px; }
+.sd .hi-row-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.sd .hi-row-label { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-light); }
+.sd .hi-row-value { font-size: 13px; font-weight: 600; color: var(--text); line-height: 1.5; }
+
+.sd .hi-nearby { padding: 16px 16px 6px; border-radius: 16px; background: var(--blue-pale); border: 1px solid var(--border-light); }
+.sd .hi-nearby-title { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-light); margin-bottom: 10px; }
+.sd .hi-nearby-row { display: flex; align-items: center; gap: 10px; padding-bottom: 10px; }
+.sd .hi-nearby-icon { color: var(--blue); display: flex; flex-shrink: 0; }
+.sd .hi-nearby-icon svg { width: 15px; height: 15px; }
+.sd .hi-nearby-label { font-size: 13px; font-weight: 600; color: var(--text); }
+.sd .hi-nearby-dist { margin-left: auto; font-size: 12px; font-weight: 700; color: var(--text-sec); white-space: nowrap; }
+
+.sd .hi-coords { display: flex; align-items: center; gap: 12px; padding-top: 4px; }
+.sd .hi-copy {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 12px; border-radius: 10px; cursor: pointer;
+  background: var(--white); border: 1px solid var(--border);
+  font-family: inherit; font-size: 11px; font-weight: 700; color: var(--text-sec);
+  transition: all .3s var(--ease);
+}
+.sd .hi-copy:hover { border-color: var(--blue); color: var(--blue); transform: translateY(-1px); }
+.sd .hi-copy svg { width: 13px; height: 13px; }
+.sd .hi-copy--icon { padding: 8px; }
+
+.sd .hi-maplink {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 11px 16px; border-radius: 12px; text-decoration: none;
+  background: var(--blue-bg); color: var(--blue);
+  font-size: 12px; font-weight: 700; transition: all .3s var(--ease);
+}
+.sd .hi-maplink:hover { background: var(--blue); color: var(--white); transform: translateY(-1px); }
+
+/* ── Contact ── */
+.sd .hi-contacts { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 12px; }
+.sd .hi-contact {
+  display: flex; align-items: center; gap: 12px; padding: 14px;
+  border-radius: 16px; background: var(--blue-pale); border: 1px solid var(--border-light);
+}
+.sd .hi-contact-icon {
+  width: 36px; height: 36px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--white); color: var(--blue);
+}
+.sd .hi-contact-icon svg { width: 16px; height: 16px; }
+.sd .hi-contact-body { min-width: 0; }
+.sd .hi-contact-type { font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--text-light); }
+.sd .hi-contact-number { font-size: 13px; font-weight: 700; color: var(--text); text-decoration: none; }
+.sd .hi-contact-number:hover { color: var(--blue); }
+
+/* ── Room types ── */
+.sd .hi-room { border-radius: 16px; overflow: hidden; background: var(--blue-pale); border: 1px solid var(--border-light); transition: all .3s var(--ease); }
+.sd .hi-room:hover { border-color: #d6e4f6; transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+.sd .hi-room-photo { aspect-ratio: 4/3; background: var(--blue-bg); display: flex; align-items: center; justify-content: center; }
+.sd .hi-room-photo img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.sd .hi-room-nophoto { color: var(--blue-soft); }
+.sd .hi-room-nophoto svg { width: 30px; height: 30px; }
+.sd .hi-room-body { padding: 12px 14px 14px; }
+.sd .hi-room-name { font-size: 13px; font-weight: 700; color: var(--dark); line-height: 1.4; }
+.sd .hi-room-code { font-size: 10px; font-weight: 700; letter-spacing: .06em; color: var(--text-light); margin-top: 2px; }
+.sd .hi-room-pax { display: flex; align-items: center; gap: 6px; margin-top: 8px; font-size: 12px; font-weight: 600; color: var(--text-sec); }
+
+/* ══════════════════ FACILITIES ══════════════════ */
+
+.sd .hf-head { display: flex; align-items: center; gap: 14px; margin-bottom: 32px; }
+.sd .hf-head-icon {
+  width: 46px; height: 46px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--blue-bg); color: var(--blue);
+}
+.sd .hf-title { font-family: 'Sora', sans-serif; font-size: 21px; font-weight: 800; color: var(--dark); letter-spacing: -.3px; margin: 0; }
+.sd .hf-sub { font-size: 13px; color: var(--text-sec); margin-top: 3px; }
+
+.sd .hf-section { margin-bottom: 32px; }
+.sd .hf-section-head { display: flex; align-items: center; gap: 16px; margin-bottom: 16px; }
+.sd .hf-section-title {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-light); margin: 0 0 16px;
+}
+.sd .hf-section-head .hf-section-title { margin: 0; }
+.sd .hf-toggle {
+  margin-left: auto; display: inline-flex; align-items: center; gap: 7px;
+  padding: 9px 15px; border-radius: 12px; cursor: pointer;
+  background: var(--white); border: 1px solid var(--border);
+  font-family: inherit; font-size: 12px; font-weight: 700; color: var(--blue);
+  transition: all .3s var(--ease);
+}
+.sd .hf-toggle:hover { border-color: var(--blue); background: var(--blue-bg); transform: translateY(-1px); }
+
+/* popular row */
+.sd .hf-pop { display: grid; grid-template-columns: repeat(auto-fit, minmax(92px, 1fr)); gap: 10px; }
+.sd .hf-pop-tile {
+  display: flex; flex-direction: column; align-items: center; gap: 8px;
+  padding: 18px 10px 14px; border-radius: 16px; text-align: center;
+  background: var(--white); border: 1px solid var(--border-light);
+  transition: all .3s var(--ease);
+}
+.sd .hf-pop-tile:hover { border-color: #d6e4f6; box-shadow: var(--shadow-sm); transform: translateY(-2px); }
+.sd .hf-pop-icon { color: var(--blue); }
+.sd .hf-pop-icon svg { width: 22px; height: 22px; }
+.sd .hf-pop-label { font-size: 11px; font-weight: 700; color: var(--text); line-height: 1.35; }
+.sd .hf-pop-meta { font-size: 10px; font-weight: 700; color: var(--text-light); }
+
+/* category grid */
+.sd .hf-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(288px, 1fr)); gap: 14px; align-items: start; }
+.sd .hf-card { padding: 20px 20px 16px; }
+.sd .hf-card-head { display: flex; align-items: center; gap: 11px; margin-bottom: 14px; }
+.sd .hf-card-icon {
+  width: 38px; height: 38px; border-radius: 10px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--blue-bg); color: var(--blue);
+}
+.sd .hf-card-icon svg { width: 18px; height: 18px; }
+.sd .hf-card-title { font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 800; color: var(--dark); margin: 0; letter-spacing: -.1px; }
+.sd .hf-card-count {
+  margin-left: auto; min-width: 24px; padding: 3px 8px; border-radius: var(--r-full);
+  background: var(--blue-bg); color: var(--text-light);
+  font-size: 11px; font-weight: 700; text-align: center;
+}
+/* Category accents stay inside the brand's blue + orange duo rather than the
+   rainbow of the reference design — green only where the meaning is literal. */
+.sd .hf-card--food .hf-card-icon,
+.sd .hf-card--family .hf-card-icon,
+.sd .hf-card--entertainment .hf-card-icon { background: var(--sun-warm); color: var(--sun); }
+.sd .hf-card--outdoors .hf-card-icon,
+.sd .hf-card--sustainability .hf-card-icon { background: #e7f7f0; color: var(--green); }
+
+.sd .hf-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 9px; }
+.sd .hf-item { display: flex; align-items: center; gap: 9px; }
+.sd .hf-item-tick { color: var(--blue); display: flex; flex-shrink: 0; }
+.sd .hf-item-tick svg { width: 14px; height: 14px; }
+.sd .hf-item-name { font-size: 13px; color: var(--text); line-height: 1.5; }
+.sd .hf-chip { padding: 2px 8px; border-radius: var(--r-full); font-size: 10px; font-weight: 700; white-space: nowrap; }
+.sd .hf-chip--paid { background: var(--sun-warm); color: #b06d05; }
+
+.sd .hf-more {
+  display: inline-flex; align-items: center; gap: 5px; margin-top: 13px; padding: 0;
+  background: none; border: 0; cursor: pointer;
+  font-family: inherit; font-size: 12px; font-weight: 700; color: var(--blue);
+  transition: gap .3s var(--ease);
+}
+.sd .hf-more:hover { gap: 8px; }
+
+.sd .hf-note {
+  display: flex; align-items: center; gap: 10px; flex-wrap: wrap;
+  padding: 14px 16px; border-radius: 16px;
+  background: var(--blue-pale); border: 1px solid var(--border-light);
+  font-size: 12.5px; color: var(--text-sec);
+}
+.sd .hf-note-icon { color: var(--blue); display: flex; flex-shrink: 0; }
+.sd .hf-note-icon svg { width: 16px; height: 16px; }
+
+.sd .hf-empty {
+  padding: 48px 24px; text-align: center;
+  background: var(--white); border: 1px solid var(--border-light); border-radius: 20px;
+}
+.sd .hf-empty-icon {
+  width: 52px; height: 52px; margin: 0 auto 16px; border-radius: 14px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--blue-bg); color: var(--blue-soft);
+}
+.sd .hf-empty-text { font-size: 13.5px; color: var(--text-sec); margin: 8px auto 0; max-width: 420px; line-height: 1.7; }
+
+/* ── responsive: 700px is the tab-body breakpoint (768 is hero/chrome) ── */
+@media (max-width: 700px) {
+  .sd .hi-card { padding: 20px 18px 18px; margin-bottom: 24px; }
+  .sd .hi-about { grid-template-columns: 1fr; gap: 20px; }
+  .sd .hi-loc { grid-template-columns: 1fr; gap: 18px; }
+  .sd .hi-map iframe { height: 240px; }
+  .sd .hi-glance { grid-template-columns: repeat(2, 1fr); }
+  .sd .hf-grid { grid-template-columns: 1fr; }
+  .sd .hf-pop { grid-template-columns: repeat(3, 1fr); }
+  .sd .hf-head { margin-bottom: 24px; }
+  .sd .hf-title { font-size: 18px; }
+  .sd .hf-section-head { flex-wrap: wrap; gap: 10px; }
+  .sd .hf-toggle { margin-left: 0; }
+}
+
+/* Content that mounts on a tab switch must never be left invisible when the
+   visitor has asked for reduced motion — the reveal observer drives opacity,
+   so the override has to restore it rather than merely disable the transition. */
+@media (prefers-reduced-motion: reduce) {
+  .sd .hi-card, .sd .hf-card, .sd .hf-head, .sd .hf-section, .sd .hf-note, .sd .hf-empty {
+    opacity: 1; transform: none;
+  }
+}
+
+/* Room strip scrolls sideways like the rest of the page's horizontal rails, so a resort with
+   a dozen room types does not push the rest of the tab off the screen. */
+.sd .hi-rooms {
+  display: flex; gap: 14px; overflow-x: auto; padding-bottom: 6px;
+  scroll-snap-type: x proximity;
+  scrollbar-width: thin; scrollbar-color: #c3d4ee transparent;
+}
+.sd .hi-rooms::-webkit-scrollbar { height: 4px; }
+.sd .hi-rooms::-webkit-scrollbar-thumb { background: #c3d4ee; border-radius: 2px; }
+.sd .hi-rooms::-webkit-scrollbar-track { background: transparent; }
+.sd .hi-room { flex: 0 0 208px; scroll-snap-align: start; }
+.sd .hi-rooms-more { margin-top: 12px; font-size: 12.5px; color: var(--text-sec); }
+
+@media (max-width: 700px) {
+  .sd .hi-rooms { gap: 10px; }
+  .sd .hi-room { flex: 0 0 168px; }
+}

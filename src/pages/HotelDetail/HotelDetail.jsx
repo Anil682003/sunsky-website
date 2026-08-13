@@ -23,6 +23,10 @@ import { ratingLabel } from '../../utils/rating';
 import { dobsMatchAges } from '../../utils/childDob';
 import { loadPax, savePax, hasPaxParams, agesForCheckIn } from '../../utils/paxStore';
 import { earliestCheckInISO, departsTooSoon, MIN_LEAD_HOURS } from '../../utils/leadTime';
+import {
+  categoriseFacilities, popularFacilities, nearbyDistances, glanceFacts,
+} from '../../utils/facilityCategories';
+import { copyText } from '../../utils/copyText';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
@@ -193,6 +197,17 @@ const nightsBetween = (ci, co) => {
   const n = Math.round((b - a) / 86400000);
   return n > 0 ? n : null;
 };
+// The trip length worded the way the traveller searched for it. The page counts a stay in
+// NIGHTS, but every filter, chip and heading on the site speaks DAYS ("7 days" = 6 nights),
+// so a raw nights figure printed under a "days" label reads back a day short — someone who
+// searched "7 days" was shown "6 days" on the fare strip and the availability card while the
+// dates beside them spanned the full week. ONE function prints trip length on this page, and
+// it converts. Anything measuring the stay itself (a nightly rate, an insurance multiplier)
+// keeps using `nights` directly — that arithmetic is in nights and must stay in nights.
+const dayLabel = (nights) => {
+  const d = nightsToDays(nights);
+  return `${d} ${d === 1 ? 'day' : 'days'}`;
+};
 // The floor for the fare strip and every date field on this page: 24 hours from now, in
 // BELGIAN time (see utils/leadTime.js). The strip pages backwards to that day and no further,
 // because a departure inside a day cannot be confirmed with the supplier and turned into
@@ -326,21 +341,61 @@ const TABS = ['Prices', 'Information', 'Facilities' /*, 'Weather', 'Map', 'Revie
 // MEAL_PLANS / ROOM_TYPES / STAYS removed with the demo room list. ROOM_TYPES in particular
 // carried invented scarcity ("Only 2 available!", "Only 1 room available!") on rooms that had
 // never been searched — urgency applied to stock nobody had checked.
-const FACILITIES = ['Swimming pool', 'Private beach', 'Restaurant', 'Spa & wellness', 'Fitness center', 'Pool bar', 'Free WiFi', 'Air conditioning', 'Elevator', 'Free parking', 'Room service', 'Fine dining'];
-const MORE_FACILITIES = ['Tennis court', 'Bike rental', 'Water sports', 'Babysitting', 'Business center', 'Live music'];
-const FAC_ICON = {
-  'Swimming pool': <S sw={2}><path d="M2 20c.9-.4 1.8-.6 2.8-.6 1.8 0 3.5.9 5.2.9s3.5-.9 5.2-.9 3.5.9 5.2.9c.9 0 1.8-.2 2.8-.6" /><path d="M2 16c.9-.4 1.8-.6 2.8-.6 1.8 0 3.5.9 5.2.9s3.5-.9 5.2-.9 3.5.9 5.2.9c.9 0 1.8-.2 2.8-.6" /><path d="M8 14V6a2 2 0 012-2h0a2 2 0 012 2v3" /></S>,
-  'Free WiFi': <S sw={2}><path d="M5 12.55a11 11 0 0114.08 0" /><path d="M1.42 9a16 16 0 0121.16 0" /><path d="M8.53 16.11a6 6 0 016.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></S>,
-  'Restaurant': <S sw={2}><path d="M18 8h1a4 4 0 010 8h-1" /><path d="M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" /></S>,
+// FACILITIES / MORE_FACILITIES / FAC_ICON removed with the demo facility list. They were 18
+// invented amenity strings ("Free WiFi", "Swimming pool") shown whenever /hotels/bulk had not
+// answered — and not one of them matched a real Hotelbeds name, which calls the pool "Outdoor
+// freshwater pool" and the wifi "Wi-fi". The tab now renders the hotel's own facilities or an
+// honest empty state, so a page can no longer promise a spa the hotel does not have.
+//
+// WEATHER removed for the same reason: twelve hardcoded Mediterranean months that took no
+// input, so a Brussels hotel and a Bodrum resort both claimed 31°C in July. There is no
+// weather feed anywhere in the estate; until one exists the block stays out.
+
+// Icon vocabulary for the facility categories and the popular row. Keys are the `icon` values
+// `facilityCategories.js` emits, so the mapping lives in one place and a new category cannot
+// silently render blank.
+const FAC_SVG = {
+  concierge:     <S sw={2}><path d="M3 21h18" /><path d="M5 21v-7a7 7 0 0114 0v7" /><path d="M12 7V4" /><circle cx="12" cy="3" r="1" /></S>,
+  restaurant:    <S sw={2}><path d="M3 2v7a2 2 0 002 2h1a2 2 0 002-2V2" /><path d="M6 11v11" /><path d="M18 2c-1.7 1.3-2.5 3.3-2.5 6 0 2 .8 3 2.5 3v11" /></S>,
+  pool:          <S sw={2}><path d="M2 19c1.4-1.3 3.1-1.3 4.5 0s3.1 1.3 4.5 0 3.1-1.3 4.5 0 3.1 1.3 4.5 0" /><path d="M2 14c1.4-1.3 3.1-1.3 4.5 0s3.1 1.3 4.5 0 3.1-1.3 4.5 0 3.1 1.3 4.5 0" /><path d="M8 14V5a2 2 0 114 0" /><path d="M16 14V5" /></S>,
+  beach:         <S sw={2}><path d="M12 3a9 9 0 019 9H3a9 9 0 019-9z" /><path d="M12 12v7a3 3 0 006 0" /></S>,
+  slide:         <S sw={2}><path d="M4 20c5 0 4-14 9-14h7" /><path d="M2 20h20" /><circle cx="17" cy="4" r="2" /></S>,
+  spa:           <S sw={2}><path d="M12 2s6 6.5 6 11a6 6 0 01-12 0c0-4.5 6-11 6-11z" /></S>,
+  gym:           <S sw={2}><path d="M6.5 6.5l11 11" /><path d="M4 8l-2 2 4 4-2 2" /><path d="M20 16l2-2-4-4 2-2" /></S>,
+  kids:          <S sw={2}><circle cx="9" cy="6" r="3" /><path d="M6 21v-6l-2-3 3-3h4l3 3-2 3v6" /><circle cx="18" cy="8" r="2" /><path d="M16 21v-5l2-2 2 2v5" /></S>,
+  entertainment: <S sw={2}><path d="M2 8s2-2 4-2 3 2 3 4-1 6-4 6-3-3-3-4" /><path d="M22 8s-2-2-4-2-3 2-3 4 1 6 4 6 3-3 3-4" /></S>,
+  parking:       <S sw={2}><path d="M5 17h14" /><path d="M6 17v-4l2-5h8l2 5v4" /><circle cx="8" cy="17" r="1.6" /><circle cx="16" cy="17" r="1.6" /></S>,
+  shuttle:       <S sw={2}><path d="M17.8 19.2L16 11l3.5-3.5a2.1 2.1 0 00-3-3L13 8 4.8 6.2a.8.8 0 00-.8 1.3L8 11l-2 3H3l2 4 4 2 3-2v-3l3.7 4a.8.8 0 001.3-.8z" /></S>,
+  shop:          <S sw={2}><path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z" /><line x1="3" y1="6" x2="21" y2="6" /><path d="M16 10a4 4 0 01-8 0" /></S>,
+  garden:        <S sw={2}><path d="M12 22V12" /><path d="M12 12C12 8 9 5 5 5c0 4 3 7 7 7z" /><path d="M12 15c0-3 2.5-5.5 6-5.5 0 3.5-2.5 6-6 5.5z" /></S>,
+  business:      <S sw={2}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V5a2 2 0 00-2-2h-4a2 2 0 00-2 2v2" /></S>,
+  leaf:          <S sw={2}><path d="M11 20A7 7 0 019.8 6.1C15.5 5 17 4.5 19 2c1 2 2 4.2 2 8a7 7 0 01-10 10z" /><path d="M2 22c1.5-3 3.5-5 6.5-7" /></S>,
+  info:          <S sw={2}><circle cx="12" cy="12" r="10" /><line x1="12" y1="16" x2="12" y2="12" /><line x1="12" y1="8" x2="12.01" y2="8" /></S>,
+  bar:           <S sw={2}><path d="M8 22h8" /><path d="M12 15v7" /><path d="M3 4h18l-9 11z" /></S>,
+  wifi:          <S sw={2}><path d="M5 12.55a11 11 0 0114.08 0" /><path d="M1.42 9a16 16 0 0121.16 0" /><path d="M8.53 16.11a6 6 0 016.95 0" /><line x1="12" y1="20" x2="12.01" y2="20" /></S>,
+  city:          <S sw={2}><path d="M3 21h18" /><path d="M5 21V7l7-4v18" /><path d="M12 9h7v12" /><path d="M8 10h1M8 14h1M15 13h1M15 17h1" /></S>,
+  harbour:       <S sw={2}><circle cx="12" cy="5" r="2" /><path d="M12 22V7" /><path d="M5 12a7 7 0 0014 0" /><path d="M8 9h8" /></S>,
+  bus:           <S sw={2}><rect x="4" y="4" width="16" height="12" rx="2" /><path d="M4 11h16" /><path d="M7 20v-2M17 20v-2" /><circle cx="8" cy="16" r="1" /><circle cx="16" cy="16" r="1" /></S>,
+  golf:          <S sw={2}><path d="M12 20V4l7 4-7 4" /><ellipse cx="12" cy="21" rx="5" ry="1.6" /></S>,
+  ski:           <S sw={2}><path d="M3 20l16-6" /><path d="M5 21l15-6" /><circle cx="15" cy="5" r="2" /><path d="M13 9l3 3-2 3" /></S>,
+  plane:         <S sw={2}><path d="M17.8 19.2L16 11l3.5-3.5a2.1 2.1 0 00-3-3L13 8 4.8 6.2a.8.8 0 00-.8 1.3L8 11l-2 3H3l2 4 4 2 3-2v-3l3.7 4a.8.8 0 001.3-.8z" /></S>,
+  bed:           <S sw={2}><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8" /><path d="M2 17h20" /><path d="M6 10V7a2 2 0 012-2h8a2 2 0 012 2v3" /></S>,
+  check:         <S sw={2.5}><polyline points="20 6 9 17 4 12" /></S>,
 };
-const WEATHER = [
-  { m: 'Jan', i: '🌧️', t: 12, s: 4, r: 12 }, { m: 'Feb', i: '🌧️', t: 13, s: 5, r: 10 },
-  { m: 'Mar', i: '⛅', t: 15, s: 6, r: 8 }, { m: 'Apr', i: '🌤️', t: 18, s: 8, r: 5 },
-  { m: 'May', i: '☀️', t: 23, s: 10, r: 3, hl: true }, { m: 'Jun', i: '☀️', t: 28, s: 12, r: 1 },
-  { m: 'Jul', i: '☀️', t: 31, s: 13, r: 0 }, { m: 'Aug', i: '☀️', t: 31, s: 12, r: 0 },
-  { m: 'Sep', i: '☀️', t: 27, s: 10, r: 2 }, { m: 'Oct', i: '🌤️', t: 22, s: 7, r: 6 },
-  { m: 'Nov', i: '⛅', t: 17, s: 5, r: 10 }, { m: 'Dec', i: '🌧️', t: 13, s: 3, r: 13 },
-];
+
+// "Hotel at a glance" tiles.
+const GLANCE_SVG = {
+  star:   <S sw={2}><polygon points="12 2 15.1 8.3 22 9.3 17 14.1 18.2 21 12 17.8 5.8 21 7 14.1 2 9.3 8.9 8.3 12 2" /></S>,
+  bed:    <S sw={2}><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8" /><path d="M2 17h20" /><path d="M6 10V7a2 2 0 012-2h8a2 2 0 012 2v3" /></S>,
+  board:  <S sw={2}><path d="M3 2v7a2 2 0 002 2h1a2 2 0 002-2V2" /><path d="M6 11v11" /><path d="M18 2c-1.7 1.3-2.5 3.3-2.5 6 0 2 .8 3 2.5 3v11" /></S>,
+  floors: <S sw={2}><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /></S>,
+  reno:   <S sw={2}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></S>,
+  cal:    <S sw={2}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></S>,
+};
+
+const COPY_SVG  = <S size={14} sw={2}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></S>;
+const PHONE_SVG = <S sw={2}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></S>;
+const FAX_SVG   = <S sw={2}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V2H8v5" /><line x1="6" y1="13" x2="6.01" y2="13" /></S>;
 const RATINGS = [
   { l: 'Location', v: 9.6 }, { l: 'Cleanliness', v: 9.4 }, { l: 'Service', v: 9.2 },
   { l: 'Rooms', v: 9.1 }, { l: 'Food', v: 8.9 },
@@ -975,7 +1030,36 @@ export default function HotelDetail() {
   const [explorer, setExplorer] = useState(false);
   const [explorerCat, setExplorerCat] = useState('ALL');
   const [showAllFac, setShowAllFac] = useState(false);
+  // Which category cards have had their "+N more" opened, keyed by category key.
+  const [openCats, setOpenCats] = useState(() => new Set());
+  // Which value the copy buttons last put on the clipboard, so exactly one shows "Copied".
+  const [copied, setCopied] = useState(null);
   const [reviewsSeen, setReviewsSeen] = useState(false);
+
+  // ── Facility + location derivations ──────────────────────────────────────────
+  // The supplier's own grouping is far coarser than anything worth showing a guest (one group
+  // called "Facilities" carries a third of a resort's rows), so the raw list is re-bucketed
+  // into travel-shaped categories. All four are pure functions of the same array.
+  const rawFacilities = info?.facilities;
+  const { categories: facCategories, total: facTotal } = useMemo(
+    () => categoriseFacilities(rawFacilities), [rawFacilities],
+  );
+  const popularFacs = useMemo(() => popularFacilities(rawFacilities), [rawFacilities]);
+  const nearby = useMemo(() => nearbyDistances(rawFacilities), [rawFacilities]);
+  const glance = useMemo(() => glanceFacts(rawFacilities), [rawFacilities]);
+
+  const toggleCat = (key) => setOpenCats((prev) => {
+    const next = new Set(prev);
+    if (next.has(key)) next.delete(key); else next.add(key);
+    return next;
+  });
+
+  const copyValue = async (value, key) => {
+    const ok = await copyText(value);
+    if (!ok) return;
+    setCopied(key);
+    window.setTimeout(() => setCopied((c) => (c === key ? null : c)), 1800);
+  };
   // `.live` holds the chosen rate's index in the flat live-rooms array. The old per-stay /
   // per-meal keys went with the demo room list.
   const [selectedRoom, setSelectedRoom] = useState({});
@@ -1349,7 +1433,7 @@ export default function HotelDetail() {
     ? `${calDate(shareCheckIn)}${shareCheckOut ? ` – ${calDate(shareCheckOut)}` : ''}`
     : '';
   const sharePax = `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}${Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}`;
-  const shareMeta = [shareDates, `${nightsToDays(nights)} days`, sharePax].filter(Boolean).join(' · ');
+  const shareMeta = [shareDates, dayLabel(nights), sharePax].filter(Boolean).join(' · ');
   const shareText = [
     `${hotelName} — ${locLabel}`,
     shareMeta,
@@ -2032,7 +2116,7 @@ export default function HotelDetail() {
               <span className="sd-hero-rule" />
               <div className="sd-hero-chips">
                 <span className="sd-chip">{ICON.board} {hotel?.board || 'All inclusive'}</span>
-                <span className="sd-chip">{ICON.moon} {nightsToDays(nights)} days</span>
+                <span className="sd-chip">{ICON.moon} {dayLabel(nights)}</span>
                 <span className="sd-chip">{ICON.users} {Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</span>
                 {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} from {ccy}{fromPP} p.p.</span>}
               </div>
@@ -2271,8 +2355,8 @@ export default function HotelDetail() {
                           disabled={isEmpty}
                           aria-pressed={sel}
                           aria-label={isEmpty ? `${p.day} ${p.date}, not available`
-                            : liveHere ? `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${p.nights} nights`
-                            : hasPrice ? `${p.day} ${p.date}, from ${ccy}${pp} per person, ${p.nights} nights`
+                            : liveHere ? `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${dayLabel(p.nights)}`
+                            : hasPrice ? `${p.day} ${p.date}, from ${ccy}${pp} per person, ${dayLabel(p.nights)}`
                             : `${p.day} ${p.date}, check live price`}>
                           <span className="fc-barzone">
                             {/* Only one flag fits above a bar. Once a day has been checked, how
@@ -2312,14 +2396,14 @@ export default function HotelDetail() {
                                     {ppMoved != null && <span className="fc-was">{ccy}{wasPP}</span>}
                                     <span className="fc-amt fc-amt-live">{ccy}{nowPP}</span>
                                     <span className="fc-livetag">Live price</span>
-                                    <span className="fc-nts">{p.nights} {p.nights === 1 ? 'day' : 'days'}</span>
+                                    <span className="fc-nts">{dayLabel(p.nights)}</span>
                                   </>
                                 ) : hasPrice ? (
                                   <>
                                     <span className="fc-from">from</span>
                                     <span className="fc-amt">{ccy}{pp}</span>
                                     <span className="fc-pp">p.p.</span>
-                                    <span className="fc-nts">{p.nights} {p.nights === 1 ? 'day' : 'days'}</span>
+                                    <span className="fc-nts">{dayLabel(p.nights)}</span>
                                   </>
                                 ) : (
                                   <span className="fc-check">Check live price</span>
@@ -2376,7 +2460,7 @@ export default function HotelDetail() {
                               </div>
                               <div className="fcu-item">
                                 <span className="fcu-k">{ICON.moon} Duration</span>
-                                <span className="fcu-v">{nights} {nights === 1 ? 'day' : 'days'}</span>
+                                <span className="fcu-v">{dayLabel(nights)}</span>
                               </div>
                               <div className="fcu-item">
                                 <span className="fcu-k">{transport === 'hotel_only' ? ICON.bed : ICON.plane} {transport === 'hotel_only' ? 'Transport' : 'Airport'}</span>
@@ -2403,7 +2487,7 @@ export default function HotelDetail() {
                                 {`${calDay(pd.iso)} ${calDate(pd.iso)} – ${calDay(addDaysISO(pd.iso, nights))} ${calDate(addDaysISO(pd.iso, nights))}`}
                               </span>
                               <span className="fc-act-meta">
-                                {nights} {nights === 1 ? 'day' : 'days'} · {hotelName}
+                                {dayLabel(nights)} · {hotelName}
                               </span>
                             </div>
                             <button type="button" className="fc-cta fc-cta-off" disabled>
@@ -2424,7 +2508,7 @@ export default function HotelDetail() {
                                 here said nothing new — while the name anchors WHAT is being
                                 checked right next to the button that checks it. */}
                             <span className="fc-act-meta">
-                              {nights} {nights === 1 ? 'day' : 'days'} · {hotelName}
+                              {dayLabel(nights)} · {hotelName}
                             </span>
                           </div>
                           <button type="button" className="fc-cta" onClick={checkAvailability}>
@@ -2461,7 +2545,7 @@ export default function HotelDetail() {
                                 one instead of scanned out of a dot-separated run-on. */}
                             <div className="avail-sub">
                               {[
-                                `${nights} ${nights === 1 ? 'day' : 'days'}`,
+                                dayLabel(nights),
                                 `${availAdults} adult${availAdults === 1 ? '' : 's'}`,
                                 availChildren > 0 ? `${availChildren} child${availChildren === 1 ? '' : 'ren'}` : null,
                                 availRooms > 1 ? `${availRooms} rooms` : null,
@@ -2525,8 +2609,8 @@ export default function HotelDetail() {
                                   be a straight untruth — the Book card below quotes a bigger
                                   number. On an own-transport stay the room IS the holiday. */}
                               {liveRoom ? (transport === 'hotel_only'
-                                ? `Total holiday price · ${nights} ${nights === 1 ? 'day' : 'days'}`
-                                : `Live room price · ${nights} ${nights === 1 ? 'day' : 'days'}`)
+                                ? `Total holiday price · ${dayLabel(nights)}`
+                                : `Live room price · ${dayLabel(nights)}`)
                                 : liveRooms?.error ? (pdEstimate ? 'Live price unavailable — estimate shown' : 'No estimate for this day — try again')
                                 : pdEstimate ? (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')
                                 : 'No cached estimate'}
@@ -2861,7 +2945,7 @@ export default function HotelDetail() {
                                     {gInfo.rooms > 1 ? ` · ${gInfo.rooms} rooms` : ''}
                                   </span>
                                 )}
-                                <span className="rgm">{ICON.moon}{nightsToDays(nights)} day{nightsToDays(nights) === 1 ? '' : 's'}</span>
+                                <span className="rgm">{ICON.moon}{dayLabel(nights)}</span>
                               </div>
                             </div>
                             <div className="room-group-from">
@@ -2914,13 +2998,15 @@ export default function HotelDetail() {
                                         sit here is now the one note at the top of the room. */}
                                     {isSel && <span className="room-flag room-flag-sel">{ICON.check} Selected</span>}
                                     <div className="room-chips">
-                                      {/* No "Free cancellation until X" chip. A dated promise on
-                                          the rate card is a commitment we don't want to make from
-                                          a live supplier quote; the warnings below stay, because
-                                          under-promising costs nobody a refund. */}
-                                      {d?.cancel.kind === 'partial' && (
-                                        <span className="rchip rchip-warn">{ICON.warn} Cancel now costs {ccy}{Math.round(d.cancel.amount).toLocaleString('en-GB')}</span>
-                                      )}
+                                      {/* No cancellation FIGURES on a room row — neither a "Free
+                                          cancellation until X" promise nor a "Cancel now costs
+                                          €1,354" warning. Both quote a number off a live supplier
+                                          rate the traveller has not booked yet, on a row whose job
+                                          is to sell the room; the amount moves with the date and
+                                          the party, so printing it here reads as a charge they are
+                                          about to incur. Whether a rate can be cancelled AT ALL is
+                                          still stated below — "Non-refundable" is a property of
+                                          the rate, not a price. */}
                                       {d?.cancel.kind === 'none' && (
                                         <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
                                       )}
@@ -3009,7 +3095,7 @@ export default function HotelDetail() {
                       const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
                       // No invented April dates when the search carries none.
                       return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} - ${niceDate(co)}` : 'Dates not selected yet';
-                    })()} <span>({nightsToDays(nights)} days)</span></div>
+                    })()} <span>({dayLabel(nights)})</span></div>
                     </div>
                     {/* overview-score removed — no real review data yet */}
                   </div>
@@ -3052,227 +3138,431 @@ export default function HotelDetail() {
             </div>
 
             {/* ── INFORMATION ── */}
-            <div className={`tp${activeTab === 'Information' ? ' act' : ''}`}>
-              {/* About card */}
-              <div className="inf-card reveal">
-                <div className="inf-card-header">
-                  <div className="inf-card-icon">{ICON.info}</div>
-                  <h3 className="inf-card-title">About {hotelName}</h3>
-                </div>
-                <div className={`inf-desc${expanded.d1 ? ' exp' : ''}`}>
-                  {info?.description || `${hotelName} is a stunning boutique hotel nestled on the pristine shores of ${locLabel}. This retreat combines contemporary luxury with natural beauty, offering guests an unparalleled holiday experience.`}
-                </div>
-                {((info?.description?.length || 0) > 200 || !info?.description) && (
-                  <button className="inf-read-more" onClick={() => toggleExpand('d1')}>
-                    {expanded.d1 ? 'Show less' : 'Read more'}
-                    <S size={14} sw={2.5}><path d={expanded.d1 ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
-                  </button>
-                )}
-              </div>
-
-              {/* Quick stats tiles */}
-              {(() => {
-                const facLoc = (info?.facilities || []).filter((f) => f.facilityGroupName === 'Location');
-                const year = facLoc.find((f) => f.facilityName === 'Year of construction');
-                const reno = facLoc.find((f) => f.facilityName === 'Year of most recent renovation');
-                const floors = facLoc.find((f) => f.facilityName === 'Number of floors (main building)');
-                const totalRooms = facLoc.find((f) => f.facilityName === 'Total number of rooms');
-                const stats = [
-                  year?.number && { icon: ICON.cal, label: 'Built', value: year.number },
-                  reno?.number && { icon: <S sw={2}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></S>, label: 'Renovated', value: reno.number },
-                  floors?.number && { icon: <S sw={2}><rect x="3" y="3" width="18" height="18" rx="2" /><line x1="3" y1="9" x2="21" y2="9" /><line x1="3" y1="15" x2="21" y2="15" /><line x1="12" y1="3" x2="12" y2="21" /></S>, label: 'Floors', value: floors.number },
-                  totalRooms?.number && { icon: ICON.bed, label: 'Total rooms', value: totalRooms.number },
-                  { icon: <S sw={2}><path d="M12 2L2 7l10 5 10-5-10-5z" /><path d="M2 17l10 5 10-5" /><path d="M2 12l10 5 10-5" /></S>, label: 'Category', value: `${Math.min(stars, 5)}-Star` },
-                  { icon: ICON.board, label: 'Board', value: hotel?.board || 'All inclusive' },
-                ].filter(Boolean);
-                return stats.length > 0 && (
-                  <div className="inf-stats reveal">
-                    {stats.map((s, i) => (
-                      <div className="inf-stat" key={i}>
-                        <div className="inf-stat-icon">{s.icon}</div>
-                        <div className="inf-stat-label">{s.label}</div>
-                        <div className="inf-stat-value">{s.value}</div>
-                      </div>
-                    ))}
-                  </div>
-                );
-              })()}
-
-              {/* Location card */}
-              {(info?.address || info?.city) && (
-                <div className="inf-card reveal">
-                  <div className="inf-card-header">
-                    <div className="inf-card-icon inf-card-icon--loc">{ICON.pin}</div>
-                    <h3 className="inf-card-title">Location & Address</h3>
-                  </div>
-                  <div className="inf-loc-body">
-                    {info?.latitude && info?.longitude && (
-                      <div className="inf-minimap">
-                        <iframe
-                          title="Hotel location"
-                          src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(info.longitude) - 0.008},${Number(info.latitude) - 0.006},${Number(info.longitude) + 0.008},${Number(info.latitude) + 0.006}&layer=mapnik&marker=${info.latitude},${info.longitude}`}
-                        />
+            {activeTab === 'Information' && (
+              <div className="tp act">
+                {/* ── About + photo collage ───────────────────────────────────
+                    No invented prose fallback. The old one described every hotel as "a
+                    stunning boutique hotel nestled on the pristine shores of…", which for
+                    the 3% of records with no description was fiction with a hotel's name
+                    on it. Nothing to say → the block does not render. */}
+                {(info?.description || hasPhotos) && (
+                  <section className="hi-card hi-about">
+                    {info?.description && (
+                      <div className="hi-about-copy">
+                        <div className="hi-card-head">
+                          <div className="hi-card-icon">{ICON.info}</div>
+                          <h3 className="hi-card-title">About {hotelName}</h3>
+                        </div>
+                        <div className={`hi-desc${expanded.d1 ? ' exp' : ''}`}>{info.description}</div>
+                        {info.description.length > 260 && (
+                          <button className="hi-link" onClick={() => toggleExpand('d1')}>
+                            {expanded.d1 ? 'Show less' : 'Read more'}
+                            <S size={14} sw={2.5}><path d={expanded.d1 ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
+                          </button>
+                        )}
                       </div>
                     )}
-                    <div className="inf-loc-details">
-                      {info.address && (
-                        <div className="inf-loc-row">
-                          <div className="inf-loc-icon">{ICON.pin}</div>
-                          <div><div className="inf-loc-lbl">Address</div><div className="inf-loc-val">{info.address}</div></div>
-                        </div>
-                      )}
-                      {zoneLabel && (
-                        <div className="inf-loc-row">
-                          <div className="inf-loc-icon"><S sw={2}><path d="M12 21c-4.5-1.4-7.5-5.4-7.5-10A7.5 7.5 0 0112 3a7.5 7.5 0 017.5 8c0 4.6-3 8.6-7.5 10z" /><circle cx="12" cy="11" r="2.5" /></S></div>
-                          <div><div className="inf-loc-lbl">Zone / Area</div><div className="inf-loc-val">{zoneLabel}</div></div>
-                        </div>
-                      )}
-                      {(info?.cityName || info?.city) && (
-                        <div className="inf-loc-row">
-                          <div className="inf-loc-icon"><S sw={2}><circle cx="12" cy="12" r="10" /><line x1="2" y1="12" x2="22" y2="12" /><path d="M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></S></div>
-                          <div><div className="inf-loc-lbl">City / Region</div><div className="inf-loc-val">{info.cityName || info.city}</div></div>
-                        </div>
-                      )}
-                      {info.latitude && (
-                        <div className="inf-loc-row">
-                          <div className="inf-loc-icon"><S sw={2}><polygon points="3 11 22 2 13 21 11 13 3 11" /></S></div>
-                          <div><div className="inf-loc-lbl">Coordinates</div><div className="inf-loc-val">{Number(info.latitude).toFixed(4)}° N, {Number(info.longitude).toFixed(4)}° E</div></div>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-                </div>
-              )}
 
-              {/* Contact card */}
-              {info?.phones?.length > 0 && (
-                <div className="inf-card reveal">
-                  <div className="inf-card-header">
-                    <div className="inf-card-icon inf-card-icon--contact"><S sw={2}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></S></div>
-                    <h3 className="inf-card-title">Contact</h3>
-                  </div>
-                  <div className="inf-contacts">
-                    {info.phones.map((p, i) => {
-                      const type = p.phoneType === 'PHONEBOOKING' ? 'Booking' : p.phoneType === 'PHONEHOTEL' ? 'Hotel' : p.phoneType === 'FAXNUMBER' ? 'Fax' : 'Phone';
-                      const iconEl = p.phoneType === 'FAXNUMBER'
-                        ? <S sw={2}><rect x="2" y="7" width="20" height="14" rx="2" /><path d="M16 7V2H8v5" /><line x1="6" y1="13" x2="6.01" y2="13" /></S>
-                        : <S sw={2}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></S>;
-                      return (
-                        <div className="inf-contact-card" key={i}>
-                          <div className="inf-contact-icon">{iconEl}</div>
-                          <div className="inf-contact-type">{type}</div>
-                          <div className="inf-contact-number">{p.phoneNumber}</div>
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
-
-              {/* Room types card */}
-              {info?.rooms?.length > 0 && (
-                <div className="inf-card reveal">
-                  <div className="inf-card-header">
-                    <div className="inf-card-icon inf-card-icon--room">{ICON.bed}</div>
-                    <h3 className="inf-card-title">Room Types</h3>
-                    <span className="inf-card-count">{info.rooms.length} types</span>
-                  </div>
-                  <div className="inf-room-grid">
-                    {info.rooms.map((rm, i) => (
-                      <div className="inf-room-tile" key={i}>
-                        <div className="inf-room-badge">{rm.roomCode}</div>
-                        <div className="inf-room-guests">
-                          <S size={14} sw={2}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></S>
-                          {rm.minPax}–{rm.maxPax} guests
-                        </div>
+                    {hasPhotos && (
+                      <div className="hi-gallery">
+                        <button
+                          className="hi-gallery-hero"
+                          onClick={() => (photoCats ? openExplorer('ALL') : openLightbox(images, 0))}
+                          aria-label={`View all ${photoCount} photos of ${hotelName}`}
+                        >
+                          <HotelImg src={images[0]} size="bigger" alt={`${hotelName}`} />
+                          <span className="hi-gallery-cta">
+                            <S size={15} sw={2}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></S>
+                            See photos ({photoCount})
+                          </span>
+                        </button>
+                        {images.length > 1 && (
+                          <div className="hi-gallery-strip">
+                            {images.slice(1, 6).map((src, i) => (
+                              <button
+                                key={src}
+                                className="hi-gallery-thumb"
+                                onClick={() => openLightbox(images, i + 1)}
+                                aria-label={`Photo ${i + 2} of ${hotelName}`}
+                              >
+                                <HotelImg src={src} size="small" alt="" loading="lazy" onError={(e) => { e.currentTarget.closest('button').style.display = 'none'; }} />
+                              </button>
+                            ))}
+                          </div>
+                        )}
                       </div>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
+                    )}
+                  </section>
+                )}
 
-            {/* ── FACILITIES ── */}
-            <div className={`tp${activeTab === 'Facilities' ? ' act' : ''}`}>
-              {info?.facilities?.length > 0 ? (() => {
-                const groups = {};
-                const skipGroups = ['Location', 'Methods of payment'];
-                info.facilities.forEach((f) => {
-                  if (skipGroups.includes(f.facilityGroupName)) return;
-                  const g = f.facilityGroupName || 'Other';
-                  if (!groups[g]) groups[g] = [];
-                  groups[g].push(f);
-                });
-                const entries = Object.entries(groups);
-                const shown = showAllFac ? entries : entries.slice(0, 5);
-                return <>
-                  <div className="fac-header reveal">
-                    <div className="inf-card-icon">{TAB_ICON.Facilities}</div>
-                    <div>
-                      <h3 className="inf-card-title">Hotel Facilities</h3>
-                      <div className="fac-subtitle">{entries.length} categories · {info.facilities.filter((f) => !skipGroups.includes(f.facilityGroupName)).length} amenities</div>
-                    </div>
-                  </div>
-                  {shown.map(([group, items]) => (
-                    <div className="fac-card reveal" key={group}>
-                      <div className="fac-card-head">
-                        <div className="fac-card-dot" />
-                        <span className="fac-card-name">{group}</span>
-                        <span className="fac-card-count">{items.length}</span>
+                {/* ── Hotel at a glance ───────────────────────────────────────
+                    Board is deliberately absent until a stay has actually been priced.
+                    `info.boards` is empty on every hotel in the catalogue, so the old
+                    `hotel?.board || 'All inclusive'` printed "All Inclusive" on hotels
+                    that sell nothing of the sort, on every cold visit to this page. */}
+                {(() => {
+                  const tiles = [
+                    stars > 0 && { icon: 'star', label: 'Category', value: `${Math.min(stars, 5)}-Star` },
+                    glance.rooms && { icon: 'bed', label: 'Rooms', value: glance.rooms },
+                    liveBoard && { icon: 'board', label: 'Board', value: liveBoard },
+                    glance.floors && { icon: 'floors', label: 'Floors', value: glance.floors },
+                    glance.renovated && { icon: 'reno', label: 'Renovated', value: glance.renovated },
+                    !glance.renovated && glance.built && { icon: 'cal', label: 'Built', value: glance.built },
+                  ].filter(Boolean);
+                  return tiles.length >= 2 && (
+                    <section className="hi-card">
+                      <div className="hi-card-head">
+                        <div className="hi-card-icon">{FAC_SVG.info}</div>
+                        <h3 className="hi-card-title">Hotel at a glance</h3>
                       </div>
-                      <div className="fac-card-items">
-                        {items.map((f, i) => (
-                          <div className={`fac-item${f.isPaid ? ' fac-item--paid' : ''}`} key={i}>
-                            <div className="fac-item-icon">{ICON.check}</div>
-                            <span className="fac-item-name">{f.facilityName}{f.number ? ` (${f.number})` : ''}</span>
-                            {f.isPaid && <span className="fac-item-badge">Paid</span>}
+                      <div className="hi-glance">
+                        {tiles.map((t) => (
+                          <div className="hi-glance-tile" key={t.label}>
+                            <div className="hi-glance-icon">{GLANCE_SVG[t.icon]}</div>
+                            <div className="hi-glance-value">{t.value}</div>
+                            <div className="hi-glance-label">{t.label}</div>
                           </div>
                         ))}
                       </div>
+                    </section>
+                  );
+                })()}
+
+                {/* ── Location & surroundings ─────────────────────────────── */}
+                {(info?.address || info?.latitude) && (
+                  <section className="hi-card">
+                    <div className="hi-card-head">
+                      <div className="hi-card-icon hi-card-icon--loc">{ICON.pin}</div>
+                      <h3 className="hi-card-title">Location &amp; Surroundings</h3>
                     </div>
-                  ))}
-                  {!showAllFac && entries.length > 5 && (
-                    <button className="fac-show-all" onClick={() => setShowAllFac(true)}>
-                      Show all {entries.length} categories
-                      <S size={14} sw={2.5}><path d="M6 9l6 6 6-6" /></S>
-                    </button>
-                  )}
-                  {showAllFac && entries.length > 5 && (
-                    <button className="fac-show-all" onClick={() => setShowAllFac(false)}>
-                      Show less
-                      <S size={14} sw={2.5}><path d="M18 15l-6-6-6 6" /></S>
-                    </button>
-                  )}
-                </>;
-              })() : (
-                <>
-                  <div className="fac-header reveal">
-                    <div className="inf-card-icon">{TAB_ICON.Facilities}</div>
-                    <div>
-                      <h3 className="inf-card-title">Hotel Facilities</h3>
-                      <div className="fac-subtitle">{FACILITIES.length + MORE_FACILITIES.length} amenities</div>
-                    </div>
-                  </div>
-                  <div className="fac-card reveal">
-                    <div className="fac-card-items">
-                      {FACILITIES.map((f) => (
-                        <div className="fac-item" key={f}>
-                          <div className="fac-item-icon">{FAC_ICON[f] || ICON.check}</div>
-                          <span className="fac-item-name">{f}</span>
+                    <div className="hi-loc">
+                      {info?.latitude && info?.longitude && (
+                        <div className="hi-map">
+                          <iframe
+                            title={`Map of ${hotelName}`}
+                            loading="lazy"
+                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(info.longitude) - 0.008},${Number(info.latitude) - 0.006},${Number(info.longitude) + 0.008},${Number(info.latitude) + 0.006}&layer=mapnik&marker=${info.latitude},${info.longitude}`}
+                          />
                         </div>
-                      ))}
-                      {showAllFac && MORE_FACILITIES.map((f, i) => (
-                        <div className="fac-item" key={f} style={{ animation: `sdFadeUp .4s var(--ease) ${i * 0.06}s both` }}>
-                          <div className="fac-item-icon">{ICON.check}</div>
-                          <span className="fac-item-name">{f}</span>
-                        </div>
-                      ))}
+                      )}
+
+                      <div className="hi-loc-side">
+                        {info?.address && (
+                          <div className="hi-row">
+                            <span className="hi-row-icon">{ICON.pin}</span>
+                            <span className="hi-row-body">
+                              <span className="hi-row-label">Address</span>
+                              <span className="hi-row-value">{info.address}</span>
+                            </span>
+                          </div>
+                        )}
+                        {zoneLabel && (
+                          <div className="hi-row">
+                            <span className="hi-row-icon">{FAC_SVG.city}</span>
+                            <span className="hi-row-body">
+                              <span className="hi-row-label">Area</span>
+                              <span className="hi-row-value">{zoneLabel}</span>
+                            </span>
+                          </div>
+                        )}
+                        {(info?.cityName || info?.city) && (
+                          <div className="hi-row">
+                            <span className="hi-row-icon">{FAC_SVG.harbour}</span>
+                            <span className="hi-row-body">
+                              <span className="hi-row-label">Destination</span>
+                              <span className="hi-row-value">{info.cityName || info.city}</span>
+                            </span>
+                          </div>
+                        )}
+
+                        {nearby.length > 0 && (
+                          <div className="hi-nearby">
+                            <div className="hi-nearby-title">Nearby</div>
+                            {nearby.map((n) => (
+                              <div className="hi-nearby-row" key={n.label}>
+                                <span className="hi-nearby-icon">{FAC_SVG[n.icon] || FAC_SVG.check}</span>
+                                <span className="hi-nearby-label">{n.label}</span>
+                                <span className="hi-nearby-dist">{n.text}</span>
+                              </div>
+                            ))}
+                          </div>
+                        )}
+
+                        {info?.latitude && info?.longitude && (
+                          <>
+                            <div className="hi-coords">
+                              <span className="hi-row-body">
+                                <span className="hi-row-label">Coordinates</span>
+                                <span className="hi-row-value">
+                                  {Number(info.latitude).toFixed(4)}° N, {Number(info.longitude).toFixed(4)}° E
+                                </span>
+                              </span>
+                              <button
+                                className="hi-copy"
+                                onClick={() => copyValue(`${Number(info.latitude).toFixed(6)}, ${Number(info.longitude).toFixed(6)}`, 'coords')}
+                                aria-label="Copy coordinates"
+                              >
+                                {copied === 'coords'
+                                  ? <>{FAC_SVG.check}<span>Copied</span></>
+                                  : <>{COPY_SVG}<span>Copy</span></>}
+                              </button>
+                            </div>
+                            <a
+                              className="hi-maplink"
+                              href={`https://www.openstreetmap.org/?mlat=${info.latitude}&mlon=${info.longitude}#map=15/${info.latitude}/${info.longitude}`}
+                              target="_blank"
+                              rel="noreferrer noopener"
+                            >
+                              Open larger map
+                              <S size={14} sw={2}><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></S>
+                            </a>
+                          </>
+                        )}
+                      </div>
                     </div>
+                  </section>
+                )}
+
+                {/* ── Contact ─────────────────────────────────────────────────
+                    Hotelbeds files the same number under several types, so the raw list
+                    renders three identical cards. De-duplicated by number, first label wins. */}
+                {(() => {
+                  const LABELS = {
+                    PHONEHOTEL: 'Hotel',
+                    PHONEBOOKING: 'Booking',
+                    PHONEMANAGEMENT: 'Management',
+                    FAXNUMBER: 'Fax',
+                  };
+                  // Sort before de-duplicating so that when the hotel files one number under
+                  // several types — which it usually does — the surviving card is labelled
+                  // "Hotel" rather than whichever type happened to come back first.
+                  const RANK = ['PHONEHOTEL', 'PHONEBOOKING', 'PHONEMANAGEMENT', 'FAXNUMBER'];
+                  const seen = new Set();
+                  const phones = [...(info?.phones || [])]
+                    .sort((a, b) => {
+                      const ra = RANK.indexOf(a?.phoneType); const rb = RANK.indexOf(b?.phoneType);
+                      return (ra === -1 ? 99 : ra) - (rb === -1 ? 99 : rb);
+                    })
+                    .filter((p) => {
+                      const n = String(p?.phoneNumber || '').replace(/\s+/g, '');
+                      if (!n || seen.has(n)) return false;
+                      seen.add(n);
+                      return true;
+                    });
+                  return phones.length > 0 && (
+                    <section className="hi-card">
+                      <div className="hi-card-head">
+                        <div className="hi-card-icon hi-card-icon--contact">{PHONE_SVG}</div>
+                        <h3 className="hi-card-title">Contact</h3>
+                      </div>
+                      <div className="hi-contacts">
+                        {phones.map((p) => (
+                          <div className="hi-contact" key={p.phoneNumber}>
+                            <div className="hi-contact-icon">
+                              {p.phoneType === 'FAXNUMBER' ? FAX_SVG : PHONE_SVG}
+                            </div>
+                            <div className="hi-contact-body">
+                              <div className="hi-contact-type">{LABELS[p.phoneType] || 'Phone'}</div>
+                              <a className="hi-contact-number" href={`tel:${String(p.phoneNumber).replace(/\s+/g, '')}`}>
+                                {p.phoneNumber}
+                              </a>
+                            </div>
+                            <button
+                              className="hi-copy hi-copy--icon"
+                              onClick={() => copyValue(p.phoneNumber, `tel-${p.phoneNumber}`)}
+                              aria-label={`Copy ${LABELS[p.phoneType] || 'phone'} number`}
+                            >
+                              {copied === `tel-${p.phoneNumber}` ? FAC_SVG.check : COPY_SVG}
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </section>
+                  );
+                })()}
+
+                {/* ── Room types ──────────────────────────────────────────────
+                    Room NAMES only exist on the live-availability path — the content
+                    catalogue ships codes and occupancy, nothing else. So a searched stay
+                    shows "Sea View Double", a cold visit shows the code, and neither
+                    invents the other. Photos come from the image rows the supplier tagged
+                    with a roomCode. */}
+                {(() => {
+                  const rooms = info?.rooms || [];
+                  if (!rooms.length) return null;
+                  const imagesByRoom = new Map();
+                  for (const im of info?.images || []) {
+                    if (!im?.roomCode || !im?.url) continue;
+                    if (!imagesByRoom.has(im.roomCode)) imagesByRoom.set(im.roomCode, im.url);
+                  }
+                  const nameByCode = new Map();
+                  for (const lr of liveRooms || []) {
+                    if (lr?.roomCode && lr?.name && !nameByCode.has(lr.roomCode)) nameByCode.set(lr.roomCode, lr.name);
+                  }
+                  // A row of bare codes with no photo and no name says nothing worth a card.
+                  if (!imagesByRoom.size && !nameByCode.size) return null;
+                  // Hotelbeds files a row per room/characteristic combination, so a large resort
+                  // arrives with ~180 of them. Everything past the first dozen is noise in a
+                  // strip the guest scrolls sideways, so the rest are counted, not rendered.
+                  const ROOMS_SHOWN = 12;
+                  const all = rooms
+                    .filter((rm, i, arr) => arr.findIndex((r) => r.roomCode === rm.roomCode) === i)
+                    .map((rm) => ({
+                      code: rm.roomCode,
+                      name: nameByCode.get(rm.roomCode) || null,
+                      img: imagesByRoom.get(rm.roomCode) || null,
+                      minPax: rm.minPax,
+                      maxPax: rm.maxPax,
+                    }))
+                    // The ones we can actually show a picture of lead.
+                    .sort((a, b) => (b.img ? 1 : 0) - (a.img ? 1 : 0));
+                  const cards = all.slice(0, ROOMS_SHOWN);
+                  const hiddenRooms = all.length - cards.length;
+                  return (
+                    <section className="hi-card">
+                      <div className="hi-card-head">
+                        <div className="hi-card-icon hi-card-icon--room">{ICON.bed}</div>
+                        <h3 className="hi-card-title">Room Types</h3>
+                        <span className="hi-card-count">{all.length}</span>
+                      </div>
+                      <div className="hi-rooms">
+                        {cards.map((rm) => (
+                          <div className="hi-room" key={rm.code}>
+                            <div className="hi-room-photo">
+                              {rm.img
+                                ? <HotelImg src={rm.img} size="small" alt={rm.name || rm.code} loading="lazy" onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }} />
+                                : <span className="hi-room-nophoto">{FAC_SVG.bed}</span>}
+                            </div>
+                            <div className="hi-room-body">
+                              {rm.name && <div className="hi-room-name">{rm.name}</div>}
+                              <div className="hi-room-code">{rm.code}</div>
+                              {rm.minPax != null && rm.maxPax != null && (
+                                <div className="hi-room-pax">
+                                  <S size={13} sw={2}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></S>
+                                  {rm.minPax}–{rm.maxPax} guests
+                                </div>
+                              )}
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      {hiddenRooms > 0 && (
+                        <div className="hi-rooms-more">
+                          + {hiddenRooms} further room {hiddenRooms === 1 ? 'type' : 'types'} — search
+                          your dates to see the ones available for your stay.
+                        </div>
+                      )}
+                    </section>
+                  );
+                })()}
+              </div>
+            )}
+
+            {/* ── FACILITIES ── */}
+            {activeTab === 'Facilities' && (
+              <div className="tp act">
+                {facCategories.length > 0 ? (() => {
+                  const CARDS_COLLAPSED = 6;
+                  const overflow = facCategories.length > CARDS_COLLAPSED;
+                  const shown = showAllFac ? facCategories : facCategories.slice(0, CARDS_COLLAPSED);
+                  const anyPaid = facCategories.some((c) => c.items.some((i) => i.isPaid));
+                  return (
+                    <>
+                      <div className="hf-head">
+                        <div className="hf-head-icon">{TAB_ICON.Facilities}</div>
+                        <div>
+                          <h3 className="hf-title">Hotel Facilities</h3>
+                          <div className="hf-sub">
+                            {facTotal} amenities across {facCategories.length}{' '}
+                            {facCategories.length === 1 ? 'category' : 'categories'}
+                          </div>
+                        </div>
+                      </div>
+
+                      {popularFacs.length > 0 && (
+                        <section className="hf-section">
+                          <h4 className="hf-section-title">Popular facilities</h4>
+                          <div className="hf-pop">
+                            {popularFacs.map((p) => (
+                              <div className="hf-pop-tile" key={p.key}>
+                                <div className="hf-pop-icon">{FAC_SVG[p.icon] || FAC_SVG.check}</div>
+                                <div className="hf-pop-label">{p.label}</div>
+                                {p.count != null && <div className="hf-pop-meta">{p.count}</div>}
+                              </div>
+                            ))}
+                          </div>
+                        </section>
+                      )}
+
+                      <section className="hf-section">
+                        <div className="hf-section-head">
+                          <h4 className="hf-section-title">All facilities</h4>
+                          {overflow && (
+                            <button className="hf-toggle" onClick={() => setShowAllFac((v) => !v)}>
+                              {showAllFac ? 'Show less' : `Show all ${facCategories.length} categories`}
+                              <S size={14} sw={2.5}><path d={showAllFac ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
+                            </button>
+                          )}
+                        </div>
+
+                        <div className="hf-grid">
+                          {shown.map((cat) => {
+                            const ITEMS_COLLAPSED = 5;
+                            const open = openCats.has(cat.key);
+                            const items = open ? cat.items : cat.items.slice(0, ITEMS_COLLAPSED);
+                            const more = cat.items.length - ITEMS_COLLAPSED;
+                            return (
+                              <div className={`hf-card hf-card--${cat.key}`} key={cat.key}>
+                                <div className="hf-card-head">
+                                  <div className="hf-card-icon">{FAC_SVG[cat.icon] || FAC_SVG.check}</div>
+                                  <h5 className="hf-card-title">{cat.title}</h5>
+                                  <span className="hf-card-count">{cat.items.length}</span>
+                                </div>
+                                <ul className="hf-list">
+                                  {items.map((item) => (
+                                    <li className="hf-item" key={item.name}>
+                                      <span className="hf-item-tick">{FAC_SVG.check}</span>
+                                      <span className="hf-item-name">
+                                        {item.name}{item.count ? ` (${item.count})` : ''}
+                                      </span>
+                                      {item.isPaid && <span className="hf-chip hf-chip--paid">Paid</span>}
+                                    </li>
+                                  ))}
+                                </ul>
+                                {more > 0 && (
+                                  <button className="hf-more" onClick={() => toggleCat(cat.key)}>
+                                    {open ? 'Show less' : `+ ${more} more`}
+                                    <S size={13} sw={2.5}><path d={open ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
+                                  </button>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </section>
+
+                      {anyPaid && (
+                        <div className="hf-note">
+                          <span className="hf-note-icon">{FAC_SVG.info}</span>
+                          Facilities marked <span className="hf-chip hf-chip--paid">Paid</span> are
+                          available at an additional charge, settled with the hotel.
+                        </div>
+                      )}
+                    </>
+                  );
+                })() : (
+                  <div className="hf-empty">
+                    <div className="hf-empty-icon">{TAB_ICON.Facilities}</div>
+                    <h3 className="hf-title">Facilities not listed yet</h3>
+                    <p className="hf-empty-text">
+                      {infoSettled
+                        ? `We don't hold a facility list for ${hotelName} yet. Ask us and we'll confirm directly with the hotel.`
+                        : 'Loading this hotel’s facilities…'}
+                    </p>
                   </div>
-                  {!showAllFac && <button className="fac-show-all" onClick={() => setShowAllFac(true)}>Show all facilities <S size={14} sw={2.5}><path d="M6 9l6 6 6-6" /></S></button>}
-                </>
-              )}
-            </div>
+                )}
+              </div>
+            )}
 
             {/* ── WEATHER (commented out for now) ──
             <div className={`tp${activeTab === 'Weather' ? ' act' : ''}`}>
@@ -3375,7 +3665,7 @@ export default function HotelDetail() {
                   ? 'Hotel only'
                   : destination ? `${airportName(origin)} (${origin}) → ${destination}` : `${airportName(origin)} (${origin})`}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.board}</span>{hotel?.board || 'All inclusive'}</div>
-                <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{nightsToDays(nights)} days</div>
+                <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{dayLabel(nights)}</div>
               </div>
               <div className="bkcw">
                 <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>

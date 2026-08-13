@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
+import { copyText } from '../../utils/copyText';
 import styles from './ShareSheet.module.css';
 
 /**
@@ -62,28 +63,6 @@ const CHANNELS = [
     sameTab: true,   // a mailto: in a new tab leaves an orphan blank tab behind
   },
 ];
-
-/* Copy that also works on http:// staging, where navigator.clipboard is undefined. */
-async function copyText(value) {
-  try {
-    if (navigator.clipboard?.writeText && window.isSecureContext) {
-      await navigator.clipboard.writeText(value);
-      return true;
-    }
-  } catch { /* blocked or unavailable — fall through to the legacy path */ }
-  try {
-    const ta = document.createElement('textarea');
-    ta.value = value;
-    ta.setAttribute('readonly', '');
-    ta.style.cssText = 'position:fixed;top:-1000px;opacity:0';
-    document.body.appendChild(ta);
-    ta.select();
-    ta.setSelectionRange(0, ta.value.length);   // iOS needs the explicit range
-    const ok = document.execCommand('copy');
-    document.body.removeChild(ta);
-    return ok;
-  } catch { return false; }
-}
 
 function useIsMobile(query = '(max-width: 640px)') {
   const [is, setIs] = useState(() => typeof window !== 'undefined' && window.matchMedia(query).matches);
