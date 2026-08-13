@@ -2524,3 +2524,74 @@
   /* Arrows would sit over the cards at this width; the rail is swipeable instead. */
   .sd .hi-rail-nav { display: none; }
 }
+
+/* ── Weather & Climate ── */
+.sd .hi-card-icon--wx { background: var(--sun-warm); color: var(--sun); }
+
+.sd .hi-wx { display: grid; grid-template-columns: minmax(240px, .85fr) 1.5fr minmax(230px, 1fr); gap: 14px; align-items: stretch; }
+.sd .hi-wx-panel {
+  padding: 16px; border-radius: 16px;
+  background: var(--blue-pale); border: 1px solid var(--border-light);
+  display: flex; flex-direction: column;
+}
+.sd .hi-wx-panel-title {
+  font-size: 10px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text-light); margin-bottom: 14px;
+}
+
+/* current */
+.sd .hi-wx-now { display: flex; gap: 16px; align-items: center; flex: 1; }
+.sd .hi-wx-now-left { text-align: center; flex-shrink: 0; }
+.sd .hi-wx-now-icon { color: var(--sun); display: flex; justify-content: center; }
+.sd .hi-wx-now-icon svg { width: 42px; height: 42px; }
+.sd .hi-wx-now-temp {
+  font-family: 'Sora', sans-serif; font-size: 30px; font-weight: 800;
+  color: var(--dark); line-height: 1.15; margin-top: 6px;
+}
+.sd .hi-wx-now-temp span { font-size: 16px; font-weight: 700; color: var(--text-sec); }
+.sd .hi-wx-now-cond { font-size: 12px; font-weight: 700; color: var(--text); margin-top: 2px; }
+.sd .hi-wx-now-feels { font-size: 11px; color: var(--text-light); margin-top: 2px; }
+
+.sd .hi-wx-stats { margin: 0; flex: 1; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.sd .hi-wx-stats > div { display: flex; align-items: baseline; gap: 8px; }
+.sd .hi-wx-stats dt { font-size: 11.5px; color: var(--text-sec); }
+.sd .hi-wx-stats dd { margin: 0 0 0 auto; font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
+
+/* forecast strip */
+.sd .hi-wx-days { display: grid; grid-template-columns: repeat(5, 1fr); gap: 6px; flex: 1; }
+.sd .hi-wx-day {
+  display: flex; flex-direction: column; align-items: center; gap: 5px;
+  padding: 12px 4px; border-radius: 12px; background: var(--white);
+  border: 1px solid var(--border-light);
+}
+.sd .hi-wx-day-name { font-size: 11px; font-weight: 700; color: var(--text); }
+.sd .hi-wx-day-icon { color: var(--sun); display: flex; }
+.sd .hi-wx-day-icon svg { width: 24px; height: 24px; }
+.sd .hi-wx-day-max { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 800; color: var(--dark); }
+.sd .hi-wx-day-min { font-size: 11.5px; font-weight: 600; color: var(--text-light); margin-top: -3px; }
+.sd .hi-wx-day-rain {
+  display: flex; align-items: center; gap: 3px; margin-top: 2px;
+  font-size: 10.5px; font-weight: 700; color: var(--blue);
+}
+
+/* conditions today */
+.sd .hi-wx-facts { display: flex; flex-direction: column; gap: 11px; flex: 1; }
+.sd .hi-wx-fact { display: flex; align-items: center; gap: 9px; }
+.sd .hi-wx-fact-icon { color: var(--blue); display: flex; flex-shrink: 0; }
+.sd .hi-wx-fact-icon svg { width: 15px; height: 15px; }
+.sd .hi-wx-fact-label { font-size: 12px; color: var(--text-sec); }
+.sd .hi-wx-fact-value { margin-left: auto; font-size: 12.5px; font-weight: 700; color: var(--text); white-space: nowrap; }
+.sd .hi-wx-foot {
+  margin-top: 12px; padding-top: 11px; border-top: 1px solid var(--border-light);
+  font-size: 11px; color: var(--text-light);
+}
+
+@media (max-width: 900px) {
+  .sd .hi-wx { grid-template-columns: 1fr; }
+}
+@media (max-width: 700px) {
+  .sd .hi-wx-days { grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .sd .hi-wx-day { padding: 10px 2px; }
+  .sd .hi-wx-day-icon svg { width: 20px; height: 20px; }
+  .sd .hi-wx-day-max { font-size: 13px; }
+}

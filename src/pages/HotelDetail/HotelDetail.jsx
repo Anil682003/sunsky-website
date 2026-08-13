@@ -28,6 +28,7 @@ import {
 } from '../../utils/facilityCategories';
 import { copyText } from '../../utils/copyText';
 import { roomNameFromCode } from '../../utils/roomNames';
+import { weatherIcon } from '../../utils/weatherIcons';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
@@ -395,6 +396,38 @@ const GLANCE_SVG = {
   reno:   <S sw={2}><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.12 2.12 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></S>,
   cal:    <S sw={2}><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></S>,
 };
+
+// Weather shapes, keyed by whatever weatherIcon() resolves a condition code to.
+const WX_SVG = {
+  sun:         <S sw={2}><circle cx="12" cy="12" r="4.5" /><path d="M12 2v2M12 20v2M4.2 4.2l1.5 1.5M18.3 18.3l1.5 1.5M2 12h2M20 12h2M4.2 19.8l1.5-1.5M18.3 5.7l1.5-1.5" /></S>,
+  moon:        <S sw={2}><path d="M21 12.8A9 9 0 1111.2 3a7 7 0 009.8 9.8z" /></S>,
+  partly:      <S sw={2}><circle cx="8" cy="8" r="3.2" /><path d="M8 1.5v1.6M2.6 8H1.5M3.9 3.9l-.8-.8M12.9 3.9l.8-.8" /><path d="M17.5 20H8.2a4.2 4.2 0 010-8.4 5.4 5.4 0 0110.3 1.6 3.4 3.4 0 01-1 6.8z" /></S>,
+  partlyNight: <S sw={2}><path d="M13.5 6.4A4.6 4.6 0 018.2 1.6a4.8 4.8 0 105.3 4.8z" /><path d="M17.5 20H8.2a4.2 4.2 0 010-8.4 5.4 5.4 0 0110.3 1.6 3.4 3.4 0 01-1 6.8z" /></S>,
+  cloud:       <S sw={2}><path d="M17.5 19H7.5a4.5 4.5 0 010-9 6 6 0 0111.4 1.8A3.6 3.6 0 0117.5 19z" /></S>,
+  rain:        <S sw={2}><path d="M17.5 15H7.5a4.5 4.5 0 010-9 6 6 0 0111.4 1.8A3.6 3.6 0 0117.5 15z" /><path d="M9 18.5l-1 2.5M14 18.5l-1 2.5" /></S>,
+  heavyRain:   <S sw={2}><path d="M17.5 14H7.5a4.5 4.5 0 010-9 6 6 0 0111.4 1.8A3.6 3.6 0 0117.5 14z" /><path d="M8 17l-1 3M12 17l-1 3M16 17l-1 3" /></S>,
+  storm:       <S sw={2}><path d="M17.5 14H7.5a4.5 4.5 0 010-9 6 6 0 0111.4 1.8A3.6 3.6 0 0117.5 14z" /><path d="M13 16l-3 4h4l-3 4" /></S>,
+  snow:        <S sw={2}><path d="M17.5 14H7.5a4.5 4.5 0 010-9 6 6 0 0111.4 1.8A3.6 3.6 0 0117.5 14z" /><path d="M9 18v.01M12 20v.01M15 18v.01M10.5 21v.01M13.5 21v.01" /></S>,
+  fog:         <S sw={2}><path d="M17.5 12H7.5a4.5 4.5 0 010-9 6 6 0 0111.4 1.8A3.6 3.6 0 0117.5 12z" /><path d="M4 16h16M6 20h12" /></S>,
+};
+
+const WX_FACT_SVG = {
+  wave:    <S sw={2}><path d="M2 16c1.4-1.3 3.1-1.3 4.5 0s3.1 1.3 4.5 0 3.1-1.3 4.5 0 3.1 1.3 4.5 0" /><path d="M2 10c1.4-1.3 3.1-1.3 4.5 0s3.1 1.3 4.5 0 3.1-1.3 4.5 0 3.1 1.3 4.5 0" /></S>,
+  uv:      <S sw={2}><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.2 4.2l1.5 1.5M18.3 18.3l1.5 1.5M2 12h2M20 12h2M4.2 19.8l1.5-1.5M18.3 5.7l1.5-1.5" /></S>,
+  sunrise: <S sw={2}><path d="M12 3v5M8.5 6.5L12 3l3.5 3.5" /><path d="M2 18h20M5 14a7 7 0 0114 0" /></S>,
+  sunset:  <S sw={2}><path d="M12 8V3M8.5 4.5L12 8l3.5-3.5" /><path d="M2 18h20M5 14a7 7 0 0114 0" /></S>,
+};
+
+// The UV number alone means nothing to most people; the WHO band does.
+function uvLabel(uv) {
+  const n = Number(uv);
+  if (!Number.isFinite(n)) return null;
+  const band = n < 3 ? 'Low' : n < 6 ? 'Moderate' : n < 8 ? 'High' : n < 11 ? 'Very high' : 'Extreme';
+  return `${Math.round(n)} · ${band}`;
+}
+
+// WeatherAPI returns "06:24 AM"; drop the leading zero so it reads like a clock.
+const tidyTime = (t) => String(t || '').replace(/^0/, '');
 
 const COPY_SVG  = <S size={14} sw={2}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></S>;
 const PHONE_SVG = <S sw={2}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></S>;
@@ -1035,6 +1068,8 @@ export default function HotelDetail() {
   const [showAllFac, setShowAllFac] = useState(false);
   // Which category cards have had their "+N more" opened, keyed by category key.
   const roomRailRef = useRef(null);
+  // null = never asked · {loading} · {error} · {data} — the block is simply absent until asked.
+  const [weather, setWeather] = useState(null);
   const [openCats, setOpenCats] = useState(() => new Set());
   // Which value the copy buttons last put on the clipboard, so exactly one shows "Copied".
   const [copied, setCopied] = useState(null);
@@ -1057,6 +1092,23 @@ export default function HotelDetail() {
     if (next.has(key)) next.delete(key); else next.add(key);
     return next;
   });
+
+  // Weather is fetched only once the Information tab is actually opened, and only once per
+  // hotel. Most visitors never leave the Prices tab, and the upstream plan is metered — asking
+  // on page load would spend a call for every hotel anyone glances at.
+  useEffect(() => {
+    if (activeTab !== 'Information' || weather || !info?.latitude || !info?.longitude) return;
+    let cancelled = false;
+    setWeather({ loading: true });
+    axiosInstance
+      .get('/weather', { params: { lat: info.latitude, lon: info.longitude } })
+      .then(({ data }) => {
+        if (cancelled) return;
+        setWeather(data?.success && data?.data ? { data: data.data } : { error: true });
+      })
+      .catch(() => { if (!cancelled) setWeather({ error: true }); });
+    return () => { cancelled = true; };
+  }, [activeTab, weather, info?.latitude, info?.longitude]);
 
   const copyValue = async (value, key) => {
     const ok = await copyText(value);
@@ -3326,6 +3378,126 @@ export default function HotelDetail() {
                     </div>
                   </section>
                 )}
+
+                {/* ── Weather & climate ──────────────────────────────────────
+                    Live, from the hotel's own coordinates, proxied through our API so the
+                    WeatherAPI key stays on the server. The block is absent — not empty, not
+                    a placeholder — whenever the lookup fails or the hotel has no coordinates.
+                    Note what is NOT here: the reference design's "typical weather in
+                    <month>" panel (average daytime, sunshine hours, rainy days per month).
+                    Those are climate normals; this feed does not publish them and nothing
+                    else in the estate holds them, so the third panel shows what the feed
+                    genuinely knows instead of a table of plausible-looking numbers. */}
+                {weather?.data && (() => {
+                  const w = weather.data;
+                  const dayName = (iso, i) => {
+                    if (i === 0) return 'Today';
+                    // Parse the Y-M-D parts directly: `new Date('2026-08-14')` is UTC midnight,
+                    // which reads as the previous day for anyone west of Greenwich.
+                    const [y, m, d] = String(iso).split('-').map(Number);
+                    return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short' });
+                  };
+                  // The marine feed answers for ANY coordinate by snapping to the nearest
+                  // water, so a Paris hotel comes back with a sea temperature from the
+                  // Channel. Only show it where the hotel itself is evidence of a coast:
+                  // a beach within reach, or a beach facility of its own.
+                  const nearBeach = nearby.some((n) => n.label === 'Beach' && n.metres <= 20000);
+                  const hasBeach = (rawFacilities || []).some((f) => /beach/i.test(f?.facilityName || ''));
+                  const showSea = w.sea != null && (nearBeach || hasBeach);
+
+                  const facts = [
+                    showSea && { label: 'Sea temperature', value: `${w.sea}°C`, icon: 'wave' },
+                    w.today?.uv != null && { label: 'UV index', value: uvLabel(w.today.uv), icon: 'uv' },
+                    w.today?.sunrise && { label: 'Sunrise', value: tidyTime(w.today.sunrise), icon: 'sunrise' },
+                    w.today?.sunset && { label: 'Sunset', value: tidyTime(w.today.sunset), icon: 'sunset' },
+                  ].filter(Boolean);
+
+                  return (
+                    <section className="hi-card">
+                      <div className="hi-card-head">
+                        <div className="hi-card-icon hi-card-icon--wx">{WX_SVG.sun}</div>
+                        <h3 className="hi-card-title">Weather &amp; Climate</h3>
+                      </div>
+
+                      <div className="hi-wx">
+                        {/* now */}
+                        <div className="hi-wx-panel">
+                          <div className="hi-wx-panel-title">Current weather</div>
+                          <div className="hi-wx-now">
+                            <div className="hi-wx-now-left">
+                              <div className="hi-wx-now-icon">
+                                {WX_SVG[weatherIcon(w.current.code, w.current.isDay)] || WX_SVG.cloud}
+                              </div>
+                              <div className="hi-wx-now-temp">{w.current.tempC}°<span>C</span></div>
+                              <div className="hi-wx-now-cond">{w.current.condition}</div>
+                              {w.current.feelsLikeC != null && (
+                                <div className="hi-wx-now-feels">Feels like {w.current.feelsLikeC}°C</div>
+                              )}
+                            </div>
+                            <dl className="hi-wx-stats">
+                              {w.current.minC != null && w.current.maxC != null && (
+                                <div><dt>Min / Max</dt><dd>{w.current.minC}° / {w.current.maxC}°</dd></div>
+                              )}
+                              {w.current.humidity != null && (
+                                <div><dt>Humidity</dt><dd>{w.current.humidity}%</dd></div>
+                              )}
+                              {w.current.windKph != null && (
+                                <div><dt>Wind</dt><dd>{w.current.windKph} km/h</dd></div>
+                              )}
+                              {w.current.rainChance != null && (
+                                <div><dt>Rain chance</dt><dd>{w.current.rainChance}%</dd></div>
+                              )}
+                            </dl>
+                          </div>
+                        </div>
+
+                        {/* next few days */}
+                        {w.forecast?.length > 1 && (
+                          <div className="hi-wx-panel">
+                            <div className="hi-wx-panel-title">{w.forecast.length}-day forecast</div>
+                            <div className="hi-wx-days">
+                              {w.forecast.map((d, i) => (
+                                <div className="hi-wx-day" key={d.date}>
+                                  <div className="hi-wx-day-name">{dayName(d.date, i)}</div>
+                                  <div className="hi-wx-day-icon" title={d.condition || ''}>
+                                    {WX_SVG[weatherIcon(d.code, true)] || WX_SVG.cloud}
+                                  </div>
+                                  <div className="hi-wx-day-max">{d.maxC}°</div>
+                                  <div className="hi-wx-day-min">{d.minC}°</div>
+                                  <div className="hi-wx-day-rain">
+                                    <S size={11} sw={2}><path d="M12 2.7S6 9.4 6 13.2a6 6 0 0012 0C18 9.4 12 2.7 12 2.7z" /></S>
+                                    {d.rainChance}%
+                                  </div>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        )}
+
+                        {/* conditions the feed actually knows */}
+                        {facts.length > 0 && (
+                          <div className="hi-wx-panel">
+                            <div className="hi-wx-panel-title">Conditions today</div>
+                            <div className="hi-wx-facts">
+                              {facts.map((f) => (
+                                <div className="hi-wx-fact" key={f.label}>
+                                  <span className="hi-wx-fact-icon">{WX_FACT_SVG[f.icon]}</span>
+                                  <span className="hi-wx-fact-label">{f.label}</span>
+                                  <span className="hi-wx-fact-value">{f.value}</span>
+                                </div>
+                              ))}
+                            </div>
+                            {w.location?.localtime && (
+                              <div className="hi-wx-foot">
+                                Local time at the hotel {String(w.location.localtime).slice(11)}
+                              </div>
+                            )}
+                          </div>
+                        )}
+                      </div>
+                    </section>
+                  );
+                })()}
 
                 {/* ── Contact ─────────────────────────────────────────────────
                     Hotelbeds files the same number under several types, so the raw list
