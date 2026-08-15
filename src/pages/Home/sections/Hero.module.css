@@ -101,52 +101,53 @@
   animation:fadeUp 0.9s var(--ease) 0.5s both;
 }
 
-/* Mode tabs */
+/* Mode tabs — two separate rounded pills sitting on the photo: white for the tab you can
+   switch to, brand blue for the one you're on. They read as buttons rather than as a
+   segmented control welded to the search card. */
 .modeTabs {
-  display:flex; gap:0; margin-bottom:16px;
+  display:flex; gap:10px; margin-bottom:18px;
   justify-content:center;
   animation:fadeUp 0.95s var(--ease) 0.58s both;
 }
 .modeTab {
-  padding:12px 36px;
+  padding:12px 30px;
   font-family:'Sora',sans-serif;
   font-size:14px; font-weight:700;
-  color:rgba(255,255,255,0.8);
-  background:rgba(7,14,31,0.42);
+  color:var(--text);
+  background:rgba(255,255,255,0.94);
   backdrop-filter:blur(16px) saturate(140%);
   -webkit-backdrop-filter:blur(16px) saturate(140%);
-  border:1px solid rgba(255,255,255,0.18);
+  border:1px solid rgba(255,255,255,0.8);
+  border-radius:var(--r-full);
   cursor:pointer;
-  transition:all 0.35s var(--ease);
+  transition:all 0.3s var(--ease);
   position:relative;
-  letter-spacing:0.3px;
-  display:flex; align-items:center; gap:8px;
+  letter-spacing:0.2px;
+  display:flex; align-items:center; gap:9px;
+  box-shadow:0 6px 22px rgba(7,20,60,0.16);
 }
-.modeTab:first-child {
-  border-radius:var(--r-lg) 0 0 var(--r-lg);
-  border-right:none;
-}
-.modeTab:last-child {
-  border-radius:0 var(--r-lg) var(--r-lg) 0;
-}
+.modeTab svg { color:var(--blue-deep); transition:color 0.3s var(--ease); }
 .modeTab:hover {
-  color:#fff;
-  background:rgba(7,14,31,0.58);
+  transform:translateY(-1px);
+  box-shadow:0 10px 28px rgba(7,20,60,0.22);
 }
 .modeTabActive {
-  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
+  background:linear-gradient(135deg,var(--blue-deep),var(--blue-mid));
   border-color:transparent;
   color:#fff;
-  box-shadow:0 8px 28px rgba(255,159,28,0.4);
+  box-shadow:0 10px 30px rgba(31,79,216,0.42);
 }
+.modeTabActive svg { color:#fff; }
 .modeTabActive:hover {
-  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
+  background:linear-gradient(135deg,var(--blue-deep),var(--blue-mid));
 }
 
 /* Search bar */
+/* Wider than it was: each field now carries a third line, and 960px squeezed the answers
+   ("Brussels (BRU)", "Change travellers & rooms") down to ellipses. */
 .searchBarWrap {
   position:relative;
-  max-width:960px;
+  max-width:1180px;
   width:100%;
   margin:0 auto;
 }
@@ -163,23 +164,40 @@
   transition:all 0.4s var(--ease);
 }
 .searchBar:hover { border-color:#fff; box-shadow:0 34px 90px rgba(7,20,60,0.42), inset 0 1px 0 rgba(255,255,255,0.95); }
+/* A search field is three stacked lines, not an icon beside a label:
+     ① icon + FIELD NAME     — what this box is
+     ② the answer            — big, dark, the thing you scan for
+     ③ a quiet hint          — what to do here, or what the answer means
+   The icon moved up beside the name so the answer starts at the field's left edge and the
+   five fields line up as a row of readable columns. */
 .sf {
-  flex:1; display:flex; align-items:center; gap:12px;
-  padding:16px 18px; border-radius:var(--r-lg);
+  flex:1.12; display:flex; flex-direction:column; align-items:flex-start; gap:3px;
+  padding:13px 14px; border-radius:var(--r-lg);
   cursor:pointer; transition:all 0.3s; min-width:0;
   position:relative;
 }
-/* Destination (long country names) and Travelers ("2 adults · 1 room") hold more
-   text than the date/duration fields, so they take a bigger share of the bar. */
-.sfDest      { flex:1.5; }
-.sfTravelers { flex:1.7; }
+/* Destination (long country names) and Travellers ("Change travellers & rooms") hold more
+   text than the date/duration fields, so they take a bigger share of the bar. The ratios are
+   set from the LONGEST line each field can show, hint included — a field narrower than its
+   own hint just prints an ellipsis. */
+.sfDest      { flex:1.45; }
+.sfTravelers { flex:1.45; }
+/* "Where do you want to go?" is the longest placeholder on the flights row. */
+.sfTo        { flex:1.32; }
 .sf:hover { background:rgba(31,79,216,0.06); }
 .sfActive { background:rgba(31,79,216,0.09); }
-.sfIcon { color:var(--blue-mid); flex-shrink:0; display:flex; }
-.sfText { display:flex; flex-direction:column; align-items:flex-start; min-width:0; width:100%; overflow:hidden; }
-.sfLabel { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1px; color:var(--text-light); white-space:nowrap; }
-.sfValue { font-size:14px; color:var(--text); font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; width:100%; }
-.sfPlaceholder { color:var(--text-light); font-weight:500; }
+.sfHead { display:flex; align-items:center; gap:7px; min-width:0; width:100%; }
+.sfIcon { color:var(--blue-deep); flex-shrink:0; display:flex; }
+.sfBody { display:flex; align-items:center; gap:8px; min-width:0; width:100%; }
+.sfLabel { font-size:10px; font-weight:700; text-transform:uppercase; letter-spacing:1.1px; color:var(--text-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sfValue { font-size:15px; color:var(--text); font-weight:700; font-family:'Sora',sans-serif; letter-spacing:-0.015em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
+.sfPlaceholder { color:var(--text-sec); font-weight:600; }
+.sfHint { font-size:11.5px; color:var(--text-light); font-weight:500; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:100%; line-height:1.35; }
+/* The open field says so twice: blue answer, flipped chevron. */
+.sfActive .sfValue { color:var(--blue-deep); }
+.sfCaret { color:var(--text-light); flex-shrink:0; transition:transform 0.25s var(--ease), color 0.25s; }
+.sf:hover .sfCaret { color:var(--blue-deep); }
+.sfActive .sfCaret { color:var(--blue-deep); transform:rotate(180deg); }
 
 /* Mini flag strip ahead of the destination label (multi-country selection).
    Flags overlap like a fanned hand of cards — earlier picks on top. */
@@ -208,7 +226,7 @@
   cursor:pointer;
   opacity:0.6;
 }
-.sfDivider { width:1px; height:40px; background:rgba(15,40,100,0.12); flex-shrink:0; }
+.sfDivider { width:1px; height:52px; background:rgba(15,40,100,0.12); flex-shrink:0; }
 .hiddenDateInput {
   position:absolute; width:0; height:0; opacity:0; pointer-events:none;
   border:none; padding:0; margin:0;
@@ -245,6 +263,25 @@
   box-shadow:0 24px 70px rgba(7,20,60,0.25);
   animation:scaleIn 0.2s var(--ease) both;
   z-index:10;
+}
+
+/* Calendar dropdown — two months need a fixed 740px, not the bar's full width, so it is
+   centred under the bar instead of stretched across it. `right:auto` undoes .dropdown's
+   left:0/right:0 stretch; the centring is done with a margin because the panel's scaleIn
+   animation owns the transform property. */
+.calDropdown {
+  left:50%;
+  right:auto;
+  margin-left:-370px;
+  width:740px;
+  padding:24px 6px 22px;
+}
+/* Same panel on the flights tab, where it sits in the card's inline dropdown slot. */
+.calDropdownFlight {
+  max-width:740px;
+  margin-left:auto;
+  margin-right:auto;
+  padding:24px 6px 22px;
 }
 
 /* Destination dropdown */
@@ -811,74 +848,59 @@
   animation:fadeUp 0.5s var(--ease);
 }
 
-/* Trip Type Row */
-/* Sits directly on the photo, so it gets its own dark glass chip. */
-.tripTypeRow {
-  display:flex; align-items:center; gap:24px;
-  width:fit-content;
-  margin-bottom:14px;
-  padding:10px 20px;
-  background:rgba(255,255,255,0.88);
-  backdrop-filter:blur(24px) saturate(160%);
-  -webkit-backdrop-filter:blur(24px) saturate(160%);
-  border:1px solid rgba(255,255,255,0.65);
-  border-radius:var(--r-full);
-  box-shadow:0 4px 24px rgba(7,20,60,0.12);
+/* Trip type — underlined text tabs along the card's top edge (they used to be radio pills
+   on a separate chip floating above the card, which read as page navigation rather than as
+   part of this search). */
+.flightHead {
+  display:flex; align-items:center; justify-content:space-between;
+  gap:20px; flex-wrap:wrap;
+  padding:4px 20px 0;
+  border-bottom:1px solid rgba(15,40,100,0.09);
 }
-.tripTypeOpt {
-  display:flex; align-items:center; gap:8px;
-  cursor:pointer; font-size:13px; font-weight:600;
-  color:rgba(51,65,85,0.55);
-  transition:color 0.2s;
-  background:none; border:none; padding:0;
+.tripTabs { display:flex; align-items:center; gap:26px; }
+.tripTab {
+  position:relative;
+  padding:14px 0 13px;
+  background:none; border:none;
   font-family:inherit;
+  font-size:14px; font-weight:600;
+  color:var(--text-sec);
+  cursor:pointer;
+  transition:color 0.22s;
 }
-.tripTypeOpt:hover { color:#334155; }
-.tripTypeOptActive { color:#0f172a; }
-.tripRadio {
-  width:18px; height:18px;
-  border-radius:50%;
-  border:2px solid rgba(100,116,139,0.3);
-  display:flex; align-items:center; justify-content:center;
-  transition:all 0.25s;
-  flex-shrink:0;
-}
-.tripTypeOptActive .tripRadio {
-  border-color:var(--sun-gold);
-  background:var(--sun-gold);
-}
-.tripTypeOptActive .tripRadio::after {
+.tripTab:hover { color:var(--text); }
+.tripTabOn { color:var(--blue-deep); font-weight:700; }
+.tripTabOn::after {
   content:'';
-  width:7px; height:7px;
-  border-radius:50%;
-  background:#fff;
-}
-.tripTypeDivider {
-  width:1px; height:20px;
-  background:rgba(100,116,139,0.18);
+  position:absolute; left:0; right:0; bottom:-1px;
+  height:2.5px; border-radius:2px 2px 0 0;
+  background:var(--blue-deep);
 }
 .directCheck {
-  display:flex; align-items:center; gap:8px;
+  display:flex; align-items:center; gap:9px;
   cursor:pointer; font-size:13px; font-weight:500;
-  color:rgba(51,65,85,0.5);
+  color:var(--text-sec);
   transition:color 0.2s;
-  background:none; border:none; padding:0;
+  background:none; border:none; padding:8px 0;
   font-family:inherit;
 }
-.directCheck:hover { color:#334155; }
-.directCheckActive { color:#334155; }
+.directCheck:hover { color:var(--text); }
+.directCheckActive { color:var(--text); }
 .directCb {
-  width:17px; height:17px;
+  width:18px; height:18px;
   border-radius:5px;
-  border:2px solid rgba(100,116,139,0.3);
+  border:1.8px solid rgba(15,40,100,0.22);
+  background:#fff;
   display:flex; align-items:center; justify-content:center;
   transition:all 0.25s;
   flex-shrink:0;
 }
 .directCheckActive .directCb {
-  border-color:var(--sun-gold);
-  background:var(--sun-gold);
+  border-color:var(--blue-deep);
+  background:var(--blue-deep);
 }
+.infoDot { display:flex; color:var(--text-light); }
+.infoDot:hover { color:var(--blue-deep); }
 
 /* Flight Search Card */
 .flightSearchCard {
@@ -887,11 +909,15 @@
   -webkit-backdrop-filter:blur(24px) saturate(160%);
   border:1px solid rgba(255,255,255,0.65);
   border-radius:var(--r-xl);
-  padding:10px;
-  display:flex; align-items:center; gap:2px;
+  padding:0;
+  display:flex; flex-direction:column; align-items:stretch;
   box-shadow:0 30px 80px rgba(7,20,60,0.35), inset 0 1px 0 rgba(255,255,255,0.95);
   transition:all 0.4s var(--ease);
   margin-bottom:10px;
+}
+.flightRow {
+  display:flex; align-items:center; gap:2px;
+  padding:10px;
 }
 .flightSearchCard:hover {
   border-color:#fff;
@@ -1092,6 +1118,26 @@
   to { opacity:1; transform:translateY(0) scale(1); }
 }
 
+/* Once the bar stacks, the calendar drops its fixed 740px and follows the stacked bar's
+   width — a centred fixed panel would hang off the side of the fields that opened it. */
+@media(max-width:1024px) {
+  .calDropdown { left:0; right:0; margin-left:0; width:auto; }
+}
+
+/* Five three-line fields plus a button need about 1000px to stay legible. Below that the bar
+   stacks — which used to happen only at phone width, where these same fields were two lines
+   and half as wide. A cramped row of ellipses is worse than five stacked fields. */
+@media(max-width:1024px) {
+  /* Stretch, not centre: stacked fields fill the card's width so their three lines all start
+     on the same left edge instead of each field floating at its own text width. */
+  .searchBar { flex-direction:column; align-items:stretch; border-radius:var(--r-lg); padding:16px; gap:0; }
+  .sf { padding:14px 16px; }
+  .sfDivider { width:100%; height:1px; }
+  .searchBtn { width:100%; justify-content:center; padding:16px; }
+  .flightRow { flex-direction:column; align-items:stretch; padding:10px; gap:0; }
+  .flightSwapBtn { margin:4px auto; }
+}
+
 @media(max-width:768px) {
   .searchBar { flex-direction:column; border-radius:var(--r-lg); padding:16px; gap:0; }
   .sf { padding:14px 16px; }
@@ -1104,8 +1150,12 @@
   .title { letter-spacing:-0.5px; }
   .destGrid { grid-template-columns:1fr; }
   .modeTab { padding:10px 20px; font-size:13px; }
-  .tripTypeRow { gap:12px; flex-wrap:wrap; }
-  .flightSearchCard { flex-direction:column; border-radius:var(--r-lg); padding:16px; gap:0; }
+  .calDropdown, .calDropdownFlight { padding:18px 14px; }
+  .flightSearchCard { border-radius:var(--r-lg); }
+  .flightHead { padding:0 14px; gap:6px; }
+  .tripTabs { gap:18px; }
+  .tripTab { font-size:13px; padding:12px 0 11px; }
+  .flightRow { flex-direction:column; align-items:stretch; padding:10px; gap:0; }
   .flightSwapBtn { margin:4px auto; }
   .addFlightCard { flex-direction:column; border-radius:var(--r-lg); padding:16px; gap:0; }
 }
