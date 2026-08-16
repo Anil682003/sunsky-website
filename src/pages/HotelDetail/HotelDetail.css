@@ -1205,6 +1205,81 @@
 .sd .flight-selected-badge { font-size:12px; font-weight:700; color:var(--green); padding:6px 16px; border-radius:var(--r-full); border:1.5px solid #a7f3d0; background:var(--green-light); display:flex; align-items:center; gap:5px; }
 .sd .flight-warning { font-size:11.5px; color:#b45309; background:var(--sun-warm); padding:8px 22px; font-weight:600; display:flex; align-items:center; gap:7px; border-top:1px solid #ffe9c7; }
 .sd .flight-card.expanded { border-color:var(--blue); box-shadow:0 4px 20px rgba(31,79,216,.12); }
+.sd .flight-details-btn { display:inline-flex; align-items:center; gap:6px; }
+.sd .fdb-caret { width:13px; height:13px; transition:transform .2s var(--ease); }
+.sd .fdb-caret.up { transform:rotate(180deg); }
+/* An overnight arrival, marked where the time is read rather than left to be worked out. */
+.sd .bp-nextday {
+  font-family:'DM Sans',sans-serif; font-size:11px; font-weight:700; color:var(--sun);
+  margin-left:6px; letter-spacing:0; top:-.7em;
+}
+
+/* ══ The change-flight modal's card: itinerary left, one price rail right ══════
+   Same journeys and chips as the page card. What differs is that everything about
+   CHOOSING this flight is gathered into the rail, and the card says in words which one
+   the traveller is holding. */
+.sd .flight-card.option { overflow:visible; }
+.sd .fc-status {
+  display:flex; align-items:center; gap:8px;
+  padding:11px 20px 0;
+}
+.sd .fc-radio {
+  width:19px; height:19px; border-radius:50%; flex-shrink:0;
+  border:2px solid var(--border); background:var(--white);
+  display:flex; align-items:center; justify-content:center; color:#fff;
+  transition:all .2s var(--ease);
+}
+.sd .fc-radio.on { border-color:var(--green); background:var(--green); }
+.sd .fc-status-label {
+  font-family:'Sora',sans-serif; font-size:10.5px; font-weight:800;
+  text-transform:uppercase; letter-spacing:.09em; color:var(--text-light);
+}
+/* The one the traveller is holding says so in the page's selected colour. */
+.sd .flight-card.option.selected .fc-status-label {
+  color:#0B7A57; background:#ECFDF5; border:1px solid #A7F3D0;
+  padding:3px 11px; border-radius:var(--r-full);
+}
+.sd .fc-split { display:flex; align-items:stretch; }
+.sd .fc-main { flex:1; min-width:0; display:flex; flex-direction:column; }
+.sd .fc-main-foot { margin-top:auto; padding:0 22px 16px; }
+.sd .fc-main .bp-incl { padding-bottom:12px; }
+
+.sd .fc-rail {
+  width:196px; flex-shrink:0;
+  display:flex; flex-direction:column; align-items:center; gap:7px;
+  padding:16px 16px 18px; text-align:center;
+  border-left:1.5px dashed #d4e2f8;
+  background:linear-gradient(180deg,#fbfdff,#f4f8ff);
+}
+.sd .flight-card.option.selected .fc-rail { background:linear-gradient(180deg,#fbfffd,#eefaf4); border-left-color:#bfe9d6; }
+.sd .fc-rail .live-price {
+  font-family:'Sora',sans-serif; font-size:25px; font-weight:800; color:var(--dark);
+  letter-spacing:-.5px; line-height:1.1; font-variant-numeric:tabular-nums lining-nums;
+}
+.sd .fc-rail .bp-price-cap { font-size:10.5px; }
+.sd .fc-rail .flight-selected-badge { font-size:11.5px; padding:5px 14px; }
+.sd .fc-rail .bp-delta-best { font-size:9.5px; padding:3px 10px; }
+
+/* What choosing this flight does to the package total — the number the traveller is
+   actually deciding on. Green when nothing moves, amber-red when it costs more, green
+   again when it saves. */
+.sd .fc-impact {
+  display:flex; align-items:center; gap:7px; width:100%;
+  padding:9px 11px; border-radius:var(--r-xs);
+  font-size:11.5px; line-height:1.35; text-align:left;
+}
+.sd .fc-impact svg { width:14px; height:14px; flex-shrink:0; }
+.sd .fc-impact b { font-family:'Sora',sans-serif; font-weight:800; font-variant-numeric:tabular-nums lining-nums; }
+.sd .fc-impact em { display:block; font-style:normal; font-weight:600; opacity:.85; }
+.sd .fc-impact.same { background:#ECFDF5; border:1px solid #A7F3D0; color:#0B7A57; font-weight:600; }
+.sd .fc-impact.down { background:#ECFDF5; border:1px solid #A7F3D0; color:#0B7A57; }
+.sd .fc-impact.up { background:#FEF2F2; border:1px solid #FECACA; color:#B42318; }
+
+.sd .fc-taxes {
+  display:inline-flex; align-items:center; gap:5px; justify-content:center;
+  font-size:10.5px; font-weight:600; color:var(--text-light); line-height:1.4;
+}
+.sd .fc-select { margin-top:4px; width:100%; justify-content:center; padding:11px 16px; font-size:12.5px; }
 
 /* ── Flight detail panel (accordion) ── */
 .sd .fd-panel { border-top:1px dashed var(--border); padding:20px 22px 22px; background:linear-gradient(180deg,#f8faff 0%,var(--white) 100%); animation:sdFadeUp .3s var(--ease); }
@@ -1573,13 +1648,145 @@
 .sd .modal-filter-opt.checked .modal-filter-cb { border-color:var(--blue); background:var(--blue); }
 
 /* ── Live filter state ────────────────────────────────────────────────────────
-   The header says what the filters are doing to the list, so an empty result never
+   The rail says what the filters are doing to the list, so an empty result never
    looks like "no flights exist" when it means "no flights match". */
 .sd .modal-filter-head {
   display:flex; align-items:baseline; justify-content:space-between; gap:8px;
   padding-bottom:12px; margin-bottom:16px; border-bottom:1px solid var(--border-light);
 }
 .sd .modal-filter-count { font-family:'Sora',sans-serif; font-size:12px; font-weight:800; color:var(--dark); font-variant-numeric:tabular-nums lining-nums; }
+.sd .modal-filter-heading {
+  font-family:'Sora',sans-serif; font-size:12px; font-weight:800; color:var(--dark);
+  text-transform:uppercase; letter-spacing:.09em;
+}
+
+/* Group titles carry their own furniture now: an ⓘ that explains the group, and on some of
+   them a right-aligned "Select all" / "Reset". */
+.sd .modal-filter-title { display:flex; align-items:center; gap:6px; }
+.sd .mf-hint { display:inline-flex; color:var(--text-light); cursor:help; }
+.sd .mf-hint svg { width:13px; height:13px; }
+.sd .mf-hint:hover { color:var(--blue); }
+.sd .mf-link {
+  margin-left:auto; font-size:11px; font-weight:700; color:var(--blue);
+  background:none; border:none; padding:0; cursor:pointer;
+  text-decoration:underline; text-underline-offset:2px;
+}
+.sd .mf-link:hover { color:var(--dark); }
+
+/* Sort, repeated in the rail — the header's copy scrolls away on a long list. */
+.sd .mf-select {
+  width:100%; padding:9px 11px; border-radius:var(--r-xs);
+  border:1.5px solid var(--border); background:var(--white);
+  font-family:inherit; font-size:12.5px; font-weight:600; color:var(--dark);
+  cursor:pointer; outline:none; transition:border-color .2s;
+}
+.sd .mf-select:focus { border-color:var(--blue); }
+
+/* The real checkbox sits under the drawn one: it keeps the label clickable, the group
+   keyboard-reachable and the state announced, while the visible box stays styled. */
+.sd .mf-input {
+  position:absolute; width:1px; height:1px; margin:-1px; padding:0;
+  overflow:hidden; clip:rect(0 0 0 0); white-space:nowrap; border:0;
+}
+.sd .modal-filter-opt:focus-within .modal-filter-cb {
+  border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.18);
+}
+
+/* Airline rows: mark + name, count on the right. */
+.sd .mfo-airline { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
+.sd .mfo-airmark {
+  width:20px; height:20px; border-radius:6px; flex-shrink:0; object-fit:contain;
+  background:var(--blue-bg); color:var(--blue);
+  font-family:'Sora',sans-serif; font-weight:800; font-size:11px;
+  display:flex; align-items:center; justify-content:center;
+}
+.sd .mfo-airname { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.sd .mf-more {
+  display:flex; align-items:center; gap:5px; margin-top:6px; padding:0;
+  background:none; border:none; cursor:pointer;
+  font-size:11.5px; font-weight:700; color:var(--blue);
+}
+.sd .mf-more:hover { color:var(--dark); }
+.sd .mf-more svg { width:13px; height:13px; transition:transform .2s var(--ease); }
+.sd .mf-more .mf-more-up { transform:rotate(180deg); }
+
+/* ── Departure-time range ─────────────────────────────────────────────────────
+   Two handles on one track. Both inputs overlay the track and are click-through except
+   at the thumbs, so the lower handle can never block the upper one. */
+.sd .mf-range-ends {
+  display:flex; justify-content:space-between;
+  font-size:11px; font-weight:700; color:var(--text-light);
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.sd .mf-range-wrap { position:relative; height:22px; margin:4px 0 2px; }
+.sd .mf-range-track {
+  position:absolute; left:0; right:0; top:50%; transform:translateY(-50%);
+  height:4px; border-radius:var(--r-full); background:var(--border);
+}
+.sd .mf-range-fill {
+  position:absolute; top:0; bottom:0; border-radius:var(--r-full);
+  background:linear-gradient(90deg,var(--blue),var(--blue-mid));
+}
+.sd .mf-range {
+  position:absolute; left:0; top:0; width:100%; height:22px; margin:0;
+  appearance:none; -webkit-appearance:none;
+  background:none; pointer-events:none; outline:none;
+}
+.sd .mf-range::-webkit-slider-thumb {
+  appearance:none; -webkit-appearance:none; pointer-events:auto;
+  width:16px; height:16px; border-radius:50%;
+  background:var(--white); border:3px solid var(--blue);
+  box-shadow:0 2px 8px rgba(31,79,216,.35); cursor:grab;
+}
+.sd .mf-range::-webkit-slider-thumb:active { cursor:grabbing; }
+.sd .mf-range::-moz-range-thumb {
+  pointer-events:auto; width:14px; height:14px; border-radius:50%;
+  background:var(--white); border:3px solid var(--blue);
+  box-shadow:0 2px 8px rgba(31,79,216,.35); cursor:grab;
+}
+.sd .mf-range::-moz-range-track { background:none; }
+.sd .mf-range:focus-visible::-webkit-slider-thumb { box-shadow:0 0 0 4px rgba(31,79,216,.25); }
+.sd .mf-range-value {
+  text-align:center; font-size:11.5px; font-weight:700; color:var(--text-light);
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.sd .mf-range-value.on { color:var(--blue); }
+
+/* Foot of the rail: what the current filters leave, and (on a phone) the way out of
+   the filter sheet. The list filters as you tick, so this confirms — it does not apply. */
+.sd .modal-filter-foot {
+  position:sticky; bottom:0; padding-top:14px; margin-top:4px;
+  background:linear-gradient(180deg,rgba(255,255,255,0),var(--white) 22%);
+}
+.sd .mf-apply {
+  display:none; width:100%; padding:12px; border-radius:var(--r-full);
+  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; border:none;
+  font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; cursor:pointer;
+  box-shadow:0 4px 14px rgba(31,79,216,.28);
+}
+.sd .mf-found {
+  text-align:center; font-size:11.5px; font-weight:700; color:var(--text-light);
+  font-variant-numeric:tabular-nums lining-nums;
+}
+
+/* Phone: the rail is a sheet, opened from the header. */
+.sd .modal-filter-toggle {
+  display:none; align-items:center; gap:7px; margin-left:auto;
+  padding:8px 15px; border-radius:var(--r-full);
+  border:1.5px solid var(--border); background:var(--white);
+  font-family:inherit; font-size:12.5px; font-weight:700; color:var(--text-sec); cursor:pointer;
+}
+.sd .modal-filter-toggle.on { border-color:var(--blue); color:var(--blue); background:var(--blue-pale); }
+
+/* What the prices on these cards ARE — said once, above the list. */
+.sd .modal-price-note {
+  display:flex; align-items:flex-start; gap:9px;
+  padding:11px 14px; margin-bottom:14px;
+  border-radius:var(--r-sm); border:1px solid #dbe8fb; background:var(--blue-pale);
+  font-size:12px; line-height:1.5; color:var(--text-sec);
+}
+.sd .modal-price-note svg { width:15px; height:15px; color:var(--blue); flex-shrink:0; margin-top:1px; }
+.sd .modal-price-note b { color:var(--dark); font-weight:700; }
 .sd .modal-filter-clear {
   font-size:11.5px; font-weight:700; color:var(--blue); background:none; border:none;
   cursor:pointer; padding:0; text-decoration:underline; text-underline-offset:2px;
@@ -1665,7 +1872,17 @@
   .sd .bk{position:static;margin-top:24px;max-width:480px}
   .sd .mbar{display:block}
   .sd .pg{padding:0 clamp(20px,3.5vw,40px) 100px}
-  .sd .modal-sidebar{display:none}
+  /* No room for a column beside the cards: the filter rail becomes a sheet over the list,
+     reached from the header's Filters button and dismissed by its own "Show N flights".
+     It used to be display:none here — every filter simply gone below 1024px. */
+  .sd .modal-body{position:relative}
+  .sd .modal-sidebar{
+    display:none; position:absolute; inset:0; z-index:6; width:auto;
+    border-right:none; background:var(--white); padding:18px 20px 20px;
+  }
+  .sd .modal-body.filters-open .modal-sidebar{display:block}
+  .sd .modal-filter-toggle{display:inline-flex}
+  .sd .mf-apply{display:block}
   .sd .modal{max-width:98%}
 }
 @media(max-width:768px){
@@ -2040,6 +2257,18 @@
   .sd .flight-details-btn { width:100%; padding:11px 16px; }
   .sd .bp-buy { width:100%; justify-content:space-between; gap:10px; }
   .sd .flight-select-btn, .sd .flight-selected-badge { justify-content:center; padding:11px 22px; }
+
+  /* The modal card's price rail drops under the itinerary rather than squeezing a
+     three-column route into what is left beside it. */
+  .sd .fc-split { flex-direction:column; }
+  .sd .fc-rail {
+    width:auto; border-left:none; border-top:1.5px dashed #d4e2f8;
+    padding:14px 16px 16px;
+  }
+  .sd .flight-card.option.selected .fc-rail { border-top-color:#bfe9d6; }
+  .sd .fc-main-foot { padding:0 16px 14px; }
+  .sd .fc-impact { justify-content:center; text-align:center; }
+  .sd .fc-select { max-width:340px; }
 }
 
 @media (max-width:560px) {

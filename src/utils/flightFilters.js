@@ -26,6 +26,13 @@ export const TIME_BANDS = [
   { id: 'evening',   label: 'Evening',       range: '18:00 – 23:59', from: 18, to: 23 },
 ];
 
+/** Minutes in a day. The departure-time sliders run 0 … 1439 (00:00 … 23:59). */
+export const DAY_START = 0;
+export const DAY_END = 1439;
+
+/** "Any time" — the range that constrains nothing, and the value both sliders reset to. */
+export const FULL_DAY = [DAY_START, DAY_END];
+
 /**
  * The hour a traveller sees on the card, or null when the value is unusable.
  * Mirrors HotelDetail's `fmtTime`: real date first, "HH:MM" text as the fallback.
@@ -46,6 +53,34 @@ export function bandOf(value) {
   if (h == null) return null;
   return TIME_BANDS.find((b) => h >= b.from && h <= b.to)?.id ?? null;
 }
+
+/**
+ * Minutes past midnight for a departure, on the same local clock `hourOf` reads —
+ * `null` when the value cannot be read. This is what the departure-time sliders filter on.
+ */
+export function minuteOf(value) {
+  if (!value) return null;
+  const d = new Date(value);
+  if (!Number.isNaN(d.getTime())) return d.getHours() * 60 + d.getMinutes();
+  const m = String(value).match(/(\d{1,2}):(\d{2})/);
+  if (!m) return null;
+  const h = Number(m[1]), min = Number(m[2]);
+  if (h < 0 || h > 23 || min < 0 || min > 59) return null;
+  return h * 60 + min;
+}
+
+/** 545 → "09:05". The sliders print their handles with this. */
+export function fmtClock(minutes) {
+  const m = Math.max(DAY_START, Math.min(DAY_END, Math.round(Number(minutes) || 0)));
+  return `${String(Math.floor(m / 60)).padStart(2, '0')}:${String(m % 60).padStart(2, '0')}`;
+}
+
+/** A range that covers the whole day constrains nothing — the untouched slider. */
+const isWholeDay = (r) => !r || (numAt(r, 0) <= DAY_START && numAt(r, 1) >= DAY_END);
+const numAt = (r, i) => {
+  const n = Number(Array.isArray(r) ? r[i] : r?.[i === 0 ? 'from' : 'to']);
+  return Number.isFinite(n) ? n : (i === 0 ? DAY_START : DAY_END);
+};
 
 const outDeparture = (f) => f?.outLegs?.[0]?.departure ?? null;
 const retDeparture = (f) => f?.retLegs?.[0]?.departure ?? null;
@@ -154,6 +189,37 @@ export function durationOf(f) {
 }
 
 /**
+ * Does this fare carry HOLD baggage?
+ *
+ * "Baggage included" on a flight filter means a checked bag — the thing a traveller pays extra
+ * for later if it is missing. A cabin bag is not it: every fare in this feed allows one, so a
+ * filter that counted cabin bags would match everything and decide nothing.
+ *
+ * A fare whose baggage the supplier never described is neither included nor excluded. It is
+ * kept out of BOTH counts and matches NEITHER option, because filing an unknown allowance
+ * under "included" is the kind of guess that meets travellers at the airport check-in desk.
+ */
+export function baggageOf(f) {
+  const b = f?.baggage;
+  if (!b) return 'unknown';
+  const kg = Number(b.checkedKg) || 0;
+  const pieces = Number(b.checkedPieces) || 0;
+  // Some feeds send the allowance fields but leave every one at 0 — that is a stated
+  // hand-luggage fare, not silence, so it counts as excluded.
+  if (kg > 0 || pieces > 0) return 'included';
+  const stated = b.checkedKg != null || b.checkedPieces != null || b.handKg != null;
+  return stated ? 'excluded' : 'unknown';
+}
+
+/** Every airline that operates a leg of this trip, upper-cased, no repeats. */
+export function airlinesOf(f) {
+  const codes = [...(f?.outLegs || []), ...(f?.retLegs || [])]
+    .map((l) => String(l?.airline || '').trim().toUpperCase())
+    .filter(Boolean);
+  return [...new Set(codes)];
+}
+
+/**
  * Which filter options are worth showing, with live counts.
  *
  * An option is offered only when it would actually change the list: at least one flight
@@ -183,12 +249,60 @@ export function flightFacets(flights) {
 
   const directCount = list.filter((f) => stopsOf(f) === 0).length;
 
+  // ── Flight type: direct / with stop(s) / all ──
+  // Offered only when the set actually holds both kinds. On an all-direct result set the
+  // three rows would read "12 / 0 / 12" — two of them dead, and "All flights" identical to
+  // the one above it.
+  const stopsCount = total - directCount;
+  const type = directCount > 0 && stopsCount > 0
+    ? { direct: directCount, stops: stopsCount, all: total }
+    : null;
+
+  // ── Baggage: hold luggage in the fare, or not ──
+  // Fares whose allowance the supplier never sent are counted in neither, and the group is
+  // offered only when both answers exist among the flights that DID state one.
+  const withBags = list.filter((f) => baggageOf(f) === 'included').length;
+  const withoutBags = list.filter((f) => baggageOf(f) === 'excluded').length;
+  const baggage = withBags > 0 && withoutBags > 0
+    ? { included: withBags, excluded: withoutBags }
+    : null;
+
+  // ── Airlines, busiest first ──
+  // A flight counts under every airline that flies any of its legs, which is how a
+  // traveller reads the list: tick AJet and you keep the trips AJet is part of.
+  const airlineCounts = new Map();
+  for (const f of list) {
+    for (const code of airlinesOf(f)) airlineCounts.set(code, (airlineCounts.get(code) || 0) + 1);
+  }
+  const airlines = airlineCounts.size > 1
+    ? [...airlineCounts.entries()]
+      .map(([code, count]) => ({ code, count }))
+      .sort((a, b) => b.count - a.count || a.code.localeCompare(b.code))
+    : [];
+
+  // ── Departure-time spans ──
+  // The slider bounds are the real earliest and latest departure in the set, not a decorative
+  // 00:00–23:59: dragging into an hour no flight leaves in is a move that can only ever empty
+  // the list. A span of one minute is not a range, so that group is dropped.
+  const spanOf = (pick) => {
+    const mins = list.map((f) => minuteOf(pick(f))).filter((m) => m != null);
+    if (!mins.length) return null;
+    const min = Math.min(...mins), max = Math.max(...mins);
+    return max > min ? { min, max } : null;
+  };
+
   return {
     outbound: bandFacet(outDeparture),
     // A return-time filter on a one-way search can only ever empty the list.
     return: hasReturn ? bandFacet(retDeparture) : [],
     // Useless when everything is direct, and when nothing is.
     direct: directCount > 0 && directCount < total ? { count: directCount } : null,
+    type,
+    baggage,
+    airlines,
+    outboundSpan: spanOf(outDeparture),
+    returnSpan: hasReturn ? spanOf(retDeparture) : null,
+    total,
     hasReturn,
   };
 }
@@ -196,19 +310,48 @@ export function flightFacets(flights) {
 /**
  * Apply the traveller's selection.
  *
- * An empty band selection means "no constraint" — the conventional reading of an
- * all-unticked checkbox group, and the reason the modal opens showing everything.
+ * Every group is "no constraint" until it is touched: an all-unticked checkbox group, a
+ * slider still spanning the whole day, `type: 'all'`, `baggage: 'any'`. That is the
+ * conventional reading, and the reason the modal opens showing everything.
+ *
+ * Groups AND together; options within a group OR. A flight whose departure time or baggage
+ * cannot be read fails a group that HAS been narrowed — the alternative is quietly showing a
+ * flight as matching a rule nobody can prove it meets.
  *
  * @param {Array} flights
- * @param {{outbound?:Set<string>|Array, return?:Set<string>|Array, direct?:boolean}} sel
+ * @param {{
+ *   outbound?:Set<string>|Array, return?:Set<string>|Array, direct?:boolean,
+ *   type?:'all'|'direct'|'stops', baggage?:'any'|'included'|'excluded',
+ *   airlines?:Array<string>, outboundRange?:Array<number>, returnRange?:Array<number>
+ * }} sel
  */
 export function applyFlightFilters(flights, sel = {}) {
   const list = Array.isArray(flights) ? flights : [];
   const out = toSet(sel.outbound);
   const ret = toSet(sel.return);
+  const airlines = new Set((sel.airlines || []).map((c) => String(c).toUpperCase()));
+  const outRange = isWholeDay(sel.outboundRange) ? null : sel.outboundRange;
+  const retRange = isWholeDay(sel.returnRange) ? null : sel.returnRange;
+
+  const inRange = (value, range) => {
+    const m = minuteOf(value);
+    if (m == null) return false;
+    return m >= numAt(range, 0) && m <= numAt(range, 1);
+  };
 
   return list.filter((f) => {
-    if (sel.direct && stopsOf(f) !== 0) return false;
+    // `direct: true` is the old boolean form of `type: 'direct'`; both still work.
+    const type = sel.direct ? 'direct' : (sel.type || 'all');
+    if (type === 'direct' && stopsOf(f) !== 0) return false;
+    if (type === 'stops' && stopsOf(f) === 0) return false;
+
+    if (sel.baggage && sel.baggage !== 'any' && baggageOf(f) !== sel.baggage) return false;
+
+    if (airlines.size && !airlinesOf(f).some((c) => airlines.has(c))) return false;
+
+    if (outRange && !inRange(outDeparture(f), outRange)) return false;
+    if (retRange && !inRange(retDeparture(f), retRange)) return false;
+
     if (out.size) {
       const b = bandOf(outDeparture(f));
       if (!b || !out.has(b)) return false;
@@ -222,9 +365,9 @@ export function applyFlightFilters(flights, sel = {}) {
 }
 
 export const SORTS = [
-  { id: 'price',     label: 'Price' },
-  { id: 'duration',  label: 'Duration' },
-  { id: 'departure', label: 'Departure' },
+  { id: 'price',     label: 'Price (lowest first)' },
+  { id: 'duration',  label: 'Duration (shortest first)' },
+  { id: 'departure', label: 'Departure (earliest first)' },
 ];
 
 /**
