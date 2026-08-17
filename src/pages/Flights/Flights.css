@@ -136,7 +136,7 @@
 /* Name first, mark second — so the names line up down the left edge of a list of flights
    and the round marks sit in one column beside them. */
 .fl-leg-air { display:flex; align-items:center; justify-content:space-between; gap:10px; width:148px; flex-shrink:0; }
-.fl-leg-logo { width:38px; height:38px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Sora',sans-serif; font-size:11px; font-weight:800; letter-spacing:.3px; }
+.fl-leg-logo { width:46px; height:46px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Sora',sans-serif; font-size:11px; font-weight:800; letter-spacing:.3px; }
 .fl-leg-name { font-size:12px; font-weight:600; color:var(--text-sec); line-height:1.25; }
 .fl-leg-pt { min-width:54px; }
 .fl-leg-arr { text-align:right; }

@@ -492,10 +492,10 @@
    The initial fallback keeps the blue tile it wears everywhere else; a real logo drops the tile
    (see .air-logo) because airline marks come in every colour and painting one on our blue made
    half of them unreadable. */
-.ck-sum-leg-air { flex-shrink:0; width:20px; height:20px; border-radius:50%;
+.ck-sum-leg-air { flex-shrink:0; width:28px; height:28px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff;
-  font-size:10px; font-weight:800; }
+  font-size:12px; font-weight:800; }
 /* Round, with the name ahead of it. A wordmark inside a 20px circle is a smudge — which is
    exactly why AirlineMark prints the carrier's name first; the circle is the glance, the
    name is the fact. White ground so marks of every colour stay legible. */
@@ -720,10 +720,10 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
 /* Carrier line on the review step: name then mark, on one baseline. `inline-flex` rather than
    block, so it keeps sitting under the route line the way the plain name always did. */
 .ck-ov-air { display:inline-flex; align-items:center; gap:7px; }
-.ck-air-mark { flex-shrink:0; width:22px; height:22px; border-radius:50%;
+.ck-air-mark { flex-shrink:0; width:32px; height:32px; border-radius:50%;
   display:inline-flex; align-items:center; justify-content:center;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff;
-  font-size:10px; font-weight:800; }
+  font-size:13px; font-weight:800; }
 img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding:2px;
   object-fit:contain; object-position:center; }
 .ck-air-name { font-size:12.5px; font-weight:700; color:var(--text); }
