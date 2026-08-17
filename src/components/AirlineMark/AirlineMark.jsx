@@ -15,35 +15,42 @@ import { airlineName as staticAirlineName } from '../../utils/flightNames';
  * its own stylesheet already gives this slot: the boarding-pass card, the per-leg rows inside
  * the flight modal and the checkout summary all render the same component at three sizes.
  *
- * NAMING IS THE COMPONENT'S JOB, not the caller's. A logo is a wordmark — it already says
- * "Turkish Airlines" in the airline's own type — so printing the name beside it said everything
- * twice and crowded the row. But the name cannot simply be dropped by the caller either: when
- * there is no logo, or when a stored one fails to load, all that is left is a single letter, and
- * "T" is not an airline. So the two are decided together here. Pass `nameClassName` and the name
- * appears exactly when the logo does not.
+ * NAMING IS THE COMPONENT'S JOB, not the caller's, and the name is now ALWAYS printed, ahead
+ * of the mark: "Turkish Airlines ◯".
+ *
+ * It used to be the other way round — mark first, name only as a fallback — because a logo is
+ * a wordmark that already says the airline in its own type, so printing the name beside it
+ * said everything twice. That reasoning held only while the mark was WIDE: the marks are
+ * round now, and a wordmark scaled into a 24px circle is a smudge, not a word. A round mark
+ * is an avatar; the name beside it is what actually names the carrier, and every row reads
+ * the same whether or not we happen to hold that airline's logo.
+ *
+ * `nameClassName` is for the host's typography. Pass `null` to suppress the name where the
+ * surrounding row already states the carrier.
  */
-export default function AirlineMark({ code, name, className = '', nameClassName }) {
+export default function AirlineMark({ code, name, className = '', nameClassName = '' }) {
   const directory = useAirlineLogos();
   const [failed, setFailed] = useState(false);
   const hit = directory.get(String(code || '').trim().toUpperCase());
   const label = String(name || hit?.name || staticAirlineName(code) || '');
 
-  if (!hit?.logo || failed) {
-    return (
-      <>
-        <span className={className} aria-hidden="true">{label.charAt(0)}</span>
-        {nameClassName !== undefined && <span className={nameClassName}>{label}</span>}
-      </>
+  const mark = (!hit?.logo || failed)
+    ? <span className={`${className} air-mark`.trim()} aria-hidden="true">{label.charAt(0)}</span>
+    : (
+      <img
+        className={`${className} air-mark air-logo`.trim()}
+        src={hit.logo}
+        // Empty: the name is printed as text right beside it, so an alt would read it twice.
+        alt=""
+        loading="lazy"
+        onError={() => setFailed(true)}
+      />
     );
-  }
+
   return (
-    <img
-      className={`${className} air-logo`.trim()}
-      src={hit.logo}
-      // The name still reaches a screen reader, which cannot see the wordmark.
-      alt={label}
-      loading="lazy"
-      onError={() => setFailed(true)}
-    />
+    <>
+      {nameClassName !== null && <span className={`air-name ${nameClassName}`.trim()}>{label}</span>}
+      {mark}
+    </>
   );
 }

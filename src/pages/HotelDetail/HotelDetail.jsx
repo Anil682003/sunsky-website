@@ -575,7 +575,7 @@ function JourneyTimeline({ label, legs }) {
             <div className="fd-seg-timeline"><div className="fd-dot" /><div className="fd-line" /><div className="fd-dot" /></div>
             <div className="fd-seg-body">
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.from)} <em>{leg.from}</em></span><span className="fd-seg-time">{fmtTime(leg.departure)}</span></div>
-              <div className="fd-seg-meta"><span className="fd-seg-air"><AirlineMark code={leg.airline} className="fd-seg-mark" nameClassName="" />{flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
+              <div className="fd-seg-meta"><span className="fd-seg-air"><AirlineMark code={leg.airline} className="fd-seg-mark" />{flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.to)} <em>{leg.to}</em></span><span className="fd-seg-time">{fmtTime(leg.arrival)}</span></div>
             </div>
           </div>
@@ -4327,11 +4327,8 @@ export default function HotelDetail() {
                       <span className="modal-filter-cb" aria-hidden="true">
                         {fAirlines.includes(a.code) && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}
                       </span>
-                      {/* Logo AND name here, unlike the cards: a filter row is a label to read,
-                          and a wordmark alone is unreadable at 18px next to a tick box. */}
                       <span className="mfo-airline">
-                        <AirlineMark code={a.code} className="mfo-airmark" />
-                        <span className="mfo-airname">{airlineName(a.code)}</span>
+                        <AirlineMark code={a.code} className="mfo-airmark" nameClassName="mfo-airname" />
                       </span>
                       <span className="mfo-count">{a.count}</span>
                     </label>

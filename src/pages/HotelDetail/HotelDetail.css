@@ -1154,7 +1154,10 @@
 .sd .bp-dir svg { width:13px; height:13px; }
 .sd .bp-jdate { font-size:12px; font-weight:600; color:var(--text-sec); }
 .sd .bp-airline { margin-left:auto; display:inline-flex; align-items:center; gap:8px; }
-.sd .bp-airmark { width:23px; height:23px; border-radius:7px; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-family:'Sora',sans-serif; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 8px rgba(31,79,216,.24); }
+/* The carrier's name, printed AHEAD of every mark (see components/AirlineMark). Declared
+   before the per-slot classes so any host that wants different type simply wins on order. */
+.sd .air-name { font-size:12px; font-weight:700; color:var(--dark); white-space:nowrap; }
+.sd .bp-airmark { width:26px; height:26px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-family:'Sora',sans-serif; font-weight:800; font-size:12px; display:flex; align-items:center; justify-content:center; box-shadow:0 3px 8px rgba(31,79,216,.24); flex-shrink:0; }
 .sd .bp-airname { font-size:12.5px; font-weight:700; color:var(--dark); }
 .sd .bp-flno { font-size:10.5px; font-weight:800; color:var(--blue); letter-spacing:.04em; padding:3px 9px; border-radius:7px; background:var(--blue-bg); border:1px solid #dce9fc; font-variant-numeric:tabular-nums; }
 .sd .bp-route { display:grid; grid-template-columns:1fr auto 1fr; align-items:center; gap:16px; }
@@ -1299,26 +1302,30 @@
 .sd .fd-seg-airport em { font-style:normal; font-size:11px; font-weight:800; color:var(--text-light); letter-spacing:.06em; margin-left:5px; }
 .sd .fd-seg-time { font-weight:800; font-size:13.5px; color:var(--dark); font-variant-numeric:tabular-nums; font-family:'Sora',sans-serif; }
 .sd .fd-seg-meta { display:flex; align-items:center; justify-content:space-between; padding:4px 0; }
-.sd .fd-seg-air { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-bg); padding:2px 9px 2px 3px; border-radius:var(--r-full); }
-.sd .fd-seg-mark { display:inline-flex; align-items:center; justify-content:center; width:16px; height:16px; border-radius:5px; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-family:'Sora',sans-serif; font-weight:800; font-size:9px; }
+/* [name] ◯ [flight no] — text at both ends now, so the chip is padded evenly. */
+.sd .fd-seg-air { display:inline-flex; align-items:center; gap:6px; font-size:11px; font-weight:700; color:var(--blue); background:var(--blue-bg); padding:2px 10px; border-radius:var(--r-full); }
+.sd .fd-seg-mark { display:inline-flex; align-items:center; justify-content:center; width:18px; height:18px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-family:'Sora',sans-serif; font-weight:800; font-size:9px; flex-shrink:0; }
+/* In this chip the carrier's name shares the blue of the flight number beside it. */
+.sd .fd-seg-air .air-name { font-size:11px; font-weight:700; color:var(--blue); }
 
 /* A real airline logo in the slot the initial badge occupies. It drops the blue tile and
    shadow: airline marks come in every shape and colour, and painting a brand on our gradient
    made half of them unreadable.
 
-   A LOGO IS NOT AN ICON. This slot was first cut to the initial badge's own 23x23 square, on
-   the assumption that a logo is a roundel. Almost none of them are: across the 166 supplied,
-   the median is three and a half times wider than it is tall, 98 are wider than 3:1, and
-   United's is 300x14. `contain` inside a 26px-wide box then scaled the typical one down to
-   about seven pixels tall — present, correct, and far too small to recognise, which read as
-   "the logo is still missing".
+   A LOGO IS NOT AN ICON — which is why the NAME is now printed beside it.
 
-   So the logo gets a wordmark's shape while the initial keeps its square. `object-position`
-   pins it left so a run of cards aligns down its left edge instead of each mark floating to
-   its own centre, and `contain` still protects the rare square one from being stretched. */
-.sd .air-logo { background:none; box-shadow:none; object-fit:contain; object-position:left center; padding:0; border-radius:0; }
-.sd .bp-airmark.air-logo { width:92px; height:28px; }
-.sd .fd-seg-mark.air-logo { width:62px; height:19px; }
+   Across the 166 supplied marks the median is three and a half times wider than it is tall,
+   98 are wider than 3:1, and United's is 300x14. Given a round mark, `contain` scales the
+   typical one to about seven pixels tall: present, correct, unreadable. That is the accepted
+   trade here, because the round mark is no longer carrying the name — AirlineMark prints
+   "Turkish Airlines" ahead of it, so the circle identifies at a glance and the words do the
+   telling. A white ground and a hairline keep marks of every colour legible inside it. */
+.sd .air-logo {
+  box-shadow:none; object-fit:contain; object-position:center;
+  background:#fff; border:1px solid var(--border); padding:2px; border-radius:50%;
+}
+.sd .bp-airmark.air-logo { width:26px; height:26px; }
+.sd .fd-seg-mark.air-logo { width:18px; height:18px; padding:1px; }
 .sd .fd-seg-dur { font-size:11px; font-weight:700; color:var(--text-light); }
 .sd .fd-layover { display:flex; align-items:center; gap:6px; padding:6px 0 6px 28px; font-size:11.5px; font-weight:600; color:#b45309; }
 .sd .fd-layover svg { width:13px; height:13px; }
@@ -1695,12 +1702,15 @@
 /* Airline rows: mark + name, count on the right. */
 .sd .mfo-airline { flex:1; min-width:0; display:flex; align-items:center; gap:8px; }
 .sd .mfo-airmark {
-  width:20px; height:20px; border-radius:6px; flex-shrink:0; object-fit:contain;
+  width:20px; height:20px; border-radius:50%; flex-shrink:0; object-fit:contain;
   background:var(--blue-bg); color:var(--blue);
   font-family:'Sora',sans-serif; font-weight:800; font-size:11px;
   display:flex; align-items:center; justify-content:center;
 }
-.sd .mfo-airname { min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+/* Name first here too, and it is the row's label — it takes the slack and truncates,
+   while the mark keeps its size. */
+.sd .mfo-airname { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; font-size:12.5px; font-weight:600; color:var(--text-sec); }
+.sd .modal-filter-opt.checked .mfo-airname { color:var(--dark); }
 .sd .mf-more {
   display:flex; align-items:center; gap:5px; margin-top:6px; padding:0;
   background:none; border:none; cursor:pointer;

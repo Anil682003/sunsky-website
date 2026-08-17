@@ -54,9 +54,10 @@ function Section({ title, sub, open, onToggle, children }) {
 function FlightCard({ f, onSelect, money }) {
   const Leg = ({ leg, tag }) => (
     <div className="fl-leg">
+      {/* Name ahead of the mark, as everywhere else the site prints a carrier. */}
       <div className="fl-leg-air">
-        <span className="fl-leg-logo" style={{ background: leg.color }}>{leg.airlineCode}</span>
         <span className="fl-leg-name">{leg.airline}</span>
+        <span className="fl-leg-logo" style={{ background: leg.color }}>{leg.airlineCode}</span>
       </div>
       <div className="fl-leg-pt">
         <div className="fl-leg-time">{leg.depTime}</div>

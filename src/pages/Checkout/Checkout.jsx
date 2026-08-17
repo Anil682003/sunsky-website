@@ -2547,7 +2547,7 @@ function CheckoutContent({ stripe, elements }) {
                           {(airlineCodes.out || booking.flight.outAirline) && (
                             <span className="ck-ov-sub ck-ov-air">
                               {airlineCodes.out
-                                ? <AirlineMark code={airlineCodes.out} className="ck-air-mark" nameClassName="" />
+                                ? <AirlineMark code={airlineCodes.out} className="ck-air-mark" nameClassName="ck-air-name" />
                                 : booking.flight.outAirline}
                             </span>
                           )}
@@ -2562,7 +2562,7 @@ function CheckoutContent({ stripe, elements }) {
                             {(airlineCodes.ret || booking.flight.retAirline) && (
                               <span className="ck-ov-sub ck-ov-air">
                                 {airlineCodes.ret
-                                  ? <AirlineMark code={airlineCodes.ret} className="ck-air-mark" nameClassName="" />
+                                  ? <AirlineMark code={airlineCodes.ret} className="ck-air-mark" nameClassName="ck-air-name" />
                                   : booking.flight.retAirline}
                               </span>
                             )}
@@ -2880,14 +2880,22 @@ function CheckoutContent({ stripe, elements }) {
                         <span className="ck-sum-leg-dir">OUT</span>
                         <span className="ck-sum-leg-time">{booking.flight.outDep} → {booking.flight.outArr}</span>
                         <span className="ck-sum-leg-route">{booking.flight.outFrom.split(' ')[0]} – {booking.flight.outTo.split(' ')[0]}</span>
-                        {airlineCodes.out && <AirlineMark code={airlineCodes.out} className="ck-sum-leg-air" />}
+                        {airlineCodes.out && (
+                          <span className="ck-sum-leg-carrier">
+                            <AirlineMark code={airlineCodes.out} className="ck-sum-leg-air" nameClassName="ck-sum-leg-airname" />
+                          </span>
+                        )}
                       </div>
                       {booking.flight.retDep && (
                         <div className="ck-sum-leg">
                           <span className="ck-sum-leg-dir ret">RET</span>
                           <span className="ck-sum-leg-time">{booking.flight.retDep} → {booking.flight.retArr}</span>
                           <span className="ck-sum-leg-route">{booking.flight.retFrom.split(' ')[0]} – {booking.flight.retTo.split(' ')[0]}</span>
-                          {airlineCodes.ret && <AirlineMark code={airlineCodes.ret} className="ck-sum-leg-air" />}
+                          {airlineCodes.ret && (
+                            <span className="ck-sum-leg-carrier">
+                              <AirlineMark code={airlineCodes.ret} className="ck-sum-leg-air" nameClassName="ck-sum-leg-airname" />
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
