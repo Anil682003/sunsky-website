@@ -11,6 +11,7 @@ import { nightsToDays } from '../../utils/durations';
 import { rateDetails, boardInfo, decodeEntities } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS, dedupeFares,
+  fmtClock, FULL_DAY,
 } from '../../utils/flightFilters';
 import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
@@ -230,6 +231,17 @@ const fmtTime = (s) => {
   return m ? `${m[1].padStart(2, '0')}:${m[2]}` : String(s);
 };
 const fmtDur = (min) => { const m = Number(min); if (!m || m <= 0) return ''; return `${Math.floor(m / 60)}h ${String(m % 60).padStart(2, '0')}m`; };
+/**
+ * Calendar days between take-off and touchdown, for the "+1 day" beside an arrival time.
+ * An overnight flight lands at 01:50 the NEXT morning; printing that bare next to a 12:35
+ * departure reads as a trip that arrives before it left.
+ */
+const dayOffset = (from, to) => {
+  const a = new Date(from), b = new Date(to);
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return 0;
+  const day = (d) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
+  return Math.round((day(b) - day(a)) / 86400000);
+};
 const fmtDateLong = (s) => { if (!s) return ''; const d = new Date(s); if (isNaN(d.getTime())) return ''; return `${WK[d.getDay()]} ${d.getDate()} ${MO[d.getMonth()]}. ${d.getFullYear()}`; };
 /** "1 Sep" — short enough to sit inside a chip. Takes a Date (cancellation deadlines are parsed). */
 const fmtDay = (d) => (d instanceof Date && !isNaN(d.getTime())) ? `${d.getDate()} ${MO[d.getMonth()]}` : '';
@@ -511,6 +523,7 @@ function Journey({ dir, legs }) {
   const durMin = legs.reduce((s, l) => s + (Number(l.duration) || 0), 0);
   const stops = legs.length - 1;
   const vias = legs.slice(1).map((l) => airportName(l.from));
+  const overnight = dayOffset(first.departure, last.arrival);
   return (
     <div className="bp-journey">
       <div className="bp-jhead">
@@ -533,7 +546,10 @@ function Journey({ dir, legs }) {
           <div className={`bp-stops${stops ? ' has' : ''}`}>{stopsLabel(stops)}</div>
         </div>
         <div className="bp-end bp-end-r">
-          <div className="bp-time">{fmtTime(last.arrival)}</div>
+          <div className="bp-time">
+            {fmtTime(last.arrival)}
+            {overnight > 0 && <sup className="bp-nextday">+{overnight} day{overnight > 1 ? 's' : ''}</sup>}
+          </div>
           <div className="bp-city" title={airportName(last.to)}>{airportName(last.to)}</div>
           <div className="bp-code">{last.to}</div>
         </div>
@@ -560,12 +576,76 @@ function JourneyTimeline({ label, legs }) {
             <div className="fd-seg-timeline"><div className="fd-dot" /><div className="fd-line" /><div className="fd-dot" /></div>
             <div className="fd-seg-body">
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.from)} <em>{leg.from}</em></span><span className="fd-seg-time">{fmtTime(leg.departure)}</span></div>
-              <div className="fd-seg-meta"><span className="fd-seg-air"><AirlineMark code={leg.airline} className="fd-seg-mark" nameClassName="" />{flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
+              <div className="fd-seg-meta"><span className="fd-seg-air"><AirlineMark code={leg.airline} className="fd-seg-mark" />{flightNumber(leg)}</span><span className="fd-seg-dur">{fmtDur(leg.duration)}</span></div>
               <div className="fd-seg-row"><span className="fd-seg-airport">{airportName(leg.to)} <em>{leg.to}</em></span><span className="fd-seg-time">{fmtTime(leg.arrival)}</span></div>
             </div>
           </div>
         </div>
       ))}
+    </div>
+  );
+}
+
+/* ── Flight-filter controls ─────────────────────────────────────────────────────
+   Airlines beyond this many hide behind "Show more" — the rail is 250px and a charter
+   destination can come back with a dozen carriers. */
+const AIRLINES_COLLAPSED = 4;
+
+/**
+ * The ⓘ beside a filter group's title. Native `title` rather than a scripted tooltip: it
+ * survives inside the modal's own scroll container, needs no positioning logic, and is
+ * already what a keyboard and a screen reader read.
+ */
+function FilterHint({ text }) {
+  return (
+    <span className="mf-hint" title={text} aria-label={text} role="img">
+      <S size={13} sw={2}><circle cx="12" cy="12" r="10" /><path d="M12 16v-4M12 8h.01" /></S>
+    </span>
+  );
+}
+
+/**
+ * Departure-time range — two handles over one track.
+ *
+ * The bounds are the earliest and latest departure in the RESULT SET, not a decorative
+ * 00:00–23:59: a handle dragged into an hour nothing departs in can only empty the list, and
+ * seeing the real span is itself the answer to "when do these flights actually leave?".
+ *
+ * Both inputs sit on top of each other (`.mf-range`, pointer-events on the thumbs only) so
+ * neither handle can block the other, and each clamps against its twin so they cannot cross.
+ */
+function TimeRangeFilter({ title, hint, span, value, onChange }) {
+  const [from, to] = value;
+  const pct = (v) => ((v - span.min) / Math.max(1, span.max - span.min)) * 100;
+  const setFrom = (v) => onChange([Math.min(Number(v), to), to]);
+  const setTo = (v) => onChange([from, Math.max(Number(v), from)]);
+  const touched = from > span.min || to < span.max;
+
+  return (
+    <div className="modal-filter-group">
+      <div className="modal-filter-title">
+        {title}
+        <FilterHint text={hint} />
+        {touched && (
+          <button type="button" className="mf-link" onClick={() => onChange(null)}>Reset</button>
+        )}
+      </div>
+      <div className="mf-range-ends">
+        <span>{fmtClock(span.min)}</span>
+        <span>{fmtClock(span.max)}</span>
+      </div>
+      <div className="mf-range-wrap">
+        <div className="mf-range-track">
+          <div className="mf-range-fill" style={{ left: `${pct(from)}%`, right: `${100 - pct(to)}%` }} />
+        </div>
+        <input type="range" className="mf-range" min={span.min} max={span.max} step={5}
+          value={from} onChange={(e) => setFrom(e.target.value)}
+          aria-label={`${title} — earliest`} />
+        <input type="range" className="mf-range" min={span.min} max={span.max} step={5}
+          value={to} onChange={(e) => setTo(e.target.value)}
+          aria-label={`${title} — latest`} />
+      </div>
+      <div className={`mf-range-value${touched ? ' on' : ''}`}>{fmtClock(from)} – {fmtClock(to)}</div>
     </div>
   );
 }
@@ -658,12 +738,103 @@ function SkeletonBlock({ label, children }) {
  * A banner also suppresses the green `cheapest` frame, because the band already says in words
  * what the frame said in colour, and both at once made the card shout twice.
  */
-function FlightCard({ f, selected, cheapest, banner, onSelect }) {
+function FlightCard({ f, selected, cheapest, banner, option, onSelect }) {
   const [expanded, setExpanded] = useState(false);
   const out = f.outLegs || [];
   const ret = f.retLegs || [];
   const hasDetails = out.length > 0;
   const fareIncludes = fareInclusions(f.baggage);
+
+  const detailsBtn = (
+    <button className="flight-details-btn" onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }} disabled={!hasDetails}>
+      {expanded ? 'Hide flight details' : 'View flight details'}
+      <S size={13} sw={2.4} className={expanded ? 'fdb-caret up' : 'fdb-caret'}><path d="M6 9l6 6 6-6" /></S>
+    </button>
+  );
+
+  // ── The modal's layout: itinerary on the left, one price rail on the right ──
+  // Same journeys, same chips, same details panel as the page card — what changes is that
+  // every fact about CHOOSING this flight (is it the one I have, what does it cost me to
+  // switch, is it the cheapest) is gathered into a single column instead of being spread
+  // along a footer.
+  if (option) {
+    const { impact } = option;      // € this flight adds to the package vs the one selected now
+    return (
+      <div className={`flight-card option${selected ? ' selected' : ''}${cheapest && !selected ? ' cheapest' : ''}${expanded ? ' expanded' : ''}`}>
+        <div className="fc-status">
+          <span className={`fc-radio${selected ? ' on' : ''}`} aria-hidden="true">
+            {selected && <S size={12} sw={3.2}><path d="M20 6L9 17l-5-5" /></S>}
+          </span>
+          <span className="fc-status-label">{selected ? 'Currently selected' : 'Alternative flight'}</span>
+        </div>
+
+        <div className="fc-split">
+          <div className="fc-main">
+            <div className="bp-body">
+              <Journey dir="Outbound" legs={out} />
+              {ret.length > 0 && (<><div className="bp-tear" /><Journey dir="Return" legs={ret} /></>)}
+            </div>
+            {fareIncludes.length > 0 && (
+              <div className="bp-incl" aria-label="Included in this fare">
+                {fareIncludes.map((x) => (
+                  <span key={x.label} className={`bp-chip${x.ok ? ' bp-chip-inc' : ''}`}>{x.icon}{x.label}</span>
+                ))}
+              </div>
+            )}
+            <div className="fc-main-foot">{detailsBtn}</div>
+          </div>
+
+          <div className="fc-rail">
+            {selected && <div className="flight-selected-badge">{ICON.check} Selected</div>}
+            {f.delta === 0 && <span className="bp-delta bp-delta-best">{ICON.spark} Lowest fare</span>}
+            {f.price != null && (
+              <>
+                <b className="live-price">€{f.price.toLocaleString('en-GB')}</b>
+                <span className="bp-price-cap">Total for all travellers</span>
+              </>
+            )}
+            {/* What choosing this flight does to the package total. The figure is measured
+                against the flight currently selected — not against the cheapest — because
+                that is the price the traveller is holding and the one that would change. */}
+            {impact != null && (
+              <div className={`fc-impact${impact === 0 ? ' same' : impact > 0 ? ' up' : ' down'}`}>
+                {impact === 0
+                  ? <>{ICON.check}<span>No change to your package price</span></>
+                  : (
+                    <>
+                      <S size={14} sw={2.4}>{impact > 0
+                        ? <path d="M12 19V5M5 12l7-7 7 7" />
+                        : <path d="M12 5v14M19 12l-7 7-7-7" />}</S>
+                      <span>
+                        <b>{impact > 0 ? '+' : '−'} €{Math.abs(Math.round(impact)).toLocaleString('en-GB')}</b>
+                        <em>to your package price</em>
+                      </span>
+                    </>
+                  )}
+              </div>
+            )}
+            <span className="fc-taxes">
+              Flight price incl. taxes &amp; fees
+              <FilterHint text="The fare covers every traveller on this booking, with taxes and airline fees already included. Hotel and extras are priced separately." />
+            </span>
+            {!selected && (
+              <button className="flight-select-btn fc-select" onClick={onSelect}>Select this flight</button>
+            )}
+          </div>
+        </div>
+
+        {f.warning && <div className="flight-warning">{ICON.warn} {f.warning}</div>}
+        {expanded && hasDetails && (
+          <div className="fd-panel">
+            <div className="fd-journeys">
+              <JourneyTimeline label="Outbound" legs={out} />
+              <JourneyTimeline label="Return" legs={ret} />
+            </div>
+          </div>
+        )}
+      </div>
+    );
+  }
 
   return (
     // Green is this page's SELECTED colour — it is what the chosen room wears, and what the
@@ -1657,21 +1828,57 @@ export default function HotelDetail() {
   // every render, each setState re-rendering: an infinite "maximum update depth" loop.
   const allFlights = useMemo(() => liveFlights?.flights || [], [liveFlights]);
   const cheapestFare = allFlights.length ? Math.min(...allFlights.map((f) => f.totalPrice || Infinity)) : null;
+  // The fare the traveller is holding right now — every other card's price impact is measured
+  // against this, and it moves as soon as they choose a different flight.
+  const selectedFare = allFlights[selectedFlight]?.totalPrice ?? null;
   const facets = useMemo(() => flightFacets(allFlights), [allFlights]);
   const [fSort, setFSort] = useState('price');
-  const [fOut, setFOut] = useState([]);
-  const [fRet, setFRet] = useState([]);
-  const [fDirect, setFDirect] = useState(false);
+  // Flight type ('all' | 'direct' | 'stops') and baggage ('any' | 'included' | 'excluded')
+  // are one-of-three choices, so they are a single value each rather than three booleans that
+  // could contradict one another.
+  const [fType, setFType] = useState('all');
+  const [fBaggage, setFBaggage] = useState('any');
+  const [fAirlines, setFAirlines] = useState([]);
+  // Phone only: the filter rail is a sheet over the list rather than a column beside it.
+  const [filterSheet, setFilterSheet] = useState(false);
+  // Departure-time sliders. `null` means untouched: the range is whatever the results span,
+  // so a slider dropped back to its ends filters nothing.
+  const [fOutRange, setFOutRange] = useState(null);
+  const [fRetRange, setFRetRange] = useState(null);
+  const [showAllAirlines, setShowAllAirlines] = useState(false);
+
+  // A slider with no facet behind it has no bounds to drag between; `span` supplies them and
+  // doubles as the untouched value.
+  const outSpan = facets.outboundSpan;
+  const retSpan = facets.returnSpan;
+  const outRange = fOutRange || (outSpan ? [outSpan.min, outSpan.max] : FULL_DAY);
+  const retRange = fRetRange || (retSpan ? [retSpan.min, retSpan.max] : FULL_DAY);
+  // Only a range NARROWER than the span is a constraint — the full span keeps every flight,
+  // including any whose departure time could not be read.
+  const outConstrained = !!(outSpan && fOutRange && (outRange[0] > outSpan.min || outRange[1] < outSpan.max));
+  const retConstrained = !!(retSpan && fRetRange && (retRange[0] > retSpan.min || retRange[1] < retSpan.max));
 
   const modalFlights = useMemo(() => {
     const tagged = allFlights.map((f, idx) => ({ ...f, idx }));
-    return sortFlights(applyFlightFilters(tagged, { outbound: fOut, return: fRet, direct: fDirect }), fSort);
-  }, [allFlights, fOut, fRet, fDirect, fSort]);
+    return sortFlights(applyFlightFilters(tagged, {
+      type: fType,
+      baggage: fBaggage,
+      airlines: fAirlines,
+      outboundRange: outConstrained ? outRange : null,
+      returnRange: retConstrained ? retRange : null,
+    }), fSort);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allFlights, fType, fBaggage, fAirlines, outRange[0], outRange[1], retRange[0], retRange[1],
+    outConstrained, retConstrained, fSort]);
 
-  const activeFilterCount = fOut.length + fRet.length + (fDirect ? 1 : 0);
-  const clearFlightFilters = () => { setFOut([]); setFRet([]); setFDirect(false); };
-  const toggleBand = (setter) => (id) =>
-    setter((prev) => (prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]));
+  const activeFilterCount = (fType !== 'all' ? 1 : 0) + (fBaggage !== 'any' ? 1 : 0)
+    + (fAirlines.length ? 1 : 0) + (outConstrained ? 1 : 0) + (retConstrained ? 1 : 0);
+  const clearFlightFilters = () => {
+    setFType('all'); setFBaggage('any'); setFAirlines([]);
+    setFOutRange(null); setFRetRange(null); setShowAllAirlines(false);
+  };
+  const toggleAirline = (code) =>
+    setFAirlines((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
   // A filter set that survives one search rarely fits the next — reset when results change.
   useEffect(() => { clearFlightFilters(); }, [allFlights]);
 
@@ -4004,6 +4211,13 @@ export default function HotelDetail() {
         <div className="modal">
           <div className="modal-head">
             <div className="modal-title">Choose your flights</div>
+            {/* On a phone the filter rail is a sheet, so it needs a way in. The count says
+                whether anything is currently narrowing the list. */}
+            <button className={`modal-filter-toggle${activeFilterCount ? ' on' : ''}`}
+              onClick={() => setFilterSheet((v) => !v)}>
+              <S size={15} sw={2.2}><path d="M4 6h16M7 12h10M10 18h4" /></S>
+              Filters{activeFilterCount ? ` · ${activeFilterCount}` : ''}
+            </button>
             <div className="modal-sort">
               <label htmlFor="fsort">Sort:</label>
               <select id="fsort" value={fSort} onChange={(e) => setFSort(e.target.value)}>
@@ -4014,65 +4228,156 @@ export default function HotelDetail() {
               <S sw={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
             </button>
           </div>
-          <div className="modal-body">
+          <div className={`modal-body${filterSheet ? ' filters-open' : ''}`}>
             <div className="modal-sidebar">
               <div className="modal-filter-head">
-                <span className="modal-filter-count">
-                  {modalFlights.length} of {allFlights.length} flight{allFlights.length === 1 ? '' : 's'}
-                </span>
+                <span className="modal-filter-heading">Filters</span>
                 {activeFilterCount > 0 && (
-                  <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>Clear all</button>
+                  <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>Reset all</button>
                 )}
               </div>
 
-              {facets.outbound.length > 0 && (
-                <div className="modal-filter-group">
-                  <div className="modal-filter-title">Departure time outbound</div>
-                  {facets.outbound.map((b) => (
-                    <div key={b.id} className={`modal-filter-opt${fOut.includes(b.id) ? ' checked' : ''}`}
-                      onClick={() => toggleBand(setFOut)(b.id)}>
-                      <div className="modal-filter-cb">{fOut.includes(b.id) && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}</div>
-                      <span className="mfo-label">{b.label} <em>{b.range}</em></span>
-                      <span className="mfo-count">{b.count}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
+              {/* Sort lives here as well as in the header — same state, two places to reach it,
+                  because on a long list the sidebar is what stays in view. */}
+              <div className="modal-filter-group">
+                <div className="modal-filter-title">Sort by</div>
+                <select className="mf-select" value={fSort} onChange={(e) => setFSort(e.target.value)} aria-label="Sort flights">
+                  {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+              </div>
 
-              {facets.return.length > 0 && (
+              {facets.type && (
                 <div className="modal-filter-group">
-                  <div className="modal-filter-title">Departure time return</div>
-                  {facets.return.map((b) => (
-                    <div key={b.id} className={`modal-filter-opt${fRet.includes(b.id) ? ' checked' : ''}`}
-                      onClick={() => toggleBand(setFRet)(b.id)}>
-                      <div className="modal-filter-cb">{fRet.includes(b.id) && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}</div>
-                      <span className="mfo-label">{b.label} <em>{b.range}</em></span>
-                      <span className="mfo-count">{b.count}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {facets.direct && (
-                <div className="modal-filter-group">
-                  <div className="modal-filter-title">Stopover</div>
-                  <div className={`modal-filter-opt${fDirect ? ' checked' : ''}`} onClick={() => setFDirect((v) => !v)}>
-                    <div className="modal-filter-cb">{fDirect && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}</div>
-                    <span className="mfo-label">Direct flights only</span>
-                    <span className="mfo-count">{facets.direct.count}</span>
+                  <div className="modal-filter-title">
+                    Flight type
+                    <FilterHint text="Direct flights have no stopover in either direction." />
                   </div>
+                  {[
+                    { id: 'direct', label: 'Direct flights',    count: facets.type.direct },
+                    { id: 'stops',  label: 'Flights with stop(s)', count: facets.type.stops },
+                    { id: 'all',    label: 'All flights',       count: facets.type.all },
+                  ].map((o) => (
+                    <label key={o.id} className={`modal-filter-opt${fType === o.id ? ' checked' : ''}`}>
+                      <input type="checkbox" className="mf-input" checked={fType === o.id}
+                        onChange={() => setFType(o.id)} />
+                      <span className="modal-filter-cb" aria-hidden="true">
+                        {fType === o.id && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}
+                      </span>
+                      <span className="mfo-label">{o.label}</span>
+                      <span className="mfo-count">{o.count}</span>
+                    </label>
+                  ))}
                 </div>
               )}
 
-              {!facets.outbound.length && !facets.return.length && !facets.direct && (
+              {facets.baggage && (
+                <div className="modal-filter-group">
+                  <div className="modal-filter-title">
+                    Baggage
+                    <FilterHint text="Checked baggage in the fare. Every fare here allows a cabin bag." />
+                  </div>
+                  {[
+                    { id: 'included', label: 'Include baggage', count: facets.baggage.included },
+                    { id: 'excluded', label: 'Exclude baggage', count: facets.baggage.excluded },
+                  ].map((o) => (
+                    <label key={o.id} className={`modal-filter-opt${fBaggage === o.id ? ' checked' : ''}`}>
+                      <input type="checkbox" className="mf-input" checked={fBaggage === o.id}
+                        onChange={() => setFBaggage((v) => (v === o.id ? 'any' : o.id))} />
+                      <span className="modal-filter-cb" aria-hidden="true">
+                        {fBaggage === o.id && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}
+                      </span>
+                      <span className="mfo-label">{o.label}</span>
+                      <span className="mfo-count">{o.count}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
+              {outSpan && (
+                <TimeRangeFilter
+                  title="Departure time - Outbound"
+                  hint="The time your outbound flight leaves, local to the departure airport."
+                  span={outSpan}
+                  value={outRange}
+                  onChange={setFOutRange}
+                />
+              )}
+
+              {retSpan && (
+                <TimeRangeFilter
+                  title="Departure time - Return"
+                  hint="The time your return flight leaves the destination."
+                  span={retSpan}
+                  value={retRange}
+                  onChange={setFRetRange}
+                />
+              )}
+
+              {facets.airlines.length > 0 && (
+                <div className="modal-filter-group">
+                  <div className="modal-filter-title">
+                    Airlines
+                    <FilterHint text="A flight is kept when any of its legs is flown by a ticked airline." />
+                    <button type="button" className="mf-link"
+                      onClick={() => setFAirlines(fAirlines.length === facets.airlines.length
+                        ? [] : facets.airlines.map((a) => a.code))}>
+                      {fAirlines.length === facets.airlines.length ? 'Clear' : 'Select all'}
+                    </button>
+                  </div>
+                  {(showAllAirlines ? facets.airlines : facets.airlines.slice(0, AIRLINES_COLLAPSED)).map((a) => (
+                    <label key={a.code} className={`modal-filter-opt${fAirlines.includes(a.code) ? ' checked' : ''}`}>
+                      <input type="checkbox" className="mf-input" checked={fAirlines.includes(a.code)}
+                        onChange={() => toggleAirline(a.code)} />
+                      <span className="modal-filter-cb" aria-hidden="true">
+                        {fAirlines.includes(a.code) && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}
+                      </span>
+                      <span className="mfo-airline">
+                        <AirlineMark code={a.code} className="mfo-airmark" nameClassName="mfo-airname" />
+                      </span>
+                      <span className="mfo-count">{a.count}</span>
+                    </label>
+                  ))}
+                  {facets.airlines.length > AIRLINES_COLLAPSED && (
+                    <button type="button" className="mf-more" onClick={() => setShowAllAirlines((v) => !v)}>
+                      {showAllAirlines ? 'Show less' : `Show more (${facets.airlines.length - AIRLINES_COLLAPSED})`}
+                      <S size={13} sw={2.4} className={showAllAirlines ? 'mf-more-up' : ''}><path d="M6 9l6 6 6-6" /></S>
+                    </button>
+                  )}
+                </div>
+              )}
+
+              {!facets.type && !facets.baggage && !facets.airlines.length && !outSpan && !retSpan && (
                 <div className="modal-filter-none">
                   All {allFlights.length} flight{allFlights.length === 1 ? '' : 's'} share the same
-                  times and stops, so there is nothing to filter on.
+                  times, stops, airline and baggage, so there is nothing to filter on.
                 </div>
               )}
+
+              {/* The list filters as you tick, so this is not an "apply" — it says what the
+                  current filters have left, and on a phone it closes the filter sheet. */}
+              <div className="modal-filter-foot">
+                <button type="button" className="mf-apply" onClick={() => setFilterSheet(false)}>
+                  Show {modalFlights.length} flight{modalFlights.length === 1 ? '' : 's'}
+                </button>
+                <div className="mf-found">
+                  {modalFlights.length === allFlights.length
+                    ? `${allFlights.length} flight${allFlights.length === 1 ? '' : 's'} found`
+                    : `${modalFlights.length} of ${allFlights.length} flights match`}
+                </div>
+              </div>
             </div>
 
             <div className="modal-flights">
+              {/* What the figures on these cards are, said once at the top rather than
+                  guessed at per card. The fare is the whole party's, taxes in; the coloured
+                  note on each card is what switching to it does to the package total. */}
+              <div className="modal-price-note">
+                {ICON.info}
+                <span>
+                  Prices are the flight fare for <b>all travellers</b>, taxes and fees included.
+                  Each card shows what choosing it would do to your package price.
+                </span>
+              </div>
               {modalFlights.length ? modalFlights.map((f) => (
                 <FlightCard
                   key={f.idx}
@@ -4082,6 +4387,10 @@ export default function HotelDetail() {
                   // array, so it survives the modal's own sorting and filtering — the green
                   // frame stays on the genuinely cheapest fare, not on whatever is top.
                   cheapest={f.idx === 0}
+                  option={{
+                    impact: selectedFare == null || f.totalPrice == null
+                      ? null : Math.round(f.totalPrice - selectedFare),
+                  }}
                   onSelect={() => setSelectedFlight(f.idx)}
                 />
               )) : (

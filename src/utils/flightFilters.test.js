@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   bandOf, hourOf, stopsOf, durationOf, flightFacets, applyFlightFilters, sortFlights, splitRoundTrip,
-  dedupeFares,
+  dedupeFares, minuteOf, fmtClock, baggageOf, airlinesOf,
 } from './flightFilters';
 
 // Shape mirrors what HotelDetail builds from /flight-availability/search.
@@ -136,6 +136,180 @@ describe('flightFacets — only offers controls that can change the result', () 
       expect(f.outbound).toEqual([]);
       expect(f.direct).toBeNull();
     }
+  });
+});
+
+// ── The filters the change-flight modal grew: flight type, baggage, airline, and a
+// departure-time RANGE in place of the four fixed bands. Each one is a claim about a flight
+// that a traveller will hold us to at the airport, so each is read from supplier data and
+// each refuses to guess when the data is silent.
+
+describe('minuteOf / fmtClock', () => {
+  it('reads the clock the card prints, to the minute', () => {
+    expect(minuteOf('2026-05-01T06:15:00')).toBe(375);
+    expect(minuteOf('2026-05-01T00:00:00')).toBe(0);
+    expect(minuteOf('23:59')).toBe(1439);
+  });
+
+  it('returns null rather than guessing', () => {
+    for (const bad of [null, '', 'tomorrow', '99:99', {}]) expect(minuteOf(bad)).toBeNull();
+  });
+
+  it('prints minutes back as a padded clock', () => {
+    expect(fmtClock(0)).toBe('00:00');
+    expect(fmtClock(375)).toBe('06:15');
+    expect(fmtClock(1439)).toBe('23:59');
+  });
+});
+
+describe('baggageOf — hold luggage, or the honest absence of an answer', () => {
+  it('reads a checked allowance in kilos or in pieces', () => {
+    expect(baggageOf({ baggage: { checkedKg: 20 } })).toBe('included');
+    expect(baggageOf({ baggage: { checkedPieces: 1 } })).toBe('included');
+  });
+
+  it('calls a stated zero allowance excluded', () => {
+    expect(baggageOf({ baggage: { checkedKg: 0, checkedPieces: 0, handKg: 0 } })).toBe('excluded');
+  });
+
+  // A fare whose allowance the supplier never described is not "no bag" — it is unknown, and
+  // filing it under either answer would put a traveller at a check-in desk with the wrong one.
+  it('refuses to file an undescribed fare under either answer', () => {
+    expect(baggageOf({})).toBe('unknown');
+    expect(baggageOf({ baggage: null })).toBe('unknown');
+    expect(baggageOf({ baggage: {} })).toBe('unknown');
+  });
+
+  it('keeps unknown fares out of BOTH filters', () => {
+    const flights = [
+      flight({ baggage: { checkedKg: 20 } }),
+      flight({ baggage: { checkedKg: 0, checkedPieces: 0, handKg: 0 } }),
+      flight({ baggage: null }),
+    ];
+    expect(applyFlightFilters(flights, { baggage: 'included' })).toHaveLength(1);
+    expect(applyFlightFilters(flights, { baggage: 'excluded' })).toHaveLength(1);
+    expect(applyFlightFilters(flights, { baggage: 'any' })).toHaveLength(3);
+  });
+});
+
+describe('flight type — direct, with stop(s), or all', () => {
+  const flights = [
+    flight({ totalPrice: 400 }),                    // direct
+    flight({ totalPrice: 500, stops: 1 }),
+    flight({ totalPrice: 600, stops: 2 }),
+  ];
+
+  it('splits the set three ways', () => {
+    expect(applyFlightFilters(flights, { type: 'direct' })).toHaveLength(1);
+    expect(applyFlightFilters(flights, { type: 'stops' })).toHaveLength(2);
+    expect(applyFlightFilters(flights, { type: 'all' })).toHaveLength(3);
+  });
+
+  it('still understands the old direct boolean', () => {
+    expect(applyFlightFilters(flights, { direct: true })).toHaveLength(1);
+  });
+
+  it('offers the group only when the set holds both kinds', () => {
+    expect(flightFacets(flights).type).toEqual({ direct: 1, stops: 2, all: 3 });
+    expect(flightFacets([flight(), flight()]).type).toBeNull();
+    expect(flightFacets([flight({ stops: 1 })]).type).toBeNull();
+  });
+});
+
+describe('airlines', () => {
+  const withAir = (out, ret) => flight({
+    outLegs: [leg('2026-05-01T07:00:00', '2026-05-01T11:50:00', { airline: out })],
+    retLegs: [leg('2026-05-06T12:45:00', '2026-05-06T16:00:00', { airline: ret || out })],
+  });
+
+  it('lists every carrier on the trip, once each', () => {
+    expect(airlinesOf(withAir('VF', 'TK'))).toEqual(['VF', 'TK']);
+    expect(airlinesOf(withAir('vf'))).toEqual(['VF']);
+  });
+
+  it('keeps a flight when ANY of its legs is a ticked airline', () => {
+    const flights = [withAir('VF'), withAir('TK'), withAir('VF', 'TK')];
+    expect(applyFlightFilters(flights, { airlines: ['VF'] })).toHaveLength(2);
+    expect(applyFlightFilters(flights, { airlines: ['TK'] })).toHaveLength(2);
+    expect(applyFlightFilters(flights, { airlines: ['VF', 'TK'] })).toHaveLength(3);
+    expect(applyFlightFilters(flights, { airlines: [] })).toHaveLength(3);
+  });
+
+  it('counts busiest first, and offers nothing when everyone flies the same carrier', () => {
+    const facets = flightFacets([withAir('VF'), withAir('VF'), withAir('TK')]);
+    expect(facets.airlines).toEqual([{ code: 'VF', count: 2 }, { code: 'TK', count: 1 }]);
+    expect(flightFacets([withAir('VF'), withAir('VF')]).airlines).toEqual([]);
+  });
+});
+
+describe('departure-time range', () => {
+  const flights = [
+    flight({ outLegs: [leg('2026-05-01T06:15:00', '2026-05-01T10:35:00')] }),
+    flight({ outLegs: [leg('2026-05-01T14:30:00', '2026-05-01T18:20:00')] }),
+    flight({ outLegs: [leg('2026-05-01T20:00:00', '2026-05-02T01:00:00')] }),
+  ];
+
+  it('keeps the flights leaving inside the window, ends included', () => {
+    expect(applyFlightFilters(flights, { outboundRange: [6 * 60, 15 * 60] })).toHaveLength(2);
+    // 06:15 exactly on the lower edge, 14:30 exactly on the upper one.
+    expect(applyFlightFilters(flights, { outboundRange: [375, 870] })).toHaveLength(2);
+  });
+
+  it('treats a whole-day range as no constraint at all', () => {
+    expect(applyFlightFilters(flights, { outboundRange: [0, 1439] })).toHaveLength(3);
+  });
+
+  it('filters the return leg separately', () => {
+    const mixed = [
+      flight({ retLegs: [leg('2026-05-06T08:00:00', '2026-05-06T11:00:00')] }),
+      flight({ retLegs: [leg('2026-05-06T21:00:00', '2026-05-07T00:10:00')] }),
+    ];
+    expect(applyFlightFilters(mixed, { returnRange: [0, 12 * 60] })).toHaveLength(1);
+  });
+
+  it('reports the real span of the results as the slider bounds', () => {
+    // Not a decorative 00:00–23:59: dragging into an hour nothing departs in could only
+    // ever empty the list.
+    expect(flightFacets(flights).outboundSpan).toEqual({ min: 375, max: 1200 });
+  });
+
+  it('offers no slider when every flight leaves at the same minute', () => {
+    expect(flightFacets([flight(), flight()]).outboundSpan).toBeNull();
+  });
+
+  it('offers no return slider on a one-way', () => {
+    expect(flightFacets([flight({ retLegs: [] })]).returnSpan).toBeNull();
+  });
+
+  // A narrowed window is a claim about a departure time. A flight with no readable time
+  // cannot meet it, and passing it through would show a flight as matching a rule nobody
+  // can prove it meets.
+  it('drops a flight whose departure cannot be read once the window narrows', () => {
+    const blind = [flight({ outLegs: [{ from: 'AMS', to: 'AYT' }] })];
+    expect(applyFlightFilters(blind, { outboundRange: [0, 1439] })).toHaveLength(1);
+    expect(applyFlightFilters(blind, { outboundRange: [60, 120] })).toHaveLength(0);
+  });
+});
+
+describe('filters combine', () => {
+  it('ANDs every group together', () => {
+    const flights = [
+      flight({ totalPrice: 400, baggage: { checkedKg: 20 }, outLegs: [leg('2026-05-01T06:00:00', '2026-05-01T10:00:00', { airline: 'VF' })] }),
+      flight({ totalPrice: 500, baggage: { checkedKg: 0, checkedPieces: 0, handKg: 0 }, outLegs: [leg('2026-05-01T07:00:00', '2026-05-01T11:00:00', { airline: 'VF' })] }),
+      flight({ totalPrice: 600, stops: 1, baggage: { checkedKg: 20 }, outLegs: [leg('2026-05-01T08:00:00', '2026-05-01T13:00:00', { airline: 'TK' })] }),
+    ];
+    const kept = applyFlightFilters(flights, {
+      type: 'direct', baggage: 'included', airlines: ['VF'], outboundRange: [0, 7 * 60],
+    });
+    expect(kept).toHaveLength(1);
+    expect(kept[0].totalPrice).toBe(400);
+  });
+
+  it('does not mutate the input', () => {
+    const flights = [flight(), flight({ stops: 1 })];
+    const copy = [...flights];
+    applyFlightFilters(flights, { type: 'direct', airlines: ['ARKEFLY'], outboundRange: [0, 600] });
+    expect(flights).toEqual(copy);
   });
 });
 

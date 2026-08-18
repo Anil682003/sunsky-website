@@ -66,7 +66,7 @@ function LegBlock({ leg, dirLabel, dirClass }) {
           </div>
 
           <div className="fd-flight-strip">
-            <span className="fd-airbadge"><span className="fd-airdot" style={{ background: leg.color }}>{leg.airlineCode}</span>{leg.airline}</span>
+            <span className="fd-airbadge">{leg.airline}<span className="fd-airdot" style={{ background: leg.color }}>{leg.airlineCode}</span></span>
             <span className="fd-ftag">{ICON.doc} Flight <b>{leg.flightNo}</b></span>
             <span className="fd-ftag">{ICON.plane} <b>{leg.aircraft}</b></span>
             <span className="fd-dur-badge">{ICON.clock} {leg.durLabel} · {leg.stopsLabel}</span>

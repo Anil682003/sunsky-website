@@ -3,9 +3,11 @@ import { useNavigate } from 'react-router-dom';
 import styles from './Hero.module.css';
 import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
+import DateCalendar from '../../../components/DateCalendar/DateCalendar';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
-import { DEFAULT_ORIGIN, airportCity } from '../../../utils/airports';
+import AirportSearch from '../../../components/AirportSearch/AirportSearch';
+import { DEPARTURE_AIRPORTS, DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue } from '../../../utils/airports';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { earliestCheckInISO } from '../../../utils/leadTime';
 import { loadPax, savePax } from '../../../utils/paxStore';
@@ -53,29 +55,27 @@ const initialRooms = () => {
   return rooms;
 };
 
-// Departure airports for the Belgian/Benelux market (the platform's flight
-// searches depart from this region — the old list was 8 UK airports).
-const AIRPORTS = [
-  { code: 'BRU', label: 'Brussels Airport', country: '🇧🇪' },
-  { code: 'CRL', label: 'Brussels South Charleroi', country: '🇧🇪' },
-  { code: 'ANR', label: 'Antwerp', country: '🇧🇪' },
-  { code: 'OST', label: 'Ostend-Bruges', country: '🇧🇪' },
-  { code: 'LGG', label: 'Liège', country: '🇧🇪' },
-  { code: 'AMS', label: 'Amsterdam Schiphol', country: '🇳🇱' },
-  { code: 'EIN', label: 'Eindhoven', country: '🇳🇱' },
-  { code: 'LIL', label: 'Lille', country: '🇫🇷' },
-];
+// The shortlists the From/To panels open with, before the traveller types anything. They are
+// a STARTING POINT, not the choice: the panel searches the dashboard's whole airport list
+// (1,300 of them) as soon as two characters are typed, so anywhere the team has entered can
+// be flown from and to. Both are normalised into the shape /website/geo/airports returns,
+// so one row component renders the shortlist and the live results alike.
+const DEPARTURE_OPTIONS = DEPARTURE_AIRPORTS.map((a) => ({
+  code: a.code, name: a.label, city: a.city, country: "", flag: a.country,
+}));
 
-const FLIGHT_DESTINATIONS = [
-  { code: 'HRG', label: 'Hurghada, Egypt', country: '🇪🇬' },
-  { code: 'AYT', label: 'Antalya, Turkey', country: '🇹🇷' },
-  { code: 'HER', label: 'Heraklion, Crete', country: '🇬🇷' },
-  { code: 'TFS', label: 'Tenerife South', country: '🇪🇸' },
-  { code: 'MLE', label: 'Malé, Maldives', country: '🇲🇻' },
-  { code: 'HKT', label: 'Phuket, Thailand', country: '🇹🇭' },
-  { code: 'RAK', label: 'Marrakech, Morocco', country: '🇲🇦' },
-  { code: 'FAO', label: 'Faro, Portugal', country: '🇵🇹' },
-];
+// Where the agency actually sells seats. "Hurghada, Egypt" is city + country, not an airport
+// name, so it maps to city/country and leaves `name` empty rather than inventing one.
+const DESTINATION_OPTIONS = [
+  { code: 'HRG', city: 'Hurghada',  country: 'Egypt',     flag: '🇪🇬' },
+  { code: 'AYT', city: 'Antalya',   country: 'Turkey',    flag: '🇹🇷' },
+  { code: 'HER', city: 'Heraklion', country: 'Crete',     flag: '🇬🇷' },
+  { code: 'TFS', city: 'Tenerife',  country: 'Spain',     flag: '🇪🇸' },
+  { code: 'MLE', city: 'Malé',      country: 'Maldives',  flag: '🇲🇻' },
+  { code: 'HKT', city: 'Phuket',    country: 'Thailand',  flag: '🇹🇭' },
+  { code: 'RAK', city: 'Marrakech', country: 'Morocco',   flag: '🇲🇦' },
+  { code: 'FAO', city: 'Faro',      country: 'Portugal',  flag: '🇵🇹' },
+].map((a) => ({ ...a, name: "" }));
 
 const CABIN_CLASSES = ['Economy', 'Premium Economy', 'Business', 'First'];
 
@@ -159,6 +159,9 @@ export default function Hero() {
   // (empty places for a country = "anywhere in it").
   const [destSelection, setDestSelection] = useState({ countries: [], places: [] });
   const [date, setDate] = useState('');
+  // How far either side of that departure the traveller will look: 0 = exact dates, up to ±3
+  // days. Chosen on the calendar itself and carried to /results as `flex`.
+  const [flexDays, setFlexDays] = useState(0);
   const [duration, setDuration] = useState('6-10 days');   // band label (default: ~1 week)
   // How the traveller gets there + from which airport. Defaults to FLIGHT INCLUDED: a package
   // is the product being sold, so an untouched search should price the trip the way most
@@ -188,7 +191,9 @@ export default function Hero() {
 
   const [tripType, setTripType] = useState('roundtrip');
   const [directOnly, setDirectOnly] = useState(false);
-  const [flightFrom, setFlightFrom] = useState('');
+  // The flights tab starts where the agency's flights start, same as the package tab's
+  // `origins` default — an empty "From" made every visitor re-type the one obvious answer.
+  const [flightFrom, setFlightFrom] = useState(`${airportLabel(DEFAULT_ORIGIN)} (${DEFAULT_ORIGIN})`);
   const [flightTo, setFlightTo] = useState('');
   const [flightDate, setFlightDate] = useState('');
   const [flightReturnDate, setFlightReturnDate] = useState('');
@@ -222,9 +227,6 @@ export default function Hero() {
 
   const searchBarRef = useRef(null);
   const flightsRef = useRef(null);
-  const packageDateRef = useRef(null);
-  const flightDateRef = useRef(null);
-  const flightReturnRef = useRef(null);
   const multiDateRef = useRef(null);
 
   useEffect(() => {
@@ -316,6 +318,9 @@ export default function Hero() {
       rooms:    String(roomsList.length),
     });
     qs.set('duration', band.label);
+    // "± 2 days" travels with the search rather than being forgotten at the calendar: the
+    // results page reads the dates it is given, and this says how firm those dates are.
+    if (flexDays > 0) qs.set('flex', String(flexDays));
     // The results "Travel time" filter reads these as NIGHTS, so convert the band's day range.
     qs.set('minNights', String(daysToNights(band.minDays)));
     qs.set('maxNights', String(daysToNights(band.maxDays)));
@@ -386,8 +391,14 @@ export default function Hero() {
 
   const travelersDetail = `${totalAdults} adult${totalAdults > 1 ? 's' : ''}${totalChildren > 0 ? `, ${totalChildren} child${totalChildren > 1 ? 'ren' : ''}` : ''} · ${roomsLabel}`;
 
-  const flightTotalTravelers = flightAdults + flightChildren + flightInfants;
-  const flightTravelersLabel = `${flightTotalTravelers} Traveller${flightTotalTravelers > 1 ? 's' : ''}, ${cabinClass}`;
+  // "1 Adult · Economy" / "2 Adults, 1 Child · Business" — the party spelled out rather than
+  // totalled, because who is flying changes the fare as much as how many.
+  const flightPaxLabel = [
+    `${flightAdults} Adult${flightAdults > 1 ? 's' : ''}`,
+    flightChildren ? `${flightChildren} Child${flightChildren > 1 ? 'ren' : ''}` : '',
+    flightInfants ? `${flightInfants} Infant${flightInfants > 1 ? 's' : ''}` : '',
+  ].filter(Boolean).join(', ');
+  const flightTravelersLabel = `${flightPaxLabel} · ${cabinClass}`;
 
   const formatDate = (dateStr) => {
     if (!dateStr) return null;
@@ -395,11 +406,44 @@ export default function Hero() {
     return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
+  /**
+   * Split an airport string into the two lines the field shows: the short name with its code
+   * on the value line, the full name underneath. "Brussels Airport (BRU)" reads as
+   * "Brussels (BRU)" over "Brussels Airport"; "Hurghada, Egypt (HRG)" as "Hurghada (HRG)"
+   * over "Hurghada, Egypt". Anything that isn't in that shape is left alone.
+   */
+  const airportParts = (str) => {
+    const m = /^(.*?)\s*\(([A-Za-z]{3})\)$/.exec(String(str || '').trim());
+    if (!m) return { value: str || '', hint: '' };
+    const full = m[1];
+    const short = full.split(',')[0].replace(/\s+Airport$/i, '').trim() || full;
+    return { value: `${short} (${m[2].toUpperCase()})`, hint: full };
+  };
+  const fromParts = airportParts(flightFrom);
+  const toParts   = airportParts(flightTo);
+
   // "Flying from" field text: one airport reads as itself, several read as a count —
   // "4 airports" tells the traveller their whole selection is held, in space one name takes.
   const originsLabel = origins.length === 1
     ? `${airportCity(origins[0])} (${origins[0]})`
     : `${origins.length} airports`;
+
+  // Second line under each field's value: what the field is FOR, in the traveller's words.
+  // Where the answer is already known it says the answer instead of the instruction — the
+  // "Flying from" hint names the airport whose code sits above it.
+  const originsHint = transport === 'hotel_only'
+    ? 'No flight, hotel only'
+    : origins.length === 1 ? airportLabel(origins[0]) : `${origins.length} airports selected`;
+  const dateHint = flexDays > 0
+    ? `Flexible ± ${flexDays} day${flexDays > 1 ? 's' : ''}`
+    : 'Select departure date';
+
+  // The little chevron on the fields that open a panel — pointing down, and up while open.
+  const caret = (open) => (
+    <svg className={`${styles.sfCaret} ${open ? styles.sfCaretOpen : ''}`} width="16" height="16"
+      viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+  );
 
   // One airport row of the picker — a CHECKBOX, not a radio: several can be on at once,
   // and clicking one must not close the panel mid-selection.
@@ -424,25 +468,34 @@ export default function Hero() {
   const stayFields = (
     <>
       <div className={styles.sfDivider} />
-      <div className={styles.sf} onClick={() => packageDateRef.current?.showPicker()}>
-        <span className={styles.sfIcon}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-        </span>
-        <div className={styles.sfText}>
+      {/* Departure — opens the site's own two-month calendar (components/DateCalendar), not
+          the browser's date picker, so the ± flexible-days choice can sit beside the dates. */}
+      <div className={`${styles.sf} ${openField === 'date' ? styles.sfActive : ''}`} onClick={() => toggleField('date')}>
+        <div className={styles.sfHead}>
+          <span className={styles.sfIcon}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+          </span>
           <span className={styles.sfLabel}>Departure</span>
-          <span className={`${styles.sfValue} ${!date ? styles.sfPlaceholder : ''}`}>{formatDate(date) || 'Pick a date'}</span>
         </div>
-        <input ref={packageDateRef} type="date" className={styles.hiddenDateInput} value={date} onChange={(e) => setDate(e.target.value)} tabIndex={-1} />
+        <div className={styles.sfBody}>
+          <span className={`${styles.sfValue} ${!date ? styles.sfPlaceholder : ''}`}>{formatDate(date) || 'Pick a date'}</span>
+          {caret(openField === 'date')}
+        </div>
+        <span className={styles.sfHint}>{dateHint}</span>
       </div>
       <div className={styles.sfDivider} />
       <div className={`${styles.sf} ${openField === 'duration' ? styles.sfActive : ''}`} onClick={() => toggleField('duration')}>
-        <span className={styles.sfIcon}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
-        </span>
-        <div className={styles.sfText}>
+        <div className={styles.sfHead}>
+          <span className={styles.sfIcon}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+          </span>
           <span className={styles.sfLabel}>Duration</span>
-          <span className={styles.sfValue}>{duration}</span>
         </div>
+        <div className={styles.sfBody}>
+          <span className={styles.sfValue}>{duration}</span>
+          {caret(openField === 'duration')}
+        </div>
+        <span className={styles.sfHint}>Choose length of stay</span>
       </div>
       <div className={styles.sfDivider} />
       {/* Flying from — the transport decision made HERE travels the whole journey:
@@ -453,13 +506,17 @@ export default function Hero() {
           the middle of the bar, nowhere near the control that opened it. stopPropagation
           keeps clicks inside the panel from re-toggling the field shut. */}
       <div className={`${styles.sf} ${openField === 'transport' ? styles.sfActive : ''}`} onClick={() => toggleField('transport')}>
-        <span className={styles.sfIcon}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-        </span>
-        <div className={styles.sfText}>
+        <div className={styles.sfHead}>
+          <span className={styles.sfIcon}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+          </span>
           <span className={styles.sfLabel}>Flying from</span>
-          <span className={styles.sfValue}>{transport === 'hotel_only' ? 'Hotel only' : originsLabel}</span>
         </div>
+        <div className={styles.sfBody}>
+          <span className={styles.sfValue}>{transport === 'hotel_only' ? 'Hotel only' : originsLabel}</span>
+          {caret(openField === 'transport')}
+        </div>
+        <span className={styles.sfHint}>{originsHint}</span>
         {openField === 'transport' && (
           <div className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
             <div className={styles.tspTabs} role="radiogroup" aria-label="Transport mode">
@@ -499,19 +556,35 @@ export default function Hero() {
       </div>
       <div className={styles.sfDivider} />
       <div className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`} onClick={() => toggleField('travelers')}>
-        <span className={styles.sfIcon}>
-          <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
-        </span>
-        <div className={styles.sfText}>
-          <span className={styles.sfLabel}>Travelers</span>
+        <div className={styles.sfHead}>
+          <span className={styles.sfIcon}>
+            <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
+          </span>
+          <span className={styles.sfLabel}>Travellers &amp; rooms</span>
+        </div>
+        <div className={styles.sfBody}>
           <span className={styles.sfValue}>{travelersLabel}</span>
         </div>
+        <span className={styles.sfHint}>Change travellers &amp; rooms</span>
       </div>
     </>
   );
 
   const stayDropdowns = (
     <>
+      {openField === 'date' && (
+        <div className={`${styles.dropdown} ${styles.calDropdown}`}>
+          <DateCalendar
+            value={date}
+            onChange={setDate}
+            min={todayISO}
+            months={2}
+            flex={flexDays}
+            onFlexChange={setFlexDays}
+            onDone={() => setOpenField(null)}
+          />
+        </div>
+      )}
       {openField === 'duration' && (
         <div className={`${styles.dropdown} ${styles.durDropdown}`}>
           <div className={styles.durList}>
@@ -661,11 +734,13 @@ export default function Hero() {
               className={`${styles.sf} ${styles.sfDest} ${destModalOpen ? styles.sfActive : ''}`}
               onClick={openDestModal}
             >
-              <span className={styles.sfIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              </span>
-              <div className={styles.sfText}>
+              <div className={styles.sfHead}>
+                <span className={styles.sfIcon}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </span>
                 <span className={styles.sfLabel}>Destination</span>
+              </div>
+              <div className={styles.sfBody}>
                 <span className={`${styles.sfValue} ${!destinationLabel ? styles.sfPlaceholder : ''}`}>
                   {destFlags.length > 0 && (
                     <span className={styles.sfFlags}>
@@ -679,6 +754,7 @@ export default function Hero() {
                   {destinationLabel || 'Where to?'}
                 </span>
               </div>
+              <span className={styles.sfHint}>Search city, region or hotel</span>
             </div>
             {stayFields}
             <button className={styles.searchBtn} onClick={handleSearch}>
@@ -693,55 +769,61 @@ export default function Hero() {
         {/* ── FLIGHTS ONLY SEARCH ── */}
         {searchMode === 'flights' && (
         <div className={styles.flightsWrap} ref={flightsRef}>
-          <div className={styles.tripTypeRow}>
-            <button
-              className={`${styles.tripTypeOpt} ${tripType === 'oneway' ? styles.tripTypeOptActive : ''}`}
-              onClick={() => setTripType('oneway')}
-            >
-              <div className={styles.tripRadio} />
-              One Way
-            </button>
-            <button
-              className={`${styles.tripTypeOpt} ${tripType === 'roundtrip' ? styles.tripTypeOptActive : ''}`}
-              onClick={() => setTripType('roundtrip')}
-            >
-              <div className={styles.tripRadio} />
-              Round Trip
-            </button>
-            <button
-              className={`${styles.tripTypeOpt} ${tripType === 'multicity' ? styles.tripTypeOptActive : ''}`}
-              onClick={() => setTripType('multicity')}
-            >
-              <div className={styles.tripRadio} />
-              Multi City
-            </button>
-            <div className={styles.tripTypeDivider} />
-            <button
-              className={`${styles.directCheck} ${directOnly ? styles.directCheckActive : ''}`}
-              onClick={() => setDirectOnly((v) => !v)}
-            >
-              <div className={styles.directCb}>
-                {directOnly && (
-                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#070E1F" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                )}
-              </div>
-              Direct flights only
-            </button>
-          </div>
-
           <div className={styles.flightSearchCard}>
+            {/* Trip type + "direct only" ride INSIDE the card now, on their own line above the
+                fields — they qualify this search, so they belong to it rather than floating
+                above it as a separate chip. */}
+            <div className={styles.flightHead}>
+              <div className={styles.tripTabs} role="tablist" aria-label="Trip type">
+                {[
+                  { id: 'roundtrip', label: 'Round trip' },
+                  { id: 'oneway',    label: 'One way' },
+                  { id: 'multicity', label: 'Multi-city' },
+                ].map((t) => (
+                  <button
+                    key={t.id}
+                    role="tab"
+                    aria-selected={tripType === t.id}
+                    className={`${styles.tripTab} ${tripType === t.id ? styles.tripTabOn : ''}`}
+                    onClick={() => { setTripType(t.id); setOpenField(null); }}
+                  >
+                    {t.label}
+                  </button>
+                ))}
+              </div>
+              <button
+                className={`${styles.directCheck} ${directOnly ? styles.directCheckActive : ''}`}
+                onClick={() => setDirectOnly((v) => !v)}
+                aria-pressed={directOnly}
+              >
+                <span className={styles.directCb}>
+                  {directOnly && (
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  )}
+                </span>
+                Direct flights only
+                <span className={styles.infoDot} title="Hides any flight with a stopover — fewer results, no connections.">
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+                </span>
+              </button>
+            </div>
+
+            <div className={styles.flightRow}>
             {/* Departing From */}
             <div
               className={`${styles.sf} ${openField === 'flightFrom' ? styles.sfActive : ''}`}
               onClick={() => toggleField('flightFrom')}
             >
-              <span className={styles.sfIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-              </span>
-              <div className={styles.sfText}>
+              <div className={styles.sfHead}>
+                <span className={styles.sfIcon}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+                </span>
                 <span className={styles.sfLabel}>From</span>
-                <span className={`${styles.sfValue} ${!flightFrom ? styles.sfPlaceholder : ''}`}>{flightFrom || 'Select airport'}</span>
               </div>
+              <div className={styles.sfBody}>
+                <span className={`${styles.sfValue} ${!flightFrom ? styles.sfPlaceholder : ''}`}>{fromParts.value || 'Select airport'}</span>
+              </div>
+              <span className={styles.sfHint}>{fromParts.hint || 'Search city or airport'}</span>
             </div>
 
             {/* Swap */}
@@ -755,40 +837,40 @@ export default function Hero() {
 
             {/* Going To */}
             <div
-              className={`${styles.sf} ${openField === 'flightTo' ? styles.sfActive : ''}`}
+              className={`${styles.sf} ${styles.sfTo} ${openField === 'flightTo' ? styles.sfActive : ''}`}
               onClick={() => toggleField('flightTo')}
             >
-              <span className={styles.sfIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-              </span>
-              <div className={styles.sfText}>
+              <div className={styles.sfHead}>
+                <span className={styles.sfIcon}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                </span>
                 <span className={styles.sfLabel}>To</span>
-                <span className={`${styles.sfValue} ${!flightTo ? styles.sfPlaceholder : ''}`}>{flightTo || 'Select destination'}</span>
               </div>
+              <div className={styles.sfBody}>
+                <span className={`${styles.sfValue} ${!flightTo ? styles.sfPlaceholder : ''}`}>{toParts.value || 'Where do you want to go?'}</span>
+              </div>
+              <span className={styles.sfHint}>{toParts.hint || 'Search city or airport'}</span>
             </div>
 
             <div className={styles.sfDivider} />
 
-            {/* Departure Date */}
+            {/* Departure Date — same calendar as the package tab, minus the ± strip: a flight
+                search prices one day, so there is nothing to be flexible about here yet. */}
             <div
-              className={styles.sf}
-              onClick={() => flightDateRef.current?.showPicker()}
+              className={`${styles.sf} ${openField === 'flightDate' ? styles.sfActive : ''}`}
+              onClick={() => toggleField('flightDate')}
             >
-              <span className={styles.sfIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-              </span>
-              <div className={styles.sfText}>
-                <span className={styles.sfLabel}>Depart</span>
-                <span className={`${styles.sfValue} ${!flightDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightDate) || 'Select date'}</span>
+              <div className={styles.sfHead}>
+                <span className={styles.sfIcon}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                </span>
+                <span className={styles.sfLabel}>Departure</span>
               </div>
-              <input
-                ref={flightDateRef}
-                type="date"
-                className={styles.hiddenDateInput}
-                value={flightDate}
-                onChange={(e) => setFlightDate(e.target.value)}
-                tabIndex={-1}
-              />
+              <div className={styles.sfBody}>
+                <span className={`${styles.sfValue} ${!flightDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightDate) || 'Select date'}</span>
+                {caret(openField === 'flightDate')}
+              </div>
+              <span className={styles.sfHint}>Add departure date</span>
             </div>
 
             {/* Return Date (round trip only) */}
@@ -796,25 +878,20 @@ export default function Hero() {
               <>
                 <div className={styles.sfDivider} />
                 <div
-                  className={styles.sf}
-                  onClick={() => flightReturnRef.current?.showPicker()}
+                  className={`${styles.sf} ${openField === 'flightReturn' ? styles.sfActive : ''}`}
+                  onClick={() => toggleField('flightReturn')}
                 >
-                  <span className={styles.sfIcon}>
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                  </span>
-                  <div className={styles.sfText}>
+                  <div className={styles.sfHead}>
+                    <span className={styles.sfIcon}>
+                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                    </span>
                     <span className={styles.sfLabel}>Return</span>
-                    <span className={`${styles.sfValue} ${!flightReturnDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightReturnDate) || 'Select date'}</span>
                   </div>
-                  <input
-                    ref={flightReturnRef}
-                    type="date"
-                    className={styles.hiddenDateInput}
-                    value={flightReturnDate}
-                    min={flightDate || undefined}
-                    onChange={(e) => setFlightReturnDate(e.target.value)}
-                    tabIndex={-1}
-                  />
+                  <div className={styles.sfBody}>
+                    <span className={`${styles.sfValue} ${!flightReturnDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightReturnDate) || 'Select date'}</span>
+                    {caret(openField === 'flightReturn')}
+                  </div>
+                  <span className={styles.sfHint}>Add return date</span>
                 </div>
               </>
             )}
@@ -823,22 +900,26 @@ export default function Hero() {
 
             {/* Travellers & Class */}
             <div
-              className={`${styles.sf} ${openField === 'flightTravelers' ? styles.sfActive : ''}`}
+              className={`${styles.sf} ${styles.sfTravelers} ${openField === 'flightTravelers' ? styles.sfActive : ''}`}
               onClick={() => toggleField('flightTravelers')}
             >
-              <span className={styles.sfIcon}>
-                <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-              </span>
-              <div className={styles.sfText}>
-                <span className={styles.sfLabel}>Travellers</span>
+              <div className={styles.sfHead}>
+                <span className={styles.sfIcon}>
+                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+                </span>
+                <span className={styles.sfLabel}>Travellers &amp; class</span>
+              </div>
+              <div className={styles.sfBody}>
                 <span className={styles.sfValue}>{flightTravelersLabel}</span>
               </div>
+              <span className={styles.sfHint}>Change travellers &amp; class</span>
             </div>
 
             <button className={styles.searchBtn} onClick={handleFlightSearch}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
               {cmsSearchBtn}
             </button>
+            </div>
           </div>
 
           {/* Multi-city second row */}
@@ -848,13 +929,16 @@ export default function Hero() {
                 className={`${styles.sf} ${openField === 'multiFrom' ? styles.sfActive : ''}`}
                 onClick={() => toggleField('multiFrom')}
               >
-                <span className={styles.sfIcon}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-                </span>
-                <div className={styles.sfText}>
+                <div className={styles.sfHead}>
+                  <span className={styles.sfIcon}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+                  </span>
                   <span className={styles.sfLabel}>From</span>
+                </div>
+                <div className={styles.sfBody}>
                   <span className={`${styles.sfValue} ${!multiFrom ? styles.sfPlaceholder : ''}`}>{multiFrom || 'Select airport'}</span>
                 </div>
+                <span className={styles.sfHint}>Search city or airport</span>
               </div>
               <button
                 className={styles.flightSwapBtn}
@@ -863,29 +947,35 @@ export default function Hero() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16l-4-4 4-4"/><path d="M17 8l4 4-4 4"/><path d="M3 12h18"/></svg>
               </button>
               <div
-                className={`${styles.sf} ${openField === 'multiTo' ? styles.sfActive : ''}`}
+                className={`${styles.sf} ${styles.sfTo} ${openField === 'multiTo' ? styles.sfActive : ''}`}
                 onClick={() => toggleField('multiTo')}
               >
-                <span className={styles.sfIcon}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                </span>
-                <div className={styles.sfText}>
+                <div className={styles.sfHead}>
+                  <span className={styles.sfIcon}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+                  </span>
                   <span className={styles.sfLabel}>To</span>
+                </div>
+                <div className={styles.sfBody}>
                   <span className={`${styles.sfValue} ${!multiTo ? styles.sfPlaceholder : ''}`}>{multiTo || 'Select destination'}</span>
                 </div>
+                <span className={styles.sfHint}>Search city or airport</span>
               </div>
               <div className={styles.sfDivider} />
               <div
                 className={styles.sf}
                 onClick={() => multiDateRef.current?.showPicker()}
               >
-                <span className={styles.sfIcon}>
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                </span>
-                <div className={styles.sfText}>
-                  <span className={styles.sfLabel}>Depart</span>
+                <div className={styles.sfHead}>
+                  <span className={styles.sfIcon}>
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+                  </span>
+                  <span className={styles.sfLabel}>Departure</span>
+                </div>
+                <div className={styles.sfBody}>
                   <span className={`${styles.sfValue} ${!multiDate ? styles.sfPlaceholder : ''}`}>{formatDate(multiDate) || 'Select date'}</span>
                 </div>
+                <span className={styles.sfHint}>Add departure date</span>
                 <input
                   ref={multiDateRef}
                   type="date"
@@ -895,48 +985,62 @@ export default function Hero() {
                   tabIndex={-1}
                 />
               </div>
-              <div className={styles.sfDivider} />
-              <div className={styles.addFlightLabel}>+ ADD FLIGHT</div>
+              <div className={`${styles.sfDivider} ${styles.sfDividerSpacer}`} />
+              {/* Empty stand-in for the travellers column of the row above — a second leg
+                  flies the same party, so there is nothing to ask here. */}
+              <div className={styles.addFlightSpacer} aria-hidden="true" />
+              <button type="button" className={styles.addFlightBtn}>+ Add flight</button>
             </div>
           )}
 
           {/* ── FLIGHT DROPDOWNS ── */}
 
+          {(openField === 'flightDate' || openField === 'flightReturn') && (
+            <div className={`${styles.flightDropdown} ${styles.calDropdownFlight}`}>
+              <DateCalendar
+                value={openField === 'flightDate' ? flightDate : flightReturnDate}
+                onChange={(iso) => {
+                  if (openField === 'flightDate') {
+                    setFlightDate(iso);
+                    // A return already sitting before the new outbound is no longer a return —
+                    // clear it rather than searching a trip that comes home before it leaves.
+                    if (flightReturnDate && flightReturnDate < iso) setFlightReturnDate('');
+                  } else {
+                    setFlightReturnDate(iso);
+                  }
+                }}
+                min={openField === 'flightReturn' ? (flightDate || todayISO) : todayISO}
+                months={2}
+                onDone={() => setOpenField(null)}
+              />
+            </div>
+          )}
+
           {/* Departing From dropdown */}
           {openField === 'flightFrom' && (
             <div className={styles.flightDropdown}>
-              <div className={styles.destGrid}>
-                {AIRPORTS.map((a) => (
-                  <div
-                    key={a.code}
-                    className={`${styles.destItem} ${flightFrom === `${a.label} (${a.code})` ? styles.destItemActive : ''}`}
-                    onClick={() => { setFlightFrom(`${a.label} (${a.code})`); setOpenField(null); }}
-                  >
-                    <span>{a.country}</span>
-                    <span>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
+              <AirportSearch
+                title="Departing from"
+                placeholder="City or airport you fly from"
+                fallback={DEPARTURE_OPTIONS}
+                fallbackLabel="Popular departure airports"
+                onPick={(a) => setFlightFrom(airportToValue(a))}
+                onClose={() => setOpenField(null)}
+              />
             </div>
           )}
 
           {/* Going To dropdown */}
           {openField === 'flightTo' && (
             <div className={styles.flightDropdown}>
-              <div className={styles.destGrid}>
-                {FLIGHT_DESTINATIONS.map((a) => (
-                  <div
-                    key={a.code}
-                    className={`${styles.destItem} ${flightTo === `${a.label} (${a.code})` ? styles.destItemActive : ''}`}
-                    onClick={() => { setFlightTo(`${a.label} (${a.code})`); setOpenField(null); }}
-                  >
-                    <span>{a.country}</span>
-                    <span>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
+              <AirportSearch
+                title="Going to"
+                placeholder="City or airport you fly to"
+                fallback={DESTINATION_OPTIONS}
+                fallbackLabel="Popular destinations"
+                onPick={(a) => setFlightTo(airportToValue(a))}
+                onClose={() => setOpenField(null)}
+              />
             </div>
           )}
 
@@ -996,38 +1100,28 @@ export default function Hero() {
           {/* Multi-city from dropdown */}
           {openField === 'multiFrom' && (
             <div className={styles.flightDropdown}>
-              <div className={styles.destGrid}>
-                {AIRPORTS.map((a) => (
-                  <div
-                    key={a.code}
-                    className={`${styles.destItem} ${multiFrom === `${a.label} (${a.code})` ? styles.destItemActive : ''}`}
-                    onClick={() => { setMultiFrom(`${a.label} (${a.code})`); setOpenField(null); }}
-                  >
-                    <span>{a.country}</span>
-                    <span>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
+              <AirportSearch
+                title="Departing from"
+                placeholder="City or airport you fly from"
+                fallback={DEPARTURE_OPTIONS}
+                fallbackLabel="Popular departure airports"
+                onPick={(a) => setMultiFrom(airportToValue(a))}
+                onClose={() => setOpenField(null)}
+              />
             </div>
           )}
 
           {/* Multi-city to dropdown */}
           {openField === 'multiTo' && (
             <div className={styles.flightDropdown}>
-              <div className={styles.destGrid}>
-                {FLIGHT_DESTINATIONS.map((a) => (
-                  <div
-                    key={a.code}
-                    className={`${styles.destItem} ${multiTo === `${a.label} (${a.code})` ? styles.destItemActive : ''}`}
-                    onClick={() => { setMultiTo(`${a.label} (${a.code})`); setOpenField(null); }}
-                  >
-                    <span>{a.country}</span>
-                    <span>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
+              <AirportSearch
+                title="Going to"
+                placeholder="City or airport you fly to"
+                fallback={DESTINATION_OPTIONS}
+                fallbackLabel="Popular destinations"
+                onPick={(a) => setMultiTo(airportToValue(a))}
+                onClose={() => setOpenField(null)}
+              />
             </div>
           )}
 

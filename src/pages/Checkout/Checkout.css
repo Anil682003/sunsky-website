@@ -480,7 +480,7 @@
   text-transform:uppercase; letter-spacing:.6px; color:var(--text-light); margin:16px 0 9px; }
 .ck-sum-sec svg { width:13px; height:13px; color:var(--blue); }
 .ck-sum-flight { display:flex; flex-direction:column; gap:7px; }
-.ck-sum-leg { display:flex; align-items:center; gap:9px; font-size:12px; }
+.ck-sum-leg { display:flex; align-items:center; flex-wrap:wrap; gap:6px 9px; font-size:12px; }
 .ck-sum-leg-dir { width:34px; text-align:center; padding:2.5px 0; border-radius:6px; background:var(--blue-bg); color:var(--blue);
   font-size:9.5px; font-weight:800; letter-spacing:.5px; flex-shrink:0; }
 .ck-sum-leg-dir.ret { background:var(--sun-warm); color:#c47207; }
@@ -492,14 +492,19 @@
    The initial fallback keeps the blue tile it wears everywhere else; a real logo drops the tile
    (see .air-logo) because airline marks come in every colour and painting one on our blue made
    half of them unreadable. */
-.ck-sum-leg-air { margin-left:auto; flex-shrink:0; width:20px; height:20px; border-radius:5px;
+.ck-sum-leg-air { flex-shrink:0; width:28px; height:28px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff;
-  font-size:10px; font-weight:800; }
-/* Wide, because these are wordmarks and not roundels: the median supplied logo is three and a
-   half times wider than it is tall. Pinned RIGHT here, since the mark ends the row. */
-img.ck-sum-leg-air { width:72px; height:22px; background:none; border-radius:0;
-  object-fit:contain; object-position:right center; }
+  font-size:12px; font-weight:800; }
+/* Round, with the name ahead of it. A wordmark inside a 20px circle is a smudge — which is
+   exactly why AirlineMark prints the carrier's name first; the circle is the glance, the
+   name is the fact. White ground so marks of every colour stay legible. */
+img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padding:1px;
+  object-fit:contain; object-position:center; }
+/* The carrier group ends the leg row. It wraps to its own line rather than squeezing the
+   name into an ellipsis beside the route. */
+.ck-sum-leg-carrier { margin-left:auto; display:inline-flex; align-items:center; gap:6px; min-width:0; }
+.ck-sum-leg-airname { font-size:11px; font-weight:700; color:var(--text-sec); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .ck-sum-room { display:flex; flex-direction:column; gap:1px; font-size:13px; font-weight:700; }
 .ck-sum-room small { font-size:11.5px; font-weight:500; color:var(--text-sec); }
 .ck-sum-rows { display:flex; flex-direction:column; }
@@ -712,15 +717,16 @@ img.ck-sum-leg-air { width:72px; height:22px; background:none; border-radius:0;
    would then be sent. Wrapping the display keeps the data exactly as quoted. */
 .ck-caps { text-transform:uppercase; }
 .ck-ov-sub { font-size:12.5px; color:var(--text-sec); line-height:1.6; }
-/* Carrier line on the review step: mark then name, on one baseline. `inline-flex` rather than
+/* Carrier line on the review step: name then mark, on one baseline. `inline-flex` rather than
    block, so it keeps sitting under the route line the way the plain name always did. */
 .ck-ov-air { display:inline-flex; align-items:center; gap:7px; }
-.ck-air-mark { flex-shrink:0; width:20px; height:20px; border-radius:5px;
+.ck-air-mark { flex-shrink:0; width:32px; height:32px; border-radius:50%;
   display:inline-flex; align-items:center; justify-content:center;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff;
-  font-size:10px; font-weight:800; }
-img.ck-air-mark { width:80px; height:25px; background:none; border-radius:0;
-  object-fit:contain; object-position:left center; }
+  font-size:13px; font-weight:800; }
+img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding:2px;
+  object-fit:contain; object-position:center; }
+.ck-air-name { font-size:12.5px; font-weight:700; color:var(--text); }
 .ck-ov-flights { display:flex; flex-direction:column; gap:12px; }
 .ck-ov-flight { display:flex; flex-direction:column; gap:2px; }
 .ck-ov-dir { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); }

@@ -1,5 +1,5 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
@@ -197,5 +197,219 @@ describe('green marks the flight you chose, and only that one', () => {
     expect(cheapest.classList.contains('cheapest')).toBe(true);
     // Still exactly one green card on screen — the whole point.
     expect(modalCards(container).filter((c) => c.classList.contains('selected'))).toHaveLength(1);
+  });
+});
+
+// ── What a card now says about ITSELF ─────────────────────────────────────────
+// The list is a choice between the flight the traveller is holding and the others, so each
+// card names which it is, and prices itself against the one currently held rather than
+// against the cheapest. "€1,150" answers nothing on its own; "+ €38 to your package price"
+// is the number the decision is actually made on.
+describe('a card says whether it is the one you have, and what switching costs', () => {
+  it('labels the held flight and the alternatives', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(2));
+
+    const [held, alt] = modalCards(container);
+    expect(held.querySelector('.fc-status-label').textContent).toMatch(/currently selected/i);
+    expect(alt.querySelector('.fc-status-label').textContent).toMatch(/alternative flight/i);
+  });
+
+  it('prices each alternative against the flight currently held', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(2));
+
+    const [held, alt] = modalCards(container);
+    // €1,112 held, €1,150 alternative.
+    expect(held.querySelector('.fc-impact').textContent).toMatch(/no change to your package price/i);
+    expect(alt.querySelector('.fc-impact').textContent).toContain('38');
+    expect(alt.querySelector('.fc-impact').className).toContain('up');
+  });
+
+  it('re-reckons every card the moment a different flight is chosen', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(2));
+
+    await user.click(modalCards(container)[1].querySelector('.flight-select-btn'));
+
+    await waitFor(() => {
+      const [cheaper, nowHeld] = modalCards(container);
+      // The dearer flight is now the baseline, so the cheaper one is a SAVING, not a cost.
+      expect(nowHeld.querySelector('.fc-impact').textContent).toMatch(/no change/i);
+      expect(cheaper.querySelector('.fc-impact').className).toContain('down');
+      expect(cheaper.querySelector('.fc-impact').textContent).toContain('38');
+    });
+  });
+
+  it('marks the cheapest fare in words, and gives the held card the way out', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(2));
+
+    const [held, alt] = modalCards(container);
+    expect(held.textContent).toMatch(/lowest fare/i);
+    // The card you already have offers no "select" — it offers the badge saying you have it.
+    expect(held.querySelector('.flight-select-btn')).toBeNull();
+    expect(held.querySelector('.flight-selected-badge')).not.toBeNull();
+    expect(alt.querySelector('.flight-select-btn').textContent).toMatch(/select this flight/i);
+  });
+});
+
+// A red-eye lands the morning AFTER it took off. "12:35 … 01:50" with nothing between them
+// reads as a flight that arrives before it leaves, and a traveller booking an airport
+// transfer off that time books it for the wrong day.
+describe('an overnight arrival says which day it lands', () => {
+  const ORIGINAL_FLIGHTS = FLIGHTS;
+  beforeEach(() => {
+    FLIGHTS = [{
+      totalPrice: 1121, currency: 'EUR', flightKeys: ['red-eye'],
+      baggage: { checkedKg: 25, checkedPieces: 0, handKg: 0 },
+      outbound: { legs: [
+        { from: 'BRU', to: 'SAW', airline: 'TK', flightNumber: '1942', departure: `${CHECK_IN}T12:35:00`, arrival: `${CHECK_IN}T17:20:00`, duration: 285 },
+        { from: 'SAW', to: 'ADB', airline: 'TK', flightNumber: '2318', departure: `${CHECK_IN}T23:40:00`, arrival: `${iso(31)}T01:50:00`, duration: 70 },
+      ] },
+      inbound: { legs: [RET_1125] },
+    }];
+  });
+  afterEach(() => { FLIGHTS = ORIGINAL_FLIGHTS; });
+
+  it('marks the arrival "+1 day"', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(1));
+
+    const outbound = modalCards(container)[0].querySelector('.bp-journey');
+    expect(outbound.textContent).toContain('01:50');
+    expect(outbound.querySelector('.bp-nextday').textContent).toBe('+1 day');
+  });
+
+  it('says nothing on a flight that lands the same day', async () => {
+    FLIGHTS = [fare(1112, OUT_1740, 'same-day')];
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(1));
+    expect(modalCards(container)[0].querySelector('.bp-nextday')).toBeNull();
+  });
+});
+
+// ── The filter rail ───────────────────────────────────────────────────────────
+// Every group is built from the live result set and offered only when it could change the
+// list. These three flights differ in exactly the ways the rail filters on.
+describe('the filter rail acts on the live results', () => {
+  const ORIGINAL_FLIGHTS = FLIGHTS;
+  const OUT_VIA_IST_1 = { from: 'BRU', to: 'IST', airline: 'TK', flightNumber: '1940', departure: `${CHECK_IN}T09:00:00`, arrival: `${CHECK_IN}T13:00:00`, duration: 240 };
+  const OUT_VIA_IST_2 = { from: 'IST', to: 'ADB', airline: 'TK', flightNumber: '2312', departure: `${CHECK_IN}T15:00:00`, arrival: `${CHECK_IN}T16:10:00`, duration: 70 };
+
+  beforeEach(() => {
+    FLIGHTS = [
+      // SunExpress, direct, 20kg hold bag.
+      fare(1112, OUT_1740, 'k-direct-bags'),
+      // SunExpress, direct, hand luggage only — a different purchase at a lower price.
+      { ...fare(980, OUT_0615, 'k-direct-nobags'), baggage: { checkedKg: 0, checkedPieces: 0, handKg: 0 } },
+      // Turkish, one stop, 20kg.
+      { ...fare(1240, OUT_1740, 'k-stop'), outbound: { legs: [OUT_VIA_IST_1, OUT_VIA_IST_2] } },
+    ];
+  });
+  afterEach(() => { FLIGHTS = ORIGINAL_FLIGHTS; });
+
+  // The rail lives inside the modal, which is display:none until it is opened — so these
+  // tests open it the way a traveller does rather than reaching into hidden markup.
+  const openFilters = async (user) => {
+    await runCheck(user);
+    await user.click(await screen.findByRole('button', { name: /change flight/i }));
+    await waitFor(() => expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(0));
+  };
+
+  it('keeps only the direct flights', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await openFilters(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(3));
+
+    await user.click(screen.getByRole('checkbox', { name: /direct flights/i }));
+    await waitFor(() => expect(modalCards(container).length).toBe(2));
+    expect(container.querySelector('.modal-flights').textContent).not.toContain('1,240');
+  });
+
+  it('keeps only the flights with a stop', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await openFilters(user);
+
+    await user.click(screen.getByRole('checkbox', { name: /flights with stop/i }));
+    await waitFor(() => expect(modalCards(container).length).toBe(1));
+    expect(container.querySelector('.modal-flights').textContent).toContain('1,240');
+  });
+
+  it('separates the fares that carry a hold bag from the one that does not', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await openFilters(user);
+
+    await user.click(screen.getByRole('checkbox', { name: /include baggage/i }));
+    await waitFor(() => expect(modalCards(container).length).toBe(2));
+
+    await user.click(screen.getByRole('checkbox', { name: /exclude baggage/i }));
+    await waitFor(() => expect(modalCards(container).length).toBe(1));
+    expect(container.querySelector('.modal-flights').textContent).toContain('980');
+  });
+
+  it('keeps the flights an airline actually operates', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await openFilters(user);
+
+    await user.click(screen.getByRole('checkbox', { name: /turkish airlines/i }));
+    await waitFor(() => expect(modalCards(container).length).toBe(1));
+    expect(container.querySelector('.modal-flights').textContent).toContain('1,240');
+  });
+
+  it('says how many of the results are left, and puts them all back', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await openFilters(user);
+
+    await user.click(screen.getByRole('checkbox', { name: /flights with stop/i }));
+    await waitFor(() => expect(screen.getByText(/1 of 3 flights match/i)).toBeInTheDocument());
+
+    await user.click(screen.getByRole('button', { name: /reset all/i }));
+    await waitFor(() => expect(modalCards(container).length).toBe(3));
+    expect(screen.getByText(/3 flights found/i)).toBeInTheDocument();
+  });
+
+  it('offers a departure-time range built from the real departures', async () => {
+    const user = userEvent.setup();
+    renderPage();
+    await openFilters(user);
+
+    // 06:15 is the earliest outbound in the set and 17:40 the latest — the slider is bounded
+    // by the flights that exist, not by a decorative midnight-to-midnight.
+    const earliest = await screen.findByRole('slider', { name: /outbound — earliest/i });
+    const latest = screen.getByRole('slider', { name: /outbound — latest/i });
+    expect(earliest).toHaveAttribute('min', String(6 * 60 + 15));
+    expect(latest).toHaveAttribute('max', String(17 * 60 + 40));
+  });
+
+  it('drops the flights leaving outside the chosen window', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await openFilters(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(3));
+
+    // Pull the late end back to 10:00: only the 06:15 and the 09:00 survive.
+    const latest = screen.getByRole('slider', { name: /outbound — latest/i });
+    fireEvent.change(latest, { target: { value: String(10 * 60) } });
+
+    await waitFor(() => expect(modalCards(container).length).toBe(2));
+    expect(container.querySelector('.modal-flights').textContent).not.toContain('1,112');
   });
 });
