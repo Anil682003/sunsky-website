@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
+import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import axiosInstance, { SUPPLIER_TIMEOUT } from '../../services/axiosInstance';
@@ -892,12 +893,18 @@ function FlightDetailsModal({ flight, onClose }) {
     return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey); };
   }, [onClose]);
 
-  return (
+  // PORTALLED TO THE BODY, and it has to be. Rendered where it sits in the tree it was a
+  // descendant of .flight-card (overflow:hidden, which clipped it) inside .flight-section and
+  // .tp, both of which carry a transform — and a transformed ancestor becomes the containing
+  // block for position:fixed, so "cover the viewport" instead meant "cover the card". The
+  // dialog measured 947x738 at y=1995 on a 1440x950 screen, with its own scrollbar, looking
+  // like a panel trapped in a box. Nothing in the page can clip it from here.
+  return createPortal((
     <div className="modal-overlay show fdm-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
       <div className="fdm" role="dialog" aria-modal="true" aria-label="Flight details">
         <div className="fdm-head">
           <div>
-            <div className="fdm-title">Flight info &amp; baggage</div>
+            <div className="fdm-title">Flight details</div>
             <div className="fdm-sub">Your selected flight</div>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Close">
@@ -950,7 +957,7 @@ function FlightDetailsModal({ flight, onClose }) {
         </div>
       </div>
     </div>
-  );
+  ), document.body);
 }
 
 /* ── Loading skeletons ──────────────────────────────────────────────────────────
