@@ -1051,17 +1051,19 @@
   letter-spacing:.09em; text-transform:uppercase; color:var(--dark); margin-bottom:16px;
 }
 .sd .fc-facts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:18px 0; }
-.sd .fcu-item { display:grid; grid-template-columns:44px 1fr; grid-template-rows:auto auto auto; column-gap:14px; padding:0 20px; min-width:0; }
-.sd .fcu-item + .fcu-item { border-left:1px solid var(--border-light); }
-.sd .fcu-item:first-child { padding-left:0; }
-.sd .fcu-ico {
+/* Scoped: the red card sets .fcu-item to flex further down, at equal specificity. */
+.sd .fc-facts .fcu-item { display:grid; grid-template-columns:44px 1fr; grid-template-rows:auto auto auto; column-gap:14px; padding:0 20px; min-width:0; }
+.sd .fc-facts .fcu-item + .fcu-item { border-left:1px solid var(--border-light); }
+.sd .fc-facts .fcu-item:first-child { padding-left:0; }
+.sd .fc-facts .fcu-ico {
   grid-row:1 / span 2; align-self:start;
   display:flex; align-items:center; justify-content:center;
   width:44px; height:44px; border-radius:50%;
   background:var(--blue-pale); color:var(--blue);
 }
-.sd .fcu-ico svg { width:20px; height:20px; }
+.sd .fc-facts .fcu-ico svg { width:20px; height:20px; }
 .sd .fc-facts .fcu-k {
+  display:block;
   align-self:end;
   font-size:11px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--blue);
   white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
@@ -1072,14 +1074,14 @@
   letter-spacing:-.01em; margin-top:3px; min-width:0;
 }
 .sd .fc-facts .fcu-sub { grid-column:2; font-size:12.5px; font-weight:500; color:var(--text-sec); margin-top:3px; }
-.sd .fcu-cta {
+.sd .fc-facts .fcu-cta {
   grid-column:2; justify-self:start; margin-top:11px;
   display:inline-flex; align-items:center; gap:7px;
   padding:9px 18px; border-radius:var(--r-full);
   border:1.5px solid var(--blue); color:var(--blue);
   font-size:12.5px; font-weight:700;
 }
-.sd .fcu-cta svg { width:14px; height:14px; }
+.sd .fc-facts .fcu-cta svg { width:14px; height:14px; }
 
 /* The one thing worth repeating at the foot: these numbers are live, not cached. */
 .sd .av-note {
@@ -1106,8 +1108,8 @@
   .sd .av-facts { gap:8px 16px; }
   .sd .fc-facts { padding:16px; }
   .sd .fc-facts-grid { grid-template-columns:1fr; gap:16px; }
-  .sd .fcu-item { padding:0; }
-  .sd .fcu-item + .fcu-item { border-left:none; border-top:1px solid var(--border-light); padding-top:16px; }
+  .sd .fc-facts .fcu-item { padding:0; }
+  .sd .fc-facts .fcu-item + .fcu-item { border-left:none; border-top:1px solid var(--border-light); padding-top:16px; }
 }
 
 /* Held back until there is something to be green about: colour is read before text, and a
@@ -2268,10 +2270,9 @@
   .sd .fc-col{flex:0 0 88px}
   .sd .fc-act{flex-direction:column;align-items:stretch;gap:12px;text-align:center}
   .sd .fc-cta{margin-left:0;padding:14px 24px;font-size:14px}
-  /* The head stacks and centres on a phone; the fact rows stay left-aligned — a
-     labelled list reads as a list only when the labels line up. */
-  .sd .fc-res-head{flex-direction:column;text-align:center}
-  .sd .fc-facts-grid{grid-template-columns:1fr 1fr;gap:12px}
+  /* One fact per row on a phone: two columns left 138px each, which a 44px badge plus a
+     label cannot live in. (.fc-res-head went with the availability card rebuild.) */
+  .sd .fc-facts-grid{grid-template-columns:1fr;gap:14px}
   .sd .tw{top:calc(var(--nav-h) + 4px)}
   .sd .bp-route{gap:8px}
   .sd .bp-time{font-size:20px}
