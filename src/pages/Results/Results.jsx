@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
-import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports } from '../../api/filters';
+import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackageFares } from '../../api/filters';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
@@ -18,7 +18,8 @@ import { nightsToDays } from '../../utils/durations';
 import { dobsMatchAges, ageAtCheckIn } from '../../utils/childDob';
 import { loadPax, savePax, hasPaxParams } from '../../utils/paxStore';
 import { earliestCheckInISO } from '../../utils/leadTime';
-import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
+import { DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
+import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { useToast } from '../../context/ToastContext';
 import styles from './Results.module.css';
 
@@ -117,6 +118,9 @@ const TRANSPORT_OPTIONS = [
   { value: 'hotel_only', label: 'Hotel only' },
   { value: 'package',    label: 'Incl. flight' },
 ];
+// Short label for a flight's Sunsky priority class (§23) on the package card.
+const FLIGHT_CLASS_LABEL = { direct: 'direct', one_stop: '1 stop', two_stop: '2 stops' };
+const flightClassLabel = (c) => FLIGHT_CLASS_LABEL[c] || '';
 const PRICE_BASIS_OPTIONS = [
   { value: 'total',     label: 'Total stay' },
   { value: 'perPerson', label: 'Per person' },
@@ -581,6 +585,23 @@ export default function Results() {
   // resolution below; the price fetch is gated on it.
   const [priceScope, setPriceScope]   = useState(null);
 
+  // ── DEPARTURE AIRPORTS ("Flying from") ──────────────────────────────────────────
+  // §25 master list from the admin dashboard (terminals.isDeparture), never hard-coded.
+  // §26 validity (hide airports with no flight to the chosen arrival airport) activates once
+  // the flight cache holds data for that arrival — until then the full master list shows.
+  const { popular: popularAirports, other: otherAirports } = useDepartureAirports({
+    destination: applied.arrival || undefined,
+    checkIn: fetchParams.checkIn,
+    checkOut: fetchParams.checkOut,
+    adults: fetchParams.adults,
+  });
+
+  // Flight fares for the package from-price (§33): cheapest eligible flight per arrival airport
+  // from the chosen departure airport. Keyed by arrival IATA; the card adds the fare for its
+  // own destination's airport to the cached hotel price. Empty until "Incl. flight" is on and
+  // the flight cache holds the route — then real package totals replace the hotel-only figure.
+  const [packageFares, setPackageFares] = useState({});
+
   // ── ARRIVAL AIRPORTS ("Flying to") ──────────────────────────────────────────────
   // Fetched, never hardcoded: the admin endpoint only returns airports linked to a
   // destination that actually has hotels, so every option narrows to something real.
@@ -747,6 +768,53 @@ export default function Results() {
     if (!arrivalAirports.length || !scopeDestSet.size) return [];
     return arrivalAirports.filter((a) => a.destinations.some((d) => scopeDestSet.has(d)));
   }, [arrivalAirports, scopeDestSet]);
+
+  // destinationCode → the arrival airports that serve it, so each hotel card can find the flight
+  // fare for its OWN destination (a country/multi-city page mixes destinations on one screen).
+  const destToArrivals = useMemo(() => {
+    const m = new Map();
+    for (const a of arrivalAirports) {
+      for (const d of a.destinations || []) {
+        if (!m.has(d)) m.set(d, []);
+        m.get(d).push(a.code);
+      }
+    }
+    return m;
+  }, [arrivalAirports]);
+
+  // Which arrival airports to price flights to: the one the traveller chose, else every airport
+  // serving the current scope. Stringified so the fetch effect only re-runs when the set changes.
+  const packageArrivalsKey = useMemo(
+    () => (applied.arrival ? [applied.arrival] : arrivalOptions.map((a) => a.code)).join(','),
+    [applied.arrival, arrivalOptions]
+  );
+
+  // Fetch the package flight fares whenever "Incl. flight" is on and we have an origin, dates and
+  // at least one arrival airport. One call per search feeds every card; on any failure the map
+  // stays empty and cards fall back to the honest hotel-only + "priced on hotel page" note.
+  useEffect(() => {
+    let live = true;
+    const ctrl = new AbortController();
+    // All setState happens inside run() (never synchronously in the effect body). Guarded so a
+    // missing/failing fares API (or a test mock without it) never breaks the page — cards simply
+    // fall back to the hotel-only + "priced on hotel page" note.
+    const run = async () => {
+      const arrivals = packageArrivalsKey ? packageArrivalsKey.split(',').filter(Boolean) : [];
+      if (filters.transport !== 'package' || !filters.origin || !fetchParams.checkIn || !arrivals.length) {
+        if (live) setPackageFares({});
+        return;
+      }
+      try {
+        const f = await fetchPackageFares(
+          { origin: filters.origin, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut, adults: fetchParams.adults, children: fetchParams.children, arrivals },
+          { signal: ctrl.signal },
+        );
+        if (live) setPackageFares(f || {});
+      } catch { if (live) setPackageFares({}); }
+    };
+    run();
+    return () => { live = false; ctrl.abort(); };
+  }, [filters.transport, filters.origin, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults, fetchParams.children, packageArrivalsKey]);
 
   // The destinations the chosen arrival airport narrows the search to, intersected with the
   // scope the traveller already picked. `null` = no arrival filter. An EMPTY array is
@@ -1588,17 +1656,17 @@ export default function Results() {
           <div className={styles.originPicker} role="radiogroup" aria-label="Departure airport">
             <div className={styles.originLabel}>I want to fly from</div>
             <div className={styles.originGroup}>
-              {POPULAR_AIRPORTS.map((a) => (
+              {popularAirports.map((a) => (
                 <OriginOption key={a.code} airport={a} checked={filters.origin === a.code}
                   onPick={() => setFilter('origin', a.code)} />
               ))}
             </div>
             {/* An airport picked under "Other" must not hide its own selection when the
                 traveller collapses the list — keep it open while one of its rows is current. */}
-            <details className={styles.originMore} open={OTHER_AIRPORTS.some((a) => a.code === filters.origin) || undefined}>
+            <details className={styles.originMore} open={otherAirports.some((a) => a.code === filters.origin) || undefined}>
               <summary className={styles.originMoreSummary}>Other airports</summary>
               <div className={styles.originGroup}>
-                {OTHER_AIRPORTS.map((a) => (
+                {otherAirports.map((a) => (
                   <OriginOption key={a.code} airport={a} checked={filters.origin === a.code}
                     onPick={() => setFilter('origin', a.code)} />
                 ))}
@@ -2064,8 +2132,25 @@ export default function Results() {
                 const perPersonVal = Number.isFinite(Number(h.perPerson)) && Number(h.perPerson) > 0
                   ? Number(h.perPerson)
                   : (Number.isFinite(total) ? total / partySize : NaN);
+                // Package from-price (§33): with "Incl. flight" on, if a cached flight fare exists
+                // for this hotel's arrival airport, the headline becomes hotel + flight per person —
+                // never hotel-only. Cheapest arrival is used when the destination has several. Falls
+                // back to the hotel figure (+ "priced on hotel page" note) when no flight is cached.
+                const isPackage = filters.transport === 'package';
+                const cardArrivals = applied.arrival ? [applied.arrival] : (destToArrivals.get(hotelDest) || []);
+                let flightFare = null;
+                for (const ac of cardArrivals) {
+                  const f = packageFares[ac];
+                  if (f && f.price != null && (flightFare == null || f.price < flightFare.price)) flightFare = f;
+                }
+                const adultsForFare = Math.max(1, Number(fetchParams.adults) || 1);
+                const flightPerPerson = flightFare ? flightFare.price / adultsForFare : null;
+                const packagePerPerson = (isPackage && flightPerPerson != null && Number.isFinite(perPersonVal))
+                  ? perPersonVal + flightPerPerson
+                  : null;
+                const shownPerPerson = packagePerPerson != null ? packagePerPerson : perPersonVal;
                 // Split into whole + decimals (toFixed FIRST, so 99.999 → 100.00, not 99.00).
-                const [ppMajorRaw, ppDec] = Number.isFinite(perPersonVal) ? perPersonVal.toFixed(2).split('.') : ['—', null];
+                const [ppMajorRaw, ppDec] = Number.isFinite(shownPerPerson) ? shownPerPerson.toFixed(2).split('.') : ['—', null];
                 const ppMajor = ppDec != null ? Number(ppMajorRaw).toLocaleString('en-GB') : ppMajorRaw;
                 // TripAdvisor rating (/10), from the harvested store on the bulk info record.
                 const rev = formatReview(info?.review);
@@ -2244,16 +2329,24 @@ export default function Results() {
                         {Number(fetchParams.adults) > 0 && ` · ${fetchParams.adults} adult${Number(fetchParams.adults) > 1 ? 's' : ''}`}
                         {Number(fetchParams.children) > 0 && ` · ${fetchParams.children} child${Number(fetchParams.children) > 1 ? 'ren' : ''}`}
                       </span>
-                      {/* With "Incl. flight" on, this figure is still the HOTEL price — the
-                          flight is searched live on the hotel page. Saying so on every card
-                          is what makes the transport toggle visibly do something here, and
-                          it stops €210 from reading as a flight-inclusive total. */}
-                      {filters.transport === 'package' && (
+                      {/* §33: when a cached flight fare is in, the headline IS the package total
+                          (hotel + flight) and the note says so, with the flight's §23 class. When
+                          no flight is cached for the route yet, we keep the honest hotel-only figure
+                          and say the flight is priced live on the hotel page — never a hotel-only
+                          number dressed up as a package total. */}
+                      {isPackage && packagePerPerson != null && (
+                        <span className={styles.rcFlightNote}>
+                          incl. flight from {airportCity(filters.origin)}
+                          {flightFare?.priorityClass ? ` · ${flightClassLabel(flightFare.priorityClass)}` : ''}
+                        </span>
+                      )}
+                      {isPackage && packagePerPerson == null && (
                         <span className={styles.rcFlightNote}>+ flight from {airportCity(filters.origin)} · priced on hotel page</span>
                       )}
-                      {/* The headline is the PER-PERSON fare — the total is deliberately not
-                          shown: it's the figure a traveller actually compares, and on a package
-                          the total would mislead (the live flight isn't in it). */}
+                      {/* The headline is the PER-PERSON fare — the figure a traveller compares.
+                          Hotel-only: the per-person hotel price. Package (flight fare cached): the
+                          per-person hotel + flight total (§33). The whole-party total is not shown;
+                          per-person is the comparable number. */}
                       <div className={styles.rcPriceAmount}>
                         <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
                         {ppMajor}

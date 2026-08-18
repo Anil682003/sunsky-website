@@ -5,7 +5,8 @@ import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
-import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, airportCity } from '../../../utils/airports';
+import { DEFAULT_ORIGIN, airportCity } from '../../../utils/airports';
+import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { earliestCheckInISO } from '../../../utils/leadTime';
 import { loadPax, savePax } from '../../../utils/paxStore';
 
@@ -172,6 +173,8 @@ export default function Hero() {
   // search prices from (`origin` in the URL — single-valued everywhere downstream); the
   // whole list rides along as `origins` so the choice is never silently narrowed to one.
   const [origins, setOrigins] = useState([DEFAULT_ORIGIN]);
+  // §25 departure master list from the admin dashboard (seed fallback until it loads).
+  const { popular: popularAirports, other: otherAirports } = useDepartureAirports();
   // Toggle, never below one: an empty "Flying from" has no honest label and no airport
   // to search from, so the last ticked row cannot be un-ticked.
   const toggleOrigin = (code) =>
@@ -477,11 +480,11 @@ export default function Hero() {
               <>
                 <div className={styles.tspSub}>Popular</div>
                 <div className={styles.tspGrid}>
-                  {POPULAR_AIRPORTS.map(airportRow)}
+                  {popularAirports.map(airportRow)}
                 </div>
                 <div className={styles.tspSub}>All airports</div>
                 <div className={styles.tspGrid}>
-                  {OTHER_AIRPORTS.map(airportRow)}
+                  {otherAirports.map(airportRow)}
                 </div>
                 <div className={styles.tspFoot}>
                   <span className={styles.tspFootLabel}>
