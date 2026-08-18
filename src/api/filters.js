@@ -105,6 +105,39 @@ export async function fetchArrivalAirports(countryCode, { signal } = {}) {
 }
 
 /**
+ * Departure airports the agency sells FROM — the §25 Sunsky master list, held in the admin
+ * dashboard (not hard-coded here). With no params → the full master list. With
+ * `{ destination, checkIn, checkOut }` → each airport is annotated with §26 validity (does a
+ * real flight to that destination exist for those dates) and `filtered` holds only the valid
+ * ones; `cacheHasData` is false when the flight cache has nothing for the destination yet
+ * (in which case NOTHING is hidden — the full list is returned).
+ *
+ * @returns {Promise<{airports:object[], filtered:object[]|null, cacheHasData:boolean}>}
+ */
+export async function fetchDepartureAirports(params = {}, { signal } = {}) {
+  const { data } = await axiosInstance.get('/flight-availability/departure-airports', { params, signal });
+  return { airports: data?.airports ?? [], filtered: data?.filtered ?? null, cacheHasData: !!data?.cacheHasData };
+}
+
+/**
+ * The flight half of a Flight + Hotel from-price (§33): the cheapest ELIGIBLE flight (Sunsky
+ * §23 priority) from one departure airport to each requested arrival airport, for the search
+ * dates. Returns `{ [arrivalCode]: { price, currency, priorityClass, stops } | null }` — the
+ * website adds each fare to the matching hotel's cached price to build the package total.
+ * Empty/`null` for a route means no eligible flight (the hotel stays sellable hotel-only, §35).
+ */
+export async function fetchPackageFares({ origin, checkIn, checkOut, adults, children, arrivals }, { signal } = {}) {
+  const { data } = await axiosInstance.get('/flight-availability/package-fares', {
+    params: {
+      origin, checkIn, checkOut, adults, children,
+      arrivals: Array.isArray(arrivals) ? arrivals.join(',') : arrivals,
+    },
+    signal,
+  });
+  return data?.fares ?? {};
+}
+
+/**
  * Resolve the content filters to matching hotelCodes (+ attributes).
  * Pass the SEARCH destination so the set stays bounded and fast.
  *

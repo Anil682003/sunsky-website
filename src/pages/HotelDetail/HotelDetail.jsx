@@ -16,6 +16,7 @@ import {
 import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
 import { DEPARTURE_AIRPORTS, AIRPORT_CODES, DEFAULT_ORIGIN, normaliseOrigin } from '../../utils/airports';
+import { pickPriorityIndex } from '../../utils/flightPriority';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
@@ -2353,7 +2354,10 @@ export default function HotelDetail() {
       if (seq !== flightSeqRef.current) return;
       console.log('[Detail] flight-availability response', data?.results);
       const flights = transformFlights(data, from);
-      setSelectedFlight(0);
+      // §23/§37: default to the Sunsky-priority flight (direct → 1-stop → 2-stop, cheapest within
+      // class), NOT the absolute cheapest at index 0 — the list stays cheapest-first for browsing,
+      // but the package from-price the page opens on is the direct when one exists.
+      setSelectedFlight(pickPriorityIndex(flights));
       if (!flights.length) {
         // The chosen airport doesn't fly this route on these dates. Say so, and go find
         // the airports that do — with prices — rather than leaving a dead end.
