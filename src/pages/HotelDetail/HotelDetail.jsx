@@ -15,7 +15,7 @@ import {
 } from '../../utils/flightFilters';
 import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
-import { DEPARTURE_AIRPORTS, AIRPORT_CODES, DEFAULT_ORIGIN, normaliseOrigin } from '../../utils/airports';
+import { DEPARTURE_AIRPORTS, AIRPORT_CODES, DEFAULT_ORIGIN, normaliseOrigin, airportLabel } from '../../utils/airports';
 import { pickPriorityIndex } from '../../utils/flightPriority';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
@@ -3212,6 +3212,16 @@ export default function HotelDetail() {
                                       : <span className="avail-price-none">—</span>}
                                 </span>
                               </div>
+                              <div className="av-price-rule" />
+                              {/* Amber, not red, when it rises. The holiday IS available — that is
+                                  what the tick says — and the only thing that changed is the price.
+                                  Stated per person, to match the figure above it. */}
+                              {ppMoved != null && (
+                                <div className={`avail-move${ppMoved < 0 ? ' down' : ' up'}`}>
+                                  {ppMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
+                                  <span><b>€{Math.abs(ppMoved)} p.p.</b> {ppMoved < 0 ? 'lower' : 'higher'} after live check</span>
+                                </div>
+                              )}
                               {(liveRoom || pdEstimate) && (
                                 <div className="av-price-total">
                                   {/* The estimate stays on screen struck through: the traveller
@@ -3223,15 +3233,6 @@ export default function HotelDetail() {
                                     {` total for ${availAdults} adult${availAdults === 1 ? '' : 's'}`}
                                     {availChildren > 0 ? ` · ${availChildren} child${availChildren === 1 ? '' : 'ren'}` : ''}
                                   </span>
-                                </div>
-                              )}
-                              {/* Amber, not red, when it rises. The holiday IS available — that is
-                                  what the tick says — and the only thing that changed is the price.
-                                  Stated per person, to match the figure above it. */}
-                              {ppMoved != null && (
-                                <div className={`avail-move${ppMoved < 0 ? ' down' : ' up'}`}>
-                                  {ppMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
-                                  <span><b>€{Math.abs(ppMoved)} p.p.</b> {ppMoved < 0 ? 'lower' : 'higher'} after live check</span>
                                 </div>
                               )}
                               <div className="avail-you-low">
@@ -3269,7 +3270,7 @@ export default function HotelDetail() {
                                   {transport === 'hotel_only' ? 'Hotel only' : `${airportName(origin)} (${origin})`}
                                 </span>
                                 <span className="fcu-sub">
-                                  {transport === 'hotel_only' ? 'No flights included' : 'Outbound and return'}
+                                  {transport === 'hotel_only' ? 'No flights included' : airportLabel(origin)}
                                 </span>
                               </div>
                               <div className="fcu-item">
@@ -3296,7 +3297,7 @@ export default function HotelDetail() {
 
                           <div className="av-note">
                             {ICON.info}
-                            <span>Prices and availability are checked live with the hotel for these exact dates.</span>
+                            <span>Prices and availability are live checked for your dates.</span>
                           </div>
                         </div>
                       )}
