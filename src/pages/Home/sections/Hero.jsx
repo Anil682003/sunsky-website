@@ -945,7 +945,7 @@ export default function Hero() {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16l-4-4 4-4"/><path d="M17 8l4 4-4 4"/><path d="M3 12h18"/></svg>
               </button>
               <div
-                className={`${styles.sf} ${openField === 'multiTo' ? styles.sfActive : ''}`}
+                className={`${styles.sf} ${styles.sfTo} ${openField === 'multiTo' ? styles.sfActive : ''}`}
                 onClick={() => toggleField('multiTo')}
               >
                 <div className={styles.sfHead}>
@@ -983,8 +983,11 @@ export default function Hero() {
                   tabIndex={-1}
                 />
               </div>
-              <div className={styles.sfDivider} />
-              <div className={styles.addFlightLabel}>+ ADD FLIGHT</div>
+              <div className={`${styles.sfDivider} ${styles.sfDividerSpacer}`} />
+              {/* Empty stand-in for the travellers column of the row above — a second leg
+                  flies the same party, so there is nothing to ask here. */}
+              <div className={styles.addFlightSpacer} aria-hidden="true" />
+              <button type="button" className={styles.addFlightBtn}>+ Add flight</button>
             </div>
           )}
 
