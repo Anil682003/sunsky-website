@@ -113,7 +113,7 @@ describe('trip length is stated in days, never in nights', () => {
     const { container } = renderPage();
     await checkFirstDay(user);
 
-    await waitFor(() => expect(container.querySelector('.avail-sub')?.textContent).toContain(DAYS_LABEL));
+    await waitFor(() => expect(container.querySelector('.av-facts')?.textContent).toContain(DAYS_LABEL));
     await waitFor(() => expect(container.querySelector('.avail-you-low')?.textContent).toContain(DAYS_LABEL));
   });
 
@@ -121,7 +121,7 @@ describe('trip length is stated in days, never in nights', () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await checkFirstDay(user);
-    await waitFor(() => expect(container.querySelector('.avail-sub')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.av-facts')).toBeTruthy());
 
     expect(container.textContent).not.toMatch(new RegExp(`\\b${NIGHTS} days\\b`));
   });

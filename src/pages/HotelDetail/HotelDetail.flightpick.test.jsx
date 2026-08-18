@@ -413,3 +413,104 @@ describe('the filter rail acts on the live results', () => {
     expect(container.querySelector('.modal-flights').textContent).not.toContain('1,112');
   });
 });
+
+// ── The page's headline flight card ───────────────────────────────────────────
+// One card, two directions side by side, each with its own carrier line and its own
+// allowance. The rule that matters: nothing on it is ever a blank space. A one-way has no
+// second column to fill, a fare with no stated allowance prints no chips, and the price the
+// traveller is committing to stays on the card.
+describe('the cheapest-flight card the page leads with', () => {
+  const ORIGINAL_FLIGHTS = FLIGHTS;
+  const pageCard = (c) => c.querySelector('.flight-card.bannered');
+  afterEach(() => { FLIGHTS = ORIGINAL_FLIGHTS; });
+
+  it('gives each direction its own column, side by side', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(pageCard(container)).not.toBeNull());
+
+    const legs = pageCard(container).querySelectorAll('.fc-leg');
+    expect(legs).toHaveLength(2);
+    expect(legs[0].textContent).toMatch(/outbound/i);
+    expect(legs[1].textContent).toMatch(/return/i);
+    // Two columns, not the one-way full-width layout.
+    expect(pageCard(container).querySelector('.fc-legs').className).not.toContain('fc-legs-one');
+  });
+
+  it('names the carrier on its own line in each column', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(pageCard(container)).not.toBeNull());
+
+    const rows = pageCard(container).querySelectorAll('.fc-leg .bp-airrow');
+    expect(rows).toHaveLength(2);
+    expect(rows[0].textContent).toContain('SunExpress');
+    expect(rows[0].textContent).toContain('XQ 1653');
+  });
+
+  it('prints the allowance under each direction, where it is checked', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(pageCard(container)).not.toBeNull());
+
+    const legs = pageCard(container).querySelectorAll('.fc-leg');
+    for (const leg of legs) {
+      expect(leg.textContent).toMatch(/checked baggage 20 kg/i);
+      expect(leg.textContent).toMatch(/cabin bag included/i);
+    }
+  });
+
+  // Half a card of white space is not a design, it is a missing column.
+  it('gives a one-way the whole width instead of an empty second column', async () => {
+    FLIGHTS = [{ ...fare(1112, OUT_1740, 'one-way'), inbound: { legs: [] } }];
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(pageCard(container)).not.toBeNull());
+
+    expect(pageCard(container).querySelectorAll('.fc-leg')).toHaveLength(1);
+    expect(pageCard(container).querySelector('.fc-legs').className).toContain('fc-legs-one');
+  });
+
+  // An allowance the supplier never stated earns no chip — an empty pill would be a claim.
+  it('prints no baggage chips when the supplier stated no allowance', async () => {
+    FLIGHTS = [{ ...fare(1112, OUT_1740, 'no-bags'), baggage: null }];
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(pageCard(container)).not.toBeNull());
+
+    expect(pageCard(container).querySelectorAll('.bp-chip')).toHaveLength(0);
+    // The rest of the card is still whole: times, carrier, price, the way on.
+    expect(pageCard(container).querySelector('.bp-airrow')).not.toBeNull();
+    expect(pageCard(container).textContent).toContain('1,112');
+  });
+
+  it('keeps the fare and the way into the details on the card', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(pageCard(container)).not.toBeNull());
+
+    const card = pageCard(container);
+    expect(card.textContent).toContain('1,112');
+    expect(card.textContent).toMatch(/total for all travellers/i);
+    expect(card.querySelector('.fc-selected-lg').textContent).toMatch(/selected/i);
+    expect(card.querySelector('.flight-details-btn')).not.toBeNull();
+  });
+
+  it('says in the band why this flight was chosen', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(pageCard(container)).not.toBeNull());
+
+    const band = pageCard(container).querySelector('.fc-banner');
+    expect(band.textContent).toMatch(/cheapest flight/i);
+    expect(band.textContent).toMatch(/automatically selected for your travel dates/i);
+    expect(band.textContent).toMatch(/best-priced flight option/i);
+  });
+});

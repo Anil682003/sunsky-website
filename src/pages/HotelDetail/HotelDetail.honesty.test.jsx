@@ -124,7 +124,7 @@ describe('a sold-out day disables the check button', () => {
   it('greys the button and renames it "Not Available"', async () => {
     const user = userEvent.setup();
     emptyAvailability();
-    renderPage();
+    const { container } = renderPage();
     await runCheck(user);
 
     const btn = await screen.findByRole('button', { name: /^not available$/i });
@@ -136,7 +136,7 @@ describe('a sold-out day disables the check button', () => {
   it('re-enables the button when another day is picked', async () => {
     const user = userEvent.setup();
     emptyAvailability();
-    renderPage();
+    const { container } = renderPage();
     await runCheck(user);
     await screen.findByRole('button', { name: /^not available$/i });
 
@@ -213,9 +213,14 @@ describe('flights and rooms are live-only', () => {
 
   it('shows the rooms the supplier really returned once a date is checked', async () => {
     const user = userEvent.setup();
-    renderPage();
+    const { container } = renderPage();
     await runCheck(user);
-    expect(await screen.findByText(/sea view double/i)).toBeInTheDocument();
+    // In the room LIST specifically: the availability recap names the chosen room too now,
+    // so a page-wide match would pass on the recap without a single room having rendered.
+    await waitFor(() => {
+      const rooms = [...container.querySelectorAll('.room-section .room-group-name')];
+      expect(rooms.some((r) => /sea view double/i.test(r.textContent))).toBe(true);
+    });
   });
 });
 
@@ -230,7 +235,7 @@ describe('supplier failures are reported in words a traveller can use', () => {
       ? Promise.reject(timeout)
       : Promise.resolve({ data: {} })));
 
-    renderPage();
+    const { container } = renderPage();
     await runCheck(user);
 
     expect(await screen.findByText(/couldn’t load live room prices/i)).toBeInTheDocument();
@@ -252,14 +257,19 @@ describe('supplier failures are reported in words a traveller can use', () => {
         : Promise.resolve({ data: { results: { hotelbeds: { rooms: RATES } } } });
     });
 
-    renderPage();
+    const { container } = renderPage();
     await runCheck(user);
     await screen.findByText(/couldn’t load live room prices/i);
 
     const [retry] = screen.getAllByRole('button', { name: /try again/i });
     await user.click(retry);
 
-    expect(await screen.findByText(/sea view double/i)).toBeInTheDocument();
+    // In the room LIST specifically: the availability recap names the chosen room too now,
+    // so a page-wide match would pass on the recap without a single room having rendered.
+    await waitFor(() => {
+      const rooms = [...container.querySelectorAll('.room-section .room-group-name')];
+      expect(rooms.some((r) => /sea view double/i.test(r.textContent))).toBe(true);
+    });
   });
 });
 
@@ -279,7 +289,7 @@ describe('checkout is only reachable with a real quote', () => {
 
   it('lets a checked booking through to payment', async () => {
     const user = userEvent.setup();
-    renderPage();
+    const { container } = renderPage();
     await runCheck(user);
 
     const book = await waitFor(() => screen.getByRole('button', { name: /now book/i }));

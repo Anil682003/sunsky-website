@@ -170,9 +170,7 @@ const calDate = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d
 // availability recap, where "7 Sep" is too terse to be checked against a passport or a
 // day off work. Assembled from local parts rather than toLocaleDateString because en-GB
 // slips a comma in after the weekday on some engines and drops the leading zero.
-const WKL = ['Sunday', 'Monday', 'Tuesday', 'Wednesday', 'Thursday', 'Friday', 'Saturday'];
 const MOL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
-const longDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WKL[d.getDay()]; };
 const longDate = (iso) => {
   const d = new Date(iso + 'T00:00:00');
   return isNaN(d.getTime()) ? '' : `${String(d.getDate()).padStart(2, '0')} ${MOL[d.getMonth()]} ${d.getFullYear()}`;
@@ -207,6 +205,28 @@ const nightsBetween = (ci, co) => {
 // dates beside them spanned the full week. ONE function prints trip length on this page, and
 // it converts. Anything measuring the stay itself (a nightly rate, an insurance multiplier)
 // keeps using `nights` directly — that arithmetic is in nights and must stay in nights.
+/**
+ * "15 – 21 Sep 2026", or "28 Sep – 4 Oct 2026" when the stay crosses a month, or both years
+ * when it crosses a new year. One line for a travel period reads faster than a Departure box
+ * and a Return box holding one date each — they were always read together anyway.
+ */
+const rangeLabel = (fromISO, toISO) => {
+  const a = new Date(fromISO + 'T00:00:00'), b = new Date(toISO + 'T00:00:00');
+  if (isNaN(a.getTime()) || isNaN(b.getTime())) return '';
+  const sameYear = a.getFullYear() === b.getFullYear();
+  const sameMonth = sameYear && a.getMonth() === b.getMonth();
+  const left = sameMonth
+    ? `${a.getDate()}`
+    : `${a.getDate()} ${MO[a.getMonth()]}${sameYear ? '' : ` ${a.getFullYear()}`}`;
+  return `${left} – ${b.getDate()} ${MO[b.getMonth()]} ${b.getFullYear()}`;
+};
+
+/** "6 nights / 7 days" — the two counts travellers check a stay against. */
+const stayLabel = (nights) => {
+  const n = Number(nights) || 0;
+  return `${n} night${n === 1 ? '' : 's'} / ${nightsToDays(n)} day${nightsToDays(n) === 1 ? '' : 's'}`;
+};
+
 const dayLabel = (nights) => {
   const d = nightsToDays(nights);
   return `${d} ${d === 1 ? 'day' : 'days'}`;
@@ -649,6 +669,289 @@ function TimeRangeFilter({ title, hint, span, value, onChange }) {
   );
 }
 
+/**
+ * One direction as a COLUMN, for the page's headline flight card: the badge and date, then the
+ * carrier on its own line, then the route, then what the fare carries.
+ *
+ * The stacked `Journey` above puts all three on one line, which works in a list of options
+ * where the itinerary is scanned. Here there are only two directions and the card is the width
+ * of the page, so they sit side by side and each gets room to be read rather than scanned.
+ */
+function JourneyColumn({ dir, legs, chips }) {
+  if (!legs?.length) return null;
+  const first = legs[0], last = legs[legs.length - 1];
+  const durMin = legs.reduce((s, l) => s + (Number(l.duration) || 0), 0);
+  const stops = legs.length - 1;
+  const vias = legs.slice(1).map((l) => airportName(l.from));
+  const overnight = dayOffset(first.departure, last.arrival);
+
+  return (
+    <div className="fc-leg">
+      <div className="bp-jhead">
+        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
+        <span className="bp-jdate">{fmtDateLong(first.departure)}</span>
+      </div>
+
+      {/* The carrier on its own line: at this size the name is a heading, not a footnote to
+          the route. */}
+      <div className="bp-airrow">
+        <AirlineMark code={first.airline} className="bp-airmark" nameClassName="bp-airname" />
+        <span className="bp-flno">{flightNumber(first)}</span>
+      </div>
+
+      <div className="bp-route">
+        <div className="bp-end">
+          <div className="bp-time">{fmtTime(first.departure)}</div>
+          <div className="bp-city" title={airportName(first.from)}>{airportName(first.from)}</div>
+          <div className="bp-code">{first.from}</div>
+        </div>
+        <div className="bp-mid">
+          <div className="bp-dur">{fmtDur(durMin)}</div>
+          <div className="bp-track"><span className="bp-plane">{ICON.plane}</span></div>
+          <div className={`bp-stops${stops ? ' has' : ''}`}>{stopsLabel(stops)}</div>
+        </div>
+        <div className="bp-end bp-end-r">
+          <div className="bp-time">
+            {fmtTime(last.arrival)}
+            {overnight > 0 && <sup className="bp-nextday">+{overnight} day{overnight > 1 ? 's' : ''}</sup>}
+          </div>
+          <div className="bp-city" title={airportName(last.to)}>{airportName(last.to)}</div>
+          <div className="bp-code">{last.to}</div>
+        </div>
+      </div>
+
+      {stops > 0 && <div className="bp-via">{ICON.clock} Via {vias.join(', ')}</div>}
+
+      {/* The allowance is a term of the FARE, so it is the same both ways — printed under each
+          direction because that is where a traveller checks it, and never printed at all when
+          the supplier told us nothing. */}
+      {chips.length > 0 && (
+        <div className="bp-incl" aria-label="Included in this fare">
+          {chips.map((x) => (
+            <span key={x.label} className={`bp-chip${x.ok ? ' bp-chip-inc' : ''}`}>{x.icon}{x.label}</span>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
+/* ── Flight details: a dialog with two tabs ─────────────────────────────────────
+   "View flight details" used to unfold an accordion under the card, which pushed the page
+   around and left the itinerary competing with the card it came from. It is a dialog now, and
+   the baggage moved out of the itinerary into a tab of its own: a chip reading "Checked
+   baggage 20 kg" beside a route is the shortest possible answer to a question that actually
+   has several parts to it.
+
+   WHAT THE SUPPLIER STATES, AND WHAT IT DOES NOT. Airtuerk returns one allowance for the
+   FARE — hold weight or pieces, and hand luggage — and nothing per leg, no dimensions, and
+   nothing at all about a personal item. So the table prints the fare's allowance against
+   every flight in the journey and says so underneath; there is no personal-item column and no
+   "40 x 30 x 15", because those would be numbers we invented, and a baggage table is read at
+   a check-in desk. */
+
+/** Cabin-bag cell. A stated weight when there is one, otherwise the safe inference. */
+const cabinAllowance = (b) => {
+  if (b?.handKg > 0) return { ok: true, main: `${b.handKg} kg`, sub: 'Included' };
+  // No airline sells a hold allowance and then refuses a cabin bag; the WEIGHT is the part
+  // that cannot be claimed, so it is not claimed.
+  if (b && (b.checkedKg > 0 || b.checkedPieces > 0)) return { ok: true, main: 'Included', sub: 'Weight set by airline' };
+  return { ok: false, main: 'Not stated', sub: 'Airline rules apply' };
+};
+
+/** Hold-baggage cell. Kilos or pieces, whichever the fare is sold in. */
+const checkedAllowance = (b) => {
+  if (b?.checkedKg > 0) return { ok: true, main: `${b.checkedKg} kg`, sub: 'Included' };
+  if (b?.checkedPieces > 0) {
+    return { ok: true, main: `${b.checkedPieces} piece${b.checkedPieces === 1 ? '' : 's'}`, sub: 'Included' };
+  }
+  if (b) return { ok: false, main: 'Not included', sub: 'Can be added at booking' };
+  return { ok: false, main: 'Not stated', sub: 'Airline rules apply' };
+};
+
+const AllowanceCell = ({ ok, main, sub }) => (
+  <span className={`fdm-allow${ok ? ' on' : ''}`}>
+    <span className="fdm-allow-main">{ok && ICON.check}{main}</span>
+    <em>{sub}</em>
+  </span>
+);
+
+/** One direction of the itinerary: every leg, with the layover between them. */
+function DetailsJourney({ dir, legs }) {
+  if (!legs?.length) return null;
+  return (
+    <div className="fdm-journey">
+      <div className="fdm-jhead">
+        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
+        <span className="fdm-jdate">{fmtDateLong(legs[0].departure)}</span>
+      </div>
+      <div className="fdm-legs">
+        {legs.map((leg, i) => {
+          const lay = i > 0 ? layoverMin(legs[i - 1], leg) : null;
+          const overnight = dayOffset(leg.departure, leg.arrival);
+          return (
+            <div className="fdm-leg-wrap" key={`${leg.flightNumber || i}-${i}`}>
+              {lay != null && (
+                <div className="fdm-layover">
+                  {ICON.clock}
+                  <span><b>{fmtDur(lay)} layover</b> in {airportName(leg.from)}</span>
+                </div>
+              )}
+              <div className="fdm-leg">
+                <div className="fdm-point">
+                  <div className="fdm-time">{fmtTime(leg.departure)}</div>
+                  <div className="fdm-place">{airportName(leg.from)}</div>
+                  <div className="fdm-code">{leg.from}</div>
+                </div>
+                <div className="fdm-mid">
+                  <div className="fdm-dur">{fmtDur(leg.duration)}</div>
+                  <div className="bp-track"><span className="bp-plane">{ICON.plane}</span></div>
+                </div>
+                <div className="fdm-point fdm-point-r">
+                  <div className="fdm-time">
+                    {fmtTime(leg.arrival)}
+                    {overnight > 0 && <sup className="bp-nextday">+{overnight} day{overnight > 1 ? 's' : ''}</sup>}
+                  </div>
+                  <div className="fdm-place">{airportName(leg.to)}</div>
+                  <div className="fdm-code">{leg.to}</div>
+                </div>
+                <div className="fdm-carrier">
+                  <AirlineMark code={leg.airline} className="bp-airmark" nameClassName="bp-airname" />
+                  <span className="bp-flno">{flightNumber(leg)}</span>
+                </div>
+              </div>
+            </div>
+          );
+        })}
+      </div>
+    </div>
+  );
+}
+
+/** One direction's baggage, a row per flight. */
+function BaggageTable({ dir, legs, baggage }) {
+  if (!legs?.length) return null;
+  const cabin = cabinAllowance(baggage);
+  const checked = checkedAllowance(baggage);
+  return (
+    <div className="fdm-bagblock">
+      <div className="fdm-jhead">
+        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
+        <span className="fdm-jdate">{fmtDateLong(legs[0].departure)}</span>
+      </div>
+      <div className="fdm-tablewrap">
+        <table className="fdm-table">
+          <thead>
+            <tr>
+              <th>Flight</th>
+              <th>Airline</th>
+              <th>Route</th>
+              <th><span className="fdm-th">{ICON.bag}Cabin bag<em>overhead locker</em></span></th>
+              <th><span className="fdm-th">{ICON.checkedBag}Checked baggage<em>hold luggage</em></span></th>
+            </tr>
+          </thead>
+          <tbody>
+            {legs.map((leg, i) => (
+              <tr key={`${leg.flightNumber || i}-${i}`}>
+                <td className="fdm-td-flno">{flightNumber(leg)}</td>
+                <td>
+                  <span className="fdm-td-air">
+                    <AirlineMark code={leg.airline} className="bp-airmark" nameClassName="bp-airname" />
+                  </span>
+                </td>
+                <td className="fdm-td-route">
+                  {airportName(leg.from)} ({leg.from}) <span className="fdm-arrow">→</span> {airportName(leg.to)} ({leg.to})
+                </td>
+                <td><AllowanceCell {...cabin} /></td>
+                <td><AllowanceCell {...checked} /></td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * The dialog itself. `flight` carries the legs and the fare's single baggage allowance.
+ */
+function FlightDetailsModal({ flight, onClose }) {
+  const [tab, setTab] = useState('info');
+  const out = flight?.outLegs || [];
+  const ret = flight?.retLegs || [];
+
+  // A dialog over a scrolling page has to hold the page still underneath it, and Escape has
+  // to close it — this is the only way out other than the two buttons.
+  useEffect(() => {
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => { if (e.key === 'Escape') onClose(); };
+    document.addEventListener('keydown', onKey);
+    return () => { document.body.style.overflow = prev; document.removeEventListener('keydown', onKey); };
+  }, [onClose]);
+
+  return (
+    <div className="modal-overlay show fdm-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
+      <div className="fdm" role="dialog" aria-modal="true" aria-label="Flight details">
+        <div className="fdm-head">
+          <div>
+            <div className="fdm-title">Flight info &amp; baggage</div>
+            <div className="fdm-sub">Your selected flight</div>
+          </div>
+          <button className="modal-close" onClick={onClose} aria-label="Close">
+            <S sw={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
+          </button>
+        </div>
+
+        <div className="fdm-tabs" role="tablist">
+          <button type="button" role="tab" aria-selected={tab === 'info'}
+            className={`fdm-tab${tab === 'info' ? ' on' : ''}`} onClick={() => setTab('info')}>
+            {ICON.plane}Flight info
+          </button>
+          <button type="button" role="tab" aria-selected={tab === 'bags'}
+            className={`fdm-tab${tab === 'bags' ? ' on' : ''}`} onClick={() => setTab('bags')}>
+            {ICON.checkedBag}Baggage information
+          </button>
+        </div>
+
+        <div className="fdm-body">
+          {tab === 'info' ? (
+            <>
+              <DetailsJourney dir="Outbound" legs={out} />
+              <DetailsJourney dir="Return" legs={ret} />
+              <div className="fdm-note">
+                {ICON.info}
+                <span>Times are shown in local time. Flight durations include estimated taxi and boarding times.</span>
+              </div>
+            </>
+          ) : (
+            <>
+              <BaggageTable dir="Outbound" legs={out} baggage={flight?.baggage} />
+              <BaggageTable dir="Return" legs={ret} baggage={flight?.baggage} />
+              {/* The allowance the supplier sends belongs to the FARE, not to a leg, so it is
+                  the same on every row above. Saying so is the difference between a table a
+                  traveller can rely on and one that merely looks thorough. */}
+              <div className="fdm-note">
+                {ICON.info}
+                <span>
+                  This allowance is per traveller and covers the whole journey, so it applies to
+                  every flight listed. Sizes, and anything carried on top of it, are set by the
+                  airline — check their conditions before you fly.
+                </span>
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="fdm-foot">
+          <button type="button" className="fdm-close-btn" onClick={onClose}>Close</button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 /* ── Loading skeletons ──────────────────────────────────────────────────────────
    Each one mirrors the real card's geometry, so the block doesn't jump when the data
    lands. A shared `.sk-sh` shimmer drives the sweep; `aria-busy` + a visually-hidden
@@ -739,6 +1042,9 @@ function SkeletonBlock({ label, children }) {
  */
 function FlightCard({ f, selected, cheapest, banner, option, onSelect }) {
   const [expanded, setExpanded] = useState(false);
+  // The headline card opens the details as a DIALOG; the list cards inside the change-flight
+  // modal keep the inline accordion, because a dialog on top of a dialog is a trap.
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const out = f.outLegs || [];
   const ret = f.retLegs || [];
   const hasDetails = out.length > 0;
@@ -750,6 +1056,53 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect }) {
       <S size={13} sw={2.4} className={expanded ? 'fdb-caret up' : 'fdb-caret'}><path d="M6 9l6 6 6-6" /></S>
     </button>
   );
+
+  // ── The page's ONE headline flight ──
+  // Two directions side by side under a blue band that says, in words, why this flight and not
+  // another. Side by side rather than stacked because there are only ever two of them here and
+  // the card is the full width of the page: each direction gets its own column, its own
+  // carrier line and its own allowance, instead of being scanned as a list.
+  if (banner) {
+    return (
+      <div className={`flight-card bannered${expanded ? ' expanded' : ''}`}>
+        <div className="fc-banner">
+          <div className="fc-banner-main">
+            <div className="fc-banner-title">{ICON.spark}<span>{banner.title}</span></div>
+            <div className="fc-banner-sub">{banner.sub}</div>
+          </div>
+          {banner.note && (
+            <div className="fc-banner-note">{ICON.info}<span>{banner.note}</span></div>
+          )}
+        </div>
+
+        {/* One column per direction. A one-way has no second column to fill, so the outbound
+            takes the whole width rather than leaving half the card blank. */}
+        <div className={`fc-legs${ret.length ? '' : ' fc-legs-one'}`}>
+          <JourneyColumn dir="Outbound" legs={out} chips={fareIncludes} />
+          {ret.length > 0 && <JourneyColumn dir="Return" legs={ret} chips={fareIncludes} />}
+        </div>
+
+        <div className="flight-bottom">
+          <button className="flight-details-btn" onClick={() => setDetailsOpen(true)} disabled={!hasDetails}>
+            View flight details
+            <S size={13} sw={2.4} className="fdb-caret"><path d="M6 9l6 6 6-6" /></S>
+          </button>
+          <div className="bp-buy">
+            {f.price != null && (
+              <div className="bp-price">
+                <b className="live-price">€{f.price.toLocaleString('en-GB')}</b>
+                <span className="bp-price-cap">Total for all travellers</span>
+              </div>
+            )}
+            <div className="flight-selected-badge fc-selected-lg">{ICON.check} Selected</div>
+          </div>
+        </div>
+
+        {f.warning && <div className="flight-warning">{ICON.warn} {f.warning}</div>}
+        {detailsOpen && <FlightDetailsModal flight={f} onClose={() => setDetailsOpen(false)} />}
+      </div>
+    );
+  }
 
   // ── The modal's layout: itinerary on the left, one price rail on the right ──
   // Same journeys, same chips, same details panel as the page card — what changes is that
@@ -1741,8 +2094,6 @@ export default function HotelDetail() {
   // adds up on screen rather than to a hidden third decimal.
   const cacheWas = pdEstimate ? Number(pd.price) : null;
   const liveNow = liveRoom ? Math.round(liveRoom.price) : null;
-  /** One traveller's share, to the cent — for the card, which has room to be exact. */
-  const perPersonOf = (total) => (total != null ? (total / paxCount).toFixed(2) : null);
   /** One traveller's share in whole euros — for the strip, where a bar is 9px of type wide. */
   const ppOf = (total) => (total != null ? Math.round(total / paxCount) : null);
   // The move on the CARD's basis (party total) and on the STRIP's basis (per person). Null
@@ -2789,148 +3140,159 @@ export default function HotelDetail() {
                         </div>
                       ) : (
                         <div className={`fc-res${liveRooms?.loading ? ' checking' : ''}${liveRooms?.error ? ' failed' : ''}`}>
-                          <div className="fc-res-head">
-                          {/* The mark says only what the check has actually established.
-                              A green tick used to be printed the moment this block mounted —
-                              while the supplier request was still in flight — so "Checking live
-                              availability…" was announced underneath a confirmation badge, and
-                              anyone reading the icon rather than the sentence was told the
-                              holiday was available before anybody knew it was. In progress is a
-                              spinner, a failed check is amber, and the tick is earned only once
-                              rooms have actually come back. */}
-                          {liveRooms?.loading ? (
-                            <span className="fc-res-mark fc-res-mark-busy" aria-hidden="true" />
-                          ) : liveRooms?.error ? (
-                            <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f59e0b" /><path d="M12 7.4v5.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="16.4" r="1.35" fill="#fff" /></svg>
-                          ) : (
-                            <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
-                          )}
-                          <div>
-                            <div className="avail-text">
-                              {liveRooms?.loading ? 'Checking live availability…'
-                                : liveRooms?.error ? (pdEstimate ? 'Showing estimated price' : 'Live price unavailable')
-                                : 'Your holiday is available!'}
-                            </div>
-                            {/* Who is travelling, and for how long. The dates, airport, board and
-                                transfer used to live on this one line too; they now have their own
-                                labelled rows below, where they can be read off and checked one by
-                                one instead of scanned out of a dot-separated run-on. */}
-                            <div className="avail-sub">
-                              {[
-                                dayLabel(nights),
-                                `${availAdults} adult${availAdults === 1 ? '' : 's'}`,
-                                availChildren > 0 ? `${availChildren} child${availChildren === 1 ? '' : 'ren'}` : null,
-                                availRooms > 1 ? `${availRooms} rooms` : null,
-                              ].filter(Boolean).join(' · ')}
-                            </div>
-                            {/* Amber, not red. The holiday IS available — that is what the green
-                                tick beside this says — and the only thing that changed is the
-                                price. Red here would read as a failure and send people back to
-                                the strip looking for a day that had not "gone wrong". */}
-                            {priceMoved != null && (
-                              <div className={`avail-updated${priceMoved < 0 ? ' down' : ''}`}>
-                                {ICON.info} Price updated after live check
-                              </div>
-                            )}
-                          </div>
-                          <div className={`avail-price${priceMoved != null ? (priceMoved < 0 ? ' avail-moved-down' : ' avail-moved-up') : ''}`}>
-                            {/* A lavender day has no estimate — €0 is not a price and must
-                                never be printed as one. A quiet dash says "nothing to quote". */}
-                            <div className="avail-price-label">{liveRoom ? 'live total price' : pdEstimate ? 'from' : ''}</div>
-                            {/* THE TOTAL BASIS, both figures. The strip beside this is priced per
-                                person; striking a per-person estimate against a party total here
-                                would report a change of exactly the party size. The estimate is
-                                struck rather than removed because the traveller chose this day
-                                off that number and is owed an account of where it went. */}
-                            <div className="avail-price-row">
-                              {priceMoved != null && (
-                                <span className="avail-price-old"><small>€</small>{cacheWas}</span>
+                          <div className="av-card">
+                            <div className="av-main">
+                              {/* The mark says only what the check has actually established.
+                                  A green tick used to be printed the moment this block mounted —
+                                  while the supplier request was still in flight — so "Checking live
+                                  availability…" was announced underneath a confirmation badge, and
+                                  anyone reading the icon rather than the sentence was told the
+                                  holiday was available before anybody knew it was. In progress is a
+                                  spinner, a failed check is amber, and the tick is earned only once
+                                  rooms have actually come back. */}
+                              {liveRooms?.loading ? (
+                                <span className="fc-res-mark fc-res-mark-busy" aria-hidden="true" />
+                              ) : liveRooms?.error ? (
+                                <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f59e0b" /><path d="M12 7.4v5.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="16.4" r="1.35" fill="#fff" /></svg>
+                              ) : (
+                                <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                               )}
-                              <span className="avail-price-val">
-                                {liveRooms?.loading
-                                  ? <span className="avail-spin" />
-                                  : liveRoom ? <><small>€</small>{liveNow}</>
-                                  : pdEstimate ? <><small>€</small>{pd.price}</>
-                                  : <span className="avail-price-none">—</span>}
-                              </span>
-                            </div>
-                            {/* Who the figure covers. A four-figure sum with nothing beside it
-                                gets read as per person by anyone who does not stop to check. */}
-                            {(liveRoom || pdEstimate) && (
-                              <div className="avail-forpax">
-                                {`for ${availAdults} adult${availAdults === 1 ? '' : 's'}`}
-                                {availChildren > 0 ? ` · ${availChildren} child${availChildren === 1 ? '' : 'ren'}` : ''}
+                              <div className="av-head">
+                                <div className="avail-text">
+                                  {liveRooms?.loading ? 'Checking live availability…'
+                                    : liveRooms?.error ? (pdEstimate ? 'Showing estimated price' : 'Live price unavailable')
+                                    : 'Your holiday is available!'}
+                                </div>
+                                {/* The badge states what has been established, and nothing more:
+                                    a price that came back from the supplier is confirmed, an
+                                    estimate off the cache is not, and neither is a check still
+                                    running. */}
+                                <div className={`av-confirm${liveRooms?.error ? ' warn' : ''}${liveRooms?.loading ? ' busy' : ''}`}>
+                                  <i className="av-dot" />
+                                  {liveRooms?.loading ? 'Asking the hotel for today’s rate'
+                                    : liveRooms?.error ? (pdEstimate ? 'Estimated price — not confirmed' : 'Could not reach the hotel')
+                                    : 'Live availability and price confirmed'}
+                                </div>
+
+                                {/* The three facts a traveller checks a holiday against, on one
+                                    line with their own icons instead of a dot-separated run-on. */}
+                                <div className="av-facts">
+                                  <span className="av-fact">{ICON.cal}{rangeLabel(pd.iso, addDaysISO(pd.iso, nights)) || longDate(pd.iso)}</span>
+                                  <span className="av-fact">
+                                    {ICON.people}
+                                    {[
+                                      `${availAdults} adult${availAdults === 1 ? '' : 's'}`,
+                                      availChildren > 0 ? `${availChildren} child${availChildren === 1 ? '' : 'ren'}` : null,
+                                      availRooms > 1 ? `${availRooms} rooms` : null,
+                                    ].filter(Boolean).join(' · ')}
+                                  </span>
+                                  <span className="av-fact">{ICON.moon}{stayLabel(nights)}</span>
+                                </div>
                               </div>
-                            )}
-                            {priceMoved != null && (
-                              <div className={`avail-move${priceMoved < 0 ? ' down' : ' up'}`}>
-                                {priceMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
-                                <span>
-                                  <b>€{Math.abs(priceMoved)}</b> {priceMoved < 0 ? 'lower' : 'higher'} than the earlier price
+                            </div>
+
+                            <div className={`av-price${priceMoved != null ? (priceMoved < 0 ? ' avail-moved-down' : ' avail-moved-up') : ''}`}>
+                              {/* A lavender day has no estimate — €0 is not a price and must
+                                  never be printed as one. A quiet dash says "nothing to quote". */}
+                              <div className="av-price-label">{liveRoom ? 'Live price' : pdEstimate ? 'Estimated price' : ''}</div>
+                              {/* PER PERSON is the headline, because that is the figure the fare
+                                  strip beside it quotes and the one travellers compare on. The
+                                  party total sits directly under it in words, so the number they
+                                  actually pay is never left to be worked out. */}
+                              <div className="av-price-row">
+                                <span className="avail-price-val">
+                                  {liveRooms?.loading
+                                    ? <span className="avail-spin" />
+                                    : (liveNow != null || pdEstimate)
+                                      ? <><small>€</small>{ppOf(liveNow != null ? liveNow : Number(pd.price))}<em>p.p.</em></>
+                                      : <span className="avail-price-none">—</span>}
                                 </span>
                               </div>
-                            )}
-                            {(liveNow != null || pdEstimate) && (
-                              <div className="avail-pp">
-                                €{perPersonOf(liveNow != null ? liveNow : Number(pd.price))} p.p.
+                              {(liveRoom || pdEstimate) && (
+                                <div className="av-price-total">
+                                  {/* The estimate stays on screen struck through: the traveller
+                                      chose this day off that number and is owed an account of
+                                      where it went. */}
+                                  {priceMoved != null && <span className="avail-price-old">€{cacheWas}</span>}
+                                  <b>€{(liveNow != null ? liveNow : Number(pd.price)).toLocaleString('en-GB')}</b>
+                                  <span className="avail-forpax">
+                                    {` total for ${availAdults} adult${availAdults === 1 ? '' : 's'}`}
+                                    {availChildren > 0 ? ` · ${availChildren} child${availChildren === 1 ? '' : 'ren'}` : ''}
+                                  </span>
+                                </div>
+                              )}
+                              {/* Amber, not red, when it rises. The holiday IS available — that is
+                                  what the tick says — and the only thing that changed is the price.
+                                  Stated per person, to match the figure above it. */}
+                              {ppMoved != null && (
+                                <div className={`avail-move${ppMoved < 0 ? ' down' : ' up'}`}>
+                                  {ppMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
+                                  <span><b>€{Math.abs(ppMoved)} p.p.</b> {ppMoved < 0 ? 'lower' : 'higher'} after live check</span>
+                                </div>
+                              )}
+                              <div className="avail-you-low">
+                                {/* Named for what it actually covers. On a package the flight is
+                                    NOT in this figure, so calling it the total holiday price would
+                                    be a straight untruth — the Book card below quotes a bigger
+                                    number. On an own-transport stay the room IS the holiday. */}
+                                {liveRoom ? (transport === 'hotel_only'
+                                  ? `Total holiday price · ${dayLabel(nights)}`
+                                  : `Live room price · ${dayLabel(nights)}`)
+                                  : liveRooms?.error ? (pdEstimate ? 'Live price unavailable — estimate shown' : 'No estimate for this day — try again')
+                                  : pdEstimate ? (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')
+                                  : 'No cached estimate'}
                               </div>
-                            )}
-                            <div className="avail-you-low">
-                              {/* Named for what it actually covers. On a package the flight is
-                                  NOT in this figure, so calling it the total holiday price would
-                                  be a straight untruth — the Book card below quotes a bigger
-                                  number. On an own-transport stay the room IS the holiday. */}
-                              {liveRoom ? (transport === 'hotel_only'
-                                ? `Total holiday price · ${dayLabel(nights)}`
-                                : `Live room price · ${dayLabel(nights)}`)
-                                : liveRooms?.error ? (pdEstimate ? 'Live price unavailable — estimate shown' : 'No estimate for this day — try again')
-                                : pdEstimate ? (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')
-                                : 'No cached estimate'}
                             </div>
                           </div>
-                          </div>
-                          {/* The trip, spelled out. Same anatomy as the red card's "your current
-                              selection" panel, because a traveller comparing a yes to a no should
-                              be reading the same six facts in the same places. Every value is
-                              derived, never assumed: the board is the one on the live rate that
-                              produced the price above, and the transfer says "add it below" rather
-                              than implying an airport pickup nobody has chosen yet. */}
+
+                          {/* The trip, spelled out. Every value is derived, never assumed: the
+                              board is the one on the live rate that produced the price above, and
+                              the transfer says where it is added rather than implying an airport
+                              pickup nobody has chosen yet. */}
                           <div className="fc-facts">
                             <span className="fc-facts-caption">Your holiday</span>
                             <div className="fc-facts-grid">
                               <div className="fcu-item">
-                                <span className="fcu-k">{ICON.plane} Departure</span>
-                                <span className="fcu-v">{longDay(pd.iso) || pd.day}</span>
-                                <span className="fcu-sub">{longDate(pd.iso) || pd.date}</span>
+                                <span className="fcu-ico">{ICON.cal}</span>
+                                <span className="fcu-k">Travel period</span>
+                                <span className="fcu-v">{rangeLabel(pd.iso, addDaysISO(pd.iso, nights)) || longDate(pd.iso)}</span>
+                                <span className="fcu-sub">{stayLabel(nights)}</span>
                               </div>
                               <div className="fcu-item">
-                                <span className="fcu-k">{ICON.cal} Return</span>
-                                <span className="fcu-v">{longDay(addDaysISO(pd.iso, nights)) || calDay(addDaysISO(pd.iso, nights))}</span>
-                                <span className="fcu-sub">{longDate(addDaysISO(pd.iso, nights)) || calDate(addDaysISO(pd.iso, nights))}</span>
-                              </div>
-                              <div className="fcu-item">
-                                <span className="fcu-k">{transport === 'hotel_only' ? ICON.bed : ICON.plane} Airport</span>
+                                <span className="fcu-ico">{transport === 'hotel_only' ? ICON.bed : ICON.plane}</span>
+                                <span className="fcu-k">{transport === 'hotel_only' ? 'Transport' : 'Departure airport'}</span>
                                 <span className="fcu-v">
                                   {transport === 'hotel_only' ? 'Hotel only' : `${airportName(origin)} (${origin})`}
                                 </span>
-                                {transport === 'hotel_only' && <span className="fcu-sub">No flights included</span>}
+                                <span className="fcu-sub">
+                                  {transport === 'hotel_only' ? 'No flights included' : 'Outbound and return'}
+                                </span>
                               </div>
                               <div className="fcu-item">
-                                <span className="fcu-k">{ICON.board} Board type</span>
-                                <span className="fcu-v">
+                                <span className="fcu-ico">{ICON.bed}</span>
+                                <span className="fcu-k">Accommodation</span>
+                                <span className="fcu-v">{liveRoom?.name || 'Chosen below'}</span>
+                                <span className="fcu-sub">
                                   {liveBoard
                                     || BOARD_PREFS.find((b) => b.id === boardPref && b.id)?.label
-                                    || 'Choose with your room'}
+                                    || 'Board chosen with your room'}
                                 </span>
                               </div>
                               {transport === 'package' && (
                                 <div className="fcu-item">
-                                  <span className="fcu-k">{ICON.noTransfer} Transfer</span>
-                                  <span className="fcu-v">To be booked on the next page</span>
+                                  <span className="fcu-ico">{ICON.noTransfer}</span>
+                                  <span className="fcu-k">Transfer</span>
+                                  <span className="fcu-v">Not included</span>
                                   <span className="fcu-sub">Optional extra</span>
+                                  <span className="fcu-cta">Add in the next step {ICON.arrow}</span>
                                 </div>
                               )}
                             </div>
+                          </div>
+
+                          <div className="av-note">
+                            {ICON.info}
+                            <span>Prices and availability are checked live with the hotel for these exact dates.</span>
                           </div>
                         </div>
                       )}
@@ -2998,7 +3360,7 @@ export default function HotelDetail() {
                             f={{ ...pick, price: Math.round(pick.totalPrice), delta: cheapestFare == null || isCheapest ? 0 : pick.totalPrice - cheapestFare }}
                             selected
                             banner={isCheapest ? {
-                              title: 'Cheapest available flight',
+                              title: 'Cheapest flight',
                               sub: 'Automatically selected for your travel dates.',
                               note: 'This is the best-priced flight option we found for your selected dates.',
                             } : {

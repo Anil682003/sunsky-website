@@ -118,7 +118,9 @@ describe('the live price came back LOWER', () => {
     await checkFirstDay(user);
     await priced(container);
 
-    expect(container.querySelector('.avail-price-val').textContent).toBe(`€${LIVE_TOTAL}`);
+    // €384 for 2 adults → €192 each, the figure the card leads with.
+    expect(container.querySelector('.avail-price-val').textContent).toBe('€192p.p.');
+    expect(container.querySelector('.av-price-total').textContent).toContain(`€${LIVE_TOTAL}`);
     expect(container.querySelector('.avail-price-old').textContent).toBe('€430');
   });
 
@@ -132,7 +134,8 @@ describe('the live price came back LOWER', () => {
     expect(move).toBeTruthy();
     expect(move.className).toContain('down');
     expect(move.className).not.toContain('up');
-    expect(move.textContent).toMatch(/€46 lower than the earlier price/i);
+    // Stated on the card's own basis: €215 each was estimated, €192 each came back.
+    expect(move.textContent).toMatch(/€23 p\.p\. lower after live check/i);
   });
 
   it('shows one traveller\'s share of the LIVE total, not of the estimate', async () => {
@@ -141,7 +144,7 @@ describe('the live price came back LOWER', () => {
     await checkFirstDay(user);
     await priced(container);
 
-    expect(container.querySelector('.avail-pp').textContent).toContain('192.00');
+    expect(container.querySelector('.avail-price-val').textContent).toContain('192');
     expect(container.querySelector('.avail-forpax').textContent).toMatch(/for 2 adults/i);
   });
 });
@@ -155,7 +158,8 @@ describe('the live price came back HIGHER', () => {
     await checkFirstDay(user);
     await priced(container);
 
-    expect(container.querySelector('.avail-price-val').textContent).toBe(`€${LIVE_TOTAL}`);
+    expect(container.querySelector('.avail-price-val').textContent).toBe('€192p.p.');
+    expect(container.querySelector('.av-price-total').textContent).toContain(`€${LIVE_TOTAL}`);
     expect(container.querySelector('.avail-price-old').textContent).toBe('€346');
   });
 
@@ -167,7 +171,9 @@ describe('the live price came back HIGHER', () => {
 
     const move = container.querySelector('.avail-move');
     expect(move.className).toContain('up');
-    expect(move.textContent).toMatch(/€38 higher than the earlier price/i);
+    // €173 each estimated, €192 each live: the card reports its own basis, not the €38
+    // difference between the party totals.
+    expect(move.textContent).toMatch(/€19 p\.p\. higher after live check/i);
     // The amber treatment is the `up` modifier; nothing here may borrow the page's
     // unavailable-day styling.
     expect(move.className).not.toMatch(/danger|error|red|unavail/i);
@@ -191,9 +197,15 @@ describe('the live price came back HIGHER', () => {
     await checkFirstDay(user);
     await priced(container);
 
-    const chip = container.querySelector('.avail-updated');
-    expect(chip.textContent).toMatch(/price updated after live check/i);
-    expect(chip.className).not.toContain('down');
+    // A rise is stated in amber and named, while the card goes on saying the holiday is
+    // available and the check is confirmed: the price moved, nothing failed.
+    const move = container.querySelector('.avail-move');
+    expect(move.className).toContain('up');
+    expect(move.textContent).toMatch(/higher after live check/i);
+    expect(container.querySelector('.avail-text').textContent).toMatch(/your holiday is available/i);
+    const confirm = container.querySelector('.av-confirm');
+    expect(confirm.textContent).toMatch(/live availability and price confirmed/i);
+    expect(confirm.className).not.toContain('warn');
   });
 });
 
@@ -219,16 +231,22 @@ describe('basis is never crossed', () => {
     expect(container.querySelector('.fc-amt-live').textContent).toBe('€192');
   });
 
-  it('compares total against total on the card', async () => {
+  it('compares per-person against per-person on the card too', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await checkFirstDay(user);
     await priced(container);
 
-    // The card is the party total throughout: €430 → €384, a €46 move.
+    // The card now leads with the per-person figure, so its move is the per-person one:
+    // €215 each → €192 each, €23. Quoting €46 beside a €192 headline would be the same
+    // basis-crossing bug in the other direction.
+    expect(container.querySelector('.avail-price-val').textContent).toContain('192');
+    expect(container.querySelector('.avail-move').textContent).toMatch(/€23/);
+    expect(container.querySelector('.avail-move').textContent).not.toMatch(/€46/);
+
+    // The party total is still on the card, in words, with the estimate it replaced.
+    expect(container.querySelector('.av-price-total').textContent).toMatch(/€384/);
     expect(container.querySelector('.avail-price-old').textContent).toBe('€430');
-    expect(container.querySelector('.avail-move').textContent).toMatch(/€46/);
-    expect(container.querySelector('.avail-move').textContent).not.toMatch(/€23/);
   });
 });
 

@@ -962,39 +962,160 @@
   filter:none; transform:none;
 }
 .sd .fc-act-off { margin-top:16px; padding-top:16px; border-top:1px solid #f0e2e4; }
+/* ══ "Your holiday is available" ═══════════════════════════════════════════════
+   Two cards, not one crowded row: the ANSWER (is it available, what does it cost) and then
+   the TRIP it is an answer about. The answer used to share a line with five fact columns, so
+   the headline, the price, the party and the transfer all competed at the same size. */
 .sd .fc-res { display:flex; flex-direction:column; gap:14px; }
-.sd .fc-res-head { display:flex; align-items:center; gap:14px; }
-/* The trip written out under the green head — same panel/grid anatomy as the red
-   "not available" card (.fc-unavail-crit), tinted green instead of rose so a yes and
-   a no are read in the same places. */
-.sd .fc-facts { background:var(--white); border:1px solid #cdeee0; border-radius:14px; padding:12px 16px 14px; }
-.sd .fc-facts-caption { display:block; font-size:10px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); margin-bottom:10px; }
-/* 124px, narrower than the red card's 140: five facts then sit in ONE row at card
-   width, where anything wider stranded "Transfer" on a second line of its own. */
-.sd .fc-facts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(124px,1fr)); gap:12px 14px; }
-.sd .fc-facts .fcu-k svg { color:#34d399; }
-.sd .fcu-sub { font-size:11.5px; font-weight:600; color:var(--text-sec); font-variant-numeric:tabular-nums lining-nums; }
 
-/* ── While the check is still running, nothing here may read as a confirmation ──
-   Green is this block's "yes" colour, and it was being worn from the instant the block
-   mounted: a tick, green fact icons, a green price caption, all under the words "Checking
-   live availability…". Colour is read before text, so the card answered the question before
-   the supplier had. Everything green is held back until there is something to be green about,
-   and it all turns together. */
+.sd .av-card {
+  display:flex; align-items:stretch; gap:24px;
+  background:var(--white); border:1px solid var(--border-light); border-radius:18px;
+  padding:22px 24px; box-shadow:var(--shadow-xs);
+}
+.sd .av-main { display:flex; align-items:flex-start; gap:16px; flex:1; min-width:0; }
+.sd .av-head { min-width:0; }
+.sd .av-card .fc-res-mark { flex:none; width:38px; height:38px; margin-top:2px; }
+
+.sd .av-card .avail-text {
+  font-family:'Sora',sans-serif; font-size:23px; font-weight:800; color:#0B7A57;
+  letter-spacing:-.02em; line-height:1.2;
+}
+/* States what has been ESTABLISHED, and nothing more — so it turns amber on an estimate and
+   grey while the supplier is still being asked. */
+.sd .av-confirm {
+  display:inline-flex; align-items:center; gap:8px; margin-top:10px;
+  padding:7px 15px; border-radius:var(--r-full);
+  background:#ECFDF5; color:#0B7A57;
+  font-size:12.5px; font-weight:700;
+}
+.sd .av-dot { width:7px; height:7px; border-radius:50%; background:currentColor; flex-shrink:0; }
+.sd .av-confirm.warn { background:var(--sun-warm); color:#b45309; }
+.sd .av-confirm.busy { background:var(--blue-pale); color:var(--text-sec); }
+
+/* The three facts, side by side with hairlines between them. */
+.sd .av-facts { display:flex; align-items:center; flex-wrap:wrap; gap:10px 18px; margin-top:16px; }
+.sd .av-fact {
+  display:inline-flex; align-items:center; gap:8px;
+  font-size:13.5px; font-weight:700; color:var(--dark);
+}
+.sd .av-fact svg { width:16px; height:16px; color:var(--blue); flex-shrink:0; }
+.sd .av-fact + .av-fact { padding-left:18px; border-left:1px solid var(--border-light); }
+
+/* The price column, divided off from the answer beside it. */
+.sd .av-price {
+  flex:0 0 auto; min-width:212px; max-width:280px;
+  padding-left:24px; border-left:1px solid var(--border-light);
+  display:flex; flex-direction:column; align-items:flex-start;
+}
+.sd .av-price-label {
+  font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:#0B7A57;
+}
+.sd .av-price-row { display:flex; align-items:baseline; gap:9px; margin-top:6px; }
+.sd .avail-price-val {
+  display:inline-flex; align-items:baseline;
+  font-family:'Sora',sans-serif; font-size:44px; font-weight:800; color:#0B7A57;
+  letter-spacing:-.03em; line-height:1; font-variant-numeric:tabular-nums lining-nums;
+}
+.sd .avail-price-val small { font-size:24px; font-weight:700; margin-right:1px; }
+.sd .avail-price-val em { font-style:normal; font-size:17px; font-weight:700; margin-left:7px; }
+/* The party total, in words, directly under the per-person headline: the figure they compare
+   on and the figure they pay are different numbers, and both belong on the card. */
+.sd .av-price-total {
+  margin-top:10px; font-size:12.5px; font-weight:600; color:var(--text-sec);
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.sd .av-price-total b { font-weight:800; color:var(--dark); }
+.sd .av-price-total .avail-price-old { color:var(--text-light); font-weight:600; margin-right:7px; text-decoration:line-through; }
+.sd .avail-move {
+  display:inline-flex; align-items:center; gap:8px; margin-top:12px;
+  padding:9px 14px; border-radius:12px;
+  font-size:12.5px; font-weight:600; line-height:1.35;
+}
+.sd .avail-move b { font-family:'Sora',sans-serif; font-weight:800; }
+.sd .avail-move svg { width:15px; height:15px; flex-shrink:0; }
+.sd .avail-move.down { background:#ECFDF5; color:#0B7A57; }
+.sd .avail-move.up { background:var(--sun-warm); color:#b45309; }
+.sd .avail-you-low { margin-top:12px; font-size:11.5px; font-weight:600; color:var(--text-light); }
+
+/* ── The trip the answer is about ── */
+.sd .fc-facts {
+  background:var(--white); border:1px solid var(--border-light); border-radius:18px;
+  padding:20px 24px 22px; box-shadow:var(--shadow-xs);
+}
+.sd .fc-facts-caption {
+  display:block; font-family:'Sora',sans-serif; font-size:12px; font-weight:800;
+  letter-spacing:.09em; text-transform:uppercase; color:var(--dark); margin-bottom:16px;
+}
+.sd .fc-facts-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:18px 0; }
+.sd .fcu-item { display:grid; grid-template-columns:44px 1fr; grid-template-rows:auto auto auto; column-gap:14px; padding:0 20px; min-width:0; }
+.sd .fcu-item + .fcu-item { border-left:1px solid var(--border-light); }
+.sd .fcu-item:first-child { padding-left:0; }
+.sd .fcu-ico {
+  grid-row:1 / span 2; align-self:start;
+  display:flex; align-items:center; justify-content:center;
+  width:44px; height:44px; border-radius:50%;
+  background:var(--blue-pale); color:var(--blue);
+}
+.sd .fcu-ico svg { width:20px; height:20px; }
+.sd .fc-facts .fcu-k {
+  align-self:end;
+  font-size:11px; font-weight:800; letter-spacing:.07em; text-transform:uppercase; color:var(--blue);
+  white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+}
+.sd .fc-facts .fcu-k svg { display:none; }   /* the round badge carries the icon now */
+.sd .fc-facts .fcu-v {
+  font-family:'Sora',sans-serif; font-size:15.5px; font-weight:800; color:var(--dark);
+  letter-spacing:-.01em; margin-top:3px; min-width:0;
+}
+.sd .fc-facts .fcu-sub { grid-column:2; font-size:12.5px; font-weight:500; color:var(--text-sec); margin-top:3px; }
+.sd .fcu-cta {
+  grid-column:2; justify-self:start; margin-top:11px;
+  display:inline-flex; align-items:center; gap:7px;
+  padding:9px 18px; border-radius:var(--r-full);
+  border:1.5px solid var(--blue); color:var(--blue);
+  font-size:12.5px; font-weight:700;
+}
+.sd .fcu-cta svg { width:14px; height:14px; }
+
+/* The one thing worth repeating at the foot: these numbers are live, not cached. */
+.sd .av-note {
+  display:flex; align-items:center; gap:10px;
+  padding:13px 18px; border-radius:14px;
+  background:#F3FBF7; border:1px solid #CDEEE0;
+  font-size:12.5px; font-weight:600; color:#0B7A57; line-height:1.45;
+}
+.sd .av-note svg { width:17px; height:17px; flex-shrink:0; }
+
+/* State colours ride on the wrapper, so the whole panel answers together. */
+.sd .fc-res.checking .av-card .avail-text { color:var(--text-sec); }
+.sd .fc-res.checking .av-price-label, .sd .fc-res.checking .avail-you-low { color:var(--text-light); }
+.sd .fc-res.checking .avail-price-val { color:var(--text-sec); }
+.sd .fc-res.checking .av-note { background:var(--blue-pale); border-color:#dbe8fb; color:var(--text-sec); }
+.sd .fc-res.failed .av-card .avail-text { color:#b45309; }
+.sd .fc-res.failed .avail-price-val, .sd .fc-res.failed .av-price-label { color:#b45309; }
+.sd .fc-res.failed .av-note { background:var(--sun-warm); border-color:#ffe9c7; color:#b45309; }
+
+@media (max-width:900px) {
+  .sd .av-card { flex-direction:column; gap:18px; padding:18px; }
+  .sd .av-price { min-width:0; max-width:none; padding-left:0; padding-top:18px; border-left:none; border-top:1px solid var(--border-light); width:100%; }
+  .sd .av-fact + .av-fact { padding-left:0; border-left:none; }
+  .sd .av-facts { gap:8px 16px; }
+  .sd .fc-facts { padding:16px; }
+  .sd .fc-facts-grid { grid-template-columns:1fr; gap:16px; }
+  .sd .fcu-item { padding:0; }
+  .sd .fcu-item + .fcu-item { border-left:none; border-top:1px solid var(--border-light); padding-top:16px; }
+}
+
+/* Held back until there is something to be green about: colour is read before text, and a
+   green tick under the words "Checking live availability…" answers the question before the
+   supplier has. */
 .sd .fc-res-mark { flex:none; }
 .sd .fc-res-mark-busy {
-  width:26px; height:26px; border-radius:50%;
+  width:38px; height:38px; border-radius:50%;
   border:3px solid #d7e3f5; border-top-color:var(--blue);
   animation:sdSpin .7s linear infinite;
 }
-.sd .fc-res.checking .fc-facts { border-color:var(--border-light); }
-.sd .fc-res.checking .fc-facts .fcu-k svg { color:var(--text-light); }
-.sd .fc-res.checking .avail-you-low, .sd .fc-res.checking .avail-price-label { color:var(--text-light); }
-/* A failed check is amber, not green and not red: the estimate shown beside it is real, it
-   just isn't the live figure that was asked for. */
-.sd .fc-res.failed .fc-facts { border-color:#ffe2b8; }
-.sd .fc-res.failed .fc-facts .fcu-k svg { color:#f59e0b; }
-.sd .fc-res.failed .avail-you-low { color:#b45309; }
 .sd .fc-hint { text-align:center; font-size:12.5px; font-weight:600; color:var(--text-light); padding:14px 0 0; }
 
 /* loading skeleton */
@@ -1109,30 +1230,85 @@
    Solid blue, not the green "cheapest" frame: green is this page's SELECTED colour, worn by
    the chosen room, and a card that is both the cheapest and the selected one wearing green
    twice said nothing twice. */
-.sd .flight-card.bannered { border-color:#bcd6fa; }
+/* ══ The page's headline flight card ═══════════════════════════════════════════
+   A blue band saying which flight this is and why, then the two directions side by side.
+   Everything below is scoped to .bannered, so the same components keep their compact list
+   sizing inside the change-flight modal. */
+.sd .flight-card.bannered { border-color:#bcd6fa; overflow:hidden; }
 .sd .flight-card.bannered:hover { border-color:#9dc2f6; }
 .sd .fc-banner {
-  display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
-  padding:16px 20px; background:linear-gradient(135deg,#4a8bf2,#2f6fe4);
+  display:flex; align-items:flex-start; justify-content:space-between; gap:18px; flex-wrap:wrap;
+  padding:18px 22px 20px; background:var(--blue);
 }
 .sd .fc-banner-main { min-width:0; }
+/* The title wears a pill: at the top of a solid blue band, bare uppercase type reads as a
+   section heading rather than as a label for the card under it. */
 .sd .fc-banner-title {
-  font-family:'Sora',sans-serif; font-size:15px; font-weight:800; color:#fff;
-  text-transform:uppercase; letter-spacing:.05em; line-height:1.25;
+  display:inline-flex; align-items:center; gap:9px;
+  padding:9px 20px 9px 16px;
+  border:1.5px solid rgba(255,255,255,.5); border-radius:var(--r-full);
+  font-family:'Sora',sans-serif; font-size:14px; font-weight:800; color:#fff;
+  text-transform:uppercase; letter-spacing:.05em; line-height:1.2;
 }
+.sd .fc-banner-title svg { width:16px; height:16px; fill:#fff; stroke:none; flex-shrink:0; }
 /* .9 rather than the page's muted grey: those greys were chosen against white and disappear
    on blue. Opacity is as far back as this can afford to step. */
-.sd .fc-banner-sub { font-size:12.5px; font-weight:500; color:rgba(255,255,255,.9); margin-top:3px; }
+.sd .fc-banner-sub { font-size:13px; font-weight:500; color:rgba(255,255,255,.92); margin-top:9px; }
 .sd .fc-banner-note {
-  display:flex; align-items:center; gap:9px; max-width:340px;
-  padding:10px 14px; border-radius:12px; background:var(--white);
-  font-size:11.5px; font-weight:600; color:var(--blue); line-height:1.4;
+  display:flex; align-items:center; gap:10px; max-width:360px;
+  padding:13px 16px; border-radius:14px; background:var(--white);
+  font-size:12.5px; font-weight:700; color:var(--blue); line-height:1.45;
 }
-.sd .fc-banner-note svg { width:15px; height:15px; flex-shrink:0; }
-/* No punched notches under a banner: the tear-line circles are drawn in the page background
-   colour to look like holes, which only works where the card meets the page — under a solid
-   blue band they read as two blue dots. */
-.sd .flight-card.bannered .bp-body > .bp-journey:first-child { padding-top:18px; }
+.sd .fc-banner-note svg { width:17px; height:17px; flex-shrink:0; }
+
+/* Outbound | Return, one column each, a hairline between them. */
+.sd .fc-legs { display:grid; grid-template-columns:1fr 1fr; }
+.sd .fc-legs-one { grid-template-columns:1fr; }
+.sd .fc-leg { padding:20px 24px 18px; min-width:0; }
+.sd .fc-leg + .fc-leg { border-left:1px solid var(--border-light); }
+.sd .fc-leg .bp-jhead { margin-bottom:14px; }
+/* The carrier, on its own line between the date and the route. */
+.sd .fc-leg .bp-airrow { display:flex; align-items:center; gap:11px; margin-bottom:18px; min-width:0; }
+.sd .fc-leg .bp-airname { font-size:15px; font-weight:700; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sd .fc-leg .bp-airmark { width:34px; height:34px; font-size:14px; }
+.sd .fc-leg .bp-airmark.air-logo { width:34px; height:34px; padding:3px; }
+.sd .fc-leg .bp-flno { font-size:11.5px; padding:5px 11px; }
+/* Room for a 40px time either side of the track, in half the card's width. */
+.sd .fc-leg .bp-route { gap:12px; }
+.sd .fc-leg .bp-time { font-size:34px; letter-spacing:-1px; }
+.sd .fc-leg .bp-city { font-size:13px; margin-top:8px; }
+.sd .fc-leg .bp-code { font-size:11.5px; }
+.sd .fc-leg .bp-mid { min-width:104px; }
+.sd .fc-leg .bp-dur { font-size:12px; }
+.sd .fc-leg .bp-stops { font-size:11.5px; }
+.sd .fc-leg .bp-incl { padding:16px 0 0; }
+.sd .fc-leg .bp-via { margin-top:10px; }
+
+/* The footer keeps the boarding-pass stub, and the badge grows into the button the design
+   asks for — this card has one action and it is the size of it. */
+.sd .flight-card.bannered .flight-bottom { padding:14px 22px; }
+/* Specificity, deliberately: two later rules strip .flight-selected-badge back to plain
+   green text. On this card the badge is the design's button, so it has to outrank them. */
+.sd .flight-card.bannered .flight-selected-badge.fc-selected-lg {
+  padding:13px 30px; border-radius:var(--r-full); border:1.5px solid #0B7A57;
+  background:#0B7A57; border-color:#0B7A57; color:#fff;
+  font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800;
+  text-transform:uppercase; letter-spacing:.06em;
+  box-shadow:0 6px 18px rgba(11,122,87,.28);
+}
+.sd .flight-card.bannered .fc-selected-lg svg { width:16px; height:16px; }
+
+@media (max-width:900px) {
+  /* One under the other, with the divider turned across the card. */
+  .sd .fc-legs { grid-template-columns:1fr; }
+  .sd .fc-leg + .fc-leg { border-left:none; border-top:1px solid var(--border-light); }
+  .sd .fc-leg { padding:16px 16px 14px; }
+  .sd .fc-leg .bp-time { font-size:27px; }
+  .sd .fc-banner { padding:16px; }
+  .sd .fc-banner-note { max-width:none; }
+  .sd .flight-card.bannered .fc-selected-lg { justify-content:center; width:100%; }
+}
+
 
 /* Full width, because it is the only way to the other fares now and a centred pill read as
    an afterthought beside a card this size. */
@@ -1838,6 +2014,167 @@
 .sd .modal-save-bar { padding:14px 24px; border-top:1px solid var(--border-light); text-align:center; background:var(--page-bg); }
 .sd .modal-save-btn { display:inline-flex; align-items:center; gap:8px; padding:14px 48px; border-radius:var(--r-full); background:linear-gradient(135deg,var(--sun),var(--gold)); color:#fff; font-family:'Sora',sans-serif; font-size:15px; font-weight:700; box-shadow:var(--shadow-glow); transition:all .3s var(--ease); }
 .sd .modal-save-btn:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(255,159,28,.45); }
+
+
+/* ══ Flight details dialog ═════════════════════════════════════════════════════
+   Two tabs: the itinerary, and the baggage that used to be a chip beside it. */
+.sd .fdm-overlay { padding:20px; }
+.sd .fdm {
+  width:100%; max-width:1080px; max-height:90vh;
+  display:flex; flex-direction:column;
+  background:var(--white); border-radius:var(--r-xl); overflow:hidden;
+  box-shadow:var(--shadow-lg); animation:sdSlideUp .3s var(--ease);
+}
+.sd .fdm-head {
+  display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
+  padding:24px 28px 18px;
+}
+.sd .fdm-title {
+  font-family:'Sora',sans-serif; font-size:22px; font-weight:800; color:var(--dark);
+  text-transform:uppercase; letter-spacing:.01em; line-height:1.2;
+}
+.sd .fdm-sub { font-size:14px; font-weight:600; color:var(--text-light); margin-top:4px; }
+
+/* Two tabs in one bordered box, the live one underlined in blue. */
+.sd .fdm-tabs {
+  display:grid; grid-template-columns:1fr 1fr;
+  margin:0 28px; border:1px solid var(--border); border-radius:var(--r-md);
+  overflow:hidden; background:var(--white);
+}
+.sd .fdm-tab {
+  display:flex; align-items:center; justify-content:center; gap:10px;
+  padding:18px 12px; border:none; background:none; cursor:pointer;
+  font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800;
+  text-transform:uppercase; letter-spacing:.07em; color:var(--text-light);
+  border-bottom:3px solid transparent;
+  transition:color .2s, border-color .2s, background .2s;
+}
+.sd .fdm-tab svg { width:19px; height:19px; }
+.sd .fdm-tab:hover { color:var(--text-sec); background:var(--blue-pale); }
+.sd .fdm-tab.on { color:var(--blue); border-bottom-color:var(--blue); }
+
+.sd .fdm-body { flex:1; overflow-y:auto; padding:20px 28px 4px; }
+
+/* One block per direction. */
+.sd .fdm-journey, .sd .fdm-bagblock {
+  border:1px solid var(--border-light); border-radius:var(--r-md);
+  background:var(--white); margin-bottom:16px; overflow:hidden;
+}
+.sd .fdm-jhead {
+  display:flex; align-items:center; gap:12px;
+  padding:16px 20px; background:var(--blue-pale); border-bottom:1px solid var(--border-light);
+}
+.sd .fdm-jdate {
+  font-size:13.5px; font-weight:700; color:var(--text-sec);
+  padding-left:12px; border-left:1px solid rgba(15,40,100,.14);
+}
+
+/* ── Tab 1: the itinerary, leg by leg ── */
+.sd .fdm-legs { padding:6px 20px 18px; }
+.sd .fdm-leg {
+  display:grid; grid-template-columns:minmax(0,1fr) minmax(120px,1.1fr) minmax(0,1fr) minmax(0,1fr);
+  align-items:center; gap:18px; padding:16px 0;
+}
+.sd .fdm-leg + .fdm-leg { border-top:1px dashed var(--border); }
+.sd .fdm-point { min-width:0; }
+.sd .fdm-point-r { text-align:right; }
+.sd .fdm-time {
+  font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--dark);
+  letter-spacing:-.4px; line-height:1.1; font-variant-numeric:tabular-nums;
+}
+.sd .fdm-place { font-size:13px; font-weight:600; color:var(--text-sec); margin-top:5px; line-height:1.35; }
+.sd .fdm-code { font-size:11.5px; font-weight:800; color:var(--text-light); letter-spacing:.1em; margin-top:2px; }
+.sd .fdm-mid { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; }
+.sd .fdm-dur { font-size:12px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
+.sd .fdm-carrier { display:flex; align-items:center; gap:10px; justify-content:flex-end; min-width:0; }
+.sd .fdm-carrier .bp-airname { font-size:13.5px; font-weight:700; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sd .fdm-carrier .bp-airmark { width:30px; height:30px; font-size:13px; }
+.sd .fdm-carrier .bp-airmark.air-logo { width:30px; height:30px; padding:2px; }
+
+/* The wait between two legs, called out where it happens rather than left to be worked out
+   from two times in different columns. */
+.sd .fdm-layover {
+  display:flex; align-items:center; gap:9px; margin:2px 0;
+  padding:11px 16px; border-radius:var(--r-sm);
+  background:var(--sun-warm); border:1px solid #ffe4bd;
+  font-size:12.5px; color:#b45309;
+}
+.sd .fdm-layover svg { width:15px; height:15px; flex-shrink:0; }
+.sd .fdm-layover b { font-weight:800; margin-right:4px; }
+
+/* ── Tab 2: the baggage table ── */
+.sd .fdm-tablewrap { overflow-x:auto; }
+.sd .fdm-table { width:100%; border-collapse:collapse; font-size:13px; }
+.sd .fdm-table th {
+  text-align:left; padding:13px 16px; background:#f7faff;
+  border-bottom:1px solid var(--border-light);
+  font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
+  color:var(--text-sec); white-space:nowrap; vertical-align:bottom;
+}
+.sd .fdm-th { display:inline-flex; align-items:center; gap:7px; flex-wrap:wrap; }
+.sd .fdm-th svg { width:15px; height:15px; color:var(--text-sec); }
+.sd .fdm-th em {
+  flex-basis:100%; font-style:normal; font-size:10px; font-weight:600;
+  letter-spacing:.02em; text-transform:none; color:var(--text-light);
+}
+.sd .fdm-table td { padding:16px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
+.sd .fdm-table tr:last-child td { border-bottom:none; }
+.sd .fdm-td-flno { font-family:'Sora',sans-serif; font-weight:800; color:var(--dark); white-space:nowrap; }
+.sd .fdm-td-air { display:flex; align-items:center; gap:9px; }
+.sd .fdm-td-air .bp-airname { font-size:13px; font-weight:700; color:var(--dark); white-space:nowrap; }
+.sd .fdm-td-air .bp-airmark { width:28px; height:28px; font-size:12px; }
+.sd .fdm-td-air .bp-airmark.air-logo { width:28px; height:28px; padding:2px; }
+.sd .fdm-td-route { color:var(--text-sec); font-weight:600; line-height:1.5; min-width:220px; }
+.sd .fdm-arrow { color:var(--text-light); }
+
+/* Included is stated in green with a tick; anything the supplier did not state says so in
+   grey rather than borrowing the tick. */
+.sd .fdm-allow { display:flex; flex-direction:column; gap:2px; white-space:nowrap; }
+.sd .fdm-allow-main {
+  display:inline-flex; align-items:center; gap:6px;
+  font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--text-light);
+}
+.sd .fdm-allow svg { width:15px; height:15px; }
+.sd .fdm-allow em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--text-light); }
+.sd .fdm-allow.on .fdm-allow-main { color:#0B7A57; }
+.sd .fdm-allow.on em { color:#0B7A57; }
+
+.sd .fdm-note {
+  display:flex; align-items:flex-start; gap:11px;
+  padding:15px 18px; margin-bottom:16px;
+  border-radius:var(--r-sm); background:var(--blue-pale); border:1px solid #dbe8fb;
+  font-size:12.5px; line-height:1.55; color:var(--text-sec);
+}
+.sd .fdm-note svg { width:17px; height:17px; color:var(--blue); flex-shrink:0; margin-top:1px; }
+
+.sd .fdm-foot {
+  display:flex; justify-content:flex-end;
+  padding:16px 28px 20px; border-top:1px solid var(--border-light); background:#fbfdff;
+}
+.sd .fdm-close-btn {
+  padding:13px 40px; border-radius:var(--r-full);
+  border:1.5px solid var(--border); background:var(--white);
+  font-family:'Sora',sans-serif; font-size:14px; font-weight:700; color:var(--blue);
+  cursor:pointer; transition:all .25s var(--ease);
+}
+.sd .fdm-close-btn:hover { border-color:var(--blue); background:var(--blue); color:#fff; }
+
+@media (max-width:900px) {
+  .sd .fdm-overlay { padding:0; }
+  .sd .fdm { max-width:none; max-height:100vh; height:100vh; border-radius:0; }
+  .sd .fdm-head { padding:18px 18px 14px; }
+  .sd .fdm-title { font-size:18px; }
+  .sd .fdm-tabs { margin:0 18px; }
+  .sd .fdm-tab { padding:14px 8px; font-size:11.5px; letter-spacing:.04em; gap:7px; }
+  .sd .fdm-body { padding:16px 18px 4px; }
+  /* The four-column leg row becomes two rows: the route, then who flies it. */
+  .sd .fdm-leg { grid-template-columns:minmax(0,1fr) minmax(90px,.9fr) minmax(0,1fr); gap:12px; }
+  .sd .fdm-carrier { grid-column:1 / -1; justify-content:flex-start; }
+  .sd .fdm-time { font-size:20px; }
+  .sd .fdm-legs { padding:4px 16px 14px; }
+  .sd .fdm-foot { padding:14px 18px 18px; }
+  .sd .fdm-close-btn { width:100%; }
+}
 
 /* MOBILE BAR */
 .sd .mbar { display:none; position:fixed; bottom:0; left:0; right:0; z-index:50; background:rgba(255,255,255,.92); backdrop-filter:blur(16px) saturate(160%); -webkit-backdrop-filter:blur(16px) saturate(160%); border-top:1px solid var(--border-light); padding:12px 20px; box-shadow:0 -10px 30px rgba(15,40,100,.12); }

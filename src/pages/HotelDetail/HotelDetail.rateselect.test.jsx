@@ -63,12 +63,20 @@ const checkFirstDay = async (user) => {
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
-/** The board the card claims, off the labelled row in the recap. */
+/** The board the card claims, off the labelled row in the recap — it sits with the room it
+ * belongs to now, under "Accommodation". */
 const cardBoard = (container) => [...container.querySelectorAll('.fcu-item')]
-  .find((el) => el.querySelector('.fcu-k')?.textContent.trim().toLowerCase() === 'board type')
+  .find((el) => el.querySelector('.fcu-k')?.textContent.trim().toLowerCase() === 'accommodation')
   ?.textContent;
 
-const cardPrice = (container) => container.querySelector('.avail-price-val')?.textContent;
+// The card leads with the per-person figure and states the party total under it. These
+// tests compare the card against a room row, which is priced for the party, so the total
+// is the like-for-like figure to read.
+const cardPrice = (container) => {
+  const total = container.querySelector('.av-price-total b')?.textContent || '';
+  const m = total.match(/€[\d,]+/);
+  return m ? m[0].replace(/,/g, '') : undefined;
+};
 
 /** The room row the list shows as chosen. */
 const selectedRow = (container) => container.querySelector('.room-option.selected');
