@@ -847,6 +847,7 @@
 
 /* Flights Search Panel */
 .flightsWrap {
+  position:relative;   /* the dropdowns below float against this */
   width:100%;
   max-width:1300px;
   margin:0 auto;
@@ -949,10 +950,15 @@
 .returnDateField { transition:opacity 0.3s, max-width 0.3s; overflow:hidden; }
 .returnDateFieldHidden { opacity:0.3; max-width:0; padding:0; overflow:hidden; pointer-events:none; }
 
-/* Flight dropdown (positioned below the flight card) */
+/* Flight dropdown — FLOATS below the card, it does not take part in the layout.
+   In flow it pushed every section under the hero down the moment a field was opened, and
+   again on every keystroke as the airport list grew and shrank: the page appeared to jerk
+   while you were typing into it. Absolute means opening a panel moves nothing at all. */
 .flightDropdown {
-  position:relative;
-  margin-top:6px;
+  position:absolute;
+  top:calc(100% + 6px);
+  left:0;
+  right:0;
   background:rgba(255,255,255,0.98);
   backdrop-filter:blur(24px);
   border:1px solid rgba(15,40,100,0.08);

@@ -40,7 +40,9 @@ export default function AirportSearch({
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef(null);
 
-  useEffect(() => { inputRef.current?.focus(); }, []);
+  // preventScroll, or the browser scrolls the page to bring the freshly focused input into
+  // view — the panel opens and the whole page lurches under the pointer.
+  useEffect(() => { inputRef.current?.focus({ preventScroll: true }); }, []);
 
   const q = term.trim();
   const searching = q.length >= MIN_QUERY;
@@ -100,7 +102,10 @@ export default function AirportSearch({
           : fallbackLabel}
       </div>
 
-      {/* Only ever one of these: the rows, or a line saying why there are none. */}
+      {/* Only ever one of these: the rows, or a line saying why there are none. Both sit in a
+          box with a floor under it, so the panel keeps its size as you type instead of
+          snapping shorter on every keystroke that narrows the list. */}
+      <div className={styles.results}>
       {showing.length > 0 ? (
         <div className={styles.list} role="listbox">
           {showing.map((a, i) => (
@@ -131,6 +136,7 @@ export default function AirportSearch({
           </div>
         )
       )}
+      </div>
     </div>
   );
 }

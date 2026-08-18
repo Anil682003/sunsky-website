@@ -35,7 +35,13 @@
   margin:14px 4px 6px;
 }
 
-.list { display:flex; flex-direction:column; gap:2px; max-height:min(46vh, 340px); overflow-y:auto; }
+/* ONE height, whatever is showing. The panel was a different size for the eight-airport
+   shortlist, for three results, for one, and for "no match", so its bottom edge jumped under
+   the pointer on almost every keystroke. A fixed box scrolls its contents instead; the list
+   is long far more often than it is short, so the steadiness is worth the white space under
+   a single hit. */
+.results { height:min(46vh, 340px); display:flex; flex-direction:column; }
+.list { display:flex; flex-direction:column; gap:2px; flex:1; min-height:0; overflow-y:auto; }
 .row {
   display:flex; align-items:center; gap:11px; width:100%;
   padding:10px 12px;
@@ -63,4 +69,7 @@
   background:var(--blue-light, #e8f1ff);
   padding:4px 9px; border-radius:7px;
 }
-.empty { padding:16px 6px; font-size:13px; line-height:1.55; color:var(--text-light); }
+.empty {
+  flex:1; display:flex; align-items:center; justify-content:center; text-align:center;
+  padding:16px 22px; font-size:13px; line-height:1.55; color:var(--text-light);
+}
