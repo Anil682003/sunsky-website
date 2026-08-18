@@ -2244,14 +2244,14 @@
   padding:18px 22px 14px;
   border-bottom:1px solid var(--border-light);
 }
-/* A dialog heading, not a page one. 22px UPPERCASE was reading as a section title on top
-   of the card behind it — sentence case at 16px is enough to name what this is, and the
-   subline underneath still says whose flight it describes. */
+/* Bold, uppercase, dark navy — the header of a formal boarding-pass style dialog. Reads as
+   a document title rather than a page section because it is scoped inside its own dialog
+   frame, and the "Your selected flight" subline sits under it as the caption. */
 .fdm-title {
-  font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--dark);
-  letter-spacing:-.01em; line-height:1.25;
+  font-family:'Sora',sans-serif; font-size:20px; font-weight:800; color:var(--dark);
+  letter-spacing:.02em; line-height:1.2; text-transform:uppercase;
 }
-.fdm-sub { font-size:12.5px; font-weight:500; color:var(--text-light); margin-top:2px; }
+.fdm-sub { font-size:13px; font-weight:500; color:var(--text-light); margin-top:3px; }
 
 /* Two tabs along the top of the body, sitting under a hairline. A framed pill was fighting
    the dialog's own frame; a plain underline is what a tab is. */
@@ -2276,17 +2276,25 @@
 
 .fdm-body { flex:1; overflow-y:auto; padding:18px 22px 4px; }
 
-/* One block per direction. */
+/* One block per direction. A soft grey outer surface with the header sitting transparently
+   on it, and the flight route in its own white inner card — the two layers give the block
+   the feel of a document panel, and put a clear frame around the itinerary itself. The
+   baggage table (tab 2) reuses the outer frame without an inner card. */
 .fdm-journey, .fdm-bagblock {
   border:1px solid var(--border-light); border-radius:var(--r-md);
-  background:var(--white); margin-bottom:16px; overflow:hidden;
+  background:#F5F7FA; margin-bottom:16px; padding:16px;
 }
+.fdm-bagblock { padding:0; background:var(--white); overflow:hidden; }
 /* Tab 1: the itinerary, laid out to match the design.
    The header has the direction on the left, date beside it, and — where the fare states one —
-   a baggage summary on the right. The body is a row of leg columns with a horizontal layover
-   pill between them, and the airline strip sits under each column. */
+   a baggage summary on the right. It sits transparently on the outer grey; the leg row sits
+   in its own white card below. */
 .fdm-jhead {
   display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:4px 8px 14px;
+  background:transparent; border-bottom:none;
+}
+.fdm-bagblock .fdm-jhead {
   padding:14px 20px;
   background:var(--blue-pale); border-bottom:1px solid var(--border-light);
 }
@@ -2306,9 +2314,10 @@
 
 .fdm-legrow {
   display:flex; align-items:stretch; gap:14px;
-  padding:20px; min-width:0;
+  padding:22px; min-width:0;
+  background:var(--white); border:1px solid var(--border-light); border-radius:var(--r-md);
 }
-.fdm-leg { flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; }
+.fdm-leg { flex:1; min-width:0; display:flex; flex-direction:column; gap:18px; }
 
 /* Time — track — time, one column of the row. */
 .fdm-legrail {
@@ -2412,15 +2421,17 @@
   .modal-overlay.fdm-overlay { padding:0; }
   .fdm { max-width:none; max-height:100vh; height:100vh; border-radius:0; }
   .fdm-head { padding:18px 18px 14px; }
-  .fdm-title { font-size:15px; }
+  .fdm-title { font-size:17px; }
   .fdm-tabs { padding:0 14px; }
   .fdm-tab { padding:11px 12px; font-size:12px; gap:6px; }
   .fdm-body { padding:16px 18px 4px; }
+  .fdm-journey { padding:12px; }
   /* Legs stack under one another, with the layover pill filling the width between them. */
   .fdm-legrow { flex-direction:column; gap:12px; padding:16px; }
   .fdm-layover { max-width:none; align-self:stretch; width:auto; }
   .fdm-time { font-size:20px; }
-  .fdm-jhead { padding:12px 16px; gap:8px; }
+  .fdm-jhead { padding:4px 6px 12px; gap:8px; }
+  .fdm-bagblock .fdm-jhead { padding:12px 16px; }
   .fdm-jbags { font-size:11px; }
   .fdm-foot { padding:14px 18px 18px; }
   .fdm-close-btn { width:100%; }
