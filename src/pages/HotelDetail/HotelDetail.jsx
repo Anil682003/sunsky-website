@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -778,51 +778,80 @@ const AllowanceCell = ({ ok, main, sub }) => (
   </span>
 );
 
-/** One direction of the itinerary: every leg, with the layover between them. */
-function DetailsJourney({ dir, legs }) {
+/**
+ * One direction of the itinerary, laid out to match the design: the legs sit SIDE BY SIDE
+ * inside the direction's card, with a horizontal amber layover pill between them and the
+ * airline row printed under each. Rendered vertically before, which read as a list; this
+ * reads as a diagram of the trip.
+ *
+ * The header carries a summary of the fare's baggage on the right — the tab is one click
+ * away for the whole table, but a traveller scanning the itinerary should not have to leave
+ * this view to know whether a bag is included.
+ */
+function DetailsJourney({ dir, legs, baggage }) {
   if (!legs?.length) return null;
+  const chips = fareInclusions(baggage);
+  const direct = legs.length === 1;
+
   return (
     <div className="fdm-journey">
       <div className="fdm-jhead">
         <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
         <span className="fdm-jdate">{fmtDateLong(legs[0].departure)}</span>
+        {chips.length > 0 && (
+          <span className="fdm-jbags" aria-label={`Baggage for this ${dir.toLowerCase()}`}>
+            <span className="fdm-jbags-label">{ICON.bag}Baggage for this journey ·</span>
+            {chips.map((x) => (
+              <span key={x.label} className="bp-chip bp-chip-inc">{x.icon}{x.label}</span>
+            ))}
+          </span>
+        )}
       </div>
-      <div className="fdm-legs">
+
+      {/* Every leg is a column, with a layover column between two of them. Flex across, so two
+          columns and a pill add up to one line however wide the card is. */}
+      <div className="fdm-legrow">
         {legs.map((leg, i) => {
           const lay = i > 0 ? layoverMin(legs[i - 1], leg) : null;
           const overnight = dayOffset(leg.departure, leg.arrival);
           return (
-            <div className="fdm-leg-wrap" key={`${leg.flightNumber || i}-${i}`}>
+            <Fragment key={`${leg.flightNumber || 'leg'}-${i}`}>
               {lay != null && (
                 <div className="fdm-layover">
                   {ICON.clock}
-                  <span><b>{fmtDur(lay)} layover</b> in {airportName(leg.from)}</span>
+                  <span>
+                    <b>{fmtDur(lay)} layover</b>
+                    <em>{airportName(leg.from)} ({leg.from})</em>
+                  </span>
                 </div>
               )}
               <div className="fdm-leg">
-                <div className="fdm-point">
-                  <div className="fdm-time">{fmtTime(leg.departure)}</div>
-                  <div className="fdm-place">{airportName(leg.from)}</div>
-                  <div className="fdm-code">{leg.from}</div>
-                </div>
-                <div className="fdm-mid">
-                  <div className="fdm-dur">{fmtDur(leg.duration)}</div>
-                  <div className="bp-track"><span className="bp-plane">{ICON.plane}</span></div>
-                </div>
-                <div className="fdm-point fdm-point-r">
-                  <div className="fdm-time">
-                    {fmtTime(leg.arrival)}
-                    {overnight > 0 && <sup className="bp-nextday">+{overnight} day{overnight > 1 ? 's' : ''}</sup>}
+                <div className="fdm-legrail">
+                  <div className="fdm-point">
+                    <div className="fdm-time">{fmtTime(leg.departure)}</div>
+                    <div className="fdm-place">{airportName(leg.from)}</div>
+                    <div className="fdm-code">{leg.from}</div>
                   </div>
-                  <div className="fdm-place">{airportName(leg.to)}</div>
-                  <div className="fdm-code">{leg.to}</div>
+                  <div className="fdm-mid">
+                    <div className="fdm-dur">{fmtDur(leg.duration)}</div>
+                    <div className="bp-track"><span className="bp-plane">{ICON.plane}</span></div>
+                    {direct && <div className="fdm-flag">Direct</div>}
+                  </div>
+                  <div className="fdm-point fdm-point-r">
+                    <div className="fdm-time">
+                      {fmtTime(leg.arrival)}
+                      {overnight > 0 && <sup className="bp-nextday">+{overnight} day{overnight > 1 ? 's' : ''}</sup>}
+                    </div>
+                    <div className="fdm-place">{airportName(leg.to)}</div>
+                    <div className="fdm-code">{leg.to}</div>
+                  </div>
                 </div>
                 <div className="fdm-carrier">
                   <AirlineMark code={leg.airline} className="bp-airmark" nameClassName="bp-airname" />
                   <span className="bp-flno">{flightNumber(leg)}</span>
                 </div>
               </div>
-            </div>
+            </Fragment>
           );
         })}
       </div>
@@ -830,7 +859,6 @@ function DetailsJourney({ dir, legs }) {
   );
 }
 
-/** One direction's baggage, a row per flight. */
 function BaggageTable({ dir, legs, baggage }) {
   if (!legs?.length) return null;
   const cabin = cabinAllowance(baggage);
@@ -926,8 +954,8 @@ function FlightDetailsModal({ flight, onClose }) {
         <div className="fdm-body">
           {tab === 'info' ? (
             <>
-              <DetailsJourney dir="Outbound" legs={out} />
-              <DetailsJourney dir="Return" legs={ret} />
+              <DetailsJourney dir="Outbound" legs={out} baggage={flight?.baggage} />
+              <DetailsJourney dir="Return" legs={ret} baggage={flight?.baggage} />
               <div className="fdm-note">
                 {ICON.info}
                 <span>Times are shown in local time. Flight durations include estimated taxi and boarding times.</span>

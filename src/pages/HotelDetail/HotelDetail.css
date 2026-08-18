@@ -2072,47 +2072,75 @@
   border:1px solid var(--border-light); border-radius:var(--r-md);
   background:var(--white); margin-bottom:16px; overflow:hidden;
 }
+/* Tab 1: the itinerary, laid out to match the design.
+   The header has the direction on the left, date beside it, and — where the fare states one —
+   a baggage summary on the right. The body is a row of leg columns with a horizontal layover
+   pill between them, and the airline strip sits under each column. */
 .sd .fdm-jhead {
-  display:flex; align-items:center; gap:12px;
-  padding:16px 20px; background:var(--blue-pale); border-bottom:1px solid var(--border-light);
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:14px 20px;
+  background:var(--blue-pale); border-bottom:1px solid var(--border-light);
 }
-.sd .fdm-jdate {
-  font-size:13.5px; font-weight:700; color:var(--text-sec);
-  padding-left:12px; border-left:1px solid rgba(15,40,100,.14);
+.sd .fdm-jbags {
+  display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin-left:auto;
+  padding:6px 10px 6px 6px; border-radius:var(--r-full);
+  background:#F0FDF8; border:1px solid #B6E8D4;
+  font-size:11.5px; color:#0B7A57;
 }
+.sd .fdm-jbags-label {
+  display:inline-flex; align-items:center; gap:6px;
+  padding-left:6px; font-weight:700; color:#0B7A57;
+}
+.sd .fdm-jbags-label svg { width:14px; height:14px; }
+.sd .fdm-jbags .bp-chip { background:var(--white); border-color:#B6E8D4; }
 
-/* ── Tab 1: the itinerary, leg by leg ── */
-.sd .fdm-legs { padding:6px 20px 18px; }
-.sd .fdm-leg {
-  display:grid; grid-template-columns:minmax(0,1fr) minmax(120px,1.1fr) minmax(0,1fr) minmax(0,1fr);
-  align-items:center; gap:18px; padding:16px 0;
+.sd .fdm-legrow {
+  display:flex; align-items:stretch; gap:14px;
+  padding:20px; min-width:0;
 }
-.sd .fdm-leg + .fdm-leg { border-top:1px dashed var(--border); }
+.sd .fdm-leg { flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; }
+
+/* Time — track — time, one column of the row. */
+.sd .fdm-legrail {
+  display:grid; grid-template-columns:auto minmax(80px,1fr) auto;
+  align-items:center; gap:14px; min-width:0;
+}
 .sd .fdm-point { min-width:0; }
 .sd .fdm-point-r { text-align:right; }
 .sd .fdm-time {
   font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--dark);
   letter-spacing:-.4px; line-height:1.1; font-variant-numeric:tabular-nums;
 }
-.sd .fdm-place { font-size:13px; font-weight:600; color:var(--text-sec); margin-top:5px; line-height:1.35; }
-.sd .fdm-code { font-size:11.5px; font-weight:800; color:var(--text-light); letter-spacing:.1em; margin-top:2px; }
-.sd .fdm-mid { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; }
-.sd .fdm-dur { font-size:12px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
-.sd .fdm-carrier { display:flex; align-items:center; gap:10px; justify-content:flex-end; min-width:0; }
+.sd .fdm-place { font-size:12.5px; font-weight:600; color:var(--text-sec); margin-top:6px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.sd .fdm-code { font-size:11px; font-weight:800; color:var(--text-light); letter-spacing:.1em; margin-top:2px; }
+.sd .fdm-mid { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
+.sd .fdm-dur { font-size:11.5px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
+.sd .fdm-flag {
+  font-family:'Sora',sans-serif; font-size:11px; font-weight:800; color:#0B7A57;
+  letter-spacing:.06em; text-transform:uppercase; margin-top:2px;
+}
+
+/* Airline row below its column: logo + name + flight-number chip, left-aligned. */
+.sd .fdm-carrier { display:flex; align-items:center; gap:10px; min-width:0; }
 .sd .fdm-carrier .bp-airname { font-size:13.5px; font-weight:700; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sd .fdm-carrier .bp-airmark { width:30px; height:30px; font-size:13px; }
+.sd .fdm-carrier .bp-airmark { width:30px; height:30px; font-size:13px; flex-shrink:0; }
 .sd .fdm-carrier .bp-airmark.air-logo { width:30px; height:30px; padding:2px; }
 
 /* The wait between two legs, called out where it happens rather than left to be worked out
-   from two times in different columns. */
+   from two times in different columns. Sits as its OWN column of the row, so the two legs
+   read as before-and-after the pill. */
 .sd .fdm-layover {
-  display:flex; align-items:center; gap:9px; margin:2px 0;
-  padding:11px 16px; border-radius:var(--r-sm);
+  flex:0 0 auto; align-self:center;
+  display:flex; align-items:center; gap:9px;
+  padding:12px 16px; border-radius:var(--r-md);
   background:var(--sun-warm); border:1px solid #ffe4bd;
-  font-size:12.5px; color:#b45309;
+  font-size:12px; color:#b45309; max-width:220px;
 }
-.sd .fdm-layover svg { width:15px; height:15px; flex-shrink:0; }
-.sd .fdm-layover b { font-weight:800; margin-right:4px; }
+.sd .fdm-layover svg { width:15px; height:15px; flex-shrink:0; color:#b45309; }
+.sd .fdm-layover b { display:block; font-weight:800; margin-bottom:2px; }
+.sd .fdm-layover em { display:block; font-style:normal; font-weight:600; opacity:.85; line-height:1.35; }
+
 
 /* ── Tab 2: the baggage table ── */
 .sd .fdm-tablewrap { overflow-x:auto; }
@@ -2179,11 +2207,12 @@
   .sd .fdm-tabs { padding:0 14px; }
   .sd .fdm-tab { padding:11px 12px; font-size:12px; gap:6px; }
   .sd .fdm-body { padding:16px 18px 4px; }
-  /* The four-column leg row becomes two rows: the route, then who flies it. */
-  .sd .fdm-leg { grid-template-columns:minmax(0,1fr) minmax(90px,.9fr) minmax(0,1fr); gap:12px; }
-  .sd .fdm-carrier { grid-column:1 / -1; justify-content:flex-start; }
+  /* Legs stack under one another, with the layover pill filling the width between them. */
+  .sd .fdm-legrow { flex-direction:column; gap:12px; padding:16px; }
+  .sd .fdm-layover { max-width:none; align-self:stretch; width:auto; }
   .sd .fdm-time { font-size:20px; }
-  .sd .fdm-legs { padding:4px 16px 14px; }
+  .sd .fdm-jhead { padding:12px 16px; gap:8px; }
+  .sd .fdm-jbags { font-size:11px; }
   .sd .fdm-foot { padding:14px 18px 18px; }
   .sd .fdm-close-btn { width:100%; }
 }
@@ -2252,47 +2281,75 @@
   border:1px solid var(--border-light); border-radius:var(--r-md);
   background:var(--white); margin-bottom:16px; overflow:hidden;
 }
+/* Tab 1: the itinerary, laid out to match the design.
+   The header has the direction on the left, date beside it, and — where the fare states one —
+   a baggage summary on the right. The body is a row of leg columns with a horizontal layover
+   pill between them, and the airline strip sits under each column. */
 .fdm-jhead {
-  display:flex; align-items:center; gap:12px;
-  padding:16px 20px; background:var(--blue-pale); border-bottom:1px solid var(--border-light);
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:14px 20px;
+  background:var(--blue-pale); border-bottom:1px solid var(--border-light);
 }
-.fdm-jdate {
-  font-size:13.5px; font-weight:700; color:var(--text-sec);
-  padding-left:12px; border-left:1px solid rgba(15,40,100,.14);
+.fdm-jbags {
+  display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;
+  margin-left:auto;
+  padding:6px 10px 6px 6px; border-radius:var(--r-full);
+  background:#F0FDF8; border:1px solid #B6E8D4;
+  font-size:11.5px; color:#0B7A57;
 }
+.fdm-jbags-label {
+  display:inline-flex; align-items:center; gap:6px;
+  padding-left:6px; font-weight:700; color:#0B7A57;
+}
+.fdm-jbags-label svg { width:14px; height:14px; }
+.fdm-jbags .bp-chip { background:var(--white); border-color:#B6E8D4; }
 
-/* ── Tab 1: the itinerary, leg by leg ── */
-.fdm-legs { padding:6px 20px 18px; }
-.fdm-leg {
-  display:grid; grid-template-columns:minmax(0,1fr) minmax(120px,1.1fr) minmax(0,1fr) minmax(0,1fr);
-  align-items:center; gap:18px; padding:16px 0;
+.fdm-legrow {
+  display:flex; align-items:stretch; gap:14px;
+  padding:20px; min-width:0;
 }
-.fdm-leg + .fdm-leg { border-top:1px dashed var(--border); }
+.fdm-leg { flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; }
+
+/* Time — track — time, one column of the row. */
+.fdm-legrail {
+  display:grid; grid-template-columns:auto minmax(80px,1fr) auto;
+  align-items:center; gap:14px; min-width:0;
+}
 .fdm-point { min-width:0; }
 .fdm-point-r { text-align:right; }
 .fdm-time {
   font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--dark);
   letter-spacing:-.4px; line-height:1.1; font-variant-numeric:tabular-nums;
 }
-.fdm-place { font-size:13px; font-weight:600; color:var(--text-sec); margin-top:5px; line-height:1.35; }
-.fdm-code { font-size:11.5px; font-weight:800; color:var(--text-light); letter-spacing:.1em; margin-top:2px; }
-.fdm-mid { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; }
-.fdm-dur { font-size:12px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
-.fdm-carrier { display:flex; align-items:center; gap:10px; justify-content:flex-end; min-width:0; }
+.fdm-place { font-size:12.5px; font-weight:600; color:var(--text-sec); margin-top:6px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fdm-code { font-size:11px; font-weight:800; color:var(--text-light); letter-spacing:.1em; margin-top:2px; }
+.fdm-mid { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
+.fdm-dur { font-size:11.5px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
+.fdm-flag {
+  font-family:'Sora',sans-serif; font-size:11px; font-weight:800; color:#0B7A57;
+  letter-spacing:.06em; text-transform:uppercase; margin-top:2px;
+}
+
+/* Airline row below its column: logo + name + flight-number chip, left-aligned. */
+.fdm-carrier { display:flex; align-items:center; gap:10px; min-width:0; }
 .fdm-carrier .bp-airname { font-size:13.5px; font-weight:700; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fdm-carrier .bp-airmark { width:30px; height:30px; font-size:13px; }
+.fdm-carrier .bp-airmark { width:30px; height:30px; font-size:13px; flex-shrink:0; }
 .fdm-carrier .bp-airmark.air-logo { width:30px; height:30px; padding:2px; }
 
 /* The wait between two legs, called out where it happens rather than left to be worked out
-   from two times in different columns. */
+   from two times in different columns. Sits as its OWN column of the row, so the two legs
+   read as before-and-after the pill. */
 .fdm-layover {
-  display:flex; align-items:center; gap:9px; margin:2px 0;
-  padding:11px 16px; border-radius:var(--r-sm);
+  flex:0 0 auto; align-self:center;
+  display:flex; align-items:center; gap:9px;
+  padding:12px 16px; border-radius:var(--r-md);
   background:var(--sun-warm); border:1px solid #ffe4bd;
-  font-size:12.5px; color:#b45309;
+  font-size:12px; color:#b45309; max-width:220px;
 }
-.fdm-layover svg { width:15px; height:15px; flex-shrink:0; }
-.fdm-layover b { font-weight:800; margin-right:4px; }
+.fdm-layover svg { width:15px; height:15px; flex-shrink:0; color:#b45309; }
+.fdm-layover b { display:block; font-weight:800; margin-bottom:2px; }
+.fdm-layover em { display:block; font-style:normal; font-weight:600; opacity:.85; line-height:1.35; }
+
 
 /* ── Tab 2: the baggage table ── */
 .fdm-tablewrap { overflow-x:auto; }
@@ -2359,11 +2416,12 @@
   .fdm-tabs { padding:0 14px; }
   .fdm-tab { padding:11px 12px; font-size:12px; gap:6px; }
   .fdm-body { padding:16px 18px 4px; }
-  /* The four-column leg row becomes two rows: the route, then who flies it. */
-  .fdm-leg { grid-template-columns:minmax(0,1fr) minmax(90px,.9fr) minmax(0,1fr); gap:12px; }
-  .fdm-carrier { grid-column:1 / -1; justify-content:flex-start; }
+  /* Legs stack under one another, with the layover pill filling the width between them. */
+  .fdm-legrow { flex-direction:column; gap:12px; padding:16px; }
+  .fdm-layover { max-width:none; align-self:stretch; width:auto; }
   .fdm-time { font-size:20px; }
-  .fdm-legs { padding:4px 16px 14px; }
+  .fdm-jhead { padding:12px 16px; gap:8px; }
+  .fdm-jbags { font-size:11px; }
   .fdm-foot { padding:14px 18px 18px; }
   .fdm-close-btn { width:100%; }
 }
