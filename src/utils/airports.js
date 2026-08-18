@@ -47,3 +47,24 @@ export const normaliseOrigin = (code) => {
   const c = String(code || '').trim().toUpperCase();
   return BY_CODE.has(c) ? c : DEFAULT_ORIGIN;
 };
+
+/**
+ * How an airport is written into the flight search's From/To fields:
+ * "Brussel, Brussel Nationale Airport (BRU)".
+ *
+ * The code in brackets is the part that matters — utils/flightData's `parseAirport` reads it
+ * back out, and it is what the supplier is ultimately asked to fly. The city is written first
+ * because the field shows the head of the string as its headline ("Brussel (BRU)") and the
+ * whole of it as the hint beneath.
+ *
+ * Takes the shape /website/geo/airports returns: {code, name, city}. An entry with no airport
+ * name of its own (the curated destination shortlist: "Hurghada", Egypt) is written as the
+ * city alone rather than repeating it twice.
+ */
+export const airportToValue = (a) => {
+  if (!a?.code) return '';
+  const label = a.name && a.city && a.name !== a.city
+    ? `${a.city}, ${a.name}`
+    : (a.city || a.name || a.code);
+  return `${label} (${a.code})`;
+};

@@ -159,6 +159,27 @@ export const fetchGeoPlaces = async (countryIds) => {
   return res?.data?.data ?? [];
 };
 
+/**
+ * Airports matching a search term, from the dashboard's own airport list.
+ *
+ * Imperative, like the destination typeahead it sits beside: this fires per keystroke, so the
+ * caller owns the debounce and passes an AbortSignal to drop a superseded request rather than
+ * merely ignoring its answer. A failed or aborted call resolves EMPTY instead of throwing —
+ * a dropdown that cannot reach the API shows its curated shortlist, not a crash.
+ *
+ * @returns {Promise<{code,name,city,country,isoCode,flag}[]>}
+ */
+export const searchAirports = async (q, limit = 8, { signal } = {}) => {
+  const term = String(q ?? '').trim();
+  if (term.length < 2) return [];
+  try {
+    const res = await axiosInstance.get(ENDPOINTS.airportSearch(term, limit), { signal });
+    return res?.data?.data ?? [];
+  } catch {
+    return [];
+  }
+};
+
 // Holiday/theme types as configured in the admin dashboard.
 export const useHolidayTypes = () =>
   useApi(ENDPOINTS.holidayTypes, {

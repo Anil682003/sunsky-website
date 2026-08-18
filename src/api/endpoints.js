@@ -27,6 +27,10 @@ export const ENDPOINTS = {
 
   // Geo
   countries:       '/website/geo/countries',
+  // Airport typeahead for the flight search — the dashboard's own airport list (terminals),
+  // airports only, slimmed for a per-keystroke call. See sunsky-admin geoPublic.controller.
+  airportSearch: (q, limit = 8) =>
+    `/website/geo/airports?search=${encodeURIComponent(q)}&limit=${limit}`,
   geoPlaces: (countryIds) =>
     `/website/geo/places?countryIds=${countryIds.map((id) => encodeURIComponent(id)).join(',')}`,
 

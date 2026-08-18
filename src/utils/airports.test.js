@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   DEPARTURE_AIRPORTS, AIRPORT_CODES, POPULAR_AIRPORTS, OTHER_AIRPORTS,
-  DEFAULT_ORIGIN, airportLabel, airportCity, normaliseOrigin,
+  DEFAULT_ORIGIN, airportLabel, airportCity, normaliseOrigin, airportToValue,
 } from './airports';
 
 describe('the departure-airport list', () => {
@@ -54,5 +54,28 @@ describe('labels', () => {
     expect(airportLabel('XXX')).toBe('XXX');
     expect(airportCity('XXX')).toBe('XXX');
     expect(airportLabel('')).toBe('');
+  });
+});
+
+// What the flight search writes into its From/To fields. The bracketed code is the part the
+// rest of the journey reads back (flightData's parseAirport), so the format is a contract,
+// not decoration.
+describe('airportToValue', () => {
+  it('writes city first, then the airport name, then the code', () => {
+    expect(airportToValue({ code: 'BRU', city: 'Brussel', name: 'Brussel Nationale Airport' }))
+      .toBe('Brussel, Brussel Nationale Airport (BRU)');
+  });
+
+  it('does not repeat a place that has no airport name of its own', () => {
+    // The curated destination shortlist carries a city and a country, not an airport name.
+    expect(airportToValue({ code: 'HRG', city: 'Hurghada', name: '' })).toBe('Hurghada (HRG)');
+    expect(airportToValue({ code: 'AYT', city: 'Antalya', name: 'Antalya' })).toBe('Antalya (AYT)');
+  });
+
+  it('falls back to whatever it has, and to nothing at all', () => {
+    expect(airportToValue({ code: 'LHR', name: 'Heathrow Airport' })).toBe('Heathrow Airport (LHR)');
+    expect(airportToValue({ code: 'ZZZ' })).toBe('ZZZ (ZZZ)');
+    expect(airportToValue(null)).toBe('');
+    expect(airportToValue({})).toBe('');
   });
 });

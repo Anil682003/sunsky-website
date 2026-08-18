@@ -6,7 +6,8 @@ import DestinationModal from '../../../components/DestinationModal/DestinationMo
 import DateCalendar from '../../../components/DateCalendar/DateCalendar';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
-import { POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, airportCity, airportLabel } from '../../../utils/airports';
+import AirportSearch from '../../../components/AirportSearch/AirportSearch';
+import { DEPARTURE_AIRPORTS, POPULAR_AIRPORTS, OTHER_AIRPORTS, DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue } from '../../../utils/airports';
 import { earliestCheckInISO } from '../../../utils/leadTime';
 import { loadPax, savePax } from '../../../utils/paxStore';
 
@@ -53,29 +54,27 @@ const initialRooms = () => {
   return rooms;
 };
 
-// Departure airports for the Belgian/Benelux market (the platform's flight
-// searches depart from this region — the old list was 8 UK airports).
-const AIRPORTS = [
-  { code: 'BRU', label: 'Brussels Airport', country: '🇧🇪' },
-  { code: 'CRL', label: 'Brussels South Charleroi', country: '🇧🇪' },
-  { code: 'ANR', label: 'Antwerp', country: '🇧🇪' },
-  { code: 'OST', label: 'Ostend-Bruges', country: '🇧🇪' },
-  { code: 'LGG', label: 'Liège', country: '🇧🇪' },
-  { code: 'AMS', label: 'Amsterdam Schiphol', country: '🇳🇱' },
-  { code: 'EIN', label: 'Eindhoven', country: '🇳🇱' },
-  { code: 'LIL', label: 'Lille', country: '🇫🇷' },
-];
+// The shortlists the From/To panels open with, before the traveller types anything. They are
+// a STARTING POINT, not the choice: the panel searches the dashboard's whole airport list
+// (1,300 of them) as soon as two characters are typed, so anywhere the team has entered can
+// be flown from and to. Both are normalised into the shape /website/geo/airports returns,
+// so one row component renders the shortlist and the live results alike.
+const DEPARTURE_OPTIONS = DEPARTURE_AIRPORTS.map((a) => ({
+  code: a.code, name: a.label, city: a.city, country: "", flag: a.country,
+}));
 
-const FLIGHT_DESTINATIONS = [
-  { code: 'HRG', label: 'Hurghada, Egypt', country: '🇪🇬' },
-  { code: 'AYT', label: 'Antalya, Turkey', country: '🇹🇷' },
-  { code: 'HER', label: 'Heraklion, Crete', country: '🇬🇷' },
-  { code: 'TFS', label: 'Tenerife South', country: '🇪🇸' },
-  { code: 'MLE', label: 'Malé, Maldives', country: '🇲🇻' },
-  { code: 'HKT', label: 'Phuket, Thailand', country: '🇹🇭' },
-  { code: 'RAK', label: 'Marrakech, Morocco', country: '🇲🇦' },
-  { code: 'FAO', label: 'Faro, Portugal', country: '🇵🇹' },
-];
+// Where the agency actually sells seats. "Hurghada, Egypt" is city + country, not an airport
+// name, so it maps to city/country and leaves `name` empty rather than inventing one.
+const DESTINATION_OPTIONS = [
+  { code: 'HRG', city: 'Hurghada',  country: 'Egypt',     flag: '🇪🇬' },
+  { code: 'AYT', city: 'Antalya',   country: 'Turkey',    flag: '🇹🇷' },
+  { code: 'HER', city: 'Heraklion', country: 'Crete',     flag: '🇬🇷' },
+  { code: 'TFS', city: 'Tenerife',  country: 'Spain',     flag: '🇪🇸' },
+  { code: 'MLE', city: 'Malé',      country: 'Maldives',  flag: '🇲🇻' },
+  { code: 'HKT', city: 'Phuket',    country: 'Thailand',  flag: '🇹🇭' },
+  { code: 'RAK', city: 'Marrakech', country: 'Morocco',   flag: '🇲🇦' },
+  { code: 'FAO', city: 'Faro',      country: 'Portugal',  flag: '🇵🇹' },
+].map((a) => ({ ...a, name: "" }));
 
 const CABIN_CLASSES = ['Economy', 'Premium Economy', 'Business', 'First'];
 
@@ -1017,38 +1016,28 @@ export default function Hero() {
           {/* Departing From dropdown */}
           {openField === 'flightFrom' && (
             <div className={styles.flightDropdown}>
-              <div className={styles.destGrid}>
-                {AIRPORTS.map((a) => (
-                  <div
-                    key={a.code}
-                    className={`${styles.destItem} ${flightFrom === `${a.label} (${a.code})` ? styles.destItemActive : ''}`}
-                    onClick={() => { setFlightFrom(`${a.label} (${a.code})`); setOpenField(null); }}
-                  >
-                    <span>{a.country}</span>
-                    <span>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
+              <AirportSearch
+                title="Departing from"
+                placeholder="City or airport you fly from"
+                fallback={DEPARTURE_OPTIONS}
+                fallbackLabel="Popular departure airports"
+                onPick={(a) => setFlightFrom(airportToValue(a))}
+                onClose={() => setOpenField(null)}
+              />
             </div>
           )}
 
           {/* Going To dropdown */}
           {openField === 'flightTo' && (
             <div className={styles.flightDropdown}>
-              <div className={styles.destGrid}>
-                {FLIGHT_DESTINATIONS.map((a) => (
-                  <div
-                    key={a.code}
-                    className={`${styles.destItem} ${flightTo === `${a.label} (${a.code})` ? styles.destItemActive : ''}`}
-                    onClick={() => { setFlightTo(`${a.label} (${a.code})`); setOpenField(null); }}
-                  >
-                    <span>{a.country}</span>
-                    <span>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
+              <AirportSearch
+                title="Going to"
+                placeholder="City or airport you fly to"
+                fallback={DESTINATION_OPTIONS}
+                fallbackLabel="Popular destinations"
+                onPick={(a) => setFlightTo(airportToValue(a))}
+                onClose={() => setOpenField(null)}
+              />
             </div>
           )}
 
@@ -1108,38 +1097,28 @@ export default function Hero() {
           {/* Multi-city from dropdown */}
           {openField === 'multiFrom' && (
             <div className={styles.flightDropdown}>
-              <div className={styles.destGrid}>
-                {AIRPORTS.map((a) => (
-                  <div
-                    key={a.code}
-                    className={`${styles.destItem} ${multiFrom === `${a.label} (${a.code})` ? styles.destItemActive : ''}`}
-                    onClick={() => { setMultiFrom(`${a.label} (${a.code})`); setOpenField(null); }}
-                  >
-                    <span>{a.country}</span>
-                    <span>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
+              <AirportSearch
+                title="Departing from"
+                placeholder="City or airport you fly from"
+                fallback={DEPARTURE_OPTIONS}
+                fallbackLabel="Popular departure airports"
+                onPick={(a) => setMultiFrom(airportToValue(a))}
+                onClose={() => setOpenField(null)}
+              />
             </div>
           )}
 
           {/* Multi-city to dropdown */}
           {openField === 'multiTo' && (
             <div className={styles.flightDropdown}>
-              <div className={styles.destGrid}>
-                {FLIGHT_DESTINATIONS.map((a) => (
-                  <div
-                    key={a.code}
-                    className={`${styles.destItem} ${multiTo === `${a.label} (${a.code})` ? styles.destItemActive : ''}`}
-                    onClick={() => { setMultiTo(`${a.label} (${a.code})`); setOpenField(null); }}
-                  >
-                    <span>{a.country}</span>
-                    <span>{a.label}</span>
-                    <span className={styles.airportCode}>{a.code}</span>
-                  </div>
-                ))}
-              </div>
+              <AirportSearch
+                title="Going to"
+                placeholder="City or airport you fly to"
+                fallback={DESTINATION_OPTIONS}
+                fallbackLabel="Popular destinations"
+                onPick={(a) => setMultiTo(airportToValue(a))}
+                onClose={() => setOpenField(null)}
+              />
             </div>
           )}
 
