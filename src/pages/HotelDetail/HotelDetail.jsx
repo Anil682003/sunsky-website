@@ -621,6 +621,12 @@ function JourneyTimeline({ label, legs }) {
    destination can come back with a dozen carriers. */
 const AIRLINES_COLLAPSED = 4;
 
+/* How many flight cards the change-flight modal lists before "Show more flights", and how
+   many each press adds. Six is what a laptop screen holds without the list turning into a
+   scroll — the point of the list is comparison, and a card you have to hunt for is not in
+   the comparison. */
+const MODAL_PAGE = 6;
+
 /**
  * The ⓘ beside a filter group's title. Native `title` rather than a scripted tooltip: it
  * survives inside the modal's own scroll container, needs no positioning logic, and is
@@ -1232,27 +1238,42 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect }) {
     );
   }
 
-  // ── The modal's layout: itinerary on the left, one price rail on the right ──
-  // Same journeys, same chips, same details panel as the page card — what changes is that
-  // every fact about CHOOSING this flight (is it the one I have, what does it cost me to
-  // switch, is it the cheapest) is gathered into a single column instead of being spread
-  // along a footer.
+  // ── The modal's layout: the two directions side by side, one price rail on the right ──
+  //
+  // The itinerary is the SAME column pair the page's headline card uses — outbound left,
+  // return right, a hairline between them — rather than the stacked Journey pair this card
+  // used to carry. Stacked, one option ran to nearly 500px and two cards would not fit on a
+  // laptop screen at once, which is fatal in a list whose whole purpose is comparison: you
+  // cannot compare what you cannot see together. Side by side the card is roughly half as
+  // tall and three fit in the same space.
+  //
+  // The rail answers the only question this list asks — "what does switching to this one
+  // cost me?" — and answers it PER PERSON first, because that is the figure a traveller
+  // holds in their head. The package figure and the whole-party fare stay underneath as
+  // fine print, so nothing is hidden and nothing shouts twice.
   if (option) {
-    const { impact } = option;      // € this flight adds to the package vs the one selected now
+    const { impact, perPerson } = option;   // impact: € on the package; perPerson: € each
+    // Two decimals: a per-head share of a party total is rarely a round number, and
+    // rounding it to €78 would not add up against the package figure printed below it.
+    const money = (n) => Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return (
       <div className={`flight-card option${selected ? ' selected' : ''}${cheapest && !selected ? ' cheapest' : ''}${expanded ? ' expanded' : ''}`}>
+        {/* The strip names what this card IS on the left and, on the one fare that earns it,
+            why it stands out on the right. */}
         <div className="fc-status">
-          <span className={`fc-radio${selected ? ' on' : ''}`} aria-hidden="true">
-            {selected && <S size={12} sw={3.2}><path d="M20 6L9 17l-5-5" /></S>}
-          </span>
           <span className="fc-status-label">{selected ? 'Currently selected' : 'Alternative flight'}</span>
+          {f.delta === 0 && <span className="fc-best">{ICON.spark} Lowest fare</span>}
         </div>
 
         <div className="fc-split">
           <div className="fc-main">
-            <div className="bp-body">
-              <Journey dir="Outbound" legs={out} />
-              {ret.length > 0 && (<><div className="bp-tear" /><Journey dir="Return" legs={ret} /></>)}
+            {/* `chips={[]}` — the allowance is a term of the fare, so it is the same both
+                ways. The page card repeats it under each direction because each column
+                there is read on its own; here one row under both is the honest shape and
+                keeps the card short. */}
+            <div className={`fc-legs${ret.length ? '' : ' fc-legs-one'}`}>
+              <JourneyColumn dir="Outbound" legs={out} chips={[]} />
+              {ret.length > 0 && <JourneyColumn dir="Return" legs={ret} chips={[]} />}
             </div>
             {fareIncludes.length > 0 && (
               <div className="bp-incl" aria-label="Included in this fare">
@@ -1266,37 +1287,47 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect }) {
 
           <div className="fc-rail">
             {selected && <div className="flight-selected-badge">{ICON.check} Selected</div>}
-            {f.delta === 0 && <span className="bp-delta bp-delta-best">{ICON.spark} Lowest fare</span>}
-            {f.price != null && (
-              <>
-                <b className="live-price">€{f.price.toLocaleString('en-GB')}</b>
-                <span className="bp-price-cap">Total for all travellers</span>
-              </>
+
+            {/* The headline: what one traveller pays over or under the flight now held. */}
+            {perPerson != null && (
+              <div className={`fc-swing${perPerson === 0 ? ' same' : perPerson > 0 ? ' up' : ' down'}`}>
+                {perPerson === 0
+                  ? <b>Same price</b>
+                  : <><b>{perPerson > 0 ? '+' : '−'} €{money(perPerson)}</b><em>p.p.</em></>}
+              </div>
             )}
+            {perPerson != null && (
+              <span className="fc-swing-cap">
+                {selected ? 'This is your current flight' : 'vs your selected flight'}
+              </span>
+            )}
+
             {/* What choosing this flight does to the package total. The figure is measured
                 against the flight currently selected — not against the cheapest — because
                 that is the price the traveller is holding and the one that would change. */}
             {impact != null && (
               <div className={`fc-impact${impact === 0 ? ' same' : impact > 0 ? ' up' : ' down'}`}>
                 {impact === 0
-                  ? <>{ICON.check}<span>No change to your package price</span></>
+                  ? <span>No change to your package price</span>
                   : (
-                    <>
-                      <S size={14} sw={2.4}>{impact > 0
-                        ? <path d="M12 19V5M5 12l7-7 7 7" />
-                        : <path d="M12 5v14M19 12l-7 7-7-7" />}</S>
-                      <span>
-                        <b>{impact > 0 ? '+' : '−'} €{Math.abs(Math.round(impact)).toLocaleString('en-GB')}</b>
-                        <em>to your package price</em>
-                      </span>
-                    </>
+                    <span>
+                      <b>{impact > 0 ? '+' : '−'} €{Math.abs(Math.round(impact)).toLocaleString('en-GB')}</b>
+                      {' '}to your package price
+                    </span>
                   )}
               </div>
             )}
-            <span className="fc-taxes">
-              Flight price incl. taxes &amp; fees
-              <FilterHint text="The fare covers every traveller on this booking, with taxes and airline fees already included. Hotel and extras are priced separately." />
-            </span>
+
+            {f.price != null && (
+              <span className="fc-fare">
+                <b className="live-price">€{f.price.toLocaleString('en-GB')}</b>
+                <em>
+                  flight fare, all travellers, taxes in
+                  <FilterHint text="The fare covers every traveller on this booking, with taxes and airline fees already included. Hotel and extras are priced separately." />
+                </em>
+              </span>
+            )}
+
             {!selected && (
               <button className="flight-select-btn fc-select" onClick={onSelect}>Select this flight</button>
             )}
@@ -2324,6 +2355,14 @@ export default function HotelDetail() {
   const [fOutRange, setFOutRange] = useState(null);
   const [fRetRange, setFRetRange] = useState(null);
   const [showAllAirlines, setShowAllAirlines] = useState(false);
+  // How many cards the list shows before "Show more flights". A comparison list is only
+  // useful while it can be held in view; forty cards is a scroll, not a comparison.
+  //
+  // The count is stored ALONGSIDE the list it was counted against, so a new filter or sort
+  // — which mints a new `modalFlights` — falls back to the first page on its own. An effect
+  // watching the list would have done the same thing a render later, and one render showing
+  // forty cards of a list the traveller has just narrowed is exactly the flicker to avoid.
+  const [pager, setPager] = useState({ list: null, n: MODAL_PAGE });
 
   // A slider with no facet behind it has no bounds to drag between; `span` supplies them and
   // doubles as the untouched value.
@@ -2359,6 +2398,39 @@ export default function HotelDetail() {
     setFAirlines((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
   // A filter set that survives one search rarely fits the next — reset when results change.
   useEffect(() => { clearFlightFilters(); }, [allFlights]);
+  const shownFlights = pager.list === modalFlights ? pager.n : MODAL_PAGE;
+
+  // Escape closes the dialog, like the photo explorer and the flight-details dialog on this
+  // same page — but the filter SHEET first when one is up, because on a phone that sheet is
+  // covering the list and dismissing the whole dialog would throw away the search with it.
+  useEffect(() => {
+    if (!modalOpen) return undefined;
+    const onKey = (e) => {
+      if (e.key !== 'Escape') return;
+      if (filterSheet) setFilterSheet(false); else setModalOpen(false);
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [modalOpen, filterSheet]);
+
+  // Focus goes into the dialog on open and back to whatever opened it on close. Without
+  // this, opening from "Change flight" leaves the caret behind the overlay: the first Tab
+  // walks into the page underneath rather than into the list that just appeared.
+  const modalCloseRef = useRef(null);
+  const modalOpenerRef = useRef(null);
+  useEffect(() => {
+    if (!modalOpen) return undefined;
+    modalOpenerRef.current = document.activeElement;
+    modalCloseRef.current?.focus();
+    return () => {
+      // A sheet left open on a phone would still be over the list when the dialog is
+      // reopened, and — reopened on a wide screen — over a rail with room to sit beside it.
+      setFilterSheet(false);
+      const opener = modalOpenerRef.current;
+      modalOpenerRef.current = null;
+      if (opener?.isConnected) opener.focus();
+    };
+  }, [modalOpen]);
 
   // Flights and rooms are searched in parallel but must appear TOGETHER — a flight card
   // shown before its rooms have loaded reads as "flight found, no hotel", and a stay with
@@ -4707,42 +4779,47 @@ export default function HotelDetail() {
           from `facets`, which only offers a filter that can actually change the list, so a
           one-way search shows no return-time group and an all-direct set shows no stopover box. */}
       <div className={`modal-overlay${modalOpen ? ' show' : ''}`} onClick={(e) => { if (e.target === e.currentTarget) setModalOpen(false); }}>
-        <div className="modal">
+        <div className="modal" role="dialog" aria-modal="true" aria-labelledby="cfm-title">
           <div className="modal-head">
-            <div className="modal-title">Choose your flights</div>
+            {/* The title says what to do; the line under it says how much there is to do it
+                with, and drops to "6 of 14" the moment a filter narrows the list — so the
+                rail's effect is legible without scrolling down to count cards. */}
+            <div className="modal-head-main">
+              <h2 className="modal-title" id="cfm-title">Choose your flights</h2>
+              <div className="modal-subtitle">
+                {ICON.plane}
+                <span>
+                  {modalFlights.length === allFlights.length
+                    ? `${allFlights.length} flight option${allFlights.length === 1 ? '' : 's'}`
+                    : `${modalFlights.length} of ${allFlights.length} flight options`}
+                </span>
+              </div>
+            </div>
             {/* On a phone the filter rail is a sheet, so it needs a way in. The count says
                 whether anything is currently narrowing the list. */}
-            <button className={`modal-filter-toggle${activeFilterCount ? ' on' : ''}`}
+            <button type="button" className={`modal-filter-toggle${activeFilterCount ? ' on' : ''}`}
+              aria-expanded={filterSheet} aria-controls="cfm-filters"
               onClick={() => setFilterSheet((v) => !v)}>
               <S size={15} sw={2.2}><path d="M4 6h16M7 12h10M10 18h4" /></S>
               Filters{activeFilterCount ? ` · ${activeFilterCount}` : ''}
             </button>
             <div className="modal-sort">
               <label htmlFor="fsort">Sort:</label>
-              <select id="fsort" value={fSort} onChange={(e) => setFSort(e.target.value)}>
-                {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-              </select>
+              <span className="modal-sort-field">
+                <select id="fsort" value={fSort} onChange={(e) => setFSort(e.target.value)}>
+                  {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                </select>
+                <S size={15} sw={2.4} aria-hidden="true"><path d="M6 9l6 6 6-6" /></S>
+              </span>
             </div>
-            <button className="modal-close" onClick={() => setModalOpen(false)}>
+            <button className="modal-close" ref={modalCloseRef} onClick={() => setModalOpen(false)} aria-label="Close">
               <S sw={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
             </button>
           </div>
           <div className={`modal-body${filterSheet ? ' filters-open' : ''}`}>
-            <div className="modal-sidebar">
+            <div className="modal-sidebar" id="cfm-filters">
               <div className="modal-filter-head">
                 <span className="modal-filter-heading">Filters</span>
-                {activeFilterCount > 0 && (
-                  <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>Reset all</button>
-                )}
-              </div>
-
-              {/* Sort lives here as well as in the header — same state, two places to reach it,
-                  because on a long list the sidebar is what stays in view. */}
-              <div className="modal-filter-group">
-                <div className="modal-filter-title">Sort by</div>
-                <select className="mf-select" value={fSort} onChange={(e) => setFSort(e.target.value)} aria-label="Sort flights">
-                  {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
-                </select>
               </div>
 
               {facets.type && (
@@ -4751,14 +4828,18 @@ export default function HotelDetail() {
                     Flight type
                     <FilterHint text="Direct flights have no stopover in either direction." />
                   </div>
+                  {/* Two boxes, not three. "All flights" was a checkbox that could only ever
+                      be ticked — the way back from a narrowed list — and a row whose count
+                      always equalled the unfiltered total read as a filter that filtered
+                      nothing. Un-ticking either box is the way back now, which is what a
+                      checkbox means everywhere else on this rail. */}
                   {[
-                    { id: 'direct', label: 'Direct flights',    count: facets.type.direct },
+                    { id: 'direct', label: 'Direct flights',       count: facets.type.direct },
                     { id: 'stops',  label: 'Flights with stop(s)', count: facets.type.stops },
-                    { id: 'all',    label: 'All flights',       count: facets.type.all },
                   ].map((o) => (
                     <label key={o.id} className={`modal-filter-opt${fType === o.id ? ' checked' : ''}`}>
                       <input type="checkbox" className="mf-input" checked={fType === o.id}
-                        onChange={() => setFType(o.id)} />
+                        onChange={() => setFType((v) => (v === o.id ? 'all' : o.id))} />
                       <span className="modal-filter-cb" aria-hidden="true">
                         {fType === o.id && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}
                       </span>
@@ -4855,53 +4936,74 @@ export default function HotelDetail() {
               {/* The list filters as you tick, so this is not an "apply" — it says what the
                   current filters have left, and on a phone it closes the filter sheet. */}
               <div className="modal-filter-foot">
-                <button type="button" className="mf-apply" onClick={() => setFilterSheet(false)}>
-                  Show {modalFlights.length} flight{modalFlights.length === 1 ? '' : 's'}
-                </button>
-                <div className="mf-found">
+                <div className="mf-found" aria-live="polite">
                   {modalFlights.length === allFlights.length
                     ? `${allFlights.length} flight${allFlights.length === 1 ? '' : 's'} found`
                     : `${modalFlights.length} of ${allFlights.length} flights match`}
                 </div>
+                <button type="button" className="mf-reset" onClick={clearFlightFilters}
+                  disabled={!activeFilterCount}>
+                  <S size={14} sw={2.3}><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></S>
+                  Reset all filters
+                </button>
+                <button type="button" className="mf-apply" onClick={() => setFilterSheet(false)}>
+                  Show {modalFlights.length} flight{modalFlights.length === 1 ? '' : 's'}
+                </button>
               </div>
             </div>
 
             <div className="modal-flights">
               {/* What the figures on these cards are, said once at the top rather than
-                  guessed at per card. The fare is the whole party's, taxes in; the coloured
-                  note on each card is what switching to it does to the package total. */}
+                  guessed at per card. The headline on each card is per person, because that
+                  is the figure a traveller carries; the fare itself is the whole party's. */}
               <div className="modal-price-note">
                 {ICON.info}
                 <span>
-                  Prices are the flight fare for <b>all travellers</b>, taxes and fees included.
-                  Each card shows what choosing it would do to your package price.
+                  Price differences are shown <b>per person</b>, compared with your selected
+                  flight. The fare on each card is for <b>all travellers</b>, taxes and fees included.
                 </span>
               </div>
-              {modalFlights.length ? modalFlights.map((f) => (
-                <FlightCard
-                  key={f.idx}
-                  f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
-                  selected={selectedFlight === f.idx}
-                  // `flights` is sorted cheapest-first and `idx` is the position in THAT
-                  // array, so it survives the modal's own sorting and filtering — the green
-                  // frame stays on the genuinely cheapest fare, not on whatever is top.
-                  cheapest={f.idx === 0}
-                  option={{
-                    impact: selectedFare == null || f.totalPrice == null
-                      ? null : Math.round(f.totalPrice - selectedFare),
-                  }}
-                  onSelect={() => setSelectedFlight(f.idx)}
-                />
-              )) : (
+              {modalFlights.length ? (
+                <>
+                  {modalFlights.slice(0, shownFlights).map((f) => (
+                    <FlightCard
+                      key={f.idx}
+                      f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
+                      selected={selectedFlight === f.idx}
+                      // `flights` is sorted cheapest-first and `idx` is the position in THAT
+                      // array, so it survives the modal's own sorting and filtering — the green
+                      // frame stays on the genuinely cheapest fare, not on whatever is top.
+                      cheapest={f.idx === 0}
+                      option={{
+                        impact: selectedFare == null || f.totalPrice == null
+                          ? null : Math.round(f.totalPrice - selectedFare),
+                        perPerson: selectedFare == null || f.totalPrice == null
+                          ? null : (f.totalPrice - selectedFare) / paxCount,
+                      }}
+                      // Choosing is the terminal act of this dialog: it applies the flight and
+                      // gets out of the way, rather than leaving the traveller looking at a list
+                      // they have finished with, hunting for a separate Save.
+                      onSelect={() => { setSelectedFlight(f.idx); setModalOpen(false); }}
+                    />
+                  ))}
+                  {/* A charter weekend can come back with forty fares. The first handful is
+                      what gets compared; the rest are there for whoever asks. */}
+                  {modalFlights.length > shownFlights && (
+                    <button type="button" className="show-more-flights"
+                      onClick={() => setPager({ list: modalFlights, n: shownFlights + MODAL_PAGE })}>
+                      <S size={15} sw={2.4}><path d="M6 9l6 6 6-6" /></S>
+                      Show more flights
+                      <em>{modalFlights.length - shownFlights} more</em>
+                    </button>
+                  )}
+                </>
+              ) : (
                 <div className="live-empty">
                   {ICON.plane} No flights match these filters.
                   <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>Clear all filters</button>
                 </div>
               )}
             </div>
-          </div>
-          <div className="modal-save-bar">
-            <button className="modal-save-btn" onClick={() => setModalOpen(false)}>Save {ICON.arrow}</button>
           </div>
         </div>
       </div>

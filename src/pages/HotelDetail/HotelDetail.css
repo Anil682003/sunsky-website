@@ -1402,68 +1402,146 @@
    Same journeys and chips as the page card. What differs is that everything about
    CHOOSING this flight is gathered into the rail, and the card says in words which one
    the traveller is holding. */
-.sd .flight-card.option { overflow:visible; }
+/* A white card on a #F4F8FD ground is a 1.07:1 edge, and no border light enough to belong
+   to this design will carry it — so the separation is DEPTH, not contrast: a soft lift that
+   reads at a glance without putting a hard line around every option. */
+.sd .flight-card.option {
+  overflow:visible; border:1px solid #DBE6F6;
+  box-shadow:0 1px 2px rgba(15,40,100,.05), 0 4px 12px rgba(15,40,100,.045);
+  transition:border-color .25s var(--ease), box-shadow .25s var(--ease);
+}
+.sd .flight-card.option:hover { border-color:#c9dcf8; box-shadow:0 2px 4px rgba(15,40,100,.06), 0 10px 24px rgba(15,40,100,.10); }
+/* The cheapest fare in the set gets a tint and a bluer frame rather than a loud ring: it is
+   a recommendation, and it sits next to cards the traveller may well prefer. */
+.sd .flight-card.option.cheapest {
+  border-color:#9FC4F7; background:linear-gradient(180deg,#F8FBFF,#F2F7FF);
+  box-shadow:0 0 0 3px rgba(31,79,216,.07);
+}
+.sd .flight-card.option.selected { border-color:var(--green); box-shadow:0 0 0 3px rgba(5,150,105,.12); }
+
+/* ── The strip across the top: what this card is, and what makes it stand out ── */
 .sd .fc-status {
-  display:flex; align-items:center; gap:8px;
-  padding:11px 20px 0;
+  display:flex; align-items:center; gap:10px;
+  padding:13px 18px 0;
 }
-.sd .fc-radio {
-  width:19px; height:19px; border-radius:50%; flex-shrink:0;
-  border:2px solid var(--border); background:var(--white);
-  display:flex; align-items:center; justify-content:center; color:#fff;
-  transition:all .2s var(--ease);
-}
-.sd .fc-radio.on { border-color:var(--green); background:var(--green); }
 .sd .fc-status-label {
-  font-family:'Sora',sans-serif; font-size:10.5px; font-weight:800;
-  text-transform:uppercase; letter-spacing:.09em; color:var(--text-light);
+  font-family:'Sora',sans-serif; font-size:10px; font-weight:800;
+  text-transform:uppercase; letter-spacing:.1em; color:var(--blue);
+  background:var(--blue-bg); border:1px solid #dbe8fb;
+  padding:4px 11px; border-radius:var(--r-full);
 }
 /* The one the traveller is holding says so in the page's selected colour. */
 .sd .flight-card.option.selected .fc-status-label {
-  color:#0B7A57; background:#ECFDF5; border:1px solid #A7F3D0;
-  padding:3px 11px; border-radius:var(--r-full);
+  color:#0B7A57; background:#ECFDF5; border-color:#A7F3D0;
 }
+/* Gold names the floor of the result set — the one place on this card where the brand's
+   conversion colour is earned. Ink is the deep brand brown, not black: white-on-gold is
+   the site's rule for gold FILLS, and this is a tinted chip, not a fill. */
+.sd .fc-best {
+  margin-left:auto; display:inline-flex; align-items:center; gap:5px;
+  font-family:'Sora',sans-serif; font-size:10px; font-weight:800;
+  text-transform:uppercase; letter-spacing:.09em;
+  color:#92400E; background:var(--sun-warm); border:1px solid #FFDFAC;
+  padding:4px 11px; border-radius:var(--r-full);
+}
+/* --sun on --sun-warm is 1.95:1 — a smudge. Amber-600 clears the 3:1 a graphic needs
+   and still reads gold rather than brown. */
+.sd .fc-best svg { width:11px; height:11px; fill:#D97706; stroke:none; flex-shrink:0; }
+
 .sd .fc-split { display:flex; align-items:stretch; }
 .sd .fc-main { flex:1; min-width:0; display:flex; flex-direction:column; }
-.sd .fc-main-foot { margin-top:auto; padding:0 22px 16px; }
+.sd .fc-main-foot { margin-top:auto; padding:0 18px 15px; }
 .sd .fc-main .bp-incl { padding-bottom:12px; }
 
+/* ── The two directions, side by side ──────────────────────────────────────────
+   The same column pair the page's headline card uses, at list scale: the type steps down
+   so three cards fit on a laptop screen, but the shape — badge, carrier, route, via —
+   stays identical, so the flight you chose reads the same on the page as it did here. */
+.sd .flight-card.option .fc-leg { padding:14px 18px 12px; }
+.sd .flight-card.option .fc-leg .bp-jhead { margin-bottom:11px; gap:8px; }
+.sd .flight-card.option .fc-leg .bp-airrow { gap:9px; margin-bottom:13px; }
+.sd .flight-card.option .fc-leg .bp-airname { font-size:13px; }
+.sd .flight-card.option .fc-leg .bp-airmark,
+.sd .flight-card.option .fc-leg .bp-airmark.air-logo { width:25px; height:25px; font-size:11px; padding:2px; }
+.sd .flight-card.option .fc-leg .bp-flno { font-size:10px; padding:3px 8px; }
+.sd .flight-card.option .fc-leg .bp-route { gap:10px; }
+.sd .flight-card.option .fc-leg .bp-time { font-size:23px; letter-spacing:-.5px; }
+.sd .flight-card.option .fc-leg .bp-city { font-size:11.5px; margin-top:5px; }
+.sd .flight-card.option .fc-leg .bp-code { font-size:10px; }
+.sd .flight-card.option .fc-leg .bp-mid { min-width:88px; }
+.sd .flight-card.option .fc-leg .bp-track { min-width:72px; }
+.sd .flight-card.option .fc-leg .bp-dur { font-size:11px; }
+.sd .flight-card.option .fc-leg .bp-stops { font-size:10px; }
+.sd .flight-card.option .fc-leg .bp-via { margin-top:9px; font-size:10.5px; }
+/* A one-way has no second column to fill, and the column keeps the full width so the
+   header and the allowance row still span it. The ROUTE inside it does not: stretched
+   across 800px it puts a third of a metre of dashes between departure and arrival. */
+.sd .flight-card.option .fc-legs-one .bp-route { max-width:560px; }
+/* One allowance row under BOTH columns — it is a term of the fare, not of a direction. */
+.sd .flight-card.option .bp-incl { padding:2px 18px 11px; gap:6px; }
+
+/* ── The rail: what switching to this flight costs, and the way to do it ──────── */
 .sd .fc-rail {
-  width:196px; flex-shrink:0;
-  display:flex; flex-direction:column; align-items:center; gap:7px;
-  padding:16px 16px 18px; text-align:center;
-  border-left:1.5px dashed #d4e2f8;
-  background:linear-gradient(180deg,#fbfdff,#f4f8ff);
+  width:214px; flex-shrink:0;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
+  padding:16px 15px; text-align:center;
+  border-left:1px solid #E3ECF9;
+  background:#F4F8FD;
 }
-.sd .flight-card.option.selected .fc-rail { background:linear-gradient(180deg,#fbfffd,#eefaf4); border-left-color:#bfe9d6; }
-.sd .fc-rail .live-price {
-  font-family:'Sora',sans-serif; font-size:25px; font-weight:800; color:var(--dark);
-  letter-spacing:-.5px; line-height:1.1; font-variant-numeric:tabular-nums lining-nums;
-}
-.sd .fc-rail .bp-price-cap { font-size:10.5px; }
-.sd .fc-rail .flight-selected-badge { font-size:11.5px; padding:5px 14px; }
-.sd .fc-rail .bp-delta-best { font-size:9.5px; padding:3px 10px; }
+.sd .flight-card.option.cheapest .fc-rail { background:#EDF4FE; border-left-color:#D6E6FA; }
+.sd .flight-card.option.selected .fc-rail { background:#F2FCF8; border-left-color:#CBEEDE; }
+.sd .fc-rail .flight-selected-badge { font-size:11.5px; padding:2px 0 4px; }
 
-/* What choosing this flight does to the package total — the number the traveller is
-   actually deciding on. Green when nothing moves, amber-red when it costs more, green
-   again when it saves. */
+/* The headline figure: what ONE traveller pays over or under the flight now held. Per
+   person because that is the number a traveller carries in their head; the package figure
+   is right underneath it, so neither has to be inferred from the other. */
+.sd .fc-swing {
+  display:flex; align-items:baseline; justify-content:center; gap:5px;
+  font-family:'Sora',sans-serif; letter-spacing:-.4px; line-height:1.15;
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.sd .fc-swing b { font-size:22px; font-weight:800; }
+.sd .fc-swing em { font-style:normal; font-size:12px; font-weight:700; }
+.sd .fc-swing.down { color:#0B7A57; }
+.sd .fc-swing.up { color:#B42318; }
+.sd .fc-swing.same { color:var(--text-sec); }
+/* NOT --text-light. This rail sits on a tinted ground, and #94a3bf on #F4F8FD measures
+   2.4:1 — under half of what 11px text needs. #55677F clears 5.2:1 on all three rail
+   grounds (plain, cheapest, selected), which is why it is a literal rather than the token:
+   --text-sec itself only reaches 4.4:1 against the cheapest card's blue tint. */
+.sd .fc-swing-cap { font-size:11px; font-weight:600; color:#55677F; line-height:1.35; }
+
+/* What choosing this flight does to the package total. Fine print by design — it is the
+   same fact as the figure above, counted for the whole party, and printing it as loudly
+   would have the card state its one number twice. */
 .sd .fc-impact {
-  display:flex; align-items:center; gap:7px; width:100%;
-  padding:9px 11px; border-radius:var(--r-xs);
-  font-size:11.5px; line-height:1.35; text-align:left;
+  width:100%; margin-top:3px;
+  font-size:10.5px; line-height:1.45; font-weight:600;
+  color:#55677F; text-align:center;
 }
-.sd .fc-impact svg { width:14px; height:14px; flex-shrink:0; }
 .sd .fc-impact b { font-family:'Sora',sans-serif; font-weight:800; font-variant-numeric:tabular-nums lining-nums; }
-.sd .fc-impact em { display:block; font-style:normal; font-weight:600; opacity:.85; }
-.sd .fc-impact.same { background:#ECFDF5; border:1px solid #A7F3D0; color:#0B7A57; font-weight:600; }
-.sd .fc-impact.down { background:#ECFDF5; border:1px solid #A7F3D0; color:#0B7A57; }
-.sd .fc-impact.up { background:#FEF2F2; border:1px solid #FECACA; color:#B42318; }
+.sd .fc-impact.up b { color:#B42318; }
+.sd .fc-impact.down b { color:#0B7A57; }
+.sd .fc-impact.same { color:#0B7A57; }
 
-.sd .fc-taxes {
-  display:inline-flex; align-items:center; gap:5px; justify-content:center;
-  font-size:10.5px; font-weight:600; color:var(--text-light); line-height:1.4;
+/* The fare itself, whole party, taxes in — under a rule, because it answers a different
+   question from everything above it. */
+.sd .fc-fare {
+  display:flex; flex-direction:column; align-items:center; gap:1px;
+  width:100%; margin-top:8px; padding-top:9px;
+  border-top:1px dashed #D9E5F6;
 }
-.sd .fc-select { margin-top:4px; width:100%; justify-content:center; padding:11px 16px; font-size:12.5px; }
+.sd .fc-fare .live-price {
+  font-family:'Sora',sans-serif; font-size:15px; font-weight:800; color:var(--dark);
+  letter-spacing:-.2px; font-variant-numeric:tabular-nums lining-nums;
+}
+.sd .fc-fare em {
+  display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:center;
+  font-style:normal; font-size:10px; font-weight:600; color:#55677F; line-height:1.4;
+}
+.sd .fc-fare .mf-hint svg { width:12px; height:12px; }
+
+.sd .fc-select { margin-top:11px; width:100%; justify-content:center; padding:11px 16px; font-size:12.5px; border-radius:10px; }
 
 /* ── Flight detail panel (accordion) ── */
 .sd .fd-panel { border-top:1px dashed var(--border); padding:20px 22px 22px; background:linear-gradient(180deg,#f8faff 0%,var(--white) 100%); animation:sdFadeUp .3s var(--ease); }
@@ -1868,26 +1946,51 @@
 .sd .overview-urgency-text svg { width:15px; height:15px; color:#9db3d4; flex-shrink:0; }
 
 /* FLIGHT MODAL */
-.sd .modal-overlay { display:none; position:fixed; inset:0; background:rgba(7,14,31,.5); z-index:1100; align-items:center; justify-content:center; backdrop-filter:blur(4px); }
+.sd .modal-overlay { display:none; position:fixed; inset:0; background:rgba(7,14,31,.5); z-index:1100; align-items:center; justify-content:center; backdrop-filter:blur(4px); padding:22px; }
 .sd .modal-overlay.show { display:flex; }
 /* 1200 rather than 960. The body is a fixed 250px filter rail plus the flight cards, and each
    card carries a full itinerary across its width: time, city, code, the duration track, then the
    same again for the return. At 960 that left barely 700px for all of it, so the cards inside the
    modal were more cramped than the identical cards on the page behind it. */
-.sd .modal { width:95%; max-width:1200px; max-height:88vh; background:var(--white); border-radius:var(--r-xl); overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); animation:sdSlideUp .35s var(--ease); }
-.sd .modal-head { display:flex; align-items:center; justify-content:space-between; padding:18px 24px; border-bottom:1px solid var(--border-light); background:linear-gradient(135deg,var(--blue-bg),var(--blue-pale)); }
-.sd .modal-title { font-family:'Sora',sans-serif; font-size:17px; font-weight:800; color:var(--dark); }
-.sd .modal-sort { font-size:12px; color:var(--text-sec); display:flex; align-items:center; gap:6px; }
-.sd .modal-sort select { border:none; background:none; color:var(--blue); font-weight:700; font-size:12px; cursor:pointer; outline:none; }
-.sd .modal-close { width:36px; height:36px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--text-sec); transition:all .2s; background:var(--white); }
-.sd .modal-close:hover { background:var(--blue-bg); color:var(--blue); }
-.sd .modal-body { display:flex; flex:1; overflow:hidden; }
-.sd .modal-sidebar { width:240px; padding:20px; border-right:1px solid var(--border-light); overflow-y:auto; flex-shrink:0; }
-.sd .modal-filter-group { margin-bottom:20px; }
+/* This dialog is a COMPARISON surface, not a form: the traveller is holding two or three
+   itineraries against each other, and every pixel taken off its width is width taken off
+   the columns doing the comparing. So it runs as wide as the viewport allows, up to a cap
+   that keeps a card's route from stretching into a line nobody's eye can follow. */
+.sd .modal { width:100%; max-width:1460px; max-height:94vh; background:var(--white); border-radius:var(--r-xl); overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); animation:sdSlideUp .35s var(--ease); }
+/* White, not the blue band it used to wear: the band read as a second page header stacked
+   on the site's own, and the cards below are already carrying the blue. */
+.sd .modal-head { display:flex; align-items:center; gap:16px; padding:20px 26px; border-bottom:1px solid var(--border-light); background:var(--white); }
+.sd .modal-head-main { margin-right:auto; min-width:0; }
+.sd .modal-title { font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--dark); letter-spacing:-.5px; margin:0; }
+/* What there is to choose from — and, the moment the rail narrows the list, how much of it
+   is left. Without it the rail's effect is only visible by scrolling down and counting. */
+.sd .modal-subtitle { display:flex; align-items:center; gap:7px; margin-top:5px; font-size:12.5px; font-weight:600; color:var(--blue); }
+.sd .modal-subtitle svg { width:14px; height:14px; flex-shrink:0; }
+.sd .modal-sort { font-size:12.5px; font-weight:600; color:var(--text-sec); display:flex; align-items:center; gap:9px; flex-shrink:0; }
+/* A bordered field rather than blue text pretending not to be a control: a select with no
+   box around it does not look like something you can open. */
+.sd .modal-sort-field { position:relative; display:inline-flex; align-items:center; }
+.sd .modal-sort-field select {
+  appearance:none; -webkit-appearance:none;
+  padding:10px 36px 10px 14px; border-radius:var(--r-xs);
+  border:1.5px solid var(--border); background:var(--white);
+  font-family:inherit; font-size:12.5px; font-weight:700; color:var(--dark);
+  cursor:pointer; outline:none; transition:border-color .2s, box-shadow .2s;
+}
+.sd .modal-sort-field select:hover { border-color:var(--blue-soft); }
+.sd .modal-sort-field select:focus-visible { border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.16); }
+.sd .modal-sort-field > svg { position:absolute; right:12px; color:var(--text-light); pointer-events:none; }
+.sd .modal-close { width:38px; height:38px; border-radius:50%; display:flex; align-items:center; justify-content:center; color:var(--text-sec); transition:all .2s; background:var(--white); border:1.5px solid var(--border); flex-shrink:0; }
+.sd .modal-close:hover { background:var(--blue-bg); color:var(--blue); border-color:var(--blue-soft); }
+/* The two columns are separate cards on a tinted ground, the way the results page reads —
+   so the rail is legible as a thing beside the list rather than a strip cut out of it. */
+.sd .modal-body { display:flex; gap:18px; flex:1; overflow:hidden; padding:18px 20px; background:#F4F8FD; }
+.sd .modal-sidebar { width:264px; padding:20px 18px; overflow-y:auto; flex-shrink:0; background:var(--white); border:1px solid var(--border-light); border-radius:18px; }
+.sd .modal-filter-group { margin-bottom:22px; }
 .sd .modal-filter-title { font-family:'Sora',sans-serif; font-size:12.5px; font-weight:700; color:var(--dark); margin-bottom:10px; }
-.sd .modal-filter-opt { display:flex; align-items:center; gap:8px; padding:5px 0; cursor:pointer; font-size:12.5px; color:var(--text-sec); transition:color .2s; }
+.sd .modal-filter-opt { display:flex; align-items:center; gap:10px; padding:6px 0; cursor:pointer; font-size:12.5px; color:var(--text-sec); transition:color .2s; }
 .sd .modal-filter-opt:hover { color:var(--blue); }
-.sd .modal-filter-cb { width:16px; height:16px; border-radius:4px; border:1.5px solid var(--border); flex-shrink:0; transition:all .2s; display:flex; align-items:center; justify-content:center; color:#fff; }
+.sd .modal-filter-cb { width:17px; height:17px; border-radius:5px; border:1.5px solid var(--border); flex-shrink:0; transition:all .2s; display:flex; align-items:center; justify-content:center; color:#fff; background:var(--white); }
 .sd .modal-filter-opt.checked .modal-filter-cb { border-color:var(--blue); background:var(--blue); }
 
 /* ── Live filter state ────────────────────────────────────────────────────────
@@ -1915,15 +2018,6 @@
   text-decoration:underline; text-underline-offset:2px;
 }
 .sd .mf-link:hover { color:var(--dark); }
-
-/* Sort, repeated in the rail — the header's copy scrolls away on a long list. */
-.sd .mf-select {
-  width:100%; padding:9px 11px; border-radius:var(--r-xs);
-  border:1.5px solid var(--border); background:var(--white);
-  font-family:inherit; font-size:12.5px; font-weight:600; color:var(--dark);
-  cursor:pointer; outline:none; transition:border-color .2s;
-}
-.sd .mf-select:focus { border-color:var(--blue); }
 
 /* The real checkbox sits under the drawn one: it keeps the label clickable, the group
    keyboard-reachable and the state announced, while the visible box stays styled. */
@@ -2001,7 +2095,8 @@
 /* Foot of the rail: what the current filters leave, and (on a phone) the way out of
    the filter sheet. The list filters as you tick, so this confirms — it does not apply. */
 .sd .modal-filter-foot {
-  position:sticky; bottom:0; padding-top:14px; margin-top:4px;
+  position:sticky; bottom:0; padding-top:14px; margin-top:6px;
+  display:flex; flex-direction:column; gap:10px;
   background:linear-gradient(180deg,rgba(255,255,255,0),var(--white) 22%);
 }
 .sd .mf-apply {
@@ -2014,6 +2109,19 @@
   text-align:center; font-size:11.5px; font-weight:700; color:var(--text-light);
   font-variant-numeric:tabular-nums lining-nums;
 }
+/* The rail's one way out. It stays on screen greyed rather than appearing only once a
+   filter is on: a control that materialises where there was nothing is a control the eye
+   has to re-find, and its presence is itself the reminder that the list can be reset. */
+.sd .mf-reset {
+  display:flex; align-items:center; justify-content:center; gap:7px; width:100%;
+  padding:11px 14px; border-radius:var(--r-full);
+  border:1.5px solid #cfe0f8; background:var(--white); color:var(--blue);
+  font-family:'Sora',sans-serif; font-size:12.5px; font-weight:700; cursor:pointer;
+  transition:all .25s var(--ease);
+}
+.sd .mf-reset:hover:not(:disabled) { background:var(--blue-pale); border-color:var(--blue-soft); }
+.sd .mf-reset:disabled { color:var(--text-light); border-color:var(--border-light); cursor:default; }
+.sd .mf-reset svg { width:14px; height:14px; flex-shrink:0; }
 
 /* Phone: the rail is a sheet, opened from the header. */
 .sd .modal-filter-toggle {
@@ -2069,11 +2177,18 @@
   box-shadow:0 3px 10px rgba(255,159,28,.28);
 }
 .sd .bp-delta-best svg { width:11px; height:11px; }
-.sd .modal-flights { flex:1; overflow-y:auto; padding:20px; }
-.sd .modal-flights .flight-card { margin-bottom:12px; }
-.sd .modal-save-bar { padding:14px 24px; border-top:1px solid var(--border-light); text-align:center; background:var(--page-bg); }
-.sd .modal-save-btn { display:inline-flex; align-items:center; gap:8px; padding:14px 48px; border-radius:var(--r-full); background:linear-gradient(135deg,var(--sun),var(--gold)); color:#fff; font-family:'Sora',sans-serif; font-size:15px; font-weight:700; box-shadow:var(--shadow-glow); transition:all .3s var(--ease); }
-.sd .modal-save-btn:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(255,159,28,.45); }
+.sd .modal-flights { flex:1; min-width:0; overflow-y:auto; padding:0 4px 4px 0; }
+.sd .modal-flights .flight-card { margin-bottom:14px; }
+/* Inside the list this is a quiet way to ask for more, not a call to action — the calls to
+   action are the Select buttons on the cards above it. */
+.sd .modal-flights .show-more-flights {
+  /* `width:auto` undoes the full-width rule the on-page copy of this button carries: a
+     hover tint stretched across the whole list reads as a bar, not as something to press. */
+  width:auto; border:none; background:none; box-shadow:none;
+  margin:6px auto 4px; padding:12px 22px;
+}
+.sd .modal-flights .show-more-flights:hover { background:var(--blue-pale); box-shadow:none; transform:none; }
+.sd .modal-flights .show-more-flights em { font-style:normal; font-size:12px; font-weight:600; color:var(--text-light); }
 
 
 /* The portalled dialog needs its own overlay definition — the .modal-overlay rule 400 lines
@@ -2491,6 +2606,8 @@
   .sd .fc-pop, .sd .fc-skel .fc-bar, .sd .fc-line { animation:none; }
   .sd .fc-col.sel .fc-tail { animation:none; }
   .sd .gi img { transition:none; }
+  /* Two full-viewport surfaces entering on a translate — the biggest motion on this page. */
+  .sd .modal, .sd .fd-panel { animation:none; }
 }
 @media(max-width:1100px){
   .sd{--overhang:56px}
@@ -2522,15 +2639,14 @@
   /* No room for a column beside the cards: the filter rail becomes a sheet over the list,
      reached from the header's Filters button and dismissed by its own "Show N flights".
      It used to be display:none here — every filter simply gone below 1024px. */
-  .sd .modal-body{position:relative}
+  .sd .modal-body{position:relative;padding:14px;gap:0}
   .sd .modal-sidebar{
     display:none; position:absolute; inset:0; z-index:6; width:auto;
-    border-right:none; background:var(--white); padding:18px 20px 20px;
+    border:none; border-radius:0; background:var(--white); padding:18px 20px 20px;
   }
   .sd .modal-body.filters-open .modal-sidebar{display:block}
   .sd .modal-filter-toggle{display:inline-flex}
   .sd .mf-apply{display:block}
-  .sd .modal{max-width:98%}
 }
 @media(max-width:768px){
   .sd{--overhang:36px}
@@ -2573,6 +2689,20 @@
   .sd .bp-time{font-size:20px}
   .sd .bp-mid{min-width:96px}
   .sd .bp-track{min-width:64px}
+  .sd .flight-card.option .fc-leg .bp-time{font-size:20px}
+  .sd .flight-card.option .fc-leg .bp-mid{min-width:80px}
+  .sd .flight-card.option .fc-leg .bp-track{min-width:56px}
+  /* Four things in a row that never wraps, one of them two lines tall. Below this it becomes
+     two rows — title and the way out on top, the two controls under them — rather than the
+     three ragged rows a bare flex-wrap produces, which strands Close on a line of its own. */
+  .sd .modal-head{flex-wrap:wrap;gap:10px 12px;padding:14px 16px}
+  .sd .modal-title{font-size:19px}
+  .sd .modal-head-main{order:1;margin-right:0;flex:1 1 auto;min-width:0}
+  .sd .modal-close{order:2}
+  .sd .modal-filter-toggle{order:3;margin-left:0}
+  .sd .modal-sort{order:4;margin-left:auto;min-width:0}
+  .sd .modal-sort-field{min-width:0}
+  .sd .modal-sort-field select{max-width:100%}
   .sd .avail-banner{flex-direction:column;text-align:center}
   .sd .avail-price{margin-left:0;text-align:center}
   .sd .filter-item{padding:12px 14px}
@@ -2609,7 +2739,7 @@
 /* kill the 22-size ramp: snap to 10/11/12/13/14 */
 .sd .rvna, .sd .meal-price, .sd .mbc, .sd .overview-row { font-size:13px; }
 .sd .room-name { font-size:14px; }
-.sd .bc, .sd .hhb, .sd .rm, .sd .fm, .sd .mb, .sd .rn, .sd .overview-score, .sd .overview-loc, .sd .alt-airports-label, .sd .modal-filter-title, .sd .modal-filter-opt, .sd .avail-sub { font-size:12px; }
+.sd .bc, .sd .hhb, .sd .rm, .sd .fm, .sd .mb, .sd .rn, .sd .overview-score, .sd .overview-loc, .sd .alt-airports-label, .sd .avail-sub { font-size:12px; }
 .sd .sd-hc-sub, .sd .bkpl, .sd .bkp-total, .sd .rvd, .sd .meal-action, .sd .room-cap, .sd .flight-warning, .sd .alt-chip-name, .sd .rrv, .sd .room-low-avail, .sd .flight-airport, .sd .room-avail { font-size:11px; }
 .sd .wd { font-size:10px; }
 
@@ -2740,7 +2870,7 @@
 /* two-tier hover lift: cards -2px, buttons -1px */
 .sd .gi:hover { transform:translateY(-2px); }
 .sd .alt-chip:hover { transform:translateY(-2px); }
-.sd .bkc:hover, .sd .overview-book-btn:hover, .sd .mb:hover, .sd .ga:hover, .sd .modal-save-btn:hover { transform:translateY(-1px); }
+.sd .bkc:hover, .sd .overview-book-btn:hover, .sd .mb:hover, .sd .ga:hover { transform:translateY(-1px); }
 
 /* consistent keyboard focus */
 .sd :is(button, select, [role="button"]):focus-visible { outline:2px solid var(--blue-mid); outline-offset:2px; }
@@ -2908,13 +3038,51 @@
      three-column route into what is left beside it. */
   .sd .fc-split { flex-direction:column; }
   .sd .fc-rail {
-    width:auto; border-left:none; border-top:1.5px dashed #d4e2f8;
+    width:auto; border-left:none; border-top:1px solid #E3ECF9;
     padding:14px 16px 16px;
   }
-  .sd .flight-card.option.selected .fc-rail { border-top-color:#bfe9d6; }
+  .sd .flight-card.option.cheapest .fc-rail { border-top-color:#D6E6FA; }
+  .sd .flight-card.option.selected .fc-rail { border-top-color:#CBEEDE; }
   .sd .fc-main-foot { padding:0 16px 14px; }
-  .sd .fc-impact { justify-content:center; text-align:center; }
   .sd .fc-select { max-width:340px; }
+  /* The fine print and the rule above it were sized for a 214px column; across the full
+     card width they need a ceiling or they stretch into a single thin line. */
+  .sd .fc-swing-cap, .sd .fc-impact, .sd .fc-fare { max-width:340px; }
+  .sd .flight-card.option .bp-incl { padding:2px 16px 11px; }
+
+  /* The page card gives its two directions up at this width; the MODAL card does not, and
+     must not. Dropping the rail underneath has just handed the itinerary the 214px the rail
+     was holding, so the columns have more room here than they did a pixel ago — stacking
+     them as well would take a 340px card to 720px for no reason. They stack at 640px, where
+     the width genuinely runs out. */
+  .sd .flight-card.option .fc-legs { grid-template-columns:1fr 1fr; }
+  .sd .flight-card.option .fc-legs-one { grid-template-columns:1fr; }
+  .sd .flight-card.option .fc-leg + .fc-leg { border-left:1px solid var(--border-light); border-top:none; }
+}
+
+/* Stacked but not narrow: the rail is a full-width strip here, and a strip that lays five
+   short lines out one under another is 215px of mostly empty column. Laid across, it is one
+   readable row — figure, what it is measured against, fine print, and the way to act on it. */
+@media (max-width:900px) and (min-width:561px) {
+  .sd .fc-rail {
+    flex-direction:row; flex-wrap:wrap; align-items:baseline;
+    justify-content:flex-start; gap:5px 15px; text-align:left;
+  }
+  .sd .fc-rail .flight-selected-badge { order:0; }
+  .sd .fc-swing { order:1; }
+  .sd .fc-swing-cap { order:2; }
+  .sd .fc-impact { order:3; width:auto; margin-top:0; text-align:left; }
+  .sd .fc-fare {
+    order:4; width:auto; margin-top:0; padding-top:0; border-top:none;
+    flex-direction:row; align-items:baseline; gap:6px;
+  }
+  .sd .fc-select { order:5; margin-left:auto; margin-top:0; width:auto; min-width:190px; align-self:center; }
+  .sd .fc-swing-cap, .sd .fc-impact, .sd .fc-fare { max-width:none; }
+}
+
+@media (max-width:640px) {
+  .sd .flight-card.option .fc-legs { grid-template-columns:1fr; }
+  .sd .flight-card.option .fc-leg + .fc-leg { border-left:none; border-top:1px solid var(--border-light); }
 }
 
 @media (max-width:560px) {
@@ -2933,6 +3101,10 @@
   .sd .bp-mid { min-width:74px; }
   .sd .bp-track { min-width:44px; }
   .sd .bp-time { font-size:18px; }
+  .sd .flight-card.option .fc-leg .bp-time { font-size:18px; }
+  .sd .flight-card.option .fc-leg .bp-mid { min-width:74px; }
+  .sd .flight-card.option .fc-leg .bp-track { min-width:44px; }
+  .sd .flight-card.option .fc-leg { padding:13px 15px 11px; }
   .sd .bp-city { font-size:11.5px; }
   .sd .bp-jhead { gap:7px; }
   .sd .bp-airline { margin-left:0; }        /* wraps to its own line rather than crushing the date */
@@ -2958,6 +3130,9 @@
   .sd .bp-mid { min-width:60px; }
   .sd .bp-track { min-width:32px; }
   .sd .bp-time { font-size:17px; }
+  .sd .flight-card.option .fc-leg .bp-time { font-size:17px; }
+  .sd .flight-card.option .fc-leg .bp-mid { min-width:60px; }
+  .sd .flight-card.option .fc-leg .bp-track { min-width:32px; }
 }
 
 @media (max-width:560px) {
@@ -2966,7 +3141,15 @@
   .sd .sd-hero-trust { grid-template-columns:1fr; max-width:100%; }
   /* Give the fare/flight controls a real thumb target. */
   .sd .flight-details-btn, .sd .flight-select-btn, .sd .flight-selected-badge { min-height:42px; }
+  .sd .mf-reset, .sd .modal-flights .show-more-flights, .sd .modal-close { min-height:42px; }
   .sd .fc-cta { min-height:46px; }
+
+  /* A phone has no room for a rounded box floating on a backdrop — the dialog IS the screen,
+     the same treatment the flight-details dialog already takes at this width. */
+  .sd .modal-overlay { padding:0; }
+  .sd .modal { max-width:none; width:100%; height:100%; max-height:100%; border-radius:0; }
+  .sd .modal-body { padding:12px; }
+  .sd .modal-sidebar { padding:16px 16px 18px; }
 
   /* Room row: on a phone the three columns can't share one line. Stack the CTA under
      the info; terms sit under the name inline. The SELECTED button widens to fill. */

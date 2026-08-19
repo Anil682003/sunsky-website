@@ -286,7 +286,9 @@ describe('an overnight arrival says which day it lands', () => {
     await runCheck(user);
     await waitFor(() => expect(modalCards(container).length).toBe(1));
 
-    const outbound = modalCards(container)[0].querySelector('.bp-journey');
+    // `.fc-leg`, not `.bp-journey`: the modal card carries the two directions as the same
+    // side-by-side columns the page card uses, so the outbound is the first of those.
+    const outbound = modalCards(container)[0].querySelector('.fc-leg');
     expect(outbound.textContent).toContain('01:50');
     expect(outbound.querySelector('.bp-nextday').textContent).toBe('+1 day');
   });
