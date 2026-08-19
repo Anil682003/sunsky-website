@@ -2076,206 +2076,27 @@
 .sd .modal-save-btn:hover { transform:translateY(-2px); box-shadow:0 8px 28px rgba(255,159,28,.45); }
 
 
-/* ══ Flight details dialog ═════════════════════════════════════════════════════
-   Two tabs: the itinerary, and the baggage that used to be a chip beside it. */
-.sd .fdm-overlay { padding:20px; }
-.sd .fdm {
-  width:100%; max-width:1080px; max-height:90vh;
-  display:flex; flex-direction:column;
-  background:var(--white); border-radius:var(--r-xl); overflow:hidden;
-  box-shadow:var(--shadow-lg); animation:sdSlideUp .3s var(--ease);
-}
-.sd .fdm-head {
-  display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
-  padding:18px 22px 14px;
-  border-bottom:1px solid var(--border-light);
-}
-/* A dialog heading, not a page one. 22px UPPERCASE was reading as a section title on top
-   of the card behind it — sentence case at 16px is enough to name what this is, and the
-   subline underneath still says whose flight it describes. */
-.sd .fdm-title {
-  font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--dark);
-  letter-spacing:-.01em; line-height:1.25;
-}
-.sd .fdm-sub { font-size:12.5px; font-weight:500; color:var(--text-light); margin-top:2px; }
-
-/* Two tabs along the top of the body, sitting under a hairline. A framed pill was fighting
-   the dialog's own frame; a plain underline is what a tab is. */
-.sd .fdm-tabs {
-  display:flex; gap:4px;
-  padding:0 22px; border-bottom:1px solid var(--border-light); background:var(--white);
-}
-.sd .fdm-tab {
-  display:flex; align-items:center; justify-content:center; gap:8px;
-  padding:12px 18px; border:none; background:none; cursor:pointer;
-  font-family:inherit; font-size:13px; font-weight:700;
-  color:var(--text-light); position:relative;
-  transition:color .2s;
-}
-.sd .fdm-tab svg { width:15px; height:15px; }
-.sd .fdm-tab:hover { color:var(--text-sec); }
-.sd .fdm-tab.on { color:var(--blue); }
-.sd .fdm-tab.on::after {
-  content:''; position:absolute; left:12px; right:12px; bottom:-1px;
-  height:2.5px; border-radius:2px 2px 0 0; background:var(--blue);
-}
-
-.sd .fdm-body { flex:1; overflow-y:auto; padding:18px 22px 4px; }
-
-/* One block per direction. */
-.sd .fdm-journey, .sd .fdm-bagblock {
-  border:1px solid var(--border-light); border-radius:var(--r-md);
-  background:var(--white); margin-bottom:16px; overflow:hidden;
-}
-/* Tab 1: the itinerary, laid out to match the design.
-   The header has the direction on the left, date beside it, and — where the fare states one —
-   a baggage summary on the right. The body is a row of leg columns with a horizontal layover
-   pill between them, and the airline strip sits under each column. */
-.sd .fdm-jhead {
-  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-  padding:14px 20px;
-  background:var(--blue-pale); border-bottom:1px solid var(--border-light);
-}
-.sd .fdm-jbags {
-  display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;
-  margin-left:auto;
-  padding:6px 10px 6px 6px; border-radius:var(--r-full);
-  background:#F0FDF8; border:1px solid #B6E8D4;
-  font-size:11.5px; color:#0B7A57;
-}
-.sd .fdm-jbags-label {
-  display:inline-flex; align-items:center; gap:6px;
-  padding-left:6px; font-weight:700; color:#0B7A57;
-}
-.sd .fdm-jbags-label svg { width:14px; height:14px; }
-.sd .fdm-jbags .bp-chip { background:var(--white); border-color:#B6E8D4; }
-
-.sd .fdm-legrow {
-  display:flex; align-items:stretch; gap:14px;
-  padding:20px; min-width:0;
-}
-.sd .fdm-leg { flex:1; min-width:0; display:flex; flex-direction:column; gap:14px; }
-
-/* Time — track — time, one column of the row. */
-.sd .fdm-legrail {
-  display:grid; grid-template-columns:auto minmax(80px,1fr) auto;
-  align-items:center; gap:14px; min-width:0;
-}
-.sd .fdm-point { min-width:0; }
-.sd .fdm-point-r { text-align:right; }
-.sd .fdm-time {
-  font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--dark);
-  letter-spacing:-.4px; line-height:1.1; font-variant-numeric:tabular-nums;
-}
-.sd .fdm-place { font-size:12.5px; font-weight:600; color:var(--text-sec); margin-top:6px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sd .fdm-code { font-size:11px; font-weight:800; color:var(--text-light); letter-spacing:.1em; margin-top:2px; }
-.sd .fdm-mid { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
-.sd .fdm-dur { font-size:11.5px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
-.sd .fdm-flag {
-  font-family:'Sora',sans-serif; font-size:11px; font-weight:800; color:#0B7A57;
-  letter-spacing:.06em; text-transform:uppercase; margin-top:2px;
-}
-
-/* Airline row below its column: logo + name + flight-number chip, left-aligned. */
-.sd .fdm-carrier { display:flex; align-items:center; gap:10px; min-width:0; }
-.sd .fdm-carrier .bp-airname { font-size:13.5px; font-weight:700; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.sd .fdm-carrier .bp-airmark { width:30px; height:30px; font-size:13px; flex-shrink:0; }
-.sd .fdm-carrier .bp-airmark.air-logo { width:30px; height:30px; padding:2px; }
-
-/* The wait between two legs, called out where it happens rather than left to be worked out
-   from two times in different columns. Sits as its OWN column of the row, so the two legs
-   read as before-and-after the pill. */
-.sd .fdm-layover {
-  flex:0 0 auto; align-self:center;
-  display:flex; align-items:center; gap:9px;
-  padding:12px 16px; border-radius:var(--r-md);
-  background:var(--sun-warm); border:1px solid #ffe4bd;
-  font-size:12px; color:#b45309; max-width:220px;
-}
-.sd .fdm-layover svg { width:15px; height:15px; flex-shrink:0; color:#b45309; }
-.sd .fdm-layover b { display:block; font-weight:800; margin-bottom:2px; }
-.sd .fdm-layover em { display:block; font-style:normal; font-weight:600; opacity:.85; line-height:1.35; }
-
-
-/* ── Tab 2: the baggage table ── */
-.sd .fdm-tablewrap { overflow-x:auto; }
-.sd .fdm-table { width:100%; border-collapse:collapse; font-size:13px; }
-.sd .fdm-table th {
-  text-align:left; padding:13px 16px; background:#f7faff;
-  border-bottom:1px solid var(--border-light);
-  font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
-  color:var(--text-sec); white-space:nowrap; vertical-align:bottom;
-}
-.sd .fdm-th { display:inline-flex; align-items:center; gap:7px; flex-wrap:wrap; }
-.sd .fdm-th svg { width:15px; height:15px; color:var(--text-sec); }
-.sd .fdm-th em {
-  flex-basis:100%; font-style:normal; font-size:10px; font-weight:600;
-  letter-spacing:.02em; text-transform:none; color:var(--text-light);
-}
-.sd .fdm-table td { padding:16px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
-.sd .fdm-table tr:last-child td { border-bottom:none; }
-.sd .fdm-td-flno { font-family:'Sora',sans-serif; font-weight:800; color:var(--dark); white-space:nowrap; }
-.sd .fdm-td-air { display:flex; align-items:center; gap:9px; }
-.sd .fdm-td-air .bp-airname { font-size:13px; font-weight:700; color:var(--dark); white-space:nowrap; }
-.sd .fdm-td-air .bp-airmark { width:28px; height:28px; font-size:12px; }
-.sd .fdm-td-air .bp-airmark.air-logo { width:28px; height:28px; padding:2px; }
-.sd .fdm-td-route { color:var(--text-sec); font-weight:600; line-height:1.5; min-width:220px; }
-.sd .fdm-arrow { color:var(--text-light); }
-
-/* Included is stated in green with a tick; anything the supplier did not state says so in
-   grey rather than borrowing the tick. */
-.sd .fdm-allow { display:flex; flex-direction:column; gap:2px; white-space:nowrap; }
-.sd .fdm-allow-main {
-  display:inline-flex; align-items:center; gap:6px;
-  font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--text-light);
-}
-.sd .fdm-allow svg { width:15px; height:15px; }
-.sd .fdm-allow em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--text-light); }
-.sd .fdm-allow.on .fdm-allow-main { color:#0B7A57; }
-.sd .fdm-allow.on em { color:#0B7A57; }
-
-.sd .fdm-note {
-  display:flex; align-items:flex-start; gap:11px;
-  padding:15px 18px; margin-bottom:16px;
-  border-radius:var(--r-sm); background:var(--blue-pale); border:1px solid #dbe8fb;
-  font-size:12.5px; line-height:1.55; color:var(--text-sec);
-}
-.sd .fdm-note svg { width:17px; height:17px; color:var(--blue); flex-shrink:0; margin-top:1px; }
-
-.sd .fdm-foot {
-  display:flex; justify-content:flex-end;
-  padding:16px 28px 20px; border-top:1px solid var(--border-light); background:#fbfdff;
-}
-.sd .fdm-close-btn {
-  padding:13px 40px; border-radius:var(--r-full);
-  border:1.5px solid var(--border); background:var(--white);
-  font-family:'Sora',sans-serif; font-size:14px; font-weight:700; color:var(--blue);
-  cursor:pointer; transition:all .25s var(--ease);
-}
-.sd .fdm-close-btn:hover { border-color:var(--blue); background:var(--blue); color:#fff; }
-
-@media (max-width:900px) {
-  .sd .fdm-overlay { padding:0; }
-  .sd .fdm { max-width:none; max-height:100vh; height:100vh; border-radius:0; }
-  .sd .fdm-head { padding:18px 18px 14px; }
-  .sd .fdm-title { font-size:15px; }
-  .sd .fdm-tabs { padding:0 14px; }
-  .sd .fdm-tab { padding:11px 12px; font-size:12px; gap:6px; }
-  .sd .fdm-body { padding:16px 18px 4px; }
-  /* Legs stack under one another, with the layover pill filling the width between them. */
-  .sd .fdm-legrow { flex-direction:column; gap:12px; padding:16px; }
-  .sd .fdm-layover { max-width:none; align-self:stretch; width:auto; }
-  .sd .fdm-time { font-size:20px; }
-  .sd .fdm-jhead { padding:12px 16px; gap:8px; }
-  .sd .fdm-jbags { font-size:11px; }
-  .sd .fdm-foot { padding:14px 18px 18px; }
-  .sd .fdm-close-btn { width:100%; }
-}
-
 /* The portalled dialog needs its own overlay definition — the .modal-overlay rule 400 lines
    above is scoped to .sd, which the portal escapes. Same values as .sd .modal-overlay, plus
    the padding this dialog wants around itself. */
 .modal-overlay.fdm-overlay {
+  /* THE PALETTE, RESTATED — and it has to be. Every token this page uses is declared on
+     `.sd` (top of this file), but the dialog is portalled to <body> and so has no .sd
+     ancestor: inside it, `var(--blue)` and friends resolved to nothing at all. That is not
+     a harmless miss, because an invalid var takes the whole declaration with it —
+     `color:var(--blue)` fell back to inheriting the parent's near-black, which is why the
+     direction pill, the flight numbers and the active tab all rendered charcoal instead of
+     brand blue, and `border-bottom:1px solid var(--border-light)` dropped the tab rule
+     entirely rather than drawing a grey one. Values below are copied from .sd, so the
+     dialog and the page it belongs to stay one design. */
+  --blue:#1f4fd8; --blue-soft:#a3ccff; --blue-bg:#e8f1ff; --blue-pale:#f0f5ff;
+  --green:#10b981; --green-light:#d1fae5; --sun-warm:#fff8ee; --coral:#ff6b6b;
+  --dark:#070e1f; --text:#1a2744; --text-sec:#5e7291; --text-light:#94a3bf;
+  --white:#fff; --border:#e2eaf5; --border-light:#eef3fb;
+  --shadow-lg:0 16px 48px rgba(15,40,100,.1);
+  --r-sm:12px; --r-md:16px; --r-full:9999px;
+  --ease:cubic-bezier(.22,1,.36,1);
+
   position:fixed; inset:0; z-index:1100;
   display:none; align-items:center; justify-content:center;
   padding:20px;
@@ -2284,35 +2105,50 @@
   animation:sdFadeIn .2s var(--ease);
 }
 .modal-overlay.fdm-overlay.show { display:flex; }
-/* Unscoped clones for the portalled dialog — <body> is outside .sd. */
+
 /* ══ Flight details dialog ═════════════════════════════════════════════════════
-   Two tabs: the itinerary, and the baggage that used to be a chip beside it. */
+   Two tabs: the itinerary, and the baggage that used to be a chip beside it.
+   EVERY rule below is deliberately unscoped. The dialog is portalled to <body> (see the
+   comment on createPortal in HotelDetail.jsx), so it has no .sd ancestor and a `.sd .fdm-…`
+   selector can never match it. A duplicate .sd-scoped copy of this whole block used to sit
+   200 lines above and was pure dead weight — edits to it changed nothing on screen. */
 .fdm-overlay { padding:20px; }
 .fdm {
   width:100%; max-width:1080px; max-height:90vh;
   display:flex; flex-direction:column;
-  background:var(--white); border-radius:var(--r-xl); overflow:hidden;
+  background:var(--white); border-radius:20px; overflow:hidden;
   box-shadow:var(--shadow-lg); animation:sdSlideUp .3s var(--ease);
 }
 .fdm-head {
   display:flex; align-items:flex-start; justify-content:space-between; gap:16px;
-  padding:18px 22px 14px;
-  border-bottom:1px solid var(--border-light);
+  padding:24px 28px 16px;
+  border-bottom:none;
 }
 /* Bold, uppercase, dark navy — the header of a formal boarding-pass style dialog. Reads as
    a document title rather than a page section because it is scoped inside its own dialog
-   frame, and the "Your selected flight" subline sits under it as the caption. */
+   frame, and the "Your selected flight" subline sits under it as the caption. Navy rather
+   than the page's near-black `--dark`: the dialog's whole palette is blue, and a black
+   title sat outside it. */
 .fdm-title {
-  font-family:'Sora',sans-serif; font-size:20px; font-weight:800; color:var(--dark);
-  letter-spacing:.02em; line-height:1.2; text-transform:uppercase;
+  font-family:'Sora',sans-serif; font-size:22px; font-weight:800; color:#16295C;
+  letter-spacing:.015em; line-height:1.15; text-transform:uppercase;
 }
-.fdm-sub { font-size:13px; font-weight:500; color:var(--text-light); margin-top:3px; }
+.fdm-sub { font-size:14px; font-weight:500; color:var(--text-sec); margin-top:4px; }
+/* A plain dark cross, no chip behind it — the shared .modal-close draws a bordered circle,
+   which competed with the pills below it. */
+.fdm .modal-close {
+  display:flex; align-items:center; justify-content:center;
+  border:none; background:transparent; color:var(--dark);
+  width:36px; height:36px; border-radius:50%; cursor:pointer;
+}
+.fdm .modal-close svg { width:21px; height:21px; }
+.fdm .modal-close:hover { background:#F1F5FA; }
 
 /* Two tabs along the top of the body, sitting under a hairline. A framed pill was fighting
    the dialog's own frame; a plain underline is what a tab is. */
 .fdm-tabs {
   display:flex; gap:4px;
-  padding:0 22px; border-bottom:1px solid var(--border-light); background:var(--white);
+  padding:0 28px; border-bottom:1px solid var(--border-light); background:var(--white);
 }
 .fdm-tab {
   display:flex; align-items:center; justify-content:center; gap:8px;
@@ -2329,96 +2165,130 @@
   height:2.5px; border-radius:2px 2px 0 0; background:var(--blue);
 }
 
-.fdm-body { flex:1; overflow-y:auto; padding:18px 22px 4px; }
+.fdm-body { flex:1; overflow-y:auto; padding:20px 28px 6px; }
 
-/* One block per direction. Now flat with no outer background — the section reads as a
-   headline (blue pill + date, plus baggage badges on the right) sitting above the flight
-   card. The card itself carries the border and the inner padding. */
+/* One block per direction: a pale outer panel carrying the section headline, with the
+   itinerary in its own white card inset inside it. The two layers are what make a
+   direction read as a titled document section rather than as a loose row of times. */
 .fdm-journey, .fdm-bagblock {
-  margin-bottom:20px;
+  margin-bottom:18px;
+  border:1px solid #E7EDF6; border-radius:16px;
+  background:#F8FAFC; overflow:hidden;
 }
-.fdm-bagblock { overflow:hidden; }
-/* Section headline shared by both tabs — pill on the left, date beside it, baggage
-   badges on the right where they apply (itinerary tab only). No background band, no
-   bottom rule; the visual weight is in the pill itself. */
+/* Section headline shared by both tabs — blue pill, hairline, date, and (itinerary tab
+   only) the fare's baggage badges pushed to the right. */
 .fdm-jhead {
-  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
-  padding:0 2px 12px;
+  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
+  padding:16px 18px;
   background:transparent; border-bottom:none;
 }
 /* Portal-scoped: `.bp-dir` is a pill in the hotel-detail page (.sd scope). The modal is
    portalled to <body>, so the .sd rule does not apply — restate the pill here so the
    header renders the same way inside the dialog. */
 .fdm .bp-dir {
-  display:inline-flex; align-items:center; gap:8px;
-  padding:8px 16px 8px 13px;
+  display:inline-flex; align-items:center; gap:9px;
+  padding:9px 18px;
   border-radius:var(--r-full);
-  background:var(--blue-bg); border:1.5px solid rgba(31,79,216,0.14);
-  font-family:'Sora',sans-serif; font-size:12px; font-weight:800;
-  color:var(--blue); text-transform:uppercase; letter-spacing:.10em;
+  background:#E4EEFF; border:none;
+  font-family:'Sora',sans-serif; font-size:12.5px; font-weight:800;
+  color:var(--blue); text-transform:uppercase; letter-spacing:.09em;
 }
-.fdm .bp-dir svg { width:15px; height:15px; }
+.fdm .bp-dir svg { width:16px; height:16px; }
+/* The hairline between the pill and its date. */
+.fdm-jsep { width:1px; height:18px; background:#CFDCEC; flex-shrink:0; }
 .fdm-jdate {
   font-family:'Sora',sans-serif; font-size:14px; font-weight:600; color:var(--text-sec);
 }
 .fdm-jbags {
-  display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;
+  display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;
   margin-left:auto;
-  padding:6px 10px 6px 6px; border-radius:var(--r-full);
-  background:#F0FDF8; border:1px solid #B6E8D4;
-  font-size:11.5px; color:#0B7A57;
+  padding:7px 9px; border-radius:var(--r-full);
+  background:#F1FBF6; border:none;
+  font-size:12px; color:#0B7A57;
 }
 .fdm-jbags-label {
+  display:inline-flex; align-items:center; gap:7px;
+  padding-left:6px; font-weight:600; color:#0B7A57;
+}
+.fdm-jbags-label svg { width:15px; height:15px; }
+/* Portal-scoped, same reason as .bp-dir: the page's chip rules live under .sd. */
+.fdm .bp-chip {
   display:inline-flex; align-items:center; gap:6px;
-  padding-left:6px; font-weight:700; color:#0B7A57;
+  padding:6px 13px; border-radius:var(--r-full);
+  background:var(--white); border:1px solid #BFE7D3;
+  font-size:12px; font-weight:600; color:#0B7A57; white-space:nowrap;
 }
-.fdm-jbags-label svg { width:14px; height:14px; }
-.fdm-jbags .bp-chip { background:var(--white); border-color:#B6E8D4; }
+.fdm .bp-chip svg { width:14px; height:14px; color:#0B7A57; }
 
+/* The itinerary card. Two grid rows: the leg rails (and the layover pills wedged between
+   them) across the top, one airline row per leg beneath. Explicit placement comes in on
+   each child as `--gc` / `--gr`, so the media query below can still collapse the whole
+   thing to a single column — an inline `grid-column` could not be overridden. */
 .fdm-legrow {
-  display:flex; align-items:stretch; gap:18px;
-  padding:24px; min-width:0;
-  background:var(--white); border:1px solid var(--border-light); border-radius:14px;
-  box-shadow:0 2px 10px rgba(15,40,100,0.04);
+  display:grid;
+  grid-template-columns:var(--fdm-cols, 1fr);
+  align-items:center;
+  gap:0 18px;
+  margin:0 16px 16px;
+  padding:24px 26px;
+  background:var(--white); border:1px solid #E7EDF6; border-radius:14px;
 }
-.fdm-leg { flex:1; min-width:0; display:flex; flex-direction:column; gap:18px; }
+.fdm-legrail { grid-column:var(--gc, auto); grid-row:var(--gr, auto); }
+.fdm-layover { grid-column:var(--gc, auto); grid-row:var(--gr, auto); }
+.fdm-carrier { grid-column:var(--gc, auto); grid-row:var(--gr, auto); }
+/* A direct flight has no connection to draw, so the airline rides BESIDE the times on one
+   line instead of under a hairline. */
+.fdm-legrow-direct { display:flex; align-items:center; gap:36px; }
+.fdm-legrow-direct .fdm-legrail { flex:1; min-width:0; }
 
 /* Time — track — time, one column of the row. */
 .fdm-legrail {
-  display:grid; grid-template-columns:auto minmax(80px,1fr) auto;
-  align-items:center; gap:14px; min-width:0;
+  display:grid; grid-template-columns:auto minmax(90px,1fr) auto;
+  align-items:center; gap:18px; min-width:0;
 }
 .fdm-point { min-width:0; }
-.fdm-point-r { text-align:right; }
 .fdm-time {
-  font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--dark);
-  letter-spacing:-.4px; line-height:1.1; font-variant-numeric:tabular-nums;
+  font-family:'Sora',sans-serif; font-size:25px; font-weight:800; color:var(--dark);
+  letter-spacing:-.5px; line-height:1.1; font-variant-numeric:tabular-nums;
 }
-.fdm-place { font-size:12.5px; font-weight:600; color:var(--text-sec); margin-top:6px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fdm-code { font-size:11px; font-weight:800; color:var(--text-light); letter-spacing:.1em; margin-top:2px; }
-.fdm-mid { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; width:100%; }
-.fdm-dur { font-size:11.5px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
+/* Wraps rather than ellipses: "Istanbul Sabiha Gökcen" is the airport a traveller is
+   changing at, and truncating it to "Istanbul Sabiha…" loses which of the city's two
+   airports they are standing in. */
+.fdm-place { font-size:13px; font-weight:500; color:var(--text-sec); margin-top:7px; line-height:1.35; }
+.fdm-code { font-size:12px; font-weight:500; color:var(--text-light); letter-spacing:.06em; margin-top:3px; }
+.fdm-mid { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; width:100%; }
+.fdm-dur { font-size:12.5px; font-weight:500; color:var(--text-light); font-variant-numeric:tabular-nums; }
 .fdm-flag {
-  font-family:'Sora',sans-serif; font-size:11px; font-weight:800; color:#0B7A57;
-  letter-spacing:.06em; text-transform:uppercase; margin-top:2px;
+  font-family:'Sora',sans-serif; font-size:12px; font-weight:800; color:#0B9B63;
+  letter-spacing:.09em; text-transform:uppercase;
 }
 
-/* Portal-scoped dashed track + centred plane bubble, matching the mockup.
-   The track is one dashed rule that runs the full width of the .fdm-mid column;
-   the plane sits absolute-centred over it with a small arrow-tip on either end. */
+/* The route line: a dashed rule with an arrowhead at each end and the plane riding the
+   middle of it. The dashes are a repeating background clipped to the content box, which
+   keeps them clear of the two arrowheads sitting in the padding. */
 .fdm .bp-track {
-  position:relative; width:100%; min-width:120px; height:14px;
+  position:relative; box-sizing:border-box;
+  width:100%; min-width:90px; height:14px; padding:0 10px;
+  background-image:linear-gradient(90deg, #8FBEF5 0 6px, transparent 6px 12px);
+  background-repeat:repeat-x;
+  background-size:12px 2px;
+  background-position:center;
+  background-origin:content-box;
+  background-clip:content-box;
+}
+.fdm .bp-track::before,
+.fdm .bp-track::after {
+  content:''; position:absolute; top:50%; width:7px; height:7px;
 }
 .fdm .bp-track::before {
-  content:''; position:absolute; left:0; right:0; top:50%;
-  height:0; border-top:1.5px dashed var(--blue-soft, #A3CCFF);
+  left:0;
+  border-left:2px solid var(--blue); border-bottom:2px solid var(--blue);
+  transform:translateY(-50%) rotate(45deg);
 }
 .fdm .bp-track::after {
-  content:''; position:absolute; right:-1px; top:50%;
-  transform:translate(0,-50%) rotate(45deg);
-  width:6px; height:6px;
-  border-right:1.5px solid var(--blue, #1F4FD8);
-  border-top:1.5px solid var(--blue, #1F4FD8);
+  right:0;
+  border-right:2px solid var(--blue); border-top:2px solid var(--blue);
+  transform:translateY(-50%) rotate(45deg);
 }
 .fdm .bp-plane {
   position:absolute; left:50%; top:50%;
@@ -2426,45 +2296,54 @@
   display:inline-flex; align-items:center; justify-content:center;
   padding:0 8px; background:var(--white); color:var(--blue);
 }
-.fdm .bp-plane svg { width:16px; height:16px; }
+.fdm .bp-plane svg { width:19px; height:19px; }
 
-/* Airline row below its column: logo + name + flight-number chip, left-aligned. */
-.fdm-carrier { display:flex; align-items:center; gap:10px; min-width:0; padding-top:4px; }
-.fdm-carrier .bp-airname { font-size:14px; font-weight:600; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fdm-carrier .bp-airmark { width:32px; height:32px; font-size:13px; flex-shrink:0; }
-.fdm-carrier .bp-airmark.air-logo { width:32px; height:32px; padding:2px; }
+/* Airline row: logo + name + flight-number chip, sitting under the leg it flew behind a
+   hairline that runs the width of that leg. */
+.fdm-carrier {
+  display:flex; align-items:center; gap:12px; min-width:0;
+  margin-top:20px; padding-top:18px;
+  border-top:1px solid #EDF1F7;
+}
+.fdm-legrow-direct .fdm-carrier { margin-top:0; padding-top:0; border-top:none; flex-shrink:0; }
+.fdm-carrier .bp-airname { font-size:14.5px; font-weight:600; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+/* AirlineMark emits the NAME first and the logo second (see AirlineMark.jsx) — everywhere
+   else on the page that reads correctly, but here the design puts the roundel first. Flipping
+   with `order` rather than by changing the component keeps every other caller untouched. */
+.fdm-carrier .bp-airmark { order:-1; width:34px; height:34px; font-size:13px; flex-shrink:0; }
+.fdm-carrier .bp-airmark.air-logo { width:34px; height:34px; padding:2px; }
 /* Portal-scoped light-blue pill for the flight number, matching the mockup. */
 .fdm .bp-flno {
   display:inline-flex; align-items:center;
-  padding:5px 12px; border-radius:999px;
-  background:var(--blue-bg); color:var(--blue);
-  font-family:'Sora',sans-serif; font-size:12px; font-weight:800; letter-spacing:.04em;
-  font-variant-numeric:tabular-nums;
+  padding:6px 14px; border-radius:var(--r-full);
+  background:#E4EEFF; color:var(--blue); border:none;
+  font-family:'Sora',sans-serif; font-size:13px; font-weight:700; letter-spacing:.03em;
+  font-variant-numeric:tabular-nums; white-space:nowrap;
 }
 
 /* The wait between two legs, called out where it happens rather than left to be worked out
-   from two times in different columns. Sits as its OWN column of the row, so the two legs
-   read as before-and-after the pill. */
+   from two times in different columns. Its own column of the grid, stretched to the height
+   of the rails either side, so the two legs read as before-and-after the pill. */
 .fdm-layover {
-  flex:0 0 auto; align-self:center;
-  display:flex; align-items:center; gap:9px;
-  padding:12px 16px; border-radius:var(--r-md);
-  background:var(--sun-warm); border:1px solid #ffe4bd;
-  font-size:12px; color:#b45309; max-width:220px;
+  align-self:stretch;
+  display:flex; align-items:center; gap:10px;
+  padding:14px 16px; border-radius:12px;
+  background:#FDF3E3; border:none;
+  font-size:12.5px; color:#B45309; max-width:230px;
 }
-.fdm-layover svg { width:15px; height:15px; flex-shrink:0; color:#b45309; }
-.fdm-layover b { display:block; font-weight:800; margin-bottom:2px; }
-.fdm-layover em { display:block; font-style:normal; font-weight:600; opacity:.85; line-height:1.35; }
+.fdm-layover svg { width:16px; height:16px; flex-shrink:0; color:#D97706; }
+.fdm-layover b { display:block; font-weight:700; margin-bottom:4px; color:#B45309; }
+.fdm-layover em { display:block; font-style:normal; font-weight:500; line-height:1.4; color:#C2751A; }
 
 
 /* ── Tab 2: the baggage table ──
-   Card-in-card look: the section pill sits above the table, and the table itself is
-   framed by .fdm-bagblock (border + radius, defined earlier). */
+   Same two-layer frame as the itinerary: the section headline sits on the pale panel and
+   the table is a white card inset inside it. */
 .fdm-tablewrap {
   overflow-x:auto;
-  border:1px solid var(--border-light); border-radius:14px;
+  margin:0 16px 16px;
+  border:1px solid #E7EDF6; border-radius:14px;
   background:var(--white);
-  box-shadow:0 2px 10px rgba(15,40,100,0.04);
 }
 .fdm-table { width:100%; border-collapse:collapse; font-size:13px; }
 .fdm-table th {
@@ -2484,7 +2363,8 @@
 .fdm-td-flno { font-family:'Sora',sans-serif; font-weight:800; color:var(--dark); white-space:nowrap; }
 .fdm-td-air { display:flex; align-items:center; gap:10px; }
 .fdm-td-air .bp-airname { font-size:13px; font-weight:600; color:var(--dark); white-space:nowrap; }
-.fdm-td-air .bp-airmark { width:28px; height:28px; font-size:12px; }
+/* Roundel before the name — same flip as .fdm-carrier above. */
+.fdm-td-air .bp-airmark { order:-1; width:28px; height:28px; font-size:12px; }
 .fdm-td-air .bp-airmark.air-logo { width:28px; height:28px; padding:2px; }
 .fdm-td-route { color:var(--text-sec); font-weight:500; line-height:1.5; min-width:200px; }
 .fdm-arrow { color:var(--text-light); }
@@ -2512,21 +2392,23 @@
 .fdm-allow-off .fdm-allow-sub { color:var(--text-light); }
 
 .fdm-note {
-  display:flex; align-items:flex-start; gap:11px;
-  padding:15px 18px; margin-bottom:16px;
-  border-radius:var(--r-sm); background:var(--blue-pale); border:1px solid #dbe8fb;
-  font-size:12.5px; line-height:1.55; color:var(--text-sec);
+  display:flex; align-items:flex-start; gap:12px;
+  padding:16px 20px; margin-bottom:18px;
+  border-radius:12px; background:#F4F8FD; border:none;
+  font-size:13px; line-height:1.55; color:var(--text-sec);
 }
-.fdm-note svg { width:17px; height:17px; color:var(--blue); flex-shrink:0; margin-top:1px; }
+.fdm-note svg { width:18px; height:18px; color:var(--blue); flex-shrink:0; margin-top:1px; }
 
+/* No rule and no tint above the footer — the body's last card already closes the content,
+   and a divider under it read as a second frame. */
 .fdm-foot {
   display:flex; justify-content:flex-end;
-  padding:16px 28px 20px; border-top:1px solid var(--border-light); background:#fbfdff;
+  padding:8px 28px 24px; border-top:none; background:var(--white);
 }
 .fdm-close-btn {
-  padding:13px 40px; border-radius:var(--r-full);
-  border:1.5px solid var(--border); background:var(--white);
-  font-family:'Sora',sans-serif; font-size:14px; font-weight:700; color:var(--blue);
+  padding:13px 44px; border-radius:var(--r-full);
+  border:1.5px solid #C9DCF8; background:var(--white);
+  font-family:'Sora',sans-serif; font-size:14.5px; font-weight:600; color:var(--blue);
   cursor:pointer; transition:all .25s var(--ease);
 }
 .fdm-close-btn:hover { border-color:var(--blue); background:var(--blue); color:#fff; }
@@ -2538,20 +2420,24 @@
   .fdm-title { font-size:17px; }
   .fdm-tabs { padding:0 14px; }
   .fdm-tab { padding:11px 12px; font-size:12px; gap:6px; }
-  .fdm-body { padding:16px 18px 4px; }
-  /* Legs stack under one another, with the layover pill filling the width between them.
-     The dashed track and its centred plane can rotate to a vertical bar in the future, but
-     the auto-centring inside a stacked row keeps the plane readable as-is. */
-  .fdm-legrow { flex-direction:column; gap:14px; padding:18px; }
-  .fdm-layover { max-width:none; align-self:stretch; width:auto; }
+  .fdm-body { padding:16px 14px 4px; }
+  /* Everything stacks: one column, and the explicit grid placement is dropped so the items
+     auto-place in `order` — rail, its airline row, the next layover, and so on. That is why
+     placement travels as `--gc`/`--gr` rather than as an inline grid-column, which would
+     outrank this rule and leave the legs overlapping in one row. */
+  .fdm-legrow { grid-template-columns:1fr; gap:14px; margin:0 12px 12px; padding:18px; }
+  .fdm-legrow-direct { flex-direction:column; align-items:stretch; gap:14px; }
+  .fdm-legrail, .fdm-layover, .fdm-carrier { grid-column:auto; grid-row:auto; }
+  .fdm-carrier { margin-top:0; padding-top:14px; }
+  .fdm-layover { max-width:none; }
   .fdm-time { font-size:20px; }
-  .fdm-jhead { padding:0 2px 10px; gap:10px; }
+  .fdm-jhead { padding:14px; gap:10px; }
   .fdm-jbags { font-size:11px; }
   /* The baggage table has six columns now — keep it scrollable rather than crushing cells. */
-  .fdm-tablewrap { border-radius:12px; }
+  .fdm-tablewrap { margin:0 12px 12px; border-radius:12px; }
   .fdm-table { min-width:720px; }
   .fdm-table th, .fdm-table td { padding:14px 12px; }
-  .fdm-foot { padding:14px 18px 18px; }
+  .fdm-foot { padding:8px 18px 18px; }
   .fdm-close-btn { width:100%; }
 }
 

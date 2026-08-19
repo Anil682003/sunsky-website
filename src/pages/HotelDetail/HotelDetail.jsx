@@ -303,6 +303,15 @@ const ICON = {
   seat:  <S><path d="M5 4v9a3 3 0 003 3h6" /><path d="M5 16l-1 4M14 16l1 4" /><path d="M19 20a2 2 0 01-2-2v-2a3 3 0 00-3-3" /></S>,
   lock:  <S><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></S>,
   spark: <S><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4-6.2-4.6-6.2 4.6 2.4-7.4L2 9.4h7.6z" /></S>,
+  /* Solid and flying RIGHT — the little plane that rides the dashed route line in the
+     flight-details modal. `plane` above is a stroked outline drawn at 45°, which at 19px on
+     a 2px dashed rule read as a smudge rather than as an aircraft heading somewhere. This is
+     the standard nose-up silhouette turned a quarter-turn so it flies along the line. */
+  planeGo: (
+    <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+      <path transform="rotate(90 12 12)" d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+    </svg>
+  ),
 };
 
 /**
@@ -825,31 +834,98 @@ function DetailsJourney({ dir, legs, baggage }) {
   const chips = fareInclusions(baggage);
   const direct = legs.length === 1;
 
+  // Column track: one column per leg, with an auto-width layover column wedged between each
+  // pair. Handed to the CSS as a CUSTOM PROPERTY rather than as `grid-template-columns`
+  // directly, so the narrow-viewport media query can still collapse the row to a single
+  // column — an inline `grid-template-columns` would outrank it.
+  const cols = ['minmax(0,1fr)', ...legs.slice(1).map(() => 'auto minmax(0,1fr)')].join(' ');
+
+  // Explicit placement, same custom-property trick. Leg i sits in column 2i+1 of row 1; the
+  // layover before it in column 2i. Each airline row sits in row 2 under the leg that flew
+  // it, spanning that leg's column plus the layover column beside it, so its hairline runs
+  // the width of the leg above rather than stopping short of the amber pill.
+  const railStyle    = (i) => ({ '--gc': String(2 * i + 1), '--gr': '1', order: 3 * i });
+  const layoverStyle = (i) => ({ '--gc': String(2 * i),     '--gr': '1', order: 3 * i - 1 });
+  const carrierStyle = (i) => ({
+    '--gc': `${2 * i + 1} / ${i === legs.length - 1 ? '-1' : String(2 * i + 3)}`,
+    '--gr': '2',
+    order: 3 * i + 1,
+  });
+
+  const rail = (leg, i) => {
+    const overnight = dayOffset(leg.departure, leg.arrival);
+    return (
+      <div className="fdm-legrail" style={railStyle(i)}>
+        <div className="fdm-point">
+          <div className="fdm-time">{fmtTime(leg.departure)}</div>
+          <div className="fdm-place">{airportName(leg.from)}</div>
+          <div className="fdm-code">{leg.from}</div>
+        </div>
+        <div className="fdm-mid">
+          <div className="fdm-dur">{fmtDur(leg.duration)}</div>
+          <div className="bp-track"><span className="bp-plane">{ICON.planeGo}</span></div>
+          {direct && <div className="fdm-flag">Direct</div>}
+        </div>
+        <div className="fdm-point">
+          <div className="fdm-time">
+            {fmtTime(leg.arrival)}
+            {overnight > 0 && <sup className="bp-nextday">+{overnight} day{overnight > 1 ? 's' : ''}</sup>}
+          </div>
+          <div className="fdm-place">{airportName(leg.to)}</div>
+          <div className="fdm-code">{leg.to}</div>
+        </div>
+      </div>
+    );
+  };
+
+  const carrier = (leg, i) => (
+    <div className="fdm-carrier" style={carrierStyle(i)}>
+      <AirlineMark code={leg.airline} className="bp-airmark" nameClassName="bp-airname" />
+      <span className="bp-flno">{flightNumber(leg)}</span>
+    </div>
+  );
+
+  const head = (
+    <div className="fdm-jhead">
+      <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
+      <span className="fdm-jsep" aria-hidden="true" />
+      <span className="fdm-jdate">{fmtDateLong(legs[0].departure)}</span>
+      {chips.length > 0 && (
+        <span className="fdm-jbags" aria-label={`Baggage for this ${dir.toLowerCase()}`}>
+          <span className="fdm-jbags-label">{ICON.bag}Baggage for this journey -</span>
+          {chips.map((x) => (
+            <span key={x.label} className="bp-chip bp-chip-inc">{x.icon}{x.label}</span>
+          ))}
+        </span>
+      )}
+    </div>
+  );
+
+  // A direct flight has one leg and no layover, so there is width to spare: its airline sits
+  // BESIDE the times on the same line, with no hairline separating them. Anything with a
+  // connection has to stack — rails across the top, then one airline row per leg beneath.
+  if (direct) {
+    return (
+      <div className="fdm-journey">
+        {head}
+        <div className="fdm-legrow fdm-legrow-direct">
+          {rail(legs[0], 0)}
+          {carrier(legs[0], 0)}
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="fdm-journey">
-      <div className="fdm-jhead">
-        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
-        <span className="fdm-jdate">{fmtDateLong(legs[0].departure)}</span>
-        {chips.length > 0 && (
-          <span className="fdm-jbags" aria-label={`Baggage for this ${dir.toLowerCase()}`}>
-            <span className="fdm-jbags-label">{ICON.bag}Baggage for this journey ·</span>
-            {chips.map((x) => (
-              <span key={x.label} className="bp-chip bp-chip-inc">{x.icon}{x.label}</span>
-            ))}
-          </span>
-        )}
-      </div>
-
-      {/* Every leg is a column, with a layover column between two of them. Flex across, so two
-          columns and a pill add up to one line however wide the card is. */}
-      <div className="fdm-legrow">
+      {head}
+      <div className="fdm-legrow" style={{ '--fdm-cols': cols }}>
         {legs.map((leg, i) => {
           const lay = i > 0 ? layoverMin(legs[i - 1], leg) : null;
-          const overnight = dayOffset(leg.departure, leg.arrival);
           return (
             <Fragment key={`${leg.flightNumber || 'leg'}-${i}`}>
               {lay != null && (
-                <div className="fdm-layover">
+                <div className="fdm-layover" style={layoverStyle(i)}>
                   {ICON.clock}
                   <span>
                     <b>{fmtDur(lay)} layover</b>
@@ -857,35 +933,13 @@ function DetailsJourney({ dir, legs, baggage }) {
                   </span>
                 </div>
               )}
-              <div className="fdm-leg">
-                <div className="fdm-legrail">
-                  <div className="fdm-point">
-                    <div className="fdm-time">{fmtTime(leg.departure)}</div>
-                    <div className="fdm-place">{airportName(leg.from)}</div>
-                    <div className="fdm-code">{leg.from}</div>
-                  </div>
-                  <div className="fdm-mid">
-                    <div className="fdm-dur">{fmtDur(leg.duration)}</div>
-                    <div className="bp-track"><span className="bp-plane">{ICON.plane}</span></div>
-                    {direct && <div className="fdm-flag">Direct</div>}
-                  </div>
-                  <div className="fdm-point fdm-point-r">
-                    <div className="fdm-time">
-                      {fmtTime(leg.arrival)}
-                      {overnight > 0 && <sup className="bp-nextday">+{overnight} day{overnight > 1 ? 's' : ''}</sup>}
-                    </div>
-                    <div className="fdm-place">{airportName(leg.to)}</div>
-                    <div className="fdm-code">{leg.to}</div>
-                  </div>
-                </div>
-                <div className="fdm-carrier">
-                  <AirlineMark code={leg.airline} className="bp-airmark" nameClassName="bp-airname" />
-                  <span className="bp-flno">{flightNumber(leg)}</span>
-                </div>
-              </div>
+              {rail(leg, i)}
             </Fragment>
           );
         })}
+        {legs.map((leg, i) => (
+          <Fragment key={`carrier-${leg.flightNumber || 'leg'}-${i}`}>{carrier(leg, i)}</Fragment>
+        ))}
       </div>
     </div>
   );
@@ -900,6 +954,7 @@ function BaggageTable({ dir, legs, baggage }) {
     <div className="fdm-bagblock">
       <div className="fdm-jhead">
         <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
+        <span className="fdm-jsep" aria-hidden="true" />
         <span className="fdm-jdate">{fmtDateLong(legs[0].departure)}</span>
       </div>
       <div className="fdm-tablewrap">
@@ -940,8 +995,11 @@ function BaggageTable({ dir, legs, baggage }) {
 
 /**
  * The dialog itself. `flight` carries the legs and the fare's single baggage allowance.
+ *
+ * Exported for its own test: reaching it through the page means standing up the whole live
+ * availability flow first, which tests neither the itinerary layout nor the baggage table.
  */
-function FlightDetailsModal({ flight, onClose }) {
+export function FlightDetailsModal({ flight, onClose }) {
   const [tab, setTab] = useState('info');
   const out = flight?.outLegs || [];
   const ret = flight?.retLegs || [];
