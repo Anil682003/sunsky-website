@@ -79,6 +79,29 @@ const DESTINATION_OPTIONS = [
 
 const CABIN_CLASSES = ['Economy', 'Premium Economy', 'Business', 'First'];
 
+// The little scene beside "No preference": five map pins strung along a dashed flight arc,
+// standing for "we'll look from all of them". Pin tips sit ON the curve (they are placed at
+// t = 0, .25, .5, .75, 1 of the same quadratic), so the drawing reads as one route rather
+// than as five markers that happen to be near a line. Decorative only — the card's text
+// carries the meaning, and the wrapper is aria-hidden.
+const ANY_AIRPORT_ART = (
+  <svg width="152" height="46" viewBox="0 0 152 46" fill="none" aria-hidden="true">
+    <path d="M6 36Q76 4 146 36" stroke="#B9D0F2" strokeWidth="1.5" strokeDasharray="4 4" strokeLinecap="round" />
+    {[
+      { x: 0,   y: 19, c: '#A9C9F5' },
+      { x: 35,  y: 7,  c: '#1F4FD8' },
+      { x: 70,  y: 3,  c: '#1F4FD8' },
+      { x: 105, y: 7,  c: '#1F4FD8' },
+      { x: 140, y: 19, c: '#A9C9F5' },
+    ].map((p) => (
+      <g key={p.x} transform={`translate(${p.x} ${p.y})`}>
+        <path d="M6 0C2.7 0 0 2.7 0 6c0 4.4 6 11 6 11s6-6.6 6-11c0-3.3-2.7-6-6-6z" fill={p.c} />
+        <circle cx="6" cy="6" r="2.1" fill="#fff" />
+      </g>
+    ))}
+  </svg>
+);
+
 // Human label for the multi-destination selection shown in the search field.
 // {countries:[...], places:[...]} → "Mallorca, Spain" / "Spain · 3 places" /
 // "Spain, Greece +1 · 4 places".
@@ -188,6 +211,17 @@ export default function Hero() {
   // toggleOrigin above), so it falls back to the default origin rather than emptying the
   // selection to a state the rest of the site cannot search.
   const clearOrigins = () => setOrigins([DEFAULT_ORIGIN]);
+  // "No preference" is not a fourth kind of selection sitting beside the airport list — it
+  // is every departure airport ticked at once, which is exactly what "search all available
+  // departure airports" means. Modelling it that way keeps ONE source of truth (`origins`)
+  // and needs nothing new in the URL: the results page and the hotel page's flight search go
+  // on reading `origin` + `origins` as before, they just receive the whole list.
+  const noPreference = allAirports.length > 1 && origins.length === allAirports.length;
+  const selectAllOrigins = () => setOrigins(allAirports.map((a) => a.code));
+  // Clicking an airport while "No preference" is on is the traveller narrowing from
+  // "anywhere" down to one airport, not un-ticking one row of nineteen — so it starts their
+  // selection fresh rather than leaving the other eighteen silently still selected.
+  const pickOrigin = (code) => (noPreference ? setOrigins([code]) : toggleOrigin(code));
   // Live filter typed into the panel's search input. Matches on airport label, city, or
   // IATA code — one field so a traveller who types "BRU", "Brussel", or "Brussels South"
   // all reach the same rows.
@@ -432,15 +466,18 @@ export default function Hero() {
 
   // "Flying from" field text: one airport reads as itself, several read as a count —
   // "4 airports" tells the traveller their whole selection is held, in space one name takes.
-  const originsLabel = origins.length === 1
-    ? `${airportCity(origins[0])} (${origins[0]})`
-    : `${origins.length} airports`;
+  const originsLabel = noPreference
+    ? 'Any airport'
+    : origins.length === 1
+      ? `${airportCity(origins[0])} (${origins[0]})`
+      : `${origins.length} airports`;
 
   // Second line under each field's value: what the field is FOR, in the traveller's words.
   // Where the answer is already known it says the answer instead of the instruction — the
   // "Flying from" hint names the airport whose code sits above it.
   const originsHint = transport === 'hotel_only'
     ? 'No flight, hotel only'
+    : noPreference ? 'All departure airports'
     : origins.length === 1 ? airportLabel(origins[0]) : `${origins.length} airports selected`;
   const dateHint = flexDays > 0
     ? `Flexible ± ${flexDays} day${flexDays > 1 ? 's' : ''}`
@@ -504,7 +541,7 @@ export default function Hero() {
     return (
       <button type="button" key={a.code} role="checkbox" aria-checked={on}
         className={`${styles.tspRow} ${on ? styles.tspRowOn : ''}`}
-        onClick={() => toggleOrigin(a.code)}>
+        onClick={() => pickOrigin(a.code)}>
         <span className={styles.tspName}>{a.label}</span>
         <span className={styles.tspCode}>{a.code}</span>
         <span className={`${styles.tspTick} ${on ? styles.tspTickOn : ''}`} aria-hidden="true">
@@ -623,9 +660,29 @@ export default function Hero() {
                   onChange={(e) => setAirportSearch(e.target.value)}
                 />
               </div>
+              {/* The way OUT of picking airports at all. It sits above the list rather than
+                  as a row inside it because it is not a nineteenth airport — it is the
+                  alternative to choosing any, which is what the OR rule underneath says. */}
+              <button
+                type="button"
+                role="radio"
+                aria-checked={noPreference}
+                className={`${styles.tspAny} ${noPreference ? styles.tspAnyOn : ''}`}
+                onClick={selectAllOrigins}
+              >
+                <span className={`${styles.tspAnyDot} ${noPreference ? styles.tspAnyDotOn : ''}`} aria-hidden="true" />
+                <span className={styles.tspAnyText}>
+                  <span className={styles.tspAnyTitle}>No preference</span>
+                  <span className={styles.tspAnySub}>Search all available departure airports</span>
+                </span>
+                <span className={styles.tspAnyArt} aria-hidden="true">{ANY_AIRPORT_ART}</span>
+              </button>
+
+              <div className={styles.tspOr}><span>or</span></div>
+
               <div className={styles.tspBody}>
                 <div className={styles.tspList}>
-                  <div className={styles.tspSectionLabel}>All departure airports</div>
+                  <div className={styles.tspSectionLabel}>Select departure airports</div>
                   {countryGroups.length === 0 ? (
                     <div className={styles.tspEmpty}>No airports match “{airportSearch}”.</div>
                   ) : (
@@ -645,7 +702,22 @@ export default function Hero() {
                   )}
                 </div>
                 <aside className={styles.tspSidebar}>
-                  <div className={styles.tspSidebarTitle}>Your selection ({origins.length})</div>
+                  <div className={styles.tspSidebarTitle}>
+                    Your selection{noPreference ? '' : ` (${origins.length})`}
+                  </div>
+                  {/* Nineteen chips is not a summary of "anywhere" — it reads as a list the
+                      traveller assembled by hand. One card says the same thing truthfully. */}
+                  {noPreference ? (
+                    <div className={`${styles.tspChip} ${styles.tspChipAny}`}>
+                      <span className={styles.tspChipAnyIcon}>
+                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+                      </span>
+                      <div className={styles.tspChipMain}>
+                        <div className={styles.tspChipName}>No preference</div>
+                        <div className={styles.tspChipNote}>We'll search all available departure airports</div>
+                      </div>
+                    </div>
+                  ) : (
                   <div className={styles.tspSidebarList}>
                     {origins.map((code) => {
                       const a = airportByCode(code);
@@ -670,6 +742,7 @@ export default function Hero() {
                       );
                     })}
                   </div>
+                  )}
                 </aside>
               </div>
               <div className={styles.tspFoot}>
@@ -679,9 +752,13 @@ export default function Hero() {
                   </span>
                   <div className={styles.tspFootText}>
                     <div className={styles.tspFootMain}>
-                      {origins.length} airport{origins.length !== 1 ? 's' : ''} selected
+                      {noPreference
+                        ? 'No preference'
+                        : `${origins.length} airport${origins.length !== 1 ? 's' : ''} selected`}
                     </div>
-                    <div className={styles.tspFootHint}>You can select more airports</div>
+                    <div className={styles.tspFootHint}>
+                      {noPreference ? 'Searching every departure airport' : 'You can select more airports'}
+                    </div>
                   </div>
                 </div>
                 <button
