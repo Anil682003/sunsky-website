@@ -2237,9 +2237,26 @@
 .fdm-layover { grid-column:var(--gc, auto); grid-row:var(--gr, auto); }
 .fdm-carrier { grid-column:var(--gc, auto); grid-row:var(--gr, auto); }
 /* A direct flight has no connection to draw, so the airline rides BESIDE the times on one
-   line instead of under a hairline. */
+   line instead of under a hairline.
+   The airline column is a FIXED width and the rail's two endpoint columns are fixed too, and
+   both have to be. Outbound and Return are separate layout containers, so with content-sized
+   columns a longer airline name ("Corendon Airlines" against "SunExpress") took width from
+   the rail and dragged the arrival time and the whole airline block left on one row but not
+   the other — the two journeys visibly failed to line up despite being the same shape. Fixed
+   tracks make the columns identical no matter what is in them. */
 .fdm-legrow-direct { display:flex; align-items:center; gap:36px; }
-.fdm-legrow-direct .fdm-legrail { flex:1; min-width:0; }
+.fdm-legrow-direct .fdm-legrail { flex:1 1 auto; min-width:0; }
+.fdm-legrow-direct .fdm-legrail { grid-template-columns:150px minmax(80px,1fr) 150px; }
+/* 296px = roundel 34 + gap 12 + name 136 + gap 12 + the widest flight-number pill (a
+   2-letter carrier code and a 4-digit number, ~92px), with a little slack. Sized from the
+   parts rather than eyeballed, because a pill that does not fit is a pill that overhangs the
+   card edge — at 280px "XC 5016" overflowed by exactly 2px. */
+.fdm-legrow-direct .fdm-carrier { flex:0 0 296px; }
+/* ...and the name between the roundel and the flight number is fixed too, or the number
+   pill starts wherever the name happens to end — "Corendon Airlines" pushed it 37px right
+   of the "SunExpress" row above it. 136px clears every carrier name we sell under; anything
+   longer ellipses rather than shunting the pill out of line. */
+.fdm-legrow-direct .fdm-carrier .bp-airname { flex:0 0 136px; }
 
 /* Time — track — time, one column of the row. */
 .fdm-legrail {
@@ -2345,7 +2362,18 @@
   border:1px solid #E7EDF6; border-radius:14px;
   background:var(--white);
 }
-.fdm-table { width:100%; border-collapse:collapse; font-size:13px; }
+/* table-layout:fixed, with a width per column — and it has to be. Outbound and Return are
+   two SEPARATE tables, so under the default auto layout each sized its own columns from its
+   own content: a one-leg return with a longer airline name pushed Personal item / Cabin bag /
+   Checked baggage up to 49px out of step with the same columns in the table above it. Fixed
+   percentages are the only way two independent tables can agree. */
+.fdm-table { width:100%; table-layout:fixed; border-collapse:collapse; font-size:13px; }
+.fdm-table th:nth-child(1) { width:11%; }   /* Flight */
+.fdm-table th:nth-child(2) { width:20%; }   /* Airline */
+.fdm-table th:nth-child(3) { width:22%; }   /* Route */
+.fdm-table th:nth-child(4) { width:14.5%; } /* Personal item */
+.fdm-table th:nth-child(5) { width:14.5%; } /* Cabin bag */
+.fdm-table th:nth-child(6) { width:18%; }   /* Checked baggage */
 .fdm-table th {
   text-align:left; padding:14px 18px; background:#F7FAFF;
   border-bottom:1px solid var(--border-light);
@@ -2366,7 +2394,7 @@
 /* Roundel before the name — same flip as .fdm-carrier above. */
 .fdm-td-air .bp-airmark { order:-1; width:28px; height:28px; font-size:12px; }
 .fdm-td-air .bp-airmark.air-logo { width:28px; height:28px; padding:2px; }
-.fdm-td-route { color:var(--text-sec); font-weight:500; line-height:1.5; min-width:200px; }
+.fdm-td-route { color:var(--text-sec); font-weight:500; line-height:1.5; }
 .fdm-arrow { color:var(--text-light); }
 
 /* Two visual patterns share the cell:
@@ -2427,6 +2455,13 @@
      outrank this rule and leave the legs overlapping in one row. */
   .fdm-legrow { grid-template-columns:1fr; gap:14px; margin:0 12px 12px; padding:18px; }
   .fdm-legrow-direct { flex-direction:column; align-items:stretch; gap:14px; }
+  /* The desktop row pins the airline column to 296px so Outbound and Return line up. Once
+     the row turns vertical that flex-basis is a HEIGHT, not a width, so it has to go — and
+     with nothing left to align against sideways, the endpoint columns go back to sizing
+     themselves rather than holding a 150px track on a phone. */
+  .fdm-legrow-direct .fdm-carrier { flex:0 0 auto; }
+  .fdm-legrow-direct .fdm-carrier .bp-airname { flex:0 1 auto; }
+  .fdm-legrow-direct .fdm-legrail { grid-template-columns:auto minmax(60px,1fr) auto; }
   .fdm-legrail, .fdm-layover, .fdm-carrier { grid-column:auto; grid-row:auto; }
   .fdm-carrier { margin-top:0; padding-top:14px; }
   .fdm-layover { max-width:none; }
