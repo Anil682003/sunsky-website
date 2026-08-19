@@ -177,13 +177,21 @@ export default function Hero() {
   // whole list rides along as `origins` so the choice is never silently narrowed to one.
   const [origins, setOrigins] = useState([DEFAULT_ORIGIN]);
   // §25 departure master list from the admin dashboard (seed fallback until it loads).
-  const { popular: popularAirports, other: otherAirports } = useDepartureAirports();
+  const { airports: allAirports } = useDepartureAirports();
   // Toggle, never below one: an empty "Flying from" has no honest label and no airport
   // to search from, so the last ticked row cannot be un-ticked.
   const toggleOrigin = (code) =>
     setOrigins((prev) => (prev.includes(code)
       ? (prev.length === 1 ? prev : prev.filter((c) => c !== code))
       : [...prev, code]));
+  // "Clear all" is a soft reset — the picker cannot honestly have zero airports (see
+  // toggleOrigin above), so it falls back to the default origin rather than emptying the
+  // selection to a state the rest of the site cannot search.
+  const clearOrigins = () => setOrigins([DEFAULT_ORIGIN]);
+  // Live filter typed into the panel's search input. Matches on airport label, city, or
+  // IATA code — one field so a traveller who types "BRU", "Brussel", or "Brussels South"
+  // all reach the same rows.
+  const [airportSearch, setAirportSearch] = useState('');
   // Occupancy is per room — each room carries its own adults, children and one
   // date-of-birth slot per child. The search still sends totals.
   const [roomsList, setRoomsList] = useState(initialRooms);
@@ -445,15 +453,58 @@ export default function Hero() {
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
   );
 
+  // Airport rows arrive with a flag emoji (🇧🇪) but no country name — the mockup groups
+  // them by country with the flag AND the name as the section header. Rather than teach
+  // the seed a new field for every entry, a tiny map goes from flag to display name (and
+  // an ordering weight, so Belgium — the home market — is always the first column).
+  const COUNTRY_META = {
+    '🇧🇪': { name: 'Belgium',        order: 1 },
+    '🇳🇱': { name: 'Netherlands',    order: 2 },
+    '🇩🇪': { name: 'Germany',        order: 3 },
+    '🇫🇷': { name: 'France',         order: 4 },
+    '🇱🇺': { name: 'Luxembourg',     order: 5 },
+    '🇬🇧': { name: 'United Kingdom', order: 6 },
+  };
+
+  // Live-filter the master list against whatever the traveller typed into the search box.
+  // Case-insensitive, matches name / city / IATA code — one field, three ways in.
+  const q = airportSearch.trim().toLowerCase();
+  const filteredAirports = q
+    ? allAirports.filter((a) =>
+        a.label.toLowerCase().includes(q)
+        || a.city.toLowerCase().includes(q)
+        || a.code.toLowerCase().includes(q))
+    : allAirports;
+
+  // Group the visible airports by country flag, then sort those groups so the home
+  // countries lead. An unknown flag falls to the end under its raw emoji as its name.
+  const groups = new Map();
+  for (const a of filteredAirports) {
+    const key = a.country || '🏳️';
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key).push(a);
+  }
+  const countryGroups = [...groups.entries()]
+    .map(([flag, list]) => ({
+      flag,
+      name: COUNTRY_META[flag]?.name || flag,
+      order: COUNTRY_META[flag]?.order ?? 99,
+      airports: list,
+    }))
+    .sort((x, y) => x.order - y.order);
+
+  // Airport lookup used by the "Your selection" sidebar to render the picked codes.
+  const airportByCode = (code) => allAirports.find((a) => a.code === code) || null;
+
   // One airport row of the picker — a CHECKBOX, not a radio: several can be on at once,
-  // and clicking one must not close the panel mid-selection.
+  // and clicking one must not close the panel mid-selection. The flag lives on the
+  // country group header now, so the row itself is name / IATA code / tick circle.
   const airportRow = (a) => {
     const on = origins.includes(a.code);
     return (
       <button type="button" key={a.code} role="checkbox" aria-checked={on}
         className={`${styles.tspRow} ${on ? styles.tspRowOn : ''}`}
         onClick={() => toggleOrigin(a.code)}>
-        <span className={styles.tspFlag}>{a.country}</span>
         <span className={styles.tspName}>{a.label}</span>
         <span className={styles.tspCode}>{a.code}</span>
         <span className={`${styles.tspTick} ${on ? styles.tspTickOn : ''}`} aria-hidden="true">
@@ -501,10 +552,9 @@ export default function Hero() {
       {/* Flying from — the transport decision made HERE travels the whole journey:
           results sidebar, hotel-page flight search, checkout. Value reads the mode,
           not just an airport, so "Hotel only" never masquerades as a flight.
-          The panel is nested INSIDE the field (which is position:relative), so it always
-          opens directly under this field — the shared bar-wide dropdown slot put it under
-          the middle of the bar, nowhere near the control that opened it. stopPropagation
-          keeps clicks inside the panel from re-toggling the field shut. */}
+          The picker itself lives with the other stay dropdowns (below), where it is
+          centred under the whole search bar; a 960px panel nested inside this narrow
+          field would either overflow the bar or hug its right edge oddly. */}
       <div className={`${styles.sf} ${openField === 'transport' ? styles.sfActive : ''}`} onClick={() => toggleField('transport')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
@@ -517,42 +567,6 @@ export default function Hero() {
           {caret(openField === 'transport')}
         </div>
         <span className={styles.sfHint}>{originsHint}</span>
-        {openField === 'transport' && (
-          <div className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.tspTabs} role="radiogroup" aria-label="Transport mode">
-              <button type="button" role="radio" aria-checked={transport === 'package'}
-                className={`${styles.tspTab} ${transport === 'package' ? styles.tspTabOn : ''}`}
-                onClick={() => setTransport('package')}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-                Incl. flight
-              </button>
-              <button type="button" role="radio" aria-checked={transport === 'hotel_only'}
-                className={`${styles.tspTab} ${transport === 'hotel_only' ? styles.tspTabOn : ''}`}
-                onClick={() => { setTransport('hotel_only'); setOpenField(null); }}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8"/><path d="M4 10V6a2 2 0 012-2h12a2 2 0 012 2v4"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-                Hotel only
-              </button>
-            </div>
-            {transport === 'package' && (
-              <>
-                <div className={styles.tspSub}>Popular</div>
-                <div className={styles.tspGrid}>
-                  {popularAirports.map(airportRow)}
-                </div>
-                <div className={styles.tspSub}>All airports</div>
-                <div className={styles.tspGrid}>
-                  {otherAirports.map(airportRow)}
-                </div>
-                <div className={styles.tspFoot}>
-                  <span className={styles.tspFootLabel}>
-                    {origins.length} airport{origins.length > 1 ? 's' : ''} selected
-                  </span>
-                  <button type="button" className={styles.doneBtn} onClick={() => setOpenField(null)}>Done</button>
-                </div>
-              </>
-            )}
-          </div>
-        )}
       </div>
       <div className={styles.sfDivider} />
       <div className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`} onClick={() => toggleField('travelers')}>
@@ -572,6 +586,118 @@ export default function Hero() {
 
   const stayDropdowns = (
     <>
+      {openField === 'transport' && (
+        <div className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
+          <div className={styles.tspHead}>
+            <div>
+              <div className={styles.tspTitle}>Flying from</div>
+              <div className={styles.tspSubtitle}>Select one or more departure airports</div>
+            </div>
+            <button type="button" className={styles.tspClose} onClick={() => setOpenField(null)} aria-label="Close">
+              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+            </button>
+          </div>
+          <div className={styles.tspTabs} role="radiogroup" aria-label="Transport mode">
+            <button type="button" role="radio" aria-checked={transport === 'package'}
+              className={`${styles.tspTab} ${transport === 'package' ? styles.tspTabOn : ''}`}
+              onClick={() => setTransport('package')}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+              Incl. flight
+            </button>
+            <button type="button" role="radio" aria-checked={transport === 'hotel_only'}
+              className={`${styles.tspTab} ${transport === 'hotel_only' ? styles.tspTabOn : ''}`}
+              onClick={() => { setTransport('hotel_only'); setOpenField(null); }}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8"/><path d="M4 10V6a2 2 0 012-2h12a2 2 0 012 2v4"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+              Hotel only
+            </button>
+          </div>
+          {transport === 'package' && (
+            <>
+              <div className={styles.tspSearchWrap}>
+                <svg className={styles.tspSearchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+                <input
+                  type="text"
+                  className={styles.tspSearchInput}
+                  placeholder="Search city, airport or IATA code"
+                  value={airportSearch}
+                  onChange={(e) => setAirportSearch(e.target.value)}
+                />
+              </div>
+              <div className={styles.tspBody}>
+                <div className={styles.tspList}>
+                  <div className={styles.tspSectionLabel}>All departure airports</div>
+                  {countryGroups.length === 0 ? (
+                    <div className={styles.tspEmpty}>No airports match “{airportSearch}”.</div>
+                  ) : (
+                    <div className={styles.tspCountryCols}>
+                      {countryGroups.map((g) => (
+                        <div className={styles.tspCountryGroup} key={g.flag + g.name}>
+                          <div className={styles.tspCountryHead}>
+                            <span className={styles.tspCountryFlag}>{g.flag}</span>
+                            <span className={styles.tspCountryName}>{g.name}</span>
+                          </div>
+                          <div className={styles.tspCountryList}>
+                            {g.airports.map(airportRow)}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
+                <aside className={styles.tspSidebar}>
+                  <div className={styles.tspSidebarTitle}>Your selection ({origins.length})</div>
+                  <div className={styles.tspSidebarList}>
+                    {origins.map((code) => {
+                      const a = airportByCode(code);
+                      if (!a) return null;
+                      return (
+                        <div className={styles.tspChip} key={code}>
+                          <span className={styles.tspChipFlag}>{a.country}</span>
+                          <div className={styles.tspChipMain}>
+                            <div className={styles.tspChipName}>{a.label}</div>
+                            <div className={styles.tspChipCode}>{a.code}</div>
+                          </div>
+                          <button
+                            type="button"
+                            className={styles.tspChipRemove}
+                            onClick={() => toggleOrigin(code)}
+                            aria-label={`Remove ${a.label}`}
+                            disabled={origins.length === 1}
+                          >
+                            <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+                          </button>
+                        </div>
+                      );
+                    })}
+                  </div>
+                </aside>
+              </div>
+              <div className={styles.tspFoot}>
+                <div className={styles.tspFootInfo}>
+                  <span className={styles.tspFootIcon}>
+                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+                  </span>
+                  <div className={styles.tspFootText}>
+                    <div className={styles.tspFootMain}>
+                      {origins.length} airport{origins.length !== 1 ? 's' : ''} selected
+                    </div>
+                    <div className={styles.tspFootHint}>You can select more airports</div>
+                  </div>
+                </div>
+                <button
+                  type="button"
+                  className={styles.tspClearAll}
+                  onClick={clearOrigins}
+                  disabled={origins.length <= 1 && origins[0] === DEFAULT_ORIGIN}
+                >
+                  Clear all
+                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
       {openField === 'date' && (
         <div className={`${styles.dropdown} ${styles.calDropdown}`}>
           <DateCalendar

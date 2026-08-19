@@ -354,148 +354,344 @@
   border-color:var(--sun-orange);
 }
 
-/* "Flying from" panel — anchored to ITS OWN field (the field is position:relative),
-   not to the bar-wide dropdown slot that opened it under the middle of the search bar. */
+/* "Flying from" panel — a mockup-driven, near-modal popover.
+   Lives in the shared stayDropdowns slot (a child of .searchBarWrap, which is
+   position:relative), so it sits under the whole search bar. Centred with
+   margin-left because the scaleIn animation owns the transform property. */
 .tspPanel {
   position:absolute;
-  top:calc(100% + 14px);
-  /* centred with margin, NOT transform — the scaleIn animation (fill-mode both)
-     overwrites the transform property, which shoved the panel off to the right */
+  top:calc(100% + 10px);
   left:50%;
-  margin-left:-220px;   /* half of width */
-  width:440px;
-  max-height:min(70vh, 560px);
-  overflow-y:auto;
-  background:rgba(255,255,255,0.98);
-  backdrop-filter:blur(24px);
+  margin-left:-480px;      /* half of width */
+  width:960px;
+  max-width:calc(100vw - 32px);
+  max-height:min(78vh, 640px);
+  display:flex;
+  flex-direction:column;
+  background:#fff;
   border:1px solid rgba(15,40,100,0.08);
-  border-radius:var(--r-lg);
-  padding:14px;
-  box-shadow:0 24px 70px rgba(7,20,60,0.25);
-  animation:scaleIn 0.2s var(--ease) both;
+  border-radius:20px;
+  box-shadow:0 40px 100px rgba(7,20,60,0.28);
+  animation:scaleIn 0.22s var(--ease) both;
   z-index:12;
   cursor:default;
   text-align:left;
+  overflow:hidden;   /* header/tabs stay put; only .tspBody scrolls */
 }
+
+/* Header — title/subtitle on the left, close X on the right */
+.tspHead {
+  display:flex;
+  align-items:flex-start;
+  justify-content:space-between;
+  gap:16px;
+  padding:22px 26px 14px;
+}
+.tspTitle {
+  font-family:'Sora',sans-serif;
+  font-size:20px;
+  font-weight:700;
+  color:var(--text);
+  letter-spacing:-0.01em;
+}
+.tspSubtitle {
+  margin-top:4px;
+  font-size:13px;
+  color:var(--text-sec);
+  font-weight:500;
+}
+.tspClose {
+  flex-shrink:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  border:none;
+  background:transparent;
+  color:var(--text-sec);
+  cursor:pointer;
+  transition:background .15s ease, color .15s ease;
+}
+.tspClose:hover { background:var(--blue-bg2); color:var(--text); }
+
+/* Two big pill tabs — active tab fills brand blue, the other reads as an outline
+   button. Sit inside the panel padding (not the mini pill-track of the old design). */
 .tspTabs {
   display:flex;
-  gap:4px;
-  background:var(--blue-bg2, #eef4fd);
-  padding:4px;
-  border-radius:999px;
-  margin-bottom:12px;
+  gap:12px;
+  padding:0 26px 16px;
 }
 .tspTab {
   flex:1;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  gap:7px;
-  padding:10px 12px;
-  border:none;
-  background:transparent;
+  gap:9px;
+  padding:13px 18px;
+  border:1.5px solid rgba(15,40,100,0.10);
+  background:#fff;
   border-radius:999px;
   cursor:pointer;
   font-family:inherit;
-  font-size:12.5px;
+  font-size:14px;
   font-weight:700;
-  color:var(--text-sec, #5c6f91);
-  transition:all .2s ease;
-  white-space:nowrap;
+  color:var(--text-sec);
+  transition:all .18s ease;
 }
+.tspTab:hover { background:var(--blue-bg); }
 .tspTabOn {
+  background:var(--blue-deep);
+  border-color:var(--blue-deep);
+  color:#fff;
+  box-shadow:0 8px 22px rgba(31,79,216,0.28);
+}
+.tspTabOn:hover { background:var(--blue-deep); }
+
+/* Search input — pill with an icon on the left */
+.tspSearchWrap {
+  position:relative;
+  margin:0 26px 14px;
+}
+.tspSearchIcon {
+  position:absolute;
+  left:16px;
+  top:50%;
+  transform:translateY(-50%);
+  color:var(--text-light);
+  pointer-events:none;
+}
+.tspSearchInput {
+  width:100%;
+  padding:12px 16px 12px 42px;
+  border:1.5px solid rgba(15,40,100,0.10);
+  border-radius:999px;
   background:#fff;
-  color:var(--sun-orange, #ff9f1c);
-  box-shadow:0 2px 8px rgba(15,40,100,0.12);
+  font-family:inherit;
+  font-size:14px;
+  font-weight:500;
+  color:var(--text);
+  outline:none;
+  transition:border-color .15s ease, box-shadow .15s ease;
 }
-.tspSub {
-  font-size:10px;
-  font-weight:700;
-  letter-spacing:.1em;
-  text-transform:uppercase;
-  color:var(--text-light, #8fa5c6);
-  margin:12px 4px 6px;
+.tspSearchInput::placeholder { color:var(--text-light); font-weight:500; }
+.tspSearchInput:focus {
+  border-color:var(--blue-deep);
+  box-shadow:0 0 0 3px rgba(31,79,216,0.12);
 }
-.tspSub:first-of-type { margin-top:2px; }
-.tspGrid {
+
+/* Body: two-column layout (airport list + selection sidebar). Scroll happens here
+   so the header, tabs, search and footer stay pinned. */
+.tspBody {
+  flex:1;
+  min-height:0;
   display:grid;
-  grid-template-columns:repeat(2, 1fr);
-  gap:4px;
+  grid-template-columns:1fr 280px;
+  gap:20px;
+  padding:0 26px 4px;
+  overflow-y:auto;
 }
+.tspList { min-width:0; }
+.tspSectionLabel {
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.12em;
+  text-transform:uppercase;
+  color:var(--blue-deep);
+  margin-bottom:12px;
+}
+.tspEmpty {
+  padding:32px 8px;
+  font-size:13px;
+  color:var(--text-sec);
+  text-align:center;
+}
+/* Country groups arranged as two masonry-like columns so groups of different sizes
+   still stack neatly (Germany is longer than France, for example). */
+.tspCountryCols {
+  column-count:2;
+  column-gap:24px;
+}
+.tspCountryGroup {
+  break-inside:avoid;
+  margin-bottom:18px;
+}
+.tspCountryHead {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:4px;
+  font-size:10.5px;
+  font-weight:800;
+  letter-spacing:.10em;
+  text-transform:uppercase;
+  color:var(--text-sec);
+}
+.tspCountryFlag { font-size:15px; line-height:1; }
+.tspCountryName { color:var(--text-sec); }
+.tspCountryList { display:flex; flex-direction:column; gap:2px; }
+
+/* Airport row — three columns: name (grows), IATA code, tick circle */
 .tspRow {
   display:flex;
   align-items:center;
-  gap:9px;
-  padding:10px 12px;
-  border:1.5px solid transparent;
-  border-radius:var(--r-md, 10px);
+  gap:10px;
+  padding:9px 10px;
+  border:none;
+  border-radius:10px;
   background:transparent;
   cursor:pointer;
   font-family:inherit;
   text-align:left;
   min-width:0;
-  transition:all .15s ease;
+  transition:background .12s ease;
 }
-.tspRow:hover { background:var(--blue-bg2, #eef4fd); }
-.tspRowOn {
-  border-color:var(--sun-orange, #ff9f1c);
-  background:var(--sun-warm, #fff4e3);
-}
-.tspFlag { font-size:15px; line-height:1; flex-shrink:0; }
+.tspRow:hover { background:var(--blue-bg); }
+.tspRowOn { background:transparent; }
 .tspName {
   flex:1;
   min-width:0;
-  font-size:13px;
-  font-weight:600;
-  color:var(--text, #2a3b58);
+  font-size:13.5px;
+  font-weight:500;
+  color:var(--text);
   white-space:nowrap;
   overflow:hidden;
   text-overflow:ellipsis;
 }
-.tspRowOn .tspName { color:var(--dark, #16233a); }
+.tspRowOn .tspName { color:var(--blue-deep); font-weight:600; }
 .tspCode {
-  font-size:10.5px;
-  font-weight:800;
-  letter-spacing:.06em;
-  color:var(--text-light, #8fa5c6);
+  font-size:11px;
+  font-weight:700;
+  letter-spacing:.05em;
+  color:var(--text-light);
   flex-shrink:0;
 }
-.tspRowOn .tspCode { color:var(--sun-orange, #ff9f1c); }
-/* Multi-select affordance: every row carries a checkbox circle — hollow when off,
-   sun-orange with a white tick when on — so several airports can visibly be
-   selected at once (the row highlight alone read as a radio). */
+.tspRowOn .tspCode { color:var(--blue-deep); }
+/* Blue-filled radio circle when selected, hollow gray ring when not. */
 .tspTick {
   flex-shrink:0;
   display:inline-flex;
   align-items:center;
   justify-content:center;
-  width:16px;
-  height:16px;
+  width:18px;
+  height:18px;
   border-radius:50%;
-  border:1.5px solid rgba(15,40,100,0.18);
+  border:1.5px solid rgba(15,40,100,0.20);
   background:transparent;
   transition:all .15s ease;
 }
 .tspTickOn {
-  border-color:var(--sun-orange, #ff9f1c);
-  background:var(--sun-orange, #ff9f1c);
+  border-color:var(--blue-deep);
+  background:var(--blue-deep);
 }
-/* Footer under the airport grids: running count + Done, so a multi-pick has an
-   explicit way out (rows no longer close the panel — they toggle). */
+
+/* Right-hand sidebar — "Your selection (N)" card with dismissible chips */
+.tspSidebar {
+  min-width:0;
+  padding:14px;
+  border:1px solid rgba(15,40,100,0.08);
+  border-radius:14px;
+  background:var(--blue-bg);
+  align-self:start;
+  max-height:100%;
+}
+.tspSidebarTitle {
+  font-size:11px;
+  font-weight:800;
+  letter-spacing:.11em;
+  text-transform:uppercase;
+  color:var(--text-sec);
+  margin-bottom:10px;
+}
+.tspSidebarList { display:flex; flex-direction:column; gap:8px; }
+.tspChip {
+  display:flex;
+  align-items:center;
+  gap:10px;
+  padding:10px 10px 10px 12px;
+  background:#fff;
+  border:1px solid rgba(15,40,100,0.06);
+  border-radius:10px;
+  min-width:0;
+}
+.tspChipFlag { font-size:16px; line-height:1; flex-shrink:0; }
+.tspChipMain { flex:1; min-width:0; }
+.tspChipName {
+  font-size:12.5px;
+  font-weight:700;
+  color:var(--text);
+  line-height:1.25;
+  white-space:nowrap;
+  overflow:hidden;
+  text-overflow:ellipsis;
+}
+.tspChipCode {
+  font-size:10.5px;
+  font-weight:700;
+  letter-spacing:.06em;
+  color:var(--text-light);
+  margin-top:2px;
+}
+.tspChipRemove {
+  flex-shrink:0;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:22px;
+  height:22px;
+  border:none;
+  border-radius:50%;
+  background:transparent;
+  color:var(--text-sec);
+  cursor:pointer;
+  transition:background .15s ease, color .15s ease;
+}
+.tspChipRemove:hover:not(:disabled) { background:var(--blue-bg2); color:var(--coral); }
+.tspChipRemove:disabled { opacity:.35; cursor:not-allowed; }
+
+/* Footer — running count on the left, Clear-all button on the right */
 .tspFoot {
   display:flex;
   align-items:center;
   justify-content:space-between;
-  gap:10px;
-  margin-top:12px;
-  padding-top:12px;
+  gap:12px;
+  padding:14px 26px 18px;
   border-top:1px solid rgba(15,40,100,0.08);
+  background:#fff;
 }
-.tspFootLabel {
-  font-size:12px;
-  font-weight:600;
-  color:var(--text-sec, #5c6f91);
+.tspFootInfo { display:flex; align-items:center; gap:10px; }
+.tspFootIcon {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  width:32px;
+  height:32px;
+  border-radius:50%;
+  background:var(--blue-bg2);
+  color:var(--blue-deep);
+  flex-shrink:0;
 }
+.tspFootText { line-height:1.25; }
+.tspFootMain { font-size:13px; font-weight:700; color:var(--text); }
+.tspFootHint { font-size:11.5px; font-weight:500; color:var(--text-sec); margin-top:1px; }
+.tspClearAll {
+  display:inline-flex;
+  align-items:center;
+  gap:8px;
+  padding:8px 14px;
+  border:none;
+  background:transparent;
+  color:var(--blue-deep);
+  font-family:inherit;
+  font-size:13px;
+  font-weight:700;
+  cursor:pointer;
+  border-radius:8px;
+  transition:background .15s ease, color .15s ease;
+}
+.tspClearAll:hover:not(:disabled) { background:var(--blue-bg2); }
+.tspClearAll:disabled { opacity:.4; cursor:not-allowed; }
 
 /* Duration dropdown — vertical list, check on the selected band */
 .durDropdown {
@@ -1156,6 +1352,9 @@
    width — a centred fixed panel would hang off the side of the fields that opened it. */
 @media(max-width:1024px) {
   .calDropdown { left:0; right:0; margin-left:0; width:auto; }
+  /* Once the search bar stacks, the wide 960px transport panel would overflow the
+     stacked bar's width — stretch it to fill instead, same as the calendar above. */
+  .tspPanel { left:0; right:0; margin-left:0; width:auto; }
 }
 
 /* Five three-line fields plus a button need about 1000px to stay legible. Below that the bar
@@ -1179,10 +1378,16 @@
 @media(max-width:768px) {
   .searchBar { flex-direction:column; border-radius:var(--r-lg); padding:16px; gap:0; }
   .sf { padding:14px 16px; }
-  /* Stacked fields are full-width — the panel follows suit instead of a fixed 440px
-     that would spill off a phone screen. */
-  .tspPanel { left:0; right:0; margin-left:0; width:auto; }
-  .tspGrid { grid-template-columns:1fr; }
+  /* Stacked fields are full-width — the panel follows suit instead of the wide 960px
+     desktop layout that would spill off a phone screen. Sidebar drops below the list. */
+  .tspPanel { left:0; right:0; margin-left:0; width:auto; max-height:min(85vh, 700px); }
+  .tspHead    { padding:18px 16px 12px; }
+  .tspTabs    { padding:0 16px 14px; gap:8px; }
+  .tspSearchWrap { margin:0 16px 12px; }
+  .tspBody    { padding:0 16px 4px; grid-template-columns:1fr; gap:16px; }
+  .tspFoot    { padding:12px 16px 16px; }
+  .tspCountryCols { column-count:1; }
+  .tspSidebar { order:2; }
   .sfDivider { width:100%; height:1px; }
   .searchBtn { width:100%; justify-content:center; padding:16px; }
   .title { letter-spacing:-0.5px; }
