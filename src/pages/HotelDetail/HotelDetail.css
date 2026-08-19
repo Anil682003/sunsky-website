@@ -1552,7 +1552,7 @@
 .sd .stay-icon { width:38px; height:38px; border-radius:11px; background:linear-gradient(135deg,var(--blue-bg),var(--blue-pale)); border:1px solid #dce9fc; display:flex; align-items:center; justify-content:center; color:var(--blue); }
 .sd .stay-title { font-family:'Sora',sans-serif; font-size:15px; font-weight:800; color:var(--dark); }
 .sd .stay-guests { font-size:12px; color:var(--text-sec); margin-left:4px; font-weight:400; }
-.sd .room-option { display:flex; align-items:center; gap:14px; padding:16px 20px; border-radius:16px; border:1.5px solid var(--border-light); background:var(--white); margin-bottom:10px; cursor:pointer; transition:all .3s var(--ease); flex-wrap:wrap; box-shadow:var(--shadow-xs); }
+.sd .room-option { display:flex; align-items:center; gap:18px; padding:18px 20px; border-radius:14px; border:1.5px solid var(--border-light); background:var(--white); margin-bottom:10px; cursor:pointer; transition:all .3s var(--ease); box-shadow:var(--shadow-xs); }
 .sd .room-option:hover { border-color:#cfe0f8; box-shadow:var(--shadow-sm); }
 /* Green, not blue: the whole page is blue, so a blue-ringed card read as chrome rather than as
    "this is the rate you picked". Confirmation-green is the one colour on the page that already
@@ -1634,8 +1634,63 @@
 /* Boards sit INSIDE the card, so they drop the old indent-and-left-rule that was standing in
    for the grouping the card now does properly. */
 .sd .room-group .room-option {
-  margin:0 12px 10px; border-left:none; align-items:flex-start;
+  margin:0 14px 10px; border-left:none; align-items:center;
 }
+
+/* Middle column: rate terms (Non-refundable, etc). Fixed on the right side of the row, so
+   the pill lands in the same place on every option instead of trailing the board name. */
+.sd .room-terms {
+  display:flex; align-items:center; gap:8px; flex-shrink:0;
+}
+
+/* Right column: either the green SELECTED button, the "+€X p.p." delta pill (with the
+   "vs cheapest" caption below), or the total price pill for the cheapest-when-unselected
+   fallback. Fixed min-width so all rows in a card line up on the right edge. */
+.sd .room-cta {
+  display:flex; flex-direction:column; align-items:flex-end; gap:4px;
+  flex-shrink:0; min-width:150px;
+}
+.sd .room-select-btn {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:11px 22px; border-radius:var(--r-full);
+  border:none; background:var(--green); color:#fff;
+  font-family:'Sora',sans-serif; font-size:12px; font-weight:800;
+  letter-spacing:.08em; text-transform:uppercase;
+  box-shadow:0 6px 18px rgba(5,150,105,.28);
+  cursor:default;   /* the whole row is the target; this is a state indicator */
+}
+.sd .room-select-btn svg { width:14px; height:14px; }
+.sd .room-delta-pill {
+  display:inline-flex; align-items:baseline; gap:4px;
+  padding:9px 18px; border-radius:var(--r-full);
+  background:var(--blue-bg); color:var(--dark);
+  font-family:'Sora',sans-serif; font-size:15px; font-weight:800;
+  font-variant-numeric:tabular-nums lining-nums;
+}
+.sd .room-delta-pill em {
+  font-style:normal; font-size:11.5px; font-weight:600; color:var(--text-sec);
+  letter-spacing:0;
+}
+.sd .room-delta-vs {
+  font-size:11px; font-weight:500; color:var(--text-sec);
+}
+.sd .room-price-pill {
+  display:inline-flex; align-items:center;
+  padding:9px 18px; border-radius:var(--r-full);
+  background:var(--blue-bg); color:var(--blue);
+  font-family:'Sora',sans-serif; font-size:15px; font-weight:800;
+  font-variant-numeric:tabular-nums lining-nums;
+}
+
+/* "Prices are per person." — explains the p.p. pills above, sits inside the card's frame at
+   the bottom in a soft light grey so it reads as a footnote rather than a callout. */
+.sd .room-group-foot {
+  display:flex; align-items:center; gap:9px;
+  padding:12px 18px; margin:2px 14px 12px;
+  background:#F5F7FA; border:1px solid #eaeef4; border-radius:10px;
+  font-size:12px; font-weight:500; color:var(--text-sec);
+}
+.sd .room-group-foot svg { width:15px; height:15px; color:var(--blue); flex-shrink:0; }
 /* Clearance above the first option, so its border does not sit flush against whatever block
    precedes it. `:first-of-type` was used here and never matched: it counts by ELEMENT type,
    and the first div in the card is always the head, so no .room-option is ever the first div.
@@ -2276,30 +2331,38 @@
 
 .fdm-body { flex:1; overflow-y:auto; padding:18px 22px 4px; }
 
-/* One block per direction. A soft grey outer surface with the header sitting transparently
-   on it, and the flight route in its own white inner card — the two layers give the block
-   the feel of a document panel, and put a clear frame around the itinerary itself. The
-   baggage table (tab 2) reuses the outer frame without an inner card. */
+/* One block per direction. Now flat with no outer background — the section reads as a
+   headline (blue pill + date, plus baggage badges on the right) sitting above the flight
+   card. The card itself carries the border and the inner padding. */
 .fdm-journey, .fdm-bagblock {
-  border:1px solid var(--border-light); border-radius:var(--r-md);
-  background:#F5F7FA; margin-bottom:16px; padding:16px;
+  margin-bottom:20px;
 }
-.fdm-bagblock { padding:0; background:var(--white); overflow:hidden; }
-/* Tab 1: the itinerary, laid out to match the design.
-   The header has the direction on the left, date beside it, and — where the fare states one —
-   a baggage summary on the right. It sits transparently on the outer grey; the leg row sits
-   in its own white card below. */
+.fdm-bagblock { overflow:hidden; }
+/* Section headline shared by both tabs — pill on the left, date beside it, baggage
+   badges on the right where they apply (itinerary tab only). No background band, no
+   bottom rule; the visual weight is in the pill itself. */
 .fdm-jhead {
-  display:flex; align-items:center; gap:12px; flex-wrap:wrap;
-  padding:4px 8px 14px;
+  display:flex; align-items:center; gap:14px; flex-wrap:wrap;
+  padding:0 2px 12px;
   background:transparent; border-bottom:none;
 }
-.fdm-bagblock .fdm-jhead {
-  padding:14px 20px;
-  background:var(--blue-pale); border-bottom:1px solid var(--border-light);
+/* Portal-scoped: `.bp-dir` is a pill in the hotel-detail page (.sd scope). The modal is
+   portalled to <body>, so the .sd rule does not apply — restate the pill here so the
+   header renders the same way inside the dialog. */
+.fdm .bp-dir {
+  display:inline-flex; align-items:center; gap:8px;
+  padding:8px 16px 8px 13px;
+  border-radius:var(--r-full);
+  background:var(--blue-bg); border:1.5px solid rgba(31,79,216,0.14);
+  font-family:'Sora',sans-serif; font-size:12px; font-weight:800;
+  color:var(--blue); text-transform:uppercase; letter-spacing:.10em;
+}
+.fdm .bp-dir svg { width:15px; height:15px; }
+.fdm-jdate {
+  font-family:'Sora',sans-serif; font-size:14px; font-weight:600; color:var(--text-sec);
 }
 .fdm-jbags {
-  display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;
+  display:inline-flex; align-items:center; gap:6px; flex-wrap:wrap;
   margin-left:auto;
   padding:6px 10px 6px 6px; border-radius:var(--r-full);
   background:#F0FDF8; border:1px solid #B6E8D4;
@@ -2313,9 +2376,10 @@
 .fdm-jbags .bp-chip { background:var(--white); border-color:#B6E8D4; }
 
 .fdm-legrow {
-  display:flex; align-items:stretch; gap:14px;
-  padding:22px; min-width:0;
-  background:var(--white); border:1px solid var(--border-light); border-radius:var(--r-md);
+  display:flex; align-items:stretch; gap:18px;
+  padding:24px; min-width:0;
+  background:var(--white); border:1px solid var(--border-light); border-radius:14px;
+  box-shadow:0 2px 10px rgba(15,40,100,0.04);
 }
 .fdm-leg { flex:1; min-width:0; display:flex; flex-direction:column; gap:18px; }
 
@@ -2332,18 +2396,51 @@
 }
 .fdm-place { font-size:12.5px; font-weight:600; color:var(--text-sec); margin-top:6px; line-height:1.35; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .fdm-code { font-size:11px; font-weight:800; color:var(--text-light); letter-spacing:.1em; margin-top:2px; }
-.fdm-mid { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; }
+.fdm-mid { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:0; width:100%; }
 .fdm-dur { font-size:11.5px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
 .fdm-flag {
   font-family:'Sora',sans-serif; font-size:11px; font-weight:800; color:#0B7A57;
   letter-spacing:.06em; text-transform:uppercase; margin-top:2px;
 }
 
+/* Portal-scoped dashed track + centred plane bubble, matching the mockup.
+   The track is one dashed rule that runs the full width of the .fdm-mid column;
+   the plane sits absolute-centred over it with a small arrow-tip on either end. */
+.fdm .bp-track {
+  position:relative; width:100%; min-width:120px; height:14px;
+}
+.fdm .bp-track::before {
+  content:''; position:absolute; left:0; right:0; top:50%;
+  height:0; border-top:1.5px dashed var(--blue-soft, #A3CCFF);
+}
+.fdm .bp-track::after {
+  content:''; position:absolute; right:-1px; top:50%;
+  transform:translate(0,-50%) rotate(45deg);
+  width:6px; height:6px;
+  border-right:1.5px solid var(--blue, #1F4FD8);
+  border-top:1.5px solid var(--blue, #1F4FD8);
+}
+.fdm .bp-plane {
+  position:absolute; left:50%; top:50%;
+  transform:translate(-50%,-50%);
+  display:inline-flex; align-items:center; justify-content:center;
+  padding:0 8px; background:var(--white); color:var(--blue);
+}
+.fdm .bp-plane svg { width:16px; height:16px; }
+
 /* Airline row below its column: logo + name + flight-number chip, left-aligned. */
-.fdm-carrier { display:flex; align-items:center; gap:10px; min-width:0; }
-.fdm-carrier .bp-airname { font-size:13.5px; font-weight:700; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.fdm-carrier .bp-airmark { width:30px; height:30px; font-size:13px; flex-shrink:0; }
-.fdm-carrier .bp-airmark.air-logo { width:30px; height:30px; padding:2px; }
+.fdm-carrier { display:flex; align-items:center; gap:10px; min-width:0; padding-top:4px; }
+.fdm-carrier .bp-airname { font-size:14px; font-weight:600; color:var(--dark); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fdm-carrier .bp-airmark { width:32px; height:32px; font-size:13px; flex-shrink:0; }
+.fdm-carrier .bp-airmark.air-logo { width:32px; height:32px; padding:2px; }
+/* Portal-scoped light-blue pill for the flight number, matching the mockup. */
+.fdm .bp-flno {
+  display:inline-flex; align-items:center;
+  padding:5px 12px; border-radius:999px;
+  background:var(--blue-bg); color:var(--blue);
+  font-family:'Sora',sans-serif; font-size:12px; font-weight:800; letter-spacing:.04em;
+  font-variant-numeric:tabular-nums;
+}
 
 /* The wait between two legs, called out where it happens rather than left to be worked out
    from two times in different columns. Sits as its OWN column of the row, so the two legs
@@ -2360,14 +2457,21 @@
 .fdm-layover em { display:block; font-style:normal; font-weight:600; opacity:.85; line-height:1.35; }
 
 
-/* ── Tab 2: the baggage table ── */
-.fdm-tablewrap { overflow-x:auto; }
+/* ── Tab 2: the baggage table ──
+   Card-in-card look: the section pill sits above the table, and the table itself is
+   framed by .fdm-bagblock (border + radius, defined earlier). */
+.fdm-tablewrap {
+  overflow-x:auto;
+  border:1px solid var(--border-light); border-radius:14px;
+  background:var(--white);
+  box-shadow:0 2px 10px rgba(15,40,100,0.04);
+}
 .fdm-table { width:100%; border-collapse:collapse; font-size:13px; }
 .fdm-table th {
-  text-align:left; padding:13px 16px; background:#f7faff;
+  text-align:left; padding:14px 18px; background:#F7FAFF;
   border-bottom:1px solid var(--border-light);
-  font-size:10.5px; font-weight:800; letter-spacing:.08em; text-transform:uppercase;
-  color:var(--text-sec); white-space:nowrap; vertical-align:bottom;
+  font-size:10.5px; font-weight:800; letter-spacing:.10em; text-transform:uppercase;
+  color:var(--text-sec); white-space:nowrap; vertical-align:top;
 }
 .fdm-th { display:inline-flex; align-items:center; gap:7px; flex-wrap:wrap; }
 .fdm-th svg { width:15px; height:15px; color:var(--text-sec); }
@@ -2375,27 +2479,37 @@
   flex-basis:100%; font-style:normal; font-size:10px; font-weight:600;
   letter-spacing:.02em; text-transform:none; color:var(--text-light);
 }
-.fdm-table td { padding:16px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
+.fdm-table td { padding:18px; border-bottom:1px solid var(--border-light); vertical-align:middle; }
 .fdm-table tr:last-child td { border-bottom:none; }
 .fdm-td-flno { font-family:'Sora',sans-serif; font-weight:800; color:var(--dark); white-space:nowrap; }
-.fdm-td-air { display:flex; align-items:center; gap:9px; }
-.fdm-td-air .bp-airname { font-size:13px; font-weight:700; color:var(--dark); white-space:nowrap; }
+.fdm-td-air { display:flex; align-items:center; gap:10px; }
+.fdm-td-air .bp-airname { font-size:13px; font-weight:600; color:var(--dark); white-space:nowrap; }
 .fdm-td-air .bp-airmark { width:28px; height:28px; font-size:12px; }
 .fdm-td-air .bp-airmark.air-logo { width:28px; height:28px; padding:2px; }
-.fdm-td-route { color:var(--text-sec); font-weight:600; line-height:1.5; min-width:220px; }
+.fdm-td-route { color:var(--text-sec); font-weight:500; line-height:1.5; min-width:200px; }
 .fdm-arrow { color:var(--text-light); }
 
-/* Included is stated in green with a tick; anything the supplier did not state says so in
-   grey rather than borrowing the tick. */
-.fdm-allow { display:flex; flex-direction:column; gap:2px; white-space:nowrap; }
+/* Two visual patterns share the cell:
+   .fdm-allow-inc     — "✓ Included" (green) / dimensions (grey)  — personal item, cabin bag
+   .fdm-allow-weight  — "20 kg" (dark bold) / "Included" (green) — hold baggage
+   .fdm-allow-off     — "Not stated" / short caveat, both grey
+   The one .fdm-allow layout is shared; the three modifier classes flip the colouring. */
+.fdm-allow { display:flex; flex-direction:column; gap:3px; white-space:nowrap; }
 .fdm-allow-main {
   display:inline-flex; align-items:center; gap:6px;
   font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--text-light);
 }
 .fdm-allow svg { width:15px; height:15px; }
-.fdm-allow em { font-style:normal; font-size:11.5px; font-weight:600; color:var(--text-light); }
-.fdm-allow.on .fdm-allow-main { color:#0B7A57; }
-.fdm-allow.on em { color:#0B7A57; }
+.fdm-allow-sub {
+  font-style:normal; font-size:11.5px; font-weight:500; color:var(--text-light);
+}
+.fdm-allow-inc .fdm-allow-main { color:#0B7A57; }
+.fdm-allow-inc .fdm-allow-main svg { color:#0B7A57; }
+.fdm-allow-inc .fdm-allow-sub { color:var(--text-light); font-weight:500; }
+.fdm-allow-weight .fdm-allow-main { color:var(--dark); }
+.fdm-allow-weight .fdm-allow-sub { color:#0B7A57; font-weight:600; }
+.fdm-allow-off .fdm-allow-main,
+.fdm-allow-off .fdm-allow-sub { color:var(--text-light); }
 
 .fdm-note {
   display:flex; align-items:flex-start; gap:11px;
@@ -2425,14 +2539,18 @@
   .fdm-tabs { padding:0 14px; }
   .fdm-tab { padding:11px 12px; font-size:12px; gap:6px; }
   .fdm-body { padding:16px 18px 4px; }
-  .fdm-journey { padding:12px; }
-  /* Legs stack under one another, with the layover pill filling the width between them. */
-  .fdm-legrow { flex-direction:column; gap:12px; padding:16px; }
+  /* Legs stack under one another, with the layover pill filling the width between them.
+     The dashed track and its centred plane can rotate to a vertical bar in the future, but
+     the auto-centring inside a stacked row keeps the plane readable as-is. */
+  .fdm-legrow { flex-direction:column; gap:14px; padding:18px; }
   .fdm-layover { max-width:none; align-self:stretch; width:auto; }
   .fdm-time { font-size:20px; }
-  .fdm-jhead { padding:4px 6px 12px; gap:8px; }
-  .fdm-bagblock .fdm-jhead { padding:12px 16px; }
+  .fdm-jhead { padding:0 2px 10px; gap:10px; }
   .fdm-jbags { font-size:11px; }
+  /* The baggage table has six columns now — keep it scrollable rather than crushing cells. */
+  .fdm-tablewrap { border-radius:12px; }
+  .fdm-table { min-width:720px; }
+  .fdm-table th, .fdm-table td { padding:14px 12px; }
   .fdm-foot { padding:14px 18px 18px; }
   .fdm-close-btn { width:100%; }
 }
@@ -2910,18 +3028,8 @@
   .sd .section-title { font-size:16px; }
 }
 
-@media (max-width:360px) {
-  /* On a 320px phone the price column left the room details ~120px, so every line of the
-     price breakdown broke in half ("7 nights ×" / "€125"). Drop the price onto its own row,
-     indented under the name, and the details get the whole card back. */
-  .sd .room-option { flex-wrap:wrap; }
-  .sd .room-price-col {
-    flex:1 0 100%; flex-direction:row; align-items:baseline; justify-content:flex-start;
-    /* per-night and the "vs cheapest" delta are nowrap, so the ROW has to wrap or they
-       run off the card. */
-    flex-wrap:wrap; gap:4px 8px; margin-left:34px;   /* radio (20) + its gap (14) */
-  }
-}
+/* .room-price-col was replaced by .room-cta above; the ≤560px rule already stacks the
+   right column on phones, so a separate 360px carve-out is no longer needed. */
 
 @media (max-width:380px) {
   .sd .pg { padding-left:12px; padding-right:12px; }
@@ -2939,11 +3047,13 @@
   .sd .flight-details-btn, .sd .flight-select-btn, .sd .flight-selected-badge { min-height:42px; }
   .sd .fc-cta { min-height:46px; }
 
-  /* The "Lowest price" flag rides in the board-name row. On a phone that left the name
-     ~140px and broke "Bed & breakfast" across two lines with the flag wedged between them.
-     Wrapping the row drops the flag onto its own line and gives the name the width it needs. */
-  .sd .room-name { flex-wrap:wrap; }
-  .sd .room-flag { margin-top:2px; }
+  /* Room row: on a phone the three columns can't share one line. Stack the CTA under
+     the info; terms sit under the name inline. The SELECTED button widens to fill. */
+  .sd .room-option, .sd .room-group .room-option { flex-wrap:wrap; }
+  .sd .room-terms { flex-basis:100%; margin-top:2px; }
+  .sd .room-cta { flex-basis:100%; align-items:stretch; margin-top:4px; }
+  .sd .room-select-btn, .sd .room-delta-pill, .sd .room-price-pill { justify-content:center; }
+  .sd .room-delta-vs { text-align:right; }
 }
 
 @media (max-width:768px) {

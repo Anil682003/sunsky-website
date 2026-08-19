@@ -82,6 +82,10 @@ const cardPrice = (container) => {
 const selectedRow = (container) => container.querySelector('.room-option.selected');
 
 describe('the card and the room list name the same rate', () => {
+  // The redesign moved the selected row's price off the row and into a "SELECTED" button —
+  // the card above still carries the total, so the row-vs-card price check is now done as
+  // "row's board / room label matches the card", plus a `cardPrice` assertion on the card
+  // itself. The rate is still verified end-to-end; the price just isn't repeated on the row.
   it('opens on the cheapest rate, and the list ticks that same row', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
@@ -91,7 +95,7 @@ describe('the card and the room list name the same rate', () => {
     expect(cardBoard(container)).toMatch(/all inclusive/i);
     await waitFor(() => expect(selectedRow(container)).toBeTruthy());
     expect(selectedRow(container).textContent).toMatch(/all inclusive/i);
-    expect(selectedRow(container).textContent).toMatch(/1,?020/);
+    expect(selectedRow(container).textContent).toMatch(/selected/i);
   });
 
   it('quotes a rate the meal filter still shows, not a cheaper one it hid', async () => {
@@ -113,7 +117,7 @@ describe('the card and the room list name the same rate', () => {
     const row = selectedRow(container);
     expect(row).toBeTruthy();
     expect(row.textContent).toMatch(/bed & breakfast/i);
-    expect(row.textContent).toMatch(/1,?200/);
+    expect(row.textContent).toMatch(/selected/i);
   });
 
   it('keeps an explicit pick when it survives the filter', async () => {
@@ -121,9 +125,12 @@ describe('the card and the room list name the same rate', () => {
     const { container } = renderPage();
     await checkFirstDay(user);
 
-    // Choose the dearer sea-view room by hand.
+    // Choose the dearer sea-view room by hand — identified by its ROOM group heading, since
+    // the row no longer shows the absolute price on the row itself.
     const seaView = await waitFor(() => {
-      const el = [...container.querySelectorAll('.room-option')].find((n) => /1,?333/.test(n.textContent));
+      const el = [...container.querySelectorAll('.room-group')]
+        .find((g) => /sea view/i.test(g.querySelector('.room-group-name')?.textContent || ''))
+        ?.querySelector('.room-option');
       expect(el).toBeTruthy();
       return el;
     });
@@ -136,6 +143,6 @@ describe('the card and the room list name the same rate', () => {
     await user.click(await screen.findByRole('button', { name: /^bed & breakfast/i }));
 
     await waitFor(() => expect(cardPrice(container)).toBe('€1333'));
-    expect(selectedRow(container).textContent).toMatch(/1,?333/);
+    expect(selectedRow(container).textContent).toMatch(/selected/i);
   });
 });

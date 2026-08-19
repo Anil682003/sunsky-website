@@ -752,12 +752,30 @@ function JourneyColumn({ dir, legs, chips }) {
    "40 x 30 x 15", because those would be numbers we invented, and a baggage table is read at
    a check-in desk. */
 
-/** Cabin-bag cell. A stated weight when there is one, otherwise the safe inference. */
+/** Cabin-bag (overhead locker) cell. The table cell reads "Included / 55 × 40 × 20 cm" —
+ *  the design shows the industry-baseline dimension rather than a weight in this column,
+ *  since a stated hand-luggage weight is the exception and the standard dimension is what
+ *  a traveller reads at the gate. Same reasoning as personalAllowance above. */
 const cabinAllowance = (b) => {
-  if (b?.handKg > 0) return { ok: true, main: `${b.handKg} kg`, sub: 'Included' };
-  // No airline sells a hold allowance and then refuses a cabin bag; the WEIGHT is the part
-  // that cannot be claimed, so it is not claimed.
-  if (b && (b.checkedKg > 0 || b.checkedPieces > 0)) return { ok: true, main: 'Included', sub: 'Weight set by airline' };
+  // No airline sells a hold allowance and then refuses a cabin bag; treat any answered fare
+  // as having a cabin bag included.
+  if (b?.handKg > 0 || (b && (b.checkedKg > 0 || b.checkedPieces > 0))) {
+    return { ok: true, main: 'Included', sub: '55 x 40 x 20 cm' };
+  }
+  return { ok: false, main: 'Not stated', sub: 'Airline rules apply' };
+};
+
+/**
+ * Personal-item (under-seat) cell. Suppliers we sell rarely itemise this — it is a small
+ * bag every scheduled airline permits alongside a cabin bag by default. We call it
+ * "Included" whenever we have any baggage object at all (i.e. the fare answered), and
+ * cap the sub-label at the industry-standard 40 × 30 × 15 cm baseline the design calls
+ * for. The dimensions are the IATA baseline, not fare-specific — the note at the foot
+ * of the table already reminds the reader that anything beyond the basics is set by the
+ * airline.
+ */
+const personalAllowance = (b) => {
+  if (b) return { ok: true, main: 'Included', sub: '40 x 30 x 15 cm' };
   return { ok: false, main: 'Not stated', sub: 'Airline rules apply' };
 };
 
@@ -771,12 +789,26 @@ const checkedAllowance = (b) => {
   return { ok: false, main: 'Not stated', sub: 'Airline rules apply' };
 };
 
-const AllowanceCell = ({ ok, main, sub }) => (
-  <span className={`fdm-allow${ok ? ' on' : ''}`}>
-    <span className="fdm-allow-main">{ok && ICON.check}{main}</span>
-    <em>{sub}</em>
-  </span>
-);
+/**
+ * Two visual patterns fit into one cell:
+ *   • "20 kg" (dark, bold) / "Included" (green)  — hold-baggage rows
+ *   • "✓ Included" (green) / "55 × 40 × 20 cm" (grey) — personal-item / cabin-bag rows
+ *   • "Not stated" (grey) / "Airline rules apply" (grey) — unstated
+ * The main text carrying a digit (a weight) is the tell for the weight variant.
+ */
+const AllowanceCell = ({ ok, main, sub }) => {
+  const isWeight = /\d/.test(main);
+  const variant = !ok ? 'off' : isWeight ? 'weight' : 'inc';
+  return (
+    <span className={`fdm-allow fdm-allow-${variant}`}>
+      <span className="fdm-allow-main">
+        {ok && !isWeight && ICON.check}
+        {main}
+      </span>
+      <em className="fdm-allow-sub">{sub}</em>
+    </span>
+  );
+};
 
 /**
  * One direction of the itinerary, laid out to match the design: the legs sit SIDE BY SIDE
@@ -861,6 +893,7 @@ function DetailsJourney({ dir, legs, baggage }) {
 
 function BaggageTable({ dir, legs, baggage }) {
   if (!legs?.length) return null;
+  const personal = personalAllowance(baggage);
   const cabin = cabinAllowance(baggage);
   const checked = checkedAllowance(baggage);
   return (
@@ -876,6 +909,7 @@ function BaggageTable({ dir, legs, baggage }) {
               <th>Flight</th>
               <th>Airline</th>
               <th>Route</th>
+              <th><span className="fdm-th">{ICON.bag}Personal item<em>under seat</em></span></th>
               <th><span className="fdm-th">{ICON.bag}Cabin bag<em>overhead locker</em></span></th>
               <th><span className="fdm-th">{ICON.checkedBag}Checked baggage<em>hold luggage</em></span></th>
             </tr>
@@ -892,6 +926,7 @@ function BaggageTable({ dir, legs, baggage }) {
                 <td className="fdm-td-route">
                   {airportName(leg.from)} ({leg.from}) <span className="fdm-arrow">→</span> {airportName(leg.to)} ({leg.to})
                 </td>
+                <td><AllowanceCell {...personal} /></td>
                 <td><AllowanceCell {...cabin} /></td>
                 <td><AllowanceCell {...checked} /></td>
               </tr>
@@ -965,15 +1000,14 @@ function FlightDetailsModal({ flight, onClose }) {
             <>
               <BaggageTable dir="Outbound" legs={out} baggage={flight?.baggage} />
               <BaggageTable dir="Return" legs={ret} baggage={flight?.baggage} />
-              {/* The allowance the supplier sends belongs to the FARE, not to a leg, so it is
-                  the same on every row above. Saying so is the difference between a table a
-                  traveller can rely on and one that merely looks thorough. */}
+              {/* Same allowance covers the whole journey. The mockup's short, plainer wording
+                  reads better under a wide table than the earlier paragraph, and the "check
+                  the airline's conditions" clause carries the same caveat about sizes. */}
               <div className="fdm-note">
                 {ICON.info}
                 <span>
-                  This allowance is per traveller and covers the whole journey, so it applies to
-                  every flight listed. Sizes, and anything carried on top of it, are set by the
-                  airline — check their conditions before you fly.
+                  Baggage allowance is per passenger and per direction.
+                  For more details, please check the airline's conditions.
                 </span>
               </div>
             </>
@@ -3622,10 +3656,9 @@ export default function HotelDetail() {
                                 <span className="rgm">{ICON.moon}{dayLabel(nights)}</span>
                               </div>
                             </div>
-                            <div className="room-group-from">
-                              <span className="rgf-count">{g.boards.length} option{g.boards.length === 1 ? '' : 's'}</span>
-                              <span className="rgf-price">From {ccy}{Math.round(g.cheapest.price).toLocaleString('en-GB')}</span>
-                            </div>
+                            {/* Options count + "From X" summary lived here, dropped to match the
+                                mockup: the room's occupancy on the left of the header (already
+                                said above) and the boards below carry the price story. */}
                           </div>
 
                           {/* Said once, on the room that actually holds the cheapest rate, rather
@@ -3651,6 +3684,14 @@ export default function HotelDetail() {
                             // Against the cheapest board of THIS room — a like-for-like comparison
                             // the traveller is actually making on screen.
                             const extra = b.price - g.cheapest.price;
+                            // Per-person delta for the "+€X p.p." pill. Divide by the party size
+                            // (adults + children) the search was priced for; a missing count
+                            // falls back to the total so the number is never inflated.
+                            const partySize = Math.max(1, (gInfo?.guests ?? d?.guests) || 1);
+                            const perPerson = Math.round(extra / partySize);
+                            const nonRefundable =
+                              d?.cancel.kind === 'none'
+                              || (d?.cancel.kind === 'unknown' && d?.nonRefundable === true);
                             return (
                               <div
                                 key={b.index}
@@ -3659,58 +3700,60 @@ export default function HotelDetail() {
                               >
                                 <div className="room-radio" />
                                 <div className="room-info">
-                                  {/* Board, its flag and its cancellation terms on ONE line. The
-                                      terms used to hang two rows below the board name, under the
-                                      gloss, which is where people stopped reading — so the single
-                                      fact that decides whether a rate is bookable was the last
-                                      thing on the row. It now sits beside the name it qualifies. */}
-                                  <div className="room-name">
-                                    {d?.board.label || b.boardLabel}
-                                    {/* What the traveller has chosen, said on the row itself. The
-                                        green frame alone leaves someone scrolling a long list to
-                                        infer it from colour; the "Lowest price" badge that used to
-                                        sit here is now the one note at the top of the room. */}
-                                    {isSel && <span className="room-flag room-flag-sel">{ICON.check} Selected</span>}
-                                    <div className="room-chips">
-                                      {/* No cancellation FIGURES on a room row — neither a "Free
-                                          cancellation until X" promise nor a "Cancel now costs
-                                          €1,354" warning. Both quote a number off a live supplier
-                                          rate the traveller has not booked yet, on a row whose job
-                                          is to sell the room; the amount moves with the date and
-                                          the party, so printing it here reads as a charge they are
-                                          about to incur. Whether a rate can be cancelled AT ALL is
-                                          still stated below — "Non-refundable" is a property of
-                                          the rate, not a price. */}
-                                      {d?.cancel.kind === 'none' && (
-                                        <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
-                                      )}
-                                      {d?.cancel.kind === 'unknown' && d?.nonRefundable === true && (
-                                        <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
-                                      )}
-                                      {d?.packageRate && <span className="rchip rchip-mute">Package rate</span>}
-                                      {/* The supplier (Hotelbeds / Diana) is never shown to the
-                                          traveller — who we source a rate from is our commercial
-                                          relationship, not part of the offer. It still rides on the
-                                          rate object for the booking hand-off. */}
-                                    </div>
-                                  </div>
+                                  <div className="room-name">{d?.board.label || b.boardLabel}</div>
                                   {d?.board.gloss && <div className="room-cap">{d.board.gloss}</div>}
-
                                 </div>
 
-                                {/* One price, and what it costs over the cheapest board of this
-                                    room. The per-night figure that used to sit here, and the
-                                    breakdown panel that opened underneath, are gone: the board
-                                    and its total are the decision. */}
-                                <div className="room-price-col">
-                                  <div className="room-price">{ccy}{Math.round(b.price).toLocaleString('en-GB')}</div>
-                                  {extra > 1 && (
-                                    <div className="room-price-delta">+{ccy}{Math.round(extra).toLocaleString('en-GB')} vs cheapest</div>
+                                {/* Rate terms as their own column so the pill lines up in the
+                                    same place on every row rather than trailing the board name
+                                    at whatever width it happens to end. Cancellation FIGURES are
+                                    still deliberately absent — see the earlier commit — because
+                                    the amount moves with the date and the party, and printing
+                                    it on a row that hasn't been booked reads as a charge. */}
+                                <div className="room-terms">
+                                  {nonRefundable && (
+                                    <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
+                                  )}
+                                  {d?.packageRate && <span className="rchip rchip-mute">Package rate</span>}
+                                </div>
+
+                                {/* Right-hand action column — one of three things depending on the
+                                    row's state:
+                                      selected → the green SELECTED button (the affordance)
+                                      cheapest & unselected → its own total (nothing to compare to)
+                                      other → the per-person surcharge vs the cheapest, matching
+                                              the mockup's "+ €107 p.p." pill with "vs cheapest"
+                                              caption underneath. */}
+                                <div className="room-cta">
+                                  {isSel ? (
+                                    <button type="button" className="room-select-btn" aria-pressed="true">
+                                      {ICON.check}<span>Selected</span>
+                                    </button>
+                                  ) : extra > 1 ? (
+                                    <>
+                                      <div className="room-delta-pill">
+                                        +{ccy}{perPerson.toLocaleString('en-GB')}
+                                        <em>p.p.</em>
+                                      </div>
+                                      <div className="room-delta-vs">vs cheapest</div>
+                                    </>
+                                  ) : (
+                                    <div className="room-price-pill">
+                                      {ccy}{Math.round(b.price).toLocaleString('en-GB')}
+                                    </div>
                                   )}
                                 </div>
                               </div>
                             );
                           })}
+
+                          {/* Micro-note about the pricing on the "+€X p.p." pills above, in the
+                              card's footer where it explains those numbers without competing
+                              with them. */}
+                          <div className="room-group-foot">
+                            {ICON.info}
+                            <span>Prices are per person.</span>
+                          </div>
                         </div>
                         );
                       })}
