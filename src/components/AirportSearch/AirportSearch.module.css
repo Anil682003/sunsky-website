@@ -34,6 +34,10 @@
   color:var(--text-light);
   margin:14px 4px 6px;
 }
+/* With no search field above it, the label is the panel's first line — it keeps the top
+   margin the field used to provide, not one stacked on top of it. */
+.groupLabelTop { margin-top:2px; }
+.wrap:focus { outline:none; }
 
 /* ONE height, whatever is showing. The panel was a different size for the eight-airport
    shortlist, for three results, for one, and for "no match", so its bottom edge jumped under
@@ -53,6 +57,14 @@
 /* Hover and keyboard share one highlight, so arrowing down looks the same as pointing. */
 .rowOn { background:var(--blue-bg2, #eef4fd); border-color:rgba(31,79,216,0.18); }
 .flag { font-size:17px; line-height:1; flex-shrink:0; width:20px; text-align:center; }
+/* The same 20px slot as the emoji, so rows line up whichever one a country gets. */
+.flagImg {
+  flex-shrink:0;
+  width:20px; height:14px;
+  border-radius:3px;
+  object-fit:cover;
+  box-shadow:0 0 0 1px rgba(15,40,100,0.10);
+}
 .text { display:flex; flex-direction:column; min-width:0; flex:1; }
 .primary {
   font-size:14px; font-weight:700; color:var(--text);

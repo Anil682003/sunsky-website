@@ -137,3 +137,51 @@ describe('AirportSearch', () => {
     expect(screen.getByText('Brussels South Charleroi')).toBeInTheDocument();
   });
 });
+
+// The Flights-only tab picks from a list and nothing else — the agency asked for no search
+// box on the airport panels, so there must be no field to type into and no request made.
+describe('AirportSearch as a plain list', () => {
+  const listSetup = (props = {}) => {
+    const onPick = vi.fn();
+    const onClose = vi.fn();
+    render(
+      <AirportSearch title="Departing from" fallback={SHORTLIST} fallbackLabel="Departure airports"
+        searchable={false} onPick={onPick} onClose={onClose} {...props} />
+    );
+    return { onPick, onClose };
+  };
+
+  it('offers no way to type, and asks the API for nothing', () => {
+    listSetup();
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.queryByLabelText('Departing from')).not.toBeInstanceOf(HTMLInputElement);
+    expect(search).not.toHaveBeenCalled();
+  });
+
+  it('shows every option it was given, not a shortlist in front of a search', () => {
+    listSetup();
+    expect(screen.getByText('Departure airports')).toBeInTheDocument();
+    expect(screen.getByText('Brussels (BRU)')).toBeInTheDocument();
+    expect(screen.getByText('Charleroi (CRL)')).toBeInTheDocument();
+  });
+
+  it('hands back the airport that was clicked, and closes', async () => {
+    const user = userEvent.setup();
+    const { onPick, onClose } = listSetup();
+    await user.click(screen.getByText('Charleroi (CRL)'));
+    expect(onPick).toHaveBeenCalledWith(SHORTLIST[1]);
+    expect(onClose).toHaveBeenCalled();
+  });
+
+  // With no input to hold focus, the panel itself takes it — or the arrow keys and Escape
+  // would go nowhere and the list would be mouse-only.
+  it('can still be driven from the keyboard', async () => {
+    const user = userEvent.setup();
+    const { onPick, onClose } = listSetup();
+    await user.keyboard('{ArrowDown}{Enter}');
+    expect(onPick).toHaveBeenCalledWith(SHORTLIST[1]);
+
+    await user.keyboard('{Escape}');
+    expect(onClose).toHaveBeenCalled();
+  });
+});

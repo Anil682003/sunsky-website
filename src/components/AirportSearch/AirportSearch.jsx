@@ -1,19 +1,23 @@
 import { useState, useEffect, useRef } from 'react';
 import styles from './AirportSearch.module.css';
 import { searchAirports } from '../../api';
+import { flagUrl } from '../../utils/countryFlag';
+import { isoFromFlagEmoji } from '../../utils/airports';
 
 /**
- * Type-to-search over the airports held in the dashboard (Products → Geo → Airports).
+ * The From/To panel of the flight search — a LIST of airports to pick from, which can also
+ * type-to-search the dashboard's whole airport table (Products → Geo → Airports).
  *
- * The flight search used to offer two hardcoded arrays of eight: eight airports you could
- * leave from and eight you could fly to. Anything else — Malaga, Dubai, Lisbon, the other
- * 1,290 rows the dashboard already holds — simply could not be picked, and the lists went
- * stale the moment the team added an airport.
+ * `searchable={false}` is the plain-list mode the agency asked for: the traveller picks from
+ * the options handed in and nothing else, with no field to type into. Searchable mode still
+ * exists for a panel whose choice is genuinely open-ended — the dashboard holds 1,300
+ * airports, and only a search can reach the ones no shortlist names.
  *
  * Shape of an option, from /website/geo/airports:
- *   { code:'BRU', name:'Brussel Nationale Airport', city:'Brussel', country:'Belgium', flag:'🇧🇪' }
- * `fallback` takes the same shape, so the curated shortlist and the live results render
- * through one row component.
+ *   { code:'BRU', name:'Brussel Nationale Airport', city:'Brussel', country:'Belgium',
+ *     flag:'🇧🇪', isoCode:'BE' }
+ * `fallback` takes the same shape, so the curated list and the live results render through
+ * one row component.
  */
 
 const MIN_QUERY = 2;
@@ -24,11 +28,22 @@ const primary = (a) => `${a.city || a.name || a.code} (${a.code})`;
 const secondary = (a) => [a.city && a.name && a.name !== a.city ? a.name : '', a.country]
   .filter(Boolean).join(' · ');
 
+// The country flag as a real image — Windows has no flag glyphs and prints the emoji as the
+// bare letters "BE". The ISO code comes with the row, or out of the emoji it was built from;
+// the emoji (or a plane) stays as the fallback.
+const Flag = ({ airport }) => {
+  const url = flagUrl(airport.isoCode || isoFromFlagEmoji(airport.flag));
+  return url
+    ? <img className={styles.flagImg} src={url} alt="" decoding="async" aria-hidden="true" />
+    : <span className={styles.flag}>{airport.flag || '✈'}</span>;
+};
+
 export default function AirportSearch({
   title,
   placeholder = 'City or airport name',
   fallback = [],
   fallbackLabel = 'Popular',
+  searchable = true,
   onPick,
   onClose,
 }) {
@@ -39,13 +54,17 @@ export default function AirportSearch({
   const [hits, setHits] = useState({ term: '', list: [] });
   const [cursor, setCursor] = useState(0);
   const inputRef = useRef(null);
+  const wrapRef = useRef(null);
 
   // preventScroll, or the browser scrolls the page to bring the freshly focused input into
-  // view — the panel opens and the whole page lurches under the pointer.
-  useEffect(() => { inputRef.current?.focus({ preventScroll: true }); }, []);
+  // view — the panel opens and the whole page lurches under the pointer. With no field to
+  // focus, the panel itself takes the focus so the arrow keys and Escape still work.
+  useEffect(() => {
+    (inputRef.current || wrapRef.current)?.focus({ preventScroll: true });
+  }, []);
 
   const q = term.trim();
-  const searching = q.length >= MIN_QUERY;
+  const searching = searchable && q.length >= MIN_QUERY;
   const answered = hits.term === q;
   const busy = searching && !answered;
   const showing = searching ? (answered ? hits.list : []) : fallback;
@@ -55,14 +74,14 @@ export default function AirportSearch({
   // merely ignoring its answer.
   useEffect(() => {
     const query = term.trim();
-    if (query.length < MIN_QUERY) return undefined;
+    if (!searchable || query.length < MIN_QUERY) return undefined;
     const ctrl = new AbortController();
     const t = setTimeout(async () => {
       const list = await searchAirports(query, 8, { signal: ctrl.signal });
       if (!ctrl.signal.aborted) setHits({ term: query, list });
     }, DEBOUNCE_MS);
     return () => { clearTimeout(t); ctrl.abort(); };
-  }, [term]);
+  }, [term, searchable]);
 
   const pick = (a) => { onPick?.(a); onClose?.(); };
 
@@ -75,7 +94,15 @@ export default function AirportSearch({
   };
 
   return (
-    <div className={styles.wrap} onClick={(e) => e.stopPropagation()}>
+    <div
+      className={styles.wrap}
+      ref={wrapRef}
+      tabIndex={searchable ? undefined : -1}
+      onKeyDown={searchable ? undefined : onKeyDown}
+      onClick={(e) => e.stopPropagation()}
+      aria-label={searchable ? undefined : title}
+    >
+      {searchable && (
       <div className={styles.searchRow}>
         <span className={styles.searchIcon}>
           <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" /></svg>
@@ -95,8 +122,9 @@ export default function AirportSearch({
           </button>
         )}
       </div>
+      )}
 
-      <div className={styles.groupLabel}>
+      <div className={`${styles.groupLabel} ${searchable ? '' : styles.groupLabelTop}`}>
         {searching
           ? (busy ? 'Searching…' : `${showing.length} airport${showing.length === 1 ? '' : 's'}`)
           : fallbackLabel}
@@ -118,7 +146,7 @@ export default function AirportSearch({
               onMouseEnter={() => setCursor(i)}
               onClick={() => pick(a)}
             >
-              <span className={styles.flag}>{a.flag || '✈'}</span>
+              <Flag airport={a} />
               <span className={styles.text}>
                 <span className={styles.primary}>{primary(a)}</span>
                 {secondary(a) && <span className={styles.secondary}>{secondary(a)}</span>}
@@ -132,7 +160,7 @@ export default function AirportSearch({
           <div className={styles.empty}>
             {searching
               ? <>No airport matches “{q}”. Try the city name, or its three-letter code.</>
-              : 'Start typing a city or airport name.'}
+              : searchable ? 'Start typing a city or airport name.' : 'No airports to choose from yet.'}
           </div>
         )
       )}

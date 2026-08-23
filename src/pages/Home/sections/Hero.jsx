@@ -7,7 +7,7 @@ import DateCalendar from '../../../components/DateCalendar/DateCalendar';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
 import AirportSearch from '../../../components/AirportSearch/AirportSearch';
-import { DEPARTURE_AIRPORTS, DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
+import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
 import { flagUrl } from '../../../utils/countryFlag';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { earliestCheckInISO } from '../../../utils/leadTime';
@@ -56,17 +56,12 @@ const initialRooms = () => {
   return rooms;
 };
 
-// The shortlists the From/To panels open with, before the traveller types anything. They are
-// a STARTING POINT, not the choice: the panel searches the dashboard's whole airport list
-// (1,300 of them) as soon as two characters are typed, so anywhere the team has entered can
-// be flown from and to. Both are normalised into the shape /website/geo/airports returns,
-// so one row component renders the shortlist and the live results alike.
-const DEPARTURE_OPTIONS = DEPARTURE_AIRPORTS.map((a) => ({
-  code: a.code, name: a.label, city: a.city, country: "", flag: a.country,
-}));
-
-// Where the agency actually sells seats. "Hurghada, Egypt" is city + country, not an airport
-// name, so it maps to city/country and leaves `name` empty rather than inventing one.
+// Where the agency actually sells seats — the whole of the Flights-only tab's "Going to"
+// list, not a shortlist in front of a search: the panels are pick-from-a-list now, so a
+// destination that is not here cannot be flown to from this tab. "Hurghada, Egypt" is city +
+// country, not an airport name, so it maps to city/country and leaves `name` empty rather
+// than inventing one. (The departure side is built from the live §25 master list instead —
+// see `departureOptions` in the component.)
 const DESTINATION_OPTIONS = [
   { code: 'HRG', city: 'Hurghada',  country: 'Egypt',     flag: '🇪🇬' },
   { code: 'AYT', city: 'Antalya',   country: 'Turkey',    flag: '🇹🇷' },
@@ -526,6 +521,17 @@ export default function Hero() {
 
   // Airport lookup used by the "Your selection" sidebar to render the picked codes.
   const airportByCode = (code) => allAirports.find((a) => a.code === code) || null;
+
+  // The Flights-only tab's "Departing from" list, in the shape /website/geo/airports returns.
+  // It is the LIVE §25 master list, not the seed the shortlist used to be built from, so an
+  // airport the team adds in the dashboard shows up on this tab too. The dashboard writes a
+  // terminal as "City, Airport name" and the city is already its own field here, so the
+  // duplicate city is trimmed off the front of the name rather than printed twice.
+  const departureOptions = allAirports.map((a) => {
+    const city = a.city || '';
+    const name = city && a.label?.startsWith(`${city},`) ? a.label.slice(city.length + 1).trim() : a.label;
+    return { code: a.code, name, city, country: '', flag: a.country, isoCode: airportIso(a) };
+  });
 
   // One airport row of the picker — a CHECKBOX, not a radio: several can be on at once,
   // and clicking one must not close the panel mid-selection. The flag lives on the country
@@ -1027,7 +1033,7 @@ export default function Hero() {
               <div className={styles.sfBody}>
                 <span className={`${styles.sfValue} ${!flightFrom ? styles.sfPlaceholder : ''}`}>{fromParts.value || 'Select airport'}</span>
               </div>
-              <span className={styles.sfHint}>{fromParts.hint || 'Search city or airport'}</span>
+              <span className={styles.sfHint}>{fromParts.hint || 'Choose a departure airport'}</span>
             </div>
 
             {/* Swap */}
@@ -1053,7 +1059,7 @@ export default function Hero() {
               <div className={styles.sfBody}>
                 <span className={`${styles.sfValue} ${!flightTo ? styles.sfPlaceholder : ''}`}>{toParts.value || 'Where do you want to go?'}</span>
               </div>
-              <span className={styles.sfHint}>{toParts.hint || 'Search city or airport'}</span>
+              <span className={styles.sfHint}>{toParts.hint || 'Choose a destination'}</span>
             </div>
 
             <div className={styles.sfDivider} />
@@ -1142,7 +1148,7 @@ export default function Hero() {
                 <div className={styles.sfBody}>
                   <span className={`${styles.sfValue} ${!multiFrom ? styles.sfPlaceholder : ''}`}>{multiFrom || 'Select airport'}</span>
                 </div>
-                <span className={styles.sfHint}>Search city or airport</span>
+                <span className={styles.sfHint}>Choose a departure airport</span>
               </div>
               <button
                 className={styles.flightSwapBtn}
@@ -1163,7 +1169,7 @@ export default function Hero() {
                 <div className={styles.sfBody}>
                   <span className={`${styles.sfValue} ${!multiTo ? styles.sfPlaceholder : ''}`}>{multiTo || 'Select destination'}</span>
                 </div>
-                <span className={styles.sfHint}>Search city or airport</span>
+                <span className={styles.sfHint}>Choose a destination</span>
               </div>
               <div className={styles.sfDivider} />
               <div
@@ -1225,9 +1231,9 @@ export default function Hero() {
             <div className={styles.flightDropdown}>
               <AirportSearch
                 title="Departing from"
-                placeholder="City or airport you fly from"
-                fallback={DEPARTURE_OPTIONS}
-                fallbackLabel="Popular departure airports"
+                fallback={departureOptions}
+                fallbackLabel="Departure airports"
+                searchable={false}
                 onPick={(a) => setFlightFrom(airportToValue(a))}
                 onClose={() => setOpenField(null)}
               />
@@ -1239,9 +1245,9 @@ export default function Hero() {
             <div className={styles.flightDropdown}>
               <AirportSearch
                 title="Going to"
-                placeholder="City or airport you fly to"
                 fallback={DESTINATION_OPTIONS}
-                fallbackLabel="Popular destinations"
+                fallbackLabel="Destinations"
+                searchable={false}
                 onPick={(a) => setFlightTo(airportToValue(a))}
                 onClose={() => setOpenField(null)}
               />
@@ -1306,9 +1312,9 @@ export default function Hero() {
             <div className={styles.flightDropdown}>
               <AirportSearch
                 title="Departing from"
-                placeholder="City or airport you fly from"
-                fallback={DEPARTURE_OPTIONS}
-                fallbackLabel="Popular departure airports"
+                fallback={departureOptions}
+                fallbackLabel="Departure airports"
+                searchable={false}
                 onPick={(a) => setMultiFrom(airportToValue(a))}
                 onClose={() => setOpenField(null)}
               />
@@ -1320,9 +1326,9 @@ export default function Hero() {
             <div className={styles.flightDropdown}>
               <AirportSearch
                 title="Going to"
-                placeholder="City or airport you fly to"
                 fallback={DESTINATION_OPTIONS}
-                fallbackLabel="Popular destinations"
+                fallbackLabel="Destinations"
+                searchable={false}
                 onPick={(a) => setMultiTo(airportToValue(a))}
                 onClose={() => setOpenField(null)}
               />
