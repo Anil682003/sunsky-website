@@ -40,6 +40,76 @@ export const AIRPORT_CODES = SEED_DEPARTURE_AIRPORTS.map((a) => a.code);
 export const POPULAR_AIRPORTS = SEED_DEPARTURE_AIRPORTS.filter((a) => a.popular);
 export const OTHER_AIRPORTS = SEED_DEPARTURE_AIRPORTS.filter((a) => !a.popular);
 
+// ── City names for the picker ────────────────────────────────────────────────
+// The picker lists airports as CITY + IATA code ("Brussels BRU"), never the terminal's own
+// name ("Brussels Airport"): the code already says WHICH airport it is, so repeating
+// "Airport" on every row costs width and tells the traveller nothing.
+//
+// The dashboard sends the terminal name (and a city derived from it), so the city shown is
+// worked out here rather than trusted blindly:
+//   1. an explicit label below, for the airports whose name is not their city at all
+//      (Brussels South Charleroi is in Charleroi; CDG and Orly are both Paris),
+//   2. else the name with the airport words stripped off it,
+//   3. else whatever the source called the city, else the code itself.
+// Keyed by IATA, so an airport the team renames in the dashboard still reads right.
+const CITY_LABELS = {
+  CRL: 'Charleroi',
+  OST: 'Ostend',
+  RTM: 'Rotterdam',
+  MST: 'Maastricht',
+  CGN: 'Cologne',
+  BVA: 'Beauvais',
+  CDG: 'Paris',
+  ORY: 'Paris',
+  LYS: 'Lyon',
+  MRS: 'Marseille',
+  NCE: 'Nice',
+  TLS: 'Toulouse',
+  BOD: 'Bordeaux',
+  NTE: 'Nantes',
+  HHN: 'Hahn',
+  LHR: 'London',
+  LGW: 'London',
+  STN: 'London',
+  LTN: 'London',
+  LCY: 'London',
+};
+
+// "Antwerp International Airport" → "Antwerp", "Amsterdam Schiphol Airport" → "Amsterdam",
+// "Weeze (Niederrhein)" → "Weeze", "Münster/Osnabrück" → "Münster".
+const AIRPORT_WORDS = /\s+(?:international|intl\.?|airport|airfield|aeroport|aéroport|flughafen|luchthaven|schiphol)\b.*$/i;
+
+export function cityFromName(name) {
+  return String(name || '')
+    .replace(/\([^)]*\)/g, ' ')     // drop "(Niederrhein)"
+    .split('/')[0]                   // "Cologne/Bonn" → "Cologne"
+    .replace(AIRPORT_WORDS, '')      // drop "… Airport" and everything after it
+    .replace(/\s{2,}/g, ' ')
+    .trim();
+}
+
+/** The city an airport is listed under in the picker (see CITY_LABELS above). */
+export function displayCity({ code, name, label, city } = {}) {
+  const c = String(code || '').toUpperCase();
+  return CITY_LABELS[c] || cityFromName(name || label) || city || c;
+}
+
+// ── Country flags ────────────────────────────────────────────────────────────
+// Airports carry their country as a flag EMOJI (🇧🇪). Windows ships no flag glyphs, so that
+// emoji renders there as the bare letters "BE" — the picker draws a real flag image instead
+// and needs the ISO code back out of the emoji the list was built from.
+export function isoFromFlagEmoji(flag) {
+  const letters = [...String(flag || '')]
+    .map((ch) => ch.codePointAt(0))
+    .filter((cp) => cp >= 0x1f1e6 && cp <= 0x1f1ff)
+    .map((cp) => String.fromCharCode(cp - 0x1f1e6 + 65));
+  return letters.length === 2 ? letters.join('') : '';
+}
+
+/** ISO country code for an airport record, however that record carries its country. */
+export const airportIso = (a) =>
+  String(a?.countryIso || '').toUpperCase() || isoFromFlagEmoji(a?.country || a?.flag);
+
 // ── Runtime registry: seeded, overridable by the admin master list ───────────
 let _registry = SEED_DEPARTURE_AIRPORTS.slice();
 let _byCode = new Map(_registry.map((a) => [a.code, a]));
@@ -60,8 +130,12 @@ export function setDepartureAirports(list) {
     merged.set(code, {
       code,
       label: a.label || a.name || prev?.label || code,
-      city: a.city || prev?.city || code,
+      // The dashboard's own `city` is derived from the terminal name and can still read as
+      // an airport ("Antwerp International"), so the curated/derived city wins over it.
+      city: displayCity({ code, name: a.name || a.label, city: a.city || prev?.city }) || code,
       country: a.country || a.flag || prev?.country || '',
+      countryIso: String(a.countryIso || prev?.countryIso || '').toUpperCase()
+        || isoFromFlagEmoji(a.country || a.flag) || '',
       popular: a.popular ?? prev?.popular ?? false,
       sortOrder: a.sortOrder ?? prev?.sortOrder ?? 999,
       available: a.available,   // §26 validity when annotated, else undefined

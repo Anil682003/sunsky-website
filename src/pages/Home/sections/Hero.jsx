@@ -7,7 +7,8 @@ import DateCalendar from '../../../components/DateCalendar/DateCalendar';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
 import AirportSearch from '../../../components/AirportSearch/AirportSearch';
-import { DEPARTURE_AIRPORTS, DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue } from '../../../utils/airports';
+import { DEPARTURE_AIRPORTS, DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
+import { flagUrl } from '../../../utils/countryFlag';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { earliestCheckInISO } from '../../../utils/leadTime';
 import { loadPax, savePax } from '../../../utils/paxStore';
@@ -222,10 +223,6 @@ export default function Hero() {
   // "anywhere" down to one airport, not un-ticking one row of nineteen — so it starts their
   // selection fresh rather than leaving the other eighteen silently still selected.
   const pickOrigin = (code) => (noPreference ? setOrigins([code]) : toggleOrigin(code));
-  // Live filter typed into the panel's search input. Matches on airport label, city, or
-  // IATA code — one field so a traveller who types "BRU", "Brussel", or "Brussels South"
-  // all reach the same rows.
-  const [airportSearch, setAirportSearch] = useState('');
   // Occupancy is per room — each room carries its own adults, children and one
   // date-of-birth slot per child. The search still sends totals.
   const [roomsList, setRoomsList] = useState(initialRooms);
@@ -490,59 +487,59 @@ export default function Hero() {
       strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
   );
 
-  // Airport rows arrive with a flag emoji (🇧🇪) but no country name — the mockup groups
-  // them by country with the flag AND the name as the section header. Rather than teach
-  // the seed a new field for every entry, a tiny map goes from flag to display name (and
-  // an ordering weight, so Belgium — the home market — is always the first column).
-  const COUNTRY_META = {
-    '🇧🇪': { name: 'Belgium',        order: 1 },
-    '🇳🇱': { name: 'Netherlands',    order: 2 },
-    '🇩🇪': { name: 'Germany',        order: 3 },
-    '🇫🇷': { name: 'France',         order: 4 },
-    '🇱🇺': { name: 'Luxembourg',     order: 5 },
-    '🇬🇧': { name: 'United Kingdom', order: 6 },
+  // Airports arrive knowing their country (an ISO code from the dashboard, or the flag emoji
+  // the seed carries) but not what to call it — the picker groups them under the flag AND the
+  // country's name. Order is the agency's, not the alphabet's: Belgium, the home market,
+  // always leads. Any other country the dashboard adds is named by the browser and falls in
+  // behind them, so a new departure country needs no website release.
+  const COUNTRY_ORDER = { BE: 1, NL: 2, DE: 3, FR: 4, LU: 5, GB: 6 };
+  const countryName = (iso) => {
+    if (!iso) return '';
+    try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(iso) || iso; }
+    catch { return iso; }
   };
 
-  // Live-filter the master list against whatever the traveller typed into the search box.
-  // Case-insensitive, matches name / city / IATA code — one field, three ways in.
-  const q = airportSearch.trim().toLowerCase();
-  const filteredAirports = q
-    ? allAirports.filter((a) =>
-        a.label.toLowerCase().includes(q)
-        || a.city.toLowerCase().includes(q)
-        || a.code.toLowerCase().includes(q))
-    : allAirports;
-
-  // Group the visible airports by country flag, then sort those groups so the home
-  // countries lead. An unknown flag falls to the end under its raw emoji as its name.
+  // Group the airports by country, then sort those groups so the home countries lead.
   const groups = new Map();
-  for (const a of filteredAirports) {
-    const key = a.country || '🏳️';
-    if (!groups.has(key)) groups.set(key, []);
-    groups.get(key).push(a);
+  for (const a of allAirports) {
+    const key = airportIso(a) || a.country || '??';
+    if (!groups.has(key)) groups.set(key, { iso: airportIso(a), emoji: a.country || '', airports: [] });
+    groups.get(key).airports.push(a);
   }
-  const countryGroups = [...groups.entries()]
-    .map(([flag, list]) => ({
-      flag,
-      name: COUNTRY_META[flag]?.name || flag,
-      order: COUNTRY_META[flag]?.order ?? 99,
-      airports: list,
+  const countryGroups = [...groups.values()]
+    .map((g) => ({
+      ...g,
+      name: countryName(g.iso) || g.emoji || '',
+      order: COUNTRY_ORDER[g.iso] ?? 99,
     }))
-    .sort((x, y) => x.order - y.order);
+    .sort((x, y) => x.order - y.order || x.name.localeCompare(y.name));
+
+  // The country flag beside a name: a real image (flagcdn), because Windows has no flag
+  // glyphs and would print the emoji as the bare letters "BE". The emoji stays as the
+  // fallback for a country flagcdn doesn't know.
+  const countryFlag = (g, className) => {
+    const url = flagUrl(g.iso);
+    return url
+      ? <img className={className} src={url} alt="" decoding="async" aria-hidden="true" />
+      : <span className={className}>{g.emoji}</span>;
+  };
 
   // Airport lookup used by the "Your selection" sidebar to render the picked codes.
   const airportByCode = (code) => allAirports.find((a) => a.code === code) || null;
 
   // One airport row of the picker — a CHECKBOX, not a radio: several can be on at once,
-  // and clicking one must not close the panel mid-selection. The flag lives on the
-  // country group header now, so the row itself is name / IATA code / tick circle.
+  // and clicking one must not close the panel mid-selection. The flag lives on the country
+  // group header now, so the row itself is CITY / IATA code / tick circle — the city, not
+  // the terminal's name, because "Brussels BRU" says everything "Brussels Airport" does in
+  // half the width, and the code is what distinguishes two airports of the same city.
   const airportRow = (a) => {
     const on = origins.includes(a.code);
     return (
       <button type="button" key={a.code} role="checkbox" aria-checked={on}
+        title={a.label}
         className={`${styles.tspRow} ${on ? styles.tspRowOn : ''}`}
         onClick={() => pickOrigin(a.code)}>
-        <span className={styles.tspName}>{a.label}</span>
+        <span className={styles.tspName}>{a.city || a.label}</span>
         <span className={styles.tspCode}>{a.code}</span>
         <span className={`${styles.tspTick} ${on ? styles.tspTickOn : ''}`} aria-hidden="true">
           {on && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
@@ -650,16 +647,9 @@ export default function Hero() {
           </div>
           {transport === 'package' && (
             <>
-              <div className={styles.tspSearchWrap}>
-                <svg className={styles.tspSearchIcon} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-                <input
-                  type="text"
-                  className={styles.tspSearchInput}
-                  placeholder="Search city, airport or IATA code"
-                  value={airportSearch}
-                  onChange={(e) => setAirportSearch(e.target.value)}
-                />
-              </div>
+              {/* No search field: the agency flies from a couple of dozen airports and the
+                  whole list is on screen at once, so a search box only adds a step between
+                  the traveller and the row they can already see. */}
               {/* The way OUT of picking airports at all. It sits above the list rather than
                   as a row inside it because it is not a nineteenth airport — it is the
                   alternative to choosing any, which is what the OR rule underneath says. */}
@@ -682,15 +672,15 @@ export default function Hero() {
 
               <div className={styles.tspBody}>
                 <div className={styles.tspList}>
-                  <div className={styles.tspSectionLabel}>Select departure airports</div>
+                  <div className={styles.tspSectionLabel}>All departure airports</div>
                   {countryGroups.length === 0 ? (
-                    <div className={styles.tspEmpty}>No airports match “{airportSearch}”.</div>
+                    <div className={styles.tspEmpty}>Departure airports are loading…</div>
                   ) : (
                     <div className={styles.tspCountryCols}>
                       {countryGroups.map((g) => (
-                        <div className={styles.tspCountryGroup} key={g.flag + g.name}>
+                        <div className={styles.tspCountryGroup} key={g.iso + g.name}>
                           <div className={styles.tspCountryHead}>
-                            <span className={styles.tspCountryFlag}>{g.flag}</span>
+                            {countryFlag(g, styles.tspCountryFlag)}
                             <span className={styles.tspCountryName}>{g.name}</span>
                           </div>
                           <div className={styles.tspCountryList}>
@@ -724,9 +714,9 @@ export default function Hero() {
                       if (!a) return null;
                       return (
                         <div className={styles.tspChip} key={code}>
-                          <span className={styles.tspChipFlag}>{a.country}</span>
+                          {countryFlag({ iso: airportIso(a), emoji: a.country }, styles.tspChipFlag)}
                           <div className={styles.tspChipMain}>
-                            <div className={styles.tspChipName}>{a.label}</div>
+                            <div className={styles.tspChipName}>{a.city || a.label}</div>
                             <div className={styles.tspChipCode}>{a.code}</div>
                           </div>
                           <button
@@ -761,15 +751,26 @@ export default function Hero() {
                     </div>
                   </div>
                 </div>
-                <button
-                  type="button"
-                  className={styles.tspClearAll}
-                  onClick={clearOrigins}
-                  disabled={origins.length <= 1 && origins[0] === DEFAULT_ORIGIN}
-                >
-                  Clear all
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
-                </button>
+                {/* Picking airports is a multi-select, so nothing can close the panel for the
+                    traveller the way "Hotel only" does — Save is how they say they're done. */}
+                <div className={styles.tspFootActions}>
+                  <button
+                    type="button"
+                    className={styles.tspSave}
+                    onClick={() => setOpenField(null)}
+                  >
+                    Save
+                  </button>
+                  <button
+                    type="button"
+                    className={styles.tspClearAll}
+                    onClick={clearOrigins}
+                    disabled={origins.length <= 1 && origins[0] === DEFAULT_ORIGIN}
+                  >
+                    Clear all
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                  </button>
+                </div>
               </div>
             </>
           )}
