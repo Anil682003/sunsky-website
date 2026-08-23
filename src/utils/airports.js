@@ -45,13 +45,16 @@ export const OTHER_AIRPORTS = SEED_DEPARTURE_AIRPORTS.filter((a) => !a.popular);
 // name ("Brussels Airport"): the code already says WHICH airport it is, so repeating
 // "Airport" on every row costs width and tells the traveller nothing.
 //
-// The dashboard sends the terminal name (and a city derived from it), so the city shown is
-// worked out here rather than trusted blindly:
-//   1. an explicit label below, for the airports whose name is not their city at all
+// The dashboard writes its terminals as "City, Airport name" ("Brussel, Brussel Nationale
+// Airport"), so the city is usually right there in front of the comma — and in the agency's
+// own wording and language, which is what the traveller should read ("Brussel", "Keulen",
+// "Rijsel"). The city shown is therefore:
+//   1. the part before the comma, when the name carries one,
+//   2. else an explicit label below, for airports whose name is not their city at all
 //      (Brussels South Charleroi is in Charleroi; CDG and Orly are both Paris),
-//   2. else the name with the airport words stripped off it,
-//   3. else whatever the source called the city, else the code itself.
-// Keyed by IATA, so an airport the team renames in the dashboard still reads right.
+//   3. else the name with the airport words stripped off it,
+//   4. else whatever the source called the city, else the code itself.
+// The map is keyed by IATA, so an airport the team renames in the dashboard still reads right.
 const CITY_LABELS = {
   CRL: 'Charleroi',
   OST: 'Ostend',
@@ -81,9 +84,10 @@ const AIRPORT_WORDS = /\s+(?:international|intl\.?|airport|airfield|aeroport|aé
 
 export function cityFromName(name) {
   return String(name || '')
-    .replace(/\([^)]*\)/g, ' ')     // drop "(Niederrhein)"
-    .split('/')[0]                   // "Cologne/Bonn" → "Cologne"
-    .replace(AIRPORT_WORDS, '')      // drop "… Airport" and everything after it
+    .replace(/\([^)]*\)/g, ' ')   // drop "(Deurne)"
+    .split(',')[0]                // "Brussel, Brussel Nationale Airport" → "Brussel"
+    .split('/')[0]                // "Cologne/Bonn" → "Cologne"
+    .replace(AIRPORT_WORDS, '')   // drop "… Airport" and everything after it
     .replace(/\s{2,}/g, ' ')
     .trim();
 }
@@ -91,7 +95,11 @@ export function cityFromName(name) {
 /** The city an airport is listed under in the picker (see CITY_LABELS above). */
 export function displayCity({ code, name, label, city } = {}) {
   const c = String(code || '').toUpperCase();
-  return CITY_LABELS[c] || cityFromName(name || label) || city || c;
+  const src = String(name || label || '');
+  // A source that writes "City, Airport name" has already said what the city is called —
+  // trust it over the curated label, which would otherwise translate the agency's own list.
+  if (src.includes(',')) return cityFromName(src) || CITY_LABELS[c] || city || c;
+  return CITY_LABELS[c] || cityFromName(src) || city || c;
 }
 
 // ── Country flags ────────────────────────────────────────────────────────────
