@@ -1,6 +1,7 @@
 import { useState, useMemo } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import './FlightDetail.css';
+import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import { buildContext, fmtDate, fmtDateShort, fareBreakdown, paxLabel } from '../Flights/flightData';
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -71,7 +72,9 @@ function LegBlock({ leg, dirLabel, dirClass }) {
           </div>
 
           <div className="fd-flight-strip">
-            <span className="fd-airbadge">{leg.airline}<span className="fd-airdot" style={{ background: leg.color }}>{leg.airlineCode}</span></span>
+            <span className="fd-airbadge">
+              <AirlineMark code={leg.airlineCode} className="fd-airdot" nameClassName="fd-airname" />
+            </span>
             <span className="fd-ftag">{ICON.doc} Flight <b>{leg.flightNo}</b></span>
             {leg.aircraft && <span className="fd-ftag">{ICON.plane} <b>{leg.aircraft}</b></span>}
             <span className="fd-dur-badge">{ICON.clock} {leg.durLabel} · {leg.stopsLabel}</span>

@@ -3,6 +3,8 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import './Flights.css';
 import axiosInstance from '../../services/axiosInstance';
 import { buildContext, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal, legContexts, combineTrip } from './flightData';
+import AirlineMark from '../../components/AirlineMark/AirlineMark';
+import { useAirlineName } from '../../utils/airlineLogos';
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
@@ -53,29 +55,36 @@ function Section({ title, sub, open, onToggle, children }) {
   );
 }
 
-function FlightCard({ f, onSelect, money }) {
-  const Leg = ({ leg, tag }) => (
-    <div className="fl-leg">
-      {/* Name ahead of the mark, as everywhere else the site prints a carrier. */}
-      <div className="fl-leg-air">
-        <span className="fl-leg-name">{leg.airline}</span>
-        <span className="fl-leg-logo" style={{ background: leg.color }}>{leg.airlineCode}</span>
-      </div>
-      <div className="fl-leg-pt">
-        <div className="fl-leg-time">{leg.depTime}</div>
-        <div className="fl-leg-code">{leg.fromCode}</div>
-      </div>
-      <div className="fl-leg-mid">
-        <div className="fl-leg-dur">{ICON.clock} {leg.durLabel}</div>
-        <div className="fl-leg-line"><span className="fl-leg-tag">{tag}</span></div>
-        <div className={`fl-leg-stops ${leg.stops === 0 ? 'ns' : 'st'}`}>{leg.stopsLabel}</div>
-      </div>
-      <div className="fl-leg-pt fl-leg-arr">
-        <div className="fl-leg-time">{leg.arrTime}{leg.arrDay > 0 && <sup>+{leg.arrDay}</sup>}</div>
-        <div className="fl-leg-code">{leg.toCode}</div>
-      </div>
+/* One direction of a fare. Hoisted OUT of FlightCard: defined inside it, this was a new
+   component type on every render, so React unmounted and remounted the whole row each time —
+   including the airline mark, which then re-ran its logo lookup on every pass. */
+const Leg = ({ leg, tag }) => (
+  <div className="fl-leg">
+    {/* Name ahead of the mark, as everywhere else the site prints a carrier — and the mark
+        is the airline's own logo from the dashboard (Products → Flights → Airlines), which
+        the hotel and checkout screens have shown for a while and this one never did. No
+        `name` is passed: the dashboard knows carriers the static table does not, so letting
+        AirlineMark resolve it means "VF" reads as Vietjet here rather than as VF. */}
+    <div className="fl-leg-air">
+      <AirlineMark code={leg.airlineCode} className="fl-leg-logo" nameClassName="fl-leg-name" />
     </div>
-  );
+    <div className="fl-leg-pt">
+      <div className="fl-leg-time">{leg.depTime}</div>
+      <div className="fl-leg-code">{leg.fromCode}</div>
+    </div>
+    <div className="fl-leg-mid">
+      <div className="fl-leg-dur">{ICON.clock} {leg.durLabel}</div>
+      <div className="fl-leg-line"><span className="fl-leg-tag">{tag}</span></div>
+      <div className={`fl-leg-stops ${leg.stops === 0 ? 'ns' : 'st'}`}>{leg.stopsLabel}</div>
+    </div>
+    <div className="fl-leg-pt fl-leg-arr">
+      <div className="fl-leg-time">{leg.arrTime}{leg.arrDay > 0 && <sup>+{leg.arrDay}</sup>}</div>
+      <div className="fl-leg-code">{leg.toCode}</div>
+    </div>
+  </div>
+);
+
+function FlightCard({ f, onSelect, money }) {
   return (
     <article className="fl-card">
       {f.badge && <span className={`fl-badge ${f.badge.replace(/\s/g, '').toLowerCase()}`}>{f.badge === 'Fastest' && ICON.bolt} {f.badge}</span>}
@@ -131,10 +140,11 @@ export default function Flights() {
     return { min: Math.min(...ps, 0), max: Math.max(...ps, 1000) };
   }, [allFlights]);
 
+  const airlineName = useAirlineName();
   const airlineOpts = useMemo(() => {
     const m = new Map();
-    allFlights.forEach((f) => m.set(f.out.airline, (m.get(f.out.airline) || 0) + 1));
-    return [...m.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count);
+    allFlights.forEach((f) => m.set(f.out.airlineCode, (m.get(f.out.airlineCode) || 0) + 1));
+    return [...m.entries()].map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count);
   }, [allFlights]);
 
   const [loading, setLoading] = useState(true);
@@ -189,7 +199,7 @@ export default function Flights() {
 
   const results = useMemo(() => {
     let data = allFlights.filter((f) => {
-      if (selAirlines.size && !selAirlines.has(f.out.airline)) return false;
+      if (selAirlines.size && !selAirlines.has(f.out.airlineCode)) return false;
       if (selStops.size) {
         const sk = f.out.stops >= 2 ? 2 : f.out.stops;
         if (!selStops.has(sk)) return false;
@@ -321,9 +331,9 @@ export default function Flights() {
     <div className="fl-fcard">
       <Section title="Airlines" open={openSec.air} onToggle={() => setOpenSec((s) => ({ ...s, air: !s.air }))}>
         {airlineOpts.map((a) => (
-          <label className="fl-check" key={a.name}>
-            <input type="checkbox" checked={selAirlines.has(a.name)} onChange={() => toggleAirline(a.name)} />
-            <span>{a.name}</span><span className="fl-check-n">{a.count}</span>
+          <label className="fl-check" key={a.code}>
+            <input type="checkbox" checked={selAirlines.has(a.code)} onChange={() => toggleAirline(a.code)} />
+            <span>{airlineName(a.code)}</span><span className="fl-check-n">{a.count}</span>
           </label>
         ))}
       </Section>

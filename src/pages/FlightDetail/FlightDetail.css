@@ -92,7 +92,12 @@
 .fd-point-date { font-size:11px; color:var(--text-light); margin-top:2px; font-variant-numeric:tabular-nums; }
 .fd-flight-strip { margin:12px 0; padding:12px 16px; background:var(--page-bg); border:1px solid var(--border-light); border-radius:12px; display:flex; flex-wrap:wrap; gap:8px 16px; align-items:center; }
 .fd-airbadge { display:inline-flex; align-items:center; gap:8px; font-size:12px; font-weight:700; color:var(--dark); }
-.fd-airdot { width:32px; height:32px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center; color:#fff; font-family:'Sora',sans-serif; font-size:11px; font-weight:800; }
+/* Same two shapes as the results card — logo on white, initial on a painted disc. */
+.fd-airdot { width:32px; height:32px; border-radius:50%; flex-shrink:0; display:inline-flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff;
+  font-family:'Sora',sans-serif; font-size:13px; font-weight:800; }
+img.fd-airdot { background:#fff; border:1px solid var(--border-light); padding:3px; object-fit:contain; object-position:center; }
+.fd-airname { font-size:12px; font-weight:700; color:var(--dark); }
 .fd-ftag { display:inline-flex; align-items:center; gap:6px; font-size:12px; color:var(--text-sec); }
 .fd-ftag svg { width:13px; height:13px; color:var(--text-light); }
 .fd-ftag b { color:var(--dark); font-weight:700; }
