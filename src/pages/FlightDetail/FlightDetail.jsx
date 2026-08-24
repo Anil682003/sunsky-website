@@ -1,7 +1,7 @@
 import { useState, useMemo } from 'react';
-import { useLocation, useNavigate, useParams, Link } from 'react-router-dom';
+import { useLocation, useNavigate, Link } from 'react-router-dom';
 import './FlightDetail.css';
-import { buildContext, generateFlights, fmtDate, fmtDateShort, fareBreakdown, paxLabel } from '../Flights/flightData';
+import { buildContext, fmtDate, fmtDateShort, fareBreakdown, paxLabel } from '../Flights/flightData';
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
@@ -61,14 +61,14 @@ function LegBlock({ leg, dirLabel, dirClass }) {
             <div>
               <div className="fd-point-air">{leg.fromName} ({leg.fromCode})</div>
               <div className="fd-point-city">{leg.fromCity}</div>
-              <div className="fd-point-date">{depDate} · {leg.fromTerminal}</div>
+              <div className="fd-point-date">{[depDate, leg.fromTerminal].filter(Boolean).join(' · ')}</div>
             </div>
           </div>
 
           <div className="fd-flight-strip">
             <span className="fd-airbadge">{leg.airline}<span className="fd-airdot" style={{ background: leg.color }}>{leg.airlineCode}</span></span>
             <span className="fd-ftag">{ICON.doc} Flight <b>{leg.flightNo}</b></span>
-            <span className="fd-ftag">{ICON.plane} <b>{leg.aircraft}</b></span>
+            {leg.aircraft && <span className="fd-ftag">{ICON.plane} <b>{leg.aircraft}</b></span>}
             <span className="fd-dur-badge">{ICON.clock} {leg.durLabel} · {leg.stopsLabel}</span>
           </div>
 
@@ -81,7 +81,7 @@ function LegBlock({ leg, dirLabel, dirClass }) {
             <div>
               <div className="fd-point-air">{leg.toName} ({leg.toCode})</div>
               <div className="fd-point-city">{leg.toCity}</div>
-              <div className="fd-point-date">{arrDate} · {leg.toTerminal}</div>
+              <div className="fd-point-date">{[arrDate, leg.toTerminal].filter(Boolean).join(' · ')}</div>
             </div>
           </div>
         </div>
@@ -91,10 +91,17 @@ function LegBlock({ leg, dirLabel, dirClass }) {
 }
 
 const FARE_RULES = [
-  { id: 'cancel', icon: <S><circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" /></S>, title: 'Cancellation', badge: 'Chargeable', tone: 'warn',
-    rows: [['More than 72 hours', '€45 per person'], ['24–72 hours', '€70 per person'], ['Less than 24 hours', 'Non-refundable'], ['No-show', 'Non-refundable']] },
-  { id: 'change', icon: <S><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></S>, title: 'Date change', badge: 'Chargeable', tone: 'warn',
-    rows: [['More than 72 hours', '€35 + fare difference'], ['24–72 hours', '€50 + fare difference'], ['Less than 24 hours', 'Not permitted']] },
+  // These two used to print fee TABLES — "€45 per person", "€35 + fare difference", "Not
+  // permitted" — as though they were this fare's conditions. Airtuerk returns no rule data
+  // of any kind (no cancellation, change, penalty or refundability field anywhere in the
+  // search or price response), so every one of those figures was invented, and the table
+  // sat directly above a "Free cancellation within 24h" badge that contradicted it.
+  // Cancellation terms are a term of the carriage contract; a traveller charged a fee this
+  // page told them they would not pay is not a styling problem.
+  { id: 'cancel', icon: <S><circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" /></S>, title: 'Cancellation', badge: 'Airline terms', tone: 'warn',
+    text: 'Cancellation terms are set by the operating airline and depend on the fare booked. The exact conditions, and any charge, are confirmed before payment.' },
+  { id: 'change', icon: <S><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></S>, title: 'Date change', badge: 'Airline terms', tone: 'warn',
+    text: 'Whether the dates can be changed, and any fee or fare difference that applies, is set by the operating airline for the fare booked. Confirmed before payment.' },
   { id: 'seat', icon: <S><path d="M6 19v-7a6 6 0 0112 0v7" /><rect x="4" y="19" width="16" height="2" rx="1" /></S>, title: 'Seat selection', badge: 'Chargeable', tone: 'warn',
     text: 'Seat selection is offered by the operating airline and priced by them; the charge is shown before payment. A seat is assigned free at check-in if none is chosen.' },
   { id: 'meal', icon: <S><path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" /></S>, title: 'Meals', badge: 'Not included', tone: 'no',
@@ -102,34 +109,76 @@ const FARE_RULES = [
 ];
 
 export default function FlightDetail() {
-  const { id } = useParams();
   const { state } = useLocation();
   const navigate = useNavigate();
 
-  // resolve the flight — from router state, else regenerate deterministically by id
-  const { flight, ctx } = useMemo(() => {
-    if (state?.flight) return { flight: state.flight, ctx: state.ctx || buildContext(new URLSearchParams()) };
-    const c = buildContext(new URLSearchParams());
-    const list = generateFlights(c);
-    return { flight: list.find((f) => f.id === id) || list[0], ctx: c };
-  }, [state, id]);
+  // The flight is whatever the results page handed over. There is no second source: a
+  // supplier fare cannot be re-resolved from an id, and the opaque flightKey it is booked
+  // with lives only in that hand-off.
+  const { flight, ctx } = useMemo(() => ({
+    flight: state?.flight || null,
+    ctx: state?.ctx || buildContext(new URLSearchParams()),
+  }), [state]);
 
   const [tab, setTab] = useState('details');
   const [openRule, setOpenRule] = useState('cancel');
 
-  const fb = useMemo(() => fareBreakdown(flight), [flight]);
+  const fb = useMemo(() => (flight ? fareBreakdown(flight) : null), [flight]);
   const money = (n) => `€${Math.round(n).toLocaleString('en-GB')}`;
+
+  // Reloading this URL, or opening it from a bookmark, used to fall back to
+  // generateFlights() — a fabricated itinerary on a default LON→DXB route, at a fabricated
+  // price, with a working "Book now" button beneath it. None of it had ever been quoted by
+  // a supplier and no booking could have completed against it. Send the traveller back to
+  // search instead of inventing an offer.
+  if (!flight) {
+    return (
+      <div className="fd">
+        <div className="fd-page fd-page-empty">
+          <div className="fd-panel">
+            <div className="fd-panel-head">{ICON.plane}<h2>This flight is no longer loaded</h2></div>
+            <div className="fd-panel-body">
+              <p>Flight fares are held only for the search that found them, so this page cannot be
+                reopened on its own. Run the search again to see the current fares and times.</p>
+              <p style={{ marginTop: 16 }}>
+                <Link className="fd-book-cta" to="/flights">Search flights {ICON.arrow}</Link>
+              </p>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
   const pax = flight.pax || 1;
   const isRound = !!flight.ret;
   const nights = isRound ? Math.max(1, dayDiff(flight.out.depDateISO, flight.ret.depDateISO)) : 0;
   const totalMin = flight.totalMin;
   const totalLabel = `${Math.floor(totalMin / 60)}h ${String(totalMin % 60).padStart(2, '0')}m`;
 
+  // "8h 30m · Non-stop · Economy" — built by joining only the parts the fare actually
+  // states. Airtuerk sends no aircraft type and no cabin, and this line used to render
+  // them anyway, producing "8h 30m · Non-stop ·  · " with the separators left stranded.
+  const legMeta = (leg) => [leg.durLabel, leg.stopsLabel, leg.aircraft, flight.cabin]
+    .filter(Boolean).join(' · ');
+
+  // The trip-level allowance is the more restrictive of the two directions (the supplier
+  // computes it that way), so it is the only figure true of the whole journey.
+  const tripBag = flight.baggage || flight.out?.baggage || null;
+  const bagKg = Number(tripBag?.checkedKg) || 0;
+  const bagPieces = Number(tripBag?.checkedPieces) || 0;
+  const bagLine = !tripBag
+    ? 'Baggage allowance confirmed with your fare'
+    : bagKg > 0
+      ? `Check-in ${bagKg} kg included`
+      : bagPieces > 0
+        ? `Check-in ${bagPieces} ${bagPieces === 1 ? 'piece' : 'pieces'} included`
+        : 'No hold baggage in this fare';
+
   const goCheckout = () => {
     const booking = {
       kind: 'flight',
       hotelName: `${flight.out.fromCity} → ${flight.out.toCity}`,
-      loc: `${isRound ? 'Round trip' : 'One way'} · ${flight.cabin}`,
+      loc: [isRound ? 'Round trip' : 'One way', flight.cabin].filter(Boolean).join(' · '),
       img: FLIGHT_IMG,
       stars: 0,
       currency: '€',
@@ -262,7 +311,7 @@ export default function FlightDetail() {
           <div className="fd-hero-chips">
             <span className="fd-hchip">{ICON.cal} {fmtDate(flight.out.depDateISO)}</span>
             <span className="fd-hchip">{ICON.user} {paxLabel(ctx)}</span>
-            <span className="fd-hchip">{ICON.board} {flight.cabin}</span>
+            {flight.cabin && <span className="fd-hchip">{ICON.board} {flight.cabin}</span>}
             <span className="fd-hchip">{ICON.clock} {totalLabel} total</span>
             <span className="fd-hchip fd-hchip-price">from {money(flight.price)} pp</span>
           </div>
@@ -294,20 +343,20 @@ export default function FlightDetail() {
                 <div className="fd-stats">
                   <div className="fd-stat"><span className="fd-stat-k">Total travel time</span><span className="fd-stat-v">{totalLabel}</span></div>
                   <div className="fd-stat"><span className="fd-stat-k">{isRound ? 'Trip length' : 'Journey'}</span><span className="fd-stat-v">{isRound ? `${nights} ${nights === 1 ? 'night' : 'nights'}` : 'One way'}</span></div>
-                  <div className="fd-stat"><span className="fd-stat-k">Cabin class</span><span className="fd-stat-v">{flight.cabin}</span></div>
+                  {flight.cabin && <div className="fd-stat"><span className="fd-stat-k">Cabin class</span><span className="fd-stat-v">{flight.cabin}</span></div>}
                 </div>
                 <div className="fd-detail-card out">
                   <div className="fd-detail-title">{ICON.plane} Outbound · {flight.out.fromCode} → {flight.out.toCode}</div>
                   <p><b>{flight.out.airline} · {flight.out.flightNo}</b><br />
                     Departs <b>{flight.out.depTime}</b> ({fmtDateShort(flight.out.depDateISO)}) · Arrives <b>{flight.out.arrTime}{flight.out.arrDay > 0 ? ` (+${flight.out.arrDay})` : ''}</b><br />
-                    {flight.out.durLabel} · {flight.out.stopsLabel} · {flight.out.aircraft} · {flight.cabin}</p>
+                    {legMeta(flight.out)}</p>
                 </div>
                 {isRound && (
                   <div className="fd-detail-card ret">
                     <div className="fd-detail-title">{ICON.plane} Return · {flight.ret.fromCode} → {flight.ret.toCode}</div>
                     <p><b>{flight.ret.airline} · {flight.ret.flightNo}</b><br />
                       Departs <b>{flight.ret.depTime}</b> ({fmtDateShort(flight.ret.depDateISO)}) · Arrives <b>{flight.ret.arrTime}{flight.ret.arrDay > 0 ? ` (+${flight.ret.arrDay})` : ''}</b><br />
-                      {flight.ret.durLabel} · {flight.ret.stopsLabel} · {flight.ret.aircraft} · {flight.cabin}</p>
+                      {legMeta(flight.ret)}</p>
                   </div>
                 )}
               </div>
@@ -362,9 +411,15 @@ export default function FlightDetail() {
               <div className="fd-panel-head">{ICON.receipt}<h2>Fare summary</h2></div>
               <div className="fd-panel-body">
                 <div className="fd-fare">
-                  <div className="fd-fare-row"><span>{ICON.user} Base fare ({pax} {pax === 1 ? 'traveller' : 'travellers'})</span><b>{money(fb.baseFare)}</b></div>
-                  <div className="fd-fare-row"><span>{ICON.receipt} Taxes &amp; surcharges</span><b>{money(fb.taxes)}</b></div>
-                  <div className="fd-fare-row"><span>{ICON.plane} Airline fuel surcharge</span><b>{money(fb.surcharge)}</b></div>
+                  {fb.baseFare != null && (
+                    <div className="fd-fare-row"><span>{ICON.user} Base fare ({pax} {pax === 1 ? 'traveller' : 'travellers'})</span><b>{money(fb.baseFare)}</b></div>
+                  )}
+                  {fb.taxes != null && (
+                    <div className="fd-fare-row"><span>{ICON.receipt} Taxes &amp; surcharges</span><b>{money(fb.taxes)}</b></div>
+                  )}
+                  {fb.perAdult != null && fb.pax > 1 && (
+                    <div className="fd-fare-row"><span>{ICON.user} Fare per adult</span><b>{money(fb.perAdult)}</b></div>
+                  )}
                   {fb.discount > 0 && <div className="fd-fare-row disc"><span>{ICON.check} Instant discount</span><b>− {money(fb.discount)}</b></div>}
                   <div className="fd-fare-row total"><span>Total amount</span><b>{money(fb.total)}</b></div>
                 </div>
@@ -389,8 +444,12 @@ export default function FlightDetail() {
               <div className="fd-book-row">{ICON.plane}<span>Outbound · <b>{flight.out.durLabel}</b> {flight.out.stopsLabel.toLowerCase()}</span></div>
               {isRound && <div className="fd-book-row">{ICON.plane}<span>Return · <b>{flight.ret.durLabel}</b> {flight.ret.stopsLabel.toLowerCase()}</span></div>}
               <div className="fd-book-row">{ICON.cal}<span>{fmtDateShort(flight.out.depDateISO)}{isRound ? ` – ${fmtDateShort(flight.ret.depDateISO)}` : ''}</span></div>
-              <div className="fd-book-row">{ICON.board}<span>{flight.cabin} class</span></div>
-              <div className="fd-book-row">{ICON.bag}<span>Cabin <b>7 kg</b> + Check-in <b>23 kg</b></span></div>
+              {flight.cabin && <div className="fd-book-row">{ICON.board}<span>{flight.cabin} class</span></div>}
+              {/* Was a flat "Cabin 7 kg + Check-in 23 kg" on every fare — printed in bold next
+                  to a Book button, on fares that include no hold baggage at all, and directly
+                  contradicting the Baggage tab three inches away. Now it states the fare's own
+                  allowance, or says plainly that there isn't one to state yet. */}
+              <div className="fd-book-row">{ICON.bag}<span>{bagLine}</span></div>
             </div>
             <div className="fd-book-trav">
               <div className="fd-book-travlbl">Travellers</div>
@@ -398,7 +457,7 @@ export default function FlightDetail() {
             </div>
             <div className="fd-book-secure">
               <span className="fd-secure">{ICON.shieldCheck} Secure SSL payment</span>
-              <span className="fd-secure">{ICON.shield} Free cancellation within 24h</span>
+              <span className="fd-secure">{ICON.shield} Fare conditions shown before payment</span>
               <span className="fd-secure">{ICON.mail} Instant e-ticket by email</span>
             </div>
           </div>

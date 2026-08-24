@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import './Flights.css';
 import axiosInstance from '../../services/axiosInstance';
-import { buildContext, generateFlights, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal } from './flightData';
+import { buildContext, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal } from './flightData';
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
@@ -98,10 +98,13 @@ export default function Flights() {
   const navigate = useNavigate();
 
   const ctx = useMemo(() => buildContext(params), [params]);
-  const generated = useMemo(() => generateFlights(ctx), [ctx]);
+  // Only what the supplier actually returned. This used to fall back to generateFlights() —
+  // sixteen invented itineraries at invented prices — whenever the live search came back
+  // empty or errored, so a failed API call produced a full page of bookable-looking fares
+  // that no supplier had quoted, carrying no flightKey, against which no booking could ever
+  // complete. An empty result is now shown as an empty result.
   const [apiFlights, setApiFlights] = useState(null); // null = not loaded; [] = none/failed
-  const live = Array.isArray(apiFlights) && apiFlights.length > 0;
-  const allFlights = live ? apiFlights : generated;
+  const allFlights = useMemo(() => apiFlights || [], [apiFlights]);
 
   const priceBounds = useMemo(() => {
     const ps = allFlights.map((f) => f.price);
@@ -296,8 +299,10 @@ export default function Flights() {
           ) : results.length === 0 ? (
             <div className="fl-empty">
               <div className="fl-empty-ic">{ICON.plane}</div>
-              <h3>No flights match your filters</h3>
-              <p>Try widening your price range or clearing a filter.</p>
+              <h3>{allFlights.length === 0 ? 'No flights for this route and date' : 'No flights match your filters'}</h3>
+              <p>{allFlights.length === 0
+                ? 'We could not find a fare for this search. Try another date, or a different departure airport.'
+                : 'Try widening your price range or clearing a filter.'}</p>
               {activeFilters > 0 && <button className="fl-empty-btn" onClick={clearAll}>Clear all filters</button>}
             </div>
           ) : (

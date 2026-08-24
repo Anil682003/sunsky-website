@@ -5,6 +5,8 @@
    renders); all variety is derived from the flight index + route.
    ════════════════════════════════════════════════════════════════ */
 
+import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
+
 const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
 const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const pad = (n) => String(n).padStart(2, '0');
@@ -197,7 +199,6 @@ export function mapAirtuerkFlight(af, ctx, idx) {
   if (!segs.length) return null;
   const toCode = (ctx.to.code || '').toUpperCase();
   const colorFor = (code) => AIRLINES.find((a) => a.code === code)?.color || '#1f4fd8';
-  const nameFor  = (code) => AIRLINES.find((a) => a.code === code)?.name || code || 'Airline';
   const timeOf = (s) => { const d = new Date(s); if (!isNaN(d.getTime())) return `${pad(d.getHours())}:${pad(d.getMinutes())}`; const m = String(s).match(/(\d{1,2}):(\d{2})/); return m ? `${pad(Number(m[1]))}:${m[2]}` : '--:--'; };
   const dayOf  = (s) => { const d = new Date(s); return isNaN(d.getTime()) ? null : Math.floor(d.getTime() / 86400000); };
   const durBetween = (a, b) => { const da = new Date(a), db = new Date(b); if (isNaN(da.getTime()) || isNaN(db.getTime())) return null; const mins = Math.round((db - da) / 60000); return mins > 0 ? mins : null; };
@@ -210,7 +211,9 @@ export function mapAirtuerkFlight(af, ctx, idx) {
     retSegs = segs.slice(splitIdx + 1);
   }
 
-  const buildLeg = (ls, depDateISO, fromFb, toFb) => {
+  // `dir` matters: the baggage tab labels each block by it, and a live leg used to carry no
+  // direction at all, so both halves of a round trip were headed "Return".
+  const buildLeg = (ls, depDateISO, fromFb, toFb, dir, bag) => {
     if (!ls.length) return null;
     const a = ls[0], b = ls[ls.length - 1];
     const depDay = dayOf(a.departure), arrDay = dayOf(b.arrival);
@@ -218,24 +221,43 @@ export function mapAirtuerkFlight(af, ctx, idx) {
     let durMin = durBetween(a.departure, b.arrival);
     if (durMin == null) durMin = ls.reduce((s, x) => s + (Number(x.duration) || 0), 0) || null;
     const stops = ls.length - 1;
+    const fromCode = String(a.from || fromFb.code || '').toUpperCase();
+    const toCode2 = String(b.to || toFb.code || '').toUpperCase();
+    // Real connections, measured from the gap between one segment landing and the next
+    // taking off. Live legs used to report `layover: null` however many stops they had, so
+    // a 1-stop fare showed a connection count and never said where, or for how long.
+    const layovers = ls.slice(1).map((s, i) => {
+      const code = String(s.from || ls[i].to || '').toUpperCase();
+      if (!code) return null;
+      const wait = durBetween(ls[i].arrival, s.departure);
+      return { code, city: airportName(code), durLabel: wait ? `${Math.floor(wait / 60)}h ${pad(wait % 60)}m` : null };
+    }).filter(Boolean);
     return {
-      airline: nameFor(a.airline), airlineCode: a.airline || '--', color: colorFor(a.airline),
-      flightNo: `${a.airline || ''} ${a.flightNumber || ''}`.trim(),
+      dir,
+      airline: airlineName(a.airline), airlineCode: a.airline || '--', color: colorFor(a.airline),
+      flightNo: flightNumber(a),
+      // Airtuerk sends no aircraft type. The screens omit the chip rather than print a blank.
       aircraft: '',
       depTime: timeOf(a.departure), arrTime: timeOf(b.arrival), arrDay: dayOffset,
-      fromCode: a.from || fromFb.code, toCode: b.to || toFb.code,
-      fromCity: a.from || fromFb.city, toCity: b.to || toFb.city,
-      fromName: a.from || fromFb.name, toName: b.to || toFb.name,
+      fromCode, toCode: toCode2,
+      fromCity: airportName(fromCode), toCity: airportName(toCode2),
+      fromName: airportName(fromCode), toName: airportName(toCode2),
+      // No terminal in the feed either - an empty string, never a guessed "Terminal 1".
       fromTerminal: '', toTerminal: '',
       depDateISO: depDateISO || ctx.depISO,
       durMin: durMin || 0, durLabel: durMin ? `${Math.floor(durMin / 60)}h ${pad(durMin % 60)}m` : '—',
       stops, stopsLabel: stops === 0 ? 'Non-stop' : `${stops} Stop${stops > 1 ? 's' : ''}`,
-      layover: null,
+      layover: layovers[0] || null,
+      layovers,
+      // The supplier's real allowance for THIS direction. The baggage tab reads it off the
+      // leg; it was never wired up, so every live fare fell through to "confirmed with your
+      // fare" even when Airtuerk had stated the kilos.
+      baggage: bag || null,
     };
   };
 
-  const out = buildLeg(outSegs, ctx.depISO, ctx.from, ctx.to);
-  const ret = retSegs.length ? buildLeg(retSegs, ctx.retISO, ctx.to, ctx.from) : null;
+  const out = buildLeg(outSegs, ctx.depISO, ctx.from, ctx.to, 'out', af?.outbound?.baggage || af?.baggage);
+  const ret = retSegs.length ? buildLeg(retSegs, ctx.retISO, ctx.to, ctx.from, 'ret', af?.inbound?.baggage || af?.baggage) : null;
   // Airtuerk's `totalPrice` is the PARTY total: parseOption() sums (base + tax) x quantity
   // across every passenger type, and a round trip adds both directions on top. The cards,
   // the detail page and the checkout all speak PER PERSON, so it is divided here — once —
@@ -245,11 +267,22 @@ export function mapAirtuerkFlight(af, ctx, idx) {
   // against, so it must never be reconstructed from a rounded per-person figure.
   const totalPrice = Number(af.totalPrice) || 0;
   const paxCount = Math.max(1, Number(ctx.pax) || 1);
-  const price = Math.round(totalPrice / paxCount);
+  const fareRows = Array.isArray(af.fareBreakdown) ? af.fareBreakdown : [];
+  // The headline is the fare for ONE ADULT, taken from the supplier's own per-passenger-type
+  // rows (a round trip carries an ADT row per direction, so they sum to the full adult trip).
+  // Splitting the party total by headcount instead would quietly under-report the adult fare
+  // on any party carrying a child or a lap infant, who are fared far lower.
+  const perAdult = adultFare({ fareBreakdown: fareRows });
+  const price = Math.round(perAdult != null ? perAdult : totalPrice / paxCount);
   return {
     id: `air-${ctx.from.code}-${ctx.to.code}-${idx + 1}`,
     out, ret, price, origPrice: price, totalPrice,
-    currency: af.currency || 'EUR', cabin: ctx.cabin, pax: ctx.pax,
+    fareBreakdown: fareRows,
+    baggage: af.baggage || null,
+    // Cabin class is NOT claimed for a live fare: the search never sends the traveller's
+    // cabin choice to Airtuerk and the response never states one back, so printing the
+    // dropdown value here asserted "Business" over whatever the supplier actually priced.
+    currency: af.currency || 'EUR', cabin: null, pax: ctx.pax,
     tripType: ctx.tripType, totalMin: (out?.durMin || 0) + (ret?.durMin || 0),
     // Opaque Airtuerk bookable key(s) — required by the live reservation flow.
     // Round trips carry two keys (outbound + return); one-way carries one.
@@ -272,27 +305,41 @@ export function badgeFlights(list) {
 }
 
 /* Build a price breakdown + fare facts from a flight (used by detail + checkout). */
+/** The whole-trip fare for ONE adult, from the supplier's per-passenger-type rows. */
+export function adultFare(flight) {
+  const rows = Array.isArray(flight?.fareBreakdown) ? flight.fareBreakdown : [];
+  const adt = rows.filter((r) => r && r.paxType === 'ADT' && Number(r.quantity) > 0);
+  if (!adt.length) return null;
+  const sum = adt.reduce((s, r) => s + (Number(r.totalPerPax) || 0), 0);
+  return sum > 0 ? sum : null;
+}
+
 export function fareBreakdown(flight) {
   const pax = Math.max(1, flight.pax || 1);
   // A LIVE fare carries the supplier's exact party total; the sample generator prices per
-  // person, so there the total is still price x pax. The rows are split out of `total`
-  // rather than multiplied up from a rounded per-person figure, so they always sum to the
-  // amount the supplier will re-price the booking at.
+  // person, so there the total is still price x pax.
   const total = Number.isFinite(flight.totalPrice) ? flight.totalPrice : flight.price * pax;
-  const baseFare = Math.round(total * 0.74);
-  const taxes = Math.round(total * 0.17);
-  const surcharge = total - baseFare - taxes; // remainder
+  const rows = Array.isArray(flight.fareBreakdown) ? flight.fareBreakdown : [];
+  // The supplier states a real base fare per passenger type; everything above it is tax and
+  // carrier surcharge, taken as the REMAINDER so the rows always add up to the amount that
+  // will be charged. This used to invent the split with fixed 74% / 17% ratios and print the
+  // leftover as an "airline fuel surcharge" - a line item no supplier field ever described.
+  // When the fare states nothing, nothing is claimed: the summary shows the total alone.
+  const stated = rows.length
+    ? rows.reduce((s, r) => s + (Number(r.basePrice) || 0) * (Number(r.quantity) || 0), 0)
+    : 0;
+  const known = stated > 0 && stated <= total;
   const discount = flight.origPrice > flight.price ? (flight.origPrice - flight.price) * pax : 0;
   return {
     pax,
-    baseFare,
-    taxes,
-    surcharge,
+    baseFare: known ? stated : null,
+    taxes: known ? total - stated : null,
     discount,
     total,
     // Unrounded on purpose: the checkout multiplies this back by the traveller count, so a
     // rounded figure would drift from the total the server charges.
     perPerson: total / pax,
+    perAdult: adultFare(flight),
   };
 }
 
