@@ -75,6 +75,55 @@ const DESTINATION_OPTIONS = [
 
 const CABIN_CLASSES = ['Economy', 'Premium Economy', 'Business', 'First'];
 
+const TRIP_TYPES = [
+  { id: 'roundtrip', label: 'Round trip' },
+  { id: 'oneway',    label: 'One way' },
+  { id: 'multicity', label: 'Multi-city' },
+];
+
+// A multi-city trip is at least two flights — one flight is a one-way — and five is where the
+// stack of rows stops being readable; past that it is a phone call to the agency.
+const MIN_LEGS = 2;
+const MAX_LEGS = 5;
+
+// The fields whose panel is the airport typeahead: the two on the round-trip row, plus a From
+// and a To for every multi-city leg.
+const AIRPORT_FIELD = /^(?:flightFrom|flightTo|legd+(?:From|To))$/;
+
+// Field icons, hoisted out of the markup: the same handful of drawings appears on up to
+// sixteen fields once a five-leg multi-city trip is open, and inlining them buried the fields
+// they label.
+const ICON_PLANE = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
+);
+const ICON_PIN = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
+);
+const ICON_CAL = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
+);
+const ICON_PAX = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
+);
+const ICON_CABIN = (
+  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 15h20"/><path d="M4 15l1.6-4.8A2 2 0 017.5 9h9a2 2 0 011.9 1.2L20 15"/><path d="M8 9V6a2 2 0 012-2h4a2 2 0 012 2v3"/><path d="M5 19h14"/></svg>
+);
+const ICON_SWAP = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16l-4-4 4-4"/><path d="M17 8l4 4-4 4"/><path d="M3 12h18"/></svg>
+);
+const ICON_TRASH = (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4h8v2"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6M14 11v6"/></svg>
+);
+const ICON_SEARCH = (
+  <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
+);
+const ICON_X = (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+);
+
+/** The IATA code a From/To field is holding, or '' while it is empty or still half-typed. */
+const airportCodeOf = (str) => (/(([A-Za-z]{3}))s*$/.exec(String(str || '').trim())?.[1] || '').toUpperCase();
+
 // The little scene beside "No preference": five map pins strung along a dashed flight arc,
 // standing for "we'll look from all of them". Pin tips sit ON the curve (they are placed at
 // t = 0, .25, .5, .75, 1 of the same quadratic), so the drawing reads as one route rather
@@ -154,11 +203,23 @@ export default function Hero() {
     if (hero.searchButtonText) setCmsSearchBtn(hero.searchButtonText);
   }, [cmsConfig]);
 
+  // Default to the new "Search" (typeahead) tab — our change.
+  const [searchMode, setSearchMode] = useState('package');
+
   // Hero background: use the CMS-managed image when one is set, otherwise fall
   // back to the default image defined in Hero.module.css (.bg). resolveCmsImageUrl
   // turns dashboard-uploaded "/uploads/…" paths into absolute admin-backend URLs;
   // full URLs (Unsplash, etc.) pass through unchanged.
-  const heroBgUrl = resolveCmsImageUrl(cmsConfig?.hero?.backgroundImageUrl);
+  const packageBgUrl = resolveCmsImageUrl(cmsConfig?.hero?.backgroundImageUrl);
+  // A photo of its own behind the Flights-only tab: the hero sells whichever product the
+  // traveller has just asked for, and a beach behind a flight search is selling the other one.
+  // Reading a `flightBackgroundImageUrl` the dashboard does not offer yet costs nothing — it
+  // simply stays undefined, and the tab falls back to the built-in aviation photo in
+  // Hero.module.css (.bgFlights). When the field is added there, it takes over with no
+  // website release.
+  const flightBgUrl = resolveCmsImageUrl(cmsConfig?.hero?.flightBackgroundImageUrl);
+  const flightsTab = searchMode === 'flights';
+  const heroBgUrl = flightsTab ? flightBgUrl : packageBgUrl;
 
   // Preload the CMS background image so the hero can show a shimmer until it's ready (friend's
   // change from master).
@@ -171,8 +232,6 @@ export default function Hero() {
     return () => { img.onload = null; };
   }, [heroBgUrl]);
 
-  // Default to the new "Search" (typeahead) tab — our change.
-  const [searchMode, setSearchMode] = useState('package');
   // Multi-destination selection committed from the picker modal:
   // countries the traveller ticked, plus any regions/cities inside them
   // (empty places for a country = "anywhere in it").
@@ -235,9 +294,22 @@ export default function Hero() {
   const [flightChildren, setFlightChildren] = useState(0);
   const [flightInfants, setFlightInfants] = useState(0);
   const [cabinClass, setCabinClass] = useState('Economy');
-  const [multiFrom, setMultiFrom] = useState('');
-  const [multiTo, setMultiTo] = useState('');
-  const [multiDate, setMultiDate] = useState('');
+  // Multi-city is a LIST of flights, not a second row bolted under the first: the traveller
+  // adds and removes legs, and each one carries its own From, To and departure date.
+  const [legs, setLegs] = useState([
+    { from: `${airportLabel(DEFAULT_ORIGIN)} (${DEFAULT_ORIGIN})`, to: '', date: '' },
+    { from: '', to: '', date: '' },
+  ]);
+  // What is typed into whichever From/To field is open. ONE piece of state, because only one
+  // panel is ever open — a term per field would be sixteen strings kept in step for nothing.
+  const [airportQuery, setAirportQuery] = useState('');
+  // The open field's <input> forwards its arrow keys and Enter into the panel below it.
+  const airportNavRef = useRef(null);
+  const airportInputRef = useRef(null);
+  // Written by a pick, read by the close that follows it: the field the traveller should land
+  // in next. Naming an origin means the next question is the destination, and the search
+  // should ask it rather than sit there waiting to be clicked.
+  const advanceRef = useRef(null);
 
   // Destinations are picked from the multi-select modal — the field itself is
   // not typeable.
@@ -261,7 +333,6 @@ export default function Hero() {
 
   const searchBarRef = useRef(null);
   const flightsRef = useRef(null);
-  const multiDateRef = useRef(null);
 
   useEffect(() => {
     function handleClickOutside(e) {
@@ -277,7 +348,55 @@ export default function Hero() {
   }, []);
 
   const toggleField = (field) => {
+    setAirportQuery('');
     setOpenField((prev) => (prev === field ? null : field));
+  };
+
+  // An airport field OPENS on click, it never toggles: the click that lands in its own text
+  // box, or on the × beside it, must not shut the panel being typed into.
+  const openAirportField = (id) => {
+    if (!id) { setOpenField(null); return; }
+    setAirportQuery('');
+    setOpenField(id);
+  };
+
+  // Opening a From/To field puts the caret in it — the field IS the search box here, so
+  // without this it would open a panel with nowhere to type.
+  useEffect(() => {
+    if (openField && AIRPORT_FIELD.test(openField)) {
+      airportInputRef.current?.focus({ preventScroll: true });
+    }
+  }, [openField]);
+
+  const setLeg = (i, patch) =>
+    setLegs((prev) => prev.map((l, j) => (j === i ? { ...l, ...patch } : l)));
+  // A new leg starts where the last one landed — a multi-city trip is a chain, and typing
+  // "Antalya" again as the next From is work the search can do for the traveller.
+  const addLeg = () =>
+    setLegs((prev) => (prev.length >= MAX_LEGS
+      ? prev
+      : [...prev, { from: prev[prev.length - 1].to, to: '', date: '' }]));
+  const removeLeg = (i) =>
+    setLegs((prev) => (prev.length <= MIN_LEGS ? prev : prev.filter((_, j) => j !== i)));
+
+  // Switching trip type carries the route across rather than emptying it: the flight already
+  // described is the same flight whichever shape the trip turns out to take.
+  const selectTripType = (id) => {
+    if (id === tripType) return;
+    setOpenField(null);
+    setAirportQuery('');
+    if (id === 'multicity') {
+      setLegs((prev) => [
+        { from: prev[0].from || flightFrom, to: prev[0].to || flightTo, date: prev[0].date || flightDate },
+        ...prev.slice(1),
+      ]);
+    } else if (tripType === 'multicity') {
+      const [first] = legs;
+      if (first.from) setFlightFrom((v) => v || first.from);
+      if (first.to)   setFlightTo((v) => v || first.to);
+      if (first.date) setFlightDate((v) => v || first.date);
+    }
+    setTripType(id);
   };
 
   // Not today: the earliest departure anyone may pick is 24 hours out, in Belgian time
@@ -382,6 +501,7 @@ export default function Hero() {
     qs.set('transport', transport === 'package' ? 'package' : 'hotel_only');
     qs.set('origin', origins[0] || DEFAULT_ORIGIN);
     if (origins.length > 1) qs.set('origins', origins.join(','));
+
     return qs;
   };
 
@@ -406,8 +526,51 @@ export default function Hero() {
     navigate(`/results?${qs.toString()}`);
   };
 
+  // The route IS the search: both airports named, and a date for every flight. A search that
+  // is not ready yet OPENS the field it is missing instead of leaving for the results page
+  // with a date nobody chose — the traveller pressed Search, so answer the next question.
+  const firstUnanswered = () => {
+    if (tripType === 'multicity') {
+      for (let i = 0; i < legs.length; i++) {
+        if (!airportCodeOf(legs[i].from)) return `leg${i}From`;
+        if (!airportCodeOf(legs[i].to))   return `leg${i}To`;
+        if (!legs[i].date)                return `leg${i}Date`;
+      }
+      return null;
+    }
+    if (!fromCode)   return 'flightFrom';
+    if (!toCode)     return 'flightTo';
+    if (!flightDate) return 'flightDate';
+    if (tripType === 'roundtrip' && !flightReturnDate) return 'flightReturn';
+    return null;
+  };
+
   const handleFlightSearch = () => {
-    navigate(`/flights?from=${encodeURIComponent(flightFrom)}&to=${encodeURIComponent(flightTo)}&date=${flightDate}&returnDate=${flightReturnDate}&adults=${flightAdults}&children=${flightChildren}&infants=${flightInfants}&cabin=${encodeURIComponent(cabinClass)}&tripType=${tripType}&direct=${directOnly}`);
+    const missing = firstUnanswered();
+    if (missing) {
+      if (AIRPORT_FIELD.test(missing)) openAirportField(missing);
+      else setOpenField(missing);
+      return;
+    }
+    // Leg one is the search the /flights page runs; the rest of a multi-city trip rides along
+    // in `legs` so nothing the traveller typed is dropped on the way there.
+    const lead = tripType === 'multicity' ? legs[0] : { from: flightFrom, to: flightTo, date: flightDate };
+    const qs = new URLSearchParams({
+      from: lead.from,
+      to: lead.to,
+      date: lead.date,
+      returnDate: tripType === 'roundtrip' ? flightReturnDate : '',
+      adults: String(flightAdults),
+      children: String(flightChildren),
+      infants: String(flightInfants),
+      cabin: cabinClass,
+      tripType,
+      direct: String(directOnly),
+    });
+    if (tripType === 'multicity') {
+      qs.set('legs', legs.map((l) => `${airportCodeOf(l.from)}-${airportCodeOf(l.to)}-${l.date}`).join('|'));
+    }
+    navigate(`/flights?${qs.toString()}`);
   };
 
   const swapFlightFields = (fromSetter, toSetter, fromVal, toVal) => {
@@ -432,7 +595,6 @@ export default function Hero() {
     flightChildren ? `${flightChildren} Child${flightChildren > 1 ? 'ren' : ''}` : '',
     flightInfants ? `${flightInfants} Infant${flightInfants > 1 ? 's' : ''}` : '',
   ].filter(Boolean).join(', ');
-  const flightTravelersLabel = `${flightPaxLabel} · ${cabinClass}`;
 
   const formatDate = (dateStr) => {
     if (!dateStr) return null;
@@ -453,8 +615,206 @@ export default function Hero() {
     const short = full.split(',')[0].replace(/\s+Airport$/i, '').trim() || full;
     return { value: `${short} (${m[2].toUpperCase()})`, hint: full };
   };
-  const fromParts = airportParts(flightFrom);
-  const toParts   = airportParts(flightTo);
+  const fromCode = airportCodeOf(flightFrom);
+  const toCode   = airportCodeOf(flightTo);
+
+  // The flights tab asks its questions IN ORDER, the way an airline's own site does: where
+  // from and where to first, and only once there is a route does the rest of the search —
+  // dates, who is flying, which cabin — appear to be filled in. A first-time visitor meets
+  // two fields and a button rather than six fields they must read past to find the two that
+  // matter. Multi-city is the exception: its dates live on the legs themselves, and the party
+  // and cabin underneath belong to the whole trip, so that row is always there.
+  const showDetails = tripType === 'multicity' || Boolean(fromCode && toCode);
+
+  // Which airport panel belongs to an open field, and what picking a row in it does. Every
+  // From/To on this tab resolves through here — the round-trip pair and the multi-city legs
+  // alike — so the two can never drift apart.
+  const airportPanelFor = (id) => {
+    const departures = { title: 'Departing from', fallback: departureOptions,   fallbackLabel: 'Departure airports' };
+    const arrivals   = { title: 'Going to',       fallback: DESTINATION_OPTIONS, fallbackLabel: 'Popular searches' };
+    if (id === 'flightFrom') {
+      return { ...departures, onPick: (a) => { setFlightFrom(airportToValue(a)); advanceRef.current = toCode ? null : 'flightTo'; } };
+    }
+    if (id === 'flightTo') {
+      return { ...arrivals, onPick: (a) => { setFlightTo(airportToValue(a)); advanceRef.current = flightDate ? null : 'flightDate'; } };
+    }
+    const m = /^leg(\d+)(From|To)$/.exec(id || '');
+    if (!m) return null;
+    const i = Number(m[1]);
+    const side = m[2] === 'From' ? 'from' : 'to';
+    // Only the first leg leaves from home; every later one leaves from wherever the traveller
+    // has flown to, so its shortlist is destinations rather than departure airports.
+    const base = side === 'from' && i === 0 ? departures : arrivals;
+    return {
+      ...base,
+      onPick: (a) => {
+        setLeg(i, { [side]: airportToValue(a) });
+        const leg = legs[i] || {};
+        advanceRef.current = side === 'from'
+          ? (airportCodeOf(leg.to) ? null : `leg${i}To`)
+          : (leg.date ? null : `leg${i}Date`);
+      },
+    };
+  };
+
+  // Closing an airport panel lands on whatever the pick queued up — the next blank field, or
+  // nothing at all when the traveller only changed their mind about one already answered.
+  const closeAirportPanel = () => {
+    const next = advanceRef.current;
+    advanceRef.current = null;
+    openAirportField(next);
+  };
+
+  /**
+   * One From/To field. Closed it reads as three lines — FROM / "Brussels (BRU)" / "Brussels
+   * Airport". Open, the middle line becomes a text box and the panel hangs under it, because
+   * this tab is TYPE-then-pick: the airports it sells are a 1,300-row table in the dashboard,
+   * not a shortlist anyone can scroll, and the package tab's pick-from-a-list panel cannot
+   * reach the ones no shortlist names.
+   */
+  const airportField = ({ id, value, label, icon, placeholder, hint, extraClass = '', onClear }) => {
+    const open = openField === id;
+    const parts = airportParts(value);
+    const panel = open ? airportPanelFor(id) : null;
+    return (
+      <div
+        key={id}
+        className={`${styles.sf} ${extraClass} ${open ? styles.sfActive : ''}`}
+        onClick={() => openAirportField(id)}
+      >
+        <div className={styles.sfHead}>
+          <span className={styles.sfIcon}>{icon}</span>
+          <span className={styles.sfLabel}>{label}</span>
+        </div>
+        <div className={styles.sfBody}>
+          {open ? (
+            <input
+              ref={airportInputRef}
+              className={styles.sfInput}
+              value={airportQuery}
+              /* The airport already chosen stays readable as the placeholder, so opening the
+                 field to change it never looks like it has been wiped. */
+              placeholder={parts.value || placeholder}
+              onChange={(e) => setAirportQuery(e.target.value)}
+              onKeyDown={(e) => airportNavRef.current?.(e)}
+              aria-label={label}
+              autoComplete="off"
+            />
+          ) : (
+            <span className={`${styles.sfValue} ${!value ? styles.sfPlaceholder : ''}`}>
+              {parts.value || placeholder}
+            </span>
+          )}
+          {(value || (open && airportQuery)) && (
+            <button
+              type="button"
+              className={styles.sfClear}
+              aria-label={`Clear ${label.toLowerCase()}`}
+              onClick={(e) => { e.stopPropagation(); onClear(); advanceRef.current = null; openAirportField(id); }}
+            >
+              {ICON_X}
+            </button>
+          )}
+        </div>
+        <span className={styles.sfHint}>
+          {open ? 'Type a city, airport or code' : (parts.hint || hint)}
+        </span>
+        {panel && (
+          <div className={styles.sfPanel}>
+            <AirportSearch
+              title={panel.title}
+              fallback={panel.fallback}
+              fallbackLabel={panel.fallbackLabel}
+              query={airportQuery}
+              navRef={airportNavRef}
+              onPick={panel.onPick}
+              onClose={closeAirportPanel}
+            />
+          </div>
+        )}
+      </div>
+    );
+  };
+
+  /** A date field. The calendar itself floats under the whole card — see `datePanel`. */
+  const dateField = ({ id, value, label, hint }) => {
+    const open = openField === id;
+    return (
+      <div
+        key={id}
+        className={`${styles.sf} ${open ? styles.sfActive : ''}`}
+        onClick={() => toggleField(id)}
+      >
+        <div className={styles.sfHead}>
+          <span className={styles.sfIcon}>{ICON_CAL}</span>
+          <span className={styles.sfLabel}>{label}</span>
+        </div>
+        <div className={styles.sfBody}>
+          <span className={`${styles.sfValue} ${!value ? styles.sfPlaceholder : ''}`}>
+            {formatDate(value) || 'Select date'}
+          </span>
+          {caret(open)}
+        </div>
+        <span className={styles.sfHint}>{hint}</span>
+      </div>
+    );
+  };
+
+  // The open date field's calendar: what it shows, how far back it may go, and what a picked
+  // day invalidates. A leg cannot leave before the leg in front of it has landed, and a return
+  // cannot come home before the outbound has left — a date that a new choice has just made
+  // impossible is CLEARED rather than left sitting there quietly wrong.
+  const datePanel = (() => {
+    if (openField === 'flightDate') {
+      return {
+        value: flightDate,
+        min: todayISO,
+        onChange: (iso) => {
+          setFlightDate(iso);
+          if (flightReturnDate && flightReturnDate < iso) setFlightReturnDate('');
+        },
+      };
+    }
+    if (openField === 'flightReturn') {
+      return { value: flightReturnDate, min: flightDate || todayISO, onChange: setFlightReturnDate };
+    }
+    const m = /^leg(\d+)Date$/.exec(openField || '');
+    if (!m) return null;
+    const i = Number(m[1]);
+    return {
+      value: legs[i]?.date || '',
+      min: legs[i - 1]?.date || todayISO,
+      onChange: (iso) => setLegs((prev) => prev.map((l, j) => {
+        if (j === i) return { ...l, date: iso };
+        return j > i && l.date && l.date < iso ? { ...l, date: '' } : l;
+      })),
+    };
+  })();
+
+  const directOnlyToggle = (
+    <button
+      className={`${styles.directCheck} ${directOnly ? styles.directCheckActive : ''}`}
+      onClick={() => setDirectOnly((v) => !v)}
+      aria-pressed={directOnly}
+    >
+      <span className={styles.directCb}>
+        {directOnly && (
+          <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+        )}
+      </span>
+      Direct flights only
+      <span className={styles.infoDot} title="Hides any flight with a stopover — fewer results, no connections.">
+        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
+      </span>
+    </button>
+  );
+
+  const flightSearchButton = (
+    <button className={styles.searchBtn} onClick={handleFlightSearch}>
+      {ICON_SEARCH}
+      {cmsSearchBtn}
+    </button>
+  );
 
   // "Flying from" field text: one airport reads as itself, several read as a count —
   // "4 airports" tells the traveller their whole selection is held, in space one name takes.
@@ -891,8 +1251,11 @@ export default function Hero() {
           overlay), so every element on top must carry its own contrast. */}
       <div className={`${styles.heroBg} ${heroBgUrl ? styles.heroBgImage : ''}`}>
         {heroBgUrl && !bgLoaded && <div className={styles.bgShimmer} />}
+        {/* Keyed on the tab so React replaces the layer rather than repainting it: the swap
+            then plays the .bg fade-in instead of cutting from one photo to the other. */}
         <div
-          className={`${styles.bg} ${heroBgUrl && !bgLoaded ? styles.bgHidden : ''}`}
+          key={flightsTab ? 'flights' : 'package'}
+          className={`${styles.bg} ${flightsTab && !heroBgUrl ? styles.bgFlights : ''} ${heroBgUrl && !bgLoaded ? styles.bgHidden : ''}`}
           style={heroBgUrl ? { backgroundImage: `url("${heroBgUrl}")` } : undefined}
         />
         <div className={styles.overlay} />
@@ -976,287 +1339,218 @@ export default function Hero() {
         </div>
         )}
 
-        {/* ── FLIGHTS ONLY SEARCH ── */}
+        {/* ── FLIGHTS ONLY SEARCH ──
+            The tab asks its questions in the order an airline's own site asks them: the card
+            opens as WHERE FROM / WHERE TO and a button, and the dates, the party and the cabin
+            only appear once there is a route for them to describe. See `showDetails`. */}
         {searchMode === 'flights' && (
         <div className={styles.flightsWrap} ref={flightsRef}>
           <div className={styles.flightSearchCard}>
-            {/* Trip type + "direct only" ride INSIDE the card now, on their own line above the
-                fields — they qualify this search, so they belong to it rather than floating
-                above it as a separate chip. */}
+            {/* Trip type along the card's top edge. "Direct flights only" used to sit up here
+                beside it and has moved down into the details row — it qualifies a search that
+                does not exist yet while the route is still blank. */}
             <div className={styles.flightHead}>
               <div className={styles.tripTabs} role="tablist" aria-label="Trip type">
-                {[
-                  { id: 'roundtrip', label: 'Round trip' },
-                  { id: 'oneway',    label: 'One way' },
-                  { id: 'multicity', label: 'Multi-city' },
-                ].map((t) => (
+                {TRIP_TYPES.map((t) => (
                   <button
                     key={t.id}
                     role="tab"
                     aria-selected={tripType === t.id}
                     className={`${styles.tripTab} ${tripType === t.id ? styles.tripTabOn : ''}`}
-                    onClick={() => { setTripType(t.id); setOpenField(null); }}
+                    onClick={() => selectTripType(t.id)}
                   >
                     {t.label}
                   </button>
                 ))}
               </div>
-              <button
-                className={`${styles.directCheck} ${directOnly ? styles.directCheckActive : ''}`}
-                onClick={() => setDirectOnly((v) => !v)}
-                aria-pressed={directOnly}
-              >
-                <span className={styles.directCb}>
-                  {directOnly && (
-                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
-                  )}
-                </span>
-                Direct flights only
-                <span className={styles.infoDot} title="Hides any flight with a stopover — fewer results, no connections.">
-                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
-                </span>
-              </button>
             </div>
 
-            <div className={styles.flightRow}>
-            {/* Departing From */}
-            <div
-              className={`${styles.sf} ${openField === 'flightFrom' ? styles.sfActive : ''}`}
-              onClick={() => toggleField('flightFrom')}
-            >
-              <div className={styles.sfHead}>
-                <span className={styles.sfIcon}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-                </span>
-                <span className={styles.sfLabel}>From</span>
-              </div>
-              <div className={styles.sfBody}>
-                <span className={`${styles.sfValue} ${!flightFrom ? styles.sfPlaceholder : ''}`}>{fromParts.value || 'Select airport'}</span>
-              </div>
-              <span className={styles.sfHint}>{fromParts.hint || 'Choose a departure airport'}</span>
-            </div>
-
-            {/* Swap */}
-            <button
-              className={styles.flightSwapBtn}
-              title="Swap"
-              onClick={(e) => { e.stopPropagation(); swapFlightFields(setFlightFrom, setFlightTo, flightFrom, flightTo); }}
-            >
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16l-4-4 4-4"/><path d="M17 8l4 4-4 4"/><path d="M3 12h18"/></svg>
-            </button>
-
-            {/* Going To */}
-            <div
-              className={`${styles.sf} ${styles.sfTo} ${openField === 'flightTo' ? styles.sfActive : ''}`}
-              onClick={() => toggleField('flightTo')}
-            >
-              <div className={styles.sfHead}>
-                <span className={styles.sfIcon}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                </span>
-                <span className={styles.sfLabel}>To</span>
-              </div>
-              <div className={styles.sfBody}>
-                <span className={`${styles.sfValue} ${!flightTo ? styles.sfPlaceholder : ''}`}>{toParts.value || 'Where do you want to go?'}</span>
-              </div>
-              <span className={styles.sfHint}>{toParts.hint || 'Choose a destination'}</span>
-            </div>
-
-            <div className={styles.sfDivider} />
-
-            {/* Departure Date — same calendar as the package tab, minus the ± strip: a flight
-                search prices one day, so there is nothing to be flexible about here yet. */}
-            <div
-              className={`${styles.sf} ${openField === 'flightDate' ? styles.sfActive : ''}`}
-              onClick={() => toggleField('flightDate')}
-            >
-              <div className={styles.sfHead}>
-                <span className={styles.sfIcon}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                </span>
-                <span className={styles.sfLabel}>Departure</span>
-              </div>
-              <div className={styles.sfBody}>
-                <span className={`${styles.sfValue} ${!flightDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightDate) || 'Select date'}</span>
-                {caret(openField === 'flightDate')}
-              </div>
-              <span className={styles.sfHint}>Add departure date</span>
-            </div>
-
-            {/* Return Date (round trip only) */}
-            {tripType === 'roundtrip' && (
-              <>
-                <div className={styles.sfDivider} />
-                <div
-                  className={`${styles.sf} ${openField === 'flightReturn' ? styles.sfActive : ''}`}
-                  onClick={() => toggleField('flightReturn')}
-                >
-                  <div className={styles.sfHead}>
-                    <span className={styles.sfIcon}>
-                      <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                    </span>
-                    <span className={styles.sfLabel}>Return</span>
+            {tripType === 'multicity' ? (
+              /* Multi-city: one row per flight, each with its own From, To and departure. */
+              <div className={styles.legs}>
+                {legs.map((leg, i) => (
+                  <div className={styles.legRow} key={i}>
+                    <span className={styles.legLabel}>Trip {i + 1}</span>
+                    {airportField({
+                      id: `leg${i}From`,
+                      value: leg.from,
+                      label: 'From',
+                      icon: ICON_PLANE,
+                      placeholder: 'Where from?',
+                      hint: 'Search city or airport',
+                      onClear: () => setLeg(i, { from: '' }),
+                    })}
+                    <button
+                      type="button"
+                      className={styles.flightSwapBtn}
+                      title="Swap"
+                      aria-label={`Swap trip ${i + 1}'s airports`}
+                      onClick={(e) => { e.stopPropagation(); setLeg(i, { from: leg.to, to: leg.from }); }}
+                    >
+                      {ICON_SWAP}
+                    </button>
+                    {airportField({
+                      id: `leg${i}To`,
+                      value: leg.to,
+                      label: 'To',
+                      icon: ICON_PIN,
+                      placeholder: 'Where to?',
+                      hint: 'Search city or airport',
+                      extraClass: styles.sfTo,
+                      onClear: () => setLeg(i, { to: '' }),
+                    })}
+                    <div className={styles.sfDivider} />
+                    {dateField({
+                      id: `leg${i}Date`,
+                      value: leg.date,
+                      label: 'Departure',
+                      hint: 'Add departure date',
+                    })}
+                    <button
+                      type="button"
+                      className={styles.legDelete}
+                      onClick={() => removeLeg(i)}
+                      disabled={legs.length <= MIN_LEGS}
+                      title={legs.length <= MIN_LEGS
+                        ? 'A multi-city trip needs at least two flights'
+                        : `Remove trip ${i + 1}`}
+                      aria-label={`Remove trip ${i + 1}`}
+                    >
+                      {ICON_TRASH}
+                    </button>
                   </div>
-                  <div className={styles.sfBody}>
-                    <span className={`${styles.sfValue} ${!flightReturnDate ? styles.sfPlaceholder : ''}`}>{formatDate(flightReturnDate) || 'Select date'}</span>
-                    {caret(openField === 'flightReturn')}
-                  </div>
-                  <span className={styles.sfHint}>Add return date</span>
+                ))}
+                <div className={styles.legsFoot}>
+                  <button
+                    type="button"
+                    className={styles.addTripBtn}
+                    onClick={addLeg}
+                    disabled={legs.length >= MAX_LEGS}
+                    title={legs.length >= MAX_LEGS ? `${MAX_LEGS} flights is the most this search takes` : undefined}
+                  >
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
+                    Add trip
+                  </button>
                 </div>
-              </>
+              </div>
+            ) : (
+              <div className={styles.flightRow}>
+                {airportField({
+                  id: 'flightFrom',
+                  value: flightFrom,
+                  label: 'From',
+                  icon: ICON_PLANE,
+                  placeholder: 'Where are you flying from?',
+                  hint: 'Search city or airport',
+                  onClear: () => setFlightFrom(''),
+                })}
+                <button
+                  type="button"
+                  className={styles.flightSwapBtn}
+                  title="Swap"
+                  aria-label="Swap departure and destination"
+                  onClick={(e) => { e.stopPropagation(); swapFlightFields(setFlightFrom, setFlightTo, flightFrom, flightTo); }}
+                >
+                  {ICON_SWAP}
+                </button>
+                {airportField({
+                  id: 'flightTo',
+                  value: flightTo,
+                  label: 'To',
+                  icon: ICON_PIN,
+                  placeholder: 'Where do you want to go?',
+                  hint: 'Search city or airport',
+                  extraClass: styles.sfTo,
+                  onClear: () => setFlightTo(''),
+                })}
+                {flightSearchButton}
+              </div>
             )}
 
-            <div className={styles.sfDivider} />
-
-            {/* Travellers & Class */}
-            <div
-              className={`${styles.sf} ${styles.sfTravelers} ${openField === 'flightTravelers' ? styles.sfActive : ''}`}
-              onClick={() => toggleField('flightTravelers')}
-            >
-              <div className={styles.sfHead}>
-                <span className={styles.sfIcon}>
-                  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-                </span>
-                <span className={styles.sfLabel}>Travellers &amp; class</span>
+            {/* Step two — everything a route needs SAYING, once there is a route to say it
+                about. Round trips and one-ways reach it by naming both airports; multi-city
+                has it from the start, because its dates are up on the legs already. */}
+            {showDetails && (
+              <div className={styles.flightRow2}>
+                {tripType !== 'multicity' && (
+                  <>
+                    {dateField({
+                      id: 'flightDate',
+                      value: flightDate,
+                      label: 'Departure',
+                      hint: 'Add departure date',
+                    })}
+                    <div className={styles.sfDivider} />
+                  </>
+                )}
+                {/* One way asks one date — there is no journey home to price. */}
+                {tripType === 'roundtrip' && (
+                  <>
+                    {dateField({
+                      id: 'flightReturn',
+                      value: flightReturnDate,
+                      label: 'Return',
+                      hint: 'Add return date',
+                    })}
+                    <div className={styles.sfDivider} />
+                  </>
+                )}
+                <div
+                  className={`${styles.sf} ${openField === 'flightTravelers' ? styles.sfActive : ''}`}
+                  onClick={() => toggleField('flightTravelers')}
+                >
+                  <div className={styles.sfHead}>
+                    <span className={styles.sfIcon}>{ICON_PAX}</span>
+                    <span className={styles.sfLabel}>Passengers</span>
+                  </div>
+                  <div className={styles.sfBody}>
+                    <span className={styles.sfValue}>{flightPaxLabel}</span>
+                    {caret(openField === 'flightTravelers')}
+                  </div>
+                  <span className={styles.sfHint}>Who is flying</span>
+                </div>
+                <div className={styles.sfDivider} />
+                <div
+                  className={`${styles.sf} ${openField === 'flightClass' ? styles.sfActive : ''}`}
+                  onClick={() => toggleField('flightClass')}
+                >
+                  <div className={styles.sfHead}>
+                    <span className={styles.sfIcon}>{ICON_CABIN}</span>
+                    <span className={styles.sfLabel}>Class</span>
+                  </div>
+                  <div className={styles.sfBody}>
+                    <span className={styles.sfValue}>{cabinClass}</span>
+                    {caret(openField === 'flightClass')}
+                  </div>
+                  <span className={styles.sfHint}>Cabin to travel in</span>
+                </div>
+                {directOnlyToggle}
+                {/* Multi-city's Search sits down here: its own row is a stack of legs, and a
+                    button beside leg one would read as searching that leg alone. */}
+                {tripType === 'multicity' && flightSearchButton}
               </div>
-              <div className={styles.sfBody}>
-                <span className={styles.sfValue}>{flightTravelersLabel}</span>
-              </div>
-              <span className={styles.sfHint}>Change travellers &amp; class</span>
-            </div>
-
-            <button className={styles.searchBtn} onClick={handleFlightSearch}>
-              <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              {cmsSearchBtn}
-            </button>
-            </div>
+            )}
           </div>
 
-          {/* Multi-city second row */}
-          {tripType === 'multicity' && (
-            <div className={styles.addFlightCard}>
-              <div
-                className={`${styles.sf} ${openField === 'multiFrom' ? styles.sfActive : ''}`}
-                onClick={() => toggleField('multiFrom')}
-              >
-                <div className={styles.sfHead}>
-                  <span className={styles.sfIcon}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-                  </span>
-                  <span className={styles.sfLabel}>From</span>
-                </div>
-                <div className={styles.sfBody}>
-                  <span className={`${styles.sfValue} ${!multiFrom ? styles.sfPlaceholder : ''}`}>{multiFrom || 'Select airport'}</span>
-                </div>
-                <span className={styles.sfHint}>Choose a departure airport</span>
-              </div>
-              <button
-                className={styles.flightSwapBtn}
-                onClick={(e) => { e.stopPropagation(); swapFlightFields(setMultiFrom, setMultiTo, multiFrom, multiTo); }}
-              >
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16l-4-4 4-4"/><path d="M17 8l4 4-4 4"/><path d="M3 12h18"/></svg>
-              </button>
-              <div
-                className={`${styles.sf} ${styles.sfTo} ${openField === 'multiTo' ? styles.sfActive : ''}`}
-                onClick={() => toggleField('multiTo')}
-              >
-                <div className={styles.sfHead}>
-                  <span className={styles.sfIcon}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
-                  </span>
-                  <span className={styles.sfLabel}>To</span>
-                </div>
-                <div className={styles.sfBody}>
-                  <span className={`${styles.sfValue} ${!multiTo ? styles.sfPlaceholder : ''}`}>{multiTo || 'Select destination'}</span>
-                </div>
-                <span className={styles.sfHint}>Choose a destination</span>
-              </div>
-              <div className={styles.sfDivider} />
-              <div
-                className={styles.sf}
-                onClick={() => multiDateRef.current?.showPicker()}
-              >
-                <div className={styles.sfHead}>
-                  <span className={styles.sfIcon}>
-                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
-                  </span>
-                  <span className={styles.sfLabel}>Departure</span>
-                </div>
-                <div className={styles.sfBody}>
-                  <span className={`${styles.sfValue} ${!multiDate ? styles.sfPlaceholder : ''}`}>{formatDate(multiDate) || 'Select date'}</span>
-                </div>
-                <span className={styles.sfHint}>Add departure date</span>
-                <input
-                  ref={multiDateRef}
-                  type="date"
-                  className={styles.hiddenDateInput}
-                  value={multiDate}
-                  onChange={(e) => setMultiDate(e.target.value)}
-                  tabIndex={-1}
-                />
-              </div>
-              <div className={`${styles.sfDivider} ${styles.sfDividerSpacer}`} />
-              {/* Empty stand-in for the travellers column of the row above — a second leg
-                  flies the same party, so there is nothing to ask here. */}
-              <div className={styles.addFlightSpacer} aria-hidden="true" />
-              <button type="button" className={styles.addFlightBtn}>+ Add flight</button>
-            </div>
-          )}
+          {/* ── FLIGHT DROPDOWNS ──
+              The airport panels hang off the fields themselves (see `airportField`) — a
+              typeahead belongs under the box being typed into. The rest float under the whole
+              card, where a two-month calendar and a stepper list have room to be read. */}
 
-          {/* ── FLIGHT DROPDOWNS ── */}
-
-          {(openField === 'flightDate' || openField === 'flightReturn') && (
+          {datePanel && (
             <div className={`${styles.flightDropdown} ${styles.calDropdownFlight}`}>
               <DateCalendar
-                value={openField === 'flightDate' ? flightDate : flightReturnDate}
-                onChange={(iso) => {
-                  if (openField === 'flightDate') {
-                    setFlightDate(iso);
-                    // A return already sitting before the new outbound is no longer a return —
-                    // clear it rather than searching a trip that comes home before it leaves.
-                    if (flightReturnDate && flightReturnDate < iso) setFlightReturnDate('');
-                  } else {
-                    setFlightReturnDate(iso);
-                  }
-                }}
-                min={openField === 'flightReturn' ? (flightDate || todayISO) : todayISO}
+                value={datePanel.value}
+                onChange={datePanel.onChange}
+                min={datePanel.min}
                 months={2}
                 onDone={() => setOpenField(null)}
               />
             </div>
           )}
 
-          {/* Departing From dropdown */}
-          {openField === 'flightFrom' && (
-            <div className={styles.flightDropdown}>
-              <AirportSearch
-                title="Departing from"
-                fallback={departureOptions}
-                fallbackLabel="Departure airports"
-                searchable={false}
-                onPick={(a) => setFlightFrom(airportToValue(a))}
-                onClose={() => setOpenField(null)}
-              />
-            </div>
-          )}
-
-          {/* Going To dropdown */}
-          {openField === 'flightTo' && (
-            <div className={styles.flightDropdown}>
-              <AirportSearch
-                title="Going to"
-                fallback={DESTINATION_OPTIONS}
-                fallbackLabel="Destinations"
-                searchable={false}
-                onPick={(a) => setFlightTo(airportToValue(a))}
-                onClose={() => setOpenField(null)}
-              />
-            </div>
-          )}
-
-          {/* Travellers & Class dropdown */}
           {openField === 'flightTravelers' && (
-            <div className={styles.flightDropdown}>
+            <div className={`${styles.flightDropdown} ${styles.paxDropdown}`}>
               <div className={styles.travRow}>
                 <div>
                   <span className={styles.travLabel}>Adults</span>
@@ -1282,59 +1576,37 @@ export default function Hero() {
               <div className={styles.travRow}>
                 <div>
                   <span className={styles.travLabel}>Infants</span>
-                  <span className={styles.travSub}>Under 2</span>
+                  <span className={styles.travSub}>Under 2, on a lap</span>
                 </div>
                 <div className={styles.stepper}>
+                  {/* An infant flies on an adult's lap, so there can never be more of them
+                      than there are adults to hold them. */}
                   <button className={styles.stepperBtn} onClick={() => setFlightInfants((v) => Math.max(0, v - 1))}>−</button>
                   <span className={styles.stepperCount}>{flightInfants}</span>
                   <button className={styles.stepperBtn} onClick={() => setFlightInfants((v) => Math.min(flightAdults, v + 1))}>+</button>
                 </div>
               </div>
-              <div className={styles.classDivider} />
-              <span className={styles.classTitle}>Cabin Class</span>
-              <div className={styles.classGrid}>
-                {CABIN_CLASSES.map((c) => (
-                  <div
-                    key={c}
-                    className={`${styles.classPill} ${cabinClass === c ? styles.classPillActive : ''}`}
-                    onClick={() => setCabinClass(c)}
-                  >
-                    {c}
-                  </div>
-                ))}
-              </div>
               <button className={styles.doneBtn} onClick={() => setOpenField(null)}>Done</button>
             </div>
           )}
 
-          {/* Multi-city from dropdown */}
-          {openField === 'multiFrom' && (
-            <div className={styles.flightDropdown}>
-              <AirportSearch
-                title="Departing from"
-                fallback={departureOptions}
-                fallbackLabel="Departure airports"
-                searchable={false}
-                onPick={(a) => setMultiFrom(airportToValue(a))}
-                onClose={() => setOpenField(null)}
-              />
+          {openField === 'flightClass' && (
+            <div className={`${styles.flightDropdown} ${styles.classDropdown}`}>
+              <span className={styles.classTitle}>Cabin class</span>
+              <div className={styles.classGrid}>
+                {CABIN_CLASSES.map((c) => (
+                  <button
+                    type="button"
+                    key={c}
+                    className={`${styles.classPill} ${cabinClass === c ? styles.classPillActive : ''}`}
+                    onClick={() => { setCabinClass(c); setOpenField(null); }}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
             </div>
           )}
-
-          {/* Multi-city to dropdown */}
-          {openField === 'multiTo' && (
-            <div className={styles.flightDropdown}>
-              <AirportSearch
-                title="Going to"
-                fallback={DESTINATION_OPTIONS}
-                fallbackLabel="Destinations"
-                searchable={false}
-                onPick={(a) => setMultiTo(airportToValue(a))}
-                onClose={() => setOpenField(null)}
-              />
-            </div>
-          )}
-
         </div>
         )}
 
