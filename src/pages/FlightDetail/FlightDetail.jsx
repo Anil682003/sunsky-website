@@ -167,6 +167,7 @@ export default function FlightDetail() {
   const legClass = (i) => (isMulti ? (i % 2 === 0 ? 'out' : 'ret') : i === 0 ? 'out' : 'ret');
   const tripLabel = isMulti ? 'Multi-city' : isRound ? 'Round trip' : 'One way';
   const lastLeg = legs[legs.length - 1] || flight.out;
+  const destLeg = isMulti ? lastLeg : flight.out;
   const nights = isRound ? Math.max(1, dayDiff(flight.out.depDateISO, flight.ret.depDateISO)) : 0;
   const totalMin = flight.totalMin;
   const totalLabel = `${Math.floor(totalMin / 60)}h ${String(totalMin % 60).padStart(2, '0')}m`;
@@ -224,7 +225,7 @@ export default function FlightDetail() {
       // ── payload for the backend Online-booking create call ──
       api: {
         flight: {
-          from: flight.out.fromCode, to: lastLeg.toCode,
+          from: flight.out.fromCode, to: destLeg.toCode,
           depdate: flight.out.depDateISO, retdate: isRound ? flight.ret.depDateISO : undefined,
           price: fb.total, currency: 'EUR',
           tripType: isMulti ? 'multicity' : isRound ? 'roundtrip' : 'oneway', supplier: 'Airtuerk',
@@ -342,8 +343,8 @@ export default function FlightDetail() {
             {/* Where the journey ENDS, which on a multi-city trip is the last leg's arrival
                 rather than the first leg's. */}
             <div className="fd-hero-city">
-              <div className="fd-hero-code">{lastLeg.toCode}</div>
-              <div className="fd-hero-cname">{lastLeg.toCity}</div>
+              <div className="fd-hero-code">{destLeg.toCode}</div>
+              <div className="fd-hero-cname">{destLeg.toCity}</div>
             </div>
             </>
             )}
