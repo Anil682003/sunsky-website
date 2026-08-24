@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import './Flights.css';
 import axiosInstance from '../../services/axiosInstance';
-import { buildContext, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal } from './flightData';
+import { buildContext, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal, legContexts, combineTrip } from './flightData';
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
@@ -19,6 +19,8 @@ const ICON = {
   cal: <S><rect x="3" y="4" width="18" height="18" rx="2" /><line x1="16" y1="2" x2="16" y2="6" /><line x1="8" y1="2" x2="8" y2="6" /><line x1="3" y1="10" x2="21" y2="10" /></S>,
   users: <S><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></S>,
   swap: <S sw={2.2}><path d="M7 16l-4-4 4-4M3 12h18M17 8l4 4-4 4" /></S>,
+  check: <S sw={3}><path d="M20 6L9 17l-5-5" /></S>,
+  edit: <S><path d="M12 20h9" /><path d="M16.5 3.5a2.1 2.1 0 013 3L7 19l-4 1 1-4z" /></S>,
 };
 
 const TIME_SLOTS = [
@@ -99,13 +101,30 @@ export default function Flights() {
   const navigate = useNavigate();
 
   const ctx = useMemo(() => buildContext(params), [params]);
+  // A multi-city trip is priced ONE FLIGHT AT A TIME — the supplier takes a route per call —
+  // so the page runs a search per leg and the traveller picks a fare for each. Everything
+  // below works on a single search's results, so the rest of the page needs no special case:
+  // it is handed whichever leg is being looked at.
+  const multi = ctx.tripType === 'multicity' && ctx.legs.length >= 2;
+  const searches = useMemo(() => (multi ? legContexts(ctx) : [ctx]), [ctx, multi]);
+  const [activeLeg, setActiveLeg] = useState(0);
+  // The fare chosen for each leg, by leg index. A trip is complete when every leg has one.
+  const [picks, setPicks] = useState({});
+  // A new search is a new trip — never carry a fare from the last one into it.
+  useEffect(() => { setPicks({}); setActiveLeg(0); }, [ctx]);
+  const view = searches[Math.min(activeLeg, searches.length - 1)] || ctx;
+  const pickedAll = multi && searches.every((_, i) => picks[i]);
   // Only what the supplier actually returned. This used to fall back to generateFlights() —
   // sixteen invented itineraries at invented prices — whenever the live search came back
   // empty or errored, so a failed API call produced a full page of bookable-looking fares
   // that no supplier had quoted, carrying no flightKey, against which no booking could ever
   // complete. An empty result is now shown as an empty result.
-  const [apiFlights, setApiFlights] = useState(null); // null = not loaded; [] = none/failed
-  const allFlights = useMemo(() => apiFlights || [], [apiFlights]);
+  // One entry per search — a plain trip has exactly one, a multi-city trip one per flight.
+  const [legFlights, setLegFlights] = useState(null); // null = not loaded; [][] = per leg
+  const allFlights = useMemo(
+    () => legFlights?.[Math.min(activeLeg, legFlights.length - 1)] || [],
+    [legFlights, activeLeg],
+  );
 
   const priceBounds = useMemo(() => {
     const ps = allFlights.map((f) => f.price);
@@ -129,24 +148,35 @@ export default function Flights() {
 
   // reset price ceiling whenever the route/search changes
   useEffect(() => { setMaxPrice(priceBounds.max); }, [priceBounds.max]);
-  // Live flights from the Airtürk availability API; fall back to sample results.
+  // Live flights from the Airtürk availability API. One request per search context: a plain
+  // trip fires one, a multi-city trip fires one per flight, all at once. A leg that comes
+  // back empty is an empty leg, not an empty trip — the others still list.
   useEffect(() => {
-    if (!ctx.from?.code || !ctx.to?.code || !ctx.depISO) { setApiFlights(null); setLoading(false); return; }
+    const usable = searches.filter((s) => s.from?.code && s.to?.code && s.depISO);
+    if (usable.length !== searches.length) { setLegFlights(null); setLoading(false); return; }
     setLoading(true);
     let cancelled = false;
-    axiosInstance.post('/flight-availability/search', {
-      from: ctx.from.code, to: ctx.to.code, depdate: ctx.depISO,
-      retdate: ctx.tripType === 'roundtrip' ? ctx.retISO : undefined,
-      adults: ctx.adults, children: ctx.children, infants: ctx.infants,
-    }).then(({ data }) => {
-      if (cancelled) return;
-      const raw = data?.results?.airtuerk?.flights || [];
-      const mapped = badgeFlights(raw.map((af, i) => mapAirtuerkFlight(af, ctx, i)).filter(Boolean));
-      setApiFlights(mapped);
-    }).catch(() => { if (!cancelled) setApiFlights([]); })
+    Promise.all(searches.map((s, legIdx) =>
+      axiosInstance.post('/flight-availability/search', {
+        from: s.from.code, to: s.to.code, depdate: s.depISO,
+        retdate: s.tripType === 'roundtrip' ? s.retISO : undefined,
+        adults: s.adults, children: s.children, infants: s.infants,
+      })
+        .then(({ data }) => {
+          const raw = data?.results?.airtuerk?.flights || [];
+          return badgeFlights(
+            raw.map((af, i) => mapAirtuerkFlight(af, s, i))
+              .filter(Boolean)
+              // Two legs of one trip can share a route, so the mapper's id is not unique
+              // across a whole itinerary — the leg it belongs to makes it so.
+              .map((fl) => ({ ...fl, id: `${fl.id}-l${legIdx}`, legIndex: legIdx })),
+          );
+        })
+        .catch(() => []),
+    )).then((lists) => { if (!cancelled) setLegFlights(lists); })
       .finally(() => { if (!cancelled) setLoading(false); });
     return () => { cancelled = true; };
-  }, [ctx]);
+  }, [searches]);
 
   const toggle = (setter) => (key) => setter((prev) => {
     const next = new Set(prev);
@@ -186,10 +216,106 @@ export default function Flights() {
   }, [allFlights, selAirlines, selStops, selSlots, maxPrice, sort]);
 
   const money = (n) => `€${Math.round(n).toLocaleString('en-GB')}`;
-  const onSelect = (f) => navigate(`/flights/${f.id}`, { state: { flight: f, ctx } });
+
+  // On a plain trip, choosing a fare IS the choice and the detail page opens. On a multi-city
+  // trip it answers one flight of several, so it stays on this page and moves to the next
+  // flight still unanswered — the trip is not complete until every leg has a fare.
+  const onSelect = (f) => {
+    if (!multi) { navigate(`/flights/${f.id}`, { state: { flight: f, ctx } }); return; }
+    const next = { ...picks, [activeLeg]: f };
+    setPicks(next);
+    const unanswered = searches.findIndex((_, i) => !next[i]);
+    if (unanswered >= 0) { setActiveLeg(unanswered); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  };
+
+  const trip = useMemo(
+    () => (pickedAll ? combineTrip(searches.map((_, i) => picks[i]), ctx) : null),
+    [pickedAll, picks, searches, ctx],
+  );
+  const tripTotal = searches.reduce((s, _, i) => s + (picks[i] ? flightTotal(picks[i]) : 0), 0);
+  const goTrip = () => { if (trip) navigate(`/flights/${trip.id}`, { state: { flight: trip, ctx } }); };
   const clearAll = () => { setSelAirlines(new Set()); setSelStops(new Set()); setSelSlots(new Set()); setMaxPrice(priceBounds.max); };
 
   const activeFilters = selAirlines.size + selStops.size + selSlots.size + (maxPrice < priceBounds.max ? 1 : 0);
+
+  // The whole journey as codes — "BRU → IST → AYT". Every leg's arrival in order, behind the
+  // first leg's departure, which is the only origin the trip has.
+  const chain = multi ? [ctx.legs[0].from, ...ctx.legs.map((l) => l.to)] : [];
+
+  // The strip along the top of the results: one tab per flight of the trip, each saying what
+  // it is, and — once answered — which fare answered it. It is the page's spine, so it also
+  // carries the state: done, being chosen now, or still to do.
+  const legTabs = multi && (
+    <div className="fl-legtabs" role="tablist" aria-label="Flights in this trip">
+      {searches.map((s, i) => {
+        const p = picks[i];
+        const on = i === activeLeg;
+        return (
+          <button
+            key={i}
+            role="tab"
+            aria-selected={on}
+            className={`fl-legtab${on ? ' on' : ''}${p ? ' done' : ''}`}
+            onClick={() => setActiveLeg(i)}
+          >
+            <span className="fl-legtab-n">{p ? ICON.check : i + 1}</span>
+            <span className="fl-legtab-txt">
+              <span className="fl-legtab-route">{s.from.code} <em>→</em> {s.to.code}</span>
+              <span className="fl-legtab-sub">
+                {p
+                  ? `${p.out.airline} · ${p.out.depTime} · ${money(p.price)}`
+                  : `${fmtDateShort(s.depISO)} · ${legFlights?.[i]?.length ?? '—'} fares`}
+              </span>
+            </span>
+            {p && <span className="fl-legtab-edit">{ICON.edit}</span>}
+          </button>
+        );
+      })}
+    </div>
+  );
+
+  // The trip as it stands, above the filters: what has been chosen, what it adds up to, and
+  // the way on once nothing is missing.
+  const tripCard = multi && (
+    <div className="fl-trip">
+      <div className="fl-trip-head">
+        <h3 className="hd">Your trip</h3>
+        <span className="fl-trip-count">{Object.keys(picks).length}/{searches.length} chosen</span>
+      </div>
+      {searches.map((s, i) => {
+        const p = picks[i];
+        return (
+          <button
+            key={i}
+            className={`fl-trip-row${i === activeLeg ? ' on' : ''}`}
+            onClick={() => setActiveLeg(i)}
+          >
+            <span className="fl-trip-route">{s.from.code} → {s.to.code}</span>
+            <span className="fl-trip-when">
+              {p ? `${fmtDateShort(s.depISO)} · ${p.out.depTime}` : fmtDateShort(s.depISO)}
+            </span>
+            <span className={`fl-trip-fare${p ? '' : ' none'}`}>
+              {p ? money(flightTotal(p)) : 'Choose'}
+            </span>
+          </button>
+        );
+      })}
+      <div className="fl-trip-total">
+        <span>{pickedAll ? 'Trip total' : 'So far'}</span>
+        <b>{money(tripTotal)}</b>
+      </div>
+      {/* Said plainly, because it is the one thing about this page that is not obvious: the
+          supplier prices a route at a time, so this is separate one-way fares added up, not
+          one through-fare for the whole journey. */}
+      <p className="fl-trip-note">
+        Each flight is priced and booked as its own one-way fare. The total is the sum of them,
+        for {paxLabel(ctx)}.
+      </p>
+      <button className="fl-trip-cta" disabled={!pickedAll} onClick={goTrip}>
+        {pickedAll ? <>Continue {ICON.arrow}</> : `Choose ${searches.length - Object.keys(picks).length} more flight${searches.length - Object.keys(picks).length === 1 ? '' : 's'}`}
+      </button>
+    </div>
+  );
 
   const filters = (
     <div className="fl-fcard">
@@ -201,7 +327,7 @@ export default function Flights() {
           </label>
         ))}
       </Section>
-      <Section title={`${ctx.from.code} → ${ctx.to.code} Stops`} open={openSec.stops} onToggle={() => setOpenSec((s) => ({ ...s, stops: !s.stops }))}>
+      <Section title={`${view.from.code} → ${view.to.code} Stops`} open={openSec.stops} onToggle={() => setOpenSec((s) => ({ ...s, stops: !s.stops }))}>
         {[{ k: 0, l: 'Non-stop' }, { k: 1, l: '1 Stop' }, { k: 2, l: '2 Stops or more' }].map((o) => (
           <label className="fl-check" key={o.k}>
             <input type="checkbox" checked={selStops.has(o.k)} onChange={() => toggleStop(o.k)} />
@@ -210,7 +336,7 @@ export default function Flights() {
           </label>
         ))}
       </Section>
-      <Section title={`Departure from ${ctx.from.code}`} open={openSec.time} onToggle={() => setOpenSec((s) => ({ ...s, time: !s.time }))}>
+      <Section title={`Departure from ${view.from.code}`} open={openSec.time} onToggle={() => setOpenSec((s) => ({ ...s, time: !s.time }))}>
         <div className="fl-slots">
           {TIME_SLOTS.map((s) => (
             <button key={s.key} className={`fl-slot${selSlots.has(s.key) ? ' on' : ''}`} onClick={() => toggleSlot(s.key)}>
@@ -246,13 +372,27 @@ export default function Flights() {
           <div className="fl-bc">
             <Link to="/">Home</Link><span className="fl-bc-sep">›</span>
             <Link to="/">Flights</Link><span className="fl-bc-sep">›</span>
-            <span className="fl-bc-here">{ctx.from.code} → {ctx.to.code}</span>
+            <span className="fl-bc-here">{multi ? chain.join(' → ') : `${ctx.from.code} → ${ctx.to.code}`}</span>
           </div>
-          <h1 className="fl-hero-title">Flights to <em>{ctx.to.city}</em></h1>
+          <h1 className="fl-hero-title">
+            {multi
+              ? <>Your trip through <em>{ctx.legs.map((l) => l.to).map((c) => c).join(', ')}</em></>
+              : <>Flights to <em>{ctx.to.city}</em></>}
+          </h1>
           <div className="fl-hero-chips">
-            <span className="fl-hchip">{ICON.plane} {ctx.from.code} <span className="fl-hchip-arrow">{ICON.swap}</span> {ctx.to.code}</span>
-            <span className="fl-hchip">{ICON.cal} {fmtDateShort(ctx.depISO)}{ctx.retISO ? ` – ${fmtDateShort(ctx.retISO)}` : ''}</span>
-            <span className="fl-hchip">{ctx.tripType === 'oneway' ? 'One way' : 'Round trip'}</span>
+            {multi ? (
+              <>
+                <span className="fl-hchip">{ICON.plane} {chain.join(' → ')}</span>
+                <span className="fl-hchip">{ICON.cal} {fmtDateShort(ctx.legs[0].date)} – {fmtDateShort(ctx.legs[ctx.legs.length - 1].date)}</span>
+                <span className="fl-hchip">{searches.length} flights</span>
+              </>
+            ) : (
+              <>
+                <span className="fl-hchip">{ICON.plane} {ctx.from.code} <span className="fl-hchip-arrow">{ICON.swap}</span> {ctx.to.code}</span>
+                <span className="fl-hchip">{ICON.cal} {fmtDateShort(ctx.depISO)}{ctx.retISO ? ` – ${fmtDateShort(ctx.retISO)}` : ''}</span>
+                <span className="fl-hchip">{ctx.tripType === 'oneway' ? 'One way' : 'Round trip'}</span>
+              </>
+            )}
             <span className="fl-hchip">{ICON.users} {paxLabel(ctx)}</span>
             <span className="fl-hchip fl-hchip-cabin">{ctx.cabin}</span>
           </div>
@@ -264,7 +404,12 @@ export default function Flights() {
         <div className="fl-toolbar-in">
           <div className="fl-count hd">
             {loading ? <span className="fl-count-load"><span className="fl-count-dot" /> Searching…</span>
-              : <><span>{results.length}</span> of {allFlights.length} flights</>}
+              : (
+                <>
+                  {multi && <span className="fl-count-leg">Flight {activeLeg + 1} of {searches.length} · {view.from.code} → {view.to.code}</span>}
+                  <span>{results.length}</span> of {allFlights.length} flights
+                </>
+              )}
           </div>
           <div className="fl-summary-right">
             <button className="fl-mfilter" onClick={() => setDrawer(true)}>{ICON.filter} Filters{activeFilters > 0 && <em>{activeFilters}</em>}</button>
@@ -280,6 +425,7 @@ export default function Flights() {
 
       <div className="fl-main">
         <aside className="fl-sidebar">
+          {tripCard}
           {activeFilters > 0 && (
             <button className="fl-clear" onClick={clearAll}>{ICON.x} Clear all filters ({activeFilters})</button>
           )}
@@ -287,6 +433,11 @@ export default function Flights() {
         </aside>
 
         <section className="fl-results">
+          {/* Second copy of the trip card, for the widths where the sidebar is not shown at
+              all. Without it the running total and the way on would simply be missing on a
+              phone, which is where most of these searches are run. */}
+          {tripCard && <div className="fl-trip-mob">{tripCard}</div>}
+          {legTabs}
           {loading ? (
             [0, 1, 2, 3].map((i) => (
               <div className="fl-skel" key={i}>
@@ -300,9 +451,13 @@ export default function Flights() {
           ) : results.length === 0 ? (
             <div className="fl-empty">
               <div className="fl-empty-ic">{ICON.plane}</div>
-              <h3>{allFlights.length === 0 ? 'No flights for this route and date' : 'No flights match your filters'}</h3>
+              <h3>{allFlights.length === 0
+                ? (multi ? `No flights for ${view.from.code} → ${view.to.code} on ${fmtDateShort(view.depISO)}` : 'No flights for this route and date')
+                : 'No flights match your filters'}</h3>
               <p>{allFlights.length === 0
-                ? 'We could not find a fare for this search. Try another date, or a different departure airport.'
+                ? (multi
+                  ? 'This flight of the trip has no fare on that date. Change its date or airports in the search above, and the rest of the trip stays as it is.'
+                  : 'We could not find a fare for this search. Try another date, or a different departure airport.')
                 : 'Try widening your price range or clearing a filter.'}</p>
               {activeFilters > 0 && <button className="fl-empty-btn" onClick={clearAll}>Clear all filters</button>}
             </div>

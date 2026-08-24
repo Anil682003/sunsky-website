@@ -151,6 +151,17 @@ export default function FlightDetail() {
   }
   const pax = flight.pax || 1;
   const isRound = !!flight.ret;
+  // A multi-city trip arrives as a `legs` array — the fares chosen for each of its flights,
+  // assembled by the results page (flightData.combineTrip). Everything below reads THIS, so
+  // one way, round trip and multi-city are the same page with a different number of legs;
+  // out/ret stay the source for the two shapes that have always used them.
+  const isMulti = flight.tripType === 'multicity' && Array.isArray(flight.legs) && flight.legs.length > 1;
+  const legs = isMulti ? flight.legs : [flight.out, isRound ? flight.ret : null].filter(Boolean);
+  // Multi-city legs are numbered; a round trip's two are named by direction.
+  const legLabel = (i) => (isMulti ? `Flight ${i + 1}` : i === 0 ? 'Outbound' : 'Return');
+  const legClass = (i) => (isMulti ? (i % 2 === 0 ? 'out' : 'ret') : i === 0 ? 'out' : 'ret');
+  const tripLabel = isMulti ? 'Multi-city' : isRound ? 'Round trip' : 'One way';
+  const lastLeg = legs[legs.length - 1] || flight.out;
   const nights = isRound ? Math.max(1, dayDiff(flight.out.depDateISO, flight.ret.depDateISO)) : 0;
   const totalMin = flight.totalMin;
   const totalLabel = `${Math.floor(totalMin / 60)}h ${String(totalMin % 60).padStart(2, '0')}m`;
@@ -177,8 +188,10 @@ export default function FlightDetail() {
   const goCheckout = () => {
     const booking = {
       kind: 'flight',
-      hotelName: `${flight.out.fromCity} → ${flight.out.toCity}`,
-      loc: [isRound ? 'Round trip' : 'One way', flight.cabin].filter(Boolean).join(' · '),
+      hotelName: isMulti
+        ? [legs[0].fromCity, ...legs.map((l) => l.toCity)].join(' → ')
+        : `${flight.out.fromCity} → ${flight.out.toCity}`,
+      loc: [tripLabel, flight.cabin].filter(Boolean).join(' · '),
       img: FLIGHT_IMG,
       stars: 0,
       currency: '€',
@@ -186,11 +199,13 @@ export default function FlightDetail() {
       adults: pax,
       ppPrice: fb.perPerson,
       origPrice: flight.origPrice,
-      dateLabel: isRound
-        ? `${fmtDateShort(flight.out.depDateISO)} — ${fmtDateShort(flight.ret.depDateISO)}`
+      dateLabel: legs.length > 1
+        ? `${fmtDateShort(legs[0].depDateISO)} — ${fmtDateShort(lastLeg.depDateISO)}`
         : fmtDateShort(flight.out.depDateISO),
       cabin: flight.cabin,
-      route: `${flight.out.fromCity} → ${flight.out.toCity}`,
+      route: isMulti
+        ? [legs[0].fromCity, ...legs.map((l) => l.toCity)].join(' → ')
+        : `${flight.out.fromCity} → ${flight.out.toCity}`,
       flight: {
         outDep: flight.out.depTime, outArr: flight.out.arrTime,
         outFrom: flight.out.fromCity, outTo: flight.out.toCity, outDur: flight.out.durLabel,
@@ -204,16 +219,16 @@ export default function FlightDetail() {
       // ── payload for the backend Online-booking create call ──
       api: {
         flight: {
-          from: flight.out.fromCode, to: flight.out.toCode,
+          from: flight.out.fromCode, to: lastLeg.toCode,
           depdate: flight.out.depDateISO, retdate: isRound ? flight.ret.depDateISO : undefined,
           price: fb.total, currency: 'EUR',
-          tripType: isRound ? 'roundtrip' : 'oneway', supplier: 'Airtuerk',
+          tripType: isMulti ? 'multicity' : isRound ? 'roundtrip' : 'oneway', supplier: 'Airtuerk',
           // Opaque Airtuerk bookable key(s) needed for live reservation (basket/create).
           // One-way → 1 key; round trip → 2 keys (outbound + return).
           flightKeys: Array.isArray(flight.flightKeys) && flight.flightKeys.length
             ? flight.flightKeys
             : [flight.flightKey].filter(Boolean),
-          legs: [flight.out, isRound ? flight.ret : null].filter(Boolean).map((leg) => ({
+          legs: legs.map((leg) => ({
             from: leg.fromCode, to: leg.toCode,
             departure: `${leg.depDateISO}T${(leg.depTime || '00:00')}:00`,
             arrival: `${shiftDate(leg.depDateISO, leg.arrDay || 0)}T${(leg.arrTime || '00:00')}:00`,
@@ -242,7 +257,7 @@ export default function FlightDetail() {
      `leg.baggage` is the supplier's real allowance (kilos, 0 = not included) once this page is
      fed live flights; until then it is absent and the card says plainly that the allowance is
      confirmed with the fare rather than inventing one. */
-  const baggageFor = (leg, included) => {
+  const baggageFor = (leg, label) => {
     const kg = Number(leg?.baggage?.checkedKg) || 0;
     const pieces = Number(leg?.baggage?.checkedPieces) || 0;
     const handKg = Number(leg?.baggage?.handKg) || 0;
@@ -250,7 +265,7 @@ export default function FlightDetail() {
     const hasChecked = kg > 0 || pieces > 0;
     return (
       <>
-        <div className="fd-bag-leglabel">{leg.dir === 'out' ? 'Outbound' : 'Return'}: {leg.fromCode} → {leg.toCode} ({leg.airline})</div>
+        <div className="fd-bag-leglabel">{label}: {leg.fromCode} → {leg.toCode} ({leg.airline})</div>
         <div className="fd-bag-card">
           <div className="fd-bag-ic cabin">{ICON.bag}</div>
           <div className="fd-bag-info">
@@ -294,22 +309,27 @@ export default function FlightDetail() {
         <div className="fd-hero-in">
           <div className="fd-bc">
             <Link to="/flights">Flights</Link><span className="fd-bc-sep">›</span>
-            <a onClick={() => navigate(-1)}>{flight.out.fromCode} → {flight.out.toCode}</a><span className="fd-bc-sep">›</span>
-            <span className="fd-bc-here">{flight.out.airline}{isRound && flight.ret.airline !== flight.out.airline ? ` + ${flight.ret.airline}` : ''}</span>
+            <a onClick={() => navigate(-1)}>{[legs[0]?.fromCode, ...legs.map((l) => l.toCode)].join(' → ')}</a><span className="fd-bc-sep">›</span>
+            {/* Every carrier flying this trip, named once each — a four-leg trip on two
+                airlines reads as two names, not four. */}
+            <span className="fd-bc-here">{[...new Set(legs.map((l) => l.airline))].join(' + ')}</span>
           </div>
           <div className="fd-hero-route">
             <div className="fd-hero-city">
               <div className="fd-hero-code">{flight.out.fromCode}</div>
               <div className="fd-hero-cname">{flight.out.fromCity}</div>
             </div>
-            <div className="fd-hero-plane">{ICON.plane}<span className="fd-hero-trip">{isRound ? 'Round trip' : 'One way'}</span></div>
+            <div className="fd-hero-plane">{ICON.plane}<span className="fd-hero-trip">{tripLabel}</span></div>
+            {/* Where the journey ENDS, which on a multi-city trip is the last leg's arrival
+                rather than the first leg's. */}
             <div className="fd-hero-city">
-              <div className="fd-hero-code">{flight.out.toCode}</div>
-              <div className="fd-hero-cname">{flight.out.toCity}</div>
+              <div className="fd-hero-code">{lastLeg.toCode}</div>
+              <div className="fd-hero-cname">{lastLeg.toCity}</div>
             </div>
           </div>
           <div className="fd-hero-chips">
             <span className="fd-hchip">{ICON.cal} {fmtDate(flight.out.depDateISO)}</span>
+            {isMulti && <span className="fd-hchip">{ICON.plane} {legs.length} flights</span>}
             <span className="fd-hchip">{ICON.user} {paxLabel(ctx)}</span>
             {flight.cabin && <span className="fd-hchip">{ICON.board} {flight.cabin}</span>}
             {flight.fareName && <span className="fd-hchip">{ICON.doc} {flight.fareName}</span>}
@@ -323,8 +343,9 @@ export default function FlightDetail() {
         <div className="fd-main">
           {/* itinerary */}
           <div className="fd-itin">
-            <LegBlock leg={flight.out} dirLabel="Outbound" dirClass="out" />
-            {isRound && <LegBlock leg={flight.ret} dirLabel="Return" dirClass="ret" />}
+            {legs.map((leg, i) => (
+              <LegBlock key={i} leg={leg} dirLabel={legLabel(i)} dirClass={legClass(i)} />
+            ))}
           </div>
 
           {/* tabs */}
@@ -343,24 +364,23 @@ export default function FlightDetail() {
               <div className="fd-panel-body">
                 <div className="fd-stats">
                   <div className="fd-stat"><span className="fd-stat-k">Total travel time</span><span className="fd-stat-v">{totalLabel}</span></div>
-                  <div className="fd-stat"><span className="fd-stat-k">{isRound ? 'Trip length' : 'Journey'}</span><span className="fd-stat-v">{isRound ? `${nights} ${nights === 1 ? 'night' : 'nights'}` : 'One way'}</span></div>
+                  <div className="fd-stat">
+                    <span className="fd-stat-k">{isMulti ? 'Flights' : isRound ? 'Trip length' : 'Journey'}</span>
+                    <span className="fd-stat-v">
+                      {isMulti ? `${legs.length} one-way fares` : isRound ? `${nights} ${nights === 1 ? 'night' : 'nights'}` : 'One way'}
+                    </span>
+                  </div>
                   {flight.cabin && <div className="fd-stat"><span className="fd-stat-k">Cabin class</span><span className="fd-stat-v">{flight.cabin}</span></div>}
                   {flight.fareName && <div className="fd-stat"><span className="fd-stat-k">Fare</span><span className="fd-stat-v">{flight.fareName}</span></div>}
                 </div>
-                <div className="fd-detail-card out">
-                  <div className="fd-detail-title">{ICON.plane} Outbound · {flight.out.fromCode} → {flight.out.toCode}</div>
-                  <p><b>{flight.out.airline} · {flight.out.flightNo}</b><br />
-                    Departs <b>{flight.out.depTime}</b> ({fmtDateShort(flight.out.depDateISO)}) · Arrives <b>{flight.out.arrTime}{flight.out.arrDay > 0 ? ` (+${flight.out.arrDay})` : ''}</b><br />
-                    {legMeta(flight.out)}</p>
-                </div>
-                {isRound && (
-                  <div className="fd-detail-card ret">
-                    <div className="fd-detail-title">{ICON.plane} Return · {flight.ret.fromCode} → {flight.ret.toCode}</div>
-                    <p><b>{flight.ret.airline} · {flight.ret.flightNo}</b><br />
-                      Departs <b>{flight.ret.depTime}</b> ({fmtDateShort(flight.ret.depDateISO)}) · Arrives <b>{flight.ret.arrTime}{flight.ret.arrDay > 0 ? ` (+${flight.ret.arrDay})` : ''}</b><br />
-                      {legMeta(flight.ret)}</p>
+                {legs.map((leg, i) => (
+                  <div className={`fd-detail-card ${legClass(i)}`} key={i}>
+                    <div className="fd-detail-title">{ICON.plane} {legLabel(i)} · {leg.fromCode} → {leg.toCode}</div>
+                    <p><b>{leg.airline} · {leg.flightNo}</b><br />
+                      Departs <b>{leg.depTime}</b> ({fmtDateShort(leg.depDateISO)}) · Arrives <b>{leg.arrTime}{leg.arrDay > 0 ? ` (+${leg.arrDay})` : ''}</b><br />
+                      {legMeta(leg)}</p>
                   </div>
-                )}
+                ))}
               </div>
             </div>
           )}
@@ -400,8 +420,9 @@ export default function FlightDetail() {
             <div className="fd-panel">
               <div className="fd-panel-head">{ICON.bag}<h2>Baggage allowance</h2></div>
               <div className="fd-panel-body fd-bags">
-                {baggageFor(flight.out, true)}
-                {isRound && baggageFor(flight.ret, flight.ret.stops === 0)}
+                {legs.map((leg, i) => (
+                  <div key={i}>{baggageFor(leg, legLabel(i))}</div>
+                ))}
                 <div className="fd-note">{ICON.info} Allowances differ by airline. Pre-purchasing extra baggage online is cheaper than at the airport.</div>
               </div>
             </div>
@@ -443,9 +464,13 @@ export default function FlightDetail() {
             </div>
             <button className="fd-book-cta" onClick={goCheckout}>Book now {ICON.arrow}</button>
             <div className="fd-book-meta">
-              <div className="fd-book-row">{ICON.plane}<span>Outbound · <b>{flight.out.durLabel}</b> {flight.out.stopsLabel.toLowerCase()}</span></div>
-              {isRound && <div className="fd-book-row">{ICON.plane}<span>Return · <b>{flight.ret.durLabel}</b> {flight.ret.stopsLabel.toLowerCase()}</span></div>}
-              <div className="fd-book-row">{ICON.cal}<span>{fmtDateShort(flight.out.depDateISO)}{isRound ? ` – ${fmtDateShort(flight.ret.depDateISO)}` : ''}</span></div>
+              {legs.map((leg, i) => (
+                <div className="fd-book-row" key={i}>
+                  {ICON.plane}
+                  <span>{isMulti ? `${leg.fromCode} → ${leg.toCode}` : legLabel(i)} · <b>{leg.durLabel}</b> {leg.stopsLabel.toLowerCase()}</span>
+                </div>
+              ))}
+              <div className="fd-book-row">{ICON.cal}<span>{fmtDateShort(flight.out.depDateISO)}{legs.length > 1 ? ` – ${fmtDateShort(lastLeg.depDateISO)}` : ''}</span></div>
               {flight.cabin && <div className="fd-book-row">{ICON.board}<span>{flight.cabin} class</span></div>}
               {/* Was a flat "Cabin 7 kg + Check-in 23 kg" on every fare — printed in bold next
                   to a Book button, on fares that include no hold baggage at all, and directly

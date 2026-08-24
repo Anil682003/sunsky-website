@@ -192,13 +192,103 @@
 .fl-drawer-foot { padding:14px 16px; border-top:1px solid var(--border-light); background:var(--white); }
 .fl-drawer-apply { width:100%; padding:14px; border-radius:var(--r-full); background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-family:'Sora',sans-serif; font-size:14px; font-weight:700; }
 
+/* ─── multi-city ──────────────────────────────────────────────────────────────
+   A multi-city trip is answered one flight at a time, so the page needs two things a
+   one-route search does not: a spine that says which flight is being chosen and which are
+   already done, and a running account of the trip being assembled. */
+
+/* The spine — one tab per flight, along the top of the results. */
+.fl-legtabs { display:flex; gap:10px; margin-bottom:16px; overflow-x:auto; padding-bottom:4px; scrollbar-width:none; }
+.fl-legtabs::-webkit-scrollbar { display:none; }
+.fl-legtab {
+  display:flex; align-items:center; gap:11px; flex:1 1 0; min-width:212px;
+  padding:12px 15px; text-align:left;
+  border:1.5px solid var(--border); border-radius:16px;
+  background:var(--white); color:var(--text-sec);
+  cursor:pointer; transition:all .22s var(--ease);
+}
+.fl-legtab:hover { border-color:var(--blue-soft); background:var(--blue-pale); }
+/* The flight being chosen right now. */
+.fl-legtab.on { border-color:var(--blue); background:var(--blue-pale); box-shadow:var(--shadow-sm); }
+/* Answered. Green rather than blue, so "done" never reads as "here". */
+.fl-legtab.done .fl-legtab-n { background:var(--green-light); color:var(--green); }
+.fl-legtab.done .fl-legtab-sub { color:var(--green); font-weight:700; }
+.fl-legtab-n {
+  flex-shrink:0; width:28px; height:28px; border-radius:50%;
+  display:flex; align-items:center; justify-content:center;
+  background:var(--blue-bg); color:var(--blue);
+  font-family:'Sora',sans-serif; font-size:13px; font-weight:800;
+}
+.fl-legtab-n svg { width:14px; height:14px; }
+.fl-legtab-txt { display:flex; flex-direction:column; min-width:0; flex:1; }
+.fl-legtab-route {
+  font-family:'Sora',sans-serif; font-size:14px; font-weight:800; color:var(--dark);
+  letter-spacing:-.01em; white-space:nowrap;
+}
+.fl-legtab-route em { font-style:normal; color:var(--blue); margin:0 2px; }
+.fl-legtab-sub { font-size:11.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fl-legtab-edit { flex-shrink:0; color:var(--text-light); display:flex; }
+.fl-legtab-edit svg { width:14px; height:14px; }
+
+/* The trip as it stands. */
+.fl-trip {
+  background:var(--white); border:1px solid var(--border); border-radius:20px;
+  padding:16px; margin-bottom:16px; box-shadow:var(--shadow-sm);
+}
+.fl-trip-head { display:flex; align-items:baseline; justify-content:space-between; gap:10px; margin-bottom:10px; }
+.fl-trip-head h3 { font-size:15px; font-weight:800; color:var(--dark); }
+.fl-trip-count { font-size:11.5px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
+.fl-trip-row {
+  display:flex; align-items:center; gap:10px; width:100%;
+  padding:9px 10px; margin:0 -10px; width:calc(100% + 20px);
+  border:none; background:none; border-radius:10px; cursor:pointer;
+  text-align:left; transition:background .18s;
+}
+.fl-trip-row:hover { background:var(--blue-pale); }
+.fl-trip-row.on { background:var(--blue-bg); }
+.fl-trip-route { font-family:'Sora',sans-serif; font-size:12.5px; font-weight:800; color:var(--dark); white-space:nowrap; }
+.fl-trip-when { flex:1; font-size:11.5px; font-weight:600; color:var(--text-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.fl-trip-fare { font-family:'Sora',sans-serif; font-size:13px; font-weight:800; color:var(--dark); font-variant-numeric:tabular-nums; }
+/* A leg with no fare yet says what to do about it, in the slot the price will take. */
+.fl-trip-fare.none { color:var(--blue); font-size:11.5px; font-weight:700; }
+.fl-trip-total {
+  display:flex; align-items:baseline; justify-content:space-between;
+  margin-top:10px; padding-top:12px; border-top:1px dashed var(--border);
+  font-size:12.5px; font-weight:700; color:var(--text-sec);
+}
+.fl-trip-total b { font-family:'Sora',sans-serif; font-size:21px; font-weight:800; color:var(--dark); font-variant-numeric:tabular-nums; }
+.fl-trip-note { margin-top:8px; font-size:11px; line-height:1.5; color:var(--text-light); }
+.fl-trip-cta {
+  width:100%; margin-top:12px; padding:13px;
+  display:flex; align-items:center; justify-content:center; gap:8px;
+  border:none; border-radius:var(--r-full);
+  background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow);
+  font-family:'Sora',sans-serif; font-size:14px; font-weight:800;
+  cursor:pointer; transition:transform .22s var(--ease), box-shadow .22s var(--ease);
+}
+.fl-trip-cta:hover:not(:disabled) { transform:translateY(-2px); box-shadow:0 12px 30px rgba(255,159,28,.4); }
+/* Still incomplete: the button names what is missing rather than going flat and silent. */
+.fl-trip-cta:disabled { background:var(--blue-bg); color:var(--text-sec); text-shadow:none; cursor:not-allowed; font-size:12.5px; }
+.fl-trip-cta svg { width:16px; height:16px; }
+
+/* Which flight of the trip the list below belongs to. */
+.fl-count-leg { display:block; font-size:11.5px; font-weight:700; color:var(--blue); font-variant-numeric:tabular-nums; }
+.fl-count .fl-count-leg { font-size:11.5px; color:var(--blue); }
+
+/* The sidebar is hidden on a narrow screen, so the trip card is rendered a second time above
+   the results — where it is the only copy that can be seen. One of the two always shows. */
+.fl-trip-mob { display:none; }
+
 /* responsive */
 @media (max-width:1024px){
   .fl-sidebar { display:none; }
   .fl-mfilter { display:inline-flex; }
+  .fl-trip-mob { display:block; }
 }
 @media (max-width:760px){
   .fl-hero { padding:88px 0 64px; }
+  .fl-legtabs { gap:8px; margin:0 -4px 14px; padding:0 4px 4px; }
+  .fl-legtab { min-width:186px; flex:0 0 auto; padding:10px 13px; }
   .fl-toolbar { top:52px; }
   .fl-card-in { flex-direction:column; }
   .fl-card-price { width:100%; border-left:none; border-top:1px dashed var(--border); flex-direction:row; justify-content:space-between; padding:14px 20px; }

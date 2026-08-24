@@ -109,6 +109,80 @@ export function buildContext(params) {
   };
 }
 
+/**
+ * A multi-city trip, split into the searches that can actually price it: ONE PER FLIGHT.
+ *
+ * The supplier prices a route at a time — one way, or out and back — so a three-flight trip
+ * is three one-way searches, not one request. Each context is the parent search with its own
+ * route and date swapped in, so everything downstream (the mapper, the cards, the filters)
+ * goes on working on a plain one-way and needs to know nothing about multi-city.
+ *
+ * Because of that split the fares are separate one-ways added together, NOT a single
+ * through-fare. The screens say so where the total is shown; a real through-fare would need
+ * the supplier to price the whole itinerary in one call.
+ */
+export function legContexts(ctx) {
+  const place = (code) => ({ code, city: airportName(code), name: airportName(code) });
+  return (ctx.legs || []).map((leg, i) => ({
+    ...ctx,
+    tripType: 'oneway',
+    from: place(leg.from),
+    to: place(leg.to),
+    depISO: leg.date,
+    retISO: '',
+    depLabel: fmtDate(leg.date),
+    retLabel: '',
+    legIndex: i,
+  }));
+}
+
+/**
+ * The fares chosen for each leg, assembled into ONE trip for the detail page and checkout.
+ *
+ * Shaped like any other mapped flight so the screens after this one need no special case:
+ * `out` is the first flight and `legs` is all of them, the party total is the sum of the
+ * legs' own totals, and every leg's bookable key rides along in `flightKeys` — the same
+ * array a round trip already fills with two.
+ */
+export function combineTrip(flights, ctx) {
+  const picked = flights.filter(Boolean);
+  if (!picked.length) return null;
+  const legs = picked.map((f) => f.out).filter(Boolean);
+  // Summed from the legs' own per-adult fares, so the headline stays the same measure the
+  // cards showed — not the party total divided by heads, which under-reports an adult on
+  // any party carrying a child.
+  const price = picked.reduce((s, f) => s + (Number(f.price) || 0), 0);
+  const totalPrice = picked.reduce((s, f) => s + flightTotal(f), 0);
+  return {
+    id: `multi-${(ctx.legs || []).map((l) => `${l.from}${l.to}`).join('-')}`,
+    out: legs[0] || null,
+    ret: null,
+    legs,
+    price, origPrice: price, totalPrice,
+    // No single fare priced this trip, so there are no supplier rows to state for it. The
+    // fare summary shows the total and the legs it is made of instead of inventing a split.
+    fareBreakdown: [],
+    fareName: null,
+    baggage: null,
+    currency: picked[0]?.currency || 'EUR',
+    cabin: null,
+    pax: ctx.pax,
+    tripType: 'multicity',
+    totalMin: legs.reduce((s, l) => s + (l.durMin || 0), 0),
+    flightKeys: picked.flatMap((f) => (Array.isArray(f.flightKeys) ? f.flightKeys : [])),
+    flightKey: null,
+    // What each flight cost on its own — the trip total is only honest if it can be shown
+    // as the sum it is.
+    legFares: picked.map((f) => ({
+      price: Number(f.price) || 0,
+      total: flightTotal(f),
+      fareName: f.fareName || null,
+    })),
+    badge: '',
+    live: picked.every((f) => f.live),
+  };
+}
+
 export function paxLabel(ctx) {
   const parts = [];
   if (ctx.adults) parts.push(`${ctx.adults} Adult${ctx.adults > 1 ? 's' : ''}`);
