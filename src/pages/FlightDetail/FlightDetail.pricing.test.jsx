@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach } from 'vitest';
+import { describe, it, expect } from 'vitest';
 import { render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route, useLocation } from 'react-router-dom';
@@ -36,12 +36,13 @@ const flight = mapAirtuerkFlight({
   ],
 }, ctx, 0);
 
-let captured = null;
+// The hand-off is rendered INTO the probe and read back out of the DOM. Stashing it in an
+// outer variable would be the obvious thing, but a component may not write to one.
 function CheckoutProbe() {
   const { state } = useLocation();
-  captured = state;
-  return <div data-testid="checkout">checkout</div>;
+  return <div data-testid="checkout">{JSON.stringify(state?.booking ?? null)}</div>;
 }
+const handedOver = () => JSON.parse(screen.getByTestId('checkout').textContent);
 
 const renderPage = (state) =>
   render(
@@ -53,8 +54,6 @@ const renderPage = (state) =>
       </Routes>
     </MemoryRouter>,
   );
-
-beforeEach(() => { captured = null; });
 
 describe('FlightDetail — the price it shows', () => {
   it('prices the headline per ADULT and the booking at the party total', () => {
@@ -70,11 +69,11 @@ describe('FlightDetail — the price it shows', () => {
   it('hands the checkout the exact supplier total and a per-person figure', async () => {
     renderPage({ flight, ctx });
     await userEvent.click(screen.getByRole('button', { name: /book now/i }));
-    expect(screen.getByTestId('checkout')).toBeInTheDocument();
+    const booking = handedOver();
     // Checkout multiplies ppPrice back by the traveller count, so this must land on 1480.
-    expect(captured.booking.ppPrice * 2).toBeCloseTo(1480, 2);
-    expect(captured.booking.api.flight.price).toBe(1480);
-    expect(captured.booking.api.flight.flightKeys).toEqual(['out-key', 'ret-key']);
+    expect(booking.ppPrice * 2).toBeCloseTo(1480, 2);
+    expect(booking.api.flight.price).toBe(1480);
+    expect(booking.api.flight.flightKeys).toEqual(['out-key', 'ret-key']);
   });
 
   it('breaks the fare down from the supplier rows, with no invented surcharge line', async () => {
@@ -114,6 +113,11 @@ describe('FlightDetail — the claims it makes', () => {
     renderPage({ flight, ctx });
     expect(screen.queryByText(/Cabin class/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/Economy/i)).not.toBeInTheDocument();
+  });
+
+  it('names the fare the airline actually sold, where the cabin label used to sit', () => {
+    renderPage({ flight: { ...flight, fareName: 'ECOJET' }, ctx });
+    expect(screen.getAllByText(/ECOJET/).length).toBeGreaterThan(0);
   });
 });
 

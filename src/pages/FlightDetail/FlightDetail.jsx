@@ -158,7 +158,7 @@ export default function FlightDetail() {
   // "8h 30m · Non-stop · Economy" — built by joining only the parts the fare actually
   // states. Airtuerk sends no aircraft type and no cabin, and this line used to render
   // them anyway, producing "8h 30m · Non-stop ·  · " with the separators left stranded.
-  const legMeta = (leg) => [leg.durLabel, leg.stopsLabel, leg.aircraft, flight.cabin]
+  const legMeta = (leg) => [leg.durLabel, leg.stopsLabel, leg.aircraft, flight.cabin, flight.fareName]
     .filter(Boolean).join(' · ');
 
   // The trip-level allowance is the more restrictive of the two directions (the supplier
@@ -312,6 +312,7 @@ export default function FlightDetail() {
             <span className="fd-hchip">{ICON.cal} {fmtDate(flight.out.depDateISO)}</span>
             <span className="fd-hchip">{ICON.user} {paxLabel(ctx)}</span>
             {flight.cabin && <span className="fd-hchip">{ICON.board} {flight.cabin}</span>}
+            {flight.fareName && <span className="fd-hchip">{ICON.doc} {flight.fareName}</span>}
             <span className="fd-hchip">{ICON.clock} {totalLabel} total</span>
             <span className="fd-hchip fd-hchip-price">from {money(flight.price)} pp</span>
           </div>
@@ -344,6 +345,7 @@ export default function FlightDetail() {
                   <div className="fd-stat"><span className="fd-stat-k">Total travel time</span><span className="fd-stat-v">{totalLabel}</span></div>
                   <div className="fd-stat"><span className="fd-stat-k">{isRound ? 'Trip length' : 'Journey'}</span><span className="fd-stat-v">{isRound ? `${nights} ${nights === 1 ? 'night' : 'nights'}` : 'One way'}</span></div>
                   {flight.cabin && <div className="fd-stat"><span className="fd-stat-k">Cabin class</span><span className="fd-stat-v">{flight.cabin}</span></div>}
+                  {flight.fareName && <div className="fd-stat"><span className="fd-stat-k">Fare</span><span className="fd-stat-v">{flight.fareName}</span></div>}
                 </div>
                 <div className="fd-detail-card out">
                   <div className="fd-detail-title">{ICON.plane} Outbound · {flight.out.fromCode} → {flight.out.toCode}</div>

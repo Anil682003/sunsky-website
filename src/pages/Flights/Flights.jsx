@@ -83,6 +83,7 @@ function FlightCard({ f, onSelect, money }) {
           {f.ret && <><div className="fl-legs-div" /><Leg leg={f.ret} tag="Return" /></>}
         </div>
         <div className="fl-card-price">
+          {f.fareName && <div className="fl-fare-name">{f.fareName}</div>}
           {f.origPrice > f.price && <div className="fl-price-was">{money(f.origPrice)}</div>}
           <div className="fl-price">{money(f.price)}</div>
           <div className="fl-price-sub">{f.pax > 1 ? `per person · ${money(flightTotal(f))} total` : 'per person'}</div>

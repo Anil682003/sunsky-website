@@ -279,6 +279,10 @@ export function mapAirtuerkFlight(af, ctx, idx) {
     out, ret, price, origPrice: price, totalPrice,
     fareBreakdown: fareRows,
     baggage: af.baggage || null,
+    // The airline's own name for this fare — ECOJET, SUNVALUE, Saver. It is what actually
+    // separates two fares on the same flight (and tracks the baggage allowance), and it is
+    // what the screens show where they used to print a cabin class the supplier never stated.
+    fareName: af.fareName || null,
     // Cabin class is NOT claimed for a live fare: the search never sends the traveller's
     // cabin choice to Airtuerk and the response never states one back, so printing the
     // dropdown value here asserted "Business" over whatever the supplier actually priced.

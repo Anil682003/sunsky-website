@@ -96,6 +96,15 @@ describe('mapAirtuerkFlight — what the detail page reads off a leg', () => {
     expect(f.cabin).toBeNull();
   });
 
+  it('carries the airline fare name, which replaced the invented cabin label', () => {
+    // ECOJET vs LOW on the same VF service is the real difference between two fares;
+    // cabinClass came back 0 on every option Airtuerk has ever returned.
+    const named = mapAirtuerkFlight({ totalPrice: 1480, currency: 'EUR', legs, fareName: 'ECOJET' }, ctxFor(2), 0);
+    expect(named.fareName).toBe('ECOJET');
+    expect(named.cabin).toBeNull();
+    expect(mapped(1480, ctxFor(2)).fareName).toBeNull();
+  });
+
   it('carries the supplier baggage allowance down to the leg', () => {
     const withBags = mapAirtuerkFlight(
       { totalPrice: 1480, currency: 'EUR', legs, baggage: { checkedKg: 15, checkedPieces: 0, handKg: 0 } },

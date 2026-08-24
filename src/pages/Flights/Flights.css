@@ -121,6 +121,10 @@
 .fl-card-legs { flex:1; min-width:0; padding:20px 24px; display:flex; flex-direction:column; gap:14px; }
 .fl-legs-div { height:1px; background:var(--border-light); }
 .fl-card-price { width:210px; flex-shrink:0; border-left:1px dashed var(--border); background:linear-gradient(180deg,#fafcff,#f3f8ff); display:flex; flex-direction:column; align-items:center; justify-content:center; padding:18px 20px; text-align:center; }
+/* The airline's own name for the fare — ECOJET, SUNVALUE, Saver. Two fares on the same
+   flight differ by this and by the baggage that comes with it, and by nothing else the
+   supplier reports; it sits where the invented cabin-class label used to. */
+.fl-fare-name { font-size:10px; font-weight:800; letter-spacing:.06em; text-transform:uppercase; color:var(--text-light); background:var(--surface,#fff); border:1px solid var(--border); border-radius:var(--r-full); padding:3px 9px; margin-bottom:6px; max-width:100%; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 .fl-price-was { font-size:12px; color:var(--text-light); text-decoration:line-through; font-weight:600; font-variant-numeric:tabular-nums; }
 .fl-price { font-family:'Sora',sans-serif; font-size:26px; font-weight:800; color:var(--dark); line-height:1.05; letter-spacing:-.02em; font-variant-numeric:tabular-nums; }
 .fl-price-sub { font-size:11px; color:var(--text-light); font-weight:600; margin-top:3px; }

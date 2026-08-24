@@ -74,7 +74,15 @@ const DESTINATION_OPTIONS = [
   { code: 'FAO', city: 'Faro',      country: 'Portugal',  flag: '🇵🇹' },
 ].map((a) => ({ ...a, name: "" }));
 
-const CABIN_CLASSES = ['Economy', 'Premium Economy', 'Business', 'First'];
+// A cabin selector used to sit on this tab, offering Economy / Premium Economy / Business /
+// First. Airtuerk — the only flight supplier wired up — has no cabin filter on its search:
+// CabinClass, cabinClass, CabinType and ClassType are each accepted and silently ignored,
+// returning byte-identical option sets and prices (probed BRU→AYT and BRU→IST, 2026-10-15).
+// Its responses report cabinClass 0 on every option of every route, across XQ/PC/XC/VF/TK.
+// So the control changed nothing, and the fare it produced was then labelled with whatever
+// the traveller had picked — a Business search returned, and displayed, economy fares. What
+// really separates two fares on one flight is the airline's fare NAME (ECOJET, SUNVALUE,
+// Saver), which the results now show instead.
 
 const TRIP_TYPES = [
   { id: 'roundtrip', label: 'Round trip' },
@@ -105,9 +113,6 @@ const ICON_CAL = (
 );
 const ICON_PAX = (
   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/></svg>
-);
-const ICON_CABIN = (
-  <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 15h20"/><path d="M4 15l1.6-4.8A2 2 0 017.5 9h9a2 2 0 011.9 1.2L20 15"/><path d="M8 9V6a2 2 0 012-2h4a2 2 0 012 2v3"/><path d="M5 19h14"/></svg>
 );
 const ICON_SWAP = (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M7 16l-4-4 4-4"/><path d="M17 8l4 4-4 4"/><path d="M3 12h18"/></svg>
@@ -309,7 +314,6 @@ export default function Hero() {
   const [flightAdults, setFlightAdults] = useState(1);
   const [flightChildren, setFlightChildren] = useState(0);
   const [flightInfants, setFlightInfants] = useState(0);
-  const [cabinClass, setCabinClass] = useState(() => remembered?.cabinClass || 'Economy');
   // Multi-city is a LIST of flights, not a second row bolted under the first: the traveller
   // adds and removes legs, and each one carries its own From, To and departure date.
   const [legs, setLegs] = useState([
@@ -590,7 +594,7 @@ export default function Hero() {
     saveSearch({
       mode: 'flight',
       flightFrom, flightTo, flightDate, flightReturnDate,
-      cabinClass, tripType, directOnly,
+      tripType, directOnly,
     });
     // Leg one is the search the /flights page runs; the rest of a multi-city trip rides along
     // in `legs` so nothing the traveller typed is dropped on the way there.
@@ -603,7 +607,6 @@ export default function Hero() {
       adults: String(flightAdults),
       children: String(flightChildren),
       infants: String(flightInfants),
-      cabin: cabinClass,
       tripType,
       direct: String(directOnly),
     });
@@ -660,10 +663,10 @@ export default function Hero() {
 
   // The flights tab asks its questions IN ORDER, the way an airline's own site does: where
   // from and where to first, and only once there is a route does the rest of the search —
-  // dates, who is flying, which cabin — appear to be filled in. A first-time visitor meets
-  // two fields and a button rather than six fields they must read past to find the two that
-  // matter. Multi-city is the exception: its dates live on the legs themselves, and the party
-  // and cabin underneath belong to the whole trip, so that row is always there.
+  // dates and who is flying — appears to be filled in. A first-time visitor meets two fields
+  // and a button rather than six fields they must read past to find the two that matter.
+  // Multi-city is the exception: its dates live on the legs themselves, and the party
+  // underneath belongs to the whole trip, so that row is always there.
   const showDetails = tripType === 'multicity' || Boolean(fromCode && toCode);
 
   // Which airport panel belongs to an open field, and what picking a row in it does. Every
@@ -1549,21 +1552,6 @@ export default function Hero() {
                   </div>
                   <span className={styles.sfHint}>Who is flying</span>
                 </div>
-                <div className={styles.sfDivider} />
-                <div
-                  className={`${styles.sf} ${openField === 'flightClass' ? styles.sfActive : ''}`}
-                  onClick={() => toggleField('flightClass')}
-                >
-                  <div className={styles.sfHead}>
-                    <span className={styles.sfIcon}>{ICON_CABIN}</span>
-                    <span className={styles.sfLabel}>Class</span>
-                  </div>
-                  <div className={styles.sfBody}>
-                    <span className={styles.sfValue}>{cabinClass}</span>
-                    {caret(openField === 'flightClass')}
-                  </div>
-                  <span className={styles.sfHint}>Cabin to travel in</span>
-                </div>
                 {directOnlyToggle}
                 {/* Multi-city's Search sits down here: its own row is a stack of legs, and a
                     button beside leg one would read as searching that leg alone. */}
@@ -1630,23 +1618,6 @@ export default function Hero() {
             </div>
           )}
 
-          {openField === 'flightClass' && (
-            <div className={`${styles.flightDropdown} ${styles.classDropdown}`}>
-              <span className={styles.classTitle}>Cabin class</span>
-              <div className={styles.classGrid}>
-                {CABIN_CLASSES.map((c) => (
-                  <button
-                    type="button"
-                    key={c}
-                    className={`${styles.classPill} ${cabinClass === c ? styles.classPillActive : ''}`}
-                    onClick={() => { setCabinClass(c); setOpenField(null); }}
-                  >
-                    {c}
-                  </button>
-                ))}
-              </div>
-            </div>
-          )}
         </div>
         )}
 
