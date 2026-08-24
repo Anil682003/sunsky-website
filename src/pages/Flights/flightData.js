@@ -53,16 +53,21 @@ export const fmtDateShort = (iso) => {
   if (isNaN(d.getTime())) return '';
   return `${d.getDate()} ${MO[d.getMonth()]}`;
 };
+// Local parts, never toISOString(): these dates are local calendar days, and converting one
+// to UTC rolls it back a day in any zone ahead of UTC — a default return date, and the
+// default departure, both landed a day early for a traveller east of Greenwich.
+const localISO = (d) =>
+  `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 const addDaysISO = (iso, n) => {
   const d = new Date(iso + 'T00:00:00');
   if (isNaN(d.getTime())) return iso;
   d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return localISO(d);
 };
 const todayPlus = (n) => {
   const d = new Date();
   d.setDate(d.getDate() + n);
-  return d.toISOString().split('T')[0];
+  return localISO(d);
 };
 
 /* "London Heathrow (LHR)" / "Phuket, Thailand (HKT)" → {code, city, name} */

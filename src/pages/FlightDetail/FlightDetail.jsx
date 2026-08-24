@@ -33,8 +33,13 @@ const shiftDate = (iso, days) => {
   if (!iso) return iso;
   const d = new Date(iso + 'T00:00:00');
   if (isNaN(d.getTime())) return iso;
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
+  d.setDate(d.getDate() + (Number(days) || 0));
+  // Read back from the LOCAL parts, not toISOString(). The date was parsed as local midnight,
+  // and toISOString() converts that to UTC — so in any zone ahead of UTC it rolled back to the
+  // previous day. Every arrival line on this page read a day early ("departs Sun 20 Sep,
+  // arrives Sat 19 Sep"), and the arrival timestamp handed to the booking was a day out with
+  // it, which is the half that would have reached the airline.
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 };
 const dayDiff = (a, b) => {
   const d1 = new Date(a + 'T00:00:00'), d2 = new Date(b + 'T00:00:00');
@@ -315,6 +320,20 @@ export default function FlightDetail() {
             <span className="fd-bc-here">{[...new Set(legs.map((l) => l.airline))].join(' + ')}</span>
           </div>
           <div className="fd-hero-route">
+            {/* A multi-city trip usually ends where it started, so "BRU → BRU" is both true
+                and useless. The whole chain is what the traveller booked. */}
+            {isMulti ? (
+              <div className="fd-hero-chain">
+                {[legs[0].fromCode, ...legs.map((l) => l.toCode)].map((code, i) => (
+                  <span className="fd-hero-chainstep" key={i}>
+                    {i > 0 && <span className="fd-hero-chainarrow">{ICON.arrow}</span>}
+                    <span className="fd-hero-chaincode">{code}</span>
+                  </span>
+                ))}
+                <span className="fd-hero-trip">{tripLabel} · {legs.length} flights</span>
+              </div>
+            ) : (
+            <>
             <div className="fd-hero-city">
               <div className="fd-hero-code">{flight.out.fromCode}</div>
               <div className="fd-hero-cname">{flight.out.fromCity}</div>
@@ -326,6 +345,8 @@ export default function FlightDetail() {
               <div className="fd-hero-code">{lastLeg.toCode}</div>
               <div className="fd-hero-cname">{lastLeg.toCity}</div>
             </div>
+            </>
+            )}
           </div>
           <div className="fd-hero-chips">
             <span className="fd-hchip">{ICON.cal} {fmtDate(flight.out.depDateISO)}</span>
