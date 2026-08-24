@@ -88,7 +88,7 @@ const MAX_LEGS = 5;
 
 // The fields whose panel is the airport typeahead: the two on the round-trip row, plus a From
 // and a To for every multi-city leg.
-const AIRPORT_FIELD = /^(?:flightFrom|flightTo|legd+(?:From|To))$/;
+const AIRPORT_FIELD = /^(?:flightFrom|flightTo|leg\d+(?:From|To))$/;
 
 // Field icons, hoisted out of the markup: the same handful of drawings appears on up to
 // sixteen fields once a five-leg multi-city trip is open, and inlining them buried the fields
@@ -122,7 +122,7 @@ const ICON_X = (
 );
 
 /** The IATA code a From/To field is holding, or '' while it is empty or still half-typed. */
-const airportCodeOf = (str) => (/(([A-Za-z]{3}))s*$/.exec(String(str || '').trim())?.[1] || '').toUpperCase();
+const airportCodeOf = (str) => (/\(([A-Za-z]{3})\)\s*$/.exec(String(str || '').trim())?.[1] || '').toUpperCase();
 
 // The little scene beside "No preference": five map pins strung along a dashed flight arc,
 // standing for "we'll look from all of them". Pin tips sit ON the curve (they are placed at
@@ -204,7 +204,13 @@ export default function Hero() {
   }, [cmsConfig]);
 
   // Default to the new "Search" (typeahead) tab — our change.
-  const [searchMode, setSearchMode] = useState('package');
+  // The trip last searched from this page, still within its week (utils/searchStore). Read
+  // once, on mount: the traveller may change any of these fields afterwards and a later
+  // re-read would fight them for control of the form. Who is travelling is NOT in here —
+  // that stays in paxStore on its shorter window and reaches the form through initialRooms.
+  const [remembered] = useState(loadSearch);
+
+  const [searchMode, setSearchMode] = useState(() => remembered?.mode ?? 'package');
 
   // Hero background: use the CMS-managed image when one is set, otherwise fall
   // back to the default image defined in Hero.module.css (.bg). resolveCmsImageUrl
