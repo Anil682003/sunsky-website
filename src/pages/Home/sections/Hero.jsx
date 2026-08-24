@@ -216,7 +216,13 @@ export default function Hero() {
   // that stays in paxStore on its shorter window and reaches the form through initialRooms.
   const [remembered] = useState(loadSearch);
 
-  const [searchMode, setSearchMode] = useState(() => remembered?.mode ?? 'package');
+  // The home page always opens on Package, whatever was searched last. Packages are the
+  // product the agency leads with, so the landing state is a decision about what is being
+  // sold rather than a reflection of one visitor's last click. The remembered search still
+  // fills BOTH tabs' fields (see `remembered` above) — someone who was pricing flights finds
+  // their route already there the moment they open that tab, they just are not dropped onto
+  // it on arrival.
+  const [searchMode, setSearchMode] = useState('package');
 
   // Hero background: use the CMS-managed image when one is set, otherwise fall
   // back to the default image defined in Hero.module.css (.bg). resolveCmsImageUrl
@@ -233,16 +239,34 @@ export default function Hero() {
   const flightsTab = searchMode === 'flights';
   const heroBgUrl = flightsTab ? flightBgUrl : packageBgUrl;
 
-  // Preload the CMS background image so the hero can show a shimmer until it's ready (friend's
-  // change from master).
-  const [bgLoaded, setBgLoaded] = useState(false);
+  // Both photos are mounted at once and cross-faded by opacity, rather than one layer being
+  // swapped for the other. Swapping meant the outgoing photo vanished the instant the tab
+  // changed and the new one faded up from the dark page behind it — a blink between two
+  // images that are meant to dissolve into each other. Keeping both mounted also means the
+  // second tab's photo is already decoded, so the switch never re-runs the loading shimmer.
+  const [loadedBgs, setLoadedBgs] = useState(() => new Set());
+  const requestedBgs = useRef(new Set());
+
   useEffect(() => {
-    if (!heroBgUrl) { setBgLoaded(false); return; }
-    const img = new Image();
-    img.onload = () => setBgLoaded(true);
-    img.src = heroBgUrl;
-    return () => { img.onload = null; };
-  }, [heroBgUrl]);
+    let alive = true;
+    for (const url of [packageBgUrl, flightBgUrl]) {
+      // Fetch each photo once per URL, whichever tab is showing: the other tab's image is
+      // warmed while the traveller reads this one, so switching is instant.
+      if (!url || requestedBgs.current.has(url)) continue;
+      requestedBgs.current.add(url);
+      const img = new Image();
+      img.onload = () => {
+        if (alive) setLoadedBgs((prev) => (prev.has(url) ? prev : new Set(prev).add(url)));
+      };
+      img.src = url;
+    }
+    return () => { alive = false; };
+  }, [packageBgUrl, flightBgUrl]);
+
+  // A layer shows once it has something to show: either a CMS photo that has finished
+  // decoding, or no CMS photo at all, in which case its built-in image is already in the CSS.
+  const layerReady = (url) => !url || loadedBgs.has(url);
+  const heroBgReady = layerReady(heroBgUrl);
 
   // Multi-destination selection committed from the picker modal:
   // countries the traveller ticked, plus any regions/cities inside them
@@ -1293,14 +1317,25 @@ export default function Hero() {
       {/* heroBgImage = client-uploaded photo shown as-is (no darkening filter or
           overlay), so every element on top must carry its own contrast. */}
       <div className={`${styles.heroBg} ${heroBgUrl ? styles.heroBgImage : ''}`}>
-        {heroBgUrl && !bgLoaded && <div className={styles.bgShimmer} />}
-        {/* Keyed on the tab so React replaces the layer rather than repainting it: the swap
-            then plays the .bg fade-in instead of cutting from one photo to the other. */}
-        <div
-          key={flightsTab ? 'flights' : 'package'}
-          className={`${styles.bg} ${flightsTab && !heroBgUrl ? styles.bgFlights : ''} ${heroBgUrl && !bgLoaded ? styles.bgHidden : ''}`}
-          style={heroBgUrl ? { backgroundImage: `url("${heroBgUrl}")` } : undefined}
-        />
+        {!heroBgReady && <div className={styles.bgShimmer} />}
+        {/* One layer per tab, both always mounted, only their opacity changes — so Package ↔
+            Flights dissolves instead of blinking through the page behind. Each falls back to
+            its own built-in photo in the stylesheet when the dashboard has not set one. */}
+        {[
+          { key: 'package', url: packageBgUrl, active: !flightsTab, fallback: '' },
+          { key: 'flights', url: flightBgUrl, active: flightsTab, fallback: styles.bgFlights },
+        ].map((layer) => (
+          <div
+            key={layer.key}
+            aria-hidden="true"
+            className={[
+              styles.bg,
+              layer.url ? '' : layer.fallback,
+              layer.active && layerReady(layer.url) ? styles.bgActive : '',
+            ].filter(Boolean).join(' ')}
+            style={layer.url ? { backgroundImage: `url("${layer.url}")` } : undefined}
+          />
+        ))}
         <div className={styles.overlay} />
         <div className={`${styles.blob} ${styles.blob1}`} />
         <div className={`${styles.blob} ${styles.blob2}`} />
