@@ -236,10 +236,19 @@ export function mapAirtuerkFlight(af, ctx, idx) {
 
   const out = buildLeg(outSegs, ctx.depISO, ctx.from, ctx.to);
   const ret = retSegs.length ? buildLeg(retSegs, ctx.retISO, ctx.to, ctx.from) : null;
-  const price = Math.round(Number(af.totalPrice) || 0);
+  // Airtuerk's `totalPrice` is the PARTY total: parseOption() sums (base + tax) x quantity
+  // across every passenger type, and a round trip adds both directions on top. The cards,
+  // the detail page and the checkout all speak PER PERSON, so it is divided here — once —
+  // instead of being shown as a per-person figure and then multiplied by the party again,
+  // which is what made a 2-traveller fare read at exactly double on both lines of the card.
+  // The exact supplier total rides along untouched: it is the number the server re-prices
+  // against, so it must never be reconstructed from a rounded per-person figure.
+  const totalPrice = Number(af.totalPrice) || 0;
+  const paxCount = Math.max(1, Number(ctx.pax) || 1);
+  const price = Math.round(totalPrice / paxCount);
   return {
     id: `air-${ctx.from.code}-${ctx.to.code}-${idx + 1}`,
-    out, ret, price, origPrice: price,
+    out, ret, price, origPrice: price, totalPrice,
     currency: af.currency || 'EUR', cabin: ctx.cabin, pax: ctx.pax,
     tripType: ctx.tripType, totalMin: (out?.durMin || 0) + (ret?.durMin || 0),
     // Opaque Airtuerk bookable key(s) — required by the live reservation flow.
@@ -264,18 +273,32 @@ export function badgeFlights(list) {
 
 /* Build a price breakdown + fare facts from a flight (used by detail + checkout). */
 export function fareBreakdown(flight) {
-  const pax = flight.pax || 1;
-  const perPersonBase = Math.round(flight.price * 0.74);
-  const taxes = Math.round(flight.price * 0.17);
-  const surcharge = flight.price - perPersonBase - taxes; // remainder
-  const discount = flight.origPrice > flight.price ? flight.origPrice - flight.price : 0;
+  const pax = Math.max(1, flight.pax || 1);
+  // A LIVE fare carries the supplier's exact party total; the sample generator prices per
+  // person, so there the total is still price x pax. The rows are split out of `total`
+  // rather than multiplied up from a rounded per-person figure, so they always sum to the
+  // amount the supplier will re-price the booking at.
+  const total = Number.isFinite(flight.totalPrice) ? flight.totalPrice : flight.price * pax;
+  const baseFare = Math.round(total * 0.74);
+  const taxes = Math.round(total * 0.17);
+  const surcharge = total - baseFare - taxes; // remainder
+  const discount = flight.origPrice > flight.price ? (flight.origPrice - flight.price) * pax : 0;
   return {
     pax,
-    baseFare: perPersonBase * pax,
-    taxes: taxes * pax,
-    surcharge: surcharge * pax,
-    discount: discount * pax,
-    total: flight.price * pax,
-    perPerson: flight.price,
+    baseFare,
+    taxes,
+    surcharge,
+    discount,
+    total,
+    // Unrounded on purpose: the checkout multiplies this back by the traveller count, so a
+    // rounded figure would drift from the total the server charges.
+    perPerson: total / pax,
   };
+}
+
+/** The party total for a mapped flight — the supplier's own figure when it has one. */
+export function flightTotal(flight) {
+  return Number.isFinite(flight?.totalPrice)
+    ? flight.totalPrice
+    : (flight?.price || 0) * Math.max(1, flight?.pax || 1);
 }

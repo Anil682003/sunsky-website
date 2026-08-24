@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import './Flights.css';
 import axiosInstance from '../../services/axiosInstance';
-import { buildContext, generateFlights, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights } from './flightData';
+import { buildContext, generateFlights, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal } from './flightData';
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
@@ -85,7 +85,7 @@ function FlightCard({ f, onSelect, money }) {
         <div className="fl-card-price">
           {f.origPrice > f.price && <div className="fl-price-was">{money(f.origPrice)}</div>}
           <div className="fl-price">{money(f.price)}</div>
-          <div className="fl-price-sub">{f.pax > 1 ? `per person · ${money(f.price * f.pax)} total` : 'per person'}</div>
+          <div className="fl-price-sub">{f.pax > 1 ? `per person · ${money(flightTotal(f))} total` : 'per person'}</div>
           <button className="fl-select" onClick={() => onSelect(f)}>Select {ICON.arrow}</button>
         </div>
       </div>

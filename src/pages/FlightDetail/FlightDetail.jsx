@@ -135,7 +135,7 @@ export default function FlightDetail() {
       currency: '€',
       nights,
       adults: pax,
-      ppPrice: flight.price,
+      ppPrice: fb.perPerson,
       origPrice: flight.origPrice,
       dateLabel: isRound
         ? `${fmtDateShort(flight.out.depDateISO)} — ${fmtDateShort(flight.ret.depDateISO)}`
@@ -157,7 +157,7 @@ export default function FlightDetail() {
         flight: {
           from: flight.out.fromCode, to: flight.out.toCode,
           depdate: flight.out.depDateISO, retdate: isRound ? flight.ret.depDateISO : undefined,
-          price: Math.round(fb.total), currency: 'EUR',
+          price: fb.total, currency: 'EUR',
           tripType: isRound ? 'roundtrip' : 'oneway', supplier: 'Airtuerk',
           // Opaque Airtuerk bookable key(s) needed for live reservation (basket/create).
           // One-way → 1 key; round trip → 2 keys (outbound + return).
