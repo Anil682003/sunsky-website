@@ -78,29 +78,18 @@ export function buildContext(params) {
   const get = (k, d = '') => params.get(k) || d;
   const from = parseAirport(get('from'), 'LON');
   const to = parseAirport(get('to'), 'DXB');
-  // A multi-city trip reaches this page as its FIRST flight plus the whole chain in `legs`;
-  // the results below are that first flight, so like a one-way it has no return to price.
-  const wanted = get('tripType', 'roundtrip');
-  const tripType = wanted === 'oneway' || wanted === 'multicity' ? wanted : 'roundtrip';
+  const tripType = get('tripType', 'roundtrip') === 'oneway' ? 'oneway' : 'roundtrip';
   const depISO = get('date') || todayPlus(30);
   let retISO = get('returnDate');
   if (tripType === 'roundtrip' && !retISO) retISO = addDaysISO(depISO, 7);
-  if (tripType !== 'roundtrip') retISO = '';
+  if (tripType === 'oneway') retISO = '';
   const adults = Math.max(1, parseInt(get('adults', '1'), 10) || 1);
   const children = Math.max(0, parseInt(get('children', '0'), 10) || 0);
   const infants = Math.max(0, parseInt(get('infants', '0'), 10) || 0);
   const cabin = CABIN_MULT[get('cabin')] ? get('cabin') : 'Economy';
   const direct = get('direct') === 'true';
-  // "BRU-AYT-2026-08-17|AYT-IST-2026-08-22" → one entry per flight. Empty for every other
-  // trip type, so a caller can read it without asking which type this is first.
-  const legs = (get('legs') || '')
-    .split('|')
-    .map((leg) => /^([A-Za-z]{3})-([A-Za-z]{3})-(d{4}-d{2}-d{2})$/.exec(leg.trim()))
-    .filter(Boolean)
-    .map((m) => ({ from: m[1].toUpperCase(), to: m[2].toUpperCase(), date: m[3] }));
-
   return {
-    from, to, tripType, depISO, retISO, legs,
+    from, to, tripType, depISO, retISO,
     adults, children, infants, pax: adults + children + infants,
     cabin, direct,
     depLabel: fmtDate(depISO), retLabel: fmtDate(retISO),
