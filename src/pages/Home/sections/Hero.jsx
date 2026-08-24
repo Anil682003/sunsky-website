@@ -12,6 +12,7 @@ import { flagUrl } from '../../../utils/countryFlag';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { earliestCheckInISO } from '../../../utils/leadTime';
 import { loadPax, savePax } from '../../../utils/paxStore';
+import { loadSearch, saveSearch } from '../../../utils/searchStore';
 
 // Duration bands shown in the search box. Each band is a day-range with a representative stay
 // length in nights — the concrete duration the search prices for that band. Picking a band + a
@@ -241,12 +242,19 @@ export default function Hero() {
   // Multi-destination selection committed from the picker modal:
   // countries the traveller ticked, plus any regions/cities inside them
   // (empty places for a country = "anywhere in it").
-  const [destSelection, setDestSelection] = useState({ countries: [], places: [] });
-  const [date, setDate] = useState('');
+  const [destSelection, setDestSelection] = useState(() => (
+    remembered ? { countries: remembered.countries, places: remembered.places } : { countries: [], places: [] }
+  ));
+  // A remembered departure date that has since passed comes back empty (searchStore rule 3),
+  // so the traveller picks new dates rather than being handed a trip that cannot be taken.
+  const [date, setDate] = useState(() => remembered?.date ?? '');
   // How far either side of that departure the traveller will look: 0 = exact dates, up to ±3
   // days. Chosen on the calendar itself and carried to /results as `flex`.
-  const [flexDays, setFlexDays] = useState(0);
-  const [duration, setDuration] = useState('6-10 days');   // band label (default: ~1 week)
+  const [flexDays, setFlexDays] = useState(() => remembered?.flexDays ?? 0);
+  // Only a band this build still offers is restored — the list can change between visits.
+  const [duration, setDuration] = useState(
+    () => (remembered?.duration && bandByLabel(remembered.duration) ? remembered.duration : '6-10 days')
+  );
   // How the traveller gets there + from which airport. Defaults to FLIGHT INCLUDED: a package
   // is the product being sold, so an untouched search should price the trip the way most
   // travellers actually buy it rather than making them find the toggle first. Choosing
@@ -254,12 +262,12 @@ export default function Hero() {
   // This decision travels the whole journey (results sidebar → hotel page flight search →
   // checkout) and rides the /results URL alongside `origin`, which the results page and the
   // hotel page already read from there.
-  const [transport, setTransport] = useState('package');
+  const [transport, setTransport] = useState(() => (remembered?.transport === 'hotel_only' ? 'hotel_only' : 'package'));
   // Airports the traveller can leave from — MULTI-select, because "Brussels or Charleroi,
   // whichever works out" is how people actually shop. The FIRST pick is the airport the
   // search prices from (`origin` in the URL — single-valued everywhere downstream); the
   // whole list rides along as `origins` so the choice is never silently narrowed to one.
-  const [origins, setOrigins] = useState([DEFAULT_ORIGIN]);
+  const [origins, setOrigins] = useState(() => (remembered?.origins?.length ? remembered.origins : [DEFAULT_ORIGIN]));
   // §25 departure master list from the admin dashboard (seed fallback until it loads).
   const { airports: allAirports } = useDepartureAirports();
   // Toggle, never below one: an empty "Flying from" has no honest label and no airport
@@ -288,18 +296,20 @@ export default function Hero() {
   const [roomsList, setRoomsList] = useState(initialRooms);
   const [openField, setOpenField] = useState(null);
 
-  const [tripType, setTripType] = useState('roundtrip');
-  const [directOnly, setDirectOnly] = useState(false);
+  const [tripType, setTripType] = useState(() => remembered?.tripType ?? 'roundtrip');
+  const [directOnly, setDirectOnly] = useState(() => remembered?.directOnly ?? false);
   // The flights tab starts where the agency's flights start, same as the package tab's
   // `origins` default — an empty "From" made every visitor re-type the one obvious answer.
-  const [flightFrom, setFlightFrom] = useState(`${airportLabel(DEFAULT_ORIGIN)} (${DEFAULT_ORIGIN})`);
-  const [flightTo, setFlightTo] = useState('');
-  const [flightDate, setFlightDate] = useState('');
-  const [flightReturnDate, setFlightReturnDate] = useState('');
+  const [flightFrom, setFlightFrom] = useState(
+    () => remembered?.flightFrom || `${airportLabel(DEFAULT_ORIGIN)} (${DEFAULT_ORIGIN})`
+  );
+  const [flightTo, setFlightTo] = useState(() => remembered?.flightTo ?? '');
+  const [flightDate, setFlightDate] = useState(() => remembered?.flightDate ?? '');
+  const [flightReturnDate, setFlightReturnDate] = useState(() => remembered?.flightReturnDate ?? '');
   const [flightAdults, setFlightAdults] = useState(1);
   const [flightChildren, setFlightChildren] = useState(0);
   const [flightInfants, setFlightInfants] = useState(0);
-  const [cabinClass, setCabinClass] = useState('Economy');
+  const [cabinClass, setCabinClass] = useState(() => remembered?.cabinClass || 'Economy');
   // Multi-city is a LIST of flights, not a second row bolted under the first: the traveller
   // adds and removes legs, and each one carries its own From, To and departure date.
   const [legs, setLegs] = useState([
@@ -508,6 +518,21 @@ export default function Hero() {
     qs.set('origin', origins[0] || DEFAULT_ORIGIN);
     if (origins.length > 1) qs.set('origins', origins.join(','));
 
+    // The trip itself, kept for a week (utils/searchStore) so a holiday shopped over several
+    // visits does not start from an empty form each time. The party is deliberately NOT
+    // included: it lives in paxStore on a 48-hour window because it carries children's dates
+    // of birth, and folding it in here would stretch that window without anyone deciding to.
+    saveSearch({
+      mode: 'package',
+      countries: destSelection.countries,
+      places: destSelection.places,
+      date,
+      flexDays,
+      duration,
+      transport: transport === 'package' ? 'package' : 'hotel_only',
+      origins,
+    });
+
     return qs;
   };
 
@@ -558,6 +583,15 @@ export default function Hero() {
       else setOpenField(missing);
       return;
     }
+
+    // Same week-long memory as the package tab, and the same reason: a flights-only search is
+    // re-run across visits too. Saved only once the form is complete — the guard above means
+    // a half-filled search never reaches here. Passenger counts stay out of it, as above.
+    saveSearch({
+      mode: 'flight',
+      flightFrom, flightTo, flightDate, flightReturnDate,
+      cabinClass, tripType, directOnly,
+    });
     // Leg one is the search the /flights page runs; the rest of a multi-city trip rides along
     // in `legs` so nothing the traveller typed is dropped on the way there.
     const lead = tripType === 'multicity' ? legs[0] : { from: flightFrom, to: flightTo, date: flightDate };
