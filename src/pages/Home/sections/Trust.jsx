@@ -1,4 +1,5 @@
 import styles from './Trust.module.css';
+import { INSURANCE_MARKS } from '../../../utils/insuranceMarks';
 
 const FALLBACK_ITEMS = [
   { title:'Best Price Guarantee', desc:"Found it cheaper? We'll match and beat it.",
@@ -11,18 +12,37 @@ const FALLBACK_ITEMS = [
     icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> },
 ];
 
+/**
+ * The stamp at a given position, when that position is a guarantee seal rather than one of the
+ * agency's own promises. The dashboard's trust list carries SIX entries and the last two were
+ * saved blank — deliberately, to hold these seals — so the section rendered two empty cards.
+ */
+const markAt = (i) => INSURANCE_MARKS[i - INSURANCE_MARKS.offset] || null;
+
 export default function Trust({ cms }) {
   const sh = cms?.sectionHeaders?.trust;
   const tag      = sh?.tag      || '✓ Trust';
   const title    = sh?.title    || 'Why book with Sunsky?';
   const subtitle = sh?.subtitle || 'Thousands of travelers trust us for stress-free holidays.';
 
+  // A card is a PROMISE (icon + words, written in the dashboard) or a SEAL (a guarantee mark
+  // we hold, drawn from the assets). The dashboard's own text still wins on a seal card, so the
+  // client can word the cover however their insurer requires without a release; where they have
+  // written nothing, the seal stands on its own rather than being captioned with a claim about
+  // financial protection that nobody has approved.
   const items = (cms?.trustItems?.length > 0)
-    ? cms.trustItems.map((t, i) => ({
-        title: t.title,
-        desc: t.description || t.desc,
-        icon: FALLBACK_ITEMS[i % FALLBACK_ITEMS.length].icon,
-      }))
+    ? cms.trustItems.map((t, i) => {
+        const mark = markAt(i);
+        return {
+          title: t.title || mark?.title || '',
+          desc: t.description || t.desc || mark?.desc || '',
+          mark,
+          icon: mark ? null : FALLBACK_ITEMS[i % FALLBACK_ITEMS.length].icon,
+        };
+      })
+      // An entry with no words and no seal is an empty slot in the dashboard, not a card. It
+      // used to render as a blank dashed rectangle on the live homepage.
+      .filter((it) => it.mark || it.title || it.desc)
     : FALLBACK_ITEMS;
 
   const titleWords = String(title).trim().split(/\s+/);
@@ -127,9 +147,15 @@ export default function Trust({ cms }) {
                     </g>
                   </svg>
                 )}
-                {item.icon && <div className={styles.icon}>{item.icon}</div>}
-                <div className={styles.itemTitle}>{item.title}</div>
-                <div className={styles.itemDesc}>{item.desc}</div>
+                {item.mark ? (
+                  <div className={styles.markWrap}>
+                    <img className={styles.mark} src={item.mark.img} alt={item.mark.alt} loading="lazy" />
+                  </div>
+                ) : (
+                  item.icon && <div className={styles.icon}>{item.icon}</div>
+                )}
+                {item.title && <div className={styles.itemTitle}>{item.title}</div>}
+                {item.desc && <div className={styles.itemDesc}>{item.desc}</div>}
               </div>
             ))}
           </div>

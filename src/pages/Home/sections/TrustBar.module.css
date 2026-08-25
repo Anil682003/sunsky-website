@@ -1,0 +1,105 @@
+/* ═══════════════════════════════════════════════════════════
+   SunSky — Guarantee bar ("trust balk")
+   A quiet band under the belt: the seals the agency holds, at a
+   size where their type can actually be read, and one way through
+   to the page that explains them. Deliberately calm — it sits
+   between two loud sections and its job is reassurance, not noise.
+   ═══════════════════════════════════════════════════════════ */
+
+.wrap {
+  position: relative;
+  overflow: hidden;
+  padding: 26px 0;
+  background: linear-gradient(180deg, #FFFFFF 0%, var(--blue-bg, #F5F8FF) 100%);
+  border-top: 1px solid rgba(15, 40, 100, 0.06);
+  border-bottom: 1px solid rgba(15, 40, 100, 0.06);
+}
+.glow {
+  position: absolute; inset: 0; pointer-events: none;
+  background:
+    radial-gradient(ellipse 38% 120% at 8% 50%, rgba(163, 204, 255, 0.20) 0%, transparent 70%),
+    radial-gradient(ellipse 34% 120% at 92% 50%, rgba(255, 209, 102, 0.16) 0%, transparent 70%);
+}
+
+.inner {
+  position: relative;
+  max-width: 1280px;
+  margin: 0 auto;
+  padding: 0 clamp(16px, 3vw, 40px);
+  display: flex;
+  align-items: center;
+  gap: clamp(18px, 4vw, 48px);
+}
+
+.lead { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.eyebrow {
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 10.5px; font-weight: 800;
+  letter-spacing: 0.14em; text-transform: uppercase;
+  color: var(--blue-deep, #1F4FD8);
+}
+.title {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-weight: 800; letter-spacing: -0.02em;
+  color: var(--text, #1A2744);
+  line-height: 1.2;
+}
+.accent {
+  background: linear-gradient(115deg, var(--sun-orange, #FF9F1C), var(--sun-gold, #FFD166));
+  -webkit-background-clip: text; background-clip: text;
+  -webkit-text-fill-color: transparent;
+}
+
+/* The seals. `auto` width with a height cap keeps each one at its own aspect ratio — a square
+   insolvency seal and a wide wordmark must not be forced into one box between them. */
+.marks {
+  display: flex; align-items: center;
+  gap: clamp(16px, 3vw, 34px);
+  flex: 1; min-width: 0;
+  list-style: none; margin: 0; padding: 0;
+  flex-wrap: wrap;
+}
+.markItem { display: flex; align-items: center; }
+.mark {
+  height: 54px; width: auto;
+  max-width: 148px;
+  object-fit: contain;
+  transition: transform 0.3s var(--ease, cubic-bezier(.22,1,.36,1));
+}
+.markItem:hover .mark { transform: translateY(-2px) scale(1.04); }
+
+.more {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; gap: 7px;
+  font-size: 13px; font-weight: 700;
+  color: var(--blue-deep, #1F4FD8);
+  text-decoration: none;
+  padding: 9px 16px;
+  border: 1.5px solid rgba(31, 79, 216, 0.22);
+  border-radius: var(--r-full, 9999px);
+  background: rgba(255, 255, 255, 0.75);
+  transition: all 0.25s var(--ease, cubic-bezier(.22,1,.36,1));
+  white-space: nowrap;
+}
+.more:hover {
+  background: #FFFFFF;
+  border-color: var(--blue-deep, #1F4FD8);
+  transform: translateY(-1px);
+  box-shadow: 0 6px 18px rgba(31, 79, 216, 0.14);
+}
+.more svg { transition: transform 0.25s var(--ease, cubic-bezier(.22,1,.36,1)); }
+.more:hover svg { transform: translateX(3px); }
+
+/* ── Responsive ── */
+@media (max-width: 900px) {
+  .inner { flex-wrap: wrap; gap: 16px 24px; }
+  .marks { order: 3; width: 100%; justify-content: flex-start; }
+  .more { margin-left: auto; }
+}
+@media (max-width: 560px) {
+  .wrap { padding: 20px 0; }
+  .mark { height: 44px; max-width: 118px; }
+  .marks { gap: 18px; }
+  .more { width: 100%; justify-content: center; margin-left: 0; }
+}

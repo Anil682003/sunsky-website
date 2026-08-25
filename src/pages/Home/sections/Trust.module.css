@@ -229,6 +229,14 @@
   position: relative;
 }
 
+/* Six cards in a four-column grid leave the last two stranded in columns 1 and 2 with a gap
+   beside them, which reads as a layout fault — and it is exactly the row the guarantee seals
+   land in. Pushing card 5 into column 2 centres the pair; card 6 follows into column 3.
+   The selector matches only when the fifth child is also second-from-last, i.e. at exactly
+   six cards, so the four- and five-card cases are untouched. Below 1100px the grid is two
+   columns and six cards already fill three clean rows, so it is inert there. */
+.grid > .item:nth-child(5):nth-last-child(2) { grid-column: 2; }
+
 .item {
   position: relative;
   z-index: 1;
@@ -304,6 +312,22 @@
 .item:nth-child(4n + 3) .icon { background: rgba(255, 107, 107, 0.12); color: #D64545; }
 .item:nth-child(4n)     .icon { background: rgba(255, 209, 102, 0.22); color: #B27A00; }
 .item:hover .icon { transform: translateY(-2px) scale(1.07); }
+
+/* A guarantee seal, in the slot the icon chip would take. It is NOT put in the round chip:
+   a seal carries its own border, its own type and a year, and shrunk into a 56px circle none
+   of it can be read. It gets a taller box and is never cropped. */
+.markWrap {
+  height: 72px;
+  display: flex; align-items: center; justify-content: flex-start;
+  margin-bottom: 16px;
+}
+.mark {
+  max-height: 100%; max-width: 132px;
+  width: auto; height: auto;
+  object-fit: contain; object-position: left center;
+  transition: transform 0.35s var(--ease-spring);
+}
+.item:hover .mark { transform: translateY(-2px) scale(1.05); }
 
 .itemTitle {
   font-family: 'Sora', sans-serif;

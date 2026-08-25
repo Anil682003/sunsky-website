@@ -7,6 +7,7 @@ import Stats from './sections/Stats';
 import VacationTypes from './sections/VacationTypes';
 import Hotels from './sections/Hotels';
 import PopularDest from './sections/PopularDest';
+import TrustBar from './sections/TrustBar';
 import Trust from './sections/Trust';
 import Newsletter from './sections/Newsletter';
 
@@ -19,6 +20,7 @@ export default function Home() {
     <>
       {on('hero') && <Hero cms={cms} />}
       {on('marquee') && <Marquee cms={cms} />}
+      {on('trustBar') && <TrustBar />}
       {on('categories') && <Categories cms={cms} />}
       {on('destinations') && <Destinations cms={cms} />}
       {on('stats') && <Stats cms={cms} />}
