@@ -99,6 +99,7 @@
    ticket's own flex-basis (620, shrinking) takes over the solo width. */
 @media (max-width: 1180px) {
   .hmWrap { display: none; }
+  .trustpilotSlot { display: none; }
 }
 /* Below the auth breakpoint the bar only has room for the logo + hamburger, so
    the cluster steps aside and the search moves into the drawer. */
@@ -256,6 +257,13 @@
 }
 
 /* ── Auth area ── */
+/* Trustpilot's slot. The widget is 24px tall and the auth controls beside it carry their own
+   height, so the bar stays 60px in every state — which matters because pages clear the fixed
+   navbar with hardcoded 60px/52px margins rather than a shared variable. An empty slot (no
+   business unit id, or consent declined) therefore has to cost nothing: no padding, no border,
+   no min-width. It goes at 1180px, where the flanking menus already yield. */
+.trustpilotSlot { display: flex; align-items: center; flex-shrink: 0; max-width: 160px; margin-right: 14px; }
+
 .authArea { display: flex; align-items: center; flex-shrink: 0; }
 .authBtns { display: flex; align-items: center; gap: 10px; }
 

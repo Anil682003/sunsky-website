@@ -9,6 +9,7 @@ import { resolveCmsImageUrl } from '../../utils/cmsImage';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
 import { hotelDetailHref } from '../../utils/searchDefaults';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
+import Trustpilot from '../../components/Trustpilot/Trustpilot';
 import HeaderMenu from './HeaderMenu';
 
 const slugify = (s) =>
@@ -309,6 +310,12 @@ export default function Navbar() {
           />
         </div>
       )}
+
+      {/* Trustpilot — renders nothing at all until the business unit id is configured, and a
+          short note instead of the widget for a visitor who declined optional cookies. */}
+      <div className={styles.trustpilotSlot}>
+        <Trustpilot />
+      </div>
 
       {/* Desktop auth buttons */}
       <div className={styles.authArea}>

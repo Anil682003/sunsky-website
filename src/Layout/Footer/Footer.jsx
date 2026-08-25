@@ -2,6 +2,9 @@ import { Link, useNavigate } from 'react-router-dom';
 import styles from './Footer.module.css';
 import { useHomepageConfig, useFooterConfig } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
+import { findLegalLink } from '../../utils/legalLinks';
+import Trustpilot from '../../components/Trustpilot/Trustpilot';
+import { useConsent } from '../../context/ConsentContext';
 import mainLogoFallback from '../../assets/main-logo.png';
 
 // Shown only until the footer CMS answers (or if it is unreachable), so the
@@ -23,6 +26,11 @@ export default function Footer() {
   const navigate = useNavigate();
   const { data: footer } = useFooterConfig();
   const { data: cmsConfig } = useHomepageConfig();
+  // Withdrawing consent has to be as easy as giving it, and it has to be reachable from every
+  // page. The footer is the only thing on the site that qualifies. This cannot be a CMS link
+  // like the others in this footer — it calls a function rather than going to a URL.
+  const { reopen } = useConsent();
+  const cookiePolicyUrl = findLegalLink(footer, ['cookie'], '/p/privacy-legal#cookie-policy');
 
   // The footer CMS owns its own brand logo; the homepage logo is the fallback so
   // the site still shows a mark before/without one being set there.
@@ -92,9 +100,18 @@ export default function Footer() {
         ))}
       </div>
 
+      {/* Trustpilot. Absent entirely until the business unit id is set. */}
+      <div className={styles.trustRow}>
+        <Trustpilot className={styles.trustWidget} />
+      </div>
+
       <div className={styles.divider} />
       <div className={styles.bottom}>
         <p className={styles.copy}>{copyright}</p>
+        <div className={styles.bottomLinks}>
+          <Link to={cookiePolicyUrl}>Cookie policy</Link>
+          <button type="button" onClick={reopen}>Cookie settings</button>
+        </div>
         {footer?.showLegal && footer?.legalText ? (
           <p className={styles.copy}>{footer.legalText}</p>
         ) : null}

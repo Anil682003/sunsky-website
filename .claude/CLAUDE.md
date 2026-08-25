@@ -6,6 +6,7 @@
 - **`server/index.js` must stay dependency-free** — deploys skip `npm install`. It imports `../src/utils/hotelImage.js` across the src boundary — keep that util Node-safe (no DOM, no Vite imports).
 - **Never request the `xl` Hotelbeds CDN image variant** — 403s for many hotels. Use `hotelImageChain()` which ends at the always-present default size.
 - **Toast notifications**: Use `showToast(message, "success")` / `showToast(message, "error")` for all user actions.
+- **NEVER put a third-party script tag in `index.html`** — Trustpilot's widget writes a `TrustboxSplitTest_*` cookie and reports the page back, so its bootstrap is injected at runtime only AFTER consent (`src/components/Trustpilot/loadTrustpilot.js`). Moving it into `<head>` "for speed" loads it for everyone on first paint and silently breaks the consent gate. Same rule for any pixel, tag manager or embed added later: register a purpose in `src/utils/consentStore.js` and gate it. `src/test/preConsent.test.jsx` fails the build if anything foreign reaches the page before consent.
 
 ## What This Project Is
 The public-facing SUNSKY travel booking website at holidaybooking.be. A React 19 SPA serving hotel search, flight search, transfers, and online booking with Stripe payments. Served by a dependency-free Node HTTP server behind Caddy on port 8080.
@@ -132,6 +133,7 @@ Build-time (baked into bundle by Vite):
 - `VITE_CACHE_API_URL` — cache API base URL  
 - `VITE_STRIPE_PUBLIC_KEY` — Stripe publishable key
 - `VITE_PAYMENT_MODE` — `test` | `live`
+- `VITE_TRUSTPILOT_BU_ID` — Trustpilot Business Unit id. **Unset = the widget renders nothing at all** (never a placeholder rating). Baked in at build time, so setting it on the server needs a rebuild, not just a `pm2 restart`.
 
 Runtime (server/index.js):
 - `PORT` (8080)

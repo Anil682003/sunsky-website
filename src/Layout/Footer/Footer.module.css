@@ -66,6 +66,15 @@
 .bottomLinks { display:flex; gap:24px; }
 .bottomLinks a { color:var(--text-light); font-size:0.83rem; transition:color 0.3s; }
 .bottomLinks a:hover { color:var(--blue-deep); }
+/* "Cookie settings" is a button, not a link — it opens the notice rather than going anywhere.
+   It has to read as one of this row's links all the same. */
+.bottomLinks button {
+  background:none; border:0; padding:0; cursor:pointer;
+  font-family:inherit; color:var(--text-light); font-size:0.83rem; transition:color 0.3s;
+}
+.bottomLinks button:hover { color:var(--blue-deep); }
+.bottomLinks a:focus-visible,
+.bottomLinks button:focus-visible { outline:2px solid var(--blue-deep); outline-offset:3px; border-radius:3px; }
 
 /* Brand goes full width once the columns can no longer sit beside it */
 @media(max-width:1000px) {

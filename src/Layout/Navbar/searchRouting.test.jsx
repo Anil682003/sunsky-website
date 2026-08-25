@@ -2,6 +2,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
+import { ConsentProvider } from '../../context/ConsentContext';
 import Navbar from './Navbar';
 
 // Where the header search SENDS you.
@@ -50,8 +51,13 @@ beforeEach(() => {
 });
 
 // The header search only renders on the home page.
+// The bar carries the Trustpilot slot now, and that reads what the visitor has consented to.
 const renderNavbar = () =>
-  render(<MemoryRouter initialEntries={['/']}><Navbar /></MemoryRouter>);
+  render(
+    <MemoryRouter initialEntries={['/']}>
+      <ConsentProvider><Navbar /></ConsentProvider>
+    </MemoryRouter>,
+  );
 
 const searchAndPick = async (text, label) => {
   const user = userEvent.setup();

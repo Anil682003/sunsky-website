@@ -1,0 +1,34 @@
+/* The TrustBox slot. Deliberately thin: each host stylesheet sizes its own placement, and
+   everything inside the box is Trustpilot's iframe, which we do not style. Note the bootstrap
+   forces `position: relative` onto this element, so nothing here may rely on it being static. */
+
+.box {
+  /* Holds the line open while the iframe arrives, so the header and footer do not jump when
+     it lands. Matches the Micro Star documented height. */
+  min-height: 24px;
+}
+
+/* The fallback link, shown before the script answers and left standing if it never does
+   (adblocker, CSP, offline). It has to look deliberate rather than like a stray word. */
+.box > a {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text-sec, #5E7291);
+  text-decoration: none;
+}
+.box > a:hover { color: var(--blue-deep, #1F4FD8); text-decoration: underline; }
+
+.placeholder {
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-light, #8B9DBF);
+}
+.placeholderBtn {
+  background: none; border: 0; padding: 0;
+  font-family: inherit; font-size: inherit; font-weight: 700;
+  color: var(--blue-deep, #1F4FD8);
+  cursor: pointer;
+  text-decoration: underline; text-underline-offset: 2px;
+}
+.placeholderBtn:hover { color: var(--blue-mid, #3A6FE8); }
+.placeholderBtn:focus-visible { outline: 2px solid var(--blue-deep, #1F4FD8); outline-offset: 2px; }
