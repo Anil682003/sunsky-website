@@ -233,9 +233,13 @@
    beside them, which reads as a layout fault — and it is exactly the row the guarantee seals
    land in. Pushing card 5 into column 2 centres the pair; card 6 follows into column 3.
    The selector matches only when the fifth child is also second-from-last, i.e. at exactly
-   six cards, so the four- and five-card cases are untouched. Below 1100px the grid is two
-   columns and six cards already fill three clean rows, so it is inert there. */
-.grid > .item:nth-child(5):nth-last-child(2) { grid-column: 2; }
+   six cards, so the four- and five-card cases are untouched.
+   GUARDED BY min-width ON PURPOSE: grid-column: 2 is NOT inert in the narrower layouts. In
+   the two-column grid below 1100px it forces card 5 into the right-hand column and leaves a
+   hole beside it, and in the single-column grid it is worse still. */
+@media (min-width: 1101px) {
+  .grid > .item:nth-child(5):nth-last-child(2) { grid-column: 2; }
+}
 
 .item {
   position: relative;

@@ -11,7 +11,11 @@
 .wrap {
   position: fixed;
   left: 50%;
-  bottom: clamp(16px, 3vw, 28px);
+  /* Sits above the page's OWN bottom furniture, not just above other overlays: the hotel page
+     and the checkout both pin a booking bar to the bottom edge on small screens, and the
+     notice was landing squarely on top of their primary button. CookieBanner.jsx measures
+     whichever bar is visible and publishes it here; 0 on every page that has none. */
+  bottom: calc(clamp(16px, 3vw, 28px) + var(--cookie-notice-lift, 0px));
   transform: translateX(-50%);
   width: min(560px, calc(100vw - 32px));
   /* Above the navbar (1000), the Results fullscreen overlay (2000) and ShareSheet (1500),
@@ -27,7 +31,16 @@
   box-shadow: var(--shadow-lg, 0 24px 64px rgba(15, 40, 100, 0.12));
   padding: clamp(18px, 3vw, 24px);
   animation: cookieIn 0.4s var(--ease, cubic-bezier(.22,1,.36,1)) both;
+  /* A short viewport — a landscape phone, a split window — otherwise pushes the top of the
+     card off the screen, taking the heading with it and leaving no way to scroll to it. dvh
+     rather than vh because vh freezes at the tallest chrome-hidden height on mobile. */
+  max-height: calc(100vh - 56px);
+  max-height: calc(100dvh - 56px);
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  scrollbar-gutter: stable;
 }
+.card:focus-visible { outline: 3px solid var(--blue-deep, #1F4FD8); outline-offset: 3px; }
 @keyframes cookieIn {
   from { opacity: 0; transform: translateY(14px); }
 }

@@ -13,10 +13,16 @@ import { useConsent } from '../../context/ConsentContext';
  * navigates nowhere.
  */
 export default function ReviewsPlaceholder({ className = '' }) {
-  const { reopen } = useConsent();
+  const { reopen, decided } = useConsent();
   return (
     <p className={`${styles.placeholder} ${className}`.trim()}>
-      Reviews hidden — you declined optional cookies.{' '}
+      {/* "No decision yet" and "said no" both leave consent false, but they are not the same
+          thing to say out loud. Telling a first-time visitor they declined — while the notice
+          is still on screen asking them to choose — is simply untrue, and it is the one claim
+          on this page about what the visitor themselves did. */}
+      {decided
+        ? 'Reviews hidden — you declined optional cookies. '
+        : 'Reviews load once you allow optional cookies. '}
       <button type="button" className={styles.placeholderBtn} onClick={reopen}>
         Cookie settings
       </button>

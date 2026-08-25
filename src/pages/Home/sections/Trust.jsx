@@ -13,11 +13,21 @@ const FALLBACK_ITEMS = [
 ];
 
 /**
- * The stamp at a given position, when that position is a guarantee seal rather than one of the
- * agency's own promises. The dashboard's trust list carries SIX entries and the last two were
- * saved blank — deliberately, to hold these seals — so the section rendered two empty cards.
+ * The guarantee seal for a slot the dashboard left EMPTY.
+ *
+ * Position alone is not enough. The seals live at indices 4 and 5 because that is where the
+ * dashboard's two blank entries sit today, but the moment anyone adds or reorders a promise in
+ * the dashboard, index 4 is a different card — and stamping "Verzekerd tegen Insolventie" onto
+ * whatever marketing line happens to land there would be the site asserting insolvency cover
+ * over unrelated copy. So a seal is only ever placed where the agency wrote nothing at all,
+ * which is exactly the slot they left for it. Reorder the list and the seals simply stop
+ * appearing, which is visible and harmless; the alternative is quietly wrong.
  */
-const markAt = (i) => INSURANCE_MARKS[i - INSURANCE_MARKS.offset] || null;
+const markFor = (item, i) => {
+  const hasWords = Boolean(item?.title || item?.description || item?.desc);
+  if (hasWords) return null;
+  return INSURANCE_MARKS[i - INSURANCE_MARKS.offset] || null;
+};
 
 export default function Trust({ cms }) {
   const sh = cms?.sectionHeaders?.trust;
@@ -32,7 +42,7 @@ export default function Trust({ cms }) {
   // financial protection that nobody has approved.
   const items = (cms?.trustItems?.length > 0)
     ? cms.trustItems.map((t, i) => {
-        const mark = markAt(i);
+        const mark = markFor(t, i);
         return {
           title: t.title || mark?.title || '',
           desc: t.description || t.desc || mark?.desc || '',

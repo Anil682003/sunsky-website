@@ -12,6 +12,17 @@ import {
 } from './trustpilotConfig';
 
 /**
+ * MODULE CONSTANT, NOT AN INLINE LITERAL, and that is load-bearing. React 19 compares
+ * dangerouslySetInnerHTML BY REFERENCE: a fresh `{ __html }` object each render is a changed
+ * prop, so React re-sets innerHTML on every re-render — wiping out the iframe Trustpilot put
+ * there and leaving the fallback link behind for good. Hoisting it means React writes the
+ * fallback once on mount and never touches the node again.
+ */
+const FALLBACK_HTML = {
+  __html: `<a href="${REVIEW_URL}" target="_blank" rel="noopener noreferrer">Trustpilot</a>`,
+};
+
+/**
  * A Trustpilot TrustBox.
  *
  * THREE GATES, IN THIS ORDER.
@@ -37,6 +48,10 @@ export default function Trustpilot({
   width = '100%',
   locale = DEFAULT_LOCALE,
   className = '',
+  // A host with no room for a sentence can turn the refusal note off and render nothing
+  // instead. The note still has to appear SOMEWHERE — the footer carries it — because a
+  // visitor who declined is owed an explanation and a way back, once.
+  showPlaceholder = true,
 }) {
   const ref = useRef(null);
   const { has } = useConsent();
@@ -64,7 +79,7 @@ export default function Trustpilot({
   }, [consented, templateId, locale, height, width]);
 
   if (!TRUSTPILOT_ENABLED) return null;
-  if (!consented) return <ReviewsPlaceholder className={className} />;
+  if (!consented) return showPlaceholder ? <ReviewsPlaceholder className={className} /> : null;
 
   return (
     <div
@@ -82,15 +97,12 @@ export default function Trustpilot({
       // impression, view and click the widget reports. Leaving it off is a real reduction in
       // what leaves the visitor's browser and costs us nothing.
       //
-      // The fallback link is raw HTML, NOT JSX, and that is load-bearing twice over. Trustpilot
-      // empties the container child by child before inserting its iframe; if React thought it
-      // owned that node, a later update would throw NotFoundError trying to remove a node that
-      // is already gone. And their window.load re-scan skips any container with no firstChild,
-      // so an empty div would simply never render.
-      dangerouslySetInnerHTML={{
-        __html:
-          `<a href="${REVIEW_URL}" target="_blank" rel="noopener noreferrer">Trustpilot</a>`,
-      }}
+      // Raw HTML, not JSX: Trustpilot empties this container child by child before inserting
+      // its iframe, and if React believed it owned that node a later update would throw
+      // trying to remove something already gone. Their window.load re-scan also skips any
+      // container with no firstChild, so an empty div would simply never render.
+      // See FALLBACK_HTML above for why the object must not be built inline.
+      dangerouslySetInnerHTML={FALLBACK_HTML}
     />
   );
 }

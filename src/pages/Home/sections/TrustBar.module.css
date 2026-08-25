@@ -91,6 +91,15 @@
 .more svg { transition: transform 0.25s var(--ease, cubic-bezier(.22,1,.36,1)); }
 .more:hover svg { transform: translateX(3px); }
 
+@media (prefers-reduced-motion: reduce) {
+  .mark,
+  .more,
+  .more svg { transition: none; }
+  .markItem:hover .mark,
+  .more:hover,
+  .more:hover svg { transform: none; }
+}
+
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .inner { flex-wrap: wrap; gap: 16px 24px; }

@@ -70,6 +70,30 @@ describe('the two guarantee marks', () => {
   });
 });
 
+describe('when the dashboard list is edited', () => {
+  // The seals sit at positions 5 and 6 because that is where the blanks are today. Add a
+  // promise at the top and position 5 becomes a real card — stamping an insolvency-insurance
+  // seal onto it would have the page assert financial cover over unrelated marketing copy.
+  it('never stamps a seal onto a card that has its own words', () => {
+    cardsWith([
+      { title: 'Newest promise', description: 'Added today.' },
+      promise(1), promise(2), promise(3), promise(4), blank(), blank(),
+    ]);
+    const withMarks = [...document.querySelectorAll('[class*="grid"] > div')]
+      .filter((c) => c.querySelector('img'));
+    for (const card of withMarks) {
+      expect(card.textContent).not.toMatch(/Promise|Newest/);
+    }
+  });
+
+  it('would rather show no seal at all than the wrong one', () => {
+    // Every slot filled: there is nowhere blank left, so neither seal appears. Visible and
+    // harmless, which is the right way for this to fail.
+    cardsWith([promise(1), promise(2), promise(3), promise(4), promise(5), promise(6)]);
+    expect(screen.queryAllByRole('img')).toHaveLength(0);
+  });
+});
+
 describe('a slot the dashboard left empty', () => {
   // This is the bug that was live: six configured items, two of them blank, rendered as two
   // empty dashed cards in the middle of the page.

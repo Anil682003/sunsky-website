@@ -314,7 +314,7 @@ export default function Navbar() {
       {/* Trustpilot — renders nothing at all until the business unit id is configured, and a
           short note instead of the widget for a visitor who declined optional cookies. */}
       <div className={styles.trustpilotSlot}>
-        <Trustpilot />
+        <Trustpilot showPlaceholder={false} />
       </div>
 
       {/* Desktop auth buttons */}

@@ -1,4 +1,5 @@
-import { Link } from 'react-router-dom';
+import { useEffect, useLayoutEffect, useRef } from 'react';
+import { Link, useLocation } from 'react-router-dom';
 import styles from './CookieBanner.module.css';
 import { useConsent } from '../../context/ConsentContext';
 import { useFooterConfig } from '../../api';
@@ -41,13 +42,60 @@ export default function CookieBanner() {
   return <CookieBannerCard />;
 }
 
+/**
+ * The page's own bottom-pinned furniture, which the notice must sit ABOVE rather than on.
+ * Both appear only on small screens: the hotel page's "Check price" bar and the checkout's
+ * pay bar. Selectors rather than a shared variable because these are plain .css files that
+ * predate this component and neither publishes its height.
+ */
+const BOTTOM_BAR_SELECTORS = '.mbar, .ck-mbar';
+
 function CookieBannerCard() {
-  const { acceptAll, rejectAll, reopened, close } = useConsent();
+  const cardRef = useRef(null);
+  // The notice outlives any one page — it stays until a decision is made — so the bar it has
+  // to clear can appear on a page the traveller reaches LATER. Re-measuring per route is what
+  // makes that work; measuring once at mount would only ever see the first page's furniture.
+  const { pathname } = useLocation();
+
+  // Measure whatever bar is showing and publish it, so the notice clears it instead of
+  // covering the one button the page exists for. Layout effect, so the notice is never
+  // painted in the wrong place first.
+  useLayoutEffect(() => {
+    const root = document.documentElement;
+    const measure = () => {
+      let lift = 0;
+      for (const el of document.querySelectorAll(BOTTOM_BAR_SELECTORS)) {
+        if (getComputedStyle(el).display === 'none') continue;
+        lift = Math.max(lift, Math.round(el.getBoundingClientRect().height));
+      }
+      root.style.setProperty('--cookie-notice-lift', `${lift}px`);
+    };
+    measure();
+    // The bars appear and disappear with the breakpoint, and grow when their content wraps.
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(measure) : null;
+    if (ro) for (const el of document.querySelectorAll(BOTTOM_BAR_SELECTORS)) ro.observe(el);
+    window.addEventListener('resize', measure);
+    return () => {
+      ro?.disconnect();
+      window.removeEventListener('resize', measure);
+      root.style.removeProperty('--cookie-notice-lift');
+    };
+  }, [pathname]);
+  const { acceptAll, rejectAll, reopened, decided, close } = useConsent();
   const { data: footer } = useFooterConfig();
   // The real cookie-policy page out of the CMS, by label keyword — the same resolution the
   // checkout uses, so renaming that page in the dashboard never leaves a dead link here.
   const policyUrl = findLegalLink(footer, ['cookie'], '/p/privacy-legal#cookie-policy');
   const internal = typeof policyUrl === 'string' && policyUrl.startsWith('/');
+
+  // Reopened from the footer, the notice appears at the other end of the document — roughly
+  // forty tab stops from where the traveller just pressed. A keyboard or screen-reader user
+  // would have no idea anything happened. Focus follows the control they activated, but only
+  // when they asked for it: stealing focus from someone who is reading the page on first load
+  // would be its own kind of rude.
+  useEffect(() => {
+    if (reopened) cardRef.current?.focus();
+  }, [reopened]);
 
   const policyLink = internal
     ? <Link className={styles.policy} to={policyUrl}>Cookie policy</Link>
@@ -55,7 +103,8 @@ function CookieBannerCard() {
 
   return (
     <div className={styles.wrap} role="region" aria-label="Cookie consent">
-      <div className={styles.card}>
+      {/* tabIndex -1 so it can take focus programmatically without joining the tab order. */}
+      <div className={styles.card} ref={cardRef} tabIndex={-1}>
         <div className={styles.head}>
           <span className={styles.glyph} aria-hidden="true">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
@@ -91,15 +140,18 @@ function CookieBannerCard() {
           <p className={styles.controller}>
             Cookies are placed by {CONTROLLER.name}
             {CONTROLLER.enterpriseNumber ? ` (${CONTROLLER.enterpriseNumber})` : ''}, the
-            operator of holidaybooking.be. One third party is involved: Trustpilot.
+            operator of holidaybooking.be. Trustpilot is the only one you are being asked
+            about here; the cookie policy lists every service the site uses.
           </p>
         )}
 
         <div className={styles.links}>
           {policyLink}
           {/* Reopened over an existing decision, there has to be a way back out that changes
-              nothing. On the first showing there is none, by design. */}
-          {reopened && (
+              nothing. It needs `decided` as well as `reopened`: with no decision stored the
+              notice reopens itself the instant it closes, so the control would do nothing at
+              all. On the first showing there is deliberately no way out. */}
+          {reopened && decided && (
             <button type="button" className={styles.cancel} onClick={close}>
               Keep current settings
             </button>

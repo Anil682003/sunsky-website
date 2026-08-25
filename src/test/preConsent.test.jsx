@@ -11,6 +11,19 @@ vi.mock('../api', () => ({
 }));
 
 /**
+ * CONFIGURED AS IF THE ACCOUNT WERE LIVE. Without this the whole file is theatre: no
+ * VITE_TRUSTPILOT_BU_ID is set in a test run, so Trustpilot returns null at its FIRST gate
+ * and never reaches the consent check — the suite would pass just as happily with the consent
+ * gate deleted outright. Forcing the id on means the only thing standing between the visitor
+ * and Trustpilot's runtime here is consent, which is the thing under test.
+ */
+vi.mock('../components/Trustpilot/trustpilotConfig', async (importOriginal) => ({
+  ...(await importOriginal()),
+  BUSINESS_UNIT_ID: '4f2c1a9b8d6e5f0a1b2c3d4e',
+  TRUSTPILOT_ENABLED: true,
+}));
+
+/**
  * NOTHING THIRD-PARTY MAY REACH THE PAGE BEFORE THE VISITOR AGREES.
  *
  * This is the one test in the set that keeps working after everyone involved has forgotten
@@ -61,29 +74,40 @@ const clearCookies = () => {
 
 beforeEach(clearCookies);
 
+const renderTree = () => render(
+  <MemoryRouter>
+    <ConsentProvider>
+      <CookieBanner />
+      <Trustpilot />
+    </ConsentProvider>
+  </MemoryRouter>,
+);
+
 describe('a visitor who has not agreed to anything', () => {
+  // Guards the guard: if this ever stops being true, every other assertion in the file is
+  // passing for the wrong reason.
+  it('is looking at a page where the widget WOULD otherwise load', async () => {
+    const { TRUSTPILOT_ENABLED } = await import('../components/Trustpilot/trustpilotConfig');
+    expect(TRUSTPILOT_ENABLED).toBe(true);
+  });
+
   it('gets no third-party script or frame on the page', async () => {
-    render(
-      <MemoryRouter>
-        <ConsentProvider>
-          <CookieBanner />
-          <Trustpilot />
-        </ConsentProvider>
-      </MemoryRouter>,
-    );
+    renderTree();
     // Give any effect that wanted to inject something the chance to do it.
     await new Promise((r) => setTimeout(r, 20));
     expect(foreignNodes()).toEqual([]);
   });
 
   it('gets no Trustpilot runtime in particular', async () => {
-    render(
-      <MemoryRouter>
-        <ConsentProvider><Trustpilot /></ConsentProvider>
-      </MemoryRouter>,
-    );
+    renderTree();
     await new Promise((r) => setTimeout(r, 20));
     expect(document.querySelectorAll('[src*="trustpilot"]')).toHaveLength(0);
     expect(window.Trustpilot).toBeUndefined();
+  });
+
+  it('is asked, rather than quietly opted in', () => {
+    const { getByRole } = renderTree();
+    expect(getByRole('region', { name: /cookie consent/i })).toBeInTheDocument();
+    expect(document.cookie).not.toMatch(/sunsky_consent/);
   });
 });

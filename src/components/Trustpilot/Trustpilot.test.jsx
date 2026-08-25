@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { useState } from 'react';
+import { render, screen, act } from '@testing-library/react';
 
 // The widget shows a real company's real reputation. The two things that must never happen
 // are showing an invented rating where none exists, and loading Trustpilot's runtime before
@@ -14,9 +15,11 @@ vi.mock('./loadTrustpilot', () => ({
 }));
 
 let consented = true;
+let decided = true;
 vi.mock('../../context/ConsentContext', () => ({
   useConsent: () => ({
     has: (k) => (k === 'necessary' ? true : consented),
+    decided,
     reopen: () => {},
   }),
 }));
@@ -40,7 +43,11 @@ const withConfig = async (overrides) => {
     __resetTrustpilotLoader: () => {},
   }));
   vi.doMock('../../context/ConsentContext', () => ({
-    useConsent: () => ({ has: (k) => (k === 'necessary' ? true : consented), reopen: () => {} }),
+    useConsent: () => ({
+      has: (k) => (k === 'necessary' ? true : consented),
+      decided,
+      reopen: () => {},
+    }),
   }));
   return (await import('./Trustpilot')).default;
 };
@@ -52,6 +59,7 @@ const CONFIGURED = {
 
 beforeEach(() => {
   consented = true;
+  decided = true;
   loadFromElement.mockClear();
   window.Trustpilot = { loadFromElement };
 });
@@ -85,6 +93,25 @@ describe('before the visitor has agreed to it', () => {
     render(<Trustpilot />);
     expect(screen.getByText(/reviews hidden/i)).toBeInTheDocument();
     expect(document.querySelector('.trustpilot-widget')).toBeNull();
+  });
+
+  // "Not decided yet" and "said no" both leave consent false, but only one of them is
+  // something the visitor did. Telling a first-time visitor they declined — while the notice
+  // is still on screen asking them — is a claim about their own actions that is simply false.
+  it('does not tell a visitor who has decided nothing that they declined', async () => {
+    consented = false;
+    decided = false;
+    const Trustpilot = await withConfig(CONFIGURED);
+    render(<Trustpilot />);
+    expect(screen.queryByText(/you declined/i)).not.toBeInTheDocument();
+    expect(screen.getByText(/once you allow optional cookies/i)).toBeInTheDocument();
+  });
+
+  it('a host with no room for a sentence can render nothing instead', async () => {
+    consented = false;
+    const Trustpilot = await withConfig(CONFIGURED);
+    const { container } = render(<Trustpilot showPlaceholder={false} />);
+    expect(container).toBeEmptyDOMElement();
   });
 
   it('offers a way to change that decision', async () => {
@@ -158,6 +185,30 @@ describe('once it is configured and permitted', () => {
     const { container } = render(<Trustpilot template="horizontal" />);
     expect(container.querySelector('.trustpilot-widget').getAttribute('data-template-id'))
       .toBe('tpl-horizontal');
+  });
+
+  // React 19 compares dangerouslySetInnerHTML BY REFERENCE. Built inline, the object is new
+  // on every render, so React re-sets innerHTML and wipes out the iframe Trustpilot just put
+  // there — permanently, because loadFromElement has already run. This is the test that keeps
+  // the fallback object hoisted.
+  it('survives a re-render without having its widget wiped out', async () => {
+    const Trustpilot = await withConfig(CONFIGURED);
+    function Host() {
+      const [n, setN] = useState(0);
+      return (
+        <div>
+          <button type="button" onClick={() => setN(n + 1)}>bump</button>
+          <Trustpilot />
+        </div>
+      );
+    }
+    const { container } = render(<Host />);
+    // Stand in for what Trustpilot does to the container once its script loads.
+    container.querySelector('.trustpilot-widget').innerHTML = '<iframe title="tp"></iframe>';
+
+    await act(async () => { container.querySelector('button').click(); });
+
+    expect(container.querySelector('.trustpilot-widget iframe')).not.toBeNull();
   });
 
   it('keeps the host stylesheet in charge of its own slot', async () => {

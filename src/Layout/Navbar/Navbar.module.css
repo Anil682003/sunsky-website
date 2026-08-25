@@ -263,6 +263,10 @@
    business unit id, or consent declined) therefore has to cost nothing: no padding, no border,
    no min-width. It goes at 1180px, where the flanking menus already yield. */
 .trustpilotSlot { display: flex; align-items: center; flex-shrink: 0; max-width: 160px; margin-right: 14px; }
+/* Dormant (no business unit id) or declined-with-the-note-suppressed, the div renders with no
+   children at all. Width collapses on its own; the margin does not, and 14px of dead air
+   beside the account controls is exactly the kind of thing nobody can later explain. */
+.trustpilotSlot:empty { display: none; }
 
 .authArea { display: flex; align-items: center; flex-shrink: 0; }
 .authBtns { display: flex; align-items: center; gap: 10px; }
