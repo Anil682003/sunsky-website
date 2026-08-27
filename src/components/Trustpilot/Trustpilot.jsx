@@ -56,7 +56,9 @@ export default function Trustpilot({
   const ref = useRef(null);
   const { has } = useConsent();
   const consented = has('reviews');
-  const templateId = TEMPLATES[template] || TEMPLATES.microStar;
+  // A named template, a raw Trustpilot id, or nothing at all. Falling back to a default here
+  // would resurrect the very widget the caller is trying not to render.
+  const templateId = template ? (TEMPLATES[template] || template) : '';
 
   useEffect(() => {
     if (!TRUSTPILOT_ENABLED || !consented) return undefined;
@@ -79,6 +81,9 @@ export default function Trustpilot({
   }, [consented, templateId, locale, height, width]);
 
   if (!TRUSTPILOT_ENABLED) return null;
+  // No template means the plan has nothing to show here. Render nothing rather than let
+  // Trustpilot fill the slot with its own rating-less logo.
+  if (!templateId) return null;
   if (!consented) return showPlaceholder ? <ReviewsPlaceholder className={className} /> : null;
 
   return (

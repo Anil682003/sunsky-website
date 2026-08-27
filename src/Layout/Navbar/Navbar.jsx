@@ -10,6 +10,7 @@ import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
 import { hotelDetailHref } from '../../utils/searchDefaults';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
 import Trustpilot from '../../components/Trustpilot/Trustpilot';
+import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
 import HeaderMenu from './HeaderMenu';
 
 const slugify = (s) =>
@@ -311,10 +312,12 @@ export default function Navbar() {
         </div>
       )}
 
-      {/* Trustpilot — renders nothing at all until the business unit id is configured, and a
-          short note instead of the widget for a visitor who declined optional cookies. */}
+      {/* Trustpilot's star rating. The header has room for a score and nothing else, so it
+          stays empty until the agency's plan actually includes a score widget — a logo with
+          no rating on it would take the slot and tell a traveller nothing. The slot collapses
+          to zero width when empty (see .trustpilotSlot:empty). */}
       <div className={styles.trustpilotSlot}>
-        <Trustpilot showPlaceholder={false} />
+        <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} />
       </div>
 
       {/* Desktop auth buttons */}

@@ -60,6 +60,13 @@
   transition:all 0.3s var(--ease);
 }
 .col a:hover { color:var(--blue-deep); padding-left:10px; }
+/* Trustpilot, above the divider. Two things can sit here: the score strip once the plan
+   includes one, and the review invitation, which the free plan does include. Stacked rather
+   than side by side because one is a 24px strip and the other a 52px button. */
+.trustRow { display:flex; flex-direction:column; align-items:center; gap:14px; margin:0 auto 26px; padding:0 24px; }
+.trustWidget { width:100%; max-width:260px; }
+.trustCollector { width:100%; max-width:320px; min-height:52px; }
+
 .divider { height:1px; background:linear-gradient(90deg,transparent,var(--blue-light),transparent); margin-bottom:36px; }
 .bottom { max-width:1400px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
 .copy { color:var(--text-light); font-size:0.83rem; }

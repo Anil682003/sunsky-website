@@ -4,6 +4,7 @@ import { useHomepageConfig, useFooterConfig } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
 import { findLegalLink } from '../../utils/legalLinks';
 import Trustpilot from '../../components/Trustpilot/Trustpilot';
+import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
 import { useConsent } from '../../context/ConsentContext';
 import mainLogoFallback from '../../assets/main-logo.png';
 
@@ -100,9 +101,12 @@ export default function Footer() {
         ))}
       </div>
 
-      {/* Trustpilot. Absent entirely until the business unit id is set. */}
+      {/* Trustpilot. The score widget when the plan has one, and either way the review
+          invitation — the one widget the free plan includes, and the thing that grows the
+          reviews in the first place. */}
       <div className={styles.trustRow}>
-        <Trustpilot className={styles.trustWidget} />
+        <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} className={styles.trustWidget} />
+        <Trustpilot template="reviewCollector" height="52px" className={styles.trustCollector} />
       </div>
 
       <div className={styles.divider} />

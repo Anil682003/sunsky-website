@@ -43,10 +43,30 @@ if (import.meta.env.DEV && BUSINESS_UNIT_ID && !/^[0-9a-f]{24}$/i.test(BUSINESS_
  * identical to a misconfiguration.
  */
 export const TEMPLATES = {
+  // The only one this account can actually use today. Verified by asking Trustpilot's own
+  // widget data endpoint for every template: this is the single one that answers with the
+  // business's data instead of "BusinessUnit does not have access to that trustbox".
+  reviewCollector: '56278e9abfbbba0bdcd568bc',
+  // Score widgets. All of these need a PAID plan; on the free plan Trustpilot serves its own
+  // bare logo instead, which shows no rating and links to trustpilot.com rather than the
+  // agency's profile. Kept here so switching one on is a one-line change, not a rewrite.
   microStar: '5419b732fbfb950b10de65e5',
   microCombo: '5419b6ffb0d04a076446a9af',
   horizontal: '5406e65db0d04a09e042d5fc',
 };
+
+/**
+ * Which widget may show the TrustScore and stars — EMPTY until the plan allows one.
+ *
+ * Trustpilot gates score widgets behind a paid plan and, rather than failing, quietly serves a
+ * logo with no rating on it. That is worse than showing nothing: it takes up a slot, says
+ * nothing about the agency, and its link goes to Trustpilot's homepage. So no score widget is
+ * rendered at all until this names one.
+ *
+ * When the plan is upgraded, set VITE_TRUSTPILOT_SCORE_TEMPLATE to a key from TEMPLATES
+ * (`microStar` is the one the agency picked) and rebuild. Nothing else changes.
+ */
+export const SCORE_TEMPLATE = String(import.meta.env.VITE_TRUSTPILOT_SCORE_TEMPLATE || '').trim();
 
 /**
  * MANDATORY on the container: the TrustBox constructor throws a bare string, "No locale

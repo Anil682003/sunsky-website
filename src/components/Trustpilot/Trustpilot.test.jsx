@@ -180,6 +180,23 @@ describe('once it is configured and permitted', () => {
     expect(loadFromElement.mock.calls[0][1]).toBe(true);
   });
 
+  // The free plan has no score widget, and Trustpilot answers a request for one by serving
+  // its own logo with no rating on it — which would occupy the header saying nothing, and
+  // link to trustpilot.com rather than the agency's profile. An empty template is how a host
+  // says "the plan has nothing for this slot", and it must render nothing at all.
+  it('renders nothing when the plan has no widget for that slot', async () => {
+    const Trustpilot = await withConfig(CONFIGURED);
+    const { container } = render(<Trustpilot template="" />);
+    expect(container).toBeEmptyDOMElement();
+  });
+
+  it('accepts a raw Trustpilot template id, not just a known name', async () => {
+    const Trustpilot = await withConfig(CONFIGURED);
+    const { container } = render(<Trustpilot template="56278e9abfbbba0bdcd568bc" />);
+    expect(container.querySelector('.trustpilot-widget').getAttribute('data-template-id'))
+      .toBe('56278e9abfbbba0bdcd568bc');
+  });
+
   it('lets a host pick a different template without touching this component', async () => {
     const Trustpilot = await withConfig(CONFIGURED);
     const { container } = render(<Trustpilot template="horizontal" />);
