@@ -134,6 +134,11 @@ Build-time (baked into bundle by Vite):
 - `VITE_STRIPE_PUBLIC_KEY` — Stripe publishable key
 - `VITE_PAYMENT_MODE` — `test` | `live`
 - `VITE_TRUSTPILOT_DOMAIN` — the Trustpilot profile the widget shows (default `sunsky.be`). The agency's reviews live on **sunsky.be**, not holidaybooking.be, which has its own empty auto-generated profile. Must match the business unit id below.
+- `VITE_TRUSTPILOT_SCORE_TEMPLATE` — which widget may show the TrustScore/stars (`microStar`, `microCombo`, `horizontal`, or a raw template id). **Unset = no score widget anywhere**, which is correct on a free Trustpilot plan: score widgets are paid, and Trustpilot answers an unentitled request with its own rating-less logo rather than an error. The footer's Review Collector is free and always renders. Check entitlement before setting it:
+  ```bash
+  curl -s "https://widget.trustpilot.com/trustbox-data/5419b732fbfb950b10de65e5?businessUnitId=$VITE_TRUSTPILOT_BU_ID&locale=en-GB"
+  ```
+  Real JSON = entitled. `"BusinessUnit does not have access to that trustbox"` = still on a plan without it.
 - `VITE_TRUSTPILOT_BU_ID` — Trustpilot Business Unit id. **Unset = the widget renders nothing at all** (never a placeholder rating). Baked in at build time, so setting it on the server needs a rebuild, not just a `pm2 restart`.
 
 Runtime (server/index.js):
