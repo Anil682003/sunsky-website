@@ -55,8 +55,21 @@ export const TEMPLATES = {
  */
 export const DEFAULT_LOCALE = 'en-GB';
 
+/**
+ * The Trustpilot profile these reviews belong to.
+ *
+ * NOT holidaybooking.be. The agency's reviewed profile is sunsky.be — "Sunsky Vliegvakanties",
+ * claimed by BVBA Sunsky Belgium, which is where their reviews actually live. holidaybooking.be
+ * has an auto-generated Trustpilot page of its own with no reviews on it at all, so linking
+ * there would send a traveller to an empty profile.
+ *
+ * It has to match whichever business unit VITE_TRUSTPILOT_BU_ID names: the widget shows one
+ * profile's score and this link must open that same profile, or the two contradict each other.
+ */
+export const REVIEW_DOMAIN = String(import.meta.env.VITE_TRUSTPILOT_DOMAIN || 'sunsky.be').trim();
+
 /** Where the fallback link goes when the script is blocked or has not loaded yet. */
-export const REVIEW_URL = 'https://nl-be.trustpilot.com/review/holidaybooking.be';
+export const REVIEW_URL = `https://nl-be.trustpilot.com/review/${REVIEW_DOMAIN}`;
 
 /**
  * Explicit `https:`, not the protocol-relative `//` in Trustpilot's own docs — protocol-

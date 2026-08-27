@@ -133,6 +133,7 @@ Build-time (baked into bundle by Vite):
 - `VITE_CACHE_API_URL` — cache API base URL  
 - `VITE_STRIPE_PUBLIC_KEY` — Stripe publishable key
 - `VITE_PAYMENT_MODE` — `test` | `live`
+- `VITE_TRUSTPILOT_DOMAIN` — the Trustpilot profile the widget shows (default `sunsky.be`). The agency's reviews live on **sunsky.be**, not holidaybooking.be, which has its own empty auto-generated profile. Must match the business unit id below.
 - `VITE_TRUSTPILOT_BU_ID` — Trustpilot Business Unit id. **Unset = the widget renders nothing at all** (never a placeholder rating). Baked in at build time, so setting it on the server needs a rebuild, not just a `pm2 restart`.
 
 Runtime (server/index.js):
