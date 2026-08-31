@@ -33,6 +33,12 @@ export const useRegister = () => {
   return useApi(ENDPOINTS.register, { method: 'POST', onSuccess });
 };
 
+// Step 1 of signup. Takes the SAME payload as register (minus the code) so the
+// server can reject a bad form before anyone waits on an email; resolving here
+// means a code is genuinely on its way.
+export const sendRegistrationCode = (payload) =>
+  axiosInstance.post(ENDPOINTS.registerSendCode, payload);
+
 // ── Password reset (forgot password) ────────────────────────────────────────
 // Three imperative steps; the UI drives them, so no hook wrapper is needed.
 // Step 1 always resolves for any well-formed email — the API deliberately does

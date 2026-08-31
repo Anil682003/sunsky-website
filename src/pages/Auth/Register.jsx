@@ -2,8 +2,9 @@ import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import mainLogo from '../../assets/main-logo.png';
 import styles from './Register.module.css';
-import { useRegister } from '../../api';
+import { useRegister, sendRegistrationCode } from '../../api';
 import { useToast } from '../../context/ToastContext';
+import RegisterVerify from './RegisterVerify';
 
 /* The option lists below are the dashboard's lists, verbatim. Registrations
    land in the same tables agents type into, so the values have to match or a
@@ -314,6 +315,12 @@ export default function Register() {
   const [isCompany, setCompany] = useState(false);
   const [agreed, setAgreed]     = useState(false);
 
+  // Signup is two steps. `pending` holds the validated payload while the person
+  // confirms their address; the account is only created once the code is back,
+  // so abandoning here leaves nothing behind but an expiring code row.
+  const [pending, setPending]   = useState(null);   // { payload, expiryMinutes }
+  const [sending, setSending]   = useState(false);
+
   const set = (key) => (e) => {
     let value = e.target.value;
     // SUNSKY convention — surnames are uppercase, same as the dashboard.
@@ -380,14 +387,60 @@ export default function Register() {
       if (form.gender)      payload.gender      = form.gender;
     }
 
+    // Step 1: the server validates the whole payload and emails a code. Nothing
+    // is created yet, so a failure here costs the person nothing but a retry.
+    setSending(true);
     try {
-      await register(payload);
+      const res = await sendRegistrationCode(payload);
+      setPending({ payload, expiryMinutes: res?.data?.data?.expiresInMinutes ?? null });
+      showToast(`We sent a 6-digit code to ${payload.email}`, 'success');
+    } catch (err) {
+      showToast(err.response?.data?.message || 'We could not start your signup. Please try again.', 'error');
+    } finally {
+      setSending(false);
+    }
+  };
+
+  /* Step 2: the code comes back, the account is created and the user is logged
+     in by useRegister's onSuccess. Rethrows so the verify screen can mark the
+     code field wrong and clear it. */
+  const handleVerify = async (code) => {
+    try {
+      await register({ ...pending.payload, code });
     } catch (err) {
       showToast(err.response?.data?.message || 'Registration failed. Please try again.', 'error');
+      throw err;
+    }
+  };
+
+  const handleResend = async () => {
+    try {
+      const res = await sendRegistrationCode(pending.payload);
+      setPending((p) => ({ ...p, expiryMinutes: res?.data?.data?.expiresInMinutes ?? p.expiryMinutes }));
+      showToast('A new code is on its way.', 'success');
+      return true;
+    } catch (err) {
+      showToast(err.response?.data?.message || 'Could not send a new code. Please try again.', 'error');
+      return false;
     }
   };
 
   const today = new Date().toISOString().split('T')[0];
+
+  // Address confirmation takes over the whole page. The form's state stays
+  // mounted behind it, so "Change details" returns to a filled-in form.
+  if (pending) {
+    return (
+      <RegisterVerify
+        email={pending.payload.email}
+        expiryMinutes={pending.expiryMinutes}
+        submitting={loading}
+        onVerify={handleVerify}
+        onResend={handleResend}
+        onBack={() => setPending(null)}
+      />
+    );
+  }
 
   return (
     <div className={styles.page}>
@@ -467,7 +520,7 @@ export default function Register() {
               <div className={styles.cardHeader}>
                 <h1 className={styles.cardTitle}>Create your account</h1>
                 <p className={styles.cardSub}>
-                  One form, no steps. Already have an account? <Link to="/login">Sign in</Link>
+                  Confirm your email and you're in. Already have an account? <Link to="/login">Sign in</Link>
                 </p>
               </div>
             </div>
@@ -567,9 +620,9 @@ export default function Register() {
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
                   Continue as Guest
                 </button>
-                <button className={styles.submitBtn} disabled={!agreed || loading} onClick={handleRegister}>
+                <button className={styles.submitBtn} disabled={!agreed || sending || loading} onClick={handleRegister}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
-                  {loading ? 'Creating account…' : `Create ${isCompany ? 'Business Account' : 'Account'}`}
+                  {sending ? 'Sending code…' : `Create ${isCompany ? 'Business Account' : 'Account'}`}
                 </button>
               </div>
             </div>

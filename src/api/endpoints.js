@@ -2,6 +2,9 @@ export const ENDPOINTS = {
   // Auth
   login:           '/website/auth/login',
   register:        '/website/auth/register',
+  // Step 1 of signup: validates the whole form and emails a 6-digit code. The
+  // account is only created by `register`, once that code comes back.
+  registerSendCode: '/website/auth/register/send-code',
   // "Does this address already have a login?" — answers one boolean and nothing else, so a
   // guest who already has an account is sent to sign in instead of creating a second one.
   emailCheck:      '/website/auth/email-check',
