@@ -189,6 +189,12 @@ export default function ForgotPassword() {
                 <p className={styles.cardSub}>
                   We sent a 6-digit code to <strong className={fp.emailStrong}>{email}</strong>
                 </p>
+                {/* Same reason as the signup screen: junk-foldered and never-sent look
+                    identical from the outside. */}
+                <p className={fp.hint}>
+                  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="M4 7l8 6 8-6" /></svg>
+                  Not there within a minute? Check your spam or junk folder.
+                </p>
               </>}
               {step === 3 && <>
                 <h1 className={styles.cardTitle}>Set a new password</h1>

@@ -148,6 +148,13 @@ export default function RegisterVerify({
                 </p>
               )}
 
+              {/* A code sitting in the junk folder looks exactly like a code that was never
+                  sent, and the person waiting has no way to tell the difference. */}
+              <p className={fp.hint}>
+                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="M4 7l8 6 8-6" /></svg>
+                Not there within a minute? Check your spam or junk folder.
+              </p>
+
               <button className={styles.submitBtn} type="submit" disabled={busy || code.length !== CODE_LENGTH}>
                 <span>{submitting ? 'Creating account…' : 'Confirm and create account'}</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
