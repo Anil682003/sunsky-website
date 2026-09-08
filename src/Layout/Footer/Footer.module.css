@@ -38,10 +38,13 @@
 .navLinks a:hover { color:var(--blue-deep); padding-left:6px; }
 .logo { cursor:pointer; }
 .logoText { font-family:'Sora',sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--dark); }
-/* No bar to fit inside down here, so the mark is drawn at the size it deserves. At this
-   height the 3:1 wordmark is ~160px wide, inside the 320px the brand column already gives
-   its paragraph. */
-.logoImg { height:56px; object-fit:contain; }
+/* No bar to fit inside down here, so the mark is drawn at the size it deserves: ~166px wide
+   at this cap, inside the 320px the brand column already gives its own paragraph.
+   max-height rather than height, because the global rule in index.css clamps every image to
+   max-width:100%. On a column narrower than the mark that clamps the width while a fixed
+   height stays put, and object-fit:contain pads the difference with dead space. Capping both
+   lets the mark scale down whole. */
+.logoImg { max-height:56px; max-width:100%; width:auto; height:auto; object-fit:contain; }
 .brand p { color:var(--text-sec); font-size:0.9rem; line-height:1.8; max-width:320px; }
 .pays { display:flex; gap:8px; flex-wrap:wrap; }
 .pay {
