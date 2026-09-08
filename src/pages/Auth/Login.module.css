@@ -192,15 +192,15 @@
    company twice. Height-constrained with a free width, because forcing a 3:1 wordmark into
    the old 50px square slot shrinks it to a sliver. */
 .logoWordmark {
-  height: 46px;
+  height: 62px;
   width: auto;
-  max-width: 260px;
+  max-width: 330px;
   object-fit: contain;
   transition: transform 0.4s var(--ease-spring);
 }
 .logo:hover .logoWordmark { transform: scale(1.04); }
 @media (max-width: 760px) {
-  .logoWordmark { height: 38px; max-width: 210px; }
+  .logoWordmark { height: 50px; max-width: 270px; }
 }
 
 .brandPanel > *:nth-child(1) { animation-delay: 0.05s; }

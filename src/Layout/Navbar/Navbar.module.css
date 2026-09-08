@@ -38,13 +38,17 @@
    so a gentle lift replaces the icon's rotation. */
 .logoImgCms {
   width: auto;
-  height: 32px;
-  max-width: 168px;
+  /* 38px is the ceiling, not a preference. The bar is 60px from 11px of padding around a
+     38px tallest child (the account pill, and the hamburger on mobile), and every page
+     clears the fixed navbar with a hardcoded 60px/52px rather than a shared variable.
+     Matching that 38px is the largest the mark can be without retuning all of them. */
+  height: 38px;
+  max-width: 210px;
 }
 .logo:hover .logoImgCms { transform: scale(1.04); }
 
 @media (max-width: 768px) {
-  .logoImgCms { height: 28px; max-width: 132px; }
+  .logoImgCms { height: 34px; max-width: 176px; }
 }
 .logoText {
   font-family: 'Sora', sans-serif; font-size: 19px;

@@ -5,6 +5,7 @@ import { logout } from '../../store/slices/authSlice';
 import mainLogoFallback from '../../assets/main-logo.png';
 import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig, useHolidayTypes } from '../../api';
+import { resolveCmsImageUrl } from '../../utils/cmsImage';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
 import { hotelDetailHref } from '../../utils/searchDefaults';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
@@ -93,13 +94,15 @@ export default function Navbar() {
   const { data: headerConfig } = useHeaderConfig();
   const { data: cmsConfig } = useHomepageConfig();
 
-  // THE BUNDLED LOGO WINS. It used to sit last, behind two CMS slots, which meant the
-  // dashboard's uploaded file decided what the site's own mark looked like. That file is a
-  // 2MB render with a grey haze baked behind it, and it was what visitors actually saw. The
-  // brand mark now ships with the code, so it is the same everywhere and cannot be replaced
-  // by an upload nobody reviewed. Restoring dashboard control means putting the CMS sources
-  // back in front here — and re-uploading a clean, transparent file there first.
-  const mainLogo = mainLogoFallback;
+  const headerLogo = resolveCmsImageUrl(headerConfig?.logoUrl);
+  const cmsMainLogo = resolveCmsImageUrl(cmsConfig?.logo?.mainUrl);
+
+  // The dashboard decides again, with the bundled file as the safety net rather than the
+  // source of truth. The CMS slot now holds the same cleaned wordmark that ships here, so
+  // the two agree and a CMS outage is invisible instead of a missing logo. Whatever gets
+  // uploaded next is what visitors see, so it wants the same treatment: real transparency,
+  // trimmed margins, and roughly twice the drawn size for retina.
+  const mainLogo = headerLogo || cmsMainLogo || mainLogoFallback;
   const logoAlt = headerConfig?.logoAltText?.trim() || 'SunSky';
   const logoHref = headerConfig?.logoLinkTarget?.trim() || '/';
 

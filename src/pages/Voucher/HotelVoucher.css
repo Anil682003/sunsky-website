@@ -42,9 +42,7 @@
 .hv-head { display:flex; align-items:center; justify-content:space-between; gap:18px;
   padding-bottom:18px; border-bottom:1px solid var(--border); }
 .hv-logo { display:flex; align-items:center; gap:10px; }
-.hv-logo img { height:52px; width:auto; }
-.hv-logo-text { font-family:'Sora',sans-serif; font-size:33px; font-weight:800; font-style:italic;
-  color:var(--blue); letter-spacing:-1.2px; }
+.hv-logo img { height:64px; width:auto; }
 .hv-title { font-size:clamp(26px,4.4vw,42px); font-weight:800; color:var(--navy2); letter-spacing:-.8px; line-height:1; }
 
 /* ════ REFERENCE STRIP ════ */
