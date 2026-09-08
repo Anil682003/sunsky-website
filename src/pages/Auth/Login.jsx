@@ -1,6 +1,9 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import mainLogo from '../../assets/main-logo.png';
+// The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
+// it, so it keeps the square mark — the same one the browser tab shows.
+import logoIcon from '../../assets/logo-icon.png';
 import styles from './Login.module.css';
 import { useLogin } from '../../api';
 import { useToast } from '../../context/ToastContext';
@@ -170,7 +173,7 @@ export default function Login() {
                 <span>SUN</span>
               </div>
               <div className={styles.avatarRing}>
-                <img src={mainLogo} alt="" className={styles.avatarLogo} />
+                <img src={logoIcon} alt="" className={styles.avatarLogo} />
               </div>
               <h1 className={styles.cardTitle}>Sign in to SunSky</h1>
               <p className={styles.cardSub}>
