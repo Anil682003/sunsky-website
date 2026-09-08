@@ -1,7 +1,6 @@
 import { Link, useNavigate } from 'react-router-dom';
 import styles from './Footer.module.css';
-import { useHomepageConfig, useFooterConfig } from '../../api';
-import { resolveCmsImageUrl } from '../../utils/cmsImage';
+import { useFooterConfig } from '../../api';
 import { findLegalLink } from '../../utils/legalLinks';
 import Trustpilot from '../../components/Trustpilot/Trustpilot';
 import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
@@ -26,17 +25,16 @@ const isInternal = (url) => typeof url === 'string' && url.startsWith('/');
 export default function Footer() {
   const navigate = useNavigate();
   const { data: footer } = useFooterConfig();
-  const { data: cmsConfig } = useHomepageConfig();
   // Withdrawing consent has to be as easy as giving it, and it has to be reachable from every
   // page. The footer is the only thing on the site that qualifies. This cannot be a CMS link
   // like the others in this footer — it calls a function rather than going to a URL.
   const { reopen } = useConsent();
   const cookiePolicyUrl = findLegalLink(footer, ['cookie'], '/p/privacy-legal#cookie-policy');
 
-  // The footer CMS owns its own brand logo; the homepage logo is the fallback so
-  // the site still shows a mark before/without one being set there.
-  const logoUrl =
-    resolveCmsImageUrl(footer?.brandLogoUrl) || resolveCmsImageUrl(cmsConfig?.logo?.mainUrl);
+  // The bundled brand mark, for the same reason as the navbar: one logo, shipped with the
+  // code, identical on every page and not replaceable by an unreviewed upload. The CMS
+  // brandLogoUrl is deliberately not consulted any more.
+  const logoUrl = mainLogoFallback;
   const brandName = footer?.brandName || 'Sunsky';
   const brandDesc =
     footer?.brandDescription ||

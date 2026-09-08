@@ -1,6 +1,9 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import mainLogo from '../../assets/main-logo.png';
+// The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
+// it, so it keeps the square mark — the same one the browser tab shows.
+import logoIcon from '../../assets/logo-icon.png';
 import styles from './Login.module.css';   // shared auth shell (sky scene, card, fields)
 import fp from './ForgotPassword.module.css';
 import CodeInput, { CODE_LENGTH } from './CodeInput';
@@ -131,10 +134,8 @@ export default function ForgotPassword() {
       {/* Left branding */}
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
-          <div className={styles.logoIcon}>
-            <img src={mainLogo} alt="SunSky" className={styles.logoImg} />
-          </div>
-          <div className={styles.logoText}>Sun<span>Sky</span></div>
+          {/* The wordmark carries the name, so no text beside it. */}
+          <img src={mainLogo} alt="Sunsky Vakanties" className={styles.logoWordmark} />
         </Link>
 
         <div className={styles.brandHero}>
@@ -177,7 +178,7 @@ export default function ForgotPassword() {
                 <span>NEW</span>
               </div>
               <div className={styles.avatarRing}>
-                <img src={mainLogo} alt="" className={styles.avatarLogo} />
+                <img src={logoIcon} alt="" className={styles.avatarLogo} />
               </div>
 
               {step === 1 && <>

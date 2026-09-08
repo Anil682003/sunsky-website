@@ -5,7 +5,6 @@ import { logout } from '../../store/slices/authSlice';
 import mainLogoFallback from '../../assets/main-logo.png';
 import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig, useHolidayTypes } from '../../api';
-import { resolveCmsImageUrl } from '../../utils/cmsImage';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
 import { hotelDetailHref } from '../../utils/searchDefaults';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
@@ -94,21 +93,26 @@ export default function Navbar() {
   const { data: headerConfig } = useHeaderConfig();
   const { data: cmsConfig } = useHomepageConfig();
 
-  const headerLogo = resolveCmsImageUrl(headerConfig?.logoUrl);
-  const cmsMainLogo = resolveCmsImageUrl(cmsConfig?.logo?.mainUrl);
-
-  const mainLogo = headerLogo || cmsMainLogo || mainLogoFallback;
+  // THE BUNDLED LOGO WINS. It used to sit last, behind two CMS slots, which meant the
+  // dashboard's uploaded file decided what the site's own mark looked like. That file is a
+  // 2MB render with a grey haze baked behind it, and it was what visitors actually saw. The
+  // brand mark now ships with the code, so it is the same everywhere and cannot be replaced
+  // by an upload nobody reviewed. Restoring dashboard control means putting the CMS sources
+  // back in front here — and re-uploading a clean, transparent file there first.
+  const mainLogo = mainLogoFallback;
   const logoAlt = headerConfig?.logoAltText?.trim() || 'SunSky';
   const logoHref = headerConfig?.logoLinkTarget?.trim() || '/';
 
-  const usingCmsLogo = Boolean(headerLogo || cmsMainLogo);
-
-  // Whether the uploaded logo is a wide wordmark or a square icon decides how
-  // it is sized AND whether the "SunSky" text sits beside it: a wordmark
-  // already carries the name, a square icon does not. Measured on load rather
-  // than assumed, since either can be uploaded.
+  // Whether the logo is a wide wordmark or a square icon decides how it is sized AND whether
+  // the "SunSky" text sits beside it: a wordmark already carries the name, a square icon does
+  // not. Measured from the image itself on load rather than assumed.
+  //
+  // This deliberately no longer asks WHERE the logo came from. It used to require a CMS
+  // upload before it would believe a wordmark, so the bundled wordmark would have rendered
+  // squashed into a 32px square with the words "SunSky" printed beside it: "Sunsky Vakanties
+  // SunSky". The shape of the picture is the only thing that matters here.
   const [logoAspect, setLogoAspect] = useState(null);
-  const isWordmark = usingCmsLogo && logoAspect !== null && logoAspect > 1.6;
+  const isWordmark = logoAspect !== null && logoAspect > 1.6;
 
   const isHome = location.pathname === '/';
   // Pages with a dark hero band — navbar starts transparent and blends in

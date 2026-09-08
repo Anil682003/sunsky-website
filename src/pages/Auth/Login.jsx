@@ -89,10 +89,8 @@ export default function Login() {
       {/* Left branding column */}
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
-          <div className={styles.logoIcon}>
-            <img src={mainLogo} alt="SunSky" className={styles.logoImg} />
-          </div>
-          <div className={styles.logoText}>Sun<span>Sky</span></div>
+          {/* The wordmark carries the name, so no text beside it. */}
+          <img src={mainLogo} alt="Sunsky Vakanties" className={styles.logoWordmark} />
         </Link>
 
         <div className={styles.brandHero}>

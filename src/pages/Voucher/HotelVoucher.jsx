@@ -114,8 +114,8 @@ export default function HotelVoucher() {
         {/* ═══ HEADER ═══ */}
         <header className="hv-head">
           <div className="hv-logo">
-            <img src={mainLogo} alt="Sunsky" />
-            <span className="hv-logo-text">Sunsky</span>
+            {/* Wordmark only: it already says Sunsky. */}
+            <img src={mainLogo} alt="Sunsky Vakanties" />
           </div>
           <h1 className="hv-title hd">HOTEL VOUCHER</h1>
         </header>
