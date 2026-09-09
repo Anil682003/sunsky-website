@@ -19,7 +19,7 @@
   --cta-grad-deep:linear-gradient(135deg,#A64707,#C2540A);
   --r-xs:8px; --r-sm:12px; --r-md:16px; --r-lg:20px; --r-xl:28px; --r-full:9999px;
   --ease:cubic-bezier(.22,1,.36,1); --ease-spring:cubic-bezier(.175,.885,.32,1.275);
-  --nav-h:64px; --overhang:64px;
+  --sd-stick:calc(var(--nav-h) + 4px); --overhang:64px;
   font-family:'DM Sans',sans-serif; color:var(--text);
   background:
     radial-gradient(1000px 520px at 85% 660px, rgba(95,168,255,.16), transparent 72%),
@@ -422,7 +422,7 @@
 .sd .grid > * { min-width:0; }
 
 /* BOOKING CARD */
-.sd .bk { position:sticky; top:calc(var(--nav-h) + 16px); background:var(--white); border-radius:22px; border:1px solid var(--border-light); box-shadow:0 18px 44px rgba(15,40,100,.12); overflow:hidden; }
+.sd .bk { position:sticky; top:calc(var(--sd-stick) + 16px); background:var(--white); border-radius:22px; border:1px solid var(--border-light); box-shadow:0 18px 44px rgba(15,40,100,.12); overflow:hidden; }
 .sd .bkr { display:flex; align-items:center; gap:13px; padding:18px 22px; background:linear-gradient(135deg,#e8f0fd 0%,#d6e5fa 55%,#c6d9f6 100%); border-bottom:1px solid #cfdff8; position:relative; overflow:hidden; }
 .sd .bkr::after { content:''; position:absolute; top:-60px; right:-30px; width:170px; height:170px; border-radius:50%; background:radial-gradient(circle,rgba(59,113,224,.16),transparent 65%); pointer-events:none; }
 .sd .bks { width:46px; height:46px; border-radius:14px; background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); display:flex; align-items:center; justify-content:center; font-family:'Sora',sans-serif; font-size:17px; font-weight:800; box-shadow:0 6px 16px rgba(255,159,28,.4); position:relative; }
@@ -455,7 +455,7 @@
 .sd .bkc:disabled::before, .sd .overview-book-btn:disabled::before, .sd .mbc:disabled::before { display:none; }
 
 /* TABS — floating glass pill bar */
-.sd .tw { margin-top:6px; position:sticky; top:calc(var(--nav-h) + 10px); z-index:10; display:flex; }
+.sd .tw { margin-top:6px; position:sticky; top:calc(var(--sd-stick) + 10px); z-index:10; display:flex; }
 .sd .tabs { display:inline-flex; gap:4px; max-width:100%; padding:6px; border-radius:var(--r-full);
   background:rgba(255,255,255,.88); border:1px solid rgba(255,255,255,.95);
   backdrop-filter:blur(18px) saturate(170%); -webkit-backdrop-filter:blur(18px) saturate(170%);
@@ -2684,7 +2684,7 @@
   /* One fact per row on a phone: two columns left 138px each, which a 44px badge plus a
      label cannot live in. (.fc-res-head went with the availability card rebuild.) */
   .sd .fc-facts-grid{grid-template-columns:1fr;gap:14px}
-  .sd .tw{top:calc(var(--nav-h) + 4px)}
+  .sd .tw{top:calc(var(--sd-stick) + 4px)}
   .sd .bp-route{gap:8px}
   .sd .bp-time{font-size:20px}
   .sd .bp-mid{min-width:96px}
