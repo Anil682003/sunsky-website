@@ -7,7 +7,7 @@
   background: linear-gradient(160deg, var(--dark) 0%, var(--dark2) 60%, #12224a 100%);
   /* Top pad clears the fixed navbar — same 104px the results page uses.
      The deep bottom pad is what the mosaic is pulled up into. */
-  padding: 104px 0 150px;
+  padding: calc(var(--nav-h) + 44px) 0 150px;
 }
 /* Dissolves the banner into the page — no hard horizontal edge under the copy */
 .banner::after {
@@ -318,7 +318,7 @@
 }
 
 @media (max-width: 700px) {
-  .banner { padding: 88px 0 120px; }
+  .banner { padding: calc(var(--nav-h) + 36px) 0 120px; }
   .banner::after { height: 150px; }
   .bannerInner { padding: 0 18px; }
   .inner { margin-top: -90px; padding: 0 18px 64px; }

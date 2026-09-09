@@ -2,8 +2,8 @@
 .page {
   max-width: 920px;
   margin: 0 auto;
-  /* top padding clears the fixed navbar (~74px) + breathing room */
-  padding: 104px 24px 72px;
+  /* Clears the fixed navbar, plus 44px of breathing room. */
+  padding: calc(var(--nav-h) + 44px) 24px 72px;
 }
 
 /* ── Header ── */
@@ -105,7 +105,7 @@
 .card:hover .view { gap: 10px; }
 
 @media (max-width: 560px) {
-  .page { padding-top: 92px; }
+  .page { padding-top: calc(var(--nav-h) + 40px); }
   .priceStrip { grid-template-columns: 1fr; gap: 0; }
   .priceCell + .priceCell::before { display: none; }
   .priceCell { padding: 10px 8px; border-top: 1px solid #eef2f7; }

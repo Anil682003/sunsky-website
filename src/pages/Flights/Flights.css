@@ -22,7 +22,7 @@
 @media (prefers-reduced-motion: reduce){ .fl *{animation:none !important} }
 
 /* ── hero (navbar blends in) ── */
-.fl-hero { position:relative; overflow:hidden; padding:104px 0 78px;
+.fl-hero { position:relative; overflow:hidden; padding:calc(var(--nav-h) + 44px) 0 78px;
   background:
     radial-gradient(ellipse 70% 120% at 85% -10%, rgba(95,168,255,.28), transparent 55%),
     radial-gradient(ellipse 60% 100% at 8% 120%, rgba(31,79,216,.45), transparent 60%),
@@ -294,7 +294,7 @@ img.fl-leg-logo { background:#fff; border:1px solid var(--border-light); padding
   .fl-trip-mob { display:block; }
 }
 @media (max-width:760px){
-  .fl-hero { padding:88px 0 64px; }
+  .fl-hero { padding:calc(var(--nav-h) + 36px) 0 64px; }
   .fl-legtabs { gap:8px; margin:0 -4px 14px; padding:0 4px 4px; }
   .fl-legtab { min-width:186px; flex:0 0 auto; padding:10px 13px; }
   .fl-card-in { flex-direction:column; }

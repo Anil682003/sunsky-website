@@ -36,7 +36,7 @@
 .hero {
   position: relative;
   overflow: hidden;
-  padding: 118px 0 52px;
+  padding: calc(var(--nav-h) + 58px) 0 52px;
   background:
     radial-gradient(ellipse at 8% -10%, rgba(95, 168, 255, 0.16) 0%, transparent 52%),
     linear-gradient(168deg, var(--blue-bg) 0%, var(--blue-bg2) 55%, var(--white) 100%);
@@ -391,7 +391,7 @@
   .heroRoute { display: none; }
 }
 @media (max-width: 620px) {
-  .hero { padding: 104px 0 40px; }
+  .hero { padding: calc(var(--nav-h) + 52px) 0 40px; }
   .heroInner, .missing, .body { padding-left: 20px; padding-right: 20px; }
   .title { max-width: none; }
   .heroMeta { flex-wrap: wrap; gap: 8px 10px; }

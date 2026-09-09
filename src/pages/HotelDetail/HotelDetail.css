@@ -131,7 +131,7 @@
    bright horizon rim where sky meets the saturated band. Three altitudes, back to
    front: sky (z0) → identity card (z2, long soft shadow) → photo tiles (z3, deepest
    shadows, nearest the viewer). */
-.sd-hero { position:relative; padding:104px 0 0; border-radius:0 0 46px 46px;
+.sd-hero { position:relative; padding:calc(var(--nav-h) + 44px) 0 0; border-radius:0 0 46px 46px;
   /* one long blue throw + a tight contact shadow; bright inner rim keeps the lip lit */
   box-shadow:
     0 46px 90px -42px rgba(31,79,216,.55),
@@ -2631,7 +2631,7 @@
   .sd .fc-legend-item{font-size:11.5px}
 }
 @media(max-width:1024px){
-  .sd-hero{padding:96px 0 0}
+  .sd-hero{padding:calc(var(--nav-h) + 44px) 0 0}
   .sd .grid{grid-template-columns:minmax(0,1fr);gap:0}
   .sd .bk{position:static;margin-top:24px;max-width:480px}
   .sd .mbar{display:block}
@@ -2650,7 +2650,7 @@
 }
 @media(max-width:768px){
   .sd{--overhang:36px}
-  .sd-hero{padding:86px 0 0}
+  .sd-hero{padding:calc(var(--nav-h) + 34px) 0 0}
   /* Two big blurred, animated cloud layers are a paint cost small phones shouldn't pay:
      halve the blur and stop the drift — the layered sky itself still reads. */
   .sd-hero-bg::before{filter:blur(10px);animation:none}

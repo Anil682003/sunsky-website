@@ -1305,12 +1305,11 @@
   .skRail { display: none; }
 }
 @media (max-width: 560px) {
-  /* Same 80px clearance — the bar measures 76px here, so this leaves a couple
-     of cream pixels rather than risking an overlap. Only the padding tightens. */
+  /* Only the padding tightens here; the clearance itself comes from --nav-h. */
   .hero { padding: 34px 16px 50px; }
   .heroFlight, .heroRoutes, .heroSun, .cloud { display: none; }
   .heroTitle { margin-bottom: 16px; }
-  .toolbar { padding: 0 16px; top: 62px; }
+  .toolbar { padding: 0 16px; top: calc(var(--nav-h) + 10px); }
   .toolbar::before { left: 7px; }
   .toolbar::after { right: 7px; }
   .toolbarInner { padding: 12px 16px; }

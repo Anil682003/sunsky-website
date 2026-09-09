@@ -33,7 +33,7 @@
 .fd-side { width:332px; flex-shrink:0; position:sticky; top:calc(var(--nav-h) + 8px); }
 
 /* page hero (navbar blends in) */
-.fd-hero { position:relative; overflow:hidden; padding:104px 0 80px;
+.fd-hero { position:relative; overflow:hidden; padding:calc(var(--nav-h) + 44px) 0 80px;
   background:
     radial-gradient(ellipse 70% 120% at 85% -10%, rgba(95,168,255,.28), transparent 55%),
     radial-gradient(ellipse 60% 100% at 8% 120%, rgba(31,79,216,.45), transparent 60%),
@@ -239,7 +239,7 @@ img.fd-airdot { background:#fff; border:1px solid var(--border-light); padding:3
 }
 @media (max-width:760px){
   .fd { padding-bottom:74px; }
-  .fd-hero { padding:88px 0 64px; }
+  .fd-hero { padding:calc(var(--nav-h) + 36px) 0 64px; }
   .fd-leg-visual { gap:0; }
   .fd-dur-badge { margin-left:0; }
   .fd-tab span { display:none; }

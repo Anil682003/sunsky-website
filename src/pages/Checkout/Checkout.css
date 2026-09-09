@@ -43,7 +43,7 @@
 .ck .ck-reveal.vis { opacity:1; transform:translateY(0); }
 
 /* ════ HERO ════ */
-.ck-hero { position:relative; overflow:hidden; padding:104px 0 78px; border-radius:0 0 42px 42px;
+.ck-hero { position:relative; overflow:hidden; padding:calc(var(--nav-h) + 44px) 0 78px; border-radius:0 0 42px 42px;
   box-shadow:0 26px 54px -22px rgba(10,20,48,.5);
   background:
     radial-gradient(ellipse 70% 120% at 85% -10%, rgba(95,168,255,.28), transparent 55%),
@@ -944,7 +944,7 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   .ck-pm-row { grid-template-columns:repeat(2,1fr); }
 }
 @media (max-width: 760px) {
-  .ck-hero { padding:92px 0 64px; border-radius:0 0 30px 30px; }
+  .ck-hero { padding:calc(var(--nav-h) + 40px) 0 64px; border-radius:0 0 30px 30px; }
   .ck-main { padding-bottom:130px; }
   .ck-mbar { display:flex; }
   .ck-navbtns .ck-next-btn { display:none; }
@@ -972,7 +972,7 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
    Shown when /checkout is reached with no booking in router state — most often a refresh
    mid-checkout. Replaces a hardcoded demo booking that a customer could have paid for. */
 .ck .ck-gone {
-  max-width: 560px; margin: 0 auto; padding: 120px 24px 140px; text-align: center;
+  max-width: 560px; margin: 0 auto; padding: calc(var(--nav-h) + 60px) 24px 140px; text-align: center;
   display: flex; flex-direction: column; align-items: center;
 }
 .ck .ck-gone-ico {
@@ -995,6 +995,6 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 }
 .ck .ck-gone-link:hover { color: var(--blue); }
 @media (max-width: 560px) {
-  .ck .ck-gone { padding: 90px 18px 110px; }
+  .ck .ck-gone { padding: calc(var(--nav-h) + 38px) 18px 110px; }
   .ck .ck-gone-btn { width: 100%; min-height: 48px; }
 }
