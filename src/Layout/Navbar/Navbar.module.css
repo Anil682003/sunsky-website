@@ -4,9 +4,11 @@
    flat warm cream, so no backdrop blur is needed behind it. */
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
-  /* The tallest child (the account pill / register button) sets the bar height,
-     not the logo — so this padding is tuned against that, not the 32px mark. */
-  padding: 11px 36px;
+  /* Explicit, not padding-driven. The height is the contract every other stylesheet
+     depends on, so it is stated once here and read from --nav-h everywhere else. */
+  height: var(--nav-h);
+  box-sizing: border-box;
+  padding: 0 36px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
   transition: padding 0.45s var(--ease), box-shadow 0.45s var(--ease);
@@ -17,7 +19,6 @@
 }
 .scrolled, .solid {
   box-shadow: 0 10px 36px rgba(15,40,100,0.08);
-  padding: 8px 36px;
 }
 
 /* ── Logo ── */
@@ -36,20 +37,23 @@
    height-constrained with a free width, or `contain` in a 38px square would
    shrink a 2.4:1 logo to a sliver. The text wordmark is hidden alongside it,
    so a gentle lift replaces the icon's rotation. */
+/* Character for character the footer's rule, because the two are meant to read as one mark
+   at one size. 38px used to be the ceiling here: the bar was 60px built around a 38px
+   account pill, and going past it meant retuning every offset that cleared the bar by hand.
+   Those offsets now derive from --nav-h, so the mark sets the bar's height instead of the
+   other way round.
+   max-height rather than height, again matching the footer: the global rule in index.css
+   clamps every image to max-width:100%, so on a narrow bar a fixed height would stay put
+   while the width shrank and object-fit:contain would pad the difference with dead space. */
 .logoImgCms {
+  max-height: 56px;
+  max-width: 100%;
   width: auto;
-  /* 38px is the ceiling, not a preference. The bar is 60px from 11px of padding around a
-     38px tallest child (the account pill, and the hamburger on mobile), and every page
-     clears the fixed navbar with a hardcoded 60px/52px rather than a shared variable.
-     Matching that 38px is the largest the mark can be without retuning all of them. */
-  height: 38px;
-  max-width: 210px;
+  height: auto;
+  object-fit: contain;
 }
 .logo:hover .logoImgCms { transform: scale(1.04); }
 
-@media (max-width: 768px) {
-  .logoImgCms { height: 34px; max-width: 176px; }
-}
 .logoText {
   font-family: 'Sora', sans-serif; font-size: 19px;
   font-weight: 800; letter-spacing: -0.6px;
@@ -261,9 +265,8 @@
 }
 
 /* ── Auth area ── */
-/* Trustpilot's slot. The widget is 24px tall and the auth controls beside it carry their own
-   height, so the bar stays 60px in every state — which matters because pages clear the fixed
-   navbar with hardcoded 60px/52px margins rather than a shared variable. An empty slot (no
+/* Trustpilot's slot. The widget is 24px tall, comfortably inside the bar's own height. An
+   empty slot (no
    business unit id, or consent declined) therefore has to cost nothing: no padding, no border,
    no min-width. It goes at 1180px, where the flanking menus already yield. */
 .trustpilotSlot { display: flex; align-items: center; flex-shrink: 0; max-width: 160px; margin-right: 14px; }
@@ -275,10 +278,10 @@
 .authArea { display: flex; align-items: center; flex-shrink: 0; }
 .authBtns { display: flex; align-items: center; gap: 10px; }
 
-/* The three auth controls — signed-in, signed-out, register — are pinned to one
-   explicit height so the bar is 60px in every state. Tuning by padding does not
-   hold: font leading and fractional border rendering both shift the result, and
-   the offsets that clear this bar are fixed. */
+/* The three auth controls — signed-in, signed-out, register — are pinned to one explicit
+   height so they agree with each other. They no longer decide the bar's height; --nav-h
+   does. Tuning by padding still does not hold, though: font leading and fractional border
+   rendering both shift the result. */
 .signInBtn, .registerBtn, .avatarBtn { height: 38px; box-sizing: border-box; }
 
 .signInBtn {
@@ -366,9 +369,8 @@
   border-color: var(--blue-soft);
 }
 .avatarCircle {
-  /* 25px, not 26: the pill's 5px padding + 1.5px border make this the tallest
-     child, and 25 lands the bar on exactly 60px — matching the hamburger's
-     height on mobile and the offsets that clear the bar. */
+  /* 25px, not 26: the pill's 5px padding + 1.5px border make this 38px overall,
+     matching the hamburger's height on mobile. */
   width: 25px; height: 25px; border-radius: 50%;
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
   color: #fff; font-size: 11px; font-weight: 800;
@@ -431,8 +433,8 @@
 .dropLogout:hover { background: rgba(255,107,107,0.08); }
 
 /* ── Hamburger ── */
-/* display:flex, not block — an inline svg adds a baseline gap that would make
-   the hamburger the tallest child and push the mobile bar past the desktop one. */
+/* display:flex, not block — an inline svg adds a baseline gap that would leave the
+   hamburger sitting a couple of pixels off-centre against the logo. */
 .hamburger { display: none; padding: 7px; transition: color 0.3s; }
 .hamburgerLight { color: #fff; }
 .hamburgerDark  { color: var(--dark); }
@@ -504,6 +506,5 @@
 @media (max-width: 900px) {
   .authArea { display: none; }
   .hamburger { display: flex; }
-  .nav { padding: 11px 20px; }
-  .scrolled, .solid { padding: 9px 20px; }
+  .nav { padding: 0 20px; }
 }

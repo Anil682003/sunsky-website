@@ -9,9 +9,8 @@
     linear-gradient(125deg, #2A5CE4 0%, #4A82F2 45%, #7CB9FF 110%);
   /* The header is opaque now, so the banner starts BELOW it rather than sliding
      underneath — otherwise the top of it (gradient, sun, flight path) is hidden.
-     margin-top clears the bar (60px desktop / 52px mobile); the reduced padding
-     keeps the content from dropping too far down the band. */
-  margin-top: 60px;
+     The reduced padding keeps the content from dropping too far down the band. */
+  margin-top: var(--nav-h);
   padding: 46px 40px 52px;
   overflow: hidden;
 }
@@ -196,7 +195,7 @@
 /* ════════ Toolbar — sticky boarding-pass strip ════════ */
 .toolbar {
   padding: 0 40px; margin-top: -22px;
-  position: sticky; top: 70px; z-index: 5;
+  position: sticky; top: calc(var(--nav-h) + 10px); z-index: 5;
 }
 /* Punched ticket notches on the bar's side edges (match the result cards). */
 .toolbar::before, .toolbar::after {
@@ -319,7 +318,7 @@
 /* ════════ Sidebar ════════ */
 .sidebar {
   width: 364px; flex-shrink: 0;
-  position: sticky; top: 92px;
+  position: sticky; top: calc(var(--nav-h) + 32px);
   max-height: calc(100vh - 108px);
   overflow-y: auto; overflow-x: hidden;
   padding: 2px 4px 8px 2px;

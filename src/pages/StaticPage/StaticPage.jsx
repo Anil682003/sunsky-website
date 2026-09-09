@@ -154,7 +154,13 @@ export default function StaticPage() {
   useEffect(() => {
     if (!sectionIndex.length) return undefined;
 
-    const NAV_OFFSET = 120;
+    // The bar's own height plus 60px of lead-in, so a section counts as "current" a little
+    // before its heading reaches the bar. Read from the stylesheet rather than retyped:
+    // --nav-h is the one place the navbar's height is stated.
+    const navH = parseFloat(
+      getComputedStyle(document.documentElement).getPropertyValue('--nav-h'),
+    ) || 78;
+    const NAV_OFFSET = navH + 60;
     const pick = () => {
       let current = sectionIndex[0]?.id ?? null;
       for (const { id } of sectionIndex) {

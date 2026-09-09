@@ -47,6 +47,16 @@
   --ease: cubic-bezier(0.22,1,0.36,1);
   --ease-spring: cubic-bezier(0.175,0.885,0.32,1.275);
   --ease-smooth: cubic-bezier(0.4,0,0.2,1);
+
+  /* THE NAVBAR'S HEIGHT. It is position:fixed with no spacer beneath it, so
+     every page that must not slide under it, and every sticky element that
+     must not park behind it, measures from this. It used to be typed out by
+     hand in six files (60px, and 52px on mobile), which is why the navbar
+     stylesheet carries three separate comments warning not to change it.
+     Navbar.module.css sets the bar to exactly this; nothing else should
+     hardcode it. Currently 11px of breathing room above and below a 56px
+     logo, which is the tallest thing in the bar. */
+  --nav-h: 78px;
 }
 
 *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }

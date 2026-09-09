@@ -2,10 +2,10 @@
    SunSky — Cookie notice
    A floating card at the foot of the page. Bottom-anchored rather
    than over the hero as the mockup drew it: the navbar is
-   position:fixed and every page clears it with a hardcoded 60px
-   (52px mobile), so a top-anchored bar that pushed content down
-   would mean retuning all of those. A bottom card still floats
-   over the hero and reflows nothing.
+   position:fixed and every page clears it from --nav-h, so a
+   top-anchored bar that pushed content down would mean adding its
+   own height into all of those. A bottom card still floats over
+   the hero and reflows nothing.
    ═══════════════════════════════════════════════════════════ */
 
 .wrap {

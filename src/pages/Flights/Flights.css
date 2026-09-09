@@ -50,7 +50,7 @@
 .fl-hchip-cabin { background:var(--cta-grad); border-color:transparent; color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); font-weight:800; }
 
 /* ── toolbar (glass, overlaps hero) ── */
-.fl-toolbar { position:sticky; top:60px; z-index:20; margin-top:-30px; padding:0 clamp(16px,3vw,40px); }
+.fl-toolbar { position:sticky; top:var(--nav-h); z-index:20; margin-top:-30px; padding:0 clamp(16px,3vw,40px); }
 .fl-toolbar-in { max-width:1480px; margin:0 auto; display:flex; align-items:center; justify-content:space-between; gap:16px; flex-wrap:wrap;
   background:rgba(255,255,255,.86); backdrop-filter:blur(18px) saturate(180%); -webkit-backdrop-filter:blur(18px) saturate(180%);
   border:1px solid rgba(255,255,255,.9); border-radius:18px; box-shadow:0 16px 44px rgba(15,40,100,.12); padding:13px 22px; }
@@ -72,7 +72,7 @@
 .fl-main { max-width:1480px; margin:0 auto; padding:24px clamp(16px,3vw,40px) 80px; display:flex; gap:26px; align-items:flex-start; }
 
 /* ── sidebar ── */
-.fl-sidebar { width:300px; flex-shrink:0; position:sticky; top:140px; max-height:calc(100vh - 160px); overflow-y:auto; padding-right:4px; scrollbar-width:thin; scrollbar-color:#c3d4ee transparent; }
+.fl-sidebar { width:300px; flex-shrink:0; position:sticky; top:calc(var(--nav-h) + 80px); max-height:calc(100vh - 160px); overflow-y:auto; padding-right:4px; scrollbar-width:thin; scrollbar-color:#c3d4ee transparent; }
 .fl-sidebar::-webkit-scrollbar { width:5px; }
 .fl-sidebar::-webkit-scrollbar-thumb { background:#c3d4ee; border-radius:3px; }
 .fl-clear { display:flex; align-items:center; gap:7px; width:100%; margin-bottom:12px; padding:10px 14px; border-radius:12px; border:1px dashed var(--blue-soft); background:var(--blue-pale); color:var(--blue); font-size:12.5px; font-weight:700; cursor:pointer; transition:all .2s; }
@@ -297,7 +297,6 @@ img.fl-leg-logo { background:#fff; border:1px solid var(--border-light); padding
   .fl-hero { padding:88px 0 64px; }
   .fl-legtabs { gap:8px; margin:0 -4px 14px; padding:0 4px 4px; }
   .fl-legtab { min-width:186px; flex:0 0 auto; padding:10px 13px; }
-  .fl-toolbar { top:52px; }
   .fl-card-in { flex-direction:column; }
   .fl-card-price { width:100%; border-left:none; border-top:1px dashed var(--border); flex-direction:row; justify-content:space-between; padding:14px 20px; }
   .fl-select { width:auto; margin-top:0; flex-shrink:0; }
