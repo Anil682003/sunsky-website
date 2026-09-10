@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { Link, useParams, useLocation } from 'react-router-dom';
+import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import styles from './StaticPage.module.css';
 import { useStaticPages } from '../../api';
 
@@ -116,14 +116,36 @@ export default function StaticPage() {
   const pages  = useMemo(() => data?.pages  ?? [], [data]);
   const groups = useMemo(() => data?.groups ?? [], [data]);
 
+  // A page answers on its current slug and on every slug it used to have.
+  //
+  // The slug IS the public URL, so renaming a page in the CMS broke every link
+  // written before the rename: the footer links are separate hand written
+  // strings, so /p/about-sunsky kept pointing at an address that no longer
+  // existed and the visitor got "we couldn't find that page". Search results
+  // and any link in a sent email broke the same way. The CMS now remembers the
+  // old slugs, so those links resolve here instead of dying.
   const page  = useMemo(
-    () => pages.find((p) => p?.slug === slug) ?? null,
+    () =>
+      pages.find((p) => p?.slug === slug) ??
+      pages.find((p) => (p?.previousSlugs ?? []).includes(slug)) ??
+      null,
     [pages, slug]
   );
   const group = useMemo(
     () => (page ? groups.find((g) => g?.groupKey === page.groupKey) ?? null : null),
     [groups, page]
   );
+
+  // Arrived on an old slug: show the page, then quietly correct the address so
+  // what the visitor copies, bookmarks or shares is the URL that will keep
+  // working. Replace rather than push, so Back still leaves the page instead of
+  // bouncing between the two spellings.
+  const navigate = useNavigate();
+  const location = useLocation();
+  useEffect(() => {
+    if (!page || page.slug === slug) return;
+    navigate(`/p/${page.slug}${location.hash || ''}`, { replace: true });
+  }, [page, slug, navigate, location.hash]);
 
   // Sibling pages — kept for the "More information" links under the index.
   const siblings = useMemo(
@@ -188,7 +210,7 @@ export default function StaticPage() {
   // The content only exists once the fetch resolves, and the layout keeps
   // settling after that as images and fonts land — so re-assert the scroll a
   // few times rather than firing once and hoping it stuck.
-  const { hash } = useLocation();
+  const { hash } = location;
   useEffect(() => {
     const id = hash ? hash.slice(1) : '';
     if (!id || !sectionIndex.length) return undefined;
