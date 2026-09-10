@@ -21,6 +21,25 @@ const FALLBACK_PAYS = ['VISA', 'MC', 'AMEX', 'PayPal'];
 // has to stay a plain anchor. '#' and blanks are placeholders for pages that do
 // not exist yet and must not navigate.
 const isPlaceholder = (url) => !url || url === '#';
+/**
+ * Repair a CMS link that starts with more slashes than it should.
+ *
+ * A saved footer link read "//p/Bankgegevens-#Bankgegevens" and was dead: a
+ * browser reads a leading double slash as the start of a HOST, so it went
+ * looking for a site called "p" rather than a page here. The CMS field is for
+ * site paths ("/help/customer-service") and nobody enters protocol-relative
+ * URLs there, so the extra slashes are always a typo and are collapsed.
+ *
+ * A real external link carries its scheme (https://, mailto:, tel:) and is left
+ * exactly as it is, as is a bare anchor.
+ */
+const normaliseUrl = (url) => {
+  if (typeof url !== 'string') return url;
+  const trimmed = url.trim();
+  if (!trimmed || /^[a-z][a-z0-9+.-]*:/i.test(trimmed) || trimmed.startsWith('#')) return trimmed;
+  return trimmed.replace(/^\/{2,}/, '/');
+};
+
 const isInternal = (url) => typeof url === 'string' && url.startsWith('/');
 
 export default function Footer() {
@@ -95,10 +114,11 @@ export default function Footer() {
             <div className={styles.navLinks}>
               {col.links.map((l, i) => {
                 const key = `${l.label}-${i}`;
-                if (isPlaceholder(l.url)) return <a key={key} href="#">{l.label}</a>;
-                return isInternal(l.url)
-                  ? <Link key={key} to={l.url}>{l.label}</Link>
-                  : <a key={key} href={l.url} target="_blank" rel="noreferrer">{l.label}</a>;
+                const url = normaliseUrl(l.url);
+                if (isPlaceholder(url)) return <a key={key} href="#">{l.label}</a>;
+                return isInternal(url)
+                  ? <Link key={key} to={url}>{l.label}</Link>
+                  : <a key={key} href={url} target="_blank" rel="noreferrer">{l.label}</a>;
               })}
             </div>
           </div>
