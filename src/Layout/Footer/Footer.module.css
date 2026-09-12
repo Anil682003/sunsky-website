@@ -65,6 +65,18 @@
   box-shadow:var(--shadow-xs);
 }
 .pay:hover { background:var(--blue-light); color:var(--blue-deep); border-color:var(--blue-ocean); }
+
+/* An uploaded payment icon. Same chip as the text version so a row mixing
+   images and labels still lines up; the image is contained rather than cropped,
+   because card logos come in very different proportions. */
+.payImg {
+  display:inline-flex; align-items:center; justify-content:center;
+  height:30px; min-width:48px; padding:5px 10px;
+  background:var(--white); border:1px solid var(--blue-light); border-radius:8px;
+  box-shadow:var(--shadow-xs); transition:all 0.3s;
+}
+.payImg img { max-height:100%; max-width:64px; object-fit:contain; display:block; }
+.payImg:hover { background:var(--blue-light); border-color:var(--blue-ocean); }
 .col h4 {
   font-family:'Sora',sans-serif; font-size:0.88rem; font-weight:700;
   margin-bottom:24px; color:var(--blue-deep);

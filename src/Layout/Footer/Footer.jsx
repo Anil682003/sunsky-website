@@ -78,8 +78,15 @@ export default function Footer() {
     ? cmsCols
     : FALLBACK_COLS.map((c) => ({ title: c.title, links: c.links.map((label) => ({ label, url: '#' })) }));
 
-  const pays = (footer?.paymentIcons ?? []).filter((p) => p && p.active !== false && p.label);
-  const payLabels = pays.length ? pays.map((p) => p.label) : FALLBACK_PAYS;
+  // An icon counts if it has a picture OR a label. It used to require a label,
+  // so an uploaded image with no caption was dropped and the author saw nothing
+  // appear however many times they uploaded it.
+  const pays = (footer?.paymentIcons ?? []).filter(
+    (p) => p && p.active !== false && (p.label || p.imageUrl)
+  );
+  const payItems = pays.length
+    ? pays.map((p) => ({ label: p.label || '', imageUrl: resolveCmsImageUrl(p.imageUrl) }))
+    : FALLBACK_PAYS.map((label) => ({ label, imageUrl: null }));
 
   const copyright =
     footer?.copyrightText?.trim() ||
@@ -103,7 +110,28 @@ export default function Footer() {
           </div>
           <p>{cmsText(brandDesc)}</p>
           <div className={styles.pays}>
-            {payLabels.map((p) => <span key={p} className={styles.pay}>{p}</span>)}
+            {/* The uploaded icon when there is one, the label otherwise. An
+                image that fails to load falls back to its label rather than
+                leaving an empty box in the row. */}
+            {payItems.map((p, i) => (
+              <span key={`${p.label}-${i}`} className={p.imageUrl ? styles.payImg : styles.pay}>
+                {p.imageUrl ? (
+                  <img
+                    src={p.imageUrl}
+                    alt={p.label || 'Payment method'}
+                    loading="lazy"
+                    onError={(e) => {
+                      const holder = e.currentTarget.parentElement;
+                      if (!holder) return;
+                      holder.className = styles.pay;
+                      holder.textContent = p.label || '';
+                    }}
+                  />
+                ) : (
+                  p.label
+                )}
+              </span>
+            ))}
           </div>
         </div>
 
