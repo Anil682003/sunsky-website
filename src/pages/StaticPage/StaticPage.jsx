@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import styles from './StaticPage.module.css';
 import { useStaticPages } from '../../api';
+import { cmsText } from '../../utils/cmsText';
 
 // Section anchors are derived from the CMS heading, so the footer can link
 // straight to "Secure Online Payments" without storing an id alongside it.
@@ -15,7 +16,7 @@ export const slugifyHeading = (s) =>
 // The CMS stores body/intro/bullets as PLAIN TEXT — blank lines separate
 // paragraphs. Everything below renders as React text nodes; never as HTML.
 const toParagraphs = (text) =>
-  String(text ?? '')
+  cmsText(text)
     .split(/\n\s*\n/)
     .map((p) => p.trim())
     .filter(Boolean);

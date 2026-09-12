@@ -2,6 +2,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import styles from './Footer.module.css';
 import { useHomepageConfig, useFooterConfig } from '../../api';
 import { resolveCmsImageUrl } from '../../utils/cmsImage';
+import { cmsText } from '../../utils/cmsText';
 import { findLegalLink } from '../../utils/legalLinks';
 import Trustpilot from '../../components/Trustpilot/Trustpilot';
 import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
@@ -100,7 +101,7 @@ export default function Footer() {
               <span className={styles.logoText}>{brandName}</span>
             )}
           </div>
-          <p>{brandDesc}</p>
+          <p>{cmsText(brandDesc)}</p>
           <div className={styles.pays}>
             {payLabels.map((p) => <span key={p} className={styles.pay}>{p}</span>)}
           </div>

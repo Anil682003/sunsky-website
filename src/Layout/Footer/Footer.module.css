@@ -45,7 +45,17 @@
    height stays put, and object-fit:contain pads the difference with dead space. Capping both
    lets the mark scale down whole. */
 .logoImg { max-height:56px; max-width:100%; width:auto; height:auto; object-fit:contain; }
-.brand p { color:var(--text-sec); font-size:0.9rem; line-height:1.8; max-width:320px; }
+/* pre-line so a line break typed in the CMS is a line break here.
+   The description is a textarea in the backend and an author reasonably expects
+   Enter to start a new line; without this the newline collapsed to a space, so
+   people typed <br> instead and saw it printed as text. Content is stored and
+   rendered as PLAIN TEXT on purpose, so the answer is to honour the real
+   newline rather than to start trusting markup. pre-line still collapses runs
+   of spaces, so accidental double spaces do not show up as gaps. */
+.brand p {
+  color:var(--text-sec); font-size:0.9rem; line-height:1.8; max-width:320px;
+  white-space: pre-line;
+}
 .pays { display:flex; gap:8px; flex-wrap:wrap; }
 .pay {
   padding:6px 12px; background:var(--white);

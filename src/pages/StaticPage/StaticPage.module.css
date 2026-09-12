@@ -249,10 +249,15 @@
   padding-bottom: 26px;
   border-bottom: 1px solid var(--blue-light);
 }
+/* pre-line so a single Enter in the CMS breaks the line here, while a blank
+   line still starts a new paragraph (toParagraphs splits on those). Without it
+   the newline collapsed to a space and authors typed <br>, which is stored and
+   printed as plain text by design and so appeared literally on the page. */
 .intro p {
   font-size: 1.09rem;
   line-height: 1.78;
   color: var(--text);
+  white-space: pre-line;
 }
 .intro p + p { margin-top: 14px; }
 
@@ -286,12 +291,16 @@
   scroll-margin-top: calc(var(--nav-h) + 24px);
 }
 
+/* Same rule as .intro p: a single Enter breaks the line, a blank line starts a
+   new paragraph. Section bodies are the longest CMS text on the site, so this
+   is where an author most often wants an address or a list of short lines. */
 .para {
   margin-bottom: 15px;
   padding-left: 46px;
   font-size: 1rem;
   line-height: 1.85;
   color: var(--text-sec);
+  white-space: pre-line;
 }
 .para:last-child { margin-bottom: 0; }
 
