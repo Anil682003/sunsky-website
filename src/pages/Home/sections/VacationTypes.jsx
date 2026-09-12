@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import styles from './VacationTypes.module.css';
+import { cmsText } from '../../../utils/cmsText';
 
 // Search links for the cards. The results page seeds these filters from the URL on entry, so a
 // card lands on a list already narrowed to that vacation type (empty scope → popular destinations,
@@ -153,7 +154,7 @@ export default function VacationTypes({ cms }) {
             {titleLead && `${titleLead} `}
             <span className={styles.titleAccent}>{lastWord}</span>
           </h2>
-          <p className={styles.sub}>{subtitle}</p>
+          <p className={styles.sub}>{cmsText(subtitle)}</p>
         </div>
 
         {/* Luggage-tag ticket cards */}

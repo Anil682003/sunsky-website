@@ -5,6 +5,7 @@ import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
 import DateCalendar from '../../../components/DateCalendar/DateCalendar';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
+import { cmsText } from '../../../utils/cmsText';
 import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
 import AirportSearch from '../../../components/AirportSearch/AirportSearch';
 import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
@@ -1357,7 +1358,7 @@ export default function Hero() {
         </h1>
 
         <p className={styles.subtitle}>
-          {cmsSubtitle}
+          {cmsText(cmsSubtitle)}
         </p>
 
         <div className={styles.modeTabs}>

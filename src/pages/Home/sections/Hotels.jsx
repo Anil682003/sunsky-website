@@ -3,6 +3,7 @@ import { hotelDetailHref } from '../../../utils/searchDefaults';
 import { formatReview } from '../../../utils/reviewBadge';
 import HotelPhotoFallback from '../../../components/HotelPhotoFallback/HotelPhotoFallback';
 import styles from './Hotels.module.css';
+import { cmsText } from '../../../utils/cmsText';
 
 // The CMS-picked cards carry the hotel's real identity (hotelCode + destinationCode), so each
 // one links to that hotel's own live-priced detail page. The demo fallbacks below have no
@@ -105,7 +106,7 @@ export default function Hotels({ cms }) {
               {titleHead && <>{titleHead}{' '}</>}
               <span className={styles.titleAccent}>{titleLast}</span>
             </h2>
-            <p className={styles.sub}>{subtitle}</p>
+            <p className={styles.sub}>{cmsText(subtitle)}</p>
           </div>
           <div className={styles.headNote} aria-hidden="true">
             <span>hand-picked by our travel crew</span>

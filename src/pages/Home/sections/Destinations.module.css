@@ -176,7 +176,9 @@
   /* padding keeps the glyph flourishes inside the painted box */
   padding: 0.04em 0.14em 0.08em 0.04em;
 }
+/* pre-line so a line break typed in the CMS shows as one here. */
 .sub {
+  white-space: pre-line;
   font-size: 0.95rem;
   color: var(--text-sec);
   max-width: 400px;

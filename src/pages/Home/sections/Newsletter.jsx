@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import styles from './Newsletter.module.css';
+import { cmsText } from '../../../utils/cmsText';
 
 export default function Newsletter({ cms }) {
   const [email, setEmail] = useState('');
@@ -103,7 +104,7 @@ export default function Newsletter({ cms }) {
                   {lead ? `${lead} ` : ''}
                   {accent && <em className={styles.accent}>{accent}</em>}
                 </h2>
-                <p className={styles.subtitle}>{subtitle}</p>
+                <p className={styles.subtitle}>{cmsText(subtitle)}</p>
               </div>
 
               {/* ── form stub, below the perforation ── */}

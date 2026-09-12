@@ -1,5 +1,6 @@
 import styles from './Trust.module.css';
 import { INSURANCE_MARKS } from '../../../utils/insuranceMarks';
+import { cmsText } from '../../../utils/cmsText';
 
 const FALLBACK_ITEMS = [
   { title:'Best Price Guarantee', desc:"Found it cheaper? We'll match and beat it.",
@@ -127,7 +128,7 @@ export default function Trust({ cms }) {
             {titleLead && <>{titleLead}{' '}</>}
             <span className={styles.accent}>{titleLast}</span>
           </h2>
-          <p className={styles.sub}>{subtitle}</p>
+          <p className={styles.sub}>{cmsText(subtitle)}</p>
         </div>
 
         {/* ── the passport double-page the stamps sit on ── */}

@@ -160,7 +160,9 @@
   flex-shrink: 0;
 }
 
+/* pre-line so a line break typed in the CMS shows as one here. */
 .sub {
+  white-space: pre-line;
   font-size: 0.98rem; color: var(--text-sec);
   max-width: 560px; line-height: 1.7;
 }

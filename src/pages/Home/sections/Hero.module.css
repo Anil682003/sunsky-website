@@ -113,7 +113,10 @@
   font-size:1.2em; letter-spacing:1px;
   text-shadow:0 2px 8px rgba(7,14,31,0.5), 0 0 60px rgba(255,209,102,0.3);
 }
+/* pre-line so a line break typed in the CMS shows as one here. The hero
+   subtitle is a sentence or two and authors break it deliberately. */
 .subtitle {
+  white-space:pre-line;
   font-size:clamp(1rem,2vw,1.2rem); color:rgba(255,255,255,0.94);
   margin-bottom:40px; max-width:520px; margin-left:auto; margin-right:auto;
   text-shadow:0 1px 4px rgba(7,14,31,0.5), 0 8px 28px rgba(7,14,31,0.35);

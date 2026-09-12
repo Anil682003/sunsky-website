@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import styles from './PopularDest.module.css';
 import { groupLinkUrl, groupLinkLabel } from '../../../utils/cmsDestinations';
+import { cmsText } from '../../../utils/cmsText';
 
 const FALLBACK_CARDS = [
   { title:'Distant Destinations', count:'480+ holidays', colorClass:'blue',
@@ -107,7 +108,7 @@ export default function PopularDest({ cms }) {
                 {titleRest && <>{titleRest}{' '}</>}
                 <span className={styles.titleAccent}>{titleLast}</span>
               </h2>
-              <p className={styles.sub}>{subtitle}</p>
+              <p className={styles.sub}>{cmsText(subtitle)}</p>
             </div>
             <div className={styles.headAside} aria-hidden="true">
               <span className={styles.headNote}>go on — collect them all!</span>

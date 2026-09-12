@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './Destinations.module.css';
 import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
+import { cmsText } from '../../../utils/cmsText';
 
 const FALLBACK_TABS = {
   spain:  { label:'Spain',          dest:[{name:'Costa del Sol',count:'342 holidays',badge:'Popular',img:'https://images.unsplash.com/photo-1543783207-ec64e4d95325?w=800&q=80'},{name:'Mallorca',count:'289 holidays',img:'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=800&q=80'},{name:'Barcelona',count:'198 holidays',badge:'Trending',img:'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=800&q=80'}] },
@@ -113,7 +114,7 @@ export default function Destinations({ cms }) {
               <span className={styles.titleAccent}>{titleAccent}</span>
             </h2>
           </div>
-          <p className={styles.sub}>{subtitle}</p>
+          <p className={styles.sub}>{cmsText(subtitle)}</p>
         </div>
 
         <div className={styles.tabs}>

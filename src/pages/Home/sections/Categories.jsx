@@ -4,6 +4,7 @@ import styles from './Categories.module.css';
 import { useHolidayTypes } from '../../../api';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
+import { cmsText } from '../../../utils/cmsText';
 
 const SunIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>;
 const CityIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 6h1M14 6h1M9 10h1M14 10h1M9 14h1M14 14h1M9 18h6"/></svg>;
@@ -201,7 +202,7 @@ export default function Categories({ cms }) {
               </svg>
             </span>
           </div>
-          <p className={styles.sub}>{subtitle}</p>
+          <p className={styles.sub}>{cmsText(subtitle)}</p>
         </div>
 
         {/* ── Tickets tossed on the desk, a flight route sketched beneath ── */}
