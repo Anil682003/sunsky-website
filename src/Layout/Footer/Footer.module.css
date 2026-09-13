@@ -36,6 +36,19 @@
   transition:color 0.25s var(--ease), padding-left 0.25s var(--ease);
 }
 .navLinks a:hover { color:var(--blue-deep); padding-left:6px; }
+/* The cookie settings entry is a button, because it opens the consent dialog
+   rather than going anywhere. Styled to sit in the column as one of the links,
+   since a reader should not have to notice the difference. */
+.linkBtn {
+  all:unset;
+  cursor:pointer;
+  color:var(--text-sec);
+  font-size:0.88rem; line-height:1.5;
+  padding:6px 0;
+  transition:color 0.25s var(--ease), padding-left 0.25s var(--ease);
+}
+.linkBtn:hover { color:var(--blue-deep); padding-left:6px; }
+.linkBtn:focus-visible { outline:2px solid var(--blue-ocean); outline-offset:2px; border-radius:3px; }
 .logo { cursor:pointer; }
 .logoText { font-family:'Sora',sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--dark); }
 /* No bar to fit inside down here, so the mark is drawn at the size it deserves: ~166px wide

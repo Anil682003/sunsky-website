@@ -43,6 +43,17 @@ const normaliseUrl = (url) => {
 
 const isInternal = (url) => typeof url === 'string' && url.startsWith('/');
 
+/**
+ * The one footer entry that cannot be a URL: reopening the cookie consent
+ * dialog calls a function. Withdrawing consent has to be as easy as giving it,
+ * so it lives in the bottom bar unconditionally — but the CMS also needs to be
+ * able to place it in a column, because that is where a reader looks for it,
+ * next to the cookie policy. Writing this token as a link's URL does that.
+ */
+const CONSENT_TOKENS = ['#cookie-settings', '#cookie-instellingen', '#consent'];
+const isConsentLink = (url) =>
+  typeof url === 'string' && CONSENT_TOKENS.includes(url.trim().toLowerCase());
+
 export default function Footer() {
   const navigate = useNavigate();
   const { data: footer } = useFooterConfig();
@@ -144,6 +155,13 @@ export default function Footer() {
               {col.links.map((l, i) => {
                 const key = `${l.label}-${i}`;
                 const url = normaliseUrl(l.url);
+                if (isConsentLink(url)) {
+                  return (
+                    <button key={key} type="button" className={styles.linkBtn} onClick={reopen}>
+                      {l.label}
+                    </button>
+                  );
+                }
                 if (isPlaceholder(url)) return <a key={key} href="#">{l.label}</a>;
                 return isInternal(url)
                   ? <Link key={key} to={url}>{l.label}</Link>
