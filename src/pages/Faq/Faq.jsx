@@ -34,6 +34,15 @@ const CONTACT = {
   emergencyHref: 'tel:+32497543816',
 };
 
+/* Where "Contact us" goes.
+   NOT /contact: that route still renders a placeholder, and sending somebody who
+   could not find their answer to a page reading "Contact" is worse than not
+   offering the button. This is the Contact section of the About page, the same
+   target the footer's own Contact link uses, and it carries the full details
+   including the opening hours and the emergency line. Point this at /contact
+   once that page is built. */
+const CONTACT_URL = '/p/about-sunsky#contact';
+
 /* How many questions the CMS must hold before it replaces the shipped set.
    Four is one per stage of the journey: below that the table is being set up,
    not published, and the reader is better served by the content in this repo. */
@@ -547,7 +556,7 @@ export default function Faq() {
                 <button type="button" className={styles.emptyReset} onClick={() => { setQuery(''); setStage('all'); }}>
                   Show all questions
                 </button>
-                <Link to="/contact" className={styles.emptyCta}>Contact us</Link>
+                <Link to={CONTACT_URL} className={styles.emptyCta}>Contact us</Link>
               </div>
             </div>
           ) : (
@@ -588,7 +597,7 @@ export default function Faq() {
             <h2 className={styles.cardTitle}>Can&rsquo;t find what you&rsquo;re looking for?</h2>
             <p className={styles.cardText}>Our team will be happy to help.</p>
 
-            <Link to="/contact" className={styles.cardCta}>
+            <Link to={CONTACT_URL} className={styles.cardCta}>
               Contact us
               <span className={styles.cardCtaArrow} aria-hidden="true">{ICON.arrow}</span>
             </Link>
