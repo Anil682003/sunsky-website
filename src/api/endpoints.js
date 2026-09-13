@@ -27,6 +27,10 @@ export const ENDPOINTS = {
   headerConfig:    '/cms/layout/header-config',
   footerConfig:    '/cms/layout/footer-config',
   staticPages:     '/cms/static-pages',
+  // Help centre (CMS → FAQ). Categories come back unpaginated; FAQs do not, and
+  // the server caps a page at 100 — see fetchAllFaqs in api/index.js.
+  faqCategories:   '/cms/faq-categories',
+  faqs:            '/cms/faqs',
 
   // Geo
   countries:       '/website/geo/countries',

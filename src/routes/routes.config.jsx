@@ -9,6 +9,7 @@ import HolidayType from '../pages/HolidayType/HolidayType';
 import Transfers from '../pages/Transfers/Transfers';
 import About from '../pages/About/About';
 import Contact from '../pages/Contact/Contact';
+import Faq from '../pages/Faq/Faq';
 import StaticPage from '../pages/StaticPage/StaticPage';
 import Login from '../pages/Auth/Login';
 import Register from '../pages/Auth/Register';
@@ -48,6 +49,9 @@ export const routes = [
   { path: '/transfers',  component: Transfers, layout: true, protected: false },
   { path: '/about',      component: About,     layout: true, protected: false },
   { path: '/contact',    component: Contact,   layout: true, protected: false },
+  // Help centre. The questions are CMS-managed (CMS → FAQ); /faq#faq-<id> opens
+  // one answer directly, so support can link straight at it.
+  { path: '/faq',        component: Faq,       layout: true, protected: false },
   // CMS static/legal pages (CMS → Static Pages), e.g. /p/privacy-policy
   { path: '/p/:slug',    component: StaticPage, layout: true, protected: false },
 

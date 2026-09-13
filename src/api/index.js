@@ -201,3 +201,61 @@ export const useHolidayTypeCountries = () =>
     transformResponse: (res) => res?.data ?? null,
     errorMessage: 'Could not load destinations for this holiday type',
   });
+
+/* ── Help centre (CMS → FAQ) ──────────────────────────────────────────────
+   Read straight off the admin CMS so SUNSKY can add, reword, reorder and retire
+   questions without a deploy. Both calls resolve to null rather than throwing:
+   the FAQ page ships with its own content and only OVERLAYS what the CMS holds,
+   so an unreachable admin API costs the reader nothing. */
+
+/**
+ * Every ACTIVE FAQ, across as many pages as the server has.
+ *
+ * `/cms/faqs` caps a page at 100 and defaults to 10, so asking once and
+ * rendering the answer would quietly drop question 101 the day the FAQ outgrew
+ * a single page — the kind of bug nobody reports because the page still looks
+ * fine. This follows `pagination.totalPages` instead.
+ *
+ * Resolves to [] on any failure, so the caller falls back to shipped content.
+ */
+export const fetchAllFaqs = async ({ signal } = {}) => {
+  const PER_PAGE = 100;
+  const readPage = async (page) => {
+    const res = await axiosInstance.get(ENDPOINTS.faqs, {
+      params: { status: 'ACTIVE', limit: PER_PAGE, page },
+      signal,
+    });
+    const body = res?.data;
+    if (!body?.success) return { rows: [], totalPages: 0 };
+    return {
+      rows: body.data?.faqs ?? [],
+      totalPages: Number(body.pagination?.totalPages) || 1,
+    };
+  };
+
+  try {
+    const first = await readPage(1);
+    if (first.totalPages <= 1) return first.rows;
+    // Pages 2..n in parallel — there are at most a handful, and serialising
+    // them would show the reader a half-built list for no reason.
+    const rest = await Promise.all(
+      Array.from({ length: first.totalPages - 1 }, (_, i) => readPage(i + 2))
+    );
+    return rest.reduce((all, p) => all.concat(p.rows), first.rows);
+  } catch {
+    return [];
+  }
+};
+
+/** Every ACTIVE FAQ category, in the order the dashboard put them. [] on failure. */
+export const fetchFaqCategories = async ({ signal } = {}) => {
+  try {
+    const res = await axiosInstance.get(ENDPOINTS.faqCategories, {
+      params: { status: 'ACTIVE' },
+      signal,
+    });
+    return res?.data?.success ? res.data.data?.faqCategories ?? [] : [];
+  } catch {
+    return [];
+  }
+};
