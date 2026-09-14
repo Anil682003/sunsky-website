@@ -2,16 +2,13 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import styles from './StaticPage.module.css';
 import { useStaticPages } from '../../api';
-import { cmsText } from '../../utils/cmsText';
+import { parseBlocks } from '../../utils/richText';
 import { slugifyHeading, resolveStaticPage } from './staticPageRouting';
+import RichText from '../../components/RichText/RichText';
 
 // The CMS stores body/intro/bullets as PLAIN TEXT — blank lines separate
-// paragraphs. Everything below renders as React text nodes; never as HTML.
-const toParagraphs = (text) =>
-  cmsText(text)
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
+// paragraphs, and a few markers add bullets, bold and highlight. RichText turns
+// that into a fixed set of React elements; nothing here ever becomes HTML.
 
 const bySortOrder = (a, b) =>
   (a?.sortOrder ?? 0) - (b?.sortOrder ?? 0) ||
@@ -72,7 +69,7 @@ function FaqItem({ item, isOpen, onToggle, idBase }) {
       >
         <div ref={innerRef} className={styles.faqPanelInner}>
           <div className={styles.faqA}>
-            {toParagraphs(item.a).map((p, j) => <p key={j}>{p}</p>)}
+            <RichText text={item.a} />
           </div>
         </div>
       </div>
@@ -254,7 +251,7 @@ export default function StaticPage() {
   }, [page]);
 
   const sections = Array.isArray(page?.sections) ? page.sections : [];
-  const intro    = toParagraphs(page?.intro);
+  const intro    = parseBlocks(page?.intro);
 
   // Document chrome: a reference code and a reading estimate, in keeping with
   // the boarding-pass language the rest of the site uses.
@@ -463,12 +460,11 @@ export default function StaticPage() {
         <article className={`${styles.content} ${sectionIndex.length > 1 ? '' : styles.contentWide}`}>
           {intro.length > 0 && (
             <div className={styles.intro}>
-              {intro.map((p, i) => <p key={i}>{p}</p>)}
+              <RichText text={page?.intro} />
             </div>
           )}
 
           {sections.map((section, i) => {
-            const paras   = toParagraphs(section?.body);
             const bullets = Array.isArray(section?.bullets)
               ? section.bullets.filter((b) => String(b ?? '').trim())
               : [];
@@ -492,7 +488,7 @@ export default function StaticPage() {
                     <h2 id={headingId} className={styles.heading}>{section.heading}</h2>
                   </div>
                 )}
-                {paras.map((p, j) => <p key={j} className={styles.para}>{p}</p>)}
+                <RichText text={section?.body} paraClass={styles.para} listClass={styles.inlineList} />
                 {bullets.length > 0 && (
                   <ul className={styles.bullets}>
                     {bullets.map((b, j) => <li key={j}>{b}</li>)}

@@ -530,3 +530,16 @@
 @media (prefers-reduced-motion: reduce) {
   .faqItem, .faqIcon, .faqIconBar, .faqPanel { transition: none; }
 }
+
+/* A bullet list written INSIDE a section's body, as opposed to the section's
+   own trailing bullets block above. It sits on the same hanging indent as the
+   prose it interrupts, so the left edge of the column stays straight. */
+.inlineList {
+  padding-left: 46px;
+  font-size: 1rem;
+  line-height: 1.85;
+  color: var(--text-sec);
+}
+@media (max-width: 620px) {
+  .inlineList { padding-left: 0; }
+}

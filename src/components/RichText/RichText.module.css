@@ -1,0 +1,41 @@
+/* Inline formatting for CMS body text.
+
+   Deliberately restrained: these pages are long legal documents, and the reason
+   to allow a highlight at all is so ONE line stands out. If the highlight is
+   loud, an author who marks three sentences ends up with a page that shouts. */
+
+.mark {
+  background: linear-gradient(180deg, transparent 54%, var(--sun-gold) 54%);
+  color: inherit;
+  padding: 0 1px;
+  border-radius: 2px;
+}
+
+/* A list inside the flow of a section, as opposed to the section's own trailing
+   bullets block, which keeps its dashed rules. */
+.list {
+  list-style: none;
+  margin: 4px 0 16px;
+  padding: 0;
+}
+
+.list li {
+  position: relative;
+  padding-left: 22px;
+  margin-bottom: 8px;
+  line-height: inherit;
+}
+.list li:last-child { margin-bottom: 0; }
+
+/* The marker, drawn rather than a list-style so it takes the brand colour and
+   lines up with the text's first line at any font size. */
+.list li::before {
+  content: '';
+  position: absolute;
+  left: 4px;
+  top: 0.72em;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
+}

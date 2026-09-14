@@ -2,6 +2,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './Faq.module.css';
 import { fetchAllFaqs, fetchFaqCategories } from '../../api';
+import RichText from '../../components/RichText/RichText';
 import { cmsText } from '../../utils/cmsText';
 import { STAGES, stageForTitle, FALLBACK_FAQS } from './faqContent';
 
@@ -63,13 +64,6 @@ const readHashId = () => {
   return hash.startsWith('faq-') ? hash.slice(4) || null : null;
 };
 
-/* Same convention as every other CMS surface: blank lines separate paragraphs,
-   and the text is rendered as text nodes, never as markup. */
-const toParagraphs = (text) =>
-  cmsText(text)
-    .split(/\n\s*\n/)
-    .map((p) => p.trim())
-    .filter(Boolean);
 
 /**
  * A CMS row in the shape the page works in.
@@ -245,7 +239,7 @@ function FaqRow({ item, isOpen, onToggle, query, related, onPickRelated }) {
       >
         <div ref={innerRef} className={styles.rowPanelInner}>
           <div className={styles.rowA}>
-            {toParagraphs(item.answer).map((p, i) => <p key={i}>{p}</p>)}
+            <RichText text={item.answer} />
 
             {related.length > 0 && (
               <div className={styles.related}>
