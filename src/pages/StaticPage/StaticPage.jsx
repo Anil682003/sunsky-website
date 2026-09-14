@@ -3,7 +3,7 @@ import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import styles from './StaticPage.module.css';
 import { useStaticPages } from '../../api';
 import { parseBlocks } from '../../utils/richText';
-import { slugifyHeading, resolveStaticPage } from './staticPageRouting';
+import { slugifyHeading, resolveStaticPage, resolveAnchor } from './staticPageRouting';
 import RichText from '../../components/RichText/RichText';
 import DocumentCard from '../../components/DocumentCard/DocumentCard';
 
@@ -204,8 +204,12 @@ export default function StaticPage() {
   // few times rather than firing once and hoping it stuck.
   const { hash } = location;
   useEffect(() => {
-    const id = hash ? hash.slice(1) : '';
-    if (!id || !sectionIndex.length) return undefined;
+    // Matched against the page's own sections rather than handed straight to
+    // getElementById: the anchor is hand-typed in the CMS and differs from the
+    // heading's id by a capital letter often enough that three of the live
+    // footer's links were silently landing at the top of the page.
+    const id = resolveAnchor(hash, sectionIndex);
+    if (!id) return undefined;
 
     let cancelled = false;
     const timers = [];

@@ -17,6 +17,48 @@ export const slugifyHeading = (s) =>
 const lower = (s) => String(s ?? '').toLowerCase().trim();
 
 /**
+ * Which section on this page an anchor means.
+ *
+ * Anchors are typed into the footer CMS by hand, so they do not always match
+ * the id derived from the heading exactly. Three of the live footer's links
+ * were dead for nothing more than a capital letter — "#Bankgegevens" against a
+ * heading that yields "bankgegevens" — and a browser's own anchor matching is
+ * case-sensitive, so the page simply stayed at the top with no sign anything
+ * had gone wrong.
+ *
+ * Matching is therefore done on the slug of both sides rather than on the raw
+ * text: case, punctuation and stray separators stop mattering, and a link
+ * saved as "#Wettelijke vermeldingen", "#wettelijke-vermeldingen" or
+ * "#Wettelijke--Vermeldingen" all find the same section.
+ *
+ * What it deliberately does NOT do is guess. An anchor naming a section that
+ * is not on the page — a heading since renamed, or an anchor written in a
+ * different language from the heading — returns null and the page opens at the
+ * top, which is the honest outcome: scrolling to a nearby section instead would
+ * show the reader confident, authoritative legal text that is not the text they
+ * asked for.
+ *
+ * @param {string} hash     `location.hash`, with or without its '#'
+ * @param {Array<{id: string}>} sectionIndex the page's sections, in order
+ * @returns {string|null} the id to scroll to, or null if nothing matches
+ */
+export const resolveAnchor = (hash, sectionIndex) => {
+  const raw = String(hash ?? '').replace(/^#/, '').trim();
+  if (!raw || !Array.isArray(sectionIndex) || sectionIndex.length === 0) return null;
+
+  // An id that matches outright wins, so a de-duplicated id such as
+  // "bankgegevens-2" is never re-matched onto the first section of that name.
+  const exact = sectionIndex.find((s) => s.id === raw);
+  if (exact) return exact.id;
+
+  const want = slugifyHeading(decodeURIComponent(raw));
+  if (!want) return null;
+
+  const loose = sectionIndex.find((s) => slugifyHeading(s.id) === want);
+  return loose ? loose.id : null;
+};
+
+/**
  * Work out which page a /p/<slug> address means, forgivingly.
  *
  * These addresses are typed by hand into the footer CMS, and the slug is not
