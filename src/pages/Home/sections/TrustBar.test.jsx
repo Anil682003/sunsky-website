@@ -117,3 +117,56 @@ describe('the marks as links to the bodies they stand for', () => {
     expect(mark).not.toHaveAttribute('target');
   });
 });
+
+/* The seals were files in the build until the dashboard could carry them, which made a renewed
+   certificate or a rebranded association a developer job. These pin the upload path — and, more
+   importantly, pin what must NOT happen: a new logo inheriting the words of the seal it
+   replaced would tell a screen-reader user the site is insured by a company whose mark is no
+   longer on the page. */
+describe('a logo uploaded in the dashboard', () => {
+  it('replaces the bundled seal on that row only', () => {
+    homepageConfig = trustRows(
+      { imageUrl: 'https://cdn.example/new-seal.png', imageAlt: 'Verzekerd 2027' },
+      {},
+    );
+    renderBar();
+    const imgs = screen.getAllByRole('img');
+    expect(imgs[0]).toHaveAttribute('src', 'https://cdn.example/new-seal.png');
+    expect(imgs[0]).toHaveAttribute('alt', 'Verzekerd 2027');
+    // The untouched row still shows its bundled artwork.
+    expect(imgs[1].getAttribute('alt')).toMatch(/VVR/);
+  });
+
+  it('never inherits the description of the seal it replaced', () => {
+    homepageConfig = trustRows({ imageUrl: 'https://cdn.example/other.png' }, {});
+    renderBar();
+    expect(screen.getAllByRole('img')[0].getAttribute('alt')).not.toMatch(/MSIG/);
+  });
+
+  it('falls back to the row title when no description was written', () => {
+    homepageConfig = trustRows(
+      { imageUrl: 'https://cdn.example/other.png', title: 'Insolvency cover' },
+      {},
+    );
+    renderBar();
+    expect(screen.getAllByRole('img')[0]).toHaveAttribute('alt', 'Insolvency cover');
+  });
+
+  it('can be linked anywhere, the same as a bundled seal', () => {
+    homepageConfig = trustRows(
+      { imageUrl: 'https://cdn.example/other.png', imageAlt: 'Our insurer', url: 'https://insurer.example' },
+      {},
+    );
+    renderBar();
+    const mark = screen.getAllByRole('link').find((a) => a.querySelector('img'));
+    expect(mark).toHaveAttribute('href', 'https://insurer.example/');
+    expect(mark).toHaveAttribute('target', '_blank');
+  });
+
+  // The bar carries financial-protection marks; an empty one reads as "not covered".
+  it('still shows both marks when the dashboard has uploaded nothing', () => {
+    homepageConfig = trustRows({}, {});
+    renderBar();
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+  });
+});
