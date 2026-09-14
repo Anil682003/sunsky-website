@@ -69,27 +69,57 @@
   color:var(--text-sec); font-size:0.9rem; line-height:1.8; max-width:320px;
   white-space: pre-line;
 }
-.pays { display:flex; gap:8px; flex-wrap:wrap; }
-.pay {
-  padding:6px 12px; background:var(--white);
-  border:1px solid var(--blue-light); border-radius:8px;
-  font-size:11px; font-weight:700; color:var(--text-light);
-  font-family:'Sora',sans-serif; transition:all 0.3s;
-  box-shadow:var(--shadow-xs);
-}
-.pay:hover { background:var(--blue-light); color:var(--blue-deep); border-color:var(--blue-ocean); }
+/* ── Payment methods ───────────────────────────────────────────────────────────
+   ONE BOX, EVERY LOGO. The chips used to size themselves around whatever was
+   inside them: a fixed 30px height, a 64px width cap, and padding, so the box a
+   logo got depended on the logo's own shape. The four marks in use run from 1.41:1
+   (Bancontact) to 2.64:1 (iDEAL), which put them in chips 48px to 73px wide and
+   made a tidy row look accidental.
 
-/* An uploaded payment icon. Same chip as the text version so a row mixing
-   images and labels still lines up; the image is contained rather than cropped,
-   because card logos come in very different proportions. */
-.payImg {
-  display:inline-flex; align-items:center; justify-content:center;
-  height:30px; min-width:48px; padding:5px 10px;
-  background:var(--white); border:1px solid var(--blue-light); border-radius:8px;
-  box-shadow:var(--shadow-xs); transition:all 0.3s;
+   Now the chip is a fixed size for all of them and the artwork is fitted inside
+   it. Nothing is stretched or cropped: object-fit:contain keeps every logo's own
+   proportions, so a wide mark simply ends up shorter than a square one inside the
+   same box. That is the trade the brands' own guidelines require - their shapes are
+   not ours to adjust - and it is what a consistent row actually means.
+   ────────────────────────────────────────────────────────────────────────────── */
+.pays { display:flex; gap:8px; flex-wrap:wrap; align-items:center; }
+
+/* The chip, shared by both the image and the text form so a row holding some of
+   each still lines up. Sized so the widest mark (iDEAL at 2.64:1) fills the width
+   without shrinking to a sliver, while the squarest (Bancontact) still clears the
+   height. Text can outgrow the width - "Mastercard" does not fit in 68px - so the
+   width is a floor for the label chip and exact for the logo chip. */
+.pay, .payImg {
+  box-sizing:border-box;
+  height:40px;
+  border-radius:8px;
+  background:var(--white);
+  border:1px solid var(--blue-light);
+  box-shadow:var(--shadow-xs);
+  transition:all 0.3s;
 }
-.payImg img { max-height:100%; max-width:64px; object-fit:contain; display:block; }
-.payImg:hover { background:var(--blue-light); border-color:var(--blue-ocean); }
+.pay {
+  min-width:68px; padding:0 12px;
+  display:inline-flex; align-items:center; justify-content:center;
+  font-size:11px; font-weight:700; color:var(--text-light);
+  font-family:'Sora',sans-serif;
+}
+/* The logo chip: an exact width, not a minimum, so every uploaded mark occupies
+   the same rectangle whatever its shape. */
+.payImg {
+  width:68px; padding:7px;
+  display:inline-flex; align-items:center; justify-content:center;
+}
+/* The artwork fills what it can of the 54x26 space inside, centred both ways and
+   never distorted. width/height auto rather than 100% so a small source file is
+   not blown up past its own resolution into a blur. */
+.payImg img {
+  max-width:100%; max-height:100%;
+  width:auto; height:auto;
+  object-fit:contain; display:block;
+}
+.pay:hover, .payImg:hover { background:var(--blue-light); border-color:var(--blue-ocean); }
+.pay:hover { color:var(--blue-deep); }
 .col h4 {
   font-family:'Sora',sans-serif; font-size:0.88rem; font-weight:700;
   margin-bottom:24px; color:var(--blue-deep);
