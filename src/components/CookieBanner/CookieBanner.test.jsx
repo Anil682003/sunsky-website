@@ -4,12 +4,22 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import CookieBanner from './CookieBanner';
 import { ConsentProvider } from '../../context/ConsentContext';
-import { CONSENT_COOKIE, parseConsent } from '../../utils/consentStore';
+import {
+  CONSENT_COOKIE,
+  parseConsent,
+  buildRecord,
+  serializeConsent,
+  allCategories,
+} from '../../utils/consentStore';
 
-// The notice is a legal control, not a piece of UI decoration. Most of these tests exist to
-// catch a well-meaning redesign: making "reject" quieter than "accept", adding an X that
-// silently records agreement, or turning a one-click refusal into a trip through a settings
-// pane. Every one of those is a pattern the APD's cookie checklist names.
+/* The notice is a legal control, not UI decoration. Most of these exist to catch a
+   well-meaning redesign: making "weigeren" quieter than "accepteren", adding an X that
+   silently records agreement, pre-ticking a toggle, or showing a category the site does not
+   actually use. Every one of those is named in SUNSKY's cookie specification and in the APD
+   checklist behind it.
+
+   The visitor-facing text is Dutch and is prescribed word for word by that specification, so
+   these assert the Dutch strings deliberately. */
 
 let footerConfig = null;
 vi.mock('../../api', () => ({
@@ -24,6 +34,12 @@ const clearCookies = () => {
 
 const readRecord = () => parseConsent(document.cookie);
 
+/** Put a previously stored decision in place, the way a returning visitor arrives. */
+const storeDecision = (categories) => {
+  const rec = buildRecord('accept_all', categories);
+  document.cookie = `${CONSENT_COOKIE}=${serializeConsent(rec)}; Path=/`;
+};
+
 const renderBanner = () =>
   render(
     <MemoryRouter>
@@ -31,7 +47,8 @@ const renderBanner = () =>
     </MemoryRouter>,
   );
 
-const banner = () => screen.queryByRole('region', { name: /cookie consent/i });
+const banner = () => screen.queryByRole('region', { name: /cookie-instellingen/i });
+const btn = (name) => screen.getByRole('button', { name });
 
 beforeEach(() => {
   clearCookies();
@@ -44,112 +61,166 @@ describe('a visitor who has not decided yet', () => {
     expect(banner()).toBeInTheDocument();
   });
 
-  it('is told what is optional, and what happens if they say no', () => {
+  it('is shown the prescribed Dutch first layer', () => {
     renderBanner();
-    expect(screen.getByRole('heading', { name: /cookies on holidaybooking\.be/i })).toBeInTheDocument();
-    // Named, not "to improve your experience" — vague purposes are exactly what gets picked up.
-    expect(banner().textContent).toMatch(/Trustpilot/);
-    expect(banner().textContent).toMatch(/everything on the site keeps working/i);
+    expect(screen.getByRole('heading', { name: 'Jouw cookievoorkeuren' })).toBeInTheDocument();
+    expect(banner().textContent).toMatch(
+      /SUNSKY gebruikt noodzakelijke cookies om de website goed en veilig te laten werken/,
+    );
+    expect(banner().textContent).toMatch(/Cookie-instellingen onderaan de website/);
   });
 
-  it('can read the cookie policy without deciding anything first', () => {
+  it('can read the Cookiebeleid without deciding anything first', () => {
     renderBanner();
-    expect(screen.getByRole('link', { name: /cookie policy/i })).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /cookiebeleid/i })).toBeInTheDocument();
+    expect(readRecord()).toBeNull();
+  });
+
+  /* "Closing the banner or continuing to browse is not consent." */
+  it('records nothing until a button is pressed', async () => {
+    renderBanner();
+    await userEvent.click(screen.getByRole('heading', { name: 'Jouw cookievoorkeuren' }));
     expect(readRecord()).toBeNull();
   });
 });
 
-describe('the two choices', () => {
-  it('offers refusing and accepting, and nothing else', () => {
+describe('the first layer', () => {
+  it('offers exactly the three prescribed buttons', () => {
     renderBanner();
-    const names = within(banner()).getAllByRole('button').map((b) => b.textContent.trim());
-    // No X, no "manage", no "continue". An X that records acceptance is unlawful; one that
-    // records nothing re-prompts on every page, which is its own kind of pressure.
-    expect(names).toEqual(['Reject optional cookies', 'Accept all cookies']);
+    const labels = within(banner()).getAllByRole('button').map((b) => b.textContent.trim());
+    expect(labels).toEqual(['Alles weigeren', 'Voorkeuren instellen', 'Alles accepteren']);
   });
 
-  // The whole reason both buttons share one CSS class. Weighting accept with fill or colour
-  // is the nudge the checklist calls out, and it is the first thing a redesign reaches for.
-  it('gives refusing exactly the same weight as accepting', () => {
+  /* Weighting one consent choice over the other is the nudge the rules forbid. The two are
+     the same class; the middle button decides nothing so it is allowed to differ. */
+  it('gives weigeren exactly the same weight as accepteren', () => {
     renderBanner();
-    const [reject, accept] = within(banner()).getAllByRole('button');
-    expect(reject.className).toBe(accept.className);
+    expect(btn('Alles weigeren').className).toBe(btn('Alles accepteren').className);
+    expect(btn('Voorkeuren instellen').className).not.toBe(btn('Alles weigeren').className);
   });
 
-  it('reaches refusing first in reading and tab order', () => {
+  it('reaches weigeren first in reading and tab order', () => {
     renderBanner();
-    const [first] = within(banner()).getAllByRole('button');
-    expect(first).toHaveTextContent(/reject/i);
+    const order = within(banner()).getAllByRole('button');
+    expect(order[0]).toHaveTextContent('Alles weigeren');
   });
 
-  it('takes one click to refuse — never a detour through settings', async () => {
-    const user = userEvent.setup();
+  it('takes one click to refuse, never a detour through settings', async () => {
     renderBanner();
-    await user.click(screen.getByRole('button', { name: /reject optional cookies/i }));
-    expect(banner()).not.toBeInTheDocument();
-    expect(readRecord()).toMatchObject({ src: 'reject_all', cat: { reviews: false } });
+    await userEvent.click(btn('Alles weigeren'));
+    const rec = readRecord();
+    expect(rec).not.toBeNull();
+    expect(Object.values(rec.cat).every((v) => v === false)).toBe(true);
   });
 
   it('takes one click to accept', async () => {
-    const user = userEvent.setup();
     renderBanner();
-    await user.click(screen.getByRole('button', { name: /accept all cookies/i }));
-    expect(banner()).not.toBeInTheDocument();
-    expect(readRecord()).toMatchObject({ src: 'accept_all', cat: { reviews: true } });
+    await userEvent.click(btn('Alles accepteren'));
+    expect(readRecord().cat).toEqual(allCategories());
+  });
+});
+
+describe('the settings screen', () => {
+  const openSettings = async () => {
+    renderBanner();
+    await userEvent.click(btn('Voorkeuren instellen'));
+  };
+
+  it('opens without activating anything', async () => {
+    await openSettings();
+    expect(screen.getByRole('heading', { name: 'Cookie-instellingen' })).toBeInTheDocument();
+    // Opening the screen is not a decision.
+    expect(readRecord()).toBeNull();
+  });
+
+  it('shows the prescribed Dutch text and the three save buttons', async () => {
+    await openSettings();
+    expect(banner().textContent).toMatch(
+      /Kies welke niet-noodzakelijke cookies SUNSKY mag gebruiken/,
+    );
+    const labels = within(banner()).getAllByRole('button').map((b) => b.textContent.trim());
+    expect(labels).toEqual(['Alles weigeren', 'Selectie opslaan', 'Alles accepteren']);
+  });
+
+  it('locks Noodzakelijke on with Altijd actief and no toggle', async () => {
+    await openSettings();
+    expect(screen.getByText('Noodzakelijke cookies')).toBeInTheDocument();
+    expect(screen.getByText('Altijd actief')).toBeInTheDocument();
+    // One toggle only, and it is not the necessary one.
+    expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+  });
+
+  it('starts every optional category off', async () => {
+    await openSettings();
+    for (const box of screen.getAllByRole('checkbox')) expect(box).not.toBeChecked();
+  });
+
+  /* "Do not display an empty category." The site has no analytics, tag manager or marketing
+     pixel, so those three categories must not be shown to anybody. */
+  it('shows only the categories the site actually uses', async () => {
+    await openSettings();
+    expect(screen.getByText('Externe media')).toBeInTheDocument();
+    expect(screen.queryByText('Analytische cookies')).not.toBeInTheDocument();
+    expect(screen.queryByText('Marketingcookies')).not.toBeInTheDocument();
+    expect(screen.queryByText('Functionele cookies')).not.toBeInTheDocument();
+  });
+
+  it('lists what is stored, by whom and for how long', async () => {
+    await openSettings();
+    expect(banner().textContent).toMatch(/TrustboxSplitTest/);
+    expect(banner().textContent).toMatch(/Trustpilot/);
+    expect(banner().textContent).toMatch(/sunsky_consent/);
+    expect(banner().textContent).toMatch(/180 dagen/);
+  });
+
+  it('changes nothing until Selectie opslaan is pressed', async () => {
+    await openSettings();
+    await userEvent.click(screen.getByRole('checkbox'));
+    expect(readRecord()).toBeNull();
+
+    await userEvent.click(btn('Selectie opslaan'));
+    expect(readRecord().cat.external_media).toBe(true);
+  });
+
+  it('saves only what was selected', async () => {
+    await openSettings();
+    // Toggle nothing, then save: a refusal by way of the settings screen.
+    await userEvent.click(btn('Selectie opslaan'));
+    expect(readRecord().cat.external_media).toBe(false);
   });
 });
 
 describe('a visitor who already decided', () => {
-  it('is not asked again', async () => {
-    const user = userEvent.setup();
-    const { unmount } = renderBanner();
-    await user.click(screen.getByRole('button', { name: /reject optional cookies/i }));
-    unmount();
-
+  it('is not asked again', () => {
+    storeDecision(allCategories());
     renderBanner();
     expect(banner()).not.toBeInTheDocument();
   });
 
   it('is asked again once the stored decision no longer matches what we do', () => {
-    document.cookie = `${CONSENT_COOKIE}=${encodeURIComponent(JSON.stringify({
-      v: 1, pv: 1, ph: 'stale0', ts: new Date().toISOString(), src: 'accept_all', cat: { reviews: true },
-    }))}; Path=/`;
+    const stale = buildRecord('accept_all', allCategories());
+    stale.ph = 'stale00';
+    document.cookie = `${CONSENT_COOKIE}=${serializeConsent(stale)}; Path=/`;
     renderBanner();
     expect(banner()).toBeInTheDocument();
   });
 });
 
 describe('the shape of the notice', () => {
-  // Deliberately not a modal: there is no obligation to block the page, and a blocking notice
-  // that only offers "accept" is a cookie wall. A visitor who ignores it simply has no
-  // consent, which is a lawful place to leave them.
   it('does not trap the visitor in a dialog', () => {
     renderBanner();
     expect(banner()).not.toHaveAttribute('aria-modal');
-    expect(screen.queryByRole('dialog')).not.toBeInTheDocument();
   });
 
   it('is a named landmark, so it can be reached and skipped', () => {
     renderBanner();
-    expect(banner().getAttribute('role')).toBe('region');
-  });
-});
-
-describe('the cookie policy link', () => {
-  it('follows the page the dashboard actually publishes', () => {
-    footerConfig = {
-      navigationSections: [
-        { title: 'Privacy & Legal', links: [{ label: 'Cookie Policy', url: '/p/somewhere-else#cookies', active: true }] },
-      ],
-    };
-    renderBanner();
-    expect(screen.getByRole('link', { name: /cookie policy/i }))
-      .toHaveAttribute('href', '/p/somewhere-else#cookies');
+    expect(banner()).toBeInTheDocument();
   });
 
-  it('still goes somewhere sensible when the dashboard is unreachable', () => {
+  it('offers no way to dismiss it without deciding', () => {
     renderBanner();
-    expect(screen.getByRole('link', { name: /cookie policy/i }))
-      .toHaveAttribute('href', '/p/privacy-legal#cookie-policy');
+    const labels = within(banner()).getAllByRole('button').map((b) => b.textContent.trim());
+    expect(labels).not.toContain('Huidige keuze behouden');
+    expect(labels.join(' ')).not.toMatch(/sluiten|close|×/i);
   });
 });

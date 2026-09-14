@@ -221,8 +221,11 @@ export default function Footer() {
       <div className={styles.bottom}>
         <p className={styles.copy}>{copyright}</p>
         <div className={styles.bottomLinks}>
-          <Link to={cookiePolicyUrl}>Cookie policy</Link>
-          <button type="button" onClick={reopen}>Cookie settings</button>
+          {/* Dutch, like the rest of the site and like the CMS column above these. The
+              settings control has to be reachable from every page, which is why it lives
+              in the bottom bar rather than in a CMS column somebody could delete. */}
+          <Link to={cookiePolicyUrl}>Cookiebeleid</Link>
+          <button type="button" onClick={reopen}>Cookie-instellingen</button>
         </div>
         {footer?.showLegal && footer?.legalText ? (
           <p className={styles.copy}>{footer.legalText}</p>

@@ -4,7 +4,9 @@ import {
   SCHEMA_VERSION,
   POLICY_VERSION,
   MAX_AGE_DAYS,
+  PURPOSES,
   OPTIONAL_PURPOSES,
+  OPTIONAL_IN_USE,
   purposeHash,
   parseConsent,
   buildRecord,
@@ -84,12 +86,12 @@ describe('a decision that no longer covers what we do', () => {
 describe('what a decision records', () => {
   it('never stores an optional purpose as true unless it was chosen', () => {
     const rec = buildRecord('reject_all', emptyCategories(), NOW);
-    for (const p of OPTIONAL_PURPOSES) expect(rec.cat[p.key]).toBe(false);
+    for (const p of OPTIONAL_IN_USE) expect(rec.cat[p.key]).toBe(false);
   });
 
   it('ignores keys that are not registered purposes', () => {
-    const rec = buildRecord('granular', { reviews: true, nonsense: true }, NOW);
-    expect(rec.cat.reviews).toBe(true);
+    const rec = buildRecord('granular', { external_media: true, nonsense: true }, NOW);
+    expect(rec.cat.external_media).toBe(true);
     expect(rec.cat.nonsense).toBeUndefined();
   });
 
@@ -141,11 +143,22 @@ describe('the purpose registry', () => {
     expect(purposeHash()).toBe(purposeHash());
   });
 
-  // A two-button banner is only fully granular while there is exactly ONE optional purpose:
-  // then "per purpose" and "all" are the same set. Add a second (analytics, ads, a chat
-  // widget) and the binary control starts bundling choices that must be separable — so this
-  // test fails on purpose, to force the settings layer into the same change.
-  it('has exactly one optional purpose, which is what makes the binary banner lawful', () => {
-    expect(OPTIONAL_PURPOSES.map((p) => p.key)).toEqual(['reviews']);
+  // The specification says twice: show only the categories actually present, and never display
+  // an empty one. A dormant category must therefore stay out of everything the visitor is asked
+  // about and everything a decision records. This fails the day somebody marks a category as in
+  // use without a real service behind it.
+  it('asks about only the categories actually in use', () => {
+    expect(OPTIONAL_IN_USE.map((p) => p.key)).toEqual(['external_media']);
+    expect(Object.keys(allCategories())).toEqual(['external_media']);
+    expect(Object.keys(emptyCategories())).toEqual(['external_media']);
+  });
+
+  // The other four are registered but dormant, so adding analytics later is a flag rather than
+  // a UI job — and is still a NEW purpose, which the hash turns into a fresh ask for everyone.
+  it('keeps the dormant categories registered but out of the ask', () => {
+    expect(PURPOSES.map((p) => p.key)).toEqual([
+      'necessary', 'functional', 'analytics', 'marketing', 'external_media',
+    ]);
+    expect(OPTIONAL_PURPOSES.length).toBeGreaterThan(OPTIONAL_IN_USE.length);
   });
 });

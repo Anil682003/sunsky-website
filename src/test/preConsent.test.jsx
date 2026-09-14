@@ -107,7 +107,19 @@ describe('a visitor who has not agreed to anything', () => {
 
   it('is asked, rather than quietly opted in', () => {
     const { getByRole } = renderTree();
-    expect(getByRole('region', { name: /cookie consent/i })).toBeInTheDocument();
+    expect(getByRole('region', { name: /cookie-instellingen/i })).toBeInTheDocument();
+    expect(document.cookie).not.toMatch(/sunsky_consent/);
+  });
+
+  /* "Alles weigeren and Alles accepteren must have equal visual prominence", and neither may
+     be reachable only after a detour. Both are in the first layer, alongside the neutral
+     "Voorkeuren instellen" that decides nothing. */
+  it('offers refusing and accepting in the first layer, equally', () => {
+    const { getByRole } = renderTree();
+    const reject = getByRole('button', { name: 'Alles weigeren' });
+    const accept = getByRole('button', { name: 'Alles accepteren' });
+    expect(reject.className).toBe(accept.className);
+    expect(getByRole('button', { name: 'Voorkeuren instellen' })).toBeInTheDocument();
     expect(document.cookie).not.toMatch(/sunsky_consent/);
   });
 });

@@ -55,7 +55,7 @@ export default function Trustpilot({
 }) {
   const ref = useRef(null);
   const { has } = useConsent();
-  const consented = has('reviews');
+  const consented = has('external_media');
   // A named template, a raw Trustpilot id, or nothing at all. Falling back to a default here
   // would resurrect the very widget the caller is trying not to render.
   const templateId = template ? (TEMPLATES[template] || template) : '';

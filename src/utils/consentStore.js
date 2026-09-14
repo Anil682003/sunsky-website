@@ -28,7 +28,7 @@ export const SCHEMA_VERSION = 1;
  * retention. Every visitor is then asked again, because a decision given against the old
  * description is not a decision about the new one.
  */
-export const POLICY_VERSION = 1;
+export const POLICY_VERSION = 2;
 
 /**
  * 180 days. The APD calls six months "redelijk in beginsel" (reasonable in principle). It is
@@ -39,34 +39,86 @@ export const MAX_AGE_MS = MAX_AGE_DAYS * 24 * 60 * 60 * 1000;
 const MAX_AGE_SECONDS = MAX_AGE_DAYS * 24 * 60 * 60;
 
 /**
- * Every purpose the site can have, optional or not.
+ * Every category the site can have, in the order the visitor sees them.
  *
- * `reviews`, not `functional` — the APD penalises vague purposes ("to improve your
- * experience"), and a key that names the actual thing is both honest and defensible.
- * `necessary` is registered so the record is complete and auditable; it has no toggle and no
- * gate ever consults it.
+ * The five are the ones named in SUNSKY's cookie specification. `inUse` is the important
+ * field: the spec says twice to show only categories that are actually present and never to
+ * display an empty one, so a category sits here dormant until the site really uses it. That
+ * keeps the registry honest AND makes turning one on a one-line change rather than a UI job.
  *
- * `reviews` is registered even while the Trustpilot business-unit id is unset. Making the
- * registry depend on an env var would make `purposeHash()` depend on the build, and every
- * visitor would be re-asked the day the id lands — for a decision they had already given.
+ * TODAY exactly one optional category is in use: `external_media`, which is the Trustpilot
+ * review widget. Its iframe writes a `TrustboxSplitTest_*` cookie and tells Trustpilot which
+ * page you are on, which is precisely "an embed that sends data to another party". There is no
+ * analytics, no tag manager and no marketing pixel anywhere in this codebase, so those three
+ * categories would be empty boxes and are not shown.
+ *
+ * `necessary` is registered so the record is complete and auditable; it has no toggle, and
+ * `has()` short-circuits it to true.
+ *
+ * Labels and descriptions are Dutch because the site is Dutch-only.
  */
 export const PURPOSES = Object.freeze([
-  Object.freeze({ key: 'necessary', optional: false, label: 'Strictly necessary' }),
-  Object.freeze({ key: 'reviews', optional: true, label: 'Reviews and ratings' }),
+  Object.freeze({
+    key: 'necessary',
+    optional: false,
+    inUse: true,
+    label: 'Noodzakelijke cookies',
+    description:
+      'Beveiliging, sessie, boekingsstappen, inloggen, gevraagde betaalfuncties en het bewaren van je cookiekeuze.',
+  }),
+  Object.freeze({
+    key: 'functional',
+    optional: true,
+    inUse: false,
+    label: 'Functionele cookies',
+    description:
+      'Optionele voorkeuren of gemaksfuncties die niet strikt noodzakelijk zijn.',
+  }),
+  Object.freeze({
+    key: 'analytics',
+    optional: true,
+    inUse: false,
+    label: 'Analytische cookies',
+    description: 'Bezoekersstatistieken, prestatiemeting en foutanalyse.',
+  }),
+  Object.freeze({
+    key: 'marketing',
+    optional: true,
+    inUse: false,
+    label: 'Marketingcookies',
+    description: 'Advertenties, remarketing, profilering of marketingmeting.',
+  }),
+  Object.freeze({
+    key: 'external_media',
+    optional: true,
+    inUse: true,
+    label: 'Externe media',
+    description:
+      'Externe video’s, kaarten, social plugins of andere embeds die gegevens naar een andere partij sturen. Bij ons is dit de Trustpilot-reviewwidget.',
+  }),
 ]);
 
 export const OPTIONAL_PURPOSES = Object.freeze(PURPOSES.filter((p) => p.optional));
 
+/** What the visitor is actually shown and asked about. */
+export const VISIBLE_PURPOSES = Object.freeze(PURPOSES.filter((p) => p.inUse));
+export const OPTIONAL_IN_USE = Object.freeze(PURPOSES.filter((p) => p.optional && p.inUse));
+
 /**
- * A short stable hash of the optional purposes.
+ * A short stable hash of the optional categories ACTUALLY IN USE.
  *
  * This is the safety net for the mistake everyone makes: a developer adds a vendor, forgets to
  * bump POLICY_VERSION, and every existing visitor keeps a consent record that never mentioned
- * it. The hash changes the moment the purpose list does, so the record stops validating and
- * everyone is asked again — automatically, without anyone having remembered anything.
+ * it. The hash changes the moment that list does, so the record stops validating and everyone
+ * is asked again — automatically, without anyone having remembered anything.
+ *
+ * Hashed over the IN-USE set rather than all five on purpose. A dormant category was never put
+ * to the visitor, so it is not part of what they agreed to; the day `inUse` flips to true a new
+ * purpose genuinely starts, the hash moves, and everyone is re-asked. That is exactly what the
+ * specification requires when a new purpose is added.
  */
 export function purposeHash() {
-  const src = OPTIONAL_PURPOSES.map((p) => p.key).sort().join('|');
+  const src = OPTIONAL_IN_USE.map((p) => p.key).sort().join('|');
   // FNV-1a, 32-bit. Not cryptographic and does not need to be: it only has to change when the
   // input changes, and to produce the same value in every browser and in Node.
   let h = 0x811c9dc5;
@@ -87,14 +139,20 @@ export function readCookie(cookieString, name) {
   return null;
 }
 
-/** Every optional purpose set to false — what a refusal records. */
+/** Every optional category in use set to false — what a refusal records. */
 export function emptyCategories() {
-  return Object.fromEntries(OPTIONAL_PURPOSES.map((p) => [p.key, false]));
+  return Object.fromEntries(OPTIONAL_IN_USE.map((p) => [p.key, false]));
 }
 
-/** Every optional purpose set to true — what "accept all" records. */
+/**
+ * Every optional category in use set to true — what "Alles accepteren" records.
+ *
+ * In-use only, because the specification is explicit: accepting all activates only the
+ * categories and services the website actually uses. Writing `true` for a dormant category
+ * would record consent for something nobody was asked about and nothing runs.
+ */
 export function allCategories() {
-  return Object.fromEntries(OPTIONAL_PURPOSES.map((p) => [p.key, true]));
+  return Object.fromEntries(OPTIONAL_IN_USE.map((p) => [p.key, true]));
 }
 
 /**
@@ -133,7 +191,7 @@ export function parseConsent(cookieString, now = Date.now()) {
  */
 export function buildRecord(source, categories, now = Date.now()) {
   const cat = emptyCategories();
-  for (const p of OPTIONAL_PURPOSES) {
+  for (const p of OPTIONAL_IN_USE) {
     if (categories && categories[p.key] === true) cat[p.key] = true;
   }
   return {
@@ -175,3 +233,64 @@ export function consentCookie(record, { secure = true } = {}) {
 export function clearedConsentCookie() {
   return `${CONSENT_COOKIE}=; Path=/; Max-Age=0; SameSite=Lax`;
 }
+
+/**
+ * What SUNSKY actually stores on the visitor's device, per category.
+ *
+ * Section 5 of the cookie specification: name, who sets it, category, purpose, duration. This
+ * is the list the settings screen and the Cookiebeleid must show, and it has to MATCH what the
+ * browser really holds — a list that disagrees with the network tab is worse than no list.
+ *
+ * Every entry below was read out of this codebase, not copied from a template. `party` is
+ * 'SUNSKY' for first-party storage we set ourselves and the vendor name otherwise.
+ *
+ * Trustpilot's own retention is stated by Trustpilot, not by us, so it is marked as set by
+ * them; if they publish a precise term, put it in `duration` here.
+ */
+export const COOKIE_INVENTORY = Object.freeze([
+  Object.freeze({
+    category: 'necessary',
+    name: CONSENT_COOKIE,
+    party: 'SUNSKY',
+    type: 'Cookie',
+    purpose: 'Bewaart je cookiekeuze, zodat we het niet telkens opnieuw vragen.',
+    duration: `${MAX_AGE_DAYS} dagen`,
+  }),
+  Object.freeze({
+    category: 'necessary',
+    name: 'accessToken, refreshToken, user',
+    party: 'SUNSKY',
+    type: 'Local storage',
+    purpose: 'Houdt je ingelogd en haalt je boekingen op in Mijn boeking.',
+    duration: 'Tot je uitlogt of je browseropslag wist',
+  }),
+  Object.freeze({
+    category: 'necessary',
+    name: 'sunsky.lastSearch, sunsky:favDestCodes',
+    party: 'SUNSKY',
+    type: 'Local storage',
+    purpose: 'Onthoudt je laatste zoekopdracht en bestemmingen, zodat je niet opnieuw hoeft te typen.',
+    duration: 'Tot je je browseropslag wist',
+  }),
+  Object.freeze({
+    category: 'necessary',
+    name: '__stripe_mid, __stripe_sid',
+    party: 'Stripe',
+    type: 'Cookie',
+    purpose: 'Verwerkt je betaling veilig en voorkomt fraude tijdens het afrekenen.',
+    duration: 'Sessie tot 1 jaar (bepaald door Stripe)',
+    recipient: 'Stripe Payments Europe, Ltd.',
+  }),
+  Object.freeze({
+    category: 'external_media',
+    name: 'TrustboxSplitTest_*',
+    party: 'Trustpilot',
+    type: 'Cookie',
+    purpose: 'Toont de Trustpilot-reviewwidget en meet welke versie van de widget je ziet.',
+    duration: 'Bepaald door Trustpilot',
+    recipient: 'Trustpilot A/S',
+  }),
+]);
+
+/** The inventory rows for one category, in display order. */
+export const inventoryFor = (key) => COOKIE_INVENTORY.filter((c) => c.category === key);

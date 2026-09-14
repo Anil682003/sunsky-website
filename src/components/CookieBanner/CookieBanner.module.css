@@ -94,14 +94,38 @@
 }
 .cancel:hover { color: var(--text-sec, #5E7291); }
 
-/* THE TWO BUTTONS ARE THE SAME BUTTON. One class, one lockup, differing only in their words.
-   Refusing has to be as easy as accepting, and weighting one of them with fill or colour is
-   the exact nudge the APD checklist calls out. Do not add a variant class here; do not make
-   one of them a ghost button because it "looks cleaner". */
+/* THE TWO CONSENT BUTTONS ARE THE SAME BUTTON. One class, one lockup, differing only in their
+   words. Refusing has to be as easy as accepting, and weighting one of them with fill or
+   colour is the exact nudge the APD checklist calls out. Do not give either of them a variant
+   class; do not make one a ghost button because it "looks cleaner".
+
+   `.btnNeutral` below is NOT one of them. It opens the settings screen, or saves toggles the
+   visitor already set, so it decides nothing and carries no consent weight. */
 .actions {
   display: flex; gap: 10px;
   margin-top: 16px;
 }
+
+.btnNeutral {
+  flex: 1 1 0;
+  min-height: 46px;
+  padding: 12px 14px;
+  border: 1.5px solid var(--blue-soft, #A3CCFF);
+  border-radius: var(--r-full, 9999px);
+  background: var(--white, #fff);
+  color: var(--blue-deep, #1F4FD8);
+  font-family: 'Sora', sans-serif;
+  font-size: 0.855rem; font-weight: 800;
+  line-height: 1.25;
+  cursor: pointer;
+  transition: background 0.22s var(--ease, cubic-bezier(.22,1,.36,1)),
+              border-color 0.22s var(--ease, cubic-bezier(.22,1,.36,1));
+}
+.btnNeutral:hover {
+  background: var(--blue-light, #E8F1FF);
+  border-color: var(--blue-deep, #1F4FD8);
+}
+.btnNeutral:focus-visible { outline: 3px solid var(--blue-deep, #1F4FD8); outline-offset: 2px; }
 .btn {
   flex: 1 1 0;
   min-height: 46px;
@@ -133,4 +157,117 @@
   .card { animation: none; }
   .btn { transition: none; }
   .btn:hover { transform: none; }
+}
+
+/* ── Settings layer ────────────────────────────────────────────
+   The second layer carries a toggle and a cookie list per category,
+   so it needs more room than the notice. */
+.cardWide { width: auto; }
+.wrap:has(.cardWide) { width: min(720px, calc(100vw - 32px)); }
+
+.srOnly {
+  position: absolute;
+  width: 1px; height: 1px;
+  padding: 0; margin: -1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}
+
+.cats { list-style: none; margin: 14px 0 0; padding: 0; display: flex; flex-direction: column; gap: 10px; }
+
+.cat {
+  border: 1px solid var(--blue-light, #E8F1FF);
+  border-radius: var(--r-md, 18px);
+  padding: 13px 15px;
+  background: var(--blue-bg, #F5F8FF);
+}
+
+.catHead {
+  display: flex; align-items: center; justify-content: space-between; gap: 14px;
+}
+.catLabel {
+  font-family: 'Sora', sans-serif;
+  font-size: 0.92rem; font-weight: 700;
+  color: var(--text, #1A2744);
+}
+.always {
+  flex-shrink: 0;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.74rem; font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--text-sec, #5E7291);
+  background: var(--white, #fff);
+  border: 1px solid var(--blue-light, #E8F1FF);
+  border-radius: var(--r-full, 9999px);
+  padding: 5px 11px;
+}
+
+.catDesc {
+  margin: 6px 0 0;
+  font-size: 0.83rem; line-height: 1.6;
+  color: var(--text-sec, #5E7291);
+}
+
+/* The cookie list: what is stored, by whom, for how long and what for. */
+.items { list-style: none; margin: 10px 0 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.items li {
+  border-top: 1px dashed var(--blue-light, #E8F1FF);
+  padding-top: 8px;
+  display: flex; flex-direction: column; gap: 2px;
+}
+.itemName {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.76rem;
+  color: var(--text, #1A2744);
+  word-break: break-word;
+}
+.itemMeta { font-size: 0.73rem; color: var(--blue-deep, #1F4FD8); }
+.itemPurpose { font-size: 0.78rem; line-height: 1.55; color: var(--text-sec, #5E7291); }
+
+/* A real checkbox, sized and coloured as a switch — so it is keyboard reachable, announces
+   its state, and needs no JavaScript to stay in sync with the draft. */
+/* The switch is drawn 26px tall, but the tappable label is padded out to 44px so a thumb on a
+   phone has a real target. The input fills the label, so the padding is part of the hit area. */
+.switch {
+  position: relative;
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: center;
+  padding: 9px 0;
+  cursor: pointer;
+}
+.switch input {
+  position: absolute; inset: 0;
+  width: 100%; height: 100%;
+  margin: 0; opacity: 0; cursor: pointer;
+}
+.slider {
+  width: 46px; height: 26px;
+  border-radius: var(--r-full, 9999px);
+  background: var(--text-light, #8B9DBF);
+  transition: background 0.22s var(--ease, cubic-bezier(.22,1,.36,1));
+  position: relative;
+}
+.slider::after {
+  content: '';
+  position: absolute; top: 3px; left: 3px;
+  width: 20px; height: 20px;
+  border-radius: 50%;
+  background: var(--white, #fff);
+  transition: transform 0.22s var(--ease, cubic-bezier(.22,1,.36,1));
+}
+.switch input:checked + .slider { background: var(--blue-deep, #1F4FD8); }
+.switch input:checked + .slider::after { transform: translateX(20px); }
+.switch input:focus-visible + .slider { outline: 3px solid var(--blue-deep, #1F4FD8); outline-offset: 2px; }
+
+@media (max-width: 560px) {
+  /* Three buttons never fit on a phone row; stacking keeps every one full width and
+     keeps weigeren and accepteren identical, which is the part that must not bend. */
+  .actions { flex-direction: column; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .slider, .slider::after, .btnNeutral { transition: none; }
 }
