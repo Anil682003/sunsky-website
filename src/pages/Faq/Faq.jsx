@@ -44,6 +44,10 @@ const CONTACT = {
    once that page is built. */
 const CONTACT_URL = '/p/about-sunsky#contact';
 
+/* Likewise /about: another route that still renders a placeholder. The real
+   "who we are" copy is the CMS page, which is also what the footer links to. */
+const ABOUT_URL = '/p/about-sunsky';
+
 /* How many questions the CMS must hold before it replaces the shipped set.
    Four is one per stage of the journey: below that the table is being set up,
    not published, and the reader is better served by the content in this repo. */
@@ -644,7 +648,7 @@ export default function Faq() {
               SUNSKY is a licensed Belgian travel agency. Every payment runs over a secure
               connection, and your booking is confirmed in writing before you travel.
             </p>
-            <Link to="/about" className={styles.cardLink}>
+            <Link to={ABOUT_URL} className={styles.cardLink}>
               About SUNSKY
               <span className={styles.cardCtaArrow} aria-hidden="true">{ICON.arrow}</span>
             </Link>
