@@ -1,6 +1,7 @@
 import styles from './Trust.module.css';
 import { INSURANCE_MARKS } from '../../../utils/insuranceMarks';
 import { cmsText } from '../../../utils/cmsText';
+import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import CmsLink from '../../../components/CmsLink/CmsLink';
 
 const FALLBACK_ITEMS = [
@@ -26,6 +27,14 @@ const FALLBACK_ITEMS = [
  * appearing, which is visible and harmless; the alternative is quietly wrong.
  */
 const markFor = (item, i) => {
+  // An uploaded logo is an explicit instruction: show THIS picture on THIS row. It wins over
+  // everything below, and it may carry words, because the person who uploaded it also wrote
+  // them and nothing is being asserted on their behalf.
+  const uploaded = resolveCmsImageUrl(item?.imageUrl);
+  if (uploaded) {
+    return { img: uploaded, alt: item?.imageAlt || item?.title || '' };
+  }
+
   const hasWords = Boolean(item?.title || item?.description || item?.desc);
   if (hasWords) return null;
   return INSURANCE_MARKS[i - INSURANCE_MARKS.offset] || null;

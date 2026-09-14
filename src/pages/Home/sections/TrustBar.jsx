@@ -3,6 +3,7 @@ import styles from './TrustBar.module.css';
 import { useFooterConfig, useHomepageConfig } from '../../../api';
 import { findLegalLink } from '../../../utils/legalLinks';
 import { INSURANCE_MARKS, INSURANCE_MARK_LIST } from '../../../utils/insuranceMarks';
+import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import CmsLink from '../../../components/CmsLink/CmsLink';
 
 /**
@@ -28,11 +29,27 @@ export default function TrustBar() {
   const insuranceUrl = findLegalLink(footer, ['protection'], '/p/protection-insurance');
 
   // The marks sit at a known offset in the dashboard's trust list (see insuranceMarks.js), so
-  // mark N's URL is the URL on trust row offset+N. An absent row just means no link.
+  // mark N is trust row offset+N. An absent row just means the bundled seal and no link.
   const { data: cmsConfig } = useHomepageConfig();
-  const markUrl = (i) => {
-    const row = cmsConfig?.trustItems?.[INSURANCE_MARKS.offset + i];
-    return row?.url || row?.link || '';
+  const rowFor = (i) => cmsConfig?.trustItems?.[INSURANCE_MARKS.offset + i] ?? null;
+
+  /**
+   * The picture, the words under it and where it goes, all off the same dashboard row.
+   *
+   * The seals were bundled files for a while, which meant changing one — a renewed insolvency
+   * certificate, a rebranded association — was a developer job and a deploy. An uploaded logo
+   * now wins over the bundled one, and the bundled one stays as the fallback so the bar is
+   * never empty while nobody has uploaded anything.
+   */
+  const markFor = (m, i) => {
+    const row = rowFor(i);
+    const uploaded = resolveCmsImageUrl(row?.imageUrl);
+    return {
+      src: uploaded || m.img,
+      // A custom logo needs its own description; the bundled alt would describe the wrong seal.
+      alt: row?.imageAlt || (uploaded ? row?.title || '' : m.alt),
+      url: row?.url || row?.link || '',
+    };
   };
 
   return (
@@ -53,15 +70,15 @@ export default function TrustBar() {
 
         <ul className={styles.marks}>
           {INSURANCE_MARK_LIST.map((m, i) => {
-            const url = markUrl(i);
+            const { src, alt, url } = markFor(m, i);
             return (
               <li key={m.key} className={styles.markItem}>
                 <CmsLink
                   url={url}
                   className={styles.markLink}
-                  title={url ? `${m.alt} (opens their website)` : undefined}
+                  title={url && alt ? `${alt} (opens their website)` : undefined}
                 >
-                  <img className={styles.mark} src={m.img} alt={m.alt} loading="lazy" />
+                  <img className={styles.mark} src={src} alt={alt} loading="lazy" />
                 </CmsLink>
               </li>
             );
