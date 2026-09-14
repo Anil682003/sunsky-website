@@ -3,15 +3,7 @@ import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
 import styles from './StaticPage.module.css';
 import { useStaticPages } from '../../api';
 import { cmsText } from '../../utils/cmsText';
-
-// Section anchors are derived from the CMS heading, so the footer can link
-// straight to "Secure Online Payments" without storing an id alongside it.
-export const slugifyHeading = (s) =>
-  String(s ?? '')
-    .toLowerCase()
-    .trim()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '');
+import { slugifyHeading, resolveStaticPage } from './staticPageRouting';
 
 // The CMS stores body/intro/bullets as PLAIN TEXT — blank lines separate
 // paragraphs. Everything below renders as React text nodes; never as HTML.
@@ -125,13 +117,10 @@ export default function StaticPage() {
   // existed and the visitor got "we couldn't find that page". Search results
   // and any link in a sent email broke the same way. The CMS now remembers the
   // old slugs, so those links resolve here instead of dying.
-  const page  = useMemo(
-    () =>
-      pages.find((p) => p?.slug === slug) ??
-      pages.find((p) => (p?.previousSlugs ?? []).includes(slug)) ??
-      null,
-    [pages, slug]
-  );
+  // resolveStaticPage also forgives a slug that was guessed from a link label
+  // rather than copied from the page, which is how these addresses get written.
+  const resolved = useMemo(() => resolveStaticPage(pages, slug), [pages, slug]);
+  const page = resolved?.page ?? null;
   const group = useMemo(
     () => (page ? groups.find((g) => g?.groupKey === page.groupKey) ?? null : null),
     [groups, page]
@@ -144,9 +133,13 @@ export default function StaticPage() {
   const navigate = useNavigate();
   const location = useLocation();
   useEffect(() => {
-    if (!page || page.slug === slug) return;
-    navigate(`/p/${page.slug}${location.hash || ''}`, { replace: true });
-  }, [page, slug, navigate, location.hash]);
+    if (!page) return;
+    // An address that named a SECTION carries the anchor with it, so the visitor
+    // lands on the paragraph they asked for rather than at the page top.
+    const want = resolved?.anchor ? `#${resolved.anchor}` : location.hash || '';
+    if (page.slug === slug && want === (location.hash || '')) return;
+    navigate(`/p/${page.slug}${want}`, { replace: true });
+  }, [page, resolved, slug, navigate, location.hash]);
 
   // Sibling pages — kept for the "More information" links under the index.
   const siblings = useMemo(

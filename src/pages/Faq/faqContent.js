@@ -194,7 +194,7 @@ export const FALLBACK_FAQS = [
     stage: 'before-departure',
     question: 'What documents do I need to travel?',
     answer:
-      'You are responsible for holding valid travel documents. Requirements vary by destination and by nationality, and they change.\n\nAs a rule you need a passport or identity card valid for the whole trip, and many destinations require a passport that stays valid for several months after your return date.\n\nSee Passport, Visa and Health Requirements under Terms & Traveller Rights for the detail, and check well before you leave: a holiday missed because of a document problem cannot be refunded.',
+      'You are responsible for holding valid travel documents. Requirements vary by destination and by nationality, and they change.\n\nAs a rule you need a passport or identity card valid for the whole trip, and many destinations require a passport that stays valid for several months after your return date. Some destinations also require or recommend vaccinations.\n\nCheck the official government travel advice for your destination well before you leave, because a holiday missed because of a document problem cannot be refunded. If you are unsure what applies to your booking, contact us and we will point you at the right source.',
   },
   {
     id: 'f-dep-checkin',
@@ -259,7 +259,7 @@ export const FALLBACK_FAQS = [
     stage: 'during-trip',
     question: 'What if something goes wrong while I am away?',
     answer:
-      'Report the problem to the supplier and to our emergency line straight away, so it can be put right on the spot. Giving us that opportunity is a condition of your contract.\n\nIf it cannot be resolved locally, our complaints procedure is set out under Terms & Traveller Rights.',
+      'Report the problem to the supplier and to our emergency line straight away, so it can be put right on the spot. Giving us that opportunity is a condition of your contract.\n\nIf it cannot be resolved locally, contact us as soon as you are home and we will take it up with the hotel or airline on your behalf. Keep any photos, receipts or written reports, because they are what a supplier will ask for.',
   },
   {
     id: 'f-trip-emergency',
