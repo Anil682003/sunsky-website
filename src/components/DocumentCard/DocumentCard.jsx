@@ -45,13 +45,16 @@ const nameFromUrl = (url) => {
   }
 };
 
-export default function DocumentCard({ url, name, size }) {
+export default function DocumentCard({ url, name, size, label }) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
 
   if (!url) return null;
 
-  const label = String(name ?? '').trim() || nameFromUrl(url);
+  const fileName = String(name ?? '').trim() || nameFromUrl(url);
+  // What the reader sees. The CMS owns this wording, because the site is Dutch
+  // and a filename rarely reads as a sentence. Falls back to the filename.
+  const headline = String(label ?? '').trim() || fileName;
   const sizeText = readableSize(size);
 
   return (
@@ -60,9 +63,10 @@ export default function DocumentCard({ url, name, size }) {
         <span className={styles.icon} aria-hidden="true">{PDF_ICON}</span>
 
         <span className={styles.meta}>
-          <span className={styles.name}>{label}</span>
+          <span className={styles.name}>{headline}</span>
           <span className={styles.sub}>
-            PDF{sizeText ? ` · ${sizeText}` : ''}
+            {headline === fileName ? 'PDF' : fileName}
+            {sizeText ? ` · ${sizeText}` : ''}
           </span>
         </span>
 
@@ -102,7 +106,7 @@ export default function DocumentCard({ url, name, size }) {
       <div id={panelId} className={styles.panel} hidden={!open}>
         {open && (
           <>
-            <iframe className={styles.frame} src={url} title={label} loading="lazy" />
+            <iframe className={styles.frame} src={url} title={headline} loading="lazy" />
             <p className={styles.fallback}>
               Not showing?{' '}
               <a href={url} target="_blank" rel="noreferrer">Open the PDF in a new tab</a>.

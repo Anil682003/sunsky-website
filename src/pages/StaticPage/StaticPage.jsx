@@ -500,6 +500,7 @@ export default function StaticPage() {
                     url={section.documentUrl}
                     name={section.documentName}
                     size={section.documentSize}
+                    label={section.documentLabel}
                   />
                 )}
                 {faqItems.length > 0 && (
