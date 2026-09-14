@@ -68,6 +68,17 @@
   transition: transform 0.3s var(--ease, cubic-bezier(.22,1,.36,1));
 }
 .markItem:hover .mark { transform: translateY(-2px) scale(1.04); }
+/* Only present when the dashboard gave this mark a URL. */
+.markLink {
+  display: inline-flex; align-items: center;
+  border-radius: 8px;
+  transition: transform 0.3s var(--ease, cubic-bezier(.22,1,.36,1));
+}
+.markLink:hover { transform: translateY(-1px); }
+.markLink:focus-visible {
+  outline: 2px solid var(--blue-deep, #1F4FD8);
+  outline-offset: 4px;
+}
 
 .more {
   flex-shrink: 0;

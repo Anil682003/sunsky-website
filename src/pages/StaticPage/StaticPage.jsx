@@ -5,6 +5,7 @@ import { useStaticPages } from '../../api';
 import { parseBlocks } from '../../utils/richText';
 import { slugifyHeading, resolveStaticPage } from './staticPageRouting';
 import RichText from '../../components/RichText/RichText';
+import DocumentCard from '../../components/DocumentCard/DocumentCard';
 
 // The CMS stores body/intro/bullets as PLAIN TEXT — blank lines separate
 // paragraphs, and a few markers add bullets, bold and highlight. RichText turns
@@ -493,6 +494,13 @@ export default function StaticPage() {
                   <ul className={styles.bullets}>
                     {bullets.map((b, j) => <li key={j}>{b}</li>)}
                   </ul>
+                )}
+                {section?.documentUrl && (
+                  <DocumentCard
+                    url={section.documentUrl}
+                    name={section.documentName}
+                    size={section.documentSize}
+                  />
                 )}
                 {faqItems.length > 0 && (
                   <Faq items={faqItems} sectionId={headingId ?? `faq-${i}`} />

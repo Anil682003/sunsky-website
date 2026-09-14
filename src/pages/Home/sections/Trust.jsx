@@ -1,6 +1,7 @@
 import styles from './Trust.module.css';
 import { INSURANCE_MARKS } from '../../../utils/insuranceMarks';
 import { cmsText } from '../../../utils/cmsText';
+import CmsLink from '../../../components/CmsLink/CmsLink';
 
 const FALLBACK_ITEMS = [
   { title:'Best Price Guarantee', desc:"Found it cheaper? We'll match and beat it.",
@@ -47,6 +48,9 @@ export default function Trust({ cms }) {
         return {
           title: t.title || mark?.title || '',
           desc: t.description || t.desc || mark?.desc || '',
+          // Where the dashboard wants this card to go. Read off the same row the words come
+          // from, so the person who writes a seal's caption also sets where it points.
+          url: t.url || t.link || '',
           mark,
           icon: mark ? null : FALLBACK_ITEMS[i % FALLBACK_ITEMS.length].icon,
         };
@@ -160,7 +164,13 @@ export default function Trust({ cms }) {
                 )}
                 {item.mark ? (
                   <div className={styles.markWrap}>
-                    <img className={styles.mark} src={item.mark.img} alt={item.mark.alt} loading="lazy" />
+                    <CmsLink
+                      url={item.url}
+                      className={styles.markLink}
+                      title={item.url ? `${item.mark.alt} (opens their website)` : undefined}
+                    >
+                      <img className={styles.mark} src={item.mark.img} alt={item.mark.alt} loading="lazy" />
+                    </CmsLink>
                   </div>
                 ) : (
                   item.icon && <div className={styles.icon}>{item.icon}</div>

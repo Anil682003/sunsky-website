@@ -112,3 +112,42 @@ describe('a slot the dashboard left empty', () => {
     expect(imgs[0]).toHaveAttribute('alt', expect.stringMatching(/MSIG/));
   });
 });
+
+describe('making a seal clickable from the dashboard', () => {
+  // The agency asked for the VVR mark to reach VVR's own site. The URL lives on the same trust
+  // row the seal already occupies, so whoever writes a seal's caption also sets where it goes.
+  const sealsWith = (url) =>
+    cardsWith([promise(1), promise(2), promise(3), promise(4), { title: '', description: '', url }, blank()]);
+
+  it('opens an external site in a new tab, with the referrer withheld', () => {
+    sealsWith('https://www.vvr.be');
+    const link = screen.getByRole('link');
+    expect(link).toHaveAttribute('href', 'https://www.vvr.be/');
+    expect(link).toHaveAttribute('target', '_blank');
+    // noopener: a tab opened from here can otherwise navigate this one through window.opener.
+    expect(link.getAttribute('rel')).toMatch(/noopener/);
+    expect(link.getAttribute('rel')).toMatch(/noreferrer/);
+  });
+
+  it('links the seal itself, not the card, so the caption stays out of the link text', () => {
+    sealsWith('https://www.vvr.be');
+    const link = screen.getByRole('link');
+    expect(link.querySelector('img')).toBeInTheDocument();
+    expect(link.textContent).toBe('');
+  });
+
+  it('leaves a seal with no URL as a plain image', () => {
+    sealsWith('');
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+  });
+
+  // The CMS write endpoints are open on production, so a hostile value is a real input here,
+  // not a hypothetical one. It must render as an unlinked seal rather than as something that
+  // runs when a traveller clicks the logo.
+  it('refuses a javascript: URL instead of putting it in an href', () => {
+    sealsWith('javascript:alert(1)');
+    expect(screen.queryAllByRole('link')).toHaveLength(0);
+    expect(screen.getAllByRole('img')).toHaveLength(2);
+  });
+});

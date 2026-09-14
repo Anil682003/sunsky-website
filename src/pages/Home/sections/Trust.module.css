@@ -334,6 +334,20 @@
   transition: transform 0.35s var(--ease-spring);
 }
 .item:hover .mark { transform: translateY(-2px) scale(1.05); }
+/* Only present when the dashboard gave this seal a URL. */
+.markLink {
+  display: inline-flex; align-items: center;
+  max-width: 100%;
+  border-radius: 8px;
+  /* The seals are supplied artwork on a light passport page; a colour wash on hover would
+     tint someone else's logo. The lift and the focus ring are the whole affordance. */
+  transition: transform 0.35s var(--ease-spring);
+}
+.markLink:hover { transform: translateY(-1px); }
+.markLink:focus-visible {
+  outline: 2px solid var(--blue-deep);
+  outline-offset: 4px;
+}
 
 .itemTitle {
   font-family: 'Sora', sans-serif;

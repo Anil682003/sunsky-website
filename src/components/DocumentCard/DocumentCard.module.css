@@ -1,0 +1,173 @@
+/* A PDF attached to a page section.
+
+   Built in the same boarding-pass language as the rest of these pages: a ticket
+   stub with a perforated left edge, the document's details printed on it, and
+   the viewer unfolding underneath. Restrained on purpose, because it sits in the
+   middle of legal prose and must not shout over it. */
+
+.card {
+  position: relative;
+  margin: 20px 0 22px 46px;
+  border: 1px solid var(--blue-light);
+  border-radius: var(--r-md);
+  background: linear-gradient(135deg, var(--white) 0%, var(--blue-bg) 100%);
+  box-shadow: var(--shadow-xs);
+  overflow: hidden;
+  transition: border-color 0.24s var(--ease), box-shadow 0.24s var(--ease);
+}
+.card:hover { border-color: var(--blue-soft); box-shadow: var(--shadow-sm); }
+.cardOpen { border-color: var(--blue-soft); box-shadow: var(--shadow-sm); }
+
+/* The perforation, so the card reads as a stub rather than a plain box. */
+.card::before {
+  content: '';
+  position: absolute;
+  top: 10px; bottom: 10px; left: 62px;
+  width: 1px;
+  background-image: linear-gradient(var(--blue-soft) 45%, transparent 0);
+  background-size: 1px 7px;
+  opacity: 0.75;
+  pointer-events: none;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 14px 16px;
+}
+
+.icon {
+  flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px;
+  border-radius: 11px;
+  background: var(--white);
+  border: 1px solid var(--blue-light);
+  color: var(--coral);
+}
+.icon svg { width: 21px; height: 21px; }
+
+.meta {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  flex: 1;
+  padding-left: 10px;
+}
+.name {
+  font-family: 'Sora', sans-serif;
+  font-size: 0.93rem;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+  color: var(--text);
+  /* A long filename must not push the buttons off the card. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.sub {
+  font-size: 0.75rem;
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: var(--text-light);
+}
+
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.view {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 9px 14px;
+  border: 1px solid var(--blue-light);
+  border-radius: var(--r-full);
+  background: var(--white);
+  cursor: pointer;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: var(--blue-deep);
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+.view:hover { background: var(--blue-light); border-color: var(--blue-soft); }
+.view:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 2px; }
+
+.chev { display: flex; transition: transform 0.28s var(--ease); }
+.chev svg { width: 13px; height: 13px; }
+.chevOpen { transform: rotate(180deg); }
+
+.open {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 16px;
+  border-radius: var(--r-full);
+  background: var(--cta-grad);
+  color: var(--cta-ink);
+  text-shadow: var(--cta-ink-shadow);
+  text-decoration: none;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.82rem;
+  font-weight: 700;
+  box-shadow: 0 4px 16px rgba(255, 159, 28, 0.3);
+  transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
+}
+.open:hover { transform: translateY(-1px); box-shadow: 0 8px 22px rgba(255, 159, 28, 0.4); }
+.open:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 2px; }
+.openIcon { display: flex; }
+.openIcon svg { width: 13px; height: 13px; }
+
+/* The viewer. Only in the DOM while open, so no PDF is fetched until asked for. */
+.panel {
+  border-top: 1px dashed var(--blue-soft);
+  padding: 14px 16px 16px;
+  animation: unfold 0.32s var(--ease);
+}
+@keyframes unfold {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: none; }
+}
+
+.frame {
+  display: block;
+  width: 100%;
+  height: min(72vh, 780px);
+  border: 1px solid var(--blue-light);
+  border-radius: var(--r-sm);
+  background: var(--white);
+}
+
+.fallback {
+  margin: 10px 0 0;
+  font-size: 0.8rem;
+  color: var(--text-light);
+  text-align: center;
+}
+.fallback a { color: var(--blue-deep); }
+
+@media (max-width: 720px) {
+  .card { margin-left: 0; }
+  .row { flex-wrap: wrap; gap: 12px; padding: 13px 14px; }
+  .card::before { display: none; }
+  .meta { padding-left: 0; flex-basis: calc(100% - 52px); }
+  /* Full-width buttons on a phone: both are primary here. */
+  .actions { flex-basis: 100%; }
+  .view, .open { flex: 1; justify-content: center; padding: 12px 14px; }
+  /* Phones render a framed PDF poorly or not at all, so keep it short and let
+     the fallback link do the work. */
+  .frame { height: 56vh; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .card, .view, .open, .chev { transition: none; }
+  .panel { animation: none; }
+  .open:hover { transform: none; }
+}

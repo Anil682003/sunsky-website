@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import styles from './TrustBar.module.css';
-import { useFooterConfig } from '../../../api';
+import { useFooterConfig, useHomepageConfig } from '../../../api';
 import { findLegalLink } from '../../../utils/legalLinks';
-import { INSURANCE_MARK_LIST } from '../../../utils/insuranceMarks';
+import { INSURANCE_MARKS, INSURANCE_MARK_LIST } from '../../../utils/insuranceMarks';
+import CmsLink from '../../../components/CmsLink/CmsLink';
 
 /**
  * The guarantee bar — the "trust balk" the agency asked for, sitting high on the page where a
@@ -13,6 +14,11 @@ import { INSURANCE_MARK_LIST } from '../../../utils/insuranceMarks';
  * claim of its own, which is not the website's to make. The one link goes to the agency's own
  * insurance page, resolved out of the footer CMS the same way the checkout resolves its legal
  * links, so renaming that page in the dashboard never leaves a dead end here.
+ *
+ * Each mark can also carry its own link to the body it represents, set in the dashboard on the
+ * same trust row the homepage grid reads. Deliberately the SAME row rather than a second list:
+ * the two surfaces show the same seal, and a mark that goes to VVR in one place and nowhere in
+ * the other is the kind of difference nobody notices until a traveller reports it.
  */
 export default function TrustBar() {
   const { data: footer } = useFooterConfig();
@@ -20,6 +26,14 @@ export default function TrustBar() {
   // and VVR Membership", while "insurance" matches their SEPARATE travel-and-cancellation
   // insurance page — a product the traveller buys, not the guarantee these marks stand for.
   const insuranceUrl = findLegalLink(footer, ['protection'], '/p/protection-insurance');
+
+  // The marks sit at a known offset in the dashboard's trust list (see insuranceMarks.js), so
+  // mark N's URL is the URL on trust row offset+N. An absent row just means no link.
+  const { data: cmsConfig } = useHomepageConfig();
+  const markUrl = (i) => {
+    const row = cmsConfig?.trustItems?.[INSURANCE_MARKS.offset + i];
+    return row?.url || row?.link || '';
+  };
 
   return (
     <section className={styles.wrap} aria-labelledby="trustbar-title">
@@ -38,11 +52,20 @@ export default function TrustBar() {
         </div>
 
         <ul className={styles.marks}>
-          {INSURANCE_MARK_LIST.map((m) => (
-            <li key={m.key} className={styles.markItem}>
-              <img className={styles.mark} src={m.img} alt={m.alt} loading="lazy" />
-            </li>
-          ))}
+          {INSURANCE_MARK_LIST.map((m, i) => {
+            const url = markUrl(i);
+            return (
+              <li key={m.key} className={styles.markItem}>
+                <CmsLink
+                  url={url}
+                  className={styles.markLink}
+                  title={url ? `${m.alt} (opens their website)` : undefined}
+                >
+                  <img className={styles.mark} src={m.img} alt={m.alt} loading="lazy" />
+                </CmsLink>
+              </li>
+            );
+          })}
         </ul>
 
         <Link className={styles.more} to={insuranceUrl}>
