@@ -13,7 +13,29 @@
     "register": "Registreren",
     "myBooking": "Mijn boeking",
     "home": "Home",
-    "help": "Hulp"
+    "help": "Hulp",
+    "registerQuick": "Registreren, het gaat snel!",
+    "menu": "Menu",
+    "myAccount": "Mijn account",
+    "myBookings": "Mijn boekingen",
+    "profile": "Profiel",
+    "favourites": "Favorieten",
+    "signOut": "Uitloggen",
+    "services": {
+      "holidays": "Vakanties",
+      "flights": "Vluchten",
+      "hotels": "Hotels",
+      "transfers": "Transfers"
+    },
+    "popularDestinations": "Populaire bestemmingen",
+    "destinations_one": "{{count}} bestemming",
+    "destinations_other": "{{count}} bestemmingen",
+    "holidayTypes": "Vakantietypes",
+    "holidayTypes_one": "{{count}} vakantietype",
+    "holidayTypes_other": "{{count}} vakantietypes",
+    "exploreHolidays": "Ontdek vakanties",
+    "searchPlaceholder": "Zoek hotels & bestemmingen",
+    "searchLabel": "Zoek hotels en bestemmingen"
   },
   "language": {
     "label": "Taal",
@@ -24,5 +46,18 @@
   "notFound": {
     "title": "We konden die pagina niet vinden",
     "text": "De pagina die je zoekt is verplaatst of bestaat niet meer."
+  },
+  "footer": {
+    "brandDescription": "Jouw vertrouwde reispartner voor onvergetelijke zonvakanties over de hele wereld.",
+    "paymentMethod": "Betaalmethode",
+    "inviteTitle": "Al met ons op reis geweest?",
+    "inviteText": "Vertel de volgende reiziger hoe het was. Het kost je een minuut, en het helpt iemand anders met wat meer vertrouwen zijn vakantie te kiezen.",
+    "inviteNote": "jouw beurt!",
+    "cookiePolicy": "Cookiebeleid",
+    "cookieSettings": "Cookie-instellingen",
+    "fallback": {
+      "destinations": "Bestemmingen",
+      "travelTypes": "Soorten reizen"
+    }
   }
 }

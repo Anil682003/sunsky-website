@@ -8,6 +8,7 @@ import Trustpilot from '../../components/Trustpilot/Trustpilot';
 import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
 import { useConsent } from '../../context/ConsentContext';
 import mainLogoFallback from '../../assets/main-logo.png';
+import { useTranslation } from 'react-i18next';
 
 // Shown only until the footer CMS answers (or if it is unreachable), so the
 // footer never renders blank.
@@ -56,6 +57,7 @@ const isConsentLink = (url) =>
 
 export default function Footer() {
   const navigate = useNavigate();
+  const { t } = useTranslation('common');
   const { data: footer } = useFooterConfig();
   const { data: cmsConfig } = useHomepageConfig();
   // Withdrawing consent has to be as easy as giving it, and it has to be reachable from every
@@ -75,7 +77,7 @@ export default function Footer() {
   const brandName = footer?.brandName || 'Sunsky';
   const brandDesc =
     footer?.brandDescription ||
-    'Your trusted travel partner for unforgettable sun-soaked holidays around the world.';
+    t('footer.brandDescription', 'Your trusted travel partner for unforgettable sun-soaked holidays around the world.');
 
   // Only sections that still have at least one active link are worth a column.
   const cmsCols = (footer?.navigationSections ?? [])
@@ -129,7 +131,7 @@ export default function Footer() {
                 {p.imageUrl ? (
                   <img
                     src={p.imageUrl}
-                    alt={p.label || 'Payment method'}
+                    alt={p.label || t('footer.paymentMethod', 'Payment method')}
                     loading="lazy"
                     onError={(e) => {
                       const holder = e.currentTarget.parentElement;
@@ -196,10 +198,12 @@ export default function Footer() {
           </span>
 
           <div className={styles.inviteText}>
-            <h3 className={styles.inviteTitle}>Travelled with us?</h3>
+            <h3 className={styles.inviteTitle}>{t('footer.inviteTitle', 'Travelled with us?')}</h3>
             <p className={styles.inviteSub}>
-              Tell the next traveller how it went. It takes a minute, and it helps someone
-              choose their holiday with a bit more confidence.
+              {t(
+                'footer.inviteText',
+                'Tell the next traveller how it went. It takes a minute, and it helps someone choose their holiday with a bit more confidence.'
+              )}
             </p>
           </div>
 
@@ -211,7 +215,7 @@ export default function Footer() {
                 <path d="M6 6 C 18 26, 34 34, 50 33" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                 <path d="M42 27 L51 34 L41 38" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
-              <span className={styles.inviteNoteText}>your turn!</span>
+              <span className={styles.inviteNoteText}>{t('footer.inviteNote', 'your turn!')}</span>
             </span>
           </div>
         </div>
@@ -224,8 +228,8 @@ export default function Footer() {
           {/* Dutch, like the rest of the site and like the CMS column above these. The
               settings control has to be reachable from every page, which is why it lives
               in the bottom bar rather than in a CMS column somebody could delete. */}
-          <Link to={cookiePolicyUrl}>Cookiebeleid</Link>
-          <button type="button" onClick={reopen}>Cookie-instellingen</button>
+          <Link to={cookiePolicyUrl}>{t('footer.cookiePolicy', 'Cookiebeleid')}</Link>
+          <button type="button" onClick={reopen}>{t('footer.cookieSettings', 'Cookie-instellingen')}</button>
         </div>
         {footer?.showLegal && footer?.legalText ? (
           <p className={styles.copy}>{footer.legalText}</p>

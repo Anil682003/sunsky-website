@@ -13,7 +13,29 @@
     "register": "Register",
     "myBooking": "My Booking",
     "home": "Home",
-    "help": "Help"
+    "help": "Help",
+    "registerQuick": "Register — it's quick!",
+    "menu": "Menu",
+    "myAccount": "My Account",
+    "myBookings": "My Bookings",
+    "profile": "Profile",
+    "favourites": "Favourites",
+    "signOut": "Sign Out",
+    "services": {
+      "holidays": "Holidays",
+      "flights": "Flights",
+      "hotels": "Hotels",
+      "transfers": "Transfers"
+    },
+    "popularDestinations": "Popular destinations",
+    "destinations_one": "{{count}} destination",
+    "destinations_other": "{{count}} destinations",
+    "holidayTypes": "Holiday types",
+    "holidayTypes_one": "{{count}} holiday type",
+    "holidayTypes_other": "{{count}} holiday types",
+    "exploreHolidays": "Explore holidays",
+    "searchPlaceholder": "Search hotels & destinations",
+    "searchLabel": "Search hotels and destinations"
   },
   "language": {
     "label": "Language",
@@ -24,5 +46,18 @@
   "notFound": {
     "title": "We couldn’t find that page",
     "text": "The page you were looking for has moved or no longer exists."
+  },
+  "footer": {
+    "brandDescription": "Your trusted travel partner for unforgettable sun-soaked holidays around the world.",
+    "paymentMethod": "Payment method",
+    "inviteTitle": "Travelled with us?",
+    "inviteText": "Tell the next traveller how it went. It takes a minute, and it helps someone choose their holiday with a bit more confidence.",
+    "inviteNote": "your turn!",
+    "cookiePolicy": "Cookiebeleid",
+    "cookieSettings": "Cookie-instellingen",
+    "fallback": {
+      "destinations": "Destinations",
+      "travelTypes": "Travel Types"
+    }
   }
 }

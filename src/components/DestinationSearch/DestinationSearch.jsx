@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { searchDestinationsAndHotels } from '../../api/filters';
 import styles from './DestinationSearch.module.css';
+import { useTranslation } from 'react-i18next';
 
 // The header search, styled as a slim die-cut travel ticket: a warm magnifier "stub" separated
 // from the input by a perforation, a manifest-style dropdown (hotels first, then destinations),
@@ -171,7 +172,9 @@ const useTypewriter = (names, active) => {
   return text;
 };
 
-export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggestions = [], placeholder = 'Search hotels & destinations' }) {
+export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggestions = [], placeholder }) {
+  const { t } = useTranslation('common');
+  const boxPlaceholder = placeholder ?? t('nav.searchPlaceholder', 'Search hotels & destinations');
   const [query, setQuery]     = useState('');
   const [results, setResults] = useState({ destinations: [], zones: [], hotels: [] });
   const [open, setOpen]       = useState(false);
@@ -195,7 +198,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
     if (q.length < 2) { setResults({ destinations: [], zones: [], hotels: [] }); setLoading(false); return; }
     setLoading(true);
     const id = ++reqRef.current;
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const r = await searchDestinationsAndHotels(q);
       if (id === reqRef.current) {
         // Some source names carry stray whitespace; trim so the field, the label and the results
@@ -208,7 +211,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
         setLoading(false);
       }
     }, 220);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [query]);
 
   // Close the dropdown on an outside click.
@@ -284,12 +287,12 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
           ref={inputRef}
           className={styles.input}
           value={query}
-          placeholder={showTyped ? '' : placeholder}
+          placeholder={showTyped ? '' : boxPlaceholder}
           onChange={(e) => { setQuery(e.target.value); setOpen(true); setActive(-1); }}
           onFocus={() => { setFocused(true); setOpen(true); }}
           onBlur={() => setFocused(false)}
           onKeyDown={onKeyDown}
-          aria-label="Search hotels and destinations"
+          aria-label={t('nav.searchLabel', 'Search hotels and destinations')}
           autoComplete="off"
         />
         {/* The self-typing invitation — hidden the instant the real caret takes over. */}

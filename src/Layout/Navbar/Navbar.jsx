@@ -13,6 +13,7 @@ import Trustpilot from '../../components/Trustpilot/Trustpilot';
 import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
 import HeaderMenu from './HeaderMenu';
 import LanguageSwitch from '../../components/LanguageSwitch/LanguageSwitch';
+import { useTranslation } from 'react-i18next';
 
 const slugify = (s) =>
   String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -55,19 +56,19 @@ const typeIconFor = (name) => {
 
 const SERVICES = [
   {
-    label: 'Holidays', path: '/', match: ['/', '/results'],
+    key: 'holidays', label: 'Holidays', path: '/', match: ['/', '/results'],
     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41"/></svg>,
   },
   {
-    label: 'Flights', path: '/flights', match: ['/flights'],
+    key: 'flights', label: 'Flights', path: '/flights', match: ['/flights'],
     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>,
   },
   {
-    label: 'Hotels', path: '/hotels', match: ['/hotels'],
+    key: 'hotels', label: 'Hotels', path: '/hotels', match: ['/hotels'],
     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-4"/><path d="M9 9h1M9 13h1M9 17h1"/></svg>,
   },
   {
-    label: 'Transfers', path: '/transfers', match: ['/transfers'],
+    key: 'transfers', label: 'Transfers', path: '/transfers', match: ['/transfers'],
     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v10a2 2 0 01-2 2h-1"/><path d="M12 15l5 6H7l5-6z"/></svg>,
   },
 ];
@@ -79,6 +80,9 @@ function getInitials(user) {
 }
 
 export default function Navbar() {
+  // Every call carries the English as its default, so a key with no translation
+  // yet renders readable text rather than a raw `nav.signIn`.
+  const { t }      = useTranslation('common');
   const navigate   = useNavigate();
   const location   = useLocation();
   const dispatch   = useDispatch();
@@ -289,9 +293,13 @@ export default function Navbar() {
       {showHeaderSearch && (
         <div className={styles.headerSearch}>
           <HeaderMenu
-            label="Popular destinations"
+            label={t('nav.popularDestinations', 'Popular destinations')}
             buttonIcon={<MenuGlobe />}
-            tally={`${popularDests.length} destination${popularDests.length === 1 ? '' : 's'}`}
+            tally={t('nav.destinations', {
+              count: popularDests.length,
+              defaultValue_one: '{{count}} destination',
+              defaultValue_other: '{{count}} destinations',
+            })}
             align="left"
             items={popularDests.map((d) => ({
               key: d.label,
@@ -305,14 +313,18 @@ export default function Navbar() {
             <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
           </div>
           <HeaderMenu
-            label="Holiday types"
+            label={t('nav.holidayTypes', 'Holiday types')}
             buttonIcon={<TypeSun />}
-            tally={`${topHolidayTypes.length} holiday type${topHolidayTypes.length === 1 ? '' : 's'}`}
+            tally={t('nav.holidayTypes', {
+              count: topHolidayTypes.length,
+              defaultValue_one: '{{count}} holiday type',
+              defaultValue_other: '{{count}} holiday types',
+            })}
             align="right"
             items={topHolidayTypes.map((t) => ({
               key: t.slug,
               label: t.title,
-              sub: 'Explore holidays',
+              sub: t('nav.exploreHolidays', 'Explore holidays'),
               icon: typeIconFor(t.title),
               onPick: () => { navigate(`/holidays/${t.slug}`); },
             }))}
@@ -344,7 +356,7 @@ export default function Navbar() {
             >
               <div className={styles.avatarCircle}>{getInitials(user)}</div>
               <span className={`${styles.avatarName} ${dark ? styles.avatarNameDark : styles.avatarNameLight}`}>
-                {user?.firstName || 'My Account'}
+                {user?.firstName || t('nav.myAccount', 'My Account')}
               </span>
               <svg
                 className={`${styles.chevron} ${dropOpen ? styles.chevronUp : ''}`}
@@ -366,9 +378,9 @@ export default function Navbar() {
                 </div>
                 <div className={styles.dropDivider} />
                 {[
-                  { icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', label: 'My Bookings', path: '/account/bookings' },
-                  { icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z', label: 'Profile', path: '/account/profile' },
-                  { icon: 'M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z', label: 'Favourites', path: '/account/favourites' },
+                  { icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', label: t('nav.myBookings', 'My Bookings'), path: '/account/bookings' },
+                  { icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z', label: t('nav.profile', 'Profile'), path: '/account/profile' },
+                  { icon: 'M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z', label: t('nav.favourites', 'Favourites'), path: '/account/favourites' },
                 ].map((item) => (
                   <button key={item.path} className={styles.dropItem} onClick={() => { navigate(item.path); setDropOpen(false); }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -396,10 +408,10 @@ export default function Navbar() {
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
-              Sign In
+              {t('nav.signIn', 'Sign In')}
             </Link>
             <Link to="/register" className={styles.registerBtn}>
-              Register
+              {t('nav.register', 'Register')}
               <span className={styles.registerArrow}>
                 <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M5 12h14M12 5l7 7-7 7"/>
@@ -414,7 +426,7 @@ export default function Navbar() {
       <button
         className={`${styles.hamburger} ${dark ? styles.hamburgerDark : styles.hamburgerLight}`}
         onClick={() => setMobileOpen((o) => !o)}
-        aria-label="Menu"
+        aria-label={t('nav.menu', 'Menu')}
       >
         {mobileOpen ? (
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -443,7 +455,7 @@ export default function Navbar() {
                 onClick={() => { navigate(l.path); setMobileOpen(false); }}
               >
                 {l.icon}
-                {l.label}
+                {t(`nav.services.${l.key}`, l.label)}
               </button>
             ))}
           </div>
@@ -461,15 +473,15 @@ export default function Navbar() {
                   <div className={styles.mobileUserEmail}>{user?.email}</div>
                 </div>
               </div>
-              <button className={styles.mobileLink} onClick={() => { navigate('/account/bookings'); setMobileOpen(false); }}>My Bookings</button>
-              <button className={styles.mobileLink} onClick={() => { navigate('/account/profile'); setMobileOpen(false); }}>Profile</button>
-              <button className={styles.mobileLogout} onClick={handleLogout}>Sign Out</button>
+              <button className={styles.mobileLink} onClick={() => { navigate('/account/bookings'); setMobileOpen(false); }}>{t('nav.myBookings', 'My Bookings')}</button>
+              <button className={styles.mobileLink} onClick={() => { navigate('/account/profile'); setMobileOpen(false); }}>{t('nav.profile', 'Profile')}</button>
+              <button className={styles.mobileLogout} onClick={handleLogout}>{t('nav.signOut', 'Sign Out')}</button>
             </div>
           ) : (
             <div className={styles.mobileAuth}>
-              <button className={styles.mobileSignIn} onClick={() => { navigate('/login'); setMobileOpen(false); }}>Sign In</button>
+              <button className={styles.mobileSignIn} onClick={() => { navigate('/login'); setMobileOpen(false); }}>{t('nav.signIn', 'Sign In')}</button>
               <button className={styles.mobileRegister} onClick={() => { navigate('/register'); setMobileOpen(false); }}>
-                Register — it's quick!
+                {t('nav.registerQuick', "Register — it's quick!")}
               </button>
             </div>
           )}
