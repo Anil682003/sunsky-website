@@ -1053,11 +1053,9 @@ export default function Results() {
       hotelCode:    c.hotelCode,
       name:         c.hotelName ?? `Hotel ${c.hotelCode}`,
       stars:        null,
-      board:        getBoardLabel(bc),
+      // Codes only — the words are resolved at render so they follow the language switch.
       boardCode:    bc,
-      boardTags:    bc ? [getBoardLabel(bc)] : [],
       roomType:     c.roomType,
-      roomLabel:    getRoomLabel(c.roomType),
       characteristic: c.characteristic,
       classification: c.classification,
       refundable:   c.refundable,
@@ -1097,7 +1095,7 @@ export default function Results() {
     if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0];
     return t('hero.places', { count: parts.length, defaultValue: '{{count}} places' });
-  }, [usingDefaultScope, urlLabel, scope, countryOptions, scopeCities, scopeZones, t]);
+  }, [usingDefaultScope, urlLabel, scope, countryOptions, scopeCities, scopeZones, t, i18nInstance.language]);
 
   // "A different search" (vs. a different filter): scope or head-counts/dates changed.
   const searchKey = `${scopeKey}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${fetchParams.childAges ?? childAges}`;
@@ -2398,13 +2396,13 @@ export default function Results() {
 
                     {/* What the deal includes — mint coupon pills (dashed border), one per
                         value: the board basis and the room type each earn their own tag. */}
-                    {(h.boardTags.length > 0 || h.roomLabel) && (
+                    {(h.boardCode || h.roomType) && (
                       <div className={styles.rcIncluded}>
-                        {h.boardTags.map((b) => (
-                          <span key={b} className={styles.rcIncludedPill}><CheckIcon />{b}</span>
-                        ))}
-                        {h.roomLabel && (
-                          <span className={styles.rcIncludedPill}><CheckIcon />{h.roomLabel}</span>
+                        {h.boardCode && (
+                          <span className={styles.rcIncludedPill}><CheckIcon />{getBoardLabel(h.boardCode)}</span>
+                        )}
+                        {h.roomType && (
+                          <span className={styles.rcIncludedPill}><CheckIcon />{getRoomLabel(h.roomType)}</span>
                         )}
                       </div>
                     )}
