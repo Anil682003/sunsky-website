@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from './Faq.module.css';
 import { fetchAllFaqs, fetchFaqCategories } from '../../api';
 import RichText from '../../components/RichText/RichText';
@@ -202,6 +203,7 @@ const ICON = {
    stays in the DOM while closed so the browser's own in-page search still
    finds it. Same approach as the FAQ blocks on the legal pages. */
 function FaqRow({ item, isOpen, onToggle, query, related, onPickRelated }) {
+  const { t } = useTranslation('faq');
   const innerRef = useRef(null);
   const [maxHeight, setMaxHeight] = useState(0);
 
@@ -257,7 +259,7 @@ function FaqRow({ item, isOpen, onToggle, query, related, onPickRelated }) {
 
             {related.length > 0 && (
               <div className={styles.related}>
-                <p className={styles.relatedLabel}>Related questions</p>
+                <p className={styles.relatedLabel}>{t('related', 'Related questions')}</p>
                 <ul className={styles.relatedList}>
                   {related.map((r) => (
                     <li key={r.id}>
@@ -304,6 +306,9 @@ function Highlight({ text, query }) {
 }
 
 export default function Faq() {
+  // Every call passes the English text as its default, so a key with no Dutch yet
+  // renders English rather than a raw `faq.title`. See src/i18n/index.js.
+  const { t } = useTranslation('faq');
   const [cmsFaqs, setCmsFaqs] = useState(null);   // null = still asking
   const [cmsCats, setCmsCats] = useState([]);
   const [query, setQuery] = useState('');
@@ -500,34 +505,36 @@ export default function Faq() {
         <span className={styles.heroGrid} aria-hidden="true" />
 
         <div className={styles.heroInner}>
-          <nav className={styles.crumbs} aria-label="Breadcrumb">
-            <Link to="/" className={styles.crumbLink}>Home</Link>
+          <nav className={styles.crumbs} aria-label={t('breadcrumb.label', 'Breadcrumb')}>
+            <Link to="/" className={styles.crumbLink}>{t('breadcrumb.home', 'Home')}</Link>
             <span className={styles.crumbSep} aria-hidden="true">/</span>
-            <span className={styles.crumbCurrent}>Help</span>
+            <span className={styles.crumbCurrent}>{t('breadcrumb.current', 'Help')}</span>
           </nav>
 
           <span className={styles.heroTag}>
             <span className={styles.heroTagDot} aria-hidden="true" />
-            Help centre
+            {t('eyebrow', 'Help centre')}
           </span>
 
-          <h1 className={styles.title}>Frequently Asked Questions</h1>
+          <h1 className={styles.title}>{t('title', 'Frequently Asked Questions')}</h1>
           <p className={styles.lede}>
-            Find the answer to your question quickly. Can&rsquo;t find what you&rsquo;re looking
-            for? Our team will be happy to help.
+            {t(
+              'lede',
+              'Find the answer to your question quickly. Can’t find what you’re looking for? Our team will be happy to help.'
+            )}
           </p>
 
           {/* ── Search ──────────────────────────────────────────────────── */}
           <div className={styles.searchWrap}>
             <label htmlFor="faq-search" className={styles.srOnly}>
-              Search the frequently asked questions
+              {t('search.label', 'Search the frequently asked questions')}
             </label>
             <span className={styles.searchIcon} aria-hidden="true">{ICON.search}</span>
             <input
               id="faq-search"
               type="search"
               className={styles.searchInput}
-              placeholder="How can we help you?"
+              placeholder={t('search.placeholder', 'How can we help you?')}
               value={query}
               onChange={(e) => setQuery(e.target.value)}
               autoComplete="off"
@@ -537,7 +544,7 @@ export default function Faq() {
                 type="button"
                 className={styles.searchClear}
                 onClick={() => setQuery('')}
-                aria-label="Clear the search"
+                aria-label={t('search.clear', 'Clear the search')}
               >
                 {ICON.close}
               </button>
@@ -545,9 +552,16 @@ export default function Faq() {
           </div>
 
           <p className={styles.searchNote} role="status" aria-live="polite">
+            {/* Dutch and English both pluralise on one vs many here, so i18next's
+                own count handling does the work rather than a ternary. */}
             {searching
-              ? `${total} ${total === 1 ? 'answer' : 'answers'} for “${trimmed}”`
-              : 'Searches every question and every answer on this page.'}
+              ? t('search.results', {
+                  count: total,
+                  query: trimmed,
+                  defaultValue_one: '{{count}} answer for “{{query}}”',
+                  defaultValue_other: '{{count}} answers for “{{query}}”',
+                })
+              : t('search.hint', 'Searches every question and every answer on this page.')}
           </p>
         </div>
       </header>
@@ -558,7 +572,7 @@ export default function Faq() {
           {/* Most asked — a shortcut, so it steps aside while filtering. */}
           {!searching && activeStage === 'all' && featured.length > 0 && (
             <section className={styles.popular} aria-labelledby="faq-popular">
-              <h2 id="faq-popular" className={styles.popularTitle}>Most asked</h2>
+              <h2 id="faq-popular" className={styles.popularTitle}>{t('popular', 'Most asked')}</h2>
               <ul className={styles.popularList}>
                 {featured.map((f) => (
                   <li key={f.id}>
@@ -573,16 +587,16 @@ export default function Faq() {
 
           {/* ── Categories, drawn as the journey they describe ──────────── */}
           <section className={styles.stages} aria-labelledby="faq-stages">
-            <h2 id="faq-stages" className={styles.srOnly}>Browse by stage of your trip</h2>
+            <h2 id="faq-stages" className={styles.srOnly}>{t('stages.label', 'Browse by stage of your trip')}</h2>
 
-            <div className={styles.stageBar} role="group" aria-label="Filter questions by stage">
+            <div className={styles.stageBar} role="group" aria-label={t('stages.filterLabel', 'Filter questions by stage')}>
               <button
                 type="button"
                 className={`${styles.allBtn} ${activeStage === 'all' ? styles.allBtnOn : ''}`}
                 aria-pressed={activeStage === 'all'}
                 onClick={() => setStage('all')}
               >
-                All questions
+                {t('stages.all', 'All questions')}
                 <span className={styles.allCount}>{hits.length}</span>
               </button>
 
@@ -610,7 +624,11 @@ export default function Faq() {
                       <span className={styles.stageTitle}>{c.title}</span>
                       {c.blurb && <span className={styles.stageBlurb}>{c.blurb}</span>}
                       <span className={styles.stageCount}>
-                        {n} {n === 1 ? 'question' : 'questions'}
+                        {t('stages.questions', {
+                          count: n,
+                          defaultValue_one: '{{count}} question',
+                          defaultValue_other: '{{count}} questions',
+                        })}
                       </span>
                     </button>
                   );
@@ -623,18 +641,18 @@ export default function Faq() {
           {groups.length === 0 ? (
             <div className={styles.empty}>
               <span className={styles.emptyIcon} aria-hidden="true">{ICON.search}</span>
-              <h2 className={styles.emptyTitle}>No answer matched that</h2>
+              <h2 className={styles.emptyTitle}>{t('empty.title', 'No answer matched that')}</h2>
               <p className={styles.emptyText}>
-                Try a shorter search, or a word that would appear in the answer, such as
-                &ldquo;baggage&rdquo;, &ldquo;refund&rdquo; or &ldquo;transfer&rdquo;. If the
-                question is about your own booking, our team can answer it faster than this page
-                can.
+                {t(
+                  'empty.text',
+                  'Try a shorter search, or a word that would appear in the answer, such as “baggage”, “refund” or “transfer”. If the question is about your own booking, our team can answer it faster than this page can.'
+                )}
               </p>
               <div className={styles.emptyActions}>
                 <button type="button" className={styles.emptyReset} onClick={() => { setQuery(''); setStage('all'); }}>
-                  Show all questions
+                  {t('empty.reset', 'Show all questions')}
                 </button>
-                <Link to={CONTACT_URL} className={styles.emptyCta}>Contact us</Link>
+                <Link to={CONTACT_URL} className={styles.emptyCta}>{t('side.contactCta', 'Contact us')}</Link>
               </div>
             </div>
           ) : (
@@ -702,14 +720,14 @@ export default function Faq() {
         </div>
 
         {/* ── Sidebar ────────────────────────────────────────────────────── */}
-        <aside className={styles.side} aria-label="More help">
+        <aside className={styles.side} aria-label={t('side.label', 'More help')}>
           <section className={`${styles.card} ${styles.cardContact}`}>
             <span className={styles.cardStamp} aria-hidden="true" />
-            <h2 className={styles.cardTitle}>Can&rsquo;t find what you&rsquo;re looking for?</h2>
-            <p className={styles.cardText}>Our team will be happy to help.</p>
+            <h2 className={styles.cardTitle}>{t('side.contactTitle', 'Can’t find what you’re looking for?')}</h2>
+            <p className={styles.cardText}>{t('side.contactText', 'Our team will be happy to help.')}</p>
 
             <Link to={CONTACT_URL} className={styles.cardCta}>
-              Contact us
+              {t('side.contactCta', 'Contact us')}
               <span className={styles.cardCtaArrow} aria-hidden="true">{ICON.arrow}</span>
             </Link>
 
@@ -732,8 +750,8 @@ export default function Faq() {
 
             {CONTACT.emergency && (
               <p className={styles.emergency}>
-                <span className={styles.emergencyLabel}>Already travelling?</span>
-                Urgent problems that cannot wait for opening hours:{' '}
+                <span className={styles.emergencyLabel}>{t('side.emergencyLabel', 'Already travelling?')}</span>
+                {t('side.emergencyText', 'Urgent problems that cannot wait for opening hours:')}{' '}
                 <a href={CONTACT.emergencyHref} className={styles.contactLink}>
                   {CONTACT.emergency}
                 </a>
@@ -743,26 +761,30 @@ export default function Faq() {
 
           <section className={`${styles.card} ${styles.cardTip}`}>
             <span className={styles.cardIcon} aria-hidden="true">{ICON.folder}</span>
-            <h2 className={styles.cardTitle}>Helpful tip</h2>
+            <h2 className={styles.cardTitle}>{t('side.tipTitle', 'Helpful tip')}</h2>
             <p className={styles.cardText}>
-              Many details about your booking, payments and travel documents can also be found in
-              My Booking.
+              {t(
+                'side.tipText',
+                'Many details about your booking, payments and travel documents can also be found in My Booking.'
+              )}
             </p>
             <Link to="/account/bookings" className={styles.cardLink}>
-              Go to My Booking
+              {t('side.tipCta', 'Go to My Booking')}
               <span className={styles.cardCtaArrow} aria-hidden="true">{ICON.arrow}</span>
             </Link>
           </section>
 
           <section className={`${styles.card} ${styles.cardTrust}`}>
             <span className={styles.cardIcon} aria-hidden="true">{ICON.shield}</span>
-            <h2 className={styles.cardTitle}>Safe &amp; trusted</h2>
+            <h2 className={styles.cardTitle}>{t('side.trustTitle', 'Safe & trusted')}</h2>
             <p className={styles.cardText}>
-              SUNSKY is a licensed Belgian travel agency. Every payment runs over a secure
-              connection, and your booking is confirmed in writing before you travel.
+              {t(
+                'side.trustText',
+                'SUNSKY is a licensed Belgian travel agency. Every payment runs over a secure connection, and your booking is confirmed in writing before you travel.'
+              )}
             </p>
             <Link to={ABOUT_URL} className={styles.cardLink}>
-              About SUNSKY
+              {t('side.trustCta', 'About SUNSKY')}
               <span className={styles.cardCtaArrow} aria-hidden="true">{ICON.arrow}</span>
             </Link>
           </section>

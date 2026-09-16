@@ -39,6 +39,11 @@ if (typeof window !== 'undefined' && !window.matchMedia) {
   });
 }
 
+// i18next is initialised by App.jsx, which a page-level test never mounts. Without
+// this a converted component renders raw keys ("search.results") instead of text,
+// so every assertion about visible copy would be testing the wrong thing.
+import '../i18n';
+
 afterEach(() => {
   cleanup();
   MockIntersectionObserver.instances = [];

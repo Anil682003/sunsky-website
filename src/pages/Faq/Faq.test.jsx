@@ -53,7 +53,7 @@ describe('FAQ page', () => {
     fetchFaqCategories.mockResolvedValue([]);
     draw();
 
-    expect(await screen.findByRole('heading', { name: 'Frequently Asked Questions' })).toBeInTheDocument();
+    expect(await screen.findByRole('heading', { name: 'Veelgestelde vragen' })).toBeInTheDocument();
     // Every shipped question is on the page, under its stage.
     await waitFor(() =>
       expect(screen.getAllByRole('region', { hidden: true }).length).toBeGreaterThanOrEqual(FALLBACK_FAQS.length)
@@ -95,12 +95,13 @@ describe('FAQ page', () => {
     draw();
     await screen.findByRole('heading', { name: 'Before you book' });
 
-    await user.type(screen.getByLabelText(/search the frequently asked questions/i), 'PCI-DSS');
+    await user.type(screen.getByLabelText(/zoek in de veelgestelde vragen/i), 'PCI-DSS');
 
     // "How do I pay, and is it secure?" only mentions PCI-DSS in its answer.
     await waitFor(() => expect(screen.getByText('How do I pay, and is it secure?')).toBeInTheDocument());
     expect(screen.queryByText('Is baggage included?')).not.toBeInTheDocument();
-    expect(screen.getByRole('status')).toHaveTextContent('1 answer');
+    // The site is Dutch, so the live result count is too.
+    expect(screen.getByRole('status')).toHaveTextContent('1 antwoord');
   });
 
   it('keeps one answer open at a time', async () => {
@@ -137,9 +138,9 @@ describe('FAQ page', () => {
     draw();
     await screen.findByRole('heading', { name: 'Before you book' });
 
-    await user.type(screen.getByLabelText(/search the frequently asked questions/i), 'zzzqqq');
+    await user.type(screen.getByLabelText(/zoek in de veelgestelde vragen/i), 'zzzqqq');
 
-    const reset = await screen.findByRole('button', { name: 'Show all questions' });
+    const reset = await screen.findByRole('button', { name: 'Toon alle vragen' });
     await user.click(reset);
 
     expect(await screen.findByRole('heading', { name: 'Before you book' })).toBeInTheDocument();
@@ -156,7 +157,7 @@ describe('FAQ page', () => {
 
   it('shows the contact details and the emergency line', async () => {
     draw();
-    const side = await screen.findByRole('complementary', { name: 'More help' });
+    const side = await screen.findByRole('complementary', { name: 'Meer hulp' });
     expect(within(side).getByText('info@sunsky.be')).toBeInTheDocument();
     expect(within(side).getByText('+32 11 57 44 27')).toBeInTheDocument();
     expect(within(side).getByText('+32 497 54 38 16')).toBeInTheDocument();
