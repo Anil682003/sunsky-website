@@ -40,7 +40,8 @@ describe('topFacilities', () => {
       f("Children's pool", 'Entertainment'),
       f('Indoor pool', 'Entertainment'),
     ]);
-    expect(top).toEqual([{ icon: 'pool', label: 'Pool' }]);
+    // The ICON is what the slot is won on; the label is just its Dutch wording.
+    expect(top).toEqual([{ icon: 'pool', label: 'Zwembad' }]);
     expect(more).toBe(0);
   });
 

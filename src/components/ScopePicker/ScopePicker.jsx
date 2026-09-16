@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import styles from './ScopePicker.module.css';
 import { fetchDestinations, fetchZones } from '../../api/filters';
 import { zoneKey, zoneCity, scopeLeafCount } from '../../utils/scopeLeaves';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Where-picker for the results sidebar: countries → cities → areas.
@@ -59,6 +60,7 @@ export default function ScopePicker({
   value = { countries: [], destinations: [], zones: [] },
   onApply,
 }) {
+  const { t } = useTranslation('common');
   const [draftCountries, setDraftCountries] = useState(() => new Set(value.countries));
   const [draftCities, setDraftCities]       = useState(() => new Set(value.destinations));
   const [draftZones, setDraftZones]         = useState(() => new Set(value.zones));
@@ -230,16 +232,16 @@ export default function ScopePicker({
     cityKey !== [...value.destinations].sort().join(',') ||
     [...draftZones].sort().join(',') !== [...(value.zones || [])].sort().join(',');
 
-  if (status === 'error') return <p className={styles.note}>Destination filter unavailable.</p>;
-  if (!countries.length) return <p className={styles.note}>Loading countries&hellip;</p>;
+  if (status === 'error') return <p className={styles.note}>{t('scopePicker.unavailable', 'Destination filter unavailable.')}</p>;
+  if (!countries.length) return <p className={styles.note}>{t('scopePicker.loadingCountries', 'Loading countries…')}</p>;
 
   return (
     <div className={styles.wrap}>
       {total > 0 && (
         <div className={styles.selected}>
           <div className={styles.selectedHead}>
-            <span className={styles.selectedLabel}>Selected</span>
-            <button type="button" className={styles.clear} onClick={clearAll}>Clear all</button>
+            <span className={styles.selectedLabel}>{t('scopePicker.selected', 'Selected')}</span>
+            <button type="button" className={styles.clear} onClick={clearAll}>{t('scopePicker.clearAll', 'Clear all')}</button>
           </div>
           <div className={styles.pills}>
             {[...draftCountries].map((c) => {
@@ -248,7 +250,7 @@ export default function ScopePicker({
                 <span className={styles.pill} key={`c-${c}`}>
                   {m && <Flag flagUrl={m.flagUrl} flag={m.flag} className={styles.pillFlag} />}
                   {m?.name || c}
-                  <button className={styles.pillX} onClick={() => toggleCountry(c)} aria-label={`Remove ${m?.name || c}`}>
+                  <button className={styles.pillX} onClick={() => toggleCountry(c)} aria-label={t('scopePicker.remove', { name: m?.name || c, defaultValue: 'Remove {{name}}' })}>
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                   </button>
                 </span>
@@ -257,7 +259,7 @@ export default function ScopePicker({
             {[...draftCities].map((c) => (
               <span className={styles.pill} key={`d-${c}`}>
                 {cityOf(c)?.name || c}
-                <button className={styles.pillX} onClick={() => toggleCity(c)} aria-label={`Remove ${cityOf(c)?.name || c}`}>
+                <button className={styles.pillX} onClick={() => toggleCity(c)} aria-label={t('scopePicker.remove', { name: cityOf(c)?.name || c, defaultValue: 'Remove {{name}}' })}>
                   <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
               </span>
@@ -276,12 +278,14 @@ export default function ScopePicker({
 
       <div className={styles.sections}>
         <Section
-          title="Countries" count={draftCountries.size}
-          summary={draftCountries.size ? `${draftCountries.size} selected` : 'Any country'}
+          title={t('scopePicker.countries', 'Countries')} count={draftCountries.size}
+          summary={draftCountries.size
+            ? t('scopePicker.countSelected', { count: draftCountries.size, defaultValue: '{{count}} selected' })
+            : t('scopePicker.anyCountry', 'Any country')}
           open={isOpen('country')} onToggle={() => toggleSection('country')}
         >
           <div className={styles.list}>
-            {shownCountries.length === 0 && <p className={styles.note}>No country matches that.</p>}
+            {shownCountries.length === 0 && <p className={styles.note}>{t('scopePicker.noCountryMatch', 'No country matches that.')}</p>}
             {shownCountries.map((c) => (
               <Row
                 key={c.code} label={c.name} flagUrl={c.flagUrl} flag={c.flag}
@@ -292,16 +296,16 @@ export default function ScopePicker({
         </Section>
 
         <Section
-          title="Cities" count={draftCities.size} locked={draftCountries.size === 0}
-          summary={draftCountries.size === 0 ? 'Select a country first'
-            : citiesBusy ? 'Loading'
-            : draftCities.size ? `${draftCities.size} selected`
-            : `All ${cities.length} cities`}
+          title={t('scopePicker.cities', 'Cities')} count={draftCities.size} locked={draftCountries.size === 0}
+          summary={draftCountries.size === 0 ? t('scopePicker.countryFirst', 'Select a country first')
+            : citiesBusy ? t('scopePicker.loading', 'Loading')
+            : draftCities.size ? t('scopePicker.countSelected', { count: draftCities.size, defaultValue: '{{count}} selected' })
+            : t('scopePicker.allCities', { count: cities.length, defaultValue: 'All {{count}} cities' })}
           open={isOpen('city')} onToggle={() => toggleSection('city')}
         >
           <div className={styles.list}>
-            {citiesBusy && <p className={styles.note}>Loading cities&hellip;</p>}
-            {!citiesBusy && cityGroups.length === 0 && <p className={styles.note}>No city matches that.</p>}
+            {citiesBusy && <p className={styles.note}>{t('scopePicker.loadingCities', 'Loading cities…')}</p>}
+            {!citiesBusy && cityGroups.length === 0 && <p className={styles.note}>{t('scopePicker.noCityMatch', 'No city matches that.')}</p>}
             {cityGroups.map((g) => {
               const every = g.items.every((i) => draftCities.has(i.code));
               return (
@@ -310,7 +314,7 @@ export default function ScopePicker({
                     <Flag flagUrl={g.flagUrl} flag={g.flag} className={styles.groupFlag} />
                     <span className={styles.groupName}>{g.name}</span>
                     <button type="button" className={styles.groupAll} onClick={() => toggleAllCities(g)}>
-                      {every ? 'Clear' : 'Select all'}
+                      {every ? t('scopePicker.clear', 'Clear') : t('scopePicker.selectAll', 'Select all')}
                     </button>
                   </div>
                   {g.items.map((c) => (
@@ -323,16 +327,18 @@ export default function ScopePicker({
         </Section>
 
         <Section
-          title="Areas" count={draftZones.size} locked={draftCities.size === 0}
-          summary={draftCities.size === 0 ? 'Select a city first'
-            : zonesBusy ? 'Loading'
+          title={t('scopePicker.areas', 'Areas')} count={draftZones.size} locked={draftCities.size === 0}
+          summary={draftCities.size === 0 ? t('scopePicker.cityFirst', 'Select a city first')
+            : zonesBusy ? t('scopePicker.loading', 'Loading')
             : draftZones.size ? `${draftZones.size} selected`
-            : zones.length ? `All ${zones.length} areas` : 'None available'}
+            : zones.length
+              ? t('scopePicker.allAreas', { count: zones.length, defaultValue: 'All {{count}} areas' })
+              : t('scopePicker.noneAvailable', 'None available')}
           open={isOpen('area')} onToggle={() => toggleSection('area')}
         >
           <div className={styles.list}>
-            {zonesBusy && <p className={styles.note}>Loading areas&hellip;</p>}
-            {!zonesBusy && zoneGroups.length === 0 && <p className={styles.note}>No areas available for these cities.</p>}
+            {zonesBusy && <p className={styles.note}>{t('scopePicker.loadingAreas', 'Loading areas…')}</p>}
+            {!zonesBusy && zoneGroups.length === 0 && <p className={styles.note}>{t('scopePicker.noAreas', 'No areas available for these cities.')}</p>}
             {zoneGroups.map((g) => {
               const every = g.items.every((i) => draftZones.has(zoneKey(i)));
               return (
@@ -340,7 +346,7 @@ export default function ScopePicker({
                   <div className={styles.groupHead}>
                     <span className={styles.groupName}>{g.name}</span>
                     <button type="button" className={styles.groupAll} onClick={() => toggleAllZones(g)}>
-                      {every ? 'Clear' : 'Select all'}
+                      {every ? t('scopePicker.clear', 'Clear') : t('scopePicker.selectAll', 'Select all')}
                     </button>
                   </div>
                   {g.items.map((z) => (
@@ -358,7 +364,13 @@ export default function ScopePicker({
         disabled={!dirty || total === 0}
         onClick={() => onApply({ countries: [...draftCountries], destinations: [...draftCities], zones: [...draftZones] })}
       >
-        {total === 0 ? 'Select a destination' : `Search ${total} place${total === 1 ? '' : 's'}`}
+        {total === 0
+          ? t('scopePicker.chooseDestination', 'Select a destination')
+          : t('scopePicker.search', {
+              count: total,
+              defaultValue_one: 'Search {{count}} place',
+              defaultValue_other: 'Search {{count}} places',
+            })}
       </button>
     </div>
   );

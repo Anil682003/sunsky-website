@@ -79,39 +79,39 @@ const heading = () => screen.getByRole('heading', { level: 1 });
 describe('hero scope label', () => {
   it('names a country search', async () => {
     renderScope('countries=TR');
-    await waitFor(() => expect(heading()).toHaveTextContent(/Stays in\s*Turkey/));
+    await waitFor(() => expect(heading()).toHaveTextContent(/Verblijven in\s*Turkey/));
   });
 
   it('names a city by name, not by its Hotelbeds code', async () => {
     renderScope('countries=TR&destinations=AYT');
-    await waitFor(() => expect(heading()).toHaveTextContent(/Stays in\s*Antalya/));
+    await waitFor(() => expect(heading()).toHaveTextContent(/Verblijven in\s*Antalya/));
     expect(heading()).not.toHaveTextContent('AYT');
   });
 
   it('does not bill a country and a city inside it as two places', async () => {
     renderScope('countries=TR&destinations=AYT');
     await waitFor(() => expect(heading()).toHaveTextContent(/Antalya/));
-    expect(heading()).not.toHaveTextContent(/places/);
+    expect(heading()).not.toHaveTextContent(/bestemmingen/);
   });
 
   it('names the area when one area of one city is picked', async () => {
     renderScope('countries=TR&destinations=AYT&zones=AYT:16');
-    await waitFor(() => expect(heading()).toHaveTextContent(/Stays in\s*Side/));
+    await waitFor(() => expect(heading()).toHaveTextContent(/Verblijven in\s*Side/));
   });
 
   it('counts each picked area, and a sibling city with no area, as its own place', async () => {
     renderScope('countries=TR&destinations=AYT,BJV&zones=AYT:16,AYT:9');
     // Side + Belek + Bodrum — Antalya and Turkey are ancestors of what was picked.
-    await waitFor(() => expect(heading()).toHaveTextContent('3 places'));
+    await waitFor(() => expect(heading()).toHaveTextContent('3 bestemmingen'));
   });
 
   it('keeps the explicit label a search link carries', async () => {
     renderScope('destination=AYT&destinationLabel=Antalya');
-    await waitFor(() => expect(heading()).toHaveTextContent(/Stays in\s*Antalya/));
+    await waitFor(() => expect(heading()).toHaveTextContent(/Verblijven in\s*Antalya/));
   });
 
   it('calls an empty search what it is', async () => {
     renderScope('');
-    await waitFor(() => expect(heading()).toHaveTextContent(/Popular destinations/));
+    await waitFor(() => expect(heading()).toHaveTextContent(/Populaire bestemmingen/));
   });
 });

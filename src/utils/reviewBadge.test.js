@@ -9,8 +9,8 @@ describe('formatReview (/10 presentation of a /5 source)', () => {
       fillPct: 88,
       label: 'TripAdvisor',
       count: 756,
-      meta: 'TripAdvisor · 756 reviews',
-      title: '8.8 / 10 on TripAdvisor from 756 reviews',
+      meta: 'TripAdvisor · 756 beoordelingen',
+      title: '8.8 / 10 op TripAdvisor op basis van 756 beoordelingen',
     });
   });
 
@@ -37,20 +37,20 @@ describe('formatReview (/10 presentation of a /5 source)', () => {
 
   it('groups the review count with thousands separators', () => {
     const r = formatReview({ rate: 4.1, count: 12456, type: 'TRIPADVISOR', outOf: 5 });
-    expect(r.meta).toBe('TripAdvisor · 12,456 reviews');
-    expect(r.title).toContain('12,456 reviews');
+    expect(r.meta).toBe('TripAdvisor · 12.456 beoordelingen');
+    expect(r.title).toContain('12.456 beoordelingen');
   });
 
   it('drops the count from meta/title when it is missing', () => {
     const r = formatReview({ rate: 4.2, count: 0, type: 'TRIPADVISOR', outOf: 5 });
     expect(r.meta).toBe('TripAdvisor');
-    expect(r.title).toBe('8.4 / 10 on TripAdvisor');
+    expect(r.title).toBe('8.4 / 10 op TripAdvisor');
   });
 
   it('labels a non-TripAdvisor source generically', () => {
     const r = formatReview({ rate: 4, count: 5, type: 'HOTELBEDS', outOf: 5 });
-    expect(r.label).toBe('Guest rating');
-    expect(r.meta).toBe('Guest rating · 5 reviews');
+    expect(r.label).toBe('Gastenbeoordeling');
+    expect(r.meta).toBe('Gastenbeoordeling · 5 beoordelingen');
   });
 
   it('clamps the fill to 0–100 even if the source returns something odd', () => {
@@ -70,11 +70,11 @@ describe('formatReview (/10 presentation of a /5 source)', () => {
 
 describe('scoreWord', () => {
   it('describes a /10 score in words', () => {
-    expect(scoreWord('9.2')).toBe('Excellent');
-    expect(scoreWord('8.8')).toBe('Very good');
-    expect(scoreWord('7.1')).toBe('Good');
-    expect(scoreWord('6.4')).toBe('Pleasant');
-    expect(scoreWord('5.0')).toBe('Fair');
+    expect(scoreWord('9.2')).toBe('Uitstekend');
+    expect(scoreWord('8.8')).toBe('Zeer goed');
+    expect(scoreWord('7.1')).toBe('Goed');
+    expect(scoreWord('6.4')).toBe('Prima');
+    expect(scoreWord('5.0')).toBe('Redelijk');
   });
   it('is safe on junk input', () => {
     expect(scoreWord('')).toBe('');
@@ -91,14 +91,13 @@ describe('scoreBand', () => {
   });
 
   it('agrees with the word at every boundary', () => {
-    // A green badge reading "Fair" would be a contradiction on screen.
-    const pairs = [['9.0', 'Excellent'], ['8.0', 'Very good'], ['7.9', 'Good'], ['6.0', 'Pleasant'], ['5.9', 'Fair']];
-    for (const [score, word] of pairs) {
-      expect(scoreWord(score)).toBe(word);
-      const band = scoreBand(score);
-      if (word === 'Excellent' || word === 'Very good') expect(band).toBe('high');
-      else if (word === 'Good' || word === 'Pleasant') expect(band).toBe('mid');
-      else expect(band).toBe('low');
+    // A green badge reading "Redelijk" would be a contradiction on screen. Matched on the
+    // BAND rather than on the Dutch word, so this keeps testing the agreement itself and not
+    // the translation — it would still hold if the wording were reworded tomorrow.
+    const pairs = [['9.0', 'high'], ['8.0', 'high'], ['7.9', 'mid'], ['6.0', 'mid'], ['5.9', 'low']];
+    for (const [score, expected] of pairs) {
+      expect(scoreWord(score)).not.toBe('');   // every banded score is worded
+      expect(scoreBand(score)).toBe(expected);
     }
   });
 

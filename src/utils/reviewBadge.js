@@ -11,10 +11,19 @@
 //
 // Output:
 //   { score: '8.8', outOf: 10, fillPct: 88, label: 'TripAdvisor', count: 756,
-//     meta: 'TripAdvisor · 756 reviews', title: '8.8 / 10 on TripAdvisor from 756 reviews' }
+//     meta: 'TripAdvisor · 756 beoordelingen', title: '8.8 / 10 op TripAdvisor op basis van 756 beoordelingen' }
 //   or null
 
+import i18n from '../i18n';
+
 const DISPLAY_SCALE = 10;   // show ratings out of 10, not the provider's native 5
+
+/* This file has no component to hang a hook on — it is called from three pages and
+   tested on its own — so it reads the language straight off the i18n instance. The
+   values it returns are display strings only; nothing here is stored or matched on.
+
+   "TripAdvisor" is a product name and is not translated. */
+const lang = () => (i18n.language === 'nl' ? 'nl-BE' : 'en-GB');
 
 export function formatReview(review) {
   const rate = Number(review?.rate);
@@ -31,8 +40,19 @@ export function formatReview(review) {
 
   const count = Number(review?.count);
   const hasCount = Number.isFinite(count) && count > 0;
-  const label = String(review?.type).toUpperCase() === 'TRIPADVISOR' ? 'TripAdvisor' : 'Guest rating';
-  const countText = hasCount ? `${count.toLocaleString('en-GB')} reviews` : '';
+  const label = String(review?.type).toUpperCase() === 'TRIPADVISOR'
+    ? 'TripAdvisor'
+    : i18n.t('review.guestRating', 'Guest rating');
+  const countText = hasCount
+    ? i18n.t('review.reviews', {
+        count,
+        // The NUMBER is formatted by the locale too: 1,024 reviews in English is
+        // 1.024 in Dutch, and a comma there reads as a decimal point.
+        countFormatted: count.toLocaleString(lang()),
+        defaultValue_one: '{{countFormatted}} review',
+        defaultValue_other: '{{countFormatted}} reviews',
+      })
+    : '';
 
   return {
     score,                                               // "8.8" (out of 10)
@@ -41,7 +61,15 @@ export function formatReview(review) {
     label,                                               // "TripAdvisor" | "Guest rating"
     count: hasCount ? count : 0,                         // numeric review count (0 = unknown)
     meta: [label, countText].filter(Boolean).join(' · '),
-    title: `${score} / ${DISPLAY_SCALE} on ${label}${hasCount ? ` from ${countText}` : ''}`,
+    title: hasCount
+      ? i18n.t('review.titleWithCount', {
+          score, outOf: DISPLAY_SCALE, label, reviews: countText,
+          defaultValue: '{{score}} / {{outOf}} on {{label}} from {{reviews}}',
+        })
+      : i18n.t('review.title', {
+          score, outOf: DISPLAY_SCALE, label,
+          defaultValue: '{{score}} / {{outOf}} on {{label}}',
+        }),
   };
 }
 
@@ -75,11 +103,11 @@ export function scoreWord(score) {
   if (score == null || score === '') return '';
   const s = Number(score);
   if (!Number.isFinite(s)) return '';
-  if (s >= 9) return 'Excellent';
-  if (s >= 8) return 'Very good';
-  if (s >= 7) return 'Good';
-  if (s >= 6) return 'Pleasant';
-  return 'Fair';
+  if (s >= 9) return i18n.t('review.word.excellent', 'Excellent');
+  if (s >= 8) return i18n.t('review.word.veryGood', 'Very good');
+  if (s >= 7) return i18n.t('review.word.good', 'Good');
+  if (s >= 6) return i18n.t('review.word.pleasant', 'Pleasant');
+  return i18n.t('review.word.fair', 'Fair');
 }
 
 export default formatReview;

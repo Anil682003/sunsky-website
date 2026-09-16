@@ -77,7 +77,7 @@ const renderResults = () =>
   );
 
 const settled = () =>
-  waitFor(() => expect(screen.queryByText(/Searching the best deals/)).not.toBeInTheDocument());
+  waitFor(() => expect(screen.queryByText(/De beste deals zoeken/)).not.toBeInTheDocument());
 
 // Board and content-facet checkboxes carry their hotel count in the label ("All Inclusive (20)"),
 // so match on the name and let the count vary.
@@ -119,9 +119,9 @@ describe('sidebar layout', () => {
     // cancellation terms anywhere in the journey, so offering to filter by them promised a
     // distinction nothing downstream would show.
     expect(headings).toEqual([
-      'Dates & Guests', 'Where', 'Price Range', 'Transport', 'Holiday Type', 'Star Rating',
-      'Accommodation Type', 'Board Type', 'Facilities', 'Activities', 'Adults only',
-      'Room Type',
+      'Data & reizigers', 'Waarheen', 'Prijsklasse', 'Vervoer', 'Soort vakantie', 'Sterren',
+      'Soort accommodatie', 'Verzorging', 'Faciliteiten', 'Activiteiten', 'Alleen volwassenen',
+      'Soort kamer',
     ]);
   });
 
@@ -129,7 +129,7 @@ describe('sidebar layout', () => {
     renderResults();
     await settled();
     const labels = screen.getAllByRole('slider').map((s) => s.getAttribute('aria-label'));
-    expect(labels).toEqual(['Minimum price', 'Maximum price']);
+    expect(labels).toEqual(['Minimumprijs', 'Maximumprijs']);
   });
 
   it('exposes the segmented controls as accessible radio groups', async () => {
@@ -137,11 +137,11 @@ describe('sidebar layout', () => {
     await settled();
     const groups = screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label'));
     // 'Cancellation policy' is gone with its filter.
-    expect(groups).toEqual(['Price basis', 'Transport type']);
+    expect(groups).toEqual(['Prijsweergave', 'Soort vervoer']);
 
     // Exactly one option selected per group, and it reflects the default.
-    expect(screen.getByRole('radio', { name: 'Total stay' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'Per person' })).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByRole('radio', { name: 'Hele verblijf' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Per persoon' })).toHaveAttribute('aria-checked', 'false');
     // The 'Any' radio belonged to the cancellation group — it must not have survived it.
     expect(screen.queryByRole('radio', { name: 'Any' })).not.toBeInTheDocument();
   });
@@ -149,12 +149,12 @@ describe('sidebar layout', () => {
   it('shows every board option the cache reported, with its hotel count', async () => {
     renderResults();
     await settled();
-    for (const b of ['Room Only', 'Self Catering', 'Bed & Breakfast', 'Half Board',
-                     'Full Board', 'All Inclusive', 'Ultra All Inclusive']) {
+    for (const b of ['Logies', 'Zelfverzorging', 'Logies & ontbijt', 'Halfpension',
+                     'Volpension', 'All inclusive', 'Ultra all inclusive']) {
       expect(boardCheck(b)).toBeInTheDocument();
     }
     // Counts come from the response, not from a hardcoded list.
-    expect(screen.getAllByRole('checkbox', { name: 'All Inclusive (20)' })[0]).toBeInTheDocument();
+    expect(screen.getAllByRole('checkbox', { name: 'All inclusive (20)' })[0]).toBeInTheDocument();
   });
 
   it('offers no board filter when the search reports none', async () => {
@@ -210,8 +210,8 @@ describe('mobile drawer', () => {
     const panel = document.querySelector('div[class*="drawer"] [class*="drawerBody"]')
       ?? screen.getAllByRole('heading', { name: 'Filters', level: 2 })[1].closest('div').parentElement;
 
-    for (const t of ['Price Range', 'Board Type', 'Room Type']) {
-      expect(within(panel).getByText(t)).toBeInTheDocument();
+    for (const section of ['Prijsklasse', 'Verzorging', 'Soort kamer']) {
+      expect(within(panel).getByText(section)).toBeInTheDocument();
     }
     // The drawer mirrors the sidebar, so the removed filter must be absent from BOTH — a
     // drawer that kept it would be the likeliest place for it to survive unnoticed.
@@ -226,7 +226,7 @@ describe('mobile drawer', () => {
     await settled();
 
     expect(filtersBtn().textContent).not.toMatch(/\d/);
-    await user.click(boardCheck('Half Board'));
+    await user.click(boardCheck('Halfpension'));
     await waitFor(() => expect(filtersBtn().textContent).toMatch(/1/));
   });
 
@@ -252,23 +252,23 @@ describe('result card', () => {
 
     expect(within(card).getByRole('heading')).toHaveTextContent('Hotel 0');
     expect(within(card).getByText('Antalya')).toBeInTheDocument();
-    expect(within(card).getByText('All Inclusive')).toBeInTheDocument();   // board tag
-    expect(within(card).getByText('Double')).toBeInTheDocument();          // room label, not "DBL"
-    expect(within(card).getByRole('button', { name: /save to favourites/i })).toBeInTheDocument();
+    expect(within(card).getByText('All inclusive')).toBeInTheDocument();   // board tag
+    expect(within(card).getByText('Tweepersoons')).toBeInTheDocument();    // room label, not "DBL"
+    expect(within(card).getByRole('button', { name: /bewaren bij favorieten/i })).toBeInTheDocument();
     // "View Deal" is a real link (it opens the detail page in a new tab, so it must be
     // middle-clickable and copyable), not a button.
-    const deal = within(card).getByRole('link', { name: /view deal/i });
+    const deal = within(card).getByRole('link', { name: /bekijk deal/i });
     expect(deal).toHaveAttribute('href', expect.stringContaining('/hotel/200'));
-    expect(within(card).getByText('Best Value')).toBeInTheDocument();      // cheapest card
+    expect(within(card).getByText('Beste prijs')).toBeInTheDocument();     // cheapest card
     // Headline and the per-person line both use the display symbol now (€, not the ISO code)
     // — mixing "€100.00" with "EUR 33.33" on one stub read as two currencies.
     expect(card.textContent).toMatch(/€/);
     // The secondary figure is the traveller's own share, not a nightly rate nobody books.
-    expect(card.textContent).toMatch(/per person/);
+    expect(card.textContent).toMatch(/per persoon/);
     expect(card.textContent).not.toMatch(/\/ night/);
     // …and the stay is stated in DAYS, matching the Travel-time filter beside it.
-    expect(card.textContent).toMatch(/\d+ days/);
-    expect(card.textContent).not.toMatch(/\d+ nights/);
+    expect(card.textContent).toMatch(/\d+ dagen/);
+    expect(card.textContent).not.toMatch(/\d+ nachten/);
   });
 
   it('shows a human room name rather than the raw inventory code', async () => {

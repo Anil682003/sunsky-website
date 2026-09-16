@@ -5,9 +5,9 @@ import { ratingLabel, ratingValue, isKeyRating } from '../../utils/rating';
 
 describe('ratingLabel', () => {
   it('labels a hotel as stars and an apartment as keys', () => {
-    expect(ratingLabel({ kind: 'star', value: 5 })).toBe('5-star hotel');
-    expect(ratingLabel({ kind: 'key', value: 4 })).toBe('4-key apartment');
-    expect(ratingLabel({ kind: 'key', value: 1 })).toBe('1-key apartment');
+    expect(ratingLabel({ kind: 'star', value: 5 })).toBe('5-sterrenhotel');
+    expect(ratingLabel({ kind: 'key', value: 4 })).toBe('4-sleutelappartement');
+    expect(ratingLabel({ kind: 'key', value: 1 })).toBe('1-sleutelappartement');
   });
   it('is empty when unrated', () => {
     expect(ratingLabel({ kind: 'star', value: 0 })).toBe('');

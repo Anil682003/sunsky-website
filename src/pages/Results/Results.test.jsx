@@ -218,7 +218,7 @@ const lastCall = () => calls[calls.length - 1];
 const cards = () => screen.queryAllByRole('article');
 // The sidebar and the mobile drawer both render the same controls; the sidebar is first.
 // Facet-driven checkboxes (boards, holiday types, facilities…) carry their hotel count in the
-// label — "All Inclusive (4)" — while static ones (room types) do not. Accept either so a test
+// label — "All inclusive (4)" — while static ones (room types) do not. Accept either so a test
 // names the filter, not its current count.
 const sidebarCheck = (name) => {
   const exact = screen.queryAllByRole('checkbox', { name });
@@ -230,7 +230,7 @@ const sidebarRadio = (name) => screen.getAllByRole('radio', { name })[0];
 
 // Room Type ships collapsed (like the old Rate Type section did), so open it first.
 const openRoomType = async (user) => {
-  await user.click(screen.getAllByText('Room Type')[0]);
+  await user.click(screen.getAllByText('Soort kamer')[0]);
 };
 
 // jsdom cannot drag a range thumb, and userEvent refuses to click an element with
@@ -245,7 +245,7 @@ const dragSlider = (label, value) => {
 };
 
 const settled = async () => {
-  await waitFor(() => expect(screen.queryByText(/Searching the best deals/)).not.toBeInTheDocument());
+  await waitFor(() => expect(screen.queryByText(/De beste deals zoeken/)).not.toBeInTheDocument());
 };
 
 // ══════════════════════════════════════════════════════════════════════════════
@@ -256,7 +256,7 @@ describe('initial load', () => {
     await settled();
     expect(cards()).toHaveLength(20);
     // The count is split across elements (<strong>20+</strong> stays found).
-    expect(screen.getByText((_, el) => el?.textContent?.trim() === '20+ stays found')).toBeTruthy();
+    expect(screen.getByText((_, el) => el?.textContent?.trim() === '20+ verblijven gevonden')).toBeTruthy();
   });
 
   it('omits every filter param at defaults, so the cache takes its fast path', async () => {
@@ -283,14 +283,14 @@ describe('board field regression (boardCode vs board)', () => {
     internalSource = () => false;
     renderResults();
     await settled();
-    expect(within(cards()[0]).getByText('Room Only')).toBeInTheDocument();
+    expect(within(cards()[0]).getByText('Logies')).toBeInTheDocument();
   });
 
   it('reads board on internal results', async () => {
     internalSource = () => true;    // internal shape: `board`, not `boardCode`
     renderResults();
     await settled();
-    expect(within(cards()[0]).getByText('Room Only')).toBeInTheDocument();
+    expect(within(cards()[0]).getByText('Logies')).toBeInTheDocument();
   });
 });
 
@@ -301,10 +301,10 @@ describe('board filter', () => {
     await settled();
 
     // Precondition: no All-Inclusive stay appears anywhere in the RESULTS.
-    // (Scoped to the cards — "All Inclusive" is also the sidebar checkbox label.)
-    expect(cards().some((c) => within(c).queryByText('All Inclusive'))).toBe(false);
+    // (Scoped to the cards — "All inclusive" is also the sidebar checkbox label.)
+    expect(cards().some((c) => within(c).queryByText('All inclusive'))).toBe(false);
 
-    await user.click(sidebarCheck('All Inclusive'));
+    await user.click(sidebarCheck('All inclusive'));
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
     await waitFor(() => expect(cards()).toHaveLength(3));   // 90, 91, 92 carry AI
 
@@ -317,7 +317,7 @@ describe('board filter', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(sidebarCheck('All Inclusive'));
+    await user.click(sidebarCheck('All inclusive'));
     // Wait for the request FIRST, then for the render. Ticking a filter costs a 300ms debounce
     // plus a round trip; folding both into one waitFor puts them inside a single 1s budget,
     // which is enough on an idle machine and not enough under full-suite load.
@@ -336,8 +336,8 @@ describe('board filter', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(sidebarCheck('All Inclusive'));
-    await user.click(sidebarCheck('Half Board'));
+    await user.click(sidebarCheck('All inclusive'));
+    await user.click(sidebarCheck('Halfpension'));
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI,HB'));
   });
 
@@ -345,9 +345,9 @@ describe('board filter', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(sidebarCheck('All Inclusive'));
+    await user.click(sidebarCheck('All inclusive'));
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
-    await user.click(sidebarCheck('All Inclusive'));
+    await user.click(sidebarCheck('All inclusive'));
     await waitFor(() => expect(lastCall().get('boards')).toBeNull());
   });
 });
@@ -377,7 +377,7 @@ describe('room type filter', () => {
     }
     // And the real ones ARE offered.
     expect(sidebarCheck('Suite')).toBeInTheDocument();
-    expect(sidebarCheck('Junior Suite')).toBeInTheDocument();
+    expect(sidebarCheck('Junior suite')).toBeInTheDocument();
   });
 });
 
@@ -400,7 +400,7 @@ describe('cancellation', () => {
     await settled();
     expect(lastCall().get('refundable')).toBeNull();
     // …and it stays absent once another filter has re-fired the request.
-    await user.click(sidebarCheck('All Inclusive'));
+    await user.click(sidebarCheck('All inclusive'));
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
     expect(lastCall().get('refundable')).toBeNull();
   });
@@ -418,7 +418,7 @@ describe('cancellation', () => {
 describe('arrival airport ("Flying to")', () => {
   const countryScope = '?countries=TR&destinationLabel=Turkey&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1';
   // The picker lives under the departure airport, which only shows with flights included.
-  const openTransport = (user) => user.click(sidebarRadio('Incl. flight'));
+  const openTransport = (user) => user.click(sidebarRadio('Incl. vlucht'));
 
   it('names each airport by the CITY it serves, not its official name', async () => {
     const user = userEvent.setup();
@@ -428,7 +428,7 @@ describe('arrival airport ("Flying to")', () => {
 
     // Dalaman serves two cities; "Marmaris, Fethiye" tells a traveller where they land.
     expect(await screen.findByRole('radio', { name: /Marmaris, Fethiye/ })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Any airport/ })).toBeInTheDocument();
+    expect(screen.getByRole('radio', { name: /Elke luchthaven/ })).toBeInTheDocument();
   });
 
   it('narrows the priced destinations to the ones that airport serves', async () => {
@@ -453,7 +453,7 @@ describe('arrival airport ("Flying to")', () => {
     await user.click(await screen.findByRole('radio', { name: /Marmaris, Fethiye/ }));
     await waitFor(() => expect(lastCall().get('destinations')).toContain('DLM'));
 
-    await user.click(screen.getByRole('radio', { name: /Any airport/ }));
+    await user.click(screen.getByRole('radio', { name: /Elke luchthaven/ }));
     await waitFor(() => {
       const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean);
       expect(dests).not.toEqual(['DLM', 'FET']);
@@ -482,7 +482,7 @@ describe('arrival airport ("Flying to")', () => {
     await settled();
     await openTransport(user);
     // An empty control is worse than none: it implies the search can be narrowed when it can't.
-    await waitFor(() => expect(screen.queryByRole('radio', { name: /Any airport/ })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('radio', { name: /Elke luchthaven/ })).not.toBeInTheDocument());
   });
 });
 
@@ -491,7 +491,7 @@ describe('sort', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'price_desc');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Resultaten sorteren' }), 'price_desc');
     await waitFor(() => expect(lastCall().get('sortBy')).toBe('price_desc'));
     await waitFor(() => expect(within(cards()[0]).getByText('Resort Delta')).toBeInTheDocument());
   });
@@ -500,7 +500,7 @@ describe('sort', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'name_asc');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Resultaten sorteren' }), 'name_asc');
     // Name/star sorts are client-side (the cache orders by price), so no sortBy is sent — the
     // loaded cards just re-order. "Cheap Hotel 1" is alphabetically first.
     await waitFor(() => expect(within(cards()[0]).getByText('Cheap Hotel 1')).toBeInTheDocument());
@@ -513,8 +513,8 @@ describe('multiple filters together', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(sidebarCheck('All Inclusive'));   // boards=AI
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'price_desc');
+    await user.click(sidebarCheck('All inclusive'));   // boards=AI
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Resultaten sorteren' }), 'price_desc');
     await waitFor(() => {
       const q = lastCall();
       expect(q.get('boards')).toBe('AI');
@@ -526,7 +526,7 @@ describe('multiple filters together', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'price_desc');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Resultaten sorteren' }), 'price_desc');
     await waitFor(() => expect(lastCall().get('sortBy')).toBe('price_desc'));
     await waitFor(() => expect(within(cards()[0]).getByText('Resort Delta')).toBeInTheDocument());
     // The badge must NOT land on the first (most expensive) card.
@@ -543,8 +543,8 @@ describe('price range', () => {
 
     // Explicitly park the max at the ceiling: it must STILL be omitted, otherwise
     // the cap would silently exclude the pricier hotels on pages 2+.
-    const max = slider('Maximum price');
-    dragSlider('Maximum price', max.max);
+    const max = slider('Maximumprijs');
+    dragSlider('Maximumprijs', max.max);
     await new Promise((r) => setTimeout(r, 400));
     expect(lastCall().get('maxPrice')).toBeNull();
   });
@@ -552,7 +552,7 @@ describe('price range', () => {
   it('sends minPrice and filters the results', async () => {
     renderResults();
     await settled();
-    dragSlider('Minimum price', 200);
+    dragSlider('Minimumprijs', 200);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
     await waitFor(() => {
       // The headline is the PER-PERSON fare (2 adults); the minPrice bound is on the total.
@@ -566,7 +566,7 @@ describe('price range', () => {
   it('sends maxPrice below the ceiling and filters the results', async () => {
     renderResults();
     await settled();
-    dragSlider('Maximum price', 150);
+    dragSlider('Maximumprijs', 150);
     await waitFor(() => expect(lastCall().get('maxPrice')).toBe('150'));
     await waitFor(() => {
       // Headline price renders as "€1,234.56" (symbol) — older cards said "EUR1234.56".
@@ -578,15 +578,15 @@ describe('price range', () => {
   it('never lets the min handle cross the max', async () => {
     renderResults();
     await settled();
-    const ceil = Number(slider('Maximum price').max);
+    const ceil = Number(slider('Maximumprijs').max);
 
-    dragSlider('Maximum price', ceil - 100);
+    dragSlider('Maximumprijs', ceil - 100);
     await waitFor(() => expect(lastCall().get('maxPrice')).toBe(String(ceil - 100)));
 
     // Slam the min handle way past the max.
-    dragSlider('Minimum price', ceil * 5);
+    dragSlider('Minimumprijs', ceil * 5);
     await waitFor(() => {
-      expect(Number(slider('Minimum price').value)).toBeLessThan(Number(slider('Maximum price').value));
+      expect(Number(slider('Minimumprijs').value)).toBeLessThan(Number(slider('Maximumprijs').value));
     });
     // And the request must never carry an impossible min > max window.
     await new Promise((r) => setTimeout(r, 400));
@@ -598,25 +598,25 @@ describe('price range', () => {
   it('never lets the max handle cross the min', async () => {
     renderResults();
     await settled();
-    const ceil = Number(slider('Maximum price').max);
+    const ceil = Number(slider('Maximumprijs').max);
 
-    dragSlider('Minimum price', ceil - 100);
+    dragSlider('Minimumprijs', ceil - 100);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe(String(ceil - 100)));
 
-    dragSlider('Maximum price', 0);
+    dragSlider('Maximumprijs', 0);
     await waitFor(() => {
-      expect(Number(slider('Maximum price').value)).toBeGreaterThan(Number(slider('Minimum price').value));
+      expect(Number(slider('Maximumprijs').value)).toBeGreaterThan(Number(slider('Minimumprijs').value));
     });
   });
 
   it('clamps a max dragged past the ceiling and treats it as unbounded', async () => {
     renderResults();
     await settled();
-    const ceil = Number(slider('Maximum price').max);
+    const ceil = Number(slider('Maximumprijs').max);
 
-    dragSlider('Maximum price', ceil * 10);
+    dragSlider('Maximumprijs', ceil * 10);
     await new Promise((r) => setTimeout(r, 400));
-    expect(Number(slider('Maximum price').value)).toBe(ceil);
+    expect(Number(slider('Maximumprijs').value)).toBe(ceil);
     expect(lastCall().get('maxPrice')).toBeNull();
   });
 
@@ -625,7 +625,7 @@ describe('price range', () => {
     await settled();
     // Page 1 tops out at 250 (cheap hotels 60..250 in 10s), so the track must end there,
     // not at some arbitrary constant that squashes the useful range into a corner.
-    expect(Number(slider('Maximum price').max)).toBe(250);
+    expect(Number(slider('Maximumprijs').max)).toBe(250);
   });
 });
 
@@ -635,10 +635,10 @@ describe('price basis', () => {
     renderResults();
     await settled();
 
-    dragSlider('Minimum price', 200);
+    dragSlider('Minimumprijs', 200);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
 
-    await user.click(sidebarRadio('Per person'));
+    await user.click(sidebarRadio('Per persoon'));
     await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
     // Bounds must not carry across scales — €200 total is not €200 per person.
     expect(lastCall().get('minPrice')).toBeNull();
@@ -649,14 +649,14 @@ describe('price basis', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    const totalCeiling = Number(slider('Maximum price').max);
+    const totalCeiling = Number(slider('Maximumprijs').max);
 
-    await user.click(sidebarRadio('Per person'));
+    await user.click(sidebarRadio('Per persoon'));
     await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
 
     // 2 adults -> per-person prices are half the total, so the ceiling must come down.
     await waitFor(() => {
-      expect(Number(slider('Maximum price').max)).toBeLessThan(totalCeiling);
+      expect(Number(slider('Maximumprijs').max)).toBeLessThan(totalCeiling);
     });
   });
 });
@@ -675,9 +675,9 @@ describe('debounce + request ordering', () => {
     // awaits between clicks. On a loaded machine those awaits can themselves outlast the
     // window, so the three toggles stop being a burst and the test fails on the clock rather
     // than on the debounce. Firing them synchronously makes "a burst" true by construction.
-    fireEvent.click(sidebarCheck('All Inclusive'));
-    fireEvent.click(sidebarCheck('Half Board'));
-    fireEvent.click(sidebarCheck('Ultra All Inclusive'));
+    fireEvent.click(sidebarCheck('All inclusive'));
+    fireEvent.click(sidebarCheck('Halfpension'));
+    fireEvent.click(sidebarCheck('Ultra all inclusive'));
 
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI,HB,UAI'));
     await new Promise((r) => setTimeout(r, 400));
@@ -694,9 +694,9 @@ describe('debounce + request ordering', () => {
     renderResults();
     await settled();
 
-    await user.click(sidebarCheck('All Inclusive'));      // slow, in flight
+    await user.click(sidebarCheck('All inclusive'));      // slow, in flight
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
-    await user.click(sidebarCheck('All Inclusive'));      // untick -> fast, supersedes
+    await user.click(sidebarCheck('All inclusive'));      // untick -> fast, supersedes
     await waitFor(() => expect(lastCall().get('boards')).toBeNull());
 
     await new Promise((r) => setTimeout(r, 700));         // let the stale one land
@@ -718,7 +718,7 @@ describe('infinite scroll', () => {
     // `boards=AI` matches only four hotels in the mock, so hasMore goes false and there is no
     // page 2 left to assert on — the test then fails for the opposite reason to the one it is
     // guarding. priceBasis is echoed in the query but filters nothing.
-    await user.click(sidebarRadio('Per person'));
+    await user.click(sidebarRadio('Per persoon'));
     await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
     await waitFor(() => expect(cards().length).toBeGreaterThan(0));
 
@@ -763,11 +763,11 @@ describe('clear all + empty state', () => {
     renderResults();
     await settled();
 
-    await user.click(sidebarCheck('All Inclusive'));
-    await user.click(sidebarCheck('Half Board'));
+    await user.click(sidebarCheck('All inclusive'));
+    await user.click(sidebarCheck('Halfpension'));
     await waitFor(() => expect(screen.getAllByText('2')[0]).toBeInTheDocument());
 
-    await user.click(screen.getAllByRole('button', { name: /clear all/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: /alles wissen/i })[0]);
     await waitFor(() => {
       expect(lastCall().get('boards')).toBeNull();
       expect(lastCall().get('refundable')).toBeNull();
@@ -781,13 +781,13 @@ describe('clear all + empty state', () => {
     await settled();
 
     // No hotel has a UAI rate in a Suite.
-    await user.click(sidebarCheck('Ultra All Inclusive'));
+    await user.click(sidebarCheck('Ultra all inclusive'));
     await openRoomType(user);
     await user.click(sidebarCheck('Suite'));
-    await waitFor(() => expect(screen.getByText('No results found')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Geen resultaten gevonden')).toBeInTheDocument());
 
-    expect(screen.getByText(/No stays match your filters/)).toBeInTheDocument();
-    const escape = screen.getByRole('button', { name: /clear all filters/i });
+    expect(screen.getByText(/Geen verblijven passen bij je filters/)).toBeInTheDocument();
+    const escape = screen.getByRole('button', { name: /alle filters wissen/i });
     await user.click(escape);
     await waitFor(() => expect(cards()).toHaveLength(20));
   });
@@ -799,12 +799,12 @@ describe('search change', () => {
     renderResults();
     await settled();
 
-    dragSlider('Minimum price', 200);
+    dragSlider('Minimumprijs', 200);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
 
     // Add a guest and re-search: a price bound from the old occupancy is meaningless.
     await user.click(screen.getAllByRole('button', { name: '+' })[0]);
-    await user.click(screen.getAllByRole('button', { name: /update search/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]);
 
     await waitFor(() => expect(lastCall().get('adults')).toBe('3'));
     expect(lastCall().get('minPrice')).toBeNull();
@@ -819,10 +819,10 @@ describe('search change', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(sidebarCheck('All Inclusive'));
+    await user.click(sidebarCheck('All inclusive'));
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
 
-    await user.click(screen.getAllByRole('button', { name: /update search/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]);
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
   });
 });
@@ -831,7 +831,7 @@ describe('resilience', () => {
   it('renders an empty state instead of crashing when the API fails', async () => {
     globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) }));
     renderResults();
-    await waitFor(() => expect(screen.getByText('No results found')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Geen resultaten gevonden')).toBeInTheDocument());
   });
 
   // An empty search used to dead-end on "Select a destination". It now lands on a curated set
@@ -843,7 +843,7 @@ describe('resilience', () => {
     await waitFor(() => expect(calls.length).toBeGreaterThan(0));
     expect(lastCall().get('destinations').split(',')).toEqual(
       ['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
-    expect(screen.getAllByText('Popular destinations').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('Populaire bestemmingen').length).toBeGreaterThan(0);
     expect(cards().length).toBeGreaterThan(0);
   });
 
@@ -880,8 +880,8 @@ describe('content-facet payload opt-ins', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(screen.getAllByText('Adults only')[0]);   // section ships collapsed
-    await user.click(sidebarCheck('Adults-only hotels'));
+    await user.click(screen.getAllByText('Alleen volwassenen')[0]);   // section ships collapsed
+    await user.click(sidebarCheck('Hotels alleen voor volwassenen'));
     await waitFor(() => expect(lastFacetCall().opts.codes).toBe(true));
     expect(lastFacetCall().filters.adultsOnly).toBe(true);
   });
@@ -900,7 +900,7 @@ describe('content-facet payload opt-ins', () => {
     renderResults();
     await settled();
     expect(lastFacetCall().opts.attrs).toBe(false);
-    await user.selectOptions(screen.getByRole('combobox', { name: 'Sort results' }), 'distance_beach');
+    await user.selectOptions(screen.getByRole('combobox', { name: 'Resultaten sorteren' }), 'distance_beach');
     await waitFor(() => expect(lastFacetCall().opts.attrs).toBe(true));
   });
 });
@@ -940,8 +940,8 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     expect(stars).toEqual([5]);
     // A string "5" would still filter — and leave the box below unticked.
     expect(stars.map((s) => typeof s)).toEqual(['number']);
-    expect(sidebarCheck('★★★★★ 5-star')).toBeChecked();
-    expect(sidebarCheck('★★★★ 4-star')).not.toBeChecked();
+    expect(sidebarCheck('★★★★★ 5 sterren')).toBeChecked();
+    expect(sidebarCheck('★★★★ 4 sterren')).not.toBeChecked();
   });
 
   it('drops a star value no facet row could ever show', async () => {
@@ -959,9 +959,9 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     expect(lastFacetCall().filters.facilities).toEqual([574]);
     expect(lastFacetCall().filters.accommodation).toEqual([2]);
 
-    await openSection(user, 'Facilities');
+    await openSection(user, 'Faciliteiten');
     expect(sidebarCheck('Private beach area')).toBeChecked();
-    await openSection(user, 'Accommodation Type');
+    await openSection(user, 'Soort accommodatie');
     expect(sidebarCheck('Apartment')).toBeChecked();
   });
 
@@ -976,7 +976,7 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     facetLists = SEED_FACETS;
     renderResults(seeded('activities=74:620'));
     await settled();
-    await openSection(user, 'Activities');
+    await openSection(user, 'Activiteiten');
     expect(sidebarCheck('Spa centre')).toBeChecked();
     expect(sidebarCheck('Golf')).not.toBeChecked();
     // Waterpark shares code 620 with Spa centre. Identity that ignored the group would tick this
@@ -989,7 +989,7 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     facetLists = SEED_FACETS;
     renderResults(seeded('activities=74:620'));
     await settled();
-    await openSection(user, 'Activities');
+    await openSection(user, 'Activiteiten');
 
     // Code-only identity would treat this as "already on" and REMOVE the spa filter the traveller
     // arrived with, from a box they had not ticked.
@@ -1008,7 +1008,7 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     renderResults();
     await settled();
 
-    await openSection(user, 'Activities');
+    await openSection(user, 'Activiteiten');
     await user.click(sidebarCheck('Golf'));
     // Bare 390 would also match group 73/74; the count beside the box is group 90 only.
     await waitFor(() => expect(lastFacetCall().filters.activities).toEqual(['90:390']));
@@ -1024,7 +1024,7 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     await settled();
 
     expect(lastFacetCall().filters.maxBeach).toBe(500);
-    await openSection(user, 'Distance');
+    await openSection(user, 'Afstand');
     expect(sidebarCheck('≤ 500 m')).toBeChecked();
   });
 
@@ -1045,7 +1045,7 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     expect(screen.getByText('5-star')).toBeInTheDocument();
     expect(screen.getByText('Private beach')).toBeInTheDocument();
 
-    await user.click(screen.getByRole('button', { name: /remove these filters/i }));
+    await user.click(screen.getByRole('button', { name: /deze filters verwijderen/i }));
     await waitFor(() => expect(lastFacetCall().filters.stars).toEqual([]));
     expect(lastFacetCall().filters.facilities).toEqual([]);
     expect(screen.queryByText('Barefoot Luxury')).not.toBeInTheDocument();
@@ -1065,14 +1065,14 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     await settled();
 
     expect(screen.getByText('Five Star')).toBeInTheDocument();
-    await user.click(screen.getAllByRole('button', { name: /clear all/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: /alles wissen/i })[0]);
     await waitFor(() => expect(screen.queryByText('Five Star')).not.toBeInTheDocument());
   });
 
   it('leaves the results untouched when the URL carries no filters', async () => {
     renderResults();
     await settled();
-    expect(screen.queryByRole('button', { name: /remove these filters/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /deze filters verwijderen/i })).not.toBeInTheDocument();
     expect(lastCall().get('boards')).toBeNull();
   });
 });

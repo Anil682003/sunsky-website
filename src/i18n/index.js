@@ -4,9 +4,11 @@ import { initReactI18next } from 'react-i18next';
 import nlCommon from './locales/nl/common.json';
 import nlFaq from './locales/nl/faq.json';
 import nlHome from './locales/nl/home.json';
+import nlResults from './locales/nl/results.json';
 import enCommon from './locales/en/common.json';
 import enFaq from './locales/en/faq.json';
 import enHome from './locales/en/home.json';
+import enResults from './locales/en/results.json';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Site language.
@@ -74,8 +76,8 @@ function storeLanguage(lng) {
    translation that arrives after the first paint flashes the other language at
    the reader. Revisit if a third language makes splitting worth it. */
 const resources = {
-  nl: { common: nlCommon, faq: nlFaq, home: nlHome },
-  en: { common: enCommon, faq: enFaq, home: enHome },
+  nl: { common: nlCommon, faq: nlFaq, home: nlHome, results: nlResults },
+  en: { common: enCommon, faq: enFaq, home: enHome, results: enResults },
 };
 
 i18n.use(initReactI18next).init({
@@ -86,7 +88,7 @@ i18n.use(initReactI18next).init({
   fallbackLng: DEFAULT_LANGUAGE,
   supportedLngs: SUPPORTED_LANGUAGES,
   defaultNS: 'common',
-  ns: ['common', 'faq', 'home'],
+  ns: ['common', 'faq', 'home', 'results'],
 
   interpolation: {
     // React escapes everything it renders; escaping again turns an apostrophe

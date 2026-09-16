@@ -110,5 +110,69 @@
     "apply_one": "Toepassen · {{count}} bestemming",
     "apply_other": "Toepassen · {{count}} bestemmingen",
     "noPlaces": "Nog geen regio’s of steden vermeld. We zoeken dan in het hele land."
+  },
+  "review": {
+    "guestRating": "Gastenbeoordeling",
+    "reviews_one": "{{countFormatted}} beoordeling",
+    "reviews_other": "{{countFormatted}} beoordelingen",
+    "title": "{{score}} / {{outOf}} op {{label}}",
+    "titleWithCount": "{{score}} / {{outOf}} op {{label}} op basis van {{reviews}}",
+    "word": {
+      "excellent": "Uitstekend",
+      "veryGood": "Zeer goed",
+      "good": "Goed",
+      "pleasant": "Prima",
+      "fair": "Redelijk"
+    }
+  },
+  "rating": {
+    "starHotel": "{{count}}-sterrenhotel",
+    "keyApartment": "{{count}}-sleutelappartement"
+  },
+  "facility": {
+    "pool": "Zwembad",
+    "wifi": "Gratis wifi",
+    "spa": "Spa & wellness",
+    "gym": "Fitness",
+    "restaurant": "Restaurant",
+    "bar": "Bar",
+    "beach": "Aan het strand",
+    "parking": "Parkeren",
+    "shuttle": "Luchthaventransfer",
+    "ac": "Airconditioning",
+    "kids": "Gezinsvriendelijk",
+    "room-service": "Roomservice",
+    "reception": "Receptie 24 u",
+    "terrace": "Terras",
+    "pets": "Huisdieren toegestaan",
+    "accessible": "Rolstoeltoegankelijk"
+  },
+  "scopePicker": {
+    "unavailable": "Bestemmingsfilter niet beschikbaar.",
+    "loadingCountries": "Landen laden…",
+    "loadingCities": "Steden laden…",
+    "loadingAreas": "Gebieden laden…",
+    "loading": "Laden",
+    "selected": "Gekozen",
+    "clearAll": "Alles wissen",
+    "remove": "{{name}} verwijderen",
+    "countries": "Landen",
+    "cities": "Steden",
+    "areas": "Gebieden",
+    "anyCountry": "Elk land",
+    "countSelected": "{{count}} gekozen",
+    "countryFirst": "Kies eerst een land",
+    "cityFirst": "Kies eerst een stad",
+    "allCities": "Alle {{count}} steden",
+    "allAreas": "Alle {{count}} gebieden",
+    "noneAvailable": "Geen beschikbaar",
+    "noCountryMatch": "Geen land komt daarmee overeen.",
+    "noCityMatch": "Geen stad komt daarmee overeen.",
+    "noAreas": "Geen gebieden beschikbaar voor deze steden.",
+    "clear": "Wissen",
+    "selectAll": "Alles selecteren",
+    "chooseDestination": "Kies een bestemming",
+    "search_one": "Zoek {{count}} bestemming",
+    "search_other": "Zoek {{count}} bestemmingen"
   }
 }

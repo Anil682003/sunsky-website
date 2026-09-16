@@ -1,5 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackageFares } from '../../api/filters';
@@ -79,7 +81,7 @@ const BOARD_LABELS = {
   CE: 'Dinner Included',      CO: 'Lunch Included',
   AI: 'All Inclusive',        AS: 'All Inclusive Premium', TL: 'All Inclusive Soft',
   UAI: 'Ultra All Inclusive', TI: 'All Inclusive+',       DO: 'Dinner & B&B',
-};
+};   // the English above is the FALLBACK; results:board.<code> is what shows
 const ROOM_LABELS = {
   DBL: 'Double',       DBT: 'Double / Twin', TWN: 'Twin',      SGL: 'Single',
   TPL: 'Triple',       QUA: 'Quad',          FAM: 'Family',    SUI: 'Suite',
@@ -92,7 +94,7 @@ const ROOM_LABELS = {
 const ROOM_FILTERS = ['DBL', 'DBT', 'TWN', 'TPL', 'FAM', 'SUI', 'JSU', 'STU', 'APT', 'BUN', 'ROO'];
 
 const SORT_OPTIONS = [
-  { value: 'price_asc',  label: 'Price: Low to High' },
+  { value: 'price_asc',  label: 'Price: Low to High' },   // labels below are t() fallbacks
   { value: 'price_desc', label: 'Price: High to Low' },
   // Name + star sorts. Applied CLIENT-SIDE over the loaded results (the price cache orders by
   // price, not name/stars); they reorder what's loaded and re-settle as more pages come in.
@@ -120,7 +122,8 @@ const TRANSPORT_OPTIONS = [
 ];
 // Short label for a flight's Sunsky priority class (§23) on the package card.
 const FLIGHT_CLASS_LABEL = { direct: 'direct', one_stop: '1 stop', two_stop: '2 stops' };
-const flightClassLabel = (c) => FLIGHT_CLASS_LABEL[c] || '';
+const flightClassLabel = (c) =>
+  (c && FLIGHT_CLASS_LABEL[c] ? i18n.t(`results:flightClass.${c}`, FLIGHT_CLASS_LABEL[c]) : '');
 const PRICE_BASIS_OPTIONS = [
   { value: 'total',     label: 'Total stay' },
   { value: 'perPerson', label: 'Per person' },
@@ -150,12 +153,19 @@ const EMPTY_FILTERS = {
   arrival: '',
 };
 
-const MONTHS = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+const MONTHS_EN = 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec';
+const months = () => i18n.t('results:months', MONTHS_EN).split(',');
 // Display symbol for the headline price only — fine print keeps the ISO code.
 const CCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', TRY: '₺' };
 
-const getBoardLabel = (code) => BOARD_LABELS[code] || code || '';
-const getRoomLabel  = (code) => ROOM_LABELS[code]  || code || '';
+/* A supplier code turned into words. The CODE stays the stored value — it is what
+   the cache is asked for and what the filter checkbox is keyed on — so only the
+   word is translated, and an unknown code still falls back to itself rather than
+   leaking a missing-key string. */
+const getBoardLabel = (code) =>
+  (code && BOARD_LABELS[code] ? i18n.t(`results:board.${code}`, BOARD_LABELS[code]) : code || '');
+const getRoomLabel = (code) =>
+  (code && ROOM_LABELS[code] ? i18n.t(`results:room.${code}`, ROOM_LABELS[code]) : code || '');
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
 const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
 
@@ -183,7 +193,7 @@ const hasContentFacet = (f) =>
 const fmtDate = (iso) => {
   if (!iso) return '';
   const [, m, d] = iso.split('-');
-  return `${parseInt(d)} ${MONTHS[parseInt(m) - 1]}`;
+  return `${parseInt(d)} ${months()[parseInt(m) - 1]}`;
 };
 
 const csv = (s) => (s ? String(s).split(',').map((x) => x.trim()).filter(Boolean) : []);
@@ -282,6 +292,7 @@ function FilterCheck({ label, checked, onChange }) {
 // scroll. Any currently-CHECKED row beyond the cap is pulled into the visible set, so a picked
 // filter never hides itself.
 function FacetList({ items, limit = 6, isChecked, render }) {
+  const { t } = useTranslation('results');
   const [expanded, setExpanded] = useState(false);
   let shown = items;
   if (!expanded && items.length > limit) {
@@ -294,7 +305,9 @@ function FacetList({ items, limit = 6, isChecked, render }) {
       {shown.map(render)}
       {items.length > limit && (
         <button type="button" className={styles.facetMore} onClick={() => setExpanded((e) => !e)}>
-          {expanded ? 'Show less' : `Show all ${items.length}`}
+          {expanded
+            ? t('filters.showLess', 'Show less')
+            : t('filters.showAll', { count: items.length, defaultValue: 'Show all {{count}}' })}
           <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" style={{ transform: expanded ? 'rotate(180deg)' : 'none' }}>
             <path d="M6 9l6 6 6-6" />
           </svg>
@@ -338,6 +351,18 @@ function OriginOption({ airport, checked, onPick }) {
 }
 
 export default function Results() {
+  const { t, i18n: i18nInstance } = useTranslation('results');
+  // Thousands separators follow the reader: 12,456 in English is 12.456 in Dutch,
+  // and a comma there reads as a decimal point.
+  const numberLocale = i18nInstance.language === 'nl' ? 'nl-BE' : 'en-GB';
+  // Used in three places each, and both take a number, so they are worth naming.
+  // Memoised on t: a fresh arrow every render would bust the memos that use them,
+  // and t only changes identity when the language does.
+  const daysLabel = useCallback((d) => t('filters.days', { count: d, defaultValue: '{{count}} days' }), [t]);
+  const starLabel = useCallback((n) => t('filters.stars', { count: n, defaultValue: '{{count}}-star' }), [t]);
+  // The option lists are module constants, so their labels resolve here.
+  const priceBasisOptions = PRICE_BASIS_OPTIONS.map((o) => ({ ...o, label: t(`priceBasis.${o.value}`, o.label) }));
+  const transportOptions = TRANSPORT_OPTIONS.map((o) => ({ ...o, label: t(`transport.${o.value}`, o.label) }));
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
@@ -1047,7 +1072,7 @@ export default function Results() {
   // places (utils/scopeLeaves). Names come from the cascade lists, falling back to the raw
   // code while they load, since a code still beats a blank hero.
   const scopeLabel = useMemo(() => {
-    if (usingDefaultScope) return 'Popular destinations';
+    if (usingDefaultScope) return t('hero.popularDestinations', 'Popular destinations');
     if (urlLabel) return urlLabel;
     const countryName = countryOptions.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
     const cityName = scopeCities.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
@@ -1060,8 +1085,8 @@ export default function Results() {
     ];
     if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0];
-    return `${parts.length} places`;
-  }, [usingDefaultScope, urlLabel, scope, countryOptions, scopeCities, scopeZones]);
+    return t('hero.places', { count: parts.length, defaultValue: '{{count}} places' });
+  }, [usingDefaultScope, urlLabel, scope, countryOptions, scopeCities, scopeZones, t]);
 
   // "A different search" (vs. a different filter): scope or head-counts/dates changed.
   const searchKey = `${scopeKey}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${fetchParams.childAges ?? childAges}`;
@@ -1338,7 +1363,7 @@ export default function Results() {
   };
 
   const toggleLike = (hotelCode, snapshot) => {
-    if (!isAuth) { showToast('Sign in to save favourites', 'info'); navigate('/login'); return; }
+    if (!isAuth) { showToast(t('toast.signInFavourites', 'Sign in to save favourites'), 'info'); navigate('/login'); return; }
     const wasLiked = !!liked[hotelCode];
     setLiked((prev) => ({ ...prev, [hotelCode]: !wasLiked }));   // optimistic
     // Capture the hotel's destination code (carried on the snapshot) so the Favourites
@@ -1346,10 +1371,15 @@ export default function Results() {
     if (!wasLiked && snapshot.destinationCode) rememberDestCode(hotelCode, snapshot.destinationCode);
     const req = wasLiked ? removeFavourite(hotelCode) : addFavourite(snapshot);
     req
-      .then(() => showToast(wasLiked ? 'Removed from favourites' : 'Added to favourites', 'success'))
+      .then(() => showToast(
+        wasLiked
+          ? t('toast.removedFavourite', 'Removed from favourites')
+          : t('toast.addedFavourite', 'Added to favourites'),
+        'success'
+      ))
       .catch(() => {
         setLiked((prev) => ({ ...prev, [hotelCode]: wasLiked }));
-        showToast('Couldn’t update favourites. Please try again.', 'error');
+        showToast(t('toast.favouriteFailed', 'Couldn’t update favourites. Please try again.'), 'error');
       });
   };
 
@@ -1413,13 +1443,13 @@ export default function Results() {
       const v = seeded[k];
       switch (k) {
         case 'boards':        return v.map(getBoardLabel);
-        case 'stars':         return v.map((n) => `${'★'.repeat(n)} ${n}-star`);
+        case 'stars':         return v.map((n) => `${'★'.repeat(n)} ${starLabel(n)}`);
         case 'themes':        return v.map((id) => facets.holiday.find((h) => h.id === id)?.name);
         case 'facilities':    return v.map((c) => named(facets.facilities, c));
         case 'accommodation': return v.map((c) => cap(named(facets.accommodation, c)));
         case 'kids':          return v.map((c) => named(facets.kids, c));
         case 'activities':    return v.map((a) => facets.activities.find((x) => actMatches(a, x))?.name);
-        case 'adultsOnly':    return ['Adults only'];
+        case 'adultsOnly':    return [t('filters.adultsOnly', 'Adults only')];
         case 'maxBeach':      return [`Beach ${metresLabel(v)}`];
         case 'maxCentre':     return [`Centre ${metresLabel(v)}`];
         default:              return [];
@@ -1427,7 +1457,7 @@ export default function Results() {
     }).filter(Boolean);
     const title = params.get('cardLabel') || params.get('boardLabel') || '';
     return title || labels.length ? { title, labels } : null;
-  }, [seededKeys, seeded, params, facets]);
+  }, [seededKeys, seeded, params, facets, t, starLabel]);
   // The summary must never claim a filter that is no longer on, so it disappears as soon as one
   // of the card's values is unticked — including via Clear all.
   const cardApplied = !!cardSummary && seededKeys.every((k) => (
@@ -1522,7 +1552,20 @@ export default function Results() {
     navigate({ search: qp.toString() });
   };
 
-  const guestSummary = `${fetchParams.adults} Adult${fetchParams.adults !== '1' ? 's' : ''}${fetchParams.children !== '0' ? `, ${fetchParams.children} Child${fetchParams.children !== '1' ? 'ren' : ''}` : ''}`;
+  const guestSummary = [
+    t('guests.adults', {
+      count: Number(fetchParams.adults),
+      defaultValue_one: '{{count}} Adult',
+      defaultValue_other: '{{count}} Adults',
+    }),
+    fetchParams.children !== '0'
+      ? t('guests.children', {
+          count: Number(fetchParams.children),
+          defaultValue_one: '{{count}} Child',
+          defaultValue_other: '{{count}} Children',
+        })
+      : '',
+  ].filter(Boolean).join(', ');
 
   const heroChips = [];
   if (fetchParams.checkIn && fetchParams.checkOut) {
@@ -1531,36 +1574,36 @@ export default function Results() {
   // DAYS, not nights, everywhere on this screen. The Travel-time filter beside it already
   // counts in days ("7 days (122)"), so a "6 nights" chip next to a ticked "7 days" row
   // described the same stay with two different numbers.
-  if (nights > 0) heroChips.push({ icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z', text: `${nightsToDays(nights)} days` });
+  if (nights > 0) heroChips.push({ icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z', text: daysLabel(nightsToDays(nights)) });
   heroChips.push({ icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75', text: guestSummary });
   // Transport rides in the header only when it changes what the traveller will be shown —
   // "own transport" is the default and adds nothing worth a chip.
   if (filters.transport === 'package') {
-    heroChips.push({ icon: 'M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-1 .1-1.1.6l-.1.5c-.1.4.1.9.5 1.1L9 11l-4 4H2l-1 2 4 1 1 4 2-1v-3l4-4 2.7 4.8c.2.4.7.6 1.1.5l.5-.1c.5-.1.7-.6.6-1.1z', text: `Incl. flight · from ${airportCity(filters.origin)}` });
+    heroChips.push({ icon: 'M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-1 .1-1.1.6l-.1.5c-.1.4.1.9.5 1.1L9 11l-4 4H2l-1 2 4 1 1 4 2-1v-3l4-4 2.7 4.8c.2.4.7.6 1.1.5l.5-.1c.5-.1.7-.6.6-1.1z', text: t('hero.inclFlightFrom', { city: airportCity(filters.origin), defaultValue: 'Incl. flight · from {{city}}' }) });
   }
 
   const sidebar = (
     <>
       {/* Dates & Guests — re-calls API */}
-      <FilterSection title="Dates & Guests" defaultOpen>
+      <FilterSection title={t('filters.datesGuests', 'Dates & Guests')} defaultOpen>
         <div className={styles.dateGroup}>
-          <label className={styles.dateLabel}>Check-in</label>
+          <label className={styles.dateLabel}>{t('filters.checkIn', 'Check-in')}</label>
           <input type="date" className={styles.dateInput} value={localCheckIn} min={earliestCheckInISO()} onChange={(e) => setLocalCheckIn(e.target.value)} />
         </div>
         <div className={styles.dateGroup}>
-          <label className={styles.dateLabel}>Check-out</label>
+          <label className={styles.dateLabel}>{t('filters.checkOut', 'Check-out')}</label>
           <input type="date" className={styles.dateInput} value={localCheckOut} min={localCheckIn || earliestCheckInISO()} onChange={(e) => setLocalCheckOut(e.target.value)} />
         </div>
         {roomsConfig.map((room, i) => (
           <div key={i} className={styles.roomBlock}>
             <div className={styles.roomHead}>
-              <span className={styles.roomTitle}>Room {i + 1}</span>
+              <span className={styles.roomTitle}>{t('filters.room', { number: i + 1, defaultValue: 'Room {{number}}' })}</span>
               {roomsConfig.length > 1 && (
-                <button type="button" className={styles.roomRemove} onClick={() => removeRoom(i)}>Remove</button>
+                <button type="button" className={styles.roomRemove} onClick={() => removeRoom(i)}>{t('filters.removeRoom', 'Remove')}</button>
               )}
             </div>
             <div className={styles.guestRow}>
-              <span className={styles.guestLabel}>Adults</span>
+              <span className={styles.guestLabel}>{t('filters.adults', 'Adults')}</span>
               <div className={styles.guestCounter}>
                 <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, -1)}>−</button>
                 <span className={styles.guestNum}>{room.adults}</span>
@@ -1568,7 +1611,7 @@ export default function Results() {
               </div>
             </div>
             <div className={styles.guestRow}>
-              <span className={styles.guestLabel}>Children</span>
+              <span className={styles.guestLabel}>{t('filters.children', 'Children')}</span>
               <div className={styles.guestCounter}>
                 <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, -1)}>−</button>
                 <span className={styles.guestNum}>{room.children}</span>
@@ -1581,7 +1624,10 @@ export default function Results() {
                   const age = ageAtCheckIn(dob, localCheckIn);
                   return (
                     <label key={ci} className={styles.childAge}>
-                      <span>Child {ci + 1} date of birth{age != null ? ` · ${age}` : ''}</span>
+                      <span>
+                        {t('filters.childDob', { number: ci + 1, defaultValue: 'Child {{number}} date of birth' })}
+                        {age != null ? ` · ${age}` : ''}
+                      </span>
                       <input type="date" value={dob} max={localCheckIn || undefined}
                         onChange={(e) => setChildDob(i, ci, e.target.value)} />
                     </label>
@@ -1592,11 +1638,11 @@ export default function Results() {
           </div>
         ))}
         {roomsConfig.length < 5 && (
-          <button type="button" className={styles.addRoomBtn} onClick={addRoom}>+ Add room</button>
+          <button type="button" className={styles.addRoomBtn} onClick={addRoom}>{t('filters.addRoom', '+ Add room')}</button>
         )}
         <button className={styles.applyBtn} onClick={applySearch}>
           <Icon d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" size={13} sw={2.2} />
-          Update Search
+          {t('filters.updateSearch', 'Update Search')}
         </button>
       </FilterSection>
 
@@ -1604,12 +1650,12 @@ export default function Results() {
           inside it (like the reference site). Picking one re-prices at that exact duration; the
           count shows how many hotels are available for that length in the current search. */}
       {dayOptions.length > 0 && (
-        <FilterSection title="Travel time" defaultOpen>
+        <FilterSection title={t('filters.travelTime', 'Travel time')} defaultOpen>
           {urlDuration && <div className={styles.travelBand}>{urlDuration}</div>}
           {dayOptions.map((n) => (
             <FilterCheck
               key={n}
-              label={`${nightsToDays(n)} days${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString()})` : ''}`}
+              label={`${daysLabel(nightsToDays(n))}${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString(numberLocale)})` : ''}`}
               checked={searchedNights === n}
               onChange={() => applyDuration(n)}
             />
@@ -1619,7 +1665,7 @@ export default function Results() {
 
       {/* WHERE — multi-country / multi-destination scope. Pick whole countries and/or
           individual destinations, then Apply. */}
-      <FilterSection title="Where" defaultOpen>
+      <FilterSection title={t('filters.where', 'Where')} defaultOpen>
         <ScopePicker
           countries={countryOptions}
           status={countriesStatus}
@@ -1629,14 +1675,14 @@ export default function Results() {
       </FilterSection>
 
       {/* Price Range */}
-      <FilterSection title="Price Range" defaultOpen>
+      <FilterSection title={t('filters.priceRange', 'Price Range')} defaultOpen>
         <div className={styles.priceSliderWrap}>
           <div className={styles.priceDual}>
             <div className={styles.priceDualTrack}>
               <div className={styles.priceDualFill} style={{ left: `${(sliderMin / ceiling) * 100}%`, right: `${100 - (sliderMax / ceiling) * 100}%` }} />
             </div>
-            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={ceiling} step={PRICE_STEP} value={sliderMin} onChange={(e) => onMinPrice(e.target.value)} aria-label="Minimum price" />
-            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={ceiling} step={PRICE_STEP} value={sliderMax} onChange={(e) => onMaxPrice(e.target.value)} aria-label="Maximum price" />
+            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={ceiling} step={PRICE_STEP} value={sliderMin} onChange={(e) => onMinPrice(e.target.value)} aria-label={t('filters.minPrice', 'Minimum price')} />
+            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={ceiling} step={PRICE_STEP} value={sliderMax} onChange={(e) => onMaxPrice(e.target.value)} aria-label={t('filters.maxPrice', 'Maximum price')} />
           </div>
           <div className={styles.priceSliderLabels}>
             <span>{priceLabel(0)}</span>
@@ -1644,17 +1690,17 @@ export default function Results() {
             <span>{priceLabel(ceiling)}</span>
           </div>
         </div>
-        <Segmented options={PRICE_BASIS_OPTIONS} value={filters.priceBasis} onChange={setPriceBasis} ariaLabel="Price basis" />
+        <Segmented options={priceBasisOptions} value={filters.priceBasis} onChange={setPriceBasis} ariaLabel={t('priceBasis.aria', 'Price basis')} />
       </FilterSection>
 
       {/* Transport type + departure airport. The airport only appears once a flight is
           actually wanted — offering "flying from" next to "own transport" asks the traveller
           to answer a question that has no bearing on anything they will be shown. */}
-      <FilterSection title="Transport" defaultOpen>
-        <Segmented options={TRANSPORT_OPTIONS} value={filters.transport} onChange={(v) => setFilter('transport', v)} ariaLabel="Transport type" />
+      <FilterSection title={t('filters.transport', 'Transport')} defaultOpen>
+        <Segmented options={transportOptions} value={filters.transport} onChange={(v) => setFilter('transport', v)} ariaLabel={t('transport.aria', 'Transport type')} />
         {filters.transport === 'package' && (
-          <div className={styles.originPicker} role="radiogroup" aria-label="Departure airport">
-            <div className={styles.originLabel}>I want to fly from</div>
+          <div className={styles.originPicker} role="radiogroup" aria-label={t('filters.departureAirport', 'Departure airport')}>
+            <div className={styles.originLabel}>{t('filters.flyFrom', 'I want to fly from')}</div>
             <div className={styles.originGroup}>
               {popularAirports.map((a) => (
                 <OriginOption key={a.code} airport={a} checked={filters.origin === a.code}
@@ -1664,7 +1710,7 @@ export default function Results() {
             {/* An airport picked under "Other" must not hide its own selection when the
                 traveller collapses the list — keep it open while one of its rows is current. */}
             <details className={styles.originMore} open={otherAirports.some((a) => a.code === filters.origin) || undefined}>
-              <summary className={styles.originMoreSummary}>Other airports</summary>
+              <summary className={styles.originMoreSummary}>{t('filters.otherAirports', 'Other airports')}</summary>
               <div className={styles.originGroup}>
                 {otherAirports.map((a) => (
                   <OriginOption key={a.code} airport={a} checked={filters.origin === a.code}
@@ -1673,8 +1719,10 @@ export default function Results() {
               </div>
             </details>
             <p className={styles.originNote}>
-              Flights are priced on the hotel page, from this airport first. If a route isn’t
-              flown from here, we’ll show you the nearest airports that do.
+              {t(
+                'filters.originNote',
+                'Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.'
+              )}
             </p>
 
             {/* ── Flying to ── Unlike the departure airport, this one really filters: each
@@ -1682,13 +1730,13 @@ export default function Results() {
                 to those. Rendered only when the scope HAS linked airports, so it never
                 appears as an empty control. */}
             {arrivalOptions.length > 0 && (
-              <div className={styles.arrivalPicker} role="radiogroup" aria-label="Arrival airport">
-                <div className={styles.originLabel}>Flying to</div>
+              <div className={styles.arrivalPicker} role="radiogroup" aria-label={t('filters.arrivalAirport', 'Arrival airport')}>
+                <div className={styles.originLabel}>{t('filters.flyingTo', 'Flying to')}</div>
                 <div className={styles.originGroup}>
                   <label className={`${styles.originOption} ${!filters.arrival ? styles.originOptionOn : ''}`}>
                     <input type="radio" name="arrivalAirport" checked={!filters.arrival}
                       onChange={() => setFilter('arrival', '')} />
-                    <span className={styles.originName}>Any airport</span>
+                    <span className={styles.originName}>{t('filters.anyAirport', 'Any airport')}</span>
                   </label>
                   {arrivalOptions.map((a) => (
                     <label key={a.code}
@@ -1712,13 +1760,13 @@ export default function Results() {
       </FilterSection>
 
       {/* Holiday Type — DYNAMIC from the admin facets (only themes that apply to the scope, with counts). */}
-      <FilterSection title="Holiday Type" defaultOpen>
+      <FilterSection title={t('filters.holidayType', 'Holiday Type')} defaultOpen>
         {facetsStatus === 'error' ? (
-          <p className={styles.filterEmpty}>Holiday types unavailable (content service unreachable).</p>
+          <p className={styles.filterEmpty}>{t('filters.holidayTypesUnavailable', 'Holiday types unavailable (content service unreachable).')}</p>
         ) : facetsStatus === 'loading' && facets.holiday.length === 0 ? (
-          <p className={styles.filterEmpty}>Loading holiday types…</p>
+          <p className={styles.filterEmpty}>{t('filters.loadingHolidayTypes', 'Loading holiday types…')}</p>
         ) : facets.holiday.length === 0 ? (
-          <p className={styles.filterEmpty}>No holiday types for this search.</p>
+          <p className={styles.filterEmpty}>{t('filters.noHolidayTypes', 'No holiday types for this search.')}</p>
         ) : (
           <FacetList
             items={facets.holiday}
@@ -1736,14 +1784,14 @@ export default function Results() {
       </FilterSection>
 
       {/* Star Rating — DYNAMIC from the admin facets, with counts. */}
-      <FilterSection title="Star Rating" defaultOpen>
+      <FilterSection title={t('filters.starRating', 'Star Rating')} defaultOpen>
         {facets.stars.length === 0 ? (
-          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No star data for this search.'}</p>
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? t('filters.loading', 'Loading…') : t('filters.noStarData', 'No star data for this search.')}</p>
         ) : (
           facets.stars.map((s) => (
             <FilterCheck
               key={s.stars}
-              label={`${'★'.repeat(s.stars)} ${s.stars}-star (${s.hotels})`}
+              label={`${'★'.repeat(s.stars)} ${starLabel(s.stars)} (${s.hotels})`}
               checked={filters.stars.includes(s.stars)}
               onChange={() => toggleCode('stars', s.stars)}
             />
@@ -1753,9 +1801,9 @@ export default function Results() {
 
       {/* Accommodation Type — DYNAMIC from the admin facets (group 20), with counts. OR-within
           (a hotel IS one type), so ticking several widens to "any of these". */}
-      <FilterSection title="Accommodation Type" defaultOpen={false}>
+      <FilterSection title={t('filters.accommodationType', 'Accommodation Type')} defaultOpen={false}>
         {facets.accommodation.length === 0 ? (
-          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No accommodation data for this search.'}</p>
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? t('filters.loading', 'Loading…') : t('filters.noAccommodationData', 'No accommodation data for this search.')}</p>
         ) : (
           <FacetList
             items={facets.accommodation}
@@ -1768,9 +1816,9 @@ export default function Results() {
       </FilterSection>
 
       {/* Board Type — DYNAMIC from the cache: only boards that exist for this search, with counts. */}
-      <FilterSection title="Board Type" defaultOpen>
+      <FilterSection title={t('filters.boardType', 'Board Type')} defaultOpen>
         {Object.keys(boardFacets).length === 0 ? (
-          <p className={styles.filterEmpty}>{loading ? 'Loading…' : 'No board data for this search.'}</p>
+          <p className={styles.filterEmpty}>{loading ? t('filters.loading', 'Loading…') : t('filters.noBoardData', 'No board data for this search.')}</p>
         ) : (
           Object.entries(boardFacets).sort((a, b) => b[1] - a[1]).map(([code, n]) => (
             <FilterCheck key={code} label={`${getBoardLabel(code)} (${n})`} checked={filters.boards.includes(code)} onChange={() => toggleCode('boards', code)} />
@@ -1781,10 +1829,10 @@ export default function Results() {
       {/* Distance — filter by MAX distance to the beach / city centre (admin facets group 40).
           Single-select per type; re-picking the active option clears it. */}
       {(facets.beachDistance.length > 0 || facets.centreDistance.length > 0) && (
-        <FilterSection title="Distance" defaultOpen={false}>
+        <FilterSection title={t('filters.distance', 'Distance')} defaultOpen={false}>
           {facets.beachDistance.length > 0 && (
             <>
-              <div className={styles.scopeGroupLabel}>To the beach</div>
+              <div className={styles.scopeGroupLabel}>{t('filters.toBeach', 'To the beach')}</div>
               {facets.beachDistance.map((b) => (
                 <FilterCheck key={`b${b.maxMetres}`} label={`${metresLabel(b.maxMetres)} (${b.hotels})`} checked={filters.maxBeach === b.maxMetres} onChange={() => setMaxDistance('maxBeach', b.maxMetres)} />
               ))}
@@ -1792,7 +1840,7 @@ export default function Results() {
           )}
           {facets.centreDistance.length > 0 && (
             <>
-              <div className={styles.scopeGroupLabel}>To the city centre</div>
+              <div className={styles.scopeGroupLabel}>{t('filters.toCentre', 'To the city centre')}</div>
               {facets.centreDistance.map((c) => (
                 <FilterCheck key={`c${c.maxMetres}`} label={`${metresLabel(c.maxMetres)} (${c.hotels})`} checked={filters.maxCentre === c.maxMetres} onChange={() => setMaxDistance('maxCentre', c.maxMetres)} />
               ))}
@@ -1802,9 +1850,9 @@ export default function Results() {
       )}
 
       {/* Facilities — DYNAMIC from the admin facets (group 70), unique with counts. */}
-      <FilterSection title="Facilities" defaultOpen={false}>
+      <FilterSection title={t('filters.facilities', 'Facilities')} defaultOpen={false}>
         {facets.facilities.length === 0 ? (
-          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No facilities data for this search.'}</p>
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? t('filters.loading', 'Loading…') : t('filters.noFacilitiesData', 'No facilities data for this search.')}</p>
         ) : (
           <FacetList
             items={facets.facilities}
@@ -1819,9 +1867,9 @@ export default function Results() {
       {/* Activities — DYNAMIC from the admin facets (groups 73/74/90 + 71 catering), with counts.
           Keyed by group AND code: the same code appears in several groups under different names
           (410 is both Hot tub and Surfing), so the bare code is not a unique row identity. */}
-      <FilterSection title="Activities" defaultOpen={false}>
+      <FilterSection title={t('filters.activities', 'Activities')} defaultOpen={false}>
         {facets.activities.length === 0 ? (
-          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? 'Loading…' : 'No activities data for this search.'}</p>
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? t('filters.loading', 'Loading…') : t('filters.noActivitiesData', 'No activities data for this search.')}</p>
         ) : (
           <FacetList
             items={facets.activities}
@@ -1835,7 +1883,7 @@ export default function Results() {
 
       {/* Family & Kids — curated child-friendly amenities (admin facets), with counts. */}
       {facets.kids.length > 0 && (
-        <FilterSection title="Family & Kids" defaultOpen={false}>
+        <FilterSection title={t('filters.familyKids', 'Family & Kids')} defaultOpen={false}>
           <FacetList
             items={facets.kids}
             isChecked={(k) => filters.kids.includes(k.code)}
@@ -1847,16 +1895,16 @@ export default function Results() {
       )}
 
       {/* Adults only — boolean content facet (the "Adults Only" vacation-type card seeds ?adultsOnly=1). */}
-      <FilterSection title="Adults only" defaultOpen={false}>
+      <FilterSection title={t('filters.adultsOnly', 'Adults only')} defaultOpen={false}>
         <FilterCheck
-          label="Adults-only hotels"
+          label={t('filters.adultsOnlyHotels', 'Adults-only hotels')}
           checked={filters.adultsOnly}
           onChange={() => setFilter('adultsOnly', !filters.adultsOnly)}
         />
       </FilterSection>
 
       {/* Room Type — server-side (`roomTypes`) */}
-      <FilterSection title="Room Type" defaultOpen={false}>
+      <FilterSection title={t('filters.roomType', 'Room Type')} defaultOpen={false}>
         {ROOM_FILTERS.map((code) => (
           <FilterCheck key={code} label={getRoomLabel(code)} checked={filters.roomTypes.includes(code)} onChange={() => toggleCode('roomTypes', code)} />
         ))}
@@ -1922,14 +1970,16 @@ export default function Results() {
         <span className={styles.twinkle} style={{ top: '64%', left: '86%', animationDelay: '0.6s' }} />
         <div className={styles.heroInner}>
           <div className={styles.breadcrumb}>
-            <span>Home</span>
+            <span>{t('hero.home', 'Home')}</span>
             <span className={styles.bcSep}>·</span>
-            <span>Holidays</span>
+            <span>{t('hero.holidays', 'Holidays')}</span>
             <span className={styles.bcSep}>·</span>
-            <span className={styles.bcActive}>{scopeLabel || 'Results'}</span>
+            <span className={styles.bcActive}>{scopeLabel || t('hero.results', 'Results')}</span>
           </div>
           <h1 className={styles.heroTitle}>
-            {scopeLabel ? (<>Stays in <em>{scopeLabel}</em></>) : ('Find your perfect stay')}
+            {scopeLabel
+              ? (<>{t('hero.staysIn', 'Stays in')} <em>{scopeLabel}</em></>)
+              : t('hero.findStay', 'Find your perfect stay')}
           </h1>
           <div className={styles.heroChips}>
             {heroChips.map((c) => (
@@ -1957,12 +2007,23 @@ export default function Results() {
             {loading ? (
               <span className={styles.countSearching}>
                 <span className={styles.countPulse} />
-                Searching the best deals…
+                {t('toolbar.searching', 'Searching the best deals…')}
               </span>
             ) : (
               <span className={styles.countText}>
-                <span><strong>{hotels.length}{hasMore ? '+' : ''}</strong> {hotels.length === 1 ? 'stay' : 'stays'} found</span>
-                {scopeLabel && <span className={styles.countSub}>in {scopeLabel}</span>}
+                <span>
+                  <strong>{hotels.length}{hasMore ? '+' : ''}</strong>{' '}
+                  {t('toolbar.found', {
+                    count: hotels.length,
+                    defaultValue_one: 'stay found',
+                    defaultValue_other: 'stays found',
+                  })}
+                </span>
+                {scopeLabel && (
+                  <span className={styles.countSub}>
+                    {t('toolbar.in', { place: scopeLabel, defaultValue: 'in {{place}}' })}
+                  </span>
+                )}
               </span>
             )}
           </div>
@@ -1983,17 +2044,19 @@ export default function Results() {
             <div className={styles.sortWrap}>
               <span className={styles.sortLabel}>
                 <Icon d="M11 5h10M11 9h7M11 13h4M3 17l3 3 3-3M6 18V4" size={14} sw={2} />
-                Sort
+                {t('sort.label', 'Sort')}
               </span>
-              <select className={styles.sortSelect} aria-label="Sort results" value={filters.sortBy} onChange={(e) => setFilter('sortBy', e.target.value)}>
-                {SORT_OPTIONS.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              <select className={styles.sortSelect} aria-label={t('sort.aria', 'Sort results')} value={filters.sortBy} onChange={(e) => setFilter('sortBy', e.target.value)}>
+                {SORT_OPTIONS.map((o) => (
+                  <option key={o.value} value={o.value}>{t(`sort.${o.value}`, o.label)}</option>
+                ))}
               </select>
             </div>
             <button className={styles.mobileFilterBtn} onClick={() => setDrawerOpen(true)}>
               <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                 <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
               </svg>
-              Filters
+              {t('filters.title', 'Filters')}
               {activeCount > 0 && <span className={styles.filterCount}>{activeCount}</span>}
             </button>
           </div>
@@ -2006,11 +2069,11 @@ export default function Results() {
           <div className={styles.filterCard}>
             <div className={styles.filterCardHead}>
               <Icon d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" size={15} sw={2} />
-              <h2>Filters</h2>
+              <h2>{t('filters.title', 'Filters')}</h2>
               {activeCount > 0 && (
                 <>
                   <span className={styles.filterCount}>{activeCount}</span>
-                  <button className={styles.clearAllBtn} onClick={clearFilters}>Clear all</button>
+                  <button className={styles.clearAllBtn} onClick={clearFilters}>{t('filters.clearAll', 'Clear all')}</button>
                 </>
               )}
             </div>
@@ -2028,7 +2091,7 @@ export default function Results() {
                   <Icon d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z" size={15} sw={1.8} />
                 </span>
                 <div className={styles.cardAppliedText}>
-                  <span className={styles.cardAppliedTitle}>{cardSummary.title || 'Filters from your pick'}</span>
+                  <span className={styles.cardAppliedTitle}>{cardSummary.title || t('toolbar.cardApplied', 'Filters from your pick')}</span>
                   {cardSummary.labels.length > 0 && (
                     <span className={styles.cardAppliedChips}>
                       {cardSummary.labels.map((l, li) => (
@@ -2037,7 +2100,7 @@ export default function Results() {
                     </span>
                   )}
                 </div>
-                <button type="button" className={styles.cardAppliedX} onClick={clearCardFilters} aria-label="Remove these filters">
+                <button type="button" className={styles.cardAppliedX} onClick={clearCardFilters} aria-label={t('toolbar.removeCardFilters', 'Remove these filters')}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round">
                     <path d="M18 6L6 18M6 6l12 12" />
                   </svg>
@@ -2087,8 +2150,8 @@ export default function Results() {
                     <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/>
                   </svg>
                 </div>
-                <h3>Select where you want to go</h3>
-                <p>Pick one or more countries or destinations in the “Where” filter.</p>
+                <h3>{t('empty.chooseTitle', 'Select where you want to go')}</h3>
+                <p>{t('empty.chooseText', 'Pick one or more countries or destinations in the “Where” filter.')}</p>
               </div>
             ) : hotels.length === 0 ? (
               <div className={styles.noResults}>
@@ -2097,14 +2160,14 @@ export default function Results() {
                     <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
                   </svg>
                 </div>
-                <h3>No results found</h3>
+                <h3>{t('empty.noneTitle', 'No results found')}</h3>
                 <p>
                   {activeCount > 0
-                    ? 'No stays match your filters. Try relaxing them or widening your price range.'
-                    : 'Try different dates or a wider area.'}
+                    ? t('empty.noneFiltered', 'No stays match your filters. Try relaxing them or widening your price range.')
+                    : t('empty.noneWiden', 'Try different dates or a wider area.')}
                 </p>
                 {activeCount > 0 && (
-                  <button className={styles.applyBtn} style={{ maxWidth: 200 }} onClick={clearFilters}>Clear all filters</button>
+                  <button className={styles.applyBtn} style={{ maxWidth: 200 }} onClick={clearFilters}>{t('empty.clearFilters', 'Clear all filters')}</button>
                 )}
               </div>
             ) : (
@@ -2177,7 +2240,12 @@ export default function Results() {
                         type="button"
                         className={styles.rcImgBtn}
                         onClick={() => openLightbox(dispName, gallery, imgIdx)}
-                        aria-label={`View ${gallery.length} photo${gallery.length > 1 ? 's' : ''} of ${dispName}`}
+                        aria-label={t('card.viewPhotos', {
+                          count: gallery.length,
+                          name: dispName,
+                          defaultValue_one: 'View {{count}} photo of {{name}}',
+                          defaultValue_other: 'View {{count}} photos of {{name}}',
+                        })}
                       />
                     )}
                     {infoReady && gallery.length > 1 && (
@@ -2186,7 +2254,7 @@ export default function Results() {
                           type="button"
                           className={`${styles.rcArrow} ${styles.rcArrowPrev}`}
                           onClick={(e) => { e.stopPropagation(); cardGo(h.hotelCode, gallery.length, -1); }}
-                          aria-label="Previous photo"
+                          aria-label={t('card.prevPhoto', 'Previous photo')}
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M15 18l-6-6 6-6" />
@@ -2196,7 +2264,7 @@ export default function Results() {
                           type="button"
                           className={`${styles.rcArrow} ${styles.rcArrowNext}`}
                           onClick={(e) => { e.stopPropagation(); cardGo(h.hotelCode, gallery.length, +1); }}
-                          aria-label="Next photo"
+                          aria-label={t('card.nextPhoto', 'Next photo')}
                         >
                           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
                             <path d="M9 18l6-6-6-6" />
@@ -2216,7 +2284,7 @@ export default function Results() {
                     {h.id === bestValueId && (
                       <div className={styles.rcBadge}>
                         <Icon d="M13 10V3L4 14h7v7l9-11h-7z" size={11} sw={2} />
-                        Best Value
+                        {t('card.bestValue', 'Best Value')}
                       </div>
                     )}
                     <button
@@ -2229,7 +2297,7 @@ export default function Results() {
                         stars: dispStars || null,
                         imageUrl: infoReady ? dispImg : null,
                       })}
-                      aria-label="Save to favourites"
+                      aria-label={t('card.saveFavourite', 'Save to favourites')}
                     >
                       <svg width="17" height="17" viewBox="0 0 24 24" fill={liked[h.id] ? 'currentColor' : 'none'} stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                         <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
@@ -2281,14 +2349,23 @@ export default function Results() {
                         <div className={styles.rcReviewBox} title={rev.title}>
                           <span className={styles.rcReviewScore}>{rev.score}<span className={styles.rcReviewOutOf}>/{rev.outOf}</span></span>
                           <span className={styles.rcReviewWord}>{scoreWord(rev.score)}</span>
-                          {rev.count > 0 && <span className={styles.rcReviewCount}>{rev.count.toLocaleString('en-GB')} reviews</span>}
+                          {rev.count > 0 && (
+                            <span className={styles.rcReviewCount}>
+                              {t('common:review.reviews', {
+                                count: rev.count,
+                                countFormatted: rev.count.toLocaleString(numberLocale),
+                                defaultValue_one: '{{countFormatted}} review',
+                                defaultValue_other: '{{countFormatted}} reviews',
+                              })}
+                            </span>
+                          )}
                         </div>
                       )}
                     </div>
 
                     {/* Amenities: borderless icon+label items — text, not chip soup. */}
                     {fac.top.length > 0 && (
-                      <div className={styles.rcFacts} aria-label="Hotel facilities">
+                      <div className={styles.rcFacts} aria-label={t('card.facilities', 'Hotel facilities')}>
                         {fac.top.map((f) => (
                           <span key={f.icon} className={styles.rcFact}>
                             <span className={styles.rcFactIco}>
@@ -2298,7 +2375,12 @@ export default function Results() {
                           </span>
                         ))}
                         {fac.more > 0 && (
-                          <span className={styles.rcFactMore} title={`${fac.more} more facilities`}>+{fac.more} more</span>
+                          <span
+                            className={styles.rcFactMore}
+                            title={t('card.moreFacilities', { count: fac.more, defaultValue: '{{count}} more facilities' })}
+                          >
+                            {t('card.more', { count: fac.more, defaultValue: '+{{count}} more' })}
+                          </span>
                         )}
                       </div>
                     )}
@@ -2325,9 +2407,17 @@ export default function Results() {
                       {/* What the total covers — the stay context that used to be two pills
                           in the body, now one quiet qualifying line above the fare. */}
                       <span className={styles.rcPriceContext}>
-                        {nights > 0 ? `${nightsToDays(nights)} days` : 'Total'}
-                        {Number(fetchParams.adults) > 0 && ` · ${fetchParams.adults} adult${Number(fetchParams.adults) > 1 ? 's' : ''}`}
-                        {Number(fetchParams.children) > 0 && ` · ${fetchParams.children} child${Number(fetchParams.children) > 1 ? 'ren' : ''}`}
+                        {nights > 0 ? daysLabel(nightsToDays(nights)) : t('card.total', 'Total')}
+                        {Number(fetchParams.adults) > 0 && ` · ${t('card.adults', {
+                          count: Number(fetchParams.adults),
+                          defaultValue_one: '{{count}} adult',
+                          defaultValue_other: '{{count}} adults',
+                        })}`}
+                        {Number(fetchParams.children) > 0 && ` · ${t('card.children', {
+                          count: Number(fetchParams.children),
+                          defaultValue_one: '{{count}} child',
+                          defaultValue_other: '{{count}} children',
+                        })}`}
                       </span>
                       {/* §33: when a cached flight fare is in, the headline IS the package total
                           (hotel + flight) and the note says so, with the flight's §23 class. When
@@ -2336,12 +2426,20 @@ export default function Results() {
                           number dressed up as a package total. */}
                       {isPackage && packagePerPerson != null && (
                         <span className={styles.rcFlightNote}>
-                          incl. flight from {airportCity(filters.origin)}
+                          {t('card.inclFlightFrom', {
+                            city: airportCity(filters.origin),
+                            defaultValue: 'incl. flight from {{city}}',
+                          })}
                           {flightFare?.priorityClass ? ` · ${flightClassLabel(flightFare.priorityClass)}` : ''}
                         </span>
                       )}
                       {isPackage && packagePerPerson == null && (
-                        <span className={styles.rcFlightNote}>+ flight from {airportCity(filters.origin)} · priced on hotel page</span>
+                        <span className={styles.rcFlightNote}>
+                          {t('card.flightPricedLater', {
+                            city: airportCity(filters.origin),
+                            defaultValue: '+ flight from {{city}} · priced on hotel page',
+                          })}
+                        </span>
                       )}
                       {/* The headline is the PER-PERSON fare — the figure a traveller compares.
                           Hotel-only: the per-person hotel price. Package (flight fare cached): the
@@ -2352,7 +2450,7 @@ export default function Results() {
                         {ppMajor}
                         {ppDec != null && <span className={styles.rcPriceDec}>.{ppDec}</span>}
                       </div>
-                      <div className={styles.rcPricePer}>per person</div>
+                      <div className={styles.rcPricePer}>{t('card.perPerson', 'per person')}</div>
                       {/* Opens in a NEW TAB, so the search results survive: comparing hotels is
                           the whole job of this page, and going back used to mean re-running the
                           search and losing scroll position and any loaded pages.
@@ -2367,7 +2465,7 @@ export default function Results() {
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        View Deal
+                        {t('card.viewDeal', 'View Deal')}
                         <Icon d="M5 12h14M12 5l7 7-7 7" size={14} sw={2.2} />
                       </Link>
                     </div>
@@ -2381,11 +2479,16 @@ export default function Results() {
             {!loading && fetchingMore && (
               <div className={styles.loadMore}>
                 <span className={styles.loadMoreSpin} />
-                Loading more stays…
+                {t('card.loadingMore', 'Loading more stays…')}
               </div>
             )}
             {!loading && !hasMore && hotels.length > 0 && (
-              <div className={styles.endOfResults}>You’ve reached the end — all {hotels.length} stays shown</div>
+              <div className={styles.endOfResults}>
+                {t('card.endOfResults', {
+                  count: hotels.length,
+                  defaultValue: 'You’ve reached the end — all {{count}} stays shown',
+                })}
+              </div>
             )}
           </div>
         </section>
@@ -2397,7 +2500,7 @@ export default function Results() {
           <div className={styles.drawerOverlay} onClick={() => setDrawerOpen(false)} />
           <div className={styles.drawer}>
             <div className={styles.drawerHead}>
-              <h2>Filters</h2>
+              <h2>{t('filters.title', 'Filters')}</h2>
               <button className={styles.drawerClose} onClick={() => setDrawerOpen(false)}>
                 <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                   <path d="M18 6L6 18M6 6l12 12" />
@@ -2411,8 +2514,8 @@ export default function Results() {
 
       {/* Full-screen photo lightbox — big view + slider through all of a hotel's images */}
       {lightbox && (
-        <div className={styles.lbOverlay} onClick={closeLightbox} role="dialog" aria-modal="true" aria-label={`${lightbox.name} photos`}>
-          <button className={styles.lbClose} onClick={closeLightbox} aria-label="Close photos">
+        <div className={styles.lbOverlay} onClick={closeLightbox} role="dialog" aria-modal="true" aria-label={t('lightbox.photosOf', { name: lightbox.name, defaultValue: '{{name}} photos' })}>
+          <button className={styles.lbClose} onClick={closeLightbox} aria-label={t('lightbox.close', 'Close photos')}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
               <path d="M18 6L6 18M6 6l12 12" />
             </svg>
@@ -2420,7 +2523,7 @@ export default function Results() {
 
           <div className={styles.lbStage} onClick={(e) => e.stopPropagation()}>
             {lightbox.images.length > 1 && (
-              <button className={`${styles.lbNav} ${styles.lbNavPrev}`} onClick={lbPrev} aria-label="Previous photo">
+              <button className={`${styles.lbNav} ${styles.lbNavPrev}`} onClick={lbPrev} aria-label={t('card.prevPhoto', 'Previous photo')}>
                 <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M15 18l-6-6 6-6" />
                 </svg>
@@ -2431,7 +2534,11 @@ export default function Results() {
               key={lightbox.index}
               src={lightbox.images[lightbox.index]}
               size="original"
-              alt={`${lightbox.name} — photo ${lightbox.index + 1}`}
+              alt={t('lightbox.photo', {
+                name: lightbox.name,
+                number: lightbox.index + 1,
+                defaultValue: '{{name}} — photo {{number}}',
+              })}
               className={styles.lbImg}
               onError={(e) => { e.currentTarget.style.display = 'none'; }}
             />
@@ -2457,7 +2564,7 @@ export default function Results() {
                   key={idx}
                   className={`${styles.lbThumb} ${idx === lightbox.index ? styles.lbThumbActive : ''}`}
                   onClick={() => lbGo(idx)}
-                  aria-label={`Go to photo ${idx + 1}`}
+                  aria-label={t('lightbox.goToPhoto', { number: idx + 1, defaultValue: 'Go to photo {{number}}' })}
                   aria-current={idx === lightbox.index}
                 >
                   <img src={src} alt="" loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />

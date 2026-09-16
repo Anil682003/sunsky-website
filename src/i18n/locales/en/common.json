@@ -110,5 +110,69 @@
     "apply_one": "Apply · {{count}} destination",
     "apply_other": "Apply · {{count}} destinations",
     "noPlaces": "No regions or cities listed yet — we’ll search the whole country."
+  },
+  "review": {
+    "guestRating": "Guest rating",
+    "reviews_one": "{{countFormatted}} review",
+    "reviews_other": "{{countFormatted}} reviews",
+    "title": "{{score}} / {{outOf}} on {{label}}",
+    "titleWithCount": "{{score}} / {{outOf}} on {{label}} from {{reviews}}",
+    "word": {
+      "excellent": "Excellent",
+      "veryGood": "Very good",
+      "good": "Good",
+      "pleasant": "Pleasant",
+      "fair": "Fair"
+    }
+  },
+  "rating": {
+    "starHotel": "{{count}}-star hotel",
+    "keyApartment": "{{count}}-key apartment"
+  },
+  "facility": {
+    "pool": "Pool",
+    "wifi": "Free Wi-Fi",
+    "spa": "Spa & wellness",
+    "gym": "Fitness",
+    "restaurant": "Restaurant",
+    "bar": "Bar",
+    "beach": "Beachfront",
+    "parking": "Parking",
+    "shuttle": "Airport shuttle",
+    "ac": "Air conditioning",
+    "kids": "Family friendly",
+    "room-service": "Room service",
+    "reception": "24h reception",
+    "terrace": "Terrace",
+    "pets": "Pets allowed",
+    "accessible": "Accessible"
+  },
+  "scopePicker": {
+    "unavailable": "Destination filter unavailable.",
+    "loadingCountries": "Loading countries…",
+    "loadingCities": "Loading cities…",
+    "loadingAreas": "Loading areas…",
+    "loading": "Loading",
+    "selected": "Selected",
+    "clearAll": "Clear all",
+    "remove": "Remove {{name}}",
+    "countries": "Countries",
+    "cities": "Cities",
+    "areas": "Areas",
+    "anyCountry": "Any country",
+    "countSelected": "{{count}} selected",
+    "countryFirst": "Select a country first",
+    "cityFirst": "Select a city first",
+    "allCities": "All {{count}} cities",
+    "allAreas": "All {{count}} areas",
+    "noneAvailable": "None available",
+    "noCountryMatch": "No country matches that.",
+    "noCityMatch": "No city matches that.",
+    "noAreas": "No areas available for these cities.",
+    "clear": "Clear",
+    "selectAll": "Select all",
+    "chooseDestination": "Select a destination",
+    "search_one": "Search {{count}} place",
+    "search_other": "Search {{count}} places"
   }
 }

@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 // Hotel vs apartment rating — pure helpers (the <RatingMarks> component lives in
 // components/RatingMarks so this file stays JSX-free and Fast-Refresh-clean).
 //
@@ -10,9 +12,13 @@ export const ratingValue = (rating) => Math.min(5, Math.max(0, Math.round(Number
 /** True for a usable key (apartment) rating. */
 export const isKeyRating = (rating) => rating?.kind === 'key' && ratingValue(rating) > 0;
 
-/** "4-key apartment" / "5-star hotel" / "" when unrated. */
+/** "4-sleutelappartement" / "5-sterrenhotel" / "" when unrated. */
 export function ratingLabel(rating) {
   const v = ratingValue(rating);
   if (!v) return '';
-  return rating.kind === 'key' ? `${v}-key apartment` : `${v}-star hotel`;
+  // KIND is the stable value — 'key' vs 'star' is what the backend sends and what
+  // <RatingMarks> draws. Only the wording is translated.
+  return rating.kind === 'key'
+    ? i18n.t('rating.keyApartment', { count: v, defaultValue: '{{count}}-key apartment' })
+    : i18n.t('rating.starHotel', { count: v, defaultValue: '{{count}}-star hotel' });
 }

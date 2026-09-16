@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 // Pick the guest-facing amenities a results card should lead with, from the ~80 raw facility
 // rows the bulk content record carries per hotel. Pure logic (no JSX) so it's testable and
 // Fast-Refresh-clean — the card maps each pick's `icon` key to an inline SVG.
@@ -26,6 +28,10 @@ const EXCLUDED_GROUPS = new Set([
 // Junk names inside otherwise-useful groups.
 const EXCLUDED_NAMES = /^(check-in hour|check-out hour|smoke detector|mobile phone coverage|newspapers|towels and bed linen|identification card at arrival|deposit on arrival|multilingual staff|clothes dryer)$/i;
 
+// The ICON is the stable key: it decides which slot an amenity wins and which drawing the
+// card shows, and it is what the label is translated through. The English label below is the
+// fallback. The regexes match the SUPPLIER's English facility names and must not be touched.
+//
 // Priority ladder — first match wins the slot, one slot per icon so "Outdoor freshwater pool"
 // and "Children's pool" don't spend two of the five slots saying "pool" twice. Order is what
 // travellers scan for: pool → wifi → wellness → food → practicalities.
@@ -76,7 +82,7 @@ export function topFacilities(facilities) {
     for (const name of names) {
       if (claimed.has(name)) continue;
       if (rung.re.test(name) && !(rung.not && rung.not.test(name))) {
-        top.push({ icon: rung.icon, label: rung.label });
+        top.push({ icon: rung.icon, label: i18n.t(`facility.${rung.icon}`, rung.label) });
         // Claim EVERY name this rung matches, so "+N" doesn't recount a second pool.
         for (const n of names) {
           if (rung.re.test(n) && !(rung.not && rung.not.test(n))) claimed.add(n);
