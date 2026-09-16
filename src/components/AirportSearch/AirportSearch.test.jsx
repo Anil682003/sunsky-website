@@ -77,7 +77,7 @@ describe('AirportSearch', () => {
     search.mockResolvedValue([]);
     const { input } = setup();
     await user.type(input, 'zzzz');
-    expect(await screen.findByText(/no airport matches/i)).toBeInTheDocument();
+    expect(await screen.findByText(/geen luchthaven gevonden/i)).toBeInTheDocument();
   });
 
   // The whole point of the debounce: six keystrokes must not be six requests.
@@ -101,7 +101,7 @@ describe('AirportSearch', () => {
 
     search.mockImplementation(() => new Promise(() => {}));   // next answer never arrives
     await user.type(input, 'x');
-    await waitFor(() => expect(screen.getByText('Searching…')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Bezig met zoeken…')).toBeInTheDocument());
     expect(screen.queryByText('Malaga (AGP)')).toBeNull();
   });
 
@@ -112,7 +112,7 @@ describe('AirportSearch', () => {
     await user.type(input, 'malaga');
     await waitFor(() => expect(screen.getByText('Malaga (AGP)')).toBeInTheDocument());
 
-    await user.click(screen.getByLabelText('Clear'));
+    await user.click(screen.getByLabelText('Wissen'));
     expect(screen.getByText('Brussels (BRU)')).toBeInTheDocument();
     expect(screen.queryByText('Malaga (AGP)')).toBeNull();
   });

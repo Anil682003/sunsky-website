@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import styles from './DateCalendar.module.css';
+import { useTranslation } from 'react-i18next';
 
 /**
  * The date picker the search bar opens — a real calendar, not the browser's.
@@ -14,13 +15,10 @@ import styles from './DateCalendar.module.css';
  * midnight in Brussels comes back as the day before.
  */
 
-const MONTH_NAMES = [
-  'January', 'February', 'March', 'April', 'May', 'June',
-  'July', 'August', 'September', 'October', 'November', 'December',
-];
+const MONTH_NAMES_EN = 'January,February,March,April,May,June,July,August,September,October,November,December';
 
 // Monday-first, the way the Belgian market reads a calendar.
-const WEEKDAYS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+const WEEKDAYS_EN = 'Mon,Tue,Wed,Thu,Fri,Sat,Sun';
 
 const pad2 = (n) => String(n).padStart(2, '0');
 const toISO = (y, m, d) => `${y}-${pad2(m + 1)}-${pad2(d)}`;
@@ -46,12 +44,7 @@ function monthCells(y, m) {
   return cells;
 }
 
-const FLEX_OPTIONS = [
-  { value: 0, label: 'Exact dates' },
-  { value: 1, label: '± 1 day' },
-  { value: 2, label: '± 2 days' },
-  { value: 3, label: '± 3 days' },
-];
+const FLEX_VALUES = [0, 1, 2, 3];
 
 /**
  * @param value        selected date, ISO (YYYY-MM-DD) or ''
@@ -72,6 +65,11 @@ export default function DateCalendar({
   onFlexChange,
   onDone,
 }) {
+  const { t } = useTranslation('common');
+  // Month and weekday names come from the locale file rather than Intl, so the
+  // short weekday matches the seven-column grid the CSS is built for.
+  const MONTH_NAMES = t('calendar.months', MONTH_NAMES_EN).split(',');
+  const WEEKDAYS = t('calendar.weekdays', WEEKDAYS_EN).split(',');
   const selected = parseISO(value);
   const floor = parseISO(min);
   const today = new Date();
@@ -116,12 +114,12 @@ export default function DateCalendar({
             <div className={styles.month} key={`${y}-${m}`}>
               <div className={styles.monthHead}>
                 <button type="button" className={styles.navBtn} disabled={!canGoBack}
-                  onClick={() => shift(-1)} aria-label="Previous month">
+                  onClick={() => shift(-1)} aria-label={t('calendar.prevMonth', 'Previous month')}>
                   {chevron('prev')}
                 </button>
                 <span className={styles.monthName}>{MONTH_NAMES[m]} {y}</span>
                 <button type="button" className={styles.navBtn}
-                  onClick={() => shift(1)} aria-label="Next month">
+                  onClick={() => shift(1)} aria-label={t('calendar.nextMonth', 'Next month')}>
                   {chevron('next')}
                 </button>
               </div>
@@ -158,22 +156,28 @@ export default function DateCalendar({
 
       {showFlex && (
         <div className={styles.foot}>
-          <div className={styles.flexRow} role="radiogroup" aria-label="Date flexibility">
-            {FLEX_OPTIONS.map((o) => (
+          <div className={styles.flexRow} role="radiogroup" aria-label={t('calendar.flexibility', 'Date flexibility')}>
+            {FLEX_VALUES.map((v) => (
               <button
                 type="button"
-                key={o.value}
+                key={v}
                 role="radio"
-                aria-checked={flex === o.value}
-                className={`${styles.flexPill} ${flex === o.value ? styles.flexPillOn : ''}`}
-                onClick={() => onFlexChange(o.value)}
+                aria-checked={flex === v}
+                className={`${styles.flexPill} ${flex === v ? styles.flexPillOn : ''}`}
+                onClick={() => onFlexChange(v)}
               >
-                {o.label}
+                {v === 0
+                  ? t('calendar.exactDates', 'Exact dates')
+                  : t('calendar.plusMinus', {
+                      count: v,
+                      defaultValue_one: '± {{count}} day',
+                      defaultValue_other: '± {{count}} days',
+                    })}
               </button>
             ))}
           </div>
           {onDone && (
-            <button type="button" className={styles.calDone} onClick={onDone}>Done</button>
+            <button type="button" className={styles.calDone} onClick={onDone}>{t('calendar.done', 'Done')}</button>
           )}
         </div>
       )}

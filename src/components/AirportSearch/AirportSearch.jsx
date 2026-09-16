@@ -3,6 +3,7 @@ import styles from './AirportSearch.module.css';
 import { searchAirports } from '../../api';
 import { flagUrl } from '../../utils/countryFlag';
 import { isoFromFlagEmoji } from '../../utils/airports';
+import { useTranslation } from 'react-i18next';
 
 /**
  * The From/To panel of the flight search — type-to-search over the dashboard's whole airport
@@ -43,15 +44,16 @@ const Flag = ({ airport }) => {
 
 export default function AirportSearch({
   title,
-  placeholder = 'City or airport name',
+  placeholder,
   fallback = [],
-  fallbackLabel = 'Popular',
+  fallbackLabel,
   searchable = true,
   query,
   navRef,
   onPick,
   onClose,
 }) {
+  const { t } = useTranslation('common');
   const [innerTerm, setInnerTerm] = useState('');
   // A string `query` hands the typing to whoever rendered this panel; anything else (the
   // default `undefined`) leaves the panel owning its own term, exactly as before.
@@ -97,11 +99,11 @@ export default function AirportSearch({
     const needle = term.trim();
     if (!typeable || needle.length < MIN_QUERY) return undefined;
     const ctrl = new AbortController();
-    const t = setTimeout(async () => {
+    const timer = setTimeout(async () => {
       const list = await searchAirports(needle, 12, { signal: ctrl.signal });
       if (!ctrl.signal.aborted) setHits({ term: needle, list });
     }, DEBOUNCE_MS);
-    return () => { clearTimeout(t); ctrl.abort(); };
+    return () => { clearTimeout(timer); ctrl.abort(); };
   }, [term, typeable]);
 
   const pick = (a) => { onPick?.(a); onClose?.(); };
@@ -146,13 +148,13 @@ export default function AirportSearch({
           ref={inputRef}
           className={styles.input}
           value={term}
-          placeholder={placeholder}
+          placeholder={placeholder || t('airportSearch.placeholder', 'City or airport name')}
           onChange={(e) => { setTerm(e.target.value); setCursor(0); }}
           onKeyDown={onKeyDown}
           aria-label={title}
         />
         {term && (
-          <button type="button" className={styles.clear} onClick={() => { setTerm(''); setCursor(0); }} aria-label="Clear">
+          <button type="button" className={styles.clear} onClick={() => { setTerm(''); setCursor(0); }} aria-label={t('airportSearch.clear', 'Clear')}>
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
           </button>
         )}
@@ -161,8 +163,14 @@ export default function AirportSearch({
 
       <div className={`${styles.groupLabel} ${searchable && !controlled ? '' : styles.groupLabelTop}`}>
         {searching
-          ? (busy ? 'Searching…' : `${showing.length} airport${showing.length === 1 ? '' : 's'}`)
-          : fallbackLabel}
+          ? (busy
+              ? t('airportSearch.searching', 'Searching…')
+              : t('airportSearch.resultCount', {
+                  count: showing.length,
+                  defaultValue_one: '{{count}} airport',
+                  defaultValue_other: '{{count}} airports',
+                }))
+          : (fallbackLabel || t('airportSearch.popular', 'Popular'))}
       </div>
 
       {/* Only ever one of these: the rows, or a line saying why there are none. Both sit in a
@@ -194,8 +202,13 @@ export default function AirportSearch({
         !busy && (
           <div className={styles.empty}>
             {searching
-              ? <>No airport matches “{q}”. Try the city name, or its three-letter code.</>
-              : typeable ? 'Start typing a city or airport name.' : 'No airports to choose from yet.'}
+              ? t('airportSearch.noMatch', {
+                  query: q,
+                  defaultValue: 'No airport matches “{{query}}”. Try the city name, or its three-letter code.',
+                })
+              : typeable
+                ? t('airportSearch.startTyping', 'Start typing a city or airport name.')
+                : t('airportSearch.noneYet', 'No airports to choose from yet.')}
           </div>
         )
       )}

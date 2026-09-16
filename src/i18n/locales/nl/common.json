@@ -59,5 +59,55 @@
       "destinations": "Bestemmingen",
       "travelTypes": "Soorten reizen"
     }
+  },
+  "calendar": {
+    "months": "januari,februari,maart,april,mei,juni,juli,augustus,september,oktober,november,december",
+    "weekdays": "ma,di,wo,do,vr,za,zo",
+    "prevMonth": "Vorige maand",
+    "nextMonth": "Volgende maand",
+    "flexibility": "Flexibiliteit van de datum",
+    "exactDates": "Exacte data",
+    "plusMinus_one": "± {{count}} dag",
+    "plusMinus_other": "± {{count}} dagen",
+    "done": "Klaar"
+  },
+  "airportSearch": {
+    "placeholder": "Stad of luchthaven",
+    "popular": "Populair",
+    "clear": "Wissen",
+    "searching": "Bezig met zoeken…",
+    "resultCount_one": "{{count}} luchthaven",
+    "resultCount_other": "{{count}} luchthavens",
+    "noMatch": "Geen luchthaven gevonden voor “{{query}}”. Probeer de naam van de stad of de driletterige code.",
+    "startTyping": "Typ een stad of luchthaven.",
+    "noneYet": "Nog geen luchthavens om uit te kiezen."
+  },
+  "destinationModal": {
+    "dialogLabel": "Kies je bestemmingen",
+    "title": "Waar brengt de zon je naartoe?",
+    "subtitle": "Kies een of meer landen en verfijn daarna naar de regio’s & steden die je leuk vindt.",
+    "close": "Sluiten",
+    "countries": "Landen",
+    "all": "Alle",
+    "countriesError": "De landen konden niet worden geladen. Probeer het opnieuw.",
+    "noCountries": "Geen landen beschikbaar.",
+    "emptyTitle": "Begin met een land",
+    "emptyText": "Vink links een land aan en de regio’s & steden verschijnen hier. Combineer er zoveel je wilt.",
+    "anywhere": "Overal in het land",
+    "placesSelected_one": "{{count}} plaats gekozen",
+    "placesSelected_other": "{{count}} plaatsen gekozen",
+    "searchAllOf": "Zoek in heel {{country}}",
+    "entireCountry": "Hele land",
+    "remove": "{{name}} verwijderen",
+    "placesError": "De plaatsen voor {{country}} konden niet worden geladen.",
+    "retry": "Opnieuw",
+    "regions": "Regio’s",
+    "cities": "Steden",
+    "recapEmpty": "Je keuzes verschijnen hier",
+    "anywhereShort": "Overal",
+    "clearAll": "Alles wissen",
+    "chooseDestinations": "Kies bestemmingen",
+    "apply_one": "Toepassen · {{count}} bestemming",
+    "apply_other": "Toepassen · {{count}} bestemmingen"
   }
 }

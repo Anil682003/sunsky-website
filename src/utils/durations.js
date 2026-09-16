@@ -8,12 +8,15 @@
 // (arrive day 1, leave day N). So "7 days" is a 6-night stay: check-in Sat 20 → check-out Fri 26.
 // Convert with daysToNights/nightsToDays at the boundary; never store days as nights.
 
+/* KEY vs LABEL: the label is the STORED value — it rides in the search URL and the
+   hotel page's Duration filter matches on it — so it stays English and stable. The
+   key is what the UI translates through. Never show a label directly. */
 export const DURATION_BANDS = [
-  { label: '2-5 days',   days: 4,  minDays: 2,  maxDays: 5 },
-  { label: '6-10 days',  days: 7,  minDays: 6,  maxDays: 10 },
-  { label: '11-16 days', days: 14, minDays: 11, maxDays: 16 },
-  { label: '17-24 days', days: 21, minDays: 17, maxDays: 24 },
-  { label: '25+ days',   days: 28, minDays: 25, maxDays: 35 },
+  { key: 'd2_5',    label: '2-5 days',   days: 4,  minDays: 2,  maxDays: 5 },
+  { key: 'd6_10',   label: '6-10 days',  days: 7,  minDays: 6,  maxDays: 10 },
+  { key: 'd11_16',  label: '11-16 days', days: 14, minDays: 11, maxDays: 16 },
+  { key: 'd17_24',  label: '17-24 days', days: 21, minDays: 17, maxDays: 24 },
+  { key: 'd25plus', label: '25+ days',   days: 28, minDays: 25, maxDays: 35 },
 ];
 
 /** Nights slept for a stay of N calendar days: N-1 (never below 1). */

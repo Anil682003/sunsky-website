@@ -59,5 +59,55 @@
       "destinations": "Destinations",
       "travelTypes": "Travel Types"
     }
+  },
+  "calendar": {
+    "months": "January,February,March,April,May,June,July,August,September,October,November,December",
+    "weekdays": "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
+    "prevMonth": "Previous month",
+    "nextMonth": "Next month",
+    "flexibility": "Date flexibility",
+    "exactDates": "Exact dates",
+    "plusMinus_one": "± {{count}} day",
+    "plusMinus_other": "± {{count}} days",
+    "done": "Done"
+  },
+  "airportSearch": {
+    "placeholder": "City or airport name",
+    "popular": "Popular",
+    "clear": "Clear",
+    "searching": "Searching…",
+    "resultCount_one": "{{count}} airport",
+    "resultCount_other": "{{count}} airports",
+    "noMatch": "No airport matches “{{query}}”. Try the city name, or its three-letter code.",
+    "startTyping": "Start typing a city or airport name.",
+    "noneYet": "No airports to choose from yet."
+  },
+  "destinationModal": {
+    "dialogLabel": "Choose your destinations",
+    "title": "Where’s the sun taking you?",
+    "subtitle": "Pick one or more countries — then narrow it down to the regions & cities you love.",
+    "close": "Close",
+    "countries": "Countries",
+    "all": "All",
+    "countriesError": "Could not load countries. Please try again.",
+    "noCountries": "No countries available.",
+    "emptyTitle": "Start with a country",
+    "emptyText": "Tick any country on the left and its regions & cities will appear here — mix as many as you like.",
+    "anywhere": "Anywhere in the country",
+    "placesSelected_one": "{{count}} place selected",
+    "placesSelected_other": "{{count}} places selected",
+    "searchAllOf": "Search all of {{country}}",
+    "entireCountry": "Entire country",
+    "remove": "Remove {{name}}",
+    "placesError": "Couldn’t load places for {{country}}.",
+    "retry": "Retry",
+    "regions": "Regions",
+    "cities": "Cities",
+    "recapEmpty": "Your picks will appear here",
+    "anywhereShort": "Anywhere",
+    "clearAll": "Clear all",
+    "chooseDestinations": "Choose destinations",
+    "apply_one": "Apply · {{count}} destination",
+    "apply_other": "Apply · {{count}} destinations"
   }
 }

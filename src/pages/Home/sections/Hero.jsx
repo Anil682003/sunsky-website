@@ -1,5 +1,6 @@
-import { useState, useRef, useEffect } from 'react';
+import { Fragment, useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from './Hero.module.css';
 import { useHomepageConfig, useCountries } from '../../../api';
 import DestinationModal from '../../../components/DestinationModal/DestinationModal';
@@ -73,7 +74,7 @@ const DESTINATION_OPTIONS = [
   { code: 'HKT', city: 'Phuket',    country: 'Thailand',  flag: '🇹🇭' },
   { code: 'RAK', city: 'Marrakech', country: 'Morocco',   flag: '🇲🇦' },
   { code: 'FAO', city: 'Faro',      country: 'Portugal',  flag: '🇵🇹' },
-].map((a) => ({ ...a, name: "" }));
+].map((a) => ({ ...a, name: '' }));
 
 // A cabin selector used to sit on this tab, offering Economy / Premium Economy / Business /
 // First. Airtuerk — the only flight supplier wired up — has no cabin filter on its search:
@@ -85,11 +86,8 @@ const DESTINATION_OPTIONS = [
 // really separates two fares on one flight is the airline's fare NAME (ECOJET, SUNVALUE,
 // Saver), which the results now show instead.
 
-const TRIP_TYPES = [
-  { id: 'roundtrip', label: 'Round trip' },
-  { id: 'oneway',    label: 'One way' },
-  { id: 'multicity', label: 'Multi-city' },
-];
+const TRIP_TYPES = ['roundtrip', 'oneway', 'multicity'];
+const TRIP_TYPE_EN = { roundtrip: 'Round trip', oneway: 'One way', multicity: 'Multi-city' };
 
 // A multi-city trip is at least two flights — one flight is a one-way — and five is where the
 // stack of rows stops being readable; past that it is a phone call to the agency.
@@ -187,19 +185,31 @@ function renderHeroTitle(raw, scriptClass) {
   if (!raw) return null;
   const pattern = raw.includes('*') ? /\*([^*]+)\*/g : /\b(sun|zon)\b/i;
   return raw.split(pattern).map((p, i) =>
-    i % 2 === 1 ? <span key={i} className={scriptClass}>{p}</span> : p
+    i % 2 === 1
+      ? <span key={i} className={scriptClass}>{p}</span>
+      /* A newline is a line break, not a space. The shipped title sets its own two
+         lines that way, and a dashboard title written over two lines now keeps them. */
+      : String(p ?? '').split('\n').map((line, j) =>
+          j === 0 ? line : <Fragment key={`${i}-${j}`}><br />{line}</Fragment>
+        )
   );
 }
 
 export default function Hero() {
   const navigate = useNavigate();
+  const { t, i18n } = useTranslation('home');
+  // Dates and country names are formatted by the browser, so they need the
+  // reader's locale rather than a hard-coded en-GB.
+  const dateLocale = i18n.language === 'nl' ? 'nl-BE' : 'en-GB';
 
   const { data: cmsConfig } = useHomepageConfig();
 
-  const [cmsBadge, setCmsBadge]         = useState('Holidays at guaranteed best prices');
+  // The dashboard's own hero copy wins when it has any; these are what shows until
+  // then, and they follow the reader's language.
+  const [cmsBadge, setCmsBadge]         = useState('');
   const [cmsTitle, setCmsTitle]         = useState('');
-  const [cmsSubtitle, setCmsSubtitle]   = useState('Sun-soaked beaches, vibrant cities, and hidden gems — all at the best guaranteed prices.');
-  const [cmsSearchBtn, setCmsSearchBtn] = useState('Search');
+  const [cmsSubtitle, setCmsSubtitle]   = useState('');
+  const [cmsSearchBtn, setCmsSearchBtn] = useState('');
 
   useEffect(() => {
     const hero = cmsConfig?.hero;
@@ -646,28 +656,71 @@ export default function Hero() {
     toSetter(fromVal);
   };
 
-  const roomsLabel = `${roomsList.length} room${roomsList.length > 1 ? 's' : ''}`;
+  const durationLabel = (label) => {
+    const band = DURATIONS.find((d) => d.label === label);
+    return band ? t(`hero.durations.${band.key}`, band.label) : label;
+  };
+
+  const roomsLabel = t('hero.roomCount', {
+    count: roomsList.length,
+    defaultValue_one: '{{count}} room',
+    defaultValue_other: '{{count}} rooms',
+  });
 
   // Compact for the search-bar field, which has limited width. The full
   // adults/children breakdown is shown in the dropdown's footer instead.
   const travelersLabel = totalChildren > 0
-    ? `${totalAdults + totalChildren} travelers · ${roomsLabel}`
-    : `${totalAdults} adult${totalAdults > 1 ? 's' : ''} · ${roomsLabel}`;
+    ? `${t('hero.travellerCount', {
+        count: totalAdults + totalChildren,
+        defaultValue_one: '{{count}} traveller',
+        defaultValue_other: '{{count}} travellers',
+      })} · ${roomsLabel}`
+    : `${t('hero.adultCount', {
+        count: totalAdults,
+        defaultValue_one: '{{count}} adult',
+        defaultValue_other: '{{count}} adults',
+      })} · ${roomsLabel}`;
 
-  const travelersDetail = `${totalAdults} adult${totalAdults > 1 ? 's' : ''}${totalChildren > 0 ? `, ${totalChildren} child${totalChildren > 1 ? 'ren' : ''}` : ''} · ${roomsLabel}`;
+  const adultsText = t('hero.adultCount', {
+    count: totalAdults,
+    defaultValue_one: '{{count}} adult',
+    defaultValue_other: '{{count}} adults',
+  });
+  const childrenText = t('hero.childCount', {
+    count: totalChildren,
+    defaultValue_one: '{{count}} child',
+    defaultValue_other: '{{count}} children',
+  });
+  const travelersDetail = `${adultsText}${totalChildren > 0 ? `, ${childrenText}` : ''} · ${roomsLabel}`;
 
   // "1 Adult · Economy" / "2 Adults, 1 Child · Business" — the party spelled out rather than
   // totalled, because who is flying changes the fare as much as how many.
   const flightPaxLabel = [
-    `${flightAdults} Adult${flightAdults > 1 ? 's' : ''}`,
-    flightChildren ? `${flightChildren} Child${flightChildren > 1 ? 'ren' : ''}` : '',
-    flightInfants ? `${flightInfants} Infant${flightInfants > 1 ? 's' : ''}` : '',
+    t('hero.flights.paxAdult', {
+      count: flightAdults,
+      defaultValue_one: '{{count}} Adult',
+      defaultValue_other: '{{count}} Adults',
+    }),
+    flightChildren
+      ? t('hero.flights.paxChild', {
+          count: flightChildren,
+          defaultValue_one: '{{count}} Child',
+          defaultValue_other: '{{count}} Children',
+        })
+      : '',
+    flightInfants
+      ? t('hero.flights.paxInfant', {
+          count: flightInfants,
+          defaultValue_one: '{{count}} Infant',
+          defaultValue_other: '{{count}} Infants',
+        })
+      : '',
   ].filter(Boolean).join(', ');
 
   const formatDate = (dateStr) => {
     if (!dateStr) return null;
     const d = new Date(dateStr + 'T00:00:00');
-    return d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+    return d.toLocaleDateString(dateLocale, { day: 'numeric', month: 'short', year: 'numeric' });
   };
 
   /**
@@ -698,8 +751,21 @@ export default function Hero() {
   // From/To on this tab resolves through here — the round-trip pair and the multi-city legs
   // alike — so the two can never drift apart.
   const airportPanelFor = (id) => {
-    const departures = { title: 'Departing from', fallback: departureOptions,   fallbackLabel: 'Departure airports' };
-    const arrivals   = { title: 'Going to',       fallback: DESTINATION_OPTIONS, fallbackLabel: 'Popular searches' };
+    const departures = {
+      title: t('hero.flights.departingFrom', 'Departing from'),
+      fallback: departureOptions,
+      fallbackLabel: t('hero.flights.departureAirports', 'Departure airports'),
+    };
+    const arrivals = {
+      title: t('hero.flights.goingTo', 'Going to'),
+      // The shortlist keeps its English country as the lookup key and shows the
+      // reader's word for it.
+      fallback: DESTINATION_OPTIONS.map((a) => ({
+        ...a,
+        country: t(`hero.countries.${a.country}`, a.country),
+      })),
+      fallbackLabel: t('hero.flights.popularSearches', 'Popular searches'),
+    };
     if (id === 'flightFrom') {
       return { ...departures, onPick: (a) => { setFlightFrom(airportToValue(a)); advanceRef.current = toCode ? null : 'flightTo'; } };
     }
@@ -777,7 +843,10 @@ export default function Hero() {
             <button
               type="button"
               className={styles.sfClear}
-              aria-label={`Clear ${label.toLowerCase()}`}
+              aria-label={t('hero.flights.clearField', {
+                field: String(label).toLowerCase(),
+                defaultValue: 'Clear {{field}}',
+              })}
               onClick={(e) => { e.stopPropagation(); onClear(); advanceRef.current = null; openAirportField(id); }}
             >
               {ICON_X}
@@ -785,7 +854,7 @@ export default function Hero() {
           )}
         </div>
         <span className={styles.sfHint}>
-          {open ? 'Type a city, airport or code' : (parts.hint || hint)}
+          {open ? t('hero.flights.typeAirport', 'Type a city, airport or code') : (parts.hint || hint)}
         </span>
         {panel && (
           <div className={styles.sfPanel}>
@@ -819,7 +888,7 @@ export default function Hero() {
         </div>
         <div className={styles.sfBody}>
           <span className={`${styles.sfValue} ${!value ? styles.sfPlaceholder : ''}`}>
-            {formatDate(value) || 'Select date'}
+            {formatDate(value) || t('hero.flights.selectDate', 'Select date')}
           </span>
           {caret(open)}
         </div>
@@ -870,8 +939,14 @@ export default function Hero() {
           <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
         )}
       </span>
-      Direct flights only
-      <span className={styles.infoDot} title="Hides any flight with a stopover — fewer results, no connections.">
+      {t('hero.flights.directOnly', 'Direct flights only')}
+      <span
+        className={styles.infoDot}
+        title={t(
+          'hero.flights.directOnlyInfo',
+          'Hides any flight with a stopover — fewer results, no connections.'
+        )}
+      >
         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4M12 8h.01"/></svg>
       </span>
     </button>
@@ -880,28 +955,41 @@ export default function Hero() {
   const flightSearchButton = (
     <button className={styles.searchBtn} onClick={handleFlightSearch}>
       {ICON_SEARCH}
-      {cmsSearchBtn}
+      {cmsSearchBtn || t('hero.search', 'Search')}
     </button>
   );
 
   // "Flying from" field text: one airport reads as itself, several read as a count —
   // "4 airports" tells the traveller their whole selection is held, in space one name takes.
   const originsLabel = noPreference
-    ? 'Any airport'
+    ? t('hero.anyAirport', 'Any airport')
     : origins.length === 1
       ? `${airportCity(origins[0])} (${origins[0]})`
-      : `${origins.length} airports`;
+      : t('hero.airportCount', {
+          count: origins.length,
+          defaultValue_one: '{{count}} airport',
+          defaultValue_other: '{{count}} airports',
+        });
 
   // Second line under each field's value: what the field is FOR, in the traveller's words.
   // Where the answer is already known it says the answer instead of the instruction — the
   // "Flying from" hint names the airport whose code sits above it.
   const originsHint = transport === 'hotel_only'
-    ? 'No flight, hotel only'
-    : noPreference ? 'All departure airports'
-    : origins.length === 1 ? airportLabel(origins[0]) : `${origins.length} airports selected`;
+    ? t('hero.noFlightHotelOnly', 'No flight, hotel only')
+    : noPreference ? t('hero.allDepartureAirports', 'All departure airports')
+    : origins.length === 1 ? airportLabel(origins[0])
+    : t('hero.airportsSelected', {
+        count: origins.length,
+        defaultValue_one: '{{count}} airport selected',
+        defaultValue_other: '{{count}} airports selected',
+      });
   const dateHint = flexDays > 0
-    ? `Flexible ± ${flexDays} day${flexDays > 1 ? 's' : ''}`
-    : 'Select departure date';
+    ? t('hero.flexibleDays', {
+        count: flexDays,
+        defaultValue_one: 'Flexible ± {{count}} day',
+        defaultValue_other: 'Flexible ± {{count}} days',
+      })
+    : t('hero.selectDepartureDate', 'Select departure date');
 
   // The little chevron on the fields that open a panel — pointing down, and up while open.
   const caret = (open) => (
@@ -918,7 +1006,7 @@ export default function Hero() {
   const COUNTRY_ORDER = { BE: 1, NL: 2, DE: 3, FR: 4, LU: 5, GB: 6 };
   const countryName = (iso) => {
     if (!iso) return '';
-    try { return new Intl.DisplayNames(['en'], { type: 'region' }).of(iso) || iso; }
+    try { return new Intl.DisplayNames([i18n.language], { type: 'region' }).of(iso) || iso; }
     catch { return iso; }
   };
 
@@ -994,10 +1082,10 @@ export default function Hero() {
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
           </span>
-          <span className={styles.sfLabel}>Departure</span>
+          <span className={styles.sfLabel}>{t('hero.departure', 'Departure')}</span>
         </div>
         <div className={styles.sfBody}>
-          <span className={`${styles.sfValue} ${!date ? styles.sfPlaceholder : ''}`}>{formatDate(date) || 'Pick a date'}</span>
+          <span className={`${styles.sfValue} ${!date ? styles.sfPlaceholder : ''}`}>{formatDate(date) || t('hero.pickDate', 'Pick a date')}</span>
           {caret(openField === 'date')}
         </div>
         <span className={styles.sfHint}>{dateHint}</span>
@@ -1008,13 +1096,13 @@ export default function Hero() {
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
           </span>
-          <span className={styles.sfLabel}>Duration</span>
+          <span className={styles.sfLabel}>{t('hero.duration', 'Duration')}</span>
         </div>
         <div className={styles.sfBody}>
-          <span className={styles.sfValue}>{duration}</span>
+          <span className={styles.sfValue}>{durationLabel(duration)}</span>
           {caret(openField === 'duration')}
         </div>
-        <span className={styles.sfHint}>Choose length of stay</span>
+        <span className={styles.sfHint}>{t('hero.durationHint', 'Choose length of stay')}</span>
       </div>
       <div className={styles.sfDivider} />
       {/* Flying from — the transport decision made HERE travels the whole journey:
@@ -1028,10 +1116,10 @@ export default function Hero() {
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
           </span>
-          <span className={styles.sfLabel}>Flying from</span>
+          <span className={styles.sfLabel}>{t('hero.flyingFrom', 'Flying from')}</span>
         </div>
         <div className={styles.sfBody}>
-          <span className={styles.sfValue}>{transport === 'hotel_only' ? 'Hotel only' : originsLabel}</span>
+          <span className={styles.sfValue}>{transport === 'hotel_only' ? t('hero.hotelOnly', 'Hotel only') : originsLabel}</span>
           {caret(openField === 'transport')}
         </div>
         <span className={styles.sfHint}>{originsHint}</span>
@@ -1042,12 +1130,12 @@ export default function Hero() {
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
           </span>
-          <span className={styles.sfLabel}>Travellers &amp; rooms</span>
+          <span className={styles.sfLabel}>{t('hero.travellersRooms', 'Travellers & rooms')}</span>
         </div>
         <div className={styles.sfBody}>
           <span className={styles.sfValue}>{travelersLabel}</span>
         </div>
-        <span className={styles.sfHint}>Change travellers &amp; rooms</span>
+        <span className={styles.sfHint}>{t('hero.changeTravellersRooms', 'Change travellers & rooms')}</span>
       </div>
     </>
   );
@@ -1058,25 +1146,25 @@ export default function Hero() {
         <div className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
           <div className={styles.tspHead}>
             <div>
-              <div className={styles.tspTitle}>Flying from</div>
-              <div className={styles.tspSubtitle}>Select one or more departure airports</div>
+              <div className={styles.tspTitle}>{t('hero.flyingFrom', 'Flying from')}</div>
+              <div className={styles.tspSubtitle}>{t('hero.transport.subtitle', 'Select one or more departure airports')}</div>
             </div>
-            <button type="button" className={styles.tspClose} onClick={() => setOpenField(null)} aria-label="Close">
+            <button type="button" className={styles.tspClose} onClick={() => setOpenField(null)} aria-label={t('hero.transport.close', 'Close')}>
               <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
             </button>
           </div>
-          <div className={styles.tspTabs} role="radiogroup" aria-label="Transport mode">
+          <div className={styles.tspTabs} role="radiogroup" aria-label={t('hero.transport.mode', 'Transport mode')}>
             <button type="button" role="radio" aria-checked={transport === 'package'}
               className={`${styles.tspTab} ${transport === 'package' ? styles.tspTabOn : ''}`}
               onClick={() => setTransport('package')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-              Incl. flight
+              {t('hero.transport.inclFlight', 'Incl. flight')}
             </button>
             <button type="button" role="radio" aria-checked={transport === 'hotel_only'}
               className={`${styles.tspTab} ${transport === 'hotel_only' ? styles.tspTabOn : ''}`}
               onClick={() => { setTransport('hotel_only'); setOpenField(null); }}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8"/><path d="M4 10V6a2 2 0 012-2h12a2 2 0 012 2v4"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
-              Hotel only
+              {t('hero.hotelOnly', 'Hotel only')}
             </button>
           </div>
           {transport === 'package' && (
@@ -1096,19 +1184,19 @@ export default function Hero() {
               >
                 <span className={`${styles.tspAnyDot} ${noPreference ? styles.tspAnyDotOn : ''}`} aria-hidden="true" />
                 <span className={styles.tspAnyText}>
-                  <span className={styles.tspAnyTitle}>No preference</span>
-                  <span className={styles.tspAnySub}>Search all available departure airports</span>
+                  <span className={styles.tspAnyTitle}>{t('hero.transport.noPreference', 'No preference')}</span>
+                  <span className={styles.tspAnySub}>{t('hero.transport.noPreferenceSub', 'Search all available departure airports')}</span>
                 </span>
                 <span className={styles.tspAnyArt} aria-hidden="true">{ANY_AIRPORT_ART}</span>
               </button>
 
-              <div className={styles.tspOr}><span>or</span></div>
+              <div className={styles.tspOr}><span>{t('hero.transport.or', 'or')}</span></div>
 
               <div className={styles.tspBody}>
                 <div className={styles.tspList}>
-                  <div className={styles.tspSectionLabel}>All departure airports</div>
+                  <div className={styles.tspSectionLabel}>{t('hero.allDepartureAirports', 'All departure airports')}</div>
                   {countryGroups.length === 0 ? (
-                    <div className={styles.tspEmpty}>Departure airports are loading…</div>
+                    <div className={styles.tspEmpty}>{t('hero.transport.loading', 'Departure airports are loading…')}</div>
                   ) : (
                     <div className={styles.tspCountryCols}>
                       {countryGroups.map((g) => (
@@ -1127,7 +1215,7 @@ export default function Hero() {
                 </div>
                 <aside className={styles.tspSidebar}>
                   <div className={styles.tspSidebarTitle}>
-                    Your selection{noPreference ? '' : ` (${origins.length})`}
+                    {t('hero.transport.yourSelection', 'Your selection')}{noPreference ? '' : ` (${origins.length})`}
                   </div>
                   {/* Nineteen chips is not a summary of "anywhere" — it reads as a list the
                       traveller assembled by hand. One card says the same thing truthfully. */}
@@ -1157,7 +1245,10 @@ export default function Hero() {
                             type="button"
                             className={styles.tspChipRemove}
                             onClick={() => toggleOrigin(code)}
-                            aria-label={`Remove ${a.label}`}
+                            aria-label={t('hero.transport.remove', {
+                              name: a.label,
+                              defaultValue: 'Remove {{name}}',
+                            })}
                             disabled={origins.length === 1}
                           >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
@@ -1177,11 +1268,17 @@ export default function Hero() {
                   <div className={styles.tspFootText}>
                     <div className={styles.tspFootMain}>
                       {noPreference
-                        ? 'No preference'
-                        : `${origins.length} airport${origins.length !== 1 ? 's' : ''} selected`}
+                        ? t('hero.transport.noPreference', 'No preference')
+                        : t('hero.airportsSelected', {
+                            count: origins.length,
+                            defaultValue_one: '{{count}} airport selected',
+                            defaultValue_other: '{{count}} airports selected',
+                          })}
                     </div>
                     <div className={styles.tspFootHint}>
-                      {noPreference ? 'Searching every departure airport' : 'You can select more airports'}
+                      {noPreference
+                        ? t('hero.transport.searchingEvery', 'Searching every departure airport')
+                        : t('hero.transport.canSelectMore', 'You can select more airports')}
                     </div>
                   </div>
                 </div>
@@ -1193,7 +1290,7 @@ export default function Hero() {
                     className={styles.tspSave}
                     onClick={() => setOpenField(null)}
                   >
-                    Save
+                    {t('hero.transport.save', 'Save')}
                   </button>
                   <button
                     type="button"
@@ -1201,7 +1298,7 @@ export default function Hero() {
                     onClick={clearOrigins}
                     disabled={origins.length <= 1 && origins[0] === DEFAULT_ORIGIN}
                   >
-                    Clear all
+                    {t('hero.transport.clearAll', 'Clear all')}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
                   </button>
                 </div>
@@ -1228,7 +1325,7 @@ export default function Hero() {
           <div className={styles.durList}>
             {DURATIONS.map((d) => (
               <div key={d.label} className={`${styles.durOpt} ${duration === d.label ? styles.durOptActive : ''}`} onClick={() => { setDuration(d.label); setOpenField(null); }}>
-                <span>{d.label}</span>
+                <span>{durationLabel(d.label)}</span>
                 {duration === d.label && (
                   <svg className={styles.durCheck} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
                 )}
@@ -1245,52 +1342,63 @@ export default function Hero() {
                 <div className={styles.roomHead}>
                   <span className={styles.roomTitle}>
                     <span className={styles.roomBadge}>{ri + 1}</span>
-                    Room {ri + 1}
+                    {t('hero.rooms.room', { number: ri + 1, defaultValue: 'Room {{number}}' })}
                   </span>
                   {ri > 0 && (
                     <button className={styles.roomRemove} onClick={() => removeRoom(ri)}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
-                      Remove
+                      {t('hero.rooms.remove', 'Remove')}
                     </button>
                   )}
                 </div>
                 <div className={styles.travRow}>
                   <div className={styles.travLabelWrap}>
-                    <span className={styles.travLabel}>Adults</span>
-                    <span className={styles.travSubInline}>(from 18 years)</span>
+                    <span className={styles.travLabel}>{t('hero.rooms.adults', 'Adults')}</span>
+                    <span className={styles.travSubInline}>{t('hero.rooms.adultsAge', '(from 18 years)')}</span>
                   </div>
                   <div className={styles.stepper}>
-                    <button className={styles.stepperBtn} disabled={room.adults <= 1} onClick={() => setRoomAdults(ri, room.adults - 1)} aria-label="Remove adult">−</button>
+                    <button className={styles.stepperBtn} disabled={room.adults <= 1} onClick={() => setRoomAdults(ri, room.adults - 1)} aria-label={t('hero.rooms.removeAdult', 'Remove adult')}>−</button>
                     <span className={styles.stepperCount}>{room.adults}</span>
-                    <button className={styles.stepperBtn} disabled={room.adults >= 9} onClick={() => setRoomAdults(ri, room.adults + 1)} aria-label="Add adult">+</button>
+                    <button className={styles.stepperBtn} disabled={room.adults >= 9} onClick={() => setRoomAdults(ri, room.adults + 1)} aria-label={t('hero.rooms.addAdult', 'Add adult')}>+</button>
                   </div>
                 </div>
                 <div className={styles.travRow}>
                   <div className={styles.travLabelWrap}>
-                    <span className={styles.travLabel}>Children</span>
-                    <span className={styles.travSubInline}>(0 to 17 years)</span>
+                    <span className={styles.travLabel}>{t('hero.rooms.children', 'Children')}</span>
+                    <span className={styles.travSubInline}>{t('hero.rooms.childrenAge', '(0 to 17 years)')}</span>
                   </div>
                   <div className={styles.stepper}>
-                    <button className={styles.stepperBtn} disabled={room.children <= 0} onClick={() => setRoomChildren(ri, room.children - 1)} aria-label="Remove child">−</button>
+                    <button className={styles.stepperBtn} disabled={room.children <= 0} onClick={() => setRoomChildren(ri, room.children - 1)} aria-label={t('hero.rooms.removeChild', 'Remove child')}>−</button>
                     <span className={styles.stepperCount}>{room.children}</span>
-                    <button className={styles.stepperBtn} disabled={room.children >= 6} onClick={() => setRoomChildren(ri, room.children + 1)} aria-label="Add child">+</button>
+                    <button className={styles.stepperBtn} disabled={room.children >= 6} onClick={() => setRoomChildren(ri, room.children + 1)} aria-label={t('hero.rooms.addChild', 'Add child')}>+</button>
                   </div>
                 </div>
                 {room.children > 0 && (
                   <div className={styles.travDobs}>
-                    <span className={styles.travDobsTitle}>Children's date of birth</span>
+                    <span className={styles.travDobsTitle}>{t('hero.rooms.dobTitle', "Children's date of birth")}</span>
                     {room.dobs.map((dob, ci) => {
                       const age = ageFromDob(dob);
                       return (
                         <div className={styles.travDobRow} key={ci}>
                           <span className={styles.travDobLabel}>
-                            Child {ci + 1}{age != null ? <em className={styles.travDobAge}>{age} yr{age === 1 ? '' : 's'}</em> : ''}
+                            {t('hero.rooms.child', { number: ci + 1, defaultValue: 'Child {{number}}' })}
+                            {age != null ? (
+                              <em className={styles.travDobAge}>
+                                {t('hero.rooms.years', {
+                                  count: age,
+                                  defaultValue_one: '{{count}} yr',
+                                  defaultValue_other: '{{count}} yrs',
+                                })}
+                              </em>
+                            ) : ''}
                           </span>
                           <input type="date" className={styles.travDobInput} value={dob} max={todayISO} onChange={(e) => updateChildDob(ri, ci, e.target.value)} />
                         </div>
                       );
                     })}
-                    <span className={styles.travDobHint}>Children's ages help us price rooms &amp; flights correctly.</span>
+                    <span className={styles.travDobHint}>
+                      {t('hero.rooms.dobHint', "Children's ages help us price rooms & flights correctly.")}
+                    </span>
                   </div>
                 )}
               </div>
@@ -1300,13 +1408,13 @@ export default function Hero() {
                 <span className={styles.addRoomIcon}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
                 </span>
-                Add extra room
+                {t('hero.rooms.addRoom', 'Add extra room')}
               </button>
             )}
           </div>
           <div className={styles.travFoot}>
             <span className={styles.travSummary}>{travelersDetail}</span>
-            <button className={styles.doneBtn} onClick={() => setOpenField(null)}>Save</button>
+            <button className={styles.doneBtn} onClick={() => setOpenField(null)}>{t('hero.rooms.save', 'Save')}</button>
           </div>
         </div>
       )}
@@ -1347,18 +1455,24 @@ export default function Hero() {
       <div className={styles.content}>
         <div className={styles.badge}>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
-          {cmsBadge}
+          {cmsBadge || t('hero.badge', 'Holidays at guaranteed best prices')}
         </div>
 
         <h1 className={styles.title}>
-          {cmsTitle
-            ? renderHeroTitle(cmsTitle, styles.script)
-            : <>Where will you<br />chase the <span className={styles.script}>sun</span>?</>
-          }
+          {renderHeroTitle(
+            cmsTitle || t('hero.title', 'Where will you\nchase the *sun*?'),
+            styles.script
+          )}
         </h1>
 
         <p className={styles.subtitle}>
-          {cmsText(cmsSubtitle)}
+          {cmsText(
+            cmsSubtitle
+            || t(
+              'hero.subtitle',
+              'Sun-soaked beaches, vibrant cities, and hidden gems — all at the best guaranteed prices.'
+            )
+          )}
         </p>
 
         <div className={styles.modeTabs}>
@@ -1367,14 +1481,14 @@ export default function Hero() {
             onClick={() => { setSearchMode('package'); setOpenField(null); }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2"/></svg>
-            Package
+            {t('hero.tabPackage', 'Package')}
           </button>
           <button
             className={`${styles.modeTab} ${searchMode === 'flights' ? styles.modeTabActive : ''}`}
             onClick={() => { setSearchMode('flights'); setOpenField(null); }}
           >
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
-            Flights Only
+            {t('hero.tabFlights', 'Flights Only')}
           </button>
         </div>
 
@@ -1390,7 +1504,7 @@ export default function Hero() {
                 <span className={styles.sfIcon}>
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
                 </span>
-                <span className={styles.sfLabel}>Destination</span>
+                <span className={styles.sfLabel}>{t('hero.destination', 'Destination')}</span>
               </div>
               <div className={styles.sfBody}>
                 <span className={`${styles.sfValue} ${!destinationLabel ? styles.sfPlaceholder : ''}`}>
@@ -1403,15 +1517,15 @@ export default function Hero() {
                       )}
                     </span>
                   )}
-                  {destinationLabel || 'Where to?'}
+                  {destinationLabel || t('hero.whereTo', 'Where to?')}
                 </span>
               </div>
-              <span className={styles.sfHint}>Search city, region or hotel</span>
+              <span className={styles.sfHint}>{t('hero.destinationHint', 'Search city, region or hotel')}</span>
             </div>
             {stayFields}
             <button className={styles.searchBtn} onClick={handleSearch}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              {cmsSearchBtn}
+              {cmsSearchBtn || t('hero.search', 'Search')}
             </button>
           </div>
           {stayDropdowns}
@@ -1429,16 +1543,16 @@ export default function Hero() {
                 beside it and has moved down into the details row — it qualifies a search that
                 does not exist yet while the route is still blank. */}
             <div className={styles.flightHead}>
-              <div className={styles.tripTabs} role="tablist" aria-label="Trip type">
+              <div className={styles.tripTabs} role="tablist" aria-label={t('hero.flights.tripType', 'Trip type')}>
                 {TRIP_TYPES.map((trip) => (
                   <button
-                    key={trip.id}
+                    key={trip}
                     role="tab"
-                    aria-selected={tripType === trip.id}
-                    className={`${styles.tripTab} ${tripType === trip.id ? styles.tripTabOn : ''}`}
-                    onClick={() => selectTripType(trip.id)}
+                    aria-selected={tripType === trip}
+                    className={`${styles.tripTab} ${tripType === trip ? styles.tripTabOn : ''}`}
+                    onClick={() => selectTripType(trip)}
                   >
-                    {trip.label}
+                    {t(`hero.flights.${trip}`, TRIP_TYPE_EN[trip])}
                   </button>
                 ))}
               </div>
@@ -1449,21 +1563,21 @@ export default function Hero() {
               <div className={styles.legs}>
                 {legs.map((leg, i) => (
                   <div className={styles.legRow} key={i}>
-                    <span className={styles.legLabel}>Trip {i + 1}</span>
+                    <span className={styles.legLabel}>{t('hero.flights.trip', { number: i + 1, defaultValue: 'Trip {{number}}' })}</span>
                     {airportField({
                       id: `leg${i}From`,
                       value: leg.from,
-                      label: 'From',
+                      label: t('hero.flights.from', 'From'),
                       icon: ICON_PLANE,
-                      placeholder: 'Where from?',
-                      hint: 'Search city or airport',
+                      placeholder: t('hero.flights.whereFrom', 'Where from?'),
+                      hint: t('hero.flights.airportHint', 'Search city or airport'),
                       onClear: () => setLeg(i, { from: '' }),
                     })}
                     <button
                       type="button"
                       className={styles.flightSwapBtn}
-                      title="Swap"
-                      aria-label={`Swap trip ${i + 1}'s airports`}
+                      title={t('hero.flights.swap', 'Swap')}
+                      aria-label={t('hero.flights.swapTrip', { number: i + 1, defaultValue: "Swap trip {{number}}'s airports" })}
                       onClick={(e) => { e.stopPropagation(); setLeg(i, { from: leg.to, to: leg.from }); }}
                     >
                       {ICON_SWAP}
@@ -1471,10 +1585,10 @@ export default function Hero() {
                     {airportField({
                       id: `leg${i}To`,
                       value: leg.to,
-                      label: 'To',
+                      label: t('hero.flights.to', 'To'),
                       icon: ICON_PIN,
-                      placeholder: 'Where to?',
-                      hint: 'Search city or airport',
+                      placeholder: t('hero.whereTo', 'Where to?'),
+                      hint: t('hero.flights.airportHint', 'Search city or airport'),
                       extraClass: styles.sfTo,
                       onClear: () => setLeg(i, { to: '' }),
                     })}
@@ -1482,8 +1596,8 @@ export default function Hero() {
                     {dateField({
                       id: `leg${i}Date`,
                       value: leg.date,
-                      label: 'Departure',
-                      hint: 'Add departure date',
+                      label: t('hero.departure', 'Departure'),
+                      hint: t('hero.flights.addDepartureDate', 'Add departure date'),
                     })}
                     <button
                       type="button"
@@ -1491,9 +1605,9 @@ export default function Hero() {
                       onClick={() => removeLeg(i)}
                       disabled={legs.length <= MIN_LEGS}
                       title={legs.length <= MIN_LEGS
-                        ? 'A multi-city trip needs at least two flights'
-                        : `Remove trip ${i + 1}`}
-                      aria-label={`Remove trip ${i + 1}`}
+                        ? t('hero.flights.minLegs', 'A multi-city trip needs at least two flights')
+                        : t('hero.flights.removeTrip', { number: i + 1, defaultValue: 'Remove trip {{number}}' })}
+                      aria-label={t('hero.flights.removeTrip', { number: i + 1, defaultValue: 'Remove trip {{number}}' })}
                     >
                       {ICON_TRASH}
                     </button>
@@ -1505,10 +1619,15 @@ export default function Hero() {
                     className={styles.addTripBtn}
                     onClick={addLeg}
                     disabled={legs.length >= MAX_LEGS}
-                    title={legs.length >= MAX_LEGS ? `${MAX_LEGS} flights is the most this search takes` : undefined}
+                    title={legs.length >= MAX_LEGS
+                      ? t('hero.flights.maxLegs', {
+                          count: MAX_LEGS,
+                          defaultValue: '{{count}} flights is the most this search takes',
+                        })
+                      : undefined}
                   >
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round"><path d="M12 5v14M5 12h14"/></svg>
-                    Add trip
+                    {t('hero.flights.addTrip', 'Add trip')}
                   </button>
                 </div>
               </div>
@@ -1517,17 +1636,17 @@ export default function Hero() {
                 {airportField({
                   id: 'flightFrom',
                   value: flightFrom,
-                  label: 'From',
+                  label: t('hero.flights.from', 'From'),
                   icon: ICON_PLANE,
-                  placeholder: 'Where are you flying from?',
-                  hint: 'Search city or airport',
+                  placeholder: t('hero.flights.whereFromLong', 'Where are you flying from?'),
+                  hint: t('hero.flights.airportHint', 'Search city or airport'),
                   onClear: () => setFlightFrom(''),
                 })}
                 <button
                   type="button"
                   className={styles.flightSwapBtn}
-                  title="Swap"
-                  aria-label="Swap departure and destination"
+                  title={t('hero.flights.swap', 'Swap')}
+                  aria-label={t('hero.flights.swapRoute', 'Swap departure and destination')}
                   onClick={(e) => { e.stopPropagation(); swapFlightFields(setFlightFrom, setFlightTo, flightFrom, flightTo); }}
                 >
                   {ICON_SWAP}
@@ -1535,10 +1654,10 @@ export default function Hero() {
                 {airportField({
                   id: 'flightTo',
                   value: flightTo,
-                  label: 'To',
+                  label: t('hero.flights.to', 'To'),
                   icon: ICON_PIN,
-                  placeholder: 'Where do you want to go?',
-                  hint: 'Search city or airport',
+                  placeholder: t('hero.flights.whereToLong', 'Where do you want to go?'),
+                  hint: t('hero.flights.airportHint', 'Search city or airport'),
                   extraClass: styles.sfTo,
                   onClear: () => setFlightTo(''),
                 })}
@@ -1556,8 +1675,8 @@ export default function Hero() {
                     {dateField({
                       id: 'flightDate',
                       value: flightDate,
-                      label: 'Departure',
-                      hint: 'Add departure date',
+                      label: t('hero.departure', 'Departure'),
+                      hint: t('hero.flights.addDepartureDate', 'Add departure date'),
                     })}
                     <div className={styles.sfDivider} />
                   </>
@@ -1568,8 +1687,8 @@ export default function Hero() {
                     {dateField({
                       id: 'flightReturn',
                       value: flightReturnDate,
-                      label: 'Return',
-                      hint: 'Add return date',
+                      label: t('hero.flights.return', 'Return'),
+                      hint: t('hero.flights.addReturnDate', 'Add return date'),
                     })}
                     <div className={styles.sfDivider} />
                   </>
@@ -1580,13 +1699,13 @@ export default function Hero() {
                 >
                   <div className={styles.sfHead}>
                     <span className={styles.sfIcon}>{ICON_PAX}</span>
-                    <span className={styles.sfLabel}>Passengers</span>
+                    <span className={styles.sfLabel}>{t('hero.flights.passengers', 'Passengers')}</span>
                   </div>
                   <div className={styles.sfBody}>
                     <span className={styles.sfValue}>{flightPaxLabel}</span>
                     {caret(openField === 'flightTravelers')}
                   </div>
-                  <span className={styles.sfHint}>Who is flying</span>
+                  <span className={styles.sfHint}>{t('hero.flights.whoIsFlying', 'Who is flying')}</span>
                 </div>
                 {directOnlyToggle}
                 {/* Multi-city's Search sits down here: its own row is a stack of legs, and a
@@ -1617,8 +1736,8 @@ export default function Hero() {
             <div className={`${styles.flightDropdown} ${styles.paxDropdown}`}>
               <div className={styles.travRow}>
                 <div>
-                  <span className={styles.travLabel}>Adults</span>
-                  <span className={styles.travSub}>12+ years</span>
+                  <span className={styles.travLabel}>{t('hero.flights.adults', 'Adults')}</span>
+                  <span className={styles.travSub}>{t('hero.flights.adultsAge', '12+ years')}</span>
                 </div>
                 <div className={styles.stepper}>
                   <button className={styles.stepperBtn} onClick={() => setFlightAdults((v) => Math.max(1, v - 1))}>−</button>
@@ -1628,8 +1747,8 @@ export default function Hero() {
               </div>
               <div className={styles.travRow}>
                 <div>
-                  <span className={styles.travLabel}>Children</span>
-                  <span className={styles.travSub}>2–11 years</span>
+                  <span className={styles.travLabel}>{t('hero.flights.children', 'Children')}</span>
+                  <span className={styles.travSub}>{t('hero.flights.childrenAge', '2–11 years')}</span>
                 </div>
                 <div className={styles.stepper}>
                   <button className={styles.stepperBtn} onClick={() => setFlightChildren((v) => Math.max(0, v - 1))}>−</button>
@@ -1639,8 +1758,8 @@ export default function Hero() {
               </div>
               <div className={styles.travRow}>
                 <div>
-                  <span className={styles.travLabel}>Infants</span>
-                  <span className={styles.travSub}>Under 2, on a lap</span>
+                  <span className={styles.travLabel}>{t('hero.flights.infants', 'Infants')}</span>
+                  <span className={styles.travSub}>{t('hero.flights.infantsAge', 'Under 2, on a lap')}</span>
                 </div>
                 <div className={styles.stepper}>
                   {/* An infant flies on an adult's lap, so there can never be more of them
@@ -1650,7 +1769,7 @@ export default function Hero() {
                   <button className={styles.stepperBtn} onClick={() => setFlightInfants((v) => Math.min(flightAdults, v + 1))}>+</button>
                 </div>
               </div>
-              <button className={styles.doneBtn} onClick={() => setOpenField(null)}>Done</button>
+              <button className={styles.doneBtn} onClick={() => setOpenField(null)}>{t('hero.flights.done', 'Done')}</button>
             </div>
           )}
 

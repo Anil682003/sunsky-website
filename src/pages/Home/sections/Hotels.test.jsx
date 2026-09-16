@@ -24,7 +24,7 @@ const cardFor = (name) => screen.getByText(name).closest('article');
 describe('a CMS-picked hotel card', () => {
   it('links to that hotel with a full search context', () => {
     renderSection(cms([HOTEL]));
-    const href = within(cardFor('Rixos Premium Belek')).getByRole('link', { name: /view deal/i })
+    const href = within(cardFor('Rixos Premium Belek')).getByRole('link', { name: /bekijk de deal/i })
       .getAttribute('href');
 
     const [path, query] = href.split('?');
@@ -45,7 +45,7 @@ describe('a CMS-picked hotel card', () => {
   it('defaults to a seven-night stay a month out', () => {
     renderSection(cms([HOTEL]));
     const q = new URLSearchParams(
-      within(cardFor('Rixos Premium Belek')).getByRole('link', { name: /view deal/i })
+      within(cardFor('Rixos Premium Belek')).getByRole('link', { name: /bekijk de deal/i })
         .getAttribute('href').split('?')[1]);
     const days = (new Date(`${q.get('checkOut')}T00:00:00Z`) - new Date(`${q.get('checkIn')}T00:00:00Z`)) / 86400000;
     expect(days).toBe(7);
@@ -60,7 +60,7 @@ describe('a CMS-picked hotel card', () => {
     const overlay = [...card.querySelectorAll('a')].find((a) => a.getAttribute('aria-hidden') === 'true');
     expect(overlay).toHaveAttribute('tabindex', '-1');
     expect(overlay.getAttribute('href')).toBe(
-      within(card).getByRole('link', { name: /view deal/i }).getAttribute('href'));
+      within(card).getByRole('link', { name: /bekijk de deal/i }).getAttribute('href'));
   });
 
   it('keeps Save-to-favourites a button, so it cannot navigate', () => {
@@ -89,13 +89,13 @@ describe('a card that cannot be linked', () => {
     const card = cardFor('Rixos Premium Belek');
     expect(within(card).queryByRole('link')).not.toBeInTheDocument();
     expect(card.querySelector('a')).toBeNull();
-    expect(within(card).getByRole('button', { name: /view deal/i })).toBeDisabled();
+    expect(within(card).getByRole('button', { name: /bekijk deal/i })).toBeDisabled();
   });
 
   it('leaves the built-in demo cards unlinked', () => {
     renderSection({});   // no CMS hotels at all
     expect(screen.queryAllByRole('link')).toHaveLength(0);
-    for (const b of screen.getAllByRole('button', { name: /view deal/i })) expect(b).toBeDisabled();
+    for (const b of screen.getAllByRole('button', { name: /bekijk deal/i })) expect(b).toBeDisabled();
   });
 });
 
@@ -120,7 +120,7 @@ describe('section content', () => {
   it('renders a card with no price without its voucher stub', () => {
     renderSection(cms([{ ...HOTEL, price: '' }]));
     const card = cardFor('Rixos Premium Belek');
-    expect(within(card).queryByRole('link', { name: /view deal/i })).not.toBeInTheDocument();
+    expect(within(card).queryByRole('link', { name: /bekijk de deal/i })).not.toBeInTheDocument();
     expect(card.textContent).not.toMatch(/From/);
   });
 });

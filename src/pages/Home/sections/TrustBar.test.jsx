@@ -58,14 +58,14 @@ describe('the guarantee bar', () => {
       ],
     };
     renderBar();
-    expect(screen.getByRole('link', { name: /how you are covered/i }))
+    expect(screen.getByRole('link', { name: /hoe je gedekt bent/i }))
       .toHaveAttribute('href', '/p/somewhere#cover');
   });
 
   it('still points somewhere sensible when the dashboard is unreachable', () => {
     footerConfig = null;
     renderBar();
-    expect(screen.getByRole('link', { name: /how you are covered/i }))
+    expect(screen.getByRole('link', { name: /hoe je gedekt bent/i }))
       .toHaveAttribute('href', '/p/protection-insurance');
   });
 });

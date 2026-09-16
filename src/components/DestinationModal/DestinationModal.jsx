@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './DestinationModal.module.css';
 import { fetchGeoPlaces } from '../../api';
+import { useTranslation } from 'react-i18next';
 
 /**
  * Multi-destination picker. The traveller ticks one or more COUNTRIES on the
@@ -44,6 +45,7 @@ export default function DestinationModal({
   onApply,
   onClose,
 }) {
+  const { t } = useTranslation('common');
   const [draft, setDraft] = useState(value);
   const [placesByCountry, setPlacesByCountry] = useState({});   // countryId → group
   const [errorIds, setErrorIds] = useState(() => new Set());
@@ -195,7 +197,7 @@ export default function DestinationModal({
           ) : (
             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M3 21h18M5 21V7l8-4v18M19 21V11l-6-3"/><path d="M9 9v.01M9 12v.01M9 15v.01M9 18v.01"/></svg>
           )}
-          {type === 'region' ? 'Regions' : 'Cities'}
+          {type === 'region' ? t('destinationModal.regions', 'Regions') : t('destinationModal.cities', 'Cities')}
           <em className={styles.groupCount}>{items.length}</em>
         </span>
         <div className={styles.chips}>
@@ -235,7 +237,7 @@ export default function DestinationModal({
         className={styles.modal}
         role="dialog"
         aria-modal="true"
-        aria-label="Choose your destinations"
+        aria-label={t('destinationModal.dialogLabel', 'Choose your destinations')}
         onClick={(e) => e.stopPropagation()}
       >
         {/* ── Header ── */}
@@ -248,10 +250,15 @@ export default function DestinationModal({
             </g>
           </svg>
           <div className={styles.headText}>
-            <h3 className={styles.title}>Where&rsquo;s the sun taking you?</h3>
-            <p className={styles.subtitle}>Pick one or more countries — then narrow it down to the regions &amp; cities you love.</p>
+            <h3 className={styles.title}>{t('destinationModal.title', 'Where’s the sun taking you?')}</h3>
+            <p className={styles.subtitle}>
+              {t(
+                'destinationModal.subtitle',
+                'Pick one or more countries — then narrow it down to the regions & cities you love.'
+              )}
+            </p>
           </div>
-          <button className={styles.closeBtn} onClick={onClose} aria-label="Close">
+          <button className={styles.closeBtn} onClick={onClose} aria-label={t('destinationModal.close', 'Close')}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
           </button>
         </div>
@@ -260,7 +267,7 @@ export default function DestinationModal({
         <div className={styles.main}>
           <aside className={styles.rail}>
             <span className={styles.railLabel}>
-              Countries
+              {t('destinationModal.countries', 'Countries')}
               {draft.countries.length > 0 && <em className={styles.railBadge}>{draft.countries.length}</em>}
             </span>
 
@@ -270,10 +277,12 @@ export default function DestinationModal({
               </div>
             )}
             {!loading && error && (
-              <div className={`${styles.railState} ${styles.railError}`}>Could not load countries. Please try again.</div>
+              <div className={`${styles.railState} ${styles.railError}`}>
+                {t('destinationModal.countriesError', 'Could not load countries. Please try again.')}
+              </div>
             )}
             {!loading && !error && countries.length === 0 && (
-              <div className={styles.railState}>No countries available.</div>
+              <div className={styles.railState}>{t('destinationModal.noCountries', 'No countries available.')}</div>
             )}
 
             {!loading && !error && countries.map((c) => {
@@ -292,7 +301,7 @@ export default function DestinationModal({
                   <Flag flagUrl={c.flagUrl} flag={c.flag} className={styles.rowFlag} />
                   <span className={styles.rowName}>{c.name}</span>
                   {active && (
-                    <span className={styles.rowBadge}>{picked > 0 ? picked : 'All'}</span>
+                    <span className={styles.rowBadge}>{picked > 0 ? picked : t('destinationModal.all', 'All')}</span>
                   )}
                 </button>
               );
@@ -305,8 +314,13 @@ export default function DestinationModal({
                 <span className={styles.emptyArt} aria-hidden="true">
                   <svg width="52" height="52" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.2" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2c2.5 2.6 4 6.2 4 10s-1.5 7.4-4 10c-2.5-2.6-4-6.2-4-10s1.5-7.4 4-10z"/></svg>
                 </span>
-                <p className={styles.emptyTitle}>Start with a country</p>
-                <p className={styles.emptyText}>Tick any country on the left and its regions &amp; cities will appear here — mix as many as you like.</p>
+                <p className={styles.emptyTitle}>{t('destinationModal.emptyTitle', 'Start with a country')}</p>
+                <p className={styles.emptyText}>
+                  {t(
+                    'destinationModal.emptyText',
+                    'Tick any country on the left and its regions & cities will appear here — mix as many as you like.'
+                  )}
+                </p>
               </div>
             )}
 
@@ -342,18 +356,22 @@ export default function DestinationModal({
                       <span className={styles.blockName}>{c.name}</span>
                       <span className={styles.blockSub}>
                         {whole
-                          ? 'Anywhere in the country'
-                          : `${picked.length} place${picked.length === 1 ? '' : 's'} selected`}
+                          ? t('destinationModal.anywhere', 'Anywhere in the country')
+                          : t('destinationModal.placesSelected', {
+                              count: picked.length,
+                              defaultValue_one: '{{count}} place selected',
+                              defaultValue_other: '{{count}} places selected',
+                            })}
                       </span>
                     </div>
                     <button
                       type="button"
                       className={`${styles.wholeChip} ${whole ? styles.wholeChipActive : ''}`}
                       onClick={(e) => { e.stopPropagation(); clearCountryPlaces(c.id); }}
-                      title={`Search all of ${c.name}`}
+                      title={t('destinationModal.searchAllOf', { country: c.name, defaultValue: 'Search all of {{country}}' })}
                     >
                       {whole && <CheckIcon size={10} />}
-                      Entire country
+                      {t('destinationModal.entireCountry', 'Entire country')}
                     </button>
                     <button
                       type="button"
@@ -376,8 +394,13 @@ export default function DestinationModal({
                   {isOpen && isError && (
                     <div className={styles.blockBody}>
                       <div className={styles.blockError}>
-                        Couldn&rsquo;t load places for {c.name}.
-                        <button type="button" className={styles.retryBtn} onClick={() => retryCountry(c.id)}>Retry</button>
+                        {t('destinationModal.placesError', {
+                          country: c.name,
+                          defaultValue: 'Couldn’t load places for {{country}}.',
+                        })}
+                        <button type="button" className={styles.retryBtn} onClick={() => retryCountry(c.id)}>
+                          {t('destinationModal.retry', 'Retry')}
+                        </button>
                       </div>
                     </div>
                   )}
@@ -453,13 +476,13 @@ export default function DestinationModal({
         <div className={styles.footer}>
           <div className={styles.recap}>
             {totalDestinations === 0 && (
-              <span className={styles.recapEmpty}>Your picks will appear here</span>
+              <span className={styles.recapEmpty}>{t('destinationModal.recapEmpty', 'Your picks will appear here')}</span>
             )}
             {wholeCountries.map((c) => (
               <span className={styles.recapChip} key={`country-${c.id}`}>
                 <Flag flagUrl={c.flagUrl} flag={c.flag} className={styles.chipFlag} />
                 {c.name}
-                <em className={styles.recapAll}>Anywhere</em>
+                <em className={styles.recapAll}>{t('destinationModal.anywhereShort', 'Anywhere')}</em>
                 <button type="button" className={styles.recapX} onClick={() => toggleCountry(c)} aria-label={`Remove ${c.name}`}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
@@ -478,7 +501,7 @@ export default function DestinationModal({
 
           <div className={styles.footActions}>
             {totalDestinations > 0 && (
-              <button type="button" className={styles.clearBtn} onClick={clearAll}>Clear all</button>
+              <button type="button" className={styles.clearBtn} onClick={clearAll}>{t('destinationModal.clearAll', 'Clear all')}</button>
             )}
             <button
               type="button"
@@ -488,8 +511,12 @@ export default function DestinationModal({
             >
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
               {totalDestinations === 0
-                ? 'Choose destinations'
-                : `Apply · ${totalDestinations} destination${totalDestinations === 1 ? '' : 's'}`}
+                ? t('destinationModal.chooseDestinations', 'Choose destinations')
+                : t('destinationModal.apply', {
+                    count: totalDestinations,
+                    defaultValue_one: 'Apply · {{count}} destination',
+                    defaultValue_other: 'Apply · {{count}} destinations',
+                  })}
             </button>
           </div>
         </div>
