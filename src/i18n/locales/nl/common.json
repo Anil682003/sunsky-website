@@ -1,0 +1,22 @@
+{
+  "actions": {
+    "search": "Zoeken",
+    "back": "Terug",
+    "close": "Sluiten",
+    "save": "Opslaan",
+    "cancel": "Annuleren",
+    "contactUs": "Contacteer ons",
+    "backToHome": "Terug naar de startpagina"
+  },
+  "nav": {
+    "signIn": "Inloggen",
+    "register": "Registreren",
+    "myBooking": "Mijn boeking",
+    "home": "Home",
+    "help": "Hulp"
+  },
+  "notFound": {
+    "title": "We konden die pagina niet vinden",
+    "text": "De pagina die je zoekt is verplaatst of bestaat niet meer."
+  }
+}

@@ -168,7 +168,7 @@ function metaBlock({ title, description, image, imageSize, url, canonical }) {
   out.push(`    <link rel="canonical" href="${esc(canonical || url)}" />`);
   prop('og:type', 'website');
   prop('og:site_name', 'Sunsky');
-  prop('og:locale', 'en_GB');
+  prop('og:locale', 'nl_BE');
   prop('og:title', title);
   prop('og:description', description);
   prop('og:url', url);

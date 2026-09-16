@@ -1,5 +1,9 @@
 import { BrowserRouter } from 'react-router-dom';
 import { Provider } from 'react-redux';
+// Imported for the side effect: it initialises i18next and sets <html lang>.
+// First, and above the router, because a string can be translated anywhere in the
+// tree and i18next must be configured before the first component renders one.
+import './i18n';
 import store from './store/index';
 import AppRouter from './routes/AppRouter';
 import { ToastProvider } from './context/ToastContext';
