@@ -3,6 +3,7 @@ import styles from './ScopePicker.module.css';
 import { fetchDestinations, fetchZones } from '../../api/filters';
 import { zoneKey, zoneCity, scopeLeafCount } from '../../utils/scopeLeaves';
 import { useTranslation } from 'react-i18next';
+import { countryName } from '../../utils/countryName';
 
 /**
  * Where-picker for the results sidebar: countries → cities → areas.
@@ -60,7 +61,10 @@ export default function ScopePicker({
   value = { countries: [], destinations: [], zones: [] },
   onApply,
 }) {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  // Same rule as the destination picker: the ISO code decides the word, the dashboard
+  // decides which countries are sold. See utils/countryName.
+  const countryLabel = (c) => countryName(c?.code, i18n.language, c?.name || '');
   const [draftCountries, setDraftCountries] = useState(() => new Set(value.countries));
   const [draftCities, setDraftCities]       = useState(() => new Set(value.destinations));
   const [draftZones, setDraftZones]         = useState(() => new Set(value.zones));
@@ -249,8 +253,8 @@ export default function ScopePicker({
               return (
                 <span className={styles.pill} key={`c-${c}`}>
                   {m && <Flag flagUrl={m.flagUrl} flag={m.flag} className={styles.pillFlag} />}
-                  {m?.name || c}
-                  <button className={styles.pillX} onClick={() => toggleCountry(c)} aria-label={t('scopePicker.remove', { name: m?.name || c, defaultValue: 'Remove {{name}}' })}>
+                  {countryLabel(m) || c}
+                  <button className={styles.pillX} onClick={() => toggleCountry(c)} aria-label={t('scopePicker.remove', { name: countryLabel(m) || c, defaultValue: 'Remove {{name}}' })}>
                     <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                   </button>
                 </span>
@@ -288,7 +292,7 @@ export default function ScopePicker({
             {shownCountries.length === 0 && <p className={styles.note}>{t('scopePicker.noCountryMatch', 'No country matches that.')}</p>}
             {shownCountries.map((c) => (
               <Row
-                key={c.code} label={c.name} flagUrl={c.flagUrl} flag={c.flag}
+                key={c.code} label={countryLabel(c)} flagUrl={c.flagUrl} flag={c.flag}
                 checked={draftCountries.has(c.code)} onToggle={() => toggleCountry(c.code)}
               />
             ))}

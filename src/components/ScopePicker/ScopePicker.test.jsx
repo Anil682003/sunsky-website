@@ -50,20 +50,20 @@ const tick = async (user, name) => user.click(await screen.findByRole('button', 
 describe('ScopePicker — how many places the search covers', () => {
   it('counts a whole country as one place', async () => {
     const { user } = setup();
-    await tick(user, 'Turkey');
+    await tick(user, 'Turkije');
     await waitFor(() => expect(applyBtn()).toHaveTextContent('Zoek 1 bestemming'));
   });
 
   it('does not count a country whose cities were narrowed down', async () => {
     const { user } = setup();
-    await tick(user, 'Turkey');
+    await tick(user, 'Turkije');
     await tick(user, 'Antalya');
     await waitFor(() => expect(applyBtn()).toHaveTextContent('Zoek 1 bestemming'));
   });
 
   it('does not count a city whose areas were narrowed down', async () => {
     const { user } = setup();
-    await tick(user, 'Turkey');
+    await tick(user, 'Turkije');
     await tick(user, 'Antalya');
     await tick(user, 'Lara');
     await waitFor(() => expect(applyBtn()).toHaveTextContent('Zoek 1 bestemming'));
@@ -71,7 +71,7 @@ describe('ScopePicker — how many places the search covers', () => {
 
   it('counts each area of a narrowed city', async () => {
     const { user } = setup();
-    await tick(user, 'Turkey');
+    await tick(user, 'Turkije');
     await tick(user, 'Antalya');
     await tick(user, 'Lara');
     await tick(user, 'Belek');
@@ -80,7 +80,7 @@ describe('ScopePicker — how many places the search covers', () => {
 
   it('counts sibling cities of the same country separately', async () => {
     const { user } = setup();
-    await tick(user, 'Turkey');
+    await tick(user, 'Turkije');
     await tick(user, 'Antalya');
     await tick(user, 'Istanbul');
     await waitFor(() => expect(applyBtn()).toHaveTextContent('Zoek 2 bestemmingen'));
@@ -88,15 +88,15 @@ describe('ScopePicker — how many places the search covers', () => {
 
   it('keeps counting a country that has no city of its own picked', async () => {
     const { user } = setup();
-    await tick(user, 'Turkey');
-    await tick(user, 'Spain');
+    await tick(user, 'Turkije');
+    await tick(user, 'Spanje');
     await tick(user, 'Antalya');   // narrows Turkey only — Spain stays whole
     await waitFor(() => expect(applyBtn()).toHaveTextContent('Zoek 2 bestemmingen'));
   });
 
   it('applies every tier it was given, whatever the headline count says', async () => {
     const { user, onApply } = setup();
-    await tick(user, 'Turkey');
+    await tick(user, 'Turkije');
     await tick(user, 'Antalya');
     await tick(user, 'Lara');
     await waitFor(() => expect(applyBtn()).toHaveTextContent('Zoek 1 bestemming'));

@@ -105,7 +105,6 @@
     "adultsOnly": "Alleen volwassenen",
     "adultsOnlyHotels": "Hotels alleen voor volwassenen",
     "roomType": "Soort kamer",
-    "stars": "{{count}} sterren",
     "loading": "Laden…",
     "loadingHolidayTypes": "Soorten vakanties laden…",
     "holidayTypesUnavailable": "Soorten vakanties niet beschikbaar (contentservice onbereikbaar).",
@@ -119,7 +118,9 @@
     "showAll": "Alle {{count}} tonen",
     "adults": "Volwassenen",
     "children": "Kinderen",
-    "addRoom": "+ Kamer toevoegen"
+    "addRoom": "+ Kamer toevoegen",
+    "stars_one": "{{count}} ster",
+    "stars_other": "{{count}} sterren"
   },
   "hero": {
     "home": "Home",

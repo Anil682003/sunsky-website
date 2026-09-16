@@ -15,6 +15,7 @@ import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import { ratingLabel, ratingValue } from '../../utils/rating';
 import { topFacilities } from '../../utils/topFacilities';
 import { flagUrl } from '../../utils/countryFlag';
+import { countryName } from '../../utils/countryName';
 import { toTitleCase } from '../../utils/textCase';
 import { nightsToDays } from '../../utils/durations';
 import { dobsMatchAges, ageAtCheckIn } from '../../utils/childDob';
@@ -359,7 +360,14 @@ export default function Results() {
   // Memoised on t: a fresh arrow every render would bust the memos that use them,
   // and t only changes identity when the language does.
   const daysLabel = useCallback((d) => t('filters.days', { count: d, defaultValue: '{{count}} days' }), [t]);
-  const starLabel = useCallback((n) => t('filters.stars', { count: n, defaultValue: '{{count}}-star' }), [t]);
+  const starLabel = useCallback(
+    (n) => t('filters.stars', {
+      count: n,
+      defaultValue_one: '{{count}}-star',
+      defaultValue_other: '{{count}}-star',
+    }),
+    [t]
+  );
   // The option lists are module constants, so their labels resolve here.
   const priceBasisOptions = PRICE_BASIS_OPTIONS.map((o) => ({ ...o, label: t(`priceBasis.${o.value}`, o.label) }));
   const transportOptions = TRANSPORT_OPTIONS.map((o) => ({ ...o, label: t(`transport.${o.value}`, o.label) }));
@@ -1074,12 +1082,15 @@ export default function Results() {
   const scopeLabel = useMemo(() => {
     if (usingDefaultScope) return t('hero.popularDestinations', 'Popular destinations');
     if (urlLabel) return urlLabel;
-    const countryName = countryOptions.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
+    const countryNames = countryOptions.reduce(
+      (m, c) => { m[c.code] = countryName(c.code, i18nInstance.language, c.name); return m; },
+      {}
+    );
     const cityName = scopeCities.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
     const zoneName = scopeZones.reduce((m, z) => { m[zoneKey(z)] = z.name; return m; }, {});
     const leaves = scopeLeaves(scope, scopeCities);
     const parts = [
-      ...leaves.countries.map((c) => countryName[c] || c),
+      ...leaves.countries.map((c) => countryNames[c] || c),
       ...leaves.destinations.map((d) => cityName[d] || d),
       ...leaves.zones.map((z) => zoneName[z] || cityName[String(z).split(':')[0]] || z),
     ];

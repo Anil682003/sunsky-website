@@ -79,7 +79,7 @@ const heading = () => screen.getByRole('heading', { level: 1 });
 describe('hero scope label', () => {
   it('names a country search', async () => {
     renderScope('countries=TR');
-    await waitFor(() => expect(heading()).toHaveTextContent(/Verblijven in\s*Turkey/));
+    await waitFor(() => expect(heading()).toHaveTextContent(/Verblijven in\s*Turkije/));
   });
 
   it('names a city by name, not by its Hotelbeds code', async () => {

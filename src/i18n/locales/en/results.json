@@ -105,7 +105,6 @@
     "adultsOnly": "Adults only",
     "adultsOnlyHotels": "Adults-only hotels",
     "roomType": "Room Type",
-    "stars": "{{count}}-star",
     "loading": "Loading…",
     "loadingHolidayTypes": "Loading holiday types…",
     "holidayTypesUnavailable": "Holiday types unavailable (content service unreachable).",
@@ -119,7 +118,9 @@
     "showAll": "Show all {{count}}",
     "adults": "Adults",
     "children": "Children",
-    "addRoom": "+ Add room"
+    "addRoom": "+ Add room",
+    "stars_one": "{{count}}-star",
+    "stars_other": "{{count}}-star"
   },
   "hero": {
     "home": "Home",
