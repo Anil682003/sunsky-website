@@ -1,0 +1,55 @@
+{
+  "breadcrumb": { "label": "Breadcrumb", "home": "Home", "current": "Help" },
+  "eyebrow": "Help centre",
+  "title": "Frequently Asked Questions",
+  "lede": "Find the answer to your question quickly. Can’t find what you’re looking for? Our team will be happy to help.",
+
+  "search": {
+    "label": "Search the frequently asked questions",
+    "placeholder": "How can we help you?",
+    "clear": "Clear the search",
+    "hint": "Searches every question and every answer on this page.",
+    "results_one": "{{count}} answer for “{{query}}”",
+    "results_other": "{{count}} answers for “{{query}}”"
+  },
+
+  "popular": "Most asked",
+
+  "stages": {
+    "label": "Browse by stage of your trip",
+    "filterLabel": "Filter questions by stage",
+    "all": "All questions",
+    "questions_one": "{{count}} question",
+    "questions_other": "{{count}} questions"
+  },
+
+  "related": "Related questions",
+
+  "empty": {
+    "title": "No answer matched that",
+    "text": "Try a shorter search, or a word that would appear in the answer, such as “baggage”, “refund” or “transfer”. If the question is about your own booking, our team can answer it faster than this page can.",
+    "reset": "Show all questions"
+  },
+
+  "other": {
+    "title": "Other questions",
+    "blurb": "Everything that does not sit neatly in one stage of the journey.",
+    "more": "More questions"
+  },
+
+  "side": {
+    "label": "More help",
+    "contactTitle": "Can’t find what you’re looking for?",
+    "contactText": "Our team will be happy to help.",
+    "contactCta": "Contact us",
+    "hours": "Mon to Fri 10:00-18:30, Sat 10:00-16:00",
+    "emergencyLabel": "Already travelling?",
+    "emergencyText": "Urgent problems that cannot wait for opening hours:",
+    "tipTitle": "Helpful tip",
+    "tipText": "Many details about your booking, payments and travel documents can also be found in My Booking.",
+    "tipCta": "Go to My Booking",
+    "trustTitle": "Safe & trusted",
+    "trustText": "SUNSKY is a licensed Belgian travel agency. Every payment runs over a secure connection, and your booking is confirmed in writing before you travel.",
+    "trustCta": "About SUNSKY"
+  }
+}

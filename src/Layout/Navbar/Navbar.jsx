@@ -12,6 +12,7 @@ import DestinationSearch from '../../components/DestinationSearch/DestinationSea
 import Trustpilot from '../../components/Trustpilot/Trustpilot';
 import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
 import HeaderMenu from './HeaderMenu';
+import LanguageSwitch from '../../components/LanguageSwitch/LanguageSwitch';
 
 const slugify = (s) =>
   String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
@@ -327,6 +328,12 @@ export default function Navbar() {
         <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} />
       </div>
 
+      {/* Language, then the auth buttons. Before them on purpose: somebody who
+          cannot read the page needs to fix that before they can sign in. */}
+      <div className={styles.langSlot}>
+        <LanguageSwitch />
+      </div>
+
       {/* Desktop auth buttons */}
       <div className={styles.authArea}>
         {isAuthenticated ? (
@@ -440,6 +447,10 @@ export default function Navbar() {
               </button>
             ))}
           </div>
+          <div className={styles.mobileLang}>
+            <LanguageSwitch compact />
+          </div>
+
           <div className={styles.mobileDivider} />
           {isAuthenticated ? (
             <div className={styles.mobileAuth}>

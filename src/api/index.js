@@ -4,6 +4,7 @@ import useApi from '../hooks/useApi';
 import axiosInstance from '../services/axiosInstance';
 import { loginSuccess, updateUser } from '../store/slices/authSlice';
 import { ENDPOINTS } from './endpoints';
+import i18n from '../i18n';
 
 // Shared post-login side-effects used by both login and register
 const useAuthSuccess = () => {
@@ -202,8 +203,18 @@ export const useHolidayTypeCountries = () =>
     errorMessage: 'Could not load destinations for this holiday type',
   });
 
-/** The language the CMS is asked for. One site language today; see src/i18n. */
-const SITE_LANG = 'nl';
+/**
+ * The language to ask the CMS for: whatever the visitor is currently reading.
+ *
+ * Read at call time rather than captured once, so switching language in the
+ * header refetches the content in that language instead of leaving the previous
+ * one on screen under a translated heading.
+ *
+ * The server falls back to whichever description a row actually has, so asking
+ * for a language the CMS has not been filled in for yet returns the content that
+ * exists rather than an empty page.
+ */
+const siteLang = () => i18n.resolvedLanguage || i18n.language || 'nl';
 
 /* ── Help centre (CMS → FAQ) ──────────────────────────────────────────────
    Read straight off the admin CMS so SUNSKY can add, reword, reorder and retire
@@ -228,7 +239,7 @@ export const fetchAllFaqs = async ({ signal } = {}) => {
       // The site is Dutch. The server falls back to whichever description a row
       // does have, so a question with no Dutch yet still answers rather than
       // disappearing while the CMS is being translated.
-      params: { status: 'ACTIVE', limit: PER_PAGE, page, lang: SITE_LANG },
+      params: { status: 'ACTIVE', limit: PER_PAGE, page, lang: siteLang() },
       signal,
     });
     const body = res?.data;
@@ -257,7 +268,7 @@ export const fetchAllFaqs = async ({ signal } = {}) => {
 export const fetchFaqCategories = async ({ signal } = {}) => {
   try {
     const res = await axiosInstance.get(ENDPOINTS.faqCategories, {
-      params: { status: 'ACTIVE', lang: SITE_LANG },
+      params: { status: 'ACTIVE', lang: siteLang() },
       signal,
     });
     return res?.data?.success ? res.data.data?.faqCategories ?? [] : [];

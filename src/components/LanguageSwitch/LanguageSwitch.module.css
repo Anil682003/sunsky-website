@@ -1,0 +1,50 @@
+/* Language control in the header. Two segments in one pill, so it reads as one
+   control with a current state rather than two unrelated buttons. */
+
+.wrap {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  padding: 3px;
+  border: 1px solid var(--blue-light, #E8F1FF);
+  border-radius: var(--r-full, 9999px);
+  background: var(--white, #fff);
+}
+
+.btn {
+  min-width: 34px;
+  padding: 5px 9px;
+  border: 0;
+  border-radius: var(--r-full, 9999px);
+  background: transparent;
+  cursor: pointer;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 700;
+  letter-spacing: 0.4px;
+  color: var(--text-sec, #5E7291);
+  transition: background 0.2s var(--ease, cubic-bezier(.22,1,.36,1)),
+              color 0.2s var(--ease, cubic-bezier(.22,1,.36,1));
+}
+.btn:hover { background: var(--blue-bg, #F5F8FF); color: var(--blue-deep, #1F4FD8); }
+.btn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 2px; }
+
+.btnOn {
+  background: var(--blue-deep, #1F4FD8);
+  color: var(--white, #fff);
+}
+.btnOn:hover { background: var(--blue-deep, #1F4FD8); color: var(--white, #fff); }
+
+/* In the mobile sheet this is tapped with a thumb, so the segments carry an
+   explicit 44px height rather than relying on padding plus a font size to add up
+   to one. */
+.compact .btn {
+  min-width: 54px;
+  min-height: 44px;
+  padding: 9px 12px;
+  font-size: 0.78rem;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .btn { transition: none; }
+}

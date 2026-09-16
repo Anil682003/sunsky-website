@@ -15,6 +15,12 @@
     "home": "Home",
     "help": "Hulp"
   },
+  "language": {
+    "label": "Taal",
+    "nl": "Nederlands",
+    "en": "English",
+    "switchTo": "Overschakelen naar {{language}}"
+  },
   "notFound": {
     "title": "We konden die pagina niet vinden",
     "text": "De pagina die je zoekt is verplaatst of bestaat niet meer."

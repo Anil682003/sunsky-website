@@ -275,6 +275,16 @@
    beside the account controls is exactly the kind of thing nobody can later explain. */
 .trustpilotSlot:empty { display: none; }
 
+/* The language control sits left of the auth buttons. It is the first thing a
+   visitor who cannot read the page needs, so it comes before "Sign In" in both
+   reading and tab order. Hidden below the header's mobile breakpoint, where it
+   moves into the sheet instead of competing with the logo for width. */
+.langSlot { display: flex; align-items: center; flex-shrink: 0; margin-right: 12px; }
+/* Hidden at the SAME width the auth buttons are (see the 900px block below), so
+   there is never a gap where the desktop bar is showing but the language control
+   is not. Below this the burger sheet carries it instead. */
+@media (max-width: 900px) { .langSlot { display: none; } }
+
 .authArea { display: flex; align-items: center; flex-shrink: 0; }
 .authBtns { display: flex; align-items: center; gap: 10px; }
 
@@ -464,6 +474,7 @@
 .mobileLink:hover { background: var(--blue-bg); }
 .mobileLinkActive { background: var(--blue-light); color: var(--blue-deep); }
 .mobileLinkActive svg { color: var(--blue-deep); }
+.mobileLang { display: flex; justify-content: center; padding: 10px 0 4px; }
 .mobileDivider { height: 1px; background: rgba(0,0,0,0.06); margin: 8px 0; }
 .mobileAuth { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
 .mobileUser {

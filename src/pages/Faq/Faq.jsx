@@ -349,7 +349,13 @@ export default function Faq() {
   if (pendingScroll.current === undefined) pendingScroll.current = readHashId();
 
   /* The CMS is the source of truth once it holds anything. Both calls resolve
-     rather than throw, so a failure just leaves the shipped content in place. */
+     rather than throw, so a failure just leaves the shipped content in place.
+
+     Re-run on a language change: the questions live in the CMS, so switching the
+     header control has to fetch them again. Without this the chrome would flip
+     language while the questions underneath stayed in the old one. The abort in
+     the cleanup is what stops a slow first request landing after the second. */
+  const { language } = i18n;
   useEffect(() => {
     const ac = new AbortController();
     let alive = true;
@@ -363,7 +369,7 @@ export default function Faq() {
       setCmsCats(cats);
     })();
     return () => { alive = false; ac.abort(); };
-  }, []);
+  }, [language]);
 
   /**
    * What the page actually shows.

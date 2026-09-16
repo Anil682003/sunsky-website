@@ -1,0 +1,28 @@
+{
+  "actions": {
+    "search": "Search",
+    "back": "Back",
+    "close": "Close",
+    "save": "Save",
+    "cancel": "Cancel",
+    "contactUs": "Contact us",
+    "backToHome": "Back to home"
+  },
+  "nav": {
+    "signIn": "Sign In",
+    "register": "Register",
+    "myBooking": "My Booking",
+    "home": "Home",
+    "help": "Help"
+  },
+  "language": {
+    "label": "Language",
+    "nl": "Nederlands",
+    "en": "English",
+    "switchTo": "Switch to {{language}}"
+  },
+  "notFound": {
+    "title": "We couldn’t find that page",
+    "text": "The page you were looking for has moved or no longer exists."
+  }
+}
