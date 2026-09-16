@@ -693,11 +693,11 @@ export default function Results() {
   // differs only by origin would re-fire an IDENTICAL search — the page-1 effect keys on
   // this object — and reset the grid and scroll position for nothing.
   useEffect(() => {
-    const t = setTimeout(() => setApplied((prev) => {
+    const timer = setTimeout(() => setApplied((prev) => {
       const key = (f) => JSON.stringify(f, (k, v) => (k === 'origin' ? undefined : v));
       return key(prev) === key(filters) ? prev : filters;
     }), 300);
-    return () => clearTimeout(t);
+    return () => clearTimeout(timer);
   }, [filters]);
 
   // Load the country list once (only countries that actually have hotels).
@@ -1414,7 +1414,7 @@ export default function Results() {
       switch (k) {
         case 'boards':        return v.map(getBoardLabel);
         case 'stars':         return v.map((n) => `${'★'.repeat(n)} ${n}-star`);
-        case 'themes':        return v.map((id) => facets.holiday.find((t) => t.id === id)?.name);
+        case 'themes':        return v.map((id) => facets.holiday.find((h) => h.id === id)?.name);
         case 'facilities':    return v.map((c) => named(facets.facilities, c));
         case 'accommodation': return v.map((c) => cap(named(facets.accommodation, c)));
         case 'kids':          return v.map((c) => named(facets.kids, c));
@@ -1722,13 +1722,13 @@ export default function Results() {
         ) : (
           <FacetList
             items={facets.holiday}
-            isChecked={(t) => filters.themes.includes(t.id)}
-            render={(t) => (
+            isChecked={(type) => filters.themes.includes(type.id)}
+            render={(type) => (
               <FilterCheck
-                key={t.id}
-                label={`${t.icon ? `${t.icon} ` : ''}${t.name} (${t.hotels})`}
-                checked={filters.themes.includes(t.id)}
-                onChange={() => toggleCode('themes', t.id)}
+                key={type.id}
+                label={`${type.icon ? `${type.icon} ` : ''}${type.name} (${type.hotels})`}
+                checked={filters.themes.includes(type.id)}
+                onChange={() => toggleCode('themes', type.id)}
               />
             )}
           />
