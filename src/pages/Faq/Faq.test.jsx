@@ -164,3 +164,60 @@ describe('FAQ page', () => {
   });
 });
 
+
+/* SUNSKY renamed their categories in the dashboard and wrote their own Dutch
+   questions. One of those names, "Na de reis - Boeken, reisaanbod & prijzen",
+   matches the journey stage the site ships, and the site went on labelling that
+   card with its own English title instead. Their questions appeared under a name
+   they had not chosen, in a language they had moved away from. */
+describe('a category renamed in the dashboard', () => {
+  const cmsRowIn = (id, question, categoryId, categoryTitle) => ({
+    id,
+    faqCategoryId: categoryId,
+    sortOrder: id,
+    status: 'ACTIVE',
+    isFeatured: false,
+    question,
+    answer: 'Antwoord.',
+    faqCategory: { id: categoryId, sortOrder: 0, status: 'ACTIVE', title: categoryTitle },
+  });
+
+  it('keeps the name the dashboard gave it, even when it maps onto a shipped stage', async () => {
+    fetchAllFaqs.mockResolvedValue([
+      cmsRowIn(1, 'Vraag een', 15, 'Na de reis - Boeken, reisaanbod & prijzen'),
+      cmsRowIn(2, 'Vraag twee', 15, 'Na de reis - Boeken, reisaanbod & prijzen'),
+      cmsRowIn(3, 'Vraag drie', 10, 'Voor de reis'),
+      cmsRowIn(4, 'Vraag vier', 10, 'Voor de reis'),
+    ]);
+    fetchFaqCategories.mockResolvedValue([
+      { id: 15, title: 'Na de reis - Boeken, reisaanbod & prijzen', sortOrder: 0, status: 'ACTIVE' },
+      { id: 10, title: 'Voor de reis', sortOrder: 0, status: 'ACTIVE' },
+    ]);
+    draw();
+
+    expect(
+      await screen.findByRole('heading', { name: 'Na de reis - Boeken, reisaanbod & prijzen' })
+    ).toBeInTheDocument();
+    // The shipped title must not be substituted for theirs.
+    expect(screen.queryByRole('heading', { name: 'Na je reis' })).not.toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: 'After your trip' })).not.toBeInTheDocument();
+  });
+
+  it('uses the dashboard description under the card too', async () => {
+    fetchAllFaqs.mockResolvedValue([
+      cmsRowIn(1, 'Vraag een', 13, 'Na de reis'),
+      cmsRowIn(2, 'Vraag twee', 13, 'Na de reis'),
+      cmsRowIn(3, 'Vraag drie', 13, 'Na de reis'),
+      cmsRowIn(4, 'Vraag vier', 13, 'Na de reis'),
+    ]);
+    fetchFaqCategories.mockResolvedValue([
+      { id: 13, title: 'Na de reis', description: 'Wat we doen als je thuis bent.', sortOrder: 0, status: 'ACTIVE' },
+    ]);
+    draw();
+
+    // It shows in both places the card is described: the stage card and the
+    // heading above that group's questions.
+    const shown = await screen.findAllByText('Wat we doen als je thuis bent.');
+    expect(shown.length).toBeGreaterThan(0);
+  });
+});

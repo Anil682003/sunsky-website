@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
 import styles from './Faq.module.css';
 import { fetchAllFaqs, fetchFaqCategories } from '../../api';
 import RichText from '../../components/RichText/RichText';
@@ -123,7 +124,7 @@ const buildCategories = (items, cmsCats) => {
     seen.add(key);
     extras.push({
       key,
-      title: String(c?.title ?? '').trim() || 'More questions',
+      title: String(c?.title ?? '').trim() || i18n.t('faq:other.more', 'More questions'),
       blurb: cmsText(c?.description ?? ''),
       order: Number(c?.sortOrder) || 0,
     });
@@ -134,21 +135,49 @@ const buildCategories = (items, cmsCats) => {
   for (const [key, n] of counts) {
     if (!n || seen.has(key) || !key.startsWith('cat-')) continue;
     seen.add(key);
-    extras.push({ key, title: titles.get(key) || 'More questions', blurb: '', order: 9999 });
+    extras.push({
+      key,
+      title: titles.get(key) || i18n.t('faq:other.more', 'More questions'),
+      blurb: '',
+      order: 9999,
+    });
   }
   extras.sort((a, b) => a.order - b.order);
 
-  const out = STAGES.filter((s) => counts.get(s.key)).map((s) => ({
-    key: s.key,
-    title: s.title,
-    blurb: s.blurb,
-  }));
+  /* A CMS category that maps onto a stage keeps the stage's PLACE and ICON, but
+     the dashboard's own words. SUNSKY renamed a category to "Na de reis -
+     Boeken, reisaanbod & prijzen" and the site went on labelling that card
+     "After your trip", because the shipped title was winning: their questions
+     under a name they did not choose, in a language they had moved away from.
+     The category is theirs, so its title is theirs. The stage is only how the
+     card is ordered and which icon it gets. */
+  const cmsByStage = new Map();
+  for (const c of cmsCats) {
+    if (c?.parentId) continue;
+    const stage = stageForTitle(c?.title);
+    if (!stage || cmsByStage.has(stage)) continue;
+    cmsByStage.set(stage, {
+      title: String(c?.title ?? '').trim(),
+      blurb: cmsText(c?.description ?? ''),
+    });
+  }
+
+  const out = STAGES.filter((s) => counts.get(s.key)).map((s) => {
+    // Second fallback: the title carried on a question's own row, for when the
+    // categories call failed but the FAQ call did not.
+    const fromCms = cmsByStage.get(s.key) ?? { title: titles.get(s.key) ?? '', blurb: '' };
+    return {
+      key: s.key,
+      title: fromCms.title || s.title,
+      blurb: fromCms.blurb || s.blurb,
+    };
+  });
   out.push(...extras.map(({ key, title, blurb }) => ({ key, title, blurb })));
   if (counts.get('other')) {
     out.push({
       key: 'other',
-      title: 'Other questions',
-      blurb: 'Everything that does not sit neatly in one stage of the journey.',
+      title: i18n.t('faq:other.title', 'Other questions'),
+      blurb: i18n.t('faq:other.blurb', 'Everything that does not sit neatly in one stage of the journey.'),
     });
   }
   return out;
