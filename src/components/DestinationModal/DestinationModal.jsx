@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import styles from './DestinationModal.module.css';
 import { fetchGeoPlaces } from '../../api';
 import { useTranslation } from 'react-i18next';
+import { countryName } from '../../utils/countryName';
 
 /**
  * Multi-destination picker. The traveller ticks one or more COUNTRIES on the
@@ -45,7 +46,11 @@ export default function DestinationModal({
   onApply,
   onClose,
 }) {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+
+  // The rail, the open block and the recap chip all name the same country; utils/countryName
+  // holds the rule, which the departure-airport picker in the hero shares.
+  const countryLabel = (c) => countryName(c?.isoCode, i18n.language, c?.name || '');
   const [draft, setDraft] = useState(value);
   const [placesByCountry, setPlacesByCountry] = useState({});   // countryId → group
   const [errorIds, setErrorIds] = useState(() => new Set());
@@ -299,7 +304,7 @@ export default function DestinationModal({
                     {active && <CheckIcon />}
                   </span>
                   <Flag flagUrl={c.flagUrl} flag={c.flag} className={styles.rowFlag} />
-                  <span className={styles.rowName}>{c.name}</span>
+                  <span className={styles.rowName}>{countryLabel(c)}</span>
                   {active && (
                     <span className={styles.rowBadge}>{picked > 0 ? picked : t('destinationModal.all', 'All')}</span>
                   )}
@@ -353,7 +358,7 @@ export default function DestinationModal({
                     </span>
                     <Flag flagUrl={c.flagUrl} flag={c.flag} className={styles.blockFlag} />
                     <div className={styles.blockText}>
-                      <span className={styles.blockName}>{c.name}</span>
+                      <span className={styles.blockName}>{countryLabel(c)}</span>
                       <span className={styles.blockSub}>
                         {whole
                           ? t('destinationModal.anywhere', 'Anywhere in the country')
@@ -368,7 +373,7 @@ export default function DestinationModal({
                       type="button"
                       className={`${styles.wholeChip} ${whole ? styles.wholeChipActive : ''}`}
                       onClick={(e) => { e.stopPropagation(); clearCountryPlaces(c.id); }}
-                      title={t('destinationModal.searchAllOf', { country: c.name, defaultValue: 'Search all of {{country}}' })}
+                      title={t('destinationModal.searchAllOf', { country: countryLabel(c), defaultValue: 'Search all of {{country}}' })}
                     >
                       {whole && <CheckIcon size={10} />}
                       {t('destinationModal.entireCountry', 'Entire country')}
@@ -377,7 +382,7 @@ export default function DestinationModal({
                       type="button"
                       className={styles.blockRemove}
                       onClick={(e) => { e.stopPropagation(); toggleCountry(c); }}
-                      aria-label={`Remove ${c.name}`}
+                      aria-label={t('destinationModal.remove', { name: countryLabel(c), defaultValue: 'Remove {{name}}' })}
                     >
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                     </button>
@@ -395,7 +400,7 @@ export default function DestinationModal({
                     <div className={styles.blockBody}>
                       <div className={styles.blockError}>
                         {t('destinationModal.placesError', {
-                          country: c.name,
+                          country: countryLabel(c),
                           defaultValue: 'Couldn’t load places for {{country}}.',
                         })}
                         <button type="button" className={styles.retryBtn} onClick={() => retryCountry(c.id)}>
@@ -412,17 +417,22 @@ export default function DestinationModal({
                         const allCities = group.cities || [];
                         if (!allCities.length) {
                           if (!(group.regions || []).length)
-                            return <p className={styles.blockNote}>No regions or cities listed yet — we&rsquo;ll search the whole country.</p>;
+                            return <p className={styles.blockNote}>
+                                {t(
+                                  'destinationModal.noPlaces',
+                                  'No regions or cities listed yet — we’ll search the whole country.'
+                                )}
+                              </p>;
                           return null;
                         }
                         const themed = new Map();
                         const ungrouped = [];
                         for (const city of allCities) {
                           if (city.themes?.length) {
-                            for (const t of city.themes) {
-                              const bucket = themed.get(t.id) || { name: t.name, icon: t.icon, cities: [] };
+                            for (const theme of city.themes) {
+                              const bucket = themed.get(theme.id) || { name: theme.name, icon: theme.icon, cities: [] };
                               bucket.cities.push(city);
-                              themed.set(t.id, bucket);
+                              themed.set(theme.id, bucket);
                             }
                           } else {
                             ungrouped.push(city);
@@ -481,9 +491,9 @@ export default function DestinationModal({
             {wholeCountries.map((c) => (
               <span className={styles.recapChip} key={`country-${c.id}`}>
                 <Flag flagUrl={c.flagUrl} flag={c.flag} className={styles.chipFlag} />
-                {c.name}
+                {countryLabel(c)}
                 <em className={styles.recapAll}>{t('destinationModal.anywhereShort', 'Anywhere')}</em>
-                <button type="button" className={styles.recapX} onClick={() => toggleCountry(c)} aria-label={`Remove ${c.name}`}>
+                <button type="button" className={styles.recapX} onClick={() => toggleCountry(c)} aria-label={t('destinationModal.remove', { name: countryLabel(c), defaultValue: 'Remove {{name}}' })}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
               </span>
@@ -492,7 +502,7 @@ export default function DestinationModal({
               <span className={styles.recapChip} key={p.key}>
                 <Flag flagUrl={p.flagUrl} flag={p.flag} className={styles.chipFlag} />
                 {p.name}
-                <button type="button" className={styles.recapX} onClick={() => removePlace(p.key)} aria-label={`Remove ${p.name}`}>
+                <button type="button" className={styles.recapX} onClick={() => removePlace(p.key)} aria-label={t('destinationModal.remove', { name: p.name, defaultValue: 'Remove {{name}}' })}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
               </span>

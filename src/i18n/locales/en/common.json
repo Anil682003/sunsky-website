@@ -108,6 +108,7 @@
     "clearAll": "Clear all",
     "chooseDestinations": "Choose destinations",
     "apply_one": "Apply · {{count}} destination",
-    "apply_other": "Apply · {{count}} destinations"
+    "apply_other": "Apply · {{count}} destinations",
+    "noPlaces": "No regions or cities listed yet — we’ll search the whole country."
   }
 }

@@ -108,6 +108,7 @@
     "clearAll": "Alles wissen",
     "chooseDestinations": "Kies bestemmingen",
     "apply_one": "Toepassen · {{count}} bestemming",
-    "apply_other": "Toepassen · {{count}} bestemmingen"
+    "apply_other": "Toepassen · {{count}} bestemmingen",
+    "noPlaces": "Nog geen regio’s of steden vermeld. We zoeken dan in het hele land."
   }
 }

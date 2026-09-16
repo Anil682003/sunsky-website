@@ -11,6 +11,7 @@ import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durati
 import AirportSearch from '../../../components/AirportSearch/AirportSearch';
 import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
 import { flagUrl } from '../../../utils/countryFlag';
+import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { earliestCheckInISO } from '../../../utils/leadTime';
 import { loadPax, savePax } from '../../../utils/paxStore';
@@ -1004,11 +1005,9 @@ export default function Hero() {
   // always leads. Any other country the dashboard adds is named by the browser and falls in
   // behind them, so a new departure country needs no website release.
   const COUNTRY_ORDER = { BE: 1, NL: 2, DE: 3, FR: 4, LU: 5, GB: 6 };
-  const countryName = (iso) => {
-    if (!iso) return '';
-    try { return new Intl.DisplayNames([i18n.language], { type: 'region' }).of(iso) || iso; }
-    catch { return iso; }
-  };
+  // Shared with the destination picker — see utils/countryName for why the ISO code
+  // decides the word rather than whatever the dashboard stored.
+  const groupName = (iso) => countryName(iso, i18n.language, iso || '');
 
   // Group the airports by country, then sort those groups so the home countries lead.
   const groups = new Map();
@@ -1020,7 +1019,7 @@ export default function Hero() {
   const countryGroups = [...groups.values()]
     .map((g) => ({
       ...g,
-      name: countryName(g.iso) || g.emoji || '',
+      name: groupName(g.iso) || g.emoji || '',
       order: COUNTRY_ORDER[g.iso] ?? 99,
     }))
     .sort((x, y) => x.order - y.order || x.name.localeCompare(y.name));
