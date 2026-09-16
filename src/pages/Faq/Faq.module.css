@@ -833,3 +833,56 @@
   .searchWrap, .cardCta, .cardLink, .allBtn { transition: none; }
   .stageCard:hover, .popularChip:hover, .cardCta:hover, .emptyCta:hover { transform: none; }
 }
+
+/* ── Subcategory filters, inside the card they belong to ──────────────────
+   "Before your trip" holds 58 questions; these narrow it to the handful the
+   reader actually wants. Lighter than the category pills above them on
+   purpose: this is a filter within an open card, not a change of category,
+   and two identically loud rows of pills would read as one confused control. */
+.subBar {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 0 0 18px;
+}
+
+.subPill {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 7px 14px;
+  border: 1px solid var(--blue-light);
+  border-radius: var(--r-full);
+  background: var(--white);
+  cursor: pointer;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-sec);
+  transition: border-color 0.22s var(--ease), color 0.22s var(--ease),
+              background 0.22s var(--ease);
+}
+
+.subPill:hover { border-color: var(--blue-soft); color: var(--blue-deep); }
+.subPill:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 2px; }
+
+/* The chosen filter uses the brand gold rather than the deep blue of the
+   category pills, so at a glance it is clear which of the two rows is doing
+   the filtering. */
+.subPillOn {
+  background: var(--gold-soft, #fff7ea);
+  border-color: var(--gold, #f5a51e);
+  color: #8a5a06;
+}
+
+.subCount { font-weight: 700; opacity: 0.75; font-size: 0.74rem; }
+
+@media (max-width: 640px) {
+  /* One scrollable row rather than three stacked ones on a phone. */
+  .subBar {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    padding-bottom: 4px;
+    scrollbar-width: none;
+  }
+  .subBar::-webkit-scrollbar { display: none; }
+  .subPill { flex: 0 0 auto; }
+}

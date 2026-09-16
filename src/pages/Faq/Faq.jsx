@@ -81,6 +81,13 @@ const fromCms = (row) => ({
   stage:
     stageForTitle(row?.faqCategory?.title) ??
     (row?.faqCategoryId != null ? `cat-${row.faqCategoryId}` : 'other'),
+  // Kept raw so the page can look this category up and find out whether it is a
+  // subcategory of another one; `stage` above is only correct for a top-level
+  // category and is corrected once the categories call has answered.
+  categoryId: row?.faqCategoryId ?? null,
+  subKey: null,
+  subTitle: '',
+  subOrder: 0,
   categoryTitle: row?.faqCategory?.title ?? '',
   question: String(row?.question ?? '').trim(),
   answer: String(row?.answer ?? '').trim(),
@@ -106,6 +113,9 @@ const buildCategories = (items, cmsCats) => {
   const extras = [];
   const seen = new Set();
   for (const c of cmsCats) {
+    // A subcategory is shown as a filter inside its parent's card, never as a
+    // card of its own.
+    if (c?.parentId) continue;
     if (stageForTitle(c?.title)) continue;
     const key = `cat-${c?.id}`;
     if (!counts.get(key) || seen.has(key)) continue;
@@ -333,12 +343,46 @@ export default function Faq() {
    * deploy of this page would have replaced every real answer with that one
    * stray. A half-finished table should never be able to empty the help centre.
    */
+  /* Which category each question's category sits inside.
+     A question's own category may be a SUBCATEGORY ("Booking" inside "Before
+     your trip"). The row itself does not say so — the FAQ endpoint trims the
+     category down to id/title — so parentage is read from the categories call,
+     which does carry it. */
+  const catById = useMemo(() => {
+    const m = new Map();
+    for (const c of cmsCats ?? []) {
+      if (c?.id != null) m.set(Number(c.id), c);
+    }
+    return m;
+  }, [cmsCats]);
+
   const items = useMemo(() => {
     const rows = (cmsFaqs ?? []).map(fromCms).filter((r) => r.question && r.answer);
     if (rows.length < MIN_CMS_FAQS) return FALLBACK_FAQS;
+
+    /* A question filed under a subcategory belongs on its PARENT's card, and
+       carries the subcategory as a filter within it. Getting this the other way
+       round would scatter "Booking" and "Invoices" across the page as cards of
+       their own, which is exactly the flat list subcategories were asked for to
+       replace. */
+    const placed = rows.map((r) => {
+      const own = catById.get(Number(r.categoryId));
+      const parentId = own?.parentId != null ? Number(own.parentId) : null;
+      if (!parentId) return r;
+      const parent = catById.get(parentId);
+      return {
+        ...r,
+        stage: stageForTitle(parent?.title) ?? `cat-${parentId}`,
+        categoryTitle: parent?.title ?? r.categoryTitle,
+        subKey: `sub-${own.id}`,
+        subTitle: String(own.title ?? '').trim(),
+        subOrder: Number(own.sortOrder) || 0,
+      };
+    });
+
     // The dashboard's own ordering, per category.
-    return rows.sort((a, b) => a.sortOrder - b.sortOrder);
-  }, [cmsFaqs]);
+    return placed.sort((a, b) => a.sortOrder - b.sortOrder);
+  }, [cmsFaqs, catById]);
 
   const categories = useMemo(() => buildCategories(items, cmsCats), [items, cmsCats]);
 
@@ -370,12 +414,48 @@ export default function Faq() {
     [hits, activeStage]
   );
 
+  /* Which subcategory each card is filtered to, keyed by card. Kept per card so
+     narrowing "Before your trip" to Invoices does not also narrow another card
+     the reader opens next, and reset implicitly by a card having no such entry. */
+  const [subByStage, setSubByStage] = useState({});
+
   const groups = useMemo(
     () =>
       categories
-        .map((c) => ({ ...c, items: visible.filter((it) => it.stage === c.key) }))
+        .map((c) => {
+          const all = visible.filter((it) => it.stage === c.key);
+
+          /* The subcategories actually in use on this card, in dashboard order.
+             Built from the questions rather than from the category list, so a
+             subcategory with nothing in it does not offer a filter that leads to
+             an empty page. */
+          const subs = [];
+          const seen = new Map();
+          for (const it of all) {
+            if (!it.subKey) continue;
+            const found = seen.get(it.subKey);
+            if (found) { found.count += 1; continue; }
+            const entry = { key: it.subKey, title: it.subTitle, order: it.subOrder, count: 1 };
+            seen.set(it.subKey, entry);
+            subs.push(entry);
+          }
+          subs.sort((a, b) => a.order - b.order || a.title.localeCompare(b.title));
+
+          // A filter naming a subcategory that this search has emptied is dropped
+          // rather than showing the reader nothing with no way back.
+          const wanted = subByStage[c.key];
+          const active = subs.some((s) => s.key === wanted) ? wanted : null;
+
+          return {
+            ...c,
+            subs,
+            activeSub: active,
+            total: all.length,
+            items: active ? all.filter((it) => it.subKey === active) : all,
+          };
+        })
         .filter((g) => g.items.length > 0),
-    [categories, visible]
+    [categories, visible, subByStage]
   );
 
   const featured = useMemo(() => items.filter((it) => it.featured).slice(0, 6), [items]);
@@ -569,6 +649,39 @@ export default function Faq() {
                     {g.blurb && <p className={styles.groupBlurb}>{g.blurb}</p>}
                   </div>
                 </div>
+
+                {/* Subcategories, as filters inside the card they belong to.
+                    A card with none looks exactly as it did before. */}
+                {g.subs.length > 0 && (
+                  <div className={styles.subBar} role="group" aria-label={`Filter ${g.title}`}>
+                    <button
+                      type="button"
+                      className={`${styles.subPill} ${!g.activeSub ? styles.subPillOn : ''}`}
+                      aria-pressed={!g.activeSub}
+                      onClick={() => setSubByStage((s) => ({ ...s, [g.key]: null }))}
+                    >
+                      All <span className={styles.subCount}>({g.total})</span>
+                    </button>
+                    {g.subs.map((s) => (
+                      <button
+                        key={s.key}
+                        type="button"
+                        className={`${styles.subPill} ${g.activeSub === s.key ? styles.subPillOn : ''}`}
+                        aria-pressed={g.activeSub === s.key}
+                        onClick={() =>
+                          setSubByStage((cur) => ({
+                            // Clicking the open filter again clears it, so the
+                            // whole card is one click away from any pill.
+                            ...cur,
+                            [g.key]: cur[g.key] === s.key ? null : s.key,
+                          }))
+                        }
+                      >
+                        {s.title} <span className={styles.subCount}>({s.count})</span>
+                      </button>
+                    ))}
+                  </div>
+                )}
 
                 <div className={styles.rows}>
                   {g.items.map((item) => (
