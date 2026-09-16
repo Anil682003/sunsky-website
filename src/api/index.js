@@ -202,6 +202,9 @@ export const useHolidayTypeCountries = () =>
     errorMessage: 'Could not load destinations for this holiday type',
   });
 
+/** The language the CMS is asked for. One site language today; see src/i18n. */
+const SITE_LANG = 'nl';
+
 /* ── Help centre (CMS → FAQ) ──────────────────────────────────────────────
    Read straight off the admin CMS so SUNSKY can add, reword, reorder and retire
    questions without a deploy. Both calls resolve to null rather than throwing:
@@ -222,7 +225,10 @@ export const fetchAllFaqs = async ({ signal } = {}) => {
   const PER_PAGE = 100;
   const readPage = async (page) => {
     const res = await axiosInstance.get(ENDPOINTS.faqs, {
-      params: { status: 'ACTIVE', limit: PER_PAGE, page },
+      // The site is Dutch. The server falls back to whichever description a row
+      // does have, so a question with no Dutch yet still answers rather than
+      // disappearing while the CMS is being translated.
+      params: { status: 'ACTIVE', limit: PER_PAGE, page, lang: SITE_LANG },
       signal,
     });
     const body = res?.data;
@@ -251,7 +257,7 @@ export const fetchAllFaqs = async ({ signal } = {}) => {
 export const fetchFaqCategories = async ({ signal } = {}) => {
   try {
     const res = await axiosInstance.get(ENDPOINTS.faqCategories, {
-      params: { status: 'ACTIVE' },
+      params: { status: 'ACTIVE', lang: SITE_LANG },
       signal,
     });
     return res?.data?.success ? res.data.data?.faqCategories ?? [] : [];

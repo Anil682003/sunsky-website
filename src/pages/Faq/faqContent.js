@@ -33,26 +33,26 @@
 export const STAGES = [
   {
     key: 'before-booking',
-    title: 'Before you book',
-    blurb: 'Prices, what is included, packages, baggage and payment options.',
+    title: 'Voor je boekt',
+    blurb: 'Prijzen, wat inbegrepen is, pakketreizen, bagage en betaalmogelijkheden.',
     match: [/before\s*(you\s*)?book/i, /voor\s*(je|u)?\s*boek/i, /booking\s*info/i],
   },
   {
     key: 'before-departure',
-    title: 'After booking',
-    blurb: 'Your confirmation, payments, changes, travel documents and check-in.',
+    title: 'Na je boeking',
+    blurb: 'Je bevestiging, betalingen, wijzigingen, reisdocumenten en inchecken.',
     match: [/after\s*booking/i, /before\s*departure/i, /na\s*(je|de)?\s*boeking/i, /vertrek/i],
   },
   {
     key: 'during-trip',
-    title: 'During your trip',
-    blurb: 'Transfers, your hotel, flight changes, delays and reaching us fast.',
+    title: 'Tijdens je reis',
+    blurb: 'Transfers, je hotel, gewijzigde vluchten, vertragingen en ons snel bereiken.',
     match: [/during\s*(your|the)?\s*(trip|travel|holiday)/i, /tijdens/i, /on\s*holiday/i],
   },
   {
     key: 'after-trip',
-    title: 'After your trip',
-    blurb: 'Complaints, lost or damaged baggage, refunds and feedback.',
+    title: 'Na je reis',
+    blurb: 'Klachten, verloren of beschadigde bagage, terugbetalingen en feedback.',
     match: [/after\s*(your|the)?\s*(trip|travel|holiday)/i, /na\s*(je|de)?\s*reis/i, /post[-\s]*travel/i],
   },
 ];
@@ -87,60 +87,60 @@ export const FALLBACK_FAQS = [
     id: 'f-book-how',
     stage: 'before-booking',
     featured: true,
-    question: 'How do I book?',
+    question: 'Hoe boek ik?',
     answer:
-      'Search for your destination and dates, choose the accommodation and board basis you want, then enter traveller details and pay.\n\nYou will receive a confirmation by email once the booking is complete. You do not need an account to book, but if you sign in, the booking is filed under My Booking straight away, which is the easiest place to find it later.',
+      'Zoek je bestemming en data, kies de accommodatie en het maaltijdtype dat je wil, vul daarna de gegevens van de reizigers in en betaal.\n\nZodra de boeking rond is, krijg je een bevestiging per e-mail. Je hebt geen account nodig om te boeken, maar als je inlogt staat je boeking meteen onder Mijn boeking. Daar vind je ze later het gemakkelijkst terug.',
   },
   {
     id: 'f-book-included',
     stage: 'before-booking',
-    question: 'What is included in the price?',
+    question: 'Wat is inbegrepen in de prijs?',
     answer:
-      'The price you see covers what is listed in the price breakdown at checkout, and nothing is added after you have paid. For a hotel that is the room and the board type you selected. For a package it is the flight, the accommodation and the board type, plus any transfer you added.\n\nBaggage, travel insurance, airport transfers and other extras are optional and are priced separately in the checkout, so you can see exactly what each one costs before you decide.',
+      'De prijs die je ziet dekt wat in het prijsoverzicht bij het afrekenen staat, en er komt niets bij nadat je betaald hebt. Bij een hotel is dat de kamer en het maaltijdtype dat je koos. Bij een pakketreis is dat de vlucht, de accommodatie en het maaltijdtype, plus een transfer als je die toevoegde.\n\nBagage, reisverzekering, luchthaventransfers en andere extra\'s zijn optioneel en worden apart geprijsd bij het afrekenen, zodat je precies ziet wat elk van hen kost voor je beslist.',
   },
   {
     id: 'f-book-package',
     stage: 'before-booking',
-    question: 'What is a dynamic package?',
+    question: 'Wat is een dynamische pakketreis?',
     answer:
-      'A dynamic package is a flight and a hotel combined into a single booking at the moment you search, rather than a fixed brochure holiday. Because the two are put together live, you get a much wider choice of departure dates, durations and hotels, and the combined price is often lower than booking each part separately.\n\nYou book it, pay for it and get support for it as one holiday, under one booking reference.',
+      'Een dynamische pakketreis is een vlucht en een hotel die op het moment van je zoekopdracht tot één boeking worden samengesteld, in plaats van een vaste brochurereis. Omdat beide live worden gecombineerd, heb je veel meer keuze in vertrekdata, reisduur en hotels, en ligt de gecombineerde prijs vaak lager dan wanneer je elk deel apart boekt.\n\nJe boekt ze, betaalt ze en krijgt er ondersteuning voor als één reis, onder één boekingsnummer.',
   },
   {
     id: 'f-book-payment',
     stage: 'before-booking',
     featured: true,
-    question: 'How do I pay, and is it secure?',
+    question: 'Hoe betaal ik, en is dat veilig?',
     answer:
-      'You can pay by credit or debit card (Visa and Mastercard), Bancontact, iDEAL or PayPal. The methods available to you are shown in the payment step of the checkout.\n\nPayments are processed over an encrypted connection by a regulated payment provider whose systems are certified to the PCI-DSS standard. We never see or store your full card number.\n\nA deposit is payable at the time of booking, with the balance due before departure.',
+      'Je kan betalen met kredietkaart of debetkaart (Visa en Mastercard), Bancontact, iDEAL of PayPal. Welke methodes voor jou beschikbaar zijn, zie je in de betaalstap bij het afrekenen.\n\nBetalingen verlopen via een beveiligde verbinding bij een gereguleerde betaalprovider waarvan de systemen gecertificeerd zijn volgens de PCI-DSS-standaard. Wij zien of bewaren je volledige kaartnummer nooit.\n\nBij de boeking betaal je een voorschot, het saldo is verschuldigd voor vertrek.',
   },
   {
     id: 'f-book-baggage',
     stage: 'before-booking',
     featured: true,
-    question: 'Is baggage included?',
+    question: 'Is bagage inbegrepen?',
     answer:
-      'It depends on the fare. In the extras step of the checkout we show, per traveller and per direction, what the fare already includes, so you can see at a glance whether hold baggage is part of the ticket or not.\n\nIf you need more than the fare includes, you can add cabin or hold baggage there for each traveller. Adding it at the time of booking is almost always cheaper than paying for it at the airport.',
+      'Dat hangt af van het tarief. In de stap met extra\'s bij het afrekenen tonen we per reiziger en per richting wat het tarief al bevat, zodat je in één oogopslag ziet of ruimbagage bij het ticket hoort of niet.\n\nHeb je meer nodig dan het tarief bevat, dan kan je daar per reiziger handbagage of ruimbagage bijnemen. Bagage bijboeken op het moment van de boeking is vrijwel altijd goedkoper dan ze op de luchthaven betalen.',
   },
   {
     id: 'f-book-insurance',
     stage: 'before-booking',
-    question: 'Do I need travel insurance?',
+    question: 'Heb ik een reisverzekering nodig?',
     answer:
-      'Travel insurance is not compulsory but is strongly recommended.\n\nCancellation insurance in particular can cover costs you would otherwise lose if you had to cancel for a reason the policy covers.\n\nIn the add-ons step of the checkout you can choose cancellation cover, travel cover, or the two combined, and each option shows its price for your party and dates before you select it.',
+      'Een reisverzekering is niet verplicht, maar wel sterk aanbevolen.\n\nZeker een annulatieverzekering kan kosten dekken die je anders kwijt bent als je moet annuleren om een reden die de polis dekt.\n\nIn de stap met extra\'s bij het afrekenen kan je kiezen voor annulatiedekking, reisdekking of beide samen. Bij elke optie zie je de prijs voor jouw reisgezelschap en data voor je ze selecteert.',
   },
   {
     id: 'f-book-perperson',
     stage: 'before-booking',
-    question: 'Are the prices shown per person or in total?',
+    question: 'Zijn de getoonde prijzen per persoon of in totaal?',
     answer:
-      'Search results show the total price for the whole party and the full stay you searched for, so what you compare between hotels is a like for like figure.\n\nThe checkout then breaks that total down line by line, including any extras you add and the booking fee, before you are asked to pay.',
+      'Zoekresultaten tonen de totaalprijs voor het volledige reisgezelschap en het volledige verblijf waarop je zocht, zodat je hotels op een eerlijke manier met elkaar vergelijkt.\n\nBij het afrekenen wordt dat totaal daarna lijn per lijn opgesplitst, inclusief de extra\'s die je toevoegt en de boekingskosten, voor je gevraagd wordt te betalen.',
   },
   {
     id: 'f-book-deposit',
     stage: 'before-booking',
-    question: 'Do I have to pay the full amount straight away?',
+    question: 'Moet ik meteen het volledige bedrag betalen?',
     answer:
-      'For some bookings you can pay a deposit now and the balance later. Where that applies, the checkout shows it as an option, along with the amount due today and the date the balance is due.\n\nWhether a deposit is possible depends on the holiday and on how close the departure date is. Bookings made close to departure normally have to be paid in full.',
+      'Bij sommige boekingen kan je nu een voorschot betalen en het saldo later. Waar dat van toepassing is, toont het afrekenscherm die mogelijkheid, samen met het bedrag dat vandaag verschuldigd is en de datum waarop het saldo vervalt.\n\nOf een voorschot mogelijk is, hangt af van de reis en van hoe dicht de vertrekdatum is. Boekingen kort voor vertrek moeten normaal in één keer volledig betaald worden.',
   },
 
   /* ── 2. After booking, before departure ────────────────────────────────── */
@@ -148,162 +148,162 @@ export const FALLBACK_FAQS = [
     id: 'f-dep-confirm',
     stage: 'before-departure',
     featured: true,
-    question: 'When is my booking confirmed?',
+    question: 'Wanneer is mijn boeking bevestigd?',
     answer:
-      'Your booking is confirmed when you receive our written confirmation. Until then, the price and availability shown are not guaranteed.\n\nThat confirmation normally arrives within a few minutes of payment, though a supplier who confirms manually can take longer. If it has not arrived within a few hours, check your spam folder and then contact us.',
+      'Je boeking is bevestigd zodra je onze schriftelijke bevestiging ontvangt. Tot dan zijn de getoonde prijs en beschikbaarheid niet gegarandeerd.\n\nDie bevestiging komt normaal binnen enkele minuten na de betaling, al kan een leverancier die manueel bevestigt langer nodig hebben. Is ze na enkele uren nog niet toegekomen, kijk dan in je spammap en neem daarna contact met ons op.',
   },
   {
     id: 'f-dep-where',
     stage: 'before-departure',
-    question: 'Where can I find my booking?',
+    question: 'Waar vind ik mijn boeking terug?',
     answer:
-      'Sign in and open My Booking. Everything to do with the holiday lives there: the confirmation, what has been paid and what is still outstanding, your travel documents and the details of every traveller.\n\nIf you booked as a guest, use the booking reference from your confirmation email, or create an account with the same email address you booked with.',
+      'Log in en open Mijn boeking. Alles wat met de reis te maken heeft staat daar: de bevestiging, wat betaald is en wat nog openstaat, je reisdocumenten en de gegevens van elke reiziger.\n\nBoekte je als gast, gebruik dan het boekingsnummer uit je bevestigingsmail, of maak een account aan met hetzelfde e-mailadres waarmee je boekte.',
   },
   {
     id: 'f-dep-documents',
     stage: 'before-departure',
     featured: true,
-    question: 'When do I receive my travel documents?',
+    question: 'Wanneer ontvang ik mijn reisdocumenten?',
     answer:
-      'Travel documents are sent by email once your booking is paid in full, normally shortly before departure. You can also download them at any time from My Booking.\n\nTake them with you, either printed or on your phone. You will be asked for them at check-in.',
+      'Reisdocumenten worden per e-mail verstuurd zodra je boeking volledig betaald is, normaal kort voor vertrek. Je kan ze ook op elk moment downloaden via Mijn boeking.\n\nNeem ze mee, geprint of op je telefoon. Bij het inchecken wordt ernaar gevraagd.',
   },
   {
     id: 'f-dep-change',
     stage: 'before-departure',
     featured: true,
-    question: 'Can I change my booking?',
+    question: 'Kan ik mijn boeking wijzigen?',
     answer:
-      'Changes are often possible, but they depend on the terms of the airline, hotel or other supplier involved, and some carry a fee.\n\nContact us as early as possible with your booking reference and we will tell you what is available and what it costs, before anything is changed.',
+      'Wijzigen kan vaak, maar het hangt af van de voorwaarden van de luchtvaartmaatschappij, het hotel of de betrokken leverancier, en sommige wijzigingen brengen kosten met zich mee.\n\nNeem zo vroeg mogelijk contact met ons op met je boekingsnummer. Wij vertellen je wat mogelijk is en wat het kost, voor er iets gewijzigd wordt.',
   },
   {
     id: 'f-dep-cancel',
     stage: 'before-departure',
-    question: 'What happens if I need to cancel?',
+    question: 'Wat gebeurt er als ik moet annuleren?',
     answer:
-      'Cancellation charges depend on how close to departure you cancel and on the conditions of your booking. The scale that applies to you is set out in the General Travel Conditions and was shown before you booked.\n\nIf you took out cancellation insurance, costs you would otherwise lose may be covered where the reason for cancelling is one the policy covers.',
+      'Annulatiekosten hangen af van hoe kort voor vertrek je annuleert en van de voorwaarden van je boeking. De schaal die op jou van toepassing is, staat in de Algemene Reisvoorwaarden en werd getoond voor je boekte.\n\nHeb je een annulatieverzekering afgesloten, dan kunnen kosten die je anders kwijt bent gedekt zijn, als de reden van annulatie door de polis gedekt wordt.',
   },
   {
     id: 'f-dep-balance',
     stage: 'before-departure',
-    question: 'How do I pay the remaining balance?',
+    question: 'Hoe betaal ik het openstaande saldo?',
     answer:
-      'If you paid a deposit, the outstanding amount and its due date are shown in My Booking, and you can pay it there with the same methods you used for the deposit.\n\nWe will also remind you by email before the balance falls due. Paying on time matters, because an unpaid balance can lead to the booking being cancelled by the supplier.',
+      'Betaalde je een voorschot, dan zie je het openstaande bedrag en de vervaldatum in Mijn boeking. Je kan het daar betalen met dezelfde methodes als bij het voorschot.\n\nWe herinneren je ook per e-mail voor het saldo vervalt. Op tijd betalen is belangrijk: een onbetaald saldo kan ertoe leiden dat de leverancier de boeking annuleert.',
   },
   {
     id: 'f-dep-passport',
     stage: 'before-departure',
-    question: 'What documents do I need to travel?',
+    question: 'Welke documenten heb ik nodig om te reizen?',
     answer:
-      'You are responsible for holding valid travel documents. Requirements vary by destination and by nationality, and they change.\n\nAs a rule you need a passport or identity card valid for the whole trip, and many destinations require a passport that stays valid for several months after your return date. Some destinations also require or recommend vaccinations.\n\nCheck the official government travel advice for your destination well before you leave, because a holiday missed because of a document problem cannot be refunded. If you are unsure what applies to your booking, contact us and we will point you at the right source.',
+      'Je bent zelf verantwoordelijk voor geldige reisdocumenten. De vereisten verschillen per bestemming en per nationaliteit, en ze veranderen.\n\nAls regel heb je een paspoort of identiteitskaart nodig die geldig is voor de hele reis, en veel bestemmingen vragen een paspoort dat na je terugkeer nog enkele maanden geldig blijft. Sommige bestemmingen vragen of raden ook vaccinaties aan.\n\nRaadpleeg ruim voor vertrek het officiële reisadvies van de overheid voor je bestemming. Een reis die niet doorgaat door een probleem met documenten kan niet terugbetaald worden. Twijfel je wat voor jouw boeking geldt, neem dan contact met ons op en we wijzen je de juiste bron.',
   },
   {
     id: 'f-dep-checkin',
     stage: 'before-departure',
-    question: 'How does online check-in work?',
+    question: 'Hoe werkt online inchecken?',
     answer:
-      'Online check-in is handled by the airline, not by us. It usually opens between 48 and 24 hours before departure, and you complete it on the airline website using the airline booking reference shown on your travel documents.\n\nSome airlines charge for checking in at the airport instead, so it is worth doing online as soon as it opens.',
+      'Online inchecken gebeurt bij de luchtvaartmaatschappij, niet bij ons. Het opent meestal tussen 48 en 24 uur voor vertrek, en je doet het op de website van de maatschappij met het boekingsnummer van de luchtvaartmaatschappij dat op je reisdocumenten staat.\n\nSommige maatschappijen rekenen kosten aan om op de luchthaven in te checken, dus doe het online zodra het kan.',
   },
   {
     id: 'f-dep-extras',
     stage: 'before-departure',
-    question: 'Can I add baggage or other extras after booking?',
+    question: 'Kan ik na het boeken nog bagage of andere extra\'s toevoegen?',
     answer:
-      'Usually yes. Extra baggage, an airport transfer or a seat request can often still be added after the booking is confirmed, subject to availability and to the airline price at that moment.\n\nContact us with your booking reference and tell us what you would like to add. Prices for extras added later are set by the airline and are normally higher than at the time of booking.',
+      'Meestal wel. Extra bagage, een luchthaventransfer of een stoelvoorkeur kunnen vaak nog toegevoegd worden nadat de boeking bevestigd is, afhankelijk van de beschikbaarheid en van de prijs van de luchtvaartmaatschappij op dat moment.\n\nNeem contact met ons op met je boekingsnummer en laat weten wat je wil bijnemen. Prijzen voor later toegevoegde extra\'s worden bepaald door de luchtvaartmaatschappij en liggen normaal hoger dan op het moment van de boeking.',
   },
   {
     id: 'f-dep-name',
     stage: 'before-departure',
-    question: 'The name on my booking is wrong. What should I do?',
+    question: 'De naam op mijn boeking klopt niet. Wat nu?',
     answer:
-      'Tell us as soon as you notice. Names on a flight booking have to match the passport exactly, and airlines treat a name change very differently from a spelling correction: a small typo can often be fixed, while changing to a different traveller usually means rebooking.\n\nThe sooner you contact us, the more options there are and the less it is likely to cost.',
+      'Laat het ons weten zodra je het merkt. Namen op een vluchtboeking moeten exact overeenkomen met het paspoort, en luchtvaartmaatschappijen behandelen een naamswijziging heel anders dan een schrijffout: een kleine tikfout kan vaak rechtgezet worden, terwijl overzetten naar een andere reiziger meestal opnieuw boeken betekent.\n\nHoe sneller je contact opneemt, hoe meer mogelijkheden er zijn en hoe minder het waarschijnlijk kost.',
   },
 
   /* ── 3. During your trip ───────────────────────────────────────────────── */
   {
     id: 'f-trip-contact',
     stage: 'during-trip',
-    question: 'How do I contact SUNSKY while I am travelling?',
+    question: 'Hoe bereik ik SUNSKY terwijl ik op reis ben?',
     answer:
-      'During office hours, call +32 11 57 44 27 or email info@sunsky.be, and have your booking reference to hand so we can find the booking immediately.\n\nFor an urgent problem during your trip that cannot wait for opening hours, use the traveller emergency line on +32 497 54 38 16. That line is for emergencies while travelling, not for general questions, changes or new bookings.\n\nYour travel documents also list the local contacts you need on the spot, such as the transfer company and the hotel.',
+      'Bel tijdens de kantooruren +32 11 57 44 27 of mail naar info@sunsky.be, en hou je boekingsnummer bij de hand zodat we je boeking meteen kunnen terugvinden.\n\nVoor een dringend probleem tijdens je reis dat niet kan wachten tot onze openingsuren, gebruik je de noodlijn voor reizigers op +32 497 54 38 16. Die lijn is bedoeld voor noodgevallen onderweg, niet voor algemene vragen, wijzigingen of nieuwe boekingen.\n\nOp je reisdocumenten staan ook de lokale contactgegevens die je ter plaatse nodig hebt, zoals de transfermaatschappij en het hotel.',
   },
   {
     id: 'f-trip-transfer',
     stage: 'during-trip',
-    question: 'My airport transfer has not arrived. What should I do?',
+    question: 'Mijn luchthaventransfer is niet komen opdagen. Wat moet ik doen?',
     answer:
-      'Call the local transfer supplier first, using the number on your transfer voucher. They are on the ground and can usually locate the driver within minutes. Your voucher also states the meeting point, which is often not directly outside the arrivals door.\n\nIf you cannot reach them, contact us and we will chase it. Please do not arrange and pay for your own taxi before speaking to one of us, because an unapproved cost is much harder to reclaim afterwards.',
+      'Bel eerst de lokale transferleverancier op het nummer dat op je transfervoucher staat. Zij zijn ter plaatse en vinden de chauffeur meestal binnen enkele minuten terug. Op je voucher staat ook het afgesproken ontmoetingspunt, dat vaak niet vlak buiten de aankomsthal ligt.\n\nKrijg je hen niet te pakken, neem dan contact met ons op en wij gaan erachteraan. Regel en betaal geen eigen taxi voor je een van ons gesproken hebt: een niet-goedgekeurde kost is achteraf veel moeilijker terug te vorderen.',
   },
   {
     id: 'f-trip-hotel',
     stage: 'during-trip',
-    question: 'There is a problem with my hotel room. What should I do?',
+    question: 'Er is een probleem met mijn hotelkamer. Wat moet ik doen?',
     answer:
-      'Report it at the hotel reception straight away and give them the chance to put it right. Most issues, from a room that does not match what was booked to something that is not working, are solved on the spot.\n\nIf the hotel does not resolve it, contact us while you are still there. A problem we hear about during the stay can often be fixed or compensated. The same problem reported after you get home rarely can be, because by then nothing can be verified.',
+      'Meld het meteen aan de receptie van het hotel en geef hen de kans om het recht te zetten. De meeste problemen, van een kamer die niet overeenkomt met wat geboekt werd tot iets dat niet werkt, worden ter plaatse opgelost.\n\nLost het hotel het niet op, neem dan contact met ons op terwijl je er nog bent. Een probleem dat we tijdens het verblijf horen, kan vaak nog opgelost of vergoed worden. Datzelfde probleem pas na je thuiskomst melden kan zelden nog, omdat er dan niets meer vast te stellen valt.',
   },
   {
     id: 'f-trip-delay',
     stage: 'during-trip',
-    question: 'My flight is delayed or cancelled. What are my rights?',
+    question: 'Mijn vlucht heeft vertraging of is geannuleerd. Wat zijn mijn rechten?',
     answer:
-      'For flights departing from the EU, and for flights into the EU on an EU airline, EU Regulation 261/2004 gives you the right to assistance from the airline and, for longer delays and cancellations within the airline control, to compensation. The airline handles this, so keep your boarding passes and any receipts.\n\nIf the disruption affects the rest of your holiday, such as a transfer you will now miss, contact us so we can move what can be moved.',
+      'Voor vluchten die uit de EU vertrekken, en voor vluchten naar de EU met een EU-maatschappij, geeft Verordening (EG) 261/2004 je recht op bijstand van de luchtvaartmaatschappij en, bij langere vertragingen en annulaties binnen de controle van de maatschappij, op compensatie. De luchtvaartmaatschappij handelt dit af, dus bewaar je instapkaarten en eventuele bewijsstukken.\n\nRaakt de verstoring de rest van je reis, bijvoorbeeld een transfer die je nu mist, neem dan contact met ons op zodat we kunnen verplaatsen wat verplaatst kan worden.',
   },
   {
     id: 'f-trip-schedule',
     stage: 'during-trip',
-    question: 'My flight times have changed. What happens now?',
+    question: 'Mijn vluchturen zijn gewijzigd. Wat nu?',
     answer:
-      'Airlines do adjust their schedules, sometimes months ahead and occasionally at short notice. When that happens on your booking we email you the new times and tell you what it means for the rest of the holiday, including any transfer that has to move with it.\n\nIf the new times do not work for you, reply to that email or call us and we will go through the alternatives.',
+      'Luchtvaartmaatschappijen passen hun uurregeling soms aan, soms maanden op voorhand en af en toe op korte termijn. Gebeurt dat bij jouw boeking, dan mailen we je de nieuwe uren en leggen we uit wat dat betekent voor de rest van de reis, inclusief een transfer die mee moet verschuiven.\n\nPassen de nieuwe uren je niet, antwoord dan op die mail of bel ons, en we overlopen samen de alternatieven.',
   },
   {
     id: 'f-trip-wrong',
     stage: 'during-trip',
-    question: 'What if something goes wrong while I am away?',
+    question: 'Wat als er iets misloopt terwijl ik weg ben?',
     answer:
-      'Report the problem to the supplier and to our emergency line straight away, so it can be put right on the spot. Giving us that opportunity is a condition of your contract.\n\nIf it cannot be resolved locally, contact us as soon as you are home and we will take it up with the hotel or airline on your behalf. Keep any photos, receipts or written reports, because they are what a supplier will ask for.',
+      'Meld het probleem meteen aan de leverancier en aan onze noodlijn, zodat het ter plaatse rechtgezet kan worden. Ons die kans geven is een voorwaarde van je overeenkomst.\n\nKan het lokaal niet opgelost worden, neem dan contact met ons op zodra je thuis bent. Wij nemen het dan namens jou op met het hotel of de luchtvaartmaatschappij. Bewaar foto\'s, bonnetjes of schriftelijke vaststellingen: dat is wat een leverancier zal vragen.',
   },
   {
     id: 'f-trip-emergency',
     stage: 'during-trip',
-    question: 'What should I do in an emergency?',
+    question: 'Wat moet ik doen bij een noodgeval?',
     answer:
-      'In a medical or safety emergency, always call the local emergency services first. Across the EU that number is 112.\n\nThen contact your travel insurer, whose emergency line is on your policy and who handles medical costs and repatriation.\n\nLet us know as well, on the traveller emergency line +32 497 54 38 16, so we can help with the travel side, such as changing a return flight.',
+      'Bel bij een medisch of veiligheidsnoodgeval altijd eerst de lokale hulpdiensten. In de hele EU is dat 112.\n\nNeem daarna contact op met je reisverzekeraar. Hun noodnummer staat op je polis en zij regelen medische kosten en repatriëring.\n\nLaat het ook ons weten, via de noodlijn voor reizigers op +32 497 54 38 16, zodat we kunnen helpen met het reisgedeelte, bijvoorbeeld het verplaatsen van een terugvlucht.',
   },
 
   /* ── 4. After your trip ────────────────────────────────────────────────── */
   {
     id: 'f-after-complaint',
     stage: 'after-trip',
-    question: 'How do I make a complaint?',
+    question: 'Hoe dien ik een klacht in?',
     answer:
-      'Email us with your booking reference, what went wrong, and any photos or documents that support it. The more concrete the detail, the faster we can take it up with the hotel or airline.\n\nPlease get in touch as soon as you can after returning. Suppliers apply their own time limits for handling complaints, and a late report can leave us with no way to pursue it.',
+      'Mail ons met je boekingsnummer, wat er misliep en eventuele foto\'s of documenten die dat staven. Hoe concreter de details, hoe sneller we het kunnen opnemen met het hotel of de luchtvaartmaatschappij.\n\nNeem zo snel mogelijk na je terugkeer contact op. Leveranciers hanteren hun eigen termijnen voor het behandelen van klachten, en een late melding kan ons zonder mogelijkheden zetten om ze nog te behartigen.',
   },
   {
     id: 'f-after-baggage',
     stage: 'after-trip',
-    question: 'My baggage was damaged or did not arrive. What should I do?',
+    question: 'Mijn bagage was beschadigd of is niet aangekomen. Wat moet ik doen?',
     answer:
-      'Report it at the airport before you leave the baggage hall and get a written report, usually called a PIR. Without that report an airline will normally not accept a claim at all.\n\nBaggage is the airline responsibility, so the claim goes to them, and your travel insurance may cover it as well. Send us a copy of the report and we will help you put the claim together.',
+      'Meld het op de luchthaven voor je de bagagehal verlaat en vraag een schriftelijk rapport, meestal een PIR genoemd. Zonder dat rapport aanvaardt een luchtvaartmaatschappij een claim normaal gezien niet.\n\nBagage is de verantwoordelijkheid van de luchtvaartmaatschappij, dus de claim gaat naar hen, en ook je reisverzekering kan dekking bieden. Bezorg ons een kopie van het rapport en we helpen je de claim samen te stellen.',
   },
   {
     id: 'f-after-refund',
     stage: 'after-trip',
-    question: 'When will I receive my refund?',
+    question: 'Wanneer krijg ik mijn terugbetaling?',
     answer:
-      'Once a refund has been agreed we pay it back to the method you paid with. How long it takes depends on the supplier, because we can only pass on money once the hotel or airline has released it, and on your bank, which typically needs a few working days after we have sent it.\n\nIf a refund is taking longer than you expected, contact us with your booking reference and we will tell you exactly where it is.',
+      'Zodra een terugbetaling is afgesproken, storten we ze terug via de methode waarmee je betaalde. Hoe lang dat duurt hangt af van de leverancier, omdat wij het geld pas kunnen doorstorten zodra het hotel of de luchtvaartmaatschappij het heeft vrijgegeven, en van je bank, die daarna doorgaans enkele werkdagen nodig heeft.\n\nDuurt een terugbetaling langer dan je verwachtte, neem dan contact met ons op met je boekingsnummer en we zeggen je precies waar ze zit.',
   },
   {
     id: 'f-after-review',
     stage: 'after-trip',
-    question: 'Can I leave a review?',
+    question: 'Kan ik een review achterlaten?',
     answer:
-      'Please do. You can leave a review through the link at the bottom of this page, and it takes about a minute.\n\nReviews are read by people deciding on their own holiday, so an honest account of how yours went, good or bad, is genuinely useful to them and to us.',
+      'Heel graag. Je kan een review achterlaten via de link onderaan deze pagina, en het duurt ongeveer een minuut.\n\nReviews worden gelezen door mensen die hun eigen reis aan het kiezen zijn. Een eerlijk verslag van hoe die van jou verliep, goed of slecht, is dus echt nuttig voor hen en voor ons.',
   },
   {
     id: 'f-after-invoice',
     stage: 'after-trip',
-    question: 'Can I get a copy of my invoice or booking confirmation?',
+    question: 'Kan ik een kopie krijgen van mijn factuur of boekingsbevestiging?',
     answer:
-      'Yes. Sign in and open My Booking, where the confirmation and the invoice for every booking stay available to download after you return.\n\nIf you booked as a guest, contact us with your booking reference and we will email them to you.',
+      'Ja. Log in en open Mijn boeking. De bevestiging en de factuur van elke boeking blijven daar ook na je terugkeer beschikbaar om te downloaden.\n\nBoekte je als gast, neem dan contact met ons op met je boekingsnummer en we mailen ze je door.',
   },
 ];
 
