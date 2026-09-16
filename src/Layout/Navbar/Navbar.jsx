@@ -321,9 +321,9 @@ export default function Navbar() {
               defaultValue_other: '{{count}} holiday types',
             })}
             align="right"
-            {/* `type`, not `t`: the map parameter was called `t` and shadowed the
-                translation function, so `t(...)` inside it called a holiday-type
-                object. It only crashed where the CMS actually returns types. */}
+            // `type`, not `t`: the parameter was called `t` and shadowed the
+            // translation function, so `t(...)` inside it called a holiday-type
+            // object. It only crashed where the CMS actually returns types.
             items={topHolidayTypes.map((type) => ({
               key: type.slug,
               label: type.title,
