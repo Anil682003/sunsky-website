@@ -5,6 +5,7 @@ import { findLegalLink } from '../../../utils/legalLinks';
 import { INSURANCE_MARKS, INSURANCE_MARK_LIST } from '../../../utils/insuranceMarks';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import CmsLink from '../../../components/CmsLink/CmsLink';
+import { useTranslation } from 'react-i18next';
 
 /**
  * The guarantee bar — the "trust balk" the agency asked for, sitting high on the page where a
@@ -22,6 +23,7 @@ import CmsLink from '../../../components/CmsLink/CmsLink';
  * the other is the kind of difference nobody notices until a traveller reports it.
  */
 export default function TrustBar() {
+  const { t } = useTranslation('home');
   const { data: footer } = useFooterConfig();
   // Keyed on "protection", not "insurance": the agency's page is called "Financial Protection
   // and VVR Membership", while "insurance" matches their SEPARATE travel-and-cancellation
@@ -61,10 +63,11 @@ export default function TrustBar() {
             <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round">
               <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" />
             </svg>
-            Guarantees
+            {t('trustBar.eyebrow', 'Guarantees')}
           </span>
           <h2 id="trustbar-title" className={styles.title}>
-            Your holiday is <span className={styles.accent}>protected</span>
+            {t('trustBar.titleLead', 'Your holiday is')}{' '}
+            <span className={styles.accent}>{t('trustBar.titleAccent', 'protected')}</span>
           </h2>
         </div>
 
@@ -76,7 +79,14 @@ export default function TrustBar() {
                 <CmsLink
                   url={url}
                   className={styles.markLink}
-                  title={url && alt ? `${alt} (opens their website)` : undefined}
+                  title={
+                    url && alt
+                      ? t('trustBar.opensWebsite', {
+                          name: alt,
+                          defaultValue: '{{name}} (opens their website)',
+                        })
+                      : undefined
+                  }
                 >
                   <img className={styles.mark} src={src} alt={alt} loading="lazy" />
                 </CmsLink>
@@ -86,7 +96,7 @@ export default function TrustBar() {
         </ul>
 
         <Link className={styles.more} to={insuranceUrl}>
-          How you are covered
+          {t('trustBar.howCovered', 'How you are covered')}
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
             <path d="M5 12h14M12 5l7 7-7 7" />
           </svg>

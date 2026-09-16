@@ -1,15 +1,17 @@
 import { useState } from 'react';
 import styles from './Newsletter.module.css';
 import { cmsText } from '../../../utils/cmsText';
+import { useTranslation } from 'react-i18next';
 
 export default function Newsletter({ cms }) {
+  const { t } = useTranslation('home');
   const [email, setEmail] = useState('');
 
   const nl = cms?.newsletter;
-  const title       = nl?.title            || 'Get exclusive holiday deals';
-  const subtitle    = nl?.subtitle         || 'Subscribe for last-minute offers, travel inspiration, and member-only prices.';
-  const placeholder = nl?.inputPlaceholder || 'Enter your email address';
-  const btnText     = nl?.buttonText       || 'Subscribe';
+  const title       = nl?.title            || t('newsletter.title', 'Get exclusive holiday deals');
+  const subtitle    = nl?.subtitle         || t('newsletter.subtitle', 'Subscribe for last-minute offers, travel inspiration, and member-only prices.');
+  const placeholder = nl?.inputPlaceholder || t('newsletter.placeholder', 'Enter your email address');
+  const btnText     = nl?.buttonText       || t('newsletter.button', 'Subscribe');
 
   // Split the CMS title so the last word gets the Caveat gradient accent
   const words  = String(title).trim().split(/\s+/);
@@ -110,7 +112,7 @@ export default function Newsletter({ cms }) {
               {/* ── form stub, below the perforation ── */}
               <div className={styles.stub}>
                 <span className={styles.annotation} aria-hidden="true">
-                  no spam, promise ✈
+                  {t('newsletter.noSpam', 'no spam, promise ✈')}
                   <svg className={styles.annotationArrow} viewBox="0 0 44 34" fill="none">
                     <path d="M40 3 C 30 22, 18 27, 6 25" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
                     <path d="M12 20 L5.5 25.2 L13 28.5" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />

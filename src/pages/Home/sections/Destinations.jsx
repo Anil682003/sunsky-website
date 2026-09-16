@@ -3,15 +3,36 @@ import { Link } from 'react-router-dom';
 import styles from './Destinations.module.css';
 import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
 import { cmsText } from '../../../utils/cmsText';
+import { useTranslation } from 'react-i18next';
 
+/* Shown only until the dashboard's own destination tabs arrive. Place names are
+   NOT translated — Mallorca is Mallorca — but the country tab labels and the
+   badges are words rather than places, so those carry keys. */
 const FALLBACK_TABS = {
-  spain:  { label:'Spain',          dest:[{name:'Costa del Sol',count:'342 holidays',badge:'Popular',img:'https://images.unsplash.com/photo-1543783207-ec64e4d95325?w=800&q=80'},{name:'Mallorca',count:'289 holidays',img:'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=800&q=80'},{name:'Barcelona',count:'198 holidays',badge:'Trending',img:'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=800&q=80'}] },
-  turkey: { label:'Turkey',         dest:[{name:'Antalya',count:'456 holidays',badge:'Best Value',img:'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?w=800&q=80'},{name:'Bodrum',count:'234 holidays',img:'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80'},{name:'Istanbul',count:'178 holidays',img:'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=800&q=80'}] },
-  egypt:  { label:'Egypt',          dest:[{name:'Hurghada',count:'312 holidays',badge:'Top Rated',img:'https://images.unsplash.com/photo-1539768942893-daf53e736b68?w=800&q=80'},{name:'Sharm El Sheikh',count:'267 holidays',img:'https://images.unsplash.com/photo-1568322445389-f64e1bbea1b4?w=800&q=80'},{name:'Marsa Alam',count:'145 holidays',img:'https://images.unsplash.com/photo-1553913861-c0fddf2619ee?w=800&q=80'}] },
-  greece: { label:'Greece',         dest:[{name:'Santorini',count:'198 holidays',badge:'Iconic',img:'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&q=80'},{name:'Crete',count:'345 holidays',img:'https://images.unsplash.com/photo-1580502304784-8985b7eb7260?w=800&q=80'},{name:'Rhodes',count:'213 holidays',img:'https://images.unsplash.com/photo-1555400038-63f5ba517a47?w=800&q=80'}] },
-  canary: { label:'Canary Islands',  dest:[{name:'Tenerife',count:'423 holidays',badge:'Year-Round Sun',img:'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?w=800&q=80'},{name:'Gran Canaria',count:'312 holidays',img:'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&q=80'},{name:'Lanzarote',count:'187 holidays',img:'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&q=80'}] },
-  italy:  { label:'Italy',          dest:[{name:'Amalfi Coast',count:'156 holidays',badge:'Luxury',img:'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?w=800&q=80'},{name:'Sicily',count:'234 holidays',img:'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?w=800&q=80'},{name:'Sardinia',count:'189 holidays',img:'https://images.unsplash.com/photo-1515859005217-8a1f08870f59?w=800&q=80'}] },
+  spain:  { key:'spain',  label:'Spain', dest:[{name:'Costa del Sol',n:342,badgeKey:'popular',badge:'Popular',img:'https://images.unsplash.com/photo-1543783207-ec64e4d95325?w=800&q=80'},{name:'Mallorca',n:289,img:'https://images.unsplash.com/photo-1558642452-9d2a7deb7f62?w=800&q=80'},{name:'Barcelona',n:198,badgeKey:'trending',badge:'Trending',img:'https://images.unsplash.com/photo-1583422409516-2895a77efded?w=800&q=80'}] },
+  turkey: { key:'turkey', label:'Turkey', dest:[{name:'Antalya',n:456,badgeKey:'bestValue',badge:'Best Value',img:'https://images.unsplash.com/photo-1541432901042-2d8bd64b4a9b?w=800&q=80'},{name:'Bodrum',n:234,img:'https://images.unsplash.com/photo-1570077188670-e3a8d69ac5ff?w=800&q=80'},{name:'Istanbul',n:178,img:'https://images.unsplash.com/photo-1524231757912-21f4fe3a7200?w=800&q=80'}] },
+  egypt:  { key:'egypt',  label:'Egypt', dest:[{name:'Hurghada',n:312,badgeKey:'topRated',badge:'Top Rated',img:'https://images.unsplash.com/photo-1539768942893-daf53e736b68?w=800&q=80'},{name:'Sharm El Sheikh',n:267,img:'https://images.unsplash.com/photo-1568322445389-f64e1bbea1b4?w=800&q=80'},{name:'Marsa Alam',n:145,img:'https://images.unsplash.com/photo-1553913861-c0fddf2619ee?w=800&q=80'}] },
+  greece: { key:'greece', label:'Greece', dest:[{name:'Santorini',n:198,badgeKey:'iconic',badge:'Iconic',img:'https://images.unsplash.com/photo-1533105079780-92b9be482077?w=800&q=80'},{name:'Crete',n:345,img:'https://images.unsplash.com/photo-1580502304784-8985b7eb7260?w=800&q=80'},{name:'Rhodes',n:213,img:'https://images.unsplash.com/photo-1555400038-63f5ba517a47?w=800&q=80'}] },
+  canary: { key:'canary', label:'Canary Islands', dest:[{name:'Tenerife',n:423,badgeKey:'yearRoundSun',badge:'Year-Round Sun',img:'https://images.unsplash.com/photo-1500375592092-40eb2168fd21?w=800&q=80'},{name:'Gran Canaria',n:312,img:'https://images.unsplash.com/photo-1519681393784-d120267933ba?w=800&q=80'},{name:'Lanzarote',n:187,img:'https://images.unsplash.com/photo-1501785888041-af3ef285b470?w=800&q=80'}] },
+  italy:  { key:'italy',  label:'Italy', dest:[{name:'Amalfi Coast',n:156,badgeKey:'luxury',badge:'Luxury',img:'https://images.unsplash.com/photo-1523906834658-6e24ef2386f9?w=800&q=80'},{name:'Sicily',n:234,img:'https://images.unsplash.com/photo-1534308983496-4fabb1a015ee?w=800&q=80'},{name:'Sardinia',n:189,img:'https://images.unsplash.com/photo-1515859005217-8a1f08870f59?w=800&q=80'}] },
 };
+
+/* The fallback tabs in the reader's language. Only ever called when the CMS has
+   no tabs of its own, in which case its words would win anyway. */
+const localiseTabs = (t) =>
+  Object.fromEntries(
+    Object.entries(FALLBACK_TABS).map(([key, tab]) => [
+      key,
+      {
+        label: t(`destinations.tabs.${tab.key}`, tab.label),
+        dest: tab.dest.map((d) => ({
+          ...d,
+          count: t('destinations.holidayCount', { count: d.n, defaultValue: '{{count}} holidays' }),
+          badge: d.badgeKey ? t(`destinations.badges.${d.badgeKey}`, d.badge) : undefined,
+        })),
+      },
+    ])
+  );
 
 function buildTabsFromCms(destinationTabs) {
   if (!destinationTabs?.length) return null;
@@ -44,13 +65,14 @@ function routeCode(name) {
 }
 
 export default function Destinations({ cms }) {
+  const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.destinations;
-  const tag      = sh?.tag      || '☀ Destinations';
-  const title    = sh?.title    || 'Our best sun destinations';
-  const subtitle = sh?.subtitle || 'Handpicked destinations with guaranteed sunshine and incredible value.';
+  const tag      = sh?.tag      || t('destinations.tag', '☀ Destinations');
+  const title    = sh?.title    || t('destinations.title', 'Our best sun destinations');
+  const subtitle = sh?.subtitle || t('destinations.subtitle', 'Handpicked destinations with guaranteed sunshine and incredible value.');
 
   const cmsTabs = buildTabsFromCms(cms?.destinationTabs);
-  const TABS = cmsTabs || FALLBACK_TABS;
+  const TABS = cmsTabs || localiseTabs(t);
 
   const [active, setActive] = useState(Object.keys(TABS)[0]);
   const safeActive = TABS[active] ? active : Object.keys(TABS)[0];
@@ -118,7 +140,7 @@ export default function Destinations({ cms }) {
         </div>
 
         <div className={styles.tabs}>
-          {Object.entries(TABS).map(([key, t]) => (
+          {Object.entries(TABS).map(([key, tab]) => (
             <button
               key={key}
               type="button"
@@ -126,7 +148,7 @@ export default function Destinations({ cms }) {
               onClick={() => setActive(key)}
             >
               <span className={styles.tabHole} aria-hidden="true" />
-              {t.label}
+              {tab.label}
               {safeActive === key && (
                 <svg className={styles.tabPlane} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
                   <path d="M1 9.5 L19 1.5 L11.6 18.5 L9.4 11.4 Z" fill="currentColor" />
@@ -141,7 +163,13 @@ export default function Destinations({ cms }) {
             // Linked cards become real anchors so they can be opened in a new tab;
             // unlinked ones stay plain divs and keep the current behaviour.
             const Card = d.href ? Link : 'div';
-            const cardProps = d.href ? { to: d.href, title: `Search stays in ${d.name}` } : {};
+            const cardProps = d.href ? {
+              to: d.href,
+              title: t('destinations.searchStaysIn', {
+                place: d.name,
+                defaultValue: 'Search stays in {{place}}',
+              }),
+            } : {};
             return (
             <Card
               key={i}
@@ -176,7 +204,7 @@ export default function Destinations({ cms }) {
               {d.badge && <div className={styles.badge}>{d.badge}</div>}
               {i === 0 && (
                 <div className={styles.featNote} aria-hidden="true">
-                  <span className={styles.featNoteTxt}>№1 this season</span>
+                  <span className={styles.featNoteTxt}>{t('destinations.topThisSeason', '№1 this season')}</span>
                   <svg className={styles.featArrow} viewBox="0 0 46 34" fill="none" focusable="false">
                     <path d="M42 3 C 34 20, 20 27, 6 26" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
                     <path d="M13 19.5 L5.5 26.5 L14.5 29.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />

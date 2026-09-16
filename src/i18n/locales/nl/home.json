@@ -1,0 +1,179 @@
+{
+  "stats": {
+    "holidaysWorldwide": "Vakanties wereldwijd",
+    "happyTravelers": "Tevreden reizigers",
+    "destinations": "Bestemmingen",
+    "travelAwards": "Reisawards",
+    "approved": "Goedgekeurd",
+    "stillCounting": "en het loopt door…"
+  },
+  "marquee": {
+    "bestPrice": "Laagsteprijsgarantie",
+    "holidayCount": "10.000+ vakanties",
+    "noFees": "Geen boekingskosten",
+    "securePayments": "Veilig betalen",
+    "support": "24/7 bereikbaar",
+    "trustedBy": "Vertrouwd door 2 mln+ reizigers",
+    "freeCancellation": "Gratis annuleren",
+    "awardWinning": "Bekroonde service",
+    "note": "elke dag nieuwe vondsten!",
+    "ghost": {
+      "wanderlust": "reislust",
+      "goldenHour": "gouden uur",
+      "boardingSoon": "bijna boarden…",
+      "seaBreeze": "zeebries",
+      "nowArriving": "nu aangekomen",
+      "sunChasing": "op zonnejacht"
+    }
+  },
+  "newsletter": {
+    "title": "Ontvang exclusieve vakantiedeals",
+    "subtitle": "Schrijf je in voor last-minuteaanbiedingen, reisinspiratie en ledenprijzen.",
+    "placeholder": "Vul je e-mailadres in",
+    "button": "Inschrijven",
+    "noSpam": "geen spam, beloofd ✈"
+  },
+  "trust": {
+    "tag": "✓ Vertrouwen",
+    "title": "Waarom boeken bij Sunsky?",
+    "subtitle": "Duizenden reizigers vertrouwen op ons voor een zorgeloze vakantie.",
+    "opensWebsite": "{{name}} (opent hun website)",
+    "items": {
+      "bestPrice": {
+        "title": "Laagsteprijsgarantie",
+        "desc": "Ergens goedkoper gevonden? Wij gaan eroverheen."
+      },
+      "noFees": {
+        "title": "Geen boekingskosten",
+        "desc": "Wat je ziet, is wat je betaalt. Geen verborgen kosten."
+      },
+      "securePayment": {
+        "title": "Veilig betalen",
+        "desc": "256-bits SSL-versleuteling bij elke transactie."
+      },
+      "trustedPartners": {
+        "title": "Betrouwbare partners",
+        "desc": "Alleen gecontroleerde hotels en luchtvaartmaatschappijen."
+      }
+    }
+  },
+  "categories": {
+    "tag": "✦ Ontdek",
+    "title": "Voor ieder wat wils",
+    "subtitle": "Vind de vakantie die past bij jouw reisstijl en budget.",
+    "hideDestinations": "Bestemmingen verbergen",
+    "destinationCount_one": "{{count}} bestemming",
+    "destinationCount_other": "{{count}} bestemmingen",
+    "cats": {
+      "sunVacations": "Zonvakanties",
+      "cityTrips": "Stedentrips",
+      "carHolidays": "Autovakanties",
+      "lastMinute": "Last minute"
+    },
+    "explore": "Ontdek"
+  },
+  "vacationTypes": {
+    "tag": "♡ Geselecteerd",
+    "title": "Jouw favoriete soort vakantie",
+    "subtitle": "Zorgvuldig samengestelde reizen, afgestemd op hoe jij graag reist.",
+    "explore": "Ontdek",
+    "searchStays": "Zoek verblijven voor {{type}}",
+    "types": {
+      "allInclusive": {
+        "label": "Zorgeloos",
+        "title": "All inclusive",
+        "desc": "Alles is geregeld. Ontspannen en genieten maar."
+      },
+      "adultsOnly": {
+        "label": "Premium",
+        "title": "Adults only",
+        "desc": "Rustige adresjes voor koppels en vrienden."
+      },
+      "family": {
+        "label": "Gezinsplezier",
+        "title": "Gezinsvriendelijk",
+        "desc": "Plezier voor het hele gezin, met activiteiten voor kinderen."
+      }
+    }
+  },
+  "hotels": {
+    "tag": "★ Best beoordeeld",
+    "title": "Populair bij onze vakantiegangers",
+    "subtitle": "Topbeoordeelde hotels, geliefd bij duizenden tevreden reizigers.",
+    "guestScore": "Gastenscore",
+    "freeWifi": "GRATIS WIFI",
+    "saveToFavourites": "{{name}} bij favorieten bewaren",
+    "from": "Vanaf",
+    "perPerson": "p.p.",
+    "viewDeal": "Bekijk deal",
+    "viewDealFor": "Bekijk de deal voor {{name}}"
+  },
+  "destinations": {
+    "tag": "☀ Bestemmingen",
+    "title": "Onze beste zonbestemmingen",
+    "subtitle": "Zorgvuldig gekozen bestemmingen met gegarandeerde zon en een uitstekende prijs.",
+    "searchStaysIn": "Zoek verblijven in {{place}}",
+    "topThisSeason": "№1 dit seizoen",
+    "holidayCount": "{{count}} vakanties",
+    "tabs": {
+      "spain": "Spanje",
+      "turkey": "Turkije",
+      "egypt": "Egypte",
+      "greece": "Griekenland",
+      "canary": "Canarische Eilanden",
+      "italy": "Italië"
+    },
+    "badges": {
+      "popular": "Populair",
+      "trending": "In trek",
+      "bestValue": "Beste prijs",
+      "topRated": "Best beoordeeld",
+      "iconic": "Iconisch",
+      "yearRoundSun": "Het hele jaar zon",
+      "luxury": "Luxe"
+    }
+  },
+  "popular": {
+    "tag": "🗺 Bekijk",
+    "title": "Populairste bestemmingen",
+    "subtitle": "Bekijk onze meest gezochte en geboekte reiscategorieën.",
+    "ghostWord": "reislust",
+    "arc": "POPULAIRE BESTEMMINGEN · SUNSKY TRAVEL ·",
+    "headNote": "kom op, verzamel ze allemaal!",
+    "mostLoved": "Meest geliefd",
+    "search": "Zoek {{label}}",
+    "groups": {
+      "distant": {
+        "title": "Verre bestemmingen",
+        "count": "480+ vakanties"
+      },
+      "allInclusive": {
+        "title": "All inclusive",
+        "count": "1.200+ vakanties"
+      },
+      "lastMinute": {
+        "title": "Last minutes",
+        "count": "320+ deals"
+      },
+      "cities": {
+        "title": "Steden",
+        "count": "890+ reizen"
+      },
+      "car": {
+        "title": "Autobestemmingen",
+        "count": "1.250+ routes"
+      },
+      "periods": {
+        "title": "Populaire periodes",
+        "count": "Seizoenstips"
+      }
+    }
+  },
+  "trustBar": {
+    "eyebrow": "Garanties",
+    "titleLead": "Jouw vakantie is",
+    "titleAccent": "beschermd",
+    "howCovered": "Hoe je gedekt bent",
+    "opensWebsite": "{{name}} (opent hun website)"
+  }
+}

@@ -1,0 +1,179 @@
+{
+  "stats": {
+    "holidaysWorldwide": "Holidays Worldwide",
+    "happyTravelers": "Happy Travelers",
+    "destinations": "Destinations",
+    "travelAwards": "Travel Awards",
+    "approved": "Approved",
+    "stillCounting": "still counting…"
+  },
+  "marquee": {
+    "bestPrice": "Best Price Guarantee",
+    "holidayCount": "10,000+ Holidays",
+    "noFees": "No Booking Fees",
+    "securePayments": "Secure Payments",
+    "support": "24/7 Support",
+    "trustedBy": "Trusted by 2M+ Travelers",
+    "freeCancellation": "Free Cancellation",
+    "awardWinning": "Award-Winning Service",
+    "note": "fresh finds, every day!",
+    "ghost": {
+      "wanderlust": "wanderlust",
+      "goldenHour": "golden hour",
+      "boardingSoon": "boarding soon…",
+      "seaBreeze": "sea breeze",
+      "nowArriving": "now arriving",
+      "sunChasing": "sun-chasing"
+    }
+  },
+  "newsletter": {
+    "title": "Get exclusive holiday deals",
+    "subtitle": "Subscribe for last-minute offers, travel inspiration, and member-only prices.",
+    "placeholder": "Enter your email address",
+    "button": "Subscribe",
+    "noSpam": "no spam, promise ✈"
+  },
+  "trust": {
+    "tag": "✓ Trust",
+    "title": "Why book with Sunsky?",
+    "subtitle": "Thousands of travelers trust us for stress-free holidays.",
+    "opensWebsite": "{{name}} (opens their website)",
+    "items": {
+      "bestPrice": {
+        "title": "Best Price Guarantee",
+        "desc": "Found it cheaper? We'll match and beat it."
+      },
+      "noFees": {
+        "title": "No Booking Fees",
+        "desc": "What you see is what you pay. Zero hidden charges."
+      },
+      "securePayment": {
+        "title": "Secure Payment",
+        "desc": "256-bit SSL encryption on every transaction."
+      },
+      "trustedPartners": {
+        "title": "Trusted Partners",
+        "desc": "Only verified hotels and airlines."
+      }
+    }
+  },
+  "categories": {
+    "tag": "✦ Explore",
+    "title": "Something for everyone",
+    "subtitle": "Find the perfect holiday that suits your travel style and budget.",
+    "hideDestinations": "Hide destinations",
+    "destinationCount_one": "{{count}} destination",
+    "destinationCount_other": "{{count}} destinations",
+    "cats": {
+      "sunVacations": "Sun Vacations",
+      "cityTrips": "City Trips",
+      "carHolidays": "Car Holidays",
+      "lastMinute": "Last Minute"
+    },
+    "explore": "Explore"
+  },
+  "vacationTypes": {
+    "tag": "♡ Curated",
+    "title": "Your favorite type of vacation",
+    "subtitle": "Curated experiences designed around how you love to travel.",
+    "explore": "Explore",
+    "searchStays": "Search {{type}} stays",
+    "types": {
+      "allInclusive": {
+        "label": "Worry-Free",
+        "title": "All Inclusive",
+        "desc": "Everything taken care of. Just relax and enjoy."
+      },
+      "adultsOnly": {
+        "label": "Premium Escape",
+        "title": "Adults Only",
+        "desc": "Tranquil retreats for couples and friends."
+      },
+      "family": {
+        "label": "Family Fun",
+        "title": "Family Friendly",
+        "desc": "Fun for the whole family with kids' activities."
+      }
+    }
+  },
+  "hotels": {
+    "tag": "★ Top Rated",
+    "title": "Popular with our holidaymakers",
+    "subtitle": "Top-rated hotels loved by thousands of happy travelers.",
+    "guestScore": "Guest score",
+    "freeWifi": "FREE WIFI",
+    "saveToFavourites": "Save {{name}} to favourites",
+    "from": "From",
+    "perPerson": "p.p.",
+    "viewDeal": "View Deal",
+    "viewDealFor": "View deal for {{name}}"
+  },
+  "destinations": {
+    "tag": "☀ Destinations",
+    "title": "Our best sun destinations",
+    "subtitle": "Handpicked destinations with guaranteed sunshine and incredible value.",
+    "searchStaysIn": "Search stays in {{place}}",
+    "topThisSeason": "№1 this season",
+    "holidayCount": "{{count}} holidays",
+    "tabs": {
+      "spain": "Spain",
+      "turkey": "Turkey",
+      "egypt": "Egypt",
+      "greece": "Greece",
+      "canary": "Canary Islands",
+      "italy": "Italy"
+    },
+    "badges": {
+      "popular": "Popular",
+      "trending": "Trending",
+      "bestValue": "Best Value",
+      "topRated": "Top Rated",
+      "iconic": "Iconic",
+      "yearRoundSun": "Year-Round Sun",
+      "luxury": "Luxury"
+    }
+  },
+  "popular": {
+    "tag": "🗺 Browse",
+    "title": "Most popular destinations",
+    "subtitle": "Browse our most searched and booked travel categories.",
+    "ghostWord": "wanderlust",
+    "arc": "POPULAR DESTINATIONS · SUNSKY TRAVEL ·",
+    "headNote": "go on, collect them all!",
+    "mostLoved": "Most loved",
+    "search": "Search {{label}}",
+    "groups": {
+      "distant": {
+        "title": "Distant Destinations",
+        "count": "480+ holidays"
+      },
+      "allInclusive": {
+        "title": "All Inclusive",
+        "count": "1,200+ holidays"
+      },
+      "lastMinute": {
+        "title": "Last Minutes",
+        "count": "320+ deals"
+      },
+      "cities": {
+        "title": "Cities",
+        "count": "890+ trips"
+      },
+      "car": {
+        "title": "Car Destinations",
+        "count": "1,250+ routes"
+      },
+      "periods": {
+        "title": "Popular Periods",
+        "count": "Seasonal picks"
+      }
+    }
+  },
+  "trustBar": {
+    "eyebrow": "Guarantees",
+    "titleLead": "Your holiday is",
+    "titleAccent": "protected",
+    "howCovered": "How you are covered",
+    "opensWebsite": "{{name}} (opens their website)"
+  }
+}

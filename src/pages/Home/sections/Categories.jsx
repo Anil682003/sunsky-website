@@ -5,6 +5,7 @@ import { useHolidayTypes } from '../../../api';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
 import { cmsText } from '../../../utils/cmsText';
+import { useTranslation } from 'react-i18next';
 
 const SunIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>;
 const CityIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 6h1M14 6h1M9 10h1M14 10h1M9 14h1M14 14h1M9 18h6"/></svg>;
@@ -15,10 +16,10 @@ const CompassIcon = () => <svg width="24" height="24" viewBox="0 0 24 24" fill="
 // The cards the homepage has always shown. They stay the visual source of truth:
 // the holiday-types API supplies the real name + id, these supply the artwork.
 const FALLBACK_CATS = [
-  { title: 'Sun Vacations', img: 'https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=600&q=80', icon: <SunIcon /> },
-  { title: 'City Trips',    img: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80', icon: <CityIcon /> },
-  { title: 'Car Holidays',  img: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&q=80', icon: <CarIcon /> },
-  { title: 'Last Minute',   img: 'https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=80', icon: <BoltIcon /> },
+  { key: 'sunVacations', title: 'Sun Vacations', img: 'https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=600&q=80', icon: <SunIcon /> },
+  { key: 'cityTrips', title: 'City Trips',    img: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80', icon: <CityIcon /> },
+  { key: 'carHolidays', title: 'Car Holidays',  img: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&q=80', icon: <CarIcon /> },
+  { key: 'lastMinute', title: 'Last Minute',   img: 'https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=80', icon: <BoltIcon /> },
 ];
 
 const IMAGE_POOL = [
@@ -92,10 +93,11 @@ const StampRing = () => (
 );
 
 export default function Categories({ cms }) {
+  const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.categories;
-  const tag      = sh?.tag      || '✦ Explore';
-  const title    = sh?.title    || 'Something for everyone';
-  const subtitle = sh?.subtitle || 'Find the perfect holiday that suits your travel style and budget.';
+  const tag      = sh?.tag      || t('categories.tag', '✦ Explore');
+  const title    = sh?.title    || t('categories.title', 'Something for everyone');
+  const subtitle = sh?.subtitle || t('categories.subtitle', 'Find the perfect holiday that suits your travel style and budget.');
 
   const { data: typesData } = useHolidayTypes();
   const types = typesData ?? [];
@@ -125,12 +127,12 @@ export default function Categories({ cms }) {
     (f) => f && (f.holidayTypeId != null || f.title) && f.active !== false
   );
 
-  const cardFromType = (t, i, f) => ({
-    key:  t.id ?? t.name,
-    name: t.name,
-    slug: t.slug || slugify(t.name),
-    img:  resolveCmsImageUrl(f?.imageUrl) || artworkFor(t.name, i),
-    icon: iconFor(t.name),
+  const cardFromType = (type, i, f) => ({
+    key:  type.id ?? type.name,
+    name: type.name,
+    slug: type.slug || slugify(type.name),
+    img:  resolveCmsImageUrl(f?.imageUrl) || artworkFor(type.name, i),
+    icon: iconFor(type.name),
     destinations: normalizeDests(f?.destinations),
   });
 
@@ -140,20 +142,21 @@ export default function Categories({ cms }) {
     // so names/slugs stay current; skip any type that no longer exists.
     cards = featured
       .map((f, i) => {
-        const t =
+        const type =
           types.find((x) => String(x.id) === String(f.holidayTypeId)) ||
           types.find((x) => slugify(x.name) === slugify(f.title));
-        return t ? cardFromType(t, i, f) : null;
+        return type ? cardFromType(type, i, f) : null;
       })
       .filter(Boolean);
   } else if (types.length > 0) {
     // No selection yet — show the first few types rather than all of them.
-    cards = types.map((t, i) => cardFromType(t, i));
+    cards = types.map((type, i) => cardFromType(type, i));
   } else {
     // Types API unreachable: keep the original cards so the section never blanks.
     cards = (cmsCats.length > 0 ? cmsCats : FALLBACK_CATS).map((c, i) => ({
       key:  c.title,
-      name: c.title,
+      // A shipped card carries a key; a dashboard one is already in its own words.
+      name: c.key ? t(`categories.cats.${c.key}`, c.title) : c.title,
       slug: slugify(c.title),
       img:  resolveCmsImageUrl(c.imageUrl) || c.img || IMAGE_POOL[i % IMAGE_POOL.length],
       icon: c.icon || iconFor(c.title),
@@ -238,7 +241,7 @@ export default function Categories({ cms }) {
                       <span className={styles.iconChip}>{c.icon}</span>
                       <span className={styles.stubText}>
                         <span className={styles.cardTitle}>{c.name}</span>
-                        <span className={styles.explore}>Explore <ArrowIcon /></span>
+                        <span className={styles.explore}>{t('categories.explore', 'Explore')} <ArrowIcon /></span>
                       </span>
                       <span className={styles.stubSide} aria-hidden="true">
                         <span className={styles.barcode} />
@@ -261,7 +264,13 @@ export default function Categories({ cms }) {
                         onClick={() => toggleCard(c.key)}
                       >
                         <span className={styles.destToggleLabel}>
-                          {open ? 'Hide destinations' : `${dests.length} destination${dests.length > 1 ? 's' : ''}`}
+                          {open
+                            ? t('categories.hideDestinations', 'Hide destinations')
+                            : t('categories.destinationCount', {
+                                count: dests.length,
+                                defaultValue_one: '{{count}} destination',
+                                defaultValue_other: '{{count}} destinations',
+                              })}
                         </span>
                         <span className={styles.destToggleChevron}><ChevronIcon /></span>
                       </button>

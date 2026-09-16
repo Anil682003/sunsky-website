@@ -3,7 +3,7 @@ import { render, screen, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Hotels from './Hotels';
 
-// The "Popular with our holidaymakers" row. Cards are picked in the CMS from the real hotels
+// The "Populair bij onze vakantiegangers" row. Cards are picked in the CMS from the real hotels
 // table, so each one carries the hotel's BOOKABLE identity (hotelCode + destinationCode) and
 // links to that hotel's live-priced detail page.
 
@@ -66,7 +66,7 @@ describe('a CMS-picked hotel card', () => {
   it('keeps Save-to-favourites a button, so it cannot navigate', () => {
     renderSection(cms([HOTEL]));
     const fav = within(cardFor('Rixos Premium Belek'))
-      .getByRole('button', { name: /save rixos premium belek to favourites/i });
+      .getByRole('button', { name: /rixos premium belek bij favorieten bewaren/i });
     expect(fav).toHaveAttribute('type', 'button');
   });
 
@@ -114,7 +114,7 @@ describe('section content', () => {
   it('falls back to the default headings', () => {
     renderSection({ popularHotels: [HOTEL] });
     expect(screen.getByRole('heading', { level: 2 }).textContent)
-      .toBe('Popular with our holidaymakers');
+      .toBe('Populair bij onze vakantiegangers');
   });
 
   it('renders a card with no price without its voucher stub', () => {

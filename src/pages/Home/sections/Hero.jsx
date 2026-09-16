@@ -1430,15 +1430,15 @@ export default function Hero() {
                 does not exist yet while the route is still blank. */}
             <div className={styles.flightHead}>
               <div className={styles.tripTabs} role="tablist" aria-label="Trip type">
-                {TRIP_TYPES.map((t) => (
+                {TRIP_TYPES.map((trip) => (
                   <button
-                    key={t.id}
+                    key={trip.id}
                     role="tab"
-                    aria-selected={tripType === t.id}
-                    className={`${styles.tripTab} ${tripType === t.id ? styles.tripTabOn : ''}`}
-                    onClick={() => selectTripType(t.id)}
+                    aria-selected={tripType === trip.id}
+                    className={`${styles.tripTab} ${tripType === trip.id ? styles.tripTabOn : ''}`}
+                    onClick={() => selectTripType(trip.id)}
                   >
-                    {t.label}
+                    {trip.label}
                   </button>
                 ))}
               </div>

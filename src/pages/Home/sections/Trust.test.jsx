@@ -20,8 +20,10 @@ const cardsWith = (trustItems) => {
 describe('with nothing configured in the dashboard', () => {
   it('falls back to the four written-in promises', () => {
     render(<Trust cms={{}} />);
-    expect(screen.getByText('Best Price Guarantee')).toBeInTheDocument();
-    expect(screen.getByText('Trusted Partners')).toBeInTheDocument();
+    // Dutch, because the site is Dutch and these four are shipped copy rather than
+    // dashboard copy.
+    expect(screen.getByText('Laagsteprijsgarantie')).toBeInTheDocument();
+    expect(screen.getByText('Betrouwbare partners')).toBeInTheDocument();
   });
 
   // The marks belong to positions 5 and 6. With only four fallback cards there is no position

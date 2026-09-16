@@ -1,11 +1,12 @@
 import { useEffect, useRef, useState } from 'react';
 import styles from './Stats.module.css';
+import { useTranslation } from 'react-i18next';
 
 const FALLBACK_STATS = [
-  { value:'10K+', label:'Holidays Worldwide' },
-  { value:'2M+',  label:'Happy Travelers' },
-  { value:'150+', label:'Destinations' },
-  { value:'48',   label:'Travel Awards' },
+  { value:'10K+', key:'holidaysWorldwide', label:'Holidays Worldwide' },
+  { value:'2M+',  key:'happyTravelers',    label:'Happy Travelers' },
+  { value:'150+', key:'destinations',      label:'Destinations' },
+  { value:'48',   key:'travelAwards',      label:'Travel Awards' },
 ];
 
 /* Stroke icon stamps — plane / sun / pin / award, cycled per cell */
@@ -17,6 +18,7 @@ const CELL_ICONS = [
 ];
 
 export default function Stats({ cms }) {
+  const { t } = useTranslation('home');
   const ref = useRef(null);
   const [vis, setVis] = useState(false);
 
@@ -53,14 +55,14 @@ export default function Stats({ cms }) {
         <div className={styles.stamp} aria-hidden="true">
           <span>SSK</span>
           <i>✈</i>
-          <em>Approved</em>
+          <em>{t('stats.approved', 'Approved')}</em>
         </div>
         <span className={styles.note} aria-hidden="true">
           <svg className={styles.noteArrow} viewBox="0 0 34 26" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
             <path d="M31 24 C 22 22, 8 18, 5 4" />
             <path d="M1 9 5 3l6 3" />
           </svg>
-          still counting…
+          {t('stats.stillCounting', 'still counting…')}
         </span>
 
         <div className={styles.ticket}>
@@ -74,7 +76,7 @@ export default function Stats({ cms }) {
               <div key={i} className={styles.item}>
                 <span className={styles.icon} aria-hidden="true">{CELL_ICONS[i % CELL_ICONS.length]}</span>
                 <div className={`${styles.number} ${vis ? styles.pop : ''}`}>{s.value || s.display}</div>
-                <div className={styles.label}>{s.label}</div>
+                <div className={styles.label}>{s.key ? t(`stats.${s.key}`, s.label) : s.label}</div>
               </div>
             ))}
           </div>

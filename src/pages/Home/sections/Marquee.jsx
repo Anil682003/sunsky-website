@@ -1,18 +1,42 @@
 import styles from './Marquee.module.css';
+import { useTranslation } from 'react-i18next';
 
-const FALLBACK = ['Best Price Guarantee','10,000+ Holidays','No Booking Fees','Secure Payments','24/7 Support','Trusted by 2M+ Travelers','Free Cancellation','Award-Winning Service'];
+/* Shown only when the dashboard's own marquee is empty. Key first, English
+   second: the English is what the key renders if a translation is ever missing. */
+const FALLBACK = [
+  ['bestPrice', 'Best Price Guarantee'],
+  ['holidayCount', '10,000+ Holidays'],
+  ['noFees', 'No Booking Fees'],
+  ['securePayments', 'Secure Payments'],
+  ['support', '24/7 Support'],
+  ['trustedBy', 'Trusted by 2M+ Travelers'],
+  ['freeCancellation', 'Free Cancellation'],
+  ['awardWinning', 'Award-Winning Service'],
+];
 
 /* decorative ghost belt content — airport routes interleaved with handwriting */
-const GHOST_ITEMS = [
-  'BRU ✈ AYT', 'wanderlust', 'TFS ✈ HRG', 'golden hour',
-  'JFK ✈ PMI', 'boarding soon…', 'CDG ✈ RHO', 'sea breeze',
-  'IST ✈ BKK', 'now arriving', 'LIS ✈ DXB', 'sun-chasing',
+const GHOST_ROUTES = ['BRU ✈ AYT', 'TFS ✈ HRG', 'JFK ✈ PMI', 'CDG ✈ RHO', 'IST ✈ BKK', 'LIS ✈ DXB'];
+const GHOST_WORDS = [
+  ['wanderlust', 'wanderlust'],
+  ['goldenHour', 'golden hour'],
+  ['boardingSoon', 'boarding soon…'],
+  ['seaBreeze', 'sea breeze'],
+  ['nowArriving', 'now arriving'],
+  ['sunChasing', 'sun-chasing'],
 ];
 
 export default function Marquee({ cms }) {
-  const items = (cms?.marqueeItems?.length > 0) ? cms.marqueeItems : FALLBACK;
+  const { t } = useTranslation('home');
+  const items = (cms?.marqueeItems?.length > 0)
+    ? cms.marqueeItems
+    : FALLBACK.map(([key, en]) => t(`marquee.${key}`, en));
+  // Airport codes alternating with handwriting, the way the ghost belt reads.
+  const ghostItems = GHOST_ROUTES.flatMap((route, i) => [
+    route,
+    t(`marquee.ghost.${GHOST_WORDS[i][0]}`, GHOST_WORDS[i][1]),
+  ]);
   const doubled = [...items, ...items];
-  const ghostDoubled = [...GHOST_ITEMS, ...GHOST_ITEMS];
+  const ghostDoubled = [...ghostItems, ...ghostItems];
 
   return (
     <div className={styles.wrap}>
@@ -23,7 +47,7 @@ export default function Marquee({ cms }) {
 
       {/* handwritten margin note pointing at the belt */}
       <div className={styles.note} aria-hidden="true">
-        <span className={styles.noteText}>fresh finds, every day!</span>
+        <span className={styles.noteText}>{t('marquee.note', 'fresh finds, every day!')}</span>
         <svg
           className={styles.noteArrow}
           width="30" height="26" viewBox="0 0 30 26"

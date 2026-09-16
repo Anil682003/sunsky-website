@@ -1,6 +1,7 @@
 import { Link } from 'react-router-dom';
 import styles from './VacationTypes.module.css';
 import { cmsText } from '../../../utils/cmsText';
+import { useTranslation } from 'react-i18next';
 
 // Search links for the cards. The results page seeds these filters from the URL on entry, so a
 // card lands on a list already narrowed to that vacation type (empty scope → popular destinations,
@@ -66,19 +67,20 @@ const criteriaUrl = (criteria, cardTitle) => {
 };
 
 const FALLBACK_TYPES = [
-  { label:'Worry-Free',    title:'All Inclusive',    desc:'Everything taken care of. Just relax and enjoy.',     img:'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80', href: boardUrl('AI', 'All Inclusive') },
-  { label:'Premium Escape',title:'Adults Only',      desc:'Tranquil retreats for couples and friends.',           img:'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800&q=80', href: searchUrl({ adultsOnly: '1' }) },
-  { label:'Family Fun',    title:'Family Friendly',  desc:"Fun for the whole family with kids' activities.",      img:'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80', href: searchUrl({ kids: '340' }) },
+  { key:'allInclusive', label:'Worry-Free',    title:'All Inclusive',    desc:'Everything taken care of. Just relax and enjoy.',     img:'https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=800&q=80', href: boardUrl('AI', 'All Inclusive') },
+  { key:'adultsOnly', label:'Premium Escape',title:'Adults Only',      desc:'Tranquil retreats for couples and friends.',           img:'https://images.unsplash.com/photo-1540541338287-41700207dee6?w=800&q=80', href: searchUrl({ adultsOnly: '1' }) },
+  { key:'family', label:'Family Fun',    title:'Family Friendly',  desc:"Fun for the whole family with kids' activities.",      img:'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80', href: searchUrl({ kids: '340' }) },
 ];
 
 /* decorative airline-style route codes, one per tag */
 const ROUTES = ['BRU ✈ AYT', 'AMS ✈ RHO', 'CGN ✈ HRG'];
 
 export default function VacationTypes({ cms }) {
+  const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.vacationTypes;
-  const tag      = sh?.tag      || '♡ Curated';
-  const title    = sh?.title    || 'Your favorite type of vacation';
-  const subtitle = sh?.subtitle || 'Curated experiences designed around how you love to travel.';
+  const tag      = sh?.tag      || t('vacationTypes.tag', '♡ Curated');
+  const title    = sh?.title    || t('vacationTypes.title', 'Your favorite type of vacation');
+  const subtitle = sh?.subtitle || t('vacationTypes.subtitle', 'Curated experiences designed around how you love to travel.');
 
   const types = (cms?.vacationTypes?.length > 0)
     ? cms.vacationTypes.map((v) => {
@@ -93,7 +95,7 @@ export default function VacationTypes({ cms }) {
           title: v.title,
           desc:  v.description || v.desc || '',
           img:   v.imageUrl,
-          buttonText: v.buttonText || 'Explore',
+          buttonText: v.buttonText || t('vacationTypes.explore', 'Explore'),
           href,
           // The chips name what the link applies, so a criteria list that produced no usable
           // filter prints none of them rather than promising a search the button cannot run.
@@ -103,7 +105,13 @@ export default function VacationTypes({ cms }) {
             : [],
         };
       })
-    : FALLBACK_TYPES;
+    : FALLBACK_TYPES.map((v) => ({
+        ...v,
+        label: t(`vacationTypes.types.${v.key}.label`, v.label),
+        title: t(`vacationTypes.types.${v.key}.title`, v.title),
+        desc: t(`vacationTypes.types.${v.key}.desc`, v.desc),
+        buttonText: t('vacationTypes.explore', 'Explore'),
+      }));
 
   // Split the CMS title so the last word gets the cursive golden accent
   const words = title.trim().split(' ');
@@ -159,26 +167,26 @@ export default function VacationTypes({ cms }) {
 
         {/* Luggage-tag ticket cards */}
         <div className={styles.grid}>
-          {types.map((t, i) => (
+          {types.map((vac, i) => (
             <article key={i} className={`${styles.card} ${i === 1 ? styles.offset : ''}`}>
               {/* tag carries rotation + hover lift; card shell carries entrance + drop-shadow */}
               <div className={styles.tag}>
-                {t.label && <span className={styles.stamp}>{t.label}</span>}
+                {vac.label && <span className={styles.stamp}>{vac.label}</span>}
 
                 {/* ticket carries the notch + punch-hole mask so the shadow follows every cut */}
                 <div className={styles.ticket}>
                   <span className={styles.eyelet} aria-hidden="true" />
                   <div className={styles.cardMedia}>
-                    <img src={t.img} alt={t.title} loading="lazy" />
+                    <img src={vac.img} alt={vac.title} loading="lazy" />
                   </div>
                   <div className={styles.cardBody}>
-                    <h3 className={styles.vacTitle}>{t.title}</h3>
-                    <p className={styles.vacDesc}>{t.desc}</p>
+                    <h3 className={styles.vacTitle}>{vac.title}</h3>
+                    <p className={styles.vacDesc}>{vac.desc}</p>
                     {/* the filters this card's link applies — stays above the perforation so the
                         stub keeps its fixed 62px height and the notch mask stays aligned */}
-                    {t.chips?.length > 0 && (
+                    {vac.chips?.length > 0 && (
                       <div className={styles.chips}>
-                        {t.chips.map((c, ci) => (
+                        {vac.chips.map((c, ci) => (
                           <span key={ci} className={`${styles.chip} ${c.star ? styles.chipStar : ''}`}>{c.text}</span>
                         ))}
                       </div>
@@ -190,16 +198,19 @@ export default function VacationTypes({ cms }) {
                       <span className={styles.vacCode}>SSK · 03 · {String(i + 1).padStart(2, '0')}</span>
                     </span>
                     <span className={styles.barcode} aria-hidden="true" />
-                    {t.href ? (
-                      <Link className={styles.vacBtn} to={t.href} title={`Search ${t.title} stays`}>
-                        {t.buttonText || 'Explore'}
+                    {vac.href ? (
+                      <Link className={styles.vacBtn} to={vac.href} title={t('vacationTypes.searchStays', {
+                        type: vac.title,
+                        defaultValue: 'Search {{type}} stays',
+                      })}>
+                        {vac.buttonText || t('vacationTypes.explore', 'Explore')}
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                           <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>
                       </Link>
                     ) : (
                       <button className={styles.vacBtn} type="button">
-                        {t.buttonText || 'Explore'}
+                        {vac.buttonText || t('vacationTypes.explore', 'Explore')}
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
                           <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
                         </svg>

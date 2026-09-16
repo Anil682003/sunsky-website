@@ -3,8 +3,10 @@ import { initReactI18next } from 'react-i18next';
 
 import nlCommon from './locales/nl/common.json';
 import nlFaq from './locales/nl/faq.json';
+import nlHome from './locales/nl/home.json';
 import enCommon from './locales/en/common.json';
 import enFaq from './locales/en/faq.json';
+import enHome from './locales/en/home.json';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Site language.
@@ -72,8 +74,8 @@ function storeLanguage(lng) {
    translation that arrives after the first paint flashes the other language at
    the reader. Revisit if a third language makes splitting worth it. */
 const resources = {
-  nl: { common: nlCommon, faq: nlFaq },
-  en: { common: enCommon, faq: enFaq },
+  nl: { common: nlCommon, faq: nlFaq, home: nlHome },
+  en: { common: enCommon, faq: enFaq, home: enHome },
 };
 
 i18n.use(initReactI18next).init({
@@ -84,7 +86,7 @@ i18n.use(initReactI18next).init({
   fallbackLng: DEFAULT_LANGUAGE,
   supportedLngs: SUPPORTED_LANGUAGES,
   defaultNS: 'common',
-  ns: ['common', 'faq'],
+  ns: ['common', 'faq', 'home'],
 
   interpolation: {
     // React escapes everything it renders; escaping again turns an apostrophe

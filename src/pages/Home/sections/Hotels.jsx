@@ -4,6 +4,7 @@ import { formatReview } from '../../../utils/reviewBadge';
 import HotelPhotoFallback from '../../../components/HotelPhotoFallback/HotelPhotoFallback';
 import styles from './Hotels.module.css';
 import { cmsText } from '../../../utils/cmsText';
+import { useTranslation } from 'react-i18next';
 
 // The CMS-picked cards carry the hotel's real identity (hotelCode + destinationCode), so each
 // one links to that hotel's own live-priced detail page. The demo fallbacks below have no
@@ -36,10 +37,11 @@ const Barcode = () => (
 );
 
 export default function Hotels({ cms }) {
+  const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.hotels;
-  const tag      = sh?.tag      || '★ Top Rated';
-  const title    = sh?.title    || 'Popular with our holidaymakers';
-  const subtitle = sh?.subtitle || 'Top-rated hotels loved by thousands of happy travelers.';
+  const tag      = sh?.tag      || t('hotels.tag', '★ Top Rated');
+  const title    = sh?.title    || t('hotels.title', 'Popular with our holidaymakers');
+  const subtitle = sh?.subtitle || t('hotels.subtitle', 'Top-rated hotels loved by thousands of happy travelers.');
 
   const hotels = (cms?.popularHotels?.length > 0)
     ? cms.popularHotels.map((h) => {
@@ -51,7 +53,7 @@ export default function Hotels({ cms }) {
           name:  h.name,
           loc:   h.location || h.loc,
           score:      rev ? rev.score : h.score,
-          scoreLabel: rev ? rev.label : 'Guest score',
+          scoreLabel: rev ? rev.label : t('hotels.guestScore', 'Guest score'),
           stars: h.stars || 5,
           price: h.price,
           img:   h.imageUrl || h.img,
@@ -60,7 +62,7 @@ export default function Hotels({ cms }) {
         };
         return { ...card, href: hotelDetailHref(card) };
       })
-    : FALLBACK_HOTELS.map((h) => ({ ...h, href: null, scoreLabel: 'Guest score' }));
+    : FALLBACK_HOTELS.map((h) => ({ ...h, href: null, scoreLabel: t('hotels.guestScore', 'Guest score') }));
 
   // Split the CMS title so the last word can carry the cursive accent
   const titleWords = String(title).trim().split(/\s+/);
@@ -154,11 +156,14 @@ export default function Hotels({ cms }) {
                         : null}
                       <HotelPhotoFallback variant="tile" seed={h.hotelCode || h.name} />
                     </div>
-                    <button type="button" className={styles.fav} aria-label={`Save ${h.name} to favourites`}><Heart /></button>
+                    <button type="button" className={styles.fav} aria-label={t('hotels.saveToFavourites', {
+                      name: h.name,
+                      defaultValue: 'Save {{name}} to favourites',
+                    })}><Heart /></button>
                     {h.score && (
                       <div className={styles.score}>
                         <span className={styles.scoreNum}>{h.score}</span>
-                        <span className={styles.scoreLbl}>{h.scoreLabel || 'Guest score'}</span>
+                        <span className={styles.scoreLbl}>{h.scoreLabel || t('hotels.guestScore', 'Guest score')}</span>
                       </div>
                     )}
                   </div>
@@ -175,28 +180,31 @@ export default function Hotels({ cms }) {
                       <svg width="10" height="10" viewBox="0 0 24 24" fill="none"><path d="M2 12h18M14 6l6 6-6 6" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       <span>OUT 11:00</span>
                       <i className={styles.checkDot} />
-                      <span>FREE WIFI</span>
+                      <span>{t('hotels.freeWifi', 'FREE WIFI')}</span>
                     </div>
                   </div>
 
                   {h.price && (
                     <div className={styles.stub}>
                       <div className={styles.stubLeft}>
-                        <div className={styles.from}>From</div>
-                        <div className={styles.price}>{h.price} <span className={styles.pp}>p.p.</span></div>
+                        <div className={styles.from}>{t('hotels.from', 'From')}</div>
+                        <div className={styles.price}>{h.price} <span className={styles.pp}>{t('hotels.perPerson', 'p.p.')}</span></div>
                       </div>
                       <div className={styles.barcodeBlock} aria-hidden="true">
                         <Barcode />
                         <span className={styles.roomCode}>RM-{204 + i * 7}</span>
                       </div>
                       {h.href ? (
-                        <Link to={h.href} className={styles.viewBtn} aria-label={`View deal for ${h.name}`}>
-                          View Deal
+                        <Link to={h.href} className={styles.viewBtn} aria-label={t('hotels.viewDealFor', {
+                            name: h.name,
+                            defaultValue: 'View deal for {{name}}',
+                          })}>
+                          {t('hotels.viewDeal', 'View Deal')}
                           <span className={styles.viewArrow} aria-hidden="true">→</span>
                         </Link>
                       ) : (
                         <button type="button" className={styles.viewBtn} disabled>
-                          View Deal
+                          {t('hotels.viewDeal', 'View Deal')}
                           <span className={styles.viewArrow} aria-hidden="true">→</span>
                         </button>
                       )}

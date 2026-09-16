@@ -3,15 +3,16 @@ import { INSURANCE_MARKS } from '../../../utils/insuranceMarks';
 import { cmsText } from '../../../utils/cmsText';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import CmsLink from '../../../components/CmsLink/CmsLink';
+import { useTranslation } from 'react-i18next';
 
 const FALLBACK_ITEMS = [
-  { title:'Best Price Guarantee', desc:"Found it cheaper? We'll match and beat it.",
+  { key:'bestPrice', title:'Best Price Guarantee', desc:"Found it cheaper? We'll match and beat it.",
     icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg> },
-  { title:'No Booking Fees', desc:'What you see is what you pay. Zero hidden charges.',
+  { key:'noFees', title:'No Booking Fees', desc:'What you see is what you pay. Zero hidden charges.',
     icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg> },
-  { title:'Secure Payment', desc:'256-bit SSL encryption on every transaction.',
+  { key:'securePayment', title:'Secure Payment', desc:'256-bit SSL encryption on every transaction.',
     icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg> },
-  { title:'Trusted Partners', desc:'Only verified hotels and airlines.',
+  { key:'trustedPartners', title:'Trusted Partners', desc:'Only verified hotels and airlines.',
     icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> },
 ];
 
@@ -41,10 +42,11 @@ const markFor = (item, i) => {
 };
 
 export default function Trust({ cms }) {
+  const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.trust;
-  const tag      = sh?.tag      || '✓ Trust';
-  const title    = sh?.title    || 'Why book with Sunsky?';
-  const subtitle = sh?.subtitle || 'Thousands of travelers trust us for stress-free holidays.';
+  const tag      = sh?.tag      || t('trust.tag', '✓ Trust');
+  const title    = sh?.title    || t('trust.title', 'Why book with Sunsky?');
+  const subtitle = sh?.subtitle || t('trust.subtitle', 'Thousands of travelers trust us for stress-free holidays.');
 
   // A card is a PROMISE (icon + words, written in the dashboard) or a SEAL (a guarantee mark
   // we hold, drawn from the assets). The dashboard's own text still wins on a seal card, so the
@@ -52,14 +54,14 @@ export default function Trust({ cms }) {
   // written nothing, the seal stands on its own rather than being captioned with a claim about
   // financial protection that nobody has approved.
   const items = (cms?.trustItems?.length > 0)
-    ? cms.trustItems.map((t, i) => {
-        const mark = markFor(t, i);
+    ? cms.trustItems.map((row, i) => {
+        const mark = markFor(row, i);
         return {
-          title: t.title || mark?.title || '',
-          desc: t.description || t.desc || mark?.desc || '',
+          title: row.title || mark?.title || '',
+          desc: row.description || row.desc || mark?.desc || '',
           // Where the dashboard wants this card to go. Read off the same row the words come
           // from, so the person who writes a seal's caption also sets where it points.
-          url: t.url || t.link || '',
+          url: row.url || row.link || '',
           mark,
           icon: mark ? null : FALLBACK_ITEMS[i % FALLBACK_ITEMS.length].icon,
         };
@@ -67,7 +69,11 @@ export default function Trust({ cms }) {
       // An entry with no words and no seal is an empty slot in the dashboard, not a card. It
       // used to render as a blank dashed rectangle on the live homepage.
       .filter((it) => it.mark || it.title || it.desc)
-    : FALLBACK_ITEMS;
+    : FALLBACK_ITEMS.map((it) => ({
+        ...it,
+        title: t(`trust.items.${it.key}.title`, it.title),
+        desc: t(`trust.items.${it.key}.desc`, it.desc),
+      }));
 
   const titleWords = String(title).trim().split(/\s+/);
   const titleLast  = titleWords.pop();
@@ -176,7 +182,14 @@ export default function Trust({ cms }) {
                     <CmsLink
                       url={item.url}
                       className={styles.markLink}
-                      title={item.url ? `${item.mark.alt} (opens their website)` : undefined}
+                      title={
+                        item.url
+                          ? t('trust.opensWebsite', {
+                              name: item.mark.alt,
+                              defaultValue: '{{name}} (opens their website)',
+                            })
+                          : undefined
+                      }
                     >
                       <img className={styles.mark} src={item.mark.img} alt={item.mark.alt} loading="lazy" />
                     </CmsLink>
