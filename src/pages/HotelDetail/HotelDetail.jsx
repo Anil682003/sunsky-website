@@ -470,7 +470,7 @@ function uvLabel(uv) {
 }
 
 // WeatherAPI returns "06:24 AM"; drop the leading zero so it reads like a clock.
-const tidyTime = (t) => String(t || '').replace(/^0/, '');
+const tidyTime = (time) => String(time || '').replace(/^0/, '');
 
 const COPY_SVG  = <S size={14} sw={2}><rect x="9" y="9" width="13" height="13" rx="2" /><path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" /></S>;
 const PHONE_SVG = <S sw={2}><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></S>;
@@ -2999,9 +2999,9 @@ export default function HotelDetail() {
             {/* Tabs */}
             <div className="tw">
               <div className="tabs">
-                {TABS.map((t) => (
-                  <button key={t} className={`tb${activeTab === t ? ' act' : ''}`} onClick={() => setActiveTab(t)}>
-                    {TAB_ICON[t]} {t}
+                {TABS.map((tab) => (
+                  <button key={tab} className={`tb${activeTab === tab ? ' act' : ''}`} onClick={() => setActiveTab(tab)}>
+                    {TAB_ICON[tab]} {tab}
                   </button>
                 ))}
               </div>
@@ -4063,11 +4063,11 @@ export default function HotelDetail() {
                         <h3 className="hi-card-title">Hotel at a glance</h3>
                       </div>
                       <div className="hi-glance">
-                        {tiles.map((t) => (
-                          <div className="hi-glance-tile" key={t.label}>
-                            <div className="hi-glance-icon">{GLANCE_SVG[t.icon]}</div>
-                            <div className="hi-glance-value">{t.value}</div>
-                            <div className="hi-glance-label">{t.label}</div>
+                        {tiles.map((tile) => (
+                          <div className="hi-glance-tile" key={tile.label}>
+                            <div className="hi-glance-icon">{GLANCE_SVG[tile.icon]}</div>
+                            <div className="hi-glance-value">{tile.value}</div>
+                            <div className="hi-glance-label">{tile.label}</div>
                           </div>
                         ))}
                       </div>
