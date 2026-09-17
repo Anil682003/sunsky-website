@@ -706,14 +706,14 @@ export default function Faq() {
                 {/* Subcategories, as filters inside the card they belong to.
                     A card with none looks exactly as it did before. */}
                 {g.subs.length > 0 && (
-                  <div className={styles.subBar} role="group" aria-label={`Filter ${g.title}`}>
+                  <div className={styles.subBar} role="group" aria-label={t('subs.filter', { category: g.title, defaultValue: 'Filter {{category}}' })}>
                     <button
                       type="button"
                       className={`${styles.subPill} ${!g.activeSub ? styles.subPillOn : ''}`}
                       aria-pressed={!g.activeSub}
                       onClick={() => setSubByStage((s) => ({ ...s, [g.key]: null }))}
                     >
-                      All <span className={styles.subCount}>({g.total})</span>
+                      {t('subs.all', 'All')} <span className={styles.subCount}>({g.total})</span>
                     </button>
                     {g.subs.map((s) => (
                       <button

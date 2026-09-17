@@ -1,4 +1,4 @@
-import { Fragment, useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './Hero.module.css';
@@ -11,6 +11,7 @@ import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durati
 import AirportSearch from '../../../components/AirportSearch/AirportSearch';
 import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
 import { flagUrl } from '../../../utils/countryFlag';
+import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { earliestCheckInISO } from '../../../utils/leadTime';
@@ -182,19 +183,6 @@ function selectionLabel({ countries = [], places = [] } = {}) {
 //
 // Legacy safety net: a title saved before this syntax (no asterisks at all) still
 // highlights the literal sun/zon, so the flourish never silently disappears.
-function renderHeroTitle(raw, scriptClass) {
-  if (!raw) return null;
-  const pattern = raw.includes('*') ? /\*([^*]+)\*/g : /\b(sun|zon)\b/i;
-  return raw.split(pattern).map((p, i) =>
-    i % 2 === 1
-      ? <span key={i} className={scriptClass}>{p}</span>
-      /* A newline is a line break, not a space. The shipped title sets its own two
-         lines that way, and a dashboard title written over two lines now keeps them. */
-      : String(p ?? '').split('\n').map((line, j) =>
-          j === 0 ? line : <Fragment key={`${i}-${j}`}><br />{line}</Fragment>
-        )
-  );
-}
 
 export default function Hero() {
   const navigate = useNavigate();
@@ -209,6 +197,9 @@ export default function Hero() {
   // then, and they follow the reader's language.
   const [cmsBadge, setCmsBadge]         = useState('');
   const [cmsTitle, setCmsTitle]         = useState('');
+  // The dashboard's three-part title, once it has one. Null means it is still on
+  // the older single field and renderHeroTitle reads that instead.
+  const [cmsTitleParts, setCmsTitleParts] = useState(null);
   const [cmsSubtitle, setCmsSubtitle]   = useState('');
   const [cmsSearchBtn, setCmsSearchBtn] = useState('');
 
@@ -217,6 +208,19 @@ export default function Hero() {
     if (!hero) return;
     if (hero.badgeText)        setCmsBadge(hero.badgeText);
     if (hero.title)            setCmsTitle(hero.title);
+    // An empty highlight is a real choice (a title with no accent), so the parts
+    // count as set when ANY of the three has been written, not when all have.
+    if (
+      hero.titleBefore != null ||
+      hero.titleHighlight != null ||
+      hero.titleAfter != null
+    ) {
+      setCmsTitleParts({
+        before: hero.titleBefore ?? '',
+        highlight: hero.titleHighlight ?? '',
+        after: hero.titleAfter ?? '',
+      });
+    }
     if (hero.subtitle)         setCmsSubtitle(hero.subtitle);
     if (hero.searchButtonText) setCmsSearchBtn(hero.searchButtonText);
   }, [cmsConfig]);
@@ -1458,10 +1462,11 @@ export default function Hero() {
         </div>
 
         <h1 className={styles.title}>
-          {renderHeroTitle(
-            cmsTitle || t('hero.title', 'Where will you\nchase the *sun*?'),
-            styles.script
-          )}
+          {renderHeroTitleParts(cmsTitleParts || {}, styles.script)
+            || renderHeroTitle(
+              cmsTitle || t('hero.title', 'Where will you\nchase the *sun*?'),
+              styles.script
+            )}
         </h1>
 
         <p className={styles.subtitle}>

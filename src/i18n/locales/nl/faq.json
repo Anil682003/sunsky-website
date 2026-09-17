@@ -7,7 +7,6 @@
   "eyebrow": "Helpcentrum",
   "title": "Veelgestelde vragen",
   "lede": "Vind snel het antwoord op je vraag. Vind je niet wat je zoekt? Ons team helpt je graag verder.",
-
   "search": {
     "label": "Zoek in de veelgestelde vragen",
     "placeholder": "Waarmee kunnen we je helpen?",
@@ -16,9 +15,7 @@
     "results_one": "{{count}} antwoord voor “{{query}}”",
     "results_other": "{{count}} antwoorden voor “{{query}}”"
   },
-
   "popular": "Meest gesteld",
-
   "stages": {
     "label": "Bekijk per fase van je reis",
     "filterLabel": "Filter vragen per fase",
@@ -26,21 +23,17 @@
     "questions_one": "{{count}} vraag",
     "questions_other": "{{count}} vragen"
   },
-
   "related": "Gerelateerde vragen",
-
   "empty": {
     "title": "Geen antwoord gevonden",
     "text": "Probeer een kortere zoekopdracht, of een woord dat in het antwoord zou staan, zoals “bagage”, “terugbetaling” of “transfer”. Gaat je vraag over je eigen boeking, dan helpt ons team je sneller dan deze pagina.",
     "reset": "Toon alle vragen"
   },
-
   "other": {
     "title": "Overige vragen",
     "blurb": "Alles wat niet in één fase van de reis past.",
     "more": "Meer vragen"
   },
-
   "side": {
     "label": "Meer hulp",
     "contactTitle": "Vind je niet wat je zoekt?",
@@ -55,5 +48,9 @@
     "trustTitle": "Veilig & betrouwbaar",
     "trustText": "SUNSKY is een erkende Belgische reisorganisatie. Elke betaling verloopt via een beveiligde verbinding en je boeking wordt schriftelijk bevestigd voor je vertrekt.",
     "trustCta": "Over SUNSKY"
+  },
+  "subs": {
+    "all": "Alle",
+    "filter": "Filter {{category}}"
   }
 }

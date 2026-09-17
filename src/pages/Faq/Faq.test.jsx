@@ -221,3 +221,97 @@ describe('a category renamed in the dashboard', () => {
     expect(shown.length).toBeGreaterThan(0);
   });
 });
+
+/* ── Subcategories ──────────────────────────────────────────────────────────
+   SUNSKY filed 58 of their 72 questions under one category and then asked for
+   subcategories to break it up. A subcategory is NOT a card of its own: it is a
+   filter inside the card of the category it belongs to, because promoting it
+   would rebuild the flat list it was meant to replace.
+
+   A subcategory with no questions in it draws nothing, which is correct and is
+   also the first thing that looks broken: the dashboard shows the subcategory,
+   the website shows no sign of it, and the obvious conclusion is that the site
+   cannot do subcategories. It can. It needs a question filed under one.        */
+describe('subcategories', () => {
+  const PARENT = { id: 10, title: 'Voor de reis', sortOrder: 0, status: 'ACTIVE' };
+  const SUB = { id: 22, title: 'Boeken & prijzen', parentId: 10, sortOrder: 1, status: 'ACTIVE' };
+
+  /** A question filed directly against the parent category. */
+  const inParent = (id, question) => ({
+    ...cmsRow(id, question, `Antwoord ${id}.`, PARENT.title),
+    faqCategoryId: PARENT.id,
+    faqCategory: PARENT,
+  });
+
+  /** A question filed against the subcategory. */
+  const inSub = (id, question) => ({
+    ...cmsRow(id, question, `Antwoord ${id}.`, SUB.title),
+    faqCategoryId: SUB.id,
+    faqCategory: SUB,
+  });
+
+  const withSubcategory = () => {
+    fetchFaqCategories.mockResolvedValue([PARENT, SUB]);
+    fetchAllFaqs.mockResolvedValue([
+      inParent(1, 'Welke documenten heb ik nodig?'),
+      inParent(2, 'Hoe laat moet ik op de luchthaven zijn?'),
+      inSub(3, 'Wanneer moet ik het saldo betalen?'),
+      inSub(4, 'Kan ik in termijnen betalen?'),
+    ]);
+  };
+
+  it('keeps a subcategory inside its parent instead of making it a card', async () => {
+    withSubcategory();
+    draw();
+
+    // The parent is the card. The subcategory is not one.
+    expect(await screen.findByRole('heading', { name: PARENT.title })).toBeInTheDocument();
+    expect(screen.queryByRole('heading', { name: SUB.title })).not.toBeInTheDocument();
+  });
+
+  it('offers the subcategory as a filter, counting only its own questions', async () => {
+    withSubcategory();
+    draw();
+
+    const bar = await screen.findByRole('group', { name: `Filter ${PARENT.title}` });
+    expect(within(bar).getByRole('button', { name: /Boeken & prijzen/ })).toHaveTextContent('(2)');
+    // …alongside a way back to the whole category.
+    expect(within(bar).getByRole('button', { name: /^Alle/ })).toHaveTextContent('(4)');
+  });
+
+  it('narrows the card to the subcategory, and back again', async () => {
+    withSubcategory();
+    const user = userEvent.setup();
+    draw();
+
+    await user.click(await screen.findByRole('button', { name: /Boeken & prijzen/ }));
+
+    await waitFor(() =>
+      expect(screen.queryByRole('button', { name: 'Welke documenten heb ik nodig?' })).not.toBeInTheDocument()
+    );
+    expect(await row('Wanneer moet ik het saldo betalen?')).toBeInTheDocument();
+
+    // Clicking the open filter again clears it, so the full card is one click away.
+    await user.click(screen.getByRole('button', { name: /Boeken & prijzen/ }));
+    expect(await row('Welke documenten heb ik nodig?')).toBeInTheDocument();
+  });
+
+  it('draws no filter bar for a subcategory nobody has filed a question under', async () => {
+    // Exactly the state SUNSKY reported as broken: the subcategory exists in the
+    // dashboard and every question is still on the parent.
+    fetchFaqCategories.mockResolvedValue([PARENT, SUB]);
+    fetchAllFaqs.mockResolvedValue([
+      inParent(1, 'Welke documenten heb ik nodig?'),
+      inParent(2, 'Hoe laat moet ik op de luchthaven zijn?'),
+      inParent(3, 'Wanneer moet ik het saldo betalen?'),
+      inParent(4, 'Kan ik in termijnen betalen?'),
+    ]);
+    draw();
+
+    expect(await screen.findByRole('heading', { name: PARENT.title })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /Boeken & prijzen/ })).not.toBeInTheDocument();
+    // An empty filter bar would be worse than none: "Alle (4)" and nothing to
+    // narrow to is a control that does nothing.
+    expect(screen.queryByRole('group', { name: `Filter ${PARENT.title}` })).not.toBeInTheDocument();
+  });
+});
