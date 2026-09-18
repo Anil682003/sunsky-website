@@ -303,6 +303,10 @@ const ICON = {
   seat:  <S><path d="M5 4v9a3 3 0 003 3h6" /><path d="M5 16l-1 4M14 16l1 4" /><path d="M19 20a2 2 0 01-2-2v-2a3 3 0 00-3-3" /></S>,
   lock:  <S><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></S>,
   spark: <S><path d="M12 2l2.4 7.4H22l-6.2 4.5 2.4 7.4-6.2-4.6-6.2 4.6 2.4-7.4L2 9.4h7.6z" /></S>,
+  /* Two arrows passing each other: "swap this for another one", on the control that opens
+     the other fares. A plane there said "flight" twice and nothing about exchanging it. */
+  swap:  <S sw={2.2}><path d="M4 8h13l-3.4-3.4" /><path d="M20 16H7l3.4 3.4" /></S>,
+  doc:   <S sw={2.2}><path d="M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8z" /><path d="M14 3v5h5" /><line x1="9" y1="13" x2="15" y2="13" /><line x1="9" y1="17" x2="13" y2="17" /></S>,
   /* Solid and flying RIGHT — the little plane that rides the dashed route line in the
      flight-details modal. `plane` above is a stroked outline drawn at 45°, which at 19px on
      a 2px dashed rule read as a smudge rather than as an aircraft heading somewhere. This is
@@ -694,7 +698,7 @@ function TimeRangeFilter({ title, hint, span, value, onChange }) {
  * where the itinerary is scanned. Here there are only two directions and the card is the width
  * of the page, so they sit side by side and each gets room to be read rather than scanned.
  */
-function JourneyColumn({ dir, legs, chips }) {
+function JourneyColumn({ dir, legs }) {
   if (!legs?.length) return null;
   const first = legs[0], last = legs[legs.length - 1];
   const durMin = legs.reduce((s, l) => s + (Number(l.duration) || 0), 0);
@@ -738,17 +742,6 @@ function JourneyColumn({ dir, legs, chips }) {
       </div>
 
       {stops > 0 && <div className="bp-via">{ICON.clock} Via {vias.join(', ')}</div>}
-
-      {/* The allowance is a term of the FARE, so it is the same both ways — printed under each
-          direction because that is where a traveller checks it, and never printed at all when
-          the supplier told us nothing. */}
-      {chips.length > 0 && (
-        <div className="bp-incl" aria-label="Included in this fare">
-          {chips.map((x) => (
-            <span key={x.label} className={`bp-chip${x.ok ? ' bp-chip-inc' : ''}`}>{x.icon}{x.label}</span>
-          ))}
-        </div>
-      )}
     </div>
   );
 }
@@ -1174,7 +1167,7 @@ function SkeletonBlock({ label, children }) {
  * A banner also suppresses the green `cheapest` frame, because the band already says in words
  * what the frame said in colour, and both at once made the card shout twice.
  */
-function FlightCard({ f, selected, cheapest, banner, option, onSelect }) {
+function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange, changeLabel }) {
   const [expanded, setExpanded] = useState(false);
   // The headline card opens the details as a DIALOG; the list cards inside the change-flight
   // modal keep the inline accordion, because a dialog on top of a dialog is a trap.
@@ -1192,44 +1185,60 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect }) {
   );
 
   // ── The page's ONE headline flight ──
-  // Two directions side by side under a blue band that says, in words, why this flight and not
-  // another. Side by side rather than stacked because there are only ever two of them here and
-  // the card is the full width of the page: each direction gets its own column, its own
-  // carrier line and its own allowance, instead of being scanned as a list.
+  //
+  // A heading, not a banner. The card used to open with a solid blue band carrying a pill, a
+  // sentence and a white note box: three levels of emphasis competing inside 90px, on a colour
+  // that forced every grey in it to be invented again. It reads as a section now — a small
+  // badge saying WHY this flight, the heading, one grey line under it — and the "Selected"
+  // confirmation sits top right where a status belongs rather than at the foot of the card.
+  //
+  // Two directions side by side because there are only ever two of them here and the card is
+  // the full width of the page: each direction gets its own bordered panel, its own carrier
+  // line and its own allowance, instead of being scanned as a list.
   if (banner) {
     return (
       <div className={`flight-card bannered${expanded ? ' expanded' : ''}`}>
         <div className="fc-banner">
           <div className="fc-banner-main">
-            <div className="fc-banner-title">{ICON.spark}<span>{banner.title}</span></div>
+            {banner.badge && (
+              <div className="fc-banner-pill">{ICON.spark}<span>{banner.badge}</span></div>
+            )}
+            <div className="fc-banner-title">{banner.title}</div>
             <div className="fc-banner-sub">{banner.sub}</div>
+            {banner.note && (
+              <div className="fc-banner-note">{ICON.info}<span>{banner.note}</span></div>
+            )}
           </div>
-          {banner.note && (
-            <div className="fc-banner-note">{ICON.info}<span>{banner.note}</span></div>
-          )}
+          <div className="flight-selected-badge fc-selected-lg">{ICON.check} Selected</div>
         </div>
 
         {/* One column per direction. A one-way has no second column to fill, so the outbound
             takes the whole width rather than leaving half the card blank. */}
+        {/* No allowance chips here. They repeated the same two lines under both directions —
+            the allowance is a term of the FARE, not of a leg — and the Baggage tab of the
+            details dialog answers the question properly, with weights and pieces. */}
         <div className={`fc-legs${ret.length ? '' : ' fc-legs-one'}`}>
-          <JourneyColumn dir="Outbound" legs={out} chips={fareIncludes} />
-          {ret.length > 0 && <JourneyColumn dir="Return" legs={ret} chips={fareIncludes} />}
+          <JourneyColumn dir="Outbound" legs={out} />
+          {ret.length > 0 && <JourneyColumn dir="Return" legs={ret} />}
         </div>
 
+        {/* The three things left to do with a flight you have been given: look at it, swap it,
+            or read the small print about what the price covers. The fare itself is not repeated
+            here — the holiday's price is stated above the card and again at the overview, and a
+            third number in between only invited the traveller to check whether they matched. */}
         <div className="flight-bottom">
           <button className="flight-details-btn" onClick={() => setDetailsOpen(true)} disabled={!hasDetails}>
+            {ICON.doc}
             View flight details
             <S size={13} sw={2.4} className="fdb-caret"><path d="M6 9l6 6 6-6" /></S>
           </button>
-          <div className="bp-buy">
-            {f.price != null && (
-              <div className="bp-price">
-                <b className="live-price">€{f.price.toLocaleString('en-GB')}</b>
-                <span className="bp-price-cap">Total for all travellers</span>
-              </div>
-            )}
-            <div className="flight-selected-badge fc-selected-lg">{ICON.check} Selected</div>
-          </div>
+          {onChange && (
+            <button type="button" className="fc-change" onClick={onChange}>
+              {ICON.swap}
+              <span>{changeLabel}</span>
+            </button>
+          )}
+          <div className="fc-allin">{ICON.info}<span>All prices include taxes, fees and charges.</span></div>
         </div>
 
         {f.warning && <div className="flight-warning">{ICON.warn} {f.warning}</div>}
@@ -1267,13 +1276,11 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect }) {
 
         <div className="fc-split">
           <div className="fc-main">
-            {/* `chips={[]}` — the allowance is a term of the fare, so it is the same both
-                ways. The page card repeats it under each direction because each column
-                there is read on its own; here one row under both is the honest shape and
-                keeps the card short. */}
+            {/* The allowance is a term of the fare, so it is the same both ways: one row
+                under both columns rather than the same two chips printed twice. */}
             <div className={`fc-legs${ret.length ? '' : ' fc-legs-one'}`}>
-              <JourneyColumn dir="Outbound" legs={out} chips={[]} />
-              {ret.length > 0 && <JourneyColumn dir="Return" legs={ret} chips={[]} />}
+              <JourneyColumn dir="Outbound" legs={out} />
+              {ret.length > 0 && <JourneyColumn dir="Return" legs={ret} />}
             </div>
             {fareIncludes.length > 0 && (
               <div className="bp-incl" aria-label="Included in this fare">
@@ -3565,25 +3572,24 @@ export default function HotelDetail() {
                             f={{ ...pick, price: Math.round(pick.totalPrice), delta: cheapestFare == null || isCheapest ? 0 : pick.totalPrice - cheapestFare }}
                             selected
                             banner={isCheapest ? {
-                              title: 'Cheapest flight',
+                              badge: 'Best price',
+                              title: 'Your flights',
                               sub: 'Automatically selected for your travel dates.',
-                              note: 'This is the best-priced flight option we found for your selected dates.',
                             } : {
-                              title: 'Your selected flight',
+                              badge: 'Your choice',
+                              title: 'Your flights',
                               sub: 'You picked this one over the cheapest fare.',
                               note: cheapestFare == null ? null
                                 : `€${Math.round(pick.totalPrice - cheapestFare).toLocaleString('en-GB')} more than the cheapest option for these dates.`,
                             }}
                             onSelect={() => {}}
+                            {...(liveFlights.flights.length > 1 ? {
+                              onChange: () => setModalOpen(true),
+                              changeLabel: `Choose another flight · ${liveFlights.flights.length} options`,
+                            } : {})}
                           />
                         );
                       })()}
-                      {liveFlights.flights.length > 1 && (
-                        <button className="show-more-flights" onClick={() => setModalOpen(true)}>
-                          {ICON.plane} Change flight · {liveFlights.flights.length - 1} more option{liveFlights.flights.length - 1 === 1 ? '' : 's'}
-                        </button>
-                      )}
-                      <div className="all-in-note">{ICON.shield} All prices include taxes, fees and charges.</div>
 
                       {/* ── Or fly from another airport? ──
                           What the popular alternatives cost, as a DIFFERENCE per person from

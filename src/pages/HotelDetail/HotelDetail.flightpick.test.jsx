@@ -157,12 +157,12 @@ describe('the change-flight modal lists flights, not fare classes', () => {
     expect(container.querySelector('.modal-flights').textContent).not.toContain('1,128');
   });
 
-  it('counts the real options in the "Change flight" button', async () => {
+  it('counts the real options in the "Choose another flight" control', async () => {
     const user = userEvent.setup();
     renderPage();
     await runCheck(user);
-    // One alternative to the chosen flight — not four.
-    expect(await screen.findByRole('button', { name: /change flight · 1 more option$/i })).toBeInTheDocument();
+    // Two flights to choose between — not the four fares the supplier returned.
+    expect(await screen.findByRole('button', { name: /choose another flight · 2 options$/i })).toBeInTheDocument();
   });
 });
 
@@ -327,7 +327,7 @@ describe('the filter rail acts on the live results', () => {
   // tests open it the way a traveller does rather than reaching into hidden markup.
   const openFilters = async (user) => {
     await runCheck(user);
-    await user.click(await screen.findByRole('button', { name: /change flight/i }));
+    await user.click(await screen.findByRole('button', { name: /choose another flight/i }));
     await waitFor(() => expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(0));
   };
 
@@ -452,17 +452,21 @@ describe('the cheapest-flight card the page leads with', () => {
     expect(rows[0].textContent).toContain('XQ 1653');
   });
 
-  it('prints the allowance under each direction, where it is checked', async () => {
+  // The allowance is a term of the FARE, not of a leg, so printing it under both directions
+  // said the same thing twice. It lives in the Baggage tab of the details dialog now, where
+  // it can be answered properly — weights, pieces, per flight.
+  it('leaves the allowance to the details dialog instead of repeating it per direction', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
     await waitFor(() => expect(pageCard(container)).not.toBeNull());
 
-    const legs = pageCard(container).querySelectorAll('.fc-leg');
-    for (const leg of legs) {
-      expect(leg.textContent).toMatch(/checked baggage 20 kg/i);
-      expect(leg.textContent).toMatch(/cabin bag included/i);
+    for (const leg of pageCard(container).querySelectorAll('.fc-leg')) {
+      expect(leg.textContent).not.toMatch(/checked baggage/i);
     }
+    // …and the way to it is still on the card.
+    expect(pageCard(container).querySelector('.flight-details-btn').textContent)
+      .toMatch(/view flight details/i);
   });
 
   // Half a card of white space is not a design, it is a missing column.
@@ -486,33 +490,41 @@ describe('the cheapest-flight card the page leads with', () => {
     await waitFor(() => expect(pageCard(container)).not.toBeNull());
 
     expect(pageCard(container).querySelectorAll('.bp-chip')).toHaveLength(0);
-    // The rest of the card is still whole: times, carrier, price, the way on.
+    // The rest of the card is still whole: times, carrier, the way on.
     expect(pageCard(container).querySelector('.bp-airrow')).not.toBeNull();
-    expect(pageCard(container).textContent).toContain('1,112');
+    expect(pageCard(container).querySelector('.flight-details-btn')).not.toBeNull();
   });
 
-  it('keeps the fare and the way into the details on the card', async () => {
+  /* The fare is NOT repeated here. The holiday's price is stated above this card and again at
+     the overview; a third figure in between only asked the traveller to check whether the
+     three matched. What the footer carries instead is what the price covers. */
+  it('leaves the fare to the price panels and states what the price covers', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
     await waitFor(() => expect(pageCard(container)).not.toBeNull());
 
-    const card = pageCard(container);
-    expect(card.textContent).toContain('1,112');
-    expect(card.textContent).toMatch(/total for all travellers/i);
-    expect(card.querySelector('.fc-selected-lg').textContent).toMatch(/selected/i);
-    expect(card.querySelector('.flight-details-btn')).not.toBeNull();
+    const foot = pageCard(container).querySelector('.flight-bottom');
+    expect(foot.textContent).not.toContain('1,112');
+    expect(foot.textContent).not.toMatch(/total for all travellers/i);
+    expect(foot.querySelector('.fc-allin').textContent)
+      .toMatch(/prices include taxes, fees and charges/i);
+    expect(foot.querySelector('.flight-details-btn')).not.toBeNull();
   });
 
-  it('says in the band why this flight was chosen', async () => {
+  it('heads the card with what it is, why it was picked, and that it is picked', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
     await waitFor(() => expect(pageCard(container)).not.toBeNull());
 
     const band = pageCard(container).querySelector('.fc-banner');
-    expect(band.textContent).toMatch(/cheapest flight/i);
-    expect(band.textContent).toMatch(/automatically selected for your travel dates/i);
-    expect(band.textContent).toMatch(/best-priced flight option/i);
+    expect(band.querySelector('.fc-banner-pill').textContent).toMatch(/best price/i);
+    expect(band.querySelector('.fc-banner-title').textContent).toMatch(/your flights/i);
+    expect(band.querySelector('.fc-banner-sub').textContent)
+      .toMatch(/automatically selected for your travel dates/i);
+    // The status belongs at the top of the card, opposite the heading, not at its foot.
+    expect(band.querySelector('.fc-selected-lg').textContent).toMatch(/selected/i);
+    expect(pageCard(container).querySelector('.flight-bottom .fc-selected-lg')).toBeNull();
   });
 });
