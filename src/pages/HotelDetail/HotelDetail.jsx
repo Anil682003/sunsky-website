@@ -835,9 +835,8 @@ const AllowanceCell = ({ ok, main, sub }) => {
  * away for the whole table, but a traveller scanning the itinerary should not have to leave
  * this view to know whether a bag is included.
  */
-function DetailsJourney({ dir, legs, baggage }) {
+function DetailsJourney({ dir, legs }) {
   if (!legs?.length) return null;
-  const chips = fareInclusions(baggage);
   const direct = legs.length === 1;
 
   // Column track: one column per leg, with an auto-width layover column wedged between each
@@ -870,7 +869,7 @@ function DetailsJourney({ dir, legs, baggage }) {
         <div className="fdm-mid">
           <div className="fdm-dur">{fmtDur(leg.duration)}</div>
           <div className="bp-track"><span className="bp-plane">{ICON.planeGo}</span></div>
-          {direct && <div className="fdm-flag">Direct</div>}
+          {direct && <div className="fdm-flag">Direct flight</div>}
         </div>
         <div className="fdm-point">
           <div className="fdm-time">
@@ -884,39 +883,39 @@ function DetailsJourney({ dir, legs, baggage }) {
     );
   };
 
-  const carrier = (leg, i) => (
-    <div className="fdm-carrier" style={carrierStyle(i)}>
+  const carrierInner = (leg) => (
+    <>
       <AirlineMark code={leg.airline} className="bp-airmark" nameClassName="bp-airname" />
       <span className="bp-flno">{flightNumber(leg)}</span>
-    </div>
+    </>
+  );
+  const carrier = (leg, i) => (
+    <div className="fdm-carrier" style={carrierStyle(i)}>{carrierInner(leg)}</div>
   );
 
+  /* No baggage summary here. It stated the fare's allowance on a tab whose subject is the
+     itinerary, on a dialog whose OTHER tab is the allowance in full — weights, pieces,
+     per flight. Two answers to one question, the shorter one first. */
   const head = (
     <div className="fdm-jhead">
       <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
       <span className="fdm-jsep" aria-hidden="true" />
       <span className="fdm-jdate">{fmtDateLong(legs[0].departure)}</span>
-      {chips.length > 0 && (
-        <span className="fdm-jbags" aria-label={`Baggage for this ${dir.toLowerCase()}`}>
-          <span className="fdm-jbags-label">{ICON.bag}Baggage for this journey -</span>
-          {chips.map((x) => (
-            <span key={x.label} className="bp-chip bp-chip-inc">{x.icon}{x.label}</span>
-          ))}
-        </span>
-      )}
+      {/* One leg, one carrier: it belongs on the head row, opposite the date, where it is a
+          label for the journey rather than a fourth column of the times. */}
+      {direct && <div className="fdm-carrier fdm-carrier-head">{carrierInner(legs[0])}</div>}
     </div>
   );
 
-  // A direct flight has one leg and no layover, so there is width to spare: its airline sits
-  // BESIDE the times on the same line, with no hairline separating them. Anything with a
-  // connection has to stack — rails across the top, then one airline row per leg beneath.
+  // A direct flight has one leg and no layover, so the times keep the whole width and the
+  // carrier rides the head row. Anything with a connection has to stack — rails across the
+  // top, then one airline row per leg beneath, because each leg has its own carrier.
   if (direct) {
     return (
       <div className="fdm-journey">
         {head}
         <div className="fdm-legrow fdm-legrow-direct">
           {rail(legs[0], 0)}
-          {carrier(legs[0], 0)}
         </div>
       </div>
     );
@@ -1032,7 +1031,9 @@ export function FlightDetailsModal({ flight, onClose }) {
         <div className="fdm-head">
           <div>
             <div className="fdm-title">Flight details</div>
-            <div className="fdm-sub">Your selected flight</div>
+            <div className="fdm-sub">
+              {ret.length ? 'Your selected outbound and return' : 'Your selected flight'}
+            </div>
           </div>
           <button className="modal-close" onClick={onClose} aria-label="Close">
             <S sw={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
@@ -1042,43 +1043,39 @@ export function FlightDetailsModal({ flight, onClose }) {
         <div className="fdm-tabs" role="tablist">
           <button type="button" role="tab" aria-selected={tab === 'info'}
             className={`fdm-tab${tab === 'info' ? ' on' : ''}`} onClick={() => setTab('info')}>
-            {ICON.plane}Flight info
+            {ICON.plane}Flight details
           </button>
           <button type="button" role="tab" aria-selected={tab === 'bags'}
             className={`fdm-tab${tab === 'bags' ? ' on' : ''}`} onClick={() => setTab('bags')}>
-            {ICON.checkedBag}Baggage information
+            {ICON.checkedBag}Baggage
           </button>
         </div>
 
         <div className="fdm-body">
           {tab === 'info' ? (
             <>
-              <DetailsJourney dir="Outbound" legs={out} baggage={flight?.baggage} />
-              <DetailsJourney dir="Return" legs={ret} baggage={flight?.baggage} />
-              <div className="fdm-note">
-                {ICON.info}
-                <span>Times are shown in local time. Flight durations include estimated taxi and boarding times.</span>
-              </div>
+              <DetailsJourney dir="Outbound" legs={out} />
+              <DetailsJourney dir="Return" legs={ret} />
             </>
           ) : (
             <>
               <BaggageTable dir="Outbound" legs={out} baggage={flight?.baggage} />
               <BaggageTable dir="Return" legs={ret} baggage={flight?.baggage} />
-              {/* Same allowance covers the whole journey. The mockup's short, plainer wording
-                  reads better under a wide table than the earlier paragraph, and the "check
-                  the airline's conditions" clause carries the same caveat about sizes. */}
-              <div className="fdm-note">
-                {ICON.info}
-                <span>
-                  Baggage allowance is per passenger and per direction.
-                  For more details, please check the airline's conditions.
-                </span>
-              </div>
             </>
           )}
         </div>
 
+        {/* The caveat belongs with the way out, not at the end of a scrolling body where it
+            scrolls past the thing it qualifies. One footer row: what to know, then Close. */}
         <div className="fdm-foot">
+          <div className="fdm-note">
+            {ICON.info}
+            <span>
+              {tab === 'info'
+                ? 'Times are shown in local time. Flight durations include estimated taxi and boarding times.'
+                : "Baggage allowance is per passenger and per direction. For more details, please check the airline's conditions."}
+            </span>
+          </div>
           <button type="button" className="fdm-close-btn" onClick={onClose}>Close</button>
         </div>
       </div>

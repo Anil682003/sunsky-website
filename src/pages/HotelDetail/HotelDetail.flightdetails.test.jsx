@@ -101,20 +101,28 @@ describe('the flight-details dialog', () => {
     expect(returnLeg.querySelector('.fdm-flag').textContent).toMatch(/direct/i);
   });
 
-  it('summarises the fare\'s baggage on each journey, and never invents a cabin weight', () => {
+  /* The allowance is not summarised on the itinerary tab any more: this dialog's OTHER tab
+     is the allowance in full, and a chip reading "Checked baggage 20 kg" beside a route was
+     the shorter of two answers to the same question. What is asserted here is that it is
+     gone from the itinerary and intact in the table — including the part the supplier never
+     stated, which is a cabin WEIGHT. `handLuggage: 0` on a fare carrying 20kg of hold
+     baggage means "not itemised", not "none", so the cell says included and stops there. */
+  it('leaves the allowance to the baggage tab, and never invents a cabin weight', async () => {
+    const user = userEvent.setup();
     open();
-    const chips = [...journeys()[0].querySelectorAll('.bp-chip')].map((c) => c.textContent);
-    expect(chips.join(' ')).toMatch(/Checked baggage 20 kg/);
-    // The supplier reports handLuggage 0, which means "not itemised" rather than "none" on a
-    // fare that carries 20kg of hold baggage — so the chip says included and stops there.
-    expect(chips.join(' ')).toMatch(/Cabin bag included/);
-    expect(chips.join(' ')).not.toMatch(/Cabin bag \d/);
+    expect(journeys()[0].querySelectorAll('.bp-chip')).toHaveLength(0);
+
+    await user.click(screen.getByRole('tab', { name: /^baggage$/i }));
+    const table = document.querySelector('.fdm-table');
+    expect(table.textContent).toMatch(/20 kg/);
+    expect(table.textContent).toMatch(/Included/);
+    expect(table.textContent).not.toMatch(/Cabin bag \d+ ?kg/i);
   });
 
   it('lists every flight in the baggage table, with a personal-item column', async () => {
     const user = userEvent.setup();
     open();
-    await user.click(screen.getByRole('tab', { name: /baggage information/i }));
+    await user.click(screen.getByRole('tab', { name: /^baggage$/i }));
 
     // One table per direction; the columns are the same on both.
     expect(document.querySelectorAll('.fdm-table')).toHaveLength(2);

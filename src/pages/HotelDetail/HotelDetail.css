@@ -2322,10 +2322,10 @@
    than the page's near-black `--dark`: the dialog's whole palette is blue, and a black
    title sat outside it. */
 .fdm-title {
-  font-family:'Sora',sans-serif; font-size:22px; font-weight:800; color:#16295C;
-  letter-spacing:.015em; line-height:1.15; text-transform:uppercase;
+  font-family:'Sora',sans-serif; font-size:26px; font-weight:800; color:#16295C;
+  letter-spacing:-.5px; line-height:1.15; text-transform:none;
 }
-.fdm-sub { font-size:14px; font-weight:500; color:var(--text-sec); margin-top:4px; }
+.fdm-sub { font-size:14.5px; font-weight:500; color:var(--text-sec); margin-top:4px; }
 /* A plain dark cross, no chip behind it — the shared .modal-close draws a bordered circle,
    which competed with the pills below it. */
 .fdm .modal-close {
@@ -2344,9 +2344,9 @@
 }
 .fdm-tab {
   display:flex; align-items:center; justify-content:center; gap:8px;
-  padding:12px 18px; border:none; background:none; cursor:pointer;
-  font-family:inherit; font-size:13px; font-weight:700;
-  color:var(--text-light); position:relative;
+  padding:13px 16px; border:none; background:none; cursor:pointer;
+  font-family:inherit; font-size:14.5px; font-weight:700;
+  color:var(--text-sec); position:relative;
   transition:color .2s;
 }
 .fdm-tab svg { width:15px; height:15px; }
@@ -2391,18 +2391,15 @@
 .fdm-jdate {
   font-family:'Sora',sans-serif; font-size:14px; font-weight:600; color:var(--text-sec);
 }
-.fdm-jbags {
-  display:inline-flex; align-items:center; gap:8px; flex-wrap:wrap;
-  margin-left:auto;
-  padding:7px 9px; border-radius:var(--r-full);
-  background:#F1FBF6; border:none;
-  font-size:12px; color:#0B7A57;
+/* A direct flight's carrier, on the head row opposite the date. Plain grey for the flight
+   number with a hairline before it: in the head it is part of the carrier's name, not a
+   chip to be picked out of the itinerary below. */
+.fdm-carrier-head { margin-left:auto; gap:11px; flex-shrink:0; min-width:0; }
+.fdm .fdm-carrier-head .bp-flno {
+  padding:0 0 0 12px; border-radius:0; background:none;
+  border-left:1px solid #D6E0EE; color:var(--text-light);
+  font-family:'DM Sans',sans-serif; font-size:13px; font-weight:600; letter-spacing:0;
 }
-.fdm-jbags-label {
-  display:inline-flex; align-items:center; gap:7px;
-  padding-left:6px; font-weight:600; color:#0B7A57;
-}
-.fdm-jbags-label svg { width:15px; height:15px; }
 /* Portal-scoped, same reason as .bp-dir: the page's chip rules live under .sd. */
 .fdm .bp-chip {
   display:inline-flex; align-items:center; gap:6px;
@@ -2467,37 +2464,41 @@
 .fdm-code { font-size:12px; font-weight:500; color:var(--text-light); letter-spacing:.06em; margin-top:3px; }
 .fdm-mid { display:flex; flex-direction:column; align-items:center; gap:7px; min-width:0; width:100%; }
 .fdm-dur { font-size:12.5px; font-weight:500; color:var(--text-light); font-variant-numeric:tabular-nums; }
+/* "Direct flight", in the words a traveller reads it in. Tracked-out uppercase at 12px is
+   a column label; this is a fact about the journey above it. */
 .fdm-flag {
-  font-family:'Sora',sans-serif; font-size:12px; font-weight:800; color:#0B9B63;
-  letter-spacing:.09em; text-transform:uppercase;
+  font-family:'DM Sans',sans-serif; font-size:13.5px; font-weight:600; color:#0B9B63;
+  letter-spacing:0; text-transform:none;
 }
 
-/* The route line: a dashed rule with an arrowhead at each end and the plane riding the
-   middle of it. The dashes are a repeating background clipped to the content box, which
-   keeps them clear of the two arrowheads sitting in the padding. */
+/* The route line: a plain rule with a dot at each end and the plane riding the middle. It
+   was dashed, with an arrowhead at either end — three kinds of graphic on a line whose job
+   is to say "from here to there", and at 14px the dashes read as a smudge. */
 .fdm .bp-track {
   position:relative; box-sizing:border-box;
-  width:100%; min-width:90px; height:14px; padding:0 10px;
-  background-image:linear-gradient(90deg, #8FBEF5 0 6px, transparent 6px 12px);
-  background-repeat:repeat-x;
-  background-size:12px 2px;
+  width:100%; min-width:90px; height:14px; padding:0 4px;
+  background-image:linear-gradient(90deg, #AFCDF4, #AFCDF4);
+  background-repeat:no-repeat;
+  background-size:100% 2px;
   background-position:center;
   background-origin:content-box;
   background-clip:content-box;
 }
 .fdm .bp-track::before,
 .fdm .bp-track::after {
-  content:''; position:absolute; top:50%; width:7px; height:7px;
+  content:''; position:absolute; top:50%; width:8px; height:8px;
+  border-radius:50%; background:var(--blue);
+  transform:translateY(-50%);
 }
-.fdm .bp-track::before {
-  left:0;
-  border-left:2px solid var(--blue); border-bottom:2px solid var(--blue);
-  transform:translateY(-50%) rotate(45deg);
-}
-.fdm .bp-track::after {
-  right:0;
-  border-right:2px solid var(--blue); border-top:2px solid var(--blue);
-  transform:translateY(-50%) rotate(45deg);
+.fdm .bp-track::before { left:0; }
+.fdm .bp-track::after { right:0; }
+/* An overnight arrival: a chip beside the time, not a superscript on it. At the size these
+   times are set, a 11px sup reads as a typo. */
+.fdm .bp-nextday {
+  display:inline-block; vertical-align:middle; top:0;
+  margin-left:9px; padding:4px 10px; border-radius:var(--r-full);
+  background:#FFEFDC; color:#B45309;
+  font-family:'DM Sans',sans-serif; font-size:12px; font-weight:700; letter-spacing:0;
 }
 .fdm .bp-plane {
   position:absolute; left:50%; top:50%;
@@ -2612,18 +2613,21 @@
 .fdm-allow-off .fdm-allow-sub { color:var(--text-light); }
 
 .fdm-note {
+  width:100%; min-width:0;
   display:flex; align-items:flex-start; gap:12px;
-  padding:16px 20px; margin-bottom:18px;
+  padding:14px 18px;
   border-radius:12px; background:#F4F8FD; border:none;
   font-size:13px; line-height:1.55; color:var(--text-sec);
 }
 .fdm-note svg { width:18px; height:18px; color:var(--blue); flex-shrink:0; margin-top:1px; }
 
 /* No rule and no tint above the footer — the body's last card already closes the content,
-   and a divider under it read as a second frame. */
+   and a divider under it read as a second frame. The caveat rides the footer beside the
+   way out, rather than at the end of a scrolling body where it scrolls past the thing it
+   qualifies. */
 .fdm-foot {
-  display:flex; justify-content:flex-end;
-  padding:8px 28px 24px; border-top:none; background:var(--white);
+  display:flex; flex-direction:column; align-items:flex-end; gap:14px;
+  padding:10px 28px 24px; border-top:none; background:var(--white);
 }
 .fdm-close-btn {
   padding:13px 44px; border-radius:var(--r-full);
@@ -2659,12 +2663,13 @@
   .fdm-layover { max-width:none; }
   .fdm-time { font-size:20px; }
   .fdm-jhead { padding:14px; gap:10px; }
-  .fdm-jbags { font-size:11px; }
+  /* The carrier drops to its own line rather than fighting the date for 90px. */
+  .fdm-carrier-head { margin-left:0; width:100%; }
   /* The baggage table has six columns now — keep it scrollable rather than crushing cells. */
   .fdm-tablewrap { margin:0 12px 12px; border-radius:12px; }
   .fdm-table { min-width:720px; }
   .fdm-table th, .fdm-table td { padding:14px 12px; }
-  .fdm-foot { padding:8px 18px 18px; }
+  .fdm-foot { padding:8px 18px 18px; flex-direction:column; align-items:stretch; gap:12px; }
   .fdm-close-btn { width:100%; }
 }
 
