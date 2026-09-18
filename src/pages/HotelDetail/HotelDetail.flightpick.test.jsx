@@ -152,9 +152,12 @@ describe('the change-flight modal lists flights, not fare classes', () => {
     await runCheck(user);
 
     await waitFor(() => expect(modalCards(container).length).toBe(2));
-    // €1,112, not €1,120 or €1,128 — and the dearer twins are gone from the list.
-    expect(modalCards(container)[0].textContent).toContain('1,112');
-    expect(container.querySelector('.modal-flights').textContent).not.toContain('1,128');
+    // The fare is no longer printed on a card, so the survivor is identified by its
+    // departure and PRICED by the swing on the other one: €1,150 against a €1,112 baseline
+    // is +€19.00 each for two adults. Had the dedupe kept the €1,120 twin it would read
+    // +€15.00, so this asserts the cheapest of the collapsed group is the one held.
+    expect(modalCards(container)[0].textContent).toContain('17:40');
+    expect(modalCards(container)[1].querySelector('.fc-swing').textContent).toContain('19.00');
   });
 
   it('counts the real options in the "Choose another flight" control', async () => {
@@ -177,7 +180,7 @@ describe('green marks the flight you chose, and only that one', () => {
     expect(green).toHaveLength(1);
     // The default pick is the cheapest, so it is the one holding the green frame — and it
     // must NOT also carry `cheapest`, the class that now paints blue.
-    expect(green[0].textContent).toContain('1,112');
+    expect(green[0].textContent).toContain('17:40');
     expect(green[0].classList.contains('cheapest')).toBe(false);
   });
 
@@ -188,7 +191,7 @@ describe('green marks the flight you chose, and only that one', () => {
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
     const [cheapest, alternative] = modalCards(container);
-    await user.click(alternative.querySelector('.flight-select-btn'));
+    await user.click(alternative.querySelector('.fc-pick'));
 
     await waitFor(() => expect(alternative.classList.contains('selected')).toBe(true));
     // The card just left behind gives the green frame up...
@@ -202,32 +205,23 @@ describe('green marks the flight you chose, and only that one', () => {
 
 // ── What a card now says about ITSELF ─────────────────────────────────────────
 // The list is a choice between the flight the traveller is holding and the others, so each
-// card names which it is, and prices itself against the one currently held rather than
-// against the cheapest. "€1,150" answers nothing on its own; "+ €38 to your package price"
-// is the number the decision is actually made on.
-describe('a card says whether it is the one you have, and what switching costs', () => {
-  it('labels the held flight and the alternatives', async () => {
+// card prices itself against the one currently held rather than against the cheapest.
+// "€1,150" answers nothing on its own; "+ €19.00 per person" is the number the decision is
+// actually made on. The whole-party figure is the same fact multiplied, so it is not printed
+// twice, and the card does not label itself "Alternative flight" in a list of alternatives.
+describe('a card says what switching to it costs, and offers the switch', () => {
+  it('prices each alternative per person against the flight currently held', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
     const [held, alt] = modalCards(container);
-    expect(held.querySelector('.fc-status-label').textContent).toMatch(/currently selected/i);
-    expect(alt.querySelector('.fc-status-label').textContent).toMatch(/alternative flight/i);
-  });
-
-  it('prices each alternative against the flight currently held', async () => {
-    const user = userEvent.setup();
-    const { container } = renderPage();
-    await runCheck(user);
-    await waitFor(() => expect(modalCards(container).length).toBe(2));
-
-    const [held, alt] = modalCards(container);
-    // €1,112 held, €1,150 alternative.
-    expect(held.querySelector('.fc-impact').textContent).toMatch(/no change to your package price/i);
-    expect(alt.querySelector('.fc-impact').textContent).toContain('38');
-    expect(alt.querySelector('.fc-impact').className).toContain('up');
+    // €1,112 held, €1,150 alternative — €38 the party, two adults.
+    expect(held.querySelector('.fc-swing')).toBeNull();      // it is the one you have
+    expect(alt.querySelector('.fc-swing').textContent).toContain('19.00');
+    expect(alt.querySelector('.fc-swing').className).toContain('up');
+    expect(alt.querySelector('.fc-swing-cap').textContent).toMatch(/per person/i);
   });
 
   it('re-reckons every card the moment a different flight is chosen', async () => {
@@ -236,29 +230,45 @@ describe('a card says whether it is the one you have, and what switching costs',
     await runCheck(user);
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
-    await user.click(modalCards(container)[1].querySelector('.flight-select-btn'));
+    await user.click(modalCards(container)[1].querySelector('.fc-pick'));
 
     await waitFor(() => {
       const [cheaper, nowHeld] = modalCards(container);
       // The dearer flight is now the baseline, so the cheaper one is a SAVING, not a cost.
-      expect(nowHeld.querySelector('.fc-impact').textContent).toMatch(/no change/i);
-      expect(cheaper.querySelector('.fc-impact').className).toContain('down');
-      expect(cheaper.querySelector('.fc-impact').textContent).toContain('38');
+      expect(nowHeld.querySelector('.fc-pick')).toBeNull();
+      expect(cheaper.querySelector('.fc-swing').className).toContain('down');
+      expect(cheaper.querySelector('.fc-swing').textContent).toContain('19.00');
     });
   });
 
-  it('marks the cheapest fare in words, and gives the held card the way out', async () => {
+  it('gives the held card a badge instead of a way to pick it again', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
     const [held, alt] = modalCards(container);
-    expect(held.textContent).toMatch(/lowest fare/i);
-    // The card you already have offers no "select" — it offers the badge saying you have it.
-    expect(held.querySelector('.flight-select-btn')).toBeNull();
-    expect(held.querySelector('.flight-selected-badge')).not.toBeNull();
-    expect(alt.querySelector('.flight-select-btn').textContent).toMatch(/select this flight/i);
+    expect(held.querySelector('.fc-pick')).toBeNull();
+    expect(held.querySelector('.flight-selected-badge').textContent).toMatch(/selected/i);
+    expect(alt.querySelector('.fc-pick').getAttribute('aria-label')).toMatch(/select this flight/i);
+    expect(alt.querySelector('.fc-pick').getAttribute('role')).toBe('radio');
+  });
+
+  // The floor of the set still says so in words — but only on a card the traveller has NOT
+  // taken. On the one they are holding, "Selected" is the whole message.
+  it('names the lowest fare only while it is still an alternative', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(2));
+
+    expect(modalCards(container)[0].textContent).not.toMatch(/lowest fare/i);
+
+    // Take the dearer one; the cheapest is now an alternative and earns the chip.
+    await user.click(modalCards(container)[1].querySelector('.fc-pick'));
+    await waitFor(() => {
+      expect(modalCards(container)[0].querySelector('.fc-best').textContent).toMatch(/lowest fare/i);
+    });
   });
 });
 
@@ -339,7 +349,7 @@ describe('the filter rail acts on the live results', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /direct flights/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(2));
-    expect(container.querySelector('.modal-flights').textContent).not.toContain('1,240');
+    expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
   });
 
   it('keeps only the flights with a stop', async () => {
@@ -349,7 +359,7 @@ describe('the filter rail acts on the live results', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /flights with stop/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(1));
-    expect(container.querySelector('.modal-flights').textContent).toContain('1,240');
+    expect(container.querySelector('.modal-flights').textContent).toContain('Turkish');
   });
 
   it('separates the fares that carry a hold bag from the one that does not', async () => {
@@ -362,7 +372,7 @@ describe('the filter rail acts on the live results', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /exclude baggage/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(1));
-    expect(container.querySelector('.modal-flights').textContent).toContain('980');
+    expect(container.querySelector('.modal-flights').textContent).toContain('06:15');
   });
 
   it('keeps the flights an airline actually operates', async () => {
@@ -372,7 +382,7 @@ describe('the filter rail acts on the live results', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /turkish airlines/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(1));
-    expect(container.querySelector('.modal-flights').textContent).toContain('1,240');
+    expect(container.querySelector('.modal-flights').textContent).toContain('TK 1940');
   });
 
   it('says how many of the results are left, and puts them all back', async () => {
@@ -386,6 +396,32 @@ describe('the filter rail acts on the live results', () => {
     await user.click(screen.getByRole('button', { name: /reset all/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(3));
     expect(screen.getByText(/3 flights found/i)).toBeInTheDocument();
+  });
+
+  /* The rail folds away to a tab so the cards get the width back, and the tab carries the
+     count so a traveller never loses sight of a filter that is still narrowing the list.
+     (jsdom applies no media queries, so both controls are in the DOM at once; what is
+     asserted is the state the CSS keys off.) */
+  it('folds the rail away and brings it back, with the count on the tab', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await openFilters(user);
+
+    const body = () => container.querySelector('.modal-body');
+    expect(body().className).toContain('rail-open');
+
+    await user.click(screen.getByRole('checkbox', { name: /flights with stop/i }));
+    // Queried by class, not by role: both controls are `display:none` until the media query
+    // that owns them matches, and jsdom evaluates no media queries.
+    await user.click(container.querySelector('.modal-rail-fold'));
+
+    await waitFor(() => expect(body().className).not.toContain('rail-open'));
+    expect(container.querySelector('.modal-rail-tab').textContent).toContain('Filters · 1');
+
+    await user.click(container.querySelector('.modal-rail-tab'));
+    await waitFor(() => expect(body().className).toContain('rail-open'));
+    // The filter it was folded over is still on.
+    expect(modalCards(container)).toHaveLength(1);
   });
 
   it('offers a departure-time range built from the real departures', async () => {

@@ -1455,28 +1455,18 @@
   border-color:#9FC4F7; background:linear-gradient(180deg,#F8FBFF,#F2F7FF);
   box-shadow:0 0 0 3px rgba(31,79,216,.07);
 }
-.sd .flight-card.option.selected { border-color:var(--green); box-shadow:0 0 0 3px rgba(5,150,105,.12); }
+.sd .flight-card.option.selected {
+  border-color:var(--green); box-shadow:0 0 0 3px rgba(5,150,105,.12);
+  background:linear-gradient(180deg,#F6FDF9,#F1FBF6);
+}
 
-/* ── The strip across the top: what this card is, and what makes it stand out ── */
-.sd .fc-status {
-  display:flex; align-items:center; gap:10px;
-  padding:13px 18px 0;
-}
-.sd .fc-status-label {
-  font-family:'Sora',sans-serif; font-size:10px; font-weight:800;
-  text-transform:uppercase; letter-spacing:.1em; color:var(--blue);
-  background:var(--blue-bg); border:1px solid #dbe8fb;
-  padding:4px 11px; border-radius:var(--r-full);
-}
-/* The one the traveller is holding says so in the page's selected colour. */
-.sd .flight-card.option.selected .fc-status-label {
-  color:#0B7A57; background:#ECFDF5; border-color:#A7F3D0;
-}
 /* Gold names the floor of the result set — the one place on this card where the brand's
    conversion colour is earned. Ink is the deep brand brown, not black: white-on-gold is
-   the site's rule for gold FILLS, and this is a tinted chip, not a fill. */
+   the site's rule for gold FILLS, and this is a tinted chip, not a fill.
+   It rides in the rail now, above the figure, and only on a cheapest fare the traveller has
+   NOT taken: on the one they are holding the green badge is the whole message. */
 .sd .fc-best {
-  margin-left:auto; display:inline-flex; align-items:center; gap:5px;
+  display:inline-flex; align-items:center; gap:5px;
   font-family:'Sora',sans-serif; font-size:10px; font-weight:800;
   text-transform:uppercase; letter-spacing:.09em;
   color:#92400E; background:var(--sun-warm); border:1px solid #FFDFAC;
@@ -1495,13 +1485,33 @@
    The same column pair the page's headline card uses, at list scale: the type steps down
    so three cards fit on a laptop screen, but the shape — badge, carrier, route, via —
    stays identical, so the flight you chose reads the same on the page as it did here. */
-.sd .flight-card.option .fc-leg { padding:14px 18px 12px; }
-.sd .flight-card.option .fc-leg .bp-jhead { margin-bottom:11px; gap:8px; }
+.sd .flight-card.option .fc-leg { padding:18px 20px 16px; }
+.sd .flight-card.option .fc-leg .bp-jhead { margin-bottom:16px; gap:10px; flex-wrap:nowrap; }
 .sd .flight-card.option .fc-leg .bp-airrow { gap:9px; margin-bottom:13px; }
 .sd .flight-card.option .fc-leg .bp-airname { font-size:13px; }
 .sd .flight-card.option .fc-leg .bp-airmark,
 .sd .flight-card.option .fc-leg .bp-airmark.air-logo { width:25px; height:25px; font-size:11px; padding:2px; }
 .sd .flight-card.option .fc-leg .bp-flno { font-size:10px; padding:3px 8px; }
+
+/* ── The carrier as a label on the head row ────────────────────────────────────
+   `AirlineMark` prints the name before the logo, so the logo is pulled in front of it: a
+   carrier is recognised by its mark first and read second. Name over flight number, both
+   in the one column beside it, which is the shape the head row has room for. */
+.sd .fc-leg .bp-airrow.bp-airrow-head {
+  margin:0 0 0 auto; display:grid; grid-template-columns:auto auto;
+  column-gap:9px; align-items:center; justify-items:start; text-align:left;
+  min-width:0;
+}
+.sd .fc-leg .bp-airrow-head .bp-airmark { grid-column:1; grid-row:1 / span 2; }
+.sd .fc-leg .bp-airrow-head .bp-airname { grid-column:2; grid-row:1; font-size:12.5px; }
+.sd .flight-card.option .fc-leg .bp-airrow-head .bp-airname { font-size:12.5px; }
+.sd .fc-leg .bp-airrow-head .bp-flno { grid-column:2; grid-row:2; }
+.sd .flight-card.option .fc-leg .bp-airrow-head .bp-flno {
+  padding:0; background:none; border:0; border-radius:0;
+  font-size:11.5px; font-weight:600; color:var(--text-sec); letter-spacing:0;
+}
+/* The mark reads first. */
+.sd .bp-airrow .air-mark { order:-1; }
 .sd .flight-card.option .fc-leg .bp-route { gap:10px; }
 .sd .flight-card.option .fc-leg .bp-time { font-size:23px; letter-spacing:-.5px; }
 .sd .flight-card.option .fc-leg .bp-city { font-size:11.5px; margin-top:5px; }
@@ -1518,68 +1528,64 @@
 /* One allowance row under BOTH columns — it is a term of the fare, not of a direction. */
 .sd .flight-card.option .bp-incl { padding:2px 18px 11px; gap:6px; }
 
-/* ── The rail: what switching to this flight costs, and the way to do it ──────── */
+/* ── The rail: what switching to this flight costs, and the way to do it ────────
+   Not a tinted column running the height of the card any more, but a panel sitting ON the
+   card with the details link under it. The column of colour made every option look like a
+   thing with a price attached; the panel makes it look like a thing you can pick, which is
+   what the list is for. */
 .sd .fc-rail {
   width:214px; flex-shrink:0;
-  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:5px;
-  padding:16px 15px; text-align:center;
-  border-left:1px solid #E3ECF9;
-  background:#F4F8FD;
+  display:flex; flex-direction:column; align-items:center; justify-content:center; gap:9px;
+  padding:14px 16px; text-align:center;
+  background:transparent; border-left:1px solid #E8EEF7;
 }
-.sd .flight-card.option.cheapest .fc-rail { background:#EDF4FE; border-left-color:#D6E6FA; }
-.sd .flight-card.option.selected .fc-rail { background:#F2FCF8; border-left-color:#CBEEDE; }
-.sd .fc-rail .flight-selected-badge { font-size:11.5px; padding:2px 0 4px; }
+/* The whole panel is the control: a target the width of the rail rather than a button under
+   a figure the traveller has already decided about. */
+.sd .fc-pick {
+  width:100%; display:flex; flex-direction:column; align-items:center; gap:4px;
+  padding:14px 12px 13px; border-radius:14px; cursor:pointer;
+  background:#EEF4FE; border:1px solid #DCE8FA;
+  transition:background .2s var(--ease), border-color .2s var(--ease);
+}
+.sd .fc-pick:hover { background:#E4EEFD; border-color:#BFD6F6; }
+.sd .fc-pick .fc-best { margin-bottom:3px; }
+/* The mark the panel is a radio for. Filled on hover so the card answers before it is
+   clicked; `:focus-visible` on the panel puts the page's ring round the whole target. */
+.sd .fc-radio {
+  width:22px; height:22px; margin-top:5px; border-radius:50%;
+  border:2px solid #A9C4EE; background:var(--white);
+  transition:border-color .2s var(--ease), box-shadow .2s var(--ease);
+}
+.sd .fc-pick:hover .fc-radio { border-color:var(--blue); box-shadow:inset 0 0 0 4px rgba(31,79,216,.18); }
+.sd .fc-rail .flight-selected-badge {
+  width:100%; justify-content:center; gap:8px;
+  padding:15px 12px; border-radius:14px;
+  font-size:14px; font-weight:700; color:#0B7A57;
+  background:#E9FAF1; border:1px solid #BBF0D8;
+}
+.sd .fc-rail .flight-selected-badge svg {
+  width:20px; height:20px; padding:4px; border-radius:50%;
+  background:#0B7A57; stroke:#fff; box-sizing:border-box; flex-shrink:0;
+}
+/* The way into the details is a link under the panel, not a second bordered control
+   competing with it for the same corner of the card. */
+.sd .fc-rail .flight-details-btn {
+  border:0; background:none; padding:0; font-size:13px; font-weight:600;
+}
+.sd .fc-rail .flight-details-btn:hover { background:none; color:var(--blue); text-decoration:underline; }
 
-/* The headline figure: what ONE traveller pays over or under the flight now held. Per
-   person because that is the number a traveller carries in their head; the package figure
-   is right underneath it, so neither has to be inferred from the other. */
+/* The figure: what ONE traveller pays over or under the flight now held. */
 .sd .fc-swing {
   display:flex; align-items:baseline; justify-content:center; gap:5px;
   font-family:'Sora',sans-serif; letter-spacing:-.4px; line-height:1.15;
   font-variant-numeric:tabular-nums lining-nums;
 }
-.sd .fc-swing b { font-size:22px; font-weight:800; }
-.sd .fc-swing em { font-style:normal; font-size:12px; font-weight:700; }
-.sd .fc-swing.down { color:#0B7A57; }
-.sd .fc-swing.up { color:#B42318; }
+.sd .fc-swing b { font-size:24px; font-weight:800; color:var(--dark); }
+.sd .fc-swing.down b { color:#0B7A57; }
 .sd .fc-swing.same { color:var(--text-sec); }
-/* NOT --text-light. This rail sits on a tinted ground, and #94a3bf on #F4F8FD measures
-   2.4:1 — under half of what 11px text needs. #55677F clears 5.2:1 on all three rail
-   grounds (plain, cheapest, selected), which is why it is a literal rather than the token:
-   --text-sec itself only reaches 4.4:1 against the cheapest card's blue tint. */
-.sd .fc-swing-cap { font-size:11px; font-weight:600; color:#55677F; line-height:1.35; }
-
-/* What choosing this flight does to the package total. Fine print by design — it is the
-   same fact as the figure above, counted for the whole party, and printing it as loudly
-   would have the card state its one number twice. */
-.sd .fc-impact {
-  width:100%; margin-top:3px;
-  font-size:10.5px; line-height:1.45; font-weight:600;
-  color:#55677F; text-align:center;
-}
-.sd .fc-impact b { font-family:'Sora',sans-serif; font-weight:800; font-variant-numeric:tabular-nums lining-nums; }
-.sd .fc-impact.up b { color:#B42318; }
-.sd .fc-impact.down b { color:#0B7A57; }
-.sd .fc-impact.same { color:#0B7A57; }
-
-/* The fare itself, whole party, taxes in — under a rule, because it answers a different
-   question from everything above it. */
-.sd .fc-fare {
-  display:flex; flex-direction:column; align-items:center; gap:1px;
-  width:100%; margin-top:8px; padding-top:9px;
-  border-top:1px dashed #D9E5F6;
-}
-.sd .fc-fare .live-price {
-  font-family:'Sora',sans-serif; font-size:15px; font-weight:800; color:var(--dark);
-  letter-spacing:-.2px; font-variant-numeric:tabular-nums lining-nums;
-}
-.sd .fc-fare em {
-  display:inline-flex; align-items:center; gap:4px; flex-wrap:wrap; justify-content:center;
-  font-style:normal; font-size:10px; font-weight:600; color:#55677F; line-height:1.4;
-}
-.sd .fc-fare .mf-hint svg { width:12px; height:12px; }
-
-.sd .fc-select { margin-top:11px; width:100%; justify-content:center; padding:11px 16px; font-size:12.5px; border-radius:10px; }
+/* NOT --text-light. This caption sits on a tinted panel, and #94a3bf on #EEF4FE measures
+   2.4:1 — under half of what 11px text needs. #55677F clears 5.2:1 on it. */
+.sd .fc-swing-cap { font-size:12px; font-weight:500; color:#55677F; line-height:1.35; }
 
 /* ── Flight detail panel (accordion) ── */
 .sd .fd-panel { border-top:1px dashed var(--border); padding:20px 22px 22px; background:linear-gradient(180deg,#f8faff 0%,var(--white) 100%); animation:sdFadeUp .3s var(--ease); }
@@ -1998,12 +2004,16 @@
 /* White, not the blue band it used to wear: the band read as a second page header stacked
    on the site's own, and the cards below are already carrying the blue. */
 .sd .modal-head { display:flex; align-items:center; gap:16px; padding:20px 26px; border-bottom:1px solid var(--border-light); background:var(--white); }
-.sd .modal-head-main { margin-right:auto; min-width:0; }
+/* The mark reads before the words: a dialog that opens over a page of hotel rooms says
+   what it is about in one glyph before the heading is read. */
+.sd .modal-head-main { margin-right:auto; min-width:0; display:flex; align-items:center; gap:13px; }
+.sd .modal-head-mark { flex-shrink:0; color:var(--blue); display:inline-flex; }
+.sd .modal-head-mark svg { width:30px; height:30px; }
+.sd .modal-head-text { min-width:0; }
 .sd .modal-title { font-family:'Sora',sans-serif; font-size:24px; font-weight:800; color:var(--dark); letter-spacing:-.5px; margin:0; }
 /* What there is to choose from — and, the moment the rail narrows the list, how much of it
    is left. Without it the rail's effect is only visible by scrolling down and counting. */
-.sd .modal-subtitle { display:flex; align-items:center; gap:7px; margin-top:5px; font-size:12.5px; font-weight:600; color:var(--blue); }
-.sd .modal-subtitle svg { width:14px; height:14px; flex-shrink:0; }
+.sd .modal-subtitle { margin-top:3px; font-size:13px; font-weight:500; color:var(--text-sec); }
 .sd .modal-sort { font-size:12.5px; font-weight:600; color:var(--text-sec); display:flex; align-items:center; gap:9px; flex-shrink:0; }
 /* A bordered field rather than blue text pretending not to be a control: a select with no
    box around it does not look like something you can open. */
@@ -2035,13 +2045,42 @@
    The rail says what the filters are doing to the list, so an empty result never
    looks like "no flights exist" when it means "no flights match". */
 .sd .modal-filter-head {
-  display:flex; align-items:baseline; justify-content:space-between; gap:8px;
-  padding-bottom:12px; margin-bottom:16px; border-bottom:1px solid var(--border-light);
+  display:flex; align-items:center; justify-content:space-between; gap:8px;
+  padding-bottom:6px; margin-bottom:18px;
 }
 .sd .modal-filter-count { font-family:'Sora',sans-serif; font-size:12px; font-weight:800; color:var(--dark); font-variant-numeric:tabular-nums lining-nums; }
+/* A heading, in the words it is read in. Tracked-out uppercase at 12px is a label for a
+   thing; this names a panel. */
 .sd .modal-filter-heading {
-  font-family:'Sora',sans-serif; font-size:12px; font-weight:800; color:var(--dark);
-  text-transform:uppercase; letter-spacing:.09em;
+  font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--dark);
+  text-transform:none; letter-spacing:-.2px;
+}
+/* ── Folding the rail away ─────────────────────────────────────────────────────
+   Desktop only: below 1024px the rail is already a sheet over the list and the header's
+   Filters button opens it, so a second control for the same thing would be two answers to
+   one question. */
+.sd .modal-rail-tab { display:none; }
+.sd .modal-rail-fold {
+  display:none; align-items:center; justify-content:center;
+  width:28px; height:28px; border-radius:9px; flex-shrink:0;
+  border:1px solid var(--border-light); background:var(--white);
+  color:var(--text-sec); cursor:pointer; transition:all .2s var(--ease);
+}
+.sd .modal-rail-fold:hover { border-color:var(--blue-soft); color:var(--blue); background:var(--blue-pale); }
+@media (min-width:1025px) {
+  .sd .modal-body:not(.rail-open) .modal-sidebar { display:none; }
+  .sd .modal-body.rail-open .modal-rail-tab { display:none; }
+  .sd .modal-rail-fold { display:inline-flex; }
+  .sd .modal-rail-tab {
+    display:flex; flex-direction:column; align-items:center; gap:8px;
+    align-self:flex-start; flex-shrink:0;
+    padding:16px 11px 18px; border-radius:16px;
+    border:1px solid var(--border-light); background:var(--white);
+    font-family:inherit; font-size:12px; font-weight:700; color:var(--text-sec);
+    cursor:pointer; transition:all .2s var(--ease);
+  }
+  .sd .modal-rail-tab:hover { border-color:var(--blue-soft); color:var(--blue); }
+  .sd .modal-rail-tab svg { color:var(--blue); }
 }
 
 /* Group titles carry their own furniture now: an ⓘ that explains the group, and on some of
@@ -3081,12 +3120,9 @@
   }
   .sd .flight-card.option.cheapest .fc-rail { border-top-color:#D6E6FA; }
   .sd .flight-card.option.selected .fc-rail { border-top-color:#CBEEDE; }
-  .sd .fc-main-foot { padding:0 16px 14px; }
-  .sd .fc-select { max-width:340px; }
-  /* The fine print and the rule above it were sized for a 214px column; across the full
-     card width they need a ceiling or they stretch into a single thin line. */
-  .sd .fc-swing-cap, .sd .fc-impact, .sd .fc-fare { max-width:340px; }
-  .sd .flight-card.option .bp-incl { padding:2px 16px 11px; }
+  /* The panel was sized for a 214px column; across the full card width it needs a ceiling
+     or the figure and its caption stretch into one thin line. */
+  .sd .fc-pick, .sd .fc-rail .flight-selected-badge { max-width:340px; }
 
   /* The page card gives its two directions up at this width; the MODAL card does not, and
      must not. Dropping the rail underneath has just handed the itinerary the 214px the rail
@@ -3098,24 +3134,22 @@
   .sd .flight-card.option .fc-leg + .fc-leg { border-left:1px solid var(--border-light); border-top:none; }
 }
 
-/* Stacked but not narrow: the rail is a full-width strip here, and a strip that lays five
-   short lines out one under another is 215px of mostly empty column. Laid across, it is one
-   readable row — figure, what it is measured against, fine print, and the way to act on it. */
+/* Stacked but not narrow: the rail is a full-width strip here, and a strip that stacks a
+   figure, a caption and a radio one under another is most of a screen's height of empty
+   column. Laid across, it is one readable row with the details link at the end of it. */
 @media (max-width:900px) and (min-width:561px) {
   .sd .fc-rail {
-    flex-direction:row; flex-wrap:wrap; align-items:baseline;
-    justify-content:flex-start; gap:5px 15px; text-align:left;
+    flex-direction:row; align-items:center; justify-content:space-between;
+    gap:16px; text-align:left;
   }
-  .sd .fc-rail .flight-selected-badge { order:0; }
-  .sd .fc-swing { order:1; }
-  .sd .fc-swing-cap { order:2; }
-  .sd .fc-impact { order:3; width:auto; margin-top:0; text-align:left; }
-  .sd .fc-fare {
-    order:4; width:auto; margin-top:0; padding-top:0; border-top:none;
-    flex-direction:row; align-items:baseline; gap:6px;
+  .sd .fc-pick, .sd .fc-rail .flight-selected-badge {
+    flex:1; max-width:none; width:auto;
+    flex-direction:row; align-items:center; justify-content:flex-start; gap:14px;
+    padding:12px 16px;
   }
-  .sd .fc-select { order:5; margin-left:auto; margin-top:0; width:auto; min-width:190px; align-self:center; }
-  .sd .fc-swing-cap, .sd .fc-impact, .sd .fc-fare { max-width:none; }
+  .sd .fc-pick .fc-best { margin-bottom:0; }
+  .sd .fc-radio { margin:0 0 0 auto; }
+  .sd .fc-rail .flight-details-btn { flex-shrink:0; }
 }
 
 @media (max-width:640px) {
@@ -3146,6 +3180,10 @@
   .sd .bp-city { font-size:11.5px; }
   .sd .bp-jhead { gap:7px; }
   .sd .bp-airline { margin-left:0; }        /* wraps to its own line rather than crushing the date */
+  /* Same reason for the list card's carrier block: opposite the date it has about 90px
+     here, which is not a carrier name. */
+  .sd .flight-card.option .fc-leg .bp-jhead { flex-wrap:wrap; }
+  .sd .fc-leg .bp-airrow.bp-airrow-head { margin-left:0; }
   .sd .bp-chip { font-size:10.5px; padding:5px 9px; }
 
   /* Comfortable touch targets — 32px chips are below what a thumb reliably hits. */

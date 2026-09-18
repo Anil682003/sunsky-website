@@ -698,7 +698,11 @@ function TimeRangeFilter({ title, hint, span, value, onChange }) {
  * where the itinerary is scanned. Here there are only two directions and the card is the width
  * of the page, so they sit side by side and each gets room to be read rather than scanned.
  */
-function JourneyColumn({ dir, legs }) {
+/** `compact` puts the carrier on the SAME row as the direction and the date, opposite them.
+ *  In a list of a dozen options every row costs a card its place on the screen, and the
+ *  carrier is a label there rather than a heading. The page's one headline card keeps the
+ *  carrier on a line of its own, where the name is big enough to be read as a heading. */
+function JourneyColumn({ dir, legs, compact }) {
   if (!legs?.length) return null;
   const first = legs[0], last = legs[legs.length - 1];
   const durMin = legs.reduce((s, l) => s + (Number(l.duration) || 0), 0);
@@ -706,19 +710,22 @@ function JourneyColumn({ dir, legs }) {
   const vias = legs.slice(1).map((l) => airportName(l.from));
   const overnight = dayOffset(first.departure, last.arrival);
 
+  const carrier = (
+    <span className={`bp-airrow${compact ? ' bp-airrow-head' : ''}`}>
+      <AirlineMark code={first.airline} className="bp-airmark" nameClassName="bp-airname" />
+      <span className="bp-flno">{flightNumber(first)}</span>
+    </span>
+  );
+
   return (
-    <div className="fc-leg">
+    <div className={`fc-leg${compact ? ' fc-leg-compact' : ''}`}>
       <div className="bp-jhead">
         <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
         <span className="bp-jdate">{fmtDateLong(first.departure)}</span>
+        {compact && carrier}
       </div>
 
-      {/* The carrier on its own line: at this size the name is a heading, not a footnote to
-          the route. */}
-      <div className="bp-airrow">
-        <AirlineMark code={first.airline} className="bp-airmark" nameClassName="bp-airname" />
-        <span className="bp-flno">{flightNumber(first)}</span>
-      </div>
+      {!compact && carrier}
 
       <div className="bp-route">
         <div className="bp-end">
@@ -1261,83 +1268,53 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
   // holds in their head. The package figure and the whole-party fare stay underneath as
   // fine print, so nothing is hidden and nothing shouts twice.
   if (option) {
-    const { impact, perPerson } = option;   // impact: € on the package; perPerson: € each
+    const { perPerson } = option;   // € each, against the flight currently held
     // Two decimals: a per-head share of a party total is rarely a round number, and
     // rounding it to €78 would not add up against the package figure printed below it.
     const money = (n) => Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
     return (
       <div className={`flight-card option${selected ? ' selected' : ''}${cheapest && !selected ? ' cheapest' : ''}${expanded ? ' expanded' : ''}`}>
-        {/* The strip names what this card IS on the left and, on the one fare that earns it,
-            why it stands out on the right. */}
-        <div className="fc-status">
-          <span className="fc-status-label">{selected ? 'Currently selected' : 'Alternative flight'}</span>
-          {f.delta === 0 && <span className="fc-best">{ICON.spark} Lowest fare</span>}
-        </div>
-
         <div className="fc-split">
           <div className="fc-main">
-            {/* The allowance is a term of the fare, so it is the same both ways: one row
-                under both columns rather than the same two chips printed twice. */}
+            {/* No allowance row and no status strip. Both said the same thing on every card
+                in the list — the allowance is a term of the fare, and "Alternative flight"
+                is what a card in a list of alternatives already is — and between them they
+                cost two rows on each of a dozen options, which is two rows of the screen
+                this list needs for comparing. */}
             <div className={`fc-legs${ret.length ? '' : ' fc-legs-one'}`}>
-              <JourneyColumn dir="Outbound" legs={out} />
-              {ret.length > 0 && <JourneyColumn dir="Return" legs={ret} />}
+              <JourneyColumn dir="Outbound" legs={out} compact />
+              {ret.length > 0 && <JourneyColumn dir="Return" legs={ret} compact />}
             </div>
-            {fareIncludes.length > 0 && (
-              <div className="bp-incl" aria-label="Included in this fare">
-                {fareIncludes.map((x) => (
-                  <span key={x.label} className={`bp-chip${x.ok ? ' bp-chip-inc' : ''}`}>{x.icon}{x.label}</span>
-                ))}
-              </div>
-            )}
-            <div className="fc-main-foot">{detailsBtn}</div>
           </div>
 
+          {/* The rail asks and answers the list's one question — "what does switching to
+              this one cost me?" — and then offers the switch. Per person, because that is
+              the figure a traveller holds in their head; the whole-party fare is the same
+              fact multiplied, and the note above the list already says taxes are in. */}
           <div className="fc-rail">
-            {selected && <div className="flight-selected-badge">{ICON.check} Selected</div>}
-
-            {/* The headline: what one traveller pays over or under the flight now held. */}
-            {perPerson != null && (
-              <div className={`fc-swing${perPerson === 0 ? ' same' : perPerson > 0 ? ' up' : ' down'}`}>
-                {perPerson === 0
-                  ? <b>Same price</b>
-                  : <><b>{perPerson > 0 ? '+' : '−'} €{money(perPerson)}</b><em>p.p.</em></>}
-              </div>
+            {selected ? (
+              <div className="flight-selected-badge">{ICON.check} Selected</div>
+            ) : (
+              <button
+                type="button" className="fc-pick" role="radio" aria-checked="false"
+                onClick={onSelect}
+                aria-label={perPerson == null || perPerson === 0
+                  ? 'Select this flight'
+                  : `Select this flight, ${perPerson > 0 ? 'plus' : 'minus'} €${money(perPerson)} per person`}
+              >
+                {f.delta === 0 && <span className="fc-best">{ICON.spark} Lowest fare</span>}
+                {perPerson != null && (
+                  <span className={`fc-swing${perPerson === 0 ? ' same' : perPerson > 0 ? ' up' : ' down'}`}>
+                    {perPerson === 0
+                      ? <b>Same price</b>
+                      : <b>{perPerson > 0 ? '+' : '−'} €{money(perPerson)}</b>}
+                  </span>
+                )}
+                <span className="fc-swing-cap">per person</span>
+                <span className="fc-radio" aria-hidden="true" />
+              </button>
             )}
-            {perPerson != null && (
-              <span className="fc-swing-cap">
-                {selected ? 'This is your current flight' : 'vs your selected flight'}
-              </span>
-            )}
-
-            {/* What choosing this flight does to the package total. The figure is measured
-                against the flight currently selected — not against the cheapest — because
-                that is the price the traveller is holding and the one that would change. */}
-            {impact != null && (
-              <div className={`fc-impact${impact === 0 ? ' same' : impact > 0 ? ' up' : ' down'}`}>
-                {impact === 0
-                  ? <span>No change to your package price</span>
-                  : (
-                    <span>
-                      <b>{impact > 0 ? '+' : '−'} €{Math.abs(Math.round(impact)).toLocaleString('en-GB')}</b>
-                      {' '}to your package price
-                    </span>
-                  )}
-              </div>
-            )}
-
-            {f.price != null && (
-              <span className="fc-fare">
-                <b className="live-price">€{f.price.toLocaleString('en-GB')}</b>
-                <em>
-                  flight fare, all travellers, taxes in
-                  <FilterHint text="The fare covers every traveller on this booking, with taxes and airline fees already included. Hotel and extras are priced separately." />
-                </em>
-              </span>
-            )}
-
-            {!selected && (
-              <button className="flight-select-btn fc-select" onClick={onSelect}>Select this flight</button>
-            )}
+            {detailsBtn}
           </div>
         </div>
 
@@ -2357,6 +2334,9 @@ export default function HotelDetail() {
   const [fAirlines, setFAirlines] = useState([]);
   // Phone only: the filter rail is a sheet over the list rather than a column beside it.
   const [filterSheet, setFilterSheet] = useState(false);
+  // Desktop only: the rail folds away to a tab down the left edge, giving the cards the
+  // width back. Open to begin with — a filter nobody can see is a filter nobody uses.
+  const [railOpen, setRailOpen] = useState(true);
   // Departure-time sliders. `null` means untouched: the range is whatever the results span,
   // so a slider dropped back to its ends filters nothing.
   const [fOutRange, setFOutRange] = useState(null);
@@ -4792,14 +4772,14 @@ export default function HotelDetail() {
                 with, and drops to "6 of 14" the moment a filter narrows the list — so the
                 rail's effect is legible without scrolling down to count cards. */}
             <div className="modal-head-main">
-              <h2 className="modal-title" id="cfm-title">Choose your flights</h2>
-              <div className="modal-subtitle">
-                {ICON.plane}
-                <span>
+              <span className="modal-head-mark" aria-hidden="true">{ICON.plane}</span>
+              <div className="modal-head-text">
+                <h2 className="modal-title" id="cfm-title">Choose your flights</h2>
+                <div className="modal-subtitle">
                   {modalFlights.length === allFlights.length
                     ? `${allFlights.length} flight option${allFlights.length === 1 ? '' : 's'}`
                     : `${modalFlights.length} of ${allFlights.length} flight options`}
-                </span>
+                </div>
               </div>
             </div>
             {/* On a phone the filter rail is a sheet, so it needs a way in. The count says
@@ -4823,10 +4803,29 @@ export default function HotelDetail() {
               <S sw={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
             </button>
           </div>
-          <div className={`modal-body${filterSheet ? ' filters-open' : ''}`}>
+          <div className={`modal-body${filterSheet ? ' filters-open' : ''}${railOpen ? ' rail-open' : ''}`}>
+            {/* Folded away, the rail is a tab down the left edge rather than a control in
+                the header: it stays where the rail itself was, so opening it does not make
+                the traveller look for where it went. Desktop only — on a phone the rail is
+                a sheet and the header's Filters button opens it. */}
+            <button type="button" className="modal-rail-tab"
+              aria-expanded={false} aria-controls="cfm-filters"
+              onClick={() => setRailOpen(true)}>
+              <S size={20} sw={2}>
+                <line x1="4" y1="7" x2="20" y2="7" /><line x1="4" y1="12" x2="20" y2="12" />
+                <line x1="4" y1="17" x2="20" y2="17" />
+                <circle cx="9" cy="7" r="2.2" /><circle cx="15" cy="12" r="2.2" /><circle cx="8" cy="17" r="2.2" />
+              </S>
+              <span>Filters{activeFilterCount ? ` · ${activeFilterCount}` : ''}</span>
+            </button>
             <div className="modal-sidebar" id="cfm-filters">
               <div className="modal-filter-head">
                 <span className="modal-filter-heading">Filters</span>
+                <button type="button" className="modal-rail-fold"
+                  aria-expanded aria-controls="cfm-filters"
+                  onClick={() => setRailOpen(false)} aria-label="Hide filters">
+                  <S size={17} sw={2.4}><path d="M15 18l-6-6 6-6" /></S>
+                </button>
               </div>
 
               {facets.type && (
