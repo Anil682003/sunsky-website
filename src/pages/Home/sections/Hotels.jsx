@@ -111,7 +111,7 @@ export default function Hotels({ cms }) {
             <p className={styles.sub}>{cmsText(subtitle)}</p>
           </div>
           <div className={styles.headNote} aria-hidden="true">
-            <span>hand-picked by our travel crew</span>
+            <span>{t('hotels.headNote', 'hand-picked by our travel crew')}</span>
             <svg className={styles.headNoteArrow} viewBox="0 0 54 40" fill="none">
               <path d="M6 5 C 22 10, 38 18, 45 32" stroke="#E08A00" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="1 5" />
               <path d="M39 28 L46 34 L47 25" stroke="#E08A00" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -127,7 +127,7 @@ export default function Hotels({ cms }) {
 
                 {i === 0 && (
                   <div className={styles.cardNote} aria-hidden="true">
-                    guest favourite!
+                    {t('hotels.guestFavourite', 'guest favourite!')}
                     <svg viewBox="0 0 36 30" fill="none">
                       <path d="M6 4 C 14 8, 22 14, 26 26" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeDasharray="1 4" />
                       <path d="M21 21 L26 27 L28 19" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
@@ -136,7 +136,7 @@ export default function Hotels({ cms }) {
                 )}
                 {i === 3 && (
                   <div className={`${styles.cardNote} ${styles.cardNoteAlt}`} aria-hidden="true">
-                    booking fast!
+                    {t('hotels.bookingFast', 'booking fast!')}
                   </div>
                 )}
 

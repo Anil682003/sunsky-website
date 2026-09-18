@@ -70,7 +70,8 @@
       "carHolidays": "Car Holidays",
       "lastMinute": "Last Minute"
     },
-    "explore": "Explore"
+    "explore": "Explore",
+    "scribble": "pick your vibe"
   },
   "vacationTypes": {
     "tag": "♡ Curated",
@@ -106,7 +107,10 @@
     "from": "From",
     "perPerson": "p.p.",
     "viewDeal": "View Deal",
-    "viewDealFor": "View deal for {{name}}"
+    "viewDealFor": "View deal for {{name}}",
+    "headNote": "hand-picked by our travel crew",
+    "guestFavourite": "guest favourite!",
+    "bookingFast": "booking fast!"
   },
   "destinations": {
     "tag": "☀ Destinations",

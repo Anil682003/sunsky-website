@@ -70,7 +70,8 @@
       "carHolidays": "Autovakanties",
       "lastMinute": "Last minute"
     },
-    "explore": "Ontdek"
+    "explore": "Ontdek",
+    "scribble": "kies je stijl"
   },
   "vacationTypes": {
     "tag": "♡ Geselecteerd",
@@ -106,7 +107,10 @@
     "from": "Vanaf",
     "perPerson": "p.p.",
     "viewDeal": "Bekijk deal",
-    "viewDealFor": "Bekijk de deal voor {{name}}"
+    "viewDealFor": "Bekijk de deal voor {{name}}",
+    "headNote": "met zorg gekozen door ons reisteam",
+    "guestFavourite": "favoriet bij gasten!",
+    "bookingFast": "snel volgeboekt!"
   },
   "destinations": {
     "tag": "☀ Bestemmingen",

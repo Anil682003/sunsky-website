@@ -198,7 +198,7 @@ export default function Categories({ cms }) {
               <span className={styles.titleAccent}>{titleLast}</span>
             </h2>
             <span className={styles.scribble} aria-hidden="true">
-              pick your vibe
+              {t('categories.scribble', 'pick your vibe')}
               <svg className={styles.scribbleArrow} viewBox="0 0 32 36" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M5 4 C 24 6, 26 18, 14 30" />
                 <path d="M9 25l5 6 7-3" />

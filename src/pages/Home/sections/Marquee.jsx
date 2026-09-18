@@ -27,9 +27,19 @@ const GHOST_WORDS = [
 
 export default function Marquee({ cms }) {
   const { t } = useTranslation('home');
-  const items = (cms?.marqueeItems?.length > 0)
-    ? cms.marqueeItems
-    : FALLBACK.map(([key, en]) => t(`marquee.${key}`, en));
+  // The translated fallback, in the reader's language.
+  const translated = FALLBACK.map(([key, en]) => t(`marquee.${key}`, en));
+  // A CMS marquee wins ONLY once it says something other than the shipped
+  // English seed. The stored value on this site is byte-for-byte that seed — it
+  // was never really customised, just the default sitting in the DB — and
+  // honouring it would freeze the belt in English on a Dutch page. The moment
+  // SUNSKY types their own strip in the dashboard it differs from the seed and
+  // takes over, exactly as a CMS field should.
+  const cmsItems = cms?.marqueeItems ?? [];
+  const isUntouchedSeed =
+    cmsItems.length === FALLBACK.length &&
+    cmsItems.every((v, i) => v === FALLBACK[i][1]);
+  const items = cmsItems.length > 0 && !isUntouchedSeed ? cmsItems : translated;
   // Airport codes alternating with handwriting, the way the ghost belt reads.
   const ghostItems = GHOST_ROUTES.flatMap((route, i) => [
     route,
