@@ -3377,20 +3377,6 @@ export default function HotelDetail() {
                                     : 'Live availability and price confirmed'}
                                 </div>
 
-                                {/* The three facts a traveller checks a holiday against, on one
-                                    line with their own icons instead of a dot-separated run-on. */}
-                                <div className="av-facts">
-                                  <span className="av-fact">{ICON.cal}{rangeLabel(pd.iso, addDaysISO(pd.iso, nights)) || longDate(pd.iso)}</span>
-                                  <span className="av-fact">
-                                    {ICON.people}
-                                    {[
-                                      `${availAdults} adult${availAdults === 1 ? '' : 's'}`,
-                                      availChildren > 0 ? `${availChildren} child${availChildren === 1 ? '' : 'ren'}` : null,
-                                      availRooms > 1 ? `${availRooms} rooms` : null,
-                                    ].filter(Boolean).join(' · ')}
-                                  </span>
-                                  <span className="av-fact">{ICON.moon}{stayLabel(nights)}</span>
-                                </div>
                               </div>
                             </div>
 
@@ -3446,6 +3432,21 @@ export default function HotelDetail() {
                                   : pdEstimate ? (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')
                                   : 'No cached estimate'}
                               </div>
+                            </div>
+
+                            {/* The three facts a traveller checks a holiday against, on one
+                                line with their own icons instead of a dot-separated run-on. */}
+                            <div className="av-facts">
+                              <span className="av-fact">{ICON.cal}{rangeLabel(pd.iso, addDaysISO(pd.iso, nights)) || longDate(pd.iso)}</span>
+                              <span className="av-fact">
+                                {ICON.people}
+                                {[
+                                  `${availAdults} adult${availAdults === 1 ? '' : 's'}`,
+                                  availChildren > 0 ? `${availChildren} child${availChildren === 1 ? '' : 'ren'}` : null,
+                                  availRooms > 1 ? `${availRooms} rooms` : null,
+                                ].filter(Boolean).join(' · ')}
+                              </span>
+                              <span className="av-fact">{ICON.moon}{stayLabel(nights)}</span>
                             </div>
                           </div>
 

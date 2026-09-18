@@ -969,13 +969,14 @@
 .sd .fc-res { display:flex; flex-direction:column; gap:14px; }
 
 .sd .av-card {
-  display:flex; align-items:stretch; gap:24px;
-  background:var(--white); border:1px solid var(--border-light); border-radius:18px;
-  padding:22px 24px; box-shadow:var(--shadow-xs);
+  display:flex; flex-direction:column; align-items:center; text-align:center; gap:14px;
+  background:linear-gradient(180deg, #F2FBF6, #EAF7F0);
+  border:1px solid #CBEBDB; border-radius:18px;
+  padding:26px 24px; box-shadow:var(--shadow-xs);
 }
-.sd .av-main { display:flex; align-items:flex-start; gap:16px; flex:1; min-width:0; }
+.sd .av-main { display:flex; flex-direction:column; align-items:center; gap:10px; min-width:0; }
 .sd .av-head { min-width:0; }
-.sd .av-card .fc-res-mark { flex:none; width:38px; height:38px; margin-top:2px; }
+.sd .av-card .fc-res-mark { flex:none; width:34px; height:34px; margin:0; }
 
 .sd .av-card .avail-text {
   font-family:'Sora',sans-serif; font-size:23px; font-weight:800; color:#0B7A57;
@@ -994,7 +995,7 @@
 .sd .av-confirm.busy { background:var(--blue-pale); color:var(--text-sec); }
 
 /* The three facts, side by side with hairlines between them. */
-.sd .av-facts { display:flex; align-items:center; flex-wrap:wrap; gap:10px 18px; margin-top:16px; }
+.sd .av-facts { display:flex; align-items:center; justify-content:center; flex-wrap:wrap; gap:8px 18px; margin-top:4px; }
 .sd .av-fact {
   display:inline-flex; align-items:center; gap:8px;
   font-size:13.5px; font-weight:700; color:var(--dark);
@@ -1004,9 +1005,9 @@
 
 /* The price column, divided off from the answer beside it. */
 .sd .av-price {
-  flex:0 0 auto; min-width:212px; max-width:280px;
-  padding-left:24px; border-left:1px solid var(--border-light);
-  display:flex; flex-direction:column; align-items:flex-start;
+  flex:0 0 auto; min-width:0; max-width:none;
+  padding-left:0; border-left:0;
+  display:flex; flex-direction:column; align-items:center;
 }
 .sd .av-price-label {
   font-size:11px; font-weight:800; letter-spacing:.09em; text-transform:uppercase; color:#0B7A57;
@@ -1020,7 +1021,7 @@
 .sd .avail-price-val small { font-size:24px; font-weight:700; margin-right:1px; }
 .sd .avail-price-val em { font-style:normal; font-size:17px; font-weight:700; margin-left:7px; }
 /* The rule the design draws under the price, before the move. */
-.sd .av-price-rule { width:100%; height:1px; background:var(--border-light); margin:16px 0 0; }
+.sd .av-price-rule { display:none; }
 /* The party total, quiet and under the move: the figure they compare on and the figure they
    pay are different numbers, and a per-person price on a package page needs the second one
    somewhere or it reads as the whole holiday. */
@@ -3645,3 +3646,14 @@
   .sd .hi-wx-day-icon svg { width: 20px; height: 20px; }
   .sd .hi-wx-day-max { font-size: 13px; }
 }
+
+
+/* ── Availability card: the mockup's centred stack ──
+   The fare is the news once the hotel has answered, so it carries the size, and
+   the party total sits straight under it in words. Added after the rules above
+   so these win without editing each of them. */
+.sd .av-card .avail-text { font-size:26px; }
+.sd .av-card .av-head { display:flex; flex-direction:column; align-items:center; gap:8px; }
+.sd .av-card .avail-price-val { font-size:44px; }
+.sd .av-card .av-price-total { margin-top:2px; }
+.sd .av-card .av-price-label { text-align:center; }
