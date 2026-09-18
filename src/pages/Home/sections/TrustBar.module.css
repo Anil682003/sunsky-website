@@ -1,15 +1,15 @@
 /* ═══════════════════════════════════════════════════════════
    SunSky — Guarantee bar ("trust balk")
-   A quiet band under the belt: the seals the agency holds, at a
-   size where their type can actually be read, and one way through
-   to the page that explains them. Deliberately calm — it sits
-   between two loud sections and its job is reassurance, not noise.
+   A quiet band under the belt: the seals the agency holds and one
+   way through to the page that explains them, as a single centred
+   cluster. Deliberately calm — it sits between two loud sections
+   and its job is reassurance, not noise.
    ═══════════════════════════════════════════════════════════ */
 
 .wrap {
   position: relative;
   overflow: hidden;
-  padding: 26px 0;
+  padding: 18px 0;
   background: linear-gradient(180deg, #FFFFFF 0%, var(--blue-bg, #F5F8FF) 100%);
   border-top: 1px solid rgba(15, 40, 100, 0.06);
   border-bottom: 1px solid rgba(15, 40, 100, 0.06);
@@ -28,10 +28,12 @@
   padding: 0 clamp(16px, 3vw, 40px);
   display: flex;
   align-items: center;
-  gap: clamp(18px, 4vw, 48px);
+  justify-content: center;
+  flex-wrap: wrap;
+  gap: clamp(14px, 2.4vw, 28px);
 }
 
-.lead { display: flex; flex-direction: column; gap: 6px; flex-shrink: 0; }
+.lead { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
 .eyebrow {
   display: inline-flex; align-items: center; gap: 7px;
   font-size: 10.5px; font-weight: 800;
@@ -40,7 +42,7 @@
 }
 .title {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(1.05rem, 2vw, 1.35rem);
+  font-size: clamp(0.95rem, 1.5vw, 1.15rem);
   font-weight: 800; letter-spacing: -0.02em;
   color: var(--text, #1A2744);
   line-height: 1.2;
@@ -55,15 +57,15 @@
    insolvency seal and a wide wordmark must not be forced into one box between them. */
 .marks {
   display: flex; align-items: center;
-  gap: clamp(16px, 3vw, 34px);
-  flex: 1; min-width: 0;
+  gap: clamp(12px, 2vw, 22px);
+  flex: 0 1 auto; min-width: 0;
   list-style: none; margin: 0; padding: 0;
   flex-wrap: wrap;
 }
 .markItem { display: flex; align-items: center; }
 .mark {
-  height: 54px; width: auto;
-  max-width: 148px;
+  height: 38px; width: auto;
+  max-width: 104px;
   object-fit: contain;
   transition: transform 0.3s var(--ease, cubic-bezier(.22,1,.36,1));
 }
@@ -83,10 +85,10 @@
 .more {
   flex-shrink: 0;
   display: inline-flex; align-items: center; gap: 7px;
-  font-size: 13px; font-weight: 700;
+  font-size: 12.5px; font-weight: 700;
   color: var(--blue-deep, #1F4FD8);
   text-decoration: none;
-  padding: 9px 16px;
+  padding: 7px 14px;
   border: 1.5px solid rgba(31, 79, 216, 0.22);
   border-radius: var(--r-full, 9999px);
   background: rgba(255, 255, 255, 0.75);
@@ -113,13 +115,13 @@
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  .inner { flex-wrap: wrap; gap: 16px 24px; }
-  .marks { order: 3; width: 100%; justify-content: flex-start; }
-  .more { margin-left: auto; }
+  .inner { gap: 12px 20px; }
+  .marks { justify-content: center; }
 }
 @media (max-width: 560px) {
-  .wrap { padding: 20px 0; }
-  .mark { height: 44px; max-width: 118px; }
-  .marks { gap: 18px; }
-  .more { width: 100%; justify-content: center; margin-left: 0; }
+  .wrap { padding: 16px 0; }
+  .mark { height: 34px; max-width: 96px; }
+  .marks { gap: 14px; }
+  /* Full width only where the cluster has genuinely become a stack. */
+  .more { width: 100%; justify-content: center; }
 }
