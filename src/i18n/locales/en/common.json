@@ -34,7 +34,7 @@
     "holidayTypes_one": "{{count}} holiday type",
     "holidayTypes_other": "{{count}} holiday types",
     "exploreHolidays": "Explore holidays",
-    "searchPlaceholder": "Search hotels & destinations",
+    "searchPlaceholder": "Search destination, hotel or region",
     "searchLabel": "Search hotels and destinations"
   },
   "language": {

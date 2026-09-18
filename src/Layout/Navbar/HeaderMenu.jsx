@@ -41,7 +41,6 @@ export default function HeaderMenu({ label, buttonIcon, tally, items, align = 'l
       >
         <span className={styles.hmBtnIcon}>{buttonIcon}</span>
         <span className={styles.hmBtnLabel}>{label}</span>
-        <span className={styles.hmStamp} aria-hidden="true">{String(items.length).padStart(2, '0')}</span>
         <svg
           className={`${styles.hmChevron} ${open ? styles.hmChevronUp : ''}`}
           width="12" height="12" viewBox="0 0 24 24" fill="none"

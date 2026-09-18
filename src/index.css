@@ -57,6 +57,10 @@
      hardcode it. Currently 11px of breathing room above and below a 56px
      logo, which is the tallest thing in the bar. */
   --nav-h: 78px;
+  /* The header bar. The search field paints its die-cut notches in this exact
+     colour so they read as holes punched through the bar, so the two must
+     always agree — hence a token rather than a hex typed in three files. */
+  --nav-bg: #fff;
 }
 
 *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }

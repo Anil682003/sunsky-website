@@ -1,21 +1,29 @@
-/* Language control in the header. Two segments in one pill, so it reads as one
-   control with a current state rather than two unrelated buttons. */
+/* Language control in the header. Two words either side of a hairline: the
+   active one is simply darker and heavier. It used to be a solid blue capsule,
+   which made the current language the loudest thing in the bar — louder than
+   Register, which is the only thing up there anyone is meant to click. */
 
 .wrap {
   display: inline-flex;
   align-items: center;
-  gap: 2px;
-  padding: 3px;
-  border: 1px solid var(--blue-light, #E8F1FF);
-  border-radius: var(--r-full, 9999px);
-  background: var(--white, #fff);
+  gap: 0;
+  padding: 0;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+}
+
+/* A hairline between the two, so they read as one control rather than two
+   unrelated words sitting near each other. */
+.wrap .btn + .btn {
+  border-left: 1px solid var(--blue-light, #E8F1FF);
 }
 
 .btn {
-  min-width: 34px;
-  padding: 5px 9px;
+  min-width: 0;
+  padding: 4px 12px;
   border: 0;
-  border-radius: var(--r-full, 9999px);
+  border-radius: 0;
   background: transparent;
   cursor: pointer;
   font-family: 'Sora', sans-serif;
@@ -26,14 +34,15 @@
   transition: background 0.2s var(--ease, cubic-bezier(.22,1,.36,1)),
               color 0.2s var(--ease, cubic-bezier(.22,1,.36,1));
 }
-.btn:hover { background: var(--blue-bg, #F5F8FF); color: var(--blue-deep, #1F4FD8); }
+.btn:hover { background: transparent; color: var(--blue-deep, #1F4FD8); }
 .btn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 2px; }
 
 .btnOn {
-  background: var(--blue-deep, #1F4FD8);
-  color: var(--white, #fff);
+  background: transparent;
+  color: var(--blue-deep, #1F4FD8);
+  font-weight: 800;
 }
-.btnOn:hover { background: var(--blue-deep, #1F4FD8); color: var(--white, #fff); }
+.btnOn:hover { background: transparent; color: var(--blue-deep, #1F4FD8); }
 
 /* In the mobile sheet this is tapped with a thumb, so the segments carry an
    explicit 44px height rather than relying on padding plus a font size to add up
