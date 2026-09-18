@@ -1934,45 +1934,73 @@
    steps — is blue, and the summary was reading as one more of those rather than as the end of
    the sequence. It picks up the warm ground the total bar and the book button already stand on,
    so the three parts of the decision (what it is, what it costs, book it) share one colour. */
-.sd .overview-head { padding:24px 26px; background:linear-gradient(135deg,#fdeed8 0%,#fce7cb 100%); border-bottom:1px solid #f6dfbe; position:relative; overflow:hidden; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
+.sd .overview-head { margin:22px 24px 0; padding:20px 22px; background:var(--white); border:1px solid var(--border); border-radius:16px; position:relative; display:flex; align-items:flex-start; justify-content:space-between; gap:16px; flex-wrap:wrap; }
 .sd .overview-head-main { min-width:0; }
 .sd .overview-score { position:relative; display:inline-flex; align-items:center; gap:6px; padding:9px 16px; border-radius:var(--r-full); background:rgba(255,255,255,.12); border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); color:#fff; font-family:'Sora',sans-serif; font-size:12.5px; font-weight:800; white-space:nowrap; }
 .sd .overview-score b { color:#D9700F; }
-.sd .overview-head::after { content:''; position:absolute; top:-70px; right:-40px; width:220px; height:220px; border-radius:50%; background:radial-gradient(circle,rgba(224,150,59,.14),transparent 65%); pointer-events:none; }
+/* The warm glow went with the warm band. */
 .sd .overview-hotel { font-family:'Sora',sans-serif; font-size:20px; font-weight:800; color:var(--dark); position:relative; letter-spacing:-.3px; }
-.sd .overview-stars { color:#C2740A; font-size:13px; margin-top:2px; letter-spacing:1px; position:relative; }
-/* #6B5537 rather than the page's grey: the greys are tuned against white and go muddy on a
-   warm ground. This is the same weight of step-back, in the ground's own hue. */
+.sd .overview-lead { font-size:14.5px; font-weight:500; color:var(--text-sec); margin:-4px 0 16px; }
+.sd .overview-stars { color:var(--sun); font-size:15px; margin-top:4px; letter-spacing:2px; position:relative; }
 .sd .overview-loc, .sd .overview-pax, .sd .overview-dates {
-  font-size:13px; color:#6B5537; margin-top:7px;
-  display:flex; align-items:center; gap:7px; position:relative;
+  font-size:13.5px; color:var(--text-sec); margin-top:9px;
+  display:flex; align-items:flex-start; gap:9px; position:relative;
 }
-.sd .overview-loc svg, .sd .overview-pax svg, .sd .overview-dates svg { width:15px; height:15px; color:#A8814A; flex-shrink:0; }
-.sd .overview-dates span { color:#8A7150; }
-.sd .overview-body { padding:8px 24px 20px; }
+.sd .overview-loc svg, .sd .overview-pax svg, .sd .overview-dates svg { width:16px; height:16px; color:var(--blue); flex-shrink:0; margin-top:1px; }
+/* The length of the stay on its own line: it qualifies the dates above it rather than
+   extending them, and run on the same line it was read as part of the second date. */
+.sd .overview-dates em { display:block; font-style:normal; color:var(--text-light); margin-top:2px; }
+
+/* The three facts of the stay, on one strip: who, in what, on what board. Every figure in
+   the card below is priced off these three, and they were readable nowhere on it. */
+.sd .overview-facts {
+  display:flex; flex-wrap:wrap; gap:12px 28px;
+  margin:14px 24px 0; padding:16px 22px;
+  border-radius:14px; background:var(--blue-pale);
+}
+.sd .overview-fact { display:flex; align-items:flex-start; gap:11px; min-width:0; flex:1 1 180px; }
+.sd .overview-fact svg { width:20px; height:20px; color:var(--blue); flex-shrink:0; margin-top:1px; }
+.sd .overview-fact b { display:block; font-size:14px; font-weight:700; color:var(--dark); }
+.sd .overview-fact em { display:block; font-style:normal; font-size:12.5px; color:var(--text-sec); margin-top:2px; }
+.sd .overview-body { padding:22px 24px 20px; }
+.sd .overview-body-title { font-family:'Sora',sans-serif; font-size:19px; font-weight:800; color:var(--dark); letter-spacing:-.3px; margin-bottom:4px; }
 /* A dashed rule under each row, in place of the dotted leader that used to run BETWEEN label
    and value. The leader stretched and shrank with the label, so no two rows lined up and the
    eye had nothing straight to travel along; a full-width rule gives every row the same one. */
-.sd .overview-row { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:13px 0; font-size:13.5px; border-bottom:1px dashed #e2e8f2; }
+.sd .overview-row { display:flex; align-items:flex-start; justify-content:space-between; gap:14px; padding:14px 0; font-size:14px; border-bottom:1px solid var(--border-light); }
 .sd .overview-leader { display:none; }
 .sd .overview-row-label { color:var(--text-sec); display:flex; align-items:center; gap:9px; min-width:0; }
 .sd .overview-row-label svg { width:16px; height:16px; color:#9db3d4; flex-shrink:0; }
-.sd .overview-row-val { font-family:'Sora',sans-serif; font-weight:800; color:var(--dark); white-space:nowrap; font-variant-numeric:tabular-nums lining-nums; }
+.sd .overview-row-val { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--dark); white-space:nowrap; text-align:right; font-variant-numeric:tabular-nums lining-nums; }
+/* The per-head share under the party total. A holiday is agreed per person and paid as a
+   whole, and the card was only ever printing one of the two. */
+.sd .overview-row-val em {
+  display:block; font-family:'DM Sans',sans-serif; font-style:normal;
+  font-size:12.5px; font-weight:500; color:var(--text-sec); margin-top:2px;
+}
 /* No tinted box. These are two short confirmations, and a panel around them gave them the
    weight of a priced line without a price — they outranked the rows above that cost money. */
-.sd .overview-extras { padding:14px 0 0; }
-.sd .overview-extra { font-size:13px; color:#059669; font-weight:600; padding:4px 0; display:flex; align-items:center; gap:9px; }
-.sd .overview-extra svg { width:16px; height:16px; flex-shrink:0; }
+/* These two DO earn a panel: they are the only lines on the card that cost nothing, and
+   saying so in the column the prices are in is the whole point of them. */
+.sd .overview-extras { margin-top:18px; padding:14px 18px; border-radius:12px; background:#F1FBF6; }
+.sd .overview-extra { font-size:13.5px; color:#0B7A57; font-weight:600; padding:5px 0; display:flex; align-items:center; gap:10px; }
+.sd .overview-extra svg { width:17px; height:17px; flex-shrink:0; }
+.sd .overview-extra > span { display:inline-flex; align-items:center; gap:6px; min-width:0; }
+.sd .overview-extra b { margin-left:auto; font-weight:800; }
+.sd .overview-extra .mf-hint { color:#5FA98A; }
 /* receipt tear-line above the total, with punched notches */
 /* The same warm ground as the head, closing the card the way it opened. The perforated notches
    and tear line went with the switch: they belong to a boarding pass, and borrowing them here
    cut the summary in half at exactly the line a traveller most needs to read straight across. */
-.sd .overview-total { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:20px 26px; background:linear-gradient(135deg,#fdeed8 0%,#fce7cb 100%); position:relative; }
-.sd .overview-total-label { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--dark); }
-.sd .overview-total-val { font-family:'Sora',sans-serif; font-size:32px; font-weight:800; color:var(--dark); letter-spacing:-.8px; font-variant-numeric:tabular-nums lining-nums; }
+/* No band. The figure is the biggest thing on the card already; a coloured strip behind it
+   did the same job twice and cut the summary in half at exactly the line a traveller most
+   needs to read straight across. */
+.sd .overview-total { display:flex; align-items:center; justify-content:space-between; gap:14px; padding:8px 26px 4px; background:none; position:relative; }
+.sd .overview-total-label { font-family:'Sora',sans-serif; font-size:19px; font-weight:800; color:var(--dark); letter-spacing:-.3px; }
+.sd .overview-total-val { font-family:'Sora',sans-serif; font-size:32px; font-weight:800; color:var(--blue); letter-spacing:-.8px; font-variant-numeric:tabular-nums lining-nums; }
 .sd .overview-deposit { padding:12px 26px; font-size:12px; font-weight:600; color:var(--text-sec); background:var(--blue-pale); display:flex; align-items:center; gap:8px; }
 .sd .overview-deposit svg { color:var(--blue); flex-shrink:0; width:14px; height:14px; }
-.sd .overview-book-wrap { padding:18px 26px 22px; }
+.sd .overview-book-wrap { padding:16px 26px 18px; }
 .sd .overview-book-btn { display:flex; align-items:center; justify-content:center; gap:6px; width:100%; padding:16px; border-radius:var(--r-full); background:linear-gradient(135deg,var(--sun),var(--gold)); color:#fff; font-family:'Sora',sans-serif; font-size:16px; font-weight:800; text-align:center; box-shadow:0 8px 24px rgba(255,159,28,.35); transition:all .3s var(--ease); position:relative; overflow:hidden; }
 .sd .overview-book-btn::before { content:''; position:absolute; inset:0; background:linear-gradient(135deg,transparent 20%,rgba(255,255,255,.35) 50%,transparent 80%); transform:translateX(-120%); transition:transform .5s; }
 .sd .overview-book-btn:hover::before { transform:translateX(120%); }
@@ -1982,12 +2010,17 @@
 .sd .overview-spot-costs-label svg { color:var(--text-light); width:13px; height:13px; }
 .sd .overview-spot-list { display:flex; gap:8px; flex-wrap:wrap; }
 .sd .overview-spot-cost { font-family:'Sora',sans-serif; font-size:12px; font-weight:800; color:var(--dark); padding:6px 14px; border-radius:var(--r-full); background:var(--blue-pale); border:1px solid #dce9fc; }
-/* A plain line, not an amber pill. Amber on this page means "money at stake" — it is the
-   colour on the partial-cancellation chip — and wrapping a routine footnote in it made the
-   last thing under the book button read as a warning about the booking. */
-.sd .overview-urgency { padding:2px 24px 22px; text-align:center; }
-.sd .overview-urgency-text { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--text-sec); }
-.sd .overview-urgency-text svg { width:15px; height:15px; color:#9db3d4; flex-shrink:0; }
+/* What is NOT in the total, in the panel the card uses for "here is something to know".
+   Still not amber: on this page amber means money at stake, and the last thing under the
+   book button should not read as a warning about the booking. */
+.sd .overview-urgency {
+  display:flex; align-items:flex-start; gap:12px; text-align:left;
+  margin:0 24px 24px; padding:15px 18px;
+  border-radius:12px; background:var(--blue-pale);
+}
+.sd .overview-urgency > svg { width:19px; height:19px; color:var(--blue); flex-shrink:0; margin-top:1px; }
+.sd .overview-urgency-text { display:block; font-size:13px; line-height:1.55; color:var(--text-sec); }
+.sd .overview-urgency-text b { display:block; font-weight:700; color:var(--blue); margin-bottom:2px; }
 
 /* FLIGHT MODAL */
 .sd .modal-overlay { display:none; position:fixed; inset:0; background:rgba(7,14,31,.5); z-index:1100; align-items:center; justify-content:center; backdrop-filter:blur(4px); padding:22px; }
@@ -2819,9 +2852,9 @@
 .sd .flight-note { font-size:14px; margin-bottom:16px; }
 
 /* kill the 22-size ramp: snap to 10/11/12/13/14 */
-.sd .rvna, .sd .meal-price, .sd .mbc, .sd .overview-row { font-size:13px; }
+.sd .rvna, .sd .meal-price, .sd .mbc { font-size:13px; }
 .sd .room-name { font-size:14px; }
-.sd .bc, .sd .hhb, .sd .rm, .sd .fm, .sd .mb, .sd .rn, .sd .overview-score, .sd .overview-loc, .sd .alt-airports-label, .sd .avail-sub { font-size:12px; }
+.sd .bc, .sd .hhb, .sd .rm, .sd .fm, .sd .mb, .sd .rn, .sd .overview-score, .sd .alt-airports-label, .sd .avail-sub { font-size:12px; }
 .sd .sd-hc-sub, .sd .bkpl, .sd .bkp-total, .sd .rvd, .sd .meal-action, .sd .room-cap, .sd .flight-warning, .sd .alt-chip-name, .sd .rrv, .sd .room-low-avail, .sd .flight-airport, .sd .room-avail { font-size:11px; }
 .sd .wd { font-size:10px; }
 
@@ -2896,7 +2929,6 @@
 /* one warning voice (amber), retire coral */
 .sd .room-avail { background:none; padding:3px 0; color:#b45309; }
 .sd .room-low-avail { background:var(--sun-warm); border:1px solid #ffe9c7; color:#b45309; }
-.sd .overview-urgency-text { background:none; border:none; padding:0; color:var(--text-sec); font-weight:600; }
 
 /* booking card: white price panel, gold lives in the CTA alone */
 .sd .bkp { background:var(--white); }

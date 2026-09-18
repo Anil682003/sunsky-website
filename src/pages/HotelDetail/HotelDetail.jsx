@@ -3899,56 +3899,133 @@ export default function HotelDetail() {
               </div>
               )}
 
-              {/* Overview */}
+              {/* ── Overview ──────────────────────────────────────────────────
+                  The card used to open on a gold band carrying the hotel, the party and the
+                  dates together, then run a dashed list of rows, then close on a second gold
+                  band with the total. Two coloured bands around a list is a lot of furniture
+                  for a summary, and the party sizes sat inside the header, where they read as
+                  part of the hotel's address rather than as the booking being made.
+                  It reads top to bottom now: WHAT was booked — the hotel in its own frame,
+                  then the three facts of the stay on one strip — and then WHAT IT COSTS, each
+                  figure with the per-person share under it, because a party total is agreed
+                  per head and checked as a whole. */}
               <div className="overview-section reveal vis">
                 <div className="section-title"><span className="st-step">4</span> Overview of your holiday</div>
+                <div className="overview-lead">Check your travel details and total price</div>
                 <div className="overview-card">
                   <div className="overview-head">
                     <div className="overview-head-main">
                     <div className="overview-hotel">{hotelName}</div>
                     <div className="overview-stars">{'★'.repeat(Math.min(stars, 5))}</div>
                     <div className="overview-loc">{ICON.pin} {locLabel}</div>
-                    {/* Who is travelling, stated on the summary itself. It decided every figure
-                        below it and was readable nowhere on this card — someone who changed the
-                        party size two screens ago had no way to check the total was priced for
-                        the party they meant. */}
-                    <div className="overview-pax">{ICON.users} {(() => {
-                      const a = Number(sAdults) || 0;
-                      const c = Number(sChildren) || 0;
-                      if (!a && !c) return `${ovPax} ${ovPax === 1 ? 'traveller' : 'travellers'}`;
-                      return [
-                        a ? `${a} adult${a === 1 ? '' : 's'}` : null,
-                        c ? `${c} child${c === 1 ? '' : 'ren'}` : null,
-                      ].filter(Boolean).join(' · ');
-                    })()}</div>
-                    <div className="overview-dates">{ICON.cal} {(() => {
-                      const ci = pd?.iso || baseCheckIn;
-                      const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
-                      // No invented April dates when the search carries none.
-                      return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} - ${niceDate(co)}` : 'Dates not selected yet';
-                    })()} <span>({dayLabel(nights)})</span></div>
+                    <div className="overview-dates">{ICON.cal} <span>
+                      {(() => {
+                        const ci = pd?.iso || baseCheckIn;
+                        const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
+                        // No invented April dates when the search carries none.
+                        return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} – ${niceDate(co)}` : 'Dates not selected yet';
+                      })()}
+                      <em>({dayLabel(nights)})</em>
+                    </span></div>
                     </div>
-                    {/* overview-score removed — no real review data yet */}
                   </div>
+
+                  {/* Who is travelling, in what, on what board. Every figure below is priced
+                      off these three and they were readable nowhere on this card: someone who
+                      changed the party size two screens ago had no way to check the total was
+                      priced for the party they meant. */}
+                  <div className="overview-facts">
+                    <span className="overview-fact">
+                      {ICON.users}
+                      <span><b>{(() => {
+                        const a = Number(sAdults) || 0;
+                        const c = Number(sChildren) || 0;
+                        if (!a && !c) return `${ovPax} ${ovPax === 1 ? 'traveller' : 'travellers'}`;
+                        return [
+                          a ? `${a} adult${a === 1 ? '' : 's'}` : null,
+                          c ? `${c} child${c === 1 ? '' : 'ren'}` : null,
+                        ].filter(Boolean).join(', ');
+                      })()}</b></span>
+                    </span>
+                    <span className="overview-fact">
+                      {ICON.bed}
+                      <span>
+                        <b>{availRooms} {availRooms === 1 ? 'room' : 'rooms'}</b>
+                        {liveRoom?.name && <em>{liveRoom.name}</em>}
+                      </span>
+                    </span>
+                    {liveBoard && (
+                      <span className="overview-fact">
+                        {ICON.board}
+                        <span>
+                          <b>{liveBoard}</b>
+                          {liveRoom && <em>{boardInfo(liveRoom.boardCode, liveRoom.board).gloss}</em>}
+                        </span>
+                      </span>
+                    )}
+                  </div>
+
                   <div className="overview-body">
+                    <div className="overview-body-title">Price details</div>
                     {/* Was a hardcoded "4 × €361 p.p. — €1,444" for any hotel with no live
                         rate yet: a quote for a party size and a price nobody had asked for. */}
-                    {ovBase != null
-                      ? <div className="overview-row"><span className="overview-row-label">{ICON.users} {ovPax} × {ccy}{Math.round(ovBase / ovPax).toLocaleString('en-GB')} p.p.</span><span className="overview-leader" /><span className="overview-row-val">{ccy} {ovBase.toLocaleString('en-GB')}</span></div>
-                      : <div className="overview-row"><span className="overview-row-label">{ICON.users} Stay for {ovPax} {ovPax === 1 ? 'traveller' : 'travellers'}</span><span className="overview-leader" /><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>not priced yet</span></div>}
-                    <div className="overview-row"><span className="overview-row-label">{ICON.shield} SGR Guarantee Fund</span><span className="overview-leader" /><span className="overview-row-val">{ccy} 20</span></div>
+                    {ovBase != null ? (
+                      <div className="overview-row">
+                        <span className="overview-row-label">
+                          Trip amount
+                          <FilterHint text={`The holiday itself for all ${ovPax} ${ovPax === 1 ? 'traveller' : 'travellers'} — the room on the board shown above, and the flights when you are booking a package. Taxes and airline fees are already in it.`} />
+                        </span>
+                        <span className="overview-leader" />
+                        <span className="overview-row-val">
+                          {ccy} {ovBase.toLocaleString('en-GB')}
+                          <em>({ccy} {Math.round(ovBase / ovPax).toLocaleString('en-GB')} p.p.)</em>
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="overview-row">
+                        <span className="overview-row-label">Trip amount</span>
+                        <span className="overview-leader" />
+                        <span className="overview-row-val" style={{ color: 'var(--text-light)' }}>not priced yet</span>
+                      </div>
+                    )}
+                    <div className="overview-row">
+                      <span className="overview-row-label">
+                        SGR Guarantee Fund
+                        <FilterHint text="A Belgian travel-guarantee contribution charged per booking. It protects the money you pay us if the trip cannot go ahead." />
+                      </span>
+                      <span className="overview-leader" />
+                      <span className="overview-row-val">
+                        {ccy} 20
+                        {ovPax > 1 && <em>({ccy} {(20 / ovPax).toFixed(2)} p.p.)</em>}
+                      </span>
+                    </div>
                     {/* Not "not included" — that reads as unavailable. It is available, on the
                         next page, priced against the flight being booked. */}
                     {transport === 'package' && (
-                      <div className="overview-row"><span className="overview-row-label">{ICON.noTransfer} Airport transfer</span><span className="overview-leader" /><span className="overview-row-val" style={{ color: 'var(--text-light)' }}>added at checkout</span></div>
+                      <div className="overview-row">
+                        <span className="overview-row-label">Airport transfer</span>
+                        <span className="overview-leader" />
+                        <span className="overview-row-val" style={{ color: 'var(--text-light)' }}>added at checkout</span>
+                      </div>
                     )}
                     <div className="overview-extras">
-                      <div className="overview-extra">{ICON.check} No booking fees</div>
-                      {liveFlight != null && <div className="overview-extra">{ICON.check} Hand luggage included</div>}
+                      {liveFlight != null && (
+                        <div className="overview-extra">
+                          {ICON.check}
+                          <span>
+                            Hand luggage included
+                            <FilterHint text="Every fare we sell carries a cabin bag. Hold baggage depends on the fare and is listed under the flight's details." />
+                          </span>
+                          <b>Included</b>
+                        </div>
+                      )}
+                      <div className="overview-extra">
+                        {ICON.check}<span>No booking fees</span><b>Included</b>
+                      </div>
                     </div>
                   </div>
                   <div className="overview-total">
-                    <span className="overview-total-label">Total for {ovPax} {ovPax === 1 ? 'person' : 'people'}</span>
+                    <span className="overview-total-label">To pay to SUNSKY</span>
                     <span className="overview-total-val">
                       {ovBase != null
                         ? `${ccy}${(ovBase + 20).toLocaleString('en-GB')}`
@@ -3960,10 +4037,22 @@ export default function HotelDetail() {
                       {liveFlights?.loading ? <>Checking flight prices…</>
                         : dayUnavailable ? <>Not available for this date</>
                         : ovBase == null ? <>Check availability {ICON.arrow}</>
-                        : <>Now book {ICON.arrow}</>}
+                        : <>Continue to checkout {ICON.arrow}</>}
                     </button>
                   </div>
-                  <div className="overview-urgency"><div className="overview-urgency-text">{ICON.shield} Prices are in {ccy} and may change until your booking is completed.</div></div>
+                  {/* What is NOT in the figure above. A tourist tax collected at the desk is
+                      the one cost a traveller meets that this page did not quote, so it is
+                      named here rather than discovered on arrival. */}
+                  <div className="overview-urgency">
+                    {ICON.info}
+                    <div className="overview-urgency-text">
+                      <b>Local taxes and charges</b>
+                      <span>
+                        Any local tourist tax is payable at the property, where one applies.
+                        Prices are in {ccy} and may change until your booking is completed.
+                      </span>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>

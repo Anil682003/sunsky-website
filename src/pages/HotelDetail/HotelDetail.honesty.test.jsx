@@ -292,7 +292,7 @@ describe('checkout is only reachable with a real quote', () => {
     const { container } = renderPage();
     await runCheck(user);
 
-    const book = await waitFor(() => screen.getByRole('button', { name: /now book/i }));
+    const book = await waitFor(() => screen.getByRole('button', { name: /continue to checkout/i }));
     expect(book).toBeEnabled();
     await user.click(book);
     expect(await screen.findByTestId('checkout')).toBeInTheDocument();
