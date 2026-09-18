@@ -11,7 +11,7 @@
      underneath — otherwise the top of it (gradient, sun, flight path) is hidden.
      The reduced padding keeps the content from dropping too far down the band. */
   margin-top: var(--nav-h);
-  padding: 46px 40px 52px;
+  padding: 34px 40px 40px;
   overflow: hidden;
 }
 .heroGlow {

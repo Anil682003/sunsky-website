@@ -1935,48 +1935,6 @@ export default function Results() {
         <div className={styles.heroGlow} />
         <div className={styles.heroGlow2} />
         <div className={styles.heroGrid} />
-        {/* Sky scene — decorative only, all pointer-transparent */}
-        <div className={styles.heroSun} aria-hidden="true">
-          <span className={styles.sunRing} />
-          <span className={styles.sunRing2} />
-        </div>
-        <span className={`${styles.cloud} ${styles.cloud1}`} aria-hidden="true" />
-        <span className={`${styles.cloud} ${styles.cloud2}`} aria-hidden="true" />
-        <span className={`${styles.cloud} ${styles.cloud3}`} aria-hidden="true" />
-        <span className={`${styles.cloud} ${styles.cloud4}`} aria-hidden="true" />
-        <span className={`${styles.cloud} ${styles.cloud5}`} aria-hidden="true" />
-        <span className={`${styles.cloud} ${styles.cloud6}`} aria-hidden="true" />
-        <span className={`${styles.cloud} ${styles.cloud7}`} aria-hidden="true" />
-        <svg className={styles.heroFlight} viewBox="0 0 600 200" fill="none" aria-hidden="true">
-          <path
-            className={styles.flightPath}
-            d="M10 160 Q 220 30 590 70"
-            stroke="rgba(255,255,255,0.45)"
-            strokeWidth="2"
-            strokeLinecap="round"
-            strokeDasharray="2 12"
-          />
-          <g className={styles.flightPlane}>
-            <path d="M0 8L22 0l-7.5 18-3.5-6.5L0 8z" fill="rgba(255,255,255,0.9)" transform="translate(-11,-9)" />
-          </g>
-        </svg>
-        {/* Route constellation — dashed hops between pulsing destination nodes */}
-        <svg className={styles.heroRoutes} viewBox="0 0 640 190" fill="none" aria-hidden="true">
-          <path className={styles.routeArc} d="M18 168 Q 150 96 300 128" />
-          <path className={styles.routeArc} d="M300 128 Q 450 162 622 58" />
-          <circle className={styles.routeNode} cx="18" cy="168" r="3.5" />
-          <circle className={styles.routePulse} cx="18" cy="168" r="5" />
-          <circle className={styles.routeNode} cx="300" cy="128" r="3.5" />
-          <circle className={styles.routePulse} cx="300" cy="128" r="5" style={{ animationDelay: '1.1s' }} />
-          <circle className={`${styles.routeNode} ${styles.routeNodeGold}`} cx="622" cy="58" r="4" />
-          <circle className={`${styles.routePulse} ${styles.routePulseGold}`} cx="622" cy="58" r="6" style={{ animationDelay: '2.2s' }} />
-        </svg>
-        <span className={styles.twinkle} style={{ top: '24%', left: '38%' }} />
-        <span className={styles.twinkle} style={{ top: '36%', left: '48%', animationDelay: '1.7s' }} />
-        <span className={styles.twinkle} style={{ top: '72%', left: '66%', animationDelay: '2.7s' }} />
-        <span className={styles.twinkle} style={{ top: '58%', left: '55%', animationDelay: '1.2s' }} />
-        <span className={styles.twinkle} style={{ top: '18%', left: '72%', animationDelay: '2.1s' }} />
-        <span className={styles.twinkle} style={{ top: '64%', left: '86%', animationDelay: '0.6s' }} />
         <div className={styles.heroInner}>
           <div className={styles.breadcrumb}>
             <span>{t('hero.home', 'Home')}</span>
@@ -1998,11 +1956,6 @@ export default function Results() {
               </span>
             ))}
           </div>
-        </div>
-        <div className={styles.heroWave}>
-          <svg viewBox="0 0 1440 60" preserveAspectRatio="none">
-            <path d="M0,30 C240,60 480,0 720,20 C960,40 1200,10 1440,35 L1440,60 L0,60 Z" fill="currentColor" />
-          </svg>
         </div>
       </header>
 
