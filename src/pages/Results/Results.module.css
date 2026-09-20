@@ -1108,6 +1108,16 @@
   font-variant-numeric: tabular-nums;
 }
 .rcPriceMetaUnit { color: var(--text-sec); font-weight: 500; }
+/* No cached price: the hotel came from the live supplier check, which is asked WITHOUT prices.
+   Deliberately quieter than .rcPriceAmount — it is a prompt, not a figure to compare. */
+.rcPriceAsk {
+  font-family: 'Sora', sans-serif;
+  font-size: 17px; font-weight: 800;
+  color: var(--blue-deep); line-height: 1.25;
+  letter-spacing: -0.2px;
+  margin-top: 6px;
+}
+
 /* Caption under the headline fare — the amount shown IS the per-person price. */
 .rcPricePer {
   font-size: 12px; font-weight: 600; color: var(--text-sec);
@@ -1218,6 +1228,12 @@
   text-align: center; padding: 28px 0 12px;
   font-size: 13px; font-weight: 600; color: var(--text-sec);
   border-top: 1px solid #eef3fb; margin-top: 8px;
+}
+/* Second line under the end-of-results count: the live supplier check, either still running or
+   reporting the extra stays appended below. */
+.endOfResultsNote {
+  margin-top: 6px;
+  font-size: 12.5px; font-weight: 600; color: var(--blue-deep);
 }
 
 /* ════════ Empty states ════════ */

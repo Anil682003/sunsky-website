@@ -1469,6 +1469,13 @@ export default function HotelDetail() {
   // in-memory `state` — so every field falls back to a URL query param. `qp` reads those.
   const qp = (key) => searchParams.get(key) || '';
 
+  // `live=1` — opened from an "on request" results card. The price cache has NO price for this
+  // hotel on these dates (that is precisely why the card carried no figure), so the 7-day fare
+  // strip would only ever draw "choose your dates" over an empty week and the calendar call
+  // would be spent learning what the results page already knows. The page goes straight to the
+  // live check instead: one button, the searched dates, a real supplier price.
+  const liveOnly = searchParams.get('live') === '1';
+
   // Hotel identity: from the clicked card when navigating in-app, else rebuilt from the URL.
   const hotel = state?.hotel || {
     hotelCode,
@@ -1926,6 +1933,7 @@ export default function HotelDetail() {
   const askedRef = useRef({ scope: '', days: new Set() });
 
   useEffect(() => {
+    if (liveOnly) return;                  // nothing cached to fetch — see `liveOnly`
     if (!hotelCode || !destination || !winStart) { setCalError(false); return; }
     const asked = askedRef.current;
     if (asked.scope !== calScope) { asked.scope = calScope; asked.days = new Set(); }
@@ -1993,7 +2001,7 @@ export default function HotelDetail() {
     const warm = rest.length ? setTimeout(() => rest.forEach((b) => load(b, false)), 500) : null;
 
     return () => { cancelled = true; if (warm) clearTimeout(warm); };
-  }, [hotelCode, destination, winStart, nights, sAdults, sChildren, sRooms, calScope, today]);
+  }, [hotelCode, destination, winStart, nights, sAdults, sChildren, sRooms, calScope, today, liveOnly]);
 
   // Live prices only. There is deliberately NO demo fallback: this strip used to drop to a
   // hardcoded week of March 2026 fares whenever the call failed OR the hotel was genuinely
@@ -2039,7 +2047,9 @@ export default function HotelDetail() {
   // The picked day itself is read from the whole cache, NOT the visible week, so paging never
   // silently drops the traveller's chosen date out of the action card and the checkout hand-off.
   const pickedEntry = pickedISO ? byDate[pickedISO] : null;
-  const pd = (pickedISO && Object.keys(byDate).length)
+  // In `liveOnly` there is no cache to read a day out of, but the traveller still has a date —
+  // the one they searched — and the action card is the whole point of the page.
+  const pd = (pickedISO && (liveOnly || Object.keys(byDate).length))
     ? {
       iso: pickedISO, day: calDay(pickedISO), date: calDate(pickedISO),
       price: Math.round(pickedEntry?.price ?? 0), currency: pickedEntry?.currency || 'EUR',
@@ -2993,7 +3003,9 @@ export default function HotelDetail() {
 
             {/* ── PRICES ── */}
             <div className={`tp${activeTab === 'Prices' ? ' act' : ''}`}>
-              <div className="section-title"><span className="st-step">1</span> Compare the lowest prices</div>
+              <div className="section-title"><span className="st-step">1</span>{' '}
+                {liveOnly ? 'Check the live price' : 'Compare the lowest prices'}
+              </div>
 
               <StayBar
                 checkIn={baseCheckIn} formatDate={niceDate}
@@ -3066,8 +3078,21 @@ export default function HotelDetail() {
                 </div>
               )}
 
+              {/* No cached prices exist for this hotel on these dates, so say so plainly and put
+                  the check in front of the traveller rather than a week of empty bars. */}
+              {liveOnly && (
+                <div className="fc-estimate" role="note">
+                  <span className="fc-estimate-ico" aria-hidden="true">{ICON.info}</span>
+                  <span className="fc-estimate-text">
+                    <b>This stay is priced live.</b> We don’t hold a cached price for these dates —
+                    check below and the supplier quotes the real price for your party.
+                  </span>
+                </div>
+              )}
+
               {/* The arrows live OUTSIDE the three states below so they stay reachable on a week
                   that came back empty — otherwise a blank week is a dead end with no way back. */}
+              {!liveOnly && (
               <div className="fc-week">
                 {winStart && (
                   <button type="button" className="fc-arrow" onClick={() => pageDay(-1)}
@@ -3241,8 +3266,9 @@ export default function HotelDetail() {
                   </button>
                 )}
               </div>
+              )}
 
-              {usingLive && (pd ? (
+              {(usingLive || liveOnly) && (pd ? (
                     <div className={`fc-pop${dayUnavailable ? ' fc-pop-unavail' : ''}`}>
                       {dayUnavailable ? (
                         /* The honest counterpart of the green card: the supplier was asked and
