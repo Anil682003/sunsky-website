@@ -11,6 +11,11 @@ import axiosInstance from '../services/axiosInstance';
  *
  * Called ONCE per search, when the list has run out (`hasMore === false`) — never per page.
  *
+ * `hotelCodes` narrows it to a named set instead of sweeping the destination: the hotel a
+ * traveller picked from the typeahead, or the hotels a content facet resolved to. A hotel
+ * searched BY NAME that the cache cannot price is the case this matters most for — without it
+ * the page says "no stays found", which reads as "we do not sell this hotel".
+ *
  * Prices are deliberately not requested: these cards carry a "check live prices" button, and the
  * real price is quoted on the hotel page by the existing live check.
  *
@@ -21,15 +26,16 @@ import axiosInstance from '../services/axiosInstance';
  *                    roomName:string|null, refundable:boolean}[]>}
  */
 export async function fetchUnpricedHotels(
-  { destinations, checkIn, checkOut, adults, children, childAges, rooms, shownHotelCodes },
+  { destinations, hotelCodes, checkIn, checkOut, adults, children, childAges, rooms, shownHotelCodes },
   { signal } = {},
 ) {
-  if (!destinations?.length || !checkIn || !checkOut) return [];
+  if ((!destinations?.length && !hotelCodes?.length) || !checkIn || !checkOut) return [];
   try {
     const { data } = await axiosInstance.post(
       '/hotel-availability/unpriced',
       {
         destinations,
+        ...(hotelCodes?.length ? { hotelCodes: hotelCodes.map(String) } : {}),
         checkin: checkIn,
         checkout: checkOut,
         adults: Number(adults) || 2,

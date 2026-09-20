@@ -1307,19 +1307,29 @@ export default function Results() {
   }, [allHotels, applied.sortBy, attrMap, infoMap]);
 
   // ── Hotels with no cached price, still sellable at World2Meet ──────────────
-  // Asked for ONCE per search and only when the priced list has ended: the traveller has seen
-  // everything the cache holds, so this is the moment the extra hotels are worth a supplier
-  // call. It never blocks or replaces the priced results — a failure just means no extra cards.
-  // Non-null only when the list has ended on a search that may have extra hotels. A content
-  // facet narrows the search to specific hotels, and offering others would contradict it.
+  // Asked for ONCE per search, when the priced list has ended: the traveller has seen everything
+  // the cache holds, so this is the moment the extra hotels are worth a supplier call. It never
+  // blocks or replaces the priced results — a failure just means no extra cards.
+  //
+  // TWO SHAPES of the same question:
+  //   • a plain destination search — ask about that destination's W2M hotels;
+  //   • a search already narrowed to specific hotels (a typeahead pick, or a content facet) —
+  //     ask about EXACTLY those. Searching a hotel by name is the case that matters: with no
+  //     cached price the page currently says "no stays found", which a traveller reads as "you
+  //     do not sell this hotel" rather than "we could not price it". One hotel, one code, one
+  //     fast call — and because such a search ends immediately, it fires straight away.
+  //
+  // Null when there is nothing to ask.
   const onRequestKey = useMemo(() => {
     if (loading || hasMore) return null;
     const dests = priceScope?.destinations ?? [];
-    if (!dests.length || Array.isArray(priceScope?.hotelCodes)) return null;
+    const codes = Array.isArray(priceScope?.hotelCodes) ? priceScope.hotelCodes : null;
+    // `[]` means the narrowing resolved to nothing at all — there is no hotel to ask about.
+    if (codes ? !codes.length : !dests.length) return null;
     // A price bound is a promise about every card on the page, and these cards have no price to
     // hold against it — so under a min/max the extra hotels are not offered at all.
     if (applied.minPrice !== '' || applied.maxPrice !== '') return null;
-    return JSON.stringify([dests, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults,
+    return JSON.stringify([dests, codes, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults,
       fetchParams.children, fetchParams.rooms, fetchParams.childAges ?? null, allHotels.length]);
   }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.minPrice, applied.maxPrice]);
 
@@ -1333,10 +1343,12 @@ export default function Results() {
     if (!onRequestKey) return;
     const key = onRequestKey;
     const dests = priceScope?.destinations ?? [];
+    const codes = Array.isArray(priceScope?.hotelCodes) ? priceScope.hotelCodes : null;
     const ctrl = new AbortController();
     let live = true;
     fetchUnpricedHotels({
       destinations: dests,
+      hotelCodes: codes,
       checkIn: fetchParams.checkIn,
       checkOut: fetchParams.checkOut,
       adults: fetchParams.adults,
@@ -2199,6 +2211,16 @@ export default function Results() {
                 </div>
                 <h3>{t('empty.chooseTitle', 'Select where you want to go')}</h3>
                 <p>{t('empty.chooseText', 'Pick one or more countries or destinations in the “Where” filter.')}</p>
+              </div>
+            ) : displayHotels.length === 0 && onRequestBusy ? (
+              /* The cache priced nothing, but another supplier is still being asked. "No results
+                 found" would be a verdict we have not reached yet — and on a search for ONE
+                 hotel by name it is the difference between "we cannot price it today" and "we do
+                 not sell it at all". */
+              <div className={styles.noResults}>
+                <span className={styles.loadMoreSpin} />
+                <h3>{t('empty.checkingTitle', 'Checking other suppliers…')}</h3>
+                <p>{t('empty.checkingText', 'Nothing in our cached prices for these dates. Asking our other suppliers now.')}</p>
               </div>
             ) : displayHotels.length === 0 ? (
               <div className={styles.noResults}>
