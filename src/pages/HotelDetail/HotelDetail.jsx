@@ -1810,7 +1810,9 @@ export default function HotelDetail() {
   // it scrolls out of view. `scope` records the search those prices were quoted under — change
   // the hotel, the party or the length of stay and the whole map is dropped rather than mixing
   // prices for two different stays in one strip.
-  const [cal, setCal] = useState({ scope: '', byDate: {} });
+  // `answered` is every day a block has come BACK for (with a price or without). `byDate` alone
+  // cannot tell "no price" from "not asked yet", and the week is fetched in more than one block.
+  const [cal, setCal] = useState({ scope: '', byDate: {}, answered: new Set() });
   // First day of the visible week. `base` pins it to the departure date it was paged from, so
   // editing the search snaps the strip back to the new date with no effect and no stale offset.
   const [win, setWin] = useState({ base: null, start: null });
@@ -1967,7 +1969,9 @@ export default function HotelDetail() {
             const keep = prev.scope === calScope;
             const byDate = keep ? { ...prev.byDate } : {};
             for (const c of rows) if (c?.date) byDate[c.date] = c;
-            return { scope: calScope, byDate };
+            const answered = new Set(keep ? prev.answered : []);
+            for (let k = 0; k < CAL_DAYS; k++) answered.add(addDaysISO(blockStart, k));
+            return { scope: calScope, byDate, answered };
           });
         })
         .catch(() => {
@@ -2043,10 +2047,13 @@ export default function HotelDetail() {
   // question that settles it — can World2Meet sell THIS hotel for THESE dates — and if so, use
   // the same live-check layout a results card opens with.
   //
-  // Only on a genuinely empty answer: not while loading, not on a failed call (the "try again"
-  // panel owns that), and never when the strip has any price to show.
-  const w2mKey = (!urlLive && hotelCode && baseCheckIn && !calLoading && !calError
-    && cal.scope === calScope && !usingLive)
+  // Only on a genuinely empty answer: EVERY day of the visible week has come back, none with a
+  // price, and no block failed (the "try again" panel owns that). The week arrives in more than
+  // one block, so "the first block was empty" is not enough — deciding on it fired a supplier call
+  // and could flip the page to the live layout and back when the next block brought prices.
+  const weekAnswered = cal.scope === calScope && winDates.length > 0
+    && winDates.every((iso) => cal.answered.has(iso));
+  const w2mKey = (!urlLive && hotelCode && baseCheckIn && weekAnswered && !calError && !usingLive)
     ? [hotelCode, destination, baseCheckIn, nights, sAdults, sChildren, sRooms, sChildAges].join('|')
     : null;
   const [w2mSell, setW2mSell] = useState({ key: null, ok: false });
