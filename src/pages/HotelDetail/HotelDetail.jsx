@@ -33,6 +33,7 @@ import { copyText } from '../../utils/copyText';
 import { roomNameFromCode } from '../../utils/roomNames';
 import { weatherIcon } from '../../utils/weatherIcons';
 import { useToast } from '../../context/ToastContext';
+import { fetchUnpricedHotels } from '../../api/unpricedHotels';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -1469,6 +1470,12 @@ export default function HotelDetail() {
   // in-memory `state` — so every field falls back to a URL query param. `qp` reads those.
   const qp = (key) => searchParams.get(key) || '';
 
+  // `live=1` — opened from an "on request" results card. The price cache has NO price for this
+  // hotel on these dates (that is precisely why the card carried no figure), so the calendar
+  // call would only learn what the results page already knows. It is skipped, and the page goes
+  // straight to the live check. See `liveOnly` for the other way into the same layout.
+  const urlLive = searchParams.get('live') === '1';
+
   // Hotel identity: from the clicked card when navigating in-app, else rebuilt from the URL.
   const hotel = state?.hotel || {
     hotelCode,
@@ -1803,7 +1810,9 @@ export default function HotelDetail() {
   // it scrolls out of view. `scope` records the search those prices were quoted under — change
   // the hotel, the party or the length of stay and the whole map is dropped rather than mixing
   // prices for two different stays in one strip.
-  const [cal, setCal] = useState({ scope: '', byDate: {} });
+  // `answered` is every day a block has come BACK for (with a price or without). `byDate` alone
+  // cannot tell "no price" from "not asked yet", and the week is fetched in more than one block.
+  const [cal, setCal] = useState({ scope: '', byDate: {}, answered: new Set() });
   // First day of the visible week. `base` pins it to the departure date it was paged from, so
   // editing the search snaps the strip back to the new date with no effect and no stale offset.
   const [win, setWin] = useState({ base: null, start: null });
@@ -1926,6 +1935,7 @@ export default function HotelDetail() {
   const askedRef = useRef({ scope: '', days: new Set() });
 
   useEffect(() => {
+    if (urlLive) return;                   // nothing cached to fetch — see `urlLive`
     if (!hotelCode || !destination || !winStart) { setCalError(false); return; }
     const asked = askedRef.current;
     if (asked.scope !== calScope) { asked.scope = calScope; asked.days = new Set(); }
@@ -1959,7 +1969,9 @@ export default function HotelDetail() {
             const keep = prev.scope === calScope;
             const byDate = keep ? { ...prev.byDate } : {};
             for (const c of rows) if (c?.date) byDate[c.date] = c;
-            return { scope: calScope, byDate };
+            const answered = new Set(keep ? prev.answered : []);
+            for (let k = 0; k < CAL_DAYS; k++) answered.add(addDaysISO(blockStart, k));
+            return { scope: calScope, byDate, answered };
           });
         })
         .catch(() => {
@@ -1993,7 +2005,7 @@ export default function HotelDetail() {
     const warm = rest.length ? setTimeout(() => rest.forEach((b) => load(b, false)), 500) : null;
 
     return () => { cancelled = true; if (warm) clearTimeout(warm); };
-  }, [hotelCode, destination, winStart, nights, sAdults, sChildren, sRooms, calScope, today]);
+  }, [hotelCode, destination, winStart, nights, sAdults, sChildren, sRooms, calScope, today, urlLive]);
 
   // Live prices only. There is deliberately NO demo fallback: this strip used to drop to a
   // hardcoded week of March 2026 fares whenever the call failed OR the hotel was genuinely
@@ -2027,6 +2039,46 @@ export default function HotelDetail() {
   // matching on price alone badged every one of them — three bars all shouting "lowest" tells
   // the traveller nothing. The earliest day at that price wins the flag.
   const lowIdx = priceDays.findIndex((p) => p.price > 0 && p.price === pMin);
+  // ── A hotel only World2Meet can sell on these dates ─────────────────────────────
+  // The header search opens a hotel it names straight on THIS page — it never passes through the
+  // results list, so it never carries `live=1`. When the cache calendar comes back with nothing
+  // at all for the week, the old page said "No availability for these dates" and offered no way
+  // to check, which on a hotel searched by name reads as "we do not sell it". Ask the one
+  // question that settles it — can World2Meet sell THIS hotel for THESE dates — and if so, use
+  // the same live-check layout a results card opens with.
+  //
+  // Only on a genuinely empty answer: EVERY day of the visible week has come back, none with a
+  // price, and no block failed (the "try again" panel owns that). The week arrives in more than
+  // one block, so "the first block was empty" is not enough — deciding on it fired a supplier call
+  // and could flip the page to the live layout and back when the next block brought prices.
+  const weekAnswered = cal.scope === calScope && winDates.length > 0
+    && winDates.every((iso) => cal.answered.has(iso));
+  const w2mKey = (!urlLive && hotelCode && baseCheckIn && weekAnswered && !calError && !usingLive)
+    ? [hotelCode, destination, baseCheckIn, nights, sAdults, sChildren, sRooms, sChildAges].join('|')
+    : null;
+  const [w2mSell, setW2mSell] = useState({ key: null, ok: false });
+  useEffect(() => {
+    if (!w2mKey) return;
+    const key = w2mKey;
+    const ctrl = new AbortController();
+    let live = true;
+    fetchUnpricedHotels({
+      destinations: destination ? [destination] : [],
+      hotelCodes: [String(hotelCode)],
+      checkIn: baseCheckIn,
+      checkOut: addDaysISO(baseCheckIn, nights),
+      adults: sAdults, children: sChildren, childAges: sChildAges, rooms: sRooms,
+    }, { signal: ctrl.signal }).then((list) => {
+      if (live) setW2mSell({ key, ok: list.some((h) => String(h.hotelCode) === String(hotelCode)) });
+    });
+    return () => { live = false; ctrl.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [w2mKey]);
+  // Still waiting on that answer — the strip keeps its skeleton rather than flashing "no
+  // availability" for the second before the live layout replaces it.
+  const w2mChecking = w2mKey != null && w2mSell.key !== w2mKey;
+  const liveOnly = urlLive || (w2mKey != null && w2mSell.key === w2mKey && w2mSell.ok);
+
   // The strip opens with the traveller's OWN departure date already selected, so the check
   // button is there for the date they searched instead of asking them to re-pick it. Derived
   // rather than stored: an explicit pick always wins, and because `applyFilter` clears the
@@ -2039,7 +2091,9 @@ export default function HotelDetail() {
   // The picked day itself is read from the whole cache, NOT the visible week, so paging never
   // silently drops the traveller's chosen date out of the action card and the checkout hand-off.
   const pickedEntry = pickedISO ? byDate[pickedISO] : null;
-  const pd = (pickedISO && Object.keys(byDate).length)
+  // In `liveOnly` there is no cache to read a day out of, but the traveller still has a date —
+  // the one they searched — and the action card is the whole point of the page.
+  const pd = (pickedISO && (liveOnly || Object.keys(byDate).length))
     ? {
       iso: pickedISO, day: calDay(pickedISO), date: calDate(pickedISO),
       price: Math.round(pickedEntry?.price ?? 0), currency: pickedEntry?.currency || 'EUR',
@@ -2713,7 +2767,9 @@ export default function HotelDetail() {
     if (!useLive) {
       showToast('Check availability first so we can price your stay.', 'info');
       setActiveTab('Prices');
-      document.querySelector('.fc-strip, .fc-blank')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      // `.fc-pop` is the check card: in the live-only layout there is no strip or blank panel
+      // to scroll to, and without it this button did nothing visible.
+      document.querySelector('.fc-strip, .fc-blank, .fc-pop')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
     }
     // Seed the checkout traveller forms with the FULL searched party (adults +
@@ -2993,7 +3049,9 @@ export default function HotelDetail() {
 
             {/* ── PRICES ── */}
             <div className={`tp${activeTab === 'Prices' ? ' act' : ''}`}>
-              <div className="section-title"><span className="st-step">1</span> Compare the lowest prices</div>
+              <div className="section-title"><span className="st-step">1</span>{' '}
+                {liveOnly ? 'Check the live price' : 'Compare the lowest prices'}
+              </div>
 
               <StayBar
                 checkIn={baseCheckIn} formatDate={niceDate}
@@ -3066,8 +3124,21 @@ export default function HotelDetail() {
                 </div>
               )}
 
+              {/* No cached prices exist for this hotel on these dates, so say so plainly and put
+                  the check in front of the traveller rather than a week of empty bars. */}
+              {liveOnly && (
+                <div className="fc-estimate" role="note">
+                  <span className="fc-estimate-ico" aria-hidden="true">{ICON.info}</span>
+                  <span className="fc-estimate-text">
+                    <b>This stay is priced live.</b> We don’t hold a cached price for these dates —
+                    check below and the supplier quotes the real price for your party.
+                  </span>
+                </div>
+              )}
+
               {/* The arrows live OUTSIDE the three states below so they stay reachable on a week
                   that came back empty — otherwise a blank week is a dead end with no way back. */}
+              {!liveOnly && (
               <div className="fc-week">
                 {winStart && (
                   <button type="button" className="fc-arrow" onClick={() => pageDay(-1)}
@@ -3078,7 +3149,7 @@ export default function HotelDetail() {
                   </button>
                 )}
                 <div className="fc-weekmain">
-              {calLoading && !usingLive ? (
+              {(calLoading || w2mChecking) && !usingLive ? (
                 <div className="fc-strip">
                   {[62, 78, 50, 88, 58, 72, 46].map((h, i) => (
                     <div key={i} className="fc-col fc-skel">
@@ -3241,8 +3312,9 @@ export default function HotelDetail() {
                   </button>
                 )}
               </div>
+              )}
 
-              {usingLive && (pd ? (
+              {(usingLive || liveOnly) && (pd ? (
                     <div className={`fc-pop${dayUnavailable ? ' fc-pop-unavail' : ''}`}>
                       {dayUnavailable ? (
                         /* The honest counterpart of the green card: the supplier was asked and

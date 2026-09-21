@@ -24,10 +24,14 @@ import { earliestCheckInISO } from '../../utils/leadTime';
 import { DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { useToast } from '../../context/ToastContext';
+import { fetchUnpricedHotels } from '../../api/unpricedHotels';
 import styles from './Results.module.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 const PAGE_SIZE = 20;
+// Stable empty list: the on-request hotels feed a useMemo, and a fresh [] each render would
+// invalidate it on every pass.
+const EMPTY_ON_REQUEST = [];
 // Default age used for a newly-added child until the traveller picks one. Hotelbeds requires
 // an age per child; without it a family search 400s, so we never send a childless-age.
 const CHILD_AGE_DEFAULT = 8;
@@ -650,6 +654,13 @@ export default function Results() {
   const [fetchingMore, setFetchingMore] = useState(false);
   const [hasMore, setHasMore]         = useState(true);
   const [allHotels, setAllHotels]     = useState([]);
+  // Hotels the cache had no price for that World2Meet can still sell. Fetched once, when the
+  // priced list has run out, and shown after it without a price.
+  //
+  // Held WITH the search it answers, not beside it: a new search changes the key, so the old
+  // hotels stop being displayed without an effect having to clear them, and "still checking" is
+  // simply "the key has not come back yet".
+  const [onRequestData, setOnRequestData] = useState({ key: null, list: [] });
   const [nights, setNights]           = useState(0);
   const [cheapestCode, setCheapestCode] = useState(null);
   // Dynamic board facets from the cache: { boardCode: hotelCount } for THIS search.
@@ -1295,9 +1306,96 @@ export default function Results() {
     return allHotels;
   }, [allHotels, applied.sortBy, attrMap, infoMap]);
 
+  // ── Hotels with no cached price, still sellable at World2Meet ──────────────
+  // Asked for ONCE per search, when the priced list has ended: the traveller has seen everything
+  // the cache holds, so this is the moment the extra hotels are worth a supplier call. It never
+  // blocks or replaces the priced results — a failure just means no extra cards.
+  //
+  // TWO SHAPES of the same question:
+  //   • a plain destination search — ask about that destination's W2M hotels;
+  //   • a search already narrowed to specific hotels (a typeahead pick, or a content facet) —
+  //     ask about EXACTLY those. Searching a hotel by name is the case that matters: with no
+  //     cached price the page currently says "no stays found", which a traveller reads as "you
+  //     do not sell this hotel" rather than "we could not price it". One hotel, one code, one
+  //     fast call — and because such a search ends immediately, it fires straight away.
+  //
+  // Null when there is nothing to ask.
+  const onRequestKey = useMemo(() => {
+    if (loading || hasMore) return null;
+    const dests = priceScope?.destinations ?? [];
+    const codes = Array.isArray(priceScope?.hotelCodes) ? priceScope.hotelCodes : null;
+    // `[]` means the narrowing resolved to nothing at all — there is no hotel to ask about.
+    if (codes ? !codes.length : !dests.length) return null;
+    // The PRICE facets — a min/max, a meal plan, a room type — are promises about every card on
+    // the page, and these cards carry none of that: no price to hold against a bound, and only
+    // the one cheapest rate W2M returned, which says nothing about whether the hotel sells the
+    // meal plan or room type the traveller filtered for. So under any of them the extra hotels
+    // are not offered at all, rather than offered in contradiction of the filter.
+    if (applied.minPrice !== '' || applied.maxPrice !== ''
+      || applied.boards.length || applied.roomTypes.length) return null;
+    return JSON.stringify([dests, codes, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults,
+      fetchParams.children, fetchParams.rooms, fetchParams.childAges ?? null, allHotels.length]);
+  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.minPrice, applied.maxPrice, applied.boards, applied.roomTypes]);
+
+  const onRequest = useMemo(
+    () => (onRequestData.key === onRequestKey ? onRequestData.list : EMPTY_ON_REQUEST),
+    [onRequestData, onRequestKey],
+  );
+  const onRequestBusy = onRequestKey != null && onRequestData.key !== onRequestKey;
+
+  useEffect(() => {
+    if (!onRequestKey) return;
+    const key = onRequestKey;
+    const dests = priceScope?.destinations ?? [];
+    const codes = Array.isArray(priceScope?.hotelCodes) ? priceScope.hotelCodes : null;
+    const ctrl = new AbortController();
+    let live = true;
+    fetchUnpricedHotels({
+      destinations: dests,
+      hotelCodes: codes,
+      checkIn: fetchParams.checkIn,
+      checkOut: fetchParams.checkOut,
+      adults: fetchParams.adults,
+      children: fetchParams.children,
+      childAges: fetchParams.childAges ?? childAgesRef.current,
+      rooms: fetchParams.rooms,
+      shownHotelCodes: allHotels.map((h) => h.hotelCode),
+    }, { signal: ctrl.signal })
+      .then((list) => {
+        if (!live) return;
+        const seen = seenCodesRef.current;
+        const mapped = list
+          .filter((x) => !seen.has(String(x.hotelCode)) && !seen.has(Number(x.hotelCode)))
+          .map((x) => ({
+            id: x.hotelCode,
+            hotelCode: x.hotelCode,
+            name: `Hotel ${x.hotelCode}`,
+            stars: null,
+            boardCode: x.boardCode || '',
+            board: x.boardCode ? getBoardLabel(x.boardCode) : '',
+            boardTags: x.boardCode ? [getBoardLabel(x.boardCode)] : [],
+            roomLabel: x.roomName || '',
+            refundable: x.refundable,
+            nightlyBreakdown: [],
+            loc: scopeLabel,
+            // No price: this hotel was never in the cache's answer. The card offers a live check.
+            onRequest: true,
+          }));
+        setOnRequestData({ key, list: mapped });
+      })
+      .catch(() => { if (live) setOnRequestData({ key, list: [] }); });
+
+    return () => { live = false; ctrl.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [onRequestKey]);
+
+  // What the list actually renders: priced hotels first, then the on-request ones. They stay at
+  // the end under every sort — they have no price to sort by and are a different offer.
+  const displayHotels = useMemo(() => (onRequest.length ? [...hotels, ...onRequest] : hotels), [hotels, onRequest]);
+
   // Lazily load real hotel info (name/images/stars) for all visible hotels
   useEffect(() => {
-    const need = hotels.map((h) => String(h.hotelCode)).filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code));
+    const need = displayHotels.map((h) => String(h.hotelCode)).filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code));
     if (need.length === 0) return;
     need.forEach((c) => infoLoadingRef.current.add(c));
     let cancelled = false;
@@ -1321,7 +1419,7 @@ export default function Results() {
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hotels]);
+  }, [displayHotels]);
 
   // Infinite scroll — IntersectionObserver on sentinel.
   useEffect(() => {
@@ -1353,6 +1451,9 @@ export default function Results() {
     if (starsVal)   qs.set('stars', String(starsVal));
     if (h.currency) qs.set('currency', h.currency);
     if (Number.isFinite(Number(h.totalAmount))) qs.set('total', String(h.totalAmount));
+    // No cached price behind this card: the hotel page must skip the price strip (every day of
+    // which would be a guess) and go straight to the live check.
+    if (h.onRequest) qs.set('live', '1');
     // The COMMITTED search wins over the URL the page was opened with: a traveller who edited
     // a child's date of birth here and pressed Update Search must open the hotel with that
     // date, not the one the link arrived carrying.
@@ -2115,7 +2216,17 @@ export default function Results() {
                 <h3>{t('empty.chooseTitle', 'Select where you want to go')}</h3>
                 <p>{t('empty.chooseText', 'Pick one or more countries or destinations in the “Where” filter.')}</p>
               </div>
-            ) : hotels.length === 0 ? (
+            ) : displayHotels.length === 0 && onRequestBusy ? (
+              /* The cache priced nothing, but another supplier is still being asked. "No results
+                 found" would be a verdict we have not reached yet — and on a search for ONE
+                 hotel by name it is the difference between "we cannot price it today" and "we do
+                 not sell it at all". */
+              <div className={styles.noResults}>
+                <span className={styles.loadMoreSpin} />
+                <h3>{t('empty.checkingTitle', 'Checking other suppliers…')}</h3>
+                <p>{t('empty.checkingText', 'Nothing in our cached prices for these dates. Asking our other suppliers now.')}</p>
+              </div>
+            ) : displayHotels.length === 0 ? (
               <div className={styles.noResults}>
                 <div className={styles.noResultsIcon}>
                   <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
@@ -2133,7 +2244,7 @@ export default function Results() {
                 )}
               </div>
             ) : (
-              hotels.map((h, i) => {
+              displayHotels.map((h, i) => {
                 const info      = infoMap[String(h.hotelCode)];
                 const dispName  = info?.name?.trim() || h.name;
                 const dispStars = info?.stars ?? attrMap[String(h.hotelCode)]?.stars ?? h.stars;
@@ -2407,12 +2518,23 @@ export default function Results() {
                           Hotel-only: the per-person hotel price. Package (flight fare cached): the
                           per-person hotel + flight total (§33). The whole-party total is not shown;
                           per-person is the comparable number. */}
-                      <div className={styles.rcPriceAmount}>
-                        <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
-                        {ppMajor}
-                        {ppDec != null && <span className={styles.rcPriceDec}>.{ppDec}</span>}
-                      </div>
-                      <div className={styles.rcPricePer}>{t('card.perPerson', 'per person')}</div>
+                      {/* No cached price for this one: it came from the supplier availability
+                          check, which we deliberately ask without prices. The traveller gets a
+                          real, live price on the hotel page. */}
+                      {h.onRequest ? (
+                        <div className={styles.rcPriceAsk}>
+                          {t('card.priceOnRequest', 'Price on request')}
+                        </div>
+                      ) : (
+                        <>
+                          <div className={styles.rcPriceAmount}>
+                            <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
+                            {ppMajor}
+                            {ppDec != null && <span className={styles.rcPriceDec}>.{ppDec}</span>}
+                          </div>
+                          <div className={styles.rcPricePer}>{t('card.perPerson', 'per person')}</div>
+                        </>
+                      )}
                       {/* Opens in a NEW TAB, so the search results survive: comparing hotels is
                           the whole job of this page, and going back used to mean re-running the
                           search and losing scroll position and any loaded pages.
@@ -2422,12 +2544,14 @@ export default function Results() {
                           It stays a real <Link>, so cmd/ctrl/middle-click and "copy link address"
                           all still behave; target only changes the default click. */}
                       <Link
-                        className={styles.rcCta}
+                        className={h.onRequest ? `${styles.rcCta} ${styles.rcCtaLive}` : styles.rcCta}
                         to={detailHref(h, dispName, dispStars, hotelDest, curImg)}
                         target="_blank"
                         rel="noopener noreferrer"
                       >
-                        {t('card.viewDeal', 'View Deal')}
+                        {h.onRequest
+                          ? t('card.viewLivePrices', 'Click to view live prices')
+                          : t('card.viewDeal', 'View Deal')}
                         <Icon d="M5 12h14M12 5l7 7-7 7" size={14} sw={2.2} />
                       </Link>
                     </div>
@@ -2450,6 +2574,19 @@ export default function Results() {
                   count: hotels.length,
                   defaultValue: 'You’ve reached the end — all {{count}} stays shown',
                 })}
+                {onRequestBusy && (
+                  <div className={styles.endOfResultsNote}>
+                    {t('card.checkingMore', 'Checking for more stays…')}
+                  </div>
+                )}
+                {!onRequestBusy && onRequest.length > 0 && (
+                  <div className={styles.endOfResultsNote}>
+                    {t('card.onRequestNote', {
+                      count: onRequest.length,
+                      defaultValue: '{{count}} more stays are available for these dates — open one to see its live price',
+                    })}
+                  </div>
+                )}
               </div>
             )}
           </div>
