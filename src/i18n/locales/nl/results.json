@@ -146,7 +146,9 @@
     "noneTitle": "Geen resultaten gevonden",
     "noneFiltered": "Geen verblijven passen bij je filters. Maak ze ruimer of verbreed je prijsklasse.",
     "noneWiden": "Probeer andere data of een ruimer gebied.",
-    "clearFilters": "Alle filters wissen"
+    "clearFilters": "Alle filters wissen",
+    "checkingTitle": "We controleren andere aanbieders…",
+    "checkingText": "Voor deze data hebben we geen opgeslagen prijzen. We vragen het nu na bij onze andere aanbieders."
   },
   "card": {
     "viewPhotos_one": "{{count}} foto van {{name}} bekijken",
@@ -168,7 +170,12 @@
     "viewDeal": "Bekijk deal",
     "loadingMore": "Meer verblijven laden…",
     "endOfResults": "Je bent aan het einde. Alle {{count}} verblijven zijn getoond.",
-    "bestValue": "Beste prijs"
+    "bestValue": "Beste prijs",
+    "priceOnRequest": "Prijs op aanvraag",
+    "viewLivePrices": "Klik voor actuele prijzen",
+    "checkingMore": "We zoeken naar meer verblijven…",
+    "onRequestNote_one": "Nog 1 verblijf is beschikbaar op deze data. Open het om de actuele prijs te zien.",
+    "onRequestNote_other": "Nog {{count}} verblijven zijn beschikbaar op deze data. Open er een om de actuele prijs te zien."
   },
   "lightbox": {
     "photosOf": "Foto’s van {{name}}",

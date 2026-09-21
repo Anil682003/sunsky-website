@@ -1326,12 +1326,16 @@ export default function Results() {
     const codes = Array.isArray(priceScope?.hotelCodes) ? priceScope.hotelCodes : null;
     // `[]` means the narrowing resolved to nothing at all — there is no hotel to ask about.
     if (codes ? !codes.length : !dests.length) return null;
-    // A price bound is a promise about every card on the page, and these cards have no price to
-    // hold against it — so under a min/max the extra hotels are not offered at all.
-    if (applied.minPrice !== '' || applied.maxPrice !== '') return null;
+    // The PRICE facets — a min/max, a meal plan, a room type — are promises about every card on
+    // the page, and these cards carry none of that: no price to hold against a bound, and only
+    // the one cheapest rate W2M returned, which says nothing about whether the hotel sells the
+    // meal plan or room type the traveller filtered for. So under any of them the extra hotels
+    // are not offered at all, rather than offered in contradiction of the filter.
+    if (applied.minPrice !== '' || applied.maxPrice !== ''
+      || applied.boards.length || applied.roomTypes.length) return null;
     return JSON.stringify([dests, codes, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults,
       fetchParams.children, fetchParams.rooms, fetchParams.childAges ?? null, allHotels.length]);
-  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.minPrice, applied.maxPrice]);
+  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.minPrice, applied.maxPrice, applied.boards, applied.roomTypes]);
 
   const onRequest = useMemo(
     () => (onRequestData.key === onRequestKey ? onRequestData.list : EMPTY_ON_REQUEST),

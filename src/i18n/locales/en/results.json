@@ -146,7 +146,9 @@
     "noneTitle": "No results found",
     "noneFiltered": "No stays match your filters. Try relaxing them or widening your price range.",
     "noneWiden": "Try different dates or a wider area.",
-    "clearFilters": "Clear all filters"
+    "clearFilters": "Clear all filters",
+    "checkingTitle": "Checking other suppliers…",
+    "checkingText": "Nothing in our cached prices for these dates. Asking our other suppliers now."
   },
   "card": {
     "viewPhotos_one": "View {{count}} photo of {{name}}",
@@ -168,7 +170,12 @@
     "viewDeal": "View Deal",
     "loadingMore": "Loading more stays…",
     "endOfResults": "You’ve reached the end — all {{count}} stays shown",
-    "bestValue": "Best Value"
+    "bestValue": "Best Value",
+    "priceOnRequest": "Price on request",
+    "viewLivePrices": "Click to view live prices",
+    "checkingMore": "Checking for more stays…",
+    "onRequestNote_one": "1 more stay is available for these dates — open it to see its live price",
+    "onRequestNote_other": "{{count}} more stays are available for these dates — open one to see its live price"
   },
   "lightbox": {
     "photosOf": "{{name}} photos",
