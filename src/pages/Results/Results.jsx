@@ -2544,7 +2544,7 @@ export default function Results() {
                           It stays a real <Link>, so cmd/ctrl/middle-click and "copy link address"
                           all still behave; target only changes the default click. */}
                       <Link
-                        className={styles.rcCta}
+                        className={h.onRequest ? `${styles.rcCta} ${styles.rcCtaLive}` : styles.rcCta}
                         to={detailHref(h, dispName, dispStars, hotelDest, curImg)}
                         target="_blank"
                         rel="noopener noreferrer"

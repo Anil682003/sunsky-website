@@ -1149,6 +1149,13 @@
 .rcCta:hover { transform: translateY(-2px); box-shadow: 0 10px 26px rgba(255,159,28,0.42); }
 .rcCta:active { transform: translateY(0); }
 .rcCta:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 3px; }
+/* The live-price CTA carries a far longer label than "View Deal" — longer still in Dutch, "Klik
+   voor actuele prijzen" — and `nowrap` + `overflow: hidden` clipped it at both ends. This one
+   variant may wrap to two lines; every other card keeps its single-line button. */
+.rcCtaLive {
+  white-space: normal; text-align: center; line-height: 1.25;
+  padding-left: 16px; padding-right: 16px;
+}
 .rcCta svg { transition: transform 0.3s var(--ease); }
 .rcCta:hover svg { transform: translateX(3px); }
 
