@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useSelector } from 'react-redux';
 import axiosInstance, { SUPPLIER_TIMEOUT } from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
@@ -1459,6 +1460,7 @@ function HeroPhoto({ src, seed, onFail, ...rest }) {
 }
 
 export default function HotelDetail() {
+  const { t } = useTranslation('hotelDetail');
   const { hotelCode } = useParams();
   const { state } = useLocation();
   const [searchParams] = useSearchParams();
@@ -2884,8 +2886,8 @@ export default function HotelDetail() {
                   navy. On the light sky that is ~1.3:1, so the hotel's own name was the one
                   unreadable thing in the breadcrumb. Colour now comes from the stylesheet, which
                   is the only place that knows what the background currently is. */}
-              <Link to="/">Home</Link><span className="bc-sep">›</span>
-              <a onClick={() => navigate(-1)}>Results</a><span className="bc-sep">›</span>
+              <Link to="/">{t('common:nav.home', 'Home')}</Link><span className="bc-sep">›</span>
+              <a onClick={() => navigate(-1)}>{t('breadcrumb.results', 'Results')}</a><span className="bc-sep">›</span>
               <span className="bc-now">{hotelName}</span>
             </div>
             <div className="hha">
@@ -2898,18 +2900,18 @@ export default function HotelDetail() {
                 image={heroImage}
                 buttonClassName="hhb"
                 buttonIcon={ICON.share}
-                onCopy={() => showToast('Link copied — ready to paste', 'success')}
-                onError={() => showToast('Couldn’t copy the link. Select it and copy manually.', 'error')}
+                onCopy={() => showToast(t('share.copySuccess', 'Link copied — ready to paste'), 'success')}
+                onError={() => showToast(t('share.copyError', 'Couldn’t copy the link. Select it and copy manually.'), 'error')}
               />
               <button className={`hhb${saved ? ' saved' : ''}`} onClick={handleSave}>
-                {ICON.heart} {saved ? 'Saved' : 'Save'}
+                {ICON.heart} {saved ? t('save.saved', 'Saved') : t('save.save', 'Save')}
               </button>
             </div>
           </div>
 
           <div className="sd-hero-main">
             <div className="sd-hero-left">
-              <div className="sd-hero-eyebrow">{ICON.shield} Verified stay{ratingLabel(dispRating) ? ` · ${ratingLabel(dispRating)}` : ''}</div>
+              <div className="sd-hero-eyebrow">{ICON.shield} {t('verifiedStay', 'Verified stay')}{ratingLabel(dispRating) ? ` · ${ratingLabel(dispRating)}` : ''}</div>
               <h1 className="hhn">{hotelName}</h1>
               <div className="hhm">
                 <span className="hhs"><RatingMarks rating={dispRating} keySize={16} /></span>
@@ -2925,16 +2927,16 @@ export default function HotelDetail() {
               </div>
               <span className="sd-hero-rule" />
               <div className="sd-hero-chips">
-                <span className="sd-chip">{ICON.board} {hotel?.board || 'All inclusive'}</span>
+                <span className="sd-chip">{ICON.board} {hotel?.board || t('chips.allInclusive', 'All inclusive')}</span>
                 <span className="sd-chip">{ICON.moon} {dayLabel(nights)}</span>
-                <span className="sd-chip">{ICON.users} {Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</span>
-                {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} from {ccy}{fromPP} p.p.</span>}
+                <span className="sd-chip">{ICON.users} {t('chips.adults', { count: Number(sAdults) || 2, defaultValue: `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}` })}{Number(sChildren) > 0 ? t('chips.childrenSuffix', { count: Number(sChildren), defaultValue: `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` }) : ''}</span>
+                {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} {t('chips.fromPP', { currency: ccy, amount: fromPP, defaultValue: `from ${ccy}${fromPP} p.p.` })}</span>}
               </div>
               <div className="sd-hero-trust">
-                <span className="sd-hc-item">{ICON.check} Secure online payment</span>
-                <span className="sd-hc-item">{ICON.check} No booking fees</span>
-                <span className="sd-hc-item">{ICON.check} Best price guarantee</span>
-                <span className="sd-hc-item">{ICON.check} Instant confirmation</span>
+                <span className="sd-hc-item">{ICON.check} {t('trust.securePayment', 'Secure online payment')}</span>
+                <span className="sd-hc-item">{ICON.check} {t('trust.noBookingFees', 'No booking fees')}</span>
+                <span className="sd-hc-item">{ICON.check} {t('trust.bestPriceGuarantee', 'Best price guarantee')}</span>
+                <span className="sd-hc-item">{ICON.check} {t('trust.instantConfirmation', 'Instant confirmation')}</span>
               </div>
             </div>
 
@@ -2969,7 +2971,7 @@ export default function HotelDetail() {
               )}
               {hasPhotos && (
                 <button className="ga" onClick={() => (photoCats ? openExplorer('ALL') : openLightbox(images, 0))}>
-                  {ICON.gallery} View {photoCount === 1 ? 'photo' : `all ${photoCount} photos`}
+                  {ICON.gallery} {photoCount === 1 ? t('gallery.viewPhoto', 'View photo') : t('gallery.viewAllPhotos', { count: photoCount, defaultValue: `View all ${photoCount} photos` })}
                 </button>
               )}
             </div>
@@ -2985,7 +2987,7 @@ export default function HotelDetail() {
               <div className="tabs">
                 {TABS.map((tab) => (
                   <button key={tab} className={`tb${activeTab === tab ? ' act' : ''}`} onClick={() => setActiveTab(tab)}>
-                    {TAB_ICON[tab]} {tab}
+                    {TAB_ICON[tab]} {t(`tabs.${tab.toLowerCase()}`, tab)}
                   </button>
                 ))}
               </div>

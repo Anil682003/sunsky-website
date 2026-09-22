@@ -1,0 +1,38 @@
+{
+  "breadcrumb": {
+    "results": "Resultaten"
+  },
+  "share": {
+    "copySuccess": "Link gekopieerd — klaar om te plakken",
+    "copyError": "De link kon niet worden gekopieerd. Selecteer en kopieer hem handmatig."
+  },
+  "save": {
+    "save": "Opslaan",
+    "saved": "Opgeslagen"
+  },
+  "verifiedStay": "Geverifieerd verblijf",
+  "chips": {
+    "allInclusive": "All inclusive",
+    "adults_one": "{{count}} volwassene",
+    "adults_other": "{{count}} volwassenen",
+    "childrenSuffix_one": ", {{count}} kind",
+    "childrenSuffix_other": ", {{count}} kinderen",
+    "fromPP": "vanaf {{currency}}{{amount}} p.p."
+  },
+  "trust": {
+    "securePayment": "Veilig online betalen",
+    "noBookingFees": "Geen boekingskosten",
+    "bestPriceGuarantee": "Beste prijsgarantie",
+    "instantConfirmation": "Directe bevestiging"
+  },
+  "gallery": {
+    "viewPhoto": "Foto bekijken",
+    "viewAllPhotos_one": "Bekijk alle {{count}} foto",
+    "viewAllPhotos_other": "Bekijk alle {{count}} foto’s"
+  },
+  "tabs": {
+    "prices": "Prijzen",
+    "information": "Informatie",
+    "facilities": "Voorzieningen"
+  }
+}

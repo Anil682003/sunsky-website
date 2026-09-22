@@ -1,0 +1,38 @@
+{
+  "breadcrumb": {
+    "results": "Results"
+  },
+  "share": {
+    "copySuccess": "Link copied — ready to paste",
+    "copyError": "Couldn’t copy the link. Select it and copy manually."
+  },
+  "save": {
+    "save": "Save",
+    "saved": "Saved"
+  },
+  "verifiedStay": "Verified stay",
+  "chips": {
+    "allInclusive": "All inclusive",
+    "adults_one": "{{count}} adult",
+    "adults_other": "{{count}} adults",
+    "childrenSuffix_one": ", {{count}} child",
+    "childrenSuffix_other": ", {{count}} children",
+    "fromPP": "from {{currency}}{{amount}} p.p."
+  },
+  "trust": {
+    "securePayment": "Secure online payment",
+    "noBookingFees": "No booking fees",
+    "bestPriceGuarantee": "Best price guarantee",
+    "instantConfirmation": "Instant confirmation"
+  },
+  "gallery": {
+    "viewPhoto": "View photo",
+    "viewAllPhotos_one": "View all {{count}} photo",
+    "viewAllPhotos_other": "View all {{count}} photos"
+  },
+  "tabs": {
+    "prices": "Prices",
+    "information": "Information",
+    "facilities": "Facilities"
+  }
+}
