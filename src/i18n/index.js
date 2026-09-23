@@ -6,11 +6,13 @@ import nlFaq from './locales/nl/faq.json';
 import nlHome from './locales/nl/home.json';
 import nlResults from './locales/nl/results.json';
 import nlHotelDetail from './locales/nl/hotelDetail.json';
+import nlAccount from './locales/nl/account.json';
 import enCommon from './locales/en/common.json';
 import enFaq from './locales/en/faq.json';
 import enHome from './locales/en/home.json';
 import enResults from './locales/en/results.json';
 import enHotelDetail from './locales/en/hotelDetail.json';
+import enAccount from './locales/en/account.json';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Site language.
@@ -78,8 +80,8 @@ function storeLanguage(lng) {
    translation that arrives after the first paint flashes the other language at
    the reader. Revisit if a third language makes splitting worth it. */
 const resources = {
-  nl: { common: nlCommon, faq: nlFaq, home: nlHome, results: nlResults, hotelDetail: nlHotelDetail },
-  en: { common: enCommon, faq: enFaq, home: enHome, results: enResults, hotelDetail: enHotelDetail },
+  nl: { common: nlCommon, faq: nlFaq, home: nlHome, results: nlResults, hotelDetail: nlHotelDetail, account: nlAccount },
+  en: { common: enCommon, faq: enFaq, home: enHome, results: enResults, hotelDetail: enHotelDetail, account: enAccount },
 };
 
 i18n.use(initReactI18next).init({
@@ -90,7 +92,7 @@ i18n.use(initReactI18next).init({
   fallbackLng: DEFAULT_LANGUAGE,
   supportedLngs: SUPPORTED_LANGUAGES,
   defaultNS: 'common',
-  ns: ['common', 'faq', 'home', 'results', 'hotelDetail'],
+  ns: ['common', 'faq', 'home', 'results', 'hotelDetail', 'account'],
 
   interpolation: {
     // React escapes everything it renders; escaping again turns an apostrophe

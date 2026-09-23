@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useFavourites, removeFavourite } from '../../api';
 import { recallDestCode } from '../../utils/favDest';
 import { useToast } from '../../context/ToastContext';
@@ -48,6 +49,7 @@ function SkeletonGrid() {
 }
 
 function Header({ count, loading }) {
+  const { t } = useTranslation('account');
   return (
     <header className={styles.hero}>
       <span className={styles.heroSun} aria-hidden="true" />
@@ -56,15 +58,19 @@ function Header({ count, loading }) {
       <div className={styles.heroInner}>
         <span className={styles.eyebrow}>
           <Icon d={['M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z']} size={13} sw={2} fill="currentColor" />
-          Your collection
+          {t('account:favourites.eyebrow', 'Your collection')}
         </span>
-        <h1 className={styles.title}>Saved stays</h1>
+        <h1 className={styles.title}>{t('account:favourites.title', 'Saved stays')}</h1>
         <p className={styles.subtitle}>
           {loading
-            ? 'Gathering the places you loved…'
+            ? t('account:favourites.subtitleLoading', 'Gathering the places you loved…')
             : count
-              ? `${count} ${count === 1 ? 'hotel' : 'hotels'} ready when you are — open one to see live prices.`
-              : 'Heart any hotel and it lands here, ready to book when the moment’s right.'}
+              ? t('account:favourites.subtitleCount', {
+                  count,
+                  defaultValue_one: '{{count}} hotel ready when you are — open one to see live prices.',
+                  defaultValue_other: '{{count}} hotels ready when you are — open one to see live prices.',
+                })
+              : t('account:favourites.subtitleEmpty', 'Heart any hotel and it lands here, ready to book when the moment’s right.')}
         </p>
       </div>
     </header>
@@ -72,6 +78,7 @@ function Header({ count, loading }) {
 }
 
 export default function Favourites() {
+  const { t } = useTranslation('account');
   const { data, loading, error } = useFavourites();
   const { showToast } = useToast();
   // Track optimistically-removed codes instead of copying the list into state.
@@ -85,10 +92,10 @@ export default function Favourites() {
     setRemoved((prev) => new Set(prev).add(code));
     try {
       await removeFavourite(hotelCode);
-      showToast('Removed from favourites', 'success');
+      showToast(t('account:favourites.toastRemoved', 'Removed from favourites'), 'success');
     } catch {
       setRemoved((prev) => { const n = new Set(prev); n.delete(code); return n; });
-      showToast('Couldn’t remove favourite. Please try again.', 'error');
+      showToast(t('account:favourites.toastRemoveFailed', 'Couldn’t remove favourite. Please try again.'), 'error');
     }
   };
 
@@ -103,7 +110,7 @@ export default function Favourites() {
           <div className={`${styles.stateIcon} ${styles.stateIconErr}`}>
             <Icon d={['M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z', 'M12 9v4', 'M12 17h.01']} size={30} sw={1.6} />
           </div>
-          <h3 className={styles.stateTitle}>We couldn’t load your favourites</h3>
+          <h3 className={styles.stateTitle}>{t('account:favourites.errorTitle', 'We couldn’t load your favourites')}</h3>
           <p className={styles.stateText}>{String(error)}</p>
         </div>
       ) : items.length === 0 ? (
@@ -111,10 +118,10 @@ export default function Favourites() {
           <div className={styles.stateIcon}>
             <Icon d={['M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z']} size={30} sw={1.6} />
           </div>
-          <h3 className={styles.stateTitle}>No saved stays yet</h3>
-          <p className={styles.stateText}>Tap the heart on any hotel and it’ll be waiting for you here.</p>
+          <h3 className={styles.stateTitle}>{t('account:favourites.emptyTitle', 'No saved stays yet')}</h3>
+          <p className={styles.stateText}>{t('account:favourites.emptyText', 'Tap the heart on any hotel and it’ll be waiting for you here.')}</p>
           <Link to="/results" className={styles.stateBtn}>
-            Browse hotels
+            {t('account:favourites.browseHotels', 'Browse hotels')}
             <Icon d={['M5 12h14', 'M12 5l7 7-7 7']} size={15} sw={2.2} />
           </Link>
         </div>
@@ -143,8 +150,8 @@ export default function Favourites() {
                   type="button"
                   className={styles.heart}
                   onClick={(e) => handleRemove(e, f.hotelCode)}
-                  aria-label="Remove from favourites"
-                  title="Remove from favourites"
+                  aria-label={t('account:favourites.removeAria', 'Remove from favourites')}
+                  title={t('account:favourites.removeAria', 'Remove from favourites')}
                 >
                   <svg width="17" height="17" viewBox="0 0 24 24" fill="currentColor" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
                     <path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" />
@@ -155,10 +162,10 @@ export default function Favourites() {
                 {f.stars > 0 && (
                   <div className={styles.stars}>
                     {'★'.repeat(Math.min(f.stars, 5))}
-                    <span className={styles.starLabel}>{Math.min(f.stars, 5)}-star</span>
+                    <span className={styles.starLabel}>{t('account:favourites.starLabel', { count: Math.min(f.stars, 5), defaultValue: '{{count}}-star' })}</span>
                   </div>
                 )}
-                <h3 className={styles.name}>{f.hotelName || `Hotel ${f.hotelCode}`}</h3>
+                <h3 className={styles.name}>{f.hotelName || t('account:favourites.hotelFallbackName', { code: f.hotelCode, defaultValue: 'Hotel {{code}}' })}</h3>
                 {f.destination && (
                   <div className={styles.loc}>
                     <Icon d={['M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z', 'M12 13a3 3 0 100-6 3 3 0 000 6z']} size={13} sw={1.6} />
@@ -166,7 +173,7 @@ export default function Favourites() {
                   </div>
                 )}
                 <span className={styles.cta}>
-                  View live prices
+                  {t('account:favourites.viewLivePrices', 'View live prices')}
                   <Icon d={['M5 12h14', 'M12 5l7 7-7 7']} size={14} sw={2.2} />
                 </span>
               </div>

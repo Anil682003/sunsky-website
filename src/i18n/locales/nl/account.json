@@ -1,0 +1,96 @@
+{
+  "price": {
+    "total": "Totaal",
+    "paid": "Betaald",
+    "balanceDue": "Nog te betalen"
+  },
+  "status": {
+    "confirmed": "Bevestigd",
+    "pending": "In behandeling",
+    "cancelled": "Geannuleerd",
+    "draft": "Concept"
+  },
+  "profile": {
+    "loading": "Profiel laden…",
+    "role": {
+      "professional": "Zakelijk account",
+      "private": "Particulier account"
+    },
+    "sectionTitle": {
+      "company": "Bedrijfsgegevens",
+      "personal": "Persoonlijke gegevens",
+      "address": "Adres"
+    },
+    "fields": {
+      "firstName": "Voornaam",
+      "lastName": "Achternaam",
+      "phone": "Telefoon",
+      "nationality": "Nationaliteit",
+      "dateOfBirth": "Geboortedatum",
+      "gender": "Geslacht",
+      "customerCode": "Klantcode",
+      "preferredLanguage": "Voorkeurstaal",
+      "tradingName": "Handelsnaam",
+      "legalName": "Officiële naam",
+      "vatNumber": "Btw-nummer",
+      "industry": "Sector",
+      "website": "Website",
+      "contactPerson": "Contactpersoon",
+      "contactPhone": "Contacttelefoon",
+      "street": "Straat",
+      "city": "Stad",
+      "postalCode": "Postcode",
+      "country": "Land"
+    }
+  },
+  "favourites": {
+    "eyebrow": "Jouw collectie",
+    "title": "Opgeslagen verblijven",
+    "subtitleLoading": "We verzamelen de plekken waar je van hield…",
+    "subtitleCount_one": "{{count}} hotel klaar voor je — open het voor live prijzen.",
+    "subtitleCount_other": "{{count}} hotels klaar voor je — open er een voor live prijzen.",
+    "subtitleEmpty": "Vind je een hotel leuk? Klik op het hartje en het staat hier klaar om te boeken.",
+    "errorTitle": "We konden je favorieten niet laden",
+    "emptyTitle": "Nog geen opgeslagen verblijven",
+    "emptyText": "Tik op het hartje bij een hotel en het staat hier voor je klaar.",
+    "browseHotels": "Bekijk hotels",
+    "removeAria": "Verwijderen uit favorieten",
+    "starLabel": "{{count}} sterren",
+    "hotelFallbackName": "Hotel {{code}}",
+    "viewLivePrices": "Bekijk live prijzen",
+    "toastRemoved": "Verwijderd uit favorieten",
+    "toastRemoveFailed": "De favoriet kon niet worden verwijderd. Probeer het opnieuw."
+  },
+  "myBookings": {
+    "loading": "Je boekingen worden geladen…",
+    "subtitleCount_one": "{{count}} reis op je account",
+    "subtitleCount_other": "{{count}} reizen op je account",
+    "subtitleEmpty": "Je reizen verschijnen hier zodra je boekt.",
+    "emptyTitle": "Nog geen boekingen",
+    "emptyText": "Vind je volgende zonnige bestemming en die verschijnt hier.",
+    "startExploring": "Begin met zoeken",
+    "departing": "Vertrek {{date}}",
+    "bookingDetails": "Boekingsgegevens",
+    "booked": "Geboekt op {{date}}",
+    "viewDetails": "Bekijk details",
+    "payment": {
+      "paid": "Betaald",
+      "partPaid": "Deels betaald",
+      "unpaid": "Niet betaald"
+    }
+  },
+  "bookingDetail": {
+    "loading": "Boeking wordt geladen…",
+    "notFound": "Boeking niet gevonden.",
+    "backToBookings": "Terug naar mijn boekingen",
+    "payment": "Betaling",
+    "paymentStatus": "Betaalstatus:",
+    "source": "Bron:",
+    "whatsIncluded": "Wat is inbegrepen",
+    "travellers": "Reizigers ({{count}})",
+    "ref": "Ref: {{ref}}",
+    "lead": "Hoofdboeker",
+    "nights_one": "{{count}} nacht",
+    "nights_other": "{{count}} nachten"
+  }
+}
