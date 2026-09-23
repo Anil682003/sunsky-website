@@ -79,12 +79,12 @@ const renderPage = () => render(
 // Pick the first priced day in the strip and run the live check.
 const checkFirstDay = async (user) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /from €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
   await user.click(days[0]);
-  await user.click(await screen.findByRole('button', { name: /check price & availability/i }));
+  await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
@@ -94,7 +94,7 @@ describe('the availability card spells the trip out', () => {
     const { container } = renderPage();
     await checkFirstDay(user);
 
-    await screen.findByText(/your holiday is available/i);
+    await screen.findByText(/je vakantie is beschikbaar/i);
     const facts = await waitFor(() => {
       const el = container.querySelector('.fc-facts');
       expect(el).toBeTruthy();
@@ -111,22 +111,22 @@ describe('the availability card spells the trip out', () => {
     };
 
     // Both ends of the stay on one line, plus how long it runs.
-    const period = row('travel period');
+    const period = row('reisperiode');
     expect(period).toHaveTextContent(String(new Date(`${CHECK_IN}T00:00:00`).getDate()));
     expect(period).toHaveTextContent(String(new Date(`${RETURN_ON}T00:00:00`).getDate()));
-    expect(period).toHaveTextContent(`${NIGHTS} nights`);
+    expect(period).toHaveTextContent(`${NIGHTS} nachten`);
 
     // The searched departure airport, resolved from the code.
-    expect(row('departure airport')).toHaveTextContent('Brussels (BRU)');
+    expect(row('vertrekluchthaven')).toHaveTextContent('Brussels (BRU)');
 
     // The room AND the board on the rate that priced the card — the traveller set no
     // preference, so neither may come from the six-item board list.
-    expect(row('accommodation')).toHaveTextContent('Double Room Sea View');
-    expect(row('accommodation')).toHaveTextContent('All inclusive');
+    expect(row('accommodatie')).toHaveTextContent('Double Room Sea View');
+    expect(row('accommodatie')).toHaveTextContent('All inclusive');
 
     // Added on the checkout page, not here — and never implied to be in the price.
-    expect(row('transfer')).toHaveTextContent(/not included/i);
-    expect(row('transfer')).toHaveTextContent(/optional extra/i);
+    expect(row('transfer')).toHaveTextContent(/niet inbegrepen/i);
+    expect(row('transfer')).toHaveTextContent(/optionele extra/i);
   });
 
   it('follows the room the traveller picks, not the cheapest one', async () => {
@@ -140,7 +140,7 @@ describe('the availability card spells the trip out', () => {
       return el;
     });
     const stayRow = () => [...facts.querySelectorAll('.fcu-item')]
-      .find((el) => el.querySelector('.fcu-k')?.textContent.trim().toLowerCase() === 'accommodation');
+      .find((el) => el.querySelector('.fcu-k')?.textContent.trim().toLowerCase() === 'accommodatie');
 
     const quoted = () => container.querySelector('.avail-price-val')?.textContent;
 
@@ -152,13 +152,13 @@ describe('the availability card spells the trip out', () => {
     // Upgrading to half board re-prices the card AND renames the board with it — the recap
     // is a statement about the rate that is selected, so the two can never disagree.
     const hb = await waitFor(() => {
-      const found = [...container.querySelectorAll('.room-option')].find((el) => /half board/i.test(el.textContent));
+      const found = [...container.querySelectorAll('.room-option')].find((el) => /halfpension/i.test(el.textContent));
       expect(found).toBeTruthy();
       return found;
     });
     await user.click(hb);
 
-    await waitFor(() => expect(stayRow()).toHaveTextContent('Half board'));
+    await waitFor(() => expect(stayRow()).toHaveTextContent('Halfpension'));
     expect(stayRow()).not.toHaveTextContent('All inclusive');
     expect(quoted()).toBe('€221p.p.');
     expect(container.querySelector('.av-price-total').textContent).toContain('€441');
@@ -182,7 +182,7 @@ describe('the availability card spells the trip out', () => {
       expect(el).toBeTruthy();
       return el;
     });
-    await waitFor(() => expect(within(facts).getByText('Half board')).toBeInTheDocument());
+    await waitFor(() => expect(within(facts).getByText('Halfpension')).toBeInTheDocument());
     expect(within(facts).queryByText('All inclusive')).toBeNull();
   });
 });

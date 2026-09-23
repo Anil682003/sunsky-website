@@ -1,9 +1,14 @@
 import { useParams, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useBooking } from '../../api';
+import i18n from '../../i18n';
 import styles from './BookingDetail.module.css';
 
 const fmt = (n) => `€${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-const fmtDate = (d) => (d ? new Date(d).toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+// Dates are read by the browser, so they need the reader's locale rather than a hard-coded en-GB.
+const dateLocale = () => (i18n.language === 'nl' ? 'nl-BE' : 'en-GB');
+const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
+const fmtDateTime = (d) => (d ? new Date(d).toLocaleString(dateLocale(), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : '');
 
 const STATUS = {
   Confirmed: { bg: '#d1fae5', color: '#065f46' },
@@ -11,6 +16,8 @@ const STATUS = {
   Cancelled: { bg: '#fee2e2', color: '#991b1b' },
   Draft:     { bg: '#eef2f7', color: '#475569' },
 };
+
+const statusLabel = (status) => i18n.t(`account:status.${String(status || 'draft').toLowerCase()}`, status || 'Draft');
 
 const productIcon = (t = '') => {
   const s = String(t).toLowerCase();
@@ -21,12 +28,13 @@ const productIcon = (t = '') => {
 };
 
 export default function BookingDetail() {
+  const { t } = useTranslation('account');
   const { ref } = useParams();
   const { data: b, loading, error } = useBooking(ref);
 
-  if (loading) return <div className={styles.page}><div className={styles.center}>Loading booking…</div></div>;
+  if (loading) return <div className={styles.page}><div className={styles.center}>{t('account:bookingDetail.loading', 'Loading booking…')}</div></div>;
   if (error)   return <div className={styles.page}><div className={styles.center} style={{ color: '#dc2626' }}>{error}</div></div>;
-  if (!b)      return <div className={styles.page}><div className={styles.center}>Booking not found.</div></div>;
+  if (!b)      return <div className={styles.page}><div className={styles.center}>{t('account:bookingDetail.notFound', 'Booking not found.')}</div></div>;
 
   const st = STATUS[b.status] || STATUS.Draft;
   const total = parseFloat(b.grandTotal || 0);
@@ -37,34 +45,34 @@ export default function BookingDetail() {
 
   return (
     <div className={styles.page}>
-      <Link to="/account/bookings" className={styles.back}>← Back to my bookings</Link>
+      <Link to="/account/bookings" className={styles.back}>← {t('account:bookingDetail.backToBookings', 'Back to my bookings')}</Link>
 
       <header className={styles.header}>
         <div>
           <h1 className={styles.title}>{b.bookingReference}</h1>
-          <p className={styles.subtitle}>Booked {fmtDate(b.createdAt)}</p>
+          <p className={styles.subtitle}>{t('account:myBookings.booked', { date: fmtDate(b.createdAt), defaultValue: 'Booked {{date}}' })}</p>
         </div>
-        <span className={styles.badge} style={{ background: st.bg, color: st.color }}>{b.status}</span>
+        <span className={styles.badge} style={{ background: st.bg, color: st.color }}>{statusLabel(b.status)}</span>
       </header>
 
       {/* Payment summary */}
       <section className={styles.card}>
-        <h2 className={styles.cardTitle}>Payment</h2>
+        <h2 className={styles.cardTitle}>{t('account:bookingDetail.payment', 'Payment')}</h2>
         <div className={styles.priceStrip}>
-          <div className={styles.priceCell}><span className={styles.priceLabel}>Total</span><span className={styles.priceValue}>{fmt(total)}</span></div>
-          <div className={styles.priceCell}><span className={styles.priceLabel}>Paid</span><span className={`${styles.priceValue} ${styles.paid}`}>{fmt(paid)}</span></div>
-          <div className={styles.priceCell}><span className={styles.priceLabel}>Balance due</span><span className={`${styles.priceValue} ${balance > 0 ? styles.owed : styles.paid}`}>{fmt(balance)}</span></div>
+          <div className={styles.priceCell}><span className={styles.priceLabel}>{t('account:price.total', 'Total')}</span><span className={styles.priceValue}>{fmt(total)}</span></div>
+          <div className={styles.priceCell}><span className={styles.priceLabel}>{t('account:price.paid', 'Paid')}</span><span className={`${styles.priceValue} ${styles.paid}`}>{fmt(paid)}</span></div>
+          <div className={styles.priceCell}><span className={styles.priceLabel}>{t('account:price.balanceDue', 'Balance due')}</span><span className={`${styles.priceValue} ${balance > 0 ? styles.owed : styles.paid}`}>{fmt(balance)}</span></div>
         </div>
         <div className={styles.metaRow}>
-          <span>Payment status: <b>{b.paymentStatus || '—'}</b></span>
-          {b.bookingType && <span>Source: <b>{b.bookingType}</b></span>}
+          <span>{t('account:bookingDetail.paymentStatus', 'Payment status:')} <b>{b.paymentStatus || '—'}</b></span>
+          {b.bookingType && <span>{t('account:bookingDetail.source', 'Source:')} <b>{b.bookingType}</b></span>}
         </div>
       </section>
 
       {/* Products */}
       {products.length > 0 && (
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>What’s included</h2>
+          <h2 className={styles.cardTitle}>{t('account:bookingDetail.whatsIncluded', 'What’s included')}</h2>
           <div className={styles.products}>
             {products.map((p) => {
               const d = p.productDetails || {};
@@ -83,21 +91,26 @@ export default function BookingDetail() {
                           <div key={i} className={styles.leg}>
                             <b>{l.from} → {l.to}</b>
                             <span>{l.airline} {l.flightNumber}</span>
-                            <span>{l.departure ? new Date(l.departure).toLocaleString('en-GB', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : ''}</span>
+                            <span>{fmtDateTime(l.departure)}</span>
                           </div>
                         ))}
                       </div>
                     ) : p.productType === 'Hotel' ? (
                       <div className={styles.prodMeta}>
                         {d.hotelName && <span>{d.hotelName}</span>}
-                        {(d.checkin || d.checkout) && <span>{fmtDate(d.checkin)} → {fmtDate(d.checkout)}{d.nights ? ` · ${d.nights} nights` : ''}</span>}
+                        {(d.checkin || d.checkout) && (
+                          <span>
+                            {fmtDate(d.checkin)} → {fmtDate(d.checkout)}
+                            {d.nights ? ` · ${t('account:bookingDetail.nights', { count: d.nights, defaultValue_one: '{{count}} night', defaultValue_other: '{{count}} nights' })}` : ''}
+                          </span>
+                        )}
                       </div>
                     ) : (
                       <div className={styles.prodMeta}>{d.label || p.supplierName}</div>
                     )}
                     <div className={styles.prodFoot}>
                       {p.supplierName && <span>{p.supplierName}</span>}
-                      {p.supplierReference && <span>Ref: {p.supplierReference}</span>}
+                      {p.supplierReference && <span>{t('account:bookingDetail.ref', { ref: p.supplierReference, defaultValue: 'Ref: {{ref}}' })}</span>}
                       <span className={styles.prodPrice}>{fmt(p.sellingPrice)}</span>
                     </div>
                   </div>
@@ -111,14 +124,14 @@ export default function BookingDetail() {
       {/* Travellers */}
       {travelers.length > 0 && (
         <section className={styles.card}>
-          <h2 className={styles.cardTitle}>Travellers ({travelers.length})</h2>
+          <h2 className={styles.cardTitle}>{t('account:bookingDetail.travellers', { count: travelers.length, defaultValue: 'Travellers ({{count}})' })}</h2>
           <div className={styles.travelers}>
-            {travelers.map((t) => (
-              <div key={t.id} className={styles.traveler}>
-                <div className={styles.tAvatar}>{(t.firstName || '?')[0]}{(t.lastName || '')[0]}</div>
+            {travelers.map((tr) => (
+              <div key={tr.id} className={styles.traveler}>
+                <div className={styles.tAvatar}>{(tr.firstName || '?')[0]}{(tr.lastName || '')[0]}</div>
                 <div>
-                  <div className={styles.tName}>{t.title ? `${t.title} ` : ''}{t.firstName} {t.lastName}{t.isLeadTraveler ? ' · Lead' : ''}</div>
-                  <div className={styles.tMeta}>{t.type || 'ADT'}{t.dateOfBirth ? ` · ${fmtDate(t.dateOfBirth)}` : ''}</div>
+                  <div className={styles.tName}>{tr.title ? `${tr.title} ` : ''}{tr.firstName} {tr.lastName}{tr.isLeadTraveler ? ` · ${t('account:bookingDetail.lead', 'Lead')}` : ''}</div>
+                  <div className={styles.tMeta}>{tr.type || 'ADT'}{tr.dateOfBirth ? ` · ${fmtDate(tr.dateOfBirth)}` : ''}</div>
                 </div>
               </div>
             ))}

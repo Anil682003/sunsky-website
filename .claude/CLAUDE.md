@@ -151,7 +151,7 @@ Runtime (server/index.js):
 3. **Filter activity codes can be group-qualified** (`"74:620"`) — Number-coercing drops the group prefix and over-matches
 4. **`fetchFacets` has opt-in codes/attrs flags** — whole-country response is ~1MB with both, ~7KB without
 5. **Auth tokens in localStorage** — refresh failure hard-redirects to `/login` (state loss by design)
-6. **No i18n framework** — UI copy is hardcoded English; CMS text can be any language
+6. **i18n is `react-i18next`, in progress page-by-page** — Dutch (`nl`) is the site's default/native language, English (`en`) is the switchable alternative (`src/i18n/index.js`); resources are bundled JSON per namespace under `src/i18n/locales/{en,nl}/*.json`, one namespace per page (`common`, `home`, `faq`, `results`, `hotelDetail`, …). Convert a string with `t('ns:key', 'English default text')` — the English default keeps a half-converted page readable. Header/footer/nav, Home, Results, FAQ and the HotelDetail hero+tabs are done; most of HotelDetail plus Checkout/Auth/Account/Flights/FlightDetail/Transfers/Voucher/HolidayType are still hardcoded English. CMS text (footer links, page content) is separate — it comes from the admin dashboard as-is, in whatever language it was entered.
 7. **Hero title uses `*asterisk*` markup** for the gold-script segment (legacy fallback highlights literal "sun"/"zon")
 8. **`hotelImage.js` is imported by both Vite and Node** (`server/index.js`) — keep it isomorphic
 9. **vite.config.js pins `esbuild jsx:'automatic'`** — Vitest needs it; `test.css:true` for CSS module classNames in tests
