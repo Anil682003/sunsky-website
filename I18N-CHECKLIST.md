@@ -2,7 +2,7 @@
 
 **Stack:** `react-i18next`. Dutch (`nl`) is the site's default/native language; English (`en`) is the switchable alternative. Pattern: `t('ns:key', 'English default text')`, one namespace per page/feature, under `src/i18n/locales/{en,nl}/*.json` (see `src/i18n/index.js`).
 
-**Last updated:** 2026-09-22
+**Last updated:** 2026-09-23
 
 ---
 
@@ -19,13 +19,7 @@
 | Shared search: calendar, airport typeahead, destination modal | ✅ Live | `common` namespace |
 | Shared utils: reviewBadge, rating, topFacilities, countryName | ✅ Live | `countryName` uses `Intl.DisplayNames` (no data needed) |
 | Holiday-type names (all 16) | ✅ Live | |
-| **HotelDetail — hero + tabs** | ✅ Live | `hotelDetail` namespace — PR [#35](https://github.com/Anil682003/sunsky-website/pull/35), merged first slice |
-
-### 🚧 In progress
-
-| Page | Notes |
-|---|---|
-| HotelDetail — everything below the tabs | Fare-comparison chart, flight picker + flight-details modal, room list, "Overview of your holiday" booking card, Information tab, Facilities tab, booking sidebar, photo explorer/lightbox. Also pulls in the shared `StayBar` component (used only by this page) and `BOARD_PREFS`/board-label logic, both being converted alongside it. |
+| **HotelDetail (whole page)** | ✅ Live | `hotelDetail` namespace — PR [#35](https://github.com/Anil682003/sunsky-website/pull/35). Hero/tabs, fare-comparison chart, flight picker + flight-details modal, room/board list, "Overview of your holiday", Information tab, Facilities tab, booking sidebar, mobile sticky bar, photo explorer/lightbox. Also converts the shared `StayBar` component and the `rateDetails.js` board dictionary. Dates (weekday/month names) now read from the shared calendar dictionary instead of hardcoded English arrays. 73/73 tests passing. |
 
 ### ⬜ Not started
 
