@@ -121,12 +121,12 @@ const renderPage = () => render(
 // Price a day, which is what sends both the room and the flight search.
 const runCheck = async (user) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /from €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
   await user.click(days[0]);
-  await user.click(await screen.findByRole('button', { name: /check price & availability/i }));
+  await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
   await waitFor(() => expect(post).toHaveBeenCalledWith(
     expect.stringContaining('flight-availability'), expect.anything(), expect.anything(),
   ));
@@ -165,7 +165,7 @@ describe('the change-flight modal lists flights, not fare classes', () => {
     renderPage();
     await runCheck(user);
     // Two flights to choose between — not the four fares the supplier returned.
-    expect(await screen.findByRole('button', { name: /choose another flight · 2 options$/i })).toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /kies een andere vlucht · 2 opties$/i })).toBeInTheDocument();
   });
 });
 
@@ -221,7 +221,7 @@ describe('a card says what switching to it costs, and offers the switch', () => 
     expect(held.querySelector('.fc-swing')).toBeNull();      // it is the one you have
     expect(alt.querySelector('.fc-swing').textContent).toContain('19.00');
     expect(alt.querySelector('.fc-swing').className).toContain('up');
-    expect(alt.querySelector('.fc-swing-cap').textContent).toMatch(/per person/i);
+    expect(alt.querySelector('.fc-swing-cap').textContent).toMatch(/per persoon/i);
   });
 
   it('re-reckons every card the moment a different flight is chosen', async () => {
@@ -249,8 +249,8 @@ describe('a card says what switching to it costs, and offers the switch', () => 
 
     const [held, alt] = modalCards(container);
     expect(held.querySelector('.fc-pick')).toBeNull();
-    expect(held.querySelector('.flight-selected-badge').textContent).toMatch(/selected/i);
-    expect(alt.querySelector('.fc-pick').getAttribute('aria-label')).toMatch(/select this flight/i);
+    expect(held.querySelector('.flight-selected-badge').textContent).toMatch(/geselecteerd/i);
+    expect(alt.querySelector('.fc-pick').getAttribute('aria-label')).toMatch(/deze vlucht selecteren/i);
     expect(alt.querySelector('.fc-pick').getAttribute('role')).toBe('radio');
   });
 
@@ -262,12 +262,12 @@ describe('a card says what switching to it costs, and offers the switch', () => 
     await runCheck(user);
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
-    expect(modalCards(container)[0].textContent).not.toMatch(/lowest fare/i);
+    expect(modalCards(container)[0].textContent).not.toMatch(/laagste tarief/i);
 
     // Take the dearer one; the cheapest is now an alternative and earns the chip.
     await user.click(modalCards(container)[1].querySelector('.fc-pick'));
     await waitFor(() => {
-      expect(modalCards(container)[0].querySelector('.fc-best').textContent).toMatch(/lowest fare/i);
+      expect(modalCards(container)[0].querySelector('.fc-best').textContent).toMatch(/laagste tarief/i);
     });
   });
 });
@@ -337,7 +337,7 @@ describe('the filter rail acts on the live results', () => {
   // tests open it the way a traveller does rather than reaching into hidden markup.
   const openFilters = async (user) => {
     await runCheck(user);
-    await user.click(await screen.findByRole('button', { name: /choose another flight/i }));
+    await user.click(await screen.findByRole('button', { name: /kies een andere vlucht/i }));
     await waitFor(() => expect(screen.getAllByRole('checkbox').length).toBeGreaterThan(0));
   };
 
@@ -347,7 +347,7 @@ describe('the filter rail acts on the live results', () => {
     await openFilters(user);
     await waitFor(() => expect(modalCards(container).length).toBe(3));
 
-    await user.click(screen.getByRole('checkbox', { name: /direct flights/i }));
+    await user.click(screen.getByRole('checkbox', { name: /rechtstreekse vluchten/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(2));
     expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
   });
@@ -357,7 +357,7 @@ describe('the filter rail acts on the live results', () => {
     const { container } = renderPage();
     await openFilters(user);
 
-    await user.click(screen.getByRole('checkbox', { name: /flights with stop/i }));
+    await user.click(screen.getByRole('checkbox', { name: /vluchten met tussenstop/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(1));
     expect(container.querySelector('.modal-flights').textContent).toContain('Turkish');
   });
@@ -367,10 +367,10 @@ describe('the filter rail acts on the live results', () => {
     const { container } = renderPage();
     await openFilters(user);
 
-    await user.click(screen.getByRole('checkbox', { name: /include baggage/i }));
+    await user.click(screen.getByRole('checkbox', { name: /met ruimbagage/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
-    await user.click(screen.getByRole('checkbox', { name: /exclude baggage/i }));
+    await user.click(screen.getByRole('checkbox', { name: /zonder ruimbagage/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(1));
     expect(container.querySelector('.modal-flights').textContent).toContain('06:15');
   });
@@ -390,12 +390,12 @@ describe('the filter rail acts on the live results', () => {
     const { container } = renderPage();
     await openFilters(user);
 
-    await user.click(screen.getByRole('checkbox', { name: /flights with stop/i }));
-    await waitFor(() => expect(screen.getByText(/1 of 3 flights match/i)).toBeInTheDocument());
+    await user.click(screen.getByRole('checkbox', { name: /vluchten met tussenstop/i }));
+    await waitFor(() => expect(screen.getByText(/1 van 3 vluchten komen overeen/i)).toBeInTheDocument());
 
-    await user.click(screen.getByRole('button', { name: /reset all/i }));
+    await user.click(screen.getByRole('button', { name: /alle filters resetten/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(3));
-    expect(screen.getByText(/3 flights found/i)).toBeInTheDocument();
+    expect(screen.getByText(/3 vluchten gevonden/i)).toBeInTheDocument();
   });
 
   /* The rail folds away to a tab so the cards get the width back, and the tab carries the
@@ -410,7 +410,7 @@ describe('the filter rail acts on the live results', () => {
     const body = () => container.querySelector('.modal-body');
     expect(body().className).toContain('rail-open');
 
-    await user.click(screen.getByRole('checkbox', { name: /flights with stop/i }));
+    await user.click(screen.getByRole('checkbox', { name: /vluchten met tussenstop/i }));
     // Queried by class, not by role: both controls are `display:none` until the media query
     // that owns them matches, and jsdom evaluates no media queries.
     await user.click(container.querySelector('.modal-rail-fold'));
@@ -431,8 +431,8 @@ describe('the filter rail acts on the live results', () => {
 
     // 06:15 is the earliest outbound in the set and 17:40 the latest — the slider is bounded
     // by the flights that exist, not by a decorative midnight-to-midnight.
-    const earliest = await screen.findByRole('slider', { name: /outbound — earliest/i });
-    const latest = screen.getByRole('slider', { name: /outbound — latest/i });
+    const earliest = await screen.findByRole('slider', { name: /heenreis — vroegst/i });
+    const latest = screen.getByRole('slider', { name: /heenreis — laatst/i });
     expect(earliest).toHaveAttribute('min', String(6 * 60 + 15));
     expect(latest).toHaveAttribute('max', String(17 * 60 + 40));
   });
@@ -444,7 +444,7 @@ describe('the filter rail acts on the live results', () => {
     await waitFor(() => expect(modalCards(container).length).toBe(3));
 
     // Pull the late end back to 10:00: only the 06:15 and the 09:00 survive.
-    const latest = screen.getByRole('slider', { name: /outbound — latest/i });
+    const latest = screen.getByRole('slider', { name: /heenreis — laatst/i });
     fireEvent.change(latest, { target: { value: String(10 * 60) } });
 
     await waitFor(() => expect(modalCards(container).length).toBe(2));
@@ -470,8 +470,8 @@ describe('the cheapest-flight card the page leads with', () => {
 
     const legs = pageCard(container).querySelectorAll('.fc-leg');
     expect(legs).toHaveLength(2);
-    expect(legs[0].textContent).toMatch(/outbound/i);
-    expect(legs[1].textContent).toMatch(/return/i);
+    expect(legs[0].textContent).toMatch(/heenreis/i);
+    expect(legs[1].textContent).toMatch(/terugreis/i);
     // Two columns, not the one-way full-width layout.
     expect(pageCard(container).querySelector('.fc-legs').className).not.toContain('fc-legs-one');
   });
@@ -498,11 +498,11 @@ describe('the cheapest-flight card the page leads with', () => {
     await waitFor(() => expect(pageCard(container)).not.toBeNull());
 
     for (const leg of pageCard(container).querySelectorAll('.fc-leg')) {
-      expect(leg.textContent).not.toMatch(/checked baggage/i);
+      expect(leg.textContent).not.toMatch(/ruimbagage/i);
     }
     // …and the way to it is still on the card.
     expect(pageCard(container).querySelector('.flight-details-btn').textContent)
-      .toMatch(/view flight details/i);
+      .toMatch(/vluchtdetails bekijken/i);
   });
 
   // Half a card of white space is not a design, it is a missing column.
@@ -542,9 +542,9 @@ describe('the cheapest-flight card the page leads with', () => {
 
     const foot = pageCard(container).querySelector('.flight-bottom');
     expect(foot.textContent).not.toContain('1,112');
-    expect(foot.textContent).not.toMatch(/total for all travellers/i);
+    expect(foot.textContent).not.toMatch(/totaal voor alle reizigers/i);
     expect(foot.querySelector('.fc-allin').textContent)
-      .toMatch(/prices include taxes, fees and charges/i);
+      .toMatch(/prijzen zijn inclusief belastingen en kosten/i);
     expect(foot.querySelector('.flight-details-btn')).not.toBeNull();
   });
 
@@ -555,12 +555,12 @@ describe('the cheapest-flight card the page leads with', () => {
     await waitFor(() => expect(pageCard(container)).not.toBeNull());
 
     const band = pageCard(container).querySelector('.fc-banner');
-    expect(band.querySelector('.fc-banner-pill').textContent).toMatch(/best price/i);
-    expect(band.querySelector('.fc-banner-title').textContent).toMatch(/your flights/i);
+    expect(band.querySelector('.fc-banner-pill').textContent).toMatch(/beste prijs/i);
+    expect(band.querySelector('.fc-banner-title').textContent).toMatch(/jouw vluchten/i);
     expect(band.querySelector('.fc-banner-sub').textContent)
-      .toMatch(/automatically selected for your travel dates/i);
+      .toMatch(/automatisch gekozen voor jouw reisdata/i);
     // The status belongs at the top of the card, opposite the heading, not at its foot.
-    expect(band.querySelector('.fc-selected-lg').textContent).toMatch(/selected/i);
+    expect(band.querySelector('.fc-selected-lg').textContent).toMatch(/geselecteerd/i);
     expect(pageCard(container).querySelector('.flight-bottom .fc-selected-lg')).toBeNull();
   });
 });

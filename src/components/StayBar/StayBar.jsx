@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './StayBar.module.css';
 import { earliestCheckInISO } from '../../utils/leadTime';
 import { DURATION_BANDS, bandByLabel, bandForNights, daysInBand, daysToNights } from '../../utils/durations';
@@ -51,7 +52,7 @@ function Field({ id, icon, label, value, open, onToggle, children, wide }) {
   );
 }
 
-function Stepper({ label, sub, value, min, max, onChange }) {
+function Stepper({ label, sub, value, min, max, onChange, decreaseLabel, increaseLabel }) {
   return (
     <div className={styles.stepRow}>
       <span className={styles.stepText}>
@@ -60,10 +61,10 @@ function Stepper({ label, sub, value, min, max, onChange }) {
       </span>
       <span className={styles.stepper}>
         <button type="button" className={styles.stepBtn} onClick={() => onChange(value - 1)}
-          disabled={value <= min} aria-label={`One fewer ${label.toLowerCase()}`}>−</button>
+          disabled={value <= min} aria-label={decreaseLabel}>−</button>
         <span className={styles.stepCount}>{value}</span>
         <button type="button" className={styles.stepBtn} onClick={() => onChange(value + 1)}
-          disabled={value >= max} aria-label={`One more ${label.toLowerCase()}`}>+</button>
+          disabled={value >= max} aria-label={increaseLabel}>+</button>
       </span>
     </div>
   );
@@ -113,6 +114,7 @@ export default function StayBar({
   nights,
   touched = false, onChange, onBoardChange, onChildAges, onChildDobs, onReset,
 }) {
+  const { t } = useTranslation('hotelDetail');
   const [openField, setOpenField] = useState(null);
   const barRef = useRef(null);
   const dateRef = useRef(null);
@@ -212,10 +214,10 @@ export default function StayBar({
     const p = (v) => String(v).padStart(2, '0');
     return `${d.getFullYear()}-${p(d.getMonth() + 1)}-${p(d.getDate())}`;
   })();
-  const paxLabel = `${adults} adult${adults === 1 ? '' : 's'}`
-    + (childCount ? `, ${childCount} child${childCount === 1 ? '' : 'ren'}` : '')
-    + (roomCount > 1 ? ` · ${roomCount} rooms` : '');
-  const boardLabel = boardOptions.find((b) => b.id === board)?.label || 'No preference';
+  const paxLabel = t('chips.adults', { count: adults, defaultValue: `${adults} adult${adults === 1 ? '' : 's'}` })
+    + (childCount ? t('chips.childrenSuffix', { count: childCount, defaultValue: `, ${childCount} child${childCount === 1 ? '' : 'ren'}` }) : '')
+    + (roomCount > 1 ? t('stayBar.roomsSuffix', { count: roomCount, defaultValue: ` · ${roomCount} rooms` }) : '');
+  const boardLabel = boardOptions.find((b) => b.id === board)?.label || t('home:hero.transport.noPreference', 'No preference');
   // Duration speaks in the home page's day-bands. The field names the band the current stay
   // falls in, and the row underneath narrows it to one exact length WITHIN that band — so the
   // two controls are coarse-then-fine rather than two competing lists.
@@ -230,8 +232,8 @@ export default function StayBar({
             onClick={() => { dateRef.current?.showPicker?.(); dateRef.current?.focus(); }}>
             <span className={styles.ico}>{ICONS.cal}</span>
             <span className={styles.body}>
-              <span className={styles.label}>Departure date</span>
-              <span className={styles.value}>{checkIn ? formatDate(checkIn) : 'Pick a date'}</span>
+              <span className={styles.label}>{t('stayBar.departureDate', 'Departure date')}</span>
+              <span className={styles.value}>{checkIn ? formatDate(checkIn) : t('home:hero.pickDate', 'Pick a date')}</span>
             </span>
             <Chevron />
           </button>
@@ -239,7 +241,7 @@ export default function StayBar({
             onChange={(e) => { if (e.target.value) onChange({ checkIn: e.target.value }); }} />
         </div>
 
-        <Field id="pax" icon={ICONS.users} label="Travelling company" value={paxLabel}
+        <Field id="pax" icon={ICONS.users} label={t('stayBar.travellingCompany', 'Travelling company')} value={paxLabel}
           open={openField === 'pax'} onToggle={toggle} wide>
           <div className={styles.roomScroll}>
             {draft.map((room, ri) => {
@@ -247,33 +249,35 @@ export default function StayBar({
                 <div className={styles.roomCard} key={ri}>
                   <div className={styles.roomHead}>
                     <span className={styles.roomTitle}>
-                      <span className={styles.roomBadge}>{ri + 1}</span> Room {ri + 1}
+                      <span className={styles.roomBadge}>{ri + 1}</span> {t('home:hero.rooms.room', { number: ri + 1, defaultValue: `Room ${ri + 1}` })}
                     </span>
                     {ri > 0 && (
-                      <button type="button" className={styles.roomRemove} onClick={() => removeRoom(ri)}>Remove</button>
+                      <button type="button" className={styles.roomRemove} onClick={() => removeRoom(ri)}>{t('home:hero.rooms.remove', 'Remove')}</button>
                     )}
                   </div>
-                  <Stepper label="Adults" sub="from 18 years" value={room.adults}
-                    min={MIN_ADULTS} max={MAX_ADULTS} onChange={(v) => setRoom(ri, 'adults', v)} />
-                  <Stepper label="Children" sub="0 to 17 years" value={room.children}
-                    min={MIN_CHILDREN} max={MAX_CHILDREN} onChange={(v) => setRoom(ri, 'children', v)} />
+                  <Stepper label={t('home:hero.rooms.adults', 'Adults')} sub={t('home:hero.rooms.adultsAge', 'from 18 years')} value={room.adults}
+                    min={MIN_ADULTS} max={MAX_ADULTS} onChange={(v) => setRoom(ri, 'adults', v)}
+                    decreaseLabel={t('home:hero.rooms.removeAdult', 'One fewer adult')} increaseLabel={t('home:hero.rooms.addAdult', 'One more adult')} />
+                  <Stepper label={t('home:hero.rooms.children', 'Children')} sub={t('home:hero.rooms.childrenAge', '0 to 17 years')} value={room.children}
+                    min={MIN_CHILDREN} max={MAX_CHILDREN} onChange={(v) => setRoom(ri, 'children', v)}
+                    decreaseLabel={t('home:hero.rooms.removeChild', 'One fewer child')} increaseLabel={t('home:hero.rooms.addChild', 'One more child')} />
                   {room.children > 0 && (
                     <div className={styles.dobSection}>
-                      <span className={styles.dobTitle}>Children's date of birth</span>
+                      <span className={styles.dobTitle}>{t('home:hero.rooms.dobTitle', "Children's date of birth")}</span>
                       {room.dobs.map((dob, ci) => {
                         const age = ageFromDob(dob);
                         return (
                           <div className={styles.dobRow} key={ci}>
                             <span className={styles.dobLabel}>
-                              Child {ci + 1}{age != null ? <em className={styles.dobAge}>{age} yr{age === 1 ? '' : 's'}</em> : ''}
+                              {t('home:hero.rooms.child', { number: ci + 1, defaultValue: `Child ${ci + 1}` })}{age != null ? <em className={styles.dobAge}>{t('home:hero.rooms.years', { count: age, defaultValue: `${age} yr${age === 1 ? '' : 's'}` })}</em> : ''}
                             </span>
                             <input type="date" className={styles.dobInput} value={dob} max={today}
                               onChange={(e) => updateChildDob(ri, ci, e.target.value)}
-                              aria-label={`Date of birth of child ${ci + 1} in room ${ri + 1}`} />
+                              aria-label={t('stayBar.dobAriaLabel', { child: ci + 1, room: ri + 1, defaultValue: `Date of birth of child ${ci + 1} in room ${ri + 1}` })} />
                           </div>
                         );
                       })}
-                      <span className={styles.dobHint}>Children's ages help us price rooms &amp; flights correctly.</span>
+                      <span className={styles.dobHint}>{t('home:hero.rooms.dobHint', "Children's ages help us price rooms & flights correctly.")}</span>
                     </div>
                   )}
                 </div>
@@ -281,21 +285,21 @@ export default function StayBar({
             })}
             {draft.length < MAX_ROOMS && (
               <button type="button" className={styles.addRoom} onClick={addRoom}>
-                <span className={styles.addRoomIcon}>+</span> Add extra room
+                <span className={styles.addRoomIcon}>+</span> {t('home:hero.rooms.addRoom', 'Add extra room')}
               </button>
             )}
           </div>
           <div className={styles.popFoot}>
             <span className={styles.popSummary}>
-              {dAdults} adult{dAdults === 1 ? '' : 's'}
-              {dChildren ? `, ${dChildren} child${dChildren === 1 ? '' : 'ren'}` : ''}
-              {' · '}{draft.length} room{draft.length === 1 ? '' : 's'}
+              {t('chips.adults', { count: dAdults, defaultValue: `${dAdults} adult${dAdults === 1 ? '' : 's'}` })}
+              {dChildren ? t('chips.childrenSuffix', { count: dChildren, defaultValue: `, ${dChildren} child${dChildren === 1 ? '' : 'ren'}` }) : ''}
+              {' · '}{t('home:hero.roomCount', { count: draft.length, defaultValue: `${draft.length} room${draft.length === 1 ? '' : 's'}` })}
             </span>
-            <button type="button" className={styles.saveBtn} onClick={saveOccupancy} disabled={!dirty}>Save</button>
+            <button type="button" className={styles.saveBtn} onClick={saveOccupancy} disabled={!dirty}>{t('home:hero.rooms.save', 'Save')}</button>
           </div>
         </Field>
 
-        <Field id="board" icon={ICONS.board} label="Care (meals)" value={boardLabel}
+        <Field id="board" icon={ICONS.board} label={t('stayBar.careMeals', 'Care (meals)')} value={boardLabel}
           open={openField === 'board'} onToggle={toggle}>
           <OptionList current={board} options={boardOptions}
             onPick={(id) => { onBoardChange?.(id); close(); }} />
@@ -304,27 +308,27 @@ export default function StayBar({
 
         {/* The field states the MODE, not just an airport — a hotel-only stay used to
             read "Brussels (BRU) → AYT" here, advertising a flight that was never searched. */}
-        <Field id="origin" icon={ICONS.plane} label="Transport" open={openField === 'origin'} onToggle={toggle}
+        <Field id="origin" icon={ICONS.plane} label={t('chips.transport', 'Transport')} open={openField === 'origin'} onToggle={toggle}
           value={transport === 'hotel_only'
-            ? 'Hotel only'
+            ? t('home:hero.hotelOnly', 'Hotel only')
             : `${originLabel(origin)} (${origin})${destination ? ` → ${destination}` : ''}`} wide>
-          <div className={styles.modeRow} role="radiogroup" aria-label="Transport mode">
+          <div className={styles.modeRow} role="radiogroup" aria-label={t('home:hero.transport.mode', 'Transport mode')}>
             <button type="button"
               className={`${styles.modeBtn}${transport !== 'hotel_only' ? ` ${styles.modeBtnOn}` : ''}`}
               role="radio" aria-checked={transport !== 'hotel_only'}
               onClick={() => onChange({ transport: 'package' })}>
-              Incl. flight
+              {t('home:hero.transport.inclFlight', 'Incl. flight')}
             </button>
             <button type="button"
               className={`${styles.modeBtn}${transport === 'hotel_only' ? ` ${styles.modeBtnOn}` : ''}`}
               role="radio" aria-checked={transport === 'hotel_only'}
               onClick={() => { onChange({ transport: 'hotel_only' }); close(); }}>
-              Hotel only
+              {t('home:hero.hotelOnly', 'Hotel only')}
             </button>
           </div>
           {transport !== 'hotel_only' && (
             <>
-              <div className={styles.popTitle}>Flying from</div>
+              <div className={styles.popTitle}>{t('home:hero.flyingFrom', 'Flying from')}</div>
               <OptionList scroll current={origin}
                 options={originOptions.map((o) => ({
                   id: o, label: `${originLabel(o)} (${o})`, note: destination ? `→ ${destination}` : null,
@@ -337,28 +341,28 @@ export default function StayBar({
         {/* Day-bands, worded exactly as the home page words them — a traveller who searched
             "6-10 days" sees "6-10 days" here, not a nights figure they have to re-derive.
             Picking a band jumps to that band's representative length. */}
-        <Field id="nights" icon={ICONS.sun} label="Duration" value={band.label}
+        <Field id="nights" icon={ICONS.sun} label={t('home:hero.duration', 'Duration')} value={t(`home:hero.durations.${band.key}`, band.label)}
           open={openField === 'nights'} onToggle={toggle}>
           <OptionList current={band.label}
-            options={DURATION_BANDS.map((b) => ({ id: b.label, label: b.label }))}
+            options={DURATION_BANDS.map((b) => ({ id: b.label, label: t(`home:hero.durations.${b.key}`, b.label) }))}
             onPick={(label) => { onChange({ nights: daysToNights(bandByLabel(label).days) }); close(); }} />
         </Field>
       </div>
 
       <div className={styles.foot}>
-        <span className={styles.footLabel}>Exact length</span>
+        <span className={styles.footLabel}>{t('stayBar.exactLength', 'Exact length')}</span>
         <div className={styles.chips}>
           {exactDays.map((d) => {
             const n = daysToNights(d);   // "7 days" chip → 6 nights
             return (
               <button type="button" key={d} className={`${styles.chip}${nights === n ? ` ${styles.chipOn}` : ''}`}
                 onClick={() => onChange({ nights: n })} aria-pressed={nights === n}>
-                {d} days
+                {t('stayBar.daysChip', { count: d, defaultValue: `${d} days` })}
               </button>
             );
           })}
         </div>
-        {touched && <button type="button" className={styles.reset} onClick={onReset}>Reset to my search</button>}
+        {touched && <button type="button" className={styles.reset} onClick={onReset}>{t('stayBar.resetToSearch', 'Reset to my search')}</button>}
       </div>
     </div>
   );

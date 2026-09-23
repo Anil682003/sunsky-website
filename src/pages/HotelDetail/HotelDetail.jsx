@@ -1,7 +1,8 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
-import { useTranslation } from 'react-i18next';
+import { useTranslation, Trans } from 'react-i18next';
+import i18n from '../../i18n';
 import { useSelector } from 'react-redux';
 import axiosInstance, { SUPPLIER_TIMEOUT } from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
@@ -52,16 +53,16 @@ const friendlyError = (e, what) => {
     // plumbing at a shopper who neither knows nor cares what a supplier is, described the
     // failure as merely slow while showing it as an error, and then asked them to repeat
     // the thing that had just failed. Nothing here is the traveller's to fix.
-    return `We couldn’t load live ${what} prices just now. Your dates are saved — try once more, or pick another date above.`;
+    return i18n.t('hotelDetail:errors.timeout', { what, defaultValue: `We couldn’t load live ${what} prices just now. Your dates are saved — try once more, or pick another date above.` });
   }
   if (e?.code === 'ERR_NETWORK' || /network error/i.test(msg)) {
-    return `We couldn’t reach our ${what} prices. Check your connection and try again.`;
+    return i18n.t('hotelDetail:errors.network', { what, defaultValue: `We couldn’t reach our ${what} prices. Check your connection and try again.` });
   }
-  if (status === 429) return `Too many searches at once. Wait a few seconds, then try again.`;
-  if (status >= 500) return `Live ${what} prices are unavailable right now. Please try again shortly.`;
+  if (status === 429) return i18n.t('hotelDetail:errors.tooMany', 'Too many searches at once. Wait a few seconds, then try again.');
+  if (status >= 500) return i18n.t('hotelDetail:errors.unavailable', { what, defaultValue: `Live ${what} prices are unavailable right now. Please try again shortly.` });
   // Our own API writes its messages for people; anything else is an internal string.
   const fromServer = e?.response?.data?.message;
-  return fromServer || `We couldn’t load ${what} prices for these dates. Please try again.`;
+  return fromServer || i18n.t('hotelDetail:errors.generic', { what, defaultValue: `We couldn’t load ${what} prices for these dates. Please try again.` });
 };
 // Hotelbeds 400s on a child with no age, so a newly-added child gets this until asked.
 const CHILD_AGE_DEFAULT = 8;
@@ -161,22 +162,32 @@ const BOARD_PREFS = [
   { id: 'FB', label: 'Full board',      match: /full\s*board|^FB$/i },
   { id: 'AI', label: 'All inclusive',   match: /all\s*inclusive|^AI$/i },
 ];
+// Same board dictionary the Results page uses (`results:board.<code>`), so "Half board" reads
+// the same word wherever a traveller meets it on the site. The empty id ("no preference") isn't
+// a board at all, so it gets its own key rather than living in that shared dictionary.
+const boardPrefLabel = (id, fallback) =>
+  id ? i18n.t(`results:board.${id}`, fallback) : i18n.t('home:hero.transport.noPreference', fallback);
 // Trip lengths the Duration filter offers, in nights.
 
 // The quick chips under the bar, in nights — printed as nights+1 days, so 5→"6 days".
 
-const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-const calDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : WK[d.getDay()]; };
-const calDate = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? iso : `${d.getDate()} ${MO[d.getMonth()]}`; };
+// Read fresh on every call (not cached at import time) so a language switch is reflected
+// immediately. `common:calendar.weekdays` is Monday-first ("Mon,Tue,…,Sun"); Date#getDay()
+// is Sunday-first, hence the +6 rotation. Short month names are the site's own list — the
+// shared `calendar.months` dictionary spells them out in full ("September"), and Dutch
+// abbreviates unevenly (maart → mrt, not "maa"), so truncating it would be wrong.
+const weekdaysShort = () => i18n.t('common:calendar.weekdays', 'Mon,Tue,Wed,Thu,Fri,Sat,Sun').split(',');
+const monthsShort = () => i18n.t('hotelDetail:dates.monthsShort', 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec').split(',');
+const monthsLong = () => i18n.t('common:calendar.months', 'January,February,March,April,May,June,July,August,September,October,November,December').split(',');
+const calDay  = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? '' : weekdaysShort()[(d.getDay() + 6) % 7]; };
+const calDate = (iso) => { const d = new Date(iso + 'T00:00:00'); return isNaN(d.getTime()) ? iso : `${d.getDate()} ${monthsShort()[d.getMonth()]}`; };
 // The confirmation voice — "Saturday 07 September 2026". Written out in full for the
 // availability recap, where "7 Sep" is too terse to be checked against a passport or a
 // day off work. Assembled from local parts rather than toLocaleDateString because en-GB
 // slips a comma in after the weekday on some engines and drops the leading zero.
-const MOL = ['January', 'February', 'March', 'April', 'May', 'June', 'July', 'August', 'September', 'October', 'November', 'December'];
 const longDate = (iso) => {
   const d = new Date(iso + 'T00:00:00');
-  return isNaN(d.getTime()) ? '' : `${String(d.getDate()).padStart(2, '0')} ${MOL[d.getMonth()]} ${d.getFullYear()}`;
+  return isNaN(d.getTime()) ? '' : `${String(d.getDate()).padStart(2, '0')} ${monthsLong()[d.getMonth()]} ${d.getFullYear()}`;
 };
 // NB: formatted from the LOCAL date parts, not toISOString(). The input is parsed at local
 // midnight, so serialising through UTC handed back the previous day for every traveller east
@@ -220,19 +231,20 @@ const rangeLabel = (fromISO, toISO) => {
   const sameMonth = sameYear && a.getMonth() === b.getMonth();
   const left = sameMonth
     ? `${a.getDate()}`
-    : `${a.getDate()} ${MO[a.getMonth()]}${sameYear ? '' : ` ${a.getFullYear()}`}`;
-  return `${left} – ${b.getDate()} ${MO[b.getMonth()]} ${b.getFullYear()}`;
+    : `${a.getDate()} ${monthsShort()[a.getMonth()]}${sameYear ? '' : ` ${a.getFullYear()}`}`;
+  return `${left} – ${b.getDate()} ${monthsShort()[b.getMonth()]} ${b.getFullYear()}`;
 };
 
 /** "6 nights / 7 days" — the two counts travellers check a stay against. */
 const stayLabel = (nights) => {
   const n = Number(nights) || 0;
-  return `${n} night${n === 1 ? '' : 's'} / ${nightsToDays(n)} day${nightsToDays(n) === 1 ? '' : 's'}`;
+  const d = nightsToDays(n);
+  return `${i18n.t('hotelDetail:duration.nights', { count: n, defaultValue: `${n} night${n === 1 ? '' : 's'}` })} / ${i18n.t('hotelDetail:stayBar.daysChip', { count: d, defaultValue: `${d} day${d === 1 ? '' : 's'}` })}`;
 };
 
 const dayLabel = (nights) => {
   const d = nightsToDays(nights);
-  return `${d} ${d === 1 ? 'day' : 'days'}`;
+  return i18n.t('hotelDetail:stayBar.daysChip', { count: d, defaultValue: `${d} ${d === 1 ? 'day' : 'days'}` });
 };
 // The floor for the fare strip and every date field on this page: 24 hours from now, in
 // BELGIAN time (see utils/leadTime.js). The strip pages backwards to that day and no further,
@@ -264,9 +276,9 @@ const dayOffset = (from, to) => {
   const day = (d) => Date.UTC(d.getFullYear(), d.getMonth(), d.getDate());
   return Math.round((day(b) - day(a)) / 86400000);
 };
-const fmtDateLong = (s) => { if (!s) return ''; const d = new Date(s); if (isNaN(d.getTime())) return ''; return `${WK[d.getDay()]} ${d.getDate()} ${MO[d.getMonth()]}. ${d.getFullYear()}`; };
+const fmtDateLong = (s) => { if (!s) return ''; const d = new Date(s); if (isNaN(d.getTime())) return ''; return `${weekdaysShort()[(d.getDay() + 6) % 7]} ${d.getDate()} ${monthsShort()[d.getMonth()]}. ${d.getFullYear()}`; };
 /** "1 Sep" — short enough to sit inside a chip. Takes a Date (cancellation deadlines are parsed). */
-const fmtDay = (d) => (d instanceof Date && !isNaN(d.getTime())) ? `${d.getDate()} ${MO[d.getMonth()]}` : '';
+const fmtDay = (d) => (d instanceof Date && !isNaN(d.getTime())) ? `${d.getDate()} ${monthsShort()[d.getMonth()]}` : '';
 
 /* ── tiny SVG helper ── */
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -339,12 +351,12 @@ function fareInclusions(baggage) {
   const hasChecked = baggage.checkedKg > 0 || baggage.checkedPieces > 0;
 
   if (baggage.checkedKg > 0) {
-    out.push({ icon: ICON.checkedBag, label: `Checked baggage ${baggage.checkedKg} kg`, ok: true });
+    out.push({ icon: ICON.checkedBag, label: i18n.t('hotelDetail:baggage.checkedKg', { kg: baggage.checkedKg, defaultValue: `Checked baggage ${baggage.checkedKg} kg` }), ok: true });
   } else if (baggage.checkedPieces > 0) {
     // Some carriers price by piece rather than weight; say whichever one the fare uses.
     out.push({
       icon: ICON.checkedBag,
-      label: `Checked baggage ${baggage.checkedPieces} ${baggage.checkedPieces === 1 ? 'piece' : 'pieces'}`,
+      label: i18n.t('hotelDetail:baggage.checkedPieces', { count: baggage.checkedPieces, defaultValue: `Checked baggage ${baggage.checkedPieces} ${baggage.checkedPieces === 1 ? 'piece' : 'pieces'}` }),
       ok: true,
     });
   }
@@ -361,9 +373,9 @@ function fareInclusions(baggage) {
   // whole change removed. If Tursys ever populates handLuggage, the real figure appears here
   // automatically and this branch stops being used.
   if (baggage.handKg > 0) {
-    out.unshift({ icon: ICON.bag, label: `Cabin bag ${baggage.handKg} kg`, ok: true });
+    out.unshift({ icon: ICON.bag, label: i18n.t('hotelDetail:baggage.cabinKg', { kg: baggage.handKg, defaultValue: `Cabin bag ${baggage.handKg} kg` }), ok: true });
   } else if (hasChecked) {
-    out.unshift({ icon: ICON.bag, label: 'Cabin bag included', ok: true });
+    out.unshift({ icon: ICON.bag, label: i18n.t('hotelDetail:baggage.cabinIncluded', 'Cabin bag included'), ok: true });
   }
 
   return out;
@@ -547,7 +559,11 @@ const layoverMin = (a, b) => {
   const m = Math.round((db - da) / 60000);
   return m > 0 ? m : null;
 };
-const stopsLabel = (n) => (n <= 0 ? 'Direct' : `${n} stop${n > 1 ? 's' : ''}`);
+const stopsLabel = (n) => (n <= 0 ? i18n.t('hotelDetail:flightCard.direct', 'Direct') : i18n.t('hotelDetail:flightCard.stops', { count: n, defaultValue: `${n} stop${n > 1 ? 's' : ''}` }));
+// "Outbound"/"Return" are also the identifiers the logic branches on (`dir === 'Return'`), so
+// the prop stays English everywhere it's passed — only the two places it's actually printed
+// route it through this.
+const dirLabel = (dir) => (dir === 'Return' ? i18n.t('hotelDetail:flightCard.return', 'Return') : i18n.t('hotelDetail:flightCard.outbound', 'Outbound'));
 
 
 // One direction, summarised across its legs: airline of the first leg, endpoints, total
@@ -562,7 +578,7 @@ function Journey({ dir, legs }) {
   return (
     <div className="bp-journey">
       <div className="bp-jhead">
-        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
+        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dirLabel(dir)}</span></span>
         <span className="bp-jdate">{fmtDateLong(first.departure)}</span>
         <span className="bp-airline">
           <AirlineMark code={first.airline} className="bp-airmark" nameClassName="bp-airname" />
@@ -589,7 +605,7 @@ function Journey({ dir, legs }) {
           <div className="bp-code">{last.to}</div>
         </div>
       </div>
-      {stops > 0 && <div className="bp-via">{ICON.clock} Via {vias.join(', ')}</div>}
+      {stops > 0 && <div className="bp-via">{ICON.clock} {i18n.t('hotelDetail:flightCard.via', { places: vias.join(', '), defaultValue: `Via ${vias.join(', ')}` })}</div>}
     </div>
   );
 }
@@ -600,12 +616,12 @@ function JourneyTimeline({ label, legs }) {
   if (!legs?.length) return null;
   return (
     <div className="fd-journey">
-      <div className="fd-dir"><span className="fd-dir-label">{label}</span><span className="fd-dir-date">{fmtDateLong(legs[0].departure)}</span></div>
+      <div className="fd-dir"><span className="fd-dir-label">{dirLabel(label)}</span><span className="fd-dir-date">{fmtDateLong(legs[0].departure)}</span></div>
       {legs.map((leg, i) => (
         <div key={i} className="fd-seg-wrap">
           {i > 0 && (() => {
             const lay = layoverMin(legs[i - 1], leg);
-            return lay ? <div className="fd-layover">{ICON.clock} {fmtDur(lay)} layover in {airportName(leg.from)}</div> : null;
+            return lay ? <div className="fd-layover">{ICON.clock} {i18n.t('hotelDetail:flightCard.layoverIn', { duration: fmtDur(lay), airport: airportName(leg.from), defaultValue: `${fmtDur(lay)} layover in ${airportName(leg.from)}` })}</div> : null;
           })()}
           <div className="fd-segment">
             <div className="fd-seg-timeline"><div className="fd-dot" /><div className="fd-line" /><div className="fd-dot" /></div>
@@ -668,7 +684,7 @@ function TimeRangeFilter({ title, hint, span, value, onChange }) {
         {title}
         <FilterHint text={hint} />
         {touched && (
-          <button type="button" className="mf-link" onClick={() => onChange(null)}>Reset</button>
+          <button type="button" className="mf-link" onClick={() => onChange(null)}>{i18n.t('hotelDetail:flightModal.reset', 'Reset')}</button>
         )}
       </div>
       <div className="mf-range-ends">
@@ -681,10 +697,10 @@ function TimeRangeFilter({ title, hint, span, value, onChange }) {
         </div>
         <input type="range" className="mf-range" min={span.min} max={span.max} step={5}
           value={from} onChange={(e) => setFrom(e.target.value)}
-          aria-label={`${title} — earliest`} />
+          aria-label={i18n.t('hotelDetail:flightModal.titleEarliest', { title, defaultValue: `${title} — earliest` })} />
         <input type="range" className="mf-range" min={span.min} max={span.max} step={5}
           value={to} onChange={(e) => setTo(e.target.value)}
-          aria-label={`${title} — latest`} />
+          aria-label={i18n.t('hotelDetail:flightModal.titleLatest', { title, defaultValue: `${title} — latest` })} />
       </div>
       <div className={`mf-range-value${touched ? ' on' : ''}`}>{fmtClock(from)} – {fmtClock(to)}</div>
     </div>
@@ -721,7 +737,7 @@ function JourneyColumn({ dir, legs, compact }) {
   return (
     <div className={`fc-leg${compact ? ' fc-leg-compact' : ''}`}>
       <div className="bp-jhead">
-        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
+        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dirLabel(dir)}</span></span>
         <span className="bp-jdate">{fmtDateLong(first.departure)}</span>
         {compact && carrier}
       </div>
@@ -749,7 +765,7 @@ function JourneyColumn({ dir, legs, compact }) {
         </div>
       </div>
 
-      {stops > 0 && <div className="bp-via">{ICON.clock} Via {vias.join(', ')}</div>}
+      {stops > 0 && <div className="bp-via">{ICON.clock} {i18n.t('hotelDetail:flightCard.via', { places: vias.join(', '), defaultValue: `Via ${vias.join(', ')}` })}</div>}
     </div>
   );
 }
@@ -776,9 +792,9 @@ const cabinAllowance = (b) => {
   // No airline sells a hold allowance and then refuses a cabin bag; treat any answered fare
   // as having a cabin bag included.
   if (b?.handKg > 0 || (b && (b.checkedKg > 0 || b.checkedPieces > 0))) {
-    return { ok: true, main: 'Included', sub: '55 x 40 x 20 cm' };
+    return { ok: true, main: i18n.t('hotelDetail:baggage.included', 'Included'), sub: '55 x 40 x 20 cm' };
   }
-  return { ok: false, main: 'Not stated', sub: 'Airline rules apply' };
+  return { ok: false, main: i18n.t('hotelDetail:baggage.notStated', 'Not stated'), sub: i18n.t('hotelDetail:baggage.airlineRulesApply', 'Airline rules apply') };
 };
 
 /**
@@ -791,18 +807,18 @@ const cabinAllowance = (b) => {
  * airline.
  */
 const personalAllowance = (b) => {
-  if (b) return { ok: true, main: 'Included', sub: '40 x 30 x 15 cm' };
-  return { ok: false, main: 'Not stated', sub: 'Airline rules apply' };
+  if (b) return { ok: true, main: i18n.t('hotelDetail:baggage.included', 'Included'), sub: '40 x 30 x 15 cm' };
+  return { ok: false, main: i18n.t('hotelDetail:baggage.notStated', 'Not stated'), sub: i18n.t('hotelDetail:baggage.airlineRulesApply', 'Airline rules apply') };
 };
 
 /** Hold-baggage cell. Kilos or pieces, whichever the fare is sold in. */
 const checkedAllowance = (b) => {
-  if (b?.checkedKg > 0) return { ok: true, main: `${b.checkedKg} kg`, sub: 'Included' };
+  if (b?.checkedKg > 0) return { ok: true, main: `${b.checkedKg} kg`, sub: i18n.t('hotelDetail:baggage.included', 'Included') };
   if (b?.checkedPieces > 0) {
-    return { ok: true, main: `${b.checkedPieces} piece${b.checkedPieces === 1 ? '' : 's'}`, sub: 'Included' };
+    return { ok: true, main: i18n.t('hotelDetail:baggage.pieces', { count: b.checkedPieces, defaultValue: `${b.checkedPieces} piece${b.checkedPieces === 1 ? '' : 's'}` }), sub: i18n.t('hotelDetail:baggage.included', 'Included') };
   }
-  if (b) return { ok: false, main: 'Not included', sub: 'Can be added at booking' };
-  return { ok: false, main: 'Not stated', sub: 'Airline rules apply' };
+  if (b) return { ok: false, main: i18n.t('hotelDetail:baggage.notIncluded', 'Not included'), sub: i18n.t('hotelDetail:baggage.canBeAdded', 'Can be added at booking') };
+  return { ok: false, main: i18n.t('hotelDetail:baggage.notStated', 'Not stated'), sub: i18n.t('hotelDetail:baggage.airlineRulesApply', 'Airline rules apply') };
 };
 
 /**
@@ -870,7 +886,7 @@ function DetailsJourney({ dir, legs }) {
         <div className="fdm-mid">
           <div className="fdm-dur">{fmtDur(leg.duration)}</div>
           <div className="bp-track"><span className="bp-plane">{ICON.planeGo}</span></div>
-          {direct && <div className="fdm-flag">Direct flight</div>}
+          {direct && <div className="fdm-flag">{i18n.t('hotelDetail:flightCard.directFlight', 'Direct flight')}</div>}
         </div>
         <div className="fdm-point">
           <div className="fdm-time">
@@ -934,7 +950,7 @@ function DetailsJourney({ dir, legs }) {
                 <div className="fdm-layover" style={layoverStyle(i)}>
                   {ICON.clock}
                   <span>
-                    <b>{fmtDur(lay)} layover</b>
+                    <b>{i18n.t('hotelDetail:flightCard.layoverDuration', { duration: fmtDur(lay), defaultValue: `${fmtDur(lay)} layover` })}</b>
                     <em>{airportName(leg.from)} ({leg.from})</em>
                   </span>
                 </div>
@@ -959,7 +975,7 @@ function BaggageTable({ dir, legs, baggage }) {
   return (
     <div className="fdm-bagblock">
       <div className="fdm-jhead">
-        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dir}</span></span>
+        <span className="bp-dir">{dir === 'Return' ? ICON.arrowBack : ICON.plane}<span>{dirLabel(dir)}</span></span>
         <span className="fdm-jsep" aria-hidden="true" />
         <span className="fdm-jdate">{fmtDateLong(legs[0].departure)}</span>
       </div>
@@ -967,12 +983,12 @@ function BaggageTable({ dir, legs, baggage }) {
         <table className="fdm-table">
           <thead>
             <tr>
-              <th>Flight</th>
-              <th>Airline</th>
-              <th>Route</th>
-              <th><span className="fdm-th">{ICON.bag}Personal item<em>under seat</em></span></th>
-              <th><span className="fdm-th">{ICON.bag}Cabin bag<em>overhead locker</em></span></th>
-              <th><span className="fdm-th">{ICON.checkedBag}Checked baggage<em>hold luggage</em></span></th>
+              <th>{i18n.t('hotelDetail:flightCard.flight', 'Flight')}</th>
+              <th>{i18n.t('hotelDetail:flightCard.airline', 'Airline')}</th>
+              <th>{i18n.t('hotelDetail:flightCard.route', 'Route')}</th>
+              <th><span className="fdm-th">{ICON.bag}{i18n.t('hotelDetail:baggage.personalItem', 'Personal item')}<em>{i18n.t('hotelDetail:baggage.underSeat', 'under seat')}</em></span></th>
+              <th><span className="fdm-th">{ICON.bag}{i18n.t('hotelDetail:baggage.cabinBag', 'Cabin bag')}<em>{i18n.t('hotelDetail:baggage.overheadLocker', 'overhead locker')}</em></span></th>
+              <th><span className="fdm-th">{ICON.checkedBag}{i18n.t('hotelDetail:baggage.checkedBaggage', 'Checked baggage')}<em>{i18n.t('hotelDetail:baggage.holdLuggage', 'hold luggage')}</em></span></th>
             </tr>
           </thead>
           <tbody>
@@ -1028,15 +1044,15 @@ export function FlightDetailsModal({ flight, onClose }) {
   // like a panel trapped in a box. Nothing in the page can clip it from here.
   return createPortal((
     <div className="modal-overlay show fdm-overlay" onClick={(e) => { if (e.target === e.currentTarget) onClose(); }}>
-      <div className="fdm" role="dialog" aria-modal="true" aria-label="Flight details">
+      <div className="fdm" role="dialog" aria-modal="true" aria-label={i18n.t('hotelDetail:flightCard.flightDetails', 'Flight details')}>
         <div className="fdm-head">
           <div>
-            <div className="fdm-title">Flight details</div>
+            <div className="fdm-title">{i18n.t('hotelDetail:flightCard.flightDetails', 'Flight details')}</div>
             <div className="fdm-sub">
-              {ret.length ? 'Your selected outbound and return' : 'Your selected flight'}
+              {ret.length ? i18n.t('hotelDetail:flightCard.selectedOutboundAndReturn', 'Your selected outbound and return') : i18n.t('hotelDetail:flightCard.selectedFlight', 'Your selected flight')}
             </div>
           </div>
-          <button className="modal-close" onClick={onClose} aria-label="Close">
+          <button className="modal-close" onClick={onClose} aria-label={i18n.t('hotelDetail:actions.close', 'Close')}>
             <S sw={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
           </button>
         </div>
@@ -1044,11 +1060,11 @@ export function FlightDetailsModal({ flight, onClose }) {
         <div className="fdm-tabs" role="tablist">
           <button type="button" role="tab" aria-selected={tab === 'info'}
             className={`fdm-tab${tab === 'info' ? ' on' : ''}`} onClick={() => setTab('info')}>
-            {ICON.plane}Flight details
+            {ICON.plane}{i18n.t('hotelDetail:flightCard.flightDetails', 'Flight details')}
           </button>
           <button type="button" role="tab" aria-selected={tab === 'bags'}
             className={`fdm-tab${tab === 'bags' ? ' on' : ''}`} onClick={() => setTab('bags')}>
-            {ICON.checkedBag}Baggage
+            {ICON.checkedBag}{i18n.t('hotelDetail:flightCard.baggage', 'Baggage')}
           </button>
         </div>
 
@@ -1073,11 +1089,11 @@ export function FlightDetailsModal({ flight, onClose }) {
             {ICON.info}
             <span>
               {tab === 'info'
-                ? 'Times are shown in local time. Flight durations include estimated taxi and boarding times.'
-                : "Baggage allowance is per passenger and per direction. For more details, please check the airline's conditions."}
+                ? i18n.t('hotelDetail:flightCard.timesLocalNote', 'Times are shown in local time. Flight durations include estimated taxi and boarding times.')
+                : i18n.t('hotelDetail:flightCard.baggagePerPassengerNote', "Baggage allowance is per passenger and per direction. For more details, please check the airline's conditions.")}
             </span>
           </div>
-          <button type="button" className="fdm-close-btn" onClick={onClose}>Close</button>
+          <button type="button" className="fdm-close-btn" onClick={onClose}>{i18n.t('hotelDetail:actions.close', 'Close')}</button>
         </div>
       </div>
     </div>
@@ -1127,17 +1143,17 @@ function FlightCardSkeleton() {
 function RoomsLoading() {
   return (
     <div className="rooms-loading" role="status" aria-busy="true">
-      <span className="sr-only">Checking live room availability…</span>
+      <span className="sr-only">{i18n.t('hotelDetail:rooms.checkingLiveAvailabilitySr', 'Checking live room availability…')}</span>
       <div className="rl-head" aria-hidden="true">
         <span className="rl-badge">{ICON.bed}</span>
         <div className="rl-copy">
-          <div className="rl-title">Finding your rooms<i className="rl-dot" /><i className="rl-dot" /><i className="rl-dot" /></div>
+          <div className="rl-title">{i18n.t('hotelDetail:rooms.findingYourRooms', 'Finding your rooms')}<i className="rl-dot" /><i className="rl-dot" /><i className="rl-dot" /></div>
           {/* Stacked and cross-faded on one 10.5s loop; the box is sized by the first line so the
               others can sit on top of it without the card changing height mid-wait. */}
           <div className="rl-lines">
-            <span>Knocking on the hotel&apos;s door</span>
-            <span>Reading back today&apos;s live rates</span>
-            <span>Sorting the boards, cheapest first</span>
+            <span>{i18n.t('hotelDetail:rooms.knockingOnDoor', "Knocking on the hotel's door")}</span>
+            <span>{i18n.t('hotelDetail:rooms.readingRates', "Reading back today's live rates")}</span>
+            <span>{i18n.t('hotelDetail:rooms.sortingBoards', 'Sorting the boards, cheapest first')}</span>
           </div>
         </div>
       </div>
@@ -1184,7 +1200,7 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
 
   const detailsBtn = (
     <button className="flight-details-btn" onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }} disabled={!hasDetails}>
-      {expanded ? 'Hide flight details' : 'View flight details'}
+      {expanded ? i18n.t('hotelDetail:flightCard.hideFlightDetails', 'Hide flight details') : i18n.t('hotelDetail:flightCard.viewFlightDetails', 'View flight details')}
       <S size={13} sw={2.4} className={expanded ? 'fdb-caret up' : 'fdb-caret'}><path d="M6 9l6 6 6-6" /></S>
     </button>
   );
@@ -1214,7 +1230,7 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
               <div className="fc-banner-note">{ICON.info}<span>{banner.note}</span></div>
             )}
           </div>
-          <div className="flight-selected-badge fc-selected-lg">{ICON.check} Selected</div>
+          <div className="flight-selected-badge fc-selected-lg">{ICON.check} {i18n.t('hotelDetail:flightCard.selected', 'Selected')}</div>
         </div>
 
         {/* One column per direction. A one-way has no second column to fill, so the outbound
@@ -1234,7 +1250,7 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
         <div className="flight-bottom">
           <button className="flight-details-btn" onClick={() => setDetailsOpen(true)} disabled={!hasDetails}>
             {ICON.doc}
-            View flight details
+            {i18n.t('hotelDetail:flightCard.viewFlightDetails', 'View flight details')}
             <S size={13} sw={2.4} className="fdb-caret"><path d="M6 9l6 6 6-6" /></S>
           </button>
           {onChange && (
@@ -1243,7 +1259,7 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
               <span>{changeLabel}</span>
             </button>
           )}
-          <div className="fc-allin">{ICON.info}<span>All prices include taxes, fees and charges.</span></div>
+          <div className="fc-allin">{ICON.info}<span>{i18n.t('hotelDetail:flightCard.allInclTaxes', 'All prices include taxes, fees and charges.')}</span></div>
         </div>
 
         {f.warning && <div className="flight-warning">{ICON.warn} {f.warning}</div>}
@@ -1291,24 +1307,24 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
               fact multiplied, and the note above the list already says taxes are in. */}
           <div className="fc-rail">
             {selected ? (
-              <div className="flight-selected-badge">{ICON.check} Selected</div>
+              <div className="flight-selected-badge">{ICON.check} {i18n.t('hotelDetail:flightCard.selected', 'Selected')}</div>
             ) : (
               <button
                 type="button" className="fc-pick" role="radio" aria-checked="false"
                 onClick={onSelect}
                 aria-label={perPerson == null || perPerson === 0
-                  ? 'Select this flight'
-                  : `Select this flight, ${perPerson > 0 ? 'plus' : 'minus'} €${money(perPerson)} per person`}
+                  ? i18n.t('hotelDetail:flightCard.selectThisFlight', 'Select this flight')
+                  : i18n.t('hotelDetail:flightCard.selectThisFlightDelta', { sign: perPerson > 0 ? i18n.t('hotelDetail:flightCard.plus', 'plus') : i18n.t('hotelDetail:flightCard.minus', 'minus'), amount: money(perPerson), defaultValue: `Select this flight, ${perPerson > 0 ? 'plus' : 'minus'} €${money(perPerson)} per person` })}
               >
-                {f.delta === 0 && <span className="fc-best">{ICON.spark} Lowest fare</span>}
+                {f.delta === 0 && <span className="fc-best">{ICON.spark} {i18n.t('hotelDetail:flightCard.lowestFare', 'Lowest fare')}</span>}
                 {perPerson != null && (
                   <span className={`fc-swing${perPerson === 0 ? ' same' : perPerson > 0 ? ' up' : ' down'}`}>
                     {perPerson === 0
-                      ? <b>Same price</b>
+                      ? <b>{i18n.t('hotelDetail:flightCard.samePrice', 'Same price')}</b>
                       : <b>{perPerson > 0 ? '+' : '−'} €{money(perPerson)}</b>}
                   </span>
                 )}
-                <span className="fc-swing-cap">per person</span>
+                <span className="fc-swing-cap">{i18n.t('hotelDetail:flightCard.perPerson', 'per person')}</span>
                 <span className="fc-radio" aria-hidden="true" />
               </button>
             )}
@@ -1366,7 +1382,7 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
           than guessed. When the supplier tells us nothing the strip renders nothing — silence
           is honest, an unearned tick is not. */}
       {fareIncludes.length > 0 && (
-        <div className="bp-incl" aria-label="Included in this fare">
+        <div className="bp-incl" aria-label={i18n.t('hotelDetail:flightCard.includedInFare', 'Included in this fare')}>
           {fareIncludes.map((x) => (
             <span key={x.label} className={`bp-chip${x.ok ? ' bp-chip-inc' : ''}`}>{x.icon}{x.label}</span>
           ))}
@@ -1375,7 +1391,7 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
 
       <div className="flight-bottom">
         <button className="flight-details-btn" onClick={(e) => { e.stopPropagation(); setExpanded((v) => !v); }} disabled={!hasDetails}>
-          {expanded ? 'Hide flight details' : 'View flight details'}
+          {expanded ? i18n.t('hotelDetail:flightCard.hideFlightDetails', 'Hide flight details') : i18n.t('hotelDetail:flightCard.viewFlightDetails', 'View flight details')}
         </button>
         <div className="bp-buy">
           <div className="bp-price">
@@ -1383,18 +1399,18 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
             {/* WHO the figure covers. A fare this size is read as per person by anyone who
                 doesn't ask, and being wrong about that on the way into a checkout is the
                 expensive kind of wrong. */}
-            {f.price != null && <span className="bp-price-cap">Total for all travellers</span>}
+            {f.price != null && <span className="bp-price-cap">{i18n.t('hotelDetail:flightCard.totalAllTravellers', 'Total for all travellers')}</span>}
             {/* What this fare costs ON TOP of the cheapest one on offer. Absolute prices are
                 hard to rank at a glance when every card reads "€1,969"; the gap is the number
                 the traveller is actually deciding on. `delta === 0` is the cheapest itself.
                 Suppressed under a banner, which already names the fare in words. */}
-            {!banner && f.delta === 0 && <span className="bp-delta bp-delta-best">{ICON.spark} Lowest fare</span>}
+            {!banner && f.delta === 0 && <span className="bp-delta bp-delta-best">{ICON.spark} {i18n.t('hotelDetail:flightCard.lowestFare', 'Lowest fare')}</span>}
             {f.delta > 0 && <span className="bp-delta">+€{Math.round(f.delta).toLocaleString('en-GB')}</span>}
           </div>
-          <span className="flight-incl">{ICON.check} All-in fare</span>
+          <span className="flight-incl">{ICON.check} {i18n.t('hotelDetail:flightCard.allInFare', 'All-in fare')}</span>
           {selected
-            ? <div className="flight-selected-badge">{ICON.check} Selected</div>
-            : <button className="flight-select-btn" onClick={onSelect}>Select</button>}
+            ? <div className="flight-selected-badge">{ICON.check} {i18n.t('hotelDetail:flightCard.selected', 'Selected')}</div>
+            : <button className="flight-select-btn" onClick={onSelect}>{i18n.t('hotelDetail:flightCard.select', 'Select')}</button>}
         </div>
       </div>
       {f.warning && <div className="flight-warning">{ICON.warn} {f.warning}</div>}
@@ -1701,7 +1717,7 @@ export default function HotelDetail() {
   }, [isAuth, hotelCode]);
 
   const handleSave = () => {
-    if (!isAuth) { showToast('Sign in to save favourites', 'info'); navigate('/login'); return; }
+    if (!isAuth) { showToast(t('save.signInToSave', 'Sign in to save favourites'), 'info'); navigate('/login'); return; }
     const was = saved;
     setSaved(!was); // optimistic
     // Remember the destination code so Favourites can re-open this hotel with live prices.
@@ -1710,10 +1726,10 @@ export default function HotelDetail() {
       ? removeFavourite(hotelCode)
       : addFavourite({ hotelCode, hotelName, destination: locLabel, stars, imageUrl: heroImage, destinationCode: destination });
     req
-      .then(() => showToast(was ? 'Removed from favourites' : 'Saved to favourites', 'success'))
+      .then(() => showToast(was ? t('save.removedFromFavourites', 'Removed from favourites') : t('save.savedToFavourites', 'Saved to favourites'), 'success'))
       .catch(() => {
         setSaved(was); // revert on failure
-        showToast('Couldn’t update favourites. Please try again.', 'error');
+        showToast(t('save.couldNotUpdateFavourites', 'Couldn’t update favourites. Please try again.'), 'error');
       });
   };
   // The chosen departure DAY, held as an ISO date rather than a strip index. The strip pages a
@@ -2261,14 +2277,14 @@ export default function HotelDetail() {
     // No live rates yet, but the cache already told us which boards this hotel sells on the
     // selected day — list exactly those (no prices; the cache only reports which exist).
     if (!boardsKnown) {
-      if (!dateBoards) return BOARD_PREFS;
+      if (!dateBoards) return BOARD_PREFS.map((b) => ({ ...b, label: boardPrefLabel(b.id, b.label) }));
       const onDate = BOARD_PREFS.filter((b) => b.id && dateBoards.includes(b.id));
-      if (!onDate.length) return BOARD_PREFS;
+      if (!onDate.length) return BOARD_PREFS.map((b) => ({ ...b, label: boardPrefLabel(b.id, b.label) }));
       return [
-        { id: '', label: 'No preference' },
-        ...onDate.map((b) => ({ id: b.id, label: b.label })),
+        { id: '', label: boardPrefLabel('', 'No preference') },
+        ...onDate.map((b) => ({ id: b.id, label: boardPrefLabel(b.id, b.label) })),
         ...BOARD_PREFS.filter((b) => b.id && b.id === boardPref && !dateBoards.includes(b.id))
-          .map((b) => ({ id: b.id, label: b.label, note: 'not on this date' })),
+          .map((b) => ({ id: b.id, label: boardPrefLabel(b.id, b.label), note: t('stayBar.notOnThisDate', 'not on this date') })),
       ];
     }
     const rates = allRoomGroups.flatMap((g) => g.boards);
@@ -2277,15 +2293,15 @@ export default function HotelDetail() {
       .reduce((lo, b) => (lo == null || b.price < lo ? b.price : lo), null);
     const offered = BOARD_PREFS.filter((b) => b.match).map((b) => ({ ...b, price: cheapestOn(b) }));
     return [
-      { id: '', label: 'No preference' },
+      { id: '', label: boardPrefLabel('', 'No preference') },
       ...offered.filter((b) => b.price != null)
-        .map((b) => ({ id: b.id, label: b.label, note: `from ${ccy}${Math.round(b.price)}` })),
+        .map((b) => ({ id: b.id, label: boardPrefLabel(b.id, b.label), note: t('stayBar.fromPrice', { ccy, amount: Math.round(b.price), defaultValue: `from ${ccy}${Math.round(b.price)}` }) })),
       // A board the traveller has chosen that these dates don't offer stays visible and
       // labelled, so the list never silently drops the option they are looking at.
       ...offered.filter((b) => b.price == null && b.id === boardPref)
-        .map((b) => ({ id: b.id, label: b.label, note: 'not on these dates' })),
+        .map((b) => ({ id: b.id, label: boardPrefLabel(b.id, b.label), note: t('stayBar.notOnTheseDates', 'not on these dates') })),
     ];
-  }, [boardsKnown, allRoomGroups, boardPref, ccy, dateBoards]);
+  }, [boardsKnown, allRoomGroups, boardPref, ccy, dateBoards, t]);
   const nBoards = useMemo(() => boardCount(roomGroups), [roomGroups]);
 
   // Per-rate facts for the cards: board wording, occupancy, per-night / per-guest splits and
@@ -2713,7 +2729,7 @@ export default function HotelDetail() {
     // an unchecked booking would hand over a €0 stay, so send the traveller to the check
     // instead of to payment.
     if (!useLive) {
-      showToast('Check availability first so we can price your stay.', 'info');
+      showToast(t('prices.checkAvailabilityFirst', 'Check availability first so we can price your stay.'), 'info');
       setActiveTab('Prices');
       document.querySelector('.fc-strip, .fc-blank')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -2995,7 +3011,7 @@ export default function HotelDetail() {
 
             {/* ── PRICES ── */}
             <div className={`tp${activeTab === 'Prices' ? ' act' : ''}`}>
-              <div className="section-title"><span className="st-step">1</span> Compare the lowest prices</div>
+              <div className="section-title"><span className="st-step">1</span> {t('prices.compareLowestPrices', 'Compare the lowest prices')}</div>
 
               <StayBar
                 checkIn={baseCheckIn} formatDate={niceDate}
@@ -3004,10 +3020,10 @@ export default function HotelDetail() {
                 rooms={Number(sRooms) || 1}
                 board={boardPref} boardOptions={boardOptions}
                 boardHint={boardsKnown
-                  ? 'Meal plans this hotel offers on the dates you checked.'
+                  ? t('prices.boardHintKnown', 'Meal plans this hotel offers on the dates you checked.')
                   : dateBoards?.length
-                    ? `Meal plans this hotel sells on ${pd?.day || ''} ${pd?.date || niceDate(pickedIso) || ''}`.trim() + '.'
-                    : 'Check a date to see which meal plans this hotel actually offers.'}
+                    ? t('prices.boardHintOnDate', { day: pd?.day || '', date: pd?.date || niceDate(pickedIso) || '', defaultValue: `Meal plans this hotel sells on ${pd?.day || ''} ${pd?.date || niceDate(pickedIso) || ''}`.trim() + '.' })
+                    : t('prices.boardHintUnknown', 'Check a date to see which meal plans this hotel actually offers.')}
                 origin={origin} originOptions={AIRPORT_CODES} originLabel={airportName} destination={destination}
                 transport={transport}
                 nights={nights}
@@ -3026,7 +3042,7 @@ export default function HotelDetail() {
                   "choose your dates" panel it would explain colours that aren't on screen. */}
               {usingLive && (
                 <div className="fc-legend">
-                  <span className="fc-legend-title">Reading this chart</span>
+                  <span className="fc-legend-title">{t('prices.readingThisChart', 'Reading this chart')}</span>
                   <span className="fc-legend-items">
                     {/* The hatched state, not "taller bar = pricier day": bar height is
                         self-evident from the chart, whereas a hatched bar is the one mark on the
@@ -3034,19 +3050,19 @@ export default function HotelDetail() {
                         most likely to misread as "unavailable", so it is the one worth the row. */}
                     <span className="fc-legend-item">
                       <span className="fc-legend-swatch fc-legend-nopr" aria-hidden="true" />
-                      Price not cached — check it
+                      {t('prices.legend.priceNotCached', 'Price not cached — check it')}
                     </span>
                     <span className="fc-legend-item">
                       <span className="fc-legend-swatch fc-legend-low" aria-hidden="true" />
-                      Cheapest of the week
+                      {t('prices.legend.cheapestOfWeek', 'Cheapest of the week')}
                     </span>
                     <span className="fc-legend-item">
                       <span className="fc-legend-swatch fc-legend-sel" aria-hidden="true" />
-                      Your selected day
+                      {t('prices.legend.yourSelectedDay', 'Your selected day')}
                     </span>
                     <span className="fc-legend-item">
                       <span className="fc-legend-swatch fc-legend-out" aria-hidden="true" />
-                      Not available
+                      {t('prices.legend.notAvailable', 'Not available')}
                     </span>
                   </span>
                 </div>
@@ -3061,9 +3077,11 @@ export default function HotelDetail() {
                 <div className="fc-estimate" role="note">
                   <span className="fc-estimate-ico" aria-hidden="true">{ICON.info}</span>
                   <span className="fc-estimate-text">
-                    <b>Prices from, per person.</b> The prices on the chart are estimates and may
-                    change. Pick a date and check it: the live price that comes back is the one
-                    your holiday is booked at.
+                    <Trans i18nKey="hotelDetail:prices.estimateNote" t={t}>
+                      <b>Prices from, per person.</b> The prices on the chart are estimates and may
+                      change. Pick a date and check it: the live price that comes back is the one
+                      your holiday is booked at.
+                    </Trans>
                   </span>
                 </div>
               )}
@@ -3074,8 +3092,8 @@ export default function HotelDetail() {
                 {winStart && (
                   <button type="button" className="fc-arrow" onClick={() => pageDay(-1)}
                     disabled={!canPageBack}
-                    title={canPageBack ? 'One day earlier' : 'These are the earliest dates you can still book'}
-                    aria-label="Show one day earlier">
+                    title={canPageBack ? t('prices.oneDayEarlier', 'One day earlier') : t('prices.earliestDatesBookable', 'These are the earliest dates you can still book')}
+                    aria-label={t('prices.showOneDayEarlier', 'Show one day earlier')}>
                     <S sw={2.5}><path d="M15 18l-6-6 6-6" /></S>
                   </button>
                 )}
@@ -3097,19 +3115,19 @@ export default function HotelDetail() {
                   <span className="fc-blank-ico">{calState === 'failed' ? ICON.warn : ICON.cal}</span>
                   {calState === 'nodates' ? (
                     <>
-                      <p className="fc-blank-title">Choose your dates to see live prices</p>
-                      <p className="fc-blank-sub">Set a departure date and party size above and we’ll price this hotel for real.</p>
+                      <p className="fc-blank-title">{t('prices.chooseYourDates', 'Choose your dates to see live prices')}</p>
+                      <p className="fc-blank-sub">{t('prices.setDepartureDate', 'Set a departure date and party size above and we’ll price this hotel for real.')}</p>
                     </>
                   ) : calState === 'failed' ? (
                     <>
-                      <p className="fc-blank-title">We couldn’t load live prices</p>
-                      <p className="fc-blank-sub">The price service didn’t answer. Your dates are still saved.</p>
-                      <button type="button" className="fc-blank-btn" onClick={() => setCalReload((n) => n + 1)}>Try again</button>
+                      <p className="fc-blank-title">{t('prices.couldNotLoadPrices', 'We couldn’t load live prices')}</p>
+                      <p className="fc-blank-sub">{t('prices.priceServiceDidntAnswer', 'The price service didn’t answer. Your dates are still saved.')}</p>
+                      <button type="button" className="fc-blank-btn" onClick={() => setCalReload((n) => n + 1)}>{t('actions.tryAgain', 'Try again')}</button>
                     </>
                   ) : (
                     <>
-                      <p className="fc-blank-title">No availability for these dates</p>
-                      <p className="fc-blank-sub">This hotel has nothing on offer for {niceDate(baseCheckIn) || 'your dates'}. Try another date or a different length of stay.</p>
+                      <p className="fc-blank-title">{t('prices.noAvailability', 'No availability for these dates')}</p>
+                      <p className="fc-blank-sub">{t('prices.nothingOnOfferFor', { date: niceDate(baseCheckIn) || t('prices.yourDates', 'your dates'), defaultValue: `This hotel has nothing on offer for ${niceDate(baseCheckIn) || 'your dates'}. Try another date or a different length of stay.` })}</p>
                     </>
                   )}
                 </div>
@@ -3166,10 +3184,10 @@ export default function HotelDetail() {
                           onClick={() => pickDay(p.iso)}
                           disabled={isEmpty}
                           aria-pressed={sel}
-                          aria-label={isEmpty ? `${p.day} ${p.date}, not available`
-                            : liveHere ? `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${dayLabel(p.nights)}`
-                            : hasPrice ? `${p.day} ${p.date}, from ${ccy}${pp} per person, ${dayLabel(p.nights)}`
-                            : `${p.day} ${p.date}, check live price`}>
+                          aria-label={isEmpty ? t('prices.dayNotAvailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available` })
+                            : liveHere ? t('prices.dayLivePriceLabel', { day: p.day, date: p.date, currency: ccy, amount: nowPP, moveNote: ppMoved != null ? t('prices.dayMoveNote', { currency: ccy, delta: Math.abs(ppMoved), direction: ppMoved < 0 ? t('prices.lower', 'lower') : t('prices.higher', 'higher'), wasAmount: wasPP, defaultValue: `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` }) : '', nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${dayLabel(p.nights)}` })
+                            : hasPrice ? t('prices.dayFromPriceLabel', { day: p.day, date: p.date, currency: ccy, amount: pp, nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, from ${ccy}${pp} per person, ${dayLabel(p.nights)}` })
+                            : t('prices.dayCheckLivePrice', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, check live price` })}>
                           <span className="fc-barzone">
                             {/* Only one flag fits above a bar. Once a day has been checked, how
                                 its price MOVED is newer and more useful than whether it was the
@@ -3182,18 +3200,18 @@ export default function HotelDetail() {
                                     whole pill will not fit inside one. The arrow already
                                     carries the direction; the card below spells it out in
                                     words at any width. */}
-                                <span className="fc-movetag-w"> {ppMoved < 0 ? 'lower' : 'higher'}</span>
+                                <span className="fc-movetag-w"> {ppMoved < 0 ? t('prices.lower', 'lower') : t('prices.higher', 'higher')}</span>
                               </span>
-                            ) : isLow ? <span className="fc-lowtag">Lowest price</span> : null}
+                            ) : isLow ? <span className="fc-lowtag">{t('prices.lowestPrice', 'Lowest price')}</span> : null}
                             <span className="fc-bar" style={{ height: `${h}%` }}>
                               {/* The BAR is reused so its height can animate; its wording is keyed
                                   to the date so the figures cross-fade instead of snapping to a
                                   different day's price mid-glide. */}
                               <span className="fc-barin" key={p.iso}>
                                 {isEmpty ? (
-                                  <span className="fc-check">Not available</span>
+                                  <span className="fc-check">{t('prices.notAvailable', 'Not available')}</span>
                                 ) : isLoading ? (
-                                  <span className="fc-check">Checking…</span>
+                                  <span className="fc-check">{t('prices.checking', 'Checking…')}</span>
                                 ) : liveHere ? (
                                   /* Checked. The live figure is the authoritative one for this
                                      day and takes the price slot; the estimate it replaced stays
@@ -3207,18 +3225,18 @@ export default function HotelDetail() {
                                         putting a floor under the bar and flattening the chart. */}
                                     {ppMoved != null && <span className="fc-was">{ccy}{wasPP}</span>}
                                     <span className="fc-amt fc-amt-live">{ccy}{nowPP}</span>
-                                    <span className="fc-livetag">Live price</span>
+                                    <span className="fc-livetag">{t('prices.livePrice', 'Live price')}</span>
                                     <span className="fc-nts">{dayLabel(p.nights)}</span>
                                   </>
                                 ) : hasPrice ? (
                                   <>
-                                    <span className="fc-from">from</span>
+                                    <span className="fc-from">{t('prices.from', 'from')}</span>
                                     <span className="fc-amt">{ccy}{pp}</span>
                                     <span className="fc-pp">p.p.</span>
                                     <span className="fc-nts">{dayLabel(p.nights)}</span>
                                   </>
                                 ) : (
-                                  <span className="fc-check">Check live price</span>
+                                  <span className="fc-check">{t('prices.checkLivePrice', 'Check live price')}</span>
                                 )}
                               </span>
                             </span>
@@ -3238,7 +3256,7 @@ export default function HotelDetail() {
                 </div>
                 {winStart && (
                   <button type="button" className="fc-arrow" onClick={() => pageDay(1)}
-                    title="One day later" aria-label="Show one day later">
+                    title={t('prices.oneDayLater', 'One day later')} aria-label={t('prices.showOneDayLater', 'Show one day later')}>
                     <S sw={2.5}><path d="M9 18l6-6-6-6" /></S>
                   </button>
                 )}
@@ -3255,36 +3273,36 @@ export default function HotelDetail() {
                           <div className="fc-unavail-head">
                             <span className="fc-unavail-dot" aria-hidden="true" />
                             <div className="fc-unavail-msg">
-                              <div className="fc-unavail-title">This trip is not available.</div>
-                              <div className="fc-unavail-sub">Please try a different departure date or adjust your search criteria.</div>
+                              <div className="fc-unavail-title">{t('prices.tripNotAvailable', 'This trip is not available.')}</div>
+                              <div className="fc-unavail-sub">{t('prices.tryDifferentDate', 'Please try a different departure date or adjust your search criteria.')}</div>
                             </div>
                           </div>
                           <div className="fc-unavail-crit">
-                            <span className="fc-unavail-caption">Your current selection</span>
+                            <span className="fc-unavail-caption">{t('prices.yourCurrentSelection', 'Your current selection')}</span>
                             <div className="fc-unavail-grid">
                               <div className="fcu-item">
-                                <span className="fcu-k">{ICON.cal} Departure</span>
+                                <span className="fcu-k">{ICON.cal} {t('prices.departure', 'Departure')}</span>
                                 <span className="fcu-v">{pd.day} {pd.date}</span>
                               </div>
                               <div className="fcu-item">
-                                <span className="fcu-k">{ICON.cal} Return</span>
+                                <span className="fcu-k">{ICON.cal} {t('prices.return', 'Return')}</span>
                                 <span className="fcu-v">{calDay(addDaysISO(pd.iso, nights))} {calDate(addDaysISO(pd.iso, nights))}</span>
                               </div>
                               <div className="fcu-item">
-                                <span className="fcu-k">{ICON.moon} Duration</span>
+                                <span className="fcu-k">{ICON.moon} {t('prices.duration', 'Duration')}</span>
                                 <span className="fcu-v">{dayLabel(nights)}</span>
                               </div>
                               <div className="fcu-item">
-                                <span className="fcu-k">{transport === 'hotel_only' ? ICON.bed : ICON.plane} {transport === 'hotel_only' ? 'Transport' : 'Airport'}</span>
-                                <span className="fcu-v">{transport === 'hotel_only' ? 'Hotel only' : `${airportName(origin)} (${origin})`}</span>
+                                <span className="fcu-k">{transport === 'hotel_only' ? ICON.bed : ICON.plane} {transport === 'hotel_only' ? t('chips.transport', 'Transport') : t('prices.airport', 'Airport')}</span>
+                                <span className="fcu-v">{transport === 'hotel_only' ? t('chips.hotelOnly', 'Hotel only') : `${airportName(origin)} (${origin})`}</span>
                               </div>
                               <div className="fcu-item">
-                                <span className="fcu-k">{ICON.users} Guests</span>
-                                <span className="fcu-v">{sharePax}{Number(sRooms) > 1 ? ` · ${sRooms} rooms` : ''}</span>
+                                <span className="fcu-k">{ICON.users} {t('prices.guests', 'Guests')}</span>
+                                <span className="fcu-v">{sharePax}{Number(sRooms) > 1 ? t('stayBar.roomsSuffix', { count: Number(sRooms), defaultValue: ` · ${sRooms} rooms` }) : ''}</span>
                               </div>
                               <div className="fcu-item">
-                                <span className="fcu-k">{ICON.board} Board basis</span>
-                                <span className="fcu-v">{BOARD_PREFS.find((b) => b.id === boardPref)?.label || 'No preference'}</span>
+                                <span className="fcu-k">{ICON.board} {t('overview.boardBasis', 'Board basis')}</span>
+                                <span className="fcu-v">{(() => { const bp = BOARD_PREFS.find((b) => b.id === boardPref); return bp ? boardPrefLabel(bp.id, bp.label) : t('home:hero.transport.noPreference', 'No preference'); })()}</span>
                               </div>
                             </div>
                           </div>
@@ -3303,7 +3321,7 @@ export default function HotelDetail() {
                               </span>
                             </div>
                             <button type="button" className="fc-cta fc-cta-off" disabled>
-                              Not Available
+                              {t('prices.notAvailableCaps', 'Not Available')}
                             </button>
                           </div>
                         </div>
@@ -3324,7 +3342,7 @@ export default function HotelDetail() {
                             </span>
                           </div>
                           <button type="button" className="fc-cta" onClick={checkAvailability}>
-                            Check price &amp; availability
+                            {t('actions.checkPriceAvailability', 'Check price & availability')}
                           </button>
                         </div>
                       ) : (
@@ -3348,9 +3366,9 @@ export default function HotelDetail() {
                               )}
                               <div className="av-head">
                                 <div className="avail-text">
-                                  {liveRooms?.loading ? 'Checking live availability…'
-                                    : liveRooms?.error ? (pdEstimate ? 'Showing estimated price' : 'Live price unavailable')
-                                    : 'Your holiday is available!'}
+                                  {liveRooms?.loading ? t('prices.checkingLiveAvailability', 'Checking live availability…')
+                                    : liveRooms?.error ? (pdEstimate ? t('prices.showingEstimatedPrice', 'Showing estimated price') : t('prices.livePriceUnavailable', 'Live price unavailable'))
+                                    : t('prices.holidayAvailable', 'Your holiday is available!')}
                                 </div>
                                 {/* The badge states what has been established, and nothing more:
                                     a price that came back from the supplier is confirmed, an
@@ -3358,9 +3376,9 @@ export default function HotelDetail() {
                                     running. */}
                                 <div className={`av-confirm${liveRooms?.error ? ' warn' : ''}${liveRooms?.loading ? ' busy' : ''}`}>
                                   <i className="av-dot" />
-                                  {liveRooms?.loading ? 'Asking the hotel for today’s rate'
-                                    : liveRooms?.error ? (pdEstimate ? 'Estimated price — not confirmed' : 'Could not reach the hotel')
-                                    : 'Live availability and price confirmed'}
+                                  {liveRooms?.loading ? t('prices.askingHotelForRate', 'Asking the hotel for today’s rate')
+                                    : liveRooms?.error ? (pdEstimate ? t('prices.estimatedNotConfirmed', 'Estimated price — not confirmed') : t('prices.couldNotReachHotel', 'Could not reach the hotel'))
+                                    : t('prices.liveAvailabilityConfirmed', 'Live availability and price confirmed')}
                                 </div>
 
                               </div>
@@ -3369,7 +3387,7 @@ export default function HotelDetail() {
                             <div className={`av-price${priceMoved != null ? (priceMoved < 0 ? ' avail-moved-down' : ' avail-moved-up') : ''}`}>
                               {/* A lavender day has no estimate — €0 is not a price and must
                                   never be printed as one. A quiet dash says "nothing to quote". */}
-                              <div className="av-price-label">{liveRoom ? 'Live price' : pdEstimate ? 'Estimated price' : ''}</div>
+                              <div className="av-price-label">{liveRoom ? t('prices.livePrice', 'Live price') : pdEstimate ? t('prices.estimatedPrice', 'Estimated price') : ''}</div>
                               {/* PER PERSON is the headline, because that is the figure the fare
                                   strip beside it quotes and the one travellers compare on. The
                                   party total sits directly under it in words, so the number they
@@ -3390,7 +3408,7 @@ export default function HotelDetail() {
                               {ppMoved != null && (
                                 <div className={`avail-move${ppMoved < 0 ? ' down' : ' up'}`}>
                                   {ppMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
-                                  <span><b>€{Math.abs(ppMoved)} p.p.</b> {ppMoved < 0 ? 'lower' : 'higher'} after live check</span>
+                                  <span><b>€{Math.abs(ppMoved)} p.p.</b> {ppMoved < 0 ? t('prices.lowerAfterCheck', 'lower after live check') : t('prices.higherAfterCheck', 'higher after live check')}</span>
                                 </div>
                               )}
                               {(liveRoom || pdEstimate) && (
@@ -3401,8 +3419,8 @@ export default function HotelDetail() {
                                   {priceMoved != null && <span className="avail-price-old">€{cacheWas}</span>}
                                   <b>€{(liveNow != null ? liveNow : Number(pd.price)).toLocaleString('en-GB')}</b>
                                   <span className="avail-forpax">
-                                    {` total for ${availAdults} adult${availAdults === 1 ? '' : 's'}`}
-                                    {availChildren > 0 ? ` · ${availChildren} child${availChildren === 1 ? '' : 'ren'}` : ''}
+                                    {' '}{t('prices.totalForAdults', { count: availAdults, defaultValue: `total for ${availAdults} adult${availAdults === 1 ? '' : 's'}` })}
+                                    {availChildren > 0 ? t('rooms.childrenSuffixDot', { count: availChildren, defaultValue: ` · ${availChildren} child${availChildren === 1 ? '' : 'ren'}` }) : ''}
                                   </span>
                                 </div>
                               )}
@@ -3412,11 +3430,11 @@ export default function HotelDetail() {
                                     be a straight untruth — the Book card below quotes a bigger
                                     number. On an own-transport stay the room IS the holiday. */}
                                 {liveRoom ? (transport === 'hotel_only'
-                                  ? `Total holiday price · ${dayLabel(nights)}`
-                                  : `Live room price · ${dayLabel(nights)}`)
-                                  : liveRooms?.error ? (pdEstimate ? 'Live price unavailable — estimate shown' : 'No estimate for this day — try again')
-                                  : pdEstimate ? (pd?.lowest ? 'Lowest estimated price' : 'Estimated price')
-                                  : 'No cached estimate'}
+                                  ? t('prices.totalHolidayPrice', { nights: dayLabel(nights), defaultValue: `Total holiday price · ${dayLabel(nights)}` })
+                                  : t('prices.liveRoomPrice', { nights: dayLabel(nights), defaultValue: `Live room price · ${dayLabel(nights)}` }))
+                                  : liveRooms?.error ? (pdEstimate ? t('prices.livePriceUnavailableEstimate', 'Live price unavailable — estimate shown') : t('prices.noEstimateTryAgain', 'No estimate for this day — try again'))
+                                  : pdEstimate ? (pd?.lowest ? t('prices.lowestEstimatedPrice', 'Lowest estimated price') : t('prices.estimatedPrice', 'Estimated price'))
+                                  : t('prices.noCachedEstimate', 'No cached estimate')}
                               </div>
                             </div>
 
@@ -3427,9 +3445,9 @@ export default function HotelDetail() {
                               <span className="av-fact">
                                 {ICON.people}
                                 {[
-                                  `${availAdults} adult${availAdults === 1 ? '' : 's'}`,
-                                  availChildren > 0 ? `${availChildren} child${availChildren === 1 ? '' : 'ren'}` : null,
-                                  availRooms > 1 ? `${availRooms} rooms` : null,
+                                  t('chips.adults', { count: availAdults, defaultValue: `${availAdults} adult${availAdults === 1 ? '' : 's'}` }),
+                                  availChildren > 0 ? t('overview.childrenCount', { count: availChildren, defaultValue: `${availChildren} child${availChildren === 1 ? '' : 'ren'}` }) : null,
+                                  availRooms > 1 ? t('prices.roomsCountPlain', { count: availRooms, defaultValue: `${availRooms} rooms` }) : null,
                                 ].filter(Boolean).join(' · ')}
                               </span>
                               <span className="av-fact">{ICON.moon}{stayLabel(nights)}</span>
@@ -3441,41 +3459,41 @@ export default function HotelDetail() {
                               the transfer says where it is added rather than implying an airport
                               pickup nobody has chosen yet. */}
                           <div className="fc-facts">
-                            <span className="fc-facts-caption">Your holiday</span>
+                            <span className="fc-facts-caption">{t('prices.yourHoliday', 'Your holiday')}</span>
                             <div className="fc-facts-grid">
                               <div className="fcu-item">
                                 <span className="fcu-ico">{ICON.cal}</span>
-                                <span className="fcu-k">Travel period</span>
+                                <span className="fcu-k">{t('prices.travelPeriod', 'Travel period')}</span>
                                 <span className="fcu-v">{rangeLabel(pd.iso, addDaysISO(pd.iso, nights)) || longDate(pd.iso)}</span>
                                 <span className="fcu-sub">{stayLabel(nights)}</span>
                               </div>
                               <div className="fcu-item">
                                 <span className="fcu-ico">{transport === 'hotel_only' ? ICON.bed : ICON.plane}</span>
-                                <span className="fcu-k">{transport === 'hotel_only' ? 'Transport' : 'Departure airport'}</span>
+                                <span className="fcu-k">{transport === 'hotel_only' ? t('chips.transport', 'Transport') : t('prices.departureAirport', 'Departure airport')}</span>
                                 <span className="fcu-v">
-                                  {transport === 'hotel_only' ? 'Hotel only' : `${airportName(origin)} (${origin})`}
+                                  {transport === 'hotel_only' ? t('chips.hotelOnly', 'Hotel only') : `${airportName(origin)} (${origin})`}
                                 </span>
                                 <span className="fcu-sub">
-                                  {transport === 'hotel_only' ? 'No flights included' : airportLabel(origin)}
+                                  {transport === 'hotel_only' ? t('prices.noFlightsIncluded', 'No flights included') : airportLabel(origin)}
                                 </span>
                               </div>
                               <div className="fcu-item">
                                 <span className="fcu-ico">{ICON.bed}</span>
-                                <span className="fcu-k">Accommodation</span>
-                                <span className="fcu-v">{liveRoom?.name || 'Chosen below'}</span>
+                                <span className="fcu-k">{t('overview.accommodation', 'Accommodation')}</span>
+                                <span className="fcu-v">{liveRoom?.name || t('overview.chosenBelow', 'Chosen below')}</span>
                                 <span className="fcu-sub">
                                   {liveBoard
-                                    || BOARD_PREFS.find((b) => b.id === boardPref && b.id)?.label
-                                    || 'Board chosen with your room'}
+                                    || (() => { const bp = BOARD_PREFS.find((b) => b.id === boardPref && b.id); return bp ? boardPrefLabel(bp.id, bp.label) : null; })()
+                                    || t('overview.boardChosenWithRoom', 'Board chosen with your room')}
                                 </span>
                               </div>
                               {transport === 'package' && (
                                 <div className="fcu-item">
                                   <span className="fcu-ico">{ICON.noTransfer}</span>
-                                  <span className="fcu-k">Transfer</span>
-                                  <span className="fcu-v">Not included</span>
-                                  <span className="fcu-sub">Optional extra</span>
-                                  <span className="fcu-cta">Add in the next step {ICON.arrow}</span>
+                                  <span className="fcu-k">{t('prices.transfer', 'Transfer')}</span>
+                                  <span className="fcu-v">{t('prices.notIncluded', 'Not included')}</span>
+                                  <span className="fcu-sub">{t('prices.optionalExtra', 'Optional extra')}</span>
+                                  <span className="fcu-cta">{t('prices.addInNextStep', 'Add in the next step')} {ICON.arrow}</span>
                                 </div>
                               )}
                             </div>
@@ -3483,13 +3501,13 @@ export default function HotelDetail() {
 
                           <div className="av-note">
                             {ICON.info}
-                            <span>Prices and availability are live checked for your dates.</span>
+                            <span>{t('prices.liveCheckedNote', 'Prices and availability are live checked for your dates.')}</span>
                           </div>
                         </div>
                       )}
                     </div>
                   ) : (
-                    <div className="fc-hint">Pick a departure day to check live prices</div>
+                    <div className="fc-hint">{t('prices.pickDepartureDayHint', 'Pick a departure day to check live prices')}</div>
                   ))}
 
               {/* Flights. Own transport renders a statement, not a search — the traveller
@@ -3506,19 +3524,19 @@ export default function HotelDetail() {
                   the moment both results are in. */}
               {liveChecked && !dayUnavailable && !liveBusy && (
               <div className="flight-section reveal vis">
-                <div className="section-title"><span className="st-step">2</span> Your flights</div>
+                <div className="section-title"><span className="st-step">2</span> {t('flights.yourFlights', 'Your flights')}</div>
                 {transport === 'hotel_only' ? (
                   <div className="own-transport">
                     <div className="own-transport-row">
                       {ICON.bed}
                       <div className="own-transport-text">
-                        <div className="own-transport-title">Hotel only — no flights included</div>
-                        <div className="own-transport-sub">You're arranging your own way there. The price above is the stay alone.</div>
+                        <div className="own-transport-title">{t('flights.hotelOnlyTitle', 'Hotel only — no flights included')}</div>
+                        <div className="own-transport-sub">{t('flights.hotelOnlySub', "You're arranging your own way there. The price above is the stay alone.")}</div>
                       </div>
                     </div>
                     <button type="button" className="own-transport-add"
                       onClick={() => applyFilter({ transport: 'package' })}>
-                      {ICON.plane} Add flights from {airportName(origin)}
+                      {ICON.plane} {t('flights.addFlightsFrom', { airport: airportName(origin), defaultValue: `Add flights from ${airportName(origin)}` })}
                     </button>
                   </div>
                 ) : liveFlights ? (
@@ -3528,14 +3546,14 @@ export default function HotelDetail() {
                       <span className="live-error-msg">{liveFlights.error}</span>
                       <button type="button" className="live-retry"
                         onClick={() => fetchFlights(pd?.iso || baseCheckIn, pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut)}>
-                        Try again
+                        {t('actions.tryAgain', 'Try again')}
                       </button>
                     </div>
                   ) : liveFlights.flights?.length ? (
                     <>
                       {/* The airport the fares were REALLY searched from — this line used to
                           hardcode Brussels while quoting Eindhoven prices. */}
-                      <div className="flight-note">{ICON.clock} Live fares from {airportName(liveFlights.from || origin)} for your selected travel dates.</div>
+                      <div className="flight-note">{ICON.clock} {t('flights.liveFaresFrom', { airport: airportName(liveFlights.from || origin), defaultValue: `Live fares from ${airportName(liveFlights.from || origin)} for your selected travel dates.` })}</div>
                       {/* ONE flight on the page, every other option behind "Change flight".
                           Two cards side by side asked a traveller to compare before they had
                           been told what they were comparing, and the second was whichever fare
@@ -3551,20 +3569,20 @@ export default function HotelDetail() {
                             f={{ ...pick, price: Math.round(pick.totalPrice), delta: cheapestFare == null || isCheapest ? 0 : pick.totalPrice - cheapestFare }}
                             selected
                             banner={isCheapest ? {
-                              badge: 'Best price',
-                              title: 'Your flights',
-                              sub: 'Automatically selected for your travel dates.',
+                              badge: t('flights.banner.bestPrice', 'Best price'),
+                              title: t('flights.banner.yourFlights', 'Your flights'),
+                              sub: t('flights.banner.autoSelected', 'Automatically selected for your travel dates.'),
                             } : {
-                              badge: 'Your choice',
-                              title: 'Your flights',
-                              sub: 'You picked this one over the cheapest fare.',
+                              badge: t('flights.banner.yourChoice', 'Your choice'),
+                              title: t('flights.banner.yourFlights', 'Your flights'),
+                              sub: t('flights.banner.pickedOverCheapest', 'You picked this one over the cheapest fare.'),
                               note: cheapestFare == null ? null
-                                : `€${Math.round(pick.totalPrice - cheapestFare).toLocaleString('en-GB')} more than the cheapest option for these dates.`,
+                                : t('flights.banner.moreThanCheapest', { amount: Math.round(pick.totalPrice - cheapestFare).toLocaleString('en-GB'), defaultValue: `€${Math.round(pick.totalPrice - cheapestFare).toLocaleString('en-GB')} more than the cheapest option for these dates.` }),
                             }}
                             onSelect={() => {}}
                             {...(liveFlights.flights.length > 1 ? {
                               onChange: () => setModalOpen(true),
-                              changeLabel: `Choose another flight · ${liveFlights.flights.length} options`,
+                              changeLabel: t('flights.chooseAnother', { count: liveFlights.flights.length, defaultValue: `Choose another flight · ${liveFlights.flights.length} options` }),
                             } : {})}
                           />
                         );
@@ -3581,12 +3599,12 @@ export default function HotelDetail() {
                       {liveFlights.probing ? (
                         <div className="alt-airports alt-airports-muted">
                           <div className="alt-airports-label">
-                            <span className="live-spin" /> Checking prices from other airports…
+                            <span className="live-spin" /> {t('flights.checkingOtherAirports', 'Checking prices from other airports…')}
                           </div>
                         </div>
                       ) : liveFlights.alternatives?.length ? (
                         <div className="alt-airports">
-                          <div className="alt-airports-label">Or fly from another airport?</div>
+                          <div className="alt-airports-label">{t('flights.orFlyFromAnother', 'Or fly from another airport?')}</div>
                           <div className="alt-airport-chips">
                             {liveFlights.alternatives.map((alt) => {
                               // Per person, against the cheapest fare on offer from the
@@ -3600,9 +3618,9 @@ export default function HotelDetail() {
                                   <span className="alt-chip-name">{airportName(alt.code)}</span>
                                   <span className="alt-chip-code">{alt.code}</span>
                                   <span className={`alt-chip-delta${delta != null && delta < 0 ? ' down' : ''}`}>
-                                    {delta == null ? `${ccy}${alt.perPax} p.p.`
-                                      : delta === 0 ? 'same price p.p.'
-                                      : `${delta > 0 ? '+' : '−'} ${ccy}${Math.abs(delta)} p.p.`}
+                                    {delta == null ? t('flights.ppPrice', { currency: ccy, amount: alt.perPax, defaultValue: `${ccy}${alt.perPax} p.p.` })
+                                      : delta === 0 ? t('flights.samePricePP', 'same price p.p.')
+                                      : t('flights.deltaPP', { sign: delta > 0 ? '+' : '−', currency: ccy, amount: Math.abs(delta), defaultValue: `${delta > 0 ? '+' : '−'} ${ccy}${Math.abs(delta)} p.p.` })}
                                   </span>
                                 </button>
                               );
@@ -3614,20 +3632,20 @@ export default function HotelDetail() {
                   ) : liveFlights.empty ? (
                     <>
                       <div className="live-empty">
-                        {ICON.plane} No flights from {airportName(liveFlights.from || origin)} for these dates.
+                        {ICON.plane} {t('flights.noFlightsFrom', { airport: airportName(liveFlights.from || origin), defaultValue: `No flights from ${airportName(liveFlights.from || origin)} for these dates.` })}
                       </div>
                       {liveFlights.probing ? (
-                        <div className="live-loading"><span className="live-spin" /> Checking nearby departure airports…</div>
+                        <div className="live-loading"><span className="live-spin" /> {t('flights.checkingNearbyAirports', 'Checking nearby departure airports…')}</div>
                       ) : liveFlights.alternatives?.length ? (
                         <div className="alt-airports">
-                          <div className="alt-airports-label">These airports do fly this route — cheapest first:</div>
+                          <div className="alt-airports-label">{t('flights.theseAirportsFly', 'These airports do fly this route — cheapest first:')}</div>
                           <div className="alt-airport-chips">
                             {liveFlights.alternatives.map((alt) => (
                               <button type="button" key={alt.code} className="alt-chip alt-chip-priced"
                                 onClick={() => applyAlternative(alt.code)}>
                                 <span className="alt-chip-name">{airportName(alt.code)}</span>
                                 <span className="alt-chip-code">{alt.code}</span>
-                                <span className="alt-chip-price">from {ccy}{alt.perPax} p.p.</span>
+                                <span className="alt-chip-price">{t('flights.fromPP', { currency: ccy, amount: alt.perPax, defaultValue: `from ${ccy}${alt.perPax} p.p.` })}</span>
                               </button>
                             ))}
                           </div>
@@ -3637,18 +3655,17 @@ export default function HotelDetail() {
                         // two real ways forward — not an empty panel.
                         <div className="alt-airports">
                           <div className="alt-airports-label">
-                            None of our departure airports fly this route on these dates.
-                            Try different dates — or continue with the hotel only.
+                            {t('flights.noneFlyThisRoute', 'None of our departure airports fly this route on these dates. Try different dates — or continue with the hotel only.')}
                           </div>
                           <button type="button" className="own-transport-add"
                             onClick={() => applyFilter({ transport: 'hotel_only' })}>
-                            {ICON.car} Continue without flights
+                            {ICON.car} {t('flights.continueWithoutFlights', 'Continue without flights')}
                           </button>
                         </div>
                       ) : null}
                       {!liveFlights.probing && liveFlights.unprobed?.length > 0 && (
                         <div className="alt-airports alt-airports-muted">
-                          <div className="alt-airports-label">Or search another airport:</div>
+                          <div className="alt-airports-label">{t('flights.orSearchAnother', 'Or search another airport:')}</div>
                           <div className="alt-airport-chips">
                             {liveFlights.unprobed.map((code) => (
                               <button type="button" key={code} className="alt-chip"
@@ -3662,7 +3679,7 @@ export default function HotelDetail() {
                       )}
                     </>
                   ) : (
-                    <div className="live-empty">{ICON.plane} No live flights found for these dates.</div>
+                    <div className="live-empty">{ICON.plane} {t('flights.noLiveFlights', 'No live flights found for these dates.')}</div>
                   )
                 ) : (
                   <>
@@ -3673,8 +3690,8 @@ export default function HotelDetail() {
                     <div className="live-empty">
                       {ICON.plane}
                       {destination
-                        ? 'Pick a departure date above and check availability to see live fares.'
-                        : 'Add a destination to your search to see live fares.'}
+                        ? t('flights.pickDeparturePrompt', 'Pick a departure date above and check availability to see live fares.')
+                        : t('flights.addDestinationPrompt', 'Add a destination to your search to see live fares.')}
                     </div>
                     {/* One-click departure-airport switch — the same action as the Transport
                         field in the search bar, so picking one re-runs the flight search from
@@ -3682,7 +3699,7 @@ export default function HotelDetail() {
                         deltas from the design mock; a real delta would cost one live supplier
                         search per airport, so the price line is gone rather than faked. */}
                     <div className="alt-airports">
-                      <div className="alt-airports-label">Flying from another airport?</div>
+                      <div className="alt-airports-label">{t('flights.flyingFromAnother', 'Flying from another airport?')}</div>
                       <div className="alt-airport-chips">
                         {AIRPORT_CODES.map((code) => (
                           <button type="button" key={code}
@@ -3710,7 +3727,7 @@ export default function HotelDetail() {
                   says so, a "Choose your room: none found" section under it would nag. */}
               {liveChecked && !dayUnavailable && (
               <div className="room-section reveal vis">
-                {!liveBusy && <div className="section-title"><span className="st-step">3</span> Choose your room</div>}
+                {!liveBusy && <div className="section-title"><span className="st-step">3</span> {t('rooms.chooseYourRoom', 'Choose your room')}</div>}
                 {liveRooms ? (
                   liveBusy ? (
                     <RoomsLoading />
@@ -3720,22 +3737,22 @@ export default function HotelDetail() {
                       <span className="live-error-msg">{liveRooms.error}</span>
                       {/* A timeout is the most common failure here and the one most likely to
                           succeed on a second attempt — don't make the traveller re-pick a day. */}
-                      <button type="button" className="live-retry" onClick={checkAvailability}>Try again</button>
+                      <button type="button" className="live-retry" onClick={checkAvailability}>{t('actions.tryAgain', 'Try again')}</button>
                     </div>
                   ) : boardFilterHidAll ? (
                     <div className="live-empty">
-                      {ICON.board} No {(BOARD_PREFS.find((b) => b.id === boardPref)?.label || '').toLowerCase()} rate at this hotel for these dates.
-                      <button type="button" className="filter-reset" style={{ marginLeft: 10 }} onClick={() => setOvr((p) => ({ ...p, board: '' }))}>Show all meal plans</button>
+                      {ICON.board} {(() => { const bp = BOARD_PREFS.find((b) => b.id === boardPref); const label = bp ? boardPrefLabel(bp.id, bp.label) : ''; return t('rooms.noBoardRate', { board: label.toLowerCase(), defaultValue: `No ${label.toLowerCase()} rate at this hotel for these dates.` }); })()}
+                      <button type="button" className="filter-reset" style={{ marginLeft: 10 }} onClick={() => setOvr((p) => ({ ...p, board: '' }))}>{t('rooms.showAllMealPlans', 'Show all meal plans')}</button>
                     </div>
                   ) : roomGroups.length ? (
                     <div className="stay-block">
                       <div className="stay-header">
                         <div className="stay-icon">{ICON.bed}</div>
                         <div className="stay-title">
-                          Available rooms
+                          {t('rooms.availableRooms', 'Available rooms')}
                           <span className="stay-guests">
-                            ({roomGroups.length} room type{roomGroups.length === 1 ? '' : 's'}
-                            {nBoards > 1 ? ` · ${nBoards} board options` : ''} · live prices)
+                            ({t('rooms.roomTypeCount', { count: roomGroups.length, defaultValue: `${roomGroups.length} room type${roomGroups.length === 1 ? '' : 's'}` })}
+                            {nBoards > 1 ? t('rooms.boardOptionsSuffix', { count: nBoards, defaultValue: ` · ${nBoards} board options` }) : ''} · {t('rooms.livePrices', 'live prices')})
                           </span>
                         </div>
                       </div>
@@ -3764,9 +3781,9 @@ export default function HotelDetail() {
                               <div className="room-group-meta">
                                 {gInfo?.guests != null && (
                                   <span className="rgm">{ICON.users}
-                                    {gInfo.adults} adult{gInfo.adults === 1 ? '' : 's'}
-                                    {gInfo.children > 0 ? ` · ${gInfo.children} child${gInfo.children === 1 ? '' : 'ren'}` : ''}
-                                    {gInfo.rooms > 1 ? ` · ${gInfo.rooms} rooms` : ''}
+                                    {t('chips.adults', { count: gInfo.adults, defaultValue: `${gInfo.adults} adult${gInfo.adults === 1 ? '' : 's'}` })}
+                                    {gInfo.children > 0 ? t('rooms.childrenSuffixDot', { count: gInfo.children, defaultValue: ` · ${gInfo.children} child${gInfo.children === 1 ? '' : 'ren'}` }) : ''}
+                                    {gInfo.rooms > 1 ? t('stayBar.roomsSuffix', { count: gInfo.rooms, defaultValue: ` · ${gInfo.rooms} rooms` }) : ''}
                                   </span>
                                 )}
                                 <span className="rgm">{ICON.moon}{dayLabel(nights)}</span>
@@ -3785,8 +3802,8 @@ export default function HotelDetail() {
                             <div className="room-best-note">
                               <span className="rbn-ico">{ICON.tag}</span>
                               <div className="rbn-text">
-                                <div className="rbn-title">Best-priced option in this room</div>
-                                <div className="rbn-sub">The cheapest available option is shown first.</div>
+                                <div className="rbn-title">{t('rooms.bestPricedTitle', 'Best-priced option in this room')}</div>
+                                <div className="rbn-sub">{t('rooms.bestPricedSub', 'The cheapest available option is shown first.')}</div>
                               </div>
                             </div>
                           )}
@@ -3828,9 +3845,9 @@ export default function HotelDetail() {
                                     it on a row that hasn't been booked reads as a charge. */}
                                 <div className="room-terms">
                                   {nonRefundable && (
-                                    <span className="rchip rchip-nr">{ICON.lock} Non-refundable</span>
+                                    <span className="rchip rchip-nr">{ICON.lock} {t('rooms.nonRefundable', 'Non-refundable')}</span>
                                   )}
-                                  {d?.packageRate && <span className="rchip rchip-mute">Package rate</span>}
+                                  {d?.packageRate && <span className="rchip rchip-mute">{t('rooms.packageRate', 'Package rate')}</span>}
                                 </div>
 
                                 {/* Right-hand action column — one of three things depending on the
@@ -3843,7 +3860,7 @@ export default function HotelDetail() {
                                 <div className="room-cta">
                                   {isSel ? (
                                     <button type="button" className="room-select-btn" aria-pressed="true">
-                                      {ICON.check}<span>Selected</span>
+                                      {ICON.check}<span>{t('flightCard.selected', 'Selected')}</span>
                                     </button>
                                   ) : extra > 1 ? (
                                     <>
@@ -3851,7 +3868,7 @@ export default function HotelDetail() {
                                         +{ccy}{perPerson.toLocaleString('en-GB')}
                                         <em>p.p.</em>
                                       </div>
-                                      <div className="room-delta-vs">vs cheapest</div>
+                                      <div className="room-delta-vs">{t('rooms.vsCheapest', 'vs cheapest')}</div>
                                     </>
                                   ) : (
                                     <div className="room-price-pill">
@@ -3868,7 +3885,7 @@ export default function HotelDetail() {
                               with them. */}
                           <div className="room-group-foot">
                             {ICON.info}
-                            <span>Prices are per person.</span>
+                            <span>{t('rooms.pricesPerPerson', 'Prices are per person.')}</span>
                           </div>
                         </div>
                         );
@@ -3878,14 +3895,14 @@ export default function HotelDetail() {
                         <button type="button" className="room-more" onClick={() => setShowAllRooms((s) => !s)}>
                           {ICON.bed}
                           {showAllRooms
-                            ? 'Show fewer rooms'
-                            : `Show more rooms · ${roomGroups.length - ROOMS_COLLAPSED} more`}
+                            ? t('rooms.showFewerRooms', 'Show fewer rooms')
+                            : t('rooms.showMoreRooms', { count: roomGroups.length - ROOMS_COLLAPSED, defaultValue: `Show more rooms · ${roomGroups.length - ROOMS_COLLAPSED} more` })}
                         </button>
                       )}
-                      <div className="all-in-note">{ICON.shield} All prices include taxes, fees and charges.</div>
+                      <div className="all-in-note">{ICON.shield} {t('rooms.allTaxesIncluded', 'All prices include taxes, fees and charges.')}</div>
                     </div>
                   ) : (
-                    <div className="live-empty">{ICON.bed} No live rooms found for these dates.</div>
+                    <div className="live-empty">{ICON.bed} {t('rooms.noLiveRooms', 'No live rooms found for these dates.')}</div>
                   )
                 ) : (
                   /* Was a hardcoded pair of "Stay 1 / Stay 2" blocks listing four invented
@@ -3894,8 +3911,7 @@ export default function HotelDetail() {
                      searched, it ignored the real party size, and the selected room + meal
                      were carried into the checkout summary. */
                   <div className="live-empty">
-                    {ICON.bed} Pick a departure date above and check availability to see this
-                    hotel’s real rooms and board options.
+                    {ICON.bed} {t('rooms.pickDatePrompt', 'Pick a departure date above and check availability to see this hotel’s real rooms and board options.')}
                   </div>
                 )}
               </div>
@@ -3912,8 +3928,8 @@ export default function HotelDetail() {
                   figure with the per-person share under it, because a party total is agreed
                   per head and checked as a whole. */}
               <div className="overview-section reveal vis">
-                <div className="section-title"><span className="st-step">4</span> Overview of your holiday</div>
-                <div className="overview-lead">Check your travel details and total price</div>
+                <div className="section-title"><span className="st-step">4</span> {t('overview.title', 'Overview of your holiday')}</div>
+                <div className="overview-lead">{t('overview.lead', 'Check your travel details and total price')}</div>
                 <div className="overview-card">
                   <div className="overview-head">
                     <div className="overview-head-main">
@@ -3925,7 +3941,7 @@ export default function HotelDetail() {
                         const ci = pd?.iso || baseCheckIn;
                         const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
                         // No invented April dates when the search carries none.
-                        return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} – ${niceDate(co)}` : 'Dates not selected yet';
+                        return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} – ${niceDate(co)}` : t('overview.datesNotSelected', 'Dates not selected yet');
                       })()}
                       <em>({dayLabel(nights)})</em>
                     </span></div>
@@ -3942,17 +3958,17 @@ export default function HotelDetail() {
                       <span><b>{(() => {
                         const a = Number(sAdults) || 0;
                         const c = Number(sChildren) || 0;
-                        if (!a && !c) return `${ovPax} ${ovPax === 1 ? 'traveller' : 'travellers'}`;
+                        if (!a && !c) return t('overview.travellers', { count: ovPax, defaultValue: `${ovPax} ${ovPax === 1 ? 'traveller' : 'travellers'}` });
                         return [
-                          a ? `${a} adult${a === 1 ? '' : 's'}` : null,
-                          c ? `${c} child${c === 1 ? '' : 'ren'}` : null,
+                          a ? t('chips.adults', { count: a, defaultValue: `${a} adult${a === 1 ? '' : 's'}` }) : null,
+                          c ? t('overview.childrenCount', { count: c, defaultValue: `${c} child${c === 1 ? '' : 'ren'}` }) : null,
                         ].filter(Boolean).join(', ');
                       })()}</b></span>
                     </span>
                     <span className="overview-fact">
                       {ICON.bed}
                       <span>
-                        <b>{availRooms} {availRooms === 1 ? 'room' : 'rooms'}</b>
+                        <b>{t('overview.roomsCount', { count: availRooms, defaultValue: `${availRooms} ${availRooms === 1 ? 'room' : 'rooms'}` })}</b>
                         {liveRoom?.name && <em>{liveRoom.name}</em>}
                       </span>
                     </span>
@@ -3968,14 +3984,14 @@ export default function HotelDetail() {
                   </div>
 
                   <div className="overview-body">
-                    <div className="overview-body-title">Price details</div>
+                    <div className="overview-body-title">{t('overview.priceDetails', 'Price details')}</div>
                     {/* Was a hardcoded "4 × €361 p.p. — €1,444" for any hotel with no live
                         rate yet: a quote for a party size and a price nobody had asked for. */}
                     {ovBase != null ? (
                       <div className="overview-row">
                         <span className="overview-row-label">
-                          Trip amount
-                          <FilterHint text={`The holiday itself for all ${ovPax} ${ovPax === 1 ? 'traveller' : 'travellers'} — the room on the board shown above, and the flights when you are booking a package. Taxes and airline fees are already in it.`} />
+                          {t('overview.tripAmount', 'Trip amount')}
+                          <FilterHint text={t('overview.tripAmountHint', { count: ovPax, defaultValue: `The holiday itself for all ${ovPax} ${ovPax === 1 ? 'traveller' : 'travellers'} — the room on the board shown above, and the flights when you are booking a package. Taxes and airline fees are already in it.` })} />
                         </span>
                         <span className="overview-leader" />
                         <span className="overview-row-val">
@@ -3985,15 +4001,15 @@ export default function HotelDetail() {
                       </div>
                     ) : (
                       <div className="overview-row">
-                        <span className="overview-row-label">Trip amount</span>
+                        <span className="overview-row-label">{t('overview.tripAmount', 'Trip amount')}</span>
                         <span className="overview-leader" />
-                        <span className="overview-row-val" style={{ color: 'var(--text-light)' }}>not priced yet</span>
+                        <span className="overview-row-val" style={{ color: 'var(--text-light)' }}>{t('overview.notPricedYet', 'not priced yet')}</span>
                       </div>
                     )}
                     <div className="overview-row">
                       <span className="overview-row-label">
-                        SGR Guarantee Fund
-                        <FilterHint text="A Belgian travel-guarantee contribution charged per booking. It protects the money you pay us if the trip cannot go ahead." />
+                        {t('overview.sgrFund', 'SGR Guarantee Fund')}
+                        <FilterHint text={t('overview.sgrFundHint', 'A Belgian travel-guarantee contribution charged per booking. It protects the money you pay us if the trip cannot go ahead.')} />
                       </span>
                       <span className="overview-leader" />
                       <span className="overview-row-val">
@@ -4005,9 +4021,9 @@ export default function HotelDetail() {
                         next page, priced against the flight being booked. */}
                     {transport === 'package' && (
                       <div className="overview-row">
-                        <span className="overview-row-label">Airport transfer</span>
+                        <span className="overview-row-label">{t('overview.airportTransfer', 'Airport transfer')}</span>
                         <span className="overview-leader" />
-                        <span className="overview-row-val" style={{ color: 'var(--text-light)' }}>added at checkout</span>
+                        <span className="overview-row-val" style={{ color: 'var(--text-light)' }}>{t('overview.addedAtCheckout', 'added at checkout')}</span>
                       </div>
                     )}
                     <div className="overview-extras">
@@ -4015,19 +4031,19 @@ export default function HotelDetail() {
                         <div className="overview-extra">
                           {ICON.check}
                           <span>
-                            Hand luggage included
-                            <FilterHint text="Every fare we sell carries a cabin bag. Hold baggage depends on the fare and is listed under the flight's details." />
+                            {t('overview.handLuggageIncluded', 'Hand luggage included')}
+                            <FilterHint text={t('overview.handLuggageHint', "Every fare we sell carries a cabin bag. Hold baggage depends on the fare and is listed under the flight's details.")} />
                           </span>
-                          <b>Included</b>
+                          <b>{t('baggage.included', 'Included')}</b>
                         </div>
                       )}
                       <div className="overview-extra">
-                        {ICON.check}<span>No booking fees</span><b>Included</b>
+                        {ICON.check}<span>{t('trust.noBookingFees', 'No booking fees')}</span><b>{t('baggage.included', 'Included')}</b>
                       </div>
                     </div>
                   </div>
                   <div className="overview-total">
-                    <span className="overview-total-label">To pay to SUNSKY</span>
+                    <span className="overview-total-label">{t('overview.toPaySunsky', 'To pay to SUNSKY')}</span>
                     <span className="overview-total-val">
                       {ovBase != null
                         ? `${ccy}${(ovBase + 20).toLocaleString('en-GB')}`
@@ -4036,10 +4052,10 @@ export default function HotelDetail() {
                   </div>
                   <div className="overview-book-wrap">
                     <button className="overview-book-btn" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>
-                      {liveFlights?.loading ? <>Checking flight prices…</>
-                        : dayUnavailable ? <>Not available for this date</>
-                        : ovBase == null ? <>Check availability {ICON.arrow}</>
-                        : <>Continue to checkout {ICON.arrow}</>}
+                      {liveFlights?.loading ? <>{t('overview.checkingFlightPrices', 'Checking flight prices…')}</>
+                        : dayUnavailable ? <>{t('overview.notAvailableDate', 'Not available for this date')}</>
+                        : ovBase == null ? <>{t('actions.checkAvailability', 'Check availability')} {ICON.arrow}</>
+                        : <>{t('overview.continueToCheckout', 'Continue to checkout')} {ICON.arrow}</>}
                     </button>
                   </div>
                   {/* What is NOT in the figure above. A tourist tax collected at the desk is
@@ -4048,10 +4064,9 @@ export default function HotelDetail() {
                   <div className="overview-urgency">
                     {ICON.info}
                     <div className="overview-urgency-text">
-                      <b>Local taxes and charges</b>
+                      <b>{t('overview.localTaxesTitle', 'Local taxes and charges')}</b>
                       <span>
-                        Any local tourist tax is payable at the property, where one applies.
-                        Prices are in {ccy} and may change until your booking is completed.
+                        {t('overview.localTaxesText', { currency: ccy, defaultValue: `Any local tourist tax is payable at the property, where one applies. Prices are in ${ccy} and may change until your booking is completed.` })}
                       </span>
                     </div>
                   </div>
@@ -4073,12 +4088,12 @@ export default function HotelDetail() {
                       <div className="hi-about-copy">
                         <div className="hi-card-head">
                           <div className="hi-card-icon">{ICON.info}</div>
-                          <h3 className="hi-card-title">About {hotelName}</h3>
+                          <h3 className="hi-card-title">{t('info.about', { hotelName, defaultValue: `About ${hotelName}` })}</h3>
                         </div>
                         <div className={`hi-desc${expanded.d1 ? ' exp' : ''}`}>{info.description}</div>
                         {info.description.length > 260 && (
                           <button className="hi-link" onClick={() => toggleExpand('d1')}>
-                            {expanded.d1 ? 'Show less' : 'Read more'}
+                            {expanded.d1 ? t('actions.showLess', 'Show less') : t('actions.readMore', 'Read more')}
                             <S size={14} sw={2.5}><path d={expanded.d1 ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
                           </button>
                         )}
@@ -4090,12 +4105,12 @@ export default function HotelDetail() {
                         <button
                           className="hi-gallery-hero"
                           onClick={() => (photoCats ? openExplorer('ALL') : openLightbox(images, 0))}
-                          aria-label={`View all ${photoCount} photos of ${hotelName}`}
+                          aria-label={t('info.viewAllPhotosOf', { count: photoCount, hotelName, defaultValue: `View all ${photoCount} photos of ${hotelName}` })}
                         >
                           <HotelImg src={images[0]} size="bigger" alt={`${hotelName}`} />
                           <span className="hi-gallery-cta">
                             <S size={15} sw={2}><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></S>
-                            See photos ({photoCount})
+                            {t('info.seePhotos', { count: photoCount, defaultValue: `See photos (${photoCount})` })}
                           </span>
                         </button>
                         {images.length > 1 && (
@@ -4105,7 +4120,7 @@ export default function HotelDetail() {
                                 key={src}
                                 className="hi-gallery-thumb"
                                 onClick={() => openLightbox(images, i + 1)}
-                                aria-label={`Photo ${i + 2} of ${hotelName}`}
+                                aria-label={t('info.photoNOf', { number: i + 2, hotelName, defaultValue: `Photo ${i + 2} of ${hotelName}` })}
                               >
                                 <HotelImg src={src} size="small" alt="" loading="lazy" onError={(e) => { e.currentTarget.closest('button').style.display = 'none'; }} />
                               </button>
@@ -4124,18 +4139,18 @@ export default function HotelDetail() {
                     that sell nothing of the sort, on every cold visit to this page. */}
                 {(() => {
                   const tiles = [
-                    stars > 0 && { icon: 'star', label: 'Category', value: `${Math.min(stars, 5)}-Star` },
-                    glance.rooms && { icon: 'bed', label: 'Rooms', value: glance.rooms },
-                    liveBoard && { icon: 'board', label: 'Board', value: liveBoard },
-                    glance.floors && { icon: 'floors', label: 'Floors', value: glance.floors },
-                    glance.renovated && { icon: 'reno', label: 'Renovated', value: glance.renovated },
-                    !glance.renovated && glance.built && { icon: 'cal', label: 'Built', value: glance.built },
+                    stars > 0 && { icon: 'star', label: t('info.glance.category', 'Category'), value: t('info.glance.starValue', { count: Math.min(stars, 5), defaultValue: `${Math.min(stars, 5)}-Star` }) },
+                    glance.rooms && { icon: 'bed', label: t('info.glance.rooms', 'Rooms'), value: glance.rooms },
+                    liveBoard && { icon: 'board', label: t('info.glance.board', 'Board'), value: liveBoard },
+                    glance.floors && { icon: 'floors', label: t('info.glance.floors', 'Floors'), value: glance.floors },
+                    glance.renovated && { icon: 'reno', label: t('info.glance.renovated', 'Renovated'), value: glance.renovated },
+                    !glance.renovated && glance.built && { icon: 'cal', label: t('info.glance.built', 'Built'), value: glance.built },
                   ].filter(Boolean);
                   return tiles.length >= 2 && (
                     <section className="hi-card">
                       <div className="hi-card-head">
                         <div className="hi-card-icon">{FAC_SVG.info}</div>
-                        <h3 className="hi-card-title">Hotel at a glance</h3>
+                        <h3 className="hi-card-title">{t('info.glance.title', 'Hotel at a glance')}</h3>
                       </div>
                       <div className="hi-glance">
                         {tiles.map((tile) => (
@@ -4155,13 +4170,13 @@ export default function HotelDetail() {
                   <section className="hi-card">
                     <div className="hi-card-head">
                       <div className="hi-card-icon hi-card-icon--loc">{ICON.pin}</div>
-                      <h3 className="hi-card-title">Location &amp; Surroundings</h3>
+                      <h3 className="hi-card-title">{t('info.location.title', 'Location & Surroundings')}</h3>
                     </div>
                     <div className="hi-loc">
                       {info?.latitude && info?.longitude && (
                         <div className="hi-map">
                           <iframe
-                            title={`Map of ${hotelName}`}
+                            title={t('info.location.mapOf', { hotelName, defaultValue: `Map of ${hotelName}` })}
                             loading="lazy"
                             src={`https://www.openstreetmap.org/export/embed.html?bbox=${Number(info.longitude) - 0.008},${Number(info.latitude) - 0.006},${Number(info.longitude) + 0.008},${Number(info.latitude) + 0.006}&layer=mapnik&marker=${info.latitude},${info.longitude}`}
                           />
@@ -4173,7 +4188,7 @@ export default function HotelDetail() {
                           <div className="hi-row">
                             <span className="hi-row-icon">{ICON.pin}</span>
                             <span className="hi-row-body">
-                              <span className="hi-row-label">Address</span>
+                              <span className="hi-row-label">{t('info.location.address', 'Address')}</span>
                               <span className="hi-row-value">{info.address}</span>
                             </span>
                           </div>
@@ -4182,7 +4197,7 @@ export default function HotelDetail() {
                           <div className="hi-row">
                             <span className="hi-row-icon">{FAC_SVG.city}</span>
                             <span className="hi-row-body">
-                              <span className="hi-row-label">Area</span>
+                              <span className="hi-row-label">{t('info.location.area', 'Area')}</span>
                               <span className="hi-row-value">{zoneLabel}</span>
                             </span>
                           </div>
@@ -4191,7 +4206,7 @@ export default function HotelDetail() {
                           <div className="hi-row">
                             <span className="hi-row-icon">{FAC_SVG.harbour}</span>
                             <span className="hi-row-body">
-                              <span className="hi-row-label">Destination</span>
+                              <span className="hi-row-label">{t('info.location.destination', 'Destination')}</span>
                               <span className="hi-row-value">{info.cityName || info.city}</span>
                             </span>
                           </div>
@@ -4199,7 +4214,7 @@ export default function HotelDetail() {
 
                         {nearby.length > 0 && (
                           <div className="hi-nearby">
-                            <div className="hi-nearby-title">Nearby</div>
+                            <div className="hi-nearby-title">{t('info.location.nearby', 'Nearby')}</div>
                             {nearby.map((n) => (
                               <div className="hi-nearby-row" key={n.label}>
                                 <span className="hi-nearby-icon">{FAC_SVG[n.icon] || FAC_SVG.check}</span>
@@ -4214,7 +4229,7 @@ export default function HotelDetail() {
                           <>
                             <div className="hi-coords">
                               <span className="hi-row-body">
-                                <span className="hi-row-label">Coordinates</span>
+                                <span className="hi-row-label">{t('info.location.coordinates', 'Coordinates')}</span>
                                 <span className="hi-row-value">
                                   {Number(info.latitude).toFixed(4)}° N, {Number(info.longitude).toFixed(4)}° E
                                 </span>
@@ -4222,11 +4237,11 @@ export default function HotelDetail() {
                               <button
                                 className="hi-copy"
                                 onClick={() => copyValue(`${Number(info.latitude).toFixed(6)}, ${Number(info.longitude).toFixed(6)}`, 'coords')}
-                                aria-label="Copy coordinates"
+                                aria-label={t('info.location.copyCoordinates', 'Copy coordinates')}
                               >
                                 {copied === 'coords'
-                                  ? <>{FAC_SVG.check}<span>Copied</span></>
-                                  : <>{COPY_SVG}<span>Copy</span></>}
+                                  ? <>{FAC_SVG.check}<span>{t('info.location.copied', 'Copied')}</span></>
+                                  : <>{COPY_SVG}<span>{t('info.location.copy', 'Copy')}</span></>}
                               </button>
                             </div>
                             <a
@@ -4235,7 +4250,7 @@ export default function HotelDetail() {
                               target="_blank"
                               rel="noreferrer noopener"
                             >
-                              Open larger map
+                              {t('info.location.openLargerMap', 'Open larger map')}
                               <S size={14} sw={2}><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></S>
                             </a>
                           </>
@@ -4257,11 +4272,11 @@ export default function HotelDetail() {
                 {weather?.data && (() => {
                   const w = weather.data;
                   const dayName = (iso, i) => {
-                    if (i === 0) return 'Today';
+                    if (i === 0) return t('info.weather.today', 'Today');
                     // Parse the Y-M-D parts directly: `new Date('2026-08-14')` is UTC midnight,
                     // which reads as the previous day for anyone west of Greenwich.
                     const [y, m, d] = String(iso).split('-').map(Number);
-                    return new Date(y, m - 1, d).toLocaleDateString('en-GB', { weekday: 'short' });
+                    return new Date(y, m - 1, d).toLocaleDateString(i18n.language === 'nl' ? 'nl-BE' : 'en-GB', { weekday: 'short' });
                   };
                   // The marine feed answers for ANY coordinate by snapping to the nearest
                   // water, so a Paris hotel comes back with a sea temperature from the
@@ -4272,23 +4287,23 @@ export default function HotelDetail() {
                   const showSea = w.sea != null && (nearBeach || hasBeach);
 
                   const facts = [
-                    showSea && { label: 'Sea temperature', value: `${w.sea}°C`, icon: 'wave' },
-                    w.today?.uv != null && { label: 'UV index', value: uvLabel(w.today.uv), icon: 'uv' },
-                    w.today?.sunrise && { label: 'Sunrise', value: tidyTime(w.today.sunrise), icon: 'sunrise' },
-                    w.today?.sunset && { label: 'Sunset', value: tidyTime(w.today.sunset), icon: 'sunset' },
+                    showSea && { label: t('info.weather.seaTemperature', 'Sea temperature'), value: `${w.sea}°C`, icon: 'wave' },
+                    w.today?.uv != null && { label: t('info.weather.uvIndex', 'UV index'), value: uvLabel(w.today.uv), icon: 'uv' },
+                    w.today?.sunrise && { label: t('info.weather.sunrise', 'Sunrise'), value: tidyTime(w.today.sunrise), icon: 'sunrise' },
+                    w.today?.sunset && { label: t('info.weather.sunset', 'Sunset'), value: tidyTime(w.today.sunset), icon: 'sunset' },
                   ].filter(Boolean);
 
                   return (
                     <section className="hi-card">
                       <div className="hi-card-head">
                         <div className="hi-card-icon hi-card-icon--wx">{WX_SVG.sun}</div>
-                        <h3 className="hi-card-title">Weather &amp; Climate</h3>
+                        <h3 className="hi-card-title">{t('info.weather.title', 'Weather & Climate')}</h3>
                       </div>
 
                       <div className="hi-wx">
                         {/* now */}
                         <div className="hi-wx-panel">
-                          <div className="hi-wx-panel-title">Current weather</div>
+                          <div className="hi-wx-panel-title">{t('info.weather.currentWeather', 'Current weather')}</div>
                           <div className="hi-wx-now">
                             <div className="hi-wx-now-left">
                               <div className="hi-wx-now-icon">
@@ -4297,21 +4312,21 @@ export default function HotelDetail() {
                               <div className="hi-wx-now-temp">{w.current.tempC}°<span>C</span></div>
                               <div className="hi-wx-now-cond">{w.current.condition}</div>
                               {w.current.feelsLikeC != null && (
-                                <div className="hi-wx-now-feels">Feels like {w.current.feelsLikeC}°C</div>
+                                <div className="hi-wx-now-feels">{t('info.weather.feelsLike', { temp: w.current.feelsLikeC, defaultValue: `Feels like ${w.current.feelsLikeC}°C` })}</div>
                               )}
                             </div>
                             <dl className="hi-wx-stats">
                               {w.current.minC != null && w.current.maxC != null && (
-                                <div><dt>Min / Max</dt><dd>{w.current.minC}° / {w.current.maxC}°</dd></div>
+                                <div><dt>{t('info.weather.minMax', 'Min / Max')}</dt><dd>{w.current.minC}° / {w.current.maxC}°</dd></div>
                               )}
                               {w.current.humidity != null && (
-                                <div><dt>Humidity</dt><dd>{w.current.humidity}%</dd></div>
+                                <div><dt>{t('info.weather.humidity', 'Humidity')}</dt><dd>{w.current.humidity}%</dd></div>
                               )}
                               {w.current.windKph != null && (
-                                <div><dt>Wind</dt><dd>{w.current.windKph} km/h</dd></div>
+                                <div><dt>{t('info.weather.wind', 'Wind')}</dt><dd>{w.current.windKph} km/h</dd></div>
                               )}
                               {w.current.rainChance != null && (
-                                <div><dt>Rain chance</dt><dd>{w.current.rainChance}%</dd></div>
+                                <div><dt>{t('info.weather.rainChance', 'Rain chance')}</dt><dd>{w.current.rainChance}%</dd></div>
                               )}
                             </dl>
                           </div>
@@ -4320,7 +4335,7 @@ export default function HotelDetail() {
                         {/* next few days */}
                         {w.forecast?.length > 1 && (
                           <div className="hi-wx-panel">
-                            <div className="hi-wx-panel-title">{w.forecast.length}-day forecast</div>
+                            <div className="hi-wx-panel-title">{t('info.weather.dayForecast', { count: w.forecast.length, defaultValue: `${w.forecast.length}-day forecast` })}</div>
                             <div className="hi-wx-days">
                               {w.forecast.map((d, i) => (
                                 <div className="hi-wx-day" key={d.date}>
@@ -4343,7 +4358,7 @@ export default function HotelDetail() {
                         {/* conditions the feed actually knows */}
                         {facts.length > 0 && (
                           <div className="hi-wx-panel">
-                            <div className="hi-wx-panel-title">Conditions today</div>
+                            <div className="hi-wx-panel-title">{t('info.weather.conditionsToday', 'Conditions today')}</div>
                             <div className="hi-wx-facts">
                               {facts.map((f) => (
                                 <div className="hi-wx-fact" key={f.label}>
@@ -4355,7 +4370,7 @@ export default function HotelDetail() {
                             </div>
                             {w.location?.localtime && (
                               <div className="hi-wx-foot">
-                                Local time at the hotel {String(w.location.localtime).slice(11)}
+                                {t('info.weather.localTimeAtHotel', { time: String(w.location.localtime).slice(11), defaultValue: `Local time at the hotel ${String(w.location.localtime).slice(11)}` })}
                               </div>
                             )}
                           </div>
@@ -4370,10 +4385,10 @@ export default function HotelDetail() {
                     renders three identical cards. De-duplicated by number, first label wins. */}
                 {(() => {
                   const LABELS = {
-                    PHONEHOTEL: 'Hotel',
-                    PHONEBOOKING: 'Booking',
-                    PHONEMANAGEMENT: 'Management',
-                    FAXNUMBER: 'Fax',
+                    PHONEHOTEL: t('info.contact.hotel', 'Hotel'),
+                    PHONEBOOKING: t('info.contact.booking', 'Booking'),
+                    PHONEMANAGEMENT: t('info.contact.management', 'Management'),
+                    FAXNUMBER: t('info.contact.fax', 'Fax'),
                   };
                   // Sort before de-duplicating so that when the hotel files one number under
                   // several types — which it usually does — the surviving card is labelled
@@ -4395,7 +4410,7 @@ export default function HotelDetail() {
                     <section className="hi-card">
                       <div className="hi-card-head">
                         <div className="hi-card-icon hi-card-icon--contact">{PHONE_SVG}</div>
-                        <h3 className="hi-card-title">Contact</h3>
+                        <h3 className="hi-card-title">{t('info.contact.title', 'Contact')}</h3>
                       </div>
                       <div className="hi-contacts">
                         {phones.map((p) => (
@@ -4404,7 +4419,7 @@ export default function HotelDetail() {
                               {p.phoneType === 'FAXNUMBER' ? FAX_SVG : PHONE_SVG}
                             </div>
                             <div className="hi-contact-body">
-                              <div className="hi-contact-type">{LABELS[p.phoneType] || 'Phone'}</div>
+                              <div className="hi-contact-type">{LABELS[p.phoneType] || t('info.contact.phone', 'Phone')}</div>
                               <a className="hi-contact-number" href={`tel:${String(p.phoneNumber).replace(/\s+/g, '')}`}>
                                 {p.phoneNumber}
                               </a>
@@ -4412,7 +4427,7 @@ export default function HotelDetail() {
                             <button
                               className="hi-copy hi-copy--icon"
                               onClick={() => copyValue(p.phoneNumber, `tel-${p.phoneNumber}`)}
-                              aria-label={`Copy ${LABELS[p.phoneType] || 'phone'} number`}
+                              aria-label={t('info.contact.copyNumber', { label: (LABELS[p.phoneType] || t('info.contact.phone', 'Phone')).toLowerCase(), defaultValue: `Copy ${(LABELS[p.phoneType] || 'phone').toLowerCase()} number` })}
                             >
                               {copied === `tel-${p.phoneNumber}` ? FAC_SVG.check : COPY_SVG}
                             </button>
@@ -4466,10 +4481,10 @@ export default function HotelDetail() {
                     <section className="hi-card">
                       <div className="hi-card-head">
                         <div className="hi-card-icon hi-card-icon--room">{ICON.bed}</div>
-                        <h3 className="hi-card-title">Room Types</h3>
+                        <h3 className="hi-card-title">{t('info.rooms.title', 'Room Types')}</h3>
                         {photoCats?.some((c) => c.code === 'HAB') && (
                           <button className="hi-roomsall" onClick={() => openExplorer('HAB')}>
-                            View all room types
+                            {t('info.rooms.viewAllRoomTypes', 'View all room types')}
                           </button>
                         )}
                       </div>
@@ -4477,7 +4492,7 @@ export default function HotelDetail() {
                         <button
                           className="hi-rail-nav hi-rail-nav--prev"
                           onClick={() => roomRailRef.current?.scrollBy({ left: -440, behavior: 'smooth' })}
-                          aria-label="Previous room types"
+                          aria-label={t('info.rooms.previousRoomTypes', 'Previous room types')}
                         >
                           <S size={16} sw={2.5}><path d="M15 18l-6-6 6-6" /></S>
                         </button>
@@ -4492,8 +4507,8 @@ export default function HotelDetail() {
                                     <S size={13} sw={2}><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /></S>
                                     {/* A single room sleeps "1 guest", not "1–1 guests". */}
                                     {rm.minPax != null && rm.minPax !== rm.maxPax
-                                      ? `${rm.minPax}–${rm.maxPax} guests`
-                                      : `${rm.maxPax} guest${rm.maxPax === 1 ? '' : 's'}`}
+                                      ? t('info.rooms.guestsRange', { min: rm.minPax, max: rm.maxPax, defaultValue: `${rm.minPax}–${rm.maxPax} guests` })
+                                      : t('info.rooms.guestsCount', { count: rm.maxPax, defaultValue: `${rm.maxPax} guest${rm.maxPax === 1 ? '' : 's'}` })}
                                   </div>
                                 )}
                               </div>
@@ -4508,15 +4523,14 @@ export default function HotelDetail() {
                         <button
                           className="hi-rail-nav hi-rail-nav--next"
                           onClick={() => roomRailRef.current?.scrollBy({ left: 440, behavior: 'smooth' })}
-                          aria-label="More room types"
+                          aria-label={t('info.rooms.moreRoomTypes', 'More room types')}
                         >
                           <S size={16} sw={2.5}><path d="M9 18l6-6-6-6" /></S>
                         </button>
                       </div>
                       {hiddenRooms > 0 && (
                         <div className="hi-rooms-more">
-                          + {hiddenRooms} further room {hiddenRooms === 1 ? 'type' : 'types'} — search
-                          your dates to see the ones available for your stay.
+                          {t('info.rooms.furtherRooms', { count: hiddenRooms, defaultValue: `+ ${hiddenRooms} further room ${hiddenRooms === 1 ? 'type' : 'types'} — search your dates to see the ones available for your stay.` })}
                         </div>
                       )}
                     </section>
@@ -4538,22 +4552,21 @@ export default function HotelDetail() {
                       <div className="hf-head">
                         <div className="hf-head-icon">{TAB_ICON.Facilities}</div>
                         <div>
-                          <h3 className="hf-title">Hotel Facilities</h3>
+                          <h3 className="hf-title">{t('facilities.title', 'Hotel Facilities')}</h3>
                           <div className="hf-sub">
-                            {facTotal} amenities across {facCategories.length}{' '}
-                            {facCategories.length === 1 ? 'category' : 'categories'}
+                            {t('facilities.amenitiesAcross', { amenities: facTotal, categories: facCategories.length, defaultValue: `${facTotal} amenities across ${facCategories.length} ${facCategories.length === 1 ? 'category' : 'categories'}` })}
                           </div>
                         </div>
                       </div>
 
                       {popularFacs.length > 0 && (
                         <section className="hf-section">
-                          <h4 className="hf-section-title">Popular facilities</h4>
+                          <h4 className="hf-section-title">{t('facilities.popularFacilities', 'Popular facilities')}</h4>
                           <div className="hf-pop">
                             {popularFacs.map((p) => (
                               <div className="hf-pop-tile" key={p.key}>
                                 <div className="hf-pop-icon">{FAC_SVG[p.icon] || FAC_SVG.check}</div>
-                                <div className="hf-pop-label">{p.label}</div>
+                                <div className="hf-pop-label">{t(`facilities.popular.${p.key}`, p.label)}</div>
                                 {p.count != null && <div className="hf-pop-meta">{p.count}</div>}
                               </div>
                             ))}
@@ -4563,10 +4576,10 @@ export default function HotelDetail() {
 
                       <section className="hf-section">
                         <div className="hf-section-head">
-                          <h4 className="hf-section-title">All facilities</h4>
+                          <h4 className="hf-section-title">{t('facilities.allFacilities', 'All facilities')}</h4>
                           {overflow && (
                             <button className="hf-toggle" onClick={() => setShowAllFac((v) => !v)}>
-                              {showAllFac ? 'Show less' : `Show all ${facCategories.length} categories`}
+                              {showAllFac ? t('actions.showLess', 'Show less') : t('facilities.showAllCategories', { count: facCategories.length, defaultValue: `Show all ${facCategories.length} categories` })}
                               <S size={14} sw={2.5}><path d={showAllFac ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
                             </button>
                           )}
@@ -4582,7 +4595,7 @@ export default function HotelDetail() {
                               <div className={`hf-card hf-card--${cat.key}`} key={cat.key}>
                                 <div className="hf-card-head">
                                   <div className="hf-card-icon">{FAC_SVG[cat.icon] || FAC_SVG.check}</div>
-                                  <h5 className="hf-card-title">{cat.title}</h5>
+                                  <h5 className="hf-card-title">{t(`facilities.category.${cat.key}`, cat.title)}</h5>
                                   <span className="hf-card-count">{cat.items.length}</span>
                                 </div>
                                 <ul className="hf-list">
@@ -4592,13 +4605,13 @@ export default function HotelDetail() {
                                       <span className="hf-item-name">
                                         {item.name}{item.count ? ` (${item.count})` : ''}
                                       </span>
-                                      {item.isPaid && <span className="hf-chip hf-chip--paid">Paid</span>}
+                                      {item.isPaid && <span className="hf-chip hf-chip--paid">{t('facilities.paid', 'Paid')}</span>}
                                     </li>
                                   ))}
                                 </ul>
                                 {more > 0 && (
                                   <button className="hf-more" onClick={() => toggleCat(cat.key)}>
-                                    {open ? 'Show less' : `+ ${more} more`}
+                                    {open ? t('actions.showLess', 'Show less') : t('facilities.moreCount', { count: more, defaultValue: `+ ${more} more` })}
                                     <S size={13} sw={2.5}><path d={open ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
                                   </button>
                                 )}
@@ -4611,8 +4624,7 @@ export default function HotelDetail() {
                       {anyPaid && (
                         <div className="hf-note">
                           <span className="hf-note-icon">{FAC_SVG.info}</span>
-                          Facilities marked <span className="hf-chip hf-chip--paid">Paid</span> are
-                          available at an additional charge, settled with the hotel.
+                          {t('facilities.paidNotePrefix', 'Facilities marked')} <span className="hf-chip hf-chip--paid">{t('facilities.paid', 'Paid')}</span> {t('facilities.paidNoteSuffix', 'are available at an additional charge, settled with the hotel.')}
                         </div>
                       )}
                     </>
@@ -4620,11 +4632,11 @@ export default function HotelDetail() {
                 })() : (
                   <div className="hf-empty">
                     <div className="hf-empty-icon">{TAB_ICON.Facilities}</div>
-                    <h3 className="hf-title">Facilities not listed yet</h3>
+                    <h3 className="hf-title">{t('facilities.notListedYet', 'Facilities not listed yet')}</h3>
                     <p className="hf-empty-text">
                       {infoSettled
-                        ? `We don't hold a facility list for ${hotelName} yet. Ask us and we'll confirm directly with the hotel.`
-                        : 'Loading this hotel’s facilities…'}
+                        ? t('facilities.noListYetText', { hotelName, defaultValue: `We don't hold a facility list for ${hotelName} yet. Ask us and we'll confirm directly with the hotel.` })
+                        : t('facilities.loadingFacilities', 'Loading this hotel’s facilities…')}
                     </p>
                   </div>
                 )}
@@ -4706,42 +4718,42 @@ export default function HotelDetail() {
             <div className="bk">
               {/* bkr review score removed — no real review data yet */}
               <div className="bkp">
-                <div className="bkpl">{liveTotal != null ? `live price · ${pd?.day} ${pd?.date}` : fromPP != null ? 'per person from' : 'no price yet'}</div>
+                <div className="bkpl">{liveTotal != null ? t('sidebar.livePriceOn', { day: pd?.day, date: pd?.date, defaultValue: `live price · ${pd?.day} ${pd?.date}` }) : fromPP != null ? t('sidebar.perPersonFrom', 'per person from') : t('sidebar.noPriceYet', 'no price yet')}</div>
                 <div className="bkpr hd">{liveTotal != null
                   ? <>{ccy}{liveTotal.toLocaleString('en-GB')}</>
-                  : fromPP != null ? <>{ccy}{fromPP} <span>p.p.</span></> : <span className="bkpr-none">Pick a date</span>}</div>
+                  : fromPP != null ? <>{ccy}{fromPP} <span>p.p.</span></> : <span className="bkpr-none">{t('sidebar.pickADate', 'Pick a date')}</span>}</div>
                 <div className="bkp-total">
                   {liveTotal != null
-                    ? `${liveRoom ? 'Room' : ''}${liveRoom && liveFlight ? ' + flight' : liveFlight ? 'Flight' : ''} · ${sAdults} ${Number(sAdults) === 1 ? 'adult' : 'adults'}`
+                    ? t('sidebar.roomFlightAdults', { room: liveRoom ? t('sidebar.room', 'Room') : '', plusFlight: liveRoom && liveFlight ? ` ${t('sidebar.plusFlight', '+ flight')}` : liveFlight ? t('sidebar.flight', 'Flight') : '', adults: t('chips.adults', { count: Number(sAdults), defaultValue: `${sAdults} ${Number(sAdults) === 1 ? 'adult' : 'adults'}` }), defaultValue: `${liveRoom ? 'Room' : ''}${liveRoom && liveFlight ? ' + flight' : liveFlight ? 'Flight' : ''} · ${sAdults} ${Number(sAdults) === 1 ? 'adult' : 'adults'}` })
                     : displayTotal != null
-                      ? `${ccy}${displayTotal.toLocaleString('en-GB')} total · ${ovPax} traveller${ovPax > 1 ? 's' : ''}`
-                      : `Pick a day in the calendar to price ${ovPax} traveller${ovPax > 1 ? 's' : ''}`}
+                      ? t('sidebar.totalTravellers', { amount: `${ccy}${displayTotal.toLocaleString('en-GB')}`, count: ovPax, defaultValue: `${ccy}${displayTotal.toLocaleString('en-GB')} total · ${ovPax} traveller${ovPax > 1 ? 's' : ''}` })
+                      : t('sidebar.pickDayToPrice', { count: ovPax, defaultValue: `Pick a day in the calendar to price ${ovPax} traveller${ovPax > 1 ? 's' : ''}` })}
                 </div>
               </div>
               <div className="bkd">
                 <div className="bkdi"><span className="bkdk">{ICON.cal}</span>{(() => {
                   const ci = pd?.iso || baseCheckIn;
                   const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
-                  const short = (iso) => { const d = new Date(`${iso}T00:00:00`); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
-                  return short(ci) && short(co) ? `${short(ci)} — ${short(co)}` : 'Select your dates above';
+                  const short = (iso) => { const d = new Date(`${iso}T00:00:00`); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(i18n.language === 'nl' ? 'nl-BE' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
+                  return short(ci) && short(co) ? `${short(ci)} — ${short(co)}` : t('sidebar.selectDatesAbove', 'Select your dates above');
                 })()}</div>
-                <div className="bkdi"><span className="bkdk">{ICON.users}</span>{Number(sAdults) || 2} adult{(Number(sAdults) || 2) > 1 ? 's' : ''}{Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}</div>
+                <div className="bkdi"><span className="bkdk">{ICON.users}</span>{t('chips.adults', { count: Number(sAdults) || 2, defaultValue: `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}` })}{Number(sChildren) > 0 ? t('chips.childrenSuffix', { count: Number(sChildren), defaultValue: `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` }) : ''}</div>
                 {/* The route the traveller actually chose — this printed "Brussels (BRU)"
                     no matter which airport the fares were searched from. */}
                 <div className="bkdi"><span className="bkdk">{transport === 'hotel_only' ? ICON.bed : ICON.plane}</span>{transport === 'hotel_only'
-                  ? 'Hotel only'
+                  ? t('chips.hotelOnly', 'Hotel only')
                   : destination ? `${airportName(origin)} (${origin}) → ${destination}` : `${airportName(origin)} (${origin})`}</div>
-                <div className="bkdi"><span className="bkdk">{ICON.board}</span>{hotel?.board || 'All inclusive'}</div>
+                <div className="bkdi"><span className="bkdk">{ICON.board}</span>{hotel?.board || t('chips.allInclusive', 'All inclusive')}</div>
                 <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{dayLabel(nights)}</div>
               </div>
               <div className="bkcw">
                 <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>
-                  {liveFlights?.loading ? 'Checking flights…'
-                    : dayUnavailable ? <>Not available for this date</>
-                    : liveTotal == null ? <>Check availability {ICON.arrow}</>
-                    : <>Book Now {ICON.arrow}</>}
+                  {liveFlights?.loading ? t('sidebar.checkingFlights', 'Checking flights…')
+                    : dayUnavailable ? <>{t('overview.notAvailableDate', 'Not available for this date')}</>
+                    : liveTotal == null ? <>{t('actions.checkAvailability', 'Check availability')} {ICON.arrow}</>
+                    : <>{t('sidebar.bookNow', 'Book Now')} {ICON.arrow}</>}
                 </button>
-                <div className="bkc-note">{ICON.check} Secure payment · {ICON.check} Instant confirmation</div>
+                <div className="bkc-note">{ICON.check} {t('sidebar.securePayment', 'Secure payment')} · {ICON.check} {t('trust.instantConfirmation', 'Instant confirmation')}</div>
               </div>
             </div>
           </aside>
@@ -4751,10 +4763,10 @@ export default function HotelDetail() {
       {/* Mobile sticky bar */}
       <div className="mbar">
         <div className="mbi">
-          <div className="mbp"><small>{liveTotal != null ? 'live total' : fromPP != null ? 'per person from' : 'no price yet'}</small>{liveTotal != null
+          <div className="mbp"><small>{liveTotal != null ? t('sidebar.liveTotal', 'live total') : fromPP != null ? t('sidebar.perPersonFrom', 'per person from') : t('sidebar.noPriceYet', 'no price yet')}</small>{liveTotal != null
             ? `${ccy}${liveTotal.toLocaleString('en-GB')}` : fromPP != null ? `${ccy}${fromPP}` : '—'}</div>
           <button className="mbc" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>
-            {liveFlights?.loading ? 'Checking…' : dayUnavailable ? 'Not available' : `${liveTotal != null ? 'Book now' : 'Check price'} →`}
+            {liveFlights?.loading ? t('sidebar.checkingShort', 'Checking…') : dayUnavailable ? t('sidebar.notAvailableShort', 'Not available') : `${liveTotal != null ? t('sidebar.bookNow', 'Book now') : t('sidebar.checkPrice', 'Check price')} →`}
           </button>
         </div>
       </div>
@@ -4762,25 +4774,25 @@ export default function HotelDetail() {
       {/* Categorized photo explorer — the admin dashboard's image categories
           (General, Rooms, Pool, Beach…) as a full-screen light gallery. */}
       {explorer && photoCats && (
-        <div className="px-overlay" role="dialog" aria-modal="true" aria-label={`${hotelName} photos`}>
+        <div className="px-overlay" role="dialog" aria-modal="true" aria-label={t('gallery.photosOf', { hotelName, defaultValue: `${hotelName} photos` })}>
           <div className="px-head">
             <div className="px-title">
-              <span className="px-eyebrow">Photo gallery</span>
+              <span className="px-eyebrow">{t('gallery.photoGallery', 'Photo gallery')}</span>
               <h2 className="px-name hd">{hotelName}</h2>
             </div>
-            <span className="px-count hd">{photoCount} photos</span>
-            <button className="px-close" onClick={() => setExplorer(false)} aria-label="Close gallery" autoFocus>
+            <span className="px-count hd">{t('gallery.photoCount', { count: photoCount, defaultValue: `${photoCount} photos` })}</span>
+            <button className="px-close" onClick={() => setExplorer(false)} aria-label={t('gallery.closeGallery', 'Close gallery')} autoFocus>
               <S size={20} sw={2.2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
             </button>
           </div>
 
           <div className="px-cats">
             <button className={`px-cat${explorerCat === 'ALL' ? ' active' : ''}`} onClick={() => setExplorerCat('ALL')}>
-              {ICON.gallery} All photos <em>{photoCount}</em>
+              {ICON.gallery} {t('gallery.allPhotos', 'All photos')} <em>{photoCount}</em>
             </button>
             {photoCats.map((c) => (
               <button key={c.code} className={`px-cat${explorerCat === c.code ? ' active' : ''}`} onClick={() => setExplorerCat(c.code)}>
-                {PHOTO_TYPE_ICONS[c.code]} {c.label} <em>{c.imgs.length}</em>
+                {PHOTO_TYPE_ICONS[c.code]} {t(`gallery.photoType.${c.code}`, c.label)} <em>{c.imgs.length}</em>
               </button>
             ))}
           </div>
@@ -4792,22 +4804,25 @@ export default function HotelDetail() {
               <section className="px-sec" key={c.code}>
                 <div className="px-sec-head">
                   <span className="px-sec-ic">{PHOTO_TYPE_ICONS[c.code]}</span>
-                  <h3 className="px-sec-title hd">{c.label}</h3>
-                  <em className="px-sec-count">{c.imgs.length} photo{c.imgs.length === 1 ? '' : 's'}</em>
+                  <h3 className="px-sec-title hd">{t(`gallery.photoType.${c.code}`, c.label)}</h3>
+                  <em className="px-sec-count">{t('gallery.photoCountShort', { count: c.imgs.length, defaultValue: `${c.imgs.length} photo${c.imgs.length === 1 ? '' : 's'}` })}</em>
                   <span className="px-sec-rule" />
                 </div>
                 <div className="px-grid">
-                  {c.imgs.map((src, i) => (
+                  {c.imgs.map((src, i) => {
+                    const catLabel = t(`gallery.photoType.${c.code}`, c.label);
+                    return (
                     <button
                       className="px-ph" key={`${c.code}-${i}`}
-                      onClick={() => openLightbox(c.imgs, i, c.label)}
+                      onClick={() => openLightbox(c.imgs, i, catLabel)}
                       style={{ animationDelay: `${Math.min(i * 0.045, 0.45)}s` }}
-                      aria-label={`${c.label} photo ${i + 1}`}
+                      aria-label={t('gallery.categoryPhotoN', { category: catLabel, number: i + 1, defaultValue: `${catLabel} photo ${i + 1}` })}
                     >
-                      <HotelImg src={src} size="bigger" alt={`${hotelName} — ${c.label} ${i + 1}`} loading="lazy" onError={(e) => { e.currentTarget.closest('button').style.display = 'none'; }} />
+                      <HotelImg src={src} size="bigger" alt={`${hotelName} — ${catLabel} ${i + 1}`} loading="lazy" onError={(e) => { e.currentTarget.closest('button').style.display = 'none'; }} />
                       <span className="px-zoom"><S size={15} sw={2.2}><path d="M15 3h6v6" /><path d="M9 21H3v-6" /><path d="M21 3l-7 7" /><path d="M3 21l7-7" /></S></span>
                     </button>
-                  ))}
+                    );
+                  })}
                 </div>
               </section>
             ))}
@@ -4819,10 +4834,10 @@ export default function HotelDetail() {
       {lightbox && (
         <div className="lb-overlay" onClick={closeLightbox}>
           <div className="lb-counter">{lightbox.i + 1} / {lightbox.imgs.length}{lightbox.label ? ` · ${lightbox.label}` : ''}</div>
-          <button className="lb-close" onClick={closeLightbox} aria-label="Close">
+          <button className="lb-close" onClick={closeLightbox} aria-label={t('actions.close', 'Close')}>
             <S size={22} sw={2.2}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
           </button>
-          <button className="lb-nav lb-prev" onClick={prevImg} aria-label="Previous">
+          <button className="lb-nav lb-prev" onClick={prevImg} aria-label={t('gallery.previous', 'Previous')}>
             <S size={26} sw={2.2}><path d="M15 18l-6-6 6-6" /></S>
           </button>
           <div className="lb-stage" onClick={(e) => e.stopPropagation()}>
@@ -4832,10 +4847,10 @@ export default function HotelDetail() {
             {/* …and when even `default` 404s, the stage shows the illustration rather than
                 an empty black frame. */}
             <div className="lb-frame">
-              <HeroPhoto className="lb-img" key={`${lightbox.label}-${lightbox.i}`} src={lightbox.imgs[lightbox.i]} seed={`${hotelCode}-lb`} size="original" alt={`${hotelName} photo ${lightbox.i + 1}`} />
+              <HeroPhoto className="lb-img" key={`${lightbox.label}-${lightbox.i}`} src={lightbox.imgs[lightbox.i]} seed={`${hotelCode}-lb`} size="original" alt={t('gallery.hotelPhotoN', { hotelName, number: lightbox.i + 1, defaultValue: `${hotelName} photo ${lightbox.i + 1}` })} />
             </div>
           </div>
-          <button className="lb-nav lb-next" onClick={nextImg} aria-label="Next">
+          <button className="lb-nav lb-next" onClick={nextImg} aria-label={t('gallery.next', 'Next')}>
             <S size={26} sw={2.2}><path d="M9 18l6-6-6-6" /></S>
           </button>
           <div className="lb-thumbs" onClick={(e) => e.stopPropagation()}>
@@ -4862,11 +4877,11 @@ export default function HotelDetail() {
             <div className="modal-head-main">
               <span className="modal-head-mark" aria-hidden="true">{ICON.plane}</span>
               <div className="modal-head-text">
-                <h2 className="modal-title" id="cfm-title">Choose your flights</h2>
+                <h2 className="modal-title" id="cfm-title">{t('flightModal.chooseYourFlights', 'Choose your flights')}</h2>
                 <div className="modal-subtitle">
                   {modalFlights.length === allFlights.length
-                    ? `${allFlights.length} flight option${allFlights.length === 1 ? '' : 's'}`
-                    : `${modalFlights.length} of ${allFlights.length} flight options`}
+                    ? t('flightModal.flightOptions', { count: allFlights.length, defaultValue: `${allFlights.length} flight option${allFlights.length === 1 ? '' : 's'}` })
+                    : t('flightModal.nOfMOptions', { n: modalFlights.length, m: allFlights.length, defaultValue: `${modalFlights.length} of ${allFlights.length} flight options` })}
                 </div>
               </div>
             </div>
@@ -4876,10 +4891,10 @@ export default function HotelDetail() {
               aria-expanded={filterSheet} aria-controls="cfm-filters"
               onClick={() => setFilterSheet((v) => !v)}>
               <S size={15} sw={2.2}><path d="M4 6h16M7 12h10M10 18h4" /></S>
-              Filters{activeFilterCount ? ` · ${activeFilterCount}` : ''}
+              {t('flightModal.filters', 'Filters')}{activeFilterCount ? ` · ${activeFilterCount}` : ''}
             </button>
             <div className="modal-sort">
-              <label htmlFor="fsort">Sort:</label>
+              <label htmlFor="fsort">{t('flightModal.sort', 'Sort:')}</label>
               <span className="modal-sort-field">
                 <select id="fsort" value={fSort} onChange={(e) => setFSort(e.target.value)}>
                   {SORTS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
@@ -4887,7 +4902,7 @@ export default function HotelDetail() {
                 <S size={15} sw={2.4} aria-hidden="true"><path d="M6 9l6 6 6-6" /></S>
               </span>
             </div>
-            <button className="modal-close" ref={modalCloseRef} onClick={() => setModalOpen(false)} aria-label="Close">
+            <button className="modal-close" ref={modalCloseRef} onClick={() => setModalOpen(false)} aria-label={t('actions.close', 'Close')}>
               <S sw={2.5}><line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" /></S>
             </button>
           </div>
@@ -4904,14 +4919,14 @@ export default function HotelDetail() {
                 <line x1="4" y1="17" x2="20" y2="17" />
                 <circle cx="9" cy="7" r="2.2" /><circle cx="15" cy="12" r="2.2" /><circle cx="8" cy="17" r="2.2" />
               </S>
-              <span>Filters{activeFilterCount ? ` · ${activeFilterCount}` : ''}</span>
+              <span>{t('flightModal.filters', 'Filters')}{activeFilterCount ? ` · ${activeFilterCount}` : ''}</span>
             </button>
             <div className="modal-sidebar" id="cfm-filters">
               <div className="modal-filter-head">
-                <span className="modal-filter-heading">Filters</span>
+                <span className="modal-filter-heading">{t('flightModal.filters', 'Filters')}</span>
                 <button type="button" className="modal-rail-fold"
                   aria-expanded aria-controls="cfm-filters"
-                  onClick={() => setRailOpen(false)} aria-label="Hide filters">
+                  onClick={() => setRailOpen(false)} aria-label={t('flightModal.hideFilters', 'Hide filters')}>
                   <S size={17} sw={2.4}><path d="M15 18l-6-6 6-6" /></S>
                 </button>
               </div>
@@ -4919,8 +4934,8 @@ export default function HotelDetail() {
               {facets.type && (
                 <div className="modal-filter-group">
                   <div className="modal-filter-title">
-                    Flight type
-                    <FilterHint text="Direct flights have no stopover in either direction." />
+                    {t('flightModal.flightType', 'Flight type')}
+                    <FilterHint text={t('flightModal.directFlightsHint', 'Direct flights have no stopover in either direction.')} />
                   </div>
                   {/* Two boxes, not three. "All flights" was a checkbox that could only ever
                       be ticked — the way back from a narrowed list — and a row whose count
@@ -4928,8 +4943,8 @@ export default function HotelDetail() {
                       nothing. Un-ticking either box is the way back now, which is what a
                       checkbox means everywhere else on this rail. */}
                   {[
-                    { id: 'direct', label: 'Direct flights',       count: facets.type.direct },
-                    { id: 'stops',  label: 'Flights with stop(s)', count: facets.type.stops },
+                    { id: 'direct', label: t('flightModal.directFlights', 'Direct flights'),       count: facets.type.direct },
+                    { id: 'stops',  label: t('flightModal.flightsWithStops', 'Flights with stop(s)'), count: facets.type.stops },
                   ].map((o) => (
                     <label key={o.id} className={`modal-filter-opt${fType === o.id ? ' checked' : ''}`}>
                       <input type="checkbox" className="mf-input" checked={fType === o.id}
@@ -4947,12 +4962,12 @@ export default function HotelDetail() {
               {facets.baggage && (
                 <div className="modal-filter-group">
                   <div className="modal-filter-title">
-                    Baggage
-                    <FilterHint text="Checked baggage in the fare. Every fare here allows a cabin bag." />
+                    {t('flightModal.baggage', 'Baggage')}
+                    <FilterHint text={t('flightModal.baggageHint', 'Checked baggage in the fare. Every fare here allows a cabin bag.')} />
                   </div>
                   {[
-                    { id: 'included', label: 'Include baggage', count: facets.baggage.included },
-                    { id: 'excluded', label: 'Exclude baggage', count: facets.baggage.excluded },
+                    { id: 'included', label: t('flightModal.includeBaggage', 'Include baggage'), count: facets.baggage.included },
+                    { id: 'excluded', label: t('flightModal.excludeBaggage', 'Exclude baggage'), count: facets.baggage.excluded },
                   ].map((o) => (
                     <label key={o.id} className={`modal-filter-opt${fBaggage === o.id ? ' checked' : ''}`}>
                       <input type="checkbox" className="mf-input" checked={fBaggage === o.id}
@@ -4969,8 +4984,8 @@ export default function HotelDetail() {
 
               {outSpan && (
                 <TimeRangeFilter
-                  title="Departure time - Outbound"
-                  hint="The time your outbound flight leaves, local to the departure airport."
+                  title={t('flightModal.departureTimeOutbound', 'Departure time - Outbound')}
+                  hint={t('flightModal.outboundTimeHint', 'The time your outbound flight leaves, local to the departure airport.')}
                   span={outSpan}
                   value={outRange}
                   onChange={setFOutRange}
@@ -4979,8 +4994,8 @@ export default function HotelDetail() {
 
               {retSpan && (
                 <TimeRangeFilter
-                  title="Departure time - Return"
-                  hint="The time your return flight leaves the destination."
+                  title={t('flightModal.departureTimeReturn', 'Departure time - Return')}
+                  hint={t('flightModal.returnTimeHint', 'The time your return flight leaves the destination.')}
                   span={retSpan}
                   value={retRange}
                   onChange={setFRetRange}
@@ -4990,12 +5005,12 @@ export default function HotelDetail() {
               {facets.airlines.length > 0 && (
                 <div className="modal-filter-group">
                   <div className="modal-filter-title">
-                    Airlines
-                    <FilterHint text="A flight is kept when any of its legs is flown by a ticked airline." />
+                    {t('flightModal.airlines', 'Airlines')}
+                    <FilterHint text={t('flightModal.airlinesHint', 'A flight is kept when any of its legs is flown by a ticked airline.')} />
                     <button type="button" className="mf-link"
                       onClick={() => setFAirlines(fAirlines.length === facets.airlines.length
                         ? [] : facets.airlines.map((a) => a.code))}>
-                      {fAirlines.length === facets.airlines.length ? 'Clear' : 'Select all'}
+                      {fAirlines.length === facets.airlines.length ? t('flightModal.clear', 'Clear') : t('flightModal.selectAll', 'Select all')}
                     </button>
                   </div>
                   {(showAllAirlines ? facets.airlines : facets.airlines.slice(0, AIRLINES_COLLAPSED)).map((a) => (
@@ -5013,7 +5028,7 @@ export default function HotelDetail() {
                   ))}
                   {facets.airlines.length > AIRLINES_COLLAPSED && (
                     <button type="button" className="mf-more" onClick={() => setShowAllAirlines((v) => !v)}>
-                      {showAllAirlines ? 'Show less' : `Show more (${facets.airlines.length - AIRLINES_COLLAPSED})`}
+                      {showAllAirlines ? t('actions.showLess', 'Show less') : t('flightModal.showMoreN', { count: facets.airlines.length - AIRLINES_COLLAPSED, defaultValue: `Show more (${facets.airlines.length - AIRLINES_COLLAPSED})` })}
                       <S size={13} sw={2.4} className={showAllAirlines ? 'mf-more-up' : ''}><path d="M6 9l6 6 6-6" /></S>
                     </button>
                   )}
@@ -5022,8 +5037,7 @@ export default function HotelDetail() {
 
               {!facets.type && !facets.baggage && !facets.airlines.length && !outSpan && !retSpan && (
                 <div className="modal-filter-none">
-                  All {allFlights.length} flight{allFlights.length === 1 ? '' : 's'} share the same
-                  times, stops, airline and baggage, so there is nothing to filter on.
+                  {t('flightModal.nothingToFilter', { count: allFlights.length, defaultValue: `All ${allFlights.length} flight${allFlights.length === 1 ? '' : 's'} share the same times, stops, airline and baggage, so there is nothing to filter on.` })}
                 </div>
               )}
 
@@ -5032,16 +5046,16 @@ export default function HotelDetail() {
               <div className="modal-filter-foot">
                 <div className="mf-found" aria-live="polite">
                   {modalFlights.length === allFlights.length
-                    ? `${allFlights.length} flight${allFlights.length === 1 ? '' : 's'} found`
-                    : `${modalFlights.length} of ${allFlights.length} flights match`}
+                    ? t('flightModal.flightsFound', { count: allFlights.length, defaultValue: `${allFlights.length} flight${allFlights.length === 1 ? '' : 's'} found` })
+                    : t('flightModal.nOfMMatch', { n: modalFlights.length, m: allFlights.length, defaultValue: `${modalFlights.length} of ${allFlights.length} flights match` })}
                 </div>
                 <button type="button" className="mf-reset" onClick={clearFlightFilters}
                   disabled={!activeFilterCount}>
                   <S size={14} sw={2.3}><path d="M3 12a9 9 0 1 0 3-6.7" /><path d="M3 4v5h5" /></S>
-                  Reset all filters
+                  {t('flightModal.resetAllFilters', 'Reset all filters')}
                 </button>
                 <button type="button" className="mf-apply" onClick={() => setFilterSheet(false)}>
-                  Show {modalFlights.length} flight{modalFlights.length === 1 ? '' : 's'}
+                  {t('flightModal.showNFlights', { count: modalFlights.length, defaultValue: `Show ${modalFlights.length} flight${modalFlights.length === 1 ? '' : 's'}` })}
                 </button>
               </div>
             </div>
@@ -5053,8 +5067,10 @@ export default function HotelDetail() {
               <div className="modal-price-note">
                 {ICON.info}
                 <span>
-                  Price differences are shown <b>per person</b>, compared with your selected
-                  flight. The fare on each card is for <b>all travellers</b>, taxes and fees included.
+                  <Trans i18nKey="hotelDetail:flightModal.priceNote" t={t}>
+                    Price differences are shown <b>per person</b>, compared with your selected
+                    flight. The fare on each card is for <b>all travellers</b>, taxes and fees included.
+                  </Trans>
                 </span>
               </div>
               {modalFlights.length ? (
@@ -5086,15 +5102,15 @@ export default function HotelDetail() {
                     <button type="button" className="show-more-flights"
                       onClick={() => setPager({ list: modalFlights, n: shownFlights + MODAL_PAGE })}>
                       <S size={15} sw={2.4}><path d="M6 9l6 6 6-6" /></S>
-                      Show more flights
-                      <em>{modalFlights.length - shownFlights} more</em>
+                      {t('flightModal.showMoreFlights', 'Show more flights')}
+                      <em>{t('flightModal.nMore', { count: modalFlights.length - shownFlights, defaultValue: `${modalFlights.length - shownFlights} more` })}</em>
                     </button>
                   )}
                 </>
               ) : (
                 <div className="live-empty">
-                  {ICON.plane} No flights match these filters.
-                  <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>Clear all filters</button>
+                  {ICON.plane} {t('flightModal.noFlightsMatch', 'No flights match these filters.')}
+                  <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>{t('flightModal.clearAllFilters', 'Clear all filters')}</button>
                 </div>
               )}
             </div>

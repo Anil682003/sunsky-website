@@ -73,9 +73,9 @@ const renderPage = () => render(
 );
 
 const openMeals = async (user) => {
-  const trigger = await screen.findByRole('button', { name: /care \(meals\)/i });
+  const trigger = await screen.findByRole('button', { name: /verzorging \(maaltijden\)/i });
   await user.click(trigger);
-  return screen.getByRole('dialog', { name: /care \(meals\)/i });
+  return screen.getByRole('dialog', { name: /verzorging \(maaltijden\)/i });
 };
 
 describe('Care (meals) offers what the hotel sells', () => {
@@ -83,7 +83,7 @@ describe('Care (meals) offers what the hotel sells', () => {
     const user = userEvent.setup();
     renderPage();
     const pop = await openMeals(user);
-    expect(pop).toHaveTextContent(/check a date to see which meal plans/i);
+    expect(pop).toHaveTextContent(/kies een datum om te zien welke verzorgingsopties/i);
   });
 
   it('lists only the boards the hotel returned, with the cheapest price on each', async () => {
@@ -92,25 +92,25 @@ describe('Care (meals) offers what the hotel sells', () => {
 
     // pick a day, then run the availability check
     const days = await waitFor(() => {
-      const found = screen.getAllByRole('button', { name: /from €\d+/i });
+      const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
       expect(found.length).toBeGreaterThan(0);
       return found;
     });
     await user.click(days[0]);
-    await user.click(await screen.findByRole('button', { name: /check price & availability/i }));
+    await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
     await waitFor(() => expect(post).toHaveBeenCalled());
 
     const pop = await openMeals(user);
-    await waitFor(() => expect(pop).toHaveTextContent(/meal plans this hotel offers/i));
+    await waitFor(() => expect(pop).toHaveTextContent(/verzorgingsopties die dit hotel aanbiedt/i));
 
     // offered, cheapest rate on each board
-    expect(within(pop).getByRole('button', { name: /room only/i })).toHaveTextContent('268');
-    expect(within(pop).getByRole('button', { name: /half board/i })).toHaveTextContent('402');
-    expect(within(pop).getByRole('button', { name: /no preference/i })).toBeInTheDocument();
+    expect(within(pop).getByRole('button', { name: /^logies/i })).toHaveTextContent('268');
+    expect(within(pop).getByRole('button', { name: /halfpension/i })).toHaveTextContent('402');
+    expect(within(pop).getByRole('button', { name: /geen voorkeur/i })).toBeInTheDocument();
 
     // never offered for this hotel
     expect(within(pop).queryByRole('button', { name: /all inclusive/i })).toBeNull();
-    expect(within(pop).queryByRole('button', { name: /full board/i })).toBeNull();
-    expect(within(pop).queryByRole('button', { name: /bed & breakfast/i })).toBeNull();
+    expect(within(pop).queryByRole('button', { name: /volpension/i })).toBeNull();
+    expect(within(pop).queryByRole('button', { name: /logies & ontbijt/i })).toBeNull();
   });
 });

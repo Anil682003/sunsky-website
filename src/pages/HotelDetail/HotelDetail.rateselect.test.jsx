@@ -54,19 +54,19 @@ const renderPage = () => render(
 
 const checkFirstDay = async (user) => {
   const days = await waitFor(() => {
-    const f = screen.getAllByRole('button', { name: /from €\d+/i });
+    const f = screen.getAllByRole('button', { name: /vanaf €\d+/i });
     expect(f.length).toBeGreaterThan(0);
     return f;
   });
   await user.click(days[0]);
-  await user.click(await screen.findByRole('button', { name: /check price & availability/i }));
+  await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
 /** The board the card claims, off the labelled row in the recap — it sits with the room it
  * belongs to now, under "Accommodation". */
 const cardBoard = (container) => [...container.querySelectorAll('.fcu-item')]
-  .find((el) => el.querySelector('.fcu-k')?.textContent.trim().toLowerCase() === 'accommodation')
+  .find((el) => el.querySelector('.fcu-k')?.textContent.trim().toLowerCase() === 'accommodatie')
   ?.textContent;
 
 // The card leads with the per-person figure and states the party total under it. These
@@ -95,7 +95,7 @@ describe('the card and the room list name the same rate', () => {
     expect(cardBoard(container)).toMatch(/all inclusive/i);
     await waitFor(() => expect(selectedRow(container)).toBeTruthy());
     expect(selectedRow(container).textContent).toMatch(/all inclusive/i);
-    expect(selectedRow(container).textContent).toMatch(/selected/i);
+    expect(selectedRow(container).textContent).toMatch(/geselecteerd/i);
   });
 
   it('quotes a rate the meal filter still shows, not a cheaper one it hid', async () => {
@@ -105,19 +105,19 @@ describe('the card and the room list name the same rate', () => {
     await waitFor(() => expect(cardPrice(container)).toBe('€1020'));
 
     // Ask for Bed & Breakfast. That hides the €1020 All Inclusive rate the card is quoting.
-    await user.click(screen.getByRole('button', { name: /care \(meals\)/i }));
-    await user.click(await screen.findByRole('button', { name: /^bed & breakfast/i }));
+    await user.click(screen.getByRole('button', { name: /verzorging \(maaltijden\)/i }));
+    await user.click(await screen.findByRole('button', { name: /^logies & ontbijt/i }));
 
     // The card must move to the cheapest rate STILL ON SCREEN. Before this fix it kept
     // quoting €1020 / All inclusive, which the list no longer offered anywhere.
     await waitFor(() => expect(cardPrice(container)).toBe('€1200'));
-    expect(cardBoard(container)).toMatch(/bed & breakfast/i);
+    expect(cardBoard(container)).toMatch(/logies & ontbijt/i);
     expect(cardBoard(container)).not.toMatch(/all inclusive/i);
 
     const row = selectedRow(container);
     expect(row).toBeTruthy();
-    expect(row.textContent).toMatch(/bed & breakfast/i);
-    expect(row.textContent).toMatch(/selected/i);
+    expect(row.textContent).toMatch(/logies & ontbijt/i);
+    expect(row.textContent).toMatch(/geselecteerd/i);
   });
 
   it('keeps an explicit pick when it survives the filter', async () => {
@@ -139,10 +139,10 @@ describe('the card and the room list name the same rate', () => {
 
     // Filtering to Bed & Breakfast leaves that rate on screen, so the pick stands rather than
     // snapping back to the cheapest.
-    await user.click(screen.getByRole('button', { name: /care \(meals\)/i }));
-    await user.click(await screen.findByRole('button', { name: /^bed & breakfast/i }));
+    await user.click(screen.getByRole('button', { name: /verzorging \(maaltijden\)/i }));
+    await user.click(await screen.findByRole('button', { name: /^logies & ontbijt/i }));
 
     await waitFor(() => expect(cardPrice(container)).toBe('€1333'));
-    expect(selectedRow(container).textContent).toMatch(/selected/i);
+    expect(selectedRow(container).textContent).toMatch(/geselecteerd/i);
   });
 });

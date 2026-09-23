@@ -75,12 +75,12 @@ const renderPage = () => render(
 
 const checkFirstDay = async (user) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /from €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
   await user.click(days[0]);
-  await user.click(await screen.findByRole('button', { name: /check price & availability/i }));
+  await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
@@ -94,20 +94,20 @@ describe('the matrix is priced per person', () => {
   it('divides the cached party total by the party and says so on the bar', async () => {
     renderPage();
     const days = await waitFor(() => {
-      const found = screen.getAllByRole('button', { name: /from €\d+/i });
+      const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
       expect(found.length).toBeGreaterThan(0);
       return found;
     });
     // Day 1 of the mock is a €430 party total for 2 adults → €215 each; day 2 is €609 → €305
     // (304.5, rounded). Whole euros on the strip: a bar is a few characters wide.
-    expect(days[0]).toHaveAccessibleName(/from €215 per person/i);
-    expect(days[1]).toHaveAccessibleName(/from €305 per person/i);
+    expect(days[0]).toHaveAccessibleName(/vanaf €215 per persoon/i);
+    expect(days[1]).toHaveAccessibleName(/vanaf €305 per persoon/i);
   });
 
   it('states the basis above the chart', async () => {
     renderPage();
-    await screen.findAllByRole('button', { name: /from €\d+/i });
-    expect(screen.getByText(/prices from, per person/i)).toBeInTheDocument();
+    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
+    expect(screen.getByText(/prijzen vanaf, per persoon/i)).toBeInTheDocument();
   });
 });
 
@@ -135,7 +135,7 @@ describe('the live price came back LOWER', () => {
     expect(move.className).toContain('down');
     expect(move.className).not.toContain('up');
     // Stated on the card's own basis: €215 each was estimated, €192 each came back.
-    expect(move.textContent).toMatch(/€23 p\.p\. lower after live check/i);
+    expect(move.textContent).toMatch(/€23 p\.p\. lager na live controle/i);
   });
 
   it('shows one traveller\'s share of the LIVE total, not of the estimate', async () => {
@@ -145,7 +145,7 @@ describe('the live price came back LOWER', () => {
     await priced(container);
 
     expect(container.querySelector('.avail-price-val').textContent).toContain('192');
-    expect(container.querySelector('.avail-forpax').textContent).toMatch(/for 2 adults/i);
+    expect(container.querySelector('.avail-forpax').textContent).toMatch(/voor 2 volwassenen/i);
   });
 });
 
@@ -173,7 +173,7 @@ describe('the live price came back HIGHER', () => {
     expect(move.className).toContain('up');
     // €173 each estimated, €192 each live: the card reports its own basis, not the €38
     // difference between the party totals.
-    expect(move.textContent).toMatch(/€19 p\.p\. higher after live check/i);
+    expect(move.textContent).toMatch(/€19 p\.p\. hoger na live controle/i);
     // The amber treatment is the `up` modifier; nothing here may borrow the page's
     // unavailable-day styling.
     expect(move.className).not.toMatch(/danger|error|red|unavail/i);
@@ -188,7 +188,7 @@ describe('the live price came back HIGHER', () => {
     // fc-ok is the green "rooms really came back" state on the selected column.
     expect(container.querySelector('.fc-col.sel.fc-ok')).toBeTruthy();
     expect(container.querySelector('.fc-col.sel.fc-empty')).toBeNull();
-    await screen.findByText(/your holiday is available/i);
+    await screen.findByText(/je vakantie is beschikbaar/i);
   });
 
   it('flags that the price moved, without calling it a failure', async () => {
@@ -201,10 +201,10 @@ describe('the live price came back HIGHER', () => {
     // available and the check is confirmed: the price moved, nothing failed.
     const move = container.querySelector('.avail-move');
     expect(move.className).toContain('up');
-    expect(move.textContent).toMatch(/higher after live check/i);
-    expect(container.querySelector('.avail-text').textContent).toMatch(/your holiday is available/i);
+    expect(move.textContent).toMatch(/hoger na live controle/i);
+    expect(container.querySelector('.avail-text').textContent).toMatch(/je vakantie is beschikbaar/i);
     const confirm = container.querySelector('.av-confirm');
-    expect(confirm.textContent).toMatch(/live availability and price confirmed/i);
+    expect(confirm.textContent).toMatch(/live beschikbaarheid en prijs bevestigd/i);
     expect(confirm.className).not.toContain('warn');
   });
 });
@@ -223,7 +223,7 @@ describe('basis is never crossed', () => {
       expect(el).toBeTruthy();
       return el;
     });
-    expect(tag.textContent).toMatch(/€23 lower/i);
+    expect(tag.textContent).toMatch(/€23 lager/i);
     expect(tag.textContent).not.toMatch(/46/);
 
     // And the bar itself carries the two per-person figures, not the totals.
@@ -275,7 +275,7 @@ describe('no invented "was" price', () => {
       return found;
     });
     await user.click(days[0]);
-    await user.click(await screen.findByRole('button', { name: /check price & availability/i }));
+    await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
     await waitFor(() => expect(post).toHaveBeenCalled());
     await priced(container);
 
