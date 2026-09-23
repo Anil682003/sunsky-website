@@ -2,7 +2,7 @@
 
 **Stack:** `react-i18next`. Dutch (`nl`) is the site's default/native language; English (`en`) is the switchable alternative. Pattern: `t('ns:key', 'English default text')`, one namespace per page/feature, under `src/i18n/locales/{en,nl}/*.json` (see `src/i18n/index.js`).
 
-**Last updated:** 2026-09-23
+**Last updated:** 2026-09-24
 
 ---
 
@@ -19,7 +19,8 @@
 | Shared search: calendar, airport typeahead, destination modal | ✅ Live | `common` namespace |
 | Shared utils: reviewBadge, rating, topFacilities, countryName | ✅ Live | `countryName` uses `Intl.DisplayNames` (no data needed) |
 | Holiday-type names (all 16) | ✅ Live | |
-| **HotelDetail (whole page)** | ✅ Live | `hotelDetail` namespace — PR [#35](https://github.com/Anil682003/sunsky-website/pull/35). Hero/tabs, fare-comparison chart, flight picker + flight-details modal, room/board list, "Overview of your holiday", Information tab, Facilities tab, booking sidebar, mobile sticky bar, photo explorer/lightbox. Also converts the shared `StayBar` component and the `rateDetails.js` board dictionary. Dates (weekday/month names) now read from the shared calendar dictionary instead of hardcoded English arrays. 73/73 tests passing. |
+| **HotelDetail (whole page)** | ✅ Live | `hotelDetail` namespace — PR [#35](https://github.com/Anil682003/sunsky-website/pull/35), merged. Hero/tabs, fare-comparison chart, flight picker + flight-details modal, room/board list, "Overview of your holiday", Information tab, Facilities tab, booking sidebar, mobile sticky bar, photo explorer/lightbox. Also converts the shared `StayBar` component and the `rateDetails.js` board dictionary. Dates (weekday/month names) now read from the shared calendar dictionary instead of hardcoded English arrays. |
+| **Account (Profile, Favourites, My Bookings, Booking Detail)** | ✅ Live | `account` namespace — same PR [#35](https://github.com/Anil682003/sunsky-website/pull/35), merged. Status badges/payment chips keep English backend keys for lookups, only the rendered label is translated. Also fixed a real locale bug: date formatting was hard-coded to `en-GB` regardless of site language — now follows the reader's language (`nl-BE`/`en-GB`), matching `Results.jsx`/`Hero.jsx`. `Account.jsx` (`/account`) and `AccountSettings.jsx` (`/account/settings`) are still bare placeholders (`<div>Account</div>`) — no real content to translate yet. |
 
 ### ⬜ Not started
 
@@ -27,9 +28,8 @@
 |---|---:|---:|---|
 | Checkout | 3,681 | ~50 | Money — slowest, most careful, deliberately last of the big ones |
 | Auth (5 files) | 1,603 | ~42 | Login / Register / Forgot |
-| Account (6 files) | 540 | ~27 | |
 | Flights / FlightDetail / Transfers / Voucher / HolidayType | ~2,450 | ~25 | Smaller pages |
-| Placeholder stubs (About, Contact, NotFound, etc.) | tiny | ~6 | One-liners — **and currently unbuilt**, not just untranslated (see below) |
+| Placeholder stubs (About, Contact, NotFound, Account, AccountSettings, etc.) | tiny | ~6 | One-liners — **and currently unbuilt**, not just untranslated (see below) |
 
 ### 🔎 Loose ends found during review (not yet actioned)
 
