@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/axiosInstance';
 
 /**
@@ -14,10 +15,11 @@ import axiosInstance from '../../services/axiosInstance';
  * The Stripe webhook is the safety net if the customer never lands here.
  */
 export default function CheckoutReturn() {
+  const { t } = useTranslation('checkout');
   const [params] = useSearchParams();
   const navigate = useNavigate();
   const ran = useRef(false);
-  const [state, setState] = useState({ status: 'working', message: 'Finalising your payment…', booking: null });
+  const [state, setState] = useState({ status: 'working', message: t('checkout:return.finalising', 'Finalising your payment…'), booking: null });
 
   useEffect(() => {
     if (ran.current) return; // guard against React StrictMode double-invoke
@@ -30,11 +32,11 @@ export default function CheckoutReturn() {
 
     (async () => {
       if (!bookingId) {
-        setState({ status: 'error', message: 'Missing booking reference in the return URL.', booking: null });
+        setState({ status: 'error', message: t('checkout:return.missingRef', 'Missing booking reference in the return URL.'), booking: null });
         return;
       }
       if (redirectStatus === 'failed') {
-        setState({ status: 'error', message: 'The payment was not completed. You have not been charged.', booking: null });
+        setState({ status: 'error', message: t('checkout:return.notCompleted', 'The payment was not completed. You have not been charged.'), booking: null });
         return;
       }
 
@@ -45,7 +47,7 @@ export default function CheckoutReturn() {
         const code = err?.response?.data?.errorCode;
         if (code === 'PAYMENT_NOT_SUCCEEDED') {
           // Some bank/PayPal payments settle asynchronously — the webhook finalises it.
-          setState({ status: 'pending', message: 'Your payment is being processed. We will email your confirmation as soon as it clears.', booking: null });
+          setState({ status: 'pending', message: t('checkout:return.processing', 'Your payment is being processed. We will email your confirmation as soon as it clears.'), booking: null });
           return;
         }
         throw err;
@@ -70,17 +72,18 @@ export default function CheckoutReturn() {
       setState({
         status: reservationPending ? 'pending' : 'success',
         message: reservationPending
-          ? 'Payment received. Your booking is being finalised — you will receive your confirmation by email shortly.'
-          : 'Payment received and your booking is confirmed.',
+          ? t('checkout:return.pendingFinalisation', 'Payment received. Your booking is being finalised — you will receive your confirmation by email shortly.')
+          : t('checkout:return.success', 'Payment received and your booking is confirmed.'),
         booking,
       });
     })().catch((err) => {
       setState({
         status: 'error',
-        message: err?.response?.data?.message || err?.message || 'Something went wrong finalising your payment.',
+        message: err?.response?.data?.message || err?.message || t('checkout:return.genericError', 'Something went wrong finalising your payment.'),
         booking: null,
       });
     });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params]);
 
   const ref = state.booking?.bookingReference;
@@ -102,13 +105,16 @@ export default function CheckoutReturn() {
       )}
 
       <h1 style={{ fontSize: 24, margin: '0 0 10px' }}>
-        {working ? 'Finalising your payment…' : ok ? 'Booking confirmed' : pending ? 'Payment processing' : 'Payment not completed'}
+        {working ? t('checkout:return.finalising', 'Finalising your payment…')
+          : ok ? t('checkout:return.titleConfirmed', 'Booking confirmed')
+          : pending ? t('checkout:return.titleProcessing', 'Payment processing')
+          : t('checkout:return.titleNotCompleted', 'Payment not completed')}
       </h1>
       <p style={{ color: '#5b6b86', margin: '0 0 20px', lineHeight: 1.5 }}>{state.message}</p>
 
       {ref && (
         <div style={{ display: 'inline-block', background: '#f6f8fc', border: '1px solid #e6ebf4', borderRadius: 10, padding: '12px 18px', marginBottom: 24 }}>
-          <span style={{ color: '#5b6b86', fontSize: 13 }}>Booking reference</span>
+          <span style={{ color: '#5b6b86', fontSize: 13 }}>{t('checkout:return.bookingReference', 'Booking reference')}</span>
           <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: 0.5 }}>{ref}</div>
         </div>
       )}
@@ -116,10 +122,10 @@ export default function CheckoutReturn() {
       {!working && (
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
           <button onClick={() => navigate('/account/bookings')} style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: '#f5a51e', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
-            View my bookings
+            {t('checkout:return.viewMyBookings', 'View my bookings')}
           </button>
           <button onClick={() => navigate('/')} style={{ padding: '11px 20px', borderRadius: 10, border: '1px solid #d8dfec', background: '#fff', color: '#1a2744', fontWeight: 600, cursor: 'pointer' }}>
-            Back to home
+            {t('checkout:return.backToHome', 'Back to home')}
           </button>
         </div>
       )}

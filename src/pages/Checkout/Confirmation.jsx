@@ -1,7 +1,9 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import { useToast } from '../../context/ToastContext';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
+import i18n from '../../i18n';
 import './Confirmation.css';
 
 /* ── tiny SVG helper (same pattern as Checkout) ── */
@@ -35,18 +37,23 @@ const ICON = {
   laptop: <S><rect x="3" y="4" width="18" height="12" rx="2" /><line x1="2" y1="20" x2="22" y2="20" /></S>,
 };
 
+// Dates are read by the browser, so they need the reader's locale rather than a hard-coded en-GB.
+const dateLocale = () => (i18n.language === 'nl' ? 'nl-BE' : 'en-GB');
 const fmtDate = (iso) => {
   if (!iso) return '';
   const d = new Date(iso);
-  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString('en-GB', { day: 'numeric', month: 'short', year: 'numeric' });
+  return Number.isNaN(d.getTime()) ? iso : d.toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });
 };
 // mirrors the admin traveller rules: <2 INF, <12 CHD, else ADT
+const AGE_TYPE_KEY = { INF: 'infant', CHD: 'child', ADT: 'adult' };
+const ageTypeLabel = (code) => i18n.t(`checkout:ageType.${AGE_TYPE_KEY[code]}`, { INF: 'Infant', CHD: 'Child', ADT: 'Adult' }[code]);
 const ageType = (dob) => {
   const b = new Date(dob); const now = new Date();
   let a = now.getFullYear() - b.getFullYear();
   const m = now.getMonth() - b.getMonth();
   if (m < 0 || (m === 0 && now.getDate() < b.getDate())) a--;
-  return a < 2 ? { code: 'INF', label: 'Infant' } : a < 12 ? { code: 'CHD', label: 'Child' } : { code: 'ADT', label: 'Adult' };
+  const code = a < 2 ? 'INF' : a < 12 ? 'CHD' : 'ADT';
+  return { code, label: ageTypeLabel(code) };
 };
 
 /* eased count-up for the paid amount */
@@ -75,6 +82,7 @@ export default function Confirmation({
   // re-derive refundability from a rateKey and risk disagreeing with what was accepted.
   nonRefundable = false,
 }) {
+  const { t } = useTranslation('checkout');
   const navigate = useNavigate();
   const { showToast } = useToast();
   const [copied, setCopied] = useState(false);
@@ -98,16 +106,16 @@ export default function Confirmation({
   }, []);
 
   const lead = travellers[0] || {};
-  const destination = (booking.loc || '').split(',')[1]?.trim() || (booking.loc || '').split(',')[0]?.trim() || 'the sun';
+  const destination = (booking.loc || '').split(',')[1]?.trim() || (booking.loc || '').split(',')[0]?.trim() || t('checkout:confirmation.theSun', 'the sun');
   // One person fills the checkout whether or not it is a business booking, so the contact
   // details are theirs either way — the company block below only adds who it was booked for.
   const customerEmail = priv.email;
-  const paidOn = new Date().toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
+  const paidOn = new Date().toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' });
 
   const payLabel = payMethod === 'card'
-    ? `${(detectBrandName(card.number) || 'Card')} •••• ${card.number.replace(/\D/g, '').slice(-4) || '••••'}`
-    : payMethod === 'ideal' ? `iDEAL — ${idealBank || 'your bank'}`
-    : payMethod === 'bancontact' ? 'Bancontact' : 'PayPal';
+    ? `${(detectBrandName(card.number) || t('checkout:payment.card', 'Card'))} •••• ${card.number.replace(/\D/g, '').slice(-4) || '••••'}`
+    : payMethod === 'ideal' ? `${t('checkout:payment.ideal', 'iDEAL')} — ${idealBank || t('checkout:confirmation.yourBank', 'your bank')}`
+    : payMethod === 'bancontact' ? t('checkout:payment.bancontact', 'Bancontact') : t('checkout:payment.paypal', 'PayPal');
 
   /* days until departure — defensive parse of the display date */
   const daysToGo = useMemo(() => {
@@ -124,7 +132,7 @@ export default function Confirmation({
       setCopied(true);
       setTimeout(() => setCopied(false), 1800);
     } catch {
-      showToast(`Your reference: ${bookingRef}`, 'info');
+      showToast(t('checkout:confirmation.yourReference', { ref: bookingRef, defaultValue: 'Your reference: {{ref}}' }), 'info');
     }
   };
 
@@ -135,7 +143,7 @@ export default function Confirmation({
       || booking.api?.flight?.depdate
       || booking.api?.transfer?.outbound?.slice(0, 10);
     const end = booking.api?.hotel?.checkout || booking.api?.flight?.retdate || start;
-    if (!start) { showToast('Trip dates unavailable for this booking', 'info'); return; }
+    if (!start) { showToast(t('checkout:confirmation.tripDatesUnavailable', 'Trip dates unavailable for this booking'), 'info'); return; }
     const d8 = (iso) => iso.replaceAll('-', '');
     const endNext = (() => { const d = new Date(`${end}T00:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
     const ics = [
@@ -144,15 +152,15 @@ export default function Confirmation({
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
       `DTSTART;VALUE=DATE:${d8(start)}`,
       `DTEND;VALUE=DATE:${d8(endNext)}`,
-      `SUMMARY:SunSky trip — ${(booking.hotelName || 'Your booking').replace(/[,;]/g, ' ')}`,
-      `DESCRIPTION:Booking reference ${bookingRef}`,
+      `SUMMARY:${t('checkout:confirmation.icsSummaryPrefix', 'SunSky trip')} — ${(booking.hotelName || t('checkout:confirmation.yourBooking', 'Your booking')).replace(/[,;]/g, ' ')}`,
+      `DESCRIPTION:${t('checkout:confirmation.icsBookingReference', { ref: bookingRef, defaultValue: 'Booking reference {{ref}}' })}`,
       'END:VEVENT', 'END:VCALENDAR',
     ].join('\r\n');
     const url = URL.createObjectURL(new Blob([ics], { type: 'text/calendar' }));
     const a = document.createElement('a');
     a.href = url; a.download = `sunsky-${bookingRef}.ics`; a.click();
     URL.revokeObjectURL(url);
-    showToast('Calendar file downloaded', 'success');
+    showToast(t('checkout:confirmation.calendarDownloaded', 'Calendar file downloaded'), 'success');
   };
 
   /* build a hotel-voucher payload from this booking and open the printable voucher */
@@ -209,10 +217,10 @@ export default function Confirmation({
   };
 
   const TIMELINE = [
-    { icon: ICON.mail, title: 'Confirmation email', sub: 'Arriving in your inbox right now' },
-    { icon: ICON.doc, title: 'Travel documents', sub: '7 days before departure' },
-    { icon: ICON.laptop, title: 'Online check-in', sub: 'Opens 48h before your flight' },
-    { icon: ICON.sun, title: 'Enjoy your holiday!', sub: `${destination} awaits you` },
+    { icon: ICON.mail, title: t('checkout:confirmation.timeline.email.title', 'Confirmation email'), sub: t('checkout:confirmation.timeline.email.sub', 'Arriving in your inbox right now') },
+    { icon: ICON.doc, title: t('checkout:confirmation.timeline.docs.title', 'Travel documents'), sub: t('checkout:confirmation.timeline.docs.sub', '7 days before departure') },
+    { icon: ICON.laptop, title: t('checkout:confirmation.timeline.checkin.title', 'Online check-in'), sub: t('checkout:confirmation.timeline.checkin.sub', 'Opens 48h before your flight') },
+    { icon: ICON.sun, title: t('checkout:confirmation.timeline.enjoy.title', 'Enjoy your holiday!'), sub: t('checkout:confirmation.timeline.enjoy.sub', { destination, defaultValue: '{{destination}} awaits you' }) },
   ];
 
   return (
@@ -234,27 +242,29 @@ export default function Confirmation({
               <path className="ckc-check-tick" d="M30 50l13 13 24-27" />
             </svg>
           </div>
-          <h1 className="ckc-title hd">{reservationPending ? 'Payment received!' : 'Booking confirmed!'}</h1>
+          <h1 className="ckc-title hd">{reservationPending ? t('checkout:confirmation.paymentReceived', 'Payment received!') : t('checkout:confirmation.bookingConfirmed', 'Booking confirmed!')}</h1>
           {reservationPending ? (
             <p className="ckc-sub">
-              Thanks{lead.firstName ? `, ${lead.firstName}` : ''} — your payment for <b>{destination}</b> went through.
-              We’re finalising the reservation with the airline now and will email your confirmation &amp; tickets
-              shortly. Your booking reference is below.
+              {t('checkout:confirmation.pendingSubStart', { name: lead.firstName ? `, ${lead.firstName}` : '', defaultValue: 'Thanks{{name}} — your payment for' })}
+              {' '}<b>{destination}</b>{' '}
+              {t('checkout:confirmation.pendingSubEnd', 'went through. We’re finalising the reservation with the airline now and will email your confirmation & tickets shortly. Your booking reference is below.')}
             </p>
           ) : (
             <p className="ckc-sub">
-              Pack your bags{lead.firstName ? `, ${lead.firstName}` : ''} — <b>{destination}</b> is calling
-              {daysToGo ? <> in only <b>{daysToGo} days</b></> : ''}! ☀️
+              {t('checkout:confirmation.readySubStart', { name: lead.firstName ? `, ${lead.firstName}` : '', defaultValue: 'Pack your bags{{name}} —' })}
+              {' '}<b>{destination}</b>{' '}
+              {t('checkout:confirmation.readySubCalling', 'is calling')}
+              {daysToGo ? <> {t('checkout:confirmation.inOnly', 'in only')} <b>{t('checkout:confirmation.days', { count: daysToGo, defaultValue_one: '{{count}} day', defaultValue_other: '{{count}} days' })}</b></> : ''}! ☀️
             </p>
           )}
           <div className="ckc-ref-row">
-            <button className={`ckc-ref${copied ? ' copied' : ''}`} onClick={copyRef} title="Copy booking reference">
-              <span className="ckc-ref-label">Booking reference</span>
+            <button className={`ckc-ref${copied ? ' copied' : ''}`} onClick={copyRef} title={t('checkout:confirmation.copyBookingReference', 'Copy booking reference')}>
+              <span className="ckc-ref-label">{t('checkout:confirmation.bookingReference', 'Booking reference')}</span>
               <span className="ckc-ref-val hd">{bookingRef}</span>
-              <span className="ckc-ref-copy">{copied ? <>{ICON.check} Copied!</> : <>{ICON.copy} Copy</>}</span>
+              <span className="ckc-ref-copy">{copied ? <>{ICON.check} {t('checkout:confirmation.copied', 'Copied!')}</> : <>{ICON.copy} {t('checkout:confirmation.copy', 'Copy')}</>}</span>
             </button>
           </div>
-          <div className="ckc-mail-note">{ICON.mail} Confirmation sent to <b>{customerEmail || 'your email address'}</b></div>
+          <div className="ckc-mail-note">{ICON.mail} {t('checkout:confirmation.confirmationSentTo', 'Confirmation sent to')} <b>{customerEmail || t('checkout:confirmation.yourEmailAddress', 'your email address')}</b></div>
         </div>
       </header>
 
@@ -273,21 +283,21 @@ export default function Confirmation({
                 <span className="ckc-ticket-name hd">{booking.hotelName}</span>
                 <span className="ckc-ticket-loc">{ICON.pin} {booking.loc}</span>
               </div>
-              <span className="ckc-paid-badge">{ICON.check} Paid</span>
+              <span className="ckc-paid-badge">{ICON.check} {t('checkout:confirmation.paid', 'Paid')}</span>
             </div>
             <div className="ckc-ticket-body">
               <div className="ckc-ticket-chips">
                 <span className="ckc-chip">{ICON.cal} {booking.dateLabel}</span>
                 {isFlight && <span className="ckc-chip">{ICON.plane} {booking.loc}</span>}
-                {isTransfer && <span className="ckc-chip">{ICON.pin} {booking.transfer?.type === 'SHARED' ? 'Shared' : 'Private'} transfer</span>}
-                {!isFlight && !isTransfer && <span className="ckc-chip">{ICON.moon} {booking.nights} nights</span>}
-                <span className="ckc-chip">{ICON.users} {pricing.pax} {pricing.pax === 1 ? 'traveller' : 'travellers'}</span>
+                {isTransfer && <span className="ckc-chip">{ICON.pin} {booking.transfer?.type === 'SHARED' ? t('checkout:transfer.shared', 'Shared') : t('checkout:transfer.private', 'Private')} {t('checkout:confirmation.transfer', 'transfer')}</span>}
+                {!isFlight && !isTransfer && <span className="ckc-chip">{ICON.moon} {t('checkout:duration.nights', { count: booking.nights, defaultValue_one: '{{count}} night', defaultValue_other: '{{count}} nights' })}</span>}
+                <span className="ckc-chip">{ICON.users} {pricing.pax} {t('checkout:duration.travellers', { count: pricing.pax, defaultValue_one: 'traveller', defaultValue_other: 'travellers' })}</span>
                 {!isFlight && !isTransfer && <span className="ckc-chip">{ICON.board} {booking.board}</span>}
               </div>
               {booking.transfer && (
                 <div className="ckc-ticket-flights">
                   <div className="ckc-leg">
-                    <span className="ckc-leg-dir">OUT</span>
+                    <span className="ckc-leg-dir">{t('checkout:confirmation.out', 'OUT')}</span>
                     <div className="ckc-leg-route">
                       <b>{booking.transfer.time || ''}</b><span className="ckc-leg-line"><i className="ckc-leg-plane">{ICON.pin}</i></span><b>{booking.transfer.vehicle || ''}</b>
                     </div>
@@ -295,8 +305,8 @@ export default function Confirmation({
                   </div>
                   {booking.transfer.retDate && (
                     <div className="ckc-leg">
-                      <span className="ckc-leg-dir ret">RET</span>
-                      <div className="ckc-leg-route"><b>Return transfer</b></div>
+                      <span className="ckc-leg-dir ret">{t('checkout:confirmation.ret', 'RET')}</span>
+                      <div className="ckc-leg-route"><b>{t('checkout:confirmation.returnTransfer', 'Return transfer')}</b></div>
                       <span className="ckc-leg-meta">{booking.transfer.to} → {booking.transfer.from} · {booking.transfer.retDate}</span>
                     </div>
                   )}
@@ -305,7 +315,7 @@ export default function Confirmation({
               {booking.flight && (
                 <div className="ckc-ticket-flights">
                   <div className="ckc-leg">
-                    <span className="ckc-leg-dir">OUT</span>
+                    <span className="ckc-leg-dir">{t('checkout:confirmation.out', 'OUT')}</span>
                     <div className="ckc-leg-route">
                       <b>{booking.flight.outDep}</b><span className="ckc-leg-line"><i className="ckc-leg-plane">{ICON.plane}</i></span><b>{booking.flight.outArr}</b>
                     </div>
@@ -313,7 +323,7 @@ export default function Confirmation({
                   </div>
                   {booking.flight.retDep && (
                     <div className="ckc-leg">
-                      <span className="ckc-leg-dir ret">RET</span>
+                      <span className="ckc-leg-dir ret">{t('checkout:confirmation.ret', 'RET')}</span>
                       <div className="ckc-leg-route">
                         <b>{booking.flight.retDep}</b><span className="ckc-leg-line"><i className="ckc-leg-plane ret">{ICON.plane}</i></span><b>{booking.flight.retArr}</b>
                       </div>
@@ -325,7 +335,7 @@ export default function Confirmation({
               {!isFlight && !isTransfer && (
                 <div className="ckc-ticket-room">
                   {ICON.bed}
-                  <div><b>{booking.room}</b><span>{booking.meal} · included in price</span></div>
+                  <div><b>{booking.room}</b><span>{booking.meal} · {t('checkout:confirmation.includedInPrice', 'included in price')}</span></div>
                 </div>
               )}
             </div>
@@ -333,43 +343,43 @@ export default function Confirmation({
 
           <div className="ckc-ticket-stub">
             <div className="ckc-stub-paid">
-              <span className="ckc-stub-label">Total paid</span>
+              <span className="ckc-stub-label">{t('checkout:confirmation.totalPaid', 'Total paid')}</span>
               <span className="ckc-stub-amount hd">{ccy}{animPaid.toLocaleString('en-US')}</span>
               <span className="ckc-stub-method">{ICON.card} {payLabel}</span>
               <span className="ckc-stub-date">{paidOn}</span>
             </div>
             {/* no decorative QR — it wasn't scannable and invited confusion */}
             <span className="ckc-stub-ref hd">{bookingRef}</span>
-            <span className="ckc-stub-hint">Your booking reference</span>
+            <span className="ckc-stub-hint">{t('checkout:confirmation.bookingReference', 'Booking reference')}</span>
           </div>
         </div>
 
         {/* ═══ ACTIONS ═══ */}
         <div className="ckc-actions ckc-reveal">
-          <button className="ckc-act primary" onClick={() => navigate('/account/bookings')}>{ICON.arrow} View my bookings</button>
-          {!isFlight && !isTransfer && <button className="ckc-act" onClick={openVoucher}>{ICON.download} Download voucher</button>}
-          <button className="ckc-act" onClick={downloadIcs}>{ICON.calPlus} Add to calendar</button>
-          <button className="ckc-act ghost" onClick={() => navigate('/')}>Back to home</button>
+          <button className="ckc-act primary" onClick={() => navigate('/account/bookings')}>{ICON.arrow} {t('checkout:confirmation.viewMyBookings', 'View my bookings')}</button>
+          {!isFlight && !isTransfer && <button className="ckc-act" onClick={openVoucher}>{ICON.download} {t('checkout:confirmation.downloadVoucher', 'Download voucher')}</button>}
+          <button className="ckc-act" onClick={downloadIcs}>{ICON.calPlus} {t('checkout:confirmation.addToCalendar', 'Add to calendar')}</button>
+          <button className="ckc-act ghost" onClick={() => navigate('/')}>{t('checkout:confirmation.backToHome', 'Back to home')}</button>
         </div>
 
         {/* ═══ DETAIL CARDS ═══ */}
         <div className="ckc-grid">
           {/* travellers */}
           <section className="ckc-card ckc-reveal">
-            <div className="ckc-card-head"><span className="ckc-card-ico">{ICON.users}</span><h3 className="hd">Travellers</h3><span className="ckc-card-n">{travellers.length}</span></div>
-            {travellers.map((t, i) => {
-              const at = t.dateOfBirth ? ageType(t.dateOfBirth) : null;
+            <div className="ckc-card-head"><span className="ckc-card-ico">{ICON.users}</span><h3 className="hd">{t('checkout:confirmation.travellers', 'Travellers')}</h3><span className="ckc-card-n">{travellers.length}</span></div>
+            {travellers.map((tr, i) => {
+              const at = tr.dateOfBirth ? ageType(tr.dateOfBirth) : null;
               return (
                 <div className="ckc-trav" key={i}>
-                  <span className="ckc-trav-av">{(t.firstName || 'T').slice(0, 1)}{(t.lastName || String(i + 1)).slice(0, 1)}</span>
+                  <span className="ckc-trav-av">{(tr.firstName || 'T').slice(0, 1)}{(tr.lastName || String(i + 1)).slice(0, 1)}</span>
                   <div className="ckc-trav-info">
                     <div className="ckc-trav-name">
-                      {t.title ? `${t.title} ` : ''}{t.firstName} {t.lastName}
-                      {i === 0 && <span className="ckc-mini-badge lead">Lead</span>}
+                      {tr.title ? `${tr.title} ` : ''}{tr.firstName} {tr.lastName}
+                      {i === 0 && <span className="ckc-mini-badge lead">{t('checkout:confirmation.lead', 'Lead')}</span>}
                       {at && <span className={`ckc-mini-badge ${at.code.toLowerCase()}`}>{at.code}</span>}
                     </div>
                     <div className="ckc-trav-meta">
-                      {t.nationality}{t.dateOfBirth ? ` · born ${fmtDate(t.dateOfBirth)}` : ''}
+                      {tr.nationality}{tr.dateOfBirth ? ` · ${t('checkout:confirmation.born', { date: fmtDate(tr.dateOfBirth), defaultValue: 'born {{date}}' })}` : ''}
                     </div>
                   </div>
                 </div>
@@ -381,22 +391,22 @@ export default function Confirmation({
           <section className="ckc-card ckc-reveal">
             <div className="ckc-card-head">
               <span className="ckc-card-ico">{customerType === 'private' ? ICON.user : ICON.briefcase}</span>
-              <h3 className="hd">Booked by</h3>
+              <h3 className="hd">{t('checkout:confirmation.bookedBy', 'Booked by')}</h3>
             </div>
             <div className="ckc-kv">
-              <div className="ckc-kv-row"><span>Name</span><b>{priv.firstName} {priv.lastName}</b></div>
-              {priv.hasEmail && priv.email && <div className="ckc-kv-row"><span>Email</span><b>{priv.email}</b></div>}
-              <div className="ckc-kv-row"><span>Phone</span><b>{priv.phone}</b></div>
-              {priv.nationality && <div className="ckc-kv-row"><span>Nationality</span><b>{priv.nationality}</b></div>}
+              <div className="ckc-kv-row"><span>{t('checkout:confirmation.kv.name', 'Name')}</span><b>{priv.firstName} {priv.lastName}</b></div>
+              {priv.hasEmail && priv.email && <div className="ckc-kv-row"><span>{t('checkout:confirmation.kv.email', 'Email')}</span><b>{priv.email}</b></div>}
+              <div className="ckc-kv-row"><span>{t('checkout:confirmation.kv.phone', 'Phone')}</span><b>{priv.phone}</b></div>
+              {priv.nationality && <div className="ckc-kv-row"><span>{t('checkout:confirmation.kv.nationality', 'Nationality')}</span><b>{priv.nationality}</b></div>}
               {(priv.street || priv.city) && (
-                <div className="ckc-kv-row"><span>Address</span><b>{[`${priv.street} ${priv.houseNumber}`.trim(), priv.postalCode && `${priv.postalCode} ${priv.city}`.trim(), priv.country].filter(Boolean).join(', ')}</b></div>
+                <div className="ckc-kv-row"><span>{t('checkout:confirmation.kv.address', 'Address')}</span><b>{[`${priv.street} ${priv.houseNumber}`.trim(), priv.postalCode && `${priv.postalCode} ${priv.city}`.trim(), priv.country].filter(Boolean).join(', ')}</b></div>
               )}
               {/* A business booking adds the company it was made for; the person above stays
                   the contact, which is exactly how the customer record was created. */}
               {customerType === 'professional' && (
                 <>
-                  <div className="ckc-kv-row"><span>Company</span><b>{pro.legalName}</b></div>
-                  <div className="ckc-kv-row"><span>VAT</span><b>{pro.vatNumber}</b></div>
+                  <div className="ckc-kv-row"><span>{t('checkout:confirmation.kv.company', 'Company')}</span><b>{pro.legalName}</b></div>
+                  <div className="ckc-kv-row"><span>{t('checkout:confirmation.kv.vat', 'VAT')}</span><b>{pro.vatNumber}</b></div>
                 </>
               )}
             </div>
@@ -410,23 +420,23 @@ export default function Confirmation({
                 {insurance.covers.map((c) => <span key={c} className="ckc-cover">{ICON.check} {c}</span>)}
               </div>
               <div className="ckc-card-foot">
-                Policy holder: <b>{holderIsLead ? `${lead.firstName} ${lead.lastName}` : `${holder.firstName} ${holder.lastName}`}</b> · documents sent by email
+                {t('checkout:confirmation.policyHolder', 'Policy holder:')} <b>{holderIsLead ? `${lead.firstName} ${lead.lastName}` : `${holder.firstName} ${holder.lastName}`}</b> · {t('checkout:confirmation.documentsSentByEmail', 'documents sent by email')}
               </div>
             </section>
           )}
 
           {/* payment breakdown */}
           <section className="ckc-card ckc-reveal">
-            <div className="ckc-card-head"><span className="ckc-card-ico">{ICON.card}</span><h3 className="hd">Payment summary</h3></div>
+            <div className="ckc-card-head"><span className="ckc-card-ico">{ICON.card}</span><h3 className="hd">{t('checkout:confirmation.paymentSummary', 'Payment summary')}</h3></div>
             <div className="ckc-kv">
               {isTransfer
-                ? <div className="ckc-kv-row"><span>Transfer (per vehicle)</span><b>{money(pricing.base)}</b></div>
-                : <div className="ckc-kv-row"><span>{pricing.pax} × {money(booking.ppPrice)} p.p.</span><b>{money(pricing.base)}</b></div>}
-              {pricing.roomExtraTotal > 0 && <div className="ckc-kv-row"><span>Room upgrade</span><b>{money(pricing.roomExtraTotal)}</b></div>}
-              {pricing.transferTotal > 0 && <div className="ckc-kv-row"><span>Airport transfer (per vehicle)</span><b>{money(pricing.transferTotal)}</b></div>}
-              <div className="ckc-kv-row"><span>SGR Guarantee Fund</span><b>{money(pricing.sgr)}</b></div>
+                ? <div className="ckc-kv-row"><span>{t('checkout:summary.transferPerVehicle', 'Transfer (per vehicle)')}</span><b>{money(pricing.base)}</b></div>
+                : <div className="ckc-kv-row"><span>{t('checkout:summary.paxTimesPrice', { count: pricing.pax, price: money(booking.ppPrice), defaultValue: '{{count}} × {{price}} p.p.' })}</span><b>{money(pricing.base)}</b></div>}
+              {pricing.roomExtraTotal > 0 && <div className="ckc-kv-row"><span>{t('checkout:summary.roomUpgrade', 'Room upgrade')}</span><b>{money(pricing.roomExtraTotal)}</b></div>}
+              {pricing.transferTotal > 0 && <div className="ckc-kv-row"><span>{t('checkout:summary.airportTransfer', 'Airport transfer (per vehicle)')}</span><b>{money(pricing.transferTotal)}</b></div>}
+              <div className="ckc-kv-row"><span>{t('checkout:summary.sgrFee', 'SGR Guarantee Fund')}</span><b>{money(pricing.sgr)}</b></div>
               {insAmount > 0 && <div className="ckc-kv-row"><span>{insurance?.name}</span><b>{money(insAmount)}</b></div>}
-              <div className="ckc-kv-row total"><span>Paid with {payLabel}</span><b>{money(pricing.total)}</b></div>
+              <div className="ckc-kv-row total"><span>{t('checkout:confirmation.paidWith', { method: payLabel, defaultValue: 'Paid with {{method}}' })}</span><b>{money(pricing.total)}</b></div>
             </div>
           </section>
 
@@ -436,27 +446,25 @@ export default function Confirmation({
             <section className="ckc-card ckc-reveal ckc-nr">
               <div className="ckc-card-head">
                 <span className="ckc-card-ico amber">{ICON.doc}</span>
-                <h3 className="hd">Non-refundable accommodation</h3>
+                <h3 className="hd">{t('checkout:nonRefundable.title', 'Non-refundable accommodation')}</h3>
               </div>
               <p className="ckc-nr-text">
-                This accommodation has a non-refundable rate. If you cancel the booking, 100%
-                cancellation costs apply to <b>this accommodation</b> from the moment the booking
-                is confirmed. Your flight, transfer and insurance follow their own conditions.
+                {t('checkout:confirmation.nonRefundableText', 'This accommodation has a non-refundable rate. If you cancel the booking, 100% cancellation costs apply to')} <b>{t('checkout:confirmation.thisAccommodation', 'this accommodation')}</b> {t('checkout:confirmation.nonRefundableTextEnd', 'from the moment the booking is confirmed. Your flight, transfer and insurance follow their own conditions.')}
               </p>
-              <div className="ckc-card-foot">You accepted this condition when you paid.</div>
+              <div className="ckc-card-foot">{t('checkout:confirmation.acceptedThisCondition', 'You accepted this condition when you paid.')}</div>
             </section>
           )}
         </div>
 
         {/* ═══ WHAT HAPPENS NEXT ═══ */}
         <section className="ckc-next ckc-reveal">
-          <h3 className="ckc-next-title hd">{ICON.sun} What happens next?</h3>
+          <h3 className="ckc-next-title hd">{ICON.sun} {t('checkout:confirmation.whatHappensNext', 'What happens next?')}</h3>
           <div className="ckc-timeline">
-            {TIMELINE.map((t, i) => (
-              <div className="ckc-tl-step" key={t.title} style={{ '--d': `${0.15 + i * 0.18}s` }}>
-                <span className="ckc-tl-dot">{t.icon}</span>
-                <span className="ckc-tl-name hd">{t.title}</span>
-                <span className="ckc-tl-sub">{t.sub}</span>
+            {TIMELINE.map((tl, i) => (
+              <div className="ckc-tl-step" key={tl.title} style={{ '--d': `${0.15 + i * 0.18}s` }}>
+                <span className="ckc-tl-dot">{tl.icon}</span>
+                <span className="ckc-tl-name hd">{tl.title}</span>
+                <span className="ckc-tl-sub">{tl.sub}</span>
                 {i < TIMELINE.length - 1 && <span className="ckc-tl-line" />}
               </div>
             ))}
@@ -466,8 +474,8 @@ export default function Confirmation({
         {/* ═══ HELP STRIP ═══ */}
         <div className="ckc-help ckc-reveal">
           <div className="ckc-help-txt">
-            <b>Questions about your booking?</b>
-            <span>Our travel experts are here 7 days a week.</span>
+            <b>{t('checkout:confirmation.helpQuestion', 'Questions about your booking?')}</b>
+            <span>{t('checkout:confirmation.helpText', 'Our travel experts are here 7 days a week.')}</span>
           </div>
           <div className="ckc-help-links">
             <span className="ckc-help-item">{ICON.phone} +32 2 808 60 68</span>

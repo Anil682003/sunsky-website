@@ -1,5 +1,5 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
@@ -53,7 +53,7 @@ const renderCheckout = () => render(
   </Provider>
 );
 
-const emailInput = () => fieldByLabel('email', contactFields()).querySelector('input');
+const emailInput = () => fieldByLabel('e-mailadres', contactFields()).querySelector('input');
 const panel = () => document.querySelector('.ck-email-known');
 const checkCalls = () => post.mock.calls.filter(([url]) => String(url).includes('email-check'));
 
@@ -85,7 +85,7 @@ describe('an email address that already has an account', () => {
     expect(checkCalls()[0][1]).toEqual({ email: 'ali@example.com' });
 
     expect(panel()).toBeFalsy();
-    await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
     await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());   // got past step 1
   });
 
@@ -100,24 +100,24 @@ describe('an email address that already has an account', () => {
     await user.tab();
 
     await waitFor(() => expect(panel()).toBeTruthy());
-    expect(panel()).toHaveTextContent(/an account already exists with this email address/i);
-    expect(panel()).toHaveTextContent(/please log in to continue/i);
+    expect(panel()).toHaveTextContent(/er bestaat al een account met dit e-mailadres/i);
+    expect(panel()).toHaveTextContent(/log in om door te gaan/i);
     // Nothing about the account itself — no name, no date, no "business account".
-    expect(panel().textContent).not.toMatch(/\b(created|registered on|business|private|customer since)\b/i);
+    expect(panel().textContent).not.toMatch(/\b(aangemaakt|geregistreerd op|zakelijk|particulier|klant sinds)\b/i);
 
     // Cannot continue as a guest.
-    await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
     expect(document.querySelector('.ck-modal')).toBeFalsy();
-    expect(document.querySelector('.ck-step.act')).toHaveTextContent(/your details/i);
+    expect(document.querySelector('.ck-step.act')).toHaveTextContent(/jouw gegevens/i);
 
     // Log in — carrying the booking, so they come back to it instead of an empty checkout.
-    await user.click(screen.getByRole('button', { name: /^log in$/i }));
+    await user.click(within(panel()).getByRole('button', { name: /^inloggen$/i }));
     expect(navigateSpy).toHaveBeenCalledWith('/login', expect.objectContaining({
       state: expect.objectContaining({ from: '/checkout', resume: { booking: BOOKING } }),
     }));
 
     // …or the reset flow, the same way.
-    await user.click(screen.getByRole('button', { name: /forgot your password/i }));
+    await user.click(within(panel()).getByRole('button', { name: /wachtwoord vergeten/i }));
     expect(navigateSpy).toHaveBeenCalledWith('/forgot-password', expect.objectContaining({
       state: expect.objectContaining({ from: '/checkout' }),
     }));
@@ -132,7 +132,7 @@ describe('an email address that already has an account', () => {
 
     // Straight to Continue — the field was never blurred, so nothing has been asked yet.
     expect(checkCalls()).toHaveLength(0);
-    await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
 
     await waitFor(() => expect(checkCalls()).toHaveLength(1));
     expect(document.querySelector('.ck-modal')).toBeFalsy();      // held at step 1
@@ -153,7 +153,7 @@ describe('an email address that already has an account', () => {
     await waitFor(() => expect(checkCalls()).toHaveLength(1));
 
     expect(panel()).toBeFalsy();
-    await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
     await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());
   });
 });

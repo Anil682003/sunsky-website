@@ -76,11 +76,11 @@ describe('the name check between details and extras', () => {
     renderCheckout();
     fillForm();
 
-    await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
 
     // The modal opens instead of the step advancing.
     await waitFor(() => expect(modal()).toBeTruthy());
-    expect(activeStep()).toMatch(/your details/i);
+    expect(activeStep()).toMatch(/jouw gegevens/i);
 
     // Each traveller is named back with a day-first date of birth.
     const names = [...modal().querySelectorAll('.ck-rv-name')].map((n) => n.textContent);
@@ -92,7 +92,7 @@ describe('the name check between details and extras', () => {
 
     // Confirming is refused while a tick is missing, and says what is missing.
     expect(confirmBtn()).toBeDisabled();
-    expect(confirmBtn()).toHaveTextContent(/tick every traveller/i);
+    expect(confirmBtn()).toHaveTextContent(/vink elke reiziger aan/i);
     const boxes = [...modal().querySelectorAll('.ck-check')];   // the label — the input itself is visually hidden
     await user.click(boxes[0]);
     expect(confirmBtn()).toBeDisabled();
@@ -102,32 +102,32 @@ describe('the name check between details and extras', () => {
     await user.click(confirmBtn());
 
     await waitFor(() => expect(modal()).toBeFalsy());
-    expect(activeStep()).toMatch(/add-ons/i);
+    expect(activeStep()).toMatch(/extra's/i);
   });
 
   it('drops a traveller\'s confirmation when their name changes', async () => {
     const user = userEvent.setup();
     renderCheckout();
     fillForm();
-    await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
     await waitFor(() => expect(modal()).toBeTruthy());
 
     const boxes = [...modal().querySelectorAll('.ck-check')];   // the label — the input itself is visually hidden
     await user.click(boxes[0]); await user.click(boxes[1]);
     await user.click(confirmBtn());
-    await waitFor(() => expect(activeStep()).toMatch(/add-ons/i));
+    await waitFor(() => expect(activeStep()).toMatch(/extra's/i));
 
     // Back to the form to fix a surname…
-    await user.click(screen.getByRole('button', { name: /^back$/i }));
-    await waitFor(() => expect(activeStep()).toMatch(/your details/i));
+    await user.click(screen.getByRole('button', { name: /^terug$/i }));
+    await waitFor(() => expect(activeStep()).toMatch(/jouw gegevens/i));
     const travCard = [...document.querySelectorAll('.ck-trav')][1];
-    const lastName = fieldByLabel('last name', travCard).querySelector('input');
+    const lastName = fieldByLabel('achternaam', travCard).querySelector('input');
     await user.type(lastName, 'i');   // "VANLI" → "VANLII" (typed lower, stored upper)
 
     // …and the shortcut back to a step already reached lands on the gate, not past it.
-    await user.click(screen.getByRole('button', { name: /2\. Add-ons/i }));
+    await user.click(screen.getByRole('button', { name: /2\. Extra's/i }));
     await waitFor(() => expect(modal()).toBeTruthy());
-    expect(activeStep()).toMatch(/your details/i);
+    expect(activeStep()).toMatch(/jouw gegevens/i);
 
     const ticks = [...modal().querySelectorAll('.ck-check')].map((c) => c.className.includes('on'));
     expect(ticks).toEqual([true, false]);           // only the edited traveller lost their tick

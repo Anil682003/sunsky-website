@@ -68,34 +68,34 @@ export const fillContact = ({
   // with the same words. The address and the ways to reach the booker live in their own card
   // and are unique on the step, so they are found document-wide.
   const card = contactFields();
-  fill('first name', firstName, card);
-  fill('last name', lastName, card);
-  fill('nationality', nationality, card);
+  fill('voornaam', firstName, card);
+  fill('achternaam', lastName, card);
+  fill('nationaliteit', nationality, card);
 
-  fill('street', street);
-  fill('house no', houseNumber);
-  fill('postal code', postalCode);
-  fill('city', city);
-  fill('country', country);
-  fill('phone number', phone);
-  fill('email', email);
-  fill('emergency contact phone', emergencyPhone);
+  fill('straatnaam', street);
+  fill('huisnr', houseNumber);
+  fill('postcode', postalCode);
+  fill('stad', city);
+  fill('land', country);
+  fill('telefoonnummer', phone);
+  fill('e-mailadres', email);
+  fill('noodnummer', emergencyPhone);
 };
 
 /** Company details, once "I am a business customer" is ticked. */
 export const fillCompany = ({ name = 'SunSky Travel BV', vat = 'BE0123456789' } = {}) => {
   const card = contactFields();
-  fill('company name', name, card);
-  fill('vat number', vat, card);
+  fill('bedrijfsnaam', name, card);
+  fill('btw-nummer', vat, card);
 };
 
 /** One traveller card, by index. `dob` is skipped when the row arrived locked from the search. */
 export const fillTraveller = (index, { firstName = 'Ali', lastName = 'Benli', dob = '1990-01-01', gender = 'MALE' } = {}) => {
   const card = [...document.querySelectorAll('.ck-trav')][index];
   if (!card) throw new Error(`no traveller card at index ${index}`);
-  fill('first name', firstName, card);
-  fill('last name', lastName, card);
-  fill('nationality', true, card);
+  fill('voornaam', firstName, card);
+  fill('achternaam', lastName, card);
+  fill('nationaliteit', true, card);
   // Gender is a pair of radios — a real click, because that is what drives the change.
   const radios = [...card.querySelectorAll('.ck-radio input[type="radio"]')];
   (gender === 'FEMALE' ? radios[1] : radios[0])?.click();
@@ -106,7 +106,7 @@ export const fillTraveller = (index, { firstName = 'Ali', lastName = 'Benli', do
 
 /** The date-of-birth input inside a traveller card. False when the row arrived locked. */
 export const setDob = (root, iso) => {
-  const el = fieldByLabel('date of birth', root)?.querySelector('input[type="date"]');
+  const el = fieldByLabel('geboortedatum', root)?.querySelector('input[type="date"]');
   if (!el) return false;
   setValue(el, iso);
   return true;
