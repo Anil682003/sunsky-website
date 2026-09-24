@@ -1,10 +1,14 @@
 import { useEffect, useMemo } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from './HolidayType.module.css';
 import { useHolidayTypeCountries, useHomepageConfig, useCountries } from '../../api';
 import { destsForHolidayType, destUrl, destLabel } from '../../utils/cmsDestinations';
 
-const titleFor = (name) => `Our best ${String(name || 'holidays').toLowerCase()}`;
+const titleFor = (t, name) => t('holidayType:titleFor', { name: String(name || t('holidayType:fallbackName', 'holidays')).toLowerCase(), defaultValue: 'Our best {{name}}' });
+// `name`/`title`/`paragraph1` below all come from the dashboard's own holiday-type CMS
+// content, same as `results:board.*`'s hotel-supplier data — they stay in whatever
+// language the dashboard entered them in; only this page's own chrome is translated here.
 
 // 'last-minute' → 'Last Minute'. Lets the banner read correctly from the URL
 // alone, so a slow or failing API never leaves the header blank.
@@ -16,6 +20,7 @@ const nameFromSlug = (slug) =>
     .join(' ');
 
 export default function HolidayType() {
+  const { t } = useTranslation('holidayType');
   const { slug } = useParams();
   const navigate = useNavigate();
 
@@ -29,7 +34,7 @@ export default function HolidayType() {
   const countries   = data?.countries ?? [];
 
   const typeName = holidayType?.name || nameFromSlug(slug);
-  const heading  = holidayType?.title || titleFor(typeName);
+  const heading  = holidayType?.title || titleFor(t, typeName);
 
   // What the dashboard picked for this holiday type. When set, it REPLACES the
   // linked-country grid — that list is the editorial one, so it wins.
@@ -61,7 +66,7 @@ export default function HolidayType() {
         return {
           key: `${d.type}:${d.code}`,
           name: d.name || d.code,
-          desc: d.type === 'city' ? d.countryName || 'City' : parent?.description || null,
+          desc: d.type === 'city' ? d.countryName || t('holidayType:city', 'City') : parent?.description || null,
           flagUrl: parent?.flagUrl || null,
           // Only a whole country carries usable artwork; a city would show its
           // country's photo, which misleads.
@@ -88,7 +93,7 @@ export default function HolidayType() {
         title: c.name,
       };
     });
-  }, [cmsDests, countries, countryLookup]);
+  }, [cmsDests, countries, countryLookup, t]);
 
   return (
     <div className={styles.page}>
@@ -98,9 +103,9 @@ export default function HolidayType() {
         <div className={styles.bannerBlob2} />
         <div className={styles.bannerInner}>
           <nav className={styles.crumbs}>
-            <Link to="/" className={styles.crumbLink}>Home</Link>
+            <Link to="/" className={styles.crumbLink}>{t('common:nav.home', 'Home')}</Link>
             <span className={styles.crumbSep}>/</span>
-            <span className={styles.crumbActive}>{typeName || 'Holidays'}</span>
+            <span className={styles.crumbActive}>{typeName || t('holidayType:fallbackName', 'Holidays')}</span>
           </nav>
 
           <h1 className={styles.title}>{heading}</h1>
@@ -109,7 +114,7 @@ export default function HolidayType() {
             <p className={styles.lede}>{holidayType.paragraph1}</p>
           ) : (
             <p className={styles.lede}>
-              Pick a country and we’ll show you every stay we have there.
+              {t('holidayType:lede', 'Pick a country and we’ll show you every stay we have there.')}
             </p>
           )}
         </div>
@@ -129,9 +134,9 @@ export default function HolidayType() {
             <span className={styles.stateIcon}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
             </span>
-            <h3>We couldn’t load these destinations</h3>
-            <p>The connection to our travel data failed. Give it another try.</p>
-            <button className={styles.cta} onClick={() => execute(slug)}>Try again</button>
+            <h3>{t('holidayType:error.title', 'We couldn’t load these destinations')}</h3>
+            <p>{t('holidayType:error.body', 'The connection to our travel data failed. Give it another try.')}</p>
+            <button className={styles.cta} onClick={() => execute(slug)}>{t('holidayType:error.tryAgain', 'Try again')}</button>
           </div>
         )}
 
@@ -140,9 +145,9 @@ export default function HolidayType() {
             <span className={styles.stateIcon}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
             </span>
-            <h3>No destinations yet</h3>
-            <p>We haven’t linked any countries to {typeName.toLowerCase()} yet. Check back soon.</p>
-            <Link to="/" className={styles.cta}>Explore other holidays</Link>
+            <h3>{t('holidayType:empty.title', 'No destinations yet')}</h3>
+            <p>{t('holidayType:empty.body', { name: typeName.toLowerCase(), defaultValue: 'We haven’t linked any countries to {{name}} yet. Check back soon.' })}</p>
+            <Link to="/" className={styles.cta}>{t('holidayType:empty.exploreOther', 'Explore other holidays')}</Link>
           </div>
         )}
 
@@ -190,7 +195,7 @@ export default function HolidayType() {
                       <h3 className={styles.cardName}>{c.name}</h3>
                       {c.desc && <p className={styles.cardDesc}>{c.desc}</p>}
                       <span className={styles.cardCta}>
-                        Explore stays
+                        {t('holidayType:exploreStays', 'Explore stays')}
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7"/></svg>
                       </span>
                     </div>

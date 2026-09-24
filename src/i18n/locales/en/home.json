@@ -171,7 +171,42 @@
         "title": "Popular Periods",
         "count": "Seasonal picks"
       }
-    }
+    },
+    "links": {
+      "bali": "Bali",
+      "thailand": "Thailand",
+      "maldives": "Maldives",
+      "sriLanka": "Sri Lanka",
+      "mexico": "Mexico",
+      "dominicanRepublic": "Dominican Republic",
+      "turkeyAllInclusive": "Turkey All Inclusive",
+      "egyptAllInclusive": "Egypt All Inclusive",
+      "greeceAllInclusive": "Greece All Inclusive",
+      "spainAllInclusive": "Spain All Inclusive",
+      "capeVerde": "Cape Verde",
+      "lastMinuteSpain": "Last Minute Spain",
+      "lastMinuteTurkey": "Last Minute Turkey",
+      "lastMinuteGreece": "Last Minute Greece",
+      "lastMinuteEgypt": "Last Minute Egypt",
+      "lastMinuteCanaryIslands": "Last Minute Canary Islands",
+      "paris": "Paris",
+      "rome": "Rome",
+      "barcelona": "Barcelona",
+      "london": "London",
+      "prague": "Prague",
+      "amsterdam": "Amsterdam",
+      "franceByCar": "France by Car",
+      "italyByCar": "Italy by Car",
+      "spainByCar": "Spain by Car",
+      "portugalByCar": "Portugal by Car",
+      "germanyByCar": "Germany by Car",
+      "mayHolidays": "May Holidays",
+      "summerHolidays": "Summer Holidays",
+      "autumnBreak": "Autumn Break",
+      "christmasTravel": "Christmas Travel",
+      "winterSun": "Winter Sun"
+    },
+    "nextStamp": "your next stamp goes here…"
   },
   "trustBar": {
     "eyebrow": "Guarantees",

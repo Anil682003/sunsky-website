@@ -37,6 +37,30 @@
     "searchPlaceholder": "Search destination, hotel or region",
     "searchLabel": "Search hotels and destinations"
   },
+  "destSearch": {
+    "clear": "Clear",
+    "recentSearches": "Recent searches",
+    "popularRightNow": "Popular right now",
+    "destination": "Destination",
+    "searching": "Searching…",
+    "noMatches": "No hotels or destinations match “{{query}}”.",
+    "destinations": "Destinations",
+    "areas": "Areas",
+    "hotels": "Hotels",
+    "tagPlace": "Place",
+    "tagArea": "Area",
+    "tagHotel": "Hotel",
+    "tallyPlaces_one": "{{count}} place",
+    "tallyPlaces_other": "{{count}} places",
+    "tallyAreas_one": "{{count}} area",
+    "tallyAreas_other": "{{count}} areas",
+    "tallyHotels_one": "{{count}} hotel",
+    "tallyHotels_other": "{{count}} hotels",
+    "browseAll": "Browse all destinations"
+  },
+  "hotelFallback": {
+    "noImages": "No images available"
+  },
   "language": {
     "label": "Language",
     "nl": "Nederlands",

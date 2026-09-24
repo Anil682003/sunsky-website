@@ -171,7 +171,42 @@
         "title": "Populaire periodes",
         "count": "Seizoenstips"
       }
-    }
+    },
+    "links": {
+      "bali": "Bali",
+      "thailand": "Thailand",
+      "maldives": "Malediven",
+      "sriLanka": "Sri Lanka",
+      "mexico": "Mexico",
+      "dominicanRepublic": "Dominicaanse Republiek",
+      "turkeyAllInclusive": "Turkije All inclusive",
+      "egyptAllInclusive": "Egypte All inclusive",
+      "greeceAllInclusive": "Griekenland All inclusive",
+      "spainAllInclusive": "Spanje All inclusive",
+      "capeVerde": "Kaapverdië",
+      "lastMinuteSpain": "Last minute Spanje",
+      "lastMinuteTurkey": "Last minute Turkije",
+      "lastMinuteGreece": "Last minute Griekenland",
+      "lastMinuteEgypt": "Last minute Egypte",
+      "lastMinuteCanaryIslands": "Last minute Canarische Eilanden",
+      "paris": "Parijs",
+      "rome": "Rome",
+      "barcelona": "Barcelona",
+      "london": "Londen",
+      "prague": "Praag",
+      "amsterdam": "Amsterdam",
+      "franceByCar": "Frankrijk met de auto",
+      "italyByCar": "Italië met de auto",
+      "spainByCar": "Spanje met de auto",
+      "portugalByCar": "Portugal met de auto",
+      "germanyByCar": "Duitsland met de auto",
+      "mayHolidays": "Meivakantie",
+      "summerHolidays": "Zomervakantie",
+      "autumnBreak": "Herfstvakantie",
+      "christmasTravel": "Kerstvakantie",
+      "winterSun": "Winterzon"
+    },
+    "nextStamp": "hier komt jouw volgende stempel…"
   },
   "trustBar": {
     "eyebrow": "Garanties",

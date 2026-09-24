@@ -1,0 +1,106 @@
+{
+  "empty": {
+    "title": "Deze vlucht is niet meer beschikbaar",
+    "body": "Vluchttarieven blijven alleen bewaard voor de zoekopdracht die ze vond, dus deze pagina kan niet op zichzelf opnieuw worden geopend. Zoek opnieuw om de actuele tarieven en tijden te zien.",
+    "searchFlights": "Vluchten zoeken"
+  },
+  "trip": {
+    "multiCity": "Meerdere steden"
+  },
+  "leg": {
+    "numbered": "Vlucht {{n}}",
+    "flight": "Vlucht",
+    "layover": "Tussenstop · {{dur}} in {{city}} ({{code}})"
+  },
+  "hero": {
+    "totalTime": "{{total}} totaal",
+    "fromPp": "vanaf {{price}} pp"
+  },
+  "tabs": {
+    "details": "Vluchtgegevens",
+    "rules": "Tariefregels",
+    "baggage": "Bagage",
+    "fare": "Tariefoverzicht"
+  },
+  "details": {
+    "title": "Vluchtgegevens",
+    "totalTravelTime": "Totale reistijd",
+    "flights": "Vluchten",
+    "tripLength": "Reisduur",
+    "journey": "Reis",
+    "oneWayFares": "{{count}} enkele-reis-tarieven",
+    "nights_one": "{{count}} nacht",
+    "nights_other": "{{count}} nachten",
+    "cabinClass": "Reisklasse",
+    "fare": "Tarief",
+    "departs": "Vertrekt",
+    "arrives": "Aankomst"
+  },
+  "rules": {
+    "title": "Tariefregels",
+    "timeBeforeDeparture": "Tijd voor vertrek",
+    "fee": "Kosten",
+    "airlineTerms": "Voorwaarden luchtvaartmaatschappij",
+    "chargeable": "Tegen betaling",
+    "notIncluded": "Niet inbegrepen",
+    "cancel": {
+      "title": "Annulering",
+      "text": "Annuleringsvoorwaarden worden bepaald door de uitvoerende luchtvaartmaatschappij en zijn afhankelijk van het geboekte tarief. De exacte voorwaarden, en eventuele kosten, worden bevestigd voor betaling."
+    },
+    "change": {
+      "title": "Datumwijziging",
+      "text": "Of de data gewijzigd kunnen worden, en welke kosten of tariefverschil daarbij horen, wordt bepaald door de uitvoerende luchtvaartmaatschappij voor het geboekte tarief. Bevestigd voor betaling."
+    },
+    "seat": {
+      "title": "Stoelkeuze",
+      "text": "Stoelkeuze wordt aangeboden en geprijsd door de uitvoerende luchtvaartmaatschappij; de kosten worden getoond voor betaling. Zonder keuze wordt gratis een stoel toegewezen bij het inchecken."
+    },
+    "meal": {
+      "title": "Maaltijden",
+      "text": "Catering verschilt per luchtvaartmaatschappij en route. Waar een maaltijd niet bij het tarief is inbegrepen, kan deze meestal vooraf besteld of aan boord gekocht worden; eventuele kosten worden getoond voor betaling."
+    }
+  },
+  "baggage": {
+    "title": "Bagagevrijstelling",
+    "note": "Vrijstellingen verschillen per luchtvaartmaatschappij. Extra bagage online vooraf kopen is goedkoper dan op de luchthaven.",
+    "cabinTitle": "Handbagage",
+    "checkinTitle": "Incheckbagage",
+    "handIncluded": "Tot <1>{{kg}} kg</1> handbagage, plus één klein persoonlijk item.",
+    "handRulesUnknown": "De regels voor handbagage worden bepaald door de uitvoerende luchtvaartmaatschappij en worden bevestigd met je tarief voor betaling.",
+    "included": "Inbegrepen",
+    "paidAddOn": "Betaalde toevoeging",
+    "checkinKgIncluded": "<0>{{kg}} kg</0> ruimbagage is inbegrepen in dit tarief.",
+    "checkinPiecesIncluded_one": "<0>{{count}} stuk</0> ruimbagage is inbegrepen in dit tarief.",
+    "checkinPiecesIncluded_other": "<0>{{count}} stuks</0> ruimbagage zijn inbegrepen in dit tarief.",
+    "noHoldIncluded": "Dit tarief bevat geen ruimbagage. Deze kan tijdens het boeken toegevoegd worden — de prijs hangt af van de luchtvaartmaatschappij en het gewicht.",
+    "checkinRulesUnknown": "De vrijstelling voor ruimbagage wordt bevestigd met je tarief voor betaling.",
+    "confirmedWithFare": "Bagagevrijstelling wordt bevestigd met je tarief",
+    "checkinKg": "Incheckbagage {{kg}} kg inbegrepen",
+    "checkinPieces_one": "Incheckbagage {{count}} stuk inbegrepen",
+    "checkinPieces_other": "Incheckbagage {{count}} stuks inbegrepen",
+    "noHoldBaggage": "Geen ruimbagage in dit tarief"
+  },
+  "fare": {
+    "title": "Tariefoverzicht",
+    "baseFare_one": "Basistarief ({{count}} reiziger)",
+    "baseFare_other": "Basistarief ({{count}} reizigers)",
+    "taxes": "Belastingen & toeslagen",
+    "perAdult": "Tarief per volwassene",
+    "instantDiscount": "Directe korting",
+    "totalAmount": "Totaalbedrag",
+    "note": "Alle tarieven in EUR, per boeking, incl. toepasselijke belastingen. De definitieve prijs wordt bevestigd bij het afrekenen."
+  },
+  "book": {
+    "totalFor": "Totaal voor {{count}}",
+    "totalPrice": "Totaalprijs",
+    "save": "Bespaar {{amount}}",
+    "bookNow": "Nu boeken",
+    "cabinClass": "{{cabin}}klasse",
+    "travellers": "Reizigers",
+    "detailsAtCheckout": "Gegevens toegevoegd bij het afrekenen",
+    "secureSsl": "Beveiligde SSL-betaling",
+    "fareConditions": "Tariefvoorwaarden getoond voor betaling",
+    "instantETicket": "Directe e-ticket per e-mail",
+    "total": "totaal"
+  }
+}

@@ -1,0 +1,106 @@
+{
+  "empty": {
+    "title": "This flight is no longer loaded",
+    "body": "Flight fares are held only for the search that found them, so this page cannot be reopened on its own. Run the search again to see the current fares and times.",
+    "searchFlights": "Search flights"
+  },
+  "trip": {
+    "multiCity": "Multi-city"
+  },
+  "leg": {
+    "numbered": "Flight {{n}}",
+    "flight": "Flight",
+    "layover": "Layover · {{dur}} at {{city}} ({{code}})"
+  },
+  "hero": {
+    "totalTime": "{{total}} total",
+    "fromPp": "from {{price}} pp"
+  },
+  "tabs": {
+    "details": "Flight Details",
+    "rules": "Fare Rules",
+    "baggage": "Baggage",
+    "fare": "Fare Summary"
+  },
+  "details": {
+    "title": "Flight details",
+    "totalTravelTime": "Total travel time",
+    "flights": "Flights",
+    "tripLength": "Trip length",
+    "journey": "Journey",
+    "oneWayFares": "{{count}} one-way fares",
+    "nights_one": "{{count}} night",
+    "nights_other": "{{count}} nights",
+    "cabinClass": "Cabin class",
+    "fare": "Fare",
+    "departs": "Departs",
+    "arrives": "Arrives"
+  },
+  "rules": {
+    "title": "Fare rules",
+    "timeBeforeDeparture": "Time before departure",
+    "fee": "Fee",
+    "airlineTerms": "Airline terms",
+    "chargeable": "Chargeable",
+    "notIncluded": "Not included",
+    "cancel": {
+      "title": "Cancellation",
+      "text": "Cancellation terms are set by the operating airline and depend on the fare booked. The exact conditions, and any charge, are confirmed before payment."
+    },
+    "change": {
+      "title": "Date change",
+      "text": "Whether the dates can be changed, and any fee or fare difference that applies, is set by the operating airline for the fare booked. Confirmed before payment."
+    },
+    "seat": {
+      "title": "Seat selection",
+      "text": "Seat selection is offered by the operating airline and priced by them; the charge is shown before payment. A seat is assigned free at check-in if none is chosen."
+    },
+    "meal": {
+      "title": "Meals",
+      "text": "Catering varies by airline and route. Where a meal is not part of the fare it can usually be pre-ordered or bought on board; any charge is shown before payment."
+    }
+  },
+  "baggage": {
+    "title": "Baggage allowance",
+    "note": "Allowances differ by airline. Pre-purchasing extra baggage online is cheaper than at the airport.",
+    "cabinTitle": "Cabin baggage",
+    "checkinTitle": "Check-in baggage",
+    "handIncluded": "Up to <1>{{kg}} kg</1> of hand baggage, plus one small personal item.",
+    "handRulesUnknown": "Hand baggage rules are set by the operating airline and are confirmed with your fare before payment.",
+    "included": "Included",
+    "paidAddOn": "Paid add-on",
+    "checkinKgIncluded": "<0>{{kg}} kg</0> of hold baggage is included in this fare.",
+    "checkinPiecesIncluded_one": "<0>{{count}} piece</0> of hold baggage is included in this fare.",
+    "checkinPiecesIncluded_other": "<0>{{count}} pieces</0> of hold baggage is included in this fare.",
+    "noHoldIncluded": "This fare includes no hold baggage. It can be added during booking — the price depends on the airline and the weight.",
+    "checkinRulesUnknown": "Hold baggage allowance is confirmed with your fare before payment.",
+    "confirmedWithFare": "Baggage allowance confirmed with your fare",
+    "checkinKg": "Check-in {{kg}} kg included",
+    "checkinPieces_one": "Check-in {{count}} piece included",
+    "checkinPieces_other": "Check-in {{count}} pieces included",
+    "noHoldBaggage": "No hold baggage in this fare"
+  },
+  "fare": {
+    "title": "Fare summary",
+    "baseFare_one": "Base fare ({{count}} traveller)",
+    "baseFare_other": "Base fare ({{count}} travellers)",
+    "taxes": "Taxes & surcharges",
+    "perAdult": "Fare per adult",
+    "instantDiscount": "Instant discount",
+    "totalAmount": "Total amount",
+    "note": "All fares in EUR, per booking, incl. applicable taxes. Final price is confirmed at checkout."
+  },
+  "book": {
+    "totalFor": "Total for {{count}}",
+    "totalPrice": "Total price",
+    "save": "Save {{amount}}",
+    "bookNow": "Book now",
+    "cabinClass": "{{cabin}} class",
+    "travellers": "Travellers",
+    "detailsAtCheckout": "Details added at checkout",
+    "secureSsl": "Secure SSL payment",
+    "fareConditions": "Fare conditions shown before payment",
+    "instantETicket": "Instant e-ticket by email",
+    "total": "total"
+  }
+}

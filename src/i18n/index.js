@@ -9,6 +9,11 @@ import nlHotelDetail from './locales/nl/hotelDetail.json';
 import nlAccount from './locales/nl/account.json';
 import nlCheckout from './locales/nl/checkout.json';
 import nlAuth from './locales/nl/auth.json';
+import nlFlights from './locales/nl/flights.json';
+import nlFlightDetail from './locales/nl/flightDetail.json';
+import nlTransfers from './locales/nl/transfers.json';
+import nlVoucher from './locales/nl/voucher.json';
+import nlHolidayType from './locales/nl/holidayType.json';
 import enCommon from './locales/en/common.json';
 import enFaq from './locales/en/faq.json';
 import enHome from './locales/en/home.json';
@@ -17,6 +22,11 @@ import enHotelDetail from './locales/en/hotelDetail.json';
 import enAccount from './locales/en/account.json';
 import enCheckout from './locales/en/checkout.json';
 import enAuth from './locales/en/auth.json';
+import enFlights from './locales/en/flights.json';
+import enFlightDetail from './locales/en/flightDetail.json';
+import enTransfers from './locales/en/transfers.json';
+import enVoucher from './locales/en/voucher.json';
+import enHolidayType from './locales/en/holidayType.json';
 
 /* ═══════════════════════════════════════════════════════════════════════════
    Site language.
@@ -84,8 +94,8 @@ function storeLanguage(lng) {
    translation that arrives after the first paint flashes the other language at
    the reader. Revisit if a third language makes splitting worth it. */
 const resources = {
-  nl: { common: nlCommon, faq: nlFaq, home: nlHome, results: nlResults, hotelDetail: nlHotelDetail, account: nlAccount, checkout: nlCheckout, auth: nlAuth },
-  en: { common: enCommon, faq: enFaq, home: enHome, results: enResults, hotelDetail: enHotelDetail, account: enAccount, checkout: enCheckout, auth: enAuth },
+  nl: { common: nlCommon, faq: nlFaq, home: nlHome, results: nlResults, hotelDetail: nlHotelDetail, account: nlAccount, checkout: nlCheckout, auth: nlAuth, flights: nlFlights, flightDetail: nlFlightDetail, transfers: nlTransfers, voucher: nlVoucher, holidayType: nlHolidayType },
+  en: { common: enCommon, faq: enFaq, home: enHome, results: enResults, hotelDetail: enHotelDetail, account: enAccount, checkout: enCheckout, auth: enAuth, flights: enFlights, flightDetail: enFlightDetail, transfers: enTransfers, voucher: enVoucher, holidayType: enHolidayType },
 };
 
 i18n.use(initReactI18next).init({
@@ -96,7 +106,7 @@ i18n.use(initReactI18next).init({
   fallbackLng: DEFAULT_LANGUAGE,
   supportedLngs: SUPPORTED_LANGUAGES,
   defaultNS: 'common',
-  ns: ['common', 'faq', 'home', 'results', 'hotelDetail', 'account', 'checkout', 'auth'],
+  ns: ['common', 'faq', 'home', 'results', 'hotelDetail', 'account', 'checkout', 'auth', 'flights', 'flightDetail', 'transfers', 'voucher', 'holidayType'],
 
   interpolation: {
     // React escapes everything it renders; escaping again turns an apostrophe

@@ -6,10 +6,28 @@
    ════════════════════════════════════════════════════════════════ */
 
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
+import i18n from '../../i18n';
 
-const WK = ['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'];
-const MO = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
 const pad = (n) => String(n).padStart(2, '0');
+
+// Read fresh on every call (not cached at import time) so a language switch is reflected
+// immediately. `common:calendar.weekdays` is Monday-first ("Mon,Tue,…,Sun"); Date#getDay()
+// is Sunday-first, hence the +6 rotation — same convention as HotelDetail's calDay/calDate.
+const weekdaysShort = () => i18n.t('common:calendar.weekdays', 'Mon,Tue,Wed,Thu,Fri,Sat,Sun').split(',');
+const monthsShort = () => i18n.t('flights:dates.monthsShort', 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec').split(',');
+
+const stopsLabel = (stops) => (stops === 0
+  ? i18n.t('flights:stops.none', 'Non-stop')
+  : i18n.t('flights:stops.count', { count: stops, defaultValue_one: '{{count}} Stop', defaultValue_other: '{{count}} Stops' }));
+
+// `cabin` is also used as a CABIN_MULT lookup key, so it stays English; only the
+// rendered label is translated. Shared by Flights.jsx and FlightDetail.jsx.
+export const cabinLabel = (c) => ({
+  Economy: i18n.t('flights:cabin.economy', 'Economy'),
+  'Premium Economy': i18n.t('flights:cabin.premiumEconomy', 'Premium Economy'),
+  Business: i18n.t('flights:cabin.business', 'Business'),
+  First: i18n.t('flights:cabin.first', 'First'),
+}[c] || c);
 
 export const CABIN_MULT = { Economy: 1, 'Premium Economy': 1.55, Business: 2.8, First: 4.2 };
 
@@ -45,13 +63,13 @@ export const fmtDate = (iso) => {
   if (!iso) return '';
   const d = new Date(iso + 'T00:00:00');
   if (isNaN(d.getTime())) return '';
-  return `${WK[d.getDay()]} ${d.getDate()} ${MO[d.getMonth()]} ${d.getFullYear()}`;
+  return `${weekdaysShort()[(d.getDay() + 6) % 7]} ${d.getDate()} ${monthsShort()[d.getMonth()]} ${d.getFullYear()}`;
 };
 export const fmtDateShort = (iso) => {
   if (!iso) return '';
   const d = new Date(iso + 'T00:00:00');
   if (isNaN(d.getTime())) return '';
-  return `${d.getDate()} ${MO[d.getMonth()]}`;
+  return `${d.getDate()} ${monthsShort()[d.getMonth()]}`;
 };
 // Local parts, never toISOString(): these dates are local calendar days, and converting one
 // to UTC rolls it back a day in any zone ahead of UTC — a default return date, and the
@@ -190,9 +208,9 @@ export function combineTrip(flights, ctx) {
 
 export function paxLabel(ctx) {
   const parts = [];
-  if (ctx.adults) parts.push(`${ctx.adults} Adult${ctx.adults > 1 ? 's' : ''}`);
-  if (ctx.children) parts.push(`${ctx.children} Child${ctx.children > 1 ? 'ren' : ''}`);
-  if (ctx.infants) parts.push(`${ctx.infants} Infant${ctx.infants > 1 ? 's' : ''}`);
+  if (ctx.adults) parts.push(i18n.t('flights:pax.adults', { count: ctx.adults, defaultValue_one: '{{count}} Adult', defaultValue_other: '{{count}} Adults' }));
+  if (ctx.children) parts.push(i18n.t('flights:pax.children', { count: ctx.children, defaultValue_one: '{{count}} Child', defaultValue_other: '{{count}} Children' }));
+  if (ctx.infants) parts.push(i18n.t('flights:pax.infants', { count: ctx.infants, defaultValue_one: '{{count}} Infant', defaultValue_other: '{{count}} Infants' }));
   return parts.join(' · ');
 }
 
@@ -200,7 +218,6 @@ function makeLeg(i, salt, dir, dep, arr, depISO, stopsN, durMin, depMin) {
   const airline = AIRLINES[(i + salt) % AIRLINES.length];
   const arrInfo = fmtMin(depMin + durMin);
   const depInfo = fmtMin(depMin);
-  const stopsLabel = stopsN === 0 ? 'Non-stop' : `${stopsN} Stop${stopsN > 1 ? 's' : ''}`;
   const lay = stopsN > 0 ? LAYOVERS[(i + salt) % LAYOVERS.length] : null;
   return {
     dir,
@@ -215,7 +232,7 @@ function makeLeg(i, salt, dir, dep, arr, depISO, stopsN, durMin, depMin) {
     arrTime: arrInfo.time, arrDay: arrInfo.day,
     depDateISO: depISO,
     durMin, durLabel: durLabel(durMin),
-    stops: stopsN, stopsLabel,
+    stops: stopsN, stopsLabel: stopsLabel(stopsN),
     layover: lay ? { city: lay.city, code: lay.code, durLabel: durLabel(90 + ((i + salt) % 5) * 55) } : null,
   };
 }
@@ -325,7 +342,7 @@ export function mapAirtuerkFlight(af, ctx, idx) {
       fromTerminal: '', toTerminal: '',
       depDateISO: depDateISO || ctx.depISO,
       durMin: durMin || 0, durLabel: durMin ? `${Math.floor(durMin / 60)}h ${pad(durMin % 60)}m` : '—',
-      stops, stopsLabel: stops === 0 ? 'Non-stop' : `${stops} Stop${stops > 1 ? 's' : ''}`,
+      stops, stopsLabel: stopsLabel(stops),
       layover: layovers[0] || null,
       layovers,
       // The supplier's real allowance for THIS direction. The baggage tab reads it off the

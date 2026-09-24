@@ -2453,7 +2453,7 @@ export default function HotelDetail() {
   const niceDate = (iso) => {
     if (!iso) return null;
     const d = new Date(`${iso}T00:00:00`);
-    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
+    return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(i18n.language === 'nl' ? 'nl-BE' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'long', year: 'numeric' });
   };
   // Editing any field re-prices the stay, so every live result gathered under the OLD
   // parameters is dropped: keeping them would show a price for a search the traveller

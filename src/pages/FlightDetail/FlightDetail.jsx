@@ -1,8 +1,10 @@
 import { useState, useMemo } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
+import i18n from '../../i18n';
 import './FlightDetail.css';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
-import { buildContext, fmtDate, fmtDateShort, fareBreakdown, paxLabel } from '../Flights/flightData';
+import { buildContext, fmtDate, fmtDateShort, fareBreakdown, paxLabel, cabinLabel } from '../Flights/flightData';
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
@@ -50,6 +52,7 @@ const dayDiff = (a, b) => {
 
 /* one leg shown as a vertical timeline with airline strip + optional layover */
 function LegBlock({ leg, dirLabel, dirClass }) {
+  const { t } = useTranslation('flightDetail');
   const depDate = fmtDate(leg.depDateISO);
   const arrDate = fmtDate(shiftDate(leg.depDateISO, leg.arrDay));
   return (
@@ -75,13 +78,13 @@ function LegBlock({ leg, dirLabel, dirClass }) {
             <span className="fd-airbadge">
               <AirlineMark code={leg.airlineCode} className="fd-airdot" nameClassName="fd-airname" />
             </span>
-            <span className="fd-ftag">{ICON.doc} Flight <b>{leg.flightNo}</b></span>
+            <span className="fd-ftag">{ICON.doc} {t('flightDetail:leg.flight', 'Flight')} <b>{leg.flightNo}</b></span>
             {leg.aircraft && <span className="fd-ftag">{ICON.plane} <b>{leg.aircraft}</b></span>}
             <span className="fd-dur-badge">{ICON.clock} {leg.durLabel} · {leg.stopsLabel}</span>
           </div>
 
           {leg.layover && (
-            <div className="fd-layover">{ICON.clock} Layover · {leg.layover.durLabel} at {leg.layover.city} ({leg.layover.code})</div>
+            <div className="fd-layover">{ICON.clock} {t('flightDetail:leg.layover', { dur: leg.layover.durLabel, city: leg.layover.city, code: leg.layover.code, defaultValue: 'Layover · {{dur}} at {{city}} ({{code}})' })}</div>
           )}
 
           <div className="fd-point">
@@ -98,7 +101,8 @@ function LegBlock({ leg, dirLabel, dirClass }) {
   );
 }
 
-const FARE_RULES = [
+// A function, not a module-level constant, so the fields re-translate on a language switch.
+const fareRules = () => [
   // These two used to print fee TABLES — "€45 per person", "€35 + fare difference", "Not
   // permitted" — as though they were this fare's conditions. Airtuerk returns no rule data
   // of any kind (no cancellation, change, penalty or refundability field anywhere in the
@@ -106,17 +110,18 @@ const FARE_RULES = [
   // sat directly above a "Free cancellation within 24h" badge that contradicted it.
   // Cancellation terms are a term of the carriage contract; a traveller charged a fee this
   // page told them they would not pay is not a styling problem.
-  { id: 'cancel', icon: <S><circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" /></S>, title: 'Cancellation', badge: 'Airline terms', tone: 'warn',
-    text: 'Cancellation terms are set by the operating airline and depend on the fare booked. The exact conditions, and any charge, are confirmed before payment.' },
-  { id: 'change', icon: <S><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></S>, title: 'Date change', badge: 'Airline terms', tone: 'warn',
-    text: 'Whether the dates can be changed, and any fee or fare difference that applies, is set by the operating airline for the fare booked. Confirmed before payment.' },
-  { id: 'seat', icon: <S><path d="M6 19v-7a6 6 0 0112 0v7" /><rect x="4" y="19" width="16" height="2" rx="1" /></S>, title: 'Seat selection', badge: 'Chargeable', tone: 'warn',
-    text: 'Seat selection is offered by the operating airline and priced by them; the charge is shown before payment. A seat is assigned free at check-in if none is chosen.' },
-  { id: 'meal', icon: <S><path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" /></S>, title: 'Meals', badge: 'Not included', tone: 'no',
-    text: 'Catering varies by airline and route. Where a meal is not part of the fare it can usually be pre-ordered or bought on board; any charge is shown before payment.' },
+  { id: 'cancel', icon: <S><circle cx="12" cy="12" r="10" /><path d="M15 9l-6 6M9 9l6 6" /></S>, title: i18n.t('flightDetail:rules.cancel.title', 'Cancellation'), badge: i18n.t('flightDetail:rules.airlineTerms', 'Airline terms'), tone: 'warn',
+    text: i18n.t('flightDetail:rules.cancel.text', 'Cancellation terms are set by the operating airline and depend on the fare booked. The exact conditions, and any charge, are confirmed before payment.') },
+  { id: 'change', icon: <S><rect x="3" y="4" width="18" height="18" rx="2" /><path d="M16 2v4M8 2v4M3 10h18" /></S>, title: i18n.t('flightDetail:rules.change.title', 'Date change'), badge: i18n.t('flightDetail:rules.airlineTerms', 'Airline terms'), tone: 'warn',
+    text: i18n.t('flightDetail:rules.change.text', 'Whether the dates can be changed, and any fee or fare difference that applies, is set by the operating airline for the fare booked. Confirmed before payment.') },
+  { id: 'seat', icon: <S><path d="M6 19v-7a6 6 0 0112 0v7" /><rect x="4" y="19" width="16" height="2" rx="1" /></S>, title: i18n.t('flightDetail:rules.seat.title', 'Seat selection'), badge: i18n.t('flightDetail:rules.chargeable', 'Chargeable'), tone: 'warn',
+    text: i18n.t('flightDetail:rules.seat.text', 'Seat selection is offered by the operating airline and priced by them; the charge is shown before payment. A seat is assigned free at check-in if none is chosen.') },
+  { id: 'meal', icon: <S><path d="M18 8h1a4 4 0 010 8h-1M2 8h16v9a4 4 0 01-4 4H6a4 4 0 01-4-4V8z" /></S>, title: i18n.t('flightDetail:rules.meal.title', 'Meals'), badge: i18n.t('flightDetail:rules.notIncluded', 'Not included'), tone: 'no',
+    text: i18n.t('flightDetail:rules.meal.text', 'Catering varies by airline and route. Where a meal is not part of the fare it can usually be pre-ordered or bought on board; any charge is shown before payment.') },
 ];
 
 export default function FlightDetail() {
+  const { t } = useTranslation('flightDetail');
   const { state } = useLocation();
   const navigate = useNavigate();
 
@@ -144,12 +149,11 @@ export default function FlightDetail() {
       <div className="fd">
         <div className="fd-page fd-page-empty">
           <div className="fd-panel">
-            <div className="fd-panel-head">{ICON.plane}<h2>This flight is no longer loaded</h2></div>
+            <div className="fd-panel-head">{ICON.plane}<h2>{t('flightDetail:empty.title', 'This flight is no longer loaded')}</h2></div>
             <div className="fd-panel-body">
-              <p>Flight fares are held only for the search that found them, so this page cannot be
-                reopened on its own. Run the search again to see the current fares and times.</p>
+              <p>{t('flightDetail:empty.body', 'Flight fares are held only for the search that found them, so this page cannot be reopened on its own. Run the search again to see the current fares and times.')}</p>
               <p style={{ marginTop: 16 }}>
-                <Link className="fd-book-cta" to="/flights">Search flights {ICON.arrow}</Link>
+                <Link className="fd-book-cta" to="/flights">{t('flightDetail:empty.searchFlights', 'Search flights')} {ICON.arrow}</Link>
               </p>
             </div>
           </div>
@@ -165,10 +169,13 @@ export default function FlightDetail() {
   // out/ret stay the source for the two shapes that have always used them.
   const isMulti = flight.tripType === 'multicity' && Array.isArray(flight.legs) && flight.legs.length > 1;
   const legs = isMulti ? flight.legs : [flight.out, isRound ? flight.ret : null].filter(Boolean);
-  // Multi-city legs are numbered; a round trip's two are named by direction.
-  const legLabel = (i) => (isMulti ? `Flight ${i + 1}` : i === 0 ? 'Outbound' : 'Return');
+  // Multi-city legs are numbered; a round trip's two are named by direction. "Outbound"/
+  // "Return" reuse the same `flights:legTag.*` keys the results page uses for the same words.
+  const legLabel = (i) => (isMulti
+    ? t('flightDetail:leg.numbered', { n: i + 1, defaultValue: 'Flight {{n}}' })
+    : i === 0 ? t('flights:legTag.outbound', 'Outbound') : t('flights:legTag.return', 'Return'));
   const legClass = (i) => (isMulti ? (i % 2 === 0 ? 'out' : 'ret') : i === 0 ? 'out' : 'ret');
-  const tripLabel = isMulti ? 'Multi-city' : isRound ? 'Round trip' : 'One way';
+  const tripLabel = isMulti ? t('flightDetail:trip.multiCity', 'Multi-city') : isRound ? t('home:hero.flights.roundtrip', 'Round trip') : t('home:hero.flights.oneway', 'One way');
   const lastLeg = legs[legs.length - 1] || flight.out;
   const destLeg = isMulti ? lastLeg : flight.out;
   const nights = isRound ? Math.max(1, dayDiff(flight.out.depDateISO, flight.ret.depDateISO)) : 0;
@@ -178,7 +185,7 @@ export default function FlightDetail() {
   // "8h 30m · Non-stop · Economy" — built by joining only the parts the fare actually
   // states. Airtuerk sends no aircraft type and no cabin, and this line used to render
   // them anyway, producing "8h 30m · Non-stop ·  · " with the separators left stranded.
-  const legMeta = (leg) => [leg.durLabel, leg.stopsLabel, leg.aircraft, flight.cabin, flight.fareName]
+  const legMeta = (leg) => [leg.durLabel, leg.stopsLabel, leg.aircraft, cabinLabel(flight.cabin), flight.fareName]
     .filter(Boolean).join(' · ');
 
   // The trip-level allowance is the more restrictive of the two directions (the supplier
@@ -187,12 +194,12 @@ export default function FlightDetail() {
   const bagKg = Number(tripBag?.checkedKg) || 0;
   const bagPieces = Number(tripBag?.checkedPieces) || 0;
   const bagLine = !tripBag
-    ? 'Baggage allowance confirmed with your fare'
+    ? t('flightDetail:baggage.confirmedWithFare', 'Baggage allowance confirmed with your fare')
     : bagKg > 0
-      ? `Check-in ${bagKg} kg included`
+      ? t('flightDetail:baggage.checkinKg', { kg: bagKg, defaultValue: 'Check-in {{kg}} kg included' })
       : bagPieces > 0
-        ? `Check-in ${bagPieces} ${bagPieces === 1 ? 'piece' : 'pieces'} included`
-        : 'No hold baggage in this fare';
+        ? t('flightDetail:baggage.checkinPieces', { count: bagPieces, defaultValue_one: 'Check-in {{count}} piece included', defaultValue_other: 'Check-in {{count}} pieces included' })
+        : t('flightDetail:baggage.noHoldBaggage', 'No hold baggage in this fare');
 
   const goCheckout = () => {
     const booking = {
@@ -200,7 +207,7 @@ export default function FlightDetail() {
       hotelName: isMulti
         ? [legs[0].fromCity, ...legs.map((l) => l.toCity)].join(' → ')
         : `${flight.out.fromCity} → ${flight.out.toCity}`,
-      loc: [tripLabel, flight.cabin].filter(Boolean).join(' · '),
+      loc: [tripLabel, cabinLabel(flight.cabin)].filter(Boolean).join(' · '),
       img: FLIGHT_IMG,
       stars: 0,
       currency: '€',
@@ -250,10 +257,10 @@ export default function FlightDetail() {
   };
 
   const TABS = [
-    { id: 'details', label: 'Flight Details', icon: ICON.layers },
-    { id: 'rules', label: 'Fare Rules', icon: ICON.doc },
-    { id: 'baggage', label: 'Baggage', icon: ICON.bag },
-    { id: 'fare', label: 'Fare Summary', icon: ICON.receipt },
+    { id: 'details', label: t('flightDetail:tabs.details', 'Flight Details'), icon: ICON.layers },
+    { id: 'rules', label: t('flightDetail:tabs.rules', 'Fare Rules'), icon: ICON.doc },
+    { id: 'baggage', label: t('flightDetail:tabs.baggage', 'Baggage'), icon: ICON.bag },
+    { id: 'fare', label: t('flightDetail:tabs.fare', 'Fare Summary'), icon: ICON.receipt },
   ];
 
   /* Allowances are stated ONLY when the fare tells us what they are.
@@ -278,28 +285,37 @@ export default function FlightDetail() {
         <div className="fd-bag-card">
           <div className="fd-bag-ic cabin">{ICON.bag}</div>
           <div className="fd-bag-info">
-            <div className="fd-bag-title">Cabin baggage</div>
+            <div className="fd-bag-title">{t('flightDetail:baggage.cabinTitle', 'Cabin baggage')}</div>
             <div className="fd-bag-desc">
               {handKg > 0
-                ? <>Up to <b>{handKg} kg</b> of hand baggage, plus one small personal item.</>
-                : <>Hand baggage rules are set by the operating airline and are confirmed with your fare before payment.</>}
+                ? <Trans i18nKey="flightDetail:baggage.handIncluded" t={t} values={{ kg: handKg }}>Up to <b>{{ kg: handKg }} kg</b> of hand baggage, plus one small personal item.</Trans>
+                : <>{t('flightDetail:baggage.handRulesUnknown', 'Hand baggage rules are set by the operating airline and are confirmed with your fare before payment.')}</>}
             </div>
-            {handKg > 0 && <span className="fd-bag-tag inc">Included</span>}
+            {handKg > 0 && <span className="fd-bag-tag inc">{t('flightDetail:baggage.included', 'Included')}</span>}
           </div>
         </div>
         <div className="fd-bag-card">
           <div className={`fd-bag-ic ${hasChecked ? 'checkin' : 'extra'}`}>{ICON.bag}</div>
           <div className="fd-bag-info">
-            <div className="fd-bag-title">Check-in baggage</div>
+            <div className="fd-bag-title">{t('flightDetail:baggage.checkinTitle', 'Check-in baggage')}</div>
             <div className="fd-bag-desc">
-              {kg > 0 ? <><b>{kg} kg</b> of hold baggage is included in this fare.</>
-                : pieces > 0 ? <><b>{pieces} {pieces === 1 ? 'piece' : 'pieces'}</b> of hold baggage is included in this fare.</>
-                : known ? <>This fare includes no hold baggage. It can be added during booking — the price depends on the airline and the weight.</>
-                : <>Hold baggage allowance is confirmed with your fare before payment.</>}
+              {kg > 0 ? <Trans i18nKey="flightDetail:baggage.checkinKgIncluded" t={t} values={{ kg }}><b>{{ kg }} kg</b> of hold baggage is included in this fare.</Trans>
+                : pieces > 0 ? (
+                  <Trans
+                    i18nKey="flightDetail:baggage.checkinPiecesIncluded"
+                    t={t}
+                    count={pieces}
+                    values={{ count: pieces }}
+                  >
+                    <b>{{ count: pieces }} pieces</b> of hold baggage is included in this fare.
+                  </Trans>
+                )
+                : known ? <>{t('flightDetail:baggage.noHoldIncluded', 'This fare includes no hold baggage. It can be added during booking — the price depends on the airline and the weight.')}</>
+                : <>{t('flightDetail:baggage.checkinRulesUnknown', 'Hold baggage allowance is confirmed with your fare before payment.')}</>}
             </div>
             {known && (
               <span className={`fd-bag-tag ${hasChecked ? 'inc' : 'paid'}`}>
-                {hasChecked ? 'Included' : 'Paid add-on'}
+                {hasChecked ? t('flightDetail:baggage.included', 'Included') : t('flightDetail:baggage.paidAddOn', 'Paid add-on')}
               </span>
             )}
           </div>
@@ -317,7 +333,7 @@ export default function FlightDetail() {
         <span className="fd-hero-grid" />
         <div className="fd-hero-in">
           <div className="fd-bc">
-            <Link to="/flights">Flights</Link><span className="fd-bc-sep">›</span>
+            <Link to="/flights">{t('common:nav.services.flights', 'Flights')}</Link><span className="fd-bc-sep">›</span>
             <a onClick={() => navigate(-1)}>{[legs[0]?.fromCode, ...legs.map((l) => l.toCode)].join(' → ')}</a><span className="fd-bc-sep">›</span>
             {/* Every carrier flying this trip, named once each — a four-leg trip on two
                 airlines reads as two names, not four. */}
@@ -334,7 +350,7 @@ export default function FlightDetail() {
                     <span className="fd-hero-chaincode">{code}</span>
                   </span>
                 ))}
-                <span className="fd-hero-trip">{tripLabel} · {legs.length} flights</span>
+                <span className="fd-hero-trip">{tripLabel} · {t('flights:hero.flightsCount', { count: legs.length, defaultValue_one: '{{count}} flight', defaultValue_other: '{{count}} flights' })}</span>
               </div>
             ) : (
             <>
@@ -354,12 +370,12 @@ export default function FlightDetail() {
           </div>
           <div className="fd-hero-chips">
             <span className="fd-hchip">{ICON.cal} {fmtDate(flight.out.depDateISO)}</span>
-            {isMulti && <span className="fd-hchip">{ICON.plane} {legs.length} flights</span>}
+            {isMulti && <span className="fd-hchip">{ICON.plane} {t('flights:hero.flightsCount', { count: legs.length, defaultValue_one: '{{count}} flight', defaultValue_other: '{{count}} flights' })}</span>}
             <span className="fd-hchip">{ICON.user} {paxLabel(ctx)}</span>
-            {flight.cabin && <span className="fd-hchip">{ICON.board} {flight.cabin}</span>}
+            {flight.cabin && <span className="fd-hchip">{ICON.board} {cabinLabel(flight.cabin)}</span>}
             {flight.fareName && <span className="fd-hchip">{ICON.doc} {flight.fareName}</span>}
-            <span className="fd-hchip">{ICON.clock} {totalLabel} total</span>
-            <span className="fd-hchip fd-hchip-price">from {money(flight.price)} pp</span>
+            <span className="fd-hchip">{ICON.clock} {t('flightDetail:hero.totalTime', { total: totalLabel, defaultValue: '{{total}} total' })}</span>
+            <span className="fd-hchip fd-hchip-price">{t('flightDetail:hero.fromPp', { price: money(flight.price), defaultValue: 'from {{price}} pp' })}</span>
           </div>
         </div>
       </header>
@@ -375,9 +391,9 @@ export default function FlightDetail() {
 
           {/* tabs */}
           <div className="fd-tabs">
-            {TABS.map((t) => (
-              <button key={t.id} className={`fd-tab${tab === t.id ? ' act' : ''}`} onClick={() => setTab(t.id)}>
-                {t.icon}<span>{t.label}</span>
+            {TABS.map((tb) => (
+              <button key={tb.id} className={`fd-tab${tab === tb.id ? ' act' : ''}`} onClick={() => setTab(tb.id)}>
+                {tb.icon}<span>{tb.label}</span>
               </button>
             ))}
           </div>
@@ -385,24 +401,28 @@ export default function FlightDetail() {
           {/* details */}
           {tab === 'details' && (
             <div className="fd-panel">
-              <div className="fd-panel-head">{ICON.layers}<h2>Flight details</h2></div>
+              <div className="fd-panel-head">{ICON.layers}<h2>{t('flightDetail:details.title', 'Flight details')}</h2></div>
               <div className="fd-panel-body">
                 <div className="fd-stats">
-                  <div className="fd-stat"><span className="fd-stat-k">Total travel time</span><span className="fd-stat-v">{totalLabel}</span></div>
+                  <div className="fd-stat"><span className="fd-stat-k">{t('flightDetail:details.totalTravelTime', 'Total travel time')}</span><span className="fd-stat-v">{totalLabel}</span></div>
                   <div className="fd-stat">
-                    <span className="fd-stat-k">{isMulti ? 'Flights' : isRound ? 'Trip length' : 'Journey'}</span>
+                    <span className="fd-stat-k">{isMulti ? t('flightDetail:details.flights', 'Flights') : isRound ? t('flightDetail:details.tripLength', 'Trip length') : t('flightDetail:details.journey', 'Journey')}</span>
                     <span className="fd-stat-v">
-                      {isMulti ? `${legs.length} one-way fares` : isRound ? `${nights} ${nights === 1 ? 'night' : 'nights'}` : 'One way'}
+                      {isMulti
+                        ? t('flightDetail:details.oneWayFares', { count: legs.length, defaultValue: '{{count}} one-way fares' })
+                        : isRound
+                          ? t('flightDetail:details.nights', { count: nights, defaultValue_one: '{{count}} night', defaultValue_other: '{{count}} nights' })
+                          : t('home:hero.flights.oneway', 'One way')}
                     </span>
                   </div>
-                  {flight.cabin && <div className="fd-stat"><span className="fd-stat-k">Cabin class</span><span className="fd-stat-v">{flight.cabin}</span></div>}
-                  {flight.fareName && <div className="fd-stat"><span className="fd-stat-k">Fare</span><span className="fd-stat-v">{flight.fareName}</span></div>}
+                  {flight.cabin && <div className="fd-stat"><span className="fd-stat-k">{t('flightDetail:details.cabinClass', 'Cabin class')}</span><span className="fd-stat-v">{cabinLabel(flight.cabin)}</span></div>}
+                  {flight.fareName && <div className="fd-stat"><span className="fd-stat-k">{t('flightDetail:details.fare', 'Fare')}</span><span className="fd-stat-v">{flight.fareName}</span></div>}
                 </div>
                 {legs.map((leg, i) => (
                   <div className={`fd-detail-card ${legClass(i)}`} key={i}>
                     <div className="fd-detail-title">{ICON.plane} {legLabel(i)} · {leg.fromCode} → {leg.toCode}</div>
                     <p><b>{leg.airline} · {leg.flightNo}</b><br />
-                      Departs <b>{leg.depTime}</b> ({fmtDateShort(leg.depDateISO)}) · Arrives <b>{leg.arrTime}{leg.arrDay > 0 ? ` (+${leg.arrDay})` : ''}</b><br />
+                      {t('flightDetail:details.departs', 'Departs')} <b>{leg.depTime}</b> ({fmtDateShort(leg.depDateISO)}) · {t('flightDetail:details.arrives', 'Arrives')} <b>{leg.arrTime}{leg.arrDay > 0 ? ` (+${leg.arrDay})` : ''}</b><br />
                       {legMeta(leg)}</p>
                   </div>
                 ))}
@@ -413,9 +433,9 @@ export default function FlightDetail() {
           {/* fare rules */}
           {tab === 'rules' && (
             <div className="fd-panel">
-              <div className="fd-panel-head">{ICON.doc}<h2>Fare rules</h2></div>
+              <div className="fd-panel-head">{ICON.doc}<h2>{t('flightDetail:rules.title', 'Fare rules')}</h2></div>
               <div className="fd-panel-body fd-rules">
-                {FARE_RULES.map((r) => (
+                {fareRules().map((r) => (
                   <div className={`fd-rule${openRule === r.id ? ' open' : ''}`} key={r.id}>
                     <div className="fd-rule-head" onClick={() => setOpenRule(openRule === r.id ? '' : r.id)}>
                       <div className="fd-rule-left"><span className={`fd-rule-ic ${r.tone}`}>{r.icon}</span><span className="fd-rule-title">{r.title}</span></div>
@@ -428,7 +448,7 @@ export default function FlightDetail() {
                       <div className="fd-rule-content">
                         {r.rows ? (
                           <table className="fd-rule-table">
-                            <thead><tr><th>Time before departure</th><th>Fee</th></tr></thead>
+                            <thead><tr><th>{t('flightDetail:rules.timeBeforeDeparture', 'Time before departure')}</th><th>{t('flightDetail:rules.fee', 'Fee')}</th></tr></thead>
                             <tbody>{r.rows.map((row) => <tr key={row[0]}><td>{row[0]}</td><td>{row[1]}</td></tr>)}</tbody>
                           </table>
                         ) : <p>{r.text}</p>}
@@ -443,12 +463,12 @@ export default function FlightDetail() {
           {/* baggage */}
           {tab === 'baggage' && (
             <div className="fd-panel">
-              <div className="fd-panel-head">{ICON.bag}<h2>Baggage allowance</h2></div>
+              <div className="fd-panel-head">{ICON.bag}<h2>{t('flightDetail:baggage.title', 'Baggage allowance')}</h2></div>
               <div className="fd-panel-body fd-bags">
                 {legs.map((leg, i) => (
                   <div key={i}>{baggageFor(leg, legLabel(i))}</div>
                 ))}
-                <div className="fd-note">{ICON.info} Allowances differ by airline. Pre-purchasing extra baggage online is cheaper than at the airport.</div>
+                <div className="fd-note">{ICON.info} {t('flightDetail:baggage.note', 'Allowances differ by airline. Pre-purchasing extra baggage online is cheaper than at the airport.')}</div>
               </div>
             </div>
           )}
@@ -456,22 +476,22 @@ export default function FlightDetail() {
           {/* fare summary */}
           {tab === 'fare' && (
             <div className="fd-panel">
-              <div className="fd-panel-head">{ICON.receipt}<h2>Fare summary</h2></div>
+              <div className="fd-panel-head">{ICON.receipt}<h2>{t('flightDetail:fare.title', 'Fare summary')}</h2></div>
               <div className="fd-panel-body">
                 <div className="fd-fare">
                   {fb.baseFare != null && (
-                    <div className="fd-fare-row"><span>{ICON.user} Base fare ({pax} {pax === 1 ? 'traveller' : 'travellers'})</span><b>{money(fb.baseFare)}</b></div>
+                    <div className="fd-fare-row"><span>{ICON.user} {t('flightDetail:fare.baseFare', { count: pax, defaultValue_one: 'Base fare ({{count}} traveller)', defaultValue_other: 'Base fare ({{count}} travellers)' })}</span><b>{money(fb.baseFare)}</b></div>
                   )}
                   {fb.taxes != null && (
-                    <div className="fd-fare-row"><span>{ICON.receipt} Taxes &amp; surcharges</span><b>{money(fb.taxes)}</b></div>
+                    <div className="fd-fare-row"><span>{ICON.receipt} {t('flightDetail:fare.taxes', 'Taxes & surcharges')}</span><b>{money(fb.taxes)}</b></div>
                   )}
                   {fb.perAdult != null && fb.pax > 1 && (
-                    <div className="fd-fare-row"><span>{ICON.user} Fare per adult</span><b>{money(fb.perAdult)}</b></div>
+                    <div className="fd-fare-row"><span>{ICON.user} {t('flightDetail:fare.perAdult', 'Fare per adult')}</span><b>{money(fb.perAdult)}</b></div>
                   )}
-                  {fb.discount > 0 && <div className="fd-fare-row disc"><span>{ICON.check} Instant discount</span><b>− {money(fb.discount)}</b></div>}
-                  <div className="fd-fare-row total"><span>Total amount</span><b>{money(fb.total)}</b></div>
+                  {fb.discount > 0 && <div className="fd-fare-row disc"><span>{ICON.check} {t('flightDetail:fare.instantDiscount', 'Instant discount')}</span><b>− {money(fb.discount)}</b></div>}
+                  <div className="fd-fare-row total"><span>{t('flightDetail:fare.totalAmount', 'Total amount')}</span><b>{money(fb.total)}</b></div>
                 </div>
-                <div className="fd-note">{ICON.info} All fares in EUR, per booking, incl. applicable taxes. Final price is confirmed at checkout.</div>
+                <div className="fd-note">{ICON.info} {t('flightDetail:fare.note', 'All fares in EUR, per booking, incl. applicable taxes. Final price is confirmed at checkout.')}</div>
               </div>
             </div>
           )}
@@ -481,13 +501,13 @@ export default function FlightDetail() {
         <aside className="fd-side">
           <div className="fd-book">
             <div className="fd-book-price">
-              <div className="fd-book-label">{pax > 1 ? `Total for ${pax}` : 'Total price'}</div>
+              <div className="fd-book-label">{pax > 1 ? t('flightDetail:book.totalFor', { count: pax, defaultValue: 'Total for {{count}}' }) : t('flightDetail:book.totalPrice', 'Total price')}</div>
               <div className="fd-book-amt">{money(fb.total)}</div>
               {flight.origPrice > flight.price && (
-                <div className="fd-book-sub"><s>{money(flight.origPrice * pax)}</s><span className="fd-save">Save {money((flight.origPrice - flight.price) * pax)}</span></div>
+                <div className="fd-book-sub"><s>{money(flight.origPrice * pax)}</s><span className="fd-save">{t('flightDetail:book.save', { amount: money((flight.origPrice - flight.price) * pax), defaultValue: 'Save {{amount}}' })}</span></div>
               )}
             </div>
-            <button className="fd-book-cta" onClick={goCheckout}>Book now {ICON.arrow}</button>
+            <button className="fd-book-cta" onClick={goCheckout}>{t('flightDetail:book.bookNow', 'Book now')} {ICON.arrow}</button>
             <div className="fd-book-meta">
               {legs.map((leg, i) => (
                 <div className="fd-book-row" key={i}>
@@ -496,7 +516,7 @@ export default function FlightDetail() {
                 </div>
               ))}
               <div className="fd-book-row">{ICON.cal}<span>{fmtDateShort(flight.out.depDateISO)}{legs.length > 1 ? ` – ${fmtDateShort(lastLeg.depDateISO)}` : ''}</span></div>
-              {flight.cabin && <div className="fd-book-row">{ICON.board}<span>{flight.cabin} class</span></div>}
+              {flight.cabin && <div className="fd-book-row">{ICON.board}<span>{t('flightDetail:book.cabinClass', { cabin: cabinLabel(flight.cabin), defaultValue: '{{cabin}} class' })}</span></div>}
               {/* Was a flat "Cabin 7 kg + Check-in 23 kg" on every fare — printed in bold next
                   to a Book button, on fares that include no hold baggage at all, and directly
                   contradicting the Baggage tab three inches away. Now it states the fare's own
@@ -504,13 +524,13 @@ export default function FlightDetail() {
               <div className="fd-book-row">{ICON.bag}<span>{bagLine}</span></div>
             </div>
             <div className="fd-book-trav">
-              <div className="fd-book-travlbl">Travellers</div>
-              <div className="fd-book-travrow"><span className="fd-book-av">{ICON.user}</span><div><div className="fd-book-tn">{paxLabel(ctx)}</div><div className="fd-book-tt">Details added at checkout</div></div></div>
+              <div className="fd-book-travlbl">{t('flightDetail:book.travellers', 'Travellers')}</div>
+              <div className="fd-book-travrow"><span className="fd-book-av">{ICON.user}</span><div><div className="fd-book-tn">{paxLabel(ctx)}</div><div className="fd-book-tt">{t('flightDetail:book.detailsAtCheckout', 'Details added at checkout')}</div></div></div>
             </div>
             <div className="fd-book-secure">
-              <span className="fd-secure">{ICON.shieldCheck} Secure SSL payment</span>
-              <span className="fd-secure">{ICON.shield} Fare conditions shown before payment</span>
-              <span className="fd-secure">{ICON.mail} Instant e-ticket by email</span>
+              <span className="fd-secure">{ICON.shieldCheck} {t('flightDetail:book.secureSsl', 'Secure SSL payment')}</span>
+              <span className="fd-secure">{ICON.shield} {t('flightDetail:book.fareConditions', 'Fare conditions shown before payment')}</span>
+              <span className="fd-secure">{ICON.mail} {t('flightDetail:book.instantETicket', 'Instant e-ticket by email')}</span>
             </div>
           </div>
         </aside>
@@ -518,8 +538,8 @@ export default function FlightDetail() {
 
       {/* mobile sticky bar */}
       <div className="fd-mbar">
-        <div className="fd-mbar-price"><small>total</small>{money(fb.total)}</div>
-        <button className="fd-mbar-btn" onClick={goCheckout}>Book now {ICON.arrow}</button>
+        <div className="fd-mbar-price"><small>{t('flightDetail:book.total', 'total')}</small>{money(fb.total)}</div>
+        <button className="fd-mbar-btn" onClick={goCheckout}>{t('flightDetail:book.bookNow', 'Book now')} {ICON.arrow}</button>
       </div>
     </div>
   );

@@ -1,0 +1,73 @@
+{
+  "hero": {
+    "title": "Luchthaven<1>transfers</1>",
+    "sub": "Privé- en gedeelde ritten tussen luchthavens, hotels, havens en stations — in enkele seconden geboekt."
+  },
+  "fields": {
+    "from": "Van",
+    "to": "Naar",
+    "swap": "Omwisselen",
+    "airportCodePlaceholder": "Luchthavencode (bv. PMI)",
+    "hotelCodePlaceholder": "Hotelcode",
+    "codePlaceholder": "Code",
+    "pickupDate": "Ophaaldatum",
+    "pickupTime": "Ophaaltijd",
+    "returnDate": "Retourdatum",
+    "returnTime": "Retourtijd",
+    "passengers": "Passagiers",
+    "adults": "Volwassenen",
+    "children": "Kinderen",
+    "infants": "Baby's",
+    "addReturnTransfer": "Retourtransfer toevoegen",
+    "searching": "Zoeken…",
+    "searchTransfers": "Transfers zoeken"
+  },
+  "locType": {
+    "airport": "Luchthaven",
+    "hotel": "Hotel",
+    "port": "Haven",
+    "station": "Station"
+  },
+  "sort": {
+    "priceAsc": "Prijs: laag naar hoog",
+    "priceDesc": "Prijs: hoog naar laag",
+    "capacity": "Capaciteit: grootst"
+  },
+  "pax": {
+    "adults_one": "{{count}} volwassene",
+    "adults_other": "{{count}} volwassenen",
+    "children_one": "{{count}} kind",
+    "children_other": "{{count}} kinderen",
+    "infants_one": "{{count}} baby",
+    "infants_other": "{{count}} baby's"
+  },
+  "errors": {
+    "missingFields": "Kies een ophaalpunt, een bestemming en een datum.",
+    "searchFailed": "Zoeken naar transfers is mislukt."
+  },
+  "results": {
+    "found_one": "{{count}} transfer gevonden",
+    "found_other": "{{count}} transfers gevonden",
+    "sort": "Sorteren",
+    "noneFoundTitle": "Geen transfers gevonden",
+    "noneFoundBody": "Probeer een andere datum, of controleer de ophaal-/bestemmingscodes.",
+    "introTitle": "Waar ga je naartoe?",
+    "introBody": "Vul hierboven een ophaalpunt en bestemming in om beschikbare transfers te zien."
+  },
+  "card": {
+    "transfer": "Transfer",
+    "shared": "Gedeeld",
+    "private": "Privé",
+    "pax": "{{min}}–{{max}} pers.",
+    "hotelToAirport": "Hotel → Luchthaven",
+    "airportToHotel": "Luchthaven → Hotel",
+    "freeCancellation": "Gratis annulering",
+    "totalPrice": "totaalprijs",
+    "select": "Selecteer"
+  },
+  "selbar": {
+    "flightNo": "Vluchtnummer <1>(aanbevolen)</1>",
+    "flightNoPlaceholder": "bv. SN3721",
+    "continue": "Doorgaan met boeken"
+  }
+}
