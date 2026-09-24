@@ -31,10 +31,10 @@
 |---|---:|---:|---|
 | Placeholder stubs (About, Contact, NotFound, Account, AccountSettings, etc.) | tiny | ~6 | One-liners — **and currently unbuilt**, not just untranslated (see below) |
 
-### 🔎 Loose ends found during review (not yet actioned)
+### 🔎 Loose ends found during review
 
-- **Home page SEO/sitemap block** ("Last Minute Spain", "Paris", "Rome", "France by Car", …) — entirely hardcoded English, not wired to i18n at all.
-- **Destination-search error state** — "No hotels or destinations match…" renders in English regardless of site language.
+- ~~**Home page SEO/sitemap block**~~ ✅ Fixed in PR [#37](https://github.com/Anil682003/sunsky-website/pull/37). `PopularDest.jsx`'s `FALLBACK_CARDS` links (Bali, Turkey All Inclusive, Last Minute Spain, France by Car, Summer Holidays, …) were 32 plain English strings never wired to i18n — the group titles/counts were already translated, the links inside them were not. Now translated via a small dictionary. Decorative airport/passport-styled micro-text (GATE B12, SSK · 01) deliberately left as-is, same rule as airport codes.
+- ~~**Destination-search error state**~~ ✅ Fixed in PR [#37](https://github.com/Anil682003/sunsky-website/pull/37). The header `DestinationSearch` box had only its placeholder + aria-label translated — recent searches, popular chips, the results manifest (group headers, tags, tally strip) and the "No hotels or destinations match…" error were all still English. Fully converted; also fixed `HotelPhotoFallback`'s hard-coded "No images available" (the shared missing-photo illustration used across HotelDetail/Home/Results), spotted while verifying this fix live.
 - **Footer link destinations** — footer labels (Over SUNSKY, Contact, Wettelijke vermeldingen, Disclaimer, Copyright) are already correct Dutch from the CMS, but they point at placeholder stub pages with no real content yet (see "Placeholder stubs" row above). Not a translation bug — a missing-content one.
 
 ---
