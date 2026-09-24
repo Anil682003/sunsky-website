@@ -5,7 +5,7 @@ import mainLogo from '../../assets/main-logo.png';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
 // it, so it keeps the square mark — the same one the browser tab shows.
 import logoIcon from '../../assets/logo-icon.png';
-import styles from './Login.module.css';   // shared auth shell (sky scene, card, fields)
+import styles from './Login.module.css';   // shared auth shell (brand column, card, fields)
 import fp from './ForgotPassword.module.css';
 import CodeInput, { CODE_LENGTH } from './CodeInput';
 import { requestPasswordReset, verifyPasswordResetCode, submitNewPassword } from '../../api';
@@ -114,29 +114,6 @@ export default function ForgotPassword() {
 
   return (
     <div className={styles.page}>
-      {/* Shared sky scene */}
-      <div className={styles.bgArt} aria-hidden="true">
-        <div className={styles.bgGrad} />
-        <div className={`${styles.blob} ${styles.blob1}`} />
-        <div className={`${styles.blob} ${styles.blob2}`} />
-        <div className={`${styles.blob} ${styles.blob3}`} />
-        <div className={styles.ring} />
-        <div className={styles.ring2} />
-        <div className={styles.gridLines} />
-        <div className={styles.sun}>
-          <div className={styles.sunRays} />
-          <div className={styles.sunCore} />
-        </div>
-        <div className={`${styles.cloud} ${styles.cloud1}`} />
-        <div className={`${styles.cloud} ${styles.cloud2}`} />
-        <div className={`${styles.cloud} ${styles.cloud3}`} />
-        <svg className={styles.flightPath} viewBox="0 0 1600 900" fill="none">
-          <path d="M-40 190 C 380 110, 950 70, 1660 150" stroke="rgba(58,111,232,0.28)" strokeWidth="1.6" strokeDasharray="1 12" strokeLinecap="round" />
-        </svg>
-        <div className={styles.horizon} />
-        <div className={styles.grain} />
-      </div>
-
       {/* Left branding */}
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
@@ -172,17 +149,6 @@ export default function ForgotPassword() {
         <div className={styles.card}>
           <div className={styles.cardInner}>
             <div className={styles.cardHead}>
-              <div className={styles.routeRow} aria-hidden="true">
-                <span>KEY</span>
-                <span className={styles.routeDash} />
-                <span className={styles.routePlane}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ transform: 'rotate(90deg)' }}>
-                    <path d="M21.9 14.9L13.6 10.6V3.8c0-1-.7-1.8-1.6-1.8s-1.6.8-1.6 1.8v6.8L2.1 14.9v2.2l8.3-2.6v5.2L7.9 21.5v1.7l4.1-1.2 4.1 1.2v-1.7l-2.5-1.8v-5.2l8.3 2.6v-2.2z" />
-                  </svg>
-                </span>
-                <span className={styles.routeDash} />
-                <span>NEW</span>
-              </div>
               <div className={styles.avatarRing}>
                 <img src={logoIcon} alt="" className={styles.avatarLogo} />
               </div>

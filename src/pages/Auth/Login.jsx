@@ -6,8 +6,21 @@ import mainLogo from '../../assets/main-logo.png';
 // it, so it keeps the square mark — the same one the browser tab shows.
 import logoIcon from '../../assets/logo-icon.png';
 import styles from './Login.module.css';
+import LanguageMenu from './LanguageMenu';
 import { useLogin } from '../../api';
 import { useToast } from '../../context/ToastContext';
+
+const Icon = ({ children, size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    {children}
+  </svg>
+);
+const GlobeIcon = ({ size }) => (
+  <Icon size={size}><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></Icon>
+);
+const Chevron = () => (
+  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M9 18l6-6-6-6" /></svg>
+);
 
 export default function Login() {
   const { t } = useTranslation('auth');
@@ -31,65 +44,14 @@ export default function Login() {
 
   return (
     <div className={styles.page}>
-      {/* The sky scene */}
-      <div className={styles.bgArt} aria-hidden="true">
-        <div className={styles.bgGrad} />
-        <div className={`${styles.blob} ${styles.blob1}`} />
-        <div className={`${styles.blob} ${styles.blob2}`} />
-        <div className={`${styles.blob} ${styles.blob3}`} />
-        <div className={styles.ring} />
-        <div className={styles.ring2} />
-        <div className={styles.gridLines} />
-        <div className={styles.sun}>
-          <div className={styles.sunRays} />
-          <div className={styles.sunCore} />
-        </div>
-        <div className={`${styles.cloud} ${styles.cloud1}`} />
-        <div className={`${styles.cloud} ${styles.cloud2}`} />
-        <div className={`${styles.cloud} ${styles.cloud3}`} />
-        <svg className={styles.flightPath} viewBox="0 0 1600 900" fill="none">
-          <path d="M-40 190 C 380 110, 950 70, 1660 150" stroke="rgba(58,111,232,0.28)" strokeWidth="1.6" strokeDasharray="1 12" strokeLinecap="round" />
-        </svg>
-        <div className={styles.plane}>
-          <svg width="24" height="24" viewBox="0 0 24 24" fill="rgba(58,111,232,0.9)">
-            <path d="M21.9 14.9L13.6 10.6V3.8c0-1-.7-1.8-1.6-1.8s-1.6.8-1.6 1.8v6.8L2.1 14.9v2.2l8.3-2.6v5.2L7.9 21.5v1.7l4.1-1.2 4.1 1.2v-1.7l-2.5-1.8v-5.2l8.3 2.6v-2.2z" />
-          </svg>
-        </div>
-        <svg className={styles.balloon} viewBox="0 0 120 164" fill="none">
-          <defs>
-            <linearGradient id="ssbGrad1" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor="#2E62E6" />
-              <stop offset="0.55" stopColor="#3D7BF0" />
-              <stop offset="1" stopColor="#7FB8FF" />
-            </linearGradient>
-          </defs>
-          <path d="M60 4C27 4 8 30 8 60c0 30 27 51 39 64h26c12-13 39-34 39-64C112 30 93 4 60 4Z" fill="url(#ssbGrad1)" />
-          <path d="M60 4C43 4 33 30 33 60c0 30 13 51 19 64h8V4Z" fill="rgba(255,255,255,0.28)" />
-          <path d="M60 4c17 0 27 26 27 56 0 30-13 51-19 64h-8V4Z" fill="rgba(10,35,110,0.12)" />
-          <path d="M10 47c16-9 84-9 100 0 1.5 4 2 9 2 13-18-8-86-8-104 0 0-4 .5-9 2-13Z" fill="#FFC24D" />
-          <path d="M47 124l6 18M73 124l-6 18M60 124v18" stroke="#B07A22" strokeWidth="1.6" />
-          <rect x="48" y="140" width="24" height="17" rx="4" fill="#D89B3F" />
-          <rect x="48" y="140" width="24" height="6" rx="3" fill="#B07A22" />
-        </svg>
-        <svg className={`${styles.balloon} ${styles.balloonSmall}`} viewBox="0 0 120 164" fill="none">
-          <defs>
-            <linearGradient id="ssbGrad2" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor="#FF9F1C" />
-              <stop offset="1" stopColor="#FFD166" />
-            </linearGradient>
-          </defs>
-          <path d="M60 4C27 4 8 30 8 60c0 30 27 51 39 64h26c12-13 39-34 39-64C112 30 93 4 60 4Z" fill="url(#ssbGrad2)" />
-          <path d="M60 4C43 4 33 30 33 60c0 30 13 51 19 64h8V4Z" fill="rgba(255,255,255,0.30)" />
-          <path d="M47 124l6 18M73 124l-6 18M60 124v18" stroke="#B07A22" strokeWidth="1.6" />
-          <rect x="48" y="140" width="24" height="17" rx="4" fill="#D89B3F" />
-        </svg>
-        <svg className={styles.birds} width="56" height="20" viewBox="0 0 56 20" fill="none">
-          <path d="M2 10c4-5 9-5 13 0M15 10c4-5 9-5 13 0" stroke="#3A6FE8" strokeWidth="1.8" strokeLinecap="round" opacity="0.65" />
-          <path d="M36 6c3-4 6.5-4 9.5 0M45.5 6c3-4 6.5-4 9.5 0" stroke="#3A6FE8" strokeWidth="1.4" strokeLinecap="round" opacity="0.45" />
-        </svg>
-        <div className={styles.horizon} />
-        <div className={styles.grain} />
-      </div>
+      {/* The journey the site is about, top right. Words, not navigation. */}
+      <p className={styles.trail} aria-hidden="true">
+        <span>{t('auth:login.trail.explore', 'Explore')}</span>
+        <Chevron />
+        <span>{t('auth:login.trail.book', 'Book')}</span>
+        <Chevron />
+        <span className={styles.trailOn}>{t('auth:login.trail.experience', 'Experience')}</span>
+      </p>
 
       {/* Left branding column */}
       <div className={styles.brandPanel}>
@@ -99,102 +61,73 @@ export default function Login() {
         </Link>
 
         <div className={styles.brandHero}>
+          <p className={styles.eyebrow}>{t('auth:login.eyebrow', 'Travel • Discover • Create memories')}</p>
           <h2 className={styles.brandTitle}>
-            <Trans i18nKey="auth:login.brandTitle" t={t}>Welcome<br />back, <em>traveller</em></Trans>
+            <Trans i18nKey="auth:login.brandTitle" t={t}>Welcome back,<br /><em>traveller</em></Trans>
           </h2>
           <p className={styles.brandSub}>
             {t('auth:login.brandSub', 'Your next unforgettable journey is just a sign-in away. Thousands of destinations, one seamless experience.')}
           </p>
         </div>
 
-        <div className={styles.ratingPill}>
-          <span className={styles.ratingStars}>★★★★★</span>
-          <span>{t('auth:login.trustedBy', 'Trusted by travellers across Europe')}</span>
-        </div>
-
-        <div className={styles.destCards}>
-          <div className={`${styles.destCard} ${styles.destCard1}`}>
-            <span className={styles.destCardFlag}>🏝️</span>
-            <div className={styles.destCardInfo}>
-              <span className={styles.destCardName}>Santorini, {t('auth:login.destGreece', 'Greece')}</span>
-              <span className={styles.destCardPrice}>{t('auth:login.destGreeceSub', 'Island escapes & sunsets')}</span>
-            </div>
-            <span className={styles.destCardBadge}>{t('auth:login.badgePopular', 'Popular')}</span>
-          </div>
-          <div className={`${styles.destCard} ${styles.destCard2}`}>
-            <span className={styles.destCardFlag}>🌴</span>
-            <div className={styles.destCardInfo}>
-              <span className={styles.destCardName}>Bali, {t('auth:login.destIndonesia', 'Indonesia')}</span>
-              <span className={styles.destCardPrice}>{t('auth:login.destIndonesiaSub', 'Beaches, temples & jungles')}</span>
-            </div>
-            <span className={`${styles.destCardBadge} ${styles.destCardBadgeBlue}`}>{t('auth:login.badgeTrending', 'Trending')}</span>
-          </div>
-          <div className={`${styles.destCard} ${styles.destCard3}`}>
-            <span className={styles.destCardFlag}>🏙️</span>
-            <div className={styles.destCardInfo}>
-              <span className={styles.destCardName}>Dubai, {t('auth:login.destUae', 'UAE')}</span>
-              <span className={styles.destCardPrice}>{t('auth:login.destUaeSub', 'City lights & desert dunes')}</span>
-            </div>
-            <span className={`${styles.destCardBadge} ${styles.destCardBadgeCoral}`}>{t('auth:login.badgeSunny', 'Sunny')}</span>
-          </div>
-        </div>
-
         <div className={styles.statsRow}>
           <div className={styles.statItem}>
-            <span className={styles.statNum}>500+</span>
-            <span className={styles.statLabel}>{t('auth:login.statDestinations', 'Destinations')}</span>
+            <span className={`${styles.statIcon} ${styles.statBlue}`}><GlobeIcon size={22} /></span>
+            <span className={styles.statText}>
+              <span className={styles.statNum}>500+</span>
+              <span className={styles.statLabel}>{t('auth:login.statDestinations', 'Destinations')}</span>
+            </span>
           </div>
-          <div className={styles.statDivider} />
+          <span className={styles.statDivider} aria-hidden="true" />
           <div className={styles.statItem}>
-            <span className={styles.statNum}>24/7</span>
-            <span className={styles.statLabel}>{t('auth:login.statSupport', 'Support')}</span>
+            <span className={`${styles.statIcon} ${styles.statOrange}`}>
+              <Icon size={22}><path d="M3 18v-6a9 9 0 0118 0v6" /><path d="M21 19a2 2 0 01-2 2h-1a2 2 0 01-2-2v-3a2 2 0 012-2h3zM3 19a2 2 0 002 2h1a2 2 0 002-2v-3a2 2 0 00-2-2H3z" /></Icon>
+            </span>
+            <span className={styles.statText}>
+              <span className={styles.statNum}>24/7</span>
+              <span className={styles.statLabel}>{t('auth:login.statSupport', 'Support')}</span>
+            </span>
           </div>
-          <div className={styles.statDivider} />
+          <span className={styles.statDivider} aria-hidden="true" />
           <div className={styles.statItem}>
-            <span className={styles.statNum}>100%</span>
-            <span className={styles.statLabel}>{t('auth:login.statSecure', 'Secure')}</span>
+            <span className={`${styles.statIcon} ${styles.statGreen}`}>
+              <Icon size={22}><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></Icon>
+            </span>
+            <span className={styles.statText}>
+              <span className={styles.statNum}>100%</span>
+              <span className={styles.statLabel}>{t('auth:login.statSecure', 'Secure')}</span>
+            </span>
           </div>
         </div>
+
+        <p className={styles.quote}>
+          {t('auth:login.quote', '“More than travel,\nit’s a feeling.”')}
+          <svg className={styles.quoteSwash} viewBox="0 0 150 16" fill="none" aria-hidden="true">
+            <path d="M3 12 C 40 4, 95 1, 147 6" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+          </svg>
+        </p>
       </div>
 
-      {/* Right form panel */}
+      {/* Right form card */}
       <div className={styles.formPanel}>
         <div className={styles.card}>
           <div className={styles.cardInner}>
-            {/* Header */}
+            <LanguageMenu className={styles.langMenu} />
+
             <div className={styles.cardHead}>
-              <div className={styles.routeRow} aria-hidden="true">
-                <span>BRU</span>
-                <span className={styles.routeDash} />
-                <span className={styles.routePlane}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ transform: 'rotate(90deg)' }}>
-                    <path d="M21.9 14.9L13.6 10.6V3.8c0-1-.7-1.8-1.6-1.8s-1.6.8-1.6 1.8v6.8L2.1 14.9v2.2l8.3-2.6v5.2L7.9 21.5v1.7l4.1-1.2 4.1 1.2v-1.7l-2.5-1.8v-5.2l8.3 2.6v-2.2z" />
-                  </svg>
-                </span>
-                <span className={styles.routeDash} />
-                <span>SUN</span>
-              </div>
               <div className={styles.avatarRing}>
                 <img src={logoIcon} alt="" className={styles.avatarLogo} />
               </div>
               <h1 className={styles.cardTitle}>{t('auth:login.title', 'Sign in to SunSky')}</h1>
-              <p className={styles.cardSub}>
-                <Trans i18nKey="auth:login.noAccount" t={t}>Don't have an account? <Link to="/register">Create one free</Link></Trans>
-              </p>
+              <p className={styles.cardSub}>{t('auth:login.subtitle', 'Continue to explore amazing destinations')}</p>
             </div>
 
-
-
             <form className={styles.form} onSubmit={handleSubmit}>
-              {/* Email field */}
               <div className={`${styles.field} ${focused === 'email' ? styles.fieldFocused : ''} ${email ? styles.fieldHasValue : ''}`}>
                 <label className={styles.fieldLabel} htmlFor="login-email">{t('auth:fields.emailAddress', 'Email address')}</label>
                 <div className={styles.fieldWrap}>
                   <span className={styles.fieldIcon}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                      <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z" />
-                      <path d="M22 6l-10 7L2 6" />
-                    </svg>
+                    <Icon size={20}><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M3.5 6.5 12 13l8.5-6.5" /></Icon>
                   </span>
                   <input
                     id="login-email"
@@ -202,28 +135,19 @@ export default function Login() {
                     type="email"
                     placeholder="you@example.com"
                     value={email}
-                    onChange={e => setEmail(e.target.value)}
+                    onChange={(e) => setEmail(e.target.value)}
                     onFocus={() => setFocused('email')}
                     onBlur={() => setFocused('')}
                     autoComplete="email"
                   />
-                  {email && (
-                    <span className={styles.fieldCheck}>
-                      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#16A34A" strokeWidth="2.5" strokeLinecap="round"><path d="M20 6L9 17l-5-5" /></svg>
-                    </span>
-                  )}
                 </div>
               </div>
 
-              {/* Password field */}
               <div className={`${styles.field} ${focused === 'password' ? styles.fieldFocused : ''} ${password ? styles.fieldHasValue : ''}`}>
                 <label className={styles.fieldLabel} htmlFor="login-password">{t('auth:fields.password', 'Password')}</label>
                 <div className={styles.fieldWrap}>
                   <span className={styles.fieldIcon}>
-                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                      <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-                      <path d="M7 11V7a5 5 0 0110 0v4" />
-                    </svg>
+                    <Icon size={20}><rect x="4" y="11" width="16" height="10" rx="2" /><path d="M8 11V7a4 4 0 018 0v4" /></Icon>
                   </span>
                   <input
                     id="login-password"
@@ -231,64 +155,65 @@ export default function Login() {
                     type={showPw ? 'text' : 'password'}
                     placeholder={t('auth:fields.yourPassword', 'Your password')}
                     value={password}
-                    onChange={e => setPassword(e.target.value)}
+                    onChange={(e) => setPassword(e.target.value)}
                     onFocus={() => setFocused('password')}
                     onBlur={() => setFocused('')}
                     autoComplete="current-password"
                   />
-                  <button type="button" className={styles.eyeBtn} onClick={() => setShowPw(!showPw)} aria-label={showPw ? t('auth:fields.hidePassword', 'Hide password') : t('auth:fields.showPassword', 'Show password')}>
+                  <button
+                    type="button"
+                    className={styles.eyeBtn}
+                    onClick={() => setShowPw(!showPw)}
+                    aria-label={showPw ? t('auth:fields.hidePassword', 'Hide password') : t('auth:fields.showPassword', 'Show password')}
+                  >
                     {showPw ? (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                        <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
-                        <line x1="1" y1="1" x2="23" y2="23" />
-                      </svg>
+                      <Icon size={20}><path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" /><path d="M1 1l22 22" /></Icon>
                     ) : (
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
-                        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-                        <circle cx="12" cy="12" r="3" />
-                      </svg>
+                      <Icon size={20}><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" /><circle cx="12" cy="12" r="3" /></Icon>
                     )}
                   </button>
                 </div>
               </div>
 
-              {/* Remember me */}
               <div className={styles.rememberRow}>
-                <div
-                  className={`${styles.checkbox} ${remember ? styles.checked : ''}`}
-                  onClick={() => setRemember(!remember)}
-                >
-                  {remember && (
-                    <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-                      <path d="M20 6L9 17l-5-5" />
-                    </svg>
-                  )}
-                </div>
-                <span className={styles.rememberLabel}>{t('auth:login.keepSignedIn', 'Keep me signed in for 30 days')}</span>
+                {/* A real checkbox under the drawn box: it used to be a clickable div,
+                    unreachable by keyboard and silent to a screen reader. */}
+                <label className={styles.remember}>
+                  <input
+                    type="checkbox"
+                    className={styles.checkInput}
+                    checked={remember}
+                    onChange={(e) => setRemember(e.target.checked)}
+                  />
+                  <span className={styles.checkbox} aria-hidden="true">
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+                  </span>
+                  <span className={styles.rememberLabel}>{t('auth:login.keepSignedIn', 'Keep me signed in for 30 days')}</span>
+                </label>
                 <Link to="/forgot-password" className={styles.forgotLink}>{t('auth:login.forgotPassword', 'Forgot password?')}</Link>
               </div>
 
-              {/* Submit */}
               <button className={styles.submitBtn} type="submit" disabled={loading}>
                 <span>{loading ? t('auth:login.signingIn', 'Signing in…') : t('auth:login.signIn', 'Sign In')}</span>
-                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                  <path d="M5 12h14M12 5l7 7-7 7" />
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+                  <path d="M5 12h14M13 6l6 6-6 6" />
                 </svg>
               </button>
             </form>
 
-            {/* Guest */}
+            <div className={styles.orRow}>{t('auth:login.orContinueWith', 'Or continue with')}</div>
             <div className={styles.guestRow}>
-              <div className={styles.guestLine} />
-              <button className={styles.guestBtn} onClick={() => navigate('/')}>
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
-                  <circle cx="12" cy="12" r="10" />
-                  <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
-                </svg>
+              <button type="button" className={styles.guestBtn} onClick={() => navigate('/')}>
+                <GlobeIcon size={20} />
                 {t('auth:continueAsGuest', 'Continue as Guest')}
               </button>
-              <div className={styles.guestLine} />
             </div>
+
+            {/* Not in the design, but without it a new customer has no way from here to an
+                account: this page has no header. Kept small, under everything else. */}
+            <p className={styles.registerLine}>
+              <Trans i18nKey="auth:login.noAccount" t={t}>Don't have an account? <Link to="/register">Create one free</Link></Trans>
+            </p>
           </div>
         </div>
       </div>

@@ -15,26 +15,17 @@
     "support": "24/7 Support",
     "trustedBy": "Trusted by 2M+ Travelers",
     "freeCancellation": "Free Cancellation",
-    "awardWinning": "Award-Winning Service",
-    "note": "fresh finds, every day!",
-    "ghost": {
-      "wanderlust": "wanderlust",
-      "goldenHour": "golden hour",
-      "boardingSoon": "boarding soon…",
-      "seaBreeze": "sea breeze",
-      "nowArriving": "now arriving",
-      "sunChasing": "sun-chasing"
-    }
+    "awardWinning": "Award-Winning Service"
   },
   "newsletter": {
     "title": "Get exclusive holiday deals",
     "subtitle": "Subscribe for last-minute offers, travel inspiration, and member-only prices.",
     "placeholder": "Enter your email address",
     "button": "Subscribe",
-    "noSpam": "no spam, promise ✈"
+    "noSpam": "No spam, promise."
   },
   "trust": {
-    "tag": "✓ Trust",
+    "tag": "Trust",
     "title": "Why book with Sunsky?",
     "subtitle": "Thousands of travelers trust us for stress-free holidays.",
     "opensWebsite": "{{name}} (opens their website)",
@@ -58,10 +49,9 @@
     }
   },
   "categories": {
-    "tag": "✦ Explore",
+    "tag": "Explore",
     "title": "Something for everyone",
     "subtitle": "Find the perfect holiday that suits your travel style and budget.",
-    "hideDestinations": "Hide destinations",
     "destinationCount_one": "{{count}} destination",
     "destinationCount_other": "{{count}} destinations",
     "cats": {
@@ -70,11 +60,10 @@
       "carHolidays": "Car Holidays",
       "lastMinute": "Last Minute"
     },
-    "explore": "Explore",
-    "scribble": "pick your vibe"
+    "explore": "Explore"
   },
   "vacationTypes": {
-    "tag": "♡ Curated",
+    "tag": "Curated",
     "title": "Your favorite type of vacation",
     "subtitle": "Curated experiences designed around how you love to travel.",
     "explore": "Explore",
@@ -98,26 +87,23 @@
     }
   },
   "hotels": {
-    "tag": "★ Top Rated",
+    "tag": "Top Rated",
     "title": "Popular with our holidaymakers",
     "subtitle": "Top-rated hotels loved by thousands of happy travelers.",
     "guestScore": "Guest score",
-    "freeWifi": "FREE WIFI",
     "saveToFavourites": "Save {{name}} to favourites",
     "from": "From",
     "perPerson": "p.p.",
     "viewDeal": "View Deal",
     "viewDealFor": "View deal for {{name}}",
-    "headNote": "hand-picked by our travel crew",
-    "guestFavourite": "guest favourite!",
-    "bookingFast": "booking fast!"
+    "previous": "Previous hotels",
+    "next": "Next hotels"
   },
   "destinations": {
-    "tag": "☀ Destinations",
+    "tag": "Destinations",
     "title": "Our best sun destinations",
     "subtitle": "Handpicked destinations with guaranteed sunshine and incredible value.",
     "searchStaysIn": "Search stays in {{place}}",
-    "topThisSeason": "№1 this season",
     "holidayCount": "{{count}} holidays",
     "tabs": {
       "spain": "Spain",
@@ -138,13 +124,9 @@
     }
   },
   "popular": {
-    "tag": "🗺 Browse",
+    "tag": "Browse",
     "title": "Most popular destinations",
     "subtitle": "Browse our most searched and booked travel categories.",
-    "ghostWord": "wanderlust",
-    "arc": "POPULAR DESTINATIONS · SUNSKY TRAVEL ·",
-    "headNote": "go on, collect them all!",
-    "mostLoved": "Most loved",
     "search": "Search {{label}}",
     "groups": {
       "distant": {
@@ -205,8 +187,7 @@
       "autumnBreak": "Autumn Break",
       "christmasTravel": "Christmas Travel",
       "winterSun": "Winter Sun"
-    },
-    "nextStamp": "your next stamp goes here…"
+    }
   },
   "trustBar": {
     "eyebrow": "Guarantees",

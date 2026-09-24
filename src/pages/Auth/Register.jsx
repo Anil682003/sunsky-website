@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useId } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import mainLogo from '../../assets/main-logo.png';
@@ -215,11 +215,15 @@ function Field({
   label, placeholder, type = 'text', full, span2, required,
   select, options, value, onChange, onBlur, error, hint, max,
 }) {
+  // Ties the label to its control, so clicking the label focuses the field and a screen
+  // reader announces what the field is for.
+  const id = useId();
   return (
     <div className={`${styles.field} ${full ? styles.fieldFull : ''} ${span2 ? styles.fieldSpan2 : ''}`}>
-      <label className={styles.fieldLabel}>{label}{required && ' *'}</label>
+      <label className={styles.fieldLabel} htmlFor={id}>{label}{required && ' *'}</label>
       {select ? (
         <select
+          id={id}
           className={`${styles.fieldSelect} ${error ? styles.inputError : ''}`}
           value={value}
           onChange={onChange}
@@ -233,6 +237,7 @@ function Field({
         </select>
       ) : (
         <input
+          id={id}
           className={`${styles.fieldInput} ${error ? styles.inputError : ''}`}
           type={type}
           placeholder={placeholder}
@@ -274,10 +279,11 @@ function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChang
     c.name.toLowerCase().includes(q) || phoneCountryLabel(c.name).toLowerCase().includes(q) || c.code.startsWith(q)
   );
   const selected = PHONE_CODES.find(c => c.code === codeValue) || PHONE_CODES[0];
+  const numberId = useId();
 
   return (
     <div className={`${styles.field} ${full ? styles.fieldFull : ''} ${span2 ? styles.fieldSpan2 : ''}`}>
-      <label className={styles.fieldLabel}>{label}{required && ' *'}</label>
+      <label className={styles.fieldLabel} htmlFor={numberId}>{label}{required && ' *'}</label>
       <div className={styles.phoneRow} ref={wrapRef}>
         <button
           type="button"
@@ -326,6 +332,7 @@ function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChang
         )}
 
         <input
+          id={numberId}
           className={`${styles.phoneNumber} ${error ? styles.inputError : ''}`}
           type="tel"
           placeholder="470 123 456"
@@ -490,39 +497,6 @@ export default function Register() {
 
   return (
     <div className={styles.page}>
-      {/* The sky scene */}
-      <div className={styles.bgArt} aria-hidden="true">
-        <div className={styles.bgGrad} />
-        <div className={`${styles.blob} ${styles.blob1}`} />
-        <div className={`${styles.blob} ${styles.blob2}`} />
-        <div className={`${styles.blob} ${styles.blob3}`} />
-        <div className={styles.ring} />
-        <div className={styles.sun}>
-          <div className={styles.sunRays} />
-          <div className={styles.sunCore} />
-        </div>
-        <div className={`${styles.cloud} ${styles.cloud1}`} />
-        <div className={`${styles.cloud} ${styles.cloud2}`} />
-        <svg className={styles.balloon} viewBox="0 0 120 164" fill="none">
-          <defs>
-            <linearGradient id="ssbGradR" x1="0" y1="0" x2="1" y2="0">
-              <stop offset="0" stopColor="#2E62E6" />
-              <stop offset="0.55" stopColor="#3D7BF0" />
-              <stop offset="1" stopColor="#7FB8FF" />
-            </linearGradient>
-          </defs>
-          <path d="M60 4C27 4 8 30 8 60c0 30 27 51 39 64h26c12-13 39-34 39-64C112 30 93 4 60 4Z" fill="url(#ssbGradR)" />
-          <path d="M60 4C43 4 33 30 33 60c0 30 13 51 19 64h8V4Z" fill="rgba(255,255,255,0.28)" />
-          <path d="M60 4c17 0 27 26 27 56 0 30-13 51-19 64h-8V4Z" fill="rgba(10,35,110,0.12)" />
-          <path d="M10 47c16-9 84-9 100 0 1.5 4 2 9 2 13-18-8-86-8-104 0 0-4 .5-9 2-13Z" fill="#FFC24D" />
-          <path d="M47 124l6 18M73 124l-6 18M60 124v18" stroke="#B07A22" strokeWidth="1.6" />
-          <rect x="48" y="140" width="24" height="17" rx="4" fill="#D89B3F" />
-          <rect x="48" y="140" width="24" height="6" rx="3" fill="#B07A22" />
-        </svg>
-        <div className={styles.horizon} />
-        <div className={styles.grain} />
-      </div>
-
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
           {/* The wordmark carries the name, so no text beside it. */}
@@ -538,19 +512,19 @@ export default function Register() {
 
         <div className={styles.trustRow}>
           <div className={styles.trustItem}>
-            <div className={`${styles.trustIcon} ${styles.orange}`}>
+            <div className={styles.trustIcon}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
             <span className={styles.trustLabel}>{t('auth:register.trustSecure', 'Secure & GDPR-compliant')}</span>
           </div>
           <div className={styles.trustItem}>
-            <div className={`${styles.trustIcon} ${styles.blue}`}>
+            <div className={styles.trustIcon}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
             </div>
             <span className={styles.trustLabel}>{t('auth:register.trustBestPrice', 'Best price guarantee')}</span>
           </div>
           <div className={styles.trustItem}>
-            <div className={`${styles.trustIcon} ${styles.coral}`}>
+            <div className={styles.trustIcon}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
             </div>
             <span className={styles.trustLabel}>{t('auth:register.trustHappyCustomers', 'Happy customers worldwide')}</span>
@@ -632,18 +606,21 @@ export default function Register() {
 
               <SectionHead index="04" title={t('auth:register.sectionBusinessAccount', 'Business account')} note={t('auth:register.optional', 'Optional')} />
               <div className={`${styles.companyBlock} ${isCompany ? styles.companyOpen : ''}`}>
-                <div className={styles.companyToggle} onClick={toggleCompany}>
-                  <div className={`${styles.checkbox} ${isCompany ? styles.checked : ''}`}>
-                    {isCompany && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
-                  </div>
-                  <div className={styles.companyToggleText}>
+                {/* Real checkboxes under the drawn boxes (here and on the terms): both used to
+                    be clickable divs, unreachable by keyboard and silent to screen readers. */}
+                <label className={styles.companyToggle}>
+                  <input type="checkbox" className={styles.checkInput} checked={isCompany} onChange={toggleCompany} />
+                  <span className={styles.checkbox} aria-hidden="true">
+                    <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                  </span>
+                  <span className={styles.companyToggleText}>
                     <strong>{t('auth:register.registeringAsCompany', "I'm registering as a company")}</strong>
                     <span>{t('auth:register.registeringAsCompanyHint', 'Book on behalf of a business. You stay the primary contact on the account.')}</span>
-                  </div>
-                  <svg className={styles.companyIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
+                  </span>
+                  <svg className={styles.companyIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" aria-hidden="true">
                     <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/>
                   </svg>
-                </div>
+                </label>
 
                 {isCompany && (
                   <div className={`${styles.formGrid} ${styles.companyFields}`}>
@@ -655,12 +632,13 @@ export default function Register() {
                 )}
               </div>
 
-              <div className={styles.terms}>
-                <div className={`${styles.checkbox} ${agreed ? styles.checked : ''}`} onClick={() => setAgreed(!agreed)}>
-                  {agreed && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
-                </div>
+              <label className={styles.terms}>
+                <input type="checkbox" className={styles.checkInput} checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
+                <span className={styles.checkbox} aria-hidden="true">
+                  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>
+                </span>
                 <span className={styles.termsText}><Trans i18nKey="auth:register.termsText" t={t}>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></Trans></span>
-              </div>
+              </label>
             </div>
 
             <div className={styles.cardFoot}>
@@ -670,8 +648,8 @@ export default function Register() {
                   {t('auth:continueAsGuest', 'Continue as Guest')}
                 </button>
                 <button className={styles.submitBtn} disabled={!agreed || sending || loading} onClick={handleRegister}>
-                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
                   {sending ? t('auth:register.sendingCode', 'Sending code…') : (isCompany ? t('auth:register.createBusinessAccount', 'Create Business Account') : t('auth:register.createAccount', 'Create Account'))}
+                  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
                 </button>
               </div>
             </div>

@@ -1,7 +1,8 @@
 /* ═══════════════════════════════════════════════════════════
-   SunSky — Create Account · "Golden Hour" v3
-   Full-bleed sky scene, passport-stamp trust badges, and the
-   registration form as a boarding-pass ticket.
+   SunSky — Create Account
+   The brand message on the left and the registration card on the
+   right, on a calm light background. The card keeps its fixed
+   header and footer with the form scrolling between them.
    ═══════════════════════════════════════════════════════════ */
 
 .page {
@@ -9,118 +10,10 @@
   display: flex;
   position: relative;
   overflow: hidden;
-  background:
-    radial-gradient(ellipse at 20% -8%, rgba(255, 214, 130, 0.34) 0%, transparent 44%),
-    radial-gradient(ellipse at 96% 30%, rgba(163, 204, 255, 0.28) 0%, transparent 50%),
-    linear-gradient(180deg, #D9EBFF 0%, #F0F8FF 38%, #FFF6E9 74%, #FFEDD3 100%);
+  background: linear-gradient(180deg, #EEF4FD 0%, #F7F9FD 55%, #FFFFFF 100%);
 }
 
-/* ══ The sky scene ══ */
-.bgArt { position: absolute; inset: 0; pointer-events: none; }
-.bgGrad {
-  position: absolute; inset: 0;
-  background:
-    radial-gradient(ellipse at 50% 112%, rgba(255, 226, 180, 0.60) 0%, transparent 55%),
-    radial-gradient(ellipse at 70% 8%, rgba(255, 255, 255, 0.5) 0%, transparent 45%);
-}
-.blob {
-  position: absolute; filter: blur(64px); opacity: 0.6;
-  animation: morphBlob 18s ease-in-out infinite;
-}
-.blob1 { width: 420px; height: 280px; background: rgba(255, 255, 255, 0.85); top: 8%; left: 30%; animation-duration: 22s; }
-.blob2 { width: 340px; height: 240px; background: rgba(214, 233, 255, 0.9); bottom: 4%; left: -6%; animation-delay: -8s; animation-duration: 26s; }
-.blob3 { width: 280px; height: 200px; background: rgba(255, 240, 214, 0.9); bottom: 14%; right: -5%; animation-delay: -14s; animation-duration: 20s; }
-.ring {
-  position: absolute; width: 560px; height: 560px;
-  border: 1.5px dashed rgba(31, 79, 216, 0.12); border-radius: 50%;
-  bottom: -24%; left: -12%; animation: spinSlow 110s linear infinite;
-}
-.ring::before {
-  content: ''; position: absolute; width: 12px; height: 12px;
-  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
-  border-radius: 50%;
-  top: -6px; left: 50%; transform: translateX(-50%);
-  box-shadow: 0 0 18px rgba(255, 159, 28, 0.55);
-}
-
-/* The sun — top-left, above the brand column */
-.sun {
-  position: absolute; top: -140px; left: -70px;
-  width: 340px; height: 340px; border-radius: 50%;
-  background: radial-gradient(circle, rgba(255, 210, 100, 0.60) 0%, rgba(255, 176, 59, 0.26) 46%, transparent 70%);
-  animation: sunBreath 8s ease-in-out infinite;
-}
-.sunRays {
-  position: absolute; inset: -100px; border-radius: 50%;
-  background: repeating-conic-gradient(rgba(255, 186, 70, 0.15) 0deg 5deg, transparent 5deg 16deg);
-  mask-image: radial-gradient(circle, black 26%, transparent 64%);
-  -webkit-mask-image: radial-gradient(circle, black 26%, transparent 64%);
-  animation: spinSlow 140s linear infinite;
-}
-.sunCore {
-  position: absolute; top: 50%; left: 50%;
-  width: 126px; height: 126px; border-radius: 50%;
-  transform: translate(-50%, -50%);
-  background: radial-gradient(circle at 38% 34%, #FFF0BE 0%, #FFD166 44%, #FFA82E 100%);
-  box-shadow:
-    0 0 70px rgba(255, 190, 80, 0.9),
-    0 0 160px rgba(255, 170, 50, 0.5);
-}
-@keyframes sunBreath {
-  0%, 100% { transform: scale(1); }
-  50%      { transform: scale(1.04); }
-}
-
-/* Drifting clouds */
-.cloud {
-  position: absolute;
-  background: rgba(255, 255, 255, 0.95);
-  border-radius: 999px;
-  filter: blur(16px);
-  opacity: 0.7;
-}
-.cloud::before, .cloud::after {
-  content: ''; position: absolute; background: inherit; border-radius: inherit;
-}
-.cloud1 { width: 240px; height: 58px; top: 16%; left: -300px; animation: cloudDrift 85s linear infinite; }
-.cloud1::before { width: 120px; height: 70px; top: -34px; left: 48px; }
-.cloud1::after { width: 84px; height: 50px; top: -20px; left: 138px; }
-.cloud2 { width: 170px; height: 44px; top: 58%; left: -240px; animation: cloudDrift 110s linear infinite; animation-delay: -42s; opacity: 0.5; }
-.cloud2::before { width: 86px; height: 52px; top: -26px; left: 36px; }
-@keyframes cloudDrift {
-  from { transform: translateX(0); }
-  to   { transform: translateX(calc(100vw + 560px)); }
-}
-
-/* Hot-air balloon — floating over the brand column */
-.balloon {
-  position: absolute; top: 9%; left: 27%;
-  width: 76px; height: auto; z-index: 1;
-  filter: drop-shadow(0 18px 28px rgba(31, 79, 216, 0.22));
-  animation: balloonFloat 10s ease-in-out infinite;
-  transform-origin: 50% 10%;
-}
-@keyframes balloonFloat {
-  0%, 100% { transform: translateY(0) rotate(-1.6deg); }
-  50%      { transform: translateY(-16px) rotate(1.6deg); }
-}
-
-/* Cloud sea at the horizon */
-.horizon {
-  position: absolute; left: -10%; right: -10%; bottom: -130px; height: 300px;
-  background:
-    radial-gradient(50% 90% at 24% 100%, rgba(255, 255, 255, 0.85) 0%, transparent 68%),
-    radial-gradient(58% 100% at 64% 100%, rgba(255, 255, 255, 0.65) 0%, transparent 70%),
-    radial-gradient(46% 84% at 92% 100%, rgba(255, 255, 255, 0.75) 0%, transparent 66%);
-}
-
-/* Film grain */
-.grain {
-  position: absolute; inset: 0; opacity: 0.035; mix-blend-mode: multiply;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='140' height='140'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2'/%3E%3C/filter%3E%3Crect width='140' height='140' filter='url(%23n)'/%3E%3C/svg%3E");
-}
-
-/* ══ Left column — editorial brand story ══ */
+/* ══ Left column — the brand message ══ */
 .brandPanel {
   flex: 0 0 37%;
   max-width: 540px;
@@ -128,7 +21,7 @@
   padding: 44px 24px 44px clamp(32px, 5vw, 76px);
   position: relative; z-index: 2;
 }
-.brandPanel > * { animation: fadeUpSoft 0.7s var(--ease) both; }
+.brandPanel > * { animation: fadeUpSoft 0.6s var(--ease) both; }
 
 /* The brand wordmark. It replaced a square icon chip plus the words "SunSky" set beside it:
    the new logo carries the name itself, so the chip and the text would have printed the
@@ -139,19 +32,16 @@
   width: auto;
   max-width: 330px;
   object-fit: contain;
-  transition: transform 0.4s var(--ease-spring);
 }
-.logo:hover .logoWordmark { transform: scale(1.04); }
 @media (max-width: 760px) {
   .logoWordmark { height: 50px; max-width: 270px; }
 }
 
-.brandPanel > *:nth-child(2) { animation-delay: 0.08s; }
-.brandPanel > *:nth-child(3) { animation-delay: 0.16s; }
-.brandPanel > *:nth-child(4) { animation-delay: 0.24s; }
-.brandPanel > *:nth-child(5) { animation-delay: 0.32s; }
+.brandPanel > *:nth-child(2) { animation-delay: 0.07s; }
+.brandPanel > *:nth-child(3) { animation-delay: 0.14s; }
+.brandPanel > *:nth-child(4) { animation-delay: 0.21s; }
 @keyframes fadeUpSoft {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(12px); }
   to   { opacity: 1; transform: translateY(0); }
 }
 
@@ -159,81 +49,48 @@
   display: flex; align-items: center; gap: 12px;
   margin-bottom: 38px; text-decoration: none;
   width: fit-content;
-  transition: transform 0.3s var(--ease);
+  border-radius: 8px;
 }
-.logo:hover { transform: translateY(-1px); }
-.logoImg {
-  width: 48px; height: 48px; object-fit: contain;
-  padding: 7px; border-radius: 15px;
-  background: rgba(255, 255, 255, 0.8);
-  border: 1px solid rgba(255, 255, 255, 0.95);
-  backdrop-filter: blur(8px);
-  -webkit-backdrop-filter: blur(8px);
-  box-shadow: 0 10px 26px rgba(31, 79, 216, 0.14), inset 0 1px 0 #fff;
-}
-.logoText {
-  font-family: 'Sora', sans-serif; font-size: 1.5rem;
-  font-weight: 800; color: var(--text); letter-spacing: -0.6px;
-}
-.logoText span { color: var(--sun-orange); }
+.logo:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 4px; }
 
 .brandTitle {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(2rem, 3vw, 2.85rem);
-  font-weight: 800; color: var(--text); line-height: 1.08;
-  letter-spacing: -1.4px; margin-bottom: 16px;
+  font-size: clamp(2rem, 3vw, 2.75rem);
+  font-weight: 700; color: var(--text); line-height: 1.1;
+  letter-spacing: -0.03em; margin-bottom: 16px;
 }
+/* The one handwritten word: solid colour, no gradient. */
 .brandTitle em {
   font-style: normal; font-family: 'Caveat', cursive;
-  font-size: 1.22em; font-weight: 700;
-  background: linear-gradient(94deg, #FF9210 10%, #FFB93E 60%, #F7A62B 100%);
-  -webkit-background-clip: text; background-clip: text;
-  color: transparent;
-  /* padding keeps the glyph flourishes inside the painted background box */
-  padding: 0.04em 0.14em 0.08em 0.04em;
-  margin-right: 0.02em;
+  font-size: 1.16em; font-weight: 700;
+  letter-spacing: 0;
+  color: var(--accent-script);
 }
 .brandSub {
   font-size: 0.98rem; color: var(--text-sec);
-  line-height: 1.75; margin-bottom: 34px; max-width: 360px;
+  line-height: 1.7; margin-bottom: 30px; max-width: 380px;
 }
 
-/* Passport-stamp trust badges */
-.trustRow { display: flex; flex-direction: column; gap: 16px; }
-.trustItem {
-  display: flex; align-items: center; gap: 11px;
-  width: fit-content;
-  padding: 10px 20px 10px 13px;
-  border-radius: 14px;
-  background: rgba(255, 255, 255, 0.55);
-  border: 1.8px dashed rgba(255, 159, 28, 0.55);
-  backdrop-filter: blur(6px);
-  -webkit-backdrop-filter: blur(6px);
-  transition: transform 0.35s var(--ease), box-shadow 0.35s var(--ease);
+/* Three plain promises */
+.trustRow {
+  display: flex; flex-direction: column; gap: 14px;
+  padding-top: 24px;
+  border-top: 1px solid var(--line);
+  max-width: 380px;
 }
-.trustItem:nth-child(1) { transform: rotate(-2.4deg); }
-.trustItem:nth-child(2) { transform: rotate(1.8deg); margin-left: 30px; border-color: rgba(31, 79, 216, 0.45); }
-.trustItem:nth-child(3) { transform: rotate(-1.4deg); margin-left: 10px; border-color: rgba(255, 107, 107, 0.5); }
-.trustItem:hover {
-  transform: rotate(0deg) translateY(-3px);
-  box-shadow: 0 12px 28px rgba(31, 79, 216, 0.12);
-}
+.trustItem { display: flex; align-items: center; gap: 12px; }
 .trustIcon {
-  width: 34px; height: 34px; border-radius: 50%;
+  width: 34px; height: 34px; border-radius: 10px;
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
+  background: var(--blue-light); color: var(--blue-deep);
 }
-.trustIcon.orange { background: rgba(255, 159, 28, 0.14); color: #C77700; }
-.trustIcon.blue { background: rgba(31, 79, 216, 0.10); color: var(--blue-deep); }
-.trustIcon.coral { background: rgba(255, 107, 107, 0.12); color: #D64545; }
 .trustLabel {
-  font-family: 'Sora', sans-serif;
-  font-size: 11px; font-weight: 700;
-  text-transform: uppercase; letter-spacing: 1.3px;
-  color: var(--text-sec);
+  font-size: 0.92rem; font-weight: 600;
+  color: var(--text);
 }
 
-/* ══ Right column — the boarding-pass ticket ══ */
+/* ══ Right column — the registration card ══ */
 .formPanel {
   flex: 1; display: flex; align-items: stretch;
   padding: 20px 22px 20px 16px;
@@ -242,67 +99,42 @@
 }
 .card {
   width: 100%; display: flex;
-  border-radius: 28px;
-  filter: drop-shadow(0 36px 70px rgba(31, 79, 216, 0.18)) drop-shadow(0 6px 18px rgba(31, 79, 216, 0.07));
-  animation: cardIn 0.8s var(--ease) both;
+  animation: cardIn 0.5s var(--ease) both;
   position: relative;
 }
 @keyframes cardIn {
-  from { opacity: 0; transform: translateY(30px) scale(0.99); }
-  to   { opacity: 1; transform: translateY(0) scale(1); }
+  from { opacity: 0; transform: translateY(12px); }
+  to   { opacity: 1; transform: translateY(0); }
 }
 
-/* the ticket surface — masked with perforation notches at the stub */
+/* The card surface: header, a scrolling body and a footer that stays put. */
 .ticket {
   flex: 1; min-width: 0; min-height: 0;
   display: flex; flex-direction: column;
   background: #FFFFFF;
-  border-radius: 28px;
+  border: 1px solid var(--line);
+  border-radius: 24px;
   overflow: hidden;
-  position: relative;
-  --notchY: calc(100% - 124px);
-  -webkit-mask:
-    radial-gradient(circle at 0 var(--notchY), transparent 11px, black 11.8px),
-    radial-gradient(circle at 100% var(--notchY), transparent 11px, black 11.8px);
-  -webkit-mask-composite: source-in;
-  mask:
-    radial-gradient(circle at 0 var(--notchY), transparent 11px, black 11.8px),
-    radial-gradient(circle at 100% var(--notchY), transparent 11px, black 11.8px);
-  mask-composite: intersect;
-}
-.ticket::before {
-  content: '';
-  position: absolute; top: 0; left: 0; right: 0; height: 4px;
-  background: linear-gradient(90deg, var(--blue-deep), var(--blue-ocean) 40%, var(--sun-gold) 72%, var(--sun-orange));
-  z-index: 1;
-}
-/* perforation line — anchored to the same --notchY as the notch mask */
-.ticket::after {
-  content: '';
-  position: absolute; left: 16px; right: 16px;
-  top: calc(var(--notchY) - 1px);
-  border-top: 2px dashed #DFE9F8;
-  pointer-events: none;
-  z-index: 2;
+  box-shadow: 0 1px 3px rgba(15, 40, 100, 0.04), 0 16px 48px rgba(15, 40, 100, 0.08);
 }
 
 /* Card fixed header */
 .cardHead {
-  padding: 26px 38px 16px;
+  padding: 26px 38px 18px;
   flex-shrink: 0;
-  border-bottom: 1px solid #EDF3FE;
+  border-bottom: 1px solid var(--line);
 }
-.cardHeader { text-align: center; animation: fadeUpSoft 0.6s var(--ease) 0.12s both; }
+.cardHeader { text-align: center; }
 .cardTitle {
-  font-family: 'Sora', sans-serif; font-size: 1.52rem;
-  font-weight: 800; color: var(--text); margin-bottom: 6px;
-  letter-spacing: -0.6px;
+  font-family: 'Sora', sans-serif; font-size: 1.5rem;
+  font-weight: 700; color: var(--text); margin-bottom: 6px;
+  letter-spacing: -0.02em;
 }
-.cardSub { font-size: 0.86rem; color: var(--text-sec); }
-.cardSub a { color: var(--blue-deep); font-weight: 700; transition: color 0.2s; }
-.cardSub a:hover { color: var(--sun-orange); }
+.cardSub { font-size: 0.88rem; color: var(--text-sec); }
+.cardSub a { color: var(--blue-deep); font-weight: 700; }
+.cardSub a:hover { text-decoration: underline; }
 
-/* Section head — a boarding-pass row divider */
+/* Section head — number, title, hairline */
 .sectionHead {
   display: flex; align-items: center; gap: 9px;
   margin: 26px 0 14px;
@@ -327,13 +159,13 @@
   font-size: 10px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.8px;
   color: var(--text-light);
-  border: 1px dashed #D5E0F2;
+  border: 1px solid var(--line);
   border-radius: var(--r-full);
   padding: 2px 8px; flex-shrink: 0;
 }
 .sectionRule {
-  flex: 1; height: 0;
-  border-top: 1.5px dashed #E3EBF8;
+  flex: 1; height: 1px;
+  background: var(--line);
 }
 
 /* Card scrollable body */
@@ -354,11 +186,10 @@
 .formGrid {
   display: grid; gap: 16px;
   grid-template-columns: 1fr 1fr 1fr;
-  animation: fadeIn 0.35s var(--ease) both;
 }
 .fieldSpan2 { grid-column: span 2; }
 .fieldFull { grid-column: 1 / -1; }
-.field { position: relative; }
+.field { position: relative; min-width: 0; }
 .fieldLabel {
   display: block; font-size: 10.5px; font-weight: 700;
   text-transform: uppercase; letter-spacing: 1px;
@@ -370,7 +201,7 @@
   border: 1.5px solid #E3EBF8;
   border-radius: 13px; color: var(--text);
   font-size: 13.5px; font-family: 'DM Sans', sans-serif;
-  outline: none; transition: all 0.3s var(--ease);
+  outline: none; transition: border-color 0.2s var(--ease), background 0.2s var(--ease), box-shadow 0.2s var(--ease);
   caret-color: var(--blue-deep);
 }
 .fieldInput::placeholder { color: #A9BAD6; }
@@ -378,7 +209,7 @@
 .fieldInput:focus {
   border-color: var(--blue-mid);
   background: #FFFFFF;
-  box-shadow: 0 0 0 4px rgba(58, 111, 232, 0.13);
+  box-shadow: 0 0 0 3px rgba(58, 111, 232, 0.13);
 }
 .fieldSelect {
   width: 100%; padding: 12.5px 14px;
@@ -386,7 +217,7 @@
   border: 1.5px solid #E3EBF8;
   border-radius: 13px; color: var(--text);
   font-size: 13.5px; font-family: 'DM Sans', sans-serif;
-  outline: none; transition: all 0.3s var(--ease);
+  outline: none; transition: border-color 0.2s var(--ease), background-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
   appearance: none;
   background-image: url("data:image/svg+xml,%3Csvg width='12' height='8' viewBox='0 0 12 8' fill='none' xmlns='http://www.w3.org/2000/svg'%3E%3Cpath d='M1 1.5L6 6.5L11 1.5' stroke='%235E7291' stroke-width='1.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -397,7 +228,7 @@
 .fieldSelect:focus {
   border-color: var(--blue-mid);
   background-color: #FFFFFF;
-  box-shadow: 0 0 0 4px rgba(58, 111, 232, 0.13);
+  box-shadow: 0 0 0 3px rgba(58, 111, 232, 0.13);
 }
 .fieldSelect option { background: #FFFFFF; color: var(--text); }
 
@@ -409,7 +240,7 @@
 }
 .inputError:focus {
   border-color: #E76A6A;
-  box-shadow: 0 0 0 4px rgba(231, 106, 106, 0.14);
+  box-shadow: 0 0 0 3px rgba(231, 106, 106, 0.14);
 }
 .errorText,
 .hintText {
@@ -433,23 +264,24 @@
   color: var(--text); font-size: 13px; font-family: 'DM Sans', sans-serif;
   cursor: pointer; white-space: nowrap;
   flex-shrink: 0;
-  transition: background 0.3s, border-color 0.3s;
+  transition: background 0.2s;
 }
 .phoneCodeBtn:hover { background: var(--blue-light); }
+.phoneCodeBtn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 2px; }
 .phoneNumber {
   flex: 1; min-width: 0; padding: 12.5px 14px;
   background: #F8FBFF;
   border: 1.5px solid #E3EBF8;
   border-radius: 0 13px 13px 0;
   color: var(--text); font-size: 13.5px; font-family: 'DM Sans', sans-serif;
-  outline: none; transition: all 0.3s var(--ease);
+  outline: none; transition: border-color 0.2s var(--ease), background 0.2s var(--ease), box-shadow 0.2s var(--ease);
   caret-color: var(--blue-deep);
 }
 .phoneNumber::placeholder { color: #A9BAD6; }
 .phoneNumber:focus {
   border-color: var(--blue-mid);
   background: #FFFFFF;
-  box-shadow: 0 0 0 4px rgba(58, 111, 232, 0.13);
+  box-shadow: 0 0 0 3px rgba(58, 111, 232, 0.13);
 }
 .phoneDropdown {
   position: absolute; top: calc(100% + 6px); left: 0;
@@ -457,10 +289,8 @@
   background: #FFFFFF;
   border: 1px solid #E3EBF8;
   border-radius: 16px;
-  box-shadow: 0 24px 64px rgba(31, 79, 216, 0.18), 0 4px 16px rgba(31, 79, 216, 0.08);
+  box-shadow: 0 18px 48px rgba(7, 20, 60, 0.16), 0 2px 8px rgba(7, 20, 60, 0.06);
   overflow: hidden;
-  animation: scaleIn 0.2s var(--ease) both;
-  transform-origin: top left;
 }
 .phoneSearchWrap {
   display: flex; align-items: center; gap: 8px;
@@ -507,12 +337,12 @@
 .strengthSeg {
   flex: 1; border-radius: 3px;
   background: #E8EFFB;
-  transition: background 0.35s, box-shadow 0.35s;
+  transition: background 0.3s;
 }
-.strengthSeg.filled1 { background: #FF6B6B; box-shadow: 0 1px 6px rgba(255, 107, 107, 0.4); }
-.strengthSeg.filled2 { background: var(--sun-orange); box-shadow: 0 1px 6px rgba(255, 159, 28, 0.4); }
-.strengthSeg.filled3 { background: #FFC24D; box-shadow: 0 1px 6px rgba(255, 194, 77, 0.4); }
-.strengthSeg.filled4 { background: #22C55E; box-shadow: 0 1px 6px rgba(34, 197, 94, 0.4); }
+.strengthSeg.filled1 { background: #EF4444; }
+.strengthSeg.filled2 { background: #F59E0B; }
+.strengthSeg.filled3 { background: #84CC16; }
+.strengthSeg.filled4 { background: #16A34A; }
 .strengthHint {
   grid-column: 1 / -1;
   display: flex; gap: 16px; flex-wrap: wrap;
@@ -529,17 +359,18 @@
 .strengthHint span.met { color: #16A34A; font-weight: 600; }
 .strengthHint span.met::before { background: #22C55E; }
 
-/* Business account — a ticket add-on stub */
+/* Business account (optional) */
 .companyBlock {
-  border: 1.5px dashed #D9E4F6;
+  border: 1px solid var(--line);
   border-radius: 16px;
-  background: #FBFDFF;
-  transition: border-color 0.35s var(--ease), background 0.35s var(--ease);
+  background: #FFFFFF;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
 .companyBlock.companyOpen {
-  border-color: rgba(255, 159, 28, 0.55);
-  background: linear-gradient(180deg, #FFFBF4, #FFFFFF);
+  border-color: var(--blue-soft);
+  background: var(--blue-bg);
 }
+/* The whole row is the checkbox's label. */
 .companyToggle {
   display: flex; align-items: center; gap: 11px;
   padding: 14px 16px;
@@ -556,61 +387,52 @@
 .companyToggleText span {
   font-size: 11.5px; color: var(--text-sec); line-height: 1.45;
 }
-.companyIcon { color: #C6D5EE; flex-shrink: 0; transition: color 0.35s var(--ease); }
-.companyOpen .companyIcon { color: var(--sun-orange); }
-.companyFields {
-  padding: 2px 16px 16px;
-  animation: fadeUpSoft 0.4s var(--ease) both;
-}
+.companyIcon { color: #C6D5EE; flex-shrink: 0; transition: color 0.2s var(--ease); }
+.companyOpen .companyIcon { color: var(--blue-deep); }
+.companyFields { padding: 2px 16px 16px; }
 
 /* Terms */
 .terms {
   display: flex; align-items: flex-start; gap: 10px;
   margin-top: 22px;
+  cursor: pointer;
+}
+/* A real checkbox, visually replaced; the drawn box follows its state. */
+.checkInput {
+  position: absolute; width: 1px; height: 1px;
+  opacity: 0; pointer-events: none;
 }
 .checkbox {
   width: 20px; height: 20px; flex-shrink: 0;
   border: 1.5px solid #C6D5EE;
-  border-radius: 7px; cursor: pointer;
+  border-radius: 6px;
   display: flex; align-items: center; justify-content: center;
-  transition: all 0.25s var(--ease-spring);
+  color: transparent;
+  transition: background 0.15s var(--ease), border-color 0.15s var(--ease), color 0.15s var(--ease);
   background: #FFFFFF;
   margin-top: 1px;
 }
-.checkbox:hover { border-color: var(--blue-mid); transform: scale(1.06); }
-.checkbox.checked {
-  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
-  border-color: transparent;
-  box-shadow: 0 4px 14px rgba(255, 159, 28, 0.4);
+.companyToggle:hover .checkbox,
+.terms:hover .checkbox { border-color: var(--blue-mid); }
+.checkInput:checked + .checkbox {
+  background: var(--blue-deep);
+  border-color: var(--blue-deep);
+  color: #FFFFFF;
 }
+.checkInput:focus-visible + .checkbox { box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.25); }
 .termsText {
   font-size: 12.5px; color: var(--text-sec);
   line-height: 1.5;
 }
 .termsText a { color: var(--blue-deep); font-weight: 600; }
-.termsText a:hover { color: var(--sun-orange); }
+.termsText a:hover { text-decoration: underline; }
 
-/* Ticket stub — the fixed footer below the perforation */
+/* The fixed footer */
 .cardFoot {
   padding: 16px 38px 18px;
   flex-shrink: 0;
-  background: linear-gradient(180deg, #FDFEFF, #F8FBFF);
-  position: relative;
-}
-.cardFoot::after {
-  content: '';
-  position: absolute; right: 38px; bottom: 16px;
-  width: 52px; height: 20px;
-  background: repeating-linear-gradient(90deg,
-    rgba(26, 39, 68, 0.55) 0 1.5px, transparent 1.5px 4px,
-    rgba(26, 39, 68, 0.55) 4px 6.5px, transparent 6.5px 8px);
-  opacity: 0.24; border-radius: 1px;
-}
-.cardFoot::before {
-  content: 'SSK · BRU · 26';
-  position: absolute; left: 38px; bottom: 18px;
-  font-family: 'Sora', sans-serif; font-size: 8.5px; font-weight: 700;
-  letter-spacing: 2px; color: #B9C7E0;
+  background: #FFFFFF;
+  border-top: 1px solid var(--line);
 }
 
 /* Navigation row — guest opt-out on the left, the one submit on the right */
@@ -623,48 +445,33 @@
   outline-offset: 3px;
 }
 .submitBtn {
-  padding: 11.5px 30px; border-radius: var(--r-full);
-  background: linear-gradient(135deg, #FF9210 0%, #FFB93E 55%, #FFCB60 100%);
-  color: #fff; font-family: 'Sora', sans-serif;
-  font-size: 12.5px; font-weight: 700;
-  position: relative; overflow: hidden;
-  transition: all 0.4s var(--ease);
-  box-shadow:
-    0 12px 30px rgba(255, 159, 28, 0.38),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 -2px 0 rgba(200, 110, 0, 0.18);
+  padding: 12px 30px; border-radius: var(--r-full);
+  background: var(--cta-grad);
+  color: var(--cta-ink); text-shadow: var(--cta-ink-shadow);
+  font-family: 'Sora', sans-serif;
+  font-size: 13px; font-weight: 700;
+  transition: filter 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  box-shadow: 0 4px 14px rgba(194, 84, 10, 0.22);
   display: flex; align-items: center; gap: 8px;
   margin-left: auto;
 }
-.submitBtn::before {
-  content: ''; position: absolute; inset: 0;
-  background: linear-gradient(115deg, transparent 25%, rgba(255, 255, 255, 0.35) 50%, transparent 75%);
-  transform: translateX(-130%);
-  animation: shimmer 3.2s ease-in-out infinite;
-}
-.submitBtn:hover {
-  transform: translateY(-2px) scale(1.02);
-  box-shadow:
-    0 16px 40px rgba(255, 159, 28, 0.5),
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    inset 0 -2px 0 rgba(200, 110, 0, 0.18);
-}
+.submitBtn svg { transition: transform 0.2s var(--ease); }
+.submitBtn:hover:not(:disabled) { filter: brightness(1.06); box-shadow: 0 6px 18px rgba(194, 84, 10, 0.3); }
+.submitBtn:hover:not(:disabled) svg { transform: translateX(3px); }
 .submitBtn:disabled {
   opacity: 0.5; cursor: not-allowed;
-  transform: none !important;
-  box-shadow: none !important;
+  box-shadow: none;
 }
 
 .guestBtn {
-  padding: 8.5px 24px; border-radius: var(--r-full);
+  padding: 9px 24px; border-radius: var(--r-full);
   background: #FFFFFF;
   border: 1.5px solid #E3EBF8;
   color: var(--text-sec); font-size: 12px;
   font-weight: 600; font-family: 'Sora', sans-serif;
-  transition: all 0.3s var(--ease);
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
   display: flex; align-items: center; gap: 6px;
   white-space: nowrap;
-  box-shadow: 0 2px 8px rgba(31, 79, 216, 0.05);
 }
 .guestBtn:hover {
   background: var(--blue-light);
@@ -675,15 +482,11 @@
 /* ── Responsive ── */
 @media (max-width: 1180px) {
   .brandPanel { flex: 0 0 300px; padding: 32px 20px 32px 28px; }
-  .balloon { display: none; }
   .formGrid { grid-template-columns: 1fr 1fr; }
   .fieldSpan2 { grid-column: 1 / -1; }
 }
 @media (max-width: 960px) {
   .page { flex-direction: column; height: 100vh; }
-  .sun { width: 210px; height: 210px; top: -95px; left: -50px; }
-  .sunCore { width: 78px; height: 78px; }
-  .sunRays { inset: -55px; }
   .brandPanel {
     flex: none; max-width: none;
     padding: 18px 18px 4px;
@@ -691,15 +494,11 @@
   }
   .brandPanel > * { animation: none; }
   .logo { margin-bottom: 0; }
-  .logoImg { width: 40px; height: 40px; }
-  .logoText { font-size: 1.3rem; }
   .brandTitle, .brandSub, .trustRow { display: none; }
   .formPanel { flex: 1; padding: 12px; min-height: 0; }
-  .cardHead { padding: 20px 20px 0; }
+  .cardHead { padding: 20px 20px 16px; }
   .cardBody { padding: 18px 20px; }
   .cardFoot { padding: 12px 20px 14px; }
-  .cardFoot::before, .cardFoot::after { display: none; }
-  .ticket { --notchY: calc(100% - 116px); }
   .formGrid { grid-template-columns: 1fr 1fr; }
   .fieldSpan2 { grid-column: 1 / -1; }
 }
@@ -711,14 +510,15 @@
   .cardFoot { padding: 10px 16px 12px; }
   .navRow { flex-direction: column-reverse; align-items: stretch; }
   .submitBtn, .guestBtn { justify-content: center; }
+  .submitBtn { margin-left: 0; }
   .companyToggle { padding: 12px; }
   .companyFields { padding: 2px 12px 12px; }
 }
 
 /* Accessibility — respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .blob, .ring, .sun, .sunRays, .cloud1, .cloud2, .balloon,
-  .submitBtn::before, .card, .cardHeader,
-  .formGrid, .companyFields, .phoneDropdown, .brandPanel > * { animation: none; }
-  .trustItem, .submitBtn, .guestBtn, .logo, .checkbox, .companyBlock, .companyIcon { transition: none; }
+  .card, .brandPanel > * { animation: none; }
+  .submitBtn, .submitBtn svg, .guestBtn, .checkbox, .companyBlock, .companyIcon,
+  .fieldInput, .fieldSelect, .phoneNumber { transition: none; }
+  .submitBtn:hover:not(:disabled) svg { transform: none; }
 }

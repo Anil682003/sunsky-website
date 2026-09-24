@@ -56,7 +56,6 @@ export default function TrustBar() {
 
   return (
     <section className={styles.wrap} aria-labelledby="trustbar-title">
-      <div className={styles.glow} aria-hidden="true" />
       <div className={styles.inner}>
         <div className={styles.lead}>
           <span className={styles.eyebrow} aria-hidden="true">
@@ -67,9 +66,11 @@ export default function TrustBar() {
           </span>
           <h2 id="trustbar-title" className={styles.title}>
             {t('trustBar.titleLead', 'Your holiday is')}{' '}
-            <span className={styles.accent}>{t('trustBar.titleAccent', 'protected')}</span>
+            {t('trustBar.titleAccent', 'protected')}
           </h2>
         </div>
+
+        <span className={styles.divider} aria-hidden="true" />
 
         <ul className={styles.marks}>
           {INSURANCE_MARK_LIST.map((m, i) => {

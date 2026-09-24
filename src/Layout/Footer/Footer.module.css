@@ -1,8 +1,8 @@
 .footer {
-  background:linear-gradient(180deg,var(--blue-bg) 0%,var(--blue-bg2) 100%);
+  background:var(--blue-bg);
   color:var(--text);
   padding:72px 52px 36px;
-  border-top:1px solid var(--blue-light);
+  border-top:1px solid var(--line);
 }
 /* Brand block, then one row per navigation group beneath it. Columns were a bad
    fit once the CMS drove the content: "Terms & Traveller Rights" has eight links
@@ -33,9 +33,9 @@
   color:var(--text-sec);
   font-size:0.88rem; line-height:1.5;
   padding:6px 0;
-  transition:color 0.25s var(--ease), padding-left 0.25s var(--ease);
+  transition:color 0.2s var(--ease);
 }
-.navLinks a:hover { color:var(--blue-deep); padding-left:6px; }
+.navLinks a:hover { color:var(--blue-deep); }
 /* The cookie settings entry is a button, because it opens the consent dialog
    rather than going anywhere. Styled to sit in the column as one of the links,
    since a reader should not have to notice the difference. */
@@ -45,9 +45,9 @@
   color:var(--text-sec);
   font-size:0.88rem; line-height:1.5;
   padding:6px 0;
-  transition:color 0.25s var(--ease), padding-left 0.25s var(--ease);
+  transition:color 0.2s var(--ease);
 }
-.linkBtn:hover { color:var(--blue-deep); padding-left:6px; }
+.linkBtn:hover { color:var(--blue-deep); }
 .linkBtn:focus-visible { outline:2px solid var(--blue-ocean); outline-offset:2px; border-radius:3px; }
 .logo { cursor:pointer; }
 .logoText { font-family:'Sora',sans-serif; font-size:28px; font-weight:800; letter-spacing:-1px; color:var(--dark); }
@@ -130,7 +130,7 @@
   font-size:0.9rem; padding:7px 0;
   transition:all 0.3s var(--ease);
 }
-.col a:hover { color:var(--blue-deep); padding-left:10px; }
+.col a:hover { color:var(--blue-deep); }
 /* Trustpilot, above the divider. Two things can sit here: the score strip once the plan
    includes one, and the review invitation, which the free plan does include. */
 .trustRow { display:flex; flex-direction:column; align-items:center; gap:22px; margin:0 auto 34px; padding:0 24px; }
@@ -138,45 +138,21 @@
 
 /* ── The review invitation panel ──────────────────────────────────────────────
    Trustpilot's button is an iframe we cannot reach into, so the design lives entirely in
-   what surrounds it. Same language as the homepage trust stamps: a dashed orange edge on
-   near-white card stock, a postmark bleeding off the corner, and a handwritten aside. */
+   what surrounds it: a plain white card, the question on the left, their button on the right. */
 .invite {
-  position:relative;
   display:flex; align-items:center; gap:clamp(18px, 3vw, 34px);
   max-width:720px; width:100%;
-  padding:24px clamp(22px, 3vw, 34px);
-  background:rgba(255,255,255,0.86);
-  border:1.8px dashed rgba(255,159,28,0.5);
-  border-radius:var(--r-lg);
-  box-shadow:0 10px 30px rgba(31,79,216,0.07);
-  transition:border-color .35s var(--ease), box-shadow .35s var(--ease), background .35s var(--ease);
-  overflow:hidden;
-}
-.invite:hover {
+  padding:24px clamp(22px, 3vw, 32px);
   background:#fff;
-  border-color:rgba(255,159,28,0.8);
-  box-shadow:0 16px 40px rgba(31,79,216,0.12);
+  border:1px solid var(--line);
+  border-radius:var(--r-card);
+  box-shadow:var(--shadow-card);
 }
 
-/* The postmark, landing half off the top-LEFT corner the way a stamp hits an envelope.
-   Left, not right, because the right is where Trustpilot's button sits: their widget is an
-   iframe under their own brand rules, and laying even a 16%-opacity tint across it would
-   both look like a fault and alter the appearance of a mark that is not ours to alter.
-   z-index keeps it under the words as well as clear of the button. */
-.invitePostmark {
-  position:absolute; top:-34px; left:-30px;
-  width:124px; height:124px;
-  color:rgba(214,69,69,0.14);
-  transform:rotate(-12deg);
-  pointer-events:none;
-  z-index:0;
-}
-.invitePostmark svg { width:100%; height:100%; }
-
-.inviteText { flex:1; min-width:0; position:relative; z-index:1; }
+.inviteText { flex:1; min-width:0; }
 .inviteTitle {
   font-family:'Sora',sans-serif;
-  font-size:clamp(1.02rem, 1.6vw, 1.2rem); font-weight:800;
+  font-size:clamp(1.02rem, 1.6vw, 1.15rem); font-weight:700;
   letter-spacing:-0.02em; color:var(--text);
   margin:0 0 6px;
 }
@@ -185,38 +161,17 @@
   margin:0; max-width:42ch;
 }
 
-/* The button and its handwritten aside share a column so the note sits under the thing it
-   points at rather than floating loose in the panel. */
-.inviteAction {
-  flex-shrink:0;
-  display:flex; flex-direction:column; align-items:center; gap:2px;
-  position:relative;
-  z-index:1;
-}
+.inviteAction { flex-shrink:0; display:flex; align-items:center; }
 .trustCollector { width:100%; min-width:200px; min-height:52px; }
-
-.inviteNote {
-  display:flex; align-items:flex-start; gap:2px;
-  color:#C77700;
-  transform:rotate(-5deg);
-  pointer-events:none;
-}
-.inviteArrow { width:38px; height:auto; margin-top:2px; transform:scaleY(-1); }
-.inviteNoteText { font-family:'Caveat',cursive; font-size:1.28rem; font-weight:700; white-space:nowrap; }
 
 @media (max-width:720px) {
   .invite { flex-direction:column; align-items:stretch; text-align:center; gap:18px; padding:22px 20px; }
   .inviteSub { max-width:none; }
-  .invitePostmark { top:-32px; left:-26px; width:104px; height:104px; }
-  .inviteAction { align-items:center; }
+  .inviteAction { justify-content:center; }
   .trustCollector { min-width:0; }
 }
 
-@media (prefers-reduced-motion: reduce) {
-  .invite { transition:none; }
-}
-
-.divider { height:1px; background:linear-gradient(90deg,transparent,var(--blue-light),transparent); margin-bottom:36px; }
+.divider { max-width:1400px; height:1px; background:var(--line); margin:0 auto 32px; }
 .bottom { max-width:1400px; margin:0 auto; display:flex; justify-content:space-between; align-items:center; flex-wrap:wrap; gap:16px; }
 .copy { color:var(--text-light); font-size:0.83rem; }
 .bottomLinks { display:flex; gap:24px; }

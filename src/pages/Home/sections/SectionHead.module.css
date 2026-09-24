@@ -1,0 +1,63 @@
+/* The shared homepage section heading. Hierarchy comes from size and weight alone:
+   a quiet blue eyebrow, a navy title, a grey supporting line. */
+
+.head {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 16px 40px;
+  margin-bottom: clamp(28px, 3.4vw, 44px);
+}
+.center {
+  justify-content: center;
+  text-align: center;
+}
+.center .sub { margin-left: auto; margin-right: auto; }
+
+.text { min-width: 0; max-width: 760px; }
+
+.eyebrow {
+  font-family: 'Sora', sans-serif;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--blue-deep);
+  margin-bottom: 12px;
+}
+
+.title {
+  font-family: 'Sora', sans-serif;
+  font-size: clamp(1.75rem, 2.9vw, 2.5rem);
+  font-weight: 700;
+  line-height: 1.15;
+  letter-spacing: -0.025em;
+  color: var(--text);
+}
+/* The one handwritten word. Solid colour, no gradient, no glow; Caveat runs small for its
+   point size, so 1.14em brings it level with the Sora around it rather than above it. */
+.accent {
+  font-family: 'Caveat', cursive;
+  font-weight: 700;
+  font-size: 1.14em;
+  letter-spacing: 0;
+  color: var(--accent-script);
+}
+
+/* pre-line so a line break typed in the CMS shows as one here. */
+.sub {
+  white-space: pre-line;
+  margin-top: 12px;
+  max-width: 58ch;
+  font-size: 1rem;
+  line-height: 1.6;
+  color: var(--text-sec);
+}
+
+.action { flex-shrink: 0; }
+
+@media (max-width: 760px) {
+  .head { flex-direction: column; align-items: flex-start; }
+  .center { align-items: center; }
+  .sub { font-size: 0.95rem; }
+}

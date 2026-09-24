@@ -44,32 +44,13 @@
     radial-gradient(ellipse at 70% 80%, rgba(31,79,216,0.1) 0%, transparent 50%),
     linear-gradient(180deg, rgba(7,14,31,0.3) 0%, rgba(7,14,31,0.1) 35%, rgba(7,14,31,0.6) 100%);
 }
-.blob { position:absolute; filter:blur(80px); opacity:0.2; pointer-events:none; animation:morphBlob 12s ease-in-out infinite; }
-.blob1 { width:420px; height:420px; background:var(--sun-gold); top:5%; right:5%; animation-duration:15s; }
-.blob2 { width:300px; height:300px; background:var(--blue-ocean); bottom:10%; left:2%; animation-delay:-5s; animation-duration:18s; }
-.blob3 { width:180px; height:180px; background:var(--coral); top:50%; right:20%; animation-delay:-8s; animation-duration:12s; }
-.ring {
-  position:absolute; width:600px; height:600px;
-  border:1px solid rgba(255,255,255,0.04);
-  border-radius:50%; top:50%; left:50%;
-  transform:translate(-50%,-50%);
-  animation:spinSlow 60s linear infinite; pointer-events:none;
-}
-.ring::before {
-  content:''; position:absolute; width:12px; height:12px;
-  background:var(--sun-gold); border-radius:50%;
-  top:-6px; left:50%; transform:translateX(-50%);
-  box-shadow:0 0 20px rgba(255,209,102,0.6);
-}
 
 /* Client-uploaded hero image: shown exactly as uploaded — no darkening filter,
    no gradient overlay, no decorative glows tinting the photo. Everything layered
    on top carries its own contrast (glass chips, light search card, text shadows),
    so this holds on bright photos and dark ones alike. */
 .heroBgImage .bg { filter:none; transition:opacity 0.6s ease; }
-.heroBgImage .overlay,
-.heroBgImage .blob,
-.heroBgImage .ring { display:none; }
+.heroBgImage .overlay { display:none; }
 .bgShimmer {
   position:absolute; inset:0; z-index:1;
   background:linear-gradient(135deg, #1a2340 0%, #243054 50%, #1a2340 100%);
@@ -88,15 +69,13 @@
 .badge {
   display:inline-flex; align-items:center; gap:10px;
   padding:9px 24px;
-  background:rgba(7,14,31,0.42); backdrop-filter:blur(16px) saturate(140%);
-  -webkit-backdrop-filter:blur(16px) saturate(140%);
-  border:1px solid rgba(255,255,255,0.22); border-radius:var(--r-full);
+  background:rgba(7,14,31,0.34); backdrop-filter:blur(10px);
+  -webkit-backdrop-filter:blur(10px);
+  border:1px solid rgba(255,255,255,0.2); border-radius:var(--r-full);
   color:#fff; font-size:13px; font-weight:500;
-  margin-bottom:32px; letter-spacing:0.5px;
-  box-shadow:0 8px 32px rgba(7,14,31,0.18);
+  margin-bottom:28px; letter-spacing:0.3px;
   animation:fadeUp 0.8s var(--ease) 0.2s both;
 }
-.badge svg { color:var(--sun-gold); }
 .title {
   font-family:'Sora',sans-serif;
   font-size:clamp(2.8rem,7vw,5.5rem);
@@ -111,7 +90,7 @@
 .script {
   font-family:'Caveat',cursive; color:var(--sun-gold);
   font-size:1.2em; letter-spacing:1px;
-  text-shadow:0 2px 8px rgba(7,14,31,0.5), 0 0 60px rgba(255,209,102,0.3);
+  text-shadow:0 2px 8px rgba(7,14,31,0.45);
 }
 /* pre-line so a line break typed in the CMS shows as one here. The hero
    subtitle is a sentence or two and authors break it deliberately. */
@@ -146,22 +125,21 @@
   position:relative;
   letter-spacing:0.2px;
   display:flex; align-items:center; gap:9px;
-  box-shadow:0 6px 22px rgba(7,20,60,0.16);
+  box-shadow:0 4px 14px rgba(7,20,60,0.14);
 }
 .modeTab svg { color:var(--blue-deep); transition:color 0.3s var(--ease); }
 .modeTab:hover {
-  transform:translateY(-1px);
-  box-shadow:0 10px 28px rgba(7,20,60,0.22);
+  box-shadow:0 6px 18px rgba(7,20,60,0.18);
 }
 .modeTabActive {
-  background:linear-gradient(135deg,var(--blue-deep),var(--blue-mid));
-  border-color:transparent;
+  background:var(--blue-deep);
+  border-color:var(--blue-deep);
   color:#fff;
-  box-shadow:0 10px 30px rgba(31,79,216,0.42);
+  box-shadow:0 4px 14px rgba(7,20,60,0.2);
 }
 .modeTabActive svg { color:#fff; }
 .modeTabActive:hover {
-  background:linear-gradient(135deg,var(--blue-deep),var(--blue-mid));
+  background:var(--blue-deep);
 }
 
 /* Search bar */
@@ -181,11 +159,9 @@
   border:1px solid rgba(255,255,255,0.65); border-radius:var(--r-xl);
   padding:10px; display:flex; align-items:center; gap:2px;
   width:100%;
-  box-shadow:0 30px 80px rgba(7,20,60,0.35), inset 0 1px 0 rgba(255,255,255,0.95);
+  box-shadow:0 18px 48px rgba(7,20,60,0.24);
   animation:fadeUp 1s var(--ease) 0.65s both;
-  transition:all 0.4s var(--ease);
 }
-.searchBar:hover { border-color:#fff; box-shadow:0 34px 90px rgba(7,20,60,0.42), inset 0 1px 0 rgba(255,255,255,0.95); }
 /* A search field is three stacked lines, not an icon beside a label:
      ① icon + FIELD NAME     — what this box is
      ② the answer            — big, dark, the thing you scan for
@@ -286,24 +262,20 @@
   border:none; padding:0; margin:0;
 }
 .searchBtn {
-  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
+  background:var(--cta-grad);
   border-radius:var(--r-lg); padding:18px 40px;
-  color:#fff; font-weight:700; font-size:15px;
+  color:var(--cta-ink); text-shadow:var(--cta-ink-shadow);
+  font-weight:700; font-size:15px;
   font-family:'Sora',sans-serif;
   display:flex; align-items:center; justify-content:center; gap:10px;
   /* Same floor as the multi-city add-flight button so the two share one column. */
   min-width:170px;
-  transition:all 0.4s var(--ease); box-shadow:var(--shadow-glow);
+  transition:filter 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  box-shadow:0 4px 14px rgba(194,84,10,0.28);
   white-space:nowrap; position:relative; overflow:hidden;
   border:none; cursor:pointer;
 }
-.searchBtn::before {
-  content:''; position:absolute; inset:0;
-  background:linear-gradient(135deg,transparent 20%,rgba(255,255,255,0.3) 50%,transparent 80%);
-  transform:translateX(-120%);
-  animation:shimmer 3s ease-in-out infinite;
-}
-.searchBtn:hover { transform:translateY(-3px) scale(1.02); box-shadow:0 16px 48px rgba(255,159,28,0.55); }
+.searchBtn:hover { filter:brightness(1.06); box-shadow:0 6px 18px rgba(194,84,10,0.34); }
 
 /* Dropdown panel */
 .dropdown {
@@ -364,8 +336,8 @@
   background:var(--blue-bg2);
 }
 .destItemActive {
-  border-color:var(--sun-orange);
-  background:var(--sun-warm);
+  border-color:var(--blue-deep);
+  background:var(--blue-light);
 }
 .destItemLabel {
   white-space:nowrap;
@@ -402,7 +374,7 @@
   transition:border-color 0.2s;
 }
 .dateInput:focus {
-  border-color:var(--sun-orange);
+  border-color:var(--blue-mid);
 }
 
 /* "Flying from" panel — a mockup-driven, near-modal popover.
@@ -873,14 +845,14 @@
   border-color:var(--blue-light);
 }
 .durOptActive {
-  background:var(--sun-warm);
-  border-color:var(--sun-orange);
+  background:var(--blue-light);
+  border-color:var(--blue-deep);
   color:var(--text);
   font-weight:700;
 }
 .durCheck {
   flex-shrink:0;
-  color:var(--sun-orange);
+  color:var(--blue-deep);
 }
 
 /* Travelers dropdown */
@@ -924,9 +896,9 @@
   line-height:1;
 }
 .stepperBtn:hover {
-  background:var(--sun-warm);
-  border-color:var(--sun-orange);
-  color:var(--sun-orange);
+  background:var(--blue-light);
+  border-color:var(--blue-deep);
+  color:var(--blue-deep);
 }
 .stepperBtn:active { transform:scale(0.92); }
 .stepperCount {
@@ -943,17 +915,16 @@
   padding:12px;
   border:none;
   border-radius:var(--r-md, 8px);
-  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
+  background:var(--blue-deep);
   color:#fff;
   font-size:14px;
   font-weight:700;
   font-family:'Sora',sans-serif;
   cursor:pointer;
-  transition:all 0.3s var(--ease);
+  transition:background 0.2s var(--ease);
 }
 .doneBtn:hover {
-  transform:translateY(-1px);
-  box-shadow:0 8px 24px rgba(255,159,28,0.4);
+  background:#1A43BB;
 }
 .stepperBtn:disabled {
   opacity:0.35;
@@ -1015,7 +986,7 @@
   width:22px;
   height:22px;
   border-radius:50%;
-  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
+  background:var(--blue-deep);
   color:#fff;
   font-size:11px;
   font-weight:700;
@@ -1390,8 +1361,8 @@
   color:var(--text);
 }
 .classPillActive {
-  background:linear-gradient(135deg,var(--sun-orange),var(--sun-gold));
-  border-color:transparent;
+  background:var(--blue-deep);
+  border-color:var(--blue-deep);
   color:#fff;
   font-weight:600;
 }
@@ -1523,8 +1494,8 @@
 }
 .destListItem:hover { background:rgba(255,255,255,0.08); }
 .destListItem.destItemActive {
-  border-color:var(--sun-orange);
-  background:rgba(255,159,28,0.1);
+  border-color:var(--blue-soft);
+  background:rgba(163,204,255,0.14);
 }
 .destListText {
   display:flex;

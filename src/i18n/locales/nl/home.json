@@ -15,26 +15,17 @@
     "support": "24/7 bereikbaar",
     "trustedBy": "Vertrouwd door 2 mln+ reizigers",
     "freeCancellation": "Gratis annuleren",
-    "awardWinning": "Bekroonde service",
-    "note": "elke dag nieuwe vondsten!",
-    "ghost": {
-      "wanderlust": "reislust",
-      "goldenHour": "gouden uur",
-      "boardingSoon": "bijna boarden…",
-      "seaBreeze": "zeebries",
-      "nowArriving": "nu aangekomen",
-      "sunChasing": "op zonnejacht"
-    }
+    "awardWinning": "Bekroonde service"
   },
   "newsletter": {
     "title": "Ontvang exclusieve vakantiedeals",
     "subtitle": "Schrijf je in voor last-minuteaanbiedingen, reisinspiratie en ledenprijzen.",
     "placeholder": "Vul je e-mailadres in",
     "button": "Inschrijven",
-    "noSpam": "geen spam, beloofd ✈"
+    "noSpam": "Geen spam, beloofd."
   },
   "trust": {
-    "tag": "✓ Vertrouwen",
+    "tag": "Vertrouwen",
     "title": "Waarom boeken bij Sunsky?",
     "subtitle": "Duizenden reizigers vertrouwen op ons voor een zorgeloze vakantie.",
     "opensWebsite": "{{name}} (opent hun website)",
@@ -58,10 +49,9 @@
     }
   },
   "categories": {
-    "tag": "✦ Ontdek",
+    "tag": "Ontdek",
     "title": "Voor ieder wat wils",
     "subtitle": "Vind de vakantie die past bij jouw reisstijl en budget.",
-    "hideDestinations": "Bestemmingen verbergen",
     "destinationCount_one": "{{count}} bestemming",
     "destinationCount_other": "{{count}} bestemmingen",
     "cats": {
@@ -70,11 +60,10 @@
       "carHolidays": "Autovakanties",
       "lastMinute": "Last minute"
     },
-    "explore": "Ontdek",
-    "scribble": "kies je stijl"
+    "explore": "Ontdek"
   },
   "vacationTypes": {
-    "tag": "♡ Geselecteerd",
+    "tag": "Geselecteerd",
     "title": "Jouw favoriete soort vakantie",
     "subtitle": "Zorgvuldig samengestelde reizen, afgestemd op hoe jij graag reist.",
     "explore": "Ontdek",
@@ -98,26 +87,23 @@
     }
   },
   "hotels": {
-    "tag": "★ Best beoordeeld",
+    "tag": "Best beoordeeld",
     "title": "Populair bij onze vakantiegangers",
     "subtitle": "Topbeoordeelde hotels, geliefd bij duizenden tevreden reizigers.",
     "guestScore": "Gastenscore",
-    "freeWifi": "GRATIS WIFI",
     "saveToFavourites": "{{name}} bij favorieten bewaren",
     "from": "Vanaf",
     "perPerson": "p.p.",
     "viewDeal": "Bekijk deal",
     "viewDealFor": "Bekijk de deal voor {{name}}",
-    "headNote": "met zorg gekozen door ons reisteam",
-    "guestFavourite": "favoriet bij gasten!",
-    "bookingFast": "snel volgeboekt!"
+    "previous": "Vorige hotels",
+    "next": "Volgende hotels"
   },
   "destinations": {
-    "tag": "☀ Bestemmingen",
+    "tag": "Bestemmingen",
     "title": "Onze beste zonbestemmingen",
     "subtitle": "Zorgvuldig gekozen bestemmingen met gegarandeerde zon en een uitstekende prijs.",
     "searchStaysIn": "Zoek verblijven in {{place}}",
-    "topThisSeason": "№1 dit seizoen",
     "holidayCount": "{{count}} vakanties",
     "tabs": {
       "spain": "Spanje",
@@ -138,13 +124,9 @@
     }
   },
   "popular": {
-    "tag": "🗺 Bekijk",
+    "tag": "Bekijk",
     "title": "Populairste bestemmingen",
     "subtitle": "Bekijk onze meest gezochte en geboekte reiscategorieën.",
-    "ghostWord": "reislust",
-    "arc": "POPULAIRE BESTEMMINGEN · SUNSKY TRAVEL ·",
-    "headNote": "kom op, verzamel ze allemaal!",
-    "mostLoved": "Meest geliefd",
     "search": "Zoek {{label}}",
     "groups": {
       "distant": {
@@ -205,8 +187,7 @@
       "autumnBreak": "Herfstvakantie",
       "christmasTravel": "Kerstvakantie",
       "winterSun": "Winterzon"
-    },
-    "nextStamp": "hier komt jouw volgende stempel…"
+    }
   },
   "trustBar": {
     "eyebrow": "Garanties",
