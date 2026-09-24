@@ -1,9 +1,12 @@
 import { useState, useRef, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
 import mainLogo from '../../assets/main-logo.png';
 import styles from './Register.module.css';
 import { useRegister, sendRegistrationCode } from '../../api';
 import { useToast } from '../../context/ToastContext';
+import { countryName } from '../../utils/countryName';
+import i18n from '../../i18n';
 import RegisterVerify from './RegisterVerify';
 
 /* The option lists below are the dashboard's lists, verbatim. Registrations
@@ -34,12 +37,13 @@ const COUNTRIES = [
   'United Kingdom', 'United States',
 ].sort();
 
-// Values are the DB enum; labels are what the dashboard shows.
-const GENDERS = [
-  { value: 'MALE', label: 'Male' },
-  { value: 'FEMALE', label: 'Female' },
-  { value: 'OTHER', label: 'Other' },
-  { value: 'PREFER_NOT_TO_SAY', label: 'Prefer not to say' },
+// Values are the DB enum, unchanged by language; labels are computed at render time so a
+// language switch relabels the dropdown without touching what gets sent.
+const genderOptions = () => [
+  { value: 'MALE', label: i18n.t('auth:gender.male', 'Male') },
+  { value: 'FEMALE', label: i18n.t('auth:gender.female', 'Female') },
+  { value: 'OTHER', label: i18n.t('auth:gender.other', 'Other') },
+  { value: 'PREFER_NOT_TO_SAY', label: i18n.t('auth:gender.preferNotToSay', 'Prefer not to say') },
 ];
 
 const PHONE_CODES = [
@@ -97,6 +101,44 @@ const PHONE_CODES = [
   { code:'213', flag:'🇩🇿', name:'Algeria' },
 ];
 
+// The value stored (and sent to the dashboard) stays the exact English demonym/name above;
+// only what the dropdown SHOWS is translated.
+const nationalityLabel = (n) => i18n.t(`auth:nationalities.${n.toLowerCase()}`, n);
+const languageLabel = (l) => i18n.t(`auth:languages.${l.toLowerCase()}`, l);
+
+// Country names reuse the same countryName()/Intl.DisplayNames helper as Checkout — one ISO
+// code decides the word, so nobody retypes thirty country names by hand in a second language.
+const COUNTRY_ISO = {
+  Austria: 'AT', Belgium: 'BE', Brazil: 'BR', Canada: 'CA', China: 'CN', 'Czech Republic': 'CZ',
+  Denmark: 'DK', Finland: 'FI', France: 'FR', Germany: 'DE', Greece: 'GR', Hungary: 'HU',
+  India: 'IN', Ireland: 'IE', Italy: 'IT', Japan: 'JP', Mexico: 'MX', Netherlands: 'NL',
+  Norway: 'NO', Poland: 'PL', Portugal: 'PT', Romania: 'RO', Russia: 'RU', 'South Korea': 'KR',
+  Spain: 'ES', Sweden: 'SE', Switzerland: 'CH', Turkey: 'TR', Ukraine: 'UA',
+  'United Kingdom': 'GB', 'United States': 'US',
+};
+const countryLabel = (c) => countryName(COUNTRY_ISO[c], i18n.language, c);
+
+// Same idea for the phone-code picker's country names — most map cleanly to a single ISO
+// country; the couple that don't (a combined "US / Canada" dial code, "UAE") get their own
+// small dictionary instead.
+const PHONE_COUNTRY_ISO = {
+  Belgium: 'BE', Netherlands: 'NL', France: 'FR', Germany: 'DE', 'United Kingdom': 'GB',
+  Spain: 'ES', Italy: 'IT', Portugal: 'PT', Switzerland: 'CH', Austria: 'AT', Luxembourg: 'LU',
+  Ireland: 'IE', Denmark: 'DK', Sweden: 'SE', Norway: 'NO', Finland: 'FI', Poland: 'PL',
+  'Czech Republic': 'CZ', Hungary: 'HU', Greece: 'GR', Romania: 'RO', Bulgaria: 'BG',
+  Croatia: 'HR', Slovenia: 'SI', Russia: 'RU', Ukraine: 'UA', Turkey: 'TR',
+  'Saudi Arabia': 'SA', India: 'IN', Pakistan: 'PK', Bangladesh: 'BD', 'Sri Lanka': 'LK',
+  China: 'CN', Japan: 'JP', 'South Korea': 'KR', Malaysia: 'MY', Singapore: 'SG',
+  Thailand: 'TH', Indonesia: 'ID', Philippines: 'PH', Vietnam: 'VN', Australia: 'AU',
+  'New Zealand': 'NZ', Brazil: 'BR', Mexico: 'MX', 'South Africa': 'ZA', Egypt: 'EG',
+  Morocco: 'MA', Tunisia: 'TN', Algeria: 'DZ',
+};
+const phoneCountryLabel = (name) => {
+  if (name === 'US / Canada') return i18n.t('auth:phoneCountries.usCanada', 'US / Canada');
+  if (name === 'UAE') return i18n.t('auth:phoneCountries.uae', 'UAE');
+  return countryName(PHONE_COUNTRY_ISO[name], i18n.language, name);
+};
+
 const EMPTY_FORM = {
   firstName: '', lastName: '', email: '',
   phoneCode: '32', phone: '',
@@ -121,42 +163,42 @@ function validateField(key, form, isCompany) {
   const v = String(form[key] ?? '').trim();
   switch (key) {
     case 'firstName':
-      if (!v) return 'First name is required';
-      if (v.length < 2) return 'First name must be at least 2 characters';
+      if (!v) return i18n.t('auth:validation.firstNameRequired', 'First name is required');
+      if (v.length < 2) return i18n.t('auth:validation.firstNameMinLength', 'First name must be at least 2 characters');
       break;
     case 'lastName':
-      if (!v) return 'Last name is required';
-      if (v.length < 2) return 'Last name must be at least 2 characters';
+      if (!v) return i18n.t('auth:validation.lastNameRequired', 'Last name is required');
+      if (v.length < 2) return i18n.t('auth:validation.lastNameMinLength', 'Last name must be at least 2 characters');
       break;
     case 'email':
-      if (!v) return 'Email is required';
-      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return 'Enter a valid email address';
+      if (!v) return i18n.t('auth:validation.emailRequired', 'Email is required');
+      if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v)) return i18n.t('auth:validation.emailInvalid', 'Please enter a valid email address');
       break;
     case 'phone': {
-      if (!v) return 'Phone number is required';
+      if (!v) return i18n.t('auth:validation.phoneRequired', 'Phone number is required');
       const e164 = toE164(form.phoneCode, v);
-      if (!/^\+[1-9]\d{6,14}$/.test(e164)) return 'Enter a valid phone number';
+      if (!/^\+[1-9]\d{6,14}$/.test(e164)) return i18n.t('auth:validation.phoneInvalid', 'Enter a valid phone number');
       break;
     }
     case 'nationality':
       // Only stored on a private customer — a company account has no such column.
-      if (!isCompany && !v) return 'Nationality is required';
+      if (!isCompany && !v) return i18n.t('auth:validation.nationalityRequired', 'Nationality is required');
       break;
     case 'language':
-      if (!v) return 'Preferred language is required';
+      if (!v) return i18n.t('auth:validation.languageRequired', 'Preferred language is required');
       break;
     case 'country':
-      if (!v) return 'Country is required';
+      if (!v) return i18n.t('auth:validation.countryRequired', 'Country is required');
       break;
     case 'password':
-      if (!v) return 'Password is required';
-      if (getPasswordStrength(form.password) < 4) return 'Use 8+ characters with an uppercase letter, a number and a symbol';
+      if (!v) return i18n.t('auth:validation.passwordRequired', 'Password is required');
+      if (getPasswordStrength(form.password) < 4) return i18n.t('auth:validation.passwordStrength', 'Use 8+ characters with an uppercase letter, a number and a symbol');
       break;
     case 'legalName':
-      if (isCompany && !v) return 'Company name is required';
+      if (isCompany && !v) return i18n.t('auth:validation.companyNameRequired', 'Company name is required');
       break;
     case 'vatNumber':
-      if (isCompany && !v) return 'VAT number is required';
+      if (isCompany && !v) return i18n.t('auth:validation.vatRequired', 'VAT number is required');
       break;
     default: break;
   }
@@ -209,6 +251,7 @@ function Field({
 
 // Searchable phone code picker + number input — defined outside Register
 function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChange, onBlur, error, required, full, span2 }) {
+  const { t } = useTranslation('auth');
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState('');
   const wrapRef = useRef(null);
@@ -225,8 +268,10 @@ function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChang
   }, []);
 
   const q = search.toLowerCase().replace(/^\+/, '');
+  // Matched against both the English name and the translated one shown on screen, so typing
+  // in either language finds the country.
   const filtered = PHONE_CODES.filter(c =>
-    c.name.toLowerCase().includes(q) || c.code.startsWith(q)
+    c.name.toLowerCase().includes(q) || phoneCountryLabel(c.name).toLowerCase().includes(q) || c.code.startsWith(q)
   );
   const selected = PHONE_CODES.find(c => c.code === codeValue) || PHONE_CODES[0];
 
@@ -254,7 +299,7 @@ function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChang
               </svg>
               <input
                 className={styles.phoneSearch}
-                placeholder="Search country or code…"
+                placeholder={t('auth:register.searchCountryOrCode', 'Search country or code…')}
                 value={search}
                 onChange={e => setSearch(e.target.value)}
                 autoFocus
@@ -269,12 +314,12 @@ function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChang
                   onClick={() => { onCodeChange(c.code); setOpen(false); setSearch(''); }}
                 >
                   <span>{c.flag}</span>
-                  <span className={styles.phoneOptionName}>{c.name}</span>
+                  <span className={styles.phoneOptionName}>{phoneCountryLabel(c.name)}</span>
                   <span className={styles.phoneOptionCode}>+{c.code}</span>
                 </button>
               ))}
               {filtered.length === 0 && (
-                <div className={styles.phoneNoResult}>No results</div>
+                <div className={styles.phoneNoResult}>{t('auth:register.noResults', 'No results')}</div>
               )}
             </div>
           </div>
@@ -306,6 +351,7 @@ function SectionHead({ index, title, note }) {
 }
 
 export default function Register() {
+  const { t } = useTranslation('auth');
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { execute: register, loading } = useRegister();
@@ -353,7 +399,7 @@ export default function Register() {
     setErrors(found);
 
     if (Object.keys(found).length) {
-      showToast('Please check the highlighted fields.', 'error');
+      showToast(t('auth:register.checkHighlightedFields', 'Please check the highlighted fields.'), 'error');
       document.querySelector(`.${styles.inputError}`)
         ?.scrollIntoView({ behavior: 'smooth', block: 'center' });
       return;
@@ -393,9 +439,9 @@ export default function Register() {
     try {
       const res = await sendRegistrationCode(payload);
       setPending({ payload, expiryMinutes: res?.data?.data?.expiresInMinutes ?? null });
-      showToast(`We sent a 6-digit code to ${payload.email}`, 'success');
+      showToast(t('auth:register.codeSentTo', { email: payload.email, defaultValue: 'We sent a 6-digit code to {{email}}' }), 'success');
     } catch (err) {
-      showToast(err.response?.data?.message || 'We could not start your signup. Please try again.', 'error');
+      showToast(err.response?.data?.message || t('auth:register.signupStartFailed', 'We could not start your signup. Please try again.'), 'error');
     } finally {
       setSending(false);
     }
@@ -408,7 +454,7 @@ export default function Register() {
     try {
       await register({ ...pending.payload, code });
     } catch (err) {
-      showToast(err.response?.data?.message || 'Registration failed. Please try again.', 'error');
+      showToast(err.response?.data?.message || t('auth:register.registrationFailed', 'Registration failed. Please try again.'), 'error');
       throw err;
     }
   };
@@ -417,10 +463,10 @@ export default function Register() {
     try {
       const res = await sendRegistrationCode(pending.payload);
       setPending((p) => ({ ...p, expiryMinutes: res?.data?.data?.expiresInMinutes ?? p.expiryMinutes }));
-      showToast('A new code is on its way.', 'success');
+      showToast(t('auth:register.newCodeOnWay', 'A new code is on its way.'), 'success');
       return true;
     } catch (err) {
-      showToast(err.response?.data?.message || 'Could not send a new code. Please try again.', 'error');
+      showToast(err.response?.data?.message || t('auth:register.resendFailed', 'Could not send a new code. Please try again.'), 'error');
       return false;
     }
   };
@@ -484,10 +530,10 @@ export default function Register() {
         </Link>
 
         <h2 className={styles.brandTitle}>
-          Start your next<br /><em>adventure</em> today
+          <Trans i18nKey="auth:register.brandTitle" t={t}>Start your next<br /><em>adventure</em> today</Trans>
         </h2>
         <p className={styles.brandSub}>
-          Join thousands of travellers who trust SunSky for unforgettable holidays at guaranteed best prices.
+          {t('auth:register.brandSub', 'Join thousands of travellers who trust SunSky for unforgettable holidays at guaranteed best prices.')}
         </p>
 
         <div className={styles.trustRow}>
@@ -495,19 +541,19 @@ export default function Register() {
             <div className={`${styles.trustIcon} ${styles.orange}`}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
             </div>
-            <span className={styles.trustLabel}>Secure &amp; GDPR-compliant</span>
+            <span className={styles.trustLabel}>{t('auth:register.trustSecure', 'Secure & GDPR-compliant')}</span>
           </div>
           <div className={styles.trustItem}>
             <div className={`${styles.trustIcon} ${styles.blue}`}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 11.08V12a10 10 0 11-5.93-9.14"/><path d="M22 4L12 14.01l-3-3"/></svg>
             </div>
-            <span className={styles.trustLabel}>Best price guarantee</span>
+            <span className={styles.trustLabel}>{t('auth:register.trustBestPrice', 'Best price guarantee')}</span>
           </div>
           <div className={styles.trustItem}>
             <div className={`${styles.trustIcon} ${styles.coral}`}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
             </div>
-            <span className={styles.trustLabel}>Happy customers worldwide</span>
+            <span className={styles.trustLabel}>{t('auth:register.trustHappyCustomers', 'Happy customers worldwide')}</span>
           </div>
         </div>
       </div>
@@ -518,78 +564,81 @@ export default function Register() {
 
             <div className={styles.cardHead}>
               <div className={styles.cardHeader}>
-                <h1 className={styles.cardTitle}>Create your account</h1>
+                <h1 className={styles.cardTitle}>{t('auth:register.title', 'Create your account')}</h1>
                 <p className={styles.cardSub}>
-                  Confirm your email and you're in. Already have an account? <Link to="/login">Sign in</Link>
+                  <Trans i18nKey="auth:register.confirmEmailSignIn" t={t}>Confirm your email and you're in. Already have an account? <Link to="/login">Sign in</Link></Trans>
                 </p>
               </div>
             </div>
 
             <div className={styles.cardBody}>
 
-              <SectionHead index="01" title="Your details" />
+              <SectionHead index="01" title={t('auth:register.sectionYourDetails', 'Your details')} />
               <div className={styles.formGrid}>
-                <Field label="First Name" placeholder="John" required
+                <Field label={t('auth:fields.firstName', 'First Name')} placeholder="John" required
                   value={form.firstName} onChange={set('firstName')} onBlur={blur('firstName')} error={errors.firstName} />
-                <Field label="Last Name" placeholder="DOE" required
+                <Field label={t('auth:fields.lastName', 'Last Name')} placeholder="DOE" required
                   value={form.lastName} onChange={set('lastName')} onBlur={blur('lastName')} error={errors.lastName} />
-                <Field label="Email" placeholder="john@example.com" type="email" required
+                <Field label={t('auth:fields.email', 'Email')} placeholder="john@example.com" type="email" required
                   value={form.email} onChange={set('email')} onBlur={blur('email')} error={errors.email} />
-                <PhoneField label="Phone" span2 required
+                <PhoneField label={t('auth:fields.phone', 'Phone')} span2 required
                   codeValue={form.phoneCode} numberValue={form.phone}
                   onCodeChange={setCode('phoneCode')} onNumberChange={set('phone')}
                   onBlur={blur('phone')} error={errors.phone} />
-                <Field label="Nationality" placeholder="Select nationality" select options={NATIONALITIES}
+                <Field label={t('auth:fields.nationality', 'Nationality')} placeholder={t('auth:register.selectNationality', 'Select nationality')} select
+                  options={NATIONALITIES.map((n) => ({ value: n, label: nationalityLabel(n) }))}
                   required={!isCompany}
                   value={form.nationality} onChange={set('nationality')} onBlur={blur('nationality')} error={errors.nationality} />
-                <Field label="Preferred Language" placeholder="Select language" select options={LANGUAGES} required
+                <Field label={t('auth:fields.preferredLanguage', 'Preferred Language')} placeholder={t('auth:register.selectLanguage', 'Select language')} select
+                  options={LANGUAGES.map((l) => ({ value: l, label: languageLabel(l) }))} required
                   value={form.language} onChange={set('language')} onBlur={blur('language')} error={errors.language} />
-                <Field label="Date of Birth" type="date" max={today}
+                <Field label={t('auth:fields.dateOfBirth', 'Date of Birth')} type="date" max={today}
                   value={form.dateOfBirth} onChange={set('dateOfBirth')} />
-                <Field label="Gender" placeholder="Select" select options={GENDERS}
+                <Field label={t('auth:fields.gender', 'Gender')} placeholder={t('auth:fields.selectPlaceholder', 'Select')} select options={genderOptions()}
                   value={form.gender} onChange={set('gender')} />
               </div>
 
-              <SectionHead index="02" title="Address" />
+              <SectionHead index="02" title={t('auth:register.sectionAddress', 'Address')} />
               <div className={styles.formGrid}>
-                <Field label="Street" placeholder="Rue de la Loi" span2
+                <Field label={t('auth:fields.street', 'Street')} placeholder="Rue de la Loi" span2
                   value={form.street} onChange={set('street')} />
-                <Field label="House No." placeholder="42"
+                <Field label={t('auth:fields.houseNo', 'House No.')} placeholder="42"
                   value={form.houseNumber} onChange={set('houseNumber')} />
-                <Field label="Box No." placeholder="3A" hint="Apartment, suite or bus"
+                <Field label={t('auth:fields.boxNo', 'Box No.')} placeholder="3A" hint={t('auth:fields.boxNoHint', 'Apartment, suite or bus')}
                   value={form.boxNumber} onChange={set('boxNumber')} />
-                <Field label="City" placeholder="Brussels"
+                <Field label={t('auth:fields.city', 'City')} placeholder="Brussels"
                   value={form.city} onChange={set('city')} />
-                <Field label="Postal Code" placeholder="1000"
+                <Field label={t('auth:fields.postalCode', 'Postal Code')} placeholder="1000"
                   value={form.postalCode} onChange={set('postalCode')} />
-                <Field label="Country" placeholder="Select country" select options={COUNTRIES} required full
+                <Field label={t('auth:fields.country', 'Country')} placeholder={t('auth:register.selectCountry', 'Select country')} select
+                  options={COUNTRIES.map((c) => ({ value: c, label: countryLabel(c) }))} required full
                   value={form.country} onChange={set('country')} onBlur={blur('country')} error={errors.country} />
               </div>
 
-              <SectionHead index="03" title="Security" />
+              <SectionHead index="03" title={t('auth:register.sectionSecurity', 'Security')} />
               <div className={styles.formGrid}>
-                <Field label="Password" placeholder="Min. 8 characters" type="password" full required
+                <Field label={t('auth:fields.password', 'Password')} placeholder={t('auth:register.min8Characters', 'Min. 8 characters')} type="password" full required
                   value={form.password} onChange={set('password')} onBlur={blur('password')} error={errors.password} />
                 <div className={styles.strengthBar}>
                   {[1,2,3,4].map(i => <div key={i} className={`${styles.strengthSeg} ${strength >= i ? styles[`filled${i}`] : ''}`} />)}
                 </div>
                 <div className={styles.strengthHint}>
-                  <span className={strength >= 1 ? styles.met : ''}>8+ chars</span>
-                  <span className={strength >= 2 ? styles.met : ''}>Uppercase</span>
-                  <span className={strength >= 3 ? styles.met : ''}>Number</span>
-                  <span className={strength >= 4 ? styles.met : ''}>Symbol</span>
+                  <span className={strength >= 1 ? styles.met : ''}>{t('auth:register.strength8Chars', '8+ chars')}</span>
+                  <span className={strength >= 2 ? styles.met : ''}>{t('auth:register.strengthUppercase', 'Uppercase')}</span>
+                  <span className={strength >= 3 ? styles.met : ''}>{t('auth:register.strengthNumber', 'Number')}</span>
+                  <span className={strength >= 4 ? styles.met : ''}>{t('auth:register.strengthSymbol', 'Symbol')}</span>
                 </div>
               </div>
 
-              <SectionHead index="04" title="Business account" note="Optional" />
+              <SectionHead index="04" title={t('auth:register.sectionBusinessAccount', 'Business account')} note={t('auth:register.optional', 'Optional')} />
               <div className={`${styles.companyBlock} ${isCompany ? styles.companyOpen : ''}`}>
                 <div className={styles.companyToggle} onClick={toggleCompany}>
                   <div className={`${styles.checkbox} ${isCompany ? styles.checked : ''}`}>
                     {isCompany && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
                   </div>
                   <div className={styles.companyToggleText}>
-                    <strong>I'm registering as a company</strong>
-                    <span>Book on behalf of a business. You stay the primary contact on the account.</span>
+                    <strong>{t('auth:register.registeringAsCompany', "I'm registering as a company")}</strong>
+                    <span>{t('auth:register.registeringAsCompanyHint', 'Book on behalf of a business. You stay the primary contact on the account.')}</span>
                   </div>
                   <svg className={styles.companyIcon} width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
                     <path d="M6 2L3 6v14a2 2 0 002 2h14a2 2 0 002-2V6l-3-4z"/><path d="M3 6h18M16 10a4 4 0 01-8 0"/>
@@ -598,9 +647,9 @@ export default function Register() {
 
                 {isCompany && (
                   <div className={`${styles.formGrid} ${styles.companyFields}`}>
-                    <Field label="Company Name" placeholder="SunSky Travel BV" required
+                    <Field label={t('auth:fields.companyName', 'Company Name')} placeholder="SunSky Travel BV" required
                       value={form.legalName} onChange={set('legalName')} onBlur={blur('legalName')} error={errors.legalName} />
-                    <Field label="VAT Number" placeholder="BE0477.123.456" required
+                    <Field label={t('auth:fields.vatNumber', 'VAT Number')} placeholder="BE0477.123.456" required
                       value={form.vatNumber} onChange={set('vatNumber')} onBlur={blur('vatNumber')} error={errors.vatNumber} />
                   </div>
                 )}
@@ -610,7 +659,7 @@ export default function Register() {
                 <div className={`${styles.checkbox} ${agreed ? styles.checked : ''}`} onClick={() => setAgreed(!agreed)}>
                   {agreed && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5"/></svg>}
                 </div>
-                <span className={styles.termsText}>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></span>
+                <span className={styles.termsText}><Trans i18nKey="auth:register.termsText" t={t}>I agree to the <a href="#">Terms of Service</a> and <a href="#">Privacy Policy</a></Trans></span>
               </div>
             </div>
 
@@ -618,11 +667,11 @@ export default function Register() {
               <div className={styles.navRow}>
                 <button className={styles.guestBtn} onClick={() => navigate('/')}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z"/></svg>
-                  Continue as Guest
+                  {t('auth:continueAsGuest', 'Continue as Guest')}
                 </button>
                 <button className={styles.submitBtn} disabled={!agreed || sending || loading} onClick={handleRegister}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
-                  {sending ? 'Sending code…' : `Create ${isCompany ? 'Business Account' : 'Account'}`}
+                  {sending ? t('auth:register.sendingCode', 'Sending code…') : (isCompany ? t('auth:register.createBusinessAccount', 'Create Business Account') : t('auth:register.createAccount', 'Create Account'))}
                 </button>
               </div>
             </div>

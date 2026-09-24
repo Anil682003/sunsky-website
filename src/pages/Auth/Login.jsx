@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
 import mainLogo from '../../assets/main-logo.png';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
 // it, so it keeps the square mark — the same one the browser tab shows.
@@ -9,6 +10,7 @@ import { useLogin } from '../../api';
 import { useToast } from '../../context/ToastContext';
 
 export default function Login() {
+  const { t } = useTranslation('auth');
   const navigate = useNavigate();
   const { showToast } = useToast();
   const { execute: login, loading } = useLogin();
@@ -23,7 +25,7 @@ export default function Login() {
     try {
       await login({ email, password, rememberMe: remember });
     } catch (err) {
-      showToast(err.response?.data?.message || 'Login failed. Please try again.', 'error');
+      showToast(err.response?.data?.message || t('auth:errors.loginFailed', 'Login failed. Please try again.'), 'error');
     }
   };
 
@@ -98,59 +100,59 @@ export default function Login() {
 
         <div className={styles.brandHero}>
           <h2 className={styles.brandTitle}>
-            Welcome<br />back, <em>traveller</em>
+            <Trans i18nKey="auth:login.brandTitle" t={t}>Welcome<br />back, <em>traveller</em></Trans>
           </h2>
           <p className={styles.brandSub}>
-            Your next unforgettable journey is just a sign-in away. Thousands of destinations, one seamless experience.
+            {t('auth:login.brandSub', 'Your next unforgettable journey is just a sign-in away. Thousands of destinations, one seamless experience.')}
           </p>
         </div>
 
         <div className={styles.ratingPill}>
           <span className={styles.ratingStars}>★★★★★</span>
-          <span>Trusted by travellers across Europe</span>
+          <span>{t('auth:login.trustedBy', 'Trusted by travellers across Europe')}</span>
         </div>
 
         <div className={styles.destCards}>
           <div className={`${styles.destCard} ${styles.destCard1}`}>
             <span className={styles.destCardFlag}>🏝️</span>
             <div className={styles.destCardInfo}>
-              <span className={styles.destCardName}>Santorini, Greece</span>
-              <span className={styles.destCardPrice}>Island escapes &amp; sunsets</span>
+              <span className={styles.destCardName}>Santorini, {t('auth:login.destGreece', 'Greece')}</span>
+              <span className={styles.destCardPrice}>{t('auth:login.destGreeceSub', 'Island escapes & sunsets')}</span>
             </div>
-            <span className={styles.destCardBadge}>Popular</span>
+            <span className={styles.destCardBadge}>{t('auth:login.badgePopular', 'Popular')}</span>
           </div>
           <div className={`${styles.destCard} ${styles.destCard2}`}>
             <span className={styles.destCardFlag}>🌴</span>
             <div className={styles.destCardInfo}>
-              <span className={styles.destCardName}>Bali, Indonesia</span>
-              <span className={styles.destCardPrice}>Beaches, temples &amp; jungles</span>
+              <span className={styles.destCardName}>Bali, {t('auth:login.destIndonesia', 'Indonesia')}</span>
+              <span className={styles.destCardPrice}>{t('auth:login.destIndonesiaSub', 'Beaches, temples & jungles')}</span>
             </div>
-            <span className={`${styles.destCardBadge} ${styles.destCardBadgeBlue}`}>Trending</span>
+            <span className={`${styles.destCardBadge} ${styles.destCardBadgeBlue}`}>{t('auth:login.badgeTrending', 'Trending')}</span>
           </div>
           <div className={`${styles.destCard} ${styles.destCard3}`}>
             <span className={styles.destCardFlag}>🏙️</span>
             <div className={styles.destCardInfo}>
-              <span className={styles.destCardName}>Dubai, UAE</span>
-              <span className={styles.destCardPrice}>City lights &amp; desert dunes</span>
+              <span className={styles.destCardName}>Dubai, {t('auth:login.destUae', 'UAE')}</span>
+              <span className={styles.destCardPrice}>{t('auth:login.destUaeSub', 'City lights & desert dunes')}</span>
             </div>
-            <span className={`${styles.destCardBadge} ${styles.destCardBadgeCoral}`}>Sunny</span>
+            <span className={`${styles.destCardBadge} ${styles.destCardBadgeCoral}`}>{t('auth:login.badgeSunny', 'Sunny')}</span>
           </div>
         </div>
 
         <div className={styles.statsRow}>
           <div className={styles.statItem}>
             <span className={styles.statNum}>500+</span>
-            <span className={styles.statLabel}>Destinations</span>
+            <span className={styles.statLabel}>{t('auth:login.statDestinations', 'Destinations')}</span>
           </div>
           <div className={styles.statDivider} />
           <div className={styles.statItem}>
             <span className={styles.statNum}>24/7</span>
-            <span className={styles.statLabel}>Support</span>
+            <span className={styles.statLabel}>{t('auth:login.statSupport', 'Support')}</span>
           </div>
           <div className={styles.statDivider} />
           <div className={styles.statItem}>
             <span className={styles.statNum}>100%</span>
-            <span className={styles.statLabel}>Secure</span>
+            <span className={styles.statLabel}>{t('auth:login.statSecure', 'Secure')}</span>
           </div>
         </div>
       </div>
@@ -175,9 +177,9 @@ export default function Login() {
               <div className={styles.avatarRing}>
                 <img src={logoIcon} alt="" className={styles.avatarLogo} />
               </div>
-              <h1 className={styles.cardTitle}>Sign in to SunSky</h1>
+              <h1 className={styles.cardTitle}>{t('auth:login.title', 'Sign in to SunSky')}</h1>
               <p className={styles.cardSub}>
-                Don't have an account? <Link to="/register">Create one free</Link>
+                <Trans i18nKey="auth:login.noAccount" t={t}>Don't have an account? <Link to="/register">Create one free</Link></Trans>
               </p>
             </div>
 
@@ -186,7 +188,7 @@ export default function Login() {
             <form className={styles.form} onSubmit={handleSubmit}>
               {/* Email field */}
               <div className={`${styles.field} ${focused === 'email' ? styles.fieldFocused : ''} ${email ? styles.fieldHasValue : ''}`}>
-                <label className={styles.fieldLabel} htmlFor="login-email">Email address</label>
+                <label className={styles.fieldLabel} htmlFor="login-email">{t('auth:fields.emailAddress', 'Email address')}</label>
                 <div className={styles.fieldWrap}>
                   <span className={styles.fieldIcon}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -215,7 +217,7 @@ export default function Login() {
 
               {/* Password field */}
               <div className={`${styles.field} ${focused === 'password' ? styles.fieldFocused : ''} ${password ? styles.fieldHasValue : ''}`}>
-                <label className={styles.fieldLabel} htmlFor="login-password">Password</label>
+                <label className={styles.fieldLabel} htmlFor="login-password">{t('auth:fields.password', 'Password')}</label>
                 <div className={styles.fieldWrap}>
                   <span className={styles.fieldIcon}>
                     <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -227,14 +229,14 @@ export default function Login() {
                     id="login-password"
                     className={styles.fieldInput}
                     type={showPw ? 'text' : 'password'}
-                    placeholder="Your password"
+                    placeholder={t('auth:fields.yourPassword', 'Your password')}
                     value={password}
                     onChange={e => setPassword(e.target.value)}
                     onFocus={() => setFocused('password')}
                     onBlur={() => setFocused('')}
                     autoComplete="current-password"
                   />
-                  <button type="button" className={styles.eyeBtn} onClick={() => setShowPw(!showPw)} aria-label={showPw ? 'Hide password' : 'Show password'}>
+                  <button type="button" className={styles.eyeBtn} onClick={() => setShowPw(!showPw)} aria-label={showPw ? t('auth:fields.hidePassword', 'Hide password') : t('auth:fields.showPassword', 'Show password')}>
                     {showPw ? (
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                         <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
@@ -262,13 +264,13 @@ export default function Login() {
                     </svg>
                   )}
                 </div>
-                <span className={styles.rememberLabel}>Keep me signed in for 30 days</span>
-                <Link to="/forgot-password" className={styles.forgotLink}>Forgot password?</Link>
+                <span className={styles.rememberLabel}>{t('auth:login.keepSignedIn', 'Keep me signed in for 30 days')}</span>
+                <Link to="/forgot-password" className={styles.forgotLink}>{t('auth:login.forgotPassword', 'Forgot password?')}</Link>
               </div>
 
               {/* Submit */}
               <button className={styles.submitBtn} type="submit" disabled={loading}>
-                <span>{loading ? 'Signing in…' : 'Sign In'}</span>
+                <span>{loading ? t('auth:login.signingIn', 'Signing in…') : t('auth:login.signIn', 'Sign In')}</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
@@ -283,7 +285,7 @@ export default function Login() {
                   <circle cx="12" cy="12" r="10" />
                   <path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" />
                 </svg>
-                Continue as Guest
+                {t('auth:continueAsGuest', 'Continue as Guest')}
               </button>
               <div className={styles.guestLine} />
             </div>
