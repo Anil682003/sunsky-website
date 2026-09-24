@@ -14,8 +14,8 @@
   },
   "summary": {
     "tag": "REISOVERZICHT",
-    "checkIn": "Check-in",
-    "checkOut": "Check-out",
+    "checkIn": "Inchecken",
+    "checkOut": "Uitchecken",
     "night": "Nacht",
     "nights": "Nachten",
     "room": "Kamer",
@@ -52,10 +52,10 @@
     "email": "E-mail",
     "website": "Website",
     "stayInformation": "Verblijfsinformatie",
-    "checkInTime": "Check-intijd",
-    "checkOutTime": "Check-outtijd",
-    "earlyCheckIn": "Vroege check-in",
-    "lateCheckOut": "Late check-out"
+    "checkInTime": "Inchecktijd",
+    "checkOutTime": "Uitchecktijd",
+    "earlyCheckIn": "Vroeg inchecken",
+    "lateCheckOut": "Laat uitchecken"
   },
   "important": {
     "title": "Belangrijke hotelinformatie"
