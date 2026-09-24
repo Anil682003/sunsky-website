@@ -4,13 +4,15 @@
    description, the facts the link filters on, and one link.
    ═══════════════════════════════════════════════════════════ */
 
-/* The section stands on a coastline rather than on white. It is shown sharp:
-   this is the one band on the page where a holiday is pictured rather than
-   described, and a blurred photograph would only be an expensive way of
-   tinting the section blue.
+/* The section stands on a coastline rather than on white, with the lightest
+   softening on it: enough to take the edge off the railings and the terrace
+   lines so they stop competing with the cards, not enough to stop it being a
+   photograph. The band above this one is blurred properly, into texture; this
+   one is meant to still read as a place.
 
-   It is a layer on ::before rather than a background on .section itself so the
-   wash below can sit between the photo and the content. */
+   The photo is a layer on ::before rather than a background on .section
+   itself for two reasons: `filter` on the section would soften the heading and
+   the cards with it, and the wash below needs to sit between the two. */
 .section {
   position: relative;
   isolation: isolate;
@@ -26,7 +28,17 @@
   background-image: url('../../../assets/favtype-bg.jpg');
   background-size: cover;
   background-position: center 58%;   /* the caldera and the sea, not the sky */
+  filter: blur(1.5px);
+  /* Blur samples past the layer's edges and leaves a pale rim on all four
+     sides; scaling it up pushes that rim outside the section. */
+  transform: scale(1.04);
   z-index: -2;
+}
+
+@media (max-width: 768px) {
+  /* The layer is far smaller on a phone, so the same radius softens more of
+     it, and a blur is a real paint cost on the device least able to pay it. */
+  .section::before { filter: blur(1px); }
 }
 
 /* A white veil over the photo. The heading sits directly on it and the cards'
