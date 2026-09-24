@@ -1,16 +1,17 @@
 .wrap { position: relative; }
 
+/* Sizes follow the sign-in page's design scale (--s) when it has one, 1px otherwise. */
 .trigger {
   display: inline-flex;
   align-items: center;
-  gap: 9px;
-  height: 44px;
-  padding: 0 16px;
+  gap: calc(9 * var(--s, 1px));
+  height: max(34px, calc(44 * var(--s, 1px)));
+  padding: 0 calc(16 * var(--s, 1px));
   border: 1px solid #E3EAF4;
   border-radius: var(--r-full);
   background: #FFFFFF;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: max(12.5px, calc(15 * var(--s, 1px)));
   font-weight: 500;
   color: var(--text);
   cursor: pointer;

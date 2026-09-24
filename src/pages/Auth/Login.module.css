@@ -5,9 +5,17 @@
    curve under the card; the sign-in card on the right with a
    soft blue arc beside it. Shared by forgot password and the
    signup code step, so all three stay identical.
+
+   ONE SCALE FOR EVERYTHING. The design was drawn at 1774×887.
+   --s is one "design pixel" at the current window size: the
+   smaller of width/1774 and height/887, so the whole page scales
+   like a picture and always fits the window, keeping the mockup's
+   proportions. Every size below is written in design pixels,
+   calc(N * var(--s)), with a floor on text so it stays readable.
    ═══════════════════════════════════════════════════════════ */
 
 .page {
+  --s: min(calc(100vw / 1774), calc(100vh / 887), 1.12px);
   min-height: 100vh;
   display: flex;
   position: relative;
@@ -37,7 +45,7 @@
   content: '';
   position: absolute;
   right: -2px; top: 51%;
-  width: 250px; height: 250px;
+  width: calc(250 * var(--s)); height: calc(250 * var(--s));
   border-radius: 50%;
   transform: translateY(-50%);
   z-index: -1;
@@ -47,19 +55,19 @@
 /* Explore › Book › Experience, top right */
 .trail {
   position: absolute;
-  top: 30px;
-  right: clamp(24px, 5.1vw, 96px);
+  top: calc(30 * var(--s));
+  right: calc(91 * var(--s));
   z-index: 3;
-  display: flex; align-items: center; gap: 14px;
+  display: flex; align-items: center; gap: calc(14 * var(--s));
   margin: 0;
-  font-size: 0.95rem;
+  font-size: max(12px, calc(15 * var(--s)));
   color: #4E5B75;
 }
-.trail svg { color: #8A97AF; }
+.trail svg { color: #8A97AF; width: calc(14 * var(--s)); height: calc(14 * var(--s)); }
 .trailOn { position: relative; color: var(--text); font-weight: 500; }
 .trailOn::after {
   content: '';
-  position: absolute; left: 22%; right: 0; bottom: -10px;
+  position: absolute; left: 22%; right: 0; bottom: calc(-10 * var(--s));
   height: 2.5px; border-radius: 2px;
   background: #F08A1A;
 }
@@ -69,7 +77,7 @@
   flex: 1 1 auto;
   min-width: 0;
   display: flex; flex-direction: column;
-  padding: 48px 24px 48px clamp(28px, 5.2vw, 96px);
+  padding: calc(48 * var(--s)) calc(24 * var(--s)) calc(48 * var(--s)) calc(93 * var(--s));
   position: relative; z-index: 2;
 }
 
@@ -80,32 +88,30 @@
 .logo {
   display: inline-flex;
   width: fit-content;
-  margin-bottom: clamp(44px, 8.4vh, 80px);
+  margin-bottom: calc(75 * var(--s));
   border-radius: 8px;
 }
 .logo:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 4px; }
 .logoWordmark {
-  height: clamp(54px, 4vw, 72px);
+  height: max(44px, calc(70 * var(--s)));
   width: auto;
   max-width: 330px;
   object-fit: contain;
 }
 
-.brandHero { max-width: 580px; }
+.brandHero { max-width: calc(580 * var(--s)); }
 .eyebrow {
-  margin: 0 0 20px;
+  margin: 0 0 calc(20 * var(--s));
   font-family: 'Sora', sans-serif;
-  font-size: 0.85rem;
+  font-size: max(11px, calc(14 * var(--s)));
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
   color: #3F4C66;
 }
-/* Tighter on smaller screens, so a longer translation stays clear of the plane in the photo. */
-@media (max-width: 1599px) { .eyebrow { letter-spacing: 0.22em; } }
 .brandTitle {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(2.25rem, 3.15vw, 3.6rem);
+  font-size: max(30px, calc(58 * var(--s)));
   font-weight: 800;
   line-height: 1.08;
   letter-spacing: -0.035em;
@@ -114,7 +120,7 @@
 /* The one handwritten word, big and warm, on its own line. */
 .brandTitle em {
   display: inline-block;
-  margin-top: -6px;
+  margin-top: -0.1em;
   /* Caveat's last stroke overhangs its box; keeps a following word ("lucht in") apart. */
   margin-right: 0.12em;
   font-style: normal;
@@ -126,9 +132,9 @@
   color: #EC8519;
 }
 .brandSub {
-  margin-top: 22px;
-  max-width: 540px;
-  font-size: clamp(1rem, 1.07vw, 1.2rem);
+  margin-top: calc(22 * var(--s));
+  max-width: calc(540 * var(--s));
+  font-size: max(14px, calc(19 * var(--s)));
   line-height: 1.5;
   color: #46526B;
 }
@@ -136,37 +142,39 @@
 /* Three figures, each with its own tinted tile */
 .statsRow {
   display: flex; align-items: center; flex-wrap: wrap;
-  gap: 18px 24px;
-  margin-top: 40px;
+  gap: calc(18 * var(--s)) calc(24 * var(--s));
+  margin-top: calc(40 * var(--s));
 }
-.statItem { display: flex; align-items: center; gap: 16px; }
+.statItem { display: flex; align-items: center; gap: calc(16 * var(--s)); }
 .statIcon {
-  width: 56px; height: 56px; border-radius: 14px;
+  width: calc(56 * var(--s)); height: calc(56 * var(--s));
+  border-radius: calc(14 * var(--s));
   display: flex; align-items: center; justify-content: center;
   flex-shrink: 0;
   box-shadow: 0 1px 2px rgba(15, 40, 100, 0.06);
 }
+.statIcon svg { width: calc(24 * var(--s)); height: calc(24 * var(--s)); }
 .statBlue   { background: #E6EFFE; color: #2F66E0; }
 .statOrange { background: #FDEBDA; color: #E8791B; }
 .statGreen  { background: #DCF3E7; color: #1F9D63; }
 .statText { display: flex; flex-direction: column; line-height: 1.2; }
 .statNum {
   font-family: 'Sora', sans-serif;
-  font-size: 1.4rem;
+  font-size: max(15px, calc(22 * var(--s)));
   font-weight: 700;
   color: #111B34;
 }
-.statLabel { margin-top: 3px; font-size: 0.95rem; color: #4E5B75; }
-.statDivider { width: 1px; height: 40px; background: rgba(17, 27, 52, 0.12); }
+.statLabel { margin-top: 2px; font-size: max(12px, calc(15 * var(--s))); color: #4E5B75; }
+.statDivider { width: 1px; height: calc(40 * var(--s)); background: rgba(17, 27, 52, 0.12); }
 
 /* The handwritten line at the foot of the column */
 .quote {
   position: absolute;
-  left: clamp(28px, 5.4vw, 98px);
-  bottom: clamp(44px, 8vh, 80px);
+  left: calc(97 * var(--s));
+  bottom: calc(78 * var(--s));
   margin: 0;
   font-family: 'Caveat', cursive;
-  font-size: clamp(1.6rem, 1.75vw, 2rem);
+  font-size: max(19px, calc(31 * var(--s)));
   font-weight: 600;
   line-height: 1.15;
   color: #1D2A45;
@@ -177,8 +185,8 @@
 }
 .quoteSwash {
   display: block;
-  width: 132px; height: 14px;
-  margin: 6px auto 0;
+  width: calc(132 * var(--s)); height: calc(14 * var(--s));
+  margin: calc(6 * var(--s)) auto 0;
   color: #EC8519;
 }
 
@@ -186,53 +194,54 @@
 .formPanel {
   flex: 0 0 auto;
   display: flex; align-items: center; justify-content: center;
-  padding: 88px clamp(20px, 5.1vw, 96px) 20px 24px;
+  padding: calc(88 * var(--s)) calc(91 * var(--s)) calc(20 * var(--s)) calc(24 * var(--s));
   position: relative; z-index: 2;
 }
-.card { width: clamp(430px, 37.5vw, 680px); }
+.card { width: max(360px, calc(665 * var(--s))); }
 
 .cardInner {
   position: relative;
-  padding: clamp(46px, 3.3vw, 60px) clamp(32px, 3.55vw, 64px) clamp(28px, 1.9vw, 34px);
+  padding: calc(58 * var(--s)) calc(62 * var(--s)) calc(34 * var(--s));
   background: #FFFFFF;
-  border-radius: 32px;
+  border-radius: calc(32 * var(--s));
   box-shadow: 0 30px 80px rgba(26, 52, 110, 0.13), 0 2px 8px rgba(26, 52, 110, 0.05);
 }
 /* Two classes deep so it outranks the menu's own `position: relative`. */
-.cardInner .langMenu { position: absolute; top: 30px; right: 32px; }
+.cardInner .langMenu { position: absolute; top: calc(30 * var(--s)); right: calc(32 * var(--s)); }
 
-.cardHead { text-align: center; margin-bottom: 30px; }
+.cardHead { text-align: center; margin-bottom: calc(30 * var(--s)); }
 .avatarRing {
-  width: 82px; height: 82px; border-radius: 22px;
+  width: calc(82 * var(--s)); height: calc(82 * var(--s));
+  border-radius: calc(22 * var(--s));
   display: flex; align-items: center; justify-content: center;
-  margin: 0 auto 16px;
+  margin: 0 auto calc(14 * var(--s));
   background: linear-gradient(180deg, #F4F8FE 0%, #E9F0FC 100%);
   border: 1px solid #E5ECF7;
   box-shadow: 0 6px 16px rgba(26, 52, 110, 0.08);
 }
-.avatarLogo { width: 46px; height: 46px; object-fit: contain; }
+.avatarLogo { width: calc(46 * var(--s)); height: calc(46 * var(--s)); object-fit: contain; }
 .cardTitle {
-  margin-bottom: 4px;
+  margin-bottom: calc(4 * var(--s));
   font-family: 'Sora', sans-serif;
-  font-size: clamp(1.6rem, 1.8vw, 2rem);
+  font-size: max(20px, calc(32 * var(--s)));
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.02em;
   color: #111B34;
 }
 .cardSub {
-  font-size: clamp(0.95rem, 0.96vw, 1.07rem);
-  line-height: 1.5;
+  font-size: max(13px, calc(17 * var(--s)));
+  line-height: 1.45;
   color: #55627C;
 }
 .cardSub a { color: var(--blue-deep); font-weight: 700; }
 .cardSub a:hover { text-decoration: underline; }
 
 /* Form fields */
-.form { display: flex; flex-direction: column; gap: 24px; }
-.field { display: flex; flex-direction: column; gap: 10px; }
+.form { display: flex; flex-direction: column; gap: calc(24 * var(--s)); }
+.field { display: flex; flex-direction: column; gap: calc(10 * var(--s)); }
 .fieldLabel {
-  font-size: 0.8rem;
+  font-size: max(10.5px, calc(12.8 * var(--s)));
   line-height: 1.2;
   font-weight: 700;
   letter-spacing: 0.12em;
@@ -242,9 +251,9 @@
 .fieldWrap {
   position: relative;
   display: flex; align-items: center;
-  height: 58px;
+  height: max(40px, calc(58 * var(--s)));
   border: 1px solid #DFE6F0;
-  border-radius: 12px;
+  border-radius: calc(12 * var(--s));
   background: #FFFFFF;
   transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
@@ -258,18 +267,20 @@
 }
 .fieldIcon {
   display: flex; align-items: center; justify-content: center;
-  padding: 0 14px 0 20px;
+  padding: 0 calc(14 * var(--s)) 0 calc(20 * var(--s));
   color: #7C89A3;
   flex-shrink: 0;
   transition: color 0.2s;
 }
+.fieldIcon svg,
+.eyeBtn svg { width: max(16px, calc(20 * var(--s))); height: max(16px, calc(20 * var(--s))); }
 .fieldFocused .fieldIcon { color: var(--blue-deep); }
 .fieldInput {
   flex: 1; min-width: 0; height: 100%;
-  padding: 0 14px 0 0;
+  padding: 0 calc(14 * var(--s)) 0 0;
   background: transparent; border: none; outline: none;
   font-family: 'DM Sans', sans-serif;
-  font-size: 1.05rem;
+  font-size: max(14px, calc(17 * var(--s)));
   color: var(--text);
   caret-color: var(--blue-deep);
 }
@@ -285,20 +296,20 @@
 .eyeBtn {
   display: flex; align-items: center;
   height: 100%;
-  padding: 0 20px 0 12px;
+  padding: 0 calc(20 * var(--s)) 0 calc(12 * var(--s));
   flex-shrink: 0;
   color: #6F7C96;
-  border-radius: 0 12px 12px 0;
+  border-radius: 0 calc(12 * var(--s)) calc(12 * var(--s)) 0;
   transition: color 0.2s;
 }
 .eyeBtn:hover { color: var(--blue-deep); }
 .eyeBtn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: -3px; }
 
 /* Remember me + forgot password */
-.rememberRow { display: flex; align-items: center; gap: 12px; margin-top: -2px; }
+.rememberRow { display: flex; align-items: center; gap: calc(12 * var(--s)); margin-top: calc(-2 * var(--s)); }
 /* The label wraps a real checkbox; the box beside it is only its picture. */
 .remember {
-  display: inline-flex; align-items: center; gap: 12px;
+  display: inline-flex; align-items: center; gap: calc(12 * var(--s));
   cursor: pointer; user-select: none;
 }
 .checkInput {
@@ -306,7 +317,8 @@
   opacity: 0; pointer-events: none;
 }
 .checkbox {
-  width: 22px; height: 22px; flex-shrink: 0;
+  width: max(17px, calc(22 * var(--s))); height: max(17px, calc(22 * var(--s)));
+  flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
   border: 1.5px solid #C9D3E2;
   border-radius: 6px;
@@ -321,10 +333,10 @@
   color: #FFFFFF;
 }
 .checkInput:focus-visible + .checkbox { box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.25); }
-.rememberLabel { font-size: 0.95rem; color: #2C3A55; }
+.rememberLabel { font-size: max(12.5px, calc(15 * var(--s))); color: #2C3A55; }
 .forgotLink {
   margin-left: auto; flex-shrink: 0;
-  font-size: 0.95rem; font-weight: 700;
+  font-size: max(12.5px, calc(15 * var(--s))); font-weight: 700;
   color: var(--blue-deep);
   text-decoration: none;
 }
@@ -332,20 +344,20 @@
 
 /* Sign in — the one orange action */
 .submitBtn {
-  width: 100%; height: 61px;
-  margin-top: 4px;
-  display: flex; align-items: center; justify-content: center; gap: 12px;
+  width: 100%; height: max(42px, calc(61 * var(--s)));
+  margin-top: calc(4 * var(--s));
+  display: flex; align-items: center; justify-content: center; gap: calc(12 * var(--s));
   border-radius: var(--r-full);
   background: linear-gradient(90deg, #CB5A0A 0%, #EA7D14 55%, #F5921B 100%);
   color: #FFFFFF;
   text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif;
-  font-size: 1.2rem;
+  font-size: max(15px, calc(19 * var(--s)));
   font-weight: 700;
   box-shadow: 0 12px 28px rgba(222, 110, 20, 0.26);
   transition: filter 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
-.submitBtn svg { transition: transform 0.2s var(--ease); }
+.submitBtn svg { width: max(17px, calc(22 * var(--s))); height: max(17px, calc(22 * var(--s))); transition: transform 0.2s var(--ease); }
 .submitBtn:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 14px 32px rgba(222, 110, 20, 0.32); }
 .submitBtn:hover:not(:disabled) svg { transform: translateX(3px); }
 .submitBtn:disabled { opacity: 0.6; cursor: not-allowed; box-shadow: none; }
@@ -353,9 +365,9 @@
 
 /* "Or continue with" + guest */
 .orRow {
-  display: flex; align-items: center; gap: 16px;
-  margin: 28px 0 18px;
-  font-size: 0.78rem;
+  display: flex; align-items: center; gap: calc(16 * var(--s));
+  margin: calc(28 * var(--s)) 0 calc(18 * var(--s));
+  font-size: max(10.5px, calc(12.5 * var(--s)));
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -365,57 +377,65 @@
 .orRow::after { content: ''; flex: 1; height: 1px; background: #E3E9F2; }
 .guestRow { display: flex; justify-content: center; }
 .guestBtn {
-  display: inline-flex; align-items: center; gap: 14px;
-  height: 57px;
-  padding: 0 clamp(36px, 3.2vw, 58px);
+  display: inline-flex; align-items: center; gap: calc(14 * var(--s));
+  height: max(40px, calc(57 * var(--s)));
+  padding: 0 calc(58 * var(--s));
   border: 1.5px solid #DCE3EE;
   border-radius: var(--r-full);
   background: #FFFFFF;
   font-family: inherit;
-  font-size: 1.05rem;
+  font-size: max(13.5px, calc(17 * var(--s)));
   font-weight: 600;
   color: #1A2744;
   white-space: nowrap;
   transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
 }
-.guestBtn svg { color: #3F4C66; transition: color 0.2s var(--ease); }
+.guestBtn svg { width: max(16px, calc(20 * var(--s))); height: max(16px, calc(20 * var(--s))); color: #3F4C66; transition: color 0.2s var(--ease); }
 .guestBtn:hover { border-color: var(--blue-soft); background: var(--blue-bg); color: var(--blue-deep); }
 .guestBtn:hover svg { color: var(--blue-deep); }
 .guestBtn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.45); outline-offset: 3px; }
 
 .registerLine {
-  margin-top: 16px;
+  margin-top: calc(16 * var(--s));
   text-align: center;
-  font-size: 0.9rem;
+  font-size: max(12.5px, calc(14.4 * var(--s)));
   color: #55627C;
 }
 .registerLine a { color: var(--blue-deep); font-weight: 700; }
 .registerLine a:hover { text-decoration: underline; }
 
 /* ── Responsive ── */
+/* Tighter on smaller windows, so a longer translation stays clear of the plane in the photo. */
+@media (max-width: 1599px) { .eyebrow { letter-spacing: 0.22em; } }
 /* Not enough height for the line at the foot of the column to clear the figures. */
-@media (max-height: 780px) {
-  .quote { display: none; }
+@media (max-height: 700px) { .quote { display: none; } }
+/* Short windows (a 1366×768 laptop leaves ~625px): the text keeps its readable floor, so
+   the logo tile and the outer spacing give way instead, and the card still fits. */
+@media (max-height: 660px) {
+  .avatarRing { width: calc(62 * var(--s)); height: calc(62 * var(--s)); }
+  .avatarLogo { width: calc(36 * var(--s)); height: calc(36 * var(--s)); }
+  .formPanel { padding-top: calc(80 * var(--s)); padding-bottom: calc(10 * var(--s)); }
 }
-@media (max-width: 1200px) {
-  .statDivider { display: none; }
-}
+@media (max-width: 1200px) { .statDivider { display: none; } }
+
+/* Phones and small tablets: the card is the page. */
 @media (max-width: 980px) {
-  .page { flex-direction: column; }
+  .page { --s: 0.76px; flex-direction: column; }
   .page::before, .page::after, .trail, .quote { display: none; }
-  .brandPanel { padding: 22px 20px 6px; align-items: center; }
+  .brandPanel { flex: none; padding: 16px 20px 0; align-items: center; }
   .logo { margin-bottom: 0; }
-  .logoWordmark { height: 50px; }
+  .logoWordmark { height: 44px; }
   .brandHero, .statsRow { display: none; }
-  .formPanel { flex: 1; padding: 18px 16px 30px; align-items: flex-start; }
-  .card { width: 100%; max-width: 560px; }
+  .formPanel { flex: 1; padding: 14px 16px 20px; align-items: flex-start; }
+  .card { width: 100%; max-width: 520px; }
+  .cardInner { padding: 34px 30px 24px; }
 }
 @media (max-width: 560px) {
   /* The pill joins the flow above the logo tile instead of floating over it. */
-  .cardInner { padding: 30px 20px 26px; border-radius: 24px; }
-  .cardInner .langMenu { position: relative; top: 0; right: 0; width: fit-content; margin: -12px -4px 10px auto; }
-  .cardTitle { font-size: 1.45rem; }
-  .rememberRow { flex-wrap: wrap; }
+  .cardInner { padding: 24px 18px 20px; border-radius: 22px; }
+  .cardInner .langMenu { position: relative; top: 0; right: 0; width: fit-content; margin: -8px -4px 4px auto; }
+  .cardHead { margin-bottom: 18px; }
+  .rememberRow { flex-wrap: wrap; row-gap: 8px; }
   .guestBtn { width: 100%; justify-content: center; }
 }
 
