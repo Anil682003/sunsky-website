@@ -1783,7 +1783,7 @@ export default function Results() {
             render={(type) => (
               <FilterCheck
                 key={type.id}
-                label={`${type.icon ? `${type.icon} ` : ''}${type.name} (${type.hotels})`}
+                label={`${type.name} (${type.hotels})`}
                 checked={filters.themes.includes(type.id)}
                 onChange={() => toggleCode('themes', type.id)}
               />
@@ -1932,9 +1932,6 @@ export default function Results() {
     <div className={styles.page}>
       {/* Hero header */}
       <header className={styles.hero}>
-        <div className={styles.heroGlow} />
-        <div className={styles.heroGlow2} />
-        <div className={styles.heroGrid} />
         <div className={styles.heroInner}>
           <div className={styles.breadcrumb}>
             <span>{t('hero.home', 'Home')}</span>
@@ -1963,9 +1960,6 @@ export default function Results() {
       <div className={styles.toolbar}>
         <div className={styles.toolbarInner}>
           <div className={styles.resultCount}>
-            <span className={styles.countIcon}>
-              <Icon d="M12 17a5 5 0 100-10 5 5 0 000 10zM12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42" size={18} sw={2} />
-            </span>
             {loading ? (
               <span className={styles.countSearching}>
                 <span className={styles.countPulse} />
@@ -1989,18 +1983,14 @@ export default function Results() {
               </span>
             )}
           </div>
-          {/* Boarding-pass strip — the trip summary rides the dashed route line */}
+          {/* The trip the list is for: dates, length and party, as one quiet line */}
           <div className={styles.tripStrip}>
-            <span className={styles.tripStripLine} aria-hidden="true" />
             {heroChips.map((c) => (
               <span key={c.text} className={styles.tripStop}>
-                <Icon d={c.icon} size={12} sw={1.8} />
+                <Icon d={c.icon} size={13} sw={1.8} />
                 {c.text}
               </span>
             ))}
-            <svg className={styles.tripStripPlane} viewBox="0 0 22 18" width="16" height="13" aria-hidden="true">
-              <path d="M0 8L22 0l-7.5 18-3.5-6.5L0 8z" fill="currentColor" />
-            </svg>
           </div>
           <div className={styles.toolbarRight}>
             <div className={styles.sortWrap}>
@@ -2072,7 +2062,7 @@ export default function Results() {
             {loading ? (
               [0, 1, 2].map((i) => (
                 <div key={i} className={styles.skeletonCard} style={{ animationDelay: `${i * 0.1}s` }}>
-                  {/* Branded image placeholder — soft sky wash with a mountain/sun watermark */}
+                  {/* Image placeholder: a flat tile with a picture glyph */}
                   <div className={styles.skImg}>
                     <svg className={styles.skImgIcon} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
                       <circle cx="7.5" cy="7" r="2.5" />
@@ -2096,7 +2086,7 @@ export default function Results() {
                       <span className={styles.skNights} />
                     </div>
                   </div>
-                  {/* Price rail — same boarding-pass tear line + notches as a real card */}
+                  {/* Price column, as on a real card */}
                   <div className={styles.skRail}>
                     <div className={`${styles.skLine} ${styles.skRailLabel}`} />
                     <div className={`${styles.skLine} ${styles.skRailPrice}`} />
@@ -2196,7 +2186,6 @@ export default function Results() {
                           <div className={styles.rcImgFallback}><HotelPhotoFallback variant="tile" seed={h.hotelCode} /></div>
                         </>)
                       : <div className={styles.rcImgSkel} />}
-                    <div className={styles.rcImgOverlay} />
                     {infoReady && gallery.length > 0 && (
                       <button
                         type="button"
@@ -2268,16 +2257,16 @@ export default function Results() {
                   </div>
 
                   <div className={styles.rcContent}>
-                    {/* Head: identity on the left, guest score big on the right — the pattern
-                        travellers know from Booking.com. Dates/nights pills are GONE from the
-                        body: every card repeated the toolbar's values, which was pure noise. */}
+                    {/* Identity: rating, name and place, across the column's full width. The
+                        guest score sits in the price column. Dates/nights pills are GONE from
+                        the body: every card repeated the toolbar's values, which was pure noise. */}
                     <div className={styles.rcHead}>
                       <div className={styles.rcHeadMain}>
                         {ratingValue(dispRating) > 0 && (
                           <div className={styles.rcRating}>
                             {/* Keys arrive pre-tilted from KeyMark (the 🔑 spec) — no CSS rotation here. */}
                             <span className={`${styles.rcRatingMarks} ${dispRating?.kind === 'key' ? styles.rcKeysRow : ''}`}>
-                              <RatingMarks rating={dispRating} keySize={22} />
+                              <RatingMarks rating={dispRating} keySize={18} />
                             </span>
                             <span className={styles.rcRatingLabel}>{ratingLabel(dispRating)}</span>
                           </div>
@@ -2306,23 +2295,6 @@ export default function Results() {
                           )}
                         </div>
                       </div>
-
-                      {rev && (
-                        <div className={styles.rcReviewBox} title={rev.title}>
-                          <span className={styles.rcReviewScore}>{rev.score}<span className={styles.rcReviewOutOf}>/{rev.outOf}</span></span>
-                          <span className={styles.rcReviewWord}>{scoreWord(rev.score)}</span>
-                          {rev.count > 0 && (
-                            <span className={styles.rcReviewCount}>
-                              {t('common:review.reviews', {
-                                count: rev.count,
-                                countFormatted: rev.count.toLocaleString(numberLocale),
-                                defaultValue_one: '{{countFormatted}} review',
-                                defaultValue_other: '{{countFormatted}} reviews',
-                              })}
-                            </span>
-                          )}
-                        </div>
-                      )}
                     </div>
 
                     {/* Amenities: borderless icon+label items — text, not chip soup. */}
@@ -2347,8 +2319,8 @@ export default function Results() {
                       </div>
                     )}
 
-                    {/* What the deal includes — mint coupon pills (dashed border), one per
-                        value: the board basis and the room type each earn their own tag. */}
+                    {/* What the deal includes: the board basis and the room type, each with
+                        a green tick. */}
                     {(h.boardCode || h.roomType) && (
                       <div className={styles.rcIncluded}>
                         {h.boardCode && (
@@ -2362,6 +2334,27 @@ export default function Results() {
                   </div>
 
                   <div className={styles.rcPriceRail}>
+                    {/* Guest score (TripAdvisor, out of 10), at the top of the price column. The
+                        client asked for it top-right and large; here it takes no width from the
+                        hotel's name. */}
+                    {rev && (
+                      <div className={styles.rcReviewBox} title={rev.title}>
+                        <span className={styles.rcReviewText}>
+                          <span className={styles.rcReviewWord}>{scoreWord(rev.score)}</span>
+                          {rev.count > 0 && (
+                            <span className={styles.rcReviewCount}>
+                              {t('common:review.reviews', {
+                                count: rev.count,
+                                countFormatted: rev.count.toLocaleString(numberLocale),
+                                defaultValue_one: '{{countFormatted}} review',
+                                defaultValue_other: '{{countFormatted}} reviews',
+                              })}
+                            </span>
+                          )}
+                        </span>
+                        <span className={styles.rcReviewScore}>{rev.score}<span className={styles.rcReviewOutOf}>/{rev.outOf}</span></span>
+                      </div>
+                    )}
                     <div className={styles.rcPriceInfo}>
                       {/* No "Free cancellation" line. It advertised on the card a term the
                           hotel page no longer states and the sidebar no longer filters by, so
