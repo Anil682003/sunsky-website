@@ -29,10 +29,16 @@
   background-image: url('../../../assets/somethingfe-bg.jpg');
   background-size: cover;
   background-position: center 62%;   /* sea and sky, above the white swoosh */
-  /* Enough to destroy detail, not so much that the photograph becomes flat
-     colour: at 34px the sky, sea and sunset all averaged into one grey-blue
-     haze and the section stopped looking like it had an image at all. */
-  filter: blur(26px) saturate(1.08);
+  /* Soft enough that nothing in the photo competes with the cards, sharp
+     enough that it still reads as sky, sea and coastline. Earlier passes at
+     34px and 26px averaged the whole picture into one grey-blue haze, so the
+     section carried an image nobody could see.
+
+     10px is also about the floor for this file: the source is 1000px wide and
+     is drawn wider than that, and the blur is what hides the upscale. Much
+     below this and the softness starts to read as a low-quality image rather
+     than a deliberate one. */
+  filter: blur(10px) saturate(1.1);
   /* Blur samples past the element's edges, which leaves a pale halo around all
      four sides. Scaling the layer up pushes that halo outside the section. */
   transform: scale(1.12);
@@ -53,17 +59,17 @@
   background:
     linear-gradient(180deg,
       #FFFFFF 0%,
-      rgba(255, 255, 255, 0.72) 12%,
-      rgba(255, 255, 255, 0.55) 50%,
-      rgba(255, 255, 255, 0.78) 88%,
+      rgba(255, 255, 255, 0.55) 10%,
+      rgba(255, 255, 255, 0.34) 50%,
+      rgba(255, 255, 255, 0.62) 90%,
       #FFFFFF 100%);
   z-index: -1;
 }
 
 @media (max-width: 768px) {
-  /* Less blur on a phone: the layer is far smaller there, and 34px turns it to
-     flat colour. Also cheaper, since a large blur is a real paint cost. */
-  .section::before { filter: blur(22px) saturate(1.05); }
+  /* Lighter still on a phone: the layer is far smaller there, so the same
+     radius flattens more of it, and a large blur is a real paint cost. */
+  .section::before { filter: blur(8px) saturate(1.1); }
 }
 
 .inner {
