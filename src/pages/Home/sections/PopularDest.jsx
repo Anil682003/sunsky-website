@@ -27,6 +27,30 @@ const FALLBACK_CARDS = [
 
 const COLOR_CLASSES = ['blue','gold','coral','teal','purple','green'];
 
+// The FALLBACK_CARDS `links` above are plain strings (legacy, unlinked-to-CMS quick
+// links), so — unlike a dashboard-entered CMS link — they are this component's own
+// copy and get translated here rather than left as dashboard content.
+const LINK_LABEL_KEYS = {
+  'Bali': 'bali', 'Thailand': 'thailand', 'Maldives': 'maldives', 'Sri Lanka': 'sriLanka',
+  'Mexico': 'mexico', 'Dominican Republic': 'dominicanRepublic',
+  'Turkey All Inclusive': 'turkeyAllInclusive', 'Egypt All Inclusive': 'egyptAllInclusive',
+  'Greece All Inclusive': 'greeceAllInclusive', 'Spain All Inclusive': 'spainAllInclusive',
+  'Cape Verde': 'capeVerde',
+  'Last Minute Spain': 'lastMinuteSpain', 'Last Minute Turkey': 'lastMinuteTurkey',
+  'Last Minute Greece': 'lastMinuteGreece', 'Last Minute Egypt': 'lastMinuteEgypt',
+  'Last Minute Canary Islands': 'lastMinuteCanaryIslands',
+  'Paris': 'paris', 'Rome': 'rome', 'Barcelona': 'barcelona', 'London': 'london',
+  'Prague': 'prague', 'Amsterdam': 'amsterdam',
+  'France by Car': 'franceByCar', 'Italy by Car': 'italyByCar', 'Spain by Car': 'spainByCar',
+  'Portugal by Car': 'portugalByCar', 'Germany by Car': 'germanyByCar',
+  'May Holidays': 'mayHolidays', 'Summer Holidays': 'summerHolidays', 'Autumn Break': 'autumnBreak',
+  'Christmas Travel': 'christmasTravel', 'Winter Sun': 'winterSun',
+};
+const linkLabel = (t, raw) => {
+  const k = LINK_LABEL_KEYS[raw];
+  return k ? t(`popular.links.${k}`, raw) : raw;
+};
+
 export default function PopularDest({ cms }) {
   const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.popularDest;
@@ -158,7 +182,7 @@ export default function PopularDest({ cms }) {
                 </div>
                 <div className={styles.links}>
                   {c.links.map((l, li) => {
-                    const label = groupLinkLabel(l);
+                    const label = typeof l === 'string' ? linkLabel(t, l) : groupLinkLabel(l);
                     const href  = groupLinkUrl(l);
                     // Legacy string links (and any the dashboard has not linked
                     // yet) keep the previous inert anchor.
@@ -188,7 +212,7 @@ export default function PopularDest({ cms }) {
                 <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
               </g>
             </svg>
-            <span className={styles.slotNote}>your next stamp goes here…</span>
+            <span className={styles.slotNote}>{t('popular.nextStamp', 'your next stamp goes here…')}</span>
           </div>
         </div>
 

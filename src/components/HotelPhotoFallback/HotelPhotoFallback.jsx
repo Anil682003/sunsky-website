@@ -1,4 +1,5 @@
 import { useId, useMemo } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './HotelPhotoFallback.module.css';
 
 /* A designed stand-in for a hotel photo that doesn't exist (the property has no image set)
@@ -44,6 +45,7 @@ export default function HotelPhotoFallback({
   variant = 'hero',
   className = '',
 }) {
+  const { t } = useTranslation('common');
   const uid = useId().replace(/:/g, '');
   const v = useMemo(() => {
     const h = hashSeed(String(seed || name || 'sunsky'));
@@ -214,13 +216,13 @@ export default function HotelPhotoFallback({
            beside it, and repeating it inside the picture is noise. */
         <span className={styles.tileNote}>
           <span className={styles.tileMark}><Camera /></span>
-          <span className={styles.tileLabel}>No images available</span>
+          <span className={styles.tileLabel}>{t('hotelFallback.noImages', 'No images available')}</span>
         </span>
       ) : (
         <div className={styles.overlay}>
           {name && <p className={styles.name}>{name}</p>}
           {location && <p className={styles.loc}><Pin />{location}</p>}
-          <p className={styles.note}>No images available</p>
+          <p className={styles.note}>{t('hotelFallback.noImages', 'No images available')}</p>
         </div>
       )}
     </div>

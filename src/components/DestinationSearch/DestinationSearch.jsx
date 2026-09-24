@@ -298,20 +298,20 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
         {/* The self-typing invitation — hidden the instant the real caret takes over. */}
         {showTyped && (
           <span className={styles.typeHint} aria-hidden="true">
-            <span className={styles.typeLead}>Search&nbsp;</span>
+            <span className={styles.typeLead}>{t('actions.search', 'Search')}&nbsp;</span>
             <span className={styles.typeName}>“{typed}”</span>
             <span className={styles.caret} />
           </span>
         )}
       </div>
-      {query && <button type="button" className={styles.clear} onClick={clear} aria-label="Clear">×</button>}
+      {query && <button type="button" className={styles.clear} onClick={clear} aria-label={t('destSearch.clear', 'Clear')}>×</button>}
 
       {/* ── Idle panel: recents + popular, before anything is typed ── */}
       {showIdle && (
         <div className={styles.dropdown}>
           {recents.length > 0 && (
             <div className={styles.section}>
-              <div className={styles.group}><ClockIcon /><span>Recent searches</span></div>
+              <div className={styles.group}><ClockIcon /><span>{t('destSearch.recentSearches', 'Recent searches')}</span></div>
               {recents.map((r, i) => (
                 <button
                   key={`r-${r.name}-${i}`} type="button" className={styles.item}
@@ -336,7 +336,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                     <span className={styles.itemSub}>
                       {r.kind === 'hotel' ? hotelLocation(r)
                         : r.kind === 'zone' ? [r.destinationName, r.country].filter(Boolean).join(', ')
-                        : (r.country || 'Destination')}
+                        : (r.country || t('destSearch.destination', 'Destination'))}
                     </span>
                   </span>
                 </button>
@@ -345,7 +345,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
           )}
           {suggestions.length > 0 && (
             <div className={styles.section}>
-              <div className={styles.group}><SunIcon /><span>Popular right now</span></div>
+              <div className={styles.group}><SunIcon /><span>{t('destSearch.popularRightNow', 'Popular right now')}</span></div>
               <div className={styles.chipRow}>
                 {suggestions.map((s, i) => (
                   <button
@@ -370,23 +370,23 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
             <div className={styles.tallyStrip}>
               <span className={styles.tally}>
                 {[
-                  nDests > 0 && `${nDests} place${nDests === 1 ? '' : 's'}`,
-                  nZones > 0 && `${nZones} area${nZones === 1 ? '' : 's'}`,
-                  nHotels > 0 && `${nHotels} hotel${nHotels === 1 ? '' : 's'}`,
+                  nDests > 0 && t('destSearch.tallyPlaces', { count: nDests, defaultValue_one: '{{count}} place', defaultValue_other: '{{count}} places' }),
+                  nZones > 0 && t('destSearch.tallyAreas', { count: nZones, defaultValue_one: '{{count}} area', defaultValue_other: '{{count}} areas' }),
+                  nHotels > 0 && t('destSearch.tallyHotels', { count: nHotels, defaultValue_one: '{{count}} hotel', defaultValue_other: '{{count}} hotels' }),
                 ].filter(Boolean).join(' · ')}
               </span>
             </div>
           )}
           {loading && flat.length === 0 && (
-            <div className={styles.state}><span className={styles.spinner} />Searching…</div>
+            <div className={styles.state}><span className={styles.spinner} />{t('destSearch.searching', 'Searching…')}</div>
           )}
           {!loading && flat.length === 0 && (
-            <div className={styles.state}>No hotels or destinations match “{query.trim()}”.</div>
+            <div className={styles.state}>{t('destSearch.noMatches', { query: query.trim(), defaultValue: 'No hotels or destinations match “{{query}}”.' })}</div>
           )}
 
           {results.destinations.length > 0 && (
             <div className={styles.section}>
-              <div className={styles.group}><PinIcon /><span>Destinations</span></div>
+              <div className={styles.group}><PinIcon /><span>{t('destSearch.destinations', 'Destinations')}</span></div>
               {results.destinations.map((d, i) => (
                 <button
                   key={`d-${d.code}`} type="button"
@@ -398,9 +398,9 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                   <FlagTile flag={d.flag} flagUrl={d.flagUrl} />
                   <span className={styles.itemText}>
                     <span className={styles.itemMain}>{d.name}</span>
-                    <span className={styles.itemSub}>{d.country || 'Destination'}</span>
+                    <span className={styles.itemSub}>{d.country || t('destSearch.destination', 'Destination')}</span>
                   </span>
-                  <span className={`${styles.tag} ${styles.tagDest}`}>Place</span>
+                  <span className={`${styles.tag} ${styles.tagDest}`}>{t('destSearch.tagPlace', 'Place')}</span>
                 </button>
               ))}
             </div>
@@ -411,7 +411,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
               shown because it is the reason to pick the area over the whole city. */}
           {results.zones.length > 0 && (
             <div className={styles.section}>
-              <div className={styles.group}><AreaIcon /><span>Areas</span></div>
+              <div className={styles.group}><AreaIcon /><span>{t('destSearch.areas', 'Areas')}</span></div>
               {results.zones.map((z, i) => {
                 const idx = nDests + i;
                 return (
@@ -427,10 +427,10 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                       <span className={styles.itemMain}>{z.name}</span>
                       <span className={styles.itemSub}>
                         {[z.destinationName, z.country].filter(Boolean).join(', ')}
-                        {z.hotels > 0 && ` · ${z.hotels} hotel${z.hotels === 1 ? '' : 's'}`}
+                        {z.hotels > 0 && ` · ${t('destSearch.tallyHotels', { count: z.hotels, defaultValue_one: '{{count}} hotel', defaultValue_other: '{{count}} hotels' })}`}
                       </span>
                     </span>
-                    <span className={`${styles.tag} ${styles.tagZone}`}>Area</span>
+                    <span className={`${styles.tag} ${styles.tagZone}`}>{t('destSearch.tagArea', 'Area')}</span>
                   </button>
                 );
               })}
@@ -439,7 +439,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
 
           {results.hotels.length > 0 && (
             <div className={styles.section}>
-              <div className={styles.group}><HotelIcon /><span>Hotels</span></div>
+              <div className={styles.group}><HotelIcon /><span>{t('destSearch.hotels', 'Hotels')}</span></div>
               {results.hotels.map((h, i) => {
                 const idx = nDests + nZones + i;
                 return (
@@ -465,7 +465,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
                       </span>
                       <span className={styles.itemSub}>{hotelLocation(h)}</span>
                     </span>
-                    <span className={`${styles.tag} ${styles.tagHotel}`}>Hotel</span>
+                    <span className={`${styles.tag} ${styles.tagHotel}`}>{t('destSearch.tagHotel', 'Hotel')}</span>
                   </button>
                 );
               })}
@@ -474,7 +474,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
 
           {onBrowseAll && (
             <button type="button" className={styles.browse} onClick={() => { setOpen(false); onBrowseAll(); }}>
-              Browse all destinations
+              {t('destSearch.browseAll', 'Browse all destinations')}
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
             </button>
           )}

@@ -37,6 +37,30 @@
     "searchPlaceholder": "Zoek bestemming, hotel of regio",
     "searchLabel": "Zoek hotels en bestemmingen"
   },
+  "destSearch": {
+    "clear": "Wissen",
+    "recentSearches": "Recente zoekopdrachten",
+    "popularRightNow": "Nu populair",
+    "destination": "Bestemming",
+    "searching": "Zoeken…",
+    "noMatches": "Geen hotels of bestemmingen komen overeen met “{{query}}”.",
+    "destinations": "Bestemmingen",
+    "areas": "Gebieden",
+    "hotels": "Hotels",
+    "tagPlace": "Plaats",
+    "tagArea": "Gebied",
+    "tagHotel": "Hotel",
+    "tallyPlaces_one": "{{count}} plaats",
+    "tallyPlaces_other": "{{count}} plaatsen",
+    "tallyAreas_one": "{{count}} gebied",
+    "tallyAreas_other": "{{count}} gebieden",
+    "tallyHotels_one": "{{count}} hotel",
+    "tallyHotels_other": "{{count}} hotels",
+    "browseAll": "Bekijk alle bestemmingen"
+  },
+  "hotelFallback": {
+    "noImages": "Geen afbeeldingen beschikbaar"
+  },
   "language": {
     "label": "Taal",
     "nl": "Nederlands",
