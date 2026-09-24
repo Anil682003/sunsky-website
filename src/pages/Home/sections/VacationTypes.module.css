@@ -28,7 +28,7 @@
   background-image: url('../../../assets/favtype-bg.jpg');
   background-size: cover;
   background-position: center 58%;   /* the caldera and the sea, not the sky */
-  filter: blur(1.5px);
+  filter: blur(0.8px);
   /* Blur samples past the layer's edges and leaves a pale rim on all four
      sides; scaling it up pushes that rim outside the section. */
   transform: scale(1.04);
@@ -38,7 +38,7 @@
 @media (max-width: 768px) {
   /* The layer is far smaller on a phone, so the same radius softens more of
      it, and a blur is a real paint cost on the device least able to pay it. */
-  .section::before { filter: blur(1px); }
+  .section::before { filter: blur(0.5px); }
 }
 
 /* A white veil over the photo. The heading sits directly on it and the cards'
