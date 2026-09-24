@@ -5,12 +5,72 @@
    destinations, a quiet row under the card reveals them.
    ═══════════════════════════════════════════════════════════ */
 
+/* The section sits on a travel photograph, blurred back until it is texture
+   rather than a picture. Two reasons it is blurred rather than shown sharp:
+   the cards and the heading are the content and a legible photo competes with
+   them, and a sharp coastline behind white cards fights the calm the rest of
+   the page keeps. Blurred, it reads as light and colour.
+
+   The photo is a decorative layer on ::before, not a background on .section
+   itself: `filter` applied to the section would blur the heading and the cards
+   with it. */
 .section {
+  position: relative;
+  isolation: isolate;
   background: #FFFFFF;
   padding: var(--section-y) 0;
+  overflow: hidden;
+}
+
+.section::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background-image: url('../../../assets/somethingfe-bg.jpg');
+  background-size: cover;
+  background-position: center 62%;   /* sea and sky, above the white swoosh */
+  /* Enough to destroy detail, not so much that the photograph becomes flat
+     colour: at 34px the sky, sea and sunset all averaged into one grey-blue
+     haze and the section stopped looking like it had an image at all. */
+  filter: blur(26px) saturate(1.08);
+  /* Blur samples past the element's edges, which leaves a pale halo around all
+     four sides. Scaling the layer up pushes that halo outside the section. */
+  transform: scale(1.12);
+  z-index: -2;
+}
+
+/* A white wash over the photo. The page is light by design and dark text has
+   to stay comfortably readable over sky, coastline and palm alike, so the
+   photo is held at a consistent tint rather than left to vary with whatever
+   happens to be behind a given card.
+
+   It is strongest top and bottom so the section melts into the white sections
+   either side of it instead of ending as a hard band. */
+.section::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background:
+    linear-gradient(180deg,
+      #FFFFFF 0%,
+      rgba(255, 255, 255, 0.72) 12%,
+      rgba(255, 255, 255, 0.55) 50%,
+      rgba(255, 255, 255, 0.78) 88%,
+      #FFFFFF 100%);
+  z-index: -1;
+}
+
+@media (max-width: 768px) {
+  /* Less blur on a phone: the layer is far smaller there, and 34px turns it to
+     flat colour. Also cheaper, since a large blur is a real paint cost. */
+  .section::before { filter: blur(22px) saturate(1.05); }
 }
 
 .inner {
+  /* Above the blurred photo and its white wash, both of which sit on negative
+     z-index layers behind this. */
+  position: relative;
+  z-index: 1;
   max-width: 1280px;
   margin: 0 auto;
   padding: 0 var(--gutter);
