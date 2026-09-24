@@ -1,145 +1,53 @@
-/* Header destination/hotel search, styled as a slim die-cut travel ticket: a warm magnifier
-   "stub" at the left, split from the input by a 1px dashed perforation with two punched cream
-   notches that match the #FFFBF2 bar behind — so they read as die-cut holes. On focus the stub
-   warms gold and the perforation dashes slide one period: the ticket is about to be torn.
-   Dashes appear ONLY on the perforation and the browse-all tear-off rule — anywhere else they
-   start reading as a discount coupon. */
+/* Header destination/hotel search: a plain rounded field with a magnifier, a light fill at
+   rest and a blue ring while focused. The dropdown hangs from it at exactly its width. */
 .wrap {
   display: flex; align-items: center;
-  width: 100%; height: 40px;
-  border-radius: 13px;             /* a ticket, not a capsule */
+  width: 100%; height: 42px;
+  border-radius: 12px;
   position: relative; min-width: 0;
-  background: #fff;
-  border: 1.5px solid var(--blue-light, #E8F1FF);
-  /* A raised resting state: a visible gold ring plus a warm pool underneath and
-     a soft ambient drop, so the ticket reads as the lit centrepiece of the bar
-     at a glance, not something you have to notice. Deepens further on focus. */
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.7);
-  transition: border-color 0.28s var(--ease), box-shadow 0.28s var(--ease);
+  background: var(--surface-alt);
+  border: 1px solid var(--line);
+  transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), background 0.2s var(--ease);
 }
+.wrap:hover { border-color: var(--line-strong); }
 .wrap:focus-within {
-  border-color: var(--blue-soft, #BBD3FF);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.7),
-    0 0 0 3px rgba(31, 79, 216, 0.1);
+  background: #fff;
+  border-color: var(--blue-mid);
+  box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.12);
 }
 
-/* One-time arrival: a warm halo pulses out and a light shine sweeps across the
-   ticket once, a few beats after the page settles — a "notice me" without
-   looping ornament. */
-.wrap::before {
-  content: ''; position: absolute; inset: -3px; border-radius: 15px;
-  pointer-events: none; z-index: -1;
-  box-shadow: 0 0 0 0 rgba(255, 159, 28, 0.45);
-  animation: none;
-}
-.wrap::after {
-  content: ''; position: absolute; inset: 0; border-radius: 13px;
-  pointer-events: none; overflow: hidden;
-  background: linear-gradient(105deg, transparent 30%, rgba(255, 255, 255, 0.7) 48%, rgba(255, 223, 150, 0.5) 52%, transparent 70%);
-  background-size: 220% 100%; background-position: 140% 0;
-  mix-blend-mode: overlay; opacity: 0;
-  animation: none;
-}
-@keyframes ticketHalo {
-  0%   { box-shadow: 0 0 0 0 rgba(255, 159, 28, 0.5); }
-  70%  { box-shadow: 0 0 0 12px rgba(255, 159, 28, 0); }
-  100% { box-shadow: 0 0 0 12px rgba(255, 159, 28, 0); }
-}
-@keyframes ticketShine {
-  0%   { opacity: 0; background-position: 140% 0; }
-  15%  { opacity: 1; }
-  100% { opacity: 0; background-position: -40% 0; }
-}
-/* Focus cancels the arrival flourish — the user has already noticed it. */
-.wrap:focus-within::before, .wrap:focus-within::after { animation: none; opacity: 0; }
-
-/* ── The magnifier stub ── */
+/* ── The magnifier ── */
 .stub {
-  width: 42px; height: 100%; flex-shrink: 0;
-  border-radius: 12px 0 0 12px;
+  width: 40px; height: 100%; flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  background: linear-gradient(135deg, rgba(255, 209, 102, 0.16), rgba(255, 159, 28, 0.1));
-  color: var(--blue-deep, #1f4fd8);
-  transition: background 0.28s var(--ease), color 0.28s var(--ease);
+  padding-left: 4px;
+  color: var(--text-sec);
+  transition: color 0.2s var(--ease);
 }
-.stub svg { transition: transform 0.45s var(--ease-spring); }
-.wrap:focus-within .stub {
-  background: linear-gradient(135deg, rgba(255, 159, 28, 0.16), rgba(255, 209, 102, 0.22));
-  color: var(--sun-orange, #ff9f1c);
-}
-/* The same gesture as the logo hover — house motion, not a new trick. */
-.wrap:focus-within .stub svg { transform: rotate(-8deg) scale(1.08); }
-
-/* ── Runway lights ── */
-/* A strip of gold dashes just under the ticket, dark at rest; focusing the
-   field lights them left-to-right once — the runway is lit, you can depart.
-   State-carrying (only while engaged), never ambient. */
-.runway {
-  position: absolute; left: 14px; right: 14px; bottom: -6px;
-  height: 2px; border-radius: 1px; pointer-events: none;
-  background: repeating-linear-gradient(90deg,
-    var(--sun-gold, #ffd166) 0 6px, transparent 6px 13px);
-  opacity: 0;
-  /* A soft-edged opaque half over a double-width mask; sliding mask-position
-     (which interpolates, unlike mask-image) sweeps the lit region across. */
-  -webkit-mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
-  mask-image: linear-gradient(90deg, #000 45%, transparent 55%);
-  -webkit-mask-size: 220% 100%; mask-size: 220% 100%;
-  -webkit-mask-position: 0 0; mask-position: 0 0;
-  transition: opacity 0.2s var(--ease);
-}
-.wrap:focus-within .runway {
-  opacity: 1;
-  animation: runwayLight 0.55s var(--ease) both;
-}
-@keyframes runwayLight {
-  from { -webkit-mask-position: 120% 0; mask-position: 120% 0; }
-  to   { -webkit-mask-position: 0 0;    mask-position: 0 0; }
-}
-
-/* ── The perforation ── */
-.perf {
-  width: 1px; height: 100%; flex-shrink: 0;
-  background: repeating-linear-gradient(180deg,
-    rgba(199, 119, 0, 0.38) 0 4px, transparent 4px 9px);
-  background-position: 0 0;
-  transition: background-position 0.5s var(--ease);
-}
-/* Slides exactly one 9px dash period — settles, never loops. */
-.wrap:focus-within .perf { background-position: 0 9px; }
-
-/* Punched notches: bar-coloured dots biting into the edges at the perforation,
-   selling the die-cut. The bar and the mobile drawer are both #FFFBF2. */
-.notchTop, .notchBottom {
-  position: absolute; left: 39px; width: 7px; height: 7px;
-  background: var(--nav-bg); border-radius: 50%; pointer-events: none; z-index: 1;
-}
-.notchTop    { top: -4px; }
-.notchBottom { bottom: -4px; }
+.wrap:focus-within .stub { color: var(--blue-deep); }
 
 /* ── Input + typewriter invitation ── */
 .inputZone { position: relative; flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; }
 .input {
   border: none; background: transparent; outline: none;
-  padding: 0 6px 0 12px; width: 100%; min-width: 0;
+  padding: 0 6px 0 4px; width: 100%; min-width: 0;
   font-size: 14px; font-weight: 600; color: var(--text, #1a2744);
   font-family: 'Sora', sans-serif; letter-spacing: -0.1px;
-  caret-color: var(--sun-orange, #ff9f1c);
+  caret-color: var(--blue-deep, #1f4fd8);
 }
 .input::placeholder { color: var(--text-sec, #5e7291); font-weight: 500; }
 
 .typeHint {
-  position: absolute; left: 12px; top: 50%; transform: translateY(-50%);
+  position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
   display: flex; align-items: center; pointer-events: none;
   font-family: 'Sora', sans-serif; font-size: 14px; white-space: nowrap; overflow: hidden;
   max-width: calc(100% - 18px);
 }
 .typeLead { color: var(--text-sec, #5e7291); font-weight: 500; }
-.typeName { color: #b25e00; font-weight: 600; }
+.typeName { color: var(--text, #1a2744); font-weight: 600; }
 .caret {
   width: 2px; height: 15px; margin-left: 1px; flex-shrink: 0;
-  background: var(--sun-orange, #ff9f1c);
+  background: var(--blue-deep, #1f4fd8);
   animation: caretBlink 1.1s steps(2, start) infinite;
 }
 @keyframes caretBlink { 50% { opacity: 0; } }
@@ -154,7 +62,7 @@
 .clear:hover { background: rgba(15, 40, 100, 0.12); color: var(--text, #10203a); }
 
 /* ── Dropdown (shared by idle panel and results manifest) ── */
-/* Exactly the width of the ticket it drops from — left:0/right:0 against the
+/* Exactly the width of the field it drops from — left:0/right:0 against the
    relatively-positioned .wrap, not an independently-sized panel. The manifest
    is never wider than the field that opened it. */
 .dropdown {
@@ -162,35 +70,23 @@
   background: #fff;
   border: 1px solid rgba(15, 40, 100, 0.08);
   border-radius: 16px;
-  padding: 7px; box-shadow: 0 28px 74px rgba(7, 20, 60, 0.22), 0 6px 18px rgba(7, 20, 60, 0.08);
+  padding: 7px; box-shadow: 0 18px 48px rgba(7, 20, 60, 0.16), 0 2px 8px rgba(7, 20, 60, 0.06);
   z-index: 1200; max-height: min(70vh, 470px); overflow-y: auto;
   animation: dsIn 0.2s var(--ease, ease) both;
 }
 @keyframes dsIn { from { opacity: 0; transform: translateY(-6px) scale(0.985); } to { opacity: 1; transform: translateY(0) scale(1); } }
 
-/* Cream tally strip — the manifest's header row. Solid hairline (dashes are
-   reserved for the perforation and the tear-off rule). */
+/* The header row of the results list. */
 .tallyStrip {
   position: sticky; top: -7px; z-index: 2;
   margin: -7px -7px 4px; padding: 9px 16px 8px;
-  background: linear-gradient(180deg, #fff9ee, #fffdf8);
-  /* Static hairline stays beneath the thread — also the reduced-motion state. */
-  border-bottom: 1px solid rgba(199, 119, 0, 0.18);
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--line);
   border-radius: 15px 15px 0 0;
 }
-/* The golden thread, manifest side: draws from the stub's side (left) when the
-   manifest opens — the same stitch the header menus make with their panels. */
-.tallyStrip::after {
-  content: ''; position: absolute; left: 0; right: 0; bottom: -1px;
-  height: 2px;
-  background: linear-gradient(90deg, var(--sun-orange, #ff9f1c), var(--sun-gold, #ffd166));
-  transform: scaleX(0); transform-origin: left;
-  animation: dsThread 0.3s var(--ease) 0.06s both;
-}
-@keyframes dsThread { to { transform: scaleX(1); } }
 .tally {
-  font-size: 10px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase;
-  color: #b07a18; font-variant-numeric: tabular-nums;
+  font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  color: var(--text-sec, #5e7291); font-variant-numeric: tabular-nums;
 }
 
 .section { padding: 2px; }
@@ -208,10 +104,9 @@
   border: none; background: none; cursor: pointer; padding: 10px 12px; border-radius: 12px;
   transition: background 0.15s, box-shadow 0.15s;
 }
-/* Active row wears a boarding bar — a 3px sun-orange inset on its left edge. */
+/* The row under the pointer or the arrow keys. */
 .item:hover, .itemActive {
   background: var(--blue-bg, #f5f8ff);
-  box-shadow: inset 3px 0 0 0 var(--sun-orange, #ff9f1c);
 }
 /* Result rows rise in with a light stagger (keys are stable per result set,
    so this fires on new results, not every keystroke). */
@@ -223,7 +118,7 @@
   display: flex; align-items: center; justify-content: center;
 }
 .iconDest   { background: rgba(31, 79, 216, 0.10); color: var(--blue-deep, #1f4fd8); }
-.iconHotel  { background: linear-gradient(135deg, rgba(255, 159, 28, 0.18), rgba(255, 209, 102, 0.22)); color: #e07d0a; }
+.iconHotel  { background: var(--surface-alt, #f6f8fc); color: var(--text-sec, #5e7291); }
 .iconRecent { background: rgba(31, 79, 216, 0.07); color: var(--blue-deep, #1f4fd8); }
 /* An area sits between a place and a hotel, so it stays in the destination BLUE rather than
    introducing a third hue — separated from it by weight, not colour. */
@@ -234,7 +129,7 @@
    the image is still loading, which keeps the row from flashing white. */
 .itemThumb {
   overflow: hidden;
-  background: linear-gradient(135deg, rgba(255, 159, 28, 0.18), rgba(255, 209, 102, 0.22));
+  background: var(--surface-alt, #f6f8fc);
   box-shadow: inset 0 0 0 1px rgba(16, 32, 58, 0.06);
 }
 .itemThumb img {
@@ -272,12 +167,12 @@
 }
 .stars { display: inline-flex; align-items: center; gap: 1px; color: var(--sun-gold, #ffc233); flex-shrink: 0; }
 
-/* Fare-class stamps — solid borders; stamped class, not a chip. */
+/* The kind of result: a small label, outlined for places, grey for hotels. */
 .tag {
   flex-shrink: 0; font-size: 10px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase;
   padding: 4px 9px; border-radius: 6px;
 }
-.tagHotel { background: rgba(255, 159, 28, 0.07); border: 1px solid rgba(199, 119, 0, 0.35); color: #c7770a; }
+.tagHotel { background: var(--surface-alt, #f6f8fc); border: 1px solid var(--line, #e4eaf3); color: var(--text-sec, #5e7291); }
 .tagDest  { background: rgba(31, 79, 216, 0.05); border: 1px solid rgba(31, 79, 216, 0.30); color: var(--blue-deep, #1f4fd8); }
 /* Same blue as Place, filled rather than outlined — an area is a narrower kind of place. */
 .tagZone  { background: rgba(31, 79, 216, 0.13); border: 1px solid rgba(31, 79, 216, 0.42); color: var(--blue-deep, #1f4fd8); }
@@ -296,11 +191,9 @@
 }
 .chip svg { color: var(--blue-deep, #1f4fd8); transition: color 0.2s; }
 .chip:hover {
-  background: var(--sun-warm, #fff3e0);
-  border-color: rgba(255, 159, 28, 0.4);
-  transform: translateY(-1px);
+  background: var(--blue-light, #e8f1ff);
+  border-color: rgba(31, 79, 216, 0.25);
 }
-.chip:hover svg { color: var(--sun-orange, #ff9f1c); }
 @keyframes dsChip { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
 .state {
@@ -314,22 +207,17 @@
 }
 @keyframes dsSpin { to { transform: rotate(360deg); } }
 
-/* The tear-off end of the ticket: dashed warm top rule, cream hover. */
+/* "Browse all" at the foot of the list. */
 .browse {
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
   padding: 12px; margin-top: 4px;
-  border: none; border-top: 1px dashed rgba(199, 119, 0, 0.30); background: none;
+  border: none; border-top: 1px solid var(--line, #e4eaf3); background: none;
   color: var(--blue-deep, #1f4fd8); font-weight: 700; font-size: 12.5px; cursor: pointer;
   font-family: 'Sora', sans-serif; border-radius: 0 0 12px 12px; transition: background 0.15s;
 }
-.browse:hover { background: #fff9ee; }
+.browse:hover { background: var(--blue-bg, #f5f8ff); }
 
 @media (prefers-reduced-motion: reduce) {
   .dropdown, .spinner, .itemRise, .chip, .caret { animation: none; }
-  .wrap::before, .wrap::after { animation: none; opacity: 0; }
-  .stub svg, .perf { transition: none; }
-  .wrap:focus-within .stub svg { transform: none; }
-  /* Runway simply fades in fully lit; thread rests fully drawn. */
-  .wrap:focus-within .runway { animation: none; }
-  .tallyStrip::after { animation: none; transform: scaleX(1); }
+  .wrap, .stub { transition: none; }
 }

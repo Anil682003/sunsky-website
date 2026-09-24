@@ -1,127 +1,122 @@
 /* ═══════════════════════════════════════════════════════════
    SunSky — Guarantee bar ("trust balk")
-   A quiet band under the belt: the seals the agency holds and one
-   way through to the page that explains them, as a single centred
-   cluster. Deliberately calm — it sits between two loud sections
-   and its job is reassurance, not noise.
+   A quiet band under the selling points: the seals the agency
+   holds and one way through to the page that explains them, as a
+   single centred row. Sober on purpose; its job is reassurance.
    ═══════════════════════════════════════════════════════════ */
 
 .wrap {
-  position: relative;
-  overflow: hidden;
-  padding: 18px 0;
-  background: linear-gradient(180deg, #FFFFFF 0%, var(--blue-bg, #F5F8FF) 100%);
-  border-top: 1px solid rgba(15, 40, 100, 0.06);
-  border-bottom: 1px solid rgba(15, 40, 100, 0.06);
-}
-.glow {
-  position: absolute; inset: 0; pointer-events: none;
-  background:
-    radial-gradient(ellipse 38% 120% at 8% 50%, rgba(163, 204, 255, 0.20) 0%, transparent 70%),
-    radial-gradient(ellipse 34% 120% at 92% 50%, rgba(255, 209, 102, 0.16) 0%, transparent 70%);
+  background: var(--surface-alt);
+  border-bottom: 1px solid var(--line);
+  padding: 20px 0;
 }
 
 .inner {
-  position: relative;
   max-width: 1280px;
   margin: 0 auto;
-  padding: 0 clamp(16px, 3vw, 40px);
+  padding: 0 var(--gutter);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-wrap: wrap;
-  gap: clamp(14px, 2.4vw, 28px);
+  gap: 16px clamp(18px, 2.6vw, 32px);
 }
 
-.lead { display: flex; flex-direction: column; gap: 3px; flex-shrink: 0; }
+.lead { display: flex; flex-direction: column; gap: 4px; flex-shrink: 0; }
 .eyebrow {
-  display: inline-flex; align-items: center; gap: 7px;
-  font-size: 10.5px; font-weight: 800;
-  letter-spacing: 0.14em; text-transform: uppercase;
-  color: var(--blue-deep, #1F4FD8);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--blue-deep);
 }
 .title {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(0.95rem, 1.5vw, 1.15rem);
-  font-weight: 800; letter-spacing: -0.02em;
-  color: var(--text, #1A2744);
-  line-height: 1.2;
+  font-size: clamp(0.98rem, 1.4vw, 1.1rem);
+  font-weight: 700;
+  letter-spacing: -0.01em;
+  line-height: 1.25;
+  color: var(--text);
 }
-.accent {
-  background: linear-gradient(115deg, var(--sun-orange, #FF9F1C), var(--sun-gold, #FFD166));
-  -webkit-background-clip: text; background-clip: text;
-  -webkit-text-fill-color: transparent;
+
+.divider {
+  width: 1px;
+  height: 40px;
+  background: var(--line-strong);
 }
 
 /* The seals. `auto` width with a height cap keeps each one at its own aspect ratio — a square
    insolvency seal and a wide wordmark must not be forced into one box between them. */
 .marks {
-  display: flex; align-items: center;
-  gap: clamp(12px, 2vw, 22px);
-  flex: 0 1 auto; min-width: 0;
-  list-style: none; margin: 0; padding: 0;
+  display: flex;
+  align-items: center;
+  gap: clamp(14px, 2vw, 24px);
+  flex: 0 1 auto;
+  min-width: 0;
+  list-style: none;
+  margin: 0;
+  padding: 0;
   flex-wrap: wrap;
 }
 .markItem { display: flex; align-items: center; }
 .mark {
-  height: 38px; width: auto;
-  max-width: 104px;
+  height: 40px;
+  width: auto;
+  max-width: 108px;
   object-fit: contain;
-  transition: transform 0.3s var(--ease, cubic-bezier(.22,1,.36,1));
 }
-.markItem:hover .mark { transform: translateY(-2px) scale(1.04); }
 /* Only present when the dashboard gave this mark a URL. */
 .markLink {
-  display: inline-flex; align-items: center;
-  border-radius: 8px;
-  transition: transform 0.3s var(--ease, cubic-bezier(.22,1,.36,1));
+  display: inline-flex;
+  align-items: center;
+  border-radius: 6px;
 }
-.markLink:hover { transform: translateY(-1px); }
 .markLink:focus-visible {
-  outline: 2px solid var(--blue-deep, #1F4FD8);
+  outline: 2px solid var(--blue-deep);
   outline-offset: 4px;
 }
 
 .more {
   flex-shrink: 0;
-  display: inline-flex; align-items: center; gap: 7px;
-  font-size: 12.5px; font-weight: 700;
-  color: var(--blue-deep, #1F4FD8);
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  height: 38px;
+  padding: 0 16px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--blue-deep);
   text-decoration: none;
-  padding: 7px 14px;
-  border: 1.5px solid rgba(31, 79, 216, 0.22);
-  border-radius: var(--r-full, 9999px);
-  background: rgba(255, 255, 255, 0.75);
-  transition: all 0.25s var(--ease, cubic-bezier(.22,1,.36,1));
   white-space: nowrap;
-}
-.more:hover {
   background: #FFFFFF;
-  border-color: var(--blue-deep, #1F4FD8);
-  transform: translateY(-1px);
-  box-shadow: 0 6px 18px rgba(31, 79, 216, 0.14);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-full);
+  transition: border-color 0.2s var(--ease);
 }
-.more svg { transition: transform 0.25s var(--ease, cubic-bezier(.22,1,.36,1)); }
-.more:hover svg { transform: translateX(3px); }
+.more:hover { border-color: var(--blue-deep); }
+.more:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 2px; }
+.more svg { transition: transform 0.2s var(--ease); }
+.more:hover svg { transform: translateX(2px); }
 
 @media (prefers-reduced-motion: reduce) {
-  .mark,
-  .more,
-  .more svg { transition: none; }
-  .markItem:hover .mark,
-  .more:hover,
+  .more, .more svg { transition: none; }
   .more:hover svg { transform: none; }
 }
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
-  .inner { gap: 12px 20px; }
+  .inner { gap: 14px 20px; }
+  .divider { display: none; }
   .marks { justify-content: center; }
 }
 @media (max-width: 560px) {
-  .wrap { padding: 16px 0; }
-  .mark { height: 34px; max-width: 96px; }
-  .marks { gap: 14px; }
+  .wrap { padding: 18px 0; }
+  .lead { align-items: center; text-align: center; width: 100%; }
+  .mark { height: 36px; max-width: 96px; }
+  .marks { gap: 16px; }
   /* Full width only where the cluster has genuinely become a stack. */
   .more { width: 100%; justify-content: center; }
 }

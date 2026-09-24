@@ -48,6 +48,24 @@
   --ease-spring: cubic-bezier(0.175,0.885,0.32,1.275);
   --ease-smooth: cubic-bezier(0.4,0,0.2,1);
 
+  /* ── The calm surface set ────────────────────────────────────────────────────
+     One border, one card radius, one card shadow, one section rhythm, so every
+     section reads as the same product rather than its own poster. Cards sit on
+     a hairline and a shadow you only notice when it is missing; separation
+     between sections comes from whitespace and an alternating tint, never from
+     ornament. */
+  --line: #E4EAF3;
+  --line-strong: #D3DCEA;
+  --surface-alt: #F6F8FC;
+  --r-card: 16px;
+  --shadow-card: 0 1px 2px rgba(15,40,100,0.04), 0 4px 14px rgba(15,40,100,0.05);
+  --shadow-card-hover: 0 2px 6px rgba(15,40,100,0.06), 0 14px 32px rgba(15,40,100,0.09);
+  --section-y: clamp(64px, 7.5vw, 104px);
+  --gutter: clamp(20px, 4vw, 56px);
+  /* The single handwritten accent a section heading may carry. Deeper than
+     --sun-orange so the thin Caveat strokes hold 3:1 on white. */
+  --accent-script: #E07B0C;
+
   /* THE NAVBAR'S HEIGHT. It is position:fixed with no spacer beneath it, so
      every page that must not slide under it, and every sticky element that
      must not park behind it, measures from this. It used to be typed out by
@@ -57,9 +75,7 @@
      hardcode it. Currently 11px of breathing room above and below a 56px
      logo, which is the tallest thing in the bar. */
   --nav-h: 78px;
-  /* The header bar. The search field paints its die-cut notches in this exact
-     colour so they read as holes punched through the bar, so the two must
-     always agree — hence a token rather than a hex typed in three files. */
+  /* The header bar. The mobile drawer drops out of it in the same colour. */
   --nav-bg: #fff;
 }
 

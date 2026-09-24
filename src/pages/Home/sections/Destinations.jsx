@@ -1,8 +1,8 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './Destinations.module.css';
+import SectionHead from './SectionHead';
 import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
-import { cmsText } from '../../../utils/cmsText';
 import { useTranslation } from 'react-i18next';
 
 /* Shown only until the dashboard's own destination tabs arrive. Place names are
@@ -58,16 +58,16 @@ function buildTabsFromCms(destinationTabs) {
   return result;
 }
 
-/* Decorative IATA-style route code derived from a destination name */
-function routeCode(name) {
-  const letters = String(name || '').replace(/[^A-Za-z]/g, '').toUpperCase();
-  return letters.slice(0, 3) || 'SUN';
-}
+const ArrowIcon = () => (
+  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
 
 export default function Destinations({ cms }) {
   const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.destinations;
-  const tag      = sh?.tag      || t('destinations.tag', '☀ Destinations');
+  const tag      = sh?.tag      || t('destinations.tag', 'Destinations');
   const title    = sh?.title    || t('destinations.title', 'Our best sun destinations');
   const subtitle = sh?.subtitle || t('destinations.subtitle', 'Handpicked destinations with guaranteed sunshine and incredible value.');
 
@@ -78,82 +78,21 @@ export default function Destinations({ cms }) {
   const safeActive = TABS[active] ? active : Object.keys(TABS)[0];
   const panel = TABS[safeActive];
 
-  // Split the CMS title so the last word gets the cursive golden accent
-  const titleWords = String(title).trim().split(/\s+/);
-  const titleAccent = titleWords.pop();
-  const titleLead = titleWords.join(' ');
-
   return (
     <section className={styles.section}>
-      {/* ── Layered sky scene behind everything ── */}
-      <div className={styles.bgArt} aria-hidden="true">
-        <span className={styles.glowBlue} />
-        <span className={styles.glowGold} />
-        <span className={styles.dots} />
-        <span className={styles.blob} />
-        <span className={styles.cloudA} />
-        <span className={styles.cloudB} />
-        <span className={styles.ghostWord}>escape</span>
-        <span className={styles.grain} />
-      </div>
-
-      {/* Dashed flight route — departure ring, waypoint stops, tiny plane */}
-      <svg className={styles.route} viewBox="0 0 560 190" fill="none" aria-hidden="true" focusable="false">
-        <circle cx="14" cy="158" r="3.6" fill="var(--sun-orange)" opacity="0.55" />
-        <circle cx="14" cy="158" r="8.5" stroke="var(--sun-orange)" strokeWidth="1.4" opacity="0.3" />
-        <path
-          d="M26 152 C 150 40, 330 16, 508 64"
-          stroke="var(--blue-deep)"
-          strokeWidth="1.6"
-          strokeDasharray="2 9"
-          strokeLinecap="round"
-          opacity="0.32"
-        />
-        <circle cx="163" cy="73" r="2.8" fill="var(--blue-deep)" opacity="0.4" />
-        <circle cx="163" cy="73" r="6.5" stroke="var(--blue-deep)" strokeWidth="1.2" opacity="0.18" />
-        <circle cx="330" cy="40" r="2.8" fill="var(--blue-deep)" opacity="0.4" />
-        <circle cx="330" cy="40" r="6.5" stroke="var(--blue-deep)" strokeWidth="1.2" opacity="0.18" />
-        <g transform="translate(506 52) rotate(18)" opacity="0.55">
-          <path
-            d="M18 1.2 L10.4 8.8 L2.2 6.4 L0.3 8.3 L7 12.2 L3.6 15.8 L-1 15.3 L-2.4 16.7 L2.5 18.9 L4.7 23.8 L6.1 22.4 L5.6 17.8 L9.2 14.4 L13.1 21.1 L15 19.2 L12.6 11 L20.2 3.4 C 21.3 2.3 21.3 0.9 20.5 0.3 C 19.7 -0.3 18.9 0.3 18 1.2 Z"
-            fill="var(--blue-deep)"
-          />
-        </g>
-      </svg>
-
       <div className={styles.inner}>
-        {/* Editorial two-column header — title left, deck right */}
-        <div className={styles.header}>
-          <div className={styles.headMain}>
-            <div className={styles.headRow}>
-              <span className={styles.headIndex}>02</span>
-              <span className={styles.headEyebrow}>{tag}</span>
-              <span className={styles.headRule} aria-hidden="true" />
-              <span className={styles.headMeta} aria-hidden="true">GATE 02 · SUN ROUTES ✈</span>
-            </div>
-            <h2 className={styles.title}>
-              {titleLead && <>{titleLead}{' '}</>}
-              <span className={styles.titleAccent}>{titleAccent}</span>
-            </h2>
-          </div>
-          <p className={styles.sub}>{cmsText(subtitle)}</p>
-        </div>
+        <SectionHead eyebrow={tag} title={title} subtitle={subtitle} />
 
         <div className={styles.tabs}>
           {Object.entries(TABS).map(([key, tab]) => (
             <button
               key={key}
               type="button"
+              aria-pressed={safeActive === key}
               className={`${styles.tab} ${safeActive === key ? styles.tabActive : ''}`}
               onClick={() => setActive(key)}
             >
-              <span className={styles.tabHole} aria-hidden="true" />
               {tab.label}
-              {safeActive === key && (
-                <svg className={styles.tabPlane} viewBox="0 0 20 20" aria-hidden="true" focusable="false">
-                  <path d="M1 9.5 L19 1.5 L11.6 18.5 L9.4 11.4 Z" fill="currentColor" />
-                </svg>
-              )}
             </button>
           ))}
         </div>
@@ -170,47 +109,24 @@ export default function Destinations({ cms }) {
                 defaultValue: 'Search stays in {{place}}',
               }),
             } : {};
+            // The tall lead card only earns its two rows when there is a second row for it to
+            // sit beside; with three cards it would just hang one grid gap below the others.
+            const feat = i === 0 && panel.dest.length > 3;
             return (
             <Card
               key={i}
               {...cardProps}
-              className={`${styles.card} ${i === 0 ? styles.cardFeat : ''} ${d.href ? styles.cardLink : ''}`}
+              className={`${styles.card} ${feat ? styles.cardFeat : ''} ${d.href ? styles.cardLink : ''}`}
             >
-              <div className={styles.cardMask}>
-                <img src={d.img} alt={d.name} loading="lazy" />
-                <div className={styles.overlay}>
-                  <span className={styles.perf} aria-hidden="true" />
-                  <div className={styles.overlayRow}>
-                    <div className={styles.overlayText}>
-                      <div className={styles.destName}>{d.name}</div>
-                      <div className={styles.destCount}>{d.count}</div>
-                    </div>
-                    <span className={styles.barcode} aria-hidden="true" />
-                  </div>
-                  {i === 0 && (
-                    <div className={styles.routeFoot} aria-hidden="true">
-                      <span className={styles.routeCodeTxt}>BRU</span>
-                      <span className={styles.routeLine}>
-                        <svg viewBox="0 0 20 20" focusable="false">
-                          <path d="M1 9.5 L19 1.5 L11.6 18.5 L9.4 11.4 Z" fill="currentColor" />
-                        </svg>
-                      </span>
-                      <span className={styles.routeCodeTxt}>{routeCode(d.name)}</span>
-                      <span className={styles.routeSeat}>SEAT 12A</span>
-                    </div>
-                  )}
+              <img src={d.img} alt={d.name} loading="lazy" />
+              <div className={styles.overlay}>
+                <div className={styles.overlayText}>
+                  <div className={styles.destName}>{d.name}</div>
+                  {d.count && <div className={styles.destCount}>{d.count}</div>}
                 </div>
+                {d.href && <span className={styles.go}><ArrowIcon /></span>}
               </div>
               {d.badge && <div className={styles.badge}>{d.badge}</div>}
-              {i === 0 && (
-                <div className={styles.featNote} aria-hidden="true">
-                  <span className={styles.featNoteTxt}>{t('destinations.topThisSeason', '№1 this season')}</span>
-                  <svg className={styles.featArrow} viewBox="0 0 46 34" fill="none" focusable="false">
-                    <path d="M42 3 C 34 20, 20 27, 6 26" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
-                    <path d="M13 19.5 L5.5 26.5 L14.5 29.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                  </svg>
-                </div>
-              )}
             </Card>
             );
           })}

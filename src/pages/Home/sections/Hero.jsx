@@ -1449,15 +1449,10 @@ export default function Hero() {
           />
         ))}
         <div className={styles.overlay} />
-        <div className={`${styles.blob} ${styles.blob1}`} />
-        <div className={`${styles.blob} ${styles.blob2}`} />
-        <div className={`${styles.blob} ${styles.blob3}`} />
-        <div className={styles.ring} />
       </div>
 
       <div className={styles.content}>
         <div className={styles.badge}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>
           {cmsBadge || t('hero.badge', 'Holidays at guaranteed best prices')}
         </div>
 

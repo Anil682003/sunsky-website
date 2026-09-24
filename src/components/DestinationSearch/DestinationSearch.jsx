@@ -273,14 +273,7 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
 
   return (
     <div className={styles.wrap} ref={boxRef}>
-      {/* The magnifier stub — the tear-off end of the ticket. */}
       <span className={styles.stub} aria-hidden="true"><SearchIcon /></span>
-      <span className={styles.perf} aria-hidden="true" />
-      <span className={styles.notchTop} aria-hidden="true" />
-      <span className={styles.notchBottom} aria-hidden="true" />
-      {/* Runway lights under the ticket — ignite while it is focused. State-carrying,
-          not ambient: dark until the field is engaged. */}
-      <span className={styles.runway} aria-hidden="true" />
 
       <div className={styles.inputZone}>
         <input
