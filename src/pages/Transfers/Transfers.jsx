@@ -1,5 +1,7 @@
 import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
+import i18n from '../../i18n';
 import axiosInstance from '../../services/axiosInstance';
 import './Transfers.css';
 
@@ -27,23 +29,26 @@ const ICON = {
   shield: <S><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></S>,
 };
 
-const LOC_TYPES = [
-  { v: 'IATA', label: 'Airport' },
-  { v: 'ATLAS', label: 'Hotel' },
-  { v: 'PORT', label: 'Port' },
-  { v: 'STATION', label: 'Station' },
+// `v` is sent to the transfer-search API, so it stays English; only the label is translated.
+const locTypeOptions = () => [
+  { v: 'IATA', label: i18n.t('transfers:locType.airport', 'Airport') },
+  { v: 'ATLAS', label: i18n.t('transfers:locType.hotel', 'Hotel') },
+  { v: 'PORT', label: i18n.t('transfers:locType.port', 'Port') },
+  { v: 'STATION', label: i18n.t('transfers:locType.station', 'Station') },
 ];
 // A few popular airport codes for quick pick / autocomplete.
 const AIRPORTS = ['PMI', 'BCN', 'MAD', 'AGP', 'ALC', 'IBZ', 'TFS', 'AYT', 'IST', 'SAW', 'DLM', 'BJV', 'HER', 'BRU', 'CRL'];
 
-const SORTS = [
-  { v: 'price-asc', l: 'Price: Low to High' },
-  { v: 'price-desc', l: 'Price: High to Low' },
-  { v: 'pax', l: 'Capacity: Largest' },
+const sortOptions = () => [
+  { v: 'price-asc', l: i18n.t('transfers:sort.priceAsc', 'Price: Low to High') },
+  { v: 'price-desc', l: i18n.t('transfers:sort.priceDesc', 'Price: High to Low') },
+  { v: 'pax', l: i18n.t('transfers:sort.capacity', 'Capacity: Largest') },
 ];
 
 const money = (n) => `€${Math.round(Number(n) || 0).toLocaleString('en-GB')}`;
 const vehicleIcon = (type) => (type === 'SHARED' ? ICON.van : ICON.car);
+// Dates are read by the browser, so they need the reader's locale rather than a hard-coded en-GB.
+const dateLocale = () => (i18n.language === 'nl' ? 'nl-BE' : 'en-GB');
 
 function Stepper({ label, hint, value, set, min = 0, max = 9 }) {
   return (
@@ -66,7 +71,7 @@ function LocField({ icon, label, type, setType, code, setCode, placeholder }) {
         <div className="tr-loc-top">
           <span className="tr-loc-label">{label}</span>
           <select className="tr-loc-type" value={type} onChange={(e) => setType(e.target.value)}>
-            {LOC_TYPES.map((t) => <option key={t.v} value={t.v}>{t.label}</option>)}
+            {locTypeOptions().map((lt) => <option key={lt.v} value={lt.v}>{lt.label}</option>)}
           </select>
         </div>
         <input
@@ -83,19 +88,20 @@ function LocField({ icon, label, type, setType, code, setCode, placeholder }) {
 }
 
 function TransferCard({ svc, onSelect }) {
+  const { t } = useTranslation('transfers');
   const freeCancel = Array.isArray(svc.cancellationPolicies) && svc.cancellationPolicies.length > 0;
   return (
     <article className="tr-card">
       <div className="tr-card-media">
         {svc.image
-          ? <img src={svc.image} alt={svc.vehicle || 'Transfer'} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
+          ? <img src={svc.image} alt={svc.vehicle || t('transfers:card.transfer', 'Transfer')} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />
           : <span className="tr-card-vic">{vehicleIcon(svc.transferType)}</span>}
         <span className={`tr-chip ${svc.transferType === 'SHARED' ? 'shared' : 'private'}`}>
-          {svc.transferType === 'SHARED' ? 'Shared' : 'Private'}
+          {svc.transferType === 'SHARED' ? t('transfers:card.shared', 'Shared') : t('transfers:card.private', 'Private')}
         </span>
       </div>
       <div className="tr-card-mid">
-        <h3 className="tr-card-title">{svc.vehicle || 'Transfer'}{svc.category ? ` · ${svc.category}` : ''}</h3>
+        <h3 className="tr-card-title">{svc.vehicle || t('transfers:card.transfer', 'Transfer')}{svc.category ? ` · ${svc.category}` : ''}</h3>
         <div className="tr-card-route">
           <span>{svc.pickup?.from || '—'}</span>
           <span className="tr-card-arrow">{ICON.arrow}</span>
@@ -103,22 +109,23 @@ function TransferCard({ svc, onSelect }) {
         </div>
         <div className="tr-card-tags">
           {(svc.minPax || svc.maxPax) && (
-            <span className="tr-tag">{ICON.users2} {svc.minPax || 1}–{svc.maxPax || svc.minPax} pax</span>
+            <span className="tr-tag">{ICON.users2} {t('transfers:card.pax', { min: svc.minPax || 1, max: svc.maxPax || svc.minPax, defaultValue: '{{min}}–{{max}} pax' })}</span>
           )}
-          <span className="tr-tag">{svc.direction === 'DEPARTURE' ? 'Hotel → Airport' : 'Airport → Hotel'}</span>
-          {freeCancel && <span className="tr-tag ok">{ICON.shield} Free cancellation</span>}
+          <span className="tr-tag">{svc.direction === 'DEPARTURE' ? t('transfers:card.hotelToAirport', 'Hotel → Airport') : t('transfers:card.airportToHotel', 'Airport → Hotel')}</span>
+          {freeCancel && <span className="tr-tag ok">{ICON.shield} {t('transfers:card.freeCancellation', 'Free cancellation')}</span>}
         </div>
       </div>
       <div className="tr-card-price">
         <div className="tr-price">{money(svc.price)}</div>
-        <div className="tr-price-sub">total price</div>
-        <button className="tr-select" onClick={() => onSelect(svc)}>Select {ICON.arrow}</button>
+        <div className="tr-price-sub">{t('transfers:card.totalPrice', 'total price')}</div>
+        <button className="tr-select" onClick={() => onSelect(svc)}>{t('transfers:card.select', 'Select')} {ICON.arrow}</button>
       </div>
     </article>
   );
 }
 
 export default function Transfers() {
+  const { t } = useTranslation('transfers');
   const navigate = useNavigate();
   const [fromType, setFromType] = useState('IATA');
   const [fromCode, setFromCode] = useState('');
@@ -146,7 +153,11 @@ export default function Transfers() {
   const [lastSearch, setLastSearch] = useState(null);
 
   const todayISO = new Date().toISOString().slice(0, 10);
-  const paxLabel = `${adults} adult${adults > 1 ? 's' : ''}${children ? `, ${children} child${children > 1 ? 'ren' : ''}` : ''}${infants ? `, ${infants} infant${infants > 1 ? 's' : ''}` : ''}`;
+  const paxLabel = [
+    t('transfers:pax.adults', { count: adults, defaultValue_one: '{{count}} adult', defaultValue_other: '{{count}} adults' }),
+    children ? t('transfers:pax.children', { count: children, defaultValue_one: '{{count}} child', defaultValue_other: '{{count}} children' }) : null,
+    infants ? t('transfers:pax.infants', { count: infants, defaultValue_one: '{{count}} infant', defaultValue_other: '{{count}} infants' }) : null,
+  ].filter(Boolean).join(', ');
 
   const swap = () => {
     setFromType(toType); setFromCode(toCode);
@@ -155,7 +166,7 @@ export default function Transfers() {
 
   const doSearch = async () => {
     if (!fromCode.trim() || !toCode.trim() || !date) {
-      setError('Please choose a pickup, a drop-off and a date.');
+      setError(t('transfers:errors.missingFields', 'Please choose a pickup, a drop-off and a date.'));
       return;
     }
     setError(''); setSelected(null); setLoading(true); setResults(null);
@@ -173,7 +184,7 @@ export default function Transfers() {
       if (hb?.error && !(hb?.services?.length)) setError(hb.error);
       setResults(hb?.services || []);
     } catch (e) {
-      setError(e.response?.data?.message || e.message || 'Transfer search failed.');
+      setError(e.response?.data?.message || e.message || t('transfers:errors.searchFailed', 'Transfer search failed.'));
       setResults([]);
     } finally {
       setLoading(false);
@@ -193,7 +204,7 @@ export default function Transfers() {
   const fmtDateLabel = (iso, hhmm) => {
     if (!iso) return '';
     const d = new Date(`${iso}T00:00:00`);
-    return `${d.toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}${hhmm ? ` · ${hhmm}` : ''}`;
+    return `${d.toLocaleDateString(dateLocale(), { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' })}${hhmm ? ` · ${hhmm}` : ''}`;
   };
 
   // Hand the selected transfer to the shared Checkout (same contract as
@@ -205,7 +216,7 @@ export default function Transfers() {
     if (!s) return;
     const booking = {
       kind: 'transfer',
-      hotelName: `${svc.vehicle || 'Transfer'}${svc.category ? ` · ${svc.category}` : ''}`,
+      hotelName: `${svc.vehicle || t('transfers:card.transfer', 'Transfer')}${svc.category ? ` · ${svc.category}` : ''}`,
       loc: `${svc.pickup?.from || s.fromCode} → ${svc.pickup?.to || s.toCode}`,
       img: svc.image || TRANSFER_IMG,
       stars: 0,
@@ -252,32 +263,32 @@ export default function Transfers() {
         <span className="tr-hero-glow" />
         <div className="tr-hero-in">
           <div className="tr-bc">
-            <Link to="/">Home</Link><span>›</span><span className="tr-bc-here">Transfers</span>
+            <Link to="/">{t('common:nav.home', 'Home')}</Link><span>›</span><span className="tr-bc-here">{t('common:nav.services.transfers', 'Transfers')}</span>
           </div>
-          <h1 className="tr-hero-title">Airport <em>transfers</em></h1>
-          <p className="tr-hero-sub">Private &amp; shared rides between airports, hotels, ports and stations — booked in seconds.</p>
+          <h1 className="tr-hero-title"><Trans i18nKey="transfers:hero.title" t={t}>Airport <em>transfers</em></Trans></h1>
+          <p className="tr-hero-sub">{t('transfers:hero.sub', 'Private & shared rides between airports, hotels, ports and stations — booked in seconds.')}</p>
 
           <div className="tr-searchcard">
             <div className="tr-locrow">
-              <LocField icon={ICON.plane} label="From" type={fromType} setType={setFromType} code={fromCode} setCode={setFromCode}
-                placeholder={fromType === 'IATA' ? 'Airport code (e.g. PMI)' : fromType === 'ATLAS' ? 'Hotel code' : 'Code'} />
-              <button className="tr-swap" type="button" title="Swap" onClick={swap}>{ICON.swap}</button>
-              <LocField icon={ICON.pin} label="To" type={toType} setType={setToType} code={toCode} setCode={setToCode}
-                placeholder={toType === 'ATLAS' ? 'Hotel code' : toType === 'IATA' ? 'Airport code (e.g. PMI)' : 'Code'} />
+              <LocField icon={ICON.plane} label={t('transfers:fields.from', 'From')} type={fromType} setType={setFromType} code={fromCode} setCode={setFromCode}
+                placeholder={fromType === 'IATA' ? t('transfers:fields.airportCodePlaceholder', 'Airport code (e.g. PMI)') : fromType === 'ATLAS' ? t('transfers:fields.hotelCodePlaceholder', 'Hotel code') : t('transfers:fields.codePlaceholder', 'Code')} />
+              <button className="tr-swap" type="button" title={t('transfers:fields.swap', 'Swap')} onClick={swap}>{ICON.swap}</button>
+              <LocField icon={ICON.pin} label={t('transfers:fields.to', 'To')} type={toType} setType={setToType} code={toCode} setCode={setToCode}
+                placeholder={toType === 'ATLAS' ? t('transfers:fields.hotelCodePlaceholder', 'Hotel code') : toType === 'IATA' ? t('transfers:fields.airportCodePlaceholder', 'Airport code (e.g. PMI)') : t('transfers:fields.codePlaceholder', 'Code')} />
             </div>
 
             <div className="tr-daterow">
               <div className="tr-field">
                 <span className="tr-field-ic">{ICON.cal}</span>
                 <div className="tr-field-body">
-                  <span className="tr-field-label">Pickup date</span>
+                  <span className="tr-field-label">{t('transfers:fields.pickupDate', 'Pickup date')}</span>
                   <input type="date" min={todayISO} value={date} onChange={(e) => setDate(e.target.value)} />
                 </div>
               </div>
               <div className="tr-field">
                 <span className="tr-field-ic">{ICON.clock}</span>
                 <div className="tr-field-body">
-                  <span className="tr-field-label">Pickup time</span>
+                  <span className="tr-field-label">{t('transfers:fields.pickupTime', 'Pickup time')}</span>
                   <input type="time" value={time} onChange={(e) => setTime(e.target.value)} />
                 </div>
               </div>
@@ -287,14 +298,14 @@ export default function Transfers() {
                   <div className="tr-field">
                     <span className="tr-field-ic">{ICON.cal}</span>
                     <div className="tr-field-body">
-                      <span className="tr-field-label">Return date</span>
+                      <span className="tr-field-label">{t('transfers:fields.returnDate', 'Return date')}</span>
                       <input type="date" min={date || todayISO} value={inDate} onChange={(e) => setInDate(e.target.value)} />
                     </div>
                   </div>
                   <div className="tr-field">
                     <span className="tr-field-ic">{ICON.clock}</span>
                     <div className="tr-field-body">
-                      <span className="tr-field-label">Return time</span>
+                      <span className="tr-field-label">{t('transfers:fields.returnTime', 'Return time')}</span>
                       <input type="time" value={inTime} onChange={(e) => setInTime(e.target.value)} />
                     </div>
                   </div>
@@ -304,13 +315,13 @@ export default function Transfers() {
               <div className="tr-field tr-field-pax">
                 <span className="tr-field-ic">{ICON.users}</span>
                 <div className="tr-field-body">
-                  <span className="tr-field-label">Passengers</span>
+                  <span className="tr-field-label">{t('transfers:fields.passengers', 'Passengers')}</span>
                   <details className="tr-paxdrop">
                     <summary>{paxLabel}</summary>
                     <div className="tr-paxpanel">
-                      <Stepper label="Adults" hint="13+" value={adults} set={setAdults} min={1} />
-                      <Stepper label="Children" hint="3–12" value={children} set={setChildren} />
-                      <Stepper label="Infants" hint="0–2" value={infants} set={setInfants} />
+                      <Stepper label={t('transfers:fields.adults', 'Adults')} hint="13+" value={adults} set={setAdults} min={1} />
+                      <Stepper label={t('transfers:fields.children', 'Children')} hint="3–12" value={children} set={setChildren} />
+                      <Stepper label={t('transfers:fields.infants', 'Infants')} hint="0–2" value={infants} set={setInfants} />
                     </div>
                   </details>
                 </div>
@@ -320,10 +331,10 @@ export default function Transfers() {
             <div className="tr-searchfoot">
               <label className="tr-round">
                 <input type="checkbox" checked={roundtrip} onChange={(e) => setRoundtrip(e.target.checked)} />
-                <span>Add return transfer</span>
+                <span>{t('transfers:fields.addReturnTransfer', 'Add return transfer')}</span>
               </label>
               <button className="tr-searchbtn" onClick={doSearch} disabled={loading}>
-                {ICON.search} {loading ? 'Searching…' : 'Search transfers'}
+                {ICON.search} {loading ? t('transfers:fields.searching', 'Searching…') : t('transfers:fields.searchTransfers', 'Search transfers')}
               </button>
             </div>
           </div>
@@ -337,12 +348,12 @@ export default function Transfers() {
 
         {results !== null && !loading && (
           <div className="tr-toolbar">
-            <div className="tr-count">{sorted.length} transfer{sorted.length === 1 ? '' : 's'} found</div>
+            <div className="tr-count">{t('transfers:results.found', { count: sorted.length, defaultValue_one: '{{count}} transfer found', defaultValue_other: '{{count}} transfers found' })}</div>
             {sorted.length > 0 && (
               <div className="tr-sortwrap">
-                <span>Sort</span>
+                <span>{t('transfers:results.sort', 'Sort')}</span>
                 <select value={sort} onChange={(e) => setSort(e.target.value)}>
-                  {SORTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+                  {sortOptions().map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
                 </select>
               </div>
             )}
@@ -356,8 +367,8 @@ export default function Transfers() {
         {!loading && results !== null && sorted.length === 0 && !error && (
           <div className="tr-empty">
             <div className="tr-empty-ic">{ICON.car}</div>
-            <h3>No transfers found</h3>
-            <p>Try a different date, or check the pickup / drop-off codes.</p>
+            <h3>{t('transfers:results.noneFoundTitle', 'No transfers found')}</h3>
+            <p>{t('transfers:results.noneFoundBody', 'Try a different date, or check the pickup / drop-off codes.')}</p>
           </div>
         )}
 
@@ -370,8 +381,8 @@ export default function Transfers() {
         {results === null && !loading && !error && (
           <div className="tr-intro">
             <div className="tr-intro-ic">{ICON.car}</div>
-            <h3>Where are you headed?</h3>
-            <p>Enter a pickup and drop-off above to see available transfers.</p>
+            <h3>{t('transfers:results.introTitle', 'Where are you headed?')}</h3>
+            <p>{t('transfers:results.introBody', 'Enter a pickup and drop-off above to see available transfers.')}</p>
           </div>
         )}
       </div>
@@ -385,16 +396,16 @@ export default function Transfers() {
               <span>{selected.pickup?.from} → {selected.pickup?.to} · {money(selected.price)}</span>
             </div>
             <div className="tr-selbar-flight">
-              <label>{ICON.plane} Flight no. <small>(recommended)</small></label>
+              <label>{ICON.plane} <Trans i18nKey="transfers:selbar.flightNo" t={t}>Flight no. <small>(recommended)</small></Trans></label>
               <input
                 value={flightNo}
                 onChange={(e) => setFlightNo(e.target.value.toUpperCase())}
-                placeholder="e.g. SN3721"
+                placeholder={t('transfers:selbar.flightNoPlaceholder', 'e.g. SN3721')}
                 maxLength={7}
               />
             </div>
             <button className="tr-selbar-btn" onClick={() => goCheckout(selected)}>
-              Continue to book {ICON.arrow}
+              {t('transfers:selbar.continue', 'Continue to book')} {ICON.arrow}
             </button>
           </div>
         </div>

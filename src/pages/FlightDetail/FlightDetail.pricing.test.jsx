@@ -59,16 +59,16 @@ describe('FlightDetail — the price it shows', () => {
   it('prices the headline per ADULT and the booking at the party total', () => {
     renderPage({ flight, ctx });
     // Hero: the fare one adult pays for the whole trip.
-    expect(screen.getByText(/from €740 pp/i)).toBeInTheDocument();
+    expect(screen.getByText(/vanaf €740 pp/i)).toBeInTheDocument();
     // Sidebar: what the party is actually charged — not €740, and not €2,960.
-    expect(screen.getByText(/Total for 2/i)).toBeInTheDocument();
+    expect(screen.getByText(/Totaal voor 2/i)).toBeInTheDocument();
     expect(screen.getAllByText('€1,480').length).toBeGreaterThan(0);
     expect(screen.queryByText('€2,960')).not.toBeInTheDocument();
   });
 
   it('hands the checkout the exact supplier total and a per-person figure', async () => {
     renderPage({ flight, ctx });
-    await userEvent.click(screen.getByRole('button', { name: /book now/i }));
+    await userEvent.click(screen.getByRole('button', { name: /nu boeken/i }));
     const booking = handedOver();
     // Checkout multiplies ppPrice back by the traveller count, so this must land on 1480.
     expect(booking.ppPrice * 2).toBeCloseTo(1480, 2);
@@ -78,8 +78,8 @@ describe('FlightDetail — the price it shows', () => {
 
   it('breaks the fare down from the supplier rows, with no invented surcharge line', async () => {
     renderPage({ flight, ctx });
-    await userEvent.click(screen.getByRole('button', { name: /fare summary/i }));
-    expect(screen.getByText(/Base fare \(2 travellers\)/i)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /tariefoverzicht/i }));
+    expect(screen.getByText(/Basistarief \(2 reizigers\)/i)).toBeInTheDocument();
     expect(screen.getByText('€1,184')).toBeInTheDocument();   // 370 × 0.8 × 2 × 2
     expect(screen.getByText('€296')).toBeInTheDocument();     // the remainder, as tax
     expect(screen.queryByText(/fuel surcharge/i)).not.toBeInTheDocument();
@@ -89,21 +89,21 @@ describe('FlightDetail — the price it shows', () => {
 describe('FlightDetail — the claims it makes', () => {
   it('states the real baggage allowance instead of a flat 7 kg / 23 kg promise', () => {
     renderPage({ flight, ctx });
-    expect(screen.getByText(/Check-in 15 kg included/i)).toBeInTheDocument();
+    expect(screen.getByText(/Incheckbagage 15 kg inbegrepen/i)).toBeInTheDocument();
     expect(screen.queryByText(/Cabin/i, { selector: '.fd-book-row' })).not.toBeInTheDocument();
     expect(screen.queryByText('23 kg')).not.toBeInTheDocument();
   });
 
   it('labels each half of the round trip by its own direction on the baggage tab', async () => {
     renderPage({ flight, ctx });
-    await userEvent.click(screen.getByRole('button', { name: /baggage/i }));
-    expect(screen.getByText(/Outbound: BRU → AYT/)).toBeInTheDocument();
-    expect(screen.getByText(/Return: AYT → BRU/)).toBeInTheDocument();
+    await userEvent.click(screen.getByRole('button', { name: /bagage/i }));
+    expect(screen.getByText(/Heenvlucht: BRU → AYT/)).toBeInTheDocument();
+    expect(screen.getByText(/Terugvlucht: AYT → BRU/)).toBeInTheDocument();
   });
 
   it('quotes no cancellation or change fee the supplier never sent', async () => {
     renderPage({ flight, ctx });
-    await userEvent.click(screen.getByRole('button', { name: /fare rules/i }));
+    await userEvent.click(screen.getByRole('button', { name: /tariefregels/i }));
     expect(screen.queryByText(/€45 per person/)).not.toBeInTheDocument();
     expect(screen.queryByText(/€35 \+ fare difference/)).not.toBeInTheDocument();
     expect(screen.queryByText(/Free cancellation within 24h/i)).not.toBeInTheDocument();
@@ -124,9 +124,9 @@ describe('FlightDetail — the claims it makes', () => {
 describe('FlightDetail — opened without a search behind it', () => {
   it('offers a fresh search rather than a fabricated flight', () => {
     renderPage(undefined);
-    expect(screen.getByText(/no longer loaded/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /search flights/i })).toBeInTheDocument();
+    expect(screen.getByText(/niet meer beschikbaar/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /vluchten zoeken/i })).toBeInTheDocument();
     // The old fallback rendered a full generated itinerary with a working Book button.
-    expect(screen.queryByRole('button', { name: /book now/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /nu boeken/i })).not.toBeInTheDocument();
   });
 });

@@ -1,4 +1,5 @@
 import { useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import mainLogo from '../../assets/main-logo.png';
 import './HotelVoucher.css';
 
@@ -95,6 +96,7 @@ const Cell = ({ icon, label, children }) => (
 );
 
 export default function HotelVoucher() {
+  const { t } = useTranslation('voucher');
   const { state } = useLocation();
   const navigate = useNavigate();
   const v = state?.voucher || DEMO;
@@ -104,9 +106,9 @@ export default function HotelVoucher() {
     <div className="hv">
       {/* toolbar — never printed */}
       <div className="hv-toolbar">
-        <button className="hv-tb-back" onClick={() => navigate(-1)}>{ICON.back} Back</button>
+        <button className="hv-tb-back" onClick={() => navigate(-1)}>{ICON.back} {t('voucher:toolbar.back', 'Back')}</button>
         <div className="hv-tb-right">
-          <button className="hv-tb-print" onClick={() => window.print()}>{ICON.print} Print / Save PDF</button>
+          <button className="hv-tb-print" onClick={() => window.print()}>{ICON.print} {t('voucher:toolbar.print', 'Print / Save PDF')}</button>
         </div>
       </div>
 
@@ -117,7 +119,7 @@ export default function HotelVoucher() {
             {/* Wordmark only: it already says Sunsky. */}
             <img src={mainLogo} alt="Sunsky Vakanties" />
           </div>
-          <h1 className="hv-title hd">HOTEL VOUCHER</h1>
+          <h1 className="hv-title hd">{t('voucher:title', 'HOTEL VOUCHER')}</h1>
         </header>
 
         {/* ═══ REFERENCE STRIP ═══ */}
@@ -125,28 +127,28 @@ export default function HotelVoucher() {
           <div className="hv-ref">
             <span className="hv-ref-ico">{ICON.doc}</span>
             <span className="hv-ref-meta">
-              <span className="hv-ref-label">Booking Reference</span>
+              <span className="hv-ref-label">{t('voucher:refs.bookingReference', 'Booking Reference')}</span>
               <span className="hv-ref-val">{v.reference}</span>
             </span>
           </div>
           <div className="hv-ref">
             <span className="hv-ref-ico">{ICON.tag}</span>
             <span className="hv-ref-meta">
-              <span className="hv-ref-label">Supplier Reference</span>
+              <span className="hv-ref-label">{t('voucher:refs.supplierReference', 'Supplier Reference')}</span>
               <span className="hv-ref-val">{v.supplierRef}</span>
             </span>
           </div>
           <div className="hv-ref">
             <span className="hv-ref-ico">{ICON.cal}</span>
             <span className="hv-ref-meta">
-              <span className="hv-ref-label">Booking Date</span>
+              <span className="hv-ref-label">{t('voucher:refs.bookingDate', 'Booking Date')}</span>
               <span className="hv-ref-val">{v.bookingDate}</span>
             </span>
           </div>
           <div className="hv-ref">
             <span className="hv-ref-ico">{ICON.checkO}</span>
             <span className="hv-ref-meta">
-              <span className="hv-ref-label">Status</span>
+              <span className="hv-ref-label">{t('voucher:refs.status', 'Status')}</span>
               <span className={`hv-status ${statusClass}`}>{v.status.toUpperCase()}</span>
             </span>
           </div>
@@ -154,40 +156,40 @@ export default function HotelVoucher() {
 
         {/* ═══ TRAVEL SUMMARY ═══ */}
         <section className="hv-summary">
-          <span className="hv-summary-tag">TRAVEL SUMMARY</span>
+          <span className="hv-summary-tag">{t('voucher:summary.tag', 'TRAVEL SUMMARY')}</span>
           <h2 className="hv-hotel-name hd">{v.hotel.name}</h2>
           <div className="hv-stars">{Array.from({ length: Math.min(v.hotel.stars, 5) }).map((_, i) => <span key={i}>★</span>)}</div>
           <div className="hv-hotel-loc">{ICON.pin} {v.hotel.location}</div>
 
           <div className="hv-stay-grid">
             <div className="hv-stat">
-              <span className="hv-stat-label">{ICON.cal} Check-In</span>
+              <span className="hv-stat-label">{ICON.cal} {t('voucher:summary.checkIn', 'Check-In')}</span>
               <span className="hv-stat-val">{v.checkIn.date}</span>
               <span className="hv-stat-sub">{v.checkIn.time}</span>
             </div>
             <div className="hv-stat">
-              <span className="hv-stat-label">{ICON.cal} Check-Out</span>
+              <span className="hv-stat-label">{ICON.cal} {t('voucher:summary.checkOut', 'Check-Out')}</span>
               <span className="hv-stat-val">{v.checkOut.date}</span>
               <span className="hv-stat-sub">{v.checkOut.time}</span>
             </div>
             <div className="hv-stat">
-              <span className="hv-stat-label">{ICON.moon} Nights</span>
+              <span className="hv-stat-label">{ICON.moon} {t('voucher:summary.nights', 'Nights')}</span>
               <span className="hv-stat-val">{v.nights}</span>
-              <span className="hv-stat-sub">{v.nights === 1 ? 'Night' : 'Nights'}</span>
+              <span className="hv-stat-sub">{v.nights === 1 ? t('voucher:summary.night', 'Night') : t('voucher:summary.nights', 'Nights')}</span>
             </div>
             <div className="hv-stat">
-              <span className="hv-stat-label">{ICON.bed} Rooms</span>
+              <span className="hv-stat-label">{ICON.bed} {t('voucher:summary.rooms', 'Rooms')}</span>
               <span className="hv-stat-val">{v.roomCount}</span>
-              <span className="hv-stat-sub">{v.roomCount === 1 ? 'Room' : 'Rooms'}</span>
+              <span className="hv-stat-sub">{v.roomCount === 1 ? t('voucher:summary.room', 'Room') : t('voucher:summary.rooms', 'Rooms')}</span>
             </div>
             <div className="hv-stat">
-              <span className="hv-stat-label">{ICON.user} Guests</span>
+              <span className="hv-stat-label">{ICON.user} {t('voucher:summary.guests', 'Guests')}</span>
               <span className="hv-stat-val">{v.guests}</span>
-              <span className="hv-stat-sub">{v.guests === 1 ? 'Guest' : 'Guests'}</span>
+              <span className="hv-stat-sub">{v.guests === 1 ? t('voucher:summary.guest', 'Guest') : t('voucher:summary.guests', 'Guests')}</span>
             </div>
             <div className="hv-board">
               <span className="hv-board-ico">{ICON.meal}</span>
-              <span className="hv-board-label">Board Basis</span>
+              <span className="hv-board-label">{t('voucher:summary.boardBasis', 'Board Basis')}</span>
               <span className="hv-board-val hv-caps">{v.board}</span>
             </div>
           </div>
@@ -197,18 +199,25 @@ export default function HotelVoucher() {
         <section className="hv-sec">
           <div className="hv-sec-head">
             <span className="hv-sec-ico">{ICON.user}</span>
-            <h3 className="hv-sec-title hd">Travelers</h3>
-            <span className="hv-sec-note">Per room / per voucher</span>
+            <h3 className="hv-sec-title hd">{t('voucher:travelers.title', 'Travelers')}</h3>
+            <span className="hv-sec-note">{t('voucher:travelers.note', 'Per room / per voucher')}</span>
           </div>
           <table className="hv-table">
             <thead>
-              <tr><th>#</th><th>Title</th><th>Type</th><th>Gender</th><th>Full Name</th><th>Date of Birth</th></tr>
+              <tr>
+                <th>{t('voucher:travelers.colNumber', '#')}</th>
+                <th>{t('voucher:travelers.colTitle', 'Title')}</th>
+                <th>{t('voucher:travelers.colType', 'Type')}</th>
+                <th>{t('voucher:travelers.colGender', 'Gender')}</th>
+                <th>{t('voucher:travelers.colFullName', 'Full Name')}</th>
+                <th>{t('voucher:travelers.colDob', 'Date of Birth')}</th>
+              </tr>
             </thead>
             <tbody>
-              {v.travelers.map((t) => (
-                <tr key={t.n}>
-                  <td>{t.n}</td><td>{t.title}</td><td>{t.type}</td><td>{t.gender}</td>
-                  <td className="hv-td-name">{t.name}</td><td>{t.dob}</td>
+              {v.travelers.map((tr) => (
+                <tr key={tr.n}>
+                  <td>{tr.n}</td><td>{tr.title}</td><td>{tr.type}</td><td>{tr.gender}</td>
+                  <td className="hv-td-name">{tr.name}</td><td>{tr.dob}</td>
                 </tr>
               ))}
             </tbody>
@@ -219,29 +228,29 @@ export default function HotelVoucher() {
         <section className="hv-sec">
           <div className="hv-sec-head">
             <span className="hv-sec-ico">{ICON.bed}</span>
-            <h3 className="hv-sec-title hd">Room Information</h3>
-            <span className="hv-sec-note">Per room</span>
+            <h3 className="hv-sec-title hd">{t('voucher:room.title', 'Room Information')}</h3>
+            <span className="hv-sec-note">{t('voucher:room.note', 'Per room')}</span>
           </div>
           {v.rooms.map((r) => (
             <div className="hv-room" key={r.label}>
               <div className="hv-room-head">
                 <span className="hv-room-chip">{r.label}</span>
                 {r.confirmation && (
-                  <span className="hv-room-conf">Hotel Confirmation: <b>{r.confirmation}</b></span>
+                  <span className="hv-room-conf">{t('voucher:room.hotelConfirmation', 'Hotel Confirmation:')} <b>{r.confirmation}</b></span>
                 )}
               </div>
               <div className="hv-room-grid">
                 {/* Room and board in capitals, as on the checkout summary — a voucher is
                     handed to a hotel desk, so the two fields they read off it are the two
                     that must be unmistakable. */}
-                <Cell icon={ICON.bed} label="Room Type"><span className="hv-caps">{r.type}</span></Cell>
-                <Cell icon={ICON.users} label="Occupancy">{r.occupancy}</Cell>
-                <Cell icon={ICON.meal} label="Board Basis"><span className="hv-caps">{r.board}</span></Cell>
-                <Cell icon={ICON.shieldCheck} label="Room Status">{r.status}</Cell>
+                <Cell icon={ICON.bed} label={t('voucher:room.roomType', 'Room Type')}><span className="hv-caps">{r.type}</span></Cell>
+                <Cell icon={ICON.users} label={t('voucher:room.occupancy', 'Occupancy')}>{r.occupancy}</Cell>
+                <Cell icon={ICON.meal} label={t('voucher:summary.boardBasis', 'Board Basis')}><span className="hv-caps">{r.board}</span></Cell>
+                <Cell icon={ICON.shieldCheck} label={t('voucher:room.roomStatus', 'Room Status')}>{r.status}</Cell>
               </div>
               {r.assigned?.length > 0 && (
                 <div className="hv-room-assigned">
-                  <span className="hv-ra-label">Assigned travelers</span>
+                  <span className="hv-ra-label">{t('voucher:room.assignedTravelers', 'Assigned travelers')}</span>
                   {r.assigned.map((n) => <span className="hv-ra-chip" key={n}>{ICON.user} {n}</span>)}
                 </div>
               )}
@@ -253,14 +262,14 @@ export default function HotelVoucher() {
         <section className="hv-sec">
           <div className="hv-sec-head">
             <span className="hv-sec-ico">{ICON.building}</span>
-            <h3 className="hv-sec-title hd">Hotel Information</h3>
+            <h3 className="hv-sec-title hd">{t('voucher:hotelInfo.title', 'Hotel Information')}</h3>
           </div>
           <div className="hv-info-grid">
             <div className="hv-info-col">
-              <div className="hv-info-sub">Contact Details</div>
+              <div className="hv-info-sub">{t('voucher:hotelInfo.contactDetails', 'Contact Details')}</div>
               <div className="hv-irow">
                 <span className="hv-irow-ico">{ICON.pin}</span>
-                <span className="hv-irow-label">Address</span>
+                <span className="hv-irow-label">{t('voucher:hotelInfo.address', 'Address')}</span>
                 <span className="hv-irow-val">{v.contact.address.map((l) => <span key={l} className="hv-addr-line">{l}</span>)}</span>
               </div>
               {/* contact rows render only when the data really exists — live
@@ -268,49 +277,49 @@ export default function HotelVoucher() {
               {v.contact.telephone && (
                 <div className="hv-irow">
                   <span className="hv-irow-ico">{ICON.phone}</span>
-                  <span className="hv-irow-label">Telephone</span>
+                  <span className="hv-irow-label">{t('voucher:hotelInfo.telephone', 'Telephone')}</span>
                   <span className="hv-irow-val">{v.contact.telephone}</span>
                 </div>
               )}
               {v.contact.fax && (
                 <div className="hv-irow">
                   <span className="hv-irow-ico">{ICON.fax}</span>
-                  <span className="hv-irow-label">Fax</span>
+                  <span className="hv-irow-label">{t('voucher:hotelInfo.fax', 'Fax')}</span>
                   <span className="hv-irow-val">{v.contact.fax}</span>
                 </div>
               )}
               {v.contact.email && (
                 <div className="hv-irow">
                   <span className="hv-irow-ico">{ICON.mail}</span>
-                  <span className="hv-irow-label">Email</span>
+                  <span className="hv-irow-label">{t('voucher:hotelInfo.email', 'Email')}</span>
                   <a className="hv-irow-val hv-link" href={`mailto:${v.contact.email}`}>{v.contact.email}</a>
                 </div>
               )}
               {v.contact.website && (
                 <div className="hv-irow">
                   <span className="hv-irow-ico">{ICON.globe}</span>
-                  <span className="hv-irow-label">Website</span>
+                  <span className="hv-irow-label">{t('voucher:hotelInfo.website', 'Website')}</span>
                   <a className="hv-irow-val hv-link" href={`https://${v.contact.website}`} target="_blank" rel="noreferrer">{v.contact.website}</a>
                 </div>
               )}
             </div>
             <div className="hv-info-col">
-              <div className="hv-info-sub">Stay Information</div>
+              <div className="hv-info-sub">{t('voucher:hotelInfo.stayInformation', 'Stay Information')}</div>
               <div className="hv-srow">
                 <span className="hv-srow-ico">{ICON.clock}</span>
-                <span className="hv-srow-meta"><span className="hv-srow-label">Check-In Time</span><span className="hv-srow-val">{v.stay.checkInTime}</span></span>
+                <span className="hv-srow-meta"><span className="hv-srow-label">{t('voucher:hotelInfo.checkInTime', 'Check-In Time')}</span><span className="hv-srow-val">{v.stay.checkInTime}</span></span>
               </div>
               <div className="hv-srow">
                 <span className="hv-srow-ico">{ICON.clock}</span>
-                <span className="hv-srow-meta"><span className="hv-srow-label">Check-Out Time</span><span className="hv-srow-val">{v.stay.checkOutTime}</span></span>
+                <span className="hv-srow-meta"><span className="hv-srow-label">{t('voucher:hotelInfo.checkOutTime', 'Check-Out Time')}</span><span className="hv-srow-val">{v.stay.checkOutTime}</span></span>
               </div>
               <div className="hv-srow">
                 <span className="hv-srow-ico">{ICON.clock}</span>
-                <span className="hv-srow-meta"><span className="hv-srow-label">Early Check-In</span><span className="hv-srow-val">{v.stay.earlyCheckIn}</span></span>
+                <span className="hv-srow-meta"><span className="hv-srow-label">{t('voucher:hotelInfo.earlyCheckIn', 'Early Check-In')}</span><span className="hv-srow-val">{v.stay.earlyCheckIn}</span></span>
               </div>
               <div className="hv-srow">
                 <span className="hv-srow-ico">{ICON.clock}</span>
-                <span className="hv-srow-meta"><span className="hv-srow-label">Late Check-Out</span><span className="hv-srow-val">{v.stay.lateCheckOut}</span></span>
+                <span className="hv-srow-meta"><span className="hv-srow-label">{t('voucher:hotelInfo.lateCheckOut', 'Late Check-Out')}</span><span className="hv-srow-val">{v.stay.lateCheckOut}</span></span>
               </div>
             </div>
           </div>
@@ -320,7 +329,7 @@ export default function HotelVoucher() {
         <section className="hv-important">
           <div className="hv-imp-head">
             <span className="hv-imp-ico">{ICON.alert}</span>
-            <h3 className="hv-imp-title hd">Important Hotel Information</h3>
+            <h3 className="hv-imp-title hd">{t('voucher:important.title', 'Important Hotel Information')}</h3>
           </div>
           <ul className="hv-imp-list">
             {v.important.map((line) => <li key={line}>{line}</li>)}
@@ -332,7 +341,7 @@ export default function HotelVoucher() {
           <section className="hv-remarks">
             <div className="hv-sec-head" style={{ marginBottom: 8 }}>
               <span className="hv-sec-ico">{ICON.chat}</span>
-              <h3 className="hv-sec-title hd">Hotelier Remarks</h3>
+              <h3 className="hv-sec-title hd">{t('voucher:remarks.title', 'Hotelier Remarks')}</h3>
             </div>
             <div className="hv-remarks-body">
               {v.remarks.map((r, i) => (
@@ -352,21 +361,21 @@ export default function HotelVoucher() {
           <div className="hv-em-head">
             <span className="hv-em-ico">{ICON.phone}</span>
             <div className="hv-em-titles">
-              <h3 className="hv-em-title hd">Emergency Assistance</h3>
-              <p className="hv-em-sub">If you need urgent assistance before or during your trip, please contact Sunsky 24/7.</p>
+              <h3 className="hv-em-title hd">{t('voucher:emergency.title', 'Emergency Assistance')}</h3>
+              <p className="hv-em-sub">{t('voucher:emergency.sub', 'If you need urgent assistance before or during your trip, please contact Sunsky 24/7.')}</p>
             </div>
           </div>
           <div className="hv-em-row">
-            <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.phone}</i><b>Phone</b>{v.emergency.phone}</span>
-            <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.mail}</i><b>Email</b>{v.emergency.email}</span>
-            <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.globe}</i><b>Website</b>{v.emergency.website}</span>
+            <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.phone}</i><b>{t('voucher:emergency.phone', 'Phone')}</b>{v.emergency.phone}</span>
+            <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.mail}</i><b>{t('voucher:emergency.email', 'Email')}</b>{v.emergency.email}</span>
+            <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.globe}</i><b>{t('voucher:emergency.website', 'Website')}</b>{v.emergency.website}</span>
           </div>
         </section>
 
         {/* ═══ NOTE BAR + FOOTER ═══ */}
-        <div className="hv-note">{ICON.info} Please have your booking reference and hotel confirmation number ready when contacting us.</div>
+        <div className="hv-note">{ICON.info} {t('voucher:note', 'Please have your booking reference and hotel confirmation number ready when contacting us.')}</div>
         <div className="hv-foot">
-          Hotel Voucher&ensp;·&ensp;Booking Reference: {v.reference}&ensp;·&ensp;Generated: {v.generated}&ensp;·&ensp;Page 1 of 1
+          {t('voucher:footer', { reference: v.reference, generated: v.generated, defaultValue: 'Hotel Voucher · Booking Reference: {{reference}} · Generated: {{generated}} · Page 1 of 1' })}
         </div>
       </div>
     </div>

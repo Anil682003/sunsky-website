@@ -1,0 +1,73 @@
+{
+  "title": "HOTELVOUCHER",
+  "note": "Houd je boekingsreferentie en hotelbevestigingsnummer bij de hand wanneer je contact met ons opneemt.",
+  "footer": "Hotelvoucher · Boekingsreferentie: {{reference}} · Gegenereerd: {{generated}} · Pagina 1 van 1",
+  "toolbar": {
+    "back": "Terug",
+    "print": "Afdrukken / Opslaan als PDF"
+  },
+  "refs": {
+    "bookingReference": "Boekingsreferentie",
+    "supplierReference": "Leveranciersreferentie",
+    "bookingDate": "Boekingsdatum",
+    "status": "Status"
+  },
+  "summary": {
+    "tag": "REISOVERZICHT",
+    "checkIn": "Check-in",
+    "checkOut": "Check-out",
+    "night": "Nacht",
+    "nights": "Nachten",
+    "room": "Kamer",
+    "rooms": "Kamers",
+    "guest": "Gast",
+    "guests": "Gasten",
+    "boardBasis": "Verzorging"
+  },
+  "travelers": {
+    "title": "Reizigers",
+    "note": "Per kamer / per voucher",
+    "colNumber": "#",
+    "colTitle": "Titel",
+    "colType": "Type",
+    "colGender": "Geslacht",
+    "colFullName": "Volledige naam",
+    "colDob": "Geboortedatum"
+  },
+  "room": {
+    "title": "Kamerinformatie",
+    "note": "Per kamer",
+    "hotelConfirmation": "Hotelbevestiging:",
+    "roomType": "Kamertype",
+    "occupancy": "Bezetting",
+    "roomStatus": "Kamerstatus",
+    "assignedTravelers": "Toegewezen reizigers"
+  },
+  "hotelInfo": {
+    "title": "Hotelinformatie",
+    "contactDetails": "Contactgegevens",
+    "address": "Adres",
+    "telephone": "Telefoon",
+    "fax": "Fax",
+    "email": "E-mail",
+    "website": "Website",
+    "stayInformation": "Verblijfsinformatie",
+    "checkInTime": "Check-intijd",
+    "checkOutTime": "Check-outtijd",
+    "earlyCheckIn": "Vroege check-in",
+    "lateCheckOut": "Late check-out"
+  },
+  "important": {
+    "title": "Belangrijke hotelinformatie"
+  },
+  "remarks": {
+    "title": "Opmerkingen van de hotelier"
+  },
+  "emergency": {
+    "title": "Noodhulp",
+    "sub": "Heb je dringend hulp nodig voor of tijdens je reis? Neem 24/7 contact op met Sunsky.",
+    "phone": "Telefoon",
+    "email": "E-mail",
+    "website": "Website"
+  }
+}

@@ -1,0 +1,17 @@
+{
+  "fallbackName": "Vakanties",
+  "titleFor": "Onze beste {{name}}",
+  "lede": "Kies een land en we tonen je elk verblijf dat we daar hebben.",
+  "city": "Stad",
+  "exploreStays": "Bekijk verblijven",
+  "error": {
+    "title": "We konden deze bestemmingen niet laden",
+    "body": "De verbinding met onze reisdata is mislukt. Probeer het opnieuw.",
+    "tryAgain": "Opnieuw proberen"
+  },
+  "empty": {
+    "title": "Nog geen bestemmingen",
+    "body": "We hebben nog geen landen gekoppeld aan {{name}}. Kom binnenkort terug.",
+    "exploreOther": "Ontdek andere vakanties"
+  }
+}

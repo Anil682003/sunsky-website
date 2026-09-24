@@ -1,0 +1,98 @@
+{
+  "dates": {
+    "monthsShort": "jan,feb,mrt,apr,mei,jun,jul,aug,sep,okt,nov,dec"
+  },
+  "pax": {
+    "adults_one": "{{count}} volwassene",
+    "adults_other": "{{count}} volwassenen",
+    "children_one": "{{count}} kind",
+    "children_other": "{{count}} kinderen",
+    "infants_one": "{{count}} baby",
+    "infants_other": "{{count}} baby's"
+  },
+  "stops": {
+    "none": "Direct",
+    "count_one": "{{count}} tussenstop",
+    "count_other": "{{count}} tussenstops"
+  },
+  "cabin": {
+    "economy": "Economy",
+    "premiumEconomy": "Premium Economy",
+    "business": "Business",
+    "first": "First"
+  },
+  "legTag": {
+    "outbound": "Heenvlucht",
+    "return": "Terugvlucht"
+  },
+  "badge": {
+    "cheapest": "Goedkoopst",
+    "fastest": "Snelst",
+    "bestValue": "Beste prijs-kwaliteit"
+  },
+  "sort": {
+    "priceAsc": "Prijs: laag naar hoog",
+    "priceDesc": "Prijs: hoog naar laag",
+    "duration": "Duur: kortst",
+    "depEarly": "Vertrek: vroegst",
+    "depLate": "Vertrek: laatst"
+  },
+  "price": {
+    "perPerson": "per persoon",
+    "total": "totaal"
+  },
+  "card": {
+    "select": "Selecteer"
+  },
+  "hero": {
+    "tripThrough": "Jouw reis via",
+    "flightsTo": "Vluchten naar",
+    "flightsCount_one": "{{count}} vlucht",
+    "flightsCount_other": "{{count}} vluchten"
+  },
+  "toolbar": {
+    "searching": "Zoeken…",
+    "legProgress": "Vlucht {{n}} van {{total}}",
+    "of": "van",
+    "flights": "vluchten",
+    "filters": "Filters",
+    "sort": "Sorteren"
+  },
+  "trip": {
+    "title": "Jouw reis",
+    "chosen": "gekozen",
+    "choose": "Kiezen",
+    "total": "Totaal van de reis",
+    "soFar": "Tot nu toe",
+    "note": "Elke vlucht wordt apart geprijsd en geboekt als enkele reis. Het totaal is de som daarvan, voor {{pax}}.",
+    "continue": "Doorgaan",
+    "chooseMore_one": "Kies nog {{count}} vlucht",
+    "chooseMore_other": "Kies nog {{count}} vluchten"
+  },
+  "legTabs": {
+    "ariaLabel": "Vluchten in deze reis"
+  },
+  "filters": {
+    "airlines": "Luchtvaartmaatschappijen",
+    "stopsTitle": "{{from}} → {{to}} tussenstops",
+    "nonstop": "Direct",
+    "oneStop": "1 tussenstop",
+    "twoOrMoreStops": "2 of meer tussenstops",
+    "departureFrom": "Vertrek vanaf {{from}}",
+    "maxPrice": "Maximale prijs",
+    "upTo": "Tot {{amount}}",
+    "clearAll": "Alle filters wissen",
+    "clearAllCount": "Alle filters wissen ({{count}})"
+  },
+  "empty": {
+    "noFlightsMultiTitle": "Geen vluchten voor {{from}} → {{to}} op {{date}}",
+    "noFlightsTitle": "Geen vluchten voor deze route en datum",
+    "noMatchTitle": "Geen vluchten voldoen aan je filters",
+    "noFlightsMultiBody": "Deze vlucht van de reis heeft geen tarief op die datum. Wijzig de datum of luchthavens in de zoekopdracht hierboven — de rest van de reis blijft ongewijzigd.",
+    "noFlightsBody": "We konden geen tarief vinden voor deze zoekopdracht. Probeer een andere datum of een andere vertrekluchthaven.",
+    "noMatchBody": "Verruim je prijsbereik of wis een filter."
+  },
+  "drawer": {
+    "show": "Toon {{count}} vluchten"
+  }
+}
