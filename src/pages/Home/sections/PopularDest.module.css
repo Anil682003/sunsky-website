@@ -1,7 +1,9 @@
 /* ═══════════════════════════════════════════════════════════
-   SunSky — Popular destinations
-   One card per travel category, each a plain list of links:
-   a directory to scan, laid out as straight columns.
+   SunSky: Most popular destinations
+   One card per travel category: a tinted tile with the card's
+   glyph, then a list of destinations, each with its own little
+   emoji tile, and a "View all" to finish. Tone, glyph and every
+   emoji are chosen in the dashboard (Homepage Settings).
    ═══════════════════════════════════════════════════════════ */
 
 .section {
@@ -18,73 +20,160 @@
 .grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(250px, 1fr));
-  gap: 24px;
+  gap: 20px;
 }
 
 .card {
+  display: flex;
+  flex-direction: column;
+  padding: 20px 18px 16px;
   background: #FFFFFF;
-  border: 1px solid var(--line);
-  border-radius: var(--r-card);
-  box-shadow: var(--shadow-card);
-  padding: 22px 22px 10px;
+  border: 1px solid #EAEEF4;
+  border-radius: 16px;
+  box-shadow: 0 1px 2px rgba(16, 24, 40, 0.04), 0 10px 28px rgba(16, 24, 40, 0.05);
 }
 
+/* ── Card header: tinted tile, title, count ── */
 .cardHead {
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding-bottom: 14px;
+  gap: 20px;
+  padding-bottom: 16px;
 }
-.icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 10px;
+.tile {
+  width: 52px;
+  height: 52px;
   flex-shrink: 0;
   display: flex;
   align-items: center;
   justify-content: center;
-  background: var(--blue-light);
-  color: var(--blue-deep);
+  border-radius: 14px;
 }
+.tileGlyph { width: 32px; height: 32px; }
+
+.tone_blue   { background: #E8F1FC; color: #3D91E0; }
+.tone_orange { background: #FEF3E4; color: #F39C3B; }
+.tone_pink   { background: #FCE4EA; color: #E94C6B; }
+.tone_green  { background: #DCF7EC; color: #22AD80; }
+.tone_purple { background: #EEE9FE; color: #7C5CE0; }
+.tone_yellow { background: #FFF6D6; color: #DDA400; }
+.tone_teal   { background: #DDF4F6; color: #0E9AA7; }
+
 .cardHeadText { min-width: 0; }
 .cardTitle {
   font-family: 'Sora', sans-serif;
-  font-size: 1.05rem;
-  font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: 0.97rem;
+  font-weight: 700;
   line-height: 1.3;
-  color: var(--text);
+  letter-spacing: -0.01em;
+  color: #111B3E;
 }
 .cardCount {
-  margin-top: 2px;
-  font-size: 0.82rem;
-  color: var(--text-sec);
+  margin-top: 3px;
+  font-size: 0.8rem;
+  color: #7A8499;
 }
 
-.links { display: flex; flex-direction: column; }
-.links a {
+/* ── Destination rows: emoji tile, name, chevron. The hairlines start at the name. ── */
+.links {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-direction: column;
+}
+.link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #1A2744;
+  text-decoration: none;
+}
+/* A little postcard: sky, sand or sunset behind the emoji, like an app icon. */
+.linkTile {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  border-radius: 9px;
+}
+.linkEmoji { width: 25px; height: 25px; }
+
+.tile_sky      { background: linear-gradient(180deg, #A9DAFA 0%, #E1F3FD 100%); }
+.tile_sunset   { background: linear-gradient(180deg, #FFA95E 0%, #FFDA7A 100%); }
+.tile_beach    { background: linear-gradient(180deg, #A9DAFA 0%, #DDF2FD 58%, #F8DD9F 58%, #F2CD84 100%); }
+.tile_sea      { background: linear-gradient(180deg, #A6DDFB 0%, #74D2D4 100%); }
+.tile_sand     { background: linear-gradient(180deg, #FFEAC4 0%, #F7D197 100%); }
+.tile_mint     { background: linear-gradient(180deg, #D3F3E0 0%, #A6E0BE 100%); }
+.tile_rose     { background: linear-gradient(180deg, #FFDDE6 0%, #FFBFD0 100%); }
+.tile_lavender { background: linear-gradient(180deg, #E4DDFF 0%, #CBBDFC 100%); }
+
+.linkBody {
+  flex: 1;
+  min-width: 0;
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 10px;
-  padding: 11px 0;
-  border-top: 1px solid var(--line);
-  font-size: 0.92rem;
-  color: var(--text);
-  text-decoration: none;
+  padding: 10px 0;
+  border-bottom: 1px solid #EEF1F5;
+}
+.links li:first-child .linkBody { border-top: 1px solid #EEF1F5; }
+.linkLabel {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.8rem;
+  line-height: 20px;
   transition: color 0.2s var(--ease);
 }
-.links a span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.links a svg {
+.chevron {
+  width: 22px;
+  height: 22px;
   flex-shrink: 0;
-  color: var(--text-light);
-  transition: transform 0.2s var(--ease), color 0.2s var(--ease);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 50%;
+  background: #F1F4F9;
+  color: #41579D;
+  transition: background 0.2s var(--ease), color 0.2s var(--ease), transform 0.2s var(--ease);
 }
-.links a:hover { color: var(--blue-deep); }
-.links a:hover svg { color: var(--blue-deep); transform: translateX(2px); }
-.links a:focus-visible {
+a.link:hover .linkLabel { color: var(--blue-deep); }
+a.link:hover .chevron { background: #E3EBFB; color: var(--blue-deep); transform: translateX(2px); }
+a.link:focus-visible {
   outline: 3px solid rgba(31, 79, 216, 0.35);
   outline-offset: 2px;
+  border-radius: 8px;
+}
+.linkStatic { cursor: default; }
+.linkStatic .chevron { opacity: 0.45; }
+
+/* ── "View all", pinned to the foot so every card's lines up ── */
+.viewAll {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+  align-self: flex-start;
+  margin-top: auto;
+  padding-top: 22px;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 20px;
+  color: #1D3FB4;
+  text-decoration: none;
+}
+.viewAll svg { transition: transform 0.2s var(--ease); }
+.viewAll:hover { color: var(--blue-deep); }
+.viewAll:hover svg { transform: translateX(3px); }
+.viewAll:focus-visible {
+  outline: 3px solid rgba(31, 79, 216, 0.35);
+  outline-offset: 3px;
   border-radius: 4px;
 }
 
@@ -93,6 +182,6 @@
 }
 
 @media (prefers-reduced-motion: reduce) {
-  .links a, .links a svg { transition: none; }
-  .links a:hover svg { transform: none; }
+  .linkLabel, .chevron, .viewAll svg { transition: none; }
+  a.link:hover .chevron, .viewAll:hover svg { transform: none; }
 }

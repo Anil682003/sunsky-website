@@ -44,6 +44,34 @@
   color: var(--accent-script);
 }
 
+/* Opt-in flourishes (rule, swash): a short line trailing the eyebrow, and a brush stroke
+   under the handwritten word. */
+.eyebrowRule {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+}
+.eyebrowRule::after {
+  content: '';
+  width: 42px;
+  height: 2px;
+  border-radius: 2px;
+  background: linear-gradient(90deg, rgba(31, 79, 216, 0.55), rgba(31, 79, 216, 0.08));
+}
+.accentSwash {
+  position: relative;
+  display: inline-block;
+}
+.swash {
+  position: absolute;
+  left: 2%;
+  bottom: -0.2em;
+  width: 96%;
+  height: 0.28em;
+  color: var(--accent-script);
+  pointer-events: none;
+}
+
 /* pre-line so a line break typed in the CMS shows as one here. */
 .sub {
   white-space: pre-line;
