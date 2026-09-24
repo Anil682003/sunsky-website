@@ -5,9 +5,34 @@
    the active tab and nothing else competes with the pictures.
    ═══════════════════════════════════════════════════════════ */
 
+/* The section sits on the supplied illustration: soft blue waves, a dotted
+   world map, and the sun-and-flight-path motif that lands to the right of the
+   heading. It is artwork rather than a photograph, so unlike the Categories
+   backdrop it is shown as drawn — no blur, nothing washed over it. Blurring a
+   drawing of a dashed flight path only makes it look like a mistake. */
 .section {
-  background: var(--surface-alt);
+  position: relative;
+  /* Sampled from the artwork's own bottom edge (#F0FAFF–#FEFFFF), so where the
+     drawing ends and this begins there is no seam to see. */
+  background-color: #FAFDFF;
+  background-image: url('../../../assets/vind-bg.jpg');
+  /* Full width, pinned to the top — NOT `cover`.
+     The artwork is 2.7:1 and the section is nearer 2:1, so `cover` scaled it
+     until it filled the height and then cropped 27% off the sides, taking the
+     aeroplane on the right with it. The motif runs the whole width, so the
+     width is what has to survive; the shortfall at the foot is filled with the
+     colour above, behind the cards, where the drawing has nothing to say. */
+  background-size: 100% auto;
+  background-position: center top;
+  background-repeat: no-repeat;
   padding: var(--section-y) 0;
+}
+
+/* Below the artwork's natural width the sun and plane crowd the heading, and
+   the waves crop to noise. The illustration is dropped and its pale blue is
+   kept, which is what the section looked like before it existed. */
+@media (max-width: 900px) {
+  .section { background-image: none; }
 }
 
 .inner {
@@ -26,7 +51,8 @@
 .tab {
   display: inline-flex;
   align-items: center;
-  height: 40px;
+  gap: 8px;
+  height: 42px;
   padding: 0 18px;
   border-radius: var(--r-full);
   border: 1px solid var(--line);
@@ -47,12 +73,23 @@
   outline: 3px solid rgba(31, 79, 216, 0.35);
   outline-offset: 2px;
 }
+/* The landmark sits quieter than the country's name — it is there to make the
+   row scannable, not to be read. */
+.tabIcon {
+  flex-shrink: 0;
+  color: var(--blue-deep);
+  opacity: 0.75;
+}
+.tab:hover .tabIcon { opacity: 1; }
+
 .tabActive,
 .tabActive:hover {
   background: var(--blue-deep);
   border-color: var(--blue-deep);
   color: #FFFFFF;
+  box-shadow: 0 6px 16px rgba(31, 79, 216, 0.28);
 }
+.tabActive .tabIcon { color: #FFFFFF; opacity: 1; }
 
 /* ── Destination cards: first card spans two rows once there are more than three ── */
 .panel {
@@ -115,6 +152,21 @@
   background: linear-gradient(180deg, rgba(10, 22, 48, 0) 0%, rgba(10, 22, 48, 0.62) 100%);
 }
 .overlayText { min-width: 0; }
+
+/* The country, above the place. Deliberately lighter than the place name: a
+   card is selling Tenerife, and "Spanje" is there to say where that is. */
+.destCountry {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  margin-bottom: 3px;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.92);
+  text-shadow: 0 1px 2px rgba(7, 14, 31, 0.3);
+}
+.destCountry svg { flex-shrink: 0; }
+
 .destName {
   font-family: 'Sora', sans-serif;
   font-size: 1.25rem;
@@ -146,19 +198,25 @@
 }
 .cardLink:hover .go { transform: translateX(3px); }
 
-/* A plain label, straight and still. */
+/* A plain label, straight and still, with the crown that marks it as the pick
+   of the row rather than one more piece of chrome. */
 .badge {
   position: absolute;
   top: 16px;
   left: 16px;
-  padding: 5px 11px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 13px 6px 11px;
   border-radius: var(--r-full);
   background: #FFFFFF;
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: 0.78rem;
   font-weight: 600;
-  box-shadow: 0 1px 3px rgba(7, 14, 31, 0.12);
+  box-shadow: 0 2px 8px rgba(7, 14, 31, 0.16);
 }
+/* Gold on white: the one warm mark on a card that is otherwise photograph. */
+.badgeIcon { flex-shrink: 0; color: var(--gold, #f5a51e); }
 
 /* ── Responsive ── */
 @media (max-width: 960px) {

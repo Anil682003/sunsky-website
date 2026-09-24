@@ -4,6 +4,9 @@ import styles from './Destinations.module.css';
 import SectionHead from './SectionHead';
 import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
 import { useTranslation } from 'react-i18next';
+import {
+  MapPin, Landmark, Building2, Church, Castle, Pyramid, Anchor, Waves, Mountain, Palmtree, Crown,
+} from 'lucide-react';
 
 /* Shown only until the dashboard's own destination tabs arrive. Place names are
    NOT translated — Mallorca is Mallorca — but the country tab labels and the
@@ -64,6 +67,29 @@ const ArrowIcon = () => (
   </svg>
 );
 
+/**
+ * A landmark for each country tab.
+ *
+ * Tab labels come from the dashboard and can say anything, in either language,
+ * so this matches on the name rather than on an id and falls back to a map pin.
+ * A country nobody listed here still gets a sensible tab; it just gets the
+ * generic mark instead of its own.
+ */
+const TAB_ICONS = {
+  spain: Landmark, spanje: Landmark,
+  turkey: Building2, turkije: Building2,
+  greece: Church, griekenland: Church,
+  italy: Castle, italie: Castle, italië: Castle,
+  egypt: Pyramid, egypte: Pyramid,
+  portugal: Anchor,
+  croatia: Waves, kroatie: Waves, kroatië: Waves,
+  morocco: Mountain, marokko: Mountain,
+  cyprus: Palmtree, cyprus_nl: Palmtree,
+};
+
+const iconForTab = (label) =>
+  TAB_ICONS[String(label ?? '').trim().toLowerCase()] ?? MapPin;
+
 export default function Destinations({ cms }) {
   const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.destinations;
@@ -84,17 +110,21 @@ export default function Destinations({ cms }) {
         <SectionHead eyebrow={tag} title={title} subtitle={subtitle} />
 
         <div className={styles.tabs}>
-          {Object.entries(TABS).map(([key, tab]) => (
-            <button
-              key={key}
-              type="button"
-              aria-pressed={safeActive === key}
-              className={`${styles.tab} ${safeActive === key ? styles.tabActive : ''}`}
-              onClick={() => setActive(key)}
-            >
-              {tab.label}
-            </button>
-          ))}
+          {Object.entries(TABS).map(([key, tab]) => {
+            const TabIcon = iconForTab(tab.label);
+            return (
+              <button
+                key={key}
+                type="button"
+                aria-pressed={safeActive === key}
+                className={`${styles.tab} ${safeActive === key ? styles.tabActive : ''}`}
+                onClick={() => setActive(key)}
+              >
+                <TabIcon size={16} className={styles.tabIcon} aria-hidden="true" />
+                {tab.label}
+              </button>
+            );
+          })}
         </div>
 
         <div key={safeActive} className={styles.panel}>
@@ -121,12 +151,24 @@ export default function Destinations({ cms }) {
               <img src={d.img} alt={d.name} loading="lazy" />
               <div className={styles.overlay}>
                 <div className={styles.overlayText}>
+                  {/* The country the open tab is showing. It is the tab's own
+                      label rather than anything stored per card, so it can
+                      never disagree with the tab the reader just pressed. */}
+                  <div className={styles.destCountry}>
+                    <MapPin size={14} aria-hidden="true" />
+                    {panel.label}
+                  </div>
                   <div className={styles.destName}>{d.name}</div>
                   {d.count && <div className={styles.destCount}>{d.count}</div>}
                 </div>
                 {d.href && <span className={styles.go}><ArrowIcon /></span>}
               </div>
-              {d.badge && <div className={styles.badge}>{d.badge}</div>}
+              {d.badge && (
+                <div className={styles.badge}>
+                  <Crown size={13} className={styles.badgeIcon} aria-hidden="true" />
+                  {d.badge}
+                </div>
+              )}
             </Card>
             );
           })}
