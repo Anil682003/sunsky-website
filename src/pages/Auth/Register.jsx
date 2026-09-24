@@ -2,8 +2,8 @@ import { useState, useRef, useEffect, useId } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import {
-  ArrowLeft, ArrowRight, Box, Building2, Calendar, ChevronDown, Eye, EyeOff, Globe, House,
-  Languages, Lock, Mail, MapPin, Phone, Shield, Tag, Users,
+  ArrowLeft, ArrowRight, Box, BriefcaseBusiness, Building2, Calendar, ChevronDown, Eye, EyeOff,
+  Globe, House, Languages, Lock, Mail, MapPin, Phone, ReceiptText, Shield, Tag, Users,
 } from 'lucide-react';
 import mainLogo from '../../assets/main-logo.png';
 import styles from './Register.module.css';
@@ -248,8 +248,12 @@ function validateField(key, form, isCompany) {
 }
 
 // Checked when "Create Account" leaves the first screen, and when the second one submits.
-const STEP_ONE_FIELDS = ['firstName', 'lastName', 'email', 'phone', 'nationality', 'language', 'dateOfBirth'];
-const STEP_TWO_FIELDS = ['password', 'legalName', 'vatNumber', 'country'];
+// A business account swaps the personal fields for the company's, in the same places.
+const stepOneFields = (isCompany) => [
+  'firstName', 'lastName', 'email', 'phone', 'language',
+  ...(isCompany ? ['country', 'legalName', 'vatNumber'] : ['nationality', 'dateOfBirth']),
+];
+const STEP_TWO_FIELDS = ['password'];
 
 // Stable component, defined outside Register so a re-render does not remount it.
 // One field: label, a bordered control with its icon, and the error under it.
@@ -456,14 +460,32 @@ function PhoneField({ label, codeValue, numberValue, onCodeChange, onNumberChang
   );
 }
 
-function SectionHead({ index, title, note, tight }) {
+// `children` sit at the end of the row, after the hairline.
+function SectionHead({ index, title, tight, children }) {
   return (
     <div className={`${styles.sectionHead} ${tight ? styles.sectionHeadTight : ''}`}>
       <span className={styles.sectionIndex}>{index}</span>
       <span className={styles.sectionTitle}>{title}</span>
-      {note && <span className={styles.sectionNote}>{note}</span>}
       <span className={styles.sectionRule} />
+      {children}
     </div>
+  );
+}
+
+/* "I'm registering as a company", on the first screen beside "Your details", since ticking it
+   changes which details are asked for. A real checkbox under the drawn box, reachable by
+   keyboard and announced by screen readers. */
+function CompanyToggle({ checked, onChange }) {
+  const { t } = useTranslation('auth');
+  return (
+    <label className={`${styles.companyToggle} ${checked ? styles.companyToggleOn : ''}`}>
+      <input type="checkbox" className={styles.checkInput} checked={checked} onChange={(e) => onChange(e.target.checked)} />
+      <span className={styles.checkbox} aria-hidden="true">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
+      </span>
+      <span className={styles.companyToggleText}>{t('auth:register.registeringAsCompany', "I'm registering as a company")}</span>
+      <BriefcaseBusiness className={styles.companyToggleIcon} aria-hidden="true" />
+    </label>
   );
 }
 
@@ -508,13 +530,11 @@ export default function Register() {
 
   const strength = getPasswordStrength(form.password);
 
-  const toggleCompany = () => {
-    setCompany((prev) => {
-      const next = !prev;
-      // Drop stale errors for fields that stop applying either way.
-      setErrors((e) => ({ ...e, nationality: '', legalName: '', vatNumber: '', country: '' }));
-      return next;
-    });
+  const setAccountType = (company) => {
+    if (company === isCompany) return;
+    setCompany(company);
+    // Drop stale errors for the fields that trade places.
+    setErrors((e) => ({ ...e, nationality: '', dateOfBirth: '', legalName: '', vatNumber: '', country: '' }));
   };
 
   // Validates `keys`, shows what is wrong and puts the cursor in the first wrong field.
@@ -534,7 +554,7 @@ export default function Register() {
   };
 
   const goToStepTwo = () => {
-    if (check(STEP_ONE_FIELDS)) setStep(2);
+    if (check(stepOneFields(isCompany))) setStep(2);
   };
 
   const handleRegister = async () => {
@@ -554,9 +574,8 @@ export default function Register() {
       city: form.city.trim(),
       postalCode: form.postalCode.trim(),
     };
-    if (form.country) payload.country = form.country;
-
     if (isCompany) {
+      payload.country = form.country;
       // The person above is stored as the company's primary contact. No trading name is
       // asked for — for almost every SME it is the legal name typed a second time, and the
       // server copies it across for the column that requires one.
@@ -624,7 +643,7 @@ export default function Register() {
 
   const submitLabel = sending
     ? t('auth:register.sendingCode', 'Sending code…')
-    : isCompany && step === 2
+    : isCompany
       ? t('auth:register.createBusinessAccount', 'Create Business Account')
       : t('auth:register.createAccount', 'Create Account');
 
@@ -695,7 +714,9 @@ export default function Register() {
           <div className={styles.cardBody}>
             {step === 1 ? (
               <>
-                <SectionHead index="01" title={t('auth:register.sectionYourDetails', 'Your details')} />
+                <SectionHead index="01" title={t('auth:register.sectionYourDetails', 'Your details')}>
+                  <CompanyToggle checked={isCompany} onChange={setAccountType} />
+                </SectionHead>
                 <div className={`${styles.grid} ${styles.gridDetails}`}>
                   <Field label={t('auth:fields.firstName', 'First name')} placeholder="John" required icon={Person} autoComplete="given-name"
                     value={form.firstName} onChange={set('firstName')} onBlur={blur('firstName')} error={errors.firstName} />
@@ -707,19 +728,38 @@ export default function Register() {
                     codeValue={form.phoneCode} numberValue={form.phone}
                     onCodeChange={setValue('phoneCode')} onNumberChange={set('phone')}
                     onBlur={blur('phone')} error={errors.phone} />
-                  <Field label={t('auth:fields.nationality', 'Nationality')} placeholder={t('auth:register.selectNationality', 'Select nationality')} select icon={Globe}
-                    options={NATIONALITIES.map((n) => ({ value: n, label: nationalityLabel(n) }))}
-                    required={!isCompany}
-                    value={form.nationality} onChange={set('nationality')} onBlur={blur('nationality')} error={errors.nationality} />
+                  {/* A business is registered from its country; a person, their nationality. */}
+                  {isCompany ? (
+                    <Field key="country" label={t('auth:fields.country', 'Country')} placeholder={t('auth:register.selectCountry', 'Select country')} select icon={Globe} required
+                      options={COUNTRIES.map((c) => ({ value: c, label: countryLabel(c) }))}
+                      value={form.country} onChange={set('country')} onBlur={blur('country')} error={errors.country} />
+                  ) : (
+                    <Field key="nationality" label={t('auth:fields.nationality', 'Nationality')} placeholder={t('auth:register.selectNationality', 'Select nationality')} select icon={Globe} required
+                      options={NATIONALITIES.map((n) => ({ value: n, label: nationalityLabel(n) }))}
+                      value={form.nationality} onChange={set('nationality')} onBlur={blur('nationality')} error={errors.nationality} />
+                  )}
                 </div>
                 <div className={`${styles.grid} ${styles.gridPersonal}`}>
                   <Field label={t('auth:fields.preferredLanguage', 'Preferred language')} placeholder={t('auth:register.selectLanguage', 'Select language')} select icon={Languages}
                     options={LANGUAGES.map((l) => ({ value: l, label: languageLabel(l) }))} required
                     value={form.language} onChange={set('language')} onBlur={blur('language')} error={errors.language} />
-                  <DateField label={t('auth:fields.dateOfBirth', 'Date of birth')}
-                    value={form.dateOfBirth} onChange={setValue('dateOfBirth')} onBlur={blur('dateOfBirth')} error={errors.dateOfBirth} />
-                  <Field label={t('auth:fields.gender', 'Gender')} placeholder={t('auth:fields.selectPlaceholder', 'Select')} select icon={Person} options={genderOptions()}
-                    value={form.gender} onChange={set('gender')} />
+                  {/* Date of birth and gender are only kept on a private account, so a business
+                      is asked for its name and VAT number in their place. */}
+                  {isCompany ? (
+                    <>
+                      <Field key="legalName" label={t('auth:fields.companyName', 'Company name')} placeholder="SunSky Travel BV" required icon={Building2} autoComplete="organization"
+                        value={form.legalName} onChange={set('legalName')} onBlur={blur('legalName')} error={errors.legalName} />
+                      <Field key="vatNumber" label={t('auth:fields.vatNumber', 'VAT number')} placeholder="BE0477.123.456" required icon={ReceiptText}
+                        value={form.vatNumber} onChange={set('vatNumber')} onBlur={blur('vatNumber')} error={errors.vatNumber} />
+                    </>
+                  ) : (
+                    <>
+                      <DateField key="dateOfBirth" label={t('auth:fields.dateOfBirth', 'Date of birth')}
+                        value={form.dateOfBirth} onChange={setValue('dateOfBirth')} onBlur={blur('dateOfBirth')} error={errors.dateOfBirth} />
+                      <Field key="gender" label={t('auth:fields.gender', 'Gender')} placeholder={t('auth:fields.selectPlaceholder', 'Select')} select icon={Person} options={genderOptions()}
+                        value={form.gender} onChange={set('gender')} />
+                    </>
+                  )}
                 </div>
 
                 <SectionHead index="02" title={t('auth:register.sectionAddress', 'Address')} tight />
@@ -776,34 +816,8 @@ export default function Register() {
                   <span className={strength >= 4 ? styles.met : ''}>{t('auth:register.strengthSymbol', 'Symbol')}</span>
                 </div>
 
-                <SectionHead index="04" title={t('auth:register.sectionBusinessAccount', 'Business account')} note={t('auth:register.optional', 'Optional')} />
-                <div className={`${styles.companyBlock} ${isCompany ? styles.companyOpen : ''}`}>
-                  {/* Real checkboxes under the drawn boxes (here and on the terms), reachable by
-                      keyboard and announced by screen readers. */}
-                  <label className={styles.companyToggle}>
-                    <input type="checkbox" className={styles.checkInput} checked={isCompany} onChange={toggleCompany} />
-                    <span className={styles.checkbox} aria-hidden="true">
-                      <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-                    </span>
-                    <span className={styles.companyToggleText}>
-                      <strong>{t('auth:register.registeringAsCompany', "I'm registering as a company")}</strong>
-                      <span>{t('auth:register.registeringAsCompanyHint', 'Book on behalf of a business. You stay the primary contact on the account.')}</span>
-                    </span>
-                  </label>
-
-                  {isCompany && (
-                    <div className={`${styles.grid} ${styles.gridCompany}`}>
-                      <Field label={t('auth:fields.companyName', 'Company name')} placeholder="SunSky Travel BV" required icon={Building2}
-                        value={form.legalName} onChange={set('legalName')} onBlur={blur('legalName')} error={errors.legalName} />
-                      <Field label={t('auth:fields.vatNumber', 'VAT number')} placeholder="BE0477.123.456" required icon={Tag}
-                        value={form.vatNumber} onChange={set('vatNumber')} onBlur={blur('vatNumber')} error={errors.vatNumber} />
-                      <Field label={t('auth:fields.country', 'Country')} placeholder={t('auth:register.selectCountry', 'Select country')} select icon={Globe} required
-                        options={COUNTRIES.map((c) => ({ value: c, label: countryLabel(c) }))}
-                        value={form.country} onChange={set('country')} onBlur={blur('country')} error={errors.country} />
-                    </div>
-                  )}
-                </div>
-
+                {/* A real checkbox under the drawn box, reachable by keyboard and announced by
+                    screen readers. */}
                 <label className={styles.terms}>
                   <input type="checkbox" className={styles.checkInput} checked={agreed} onChange={(e) => setAgreed(e.target.checked)} />
                   <span className={styles.checkbox} aria-hidden="true">

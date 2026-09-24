@@ -301,21 +301,50 @@
   color: var(--ink);
   white-space: nowrap;
 }
-.sectionNote {
-  margin-left: calc(10 * var(--s));
-  padding: calc(2 * var(--s)) calc(9 * var(--s));
-  border: 1px solid var(--line);
-  border-radius: var(--r-full);
-  font-size: max(10px, calc(11.5 * var(--s)));
-  font-weight: 600;
-  color: #8A93A6;
-}
 .sectionRule {
   flex: 1;
   height: 1px;
   margin-left: calc(18.5 * var(--s));
   background: #E9EDF2;
 }
+
+/* "I'm registering as a company": the business-account checkbox, at the end of the
+   "Your details" row. Blue once ticked, like the block it used to be. */
+.companyToggle {
+  display: inline-flex;
+  align-items: center;
+  gap: calc(10 * var(--s));
+  height: calc(33 * var(--s));
+  min-height: 28px;
+  margin-left: calc(16 * var(--s));
+  padding: 0 calc(12 * var(--s)) 0 calc(10 * var(--s));
+  flex-shrink: 0;
+  border: 1px solid var(--line);
+  border-radius: calc(9 * var(--s));
+  background: #FFFFFF;
+  cursor: pointer;
+  user-select: none;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.companyToggle:hover { border-color: #C8D5E8; }
+.companyToggleOn,
+.companyToggleOn:hover { border-color: var(--blue-soft); background: var(--blue-bg); }
+.companyToggle .checkbox { width: max(15px, calc(18 * var(--s))); height: max(15px, calc(18 * var(--s))); border-radius: 5px; }
+.companyToggleText {
+  font-family: 'Sora', sans-serif;
+  font-size: max(11.5px, calc(13 * var(--s)));
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+}
+.companyToggleIcon {
+  width: max(14px, calc(17 * var(--s)));
+  height: max(14px, calc(17 * var(--s)));
+  color: #C6D5EE;
+  stroke-width: 1.8;
+  transition: color 0.2s var(--ease);
+}
+.companyToggleOn .companyToggleIcon { color: var(--blue-deep); }
 
 /* Field grids. The column widths are the design's, row by row. */
 .grid {
@@ -327,7 +356,6 @@
 .gridDetails { grid-template-columns: 254fr 234fr 273fr; }
 .gridPersonal { grid-template-columns: 263fr 245fr 265fr; column-gap: calc(14.5 * var(--s)); }
 .gridAddress { grid-template-columns: 233fr 316fr 223fr; column-gap: calc(13 * var(--s)); row-gap: calc(16 * var(--s)); }
-.gridCompany { grid-template-columns: 1fr 1fr 1fr; padding: 0 calc(16 * var(--s)) calc(16 * var(--s)); }
 .span2 { grid-column: span 2; }
 
 .field { position: relative; min-width: 0; display: flex; flex-direction: column; }
@@ -603,30 +631,6 @@
 .strengthHint span.met { color: #16A34A; font-weight: 600; }
 .strengthHint span.met::before { background: #22C55E; }
 
-.companyBlock {
-  border: 1px solid var(--line);
-  border-radius: calc(14 * var(--s));
-  background: #FFFFFF;
-  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
-}
-.companyOpen { border-color: var(--blue-soft); background: var(--blue-bg); }
-/* The whole row is the checkbox's label. */
-.companyToggle {
-  display: flex;
-  align-items: center;
-  gap: calc(12 * var(--s));
-  padding: calc(16 * var(--s)) calc(18 * var(--s));
-  cursor: pointer;
-}
-.companyToggleText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
-.companyToggleText strong {
-  font-family: 'Sora', sans-serif;
-  font-size: max(12px, calc(14.5 * var(--s)));
-  font-weight: 700;
-  color: var(--ink);
-}
-.companyToggleText span { font-size: max(11px, calc(13 * var(--s))); color: var(--muted); line-height: 1.45; }
-
 .terms {
   display: flex;
   align-items: flex-start;
@@ -734,15 +738,19 @@
   .card { width: 100%; max-width: 640px; height: auto; padding: 0 22px; }
   .cardHead { padding-top: 64px; }
   .cardBody { padding-bottom: 8px; }
-  .gridDetails, .gridPersonal, .gridAddress, .gridCompany { grid-template-columns: 1fr 1fr; }
+  .gridDetails, .gridPersonal, .gridAddress { grid-template-columns: 1fr 1fr; }
   .grid { row-gap: 22px; }
   .cardFoot { padding: 18px 0 20px; }
 }
 @media (max-width: 560px) {
   .card { padding: 0 16px; border-radius: 18px; }
   .card .langMenu { top: 14px; right: 14px; }
+  /* Too narrow for the company checkbox beside "Your details": it drops to its own line. */
+  .sectionHead { height: auto; min-height: 28px; flex-wrap: wrap; row-gap: 10px; }
+  .companyToggle { flex: 1 1 100%; margin-left: 0; height: 40px; }
+  .companyToggleIcon { margin-left: auto; }
   .cardHead { padding-top: 58px; }
-  .gridDetails, .gridPersonal, .gridAddress, .gridCompany { grid-template-columns: 1fr; }
+  .gridDetails, .gridPersonal, .gridAddress { grid-template-columns: 1fr; }
   .span2 { grid-column: auto; }
   .cardFoot { flex-direction: column-reverse; align-items: stretch; }
   .guestBtn, .submitBtn { justify-content: center; width: 100%; margin-left: 0; }
@@ -750,6 +758,6 @@
 
 /* Accessibility — respect reduced motion */
 @media (prefers-reduced-motion: reduce) {
-  .control, .submitBtn, .submitBtn svg, .guestBtn, .checkbox, .companyBlock, .strengthSeg { transition: none; }
+  .control, .submitBtn, .submitBtn svg, .guestBtn, .checkbox, .companyToggle, .companyToggleIcon, .strengthSeg { transition: none; }
   .submitBtn:hover:not(:disabled) svg { transform: none; }
 }
