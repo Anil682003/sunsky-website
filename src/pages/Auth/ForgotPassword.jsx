@@ -1,5 +1,6 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
 import mainLogo from '../../assets/main-logo.png';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
 // it, so it keeps the square mark — the same one the browser tab shows.
@@ -9,21 +10,23 @@ import fp from './ForgotPassword.module.css';
 import CodeInput, { CODE_LENGTH } from './CodeInput';
 import { requestPasswordReset, verifyPasswordResetCode, submitNewPassword } from '../../api';
 import { useToast } from '../../context/ToastContext';
+import i18n from '../../i18n';
 
 const RESEND_SECONDS = 45;
 
 // Mirrors the server's rules exactly (websiteAuth.controller validatePassword), so the
 // checklist can never say "all good" on a password the API will reject.
 const PASSWORD_RULES = [
-  { key: 'len',   label: 'At least 8 characters',  test: (v) => v.length >= 8 },
-  { key: 'upper', label: 'One uppercase letter',   test: (v) => /[A-Z]/.test(v) },
-  { key: 'num',   label: 'One number',             test: (v) => /[0-9]/.test(v) },
-  { key: 'sym',   label: 'One special character',  test: (v) => /[^A-Za-z0-9]/.test(v) },
+  { key: 'len',   get label() { return i18n.t('auth:passwordRules.len', 'At least 8 characters'); },   test: (v) => v.length >= 8 },
+  { key: 'upper', get label() { return i18n.t('auth:passwordRules.upper', 'One uppercase letter'); },  test: (v) => /[A-Z]/.test(v) },
+  { key: 'num',   get label() { return i18n.t('auth:passwordRules.num', 'One number'); },              test: (v) => /[0-9]/.test(v) },
+  { key: 'sym',   get label() { return i18n.t('auth:passwordRules.sym', 'One special character'); },   test: (v) => /[^A-Za-z0-9]/.test(v) },
 ];
 
 const apiError = (err, fallback) => err?.response?.data?.message || fallback;
 
 export default function ForgotPassword() {
+  const { t } = useTranslation('auth');
   const navigate = useNavigate();
   const { showToast } = useToast();
 
@@ -46,7 +49,10 @@ export default function ForgotPassword() {
     return () => clearTimeout(t);
   }, [secondsLeft]);
 
-  const rules = useMemo(() => PASSWORD_RULES.map((r) => ({ ...r, ok: r.test(password) })), [password]);
+  // `t` in the deps even though the map doesn't take it: PASSWORD_RULES reads i18n.t() through
+  // getters, invisibly to the linter, and t's identity is what changes on a language switch.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const rules = useMemo(() => PASSWORD_RULES.map((r) => ({ ...r, ok: r.test(password) })), [password, t]);
   const passwordValid = rules.every((r) => r.ok);
   const strength = rules.filter((r) => r.ok).length;
 
@@ -54,7 +60,7 @@ export default function ForgotPassword() {
   const sendCode = async (e, { silent = false } = {}) => {
     e?.preventDefault();
     if (!/^\S+@\S+\.\S+$/.test(email.trim())) {
-      showToast('Please enter a valid email address', 'error');
+      showToast(t('auth:validation.emailInvalid', 'Please enter a valid email address'), 'error');
       return;
     }
     setLoading(true);
@@ -63,9 +69,9 @@ export default function ForgotPassword() {
       setExpiryMinutes(res?.data?.data?.expiresInMinutes ?? null);
       setSecondsLeft(RESEND_SECONDS);
       setStep(2);
-      showToast(silent ? 'A new code is on its way' : 'Check your inbox for the 6-digit code', 'success');
+      showToast(silent ? t('auth:forgot.newCodeOnWay', 'A new code is on its way') : t('auth:forgot.checkInbox', 'Check your inbox for the 6-digit code'), 'success');
     } catch (err) {
-      showToast(apiError(err, 'Could not send the code. Please try again.'), 'error');
+      showToast(apiError(err, t('auth:errors.codeSendFailed', 'Could not send the code. Please try again.')), 'error');
     } finally {
       setLoading(false);
     }
@@ -82,7 +88,7 @@ export default function ForgotPassword() {
       setStep(3);
     } catch (err) {
       setCodeInvalid(true);
-      showToast(apiError(err, 'That code is incorrect.'), 'error');
+      showToast(apiError(err, t('auth:errors.codeIncorrect', 'That code is incorrect.')), 'error');
     } finally {
       setLoading(false);
     }
@@ -91,20 +97,20 @@ export default function ForgotPassword() {
   /* ── Step 3: set the new password ── */
   const savePassword = async (e) => {
     e?.preventDefault();
-    if (!passwordValid) { showToast('Please meet all password requirements', 'error'); return; }
-    if (password !== confirm) { showToast('Both passwords must match', 'error'); return; }
+    if (!passwordValid) { showToast(t('auth:validation.meetPasswordRequirements', 'Please meet all password requirements'), 'error'); return; }
+    if (password !== confirm) { showToast(t('auth:validation.passwordsMustMatch', 'Both passwords must match'), 'error'); return; }
     setLoading(true);
     try {
       await submitNewPassword(email.trim().toLowerCase(), code, password);
       setStep(4);
     } catch (err) {
-      showToast(apiError(err, 'Could not reset your password. Please try again.'), 'error');
+      showToast(apiError(err, t('auth:errors.resetFailed', 'Could not reset your password. Please try again.')), 'error');
     } finally {
       setLoading(false);
     }
   };
 
-  const STEP_LABELS = ['Email', 'Code', 'New password'];
+  const STEP_LABELS = [t('auth:forgot.stepEmail', 'Email'), t('auth:forgot.stepCode', 'Code'), t('auth:forgot.stepNewPassword', 'New password')];
 
   return (
     <div className={styles.page}>
@@ -140,10 +146,10 @@ export default function ForgotPassword() {
 
         <div className={styles.brandHero}>
           <h2 className={styles.brandTitle}>
-            Locked out?<br />We'll get you <em>flying</em>
+            <Trans i18nKey="auth:forgot.brandTitle" t={t}>Locked out?<br />We'll get you <em>flying</em></Trans>
           </h2>
           <p className={styles.brandSub}>
-            Reset your password in three quick steps and pick up right where you left off.
+            {t('auth:forgot.brandSub', 'Reset your password in three quick steps and pick up right where you left off.')}
           </p>
         </div>
 
@@ -182,28 +188,28 @@ export default function ForgotPassword() {
               </div>
 
               {step === 1 && <>
-                <h1 className={styles.cardTitle}>Forgot your password?</h1>
-                <p className={styles.cardSub}>Enter your email and we'll send you a 6-digit code.</p>
+                <h1 className={styles.cardTitle}>{t('auth:forgot.step1Title', 'Forgot your password?')}</h1>
+                <p className={styles.cardSub}>{t('auth:forgot.step1Sub', 'Enter your email and we\'ll send you a 6-digit code.')}</p>
               </>}
               {step === 2 && <>
-                <h1 className={styles.cardTitle}>Check your inbox</h1>
+                <h1 className={styles.cardTitle}>{t('auth:forgot.step2Title', 'Check your inbox')}</h1>
                 <p className={styles.cardSub}>
-                  We sent a 6-digit code to <strong className={fp.emailStrong}>{email}</strong>
+                  {t('auth:forgot.step2Sub', 'We sent a 6-digit code to')} <strong className={fp.emailStrong}>{email}</strong>
                 </p>
                 {/* Same reason as the signup screen: junk-foldered and never-sent look
                     identical from the outside. */}
                 <p className={fp.hint}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="M4 7l8 6 8-6" /></svg>
-                  Not there within a minute? Check your spam or junk folder.
+                  {t('auth:checkSpamFolder', 'Not there within a minute? Check your spam or junk folder.')}
                 </p>
               </>}
               {step === 3 && <>
-                <h1 className={styles.cardTitle}>Set a new password</h1>
-                <p className={styles.cardSub}>Choose a strong password you haven't used before.</p>
+                <h1 className={styles.cardTitle}>{t('auth:forgot.step3Title', 'Set a new password')}</h1>
+                <p className={styles.cardSub}>{t('auth:forgot.step3Sub', 'Choose a strong password you haven\'t used before.')}</p>
               </>}
               {step === 4 && <>
-                <h1 className={styles.cardTitle}>Password updated</h1>
-                <p className={styles.cardSub}>You're all set — sign in with your new password.</p>
+                <h1 className={styles.cardTitle}>{t('auth:forgot.step4Title', 'Password updated')}</h1>
+                <p className={styles.cardSub}>{t('auth:forgot.step4Sub', 'You\'re all set — sign in with your new password.')}</p>
               </>}
             </div>
 
@@ -220,7 +226,7 @@ export default function ForgotPassword() {
             {step === 1 && (
               <form className={styles.form} onSubmit={sendCode}>
                 <div className={`${styles.field} ${focused === 'email' ? styles.fieldFocused : ''} ${email ? styles.fieldHasValue : ''}`}>
-                  <label className={styles.fieldLabel} htmlFor="fp-email">Email address</label>
+                  <label className={styles.fieldLabel} htmlFor="fp-email">{t('auth:fields.emailAddress', 'Email address')}</label>
                   <div className={styles.fieldWrap}>
                     <span className={styles.fieldIcon}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -244,7 +250,7 @@ export default function ForgotPassword() {
                 </div>
 
                 <button className={styles.submitBtn} type="submit" disabled={loading}>
-                  <span>{loading ? 'Sending code…' : 'Send reset code'}</span>
+                  <span>{loading ? t('auth:forgot.sendingCode', 'Sending code…') : t('auth:forgot.sendResetCode', 'Send reset code')}</span>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
@@ -252,7 +258,7 @@ export default function ForgotPassword() {
 
                 <Link to="/login" className={fp.backLink}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
-                  Back to sign in
+                  {t('auth:backToSignIn', 'Back to sign in')}
                 </Link>
               </form>
             )}
@@ -265,12 +271,12 @@ export default function ForgotPassword() {
                 {expiryMinutes != null && (
                   <p className={fp.hint}>
                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                    This code expires in {expiryMinutes} minutes
+                    {t('auth:codeExpiresIn', { count: expiryMinutes, defaultValue_one: 'This code expires in {{count}} minute', defaultValue_other: 'This code expires in {{count}} minutes' })}
                   </p>
                 )}
 
                 <button className={styles.submitBtn} type="submit" disabled={loading || code.length !== CODE_LENGTH}>
-                  <span>{loading ? 'Verifying…' : 'Verify code'}</span>
+                  <span>{loading ? t('auth:forgot.verifying', 'Verifying…') : t('auth:forgot.verifyCode', 'Verify code')}</span>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
@@ -278,14 +284,14 @@ export default function ForgotPassword() {
 
                 <div className={fp.resendRow}>
                   {secondsLeft > 0 ? (
-                    <span className={fp.resendMuted}>Didn't get it? Resend in {secondsLeft}s</span>
+                    <span className={fp.resendMuted}>{t('auth:resendIn', { seconds: secondsLeft, defaultValue: 'Didn\'t get it? Resend in {{seconds}}s' })}</span>
                   ) : (
                     <button type="button" className={fp.linkBtn} onClick={(e) => sendCode(e, { silent: true })} disabled={loading}>
-                      Resend code
+                      {t('auth:resendCode', 'Resend code')}
                     </button>
                   )}
                   <button type="button" className={fp.linkBtn} onClick={() => { setStep(1); setCode(''); }}>
-                    Change email
+                    {t('auth:forgot.changeEmail', 'Change email')}
                   </button>
                 </div>
               </form>
@@ -295,7 +301,7 @@ export default function ForgotPassword() {
             {step === 3 && (
               <form className={styles.form} onSubmit={savePassword}>
                 <div className={`${styles.field} ${focused === 'pw' ? styles.fieldFocused : ''} ${password ? styles.fieldHasValue : ''}`}>
-                  <label className={styles.fieldLabel} htmlFor="fp-pw">New password</label>
+                  <label className={styles.fieldLabel} htmlFor="fp-pw">{t('auth:fields.newPassword', 'New password')}</label>
                   <div className={styles.fieldWrap}>
                     <span className={styles.fieldIcon}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -306,7 +312,7 @@ export default function ForgotPassword() {
                       id="fp-pw"
                       className={styles.fieldInput}
                       type={showPw ? 'text' : 'password'}
-                      placeholder="Create a strong password"
+                      placeholder={t('auth:fields.createStrongPassword', 'Create a strong password')}
                       value={password}
                       onChange={(e) => setPassword(e.target.value)}
                       onFocus={() => setFocused('pw')}
@@ -314,7 +320,7 @@ export default function ForgotPassword() {
                       autoComplete="new-password"
                       autoFocus
                     />
-                    <button type="button" className={styles.eyeBtn} onClick={() => setShowPw(!showPw)} aria-label={showPw ? 'Hide password' : 'Show password'}>
+                    <button type="button" className={styles.eyeBtn} onClick={() => setShowPw(!showPw)} aria-label={showPw ? t('auth:fields.hidePassword', 'Hide password') : t('auth:fields.showPassword', 'Show password')}>
                       {showPw ? (
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                           <path d="M17.94 17.94A10.07 10.07 0 0112 20c-7 0-11-8-11-8a18.45 18.45 0 015.06-5.94M9.9 4.24A9.12 9.12 0 0112 4c7 0 11 8 11 8a18.5 18.5 0 01-2.16 3.19m-6.72-1.07a3 3 0 11-4.24-4.24" />
@@ -351,7 +357,7 @@ export default function ForgotPassword() {
                 </div>
 
                 <div className={`${styles.field} ${focused === 'cf' ? styles.fieldFocused : ''} ${confirm ? styles.fieldHasValue : ''}`}>
-                  <label className={styles.fieldLabel} htmlFor="fp-confirm">Confirm password</label>
+                  <label className={styles.fieldLabel} htmlFor="fp-confirm">{t('auth:fields.confirmPassword', 'Confirm password')}</label>
                   <div className={styles.fieldWrap}>
                     <span className={styles.fieldIcon}>
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
@@ -362,7 +368,7 @@ export default function ForgotPassword() {
                       id="fp-confirm"
                       className={styles.fieldInput}
                       type={showPw ? 'text' : 'password'}
-                      placeholder="Repeat your password"
+                      placeholder={t('auth:fields.repeatPassword', 'Repeat your password')}
                       value={confirm}
                       onChange={(e) => setConfirm(e.target.value)}
                       onFocus={() => setFocused('cf')}
@@ -370,11 +376,11 @@ export default function ForgotPassword() {
                       autoComplete="new-password"
                     />
                   </div>
-                  {confirm && confirm !== password && <p className={fp.fieldError}>Passwords don't match</p>}
+                  {confirm && confirm !== password && <p className={fp.fieldError}>{t('auth:validation.passwordsDontMatch', 'Passwords don\'t match')}</p>}
                 </div>
 
                 <button className={styles.submitBtn} type="submit" disabled={loading || !passwordValid || password !== confirm}>
-                  <span>{loading ? 'Updating…' : 'Update password'}</span>
+                  <span>{loading ? t('auth:forgot.updating', 'Updating…') : t('auth:forgot.updatePassword', 'Update password')}</span>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>
@@ -391,10 +397,10 @@ export default function ForgotPassword() {
                   </svg>
                 </div>
                 <p className={fp.doneNote}>
-                  For your security we signed you out everywhere else.
+                  {t('auth:forgot.signedOutEverywhere', 'For your security we signed you out everywhere else.')}
                 </p>
                 <button className={styles.submitBtn} type="button" onClick={() => navigate('/login')}>
-                  <span>Go to sign in</span>
+                  <span>{t('auth:forgot.goToSignIn', 'Go to sign in')}</span>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M5 12h14M12 5l7 7-7 7" />
                   </svg>

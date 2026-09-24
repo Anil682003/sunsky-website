@@ -59,20 +59,20 @@ const reachPayment = async (user) => {
   fillContact();
   fillTraveller(0, { dob: '1995-11-19' });
 
-  await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+  await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
   await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());
   await user.click(document.querySelector('.ck-modal .ck-check'));
   await user.click(document.querySelector('.ck-rv-confirm'));
-  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/add-ons/i));
-  await user.click(screen.getByRole('button', { name: /continue to payment/i }));
-  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/payment/i));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/extra's/i));
+  await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
   // Bancontact rather than card: this is a test about the cancellation consent, and the card
   // form's own validation (name, number, expiry, CVC) is not what is being exercised here.
   await user.click(screen.getByRole('button', { name: /bancontact/i }));
 };
 
 const warning = () => document.querySelector('.ck-nr');
-const payBtn = () => screen.getByRole('button', { name: /^pay /i });
+const payBtn = () => screen.getByRole('button', { name: /^betaal /i });
 
 // Filling a form field is not what these tests are about, and user-event types one character
 // at a time — across a dozen fields that is most of the test's wall clock. Set the value the
@@ -97,15 +97,15 @@ describe('a non-refundable room at the payment step', () => {
     await reachPayment(user);
 
     expect(warning()).toBeTruthy();
-    expect(warning()).toHaveTextContent(/100% cancellation costs apply to this accommodation/i);
-    expect(warning()).toHaveTextContent(/from the moment the booking is confirmed/i);
+    expect(warning()).toHaveTextContent(/100% annuleringskosten voor deze accommodatie/i);
+    expect(warning()).toHaveTextContent(/vanaf het moment van bevestiging/i);
     // Unticked by default — a pre-ticked acceptance is not an acceptance.
     expect(warning().querySelector('.ck-check.on')).toBeFalsy();
 
     // Accepting every GENERAL condition is not enough — this rate has its own.
     acceptConditions();
     await user.click(payBtn());
-    await waitFor(() => expect(warning()).toHaveTextContent(/please confirm you accept the cancellation costs/i));
+    await waitFor(() => expect(warning()).toHaveTextContent(/bevestig dat je de annuleringskosten/i));
     // Nothing was sent to the server.
     expect(post.mock.calls.filter(([url]) => String(url).includes('online-bookings'))).toHaveLength(0);
 
@@ -117,7 +117,7 @@ describe('a non-refundable room at the payment step', () => {
     const [, body] = post.mock.calls.find(([url]) => String(url).includes('online-bookings'));
     const nr = body.consents.find((c) => c.code === 'NON_REFUNDABLE_ACCOMMODATION');
     expect(nr).toBeTruthy();
-    expect(nr.text).toMatch(/100% cancellation costs apply to this accommodation/i);
+    expect(nr.text).toMatch(/100% annuleringskosten voor deze accommodatie/i);
     expect(nr.acceptedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/);
     expect(nr.scope).toMatchObject({ product: 'hotel', rateKey: 'RATE-1' });
     // And the flag the server enforces against.

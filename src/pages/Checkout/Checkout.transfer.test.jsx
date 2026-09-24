@@ -65,11 +65,11 @@ const toExtras = async (user) => {
   fillTraveller(0, { firstName: 'Ali', lastName: 'Benli', dob: '1990-01-01' });
   fillTraveller(1, { firstName: 'Aylin', lastName: 'Benli', dob: '1992-05-05' });
 
-  await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+  await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
   await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());
   for (const tick of document.querySelectorAll('.ck-modal .ck-check')) await user.click(tick);
   await user.click(document.querySelector('.ck-rv-confirm'));
-  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/add-ons/i));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/extra's/i));
 };
 
 const transferCall = () => post.mock.calls.find(([url]) => String(url).includes('transfer-availability'));
@@ -77,7 +77,7 @@ const transferCall = () => post.mock.calls.find(([url]) => String(url).includes(
 // The transfer card, by its heading — the insurance sections render the same option rows, so
 // a page-wide .ck-tr count would include them.
 const transferCard = () => [...document.querySelectorAll('.ck-card')]
-  .find((c) => /choose your transfer/i.test(c.querySelector('.ck-card-title')?.textContent || ''));
+  .find((c) => /kies je transfer/i.test(c.querySelector('.ck-card-title')?.textContent || ''));
 const transferRows = () => [...(transferCard()?.querySelectorAll('.ck-tr') || [])];
 
 // Filling a form field is not what these tests are about, and user-event types one character
@@ -126,14 +126,14 @@ describe('the airport transfer, bought at the extras step', () => {
     await waitFor(() => expect(transferRows()).toHaveLength(3));   // 2 offers + "No transfer"
 
     // Opt-in: the booking starts with no transfer and no transfer line in the summary.
-    expect(transferCard().querySelector('.ck-tr.act')).toHaveTextContent(/no transfer/i);
-    expect(document.body.textContent).not.toMatch(/airport transfer \(per vehicle\)/i);
+    expect(transferCard().querySelector('.ck-tr.act')).toHaveTextContent(/geen transfer/i);
+    expect(document.body.textContent).not.toMatch(/luchthaventransfer \(per voertuig\)/i);
 
     await user.click(screen.getByRole('button', { name: /minibus/i }));
-    await waitFor(() => expect(document.body.textContent).toMatch(/airport transfer \(per vehicle\)/i));
+    await waitFor(() => expect(document.body.textContent).toMatch(/luchthaventransfer \(per voertuig\)/i));
 
     // Per VEHICLE: €48 for the party of two, not €48 each.
-    const line = [...document.querySelectorAll('.ck-sum-row')].find((r) => /airport transfer/i.test(r.textContent));
+    const line = [...document.querySelectorAll('.ck-sum-row')].find((r) => /luchthaventransfer/i.test(r.textContent));
     expect(line).toHaveTextContent('€48');
   });
 
@@ -144,11 +144,11 @@ describe('the airport transfer, bought at the extras step', () => {
     await waitFor(() => expect(transferRows()).toHaveLength(3));
     await user.click(screen.getByRole('button', { name: /sedan/i }));
 
-    await user.click(screen.getByRole('button', { name: /continue to payment/i }));
-    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/payment/i));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
+    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
     await user.click(screen.getByRole('button', { name: /bancontact/i }));
     acceptConditions();   // each condition has its own box now
-    await user.click(screen.getByRole('button', { name: /^pay /i }));
+    await user.click(screen.getByRole('button', { name: /^betaal /i }));
 
     await waitFor(() => expect(post.mock.calls.some(([url]) => String(url).includes('online-bookings'))).toBe(true));
     const [, body] = post.mock.calls.find(([url]) => String(url).includes('online-bookings'));

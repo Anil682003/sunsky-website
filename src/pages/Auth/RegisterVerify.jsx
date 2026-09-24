@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
+import { useTranslation, Trans } from 'react-i18next';
 import mainLogo from '../../assets/main-logo.png';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
 // it, so it keeps the square mark — the same one the browser tab shows.
@@ -29,6 +30,7 @@ export default function RegisterVerify({
   onResend,      // () => Promise<boolean>   — true when a new code went out
   onBack,        // () => void               — back to the form
 }) {
+  const { t } = useTranslation('auth');
   const [code, setCode] = useState('');
   const [invalid, setInvalid] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
@@ -100,10 +102,10 @@ export default function RegisterVerify({
 
         <div className={styles.brandHero}>
           <h2 className={styles.brandTitle}>
-            One last step<br />and you're <em>onboard</em>
+            <Trans i18nKey="auth:registerVerify.brandTitle" t={t}>One last step<br />and you're <em>onboard</em></Trans>
           </h2>
           <p className={styles.brandSub}>
-            We just need to know this inbox is really yours. Your account is created the moment the code checks out.
+            {t('auth:registerVerify.brandSub', 'We just need to know this inbox is really yours. Your account is created the moment the code checks out.')}
           </p>
         </div>
       </div>
@@ -128,9 +130,9 @@ export default function RegisterVerify({
                 <img src={logoIcon} alt="" className={styles.avatarLogo} />
               </div>
 
-              <h1 className={styles.cardTitle}>Confirm your email</h1>
+              <h1 className={styles.cardTitle}>{t('auth:registerVerify.title', 'Confirm your email')}</h1>
               <p className={styles.cardSub}>
-                We sent a 6-digit code to <strong className={fp.emailStrong}>{email}</strong>
+                {t('auth:forgot.step2Sub', 'We sent a 6-digit code to')} <strong className={fp.emailStrong}>{email}</strong>
               </p>
             </div>
 
@@ -145,7 +147,7 @@ export default function RegisterVerify({
               {expiryMinutes != null && (
                 <p className={fp.hint}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                  This code expires in {expiryMinutes} minutes
+                  {t('auth:codeExpiresIn', { count: expiryMinutes, defaultValue_one: 'This code expires in {{count}} minute', defaultValue_other: 'This code expires in {{count}} minutes' })}
                 </p>
               )}
 
@@ -153,11 +155,11 @@ export default function RegisterVerify({
                   sent, and the person waiting has no way to tell the difference. */}
               <p className={fp.hint}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="M4 7l8 6 8-6" /></svg>
-                Not there within a minute? Check your spam or junk folder.
+                {t('auth:checkSpamFolder', 'Not there within a minute? Check your spam or junk folder.')}
               </p>
 
               <button className={styles.submitBtn} type="submit" disabled={busy || code.length !== CODE_LENGTH}>
-                <span>{submitting ? 'Creating account…' : 'Confirm and create account'}</span>
+                <span>{submitting ? t('auth:registerVerify.creatingAccount', 'Creating account…') : t('auth:registerVerify.confirmAndCreate', 'Confirm and create account')}</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
@@ -165,14 +167,14 @@ export default function RegisterVerify({
 
               <div className={fp.resendRow}>
                 {secondsLeft > 0 ? (
-                  <span className={fp.resendMuted}>Didn't get it? Resend in {secondsLeft}s</span>
+                  <span className={fp.resendMuted}>{t('auth:resendIn', { seconds: secondsLeft, defaultValue: 'Didn\'t get it? Resend in {{seconds}}s' })}</span>
                 ) : (
                   <button type="button" className={fp.linkBtn} onClick={resend} disabled={busy}>
-                    {resending ? 'Sending…' : 'Resend code'}
+                    {resending ? t('auth:registerVerify.sending', 'Sending…') : t('auth:resendCode', 'Resend code')}
                   </button>
                 )}
                 <button type="button" className={fp.linkBtn} onClick={onBack} disabled={busy}>
-                  Change details
+                  {t('auth:registerVerify.changeDetails', 'Change details')}
                 </button>
               </div>
             </form>
