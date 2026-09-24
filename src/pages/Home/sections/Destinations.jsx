@@ -100,6 +100,14 @@ export default function Destinations({ cms }) {
   const cmsTabs = buildTabsFromCms(cms?.destinationTabs);
   const TABS = cmsTabs || localiseTabs(t);
 
+  // Counted from what is actually on the page, so the figure can never claim
+  // more than the tabs hold. Places are de-duplicated by name: the same island
+  // listed under two countries is one destination to a reader.
+  const countryCount = Object.keys(TABS).length;
+  const placeCount = new Set(
+    Object.values(TABS).flatMap((tab) => (tab.dest ?? []).map((d) => String(d.name ?? '').trim().toLowerCase()))
+  ).size;
+
   const [active, setActive] = useState(Object.keys(TABS)[0]);
   const safeActive = TABS[active] ? active : Object.keys(TABS)[0];
   const panel = TABS[safeActive];
@@ -107,7 +115,24 @@ export default function Destinations({ cms }) {
   return (
     <section className={styles.section}>
       <div className={styles.inner}>
-        <SectionHead eyebrow={tag} title={title} subtitle={subtitle} />
+        {/* The count fills the right of the heading row with a fact rather than
+            with decoration: it is counted from the tabs actually being shown,
+            so it cannot overstate what is on offer, and it disappears rather
+            than reads "1 country" when there is only one tab to count. */}
+        <SectionHead
+          eyebrow={tag}
+          title={title}
+          subtitle={subtitle}
+          action={countryCount > 1 ? (
+            <p className={styles.tally}>
+              <span className={styles.tallyNum}>{countryCount}</span>
+              {t('destinations.countries', 'countries')}
+              <span className={styles.tallyDot} aria-hidden="true" />
+              <span className={styles.tallyNum}>{placeCount}</span>
+              {t('destinations.places', 'destinations')}
+            </p>
+          ) : null}
+        />
 
         <div className={styles.tabs}>
           {Object.entries(TABS).map(([key, tab]) => {

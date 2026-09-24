@@ -121,7 +121,9 @@
       "iconic": "Iconic",
       "yearRoundSun": "Year-Round Sun",
       "luxury": "Luxury"
-    }
+    },
+    "countries": "countries",
+    "places": "destinations"
   },
   "popular": {
     "tag": "Browse",
@@ -144,14 +146,6 @@
       "cities": {
         "title": "Cities",
         "count": "890+ trips"
-      },
-      "car": {
-        "title": "Car Destinations",
-        "count": "1,250+ routes"
-      },
-      "periods": {
-        "title": "Popular Periods",
-        "count": "Seasonal picks"
       }
     },
     "links": {
@@ -176,18 +170,9 @@
       "barcelona": "Barcelona",
       "london": "London",
       "prague": "Prague",
-      "amsterdam": "Amsterdam",
-      "franceByCar": "France by Car",
-      "italyByCar": "Italy by Car",
-      "spainByCar": "Spain by Car",
-      "portugalByCar": "Portugal by Car",
-      "germanyByCar": "Germany by Car",
-      "mayHolidays": "May Holidays",
-      "summerHolidays": "Summer Holidays",
-      "autumnBreak": "Autumn Break",
-      "christmasTravel": "Christmas Travel",
-      "winterSun": "Winter Sun"
-    }
+      "amsterdam": "Amsterdam"
+    },
+    "viewAll": "View all {{title}}"
   },
   "trustBar": {
     "eyebrow": "Guarantees",

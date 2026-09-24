@@ -121,7 +121,9 @@
       "iconic": "Iconisch",
       "yearRoundSun": "Het hele jaar zon",
       "luxury": "Luxe"
-    }
+    },
+    "countries": "landen",
+    "places": "bestemmingen"
   },
   "popular": {
     "tag": "Bekijk",
@@ -144,14 +146,6 @@
       "cities": {
         "title": "Steden",
         "count": "890+ reizen"
-      },
-      "car": {
-        "title": "Autobestemmingen",
-        "count": "1.250+ routes"
-      },
-      "periods": {
-        "title": "Populaire periodes",
-        "count": "Seizoenstips"
       }
     },
     "links": {
@@ -176,18 +170,9 @@
       "barcelona": "Barcelona",
       "london": "Londen",
       "prague": "Praag",
-      "amsterdam": "Amsterdam",
-      "franceByCar": "Frankrijk met de auto",
-      "italyByCar": "Italië met de auto",
-      "spainByCar": "Spanje met de auto",
-      "portugalByCar": "Portugal met de auto",
-      "germanyByCar": "Duitsland met de auto",
-      "mayHolidays": "Meivakantie",
-      "summerHolidays": "Zomervakantie",
-      "autumnBreak": "Herfstvakantie",
-      "christmasTravel": "Kerstvakantie",
-      "winterSun": "Winterzon"
-    }
+      "amsterdam": "Amsterdam"
+    },
+    "viewAll": "Bekijk alle {{title}}"
   },
   "trustBar": {
     "eyebrow": "Garanties",

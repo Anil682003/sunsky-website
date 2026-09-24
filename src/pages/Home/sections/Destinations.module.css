@@ -5,9 +5,19 @@
    the active tab and nothing else competes with the pictures.
    ═══════════════════════════════════════════════════════════ */
 
+/* The section read as blank page rather than as a band: --surface-alt is a
+   hair off white, so against the white sections either side there was nothing
+   to see but a lot of empty light.
+
+   A shallow gradient and a hairline at the top give it an edge to start at and
+   a direction to travel in, and it still resolves to white where the next
+   section begins. No pattern, no imagery: the cards are the colour here. */
 .section {
-  background: var(--surface-alt);
-  padding: var(--section-y) 0;
+  background: linear-gradient(180deg, #E7EFFA 0%, #F4F8FD 55%, #FFFFFF 100%);
+  border-top: 1px solid var(--line);
+  /* Was a flat --section-y top and bottom. The heading sat a long way down an
+     empty field, so the top is pulled in while the foot keeps its room. */
+  padding: clamp(52px, 5.4vw, 76px) 0 var(--section-y);
 }
 
 .inner {
@@ -215,4 +225,34 @@
   .panel { animation: none; }
   .tab, .card, .card img, .go { transition: none; }
   .cardLink:hover, .cardLink:hover img, .cardLink:hover .go { transform: none; }
+}
+
+/* The tally on the right of the heading row. Quiet on purpose: it is there to
+   give a very wide, very light row something to end on, and to say how much is
+   behind the tabs. Numbers carry the weight; the words stay grey. */
+.tally {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+  font-size: 0.875rem;
+  color: var(--text-sec);
+}
+.tallyNum {
+  font-family: 'Sora', sans-serif;
+  font-weight: 700;
+  color: var(--text);
+}
+.tallyDot {
+  width: 3px;
+  height: 3px;
+  margin: 0 4px;
+  border-radius: 50%;
+  background: var(--line-strong);
+}
+
+@media (max-width: 640px) {
+  /* On a phone the heading owns the full width; the tally would push the
+     title into a third line for no gain. */
+  .tally { display: none; }
 }
