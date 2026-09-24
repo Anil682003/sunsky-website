@@ -2,6 +2,11 @@ import { Link } from 'react-router-dom';
 import styles from './VacationTypes.module.css';
 import SectionHead from './SectionHead';
 import { useTranslation } from 'react-i18next';
+import {
+  Crown, Heart, Users, BadgeCheck, Sun, Flower2, Sparkles,
+  Star, Moon, Umbrella, Waves, Droplets, Wifi, Utensils, UtensilsCrossed,
+  Coffee, Baby, Dumbbell, PawPrint, Wind, BedDouble, Martini, Trees, Check,
+} from 'lucide-react';
 
 // Search links for the cards. The results page seeds these filters from the URL on entry, so a
 // card lands on a list already narrowed to that vacation type (empty scope → popular destinations,
@@ -27,6 +32,16 @@ const starGlyphs = (value) => {
 // facility catalogue just to name a filter — and never invents a name it cannot verify.
 const criterionText = (c) => (c?.filterKey === 'stars' ? starGlyphs(c.value) : String(c?.label ?? '').trim());
 const criterionLabel = (c) => String(c?.label ?? '').trim() || criterionText(c);
+
+// On the card a star rating is one gold star and a numeral rather than five
+// repeated glyphs: a single mark reads faster in a row of chips, and the
+// shorter chip leaves room for the filters beside it. Only the card's wording
+// changes — `criterionText` still spells the rating out for the URL's labels.
+const chipText = (c) => {
+  if (c?.filterKey !== 'stars') return criterionText(c);
+  const n = Math.round(Number(c?.value));
+  return n >= 1 && n <= 5 ? String(n) : '';
+};
 
 // The query string collapses a repeated criterion on its own, so drop it here too — otherwise the
 // card prints the same chip twice while the link filters on it once.
@@ -78,6 +93,58 @@ const ArrowIcon = () => (
   </svg>
 );
 
+/* ── Marks for the badge and the filter chips ──
+   Both the badge wording and the chip labels are typed in the dashboard, in
+   either language, so these match on the words rather than on an id. Every
+   pattern carries its Dutch spelling alongside its English one, and anything
+   nobody listed still gets a mark — a generic one — rather than a bare pill.
+   Accents are stripped first so "café" and "cafe" match the same rule. */
+const norm = (s) => String(s ?? '')
+  .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  .toLowerCase();
+
+const BADGE_MARKS = [
+  [/premium|luxur|luxe|deluxe|exclusi|5[ -]?star|vip/,        Crown,      'labelIconGold'],
+  [/adult|volwassen|couple|koppel|romant|honeymoon|huwelijk/, Heart,      'labelIconRose'],
+  [/family|famil|gezin|kind|kids|child/,                      Users,      'labelIconTeal'],
+  [/all[ -]?in|alles inbegrepen|worry|zorgeloos|carefree/,    BadgeCheck, 'labelIconBlue'],
+  [/beach|strand|sun|zon|coast|kust|zee|sea/,                 Sun,        'labelIconGold'],
+  [/spa|wellness|relax|rust|calm|serene/,                     Flower2,    'labelIconTeal'],
+];
+
+const badgeMark = (label) => {
+  const text = norm(label);
+  const hit = BADGE_MARKS.find(([re]) => re.test(text));
+  return hit ? { Icon: hit[1], tone: hit[2] } : { Icon: Sparkles, tone: 'labelIconBlue' };
+};
+
+const CHIP_MARKS = [
+  [/jacuzzi|whirlpool|hot ?tub|bubbelbad|sauna/,              Droplets],
+  [/swim[ -]?up|pool|zwembad|aquapark|waterpark/,             Waves],
+  [/beach|strand|seafront|zeezicht|sea ?view/,                Umbrella],
+  [/spa|wellness|massage|hammam|thalasso/,                    Flower2],
+  [/all[ -]?in|alles inbegrepen|full ?board|volpension/,      UtensilsCrossed],
+  [/breakfast|ontbijt|half ?board|halfpension/,               Coffee],
+  [/restaurant|dining|diner|buffet|a ?la ?carte/,             Utensils],
+  [/\bbar\b|lounge|cocktail|apero/,                           Martini],
+  [/kid|child|kinder|family|gezin|creche|playground|speeltuin/, Baby],
+  [/adult|volwassen|no ?children|zonder kinderen/,            Moon],
+  [/wifi|wi-fi|internet/,                                     Wifi],
+  [/gym|fitness|sport|tennis|padel/,                          Dumbbell],
+  [/pet|dog|huisdier|hond/,                                   PawPrint],
+  [/air ?con|airco|climat|koeling/,                           Wind],
+  [/room|kamer|suite|bed|junior/,                             BedDouble],
+  [/garden|tuin|park|terras|terrace|palm/,                    Trees],
+  [/sun|zon|solarium/,                                        Sun],
+];
+
+const chipMark = (chip) => {
+  if (chip.star) return Star;
+  const text = norm(chip.text);
+  const hit = CHIP_MARKS.find(([re]) => re.test(text));
+  return hit ? hit[1] : Check;
+};
+
 // The dashboard label ("Luxury Collection") often just repeats the title; a label only earns
 // its badge when it says something the title does not.
 const sameWords = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
@@ -107,7 +174,7 @@ export default function VacationTypes({ cms }) {
           // The chips name what the link applies, so a criteria list that produced no usable
           // filter prints none of them rather than promising a search the button cannot run.
           chips: (href && criteria.length && v.search?.showFacts !== false)
-            ? criteria.map((c) => ({ text: criterionText(c), star: c?.filterKey === 'stars' }))
+            ? criteria.map((c) => ({ text: chipText(c), star: c?.filterKey === 'stars' }))
                       .filter((c) => c.text)
             : [],
         };
@@ -126,12 +193,17 @@ export default function VacationTypes({ cms }) {
         <SectionHead eyebrow={tag} title={title} subtitle={subtitle} />
 
         <div className={styles.grid}>
-          {types.map((vac, i) => (
+          {types.map((vac, i) => {
+            const badge = vac.label && !sameWords(vac.label, vac.title) ? badgeMark(vac.label) : null;
+            return (
             <article key={i} className={styles.card}>
               <div className={styles.media}>
                 <img src={vac.img} alt={vac.title} loading="lazy" />
-                {vac.label && !sameWords(vac.label, vac.title) && (
-                  <span className={styles.label}>{vac.label}</span>
+                {badge && (
+                  <span className={styles.label}>
+                    <badge.Icon size={14} className={`${styles.labelIcon} ${styles[badge.tone]}`} aria-hidden="true" />
+                    {vac.label}
+                  </span>
                 )}
               </div>
               <div className={styles.body}>
@@ -140,24 +212,33 @@ export default function VacationTypes({ cms }) {
                 {/* the filters this card's link applies */}
                 {vac.chips?.length > 0 && (
                   <div className={styles.chips}>
-                    {vac.chips.map((c, ci) => (
-                      <span key={ci} className={`${styles.chip} ${c.star ? styles.chipStar : ''}`}>{c.text}</span>
-                    ))}
+                    {vac.chips.map((c, ci) => {
+                      const ChipIcon = chipMark(c);
+                      return (
+                        <span key={ci} className={`${styles.chip} ${c.star ? styles.chipStar : ''}`}>
+                          <ChipIcon size={12} className={styles.chipIcon} aria-hidden="true" />
+                          {c.text}
+                        </span>
+                      );
+                    })}
                   </div>
                 )}
                 {/* No link, no call to action: a button that goes nowhere is worse than none. */}
                 {vac.href && (
-                  <Link className={styles.vacBtn} to={vac.href} title={t('vacationTypes.searchStays', {
-                    type: vac.title,
-                    defaultValue: 'Search {{type}} stays',
-                  })}>
-                    {vac.buttonText || t('vacationTypes.explore', 'Explore')}
-                    <ArrowIcon />
-                  </Link>
+                  <div className={styles.foot}>
+                    <Link className={styles.vacBtn} to={vac.href} title={t('vacationTypes.searchStays', {
+                      type: vac.title,
+                      defaultValue: 'Search {{type}} stays',
+                    })}>
+                      {vac.buttonText || t('vacationTypes.explore', 'Explore')}
+                      <ArrowIcon />
+                    </Link>
+                  </div>
                 )}
               </div>
             </article>
-          ))}
+            );
+          })}
         </div>
       </div>
     </section>
