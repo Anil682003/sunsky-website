@@ -36,6 +36,8 @@
   box-shadow: var(--shadow-card);
 }
 
+/* Icon and seal share one 56px row, so every card's title starts on the same line whichever
+   of the two it carries. */
 .icon {
   width: 46px;
   height: 46px;
@@ -43,16 +45,17 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  margin-bottom: 8px;
+  margin: 5px 0 13px;
   background: var(--blue-light);
   color: var(--blue-deep);
 }
 .icon svg { width: 22px; height: 22px; }
 
-/* A seal takes the icon's place at the same height, so its card lines up with the rest.
-   Each keeps its own proportions: a square insolvency seal beside a wide wordmark. */
+/* A seal takes the icon's place. Each keeps its own proportions: a square insolvency seal
+   beside a wide wordmark. It gets the full row height because a seal's fine print is the
+   point of it. */
 .markWrap {
-  height: 46px;
+  height: 56px;
   display: flex;
   align-items: center;
   margin-bottom: 8px;
@@ -67,9 +70,9 @@
   outline-offset: 4px;
 }
 .mark {
-  height: 46px;
+  height: 56px;
   width: auto;
-  max-width: 140px;
+  max-width: 150px;
   object-fit: contain;
 }
 

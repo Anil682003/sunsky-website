@@ -46,6 +46,9 @@
   gap: 24px;
   overflow-x: auto;
   scroll-snap-type: x mandatory;
+  /* Snap to the padding's inner edge, not the box edge, or the first card settles 6px left of
+     the heading and the rail never reads as "at the start". */
+  scroll-padding-inline: 6px;
   -webkit-overflow-scrolling: touch;
   scrollbar-width: none;
   padding: 6px 6px 18px;
@@ -249,7 +252,15 @@
 }
 .viewBtn:hover { filter: brightness(1.06); }
 .viewBtn:focus-visible { outline: 3px solid var(--blue-deep); outline-offset: 3px; }
-.viewBtn:disabled { cursor: default; opacity: 0.55; filter: none; }
+/* A card the CMS has not linked to a bookable hotel. It must not look like an offer you can
+   open, so it drops the orange entirely rather than showing a faded version of it. */
+.viewBtn:disabled {
+  cursor: default;
+  background: var(--surface-alt);
+  color: var(--text-light);
+  text-shadow: none;
+  filter: none;
+}
 
 /* ── Responsive ── */
 @media (max-width: 1100px) {
@@ -260,7 +271,12 @@
   .card { flex-basis: calc((100% - 16px) / 2); }
 }
 @media (max-width: 560px) {
-  /* One card and a sliver of the next, so the rail reads as swipeable. */
+  /* One card and a sliver of the next, running off the screen's edge, so the rail reads as
+     swipeable rather than cut short. */
+  .scroll {
+    margin-right: calc(-1 * var(--gutter));
+    padding-right: var(--gutter);
+  }
   .card { flex-basis: 82%; }
   .railNav { display: none; }
 }
