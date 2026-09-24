@@ -30,15 +30,16 @@
   background-size: cover;
   background-position: center 62%;   /* sea and sky, above the white swoosh */
   /* Soft enough that nothing in the photo competes with the cards, sharp
-     enough that it still reads as sky, sea and coastline. Earlier passes at
-     34px and 26px averaged the whole picture into one grey-blue haze, so the
-     section carried an image nobody could see.
+     enough to read as sky, coastline and palm. Earlier passes at 34px and
+     26px averaged the whole picture into one grey-blue haze, so the section
+     carried an image nobody could see.
 
-     10px is also about the floor for this file: the source is 1000px wide and
-     is drawn wider than that, and the blur is what hides the upscale. Much
-     below this and the softness starts to read as a low-quality image rather
-     than a deliberate one. */
-  filter: blur(10px) saturate(1.1);
+     This radius is tied to the asset: at 1000px wide, 10px was the floor
+     because the blur was also hiding the upscale. The file is now 1600px and
+     is drawn at roughly 1:1, so 6px is genuine softening rather than cover
+     for a stretched image. Going lower again would want a larger file, not a
+     smaller number. */
+  filter: blur(6px) saturate(1.1);
   /* Blur samples past the element's edges, which leaves a pale halo around all
      four sides. Scaling the layer up pushes that halo outside the section. */
   transform: scale(1.12);
@@ -69,7 +70,7 @@
 @media (max-width: 768px) {
   /* Lighter still on a phone: the layer is far smaller there, so the same
      radius flattens more of it, and a large blur is a real paint cost. */
-  .section::before { filter: blur(8px) saturate(1.1); }
+  .section::before { filter: blur(5px) saturate(1.1); }
 }
 
 .inner {
