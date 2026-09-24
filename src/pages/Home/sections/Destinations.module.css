@@ -5,34 +5,9 @@
    the active tab and nothing else competes with the pictures.
    ═══════════════════════════════════════════════════════════ */
 
-/* The section sits on the supplied illustration: soft blue waves, a dotted
-   world map, and the sun-and-flight-path motif that lands to the right of the
-   heading. It is artwork rather than a photograph, so unlike the Categories
-   backdrop it is shown as drawn — no blur, nothing washed over it. Blurring a
-   drawing of a dashed flight path only makes it look like a mistake. */
 .section {
-  position: relative;
-  /* Sampled from the artwork's own bottom edge (#F0FAFF–#FEFFFF), so where the
-     drawing ends and this begins there is no seam to see. */
-  background-color: #FAFDFF;
-  background-image: url('../../../assets/vind-bg.jpg');
-  /* Full width, pinned to the top — NOT `cover`.
-     The artwork is 2.7:1 and the section is nearer 2:1, so `cover` scaled it
-     until it filled the height and then cropped 27% off the sides, taking the
-     aeroplane on the right with it. The motif runs the whole width, so the
-     width is what has to survive; the shortfall at the foot is filled with the
-     colour above, behind the cards, where the drawing has nothing to say. */
-  background-size: 100% auto;
-  background-position: center top;
-  background-repeat: no-repeat;
+  background: var(--surface-alt);
   padding: var(--section-y) 0;
-}
-
-/* Below the artwork's natural width the sun and plane crowd the heading, and
-   the waves crop to noise. The illustration is dropped and its pale blue is
-   kept, which is what the section looked like before it existed. */
-@media (max-width: 900px) {
-  .section { background-image: none; }
 }
 
 .inner {
