@@ -1,15 +1,16 @@
-/* Header destination/hotel search: a plain rounded field with a magnifier, a light fill at
-   rest and a blue ring while focused. The dropdown hangs from it at exactly its width. */
+/* Header destination/hotel search: a plain rounded field with a magnifier, white with a warm
+   hairline so it sits cleanly on the cream bar (--nav-bg), and a blue ring while focused.
+   The dropdown hangs from it at exactly its width. */
 .wrap {
   display: flex; align-items: center;
   width: 100%; height: 42px;
   border-radius: 12px;
   position: relative; min-width: 0;
-  background: var(--surface-alt);
-  border: 1px solid var(--line);
+  background: #fff;
+  border: 1px solid #ECE3D4;
   transition: border-color 0.2s var(--ease), box-shadow 0.2s var(--ease), background 0.2s var(--ease);
 }
-.wrap:hover { border-color: var(--line-strong); }
+.wrap:hover { border-color: #DCCDB6; }
 .wrap:focus-within {
   background: #fff;
   border-color: var(--blue-mid);

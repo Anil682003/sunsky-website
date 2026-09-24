@@ -75,8 +75,9 @@
      hardcode it. Currently 11px of breathing room above and below a 56px
      logo, which is the tallest thing in the bar. */
   --nav-h: 78px;
-  /* The header bar. The mobile drawer drops out of it in the same colour. */
-  --nav-bg: #fff;
+  /* The header bar: the soft cream (a softened --sun-warm) it wore before 2026-09-18, which
+     the client asked to keep. The mobile drawer drops out of it in the same colour. */
+  --nav-bg: #FFFBF2;
 }
 
 *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
