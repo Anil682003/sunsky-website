@@ -156,20 +156,24 @@ const ANY_AIRPORT_ART = (
 
 // Human label for the multi-destination selection shown in the search field.
 // {countries:[...], places:[...]} → "Mallorca, Spain" / "Spain · 3 places" /
-// "Spain, Greece +1 · 4 places".
-function selectionLabel({ countries = [], places = [] } = {}) {
+// "Spain, Greece +1 · 4 places". Country names go through countryName() — the dashboard's
+// country list is English seed data ("Spain", "Turkey"), same reason DestinationModal's own
+// countryLabel() does it — this label also becomes the results page's `destinationLabel`
+// URL param, so an untranslated country name here read as English on an otherwise Dutch page.
+function selectionLabel({ countries = [], places = [] } = {}, language, t) {
   if (!countries.length) return '';
+  const cName = (c) => countryName(c.isoCode, language, c.name);
   if (countries.length === 1) {
     const c = countries[0];
-    if (places.length === 0) return c.name;
-    if (places.length === 1) return `${places[0].name}, ${c.name}`;
-    if (places.length === 2) return `${places[0].name} & ${places[1].name}, ${c.name}`;
-    return `${c.name} · ${places.length} places`;
+    if (places.length === 0) return cName(c);
+    if (places.length === 1) return `${places[0].name}, ${cName(c)}`;
+    if (places.length === 2) return `${places[0].name} & ${places[1].name}, ${cName(c)}`;
+    return t('hero.destSelectionPlacesIn', { count: places.length, country: cName(c), defaultValue: '{{country}} · {{count}} places' });
   }
-  const names = countries.map((c) => c.name);
+  const names = countries.map(cName);
   const shown = names.slice(0, 2).join(', ');
   const more = names.length > 2 ? ` +${names.length - 2}` : '';
-  const suffix = places.length ? ` · ${places.length} place${places.length === 1 ? '' : 's'}` : '';
+  const suffix = places.length ? ` · ${t('hero.destSelectionPlaces', { count: places.length, defaultValue_one: '{{count}} place', defaultValue_other: '{{count}} places' })}` : '';
   return shown + more + suffix;
 }
 
@@ -387,7 +391,7 @@ export default function Hero() {
     setDestModalOpen(false);
   };
 
-  const destinationLabel = selectionLabel(destSelection);
+  const destinationLabel = selectionLabel(destSelection, i18n.language, t);
   // Small flag strip rendered ahead of the label (first few picked countries) in the modal field.
   const destFlags = destSelection.countries.slice(0, 4);
 

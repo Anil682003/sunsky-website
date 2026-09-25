@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './HolidayType.module.css';
 import { useHolidayTypeCountries, useHomepageConfig, useCountries } from '../../api';
 import { destsForHolidayType, destUrl, destLabel } from '../../utils/cmsDestinations';
+import { countryName } from '../../utils/countryName';
 
 const titleFor = (t, name) => t('holidayType:titleFor', { name: String(name || t('holidayType:fallbackName', 'holidays')).toLowerCase(), defaultValue: 'Our best {{name}}' });
 // `name`/`title`/`paragraph1` below all come from the dashboard's own holiday-type CMS
@@ -20,7 +21,7 @@ const nameFromSlug = (slug) =>
     .join(' ');
 
 export default function HolidayType() {
-  const { t } = useTranslation('holidayType');
+  const { t, i18n } = useTranslation('holidayType');
   const { slug } = useParams();
   const navigate = useNavigate();
 
@@ -66,7 +67,9 @@ export default function HolidayType() {
         return {
           key: `${d.type}:${d.code}`,
           name: d.name || d.code,
-          desc: d.type === 'city' ? d.countryName || t('holidayType:city', 'City') : parent?.description || null,
+          desc: d.type === 'city'
+            ? (d.countryName ? countryName(parent?.isoCode, i18n.language, d.countryName) : t('holidayType:city', 'City'))
+            : parent?.description || null,
           flagUrl: parent?.flagUrl || null,
           // Only a whole country carries usable artwork; a city would show its
           // country's photo, which misleads.
@@ -78,22 +81,23 @@ export default function HolidayType() {
     }
     // No CMS selection — fall back to the countries linked in the dashboard.
     return countries.map((c) => {
+      const cName = countryName(c.isoCode, i18n.language, c.name);
       const qs = new URLSearchParams();
       // The results page matches Country.code (the Hotelbeds code), NOT the ISO
       // code — they diverge (Cyprus is NY, the UK is UK).
       qs.set('countries', c.code || c.isoCode || '');
-      qs.set('destinationLabel', c.name || '');
+      qs.set('destinationLabel', cName);
       return {
         key: `country:${c.id}`,
-        name: c.name,
+        name: cName,
         desc: c.description || null,
         flagUrl: c.flagUrl || null,
         imageUrl: c.imageUrl || null,
         href: `/results?${qs.toString()}`,
-        title: c.name,
+        title: cName,
       };
     });
-  }, [cmsDests, countries, countryLookup, t]);
+  }, [cmsDests, countries, countryLookup, t, i18n.language]);
 
   return (
     <div className={styles.page}>
