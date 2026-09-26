@@ -39,11 +39,9 @@
    Its own, larger scale: this band is mostly sky, so the title carries it where a section on
    white can lean on the cards. The last word is picked out in brand blue — the one section
    whose accent is a colour rather than the handwritten script. */
-/* Capped against the column, not just in pixels: the handwriting hangs at 72% of the same
-   column, so a heading that could grow past 70% of it would eventually run underneath. */
 .head {
   position: relative;
-  max-width: min(850px, 70%);
+  max-width: 900px;
   margin-bottom: clamp(26px, 3vw, 44px);
 }
 
@@ -75,38 +73,6 @@
   font-size: clamp(0.98rem, 1.02vw, 1.22rem);
   line-height: 1.55;
   color: var(--text-sec);
-}
-
-/* The handwriting under the aeroplane's dotted trail. It sits in the sky to the right of the
-   heading, in the photograph's own slate rather than the site's gold, so it reads as part of
-   the picture instead of as a second accent. */
-.script {
-  position: absolute;
-  top: 26px;
-  left: 72%;
-  display: flex;
-  flex-direction: column;
-  font-family: 'Caveat', cursive;
-  font-size: clamp(1.15rem, 1.35vw, 1.72rem);
-  font-weight: 600;
-  line-height: 1;
-  color: #8792AB;
-  transform: rotate(-3deg);
-  pointer-events: none;
-  user-select: none;
-}
-.script span:nth-child(2) { padding-left: 0.6em; }
-.script span:nth-child(3) { padding-left: 0.1em; }
-/* The small stroke the design draws under the last line. */
-.script span:last-child::after {
-  content: '';
-  display: block;
-  width: 52%;
-  height: 2px;
-  margin: 0.18em 0 0 30%;
-  border-radius: 2px;
-  background: currentColor;
-  opacity: 0.6;
 }
 
 /* ── Cards ──────────────────────────────────────────────────
@@ -231,13 +197,6 @@ a.arrow:focus-visible {
 
 @media (max-width: 1060px) {
   .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 20px; }
-}
-
-/* Once the heading needs the full width, the handwriting would sit on top of it. */
-@media (max-width: 1000px) {
-  .script { display: none; }
-  /* Nothing to the right of the heading any more, so it may have the whole column. */
-  .head { max-width: 100%; }
 }
 
 /* The narrower the viewport, the more `cover` has to enlarge a 2.4:1 photograph to fill a

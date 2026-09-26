@@ -121,16 +121,6 @@ export default function Trust({ cms }) {
           {subtitle && <p className={styles.sub}>{cmsText(subtitle)}</p>}
         </header>
 
-        {/* The handwriting that trails the aeroplane across the photograph. It is decoration
-            rather than copy: hidden from assistive technology, and dropped altogether once the
-            heading wants the width. It hangs off the section's own column rather than off the
-            heading, so a longer title in either language cannot push it into the aeroplane. */}
-        <p className={styles.script} aria-hidden="true">
-          <span>{t('trust.script1', 'Travel')}</span>
-          <span>{t('trust.script2', 'More')}</span>
-          <span>{t('trust.script3', 'Worry Less')}</span>
-        </p>
-
         {/* Every card has the same shape: a mark (icon, or the seal itself), a title and a
             line of text, so a promise and a guarantee read at the same weight. */}
         <div className={styles.grid}>
@@ -164,16 +154,15 @@ export default function Trust({ cms }) {
                     item.icon && <div className={styles.icon}>{item.icon}</div>
                   )}
 
-                  {/* The arrow belongs to the design, so every card carries one. On a seal card
-                      the seal is already the link, and a second link to the same place would
-                      only read the destination out twice, so there the arrow is a drawing and
-                      nothing more. */}
-                  {item.url && !item.mark ? (
+                  {/* An arrow only where there is somewhere to go. The design draws one on every
+                      card, but a promise written in the dashboard has no destination, and an
+                      arrow that invites a click and does nothing is worse than no arrow. A seal
+                      card is already linked through the seal itself, so a second link to the
+                      same place would only read the destination out twice. */}
+                  {item.url && !item.mark && (
                     <CmsLink url={item.url} className={styles.arrow} aria-label={item.title || undefined}>
                       {ARROW}
                     </CmsLink>
-                  ) : (
-                    <span className={styles.arrow} aria-hidden="true">{ARROW}</span>
                   )}
                 </div>
 
