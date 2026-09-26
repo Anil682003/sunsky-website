@@ -1,7 +1,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
-import mainLogo from '../../assets/main-logo.png';
+import { useBrandLogo } from '../../hooks/useBrandLogo';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
 // it, so it keeps the square mark — the same one the browser tab shows.
 import logoIcon from '../../assets/logo-icon.png';
@@ -26,6 +26,8 @@ const PASSWORD_RULES = [
 const apiError = (err, fallback) => err?.response?.data?.message || fallback;
 
 export default function ForgotPassword() {
+  // The logo the dashboard sets, with the bundled one showing until it lands.
+  const brandLogo = useBrandLogo();
   const { t } = useTranslation('auth');
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -69,7 +71,9 @@ export default function ForgotPassword() {
       setExpiryMinutes(res?.data?.data?.expiresInMinutes ?? null);
       setSecondsLeft(RESEND_SECONDS);
       setStep(2);
-      showToast(silent ? t('auth:forgot.newCodeOnWay', 'A new code is on its way') : t('auth:forgot.checkInbox', 'Check your inbox for the 6-digit code'), 'success');
+      // Same caveat as the step-2 copy: the server won't say whether the address is
+      // registered, so neither can this.
+      showToast(silent ? t('auth:forgot.newCodeOnWay', 'A new code is on its way') : t('auth:forgot.checkInbox', 'If that email has an account, the code is on its way'), 'success');
     } catch (err) {
       showToast(apiError(err, t('auth:errors.codeSendFailed', 'Could not send the code. Please try again.')), 'error');
     } finally {
@@ -118,7 +122,7 @@ export default function ForgotPassword() {
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
           {/* The wordmark carries the name, so no text beside it. */}
-          <img src={mainLogo} alt="Sunsky Vakanties" className={styles.logoWordmark} />
+          <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} className={styles.logoWordmark} />
         </Link>
 
         <div className={styles.brandHero}>
@@ -159,14 +163,26 @@ export default function ForgotPassword() {
               </>}
               {step === 2 && <>
                 <h1 className={styles.cardTitle}>{t('auth:forgot.step2Title', 'Check your inbox')}</h1>
+                {/* Not "we sent you a code". The server deliberately answers the same way
+                    whether or not the address has an account, so that it cannot be used to
+                    find out who is registered here — which means this screen genuinely does
+                    not know whether anything was sent. Claiming it did left anyone who
+                    mistyped their address, or who never registered, waiting on an email
+                    that was never going to arrive, with nothing on screen to suggest why. */}
                 <p className={styles.cardSub}>
-                  {t('auth:forgot.step2Sub', 'We sent a 6-digit code to')} <strong className={fp.emailStrong}>{email}</strong>
+                  {t('auth:forgot.step2Sub', 'If that email has an account, a 6-digit code is on its way to')} <strong className={fp.emailStrong}>{email}</strong>
                 </p>
                 {/* Same reason as the signup screen: junk-foldered and never-sent look
                     identical from the outside. */}
                 <p className={fp.hint}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="M4 7l8 6 8-6" /></svg>
                   {t('auth:checkSpamFolder', 'Not there within a minute? Check your spam or junk folder.')}
+                </p>
+                {/* The way out of the dead end. Without this, someone who never had an
+                    account has no reading of this screen except "the email is broken". */}
+                <p className={fp.hint}>
+                  {t('auth:forgot.noAccountHint', 'No account for that address yet?')}{' '}
+                  <Link to="/register" className={fp.linkBtn}>{t('auth:forgot.createAccount', 'Create one')}</Link>
                 </p>
               </>}
               {step === 3 && <>
