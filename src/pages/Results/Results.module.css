@@ -205,6 +205,22 @@
 .filterCheck input:checked + span { color: var(--dark); font-weight: 600; }
 
 /* Range slider */
+/* Typed price bounds. Two boxes beside the track, the way the design draws them: the slider
+   is for roughly, the boxes are for exactly. */
+.priceInputs { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin: 12px 0 2px; }
+.priceInput { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.priceInput span {
+  font-size: 11.5px; font-weight: 700; color: var(--text-sec);
+}
+.priceInput input {
+  width: 100%; padding: 9px 10px;
+  border: 1.5px solid var(--line); border-radius: 10px;
+  background: var(--surface-alt); color: var(--dark);
+  font-family: inherit; font-size: 13.5px; font-weight: 600;
+}
+.priceInput input:focus { outline: none; border-color: var(--blue-ocean); background: #fff; }
+/* What the search actually returned, as opposed to where the handles can travel. */
+.priceAvailable { margin: 8px 0 0; font-size: 11.5px; color: var(--text-light); }
 .priceSliderWrap { padding: 6px 0 2px; }
 .filterRange {
   appearance: none; -webkit-appearance: none;
@@ -348,6 +364,46 @@
 .applyBtn:hover { background: #1A43BC; }
 .applyBtn:focus-visible { outline: 3px solid rgba(31,79,216,0.35); outline-offset: 2px; }
 
+.applyBtn:disabled { cursor: default; opacity: 0.85; }
+/* The keyframes are declared HERE, in the module. A CSS-module class animating with a
+   keyframe declared in the global sheet silently gets no animation, because the module
+   renames the reference and nothing answers to the new name. */
+@keyframes searchSpin { to { transform: rotate(360deg); } }
+.applySpinner {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255,255,255,0.35);
+  border-top-color: #fff;
+  animation: searchSpin 0.7s linear infinite;
+}
+
+/* ── The seam between searching and refining ──
+   The button only appears when there is something to commit, so it is never a control that
+   does nothing; the notice above it explains why it turned up. */
+.searchUpdate {
+  padding: 14px 20px 16px;
+  border-bottom: 1px solid #eef3fb;
+}
+.searchUpdate .applyBtn { margin-top: 10px; }
+.searchChanged {
+  display: flex; align-items: center; gap: 8px;
+  margin: 0; padding: 9px 12px; border-radius: 10px;
+  background: var(--blue-light, #eef4ff); color: var(--blue-deep, #1f4fd8);
+  font-size: 12.5px; font-weight: 700; line-height: 1.35;
+}
+/* The heading for everything below the seam. A plain label, not a collapsible section: it
+   introduces the rest of the sidebar rather than holding anything of its own. */
+.refineHead {
+  display: flex; align-items: center; gap: 9px;
+  padding: 16px 20px 12px;
+  border-bottom: 1px solid #eef3fb;
+  color: var(--blue-deep, #1f4fd8);
+}
+.refineHead h3 {
+  margin: 0; font-family: 'Sora', sans-serif;
+  font-size: 13px; font-weight: 700; letter-spacing: 0.2px;
+  color: var(--dark);
+}
+
 /* ── Per-room occupancy (Filter 4) ── */
 .roomBlock {
   border: 1px solid var(--line); border-radius: 12px;
@@ -440,55 +496,60 @@
 }
 .facetMore:hover { text-decoration: underline; }
 
-/* ── "I want to fly from" — departure airport under the Transport toggle ── */
-.originPicker { margin-top: 12px; }
-.originLabel {
-  font-size: 12.5px; font-weight: 800; color: var(--dark);
-  margin-bottom: 4px;
+/* ── Airport lists (departure + arrival) ──
+   One list drawn two ways: a single choice where the fare is priced from, a set where the
+   search is narrowed to. The controls stay square like every other tick in this sidebar, so
+   a round one never implies "this behaves differently" when it does not. */
+.apSearch {
+  width: 100%; margin: 2px 0 10px; padding: 9px 11px;
+  border: 1.5px solid var(--line); border-radius: 10px;
+  background: var(--surface-alt); color: var(--dark);
+  font-family: inherit; font-size: 13px;
 }
-.originGroup { display: flex; flex-direction: column; }
-.originOption {
+.apSearch:focus { outline: none; border-color: var(--blue-ocean); background: #fff; }
+.apGroup + .apGroup { margin-top: 10px; }
+.apCountry {
+  margin: 0 0 2px; font-size: 10.5px; font-weight: 800;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--text-light);
+}
+.apRow {
   display: flex; align-items: center; gap: 10px;
-  padding: 6px 0; cursor: pointer; font-size: 13.5px;
-  color: var(--text-sec); transition: color 0.2s;
+  padding: 6px; margin: 0 -6px; border-radius: 9px;
+  cursor: pointer; color: var(--text-sec);
+  transition: background 0.2s, color 0.2s;
 }
-.originOption:hover { color: var(--dark); }
-/* Visually identical to .filterCheck — the sidebar has ONE tick, and a round control here
-   read as a different kind of thing when it behaves the same way. (These stay <input
-   type="radio"> for behaviour and screen readers: one airport, not many.) */
-.originOption input[type="radio"] {
+.apRow:hover { color: var(--dark); background: #f4f8ff; }
+.apRowOn { background: var(--blue-light, #eef4ff); }
+.apRow input {
   appearance: none; -webkit-appearance: none;
   width: 19px; height: 19px; border-radius: 6px;
   border: 2px solid #d7e3f5; flex-shrink: 0;
   transition: all 0.2s var(--ease-spring); position: relative; cursor: pointer;
 }
-.originOption input:hover { border-color: var(--blue-ocean); }
-.originOption input:checked {
-  background: var(--blue-deep);
-  border-color: var(--blue-deep);
-}
-.originOption input:checked::after {
+.apRow input:hover { border-color: var(--blue-ocean); }
+.apRow input:checked { background: var(--blue-deep); border-color: var(--blue-deep); }
+.apRow input:checked::after {
   content: '✓'; position: absolute; inset: 0;
   display: flex; align-items: center; justify-content: center;
   color: #fff; font-size: 11px; font-weight: 700;
-  animation: scaleIn 0.2s var(--ease-spring) both;
 }
-.originFlag { font-size: 14px; line-height: 1; flex-shrink: 0; }
-.originName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.originOptionOn .originName { color: var(--dark); font-weight: 600; }
-.originCode {
+.apText { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.apCity {
+  font-size: 13.5px; font-weight: 600; color: var(--dark);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.apName {
+  font-size: 11.5px; color: var(--text-light);
+  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.apCode {
   font-size: 10.5px; font-weight: 800; letter-spacing: 0.04em;
   color: var(--text-light); flex-shrink: 0;
 }
-.originOptionOn .originCode { color: var(--blue-deep); }
-.originMore { margin-top: 2px; }
-.originMoreSummary {
-  display: inline-flex; align-items: center; gap: 4px;
-  padding: 4px 2px; cursor: pointer; list-style: none;
-  font-size: 12.5px; font-weight: 700; color: var(--blue-deep, #1f4fd8);
-}
-.originMoreSummary::-webkit-details-marker { display: none; }
-.originMoreSummary:hover { text-decoration: underline; }
+.apRowOn .apCode { color: var(--blue-deep); }
+.apHint { margin: 0 0 8px; font-size: 12px; color: var(--text-sec); }
+
 .originNote {
   margin: 8px 0 0; font-size: 11.5px; line-height: 1.45;
   color: var(--text-light);
@@ -499,6 +560,54 @@
   margin-top: 14px; padding-top: 12px;
   border-top: 1px solid #e4ebf6;
 }
+/* ── Guest rating ── The score is the thing being chosen, so it is drawn as the badge the
+   cards already use rather than as another line of text; the word beside it is the same word
+   the card prints, so a "Zeer goed" filter and a "Zeer goed" hotel cannot disagree. */
+.reviewRow {
+  display: flex; align-items: center; gap: 10px;
+  padding: 5px 6px; margin: 0 -6px; border-radius: 9px;
+  cursor: pointer; font-size: 13.5px;
+  color: var(--text-sec); transition: background 0.2s, color 0.2s;
+}
+.reviewRow:hover { color: var(--dark); background: #f4f8ff; }
+/* Square, like every other control in this sidebar — see the note on .originOption. It stays
+   an <input type="radio"> for behaviour and for screen readers: one band, not many. */
+.reviewRow input[type="radio"] {
+  appearance: none; -webkit-appearance: none;
+  width: 19px; height: 19px; border-radius: 6px;
+  border: 2px solid #d7e3f5; flex-shrink: 0;
+  transition: all 0.2s var(--ease-spring); position: relative; cursor: pointer;
+}
+.reviewRow input:hover { border-color: var(--blue-ocean); }
+.reviewRow input:checked { background: var(--blue-deep); border-color: var(--blue-deep); }
+.reviewRow input:checked::after {
+  content: '✓'; position: absolute; inset: 0;
+  display: flex; align-items: center; justify-content: center;
+  color: #fff; font-size: 11px; font-weight: 700;
+  animation: scaleIn 0.2s var(--ease-spring) both;
+}
+.reviewRow:has(input:checked) { background: var(--blue-light, #eef4ff); }
+.reviewScore {
+  display: inline-flex; align-items: baseline; gap: 1px;
+  padding: 3px 8px; border-radius: 8px; flex-shrink: 0;
+  background: var(--blue-deep); color: #fff;
+  font-size: 13px; font-weight: 800; letter-spacing: -0.01em;
+}
+.reviewScore small { font-size: 9.5px; font-weight: 700; opacity: 0.75; }
+.reviewWord { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.reviewRow:has(input:checked) .reviewWord { color: var(--dark); font-weight: 600; }
+.reviewCount { font-size: 12px; color: var(--text-light); flex-shrink: 0; }
+
+/* A filter that clears itself, for the sections where "none of these" is a real answer and
+   un-ticking a radio is not possible. */
+.filterClearLink {
+  display: inline-block; margin-top: 8px; padding: 4px 2px;
+  background: none; border: none; cursor: pointer;
+  font-family: inherit; font-size: 12.5px; font-weight: 700;
+  color: var(--blue-deep, #1f4fd8);
+}
+.filterClearLink:hover { text-decoration: underline; }
+
 .facetMore svg { transition: transform 0.2s ease; }
 /* Selected-scope chips */
 .scopeChips { display: flex; flex-wrap: wrap; gap: 6px; margin: 4px 0 8px; }

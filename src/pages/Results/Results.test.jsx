@@ -24,7 +24,7 @@ vi.mock('../../api', () => ({
 const facetCalls = [];
 const NO_FACETS = {
   holiday: [], stars: [], facilities: [], activities: [],
-  accommodation: [], kids: [], beachDistance: [], centreDistance: [],
+  accommodation: [], kids: [], beachDistance: [], centreDistance: [], review: [],
 };
 let facetLists = NO_FACETS;
 // What a country-wide scope resolves to. Deliberately wider than any one airport serves,
@@ -420,6 +420,11 @@ describe('arrival airport ("Flying to")', () => {
   // The picker lives under the departure airport, which only shows with flights included.
   const openTransport = (user) => user.click(sidebarRadio('Incl. vlucht'));
 
+  // Several, not one: each airport carries the cities it serves, and "Marmaris or Antalya" is
+  // a real answer to where a traveller will fly. Nothing ticked means any airport, which is why
+  // the list carries no row for that.
+  const arrivalBox = (name) => screen.getByRole('checkbox', { name });
+
   it('names each airport by the CITY it serves, not its official name', async () => {
     const user = userEvent.setup();
     renderResults(countryScope);
@@ -427,8 +432,8 @@ describe('arrival airport ("Flying to")', () => {
     await openTransport(user);
 
     // Dalaman serves two cities; "Marmaris, Fethiye" tells a traveller where they land.
-    expect(await screen.findByRole('radio', { name: /Marmaris, Fethiye/ })).toBeInTheDocument();
-    expect(screen.getByRole('radio', { name: /Elke luchthaven/ })).toBeInTheDocument();
+    expect(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ })).toBeInTheDocument();
+    expect(screen.getByText('Kies één of meerdere luchthavens')).toBeInTheDocument();
   });
 
   it('narrows the priced destinations to the ones that airport serves', async () => {
@@ -437,23 +442,41 @@ describe('arrival airport ("Flying to")', () => {
     await settled();
     await openTransport(user);
 
-    await user.click(await screen.findByRole('radio', { name: /Marmaris, Fethiye/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ }));
     await waitFor(() => {
       const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean).sort();
       expect(dests).toEqual(['DLM', 'FET']);
     });
   });
 
-  it('restores the full scope on "Any airport"', async () => {
+  // Two airports mean EITHER, never both: intersecting them would return nothing the moment
+  // they serve different cities, which is the normal case.
+  it('prices the union when two airports are picked', async () => {
     const user = userEvent.setup();
     renderResults(countryScope);
     await settled();
     await openTransport(user);
 
-    await user.click(await screen.findByRole('radio', { name: /Marmaris, Fethiye/ }));
+    await user.click(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ }));
+    await waitFor(() => expect(lastCall().get('destinations')).toContain('DLM'));
+    await user.click(arrivalBox(/Antalya/));
+    await waitFor(() => {
+      const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean).sort();
+      expect(dests).toEqual(['AYT', 'DLM', 'FET']);
+    });
+  });
+
+  it('restores the full scope when the airport is un-ticked again', async () => {
+    const user = userEvent.setup();
+    renderResults(countryScope);
+    await settled();
+    await openTransport(user);
+
+    const dalaman = await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ });
+    await user.click(dalaman);
     await waitFor(() => expect(lastCall().get('destinations')).toContain('DLM'));
 
-    await user.click(screen.getByRole('radio', { name: /Elke luchthaven/ }));
+    await user.click(dalaman);
     await waitFor(() => {
       const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean);
       expect(dests).not.toEqual(['DLM', 'FET']);
@@ -469,9 +492,9 @@ describe('arrival airport ("Flying to")', () => {
     await settled();
     await openTransport(user);
     // AYT is in scope, so the airports serving it are offered.
-    expect(await screen.findByRole('radio', { name: /Antalya/ })).toBeInTheDocument();
+    expect(await screen.findByRole('checkbox', { name: /Antalya/ })).toBeInTheDocument();
     // Dalaman serves nothing in an Antalya-only scope and must not be offered.
-    expect(screen.queryByRole('radio', { name: /Marmaris/ })).not.toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /Marmaris/ })).not.toBeInTheDocument();
   });
 
   it('is absent when the scope has no linked airports', async () => {
@@ -482,7 +505,91 @@ describe('arrival airport ("Flying to")', () => {
     await settled();
     await openTransport(user);
     // An empty control is worse than none: it implies the search can be narrowed when it can't.
-    await waitFor(() => expect(screen.queryByRole('radio', { name: /Elke luchthaven/ })).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByText('Aankomstluchthaven')).not.toBeInTheDocument());
+  });
+
+  // A link somebody shared can carry more than one.
+  it('ticks every airport a shared link arrives with', async () => {
+    const user = userEvent.setup();
+    renderResults(countryScope + '&arrival=DLM,AYT');
+    await settled();
+    await openTransport(user);
+    expect(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ })).toBeChecked();
+    expect(arrivalBox(/Antalya/)).toBeChecked();
+  });
+});
+
+// The price box: a slider for "roughly", two boxes for "exactly", and words that describe
+// what is actually in the price.
+describe('price box', () => {
+  const priceField = (name) => screen.getAllByRole('spinbutton', { name })[0];
+
+  it('takes a typed maximum and sends it', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.type(priceField('Maximumprijs'), '900');
+    await user.tab();                                   // committed on blur, not per keystroke
+    await waitFor(() => expect(lastCall().get('maxPrice')).toBe('900'));
+  });
+
+  // Mid-word, the "9" of "900" is a real bound. Committing per keystroke would fire a search
+  // for it and hand back a page of results nobody asked for.
+  it('does not search for a half-typed number', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    const before = calls.length;
+    await user.type(priceField('Maximumprijs'), '900');
+    expect(calls.length).toBe(before);
+    await user.tab();
+    await waitFor(() => expect(lastCall().get('maxPrice')).toBe('900'));
+  });
+
+  it('empties back to no bound', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.type(priceField('Maximumprijs'), '900');
+    await user.tab();
+    await waitFor(() => expect(lastCall().get('maxPrice')).toBe('900'));
+
+    await user.clear(priceField('Maximumprijs'));
+    await user.tab();
+    await waitFor(() => expect(lastCall().get('maxPrice')).toBeNull());
+  });
+
+  it('clears both bounds in one click', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.type(priceField('Maximumprijs'), '900');
+    await user.tab();
+    await waitFor(() => expect(lastCall().get('maxPrice')).toBe('900'));
+
+    await user.click(screen.getAllByRole('button', { name: 'Wis prijsklasse' })[0]);
+    await waitFor(() => expect(lastCall().get('maxPrice')).toBeNull());
+    expect(lastCall().get('minPrice')).toBeNull();
+  });
+
+  // A hotel-only price is a stay, priced per room; add a flight and it is a trip, priced per
+  // traveller. Same toggle, and the words have to say which.
+  it('renames the basis toggle when a flight is included', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    expect(sidebarRadio('Totale verblijfprijs')).toBeInTheDocument();
+    await user.click(sidebarRadio('Incl. vlucht'));
+    await waitFor(() => expect(screen.getAllByRole('radio', { name: 'Totale reisprijs' })[0]).toBeInTheDocument());
+    expect(screen.getAllByRole('radio', { name: 'Per persoon' })[0]).toBeInTheDocument();
+  });
+
+  // The slider's ceiling is a round number that only grows; what the search returned is a
+  // different fact, and the one that tells a traveller whether a bound is worth setting.
+  it('states the prices the search actually returned', async () => {
+    renderResults();
+    await settled();
+    expect(screen.getAllByText(/Beschikbare prijzen:/)[0]).toBeInTheDocument();
   });
 });
 
@@ -638,7 +745,7 @@ describe('price basis', () => {
     dragSlider('Minimumprijs', 200);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
 
-    await user.click(sidebarRadio('Per persoon'));
+    await user.click(sidebarRadio('Per kamer/verblijf'));
     await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
     // Bounds must not carry across scales — €200 total is not €200 per person.
     expect(lastCall().get('minPrice')).toBeNull();
@@ -651,7 +758,7 @@ describe('price basis', () => {
     await settled();
     const totalCeiling = Number(slider('Maximumprijs').max);
 
-    await user.click(sidebarRadio('Per persoon'));
+    await user.click(sidebarRadio('Per kamer/verblijf'));
     await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
 
     // 2 adults -> per-person prices are half the total, so the ceiling must come down.
@@ -718,7 +825,7 @@ describe('infinite scroll', () => {
     // `boards=AI` matches only four hotels in the mock, so hasMore goes false and there is no
     // page 2 left to assert on — the test then fails for the opposite reason to the one it is
     // guarding. priceBasis is echoed in the query but filters nothing.
-    await user.click(sidebarRadio('Per persoon'));
+    await user.click(sidebarRadio('Per kamer/verblijf'));
     await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
     await waitFor(() => expect(cards().length).toBeGreaterThan(0));
 
@@ -822,8 +929,12 @@ describe('search change', () => {
     await user.click(sidebarCheck('All inclusive'));
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
 
+    // A guest is added first because the button only exists while the search HAS changed —
+    // pressing it with nothing pending would re-run the identical search for nothing.
+    await user.click(screen.getAllByRole('button', { name: '+' })[0]);
     await user.click(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]);
-    await waitFor(() => expect(lastCall().get('boards')).toBe('AI'));
+    await waitFor(() => expect(lastCall().get('adults')).toBe('3'));
+    expect(lastCall().get('boards')).toBe('AI');
   });
 });
 
@@ -902,6 +1013,100 @@ describe('content-facet payload opt-ins', () => {
     expect(lastFacetCall().opts.attrs).toBe(false);
     await user.selectOptions(screen.getByRole('combobox', { name: 'Resultaten sorteren' }), 'distance_beach');
     await waitFor(() => expect(lastFacetCall().opts.attrs).toBe(true));
+  });
+});
+
+// ── Guest rating ─────────────────────────────────────────────────────────────
+// The bands are THRESHOLDS ("8,0 and better"), counted cumulatively by the admin, which is why
+// they are one choice rather than a set of checkboxes. The filter resolves to hotelCodes in the
+// admin like every other content facet — it is never applied to the page the cache already sent,
+// because the hotels on it are the cheapest twenty, not the best-rated twenty.
+describe('guest rating', () => {
+  const lastFacetCall = () => facetCalls[facetCalls.length - 1];
+  const RATED = {
+    ...NO_FACETS,
+    review: [
+      { minRating: 9, hotels: 4 },
+      { minRating: 8, hotels: 17 },
+      { minRating: 7, hotels: 42 },
+      { minRating: 6, hotels: 63 },
+    ],
+  };
+  const ratingRadio = (name) => screen.getAllByRole('radio', { name })[0];
+
+  // An admin that predates the facet sends no 'review' key at all. The section must then be
+  // absent rather than render as an empty box with a heading and nothing under it.
+  it('is not shown at all when the backend sends no bands', async () => {
+    facetLists = NO_FACETS;
+    renderResults();
+    await settled();
+    expect(screen.queryByText('Beoordeling')).not.toBeInTheDocument();
+  });
+
+  it('lists each band with its score, its word and its count', async () => {
+    facetLists = RATED;
+    renderResults();
+    await settled();
+    expect(screen.getAllByText('Beoordeling')[0]).toBeInTheDocument();
+    // The word is the one the cards print for that score, so the two can never disagree.
+    expect(ratingRadio(/Zeer goed/)).toBeInTheDocument();
+    expect(ratingRadio(/8,0.*Zeer goed.*\(17\)/)).toBeInTheDocument();
+    expect(ratingRadio(/9,0.*Uitstekend.*\(4\)/)).toBeInTheDocument();
+  });
+
+  it('sends the chosen band to the admin, and asks for the hotelCodes it resolves to', async () => {
+    const user = userEvent.setup();
+    facetLists = RATED;
+    renderResults();
+    await settled();
+    expect(lastFacetCall().filters.minRating).toBe('');
+    await user.click(ratingRadio(/8,0/));
+    await waitFor(() => expect(lastFacetCall().filters.minRating).toBe(8));
+    // Without the codes the cache would price the whole scope and the rating would do nothing.
+    expect(lastFacetCall().opts.codes).toBe(true);
+  });
+
+  it('only ever sends one band, because a second would just mean the lower one', async () => {
+    const user = userEvent.setup();
+    facetLists = RATED;
+    renderResults();
+    await settled();
+    await user.click(ratingRadio(/9,0/));
+    await waitFor(() => expect(lastFacetCall().filters.minRating).toBe(9));
+    await user.click(ratingRadio(/7,0/));
+    await waitFor(() => expect(lastFacetCall().filters.minRating).toBe(7));
+    expect(screen.getAllByRole('radio', { name: /9,0/ })[0]).not.toBeChecked();
+  });
+
+  it('ticks the band a shared link arrives with', async () => {
+    facetLists = RATED;
+    renderResults('?destination=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1&minRating=8');
+    await settled();
+    expect(ratingRadio(/8,0/)).toBeChecked();
+    expect(lastFacetCall().filters.minRating).toBe(8);
+  });
+
+  // A rating nobody can act on must not narrow the search from a control that isn't there.
+  it('ignores a nonsense rating in the URL', async () => {
+    facetLists = RATED;
+    renderResults('?destination=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1&minRating=99');
+    await settled();
+    expect(lastFacetCall().filters.minRating).toBe('');
+    expect(screen.getAllByRole('radio', { name: /8,0/ })[0]).not.toBeChecked();
+  });
+
+  // A radio cannot be un-ticked, so the section carries its own way out.
+  it('clears back to no preference', async () => {
+    const user = userEvent.setup();
+    facetLists = RATED;
+    renderResults();
+    await settled();
+    await user.click(ratingRadio(/8,0/));
+    await waitFor(() => expect(lastFacetCall().filters.minRating).toBe(8));
+    await user.click(screen.getAllByRole('button', { name: 'Wis beoordeling' })[0]);
+    await waitFor(() => expect(lastFacetCall().filters.minRating).toBe(''));
+    // …and with nothing selected the cache is not restricted to a code list any more.
+    expect(lastFacetCall().opts.codes).toBe(false);
   });
 });
 

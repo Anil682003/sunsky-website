@@ -112,16 +112,22 @@ describe('sidebar layout', () => {
     // Scope to the sidebar — result cards also use <h3> for the hotel name.
     const aside = screen.getByRole('heading', { name: 'Filters', level: 2 }).closest('aside');
     const headings = within(aside).getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
-    // Travel time / Distance / Family & Kids are conditional — they appear only when the URL
-    // carries a night range, or when the scope actually has those content facets (it doesn't
-    // here). Everything else is unconditional and this is the order it ships in.
+    // Travel time / Distance / Family & Kids / Beoordeling are conditional — they appear only
+    // when the URL carries a night range, or when the scope actually has those content facets
+    // (it doesn't here). Everything else is unconditional and this is the order it ships in.
+    //
+    // The sidebar is in two halves, and "Resultaten verfijnen" is the line between them:
+    // everything above it re-runs the search, everything below narrows what came back. That is
+    // the client's order, and it is why Vervoer leads and Prijsklasse sits below the line.
+    //
     // No 'Cancellation': the filter was removed because the site no longer states a rate's
     // cancellation terms anywhere in the journey, so offering to filter by them promised a
     // distinction nothing downstream would show.
     expect(headings).toEqual([
-      'Data & reizigers', 'Waarheen', 'Prijsklasse', 'Vervoer', 'Soort vakantie', 'Sterren',
-      'Soort accommodatie', 'Verzorging', 'Faciliteiten', 'Activiteiten', 'Alleen volwassenen',
-      'Soort kamer',
+      'Vervoer', 'Waarheen', 'Data & reizigers',
+      'Resultaten verfijnen',
+      'Prijsklasse', 'Verzorging', 'Sterren', 'Soort accommodatie', 'Soort vakantie',
+      'Alleen volwassenen', 'Faciliteiten', 'Activiteiten', 'Soort kamer',
     ]);
   });
 
@@ -136,14 +142,61 @@ describe('sidebar layout', () => {
     renderResults();
     await settled();
     const groups = screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label'));
-    // 'Cancellation policy' is gone with its filter.
-    expect(groups).toEqual(['Prijsweergave', 'Soort vervoer']);
+    // 'Cancellation policy' is gone with its filter. Transport leads now: it is a question
+    // about the SEARCH, so it sits above the line, and the price view sits below it.
+    expect(groups).toEqual(['Soort vervoer', 'Prijsweergave']);
 
     // Exactly one option selected per group, and it reflects the default.
-    expect(screen.getByRole('radio', { name: 'Hele verblijf' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'Per persoon' })).toHaveAttribute('aria-checked', 'false');
+    // Hotel-only by default, so the words describe a STAY priced per room — a flight-inclusive
+    // search relabels the same toggle 'Totale reisprijs / Per persoon'.
+    expect(screen.getByRole('radio', { name: 'Totale verblijfprijs' })).toHaveAttribute('aria-checked', 'true');
+    expect(screen.getByRole('radio', { name: 'Per kamer/verblijf' })).toHaveAttribute('aria-checked', 'false');
     // The 'Any' radio belonged to the cancellation group — it must not have survived it.
     expect(screen.queryByRole('radio', { name: 'Any' })).not.toBeInTheDocument();
+  });
+
+  // ── The seam ──
+  // The dates and travellers are edited in place; only the button commits them. So the button
+  // exists exactly while there is something to commit — never as a control that would re-run
+  // the identical search, and never absent while the results are out of date.
+  it('offers nothing to commit on arrival', async () => {
+    renderResults();
+    await settled();
+    expect(screen.queryByText('Je zoekopdracht is gewijzigd')).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /zoekopdracht bijwerken/i })).not.toBeInTheDocument();
+    // …but the line between the two halves is always drawn.
+    expect(screen.getByRole('heading', { name: 'Resultaten verfijnen', level: 3 })).toBeInTheDocument();
+  });
+
+  it('says so, and offers the button, once the search has been changed', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.click(screen.getAllByRole('button', { name: '+' })[0]);   // one more adult
+    expect(await screen.findByText('Je zoekopdracht is gewijzigd')).toBeInTheDocument();
+    expect(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]).toBeInTheDocument();
+  });
+
+  it('takes both away again once the new search has run', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.click(screen.getAllByRole('button', { name: '+' })[0]);
+    await screen.findByText('Je zoekopdracht is gewijzigd');
+    await user.click(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]);
+    await waitFor(() => expect(screen.queryByText('Je zoekopdracht is gewijzigd')).not.toBeInTheDocument());
+    await waitFor(() => expect(screen.queryByRole('button', { name: /zoekopdracht bijwerken/i })).not.toBeInTheDocument());
+  });
+
+  // Ticking a filter refines what came back; it does not change the SEARCH, so it must not
+  // raise the notice — that would ask the traveller to press a button for nothing.
+  it('is not raised by a filter below the line', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.click(boardCheck('All inclusive'));
+    await waitFor(() => expect(screen.getAllByRole('checkbox', { name: /^All inclusive/ })[0]).toBeChecked());
+    expect(screen.queryByText('Je zoekopdracht is gewijzigd')).not.toBeInTheDocument();
   });
 
   it('shows every board option the cache reported, with its hotel count', async () => {

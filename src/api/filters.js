@@ -198,13 +198,16 @@ export async function fetchFacets({ countries = [], destinations = [], zones = [
   if (filters.maxBeach)            params.maxBeach      = String(filters.maxBeach);
   if (filters.maxCentre)           params.maxCentre     = String(filters.maxCentre);
   if (filters.adultsOnly)          params.adultsOnly    = '1';
+  // Minimum guest rating on the 10-point scale. Sent only when there IS a bound: '' and 0 both
+  // mean "no preference", and either would otherwise travel as a filter the traveller never set.
+  if (filters.minRating)           params.minRating     = String(filters.minRating);
   if (!codes) params.codes = '0';
   if (!attrs) params.attrs = '0';
   const empty = {
     scope: { countries, destinations, hotelCount: 0 },
     matchedDestinations: [], hotelCodes: [], attributes: {},
     included: { hotelCodes: false, attributes: false },
-    facets: { holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [] },
+    facets: { holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [], review: [] },
   };
   if (!countries.length && !destinations.length) return empty;
   const { data } = await axiosInstance.get('/hotel-filters/facets', { params, signal });

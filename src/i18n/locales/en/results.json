@@ -58,9 +58,15 @@
     "aria": "Transport type"
   },
   "priceBasis": {
-    "total": "Total stay",
-    "perPerson": "Per person",
-    "aria": "Price basis"
+    "aria": "Price basis",
+    "pkg": {
+      "total": "Total trip price",
+      "perPerson": "Per person"
+    },
+    "hotel": {
+      "total": "Total stay price",
+      "perPerson": "Per room/stay"
+    }
   },
   "flightClass": {
     "direct": "direct",
@@ -78,6 +84,9 @@
     "removeRoom": "Remove",
     "childDob": "Child {{number}} date of birth",
     "updateSearch": "Update Search",
+    "searchChanged": "Your search has changed",
+    "searchingResults": "Searching results…",
+    "refine": "Refine results",
     "travelTime": "Travel time",
     "days": "{{count}} days",
     "where": "Where",
@@ -90,10 +99,16 @@
     "otherAirports": "Other airports",
     "originNote": "Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.",
     "arrivalAirport": "Arrival airport",
+    "airportSearch": "Search airport or city",
+    "pickAirports": "Choose one or more airports",
+    "noAirportMatch": "No airport matches that.",
+    "removeAirport": "Remove {{code}}",
     "flyingTo": "Flying to",
     "anyAirport": "Any airport",
     "holidayType": "Holiday Type",
     "starRating": "Star Rating",
+    "review": "Guest rating",
+    "clearReview": "Clear rating",
     "accommodationType": "Accommodation Type",
     "boardType": "Board Type",
     "distance": "Distance",
@@ -120,7 +135,11 @@
     "children": "Children",
     "addRoom": "+ Add room",
     "stars_one": "{{count}}-star",
-    "stars_other": "{{count}}-star"
+    "stars_other": "{{count}}-star",
+    "priceFrom": "From",
+    "priceTo": "To",
+    "availablePrices": "Available prices: {{from}} – {{to}}",
+    "clearPrice": "Clear price range"
   },
   "hero": {
     "home": "Home",

@@ -125,10 +125,19 @@ const TRANSPORT_OPTIONS = [
 const FLIGHT_CLASS_LABEL = { direct: 'direct', one_stop: '1 stop', two_stop: '2 stops' };
 const flightClassLabel = (c) =>
   (c && FLIGHT_CLASS_LABEL[c] ? i18n.t(`results:flightClass.${c}`, FLIGHT_CLASS_LABEL[c]) : '');
-const PRICE_BASIS_OPTIONS = [
-  { value: 'total',     label: 'Total stay' },
-  { value: 'perPerson', label: 'Per person' },
-];
+// Two pairs, because the words have to describe what is actually in the price. With a flight
+// included it is a trip, priced per traveller; hotel-only it is a stay, priced per room. The
+// client's design draws both, on screens 8 and 8A.
+const PRICE_BASIS_OPTIONS = {
+  package: [
+    { value: 'total',     label: 'Total trip price' },
+    { value: 'perPerson', label: 'Per person' },
+  ],
+  hotel_only: [
+    { value: 'total',     label: 'Total stay price' },
+    { value: 'perPerson', label: 'Per room/stay' },
+  ],
+};
 
 const PRICE_STEP = 50;
 const PRICE_CEILING_FALLBACK = 1000;
@@ -141,6 +150,10 @@ const EMPTY_FILTERS = {
   themes: [], stars: [], facilities: [], activities: [],
   accommodation: [], kids: [],           // accommodation type (group 20), kids amenities
   maxBeach: '', maxCentre: '',           // max distance (m) to beach / city centre
+  // Minimum guest rating, on the 10-point scale the cards already show ('' = no preference).
+  // One value rather than a list: the bands are thresholds ("8,0 and better"), so picking two
+  // would only ever mean the lower one.
+  minRating: '',
   adultsOnly: false,                     // "Only Adults" hotels (facility 203/group 85)
   // Transport type. 'hotel_only' → cache searchType=HOTEL_ONLY; 'package' → PACKAGE.
   transport: 'hotel_only',
@@ -148,10 +161,12 @@ const EMPTY_FILTERS = {
   // transport === 'package'; kept when the traveller toggles back so switching to own
   // transport and back doesn't lose the airport they already chose.
   origin: DEFAULT_ORIGIN,
-  // Arrival airport (IATA) the traveller wants to fly INTO. '' = no preference. Unlike the
-  // departure airport, this one really filters: an airport maps to the destinations it
-  // serves, and the search is narrowed to those (see arrivalDestinations).
-  arrival: '',
+  // Arrival airports (IATA) the traveller wants to fly INTO. Empty = no preference. Unlike
+  // the departure airport, these really filter: each maps to the destinations it serves and
+  // the search is narrowed to their union (see arrivalDestinations). A LIST because a country
+  // search can have several usable airports and "Rhodes or Kos" is a real answer; the flight
+  // fares endpoint has always taken a list of arrivals, so nothing downstream needed changing.
+  arrivals: [],
 };
 
 const MONTHS_EN = 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec';
@@ -177,11 +192,11 @@ const countActiveFilters = (f) =>
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
   (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
-  (f.adultsOnly ? 1 : 0) +
+  (f.adultsOnly ? 1 : 0) + (f.minRating !== '' ? 1 : 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0) +
-  (f.arrival ? 1 : 0);
+  (f.arrivals?.length || 0);
 
 // Any content facet active means the cache must be restricted to the resolved hotelCodes.
 const hasContentFacet = (f) =>
@@ -189,7 +204,7 @@ const hasContentFacet = (f) =>
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
   (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
-  (f.adultsOnly ? 1 : 0) > 0;
+  (f.adultsOnly ? 1 : 0) + (f.minRating !== '' ? 1 : 0) > 0;
 
 const fmtDate = (iso) => {
   if (!iso) return '';
@@ -337,17 +352,96 @@ function Segmented({ options, value, onChange, ariaLabel }) {
   );
 }
 
-// One departure airport in the "I want to fly from" list. A radio, not a checkbox: the
-// flight search departs from exactly one airport, and a multi-select would mean one live
-// supplier call per ticked airport on every hotel page.
-function OriginOption({ airport, checked, onPick }) {
+/**
+ * One list of airports: searchable once it is long enough to need it, grouped under the
+ * country the airport is in, each row carrying the city, the airport's own name and its IATA
+ * code — the shape the client's design asks for, and the shape a traveller scans.
+ *
+ * `multiple` is the whole difference between the two ends of the flight. The DEPARTURE airport
+ * is where the fare is priced from, and a fare has one origin, so that list is a single choice.
+ * The ARRIVAL airports narrow the search, and "Rhodes or Kos" is a perfectly good answer, so
+ * that one is a set — with nothing ticked meaning "any airport", which is why it needs no row
+ * of its own for that.
+ */
+function AirportList({ rows, selected, onPick, multiple, name, language }) {
+  const { t } = useTranslation('results');
+  const [query, setQuery] = useState('');
+  const [expanded, setExpanded] = useState(false);
+  const LIMIT = 6;
+
+  const q = query.trim().toLowerCase();
+  const matches = q
+    ? rows.filter((a) => `${a.code} ${a.city} ${a.label}`.toLowerCase().includes(q))
+    : rows;
+  // A picked airport is never hidden by the cap — a filter that conceals itself cannot be undone.
+  const shown = (!q && !expanded && matches.length > LIMIT)
+    ? [...matches.slice(0, LIMIT), ...matches.slice(LIMIT).filter((a) => selected.includes(a.code))]
+    : matches;
+
+  // Country headings appear only once the list is OPEN, which is what the client's design
+  // draws: the short list is the handful of airports most people leave from, in the order the
+  // dashboard ranks them, and grouping that by country would push Amsterdam below every
+  // Belgian regional field. Opened (or searched), the full list is grouped, and a country
+  // gathers ALL of its airports rather than starting a second heading each time the ranking
+  // interleaves them.
+  const grouped = expanded || Boolean(q);
+  const groups = [];
+  if (!grouped) {
+    groups.push({ label: '', rows: shown });
+  } else {
+    const byCountry = new Map();
+    for (const a of shown) {
+      const label = countryName(a.countryIso, language, a.countryIso || '');
+      if (!byCountry.has(label)) byCountry.set(label, []);
+      byCountry.get(label).push(a);
+    }
+    for (const [label, rows] of byCountry) groups.push({ label, rows });
+  }
+
   return (
-    <label className={`${styles.originOption} ${checked ? styles.originOptionOn : ''}`}>
-      <input type="radio" name="originAirport" checked={checked} onChange={onPick} />
-      <span className={styles.originFlag} aria-hidden="true">{airport.country}</span>
-      <span className={styles.originName}>{airport.label}</span>
-      <span className={styles.originCode}>{airport.code}</span>
-    </label>
+    <>
+      {rows.length > LIMIT && (
+        <input
+          type="search"
+          className={styles.apSearch}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder={t('filters.airportSearch', 'Search airport or city')}
+          aria-label={t('filters.airportSearch', 'Search airport or city')}
+        />
+      )}
+      {groups.map((g) => (
+        <div key={g.label} className={styles.apGroup}>
+          {g.label && <p className={styles.apCountry}>{g.label}</p>}
+          {g.rows.map((a) => {
+            const on = selected.includes(a.code);
+            return (
+              <label key={a.code} className={`${styles.apRow} ${on ? styles.apRowOn : ''}`}>
+                <input
+                  type={multiple ? 'checkbox' : 'radio'}
+                  name={name}
+                  checked={on}
+                  onChange={() => onPick(a.code)}
+                />
+                <span className={styles.apText}>
+                  <span className={styles.apCity}>{a.city}</span>
+                  {a.label && a.label !== a.city && <span className={styles.apName}>{a.label}</span>}
+                </span>
+                <span className={styles.apCode}>{a.code}</span>
+              </label>
+            );
+          })}
+        </div>
+      ))}
+      {shown.length === 0 && (
+        <p className={styles.filterEmpty}>{t('filters.noAirportMatch', 'No airport matches that.')}</p>
+      )}
+      {!q && matches.length > LIMIT && (
+        <button type="button" className={styles.facetMore} onClick={() => setExpanded((e) => !e)}>
+          {expanded ? t('filters.showLess', 'Show less') : t('filters.showAll', { count: matches.length, defaultValue: 'Show all {{count}}' })}
+        </button>
+      )}
+    </>
   );
 }
 
@@ -369,7 +463,6 @@ export default function Results() {
     [t]
   );
   // The option lists are module constants, so their labels resolve here.
-  const priceBasisOptions = PRICE_BASIS_OPTIONS.map((o) => ({ ...o, label: t(`priceBasis.${o.value}`, o.label) }));
   const transportOptions = TRANSPORT_OPTIONS.map((o) => ({ ...o, label: t(`transport.${o.value}`, o.label) }));
   const [params] = useSearchParams();
   const navigate = useNavigate();
@@ -535,8 +628,10 @@ export default function Results() {
   //   ?facilities=574     facility code(s), group 70
   //   ?accommodation=2    accommodation type code(s), group 20
   //   ?activities=74:620  activity code(s), bare or group-qualified (see actCode)
+  //   ?arrival=RHO,KGS    arrival airport(s) to fly into
   //   ?adultsOnly=1       only-adults hotels         ("Adults Only" card)
   //   ?maxBeach=500       max distance (m) to the beach / to the city centre
+  //   ?minRating=8        minimum guest rating (/10)
   // Seeded once, on entry; from then on the sidebar owns them like any other filter.
   //
   // Every value is coerced to the type its facet list uses, because the sidebar checkboxes
@@ -569,15 +664,20 @@ export default function Results() {
     const adultsOnly = ['1', 'true', 'yes'].includes((params.get('adultsOnly') || '').toLowerCase());
     const maxBeach  = metres('maxBeach');
     const maxCentre = metres('maxCentre');
+    // A rating outside (0, 10] is not a bound the backend would honour, so it is dropped here
+    // rather than sent — the same rule as the star seed, for the same reason.
+    const ratingSeed = Number(params.get('minRating'));
+    const minRating = Number.isFinite(ratingSeed) && ratingSeed > 0 && ratingSeed <= 10 ? ratingSeed : null;
     // Transport + departure airport arrive from the home search bar and from a shared link.
     // An unrecognised airport falls back to the default rather than being passed to the
     // supplier verbatim (see normaliseOrigin).
     const transport = params.get('transport') === 'package' ? 'package' : null;
     const origin    = params.get('origin') ? normaliseOrigin(params.get('origin')) : null;
-    // Arrival is validated against the fetched list, not a hardcoded one, so it is taken
+    // Arrivals are validated against the fetched list, not a hardcoded one, so they are taken
     // verbatim here — an airport that isn't in the list simply never matches and filters
-    // nothing (see arrivalDestinations), which is the safe failure.
-    const arrival   = (params.get('arrival') || '').trim().toUpperCase() || null;
+    // nothing (see arrivalDestinations), which is the safe failure. One code or several:
+    // ?arrival=RHO and ?arrival=RHO,KGS both work, and older links keep working.
+    const arrivals  = csv(params.get('arrival') || '').map((c) => c.trim().toUpperCase()).filter(Boolean);
     const seed = {
       ...(boards.length        ? { boards } : {}),
       ...(themes.length        ? { themes } : {}),
@@ -589,9 +689,10 @@ export default function Results() {
       ...(adultsOnly           ? { adultsOnly: true } : {}),
       ...(maxBeach  != null    ? { maxBeach } : {}),
       ...(maxCentre != null    ? { maxCentre } : {}),
+      ...(minRating != null    ? { minRating } : {}),
       ...(transport            ? { transport } : {}),
       ...(origin               ? { origin } : {}),
-      ...(arrival              ? { arrival } : {}),
+      ...(arrivals.length      ? { arrivals } : {}),
     };
     // Deriving the guard from the seed itself means a filter added above can never be left out
     // of it and silently ignored.
@@ -609,7 +710,7 @@ export default function Results() {
   // ── FACETS (from the admin content API over the scope) ──────────────────────────
   // holiday / stars / facilities / activities, each with a hotel count. `facetsStatus`:
   // 'loading' | 'ok' | 'error'. attrMap = hotelCode → attributes (stars, distances).
-  const [facets, setFacets]           = useState({ holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [] });
+  const [facets, setFacets]           = useState({ holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [], review: [] });
   const [facetsStatus, setFacetsStatus] = useState('loading');
   const [attrMap, setAttrMap]         = useState({});
 
@@ -623,7 +724,10 @@ export default function Results() {
   // §26 validity (hide airports with no flight to the chosen arrival airport) activates once
   // the flight cache holds data for that arrival — until then the full master list shows.
   const { popular: popularAirports, other: otherAirports } = useDepartureAirports({
-    destination: applied.arrival || undefined,
+    // §26 hides departures with no flight to where the traveller is going, which is only a
+    // question with ONE answer. With several arrivals picked there is no single destination to
+    // check against, so the master list shows in full rather than being narrowed by one of them.
+    destination: applied.arrivals.length === 1 ? applied.arrivals[0] : undefined,
     checkIn: fetchParams.checkIn,
     checkOut: fetchParams.checkOut,
     adults: fetchParams.adults,
@@ -646,6 +750,10 @@ export default function Results() {
   const [countriesStatus, setCountriesStatus] = useState('loading');
 
   const [loading, setLoading]         = useState(true);
+  // True from the moment "Update search" is pressed until the results it asked for land. It is
+  // not the same thing as `loading`, which is also true for a filter tick or a sort — the
+  // button may only show a spinner for the search IT started.
+  const [pendingSearch, setPendingSearch] = useState(false);
   const [filtering, setFiltering]     = useState(false);
   const [fetchingMore, setFetchingMore] = useState(false);
   const [hasMore, setHasMore]         = useState(true);
@@ -797,10 +905,33 @@ export default function Results() {
     () => new Set(scope.destinations.length ? scope.destinations : (priceScope?.destinations ?? [])),
     [scope.destinations, priceScope]
   );
+  // Both lists reach AirportList in ONE shape, so the component never has to know which end
+  // of the flight it is drawing. The departure registry calls the flag `country` and the admin's
+  // arrival rows call it `flag`; the city is what a traveller recognises, the airport's own name
+  // is the confirmation under it.
+  const departureRows = useMemo(
+    () => [...popularAirports, ...otherAirports].map((a) => ({
+      code: a.code, city: a.city || a.label, label: a.label, countryIso: a.countryIso || '',
+    })),
+    [popularAirports, otherAirports]
+  );
+
   const arrivalOptions = useMemo(() => {
     if (!arrivalAirports.length || !scopeDestSet.size) return [];
     return arrivalAirports.filter((a) => a.destinations.some((d) => scopeDestSet.has(d)));
   }, [arrivalAirports, scopeDestSet]);
+
+  const arrivalRows = useMemo(
+    () => arrivalOptions.map((a) => ({
+      code: a.code,
+      // The CITY it serves, not the airport's official name: "Marmaris, Fethiye" tells a
+      // traveller what they get; "Dalaman Airport" doesn't.
+      city: a.cityNames?.length ? a.cityNames.join(', ') : a.name,
+      label: a.name,
+      countryIso: a.countryCode || '',
+    })),
+    [arrivalOptions]
+  );
 
   // destinationCode → the arrival airports that serve it, so each hotel card can find the flight
   // fare for its OWN destination (a country/multi-city page mixes destinations on one screen).
@@ -818,8 +949,8 @@ export default function Results() {
   // Which arrival airports to price flights to: the one the traveller chose, else every airport
   // serving the current scope. Stringified so the fetch effect only re-runs when the set changes.
   const packageArrivalsKey = useMemo(
-    () => (applied.arrival ? [applied.arrival] : arrivalOptions.map((a) => a.code)).join(','),
-    [applied.arrival, arrivalOptions]
+    () => (applied.arrivals.length ? applied.arrivals : arrivalOptions.map((a) => a.code)).join(','),
+    [applied.arrivals, arrivalOptions]
   );
 
   // Fetch the package flight fares whenever "Incl. flight" is on and we have an origin, dates and
@@ -854,12 +985,15 @@ export default function Results() {
   // meaningful and distinct: the airport serves nothing inside this scope, so the search must
   // return nothing rather than silently widening back to the whole scope.
   const arrivalDestinations = useMemo(() => {
-    if (!applied.arrival) return null;
-    const airport = arrivalAirports.find((a) => a.code === applied.arrival);
-    if (!airport) return null;                            // list not loaded yet — don't filter
-    if (!scopeDestSet.size) return airport.destinations;
-    return airport.destinations.filter((d) => scopeDestSet.has(d));
-  }, [applied.arrival, arrivalAirports, scopeDestSet]);
+    if (!applied.arrivals.length) return null;
+    const picked = arrivalAirports.filter((a) => applied.arrivals.includes(a.code));
+    if (!picked.length) return null;                      // list not loaded yet — don't filter
+    // The UNION: two airports mean "either will do", never "both at once", which would
+    // intersect to nothing whenever they serve different cities.
+    const served = [...new Set(picked.flatMap((a) => a.destinations || []))];
+    if (!scopeDestSet.size) return served;
+    return served.filter((d) => scopeDestSet.has(d));
+  }, [applied.arrivals, arrivalAirports, scopeDestSet]);
   // Identity of the narrowing, for effect deps. `null` and `[]` are different states (no
   // filter vs. filter that matches nothing), so they must not collapse to the same key.
   const arrivalKey = arrivalDestinations === null ? '' : `arr:${arrivalDestinations.join(',')}`;
@@ -878,11 +1012,11 @@ export default function Results() {
   // destinations. Sets `facets` (counts stay scope-level so options never vanish), `attrMap`
   // (for distance sorts) and `priceScope` (what the cache prices). Keyed on a STRING of the
   // content facets so it can't loop.
-  const EMPTY_FACETS = { holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [] };
+  const EMPTY_FACETS = { holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [], review: [] };
   const contentKey = [
     applied.themes.join(','), applied.stars.join(','), applied.facilities.join(','), applied.activities.join(','),
     applied.accommodation.join(','), applied.kids.join(','), applied.maxBeach, applied.maxCentre,
-    applied.adultsOnly ? '1' : '',
+    applied.adultsOnly ? '1' : '', applied.minRating,
   ].join('|');
   // What this request actually needs back (the response is ~1 MB with both for a country
   // search, ~7 KB with neither):
@@ -904,7 +1038,7 @@ export default function Results() {
       facilities: applied.facilities, activities: applied.activities,
       accommodation: applied.accommodation, kids: applied.kids,
       maxBeach: applied.maxBeach, maxCentre: applied.maxCentre,
-      adultsOnly: applied.adultsOnly,
+      adultsOnly: applied.adultsOnly, minRating: applied.minRating,
     };
     fetchFacets(scope, selected, { codes: needCodes, attrs: needAttrs, signal: ctrl.signal })
       .then((r) => {
@@ -1178,11 +1312,12 @@ export default function Results() {
         setAllHotels(mapped);
         setLoading(false);
         setFiltering(false);
+        setPendingSearch(false);
       })
       .catch((err) => {
         if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
         console.error('[Results] Contracts API error:', err);
-        setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false);
+        setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false); setPendingSearch(false);
         paginationRef.current = { page: 1, hasMore: false, fetching: false };
       });
 
@@ -1430,6 +1565,11 @@ export default function Results() {
     setFilters((f) => ({ ...f, priceBasis: value, minPrice: '', maxPrice: '' }));
   };
 
+  const toggleArrival = (code) => setFilters((f) => ({
+    ...f,
+    arrivals: f.arrivals.includes(code) ? f.arrivals.filter((c) => c !== code) : [...f.arrivals, code],
+  }));
+
   const clearFilters = () => setFilters(EMPTY_FILTERS);
 
   // ── "APPLIED FROM THIS CARD" ───────────────────────────────────────────────────
@@ -1485,6 +1625,11 @@ export default function Results() {
     return next;
   });
 
+  // Which pair of words the basis toggle shows depends on what is in the price, so it is
+  // built HERE, below the filter state it reads, not at the top of the component.
+  const priceBasisOptions = (PRICE_BASIS_OPTIONS[filters.transport] ?? PRICE_BASIS_OPTIONS.hotel_only)
+    .map((o) => ({ ...o, label: t(`priceBasis.${filters.transport === 'package' ? 'pkg' : 'hotel'}.${o.value}`, o.label) }));
+
   const ceiling = priceCeiling ?? PRICE_CEILING_FALLBACK;
   const sliderMin = filters.minPrice === '' ? 0 : Math.min(Number(filters.minPrice), ceiling);
   const sliderMax = filters.maxPrice === '' ? ceiling : Math.min(Number(filters.maxPrice), ceiling);
@@ -1496,12 +1641,42 @@ export default function Results() {
     const v = Math.min(ceiling, Math.max(Number(raw), sliderMin + PRICE_STEP));
     setFilter('maxPrice', v >= ceiling ? '' : String(v));
   };
+  // Typed bounds are NOT clamped to the slider's ceiling: that ceiling only grows as results
+  // arrive, so clamping "3000" down to it on an early page would quietly change what was
+  // asked for. An empty box means no bound, which is how the filter clears itself.
+  const onTypedMin = (raw) => {
+    const n = Number(String(raw).trim());
+    if (String(raw).trim() === '' || !Number.isFinite(n) || n <= 0) { setFilter('minPrice', ''); return; }
+    setFilter('minPrice', String(Math.round(n)));
+  };
+  const onTypedMax = (raw) => {
+    const n = Number(String(raw).trim());
+    if (String(raw).trim() === '' || !Number.isFinite(n) || n <= 0) { setFilter('maxPrice', ''); return; }
+    setFilter('maxPrice', String(Math.round(n)));
+  };
 
   const activeCount = countActiveFilters(filters);
   const currency    = allHotels[0]?.currency || 'EUR';
   const priceLabel  = (n) => `${currency} ${Math.round(n).toLocaleString()}`;
 
+  // The prices this search actually returned, in the basis being shown. It is read off the
+  // loaded results rather than the slider's bounds, which are a round-numbered ceiling that
+  // only ever grows — so "€ 500 – € 3.850" on the track can sit either side of what exists.
+  // Stated separately, nobody has to drag a handle to find out there is nothing down there.
+  const shownBasis = filters.priceBasis;
+  const availablePrices = useMemo(() => {
+    const amounts = allHotels
+      .map((h) => (shownBasis === 'perPerson' ? h.perPerson : h.totalAmount))
+      .filter((n) => Number.isFinite(n) && n > 0);
+    if (!amounts.length) return null;
+    return { min: Math.min(...amounts), max: Math.max(...amounts) };
+  }, [allHotels, shownBasis]);
+
+  const priceBounded = filters.minPrice !== '' || filters.maxPrice !== '';
+  const clearPrice = () => setFilters((f) => ({ ...f, minPrice: '', maxPrice: '' }));
+
   const applySearch = () => {
+    setPendingSearch(true);
     setFetchParams((prev) => ({
       ...prev,
       checkIn:  localCheckIn,
@@ -1532,6 +1707,23 @@ export default function Results() {
   // The stay length (nights) the current search is priced for — highlights the matching
   // Travel-time option.
   const searchedNights = nightsBetween(fetchParams.checkIn, fetchParams.checkOut);
+
+  // Do the dates and travellers in the sidebar still describe the search that produced these
+  // results? They are edited in place and committed only by the button, so the answer is No
+  // for as long as somebody has changed one and not pressed it — and the results underneath
+  // are then answering a question that is no longer being asked.
+  //
+  // Child ages compare against the same fallback the request builder uses (`fetchParams` only
+  // carries them once a search has been committed, before that the URL's own value stands), so
+  // simply arriving on a link with children on it is not a change.
+  const searchedChildAges = String(fetchParams.childAges ?? childAges ?? '');
+  const searchDirty =
+    localCheckIn !== fetchParams.checkIn ||
+    localCheckOut !== fetchParams.checkOut ||
+    String(totalAdults) !== String(fetchParams.adults) ||
+    String(totalChildren) !== String(fetchParams.children) ||
+    String(roomsN) !== String(fetchParams.rooms) ||
+    allChildAges.join(',') !== searchedChildAges;
 
   // Travel-time filter: pick a specific stay length within the band → re-price at that duration
   // (keeps the check-out date picker in sync). Clicking the active length is a no-op.
@@ -1593,6 +1785,75 @@ export default function Results() {
 
   const sidebar = (
     <>
+      {/* Transport type. The two airport lists below it only appear once a flight is actually
+          wanted — asking "flying from" next to "own transport" is asking a question that has no
+          bearing on anything the traveller will be shown. */}
+      <FilterSection title={t('filters.transport', 'Transport')} defaultOpen>
+        <Segmented options={transportOptions} value={filters.transport} onChange={(v) => setFilter('transport', v)} ariaLabel={t('transport.aria', 'Transport type')} />
+      </FilterSection>
+
+      {/* DEPARTURE AIRPORT — one choice. It is where the fare is priced FROM, and a fare has
+          one origin; it is not a filter on the hotels at all, which is what the note says. */}
+      {filters.transport === 'package' && (
+        <FilterSection title={t('filters.departureAirport', 'Departure airport')} defaultOpen>
+          <div role="radiogroup" aria-label={t('filters.departureAirport', 'Departure airport')}>
+            <AirportList
+              rows={departureRows}
+              selected={[filters.origin]}
+              onPick={(code) => setFilter('origin', code)}
+              name="originAirport"
+              language={i18nInstance.language}
+            />
+          </div>
+          <p className={styles.originNote}>
+            {t(
+              'filters.originNote',
+              'Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.'
+            )}
+          </p>
+        </FilterSection>
+      )}
+
+      {/* ARRIVAL AIRPORTS — several, because each one carries the destinations it serves and
+          "Rhodes or Kos" is a real answer. Nothing ticked means any airport, so the list needs
+          no row for that. Rendered only when the scope HAS linked airports, so it never appears
+          as an empty control promising a narrowing that cannot happen. */}
+      {filters.transport === 'package' && arrivalOptions.length > 0 && (
+        <FilterSection title={t('filters.arrivalAirport', 'Arrival airport')} defaultOpen>
+          <p className={styles.apHint}>{t('filters.pickAirports', 'Choose one or more airports')}</p>
+          {filters.arrivals.length > 0 && (
+            <div className={styles.scopeChips}>
+              {filters.arrivals.map((code) => (
+                <span key={code} className={styles.scopeChip}>
+                  {arrivalRows.find((a) => a.code === code)?.city || code} ({code})
+                  <button type="button" className={styles.scopeChipX} onClick={() => toggleArrival(code)}
+                    aria-label={t('filters.removeAirport', { code, defaultValue: 'Remove {{code}}' })}>×</button>
+                </span>
+              ))}
+            </div>
+          )}
+          <AirportList
+            rows={arrivalRows}
+            selected={filters.arrivals}
+            onPick={toggleArrival}
+            multiple
+            name="arrivalAirport"
+            language={i18nInstance.language}
+          />
+        </FilterSection>
+      )}
+
+      {/* WHERE — multi-country / multi-destination scope. Pick whole countries and/or
+          individual destinations, then Apply. */}
+      <FilterSection title={t('filters.where', 'Where')} defaultOpen>
+        <ScopePicker
+          countries={countryOptions}
+          status={countriesStatus}
+          value={scope}
+          onApply={applyScope}
+        />
+      </FilterSection>
+
       {/* Dates & Guests — re-calls API */}
       <FilterSection title={t('filters.datesGuests', 'Dates & Guests')} defaultOpen>
         <div className={styles.dateGroup}>
@@ -1649,10 +1910,6 @@ export default function Results() {
         {roomsConfig.length < 5 && (
           <button type="button" className={styles.addRoomBtn} onClick={addRoom}>{t('filters.addRoom', '+ Add room')}</button>
         )}
-        <button className={styles.applyBtn} onClick={applySearch}>
-          <Icon d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" size={13} sw={2.2} />
-          {t('filters.updateSearch', 'Update Search')}
-        </button>
       </FilterSection>
 
       {/* TRAVEL TIME — the duration band chosen on the home page, with each individual stay length
@@ -1672,19 +1929,75 @@ export default function Results() {
         </FilterSection>
       )}
 
-      {/* WHERE — multi-country / multi-destination scope. Pick whole countries and/or
-          individual destinations, then Apply. */}
-      <FilterSection title={t('filters.where', 'Where')} defaultOpen>
-        <ScopePicker
-          countries={countryOptions}
-          status={countriesStatus}
-          value={scope}
-          onApply={applyScope}
-        />
-      </FilterSection>
+      {/* ── The line between the two halves of this sidebar ──
+          Everything above re-runs the SEARCH; everything below refines what came back. The
+          dates and the travellers are edited in place and committed only by this button, so
+          until it is pressed the results underneath still belong to the previous search. The
+          notice says that out loud rather than leaving it to be noticed. */}
+      {(searchDirty || pendingSearch) && (
+        <div className={styles.searchUpdate}>
+          {searchDirty && !pendingSearch && (
+            <p className={styles.searchChanged}>
+              <Icon d="M20 6L9 17l-5-5" size={13} sw={3} />
+              {t('filters.searchChanged', 'Your search has changed')}
+            </p>
+          )}
+          <button className={styles.applyBtn} onClick={applySearch} disabled={pendingSearch}>
+            {pendingSearch ? (
+              <>
+                <span className={styles.applySpinner} aria-hidden="true" />
+                {t('filters.searchingResults', 'Searching results…')}
+              </>
+            ) : (
+              <>
+                <Icon d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" size={13} sw={2.2} />
+                {t('filters.updateSearch', 'Update Search')}
+              </>
+            )}
+          </button>
+        </div>
+      )}
+
+      <div className={styles.refineHead}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
+          <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
+        </svg>
+        <h3>{t('filters.refine', 'Refine results')}</h3>
+      </div>
 
       {/* Price Range */}
       <FilterSection title={t('filters.priceRange', 'Price Range')} defaultOpen>
+        <Segmented options={priceBasisOptions} value={filters.priceBasis} onChange={setPriceBasis} ariaLabel={t('priceBasis.aria', 'Price basis')} />
+        {/* Typed bounds as well as the handles: a slider is fine for "roughly", useless for
+            "under 900". Both write the same two filters, so they cannot disagree. Committed on
+            blur and on Enter rather than per keystroke — mid-word a "9" of "900" is a real
+            bound and would fire a search for it. */}
+        <div className={styles.priceInputs}>
+          <label className={styles.priceInput}>
+            <span>{t('filters.priceFrom', 'From')}</span>
+            <input
+              type="number" inputMode="numeric" min={0} max={ceiling} step={PRICE_STEP}
+              defaultValue={filters.minPrice === '' ? '' : sliderMin}
+              key={`min-${filters.minPrice}`}
+              placeholder={String(0)}
+              onBlur={(e) => onTypedMin(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              aria-label={t('filters.minPrice', 'Minimum price')}
+            />
+          </label>
+          <label className={styles.priceInput}>
+            <span>{t('filters.priceTo', 'To')}</span>
+            <input
+              type="number" inputMode="numeric" min={0} max={ceiling} step={PRICE_STEP}
+              defaultValue={filters.maxPrice === '' ? '' : sliderMax}
+              key={`max-${filters.maxPrice}`}
+              placeholder={String(Math.round(ceiling))}
+              onBlur={(e) => onTypedMax(e.target.value)}
+              onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
+              aria-label={t('filters.maxPrice', 'Maximum price')}
+            />
+          </label>
+        </div>
         <div className={styles.priceSliderWrap}>
           <div className={styles.priceDual}>
             <div className={styles.priceDualTrack}>
@@ -1699,72 +2012,97 @@ export default function Results() {
             <span>{priceLabel(ceiling)}</span>
           </div>
         </div>
-        <Segmented options={priceBasisOptions} value={filters.priceBasis} onChange={setPriceBasis} ariaLabel={t('priceBasis.aria', 'Price basis')} />
+        {availablePrices && (
+          <p className={styles.priceAvailable}>
+            {t('filters.availablePrices', {
+              from: priceLabel(availablePrices.min),
+              to: priceLabel(availablePrices.max),
+              defaultValue: 'Available prices: {{from}} – {{to}}',
+            })}
+          </p>
+        )}
+        {priceBounded && (
+          <button type="button" className={styles.filterClearLink} onClick={clearPrice}>
+            {t('filters.clearPrice', 'Clear price range')}
+          </button>
+        )}
       </FilterSection>
 
-      {/* Transport type + departure airport. The airport only appears once a flight is
-          actually wanted — offering "flying from" next to "own transport" asks the traveller
-          to answer a question that has no bearing on anything they will be shown. */}
-      <FilterSection title={t('filters.transport', 'Transport')} defaultOpen>
-        <Segmented options={transportOptions} value={filters.transport} onChange={(v) => setFilter('transport', v)} ariaLabel={t('transport.aria', 'Transport type')} />
-        {filters.transport === 'package' && (
-          <div className={styles.originPicker} role="radiogroup" aria-label={t('filters.departureAirport', 'Departure airport')}>
-            <div className={styles.originLabel}>{t('filters.flyFrom', 'I want to fly from')}</div>
-            <div className={styles.originGroup}>
-              {popularAirports.map((a) => (
-                <OriginOption key={a.code} airport={a} checked={filters.origin === a.code}
-                  onPick={() => setFilter('origin', a.code)} />
-              ))}
-            </div>
-            {/* An airport picked under "Other" must not hide its own selection when the
-                traveller collapses the list — keep it open while one of its rows is current. */}
-            <details className={styles.originMore} open={otherAirports.some((a) => a.code === filters.origin) || undefined}>
-              <summary className={styles.originMoreSummary}>{t('filters.otherAirports', 'Other airports')}</summary>
-              <div className={styles.originGroup}>
-                {otherAirports.map((a) => (
-                  <OriginOption key={a.code} airport={a} checked={filters.origin === a.code}
-                    onPick={() => setFilter('origin', a.code)} />
-                ))}
-              </div>
-            </details>
-            <p className={styles.originNote}>
-              {t(
-                'filters.originNote',
-                'Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.'
-              )}
-            </p>
+      {/* Board Type — DYNAMIC from the cache: only boards that exist for this search, with counts. */}
+      <FilterSection title={t('filters.boardType', 'Board Type')} defaultOpen>
+        {Object.keys(boardFacets).length === 0 ? (
+          <p className={styles.filterEmpty}>{loading ? t('filters.loading', 'Loading…') : t('filters.noBoardData', 'No board data for this search.')}</p>
+        ) : (
+          Object.entries(boardFacets).sort((a, b) => b[1] - a[1]).map(([code, n]) => (
+            <FilterCheck key={code} label={`${getBoardLabel(code)} (${n})`} checked={filters.boards.includes(code)} onChange={() => toggleCode('boards', code)} />
+          ))
+        )}
+      </FilterSection>
 
-            {/* ── Flying to ── Unlike the departure airport, this one really filters: each
-                option carries the destinations it serves, and picking it narrows the search
-                to those. Rendered only when the scope HAS linked airports, so it never
-                appears as an empty control. */}
-            {arrivalOptions.length > 0 && (
-              <div className={styles.arrivalPicker} role="radiogroup" aria-label={t('filters.arrivalAirport', 'Arrival airport')}>
-                <div className={styles.originLabel}>{t('filters.flyingTo', 'Flying to')}</div>
-                <div className={styles.originGroup}>
-                  <label className={`${styles.originOption} ${!filters.arrival ? styles.originOptionOn : ''}`}>
-                    <input type="radio" name="arrivalAirport" checked={!filters.arrival}
-                      onChange={() => setFilter('arrival', '')} />
-                    <span className={styles.originName}>{t('filters.anyAirport', 'Any airport')}</span>
-                  </label>
-                  {arrivalOptions.map((a) => (
-                    <label key={a.code}
-                      className={`${styles.originOption} ${filters.arrival === a.code ? styles.originOptionOn : ''}`}>
-                      <input type="radio" name="arrivalAirport" checked={filters.arrival === a.code}
-                        onChange={() => setFilter('arrival', a.code)} />
-                      <span className={styles.originFlag} aria-hidden="true">{a.flag}</span>
-                      {/* The CITY it serves, not the airport's official name: "Marmaris,
-                          Fethiye" tells a traveller what they get; "Dalaman Airport" doesn't. */}
-                      <span className={styles.originName} title={a.name}>
-                        {a.cityNames?.length ? a.cityNames.join(', ') : a.name}
-                      </span>
-                      <span className={styles.originCode}>{a.code}</span>
-                    </label>
-                  ))}
-                </div>
-              </div>
-            )}
+      {/* Star Rating — DYNAMIC from the admin facets, with counts. */}
+      <FilterSection title={t('filters.starRating', 'Star Rating')} defaultOpen>
+        {facets.stars.length === 0 ? (
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? t('filters.loading', 'Loading…') : t('filters.noStarData', 'No star data for this search.')}</p>
+        ) : (
+          facets.stars.map((s) => (
+            <FilterCheck
+              key={s.stars}
+              label={`${'★'.repeat(s.stars)} ${starLabel(s.stars)} (${s.hotels})`}
+              checked={filters.stars.includes(s.stars)}
+              onChange={() => toggleCode('stars', s.stars)}
+            />
+          ))
+        )}
+      </FilterSection>
+
+      {/* Accommodation Type — DYNAMIC from the admin facets (group 20), with counts. OR-within
+          (a hotel IS one type), so ticking several widens to "any of these". */}
+      {/* GUEST RATING — the harvested TripAdvisor score, on the same /10 scale the cards show.
+          Radios, not checkboxes: each row is a threshold ("8,0 and better"), so two ticked would
+          only ever mean the lower one. The section appears only once the backend sends the facet,
+          so an older admin build simply leaves it out rather than showing an empty box.
+
+          A hotel with no harvested rating is not in any band, and picking one therefore hides it.
+          That is what the filter says, but it is also why it clears in one click. */}
+      {facets.review?.length > 0 && (
+        <FilterSection title={t('filters.review', 'Guest rating')} defaultOpen>
+          <div role="radiogroup" aria-label={t('filters.review', 'Guest rating')}>
+            {facets.review.map((band) => (
+              <label key={band.minRating} className={styles.reviewRow}>
+                <input
+                  type="radio"
+                  name="reviewBand"
+                  checked={Number(filters.minRating) === band.minRating}
+                  onChange={() => setFilter('minRating', band.minRating)}
+                />
+                <span className={styles.reviewScore}>
+                  {band.minRating.toLocaleString(numberLocale, { minimumFractionDigits: 1 })}
+                  <small>/10</small>
+                </span>
+                <span className={styles.reviewWord}>{scoreWord(band.minRating)}</span>
+                <span className={styles.reviewCount}>({band.hotels.toLocaleString(numberLocale)})</span>
+              </label>
+            ))}
           </div>
+          {filters.minRating !== '' && (
+            <button type="button" className={styles.filterClearLink} onClick={() => setFilter('minRating', '')}>
+              {t('filters.clearReview', 'Clear rating')}
+            </button>
+          )}
+        </FilterSection>
+      )}
+
+      <FilterSection title={t('filters.accommodationType', 'Accommodation Type')} defaultOpen={false}>
+        {facets.accommodation.length === 0 ? (
+          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? t('filters.loading', 'Loading…') : t('filters.noAccommodationData', 'No accommodation data for this search.')}</p>
+        ) : (
+          <FacetList
+            items={facets.accommodation}
+            isChecked={(a) => filters.accommodation.includes(a.code)}
+            render={(a) => (
+              <FilterCheck key={a.code} label={`${cap(a.name)} (${a.hotels})`} checked={filters.accommodation.includes(a.code)} onChange={() => toggleCode('accommodation', a.code)} />
+            )}
+          />
         )}
       </FilterSection>
 
@@ -1792,47 +2130,13 @@ export default function Results() {
         )}
       </FilterSection>
 
-      {/* Star Rating — DYNAMIC from the admin facets, with counts. */}
-      <FilterSection title={t('filters.starRating', 'Star Rating')} defaultOpen>
-        {facets.stars.length === 0 ? (
-          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? t('filters.loading', 'Loading…') : t('filters.noStarData', 'No star data for this search.')}</p>
-        ) : (
-          facets.stars.map((s) => (
-            <FilterCheck
-              key={s.stars}
-              label={`${'★'.repeat(s.stars)} ${starLabel(s.stars)} (${s.hotels})`}
-              checked={filters.stars.includes(s.stars)}
-              onChange={() => toggleCode('stars', s.stars)}
-            />
-          ))
-        )}
-      </FilterSection>
-
-      {/* Accommodation Type — DYNAMIC from the admin facets (group 20), with counts. OR-within
-          (a hotel IS one type), so ticking several widens to "any of these". */}
-      <FilterSection title={t('filters.accommodationType', 'Accommodation Type')} defaultOpen={false}>
-        {facets.accommodation.length === 0 ? (
-          <p className={styles.filterEmpty}>{facetsStatus === 'loading' ? t('filters.loading', 'Loading…') : t('filters.noAccommodationData', 'No accommodation data for this search.')}</p>
-        ) : (
-          <FacetList
-            items={facets.accommodation}
-            isChecked={(a) => filters.accommodation.includes(a.code)}
-            render={(a) => (
-              <FilterCheck key={a.code} label={`${cap(a.name)} (${a.hotels})`} checked={filters.accommodation.includes(a.code)} onChange={() => toggleCode('accommodation', a.code)} />
-            )}
-          />
-        )}
-      </FilterSection>
-
-      {/* Board Type — DYNAMIC from the cache: only boards that exist for this search, with counts. */}
-      <FilterSection title={t('filters.boardType', 'Board Type')} defaultOpen>
-        {Object.keys(boardFacets).length === 0 ? (
-          <p className={styles.filterEmpty}>{loading ? t('filters.loading', 'Loading…') : t('filters.noBoardData', 'No board data for this search.')}</p>
-        ) : (
-          Object.entries(boardFacets).sort((a, b) => b[1] - a[1]).map(([code, n]) => (
-            <FilterCheck key={code} label={`${getBoardLabel(code)} (${n})`} checked={filters.boards.includes(code)} onChange={() => toggleCode('boards', code)} />
-          ))
-        )}
+      {/* Adults only — boolean content facet (the "Adults Only" vacation-type card seeds ?adultsOnly=1). */}
+      <FilterSection title={t('filters.adultsOnly', 'Adults only')} defaultOpen={false}>
+        <FilterCheck
+          label={t('filters.adultsOnlyHotels', 'Adults-only hotels')}
+          checked={filters.adultsOnly}
+          onChange={() => setFilter('adultsOnly', !filters.adultsOnly)}
+        />
       </FilterSection>
 
       {/* Distance — filter by MAX distance to the beach / city centre (admin facets group 40).
@@ -1873,6 +2177,19 @@ export default function Results() {
         )}
       </FilterSection>
 
+      {/* Family & Kids — curated child-friendly amenities (admin facets), with counts. */}
+      {facets.kids.length > 0 && (
+        <FilterSection title={t('filters.familyKids', 'Family & Kids')} defaultOpen={false}>
+          <FacetList
+            items={facets.kids}
+            isChecked={(k) => filters.kids.includes(k.code)}
+            render={(k) => (
+              <FilterCheck key={k.code} label={`${k.name} (${k.hotels})`} checked={filters.kids.includes(k.code)} onChange={() => toggleCode('kids', k.code)} />
+            )}
+          />
+        </FilterSection>
+      )}
+
       {/* Activities — DYNAMIC from the admin facets (groups 73/74/90 + 71 catering), with counts.
           Keyed by group AND code: the same code appears in several groups under different names
           (410 is both Hot tub and Surfing), so the bare code is not a unique row identity. */}
@@ -1888,28 +2205,6 @@ export default function Results() {
             )}
           />
         )}
-      </FilterSection>
-
-      {/* Family & Kids — curated child-friendly amenities (admin facets), with counts. */}
-      {facets.kids.length > 0 && (
-        <FilterSection title={t('filters.familyKids', 'Family & Kids')} defaultOpen={false}>
-          <FacetList
-            items={facets.kids}
-            isChecked={(k) => filters.kids.includes(k.code)}
-            render={(k) => (
-              <FilterCheck key={k.code} label={`${k.name} (${k.hotels})`} checked={filters.kids.includes(k.code)} onChange={() => toggleCode('kids', k.code)} />
-            )}
-          />
-        </FilterSection>
-      )}
-
-      {/* Adults only — boolean content facet (the "Adults Only" vacation-type card seeds ?adultsOnly=1). */}
-      <FilterSection title={t('filters.adultsOnly', 'Adults only')} defaultOpen={false}>
-        <FilterCheck
-          label={t('filters.adultsOnlyHotels', 'Adults-only hotels')}
-          checked={filters.adultsOnly}
-          onChange={() => setFilter('adultsOnly', !filters.adultsOnly)}
-        />
       </FilterSection>
 
       {/* Room Type — server-side (`roomTypes`) */}
@@ -2152,7 +2447,12 @@ export default function Results() {
                 // never hotel-only. Cheapest arrival is used when the destination has several. Falls
                 // back to the hotel figure (+ "priced on hotel page" note) when no flight is cached.
                 const isPackage = filters.transport === 'package';
-                const cardArrivals = applied.arrival ? [applied.arrival] : (destToArrivals.get(hotelDest) || []);
+                // With arrivals chosen, only those that actually serve this hotel's city can
+                // price its flight; a hotel is shown at all because at least one of them does.
+                const servingHere = destToArrivals.get(hotelDest) || [];
+                const cardArrivals = applied.arrivals.length
+                  ? servingHere.filter((c) => applied.arrivals.includes(c))
+                  : servingHere;
                 let flightFare = null;
                 for (const ac of cardArrivals) {
                   const f = packageFares[ac];
