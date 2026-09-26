@@ -122,7 +122,7 @@ export default function ForgotPassword() {
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
           {/* The wordmark carries the name, so no text beside it. */}
-          <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} className={styles.logoWordmark} />
+          <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} onError={brandLogo.onError} className={styles.logoWordmark} />
         </Link>
 
         <div className={styles.brandHero}>

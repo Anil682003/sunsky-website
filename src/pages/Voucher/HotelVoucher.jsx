@@ -120,7 +120,7 @@ export default function HotelVoucher() {
         <header className="hv-head">
           <div className="hv-logo">
             {/* Wordmark only: it already says Sunsky. */}
-            <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} />
+            <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} onError={brandLogo.onError} />
           </div>
           <h1 className="hv-title hd">{t('voucher:title', 'HOTEL VOUCHER')}</h1>
         </header>

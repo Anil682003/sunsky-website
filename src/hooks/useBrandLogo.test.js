@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { resolveBrandLogo, BUNDLED_LOGO } from './useBrandLogo';
+import { resolveBrandLogo, useBrandLogo, BUNDLED_LOGO } from './useBrandLogo';
 
 // The site draws its logo in six places: the bar, the footer, sign-in, register, verify and
 // the printable voucher. Each of them used to decide for itself which CMS slot to read, and
@@ -30,6 +30,21 @@ describe('which logo the site draws', () => {
     expect(resolveBrandLogo()).toBe(BUNDLED_LOGO);
     // Empty strings are what an untouched CMS field actually sends, not undefined.
     expect(resolveBrandLogo({ header: '', homepage: '   ', footer: null })).toBe(BUNDLED_LOGO);
+  });
+
+  // The logo the site now shows is a file on the admin's own disk, and that disk has been
+  // wiped before (it cost us 170 airline logos). A missing file there comes back as the SPA's
+  // index.html with a 200, which an <img> cannot decode — so the fallback has to hang off
+  // onError, not off a 404 nobody sends.
+  it('falls back to the bundled file when a CMS logo stops loading', async () => {
+    const { renderHook } = await import('@testing-library/react');
+    const { result } = renderHook(() => useBrandLogo());
+    const img = { src: 'https://cdn.test/gone.png' };
+    result.current.onError({ currentTarget: img });
+    expect(img.src).toBe(BUNDLED_LOGO);
+    // …and it does not loop: a second failure on the bundled file changes nothing.
+    result.current.onError({ currentTarget: img });
+    expect(img.src).toBe(BUNDLED_LOGO);
   });
 
   // A dashboard upload is stored as a path on the ADMIN origin, which resolves to nothing at

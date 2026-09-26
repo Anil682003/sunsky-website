@@ -655,7 +655,7 @@ export default function Register() {
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
           {/* The wordmark carries the name, so no text beside it. */}
-          <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} className={styles.logoWordmark} />
+          <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} onError={brandLogo.onError} className={styles.logoWordmark} />
         </Link>
 
         <p className={styles.eyebrow}>{t('auth:register.eyebrow', 'Travel • Explore • Create memories')}</p>

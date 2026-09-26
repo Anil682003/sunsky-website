@@ -96,6 +96,15 @@ export function useBrandLogo(fallbacks = {}) {
     // The dashboard's own wording when it has any. It is the company's name for its own mark,
     // so it wins over the one written into a page.
     alt: header?.logoAltText?.trim() || '',
+    // A CMS logo that has stopped resolving must not leave a torn image where the brand goes.
+    // This is not hypothetical: a dashboard upload can be served from the admin's own disk,
+    // and a file missing from there comes back as the SPA's index.html with a 200, which an
+    // <img> can neither decode nor report as a 404. Either way onError fires and the bundled
+    // mark takes over. The bar and the footer have always done this; now every caller does.
+    onError: (e) => {
+      const img = e.currentTarget;
+      if (img.src !== bundledLogo) { img.src = bundledLogo; }
+    },
   };
 }
 
