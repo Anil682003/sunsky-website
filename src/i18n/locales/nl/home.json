@@ -29,6 +29,9 @@
     "title": "Waarom boeken bij Sunsky?",
     "subtitle": "Duizenden reizigers vertrouwen op ons voor een zorgeloze vakantie.",
     "opensWebsite": "{{name}} (opent hun website)",
+    "script1": "Reis",
+    "script2": "Meer",
+    "script3": "Minder zorgen",
     "items": {
       "bestPrice": {
         "title": "Laagsteprijsgarantie",

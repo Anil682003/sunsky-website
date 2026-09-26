@@ -27,8 +27,11 @@
   "trust": {
     "tag": "Trust",
     "title": "Why book with Sunsky?",
-    "subtitle": "Thousands of travelers trust us for stress-free holidays.",
+    "subtitle": "Thousands of travellers trust us for stress-free holidays.",
     "opensWebsite": "{{name}} (opens their website)",
+    "script1": "Travel",
+    "script2": "More",
+    "script3": "Worry Less",
     "items": {
       "bestPrice": {
         "title": "Best Price Guarantee",

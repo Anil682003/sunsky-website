@@ -1,20 +1,42 @@
 import styles from './Trust.module.css';
-import SectionHead from './SectionHead';
 import { INSURANCE_MARKS } from '../../../utils/insuranceMarks';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
+import { cmsText } from '../../../utils/cmsText';
 import CmsLink from '../../../components/CmsLink/CmsLink';
 import { useTranslation } from 'react-i18next';
 
 const FALLBACK_ITEMS = [
   { key:'bestPrice', title:'Best Price Guarantee', desc:"Found it cheaper? We'll match and beat it.",
-    icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg> },
+    icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M20.59 13.41l-7.17 7.17a2 2 0 01-2.83 0L2 12V2h10l8.59 8.59a2 2 0 010 2.82z"/><circle cx="7" cy="7" r="1.5" fill="currentColor"/></svg> },
   { key:'noFees', title:'No Booking Fees', desc:'What you see is what you pay. Zero hidden charges.',
-    icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="M9 12l2 2 4-4"/></svg> },
+    icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M19 7.5V6a2 2 0 00-2-2H5.5A2.5 2.5 0 003 6.5v11A2.5 2.5 0 005.5 20H19a2 2 0 002-2v-1.5"/><path d="M3 6.5A2.5 2.5 0 005.5 9H20a1 1 0 011 1v2.5h-4.2a2 2 0 100 4H21"/></svg> },
   { key:'securePayment', title:'Secure Payment', desc:'256-bit SSL encryption on every transaction.',
-    icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="1" y="4" width="22" height="16" rx="2"/><path d="M1 10h22"/></svg> },
+    icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><rect x="2" y="4.5" width="20" height="15" rx="3"/><path d="M2 9.5h20"/><path d="M6 15h4"/></svg> },
   { key:'trustedPartners', title:'Trusted Partners', desc:'Only verified hotels and airlines.',
-    icon:<svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> },
+    icon:<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg> },
 ];
+
+/**
+ * One colour per card, in the order the cards are laid out.
+ *
+ * `tint` is the icon tile, `wash` the arrow's disc and `ink` the mark drawn on both. They go
+ * down as custom properties rather than as six pairs of classes, so a card's whole colour
+ * story is one row of this table and the stylesheet stays one card wide.
+ */
+const ACCENTS = [
+  { tint:'#DBEAFE', wash:'#EDF4FE', ink:'#2563EB' },
+  { tint:'#E2F7E7', wash:'#EDF8F1', ink:'#0E9F6E' },
+  { tint:'#FEF3E4', wash:'#FDF5EA', ink:'#E0870F' },
+  { tint:'#E7E0FE', wash:'#F1EDFE', ink:'#7C3AED' },
+  { tint:'#FED8E2', wash:'#FDEAEF', ink:'#E11D48' },
+  { tint:'#DBEAFE', wash:'#EDF4FE', ink:'#2563EB' },
+];
+
+const ARROW = (
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12h13M13 6l6 6-6 6" />
+  </svg>
+);
 
 /**
  * The guarantee seal for a slot the dashboard left EMPTY.
@@ -46,7 +68,14 @@ export default function Trust({ cms }) {
   const sh = cms?.sectionHeaders?.trust;
   const tag      = sh?.tag      || t('trust.tag', 'Trust');
   const title    = sh?.title    || t('trust.title', 'Why book with Sunsky?');
-  const subtitle = sh?.subtitle || t('trust.subtitle', 'Thousands of travelers trust us for stress-free holidays.');
+  const subtitle = sh?.subtitle || t('trust.subtitle', 'Thousands of travellers trust us for stress-free holidays.');
+
+  // The heading is written out here instead of coming from SectionHead: this section runs at
+  // its own scale over the photograph, and its last word is picked out in brand blue rather
+  // than in the handwritten accent the other sections use.
+  const words = String(title ?? '').trim().split(/\s+/).filter(Boolean);
+  const lastWord = words.pop();
+  const leadWords = words.join(' ');
 
   // A card is a PROMISE (icon + words, written in the dashboard) or a SEAL (a guarantee mark
   // we hold, drawn from the assets). The dashboard's own text still wins on a seal card, so the
@@ -78,38 +107,81 @@ export default function Trust({ cms }) {
   return (
     <section className={styles.section}>
       <div className={styles.inner}>
-        {/* The trust section keeps its heading plain: no script word, nothing playful. */}
-        <SectionHead eyebrow={tag} title={title} subtitle={subtitle} accent={false} />
+        <header className={styles.head}>
+          {tag && <p className={styles.eyebrow}>{tag}</p>}
+          <h2 className={styles.title}>
+            {leadWords}
+            {lastWord && (
+              <>
+                {leadWords && ' '}
+                <span className={styles.titleAccent}>{lastWord}</span>
+              </>
+            )}
+          </h2>
+          {subtitle && <p className={styles.sub}>{cmsText(subtitle)}</p>}
+        </header>
+
+        {/* The handwriting that trails the aeroplane across the photograph. It is decoration
+            rather than copy: hidden from assistive technology, and dropped altogether once the
+            heading wants the width. It hangs off the section's own column rather than off the
+            heading, so a longer title in either language cannot push it into the aeroplane. */}
+        <p className={styles.script} aria-hidden="true">
+          <span>{t('trust.script1', 'Travel')}</span>
+          <span>{t('trust.script2', 'More')}</span>
+          <span>{t('trust.script3', 'Worry Less')}</span>
+        </p>
 
         {/* Every card has the same shape: a mark (icon, or the seal itself), a title and a
             line of text, so a promise and a guarantee read at the same weight. */}
         <div className={styles.grid}>
-          {items.map((item, i) => (
-            <div key={i} className={styles.item}>
-              {item.mark ? (
-                <div className={styles.markWrap}>
-                  <CmsLink
-                    url={item.url}
-                    className={styles.markLink}
-                    title={
-                      item.url
-                        ? t('trust.opensWebsite', {
-                            name: item.mark.alt,
-                            defaultValue: '{{name}} (opens their website)',
-                          })
-                        : undefined
-                    }
-                  >
-                    <img className={styles.mark} src={item.mark.img} alt={item.mark.alt} loading="lazy" />
-                  </CmsLink>
+          {items.map((item, i) => {
+            const accent = ACCENTS[i % ACCENTS.length];
+            return (
+              <div
+                key={i}
+                className={styles.item}
+                style={{ '--tint': accent.tint, '--wash': accent.wash, '--ink': accent.ink }}
+              >
+                <div className={styles.top}>
+                  {item.mark ? (
+                    <div className={styles.markWrap}>
+                      <CmsLink
+                        url={item.url}
+                        className={styles.markLink}
+                        title={
+                          item.url
+                            ? t('trust.opensWebsite', {
+                                name: item.mark.alt,
+                                defaultValue: '{{name}} (opens their website)',
+                              })
+                            : undefined
+                        }
+                      >
+                        <img className={styles.mark} src={item.mark.img} alt={item.mark.alt} loading="lazy" />
+                      </CmsLink>
+                    </div>
+                  ) : (
+                    item.icon && <div className={styles.icon}>{item.icon}</div>
+                  )}
+
+                  {/* The arrow belongs to the design, so every card carries one. On a seal card
+                      the seal is already the link, and a second link to the same place would
+                      only read the destination out twice, so there the arrow is a drawing and
+                      nothing more. */}
+                  {item.url && !item.mark ? (
+                    <CmsLink url={item.url} className={styles.arrow} aria-label={item.title || undefined}>
+                      {ARROW}
+                    </CmsLink>
+                  ) : (
+                    <span className={styles.arrow} aria-hidden="true">{ARROW}</span>
+                  )}
                 </div>
-              ) : (
-                item.icon && <div className={styles.icon}>{item.icon}</div>
-              )}
-              {item.title && <div className={styles.itemTitle}>{item.title}</div>}
-              {item.desc && <div className={styles.itemDesc}>{item.desc}</div>}
-            </div>
-          ))}
+
+                {item.title && <div className={styles.itemTitle}>{item.title}</div>}
+                {item.desc && <div className={styles.itemDesc}>{item.desc}</div>}
+              </div>
+            );
+          })}
         </div>
       </div>
     </section>
