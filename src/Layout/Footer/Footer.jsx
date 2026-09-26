@@ -7,7 +7,7 @@ import { findLegalLink } from '../../utils/legalLinks';
 import Trustpilot from '../../components/Trustpilot/Trustpilot';
 import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
 import { useConsent } from '../../context/ConsentContext';
-import mainLogoFallback from '../../assets/main-logo.png';
+import { useBrandLogo, BUNDLED_LOGO } from '../../hooks/useBrandLogo';
 import { useTranslation } from 'react-i18next';
 
 // Shown only until the footer CMS answers (or if it is unreachable), so the
@@ -66,14 +66,14 @@ export default function Footer() {
   const { reopen } = useConsent();
   const cookiePolicyUrl = findLegalLink(footer, ['cookie'], '/p/privacy-legal#cookie-policy');
 
-  // The footer CMS owns its own brand logo, then the homepage one, then the bundled file.
-  // That last step is new: before, an empty or unreachable CMS dropped the footer to a plain
-  // text brand name, which looks broken for a reason the visitor cannot see. All three hold
-  // the same wordmark now.
-  const logoUrl =
-    resolveCmsImageUrl(footer?.brandLogoUrl)
-    || resolveCmsImageUrl(cmsConfig?.logo?.mainUrl)
-    || mainLogoFallback;
+  // One logo for the whole site, and the header slot leads — see hooks/useBrandLogo. This
+  // footer used to prefer its OWN brandLogoUrl, which is why changing the logo in CMS →
+  // Layout → Header moved the bar and left the footer showing the previous mark. The footer's
+  // own slot is still honoured, but behind the one the agency actually edits.
+  const { src: logoUrl, alt: cmsLogoAlt } = useBrandLogo({
+    homepage: cmsConfig?.logo?.mainUrl,
+    footer: footer?.brandLogoUrl,
+  });
   const brandName = footer?.brandName || 'Sunsky';
   const brandDesc =
     footer?.brandDescription ||
@@ -113,9 +113,9 @@ export default function Footer() {
             {logoUrl ? (
               <img
                 src={logoUrl}
-                alt={brandName}
+                alt={cmsLogoAlt || brandName}
                 className={styles.logoImg}
-                onError={(e) => { if (e.currentTarget.src !== mainLogoFallback) e.currentTarget.src = mainLogoFallback; }}
+                onError={(e) => { if (e.currentTarget.src !== BUNDLED_LOGO) e.currentTarget.src = BUNDLED_LOGO; }}
               />
             ) : (
               <span className={styles.logoText}>{brandName}</span>

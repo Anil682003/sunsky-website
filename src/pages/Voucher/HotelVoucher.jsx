@@ -1,6 +1,6 @@
 import { useLocation, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import mainLogo from '../../assets/main-logo.png';
+import { useBrandLogo } from '../../hooks/useBrandLogo';
 import './HotelVoucher.css';
 
 /* ── tiny SVG helper ── */
@@ -96,6 +96,9 @@ const Cell = ({ icon, label, children }) => (
 );
 
 export default function HotelVoucher() {
+  // The logo the dashboard sets, with the bundled one showing until it lands.
+  const brandLogo = useBrandLogo();
+
   const { t } = useTranslation('voucher');
   const { state } = useLocation();
   const navigate = useNavigate();
@@ -117,7 +120,7 @@ export default function HotelVoucher() {
         <header className="hv-head">
           <div className="hv-logo">
             {/* Wordmark only: it already says Sunsky. */}
-            <img src={mainLogo} alt="Sunsky Vakanties" />
+            <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} />
           </div>
           <h1 className="hv-title hd">{t('voucher:title', 'HOTEL VOUCHER')}</h1>
         </header>

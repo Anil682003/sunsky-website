@@ -5,7 +5,7 @@ import {
   ArrowLeft, ArrowRight, Box, BriefcaseBusiness, Building2, Calendar, ChevronDown, Eye, EyeOff,
   Globe, House, Languages, Lock, Mail, MapPin, Phone, ReceiptText, Shield, Tag, Users,
 } from 'lucide-react';
-import mainLogo from '../../assets/main-logo.png';
+import { useBrandLogo } from '../../hooks/useBrandLogo';
 import styles from './Register.module.css';
 import LanguageMenu from './LanguageMenu';
 import { useRegister, sendRegistrationCode } from '../../api';
@@ -490,6 +490,8 @@ function CompanyToggle({ checked, onChange }) {
 }
 
 export default function Register() {
+  // The logo the dashboard sets, with the bundled one showing until it lands.
+  const brandLogo = useBrandLogo();
   const { t } = useTranslation('auth');
   const navigate = useNavigate();
   const { showToast } = useToast();
@@ -653,7 +655,7 @@ export default function Register() {
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
           {/* The wordmark carries the name, so no text beside it. */}
-          <img src={mainLogo} alt="Sunsky Vakanties" className={styles.logoWordmark} />
+          <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} className={styles.logoWordmark} />
         </Link>
 
         <p className={styles.eyebrow}>{t('auth:register.eyebrow', 'Travel • Explore • Create memories')}</p>

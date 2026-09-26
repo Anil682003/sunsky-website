@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
-import mainLogo from '../../assets/main-logo.png';
+import { useBrandLogo } from '../../hooks/useBrandLogo';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
 // it, so it keeps the square mark — the same one the browser tab shows.
 import logoIcon from '../../assets/logo-icon.png';
@@ -31,6 +31,9 @@ export default function RegisterVerify({
   onBack,        // () => void               — back to the form
 }) {
   const { t } = useTranslation('auth');
+  // The logo the dashboard sets, with the bundled one showing until it lands.
+  const brandLogo = useBrandLogo();
+
   const [code, setCode] = useState('');
   const [invalid, setInvalid] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
@@ -74,7 +77,7 @@ export default function RegisterVerify({
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
           {/* The wordmark carries the name, so no text beside it. */}
-          <img src={mainLogo} alt="Sunsky Vakanties" className={styles.logoWordmark} />
+          <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} className={styles.logoWordmark} />
         </Link>
 
         <div className={styles.brandHero}>
