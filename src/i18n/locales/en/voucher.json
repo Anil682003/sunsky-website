@@ -1,0 +1,73 @@
+{
+  "title": "HOTEL VOUCHER",
+  "note": "Please have your booking reference and hotel confirmation number ready when contacting us.",
+  "footer": "Hotel Voucher · Booking Reference: {{reference}} · Generated: {{generated}} · Page 1 of 1",
+  "toolbar": {
+    "back": "Back",
+    "print": "Print / Save PDF"
+  },
+  "refs": {
+    "bookingReference": "Booking Reference",
+    "supplierReference": "Supplier Reference",
+    "bookingDate": "Booking Date",
+    "status": "Status"
+  },
+  "summary": {
+    "tag": "TRAVEL SUMMARY",
+    "checkIn": "Check-In",
+    "checkOut": "Check-Out",
+    "night": "Night",
+    "nights": "Nights",
+    "room": "Room",
+    "rooms": "Rooms",
+    "guest": "Guest",
+    "guests": "Guests",
+    "boardBasis": "Board Basis"
+  },
+  "travelers": {
+    "title": "Travelers",
+    "note": "Per room / per voucher",
+    "colNumber": "#",
+    "colTitle": "Title",
+    "colType": "Type",
+    "colGender": "Gender",
+    "colFullName": "Full Name",
+    "colDob": "Date of Birth"
+  },
+  "room": {
+    "title": "Room Information",
+    "note": "Per room",
+    "hotelConfirmation": "Hotel Confirmation:",
+    "roomType": "Room Type",
+    "occupancy": "Occupancy",
+    "roomStatus": "Room Status",
+    "assignedTravelers": "Assigned travelers"
+  },
+  "hotelInfo": {
+    "title": "Hotel Information",
+    "contactDetails": "Contact Details",
+    "address": "Address",
+    "telephone": "Telephone",
+    "fax": "Fax",
+    "email": "Email",
+    "website": "Website",
+    "stayInformation": "Stay Information",
+    "checkInTime": "Check-In Time",
+    "checkOutTime": "Check-Out Time",
+    "earlyCheckIn": "Early Check-In",
+    "lateCheckOut": "Late Check-Out"
+  },
+  "important": {
+    "title": "Important Hotel Information"
+  },
+  "remarks": {
+    "title": "Hotelier Remarks"
+  },
+  "emergency": {
+    "title": "Emergency Assistance",
+    "sub": "If you need urgent assistance before or during your trip, please contact Sunsky 24/7.",
+    "phone": "Phone",
+    "email": "Email",
+    "website": "Website"
+  }
+}

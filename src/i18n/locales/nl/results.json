@@ -58,9 +58,15 @@
     "aria": "Soort vervoer"
   },
   "priceBasis": {
-    "total": "Hele verblijf",
-    "perPerson": "Per persoon",
-    "aria": "Prijsweergave"
+    "aria": "Prijsweergave",
+    "pkg": {
+      "total": "Totale reisprijs",
+      "perPerson": "Per persoon"
+    },
+    "hotel": {
+      "total": "Totale verblijfprijs",
+      "perPerson": "Per kamer/verblijf"
+    }
   },
   "flightClass": {
     "direct": "direct",
@@ -78,6 +84,9 @@
     "removeRoom": "Verwijderen",
     "childDob": "Geboortedatum kind {{number}}",
     "updateSearch": "Zoekopdracht bijwerken",
+    "searchChanged": "Je zoekopdracht is gewijzigd",
+    "searchingResults": "Resultaten zoeken…",
+    "refine": "Resultaten verfijnen",
     "travelTime": "Reisduur",
     "days": "{{count}} dagen",
     "where": "Waarheen",
@@ -90,10 +99,16 @@
     "otherAirports": "Andere luchthavens",
     "originNote": "Vluchten worden op de hotelpagina geprijsd, eerst vanaf deze luchthaven. Wordt een route hier niet gevlogen, dan tonen we je de dichtstbijzijnde luchthavens die dat wel doen.",
     "arrivalAirport": "Aankomstluchthaven",
+    "airportSearch": "Zoek luchthaven of plaats",
+    "pickAirports": "Kies één of meerdere luchthavens",
+    "noAirportMatch": "Geen luchthaven komt overeen.",
+    "removeAirport": "{{code}} verwijderen",
     "flyingTo": "Vliegen naar",
     "anyAirport": "Elke luchthaven",
     "holidayType": "Soort vakantie",
     "starRating": "Sterren",
+    "review": "Beoordeling",
+    "clearReview": "Wis beoordeling",
     "accommodationType": "Soort accommodatie",
     "boardType": "Verzorging",
     "distance": "Afstand",
@@ -120,7 +135,11 @@
     "children": "Kinderen",
     "addRoom": "+ Kamer toevoegen",
     "stars_one": "{{count}} ster",
-    "stars_other": "{{count}} sterren"
+    "stars_other": "{{count}} sterren",
+    "priceFrom": "Van",
+    "priceTo": "Tot",
+    "availablePrices": "Beschikbare prijzen: {{from}} – {{to}}",
+    "clearPrice": "Wis prijsklasse"
   },
   "hero": {
     "home": "Home",

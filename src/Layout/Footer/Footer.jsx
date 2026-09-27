@@ -7,7 +7,7 @@ import { findLegalLink } from '../../utils/legalLinks';
 import Trustpilot from '../../components/Trustpilot/Trustpilot';
 import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
 import { useConsent } from '../../context/ConsentContext';
-import mainLogoFallback from '../../assets/main-logo.png';
+import { useBrandLogo, BUNDLED_LOGO } from '../../hooks/useBrandLogo';
 import { useTranslation } from 'react-i18next';
 
 // Shown only until the footer CMS answers (or if it is unreachable), so the
@@ -66,14 +66,14 @@ export default function Footer() {
   const { reopen } = useConsent();
   const cookiePolicyUrl = findLegalLink(footer, ['cookie'], '/p/privacy-legal#cookie-policy');
 
-  // The footer CMS owns its own brand logo, then the homepage one, then the bundled file.
-  // That last step is new: before, an empty or unreachable CMS dropped the footer to a plain
-  // text brand name, which looks broken for a reason the visitor cannot see. All three hold
-  // the same wordmark now.
-  const logoUrl =
-    resolveCmsImageUrl(footer?.brandLogoUrl)
-    || resolveCmsImageUrl(cmsConfig?.logo?.mainUrl)
-    || mainLogoFallback;
+  // One logo for the whole site, and the header slot leads — see hooks/useBrandLogo. This
+  // footer used to prefer its OWN brandLogoUrl, which is why changing the logo in CMS →
+  // Layout → Header moved the bar and left the footer showing the previous mark. The footer's
+  // own slot is still honoured, but behind the one the agency actually edits.
+  const { src: logoUrl, alt: cmsLogoAlt } = useBrandLogo({
+    homepage: cmsConfig?.logo?.mainUrl,
+    footer: footer?.brandLogoUrl,
+  });
   const brandName = footer?.brandName || 'Sunsky';
   const brandDesc =
     footer?.brandDescription ||
@@ -113,9 +113,9 @@ export default function Footer() {
             {logoUrl ? (
               <img
                 src={logoUrl}
-                alt={brandName}
+                alt={cmsLogoAlt || brandName}
                 className={styles.logoImg}
-                onError={(e) => { if (e.currentTarget.src !== mainLogoFallback) e.currentTarget.src = mainLogoFallback; }}
+                onError={(e) => { if (e.currentTarget.src !== BUNDLED_LOGO) e.currentTarget.src = BUNDLED_LOGO; }}
               />
             ) : (
               <span className={styles.logoText}>{brandName}</span>
@@ -179,24 +179,12 @@ export default function Footer() {
           Trustpilot's button is an iframe from their origin, so not one pixel inside it can
           be restyled — that is the whole point of their brand rules. What CAN be designed is
           everything around it, so the button stops being a stray bordered box in a gap and
-          becomes the action of a panel that asks for something. The panel is built in the
-          same passport-stamp idiom as the homepage trust section: dashed orange border, a
-          postmark, and a handwritten note pointing at the thing to press. */}
+          becomes the action of a panel that asks for something: a plain white card with the
+          question on the left and their button on the right. */}
       <div className={styles.trustRow}>
         <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} className={styles.trustWidget} />
 
         <div className={styles.invite}>
-          <span className={styles.invitePostmark} aria-hidden="true">
-            <svg viewBox="0 0 96 96" fill="none">
-              <circle cx="48" cy="48" r="45" stroke="currentColor" strokeWidth="2" strokeDasharray="5 6" />
-              <circle cx="48" cy="48" r="34" stroke="currentColor" strokeWidth="1.2" />
-              <path d="M25 48h46M48 25v46" stroke="currentColor" strokeWidth="1" opacity="0.45" />
-              <g transform="translate(48 48) rotate(-18)">
-                <path d="M15 0 L-11 10 L-4 0 L-11 -10 Z" fill="currentColor" />
-              </g>
-            </svg>
-          </span>
-
           <div className={styles.inviteText}>
             <h3 className={styles.inviteTitle}>{t('footer.inviteTitle', 'Travelled with us?')}</h3>
             <p className={styles.inviteSub}>
@@ -210,13 +198,6 @@ export default function Footer() {
           <div className={styles.inviteAction}>
             {/* Trustpilot's own button. Sized here, styled by them. */}
             <Trustpilot template="reviewCollector" height="52px" className={styles.trustCollector} />
-            <span className={styles.inviteNote} aria-hidden="true">
-              <svg className={styles.inviteArrow} viewBox="0 0 58 44" fill="none">
-                <path d="M6 6 C 18 26, 34 34, 50 33" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-                <path d="M42 27 L51 34 L41 38" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-              <span className={styles.inviteNoteText}>{t('footer.inviteNote', 'your turn!')}</span>
-            </span>
           </div>
         </div>
       </div>

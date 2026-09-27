@@ -1,3 +1,4 @@
+import process from 'node:process'
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
 
@@ -29,6 +30,18 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/cache-api/, ''),
       },
+      // Opt-in (ADMIN_ORIGIN set): reach a live admin backend through the dev server.
+      // Its CORS allowlist rejects localhost, so the browser must never call it directly.
+      // Pair with VITE_API_URL=/__admin/api so API calls AND dashboard uploads
+      // (cmsImage strips the trailing /api) both land under this prefix.
+      ...(process.env.ADMIN_ORIGIN && {
+        '/__admin': {
+          target: process.env.ADMIN_ORIGIN,
+          changeOrigin: true,
+          rewrite: (path) => path.replace(/^\/__admin/, ''),
+          configure: (proxy) => proxy.on('proxyReq', (req) => req.removeHeader('origin')),
+        },
+      }),
     },
   },
 })

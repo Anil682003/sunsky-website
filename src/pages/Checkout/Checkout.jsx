@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
+import { useTranslation, Trans } from 'react-i18next';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import axiosInstance from '../../services/axiosInstance';
@@ -10,6 +11,8 @@ import { cancellationState, parseRateKey, boardInfo } from '../../utils/rateDeta
 import { DEFAULT_PRICING, priceInsurance, priceBasisLabel } from '../../utils/checkoutPricing';
 import { useCheckoutConfig, useFooterConfig } from '../../api';
 import { checkoutLegalLinks } from '../../utils/legalLinks';
+import { countryName } from '../../utils/countryName';
+import i18n from '../../i18n';
 import Confirmation from './Confirmation';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
@@ -76,25 +79,40 @@ const ICON = {
 
 /* ════════ static config ════════ */
 const STEPS = [
-  { id: 'info',    name: 'Your details', sub: 'Customer & travellers', icon: ICON.user },
-  { id: 'addons',  name: 'Add-ons',      sub: 'Insurance & extras',    icon: ICON.shield },
-  { id: 'payment', name: 'Payment',      sub: 'Secure checkout',       icon: ICON.card },
+  { id: 'info',    name: () => i18n.t('checkout:steps.info.name', 'Your details'), sub: () => i18n.t('checkout:steps.info.sub', 'Customer & travellers'), icon: ICON.user },
+  { id: 'addons',  name: () => i18n.t('checkout:steps.addons.name', 'Add-ons'),    sub: () => i18n.t('checkout:steps.addons.sub', 'Insurance & extras'),  icon: ICON.shield },
+  { id: 'payment', name: () => i18n.t('checkout:steps.payment.name', 'Payment'),   sub: () => i18n.t('checkout:steps.payment.sub', 'Secure checkout'),    icon: ICON.card },
 ];
 
+// Values (`v`) travel to the backend and stay English; only the rendered label is translated.
 const GENDERS_TRAVELLER = [
-  { v: 'MALE', l: 'Male' }, { v: 'FEMALE', l: 'Female' }, { v: 'OTHER', l: 'Other' },
+  { v: 'MALE', l: () => i18n.t('checkout:gender.male', 'Male') },
+  { v: 'FEMALE', l: () => i18n.t('checkout:gender.female', 'Female') },
+  { v: 'OTHER', l: () => i18n.t('checkout:gender.other', 'Other') },
 ];
-const GENDERS_CUSTOMER = [...GENDERS_TRAVELLER, { v: 'PREFER_NOT_TO_SAY', l: 'Prefer not to say' }];
+const GENDERS_CUSTOMER = [...GENDERS_TRAVELLER, { v: 'PREFER_NOT_TO_SAY', l: () => i18n.t('checkout:gender.preferNotToSay', 'Prefer not to say') }];
+// Sent to the backend and printed on tickets in English, exactly as before — only the
+// option a traveller SEES is translated, via nationalityLabel() below.
 const NATIONALITIES = [
   'Belgian', 'Dutch', 'German', 'French', 'British', 'Spanish', 'Italian', 'Portuguese',
   'Greek', 'Turkish', 'Austrian', 'Swiss', 'Polish', 'Swedish', 'Norwegian', 'Danish',
   'Irish', 'Luxembourgish', 'American', 'Canadian', 'Australian', 'Indian', 'Moroccan', 'Other',
 ];
+const nationalityLabel = (n) => i18n.t(`checkout:nationalities.${n.toLowerCase()}`, n);
+// Likewise: the value stored and sent (and used to look up DIAL_CODES) stays this exact
+// English name; countryLabel() below translates only what is shown.
 const COUNTRIES = [
   'Belgium', 'Netherlands', 'Germany', 'France', 'United Kingdom', 'Spain', 'Italy',
   'Portugal', 'Greece', 'Turkey', 'Austria', 'Switzerland', 'Poland', 'Sweden', 'Norway',
   'Denmark', 'Ireland', 'Luxembourg', 'United States', 'Canada', 'Australia', 'India', 'Other',
 ];
+const COUNTRY_ISO = {
+  Belgium: 'BE', Netherlands: 'NL', Germany: 'DE', France: 'FR', 'United Kingdom': 'GB',
+  Spain: 'ES', Italy: 'IT', Portugal: 'PT', Greece: 'GR', Turkey: 'TR', Austria: 'AT',
+  Switzerland: 'CH', Poland: 'PL', Sweden: 'SE', Norway: 'NO', Denmark: 'DK', Ireland: 'IE',
+  Luxembourg: 'LU', 'United States': 'US', Canada: 'CA', Australia: 'AU', India: 'IN',
+};
+const countryLabel = (c) => (c === 'Other' ? i18n.t('checkout:countries.other', 'Other') : countryName(COUNTRY_ISO[c], i18n.language, c));
 /**
  * Dialling code per country in COUNTRIES, used to start the phone field off once an address
  * country is chosen. Keyed by the exact strings in that list — a country without an entry
@@ -137,26 +155,46 @@ const IDEAL_BANKS = ['ING', 'ABN AMRO', 'Rabobank', 'ASN Bank', 'SNS', 'Bunq', '
  * `pricing.insurance.<key>.enabled = false` in the dashboard removes an option from sale, so
  * the list is filtered rather than fixed.
  */
+// desc/covers are OUR fallback copy, used only when the dashboard option itself carries no
+// description — the option's own label/description are dashboard content and stay as sent.
 const INSURANCE_PRESENTATION = {
   cancellation: {
     id: 'cancel', icon: ICON.cal,
-    desc: 'Get your money back if you unexpectedly can’t travel.',
-    covers: ['Illness, accident or injury', 'Job loss or new employment', 'Damage to your home'],
+    get desc() { return i18n.t('checkout:insurance.cancellation.desc', 'Get your money back if you unexpectedly can’t travel.'); },
+    get covers() {
+      return [
+        i18n.t('checkout:insurance.cancellation.covers.0', 'Illness, accident or injury'),
+        i18n.t('checkout:insurance.cancellation.covers.1', 'Job loss or new employment'),
+        i18n.t('checkout:insurance.cancellation.covers.2', 'Damage to your home'),
+      ];
+    },
   },
   travel: {
     id: 'travel', icon: ICON.umbrella,
-    desc: 'Worldwide cover for you and your luggage while travelling.',
-    covers: ['Medical expenses abroad', 'Luggage loss & theft', 'Delay & missed connection'],
+    get desc() { return i18n.t('checkout:insurance.travel.desc', 'Worldwide cover for you and your luggage while travelling.'); },
+    get covers() {
+      return [
+        i18n.t('checkout:insurance.travel.covers.0', 'Medical expenses abroad'),
+        i18n.t('checkout:insurance.travel.covers.1', 'Luggage loss & theft'),
+        i18n.t('checkout:insurance.travel.covers.2', 'Delay & missed connection'),
+      ];
+    },
   },
   allin: {
     id: 'allin', icon: ICON.heartPulse, featured: true,
-    desc: 'Cancellation + travel insurance combined. Zero worries.',
-    covers: ['Everything in Cancellation', 'Everything in Travel', 'Curtailment & repatriation'],
+    get desc() { return i18n.t('checkout:insurance.allin.desc', 'Cancellation + travel insurance combined. Zero worries.'); },
+    get covers() {
+      return [
+        i18n.t('checkout:insurance.allin.covers.0', 'Everything in Cancellation'),
+        i18n.t('checkout:insurance.allin.covers.1', 'Everything in Travel'),
+        i18n.t('checkout:insurance.allin.covers.2', 'Curtailment & repatriation'),
+      ];
+    },
   },
 };
 const NO_INSURANCE = {
-  id: 'none', name: 'No insurance', icon: ICON.ban,
-  desc: 'I accept the risk and travel without extra protection.',
+  id: 'none', get name() { return i18n.t('checkout:insurance.none.name', 'No insurance'); }, icon: ICON.ban,
+  get desc() { return i18n.t('checkout:insurance.none.desc', 'I accept the risk and travel without extra protection.'); },
   covers: [], option: null,
 };
 const buildInsurances = (pricing) => [
@@ -198,16 +236,19 @@ const SGR_FEE = 20;
    Stored VERBATIM with the booking alongside the timestamp, because "the customer accepted
    the terms" is worth nothing in a dispute without the words they were shown. Bump the
    version whenever this text changes; old bookings keep the wording they actually saw. */
+// `notice`/`accept` are functions, not fixed strings: what gets STORED with the booking must be
+// the exact words the customer was shown, in whichever language that was — read at the moment
+// each one is used (render or submit), never cached.
 const NR_CONSENT = {
   code: 'NON_REFUNDABLE_ACCOMMODATION',
   version: 'v1',
-  notice: 'This accommodation has a non-refundable rate. If you cancel the booking, 100% cancellation costs apply to this accommodation from the moment the booking is confirmed.',
-  accept: 'I understand and accept that 100% cancellation costs apply to the selected non-refundable accommodation.',
+  notice: () => i18n.t('checkout:consent.nonRefundableNotice', 'This accommodation has a non-refundable rate. If you cancel the booking, 100% cancellation costs apply to this accommodation from the moment the booking is confirmed.'),
+  accept: () => i18n.t('checkout:consent.nonRefundableAccept', 'I understand and accept that 100% cancellation costs apply to the selected non-refundable accommodation.'),
 };
 const TERMS_CONSENT = {
   code: 'BOOKING_CONDITIONS',
   version: 'v1',
-  accept: 'I agree to the booking conditions, the privacy policy and the terms of the travel providers.',
+  accept: () => i18n.t('checkout:consent.termsAccept', 'I agree to the booking conditions, the privacy policy and the terms of the travel providers.'),
 };
 
 /**
@@ -240,9 +281,9 @@ const emailOk = (v) => /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v || '');
 // Why a re-check failed, in words a traveller can act on — never the axios message.
 const friendlyReprice = (err) => {
   const code = err?.code;
-  if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') return 'The supplier took too long to answer.';
-  if (code === 'ERR_NETWORK') return 'We could not reach the supplier.';
-  return 'We could not re-check the price just now.';
+  if (code === 'ECONNABORTED' || code === 'ETIMEDOUT') return i18n.t('checkout:errors.supplierTimedOut', 'The supplier took too long to answer.');
+  if (code === 'ERR_NETWORK') return i18n.t('checkout:errors.supplierUnreachable', 'We could not reach the supplier.');
+  return i18n.t('checkout:errors.repriceFailed', 'We could not re-check the price just now.');
 };
 const phoneOk = (v) => /^\+[1-9]\d{6,14}$/.test((v || '').replace(/[\s\-.()]/g, ''));
 
@@ -260,9 +301,12 @@ const dmy = (iso) => {
   return m ? `${m[3]}/${m[2]}/${m[1]}` : (iso || '');
 };
 // mirrors the admin traveller rules: <2 INF, <12 CHD, else ADT
+const AGE_TYPE_KEY = { INF: 'infant', CHD: 'child', ADT: 'adult' };
+const ageTypeLabel = (code) => i18n.t(`checkout:ageType.${AGE_TYPE_KEY[code]}`, { INF: 'Infant', CHD: 'Child', ADT: 'Adult' }[code]);
 const ageType = (dob) => {
   const a = ageFromDob(dob);
-  return a < 2 ? { code: 'INF', label: 'Infant' } : a < 12 ? { code: 'CHD', label: 'Child' } : { code: 'ADT', label: 'Adult' };
+  const code = a < 2 ? 'INF' : a < 12 ? 'CHD' : 'ADT';
+  return { code, label: ageTypeLabel(code) };
 };
 
 const detectBrand = (num) => {
@@ -344,36 +388,42 @@ const Field = ({ label, req, err, hint, ok, children, span }) => (
  * The prices to ADD are SunSky's, from the dashboard: no supplier sells us an ancillary yet,
  * so anything bought here is arranged by hand with the airline afterwards.
  */
-const BaggageCard = ({ icon, title, note, legend, children }) => (
-  <section className="ck-card ck-reveal">
-    <div className="ck-card-head">
-      <div className="ck-card-titles">
-        <h2 className="ck-card-title hd">Choose extras per traveller</h2>
-        <p className="ck-card-sub">See which baggage is included for each traveller on the outbound and return journey.</p>
+const BaggageCard = ({ icon, title, note, legend, children }) => {
+  const { t } = useTranslation('checkout');
+  return (
+    <section className="ck-card ck-reveal">
+      <div className="ck-card-head">
+        <div className="ck-card-titles">
+          <h2 className="ck-card-title hd">{t('checkout:baggage.chooseExtras', 'Choose extras per traveller')}</h2>
+          <p className="ck-card-sub">{t('checkout:baggage.chooseExtrasSub', 'See which baggage is included for each traveller on the outbound and return journey.')}</p>
+        </div>
       </div>
-    </div>
-    <div className="ck-bagkind">
-      <span className="ck-bagkind-ico">{icon}</span>
-      <div className="ck-bagkind-text">
-        <b>{title}</b>
-        <span>{note}</span>
+      <div className="ck-bagkind">
+        <span className="ck-bagkind-ico">{icon}</span>
+        <div className="ck-bagkind-text">
+          <b>{title}</b>
+          <span>{note}</span>
+        </div>
       </div>
-    </div>
-    {children}
-    <div className="ck-bag-legend">{legend}</div>
-  </section>
-);
+      {children}
+      <div className="ck-bag-legend">{legend}</div>
+    </section>
+  );
+};
 
 /** One traveller's block inside a baggage card: their name, then a row per direction. */
-const BagTraveller = ({ index, name, children }) => (
-  <div className="ck-bagtrav">
-    <div className="ck-bagtrav-head">
-      <span className="ck-bagtrav-n">{index + 1}</span>
-      <span className="ck-bagtrav-name hd">Traveller {index + 1}{name ? <span className="ck-trav-who"> — {name}</span> : null}</span>
+const BagTraveller = ({ index, name, children }) => {
+  const { t } = useTranslation('checkout');
+  return (
+    <div className="ck-bagtrav">
+      <div className="ck-bagtrav-head">
+        <span className="ck-bagtrav-n">{index + 1}</span>
+        <span className="ck-bagtrav-name hd">{t('checkout:travellers.traveller', { number: index + 1, defaultValue: 'Traveller {{number}}' })}{name ? <span className="ck-trav-who"> — {name}</span> : null}</span>
+      </div>
+      {children}
     </div>
-    {children}
-  </div>
-);
+  );
+};
 
 /**
  * A traveller field: label above, control, and the "done" tick in its own column beside it.
@@ -397,17 +447,20 @@ const TravField = ({ label, req, err, hint, ok, children }) => (
 const titleFor = (gender) => (gender === 'MALE' ? 'Mr' : gender === 'FEMALE' ? 'Ms' : '');
 
 /** Male / female, as the ticket carries it. Radios, because there are two and both fit. */
-const GenderPick = ({ name, value, onChange }) => (
-  <div className="ck-radio-row">
-    {[{ v: 'MALE', l: 'Male' }, { v: 'FEMALE', l: 'Female' }].map((g) => (
-      <label key={g.v} className={`ck-radio${value === g.v ? ' on' : ''}`}>
-        <input type="radio" name={name} checked={value === g.v} onChange={() => onChange(g.v)} />
-        <span className="ck-radio-dot" />
-        {g.l}
-      </label>
-    ))}
-  </div>
-);
+const GenderPick = ({ name, value, onChange }) => {
+  const { t } = useTranslation('checkout');
+  return (
+    <div className="ck-radio-row">
+      {[{ v: 'MALE', l: t('checkout:gender.male', 'Male') }, { v: 'FEMALE', l: t('checkout:gender.female', 'Female') }].map((g) => (
+        <label key={g.v} className={`ck-radio${value === g.v ? ' on' : ''}`}>
+          <input type="radio" name={name} checked={value === g.v} onChange={() => onChange(g.v)} />
+          <span className="ck-radio-dot" />
+          {g.l}
+        </label>
+      ))}
+    </div>
+  );
+};
 
 const Check = ({ checked, onChange, children }) => (
   <label className={`ck-check${checked ? ' on' : ''}`}>
@@ -510,6 +563,7 @@ const sameItinerary = (a = [], b = []) => a.length === b.length && a.every((leg,
 
 /* ════════════════════════════════════════════════════════ */
 function CheckoutContent({ stripe, elements }) {
+  const { t } = useTranslation('checkout');
   const { state } = useLocation();
   const navigate = useNavigate();
   // No booking in router state means there is nothing to pay for — say so rather than
@@ -771,7 +825,11 @@ function CheckoutContent({ stripe, elements }) {
   const { data: pricingCfg } = useCheckoutConfig();
   const { data: footerCfg } = useFooterConfig();
   const pricing = pricingCfg || DEFAULT_PRICING;
-  const insurances = useMemo(() => buildInsurances(pricing), [pricing]);
+  // `t` in the deps even though buildInsurances doesn't take it: NO_INSURANCE and
+  // INSURANCE_PRESENTATION read i18n.t() through getters, invisibly to the linter, and t's
+  // identity is what changes on a language switch — the same fix as HotelDetail's boardOptions.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  const insurances = useMemo(() => buildInsurances(pricing), [pricing, t]);
   /* Two separate decisions, because they are two separate policies:
      — cancellation cover is bought ONCE for the whole booking (if one traveller cancels the
        trip, the trip is cancelled), so it is a single yes/no;
@@ -961,9 +1019,9 @@ function CheckoutContent({ stripe, elements }) {
     };
   }, [booking.api?.flight, booking.flight?.outAirlineCode, booking.flight?.retAirlineCode]);
   const directions = booking.api?.flight?.tripType === 'roundtrip'
-    ? [{ key: 'out', label: 'Outbound', icon: ICON.planeOut }, { key: 'ret', label: 'Return', icon: ICON.planeIn }]
-    : [{ key: 'out', label: 'Outbound', icon: ICON.planeOut }];
-  const travellerName = (t) => [titleFor(t.gender), t.firstName, t.lastName].filter(Boolean).join(' ').trim();
+    ? [{ key: 'out', label: t('checkout:flight.outbound', 'Outbound'), icon: ICON.planeOut }, { key: 'ret', label: t('checkout:flight.return', 'Return'), icon: ICON.planeIn }]
+    : [{ key: 'out', label: t('checkout:flight.outbound', 'Outbound'), icon: ICON.planeOut }];
+  const travellerName = (tr) => [titleFor(tr.gender), tr.firstName, tr.lastName].filter(Boolean).join(' ').trim();
   // A selection is only a line if it is still on sale: the option it names has to exist in the
   // list it came from. Anything else is dropped here exactly as the server drops it, so the
   // two totals cannot diverge.
@@ -977,7 +1035,7 @@ function CheckoutContent({ stripe, elements }) {
         if (row) {
           out.push({ code: 'baggage.cabin', travellerIndex: Number(idx), direction,
             kg: row.kg ? Number(row.kg) : undefined,
-            label: row.kg ? `Cabin baggage ${row.kg} kg` : (bagRates?.cabin?.label || 'Cabin baggage'),
+            label: row.kg ? t('checkout:baggage.cabinBaggageKg', { kg: row.kg, defaultValue: 'Cabin baggage {{kg}} kg' }) : (bagRates?.cabin?.label || t('checkout:baggage.cabinBaggage', 'Cabin baggage')),
             price: Number(row.price) || 0 });
         }
       }
@@ -985,12 +1043,12 @@ function CheckoutContent({ stripe, elements }) {
         const row = checkedAddOns.find((r) => Number(r.kg) === Number(sel.checked));
         if (row) {
           out.push({ code: 'baggage.checked', travellerIndex: Number(idx), direction, kg: Number(row.kg),
-            label: `Checked baggage ${row.kg} kg`, price: Number(row.price) || 0 });
+            label: t('checkout:baggage.checkedBaggageKg', { kg: row.kg, defaultValue: 'Checked baggage {{kg}} kg' }), price: Number(row.price) || 0 });
         }
       }
     });
     return out;
-  }, [bags, cabinAddOns, checkedAddOns, bagRates]);
+  }, [bags, cabinAddOns, checkedAddOns, bagRates, t]);
   const extrasTotal = extraLines.reduce((s, l) => s + l.price, 0);
 
   /**
@@ -1035,22 +1093,34 @@ function CheckoutContent({ stripe, elements }) {
   const legal = checkoutLegalLinks(footerCfg);
   const CONDITIONS = useMemo(() => {
     const rows = [
-      { id: 'holiday', text: 'I have read the information relating to this holiday.',
-        node: <>I have read the information relating to this holiday.</> },
+      { id: 'holiday', text: t('checkout:conditions.holiday', 'I have read the information relating to this holiday.'),
+        node: <>{t('checkout:conditions.holiday', 'I have read the information relating to this holiday.')}</> },
       { id: 'terms',
-        text: 'I agree to the general travel conditions and the package travel information.',
-        node: <>I agree to the <A to={legal.terms}>general travel conditions</A> and the <A to={legal.packageInfo}>package travel information</A>.</> },
+        text: t('checkout:conditions.terms', 'I agree to the general travel conditions and the package travel information.'),
+        node: (
+          <Trans i18nKey="checkout:conditions.termsNode" t={t}>
+            I agree to the <A to={legal.terms}>general travel conditions</A> and the <A to={legal.packageInfo}>package travel information</A>.
+          </Trans>
+        ) },
     ];
     if (insAmount > 0) {
       rows.push({ id: 'insurance',
-        text: 'I accept the insurance conditions for the cover I selected.',
-        node: <>I accept the <A to={legal.insurance}>insurance conditions</A> for the cover I selected.</> });
+        text: t('checkout:conditions.insurance', 'I accept the insurance conditions for the cover I selected.'),
+        node: (
+          <Trans i18nKey="checkout:conditions.insuranceNode" t={t}>
+            I accept the <A to={legal.insurance}>insurance conditions</A> for the cover I selected.
+          </Trans>
+        ) });
     }
     rows.push({ id: 'obligation',
-      text: 'I am making a definite booking with an obligation to pay. It can only be cancelled against payment of cancellation costs, which depend on how close to departure the cancellation is made.',
-      node: <>I am making a definite booking with an obligation to pay. It can only be cancelled against payment of <A to={legal.cancellation}>cancellation costs</A>, which depend on how close to departure the cancellation is made.</> });
+      text: t('checkout:conditions.obligation', 'I am making a definite booking with an obligation to pay. It can only be cancelled against payment of cancellation costs, which depend on how close to departure the cancellation is made.'),
+      node: (
+        <Trans i18nKey="checkout:conditions.obligationNode" t={t}>
+          I am making a definite booking with an obligation to pay. It can only be cancelled against payment of <A to={legal.cancellation}>cancellation costs</A>, which depend on how close to departure the cancellation is made.
+        </Trans>
+      ) });
     return rows;
-  }, [insAmount, legal.terms, legal.packageInfo, legal.insurance, legal.cancellation]);
+  }, [insAmount, legal.terms, legal.packageInfo, legal.insurance, legal.cancellation, t]);
 
   // "Agreed" is every condition ticked — nothing else in the file has to know it changed shape.
   const agree = CONDITIONS.every((c) => conds[c.id]);
@@ -1216,38 +1286,38 @@ function CheckoutContent({ stripe, elements }) {
     // One set of rules for the person, whoever they are booking for. Country is required
     // because a company record cannot be created without one, and asking for it only after
     // the box is ticked moves a field around under the traveller's cursor.
-    if (!priv.firstName.trim()) e['priv.firstName'] = 'First name is required';
-    if (!priv.lastName.trim()) e['priv.lastName'] = 'Last name is required';
-    if (!priv.nationality) e['priv.nationality'] = 'Nationality is required';
-    if (priv.hasEmail && !emailOk(priv.email)) e['priv.email'] = 'A valid email is required';
+    if (!priv.firstName.trim()) e['priv.firstName'] = t('checkout:validation.firstNameRequired', 'First name is required');
+    if (!priv.lastName.trim()) e['priv.lastName'] = t('checkout:validation.lastNameRequired', 'Last name is required');
+    if (!priv.nationality) e['priv.nationality'] = t('checkout:validation.nationalityRequired', 'Nationality is required');
+    if (priv.hasEmail && !emailOk(priv.email)) e['priv.email'] = t('checkout:validation.emailRequired', 'A valid email is required');
     // An address that already has a login cannot go through as a guest — the booking would
     // attach to a customer record their account cannot see. Only a definite `true` blocks:
     // a check that failed to answer must not hold up a checkout.
     else if (!isAuthenticated && emailTaken === true) {
-      e['priv.email'] = 'This email already has an account — please log in to continue';
+      e['priv.email'] = t('checkout:validation.emailTaken', 'This email already has an account — please log in to continue');
     }
-    if (!phoneOk(priv.phone)) e['priv.phone'] = 'Use international format, e.g. +32475123456';
+    if (!phoneOk(priv.phone)) e['priv.phone'] = t('checkout:validation.phoneFormat', 'Use international format, e.g. +32475123456');
     // The emergency number is the one field nobody wants to be missing when it is needed.
-    if (!phoneOk(priv.emergencyPhone)) e['priv.emergencyPhone'] = 'Use international format, e.g. +32476987654';
-    if (!priv.street.trim()) e['priv.street'] = 'Street is required';
-    if (!priv.houseNumber.trim()) e['priv.houseNumber'] = 'House number is required';
-    if (!priv.postalCode.trim()) e['priv.postalCode'] = 'Postal code is required';
-    if (!priv.city.trim()) e['priv.city'] = 'City is required';
-    if (!priv.country) e['priv.country'] = 'Country is required';
-    if (priv.dateOfBirth && new Date(priv.dateOfBirth) >= new Date()) e['priv.dateOfBirth'] = 'Date of birth must be in the past';
+    if (!phoneOk(priv.emergencyPhone)) e['priv.emergencyPhone'] = t('checkout:validation.emergencyPhoneFormat', 'Use international format, e.g. +32476987654');
+    if (!priv.street.trim()) e['priv.street'] = t('checkout:validation.streetRequired', 'Street is required');
+    if (!priv.houseNumber.trim()) e['priv.houseNumber'] = t('checkout:validation.houseNumberRequired', 'House number is required');
+    if (!priv.postalCode.trim()) e['priv.postalCode'] = t('checkout:validation.postalCodeRequired', 'Postal code is required');
+    if (!priv.city.trim()) e['priv.city'] = t('checkout:validation.cityRequired', 'City is required');
+    if (!priv.country) e['priv.country'] = t('checkout:validation.countryRequired', 'Country is required');
+    if (priv.dateOfBirth && new Date(priv.dateOfBirth) >= new Date()) e['priv.dateOfBirth'] = t('checkout:validation.dobPast', 'Date of birth must be in the past');
     if (isCompany) {
       // Two facts a company can always give: the name it is registered under and its VAT
       // number. No trading name (it is the same string for almost every SME) and no industry.
-      if (!pro.legalName.trim()) e['pro.legalName'] = 'Company name is required';
-      if (!pro.vatNumber.trim() || pro.vatNumber.trim().length < 3) e['pro.vatNumber'] = 'VAT number is required';
+      if (!pro.legalName.trim()) e['pro.legalName'] = t('checkout:validation.companyNameRequired', 'Company name is required');
+      if (!pro.vatNumber.trim() || pro.vatNumber.trim().length < 3) e['pro.vatNumber'] = t('checkout:validation.vatRequired', 'VAT number is required');
     }
-    travellers.forEach((t, i) => {
-      if (!t.gender) e[`t${i}.gender`] = 'Required';
-      if (!t.firstName.trim()) e[`t${i}.firstName`] = 'Required';
-      if (!t.lastName.trim()) e[`t${i}.lastName`] = 'Required';
-      if (!t.nationality) e[`t${i}.nationality`] = 'Required';
-      if (!t.dateOfBirth) e[`t${i}.dateOfBirth`] = 'Required';
-      else if (new Date(t.dateOfBirth) >= new Date()) e[`t${i}.dateOfBirth`] = 'Must be in the past';
+    travellers.forEach((trav, i) => {
+      if (!trav.gender) e[`t${i}.gender`] = t('checkout:validation.required', 'Required');
+      if (!trav.firstName.trim()) e[`t${i}.firstName`] = t('checkout:validation.required', 'Required');
+      if (!trav.lastName.trim()) e[`t${i}.lastName`] = t('checkout:validation.required', 'Required');
+      if (!trav.nationality) e[`t${i}.nationality`] = t('checkout:validation.required', 'Required');
+      if (!trav.dateOfBirth) e[`t${i}.dateOfBirth`] = t('checkout:validation.required', 'Required');
+      else if (new Date(trav.dateOfBirth) >= new Date()) e[`t${i}.dateOfBirth`] = t('checkout:validation.mustBePast', 'Must be in the past');
     });
     return e;
   };
@@ -1255,23 +1325,23 @@ function CheckoutContent({ stripe, elements }) {
   const validatePayment = () => {
     const e = {};
     if (payMethod === 'card') {
-      if (!card.name.trim()) e['card.name'] = 'Cardholder name is required';
+      if (!card.name.trim()) e['card.name'] = t('checkout:validation.cardholderRequired', 'Cardholder name is required');
       if (stripe) {
-        if (!stripeReady.number) e['card.number'] = 'Enter a valid card number';
-        if (!stripeReady.expiry) e['card.expiry'] = 'Enter a valid expiry date';
-        if (!stripeReady.cvc) e['card.cvc'] = 'Enter a valid CVC';
+        if (!stripeReady.number) e['card.number'] = t('checkout:validation.cardNumberInvalid', 'Enter a valid card number');
+        if (!stripeReady.expiry) e['card.expiry'] = t('checkout:validation.expiryInvalid', 'Enter a valid expiry date');
+        if (!stripeReady.cvc) e['card.cvc'] = t('checkout:validation.cvcInvalid', 'Enter a valid CVC');
       } else {
         const digits = card.number.replace(/\D/g, '');
         const need = detectBrand(card.number) === 'amex' ? 15 : 16;
-        if (digits.length < need) e['card.number'] = 'Enter a valid card number';
-        if (!expiryOk(card.expiry)) e['card.expiry'] = 'Invalid expiry';
-        if (card.cvc.replace(/\D/g, '').length < 3) e['card.cvc'] = 'Invalid CVC';
+        if (digits.length < need) e['card.number'] = t('checkout:validation.cardNumberInvalid', 'Enter a valid card number');
+        if (!expiryOk(card.expiry)) e['card.expiry'] = t('checkout:validation.expiryInvalidShort', 'Invalid expiry');
+        if (card.cvc.replace(/\D/g, '').length < 3) e['card.cvc'] = t('checkout:validation.cvcInvalidShort', 'Invalid CVC');
       }
     }
-    if (payMethod === 'ideal' && !idealBank) e.idealBank = 'Please choose your bank';
-    if (!agree) e.agree = 'Please accept the booking conditions to continue';
+    if (payMethod === 'ideal' && !idealBank) e.idealBank = t('checkout:validation.chooseBank', 'Please choose your bank');
+    if (!agree) e.agree = t('checkout:validation.acceptConditions', 'Please accept the booking conditions to continue');
     // A separate, explicit tick — the general conditions checkbox does not stand in for it.
-    if (nonRefundable && !nrAccept) e.nrAccept = 'Please confirm you accept the cancellation costs for the non-refundable accommodation';
+    if (nonRefundable && !nrAccept) e.nrAccept = t('checkout:validation.confirmNrAccept', 'Please confirm you accept the cancellation costs for the non-refundable accommodation');
     return e;
   };
 
@@ -1309,7 +1379,7 @@ function CheckoutContent({ stripe, elements }) {
       // it has never been checked. Ask now, rather than let them build a second account for
       // themselves and lose this booking out of "my bookings".
       if (!isAuthenticated && await checkEmail(priv.email)) {
-        return flashErrors({ 'priv.email': 'This email already has an account — please log in to continue' });
+        return flashErrors({ 'priv.email': t('checkout:validation.emailTaken', 'This email already has an account — please log in to continue') });
       }
       // Form is complete and internally valid — but "valid" and "spelled like the passport"
       // are different claims, and only the traveller can make the second one. The modal is
@@ -1334,10 +1404,10 @@ function CheckoutContent({ stripe, elements }) {
     // Belt and braces: the button is already disabled, this is the path a stray Enter takes.
     if (repriceBlocks) {
       setErrors({ submit: reprice.status === 'checking'
-        ? 'We are re-checking your price — one moment.'
+        ? t('checkout:errors.recheckingPrice', 'We are re-checking your price — one moment.')
         : reprice.status === 'unavailable'
-          ? 'This trip is not available for the updated traveller details.'
-          : 'Please review the updated price for your booking before paying.' });
+          ? t('checkout:reprice.unavailableTitle', 'This trip is not available for the updated traveller details.')
+          : t('checkout:errors.reviewUpdatedPrice', 'Please review the updated price for your booking before paying.') });
       return;
     }
     const e = validatePayment();
@@ -1445,8 +1515,8 @@ function CheckoutContent({ stripe, elements }) {
       // it was sold for, so travel cover taken by two of four travellers is charged for two —
       // not for the party, and not for one.
       const insurancesPayload = [
-        cancelAmount > 0 && { type: 'cancel', label: cancelOption?.label || 'Cancellation insurance', pax, price: cancelAmount },
-        travelAmount > 0 && { type: 'travel', label: travelOption?.label || 'Travel insurance', pax: travelCount, price: travelAmount },
+        cancelAmount > 0 && { type: 'cancel', label: cancelOption?.label || t('checkout:insurance.cancellationFallback', 'Cancellation insurance'), pax, price: cancelAmount },
+        travelAmount > 0 && { type: 'travel', label: travelOption?.label || t('checkout:insurance.travelFallback', 'Travel insurance'), pax: travelCount, price: travelAmount },
       ].filter(Boolean);
       // Kept for older readers of the booking: the first policy.
       const insurancePayload = insurancesPayload[0] || null;
@@ -1456,11 +1526,11 @@ function CheckoutContent({ stripe, elements }) {
       // agreed. A tick in a database column is not evidence; the text is.
       const acceptedAt = new Date().toISOString();
       const consents = [
-        { code: TERMS_CONSENT.code, version: TERMS_CONSENT.version, text: TERMS_CONSENT.accept, acceptedAt },
+        { code: TERMS_CONSENT.code, version: TERMS_CONSENT.version, text: TERMS_CONSENT.accept(), acceptedAt },
         ...(nonRefundable ? [{
           code: NR_CONSENT.code,
           version: NR_CONSENT.version,
-          text: `${NR_CONSENT.notice} ${NR_CONSENT.accept}`,
+          text: `${NR_CONSENT.notice()} ${NR_CONSENT.accept()}`,
           acceptedAt,
           // The rate it was accepted ABOUT — a re-price mid-checkout changes the terms, and
           // the audit trail has to say which room's terms these were.
@@ -1497,7 +1567,7 @@ function CheckoutContent({ stripe, elements }) {
       const created = createRes.data?.data || createRes.data || {};
       const bookingId = created.bookingId;
       const ref = created.bookingReference;
-      if (!bookingId) throw new Error('Booking could not be created');
+      if (!bookingId) throw new Error(t('checkout:errors.bookingNotCreated', 'Booking could not be created'));
 
       let paidViaStripe = false;
       if (stripe && elements) {
@@ -1537,7 +1607,7 @@ function CheckoutContent({ stripe, elements }) {
               payment_method: { card: cardEl, billing_details },
             });
             if (error) throw new Error(error.message);
-            if (paymentIntent.status !== 'succeeded') throw new Error('Payment was not completed');
+            if (paymentIntent.status !== 'succeeded') throw new Error(t('checkout:errors.paymentNotCompleted', 'Payment was not completed'));
             await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, {
               paymentIntentId: paymentIntent.id,
             });
@@ -1554,7 +1624,7 @@ function CheckoutContent({ stripe, elements }) {
             } else if (payMethod === 'paypal') {
               res = await stripe.confirmPayPalPayment(clientSecret, { return_url: returnUrl });
             } else {
-              throw new Error('Unsupported payment method');
+              throw new Error(t('checkout:errors.unsupportedPaymentMethod', 'Unsupported payment method'));
             }
             // Only reached if Stripe could NOT start the redirect (setup/validation error).
             if (res?.error) throw new Error(res.error.message);
@@ -1562,11 +1632,11 @@ function CheckoutContent({ stripe, elements }) {
           }
         } else if (payMethod !== 'card') {
           // Redirect methods require a real Stripe PaymentIntent (no dummy fallback).
-          throw new Error('This payment method is temporarily unavailable. Please pay by card.');
+          throw new Error(t('checkout:errors.methodTemporarilyUnavailable', 'This payment method is temporarily unavailable. Please pay by card.'));
         }
       }
       if (!paidViaStripe) {
-        if (paymentMode === 'live') throw new Error('Payment could not be processed. Please try again.');
+        if (paymentMode === 'live') throw new Error(t('checkout:errors.paymentCouldNotBeProcessed', 'Payment could not be processed. Please try again.'));
         await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, { mode: 'test' });
       }
 
@@ -1584,7 +1654,7 @@ function CheckoutContent({ stripe, elements }) {
       setBookingRef(ref || `SSK-${Date.now().toString(36).toUpperCase().slice(-6)}`);
       setPaid(true);
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || 'Payment failed. Please try again.';
+      const msg = err?.response?.data?.message || err?.message || t('checkout:errors.paymentFailed', 'Payment failed. Please try again.');
       flashErrors({ submit: msg });
     } finally {
       setPaying(false);
@@ -1600,17 +1670,17 @@ function CheckoutContent({ stripe, elements }) {
   const selIns = insAmount > 0
     ? {
         id: cancelAmount && travelAmount ? 'both' : cancelAmount ? 'cancel' : 'travel',
-        name: [cancelAmount && (cancelOption?.label || 'Cancellation insurance'),
-          travelAmount && (travelOption?.label || 'Travel insurance')].filter(Boolean).join(' + '),
+        name: [cancelAmount && (cancelOption?.label || t('checkout:insurance.cancellationFallback', 'Cancellation insurance')),
+          travelAmount && (travelOption?.label || t('checkout:insurance.travelFallback', 'Travel insurance'))].filter(Boolean).join(' + '),
         covers: [],
       }
     : null;
 
   /* primary CTA per step (shared by bottom bar + mobile bar) */
-  const ctaLabel = repriceBlocks && reprice.status === 'checking' ? 'Re-checking your price…'
-    : step === 0 ? 'Continue to add-ons'
-    : step === 1 ? 'Continue to payment'
-    : `Pay ${money(total)}`;
+  const ctaLabel = repriceBlocks && reprice.status === 'checking' ? t('checkout:cta.rechecking', 'Re-checking your price…')
+    : step === 0 ? t('checkout:cta.continueToAddons', 'Continue to add-ons')
+    : step === 1 ? t('checkout:cta.continueToPayment', 'Continue to payment')
+    : t('checkout:cta.pay', { amount: money(total), defaultValue: 'Pay {{amount}}' });
   const ctaAction = step === 2 ? pay : next;
   // One rule for every way forward (button, mobile bar): an outstanding re-check, an
   // unaccepted new price or an unavailable party stops the traveller here, at the panel that
@@ -1650,14 +1720,13 @@ function CheckoutContent({ stripe, elements }) {
       <div className="ck">
         <div className="ck-gone">
           <div className="ck-gone-ico">{ICON.briefcase}</div>
-          <h1 className="ck-gone-title hd">There’s no booking to pay for</h1>
+          <h1 className="ck-gone-title hd">{t('checkout:gone.title', 'There’s no booking to pay for')}</h1>
           <p className="ck-gone-sub">
-            Checkout details aren’t kept when a page is reloaded. Nothing has been charged —
-            open your hotel again and re-check availability to pick your dates back up.
+            {t('checkout:gone.sub', 'Checkout details aren’t kept when a page is reloaded. Nothing has been charged — open your hotel again and re-check availability to pick your dates back up.')}
           </p>
           <div className="ck-gone-actions">
-            <button type="button" className="ck-gone-btn" onClick={() => navigate('/results')}>Back to search</button>
-            <button type="button" className="ck-gone-link" onClick={() => navigate('/')}>Go to homepage</button>
+            <button type="button" className="ck-gone-btn" onClick={() => navigate('/results')}>{t('checkout:gone.backToSearch', 'Back to search')}</button>
+            <button type="button" className="ck-gone-link" onClick={() => navigate('/')}>{t('checkout:gone.goToHomepage', 'Go to homepage')}</button>
           </div>
         </div>
       </div>
@@ -1671,20 +1740,22 @@ function CheckoutContent({ stripe, elements }) {
         <div className="ck-hero-bg"><span className="ck-hero-glow" /><span className="ck-hero-grid" /></div>
         <div className="ck-hero-inner">
           <div className="ck-bc">
-            <Link to="/">Home</Link><span className="ck-bc-sep">›</span>
+            <Link to="/">{t('common:nav.home', 'Home')}</Link><span className="ck-bc-sep">›</span>
             <a onClick={() => navigate(-1)}>{booking.hotelName}</a><span className="ck-bc-sep">›</span>
-            <span className="ck-bc-here">Checkout</span>
+            <span className="ck-bc-here">{t('checkout:breadcrumb.checkout', 'Checkout')}</span>
           </div>
           <div className="ck-hero-row">
             <div className="ck-hero-left">
-              <div className="ck-eyebrow">{ICON.lock} Secure checkout</div>
-              <h1 className="ck-title hd">Complete your booking</h1>
-              <p className="ck-hero-sub">You're moments away from {isFlight ? 'your flight' : isTransfer ? 'your transfer' : booking.hotelName} — {(booking.loc || '').split(',')[0]}</p>
+              <div className="ck-eyebrow">{ICON.lock} {t('checkout:hero.secureCheckout', 'Secure checkout')}</div>
+              <h1 className="ck-title hd">{t('checkout:hero.title', 'Complete your booking')}</h1>
+              <p className="ck-hero-sub">
+                {t('checkout:hero.momentsAway', 'You\'re moments away from')} {isFlight ? t('checkout:hero.yourFlight', 'your flight') : isTransfer ? t('checkout:hero.yourTransfer', 'your transfer') : booking.hotelName} — {(booking.loc || '').split(',')[0]}
+              </p>
             </div>
             <div className="ck-hero-badges">
-              <span className="ck-hbadge">{ICON.shieldCheck} SGR guaranteed</span>
-              <span className="ck-hbadge">{ICON.lock} 256-bit SSL</span>
-              <span className="ck-hbadge">{ICON.check} Instant confirmation</span>
+              <span className="ck-hbadge">{ICON.shieldCheck} {t('checkout:hero.sgrGuaranteed', 'SGR guaranteed')}</span>
+              <span className="ck-hbadge">{ICON.lock} {t('checkout:hero.ssl', '256-bit SSL')}</span>
+              <span className="ck-hbadge">{ICON.check} {t('checkout:hero.instantConfirmation', 'Instant confirmation')}</span>
             </div>
           </div>
         </div>
@@ -1701,8 +1772,8 @@ function CheckoutContent({ stripe, elements }) {
                   onClick={() => goStep(i)}>
                   <span className="ck-step-dot">{i < step ? ICON.check : s.icon}</span>
                   <span className="ck-step-meta">
-                    <span className="ck-step-name hd">{i + 1}. {s.name}</span>
-                    <span className="ck-step-sub">{s.sub}</span>
+                    <span className="ck-step-name hd">{i + 1}. {s.name()}</span>
+                    <span className="ck-step-sub">{s.sub()}</span>
                   </span>
                 </button>
                 {i < STEPS.length - 1 && <span className={`ck-step-line${i < step ? ' done' : ''}`} />}
@@ -1723,8 +1794,8 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-auth-banner ck-reveal">
                       <div className="ck-auth-avatar">{(user?.firstName || 'U').slice(0, 1).toUpperCase()}{(user?.lastName || '').slice(0, 1).toUpperCase()}</div>
                       <div className="ck-auth-text">
-                        <b>Welcome back{user?.firstName ? `, ${user.firstName}` : ''}!</b>
-                        <span>We've pre-filled your customer details from your account — just review and complete what's missing.</span>
+                        <b>{t('checkout:auth.welcomeBack', { name: user?.firstName ? `, ${user.firstName}` : '', defaultValue: 'Welcome back{{name}}!' })}</b>
+                        <span>{t('checkout:auth.prefilled', 'We\'ve pre-filled your customer details from your account — just review and complete what\'s missing.')}</span>
                       </div>
                       <span className="ck-auth-check">{ICON.check}</span>
                     </div>
@@ -1732,10 +1803,10 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-signin-invite ck-reveal">
                       <div className="ck-si-ico">{ICON.sparkle}</div>
                       <div className="ck-auth-text">
-                        <b>Have a SunSky account?</b>
-                        <span>Sign in and we'll fill in your customer details automatically.</span>
+                        <b>{t('checkout:auth.haveAccount', 'Have a SunSky account?')}</b>
+                        <span>{t('checkout:auth.signInFillDetails', 'Sign in and we\'ll fill in your customer details automatically.')}</span>
                       </div>
-                      <button className="ck-si-btn" onClick={() => navigate('/login')}>{ICON.user} Sign in</button>
+                      <button className="ck-si-btn" onClick={() => navigate('/login')}>{ICON.user} {t('checkout:auth.signIn', 'Sign in')}</button>
                     </div>
                   )}
 
@@ -1754,8 +1825,8 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-card-head">
                       <div className="ck-ico">{isCompany ? ICON.briefcase : ICON.user}</div>
                       <div className="ck-card-titles">
-                        <h2 className="ck-card-title hd">Contact person details</h2>
-                        <p className="ck-card-sub">The person we contact about this booking</p>
+                        <h2 className="ck-card-title hd">{t('checkout:contact.title', 'Contact person details')}</h2>
+                        <p className="ck-card-sub">{t('checkout:contact.sub', 'The person we contact about this booking')}</p>
                       </div>
                     </div>
 
@@ -1764,8 +1835,8 @@ function CheckoutContent({ stripe, elements }) {
                         onChange={(e) => { setIsCompany(e.target.checked); setErrors({}); }} />
                       <span className="ck-biz-box">{isCompany && ICON.check}</span>
                       <span className="ck-biz-text">
-                        <b>I am a business customer</b>
-                        <span>Booking on behalf of a company. You stay the contact person on the booking.</span>
+                        <b>{t('checkout:contact.businessCustomer', 'I am a business customer')}</b>
+                        <span>{t('checkout:contact.businessCustomerHint', 'Booking on behalf of a company. You stay the contact person on the booking.')}</span>
                       </span>
                       <span className="ck-biz-ico">{ICON.briefcase}</span>
                     </label>
@@ -1773,10 +1844,10 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-form ck-boxed">
                       {isCompany && (
                         <div className="ck-row">
-                          <Field label="Company name" req err={errors['pro.legalName']} ok={!!pro.legalName.trim()}>
+                          <Field label={t('checkout:fields.companyName', 'Company name')} req err={errors['pro.legalName']} ok={!!pro.legalName.trim()}>
                             <input className="ck-input" value={pro.legalName} onChange={(e) => setB('legalName')(e.target.value)} placeholder="SunSky Travel BV" maxLength={150} />
                           </Field>
-                          <Field label="VAT number" req err={errors['pro.vatNumber']} ok={pro.vatNumber.trim().length > 2}>
+                          <Field label={t('checkout:fields.vatNumber', 'VAT number')} req err={errors['pro.vatNumber']} ok={pro.vatNumber.trim().length > 2}>
                             <input className="ck-input" value={pro.vatNumber} onChange={(e) => setB('vatNumber')(e.target.value)} placeholder="BE 0123.456.789" maxLength={50} />
                           </Field>
                         </div>
@@ -1788,41 +1859,41 @@ function CheckoutContent({ stripe, elements }) {
                           (company, address, phone, email, emergency contact) is filled in
                           here regardless of the tick. */}
                       <div className="ck-row">
-                        <Field label="First name" req err={errors['priv.firstName']} ok={!!priv.firstName.trim()}
-                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
+                        <Field label={t('checkout:fields.firstName', 'First name')} req err={errors['priv.firstName']} ok={!!priv.firstName.trim()}
+                          hint={leadIsBooker ? t('checkout:fields.sharedWithTraveller1', 'Shared with traveller 1') : undefined}>
                           <input className="ck-input" value={priv.firstName}
                             onChange={(e) => setShared('firstName')(e.target.value)} placeholder="John" maxLength={100} />
                         </Field>
-                        <Field label="Last name" req err={errors['priv.lastName']} ok={!!priv.lastName.trim()}
-                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
+                        <Field label={t('checkout:fields.lastName', 'Last name')} req err={errors['priv.lastName']} ok={!!priv.lastName.trim()}
+                          hint={leadIsBooker ? t('checkout:fields.sharedWithTraveller1', 'Shared with traveller 1') : undefined}>
                           <input className="ck-input" value={priv.lastName}
                             onChange={(e) => setShared('lastName')(e.target.value)} placeholder="Doe" maxLength={100} />
                         </Field>
                       </div>
 
                       <div className="ck-row">
-                        <Field label="Gender" err={errors['priv.gender']} ok={!!priv.gender}
-                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
+                        <Field label={t('checkout:fields.gender', 'Gender')} err={errors['priv.gender']} ok={!!priv.gender}
+                          hint={leadIsBooker ? t('checkout:fields.sharedWithTraveller1', 'Shared with traveller 1') : undefined}>
                           <select className="ck-input ck-select" value={priv.gender}
                             onChange={(e) => setShared('gender')(e.target.value)}>
-                            <option value="">Select…</option>
-                            {GENDERS_CUSTOMER.map((g) => <option key={g.v} value={g.v}>{g.l}</option>)}
+                            <option value="">{t('checkout:fields.selectPlaceholder', 'Select…')}</option>
+                            {GENDERS_CUSTOMER.map((g) => <option key={g.v} value={g.v}>{g.l()}</option>)}
                           </select>
                         </Field>
-                        <Field label="Date of birth" err={errors['priv.dateOfBirth']} ok={!!priv.dateOfBirth}
-                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
+                        <Field label={t('checkout:fields.dateOfBirth', 'Date of birth')} err={errors['priv.dateOfBirth']} ok={!!priv.dateOfBirth}
+                          hint={leadIsBooker ? t('checkout:fields.sharedWithTraveller1', 'Shared with traveller 1') : undefined}>
                           <input className="ck-input" type="date" value={priv.dateOfBirth} max={TODAY_ISO}
                             onChange={(e) => setShared('dateOfBirth')(e.target.value)} />
                         </Field>
                       </div>
 
                       <div className="ck-row">
-                        <Field label="Nationality" req err={errors['priv.nationality']} ok={!!priv.nationality}
-                          hint={leadIsBooker ? 'Shared with traveller 1' : undefined}>
+                        <Field label={t('checkout:fields.nationality', 'Nationality')} req err={errors['priv.nationality']} ok={!!priv.nationality}
+                          hint={leadIsBooker ? t('checkout:fields.sharedWithTraveller1', 'Shared with traveller 1') : undefined}>
                           <select className="ck-input ck-select" value={priv.nationality}
                             onChange={(e) => setShared('nationality')(e.target.value)}>
-                            <option value="">Select…</option>
-                            {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+                            <option value="">{t('checkout:fields.selectPlaceholder', 'Select…')}</option>
+                            {NATIONALITIES.map((n) => <option key={n} value={n}>{nationalityLabel(n)}</option>)}
                           </select>
                         </Field>
                         <span />
@@ -1839,46 +1910,46 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-card-head">
                       <div className="ck-ico">{ICON.pin}</div>
                       <div className="ck-card-titles">
-                        <h2 className="ck-card-title hd">Address</h2>
-                        <p className="ck-card-sub">{isCompany ? 'Company address' : 'Where we send the invoice'}</p>
+                        <h2 className="ck-card-title hd">{t('checkout:address.title', 'Address')}</h2>
+                        <p className="ck-card-sub">{isCompany ? t('checkout:address.companyAddress', 'Company address') : t('checkout:address.whereWeSendInvoice', 'Where we send the invoice')}</p>
                       </div>
                     </div>
 
                     <div className="ck-form ck-boxed">
                       <div className="ck-row-3">
-                        <Field label="Street name" span={2} req err={errors['priv.street']} ok={!!priv.street.trim()}>
+                        <Field label={t('checkout:fields.streetName', 'Street name')} span={2} req err={errors['priv.street']} ok={!!priv.street.trim()}>
                           <input className="ck-input" value={priv.street} onChange={(e) => setP('street')(e.target.value)} placeholder="Rue de la Loi" maxLength={255} />
                         </Field>
-                        <Field label="House no." req err={errors['priv.houseNumber']} ok={!!priv.houseNumber.trim()}>
+                        <Field label={t('checkout:fields.houseNo', 'House no.')} req err={errors['priv.houseNumber']} ok={!!priv.houseNumber.trim()}>
                           <input className="ck-input" value={priv.houseNumber} onChange={(e) => setP('houseNumber')(e.target.value)} placeholder="42" maxLength={20} />
                         </Field>
-                        <Field label="Box no." hint="Apartment, suite or bus">
+                        <Field label={t('checkout:fields.boxNo', 'Box no.')} hint={t('checkout:fields.boxNoHint', 'Apartment, suite or bus')}>
                           <input className="ck-input" value={priv.boxNumber} onChange={(e) => setP('boxNumber')(e.target.value)} placeholder="3A" maxLength={20} />
                         </Field>
                       </div>
                       <div className="ck-row-3 ck-addr">
-                        <Field label="Postal code" req err={errors['priv.postalCode']} ok={!!priv.postalCode.trim()}>
+                        <Field label={t('checkout:fields.postalCode', 'Postal code')} req err={errors['priv.postalCode']} ok={!!priv.postalCode.trim()}>
                           <input className="ck-input" value={priv.postalCode} onChange={(e) => setP('postalCode')(e.target.value)} placeholder="1000" maxLength={20} />
                         </Field>
-                        <Field label="City" req err={errors['priv.city']} ok={!!priv.city.trim()}>
+                        <Field label={t('checkout:fields.city', 'City')} req err={errors['priv.city']} ok={!!priv.city.trim()}>
                           <input className="ck-input" value={priv.city} onChange={(e) => setP('city')(e.target.value)} placeholder="Brussels" maxLength={100} />
                         </Field>
                         {/* Required, as at signup: it is the invoice country, and a company
                             record cannot be created without one. */}
-                        <Field label="Country" req err={errors['priv.country']} ok={!!priv.country}>
+                        <Field label={t('checkout:fields.country', 'Country')} req err={errors['priv.country']} ok={!!priv.country}>
                           <select className="ck-input ck-select" value={priv.country} onChange={(e) => setCountryWithDialCode(e.target.value)}>
-                            <option value="">Select…</option>
-                            {COUNTRIES.map((c) => <option key={c} value={c}>{c}</option>)}
+                            <option value="">{t('checkout:fields.selectPlaceholder', 'Select…')}</option>
+                            {COUNTRIES.map((c) => <option key={c} value={c}>{countryLabel(c)}</option>)}
                           </select>
                         </Field>
                       </div>
 
                       <div className="ck-row">
-                        <Field label="Phone number" req err={errors['priv.phone']} ok={phoneOk(priv.phone)}
-                          hint="International format, e.g. +32 475 12 34 56">
+                        <Field label={t('checkout:fields.phoneNumber', 'Phone number')} req err={errors['priv.phone']} ok={phoneOk(priv.phone)}
+                          hint={t('checkout:fields.phoneFormatHint', 'International format, e.g. +32 475 12 34 56')}>
                           <input className="ck-input" type="tel" value={priv.phone} onChange={(e) => setP('phone')(e.target.value)} placeholder="+32 475 12 34 56" maxLength={30} />
                         </Field>
-                        <Field label="Email address" req err={errors['priv.email']} ok={emailOk(priv.email) && emailTaken === false}>
+                        <Field label={t('checkout:fields.emailAddress', 'Email address')} req err={errors['priv.email']} ok={emailOk(priv.email) && emailTaken === false}>
                           <input className="ck-input" type="email" value={priv.email}
                             onChange={(e) => setP('email')(e.target.value)}
                             onBlur={(e) => checkEmail(e.target.value)}
@@ -1894,15 +1965,15 @@ function CheckoutContent({ stripe, elements }) {
                         <div className="ck-email-known" role="status">
                           <span className="ck-email-known-ico">{ICON.user}</span>
                           <div className="ck-email-known-text">
-                            <b>An account already exists with this email address.</b>
-                            <span>Please log in to continue — we'll bring your details into this booking.</span>
+                            <b>{t('checkout:email.accountExists', 'An account already exists with this email address.')}</b>
+                            <span>{t('checkout:email.logInToContinue', 'Please log in to continue — we\'ll bring your details into this booking.')}</span>
                           </div>
                           <div className="ck-email-known-btns">
                             <button type="button" className="ck-email-login" onClick={() => goSignIn('/login')}>
-                              Log in
+                              {t('checkout:email.logIn', 'Log in')}
                             </button>
                             <button type="button" className="ck-email-forgot" onClick={() => goSignIn('/forgot-password')}>
-                              Forgot your password?
+                              {t('checkout:email.forgotPassword', 'Forgot your password?')}
                             </button>
                           </div>
                         </div>
@@ -1910,9 +1981,9 @@ function CheckoutContent({ stripe, elements }) {
 
                       {/* Someone to call who is NOT on the trip. Required, because the moment
                           it is needed is the moment nobody has time to look for it. */}
-                      <Field label="Emergency contact phone number" req
+                      <Field label={t('checkout:fields.emergencyPhone', 'Emergency contact phone number')} req
                         err={errors['priv.emergencyPhone']} ok={phoneOk(priv.emergencyPhone)}
-                        hint="Someone we can reach who is not travelling with you">
+                        hint={t('checkout:fields.emergencyPhoneHint', 'Someone we can reach who is not travelling with you')}>
                         <input className="ck-input" type="tel" value={priv.emergencyPhone}
                           onChange={(e) => setP('emergencyPhone')(e.target.value)}
                           placeholder="+32 476 98 76 54" maxLength={30} />
@@ -1925,13 +1996,13 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-card-head">
                       <div className="ck-ico">{ICON.users}</div>
                       <div className="ck-card-titles">
-                        <h2 className="ck-card-title hd">Travellers <span className="ck-count-badge">{pax}</span></h2>
-                        <p className="ck-card-sub">Enter names exactly as they appear in the passport</p>
+                        <h2 className="ck-card-title hd">{t('checkout:travellers.title', 'Travellers')} <span className="ck-count-badge">{pax}</span></h2>
+                        <p className="ck-card-sub">{t('checkout:travellers.sub', 'Enter names exactly as they appear in the passport')}</p>
                       </div>
                     </div>
 
-                    {travellers.map((t, i) => {
-                      const at = t.dateOfBirth ? ageType(t.dateOfBirth) : null;
+                    {travellers.map((trav, i) => {
+                      const at = trav.dateOfBirth ? ageType(trav.dateOfBirth) : null;
                       return (
                         <div className="ck-trav" key={i} style={{ animationDelay: `${i * 0.07}s` }}>
                           {/* The heading names the person as they will appear on the ticket —
@@ -1941,12 +2012,12 @@ function CheckoutContent({ stripe, elements }) {
                           <div className="ck-trav-head">
                             <div className="ck-trav-av">{i + 1}</div>
                             <div className="ck-trav-name hd">
-                              Traveller {i + 1}
-                              {(t.firstName || t.lastName) && (
-                                <span className="ck-trav-who"> — {[titleFor(t.gender), t.firstName, t.lastName].filter(Boolean).join(' ')}</span>
+                              {t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' })}
+                              {(trav.firstName || trav.lastName) && (
+                                <span className="ck-trav-who"> — {[titleFor(trav.gender), trav.firstName, trav.lastName].filter(Boolean).join(' ')}</span>
                               )}
                             </div>
-                            {i === 0 && <span className="ck-lead-badge">{ICON.sparkle} Lead</span>}
+                            {i === 0 && <span className="ck-lead-badge">{ICON.sparkle} {t('checkout:travellers.lead', 'Lead')}</span>}
                             {at && <span className={`ck-age-badge ${at.code.toLowerCase()}`} key={at.code}>{at.label}</span>}
                           </div>
 
@@ -1959,8 +2030,8 @@ function CheckoutContent({ stripe, elements }) {
                                 onChange={(e) => joinLeadAndBooker(e.target.checked)} />
                               <span className="ck-biz-box">{leadIsBooker && ICON.check}</span>
                               <span className="ck-biz-text">
-                                <b>This traveller is also the lead booker</b>
-                                <span>Name, gender, date of birth and nationality are shared with the lead booker section — fill in either one.</span>
+                                <b>{t('checkout:travellers.alsoLeadBooker', 'This traveller is also the lead booker')}</b>
+                                <span>{t('checkout:travellers.alsoLeadBookerHint', 'Name, gender, date of birth and nationality are shared with the lead booker section — fill in either one.')}</span>
                               </span>
                             </label>
                           )}
@@ -1972,16 +2043,16 @@ function CheckoutContent({ stripe, elements }) {
                               nothing shifts sideways when it appears. */}
                           <div className="ck-tvf-grid">
                             <div className={`ck-tvf ck-tvf-full${errors[`t${i}.gender`] ? ' ck-err' : ''}`}>
-                              <label className="ck-tvf-label">Gender <span className="ck-req">*</span></label>
-                              <GenderPick name={`ck-gender-${i}`} value={t.gender} onChange={setT(i, 'gender')} />
+                              <label className="ck-tvf-label">{t('checkout:fields.gender', 'Gender')} <span className="ck-req">*</span></label>
+                              <GenderPick name={`ck-gender-${i}`} value={trav.gender} onChange={setT(i, 'gender')} />
                               {errors[`t${i}.gender`] && <div className="ck-errmsg">{errors[`t${i}.gender`]}</div>}
                             </div>
 
-                            <TravField label="First name" req err={errors[`t${i}.firstName`]} ok={!!t.firstName.trim()}>
-                              <input className="ck-input" value={t.firstName} onChange={(e) => setT(i, 'firstName')(e.target.value)} placeholder="As in passport" maxLength={100} />
+                            <TravField label={t('checkout:fields.firstName', 'First name')} req err={errors[`t${i}.firstName`]} ok={!!trav.firstName.trim()}>
+                              <input className="ck-input" value={trav.firstName} onChange={(e) => setT(i, 'firstName')(e.target.value)} placeholder={t('checkout:fields.asInPassport', 'As in passport')} maxLength={100} />
                             </TravField>
-                            <TravField label="Last name" req err={errors[`t${i}.lastName`]} ok={!!t.lastName.trim()}>
-                              <input className="ck-input" value={t.lastName} onChange={(e) => setT(i, 'lastName')(e.target.value)} placeholder="As in passport" maxLength={100} />
+                            <TravField label={t('checkout:fields.lastName', 'Last name')} req err={errors[`t${i}.lastName`]} ok={!!trav.lastName.trim()}>
+                              <input className="ck-input" value={trav.lastName} onChange={(e) => setT(i, 'lastName')(e.target.value)} placeholder={t('checkout:fields.asInPassport', 'As in passport')} maxLength={100} />
                             </TravField>
 
                             {/* A child whose date of birth came from the search opens READ-ONLY.
@@ -1989,32 +2060,32 @@ function CheckoutContent({ stripe, elements }) {
                                 not a field to be casually retyped — but it is also the one thing
                                 a traveller might genuinely need to fix, so there is a way in,
                                 behind a warning that says what will happen. */}
-                            <TravField label="Date of birth" req err={errors[`t${i}.dateOfBirth`]}
-                              ok={!t.dobLocked && !!t.dateOfBirth}
-                              hint={t.dobLocked ? 'From your search — this set the price'
-                                : t.searchDob ? 'Changing this re-checks price and availability'
-                                : t.isSearchChild && t.searchAge != null
-                                  ? `Priced as a ${t.searchAge}-year-old — another age re-checks the price`
+                            <TravField label={t('checkout:fields.dateOfBirth', 'Date of birth')} req err={errors[`t${i}.dateOfBirth`]}
+                              ok={!trav.dobLocked && !!trav.dateOfBirth}
+                              hint={trav.dobLocked ? t('checkout:travellers.dobFromSearch', 'From your search — this set the price')
+                                : trav.searchDob ? t('checkout:travellers.dobRecheckHint', 'Changing this re-checks price and availability')
+                                : trav.isSearchChild && trav.searchAge != null
+                                  ? t('checkout:travellers.pricedAsAge', { age: trav.searchAge, defaultValue: 'Priced as a {{age}}-year-old — another age re-checks the price' })
                                   : undefined}>
-                              {t.dobLocked ? (
+                              {trav.dobLocked ? (
                                 <div className="ck-dob-lock">
-                                  <span className="ck-dob-val">{dmy(t.dateOfBirth)}</span>
-                                  <span className="ck-dob-age">{ageType(t.dateOfBirth).label}</span>
+                                  <span className="ck-dob-val">{dmy(trav.dateOfBirth)}</span>
+                                  <span className="ck-dob-age">{ageType(trav.dateOfBirth).label}</span>
                                   <button type="button" className="ck-dob-change" onClick={() => setDobPrompt(i)}>
-                                    Change
+                                    {t('checkout:travellers.change', 'Change')}
                                   </button>
                                 </div>
                               ) : (
-                                <input className="ck-input" type="date" value={t.dateOfBirth}
+                                <input className="ck-input" type="date" value={trav.dateOfBirth}
                                   max={TODAY_ISO}
                                   autoFocus={dobUnlocked === i}
                                   onChange={(e) => setT(i, 'dateOfBirth')(e.target.value)} />
                               )}
                             </TravField>
-                            <TravField label="Nationality" req err={errors[`t${i}.nationality`]} ok={!!t.nationality}>
-                              <select className="ck-input ck-select" value={t.nationality} onChange={(e) => setT(i, 'nationality')(e.target.value)}>
-                                <option value="">Select…</option>
-                                {NATIONALITIES.map((n) => <option key={n} value={n}>{n}</option>)}
+                            <TravField label={t('checkout:fields.nationality', 'Nationality')} req err={errors[`t${i}.nationality`]} ok={!!trav.nationality}>
+                              <select className="ck-input ck-select" value={trav.nationality} onChange={(e) => setT(i, 'nationality')(e.target.value)}>
+                                <option value="">{t('checkout:fields.selectPlaceholder', 'Select…')}</option>
+                                {NATIONALITIES.map((n) => <option key={n} value={n}>{nationalityLabel(n)}</option>)}
                               </select>
                             </TravField>
                           </div>
@@ -2027,16 +2098,15 @@ function CheckoutContent({ stripe, elements }) {
                               <div className="ck-dob-warn-head">
                                 <span className="ck-dob-warn-ico">{ICON.clock}</span>
                                 <p id={`ck-dobw-${i}`}>
-                                  Changing the date of birth may affect the price or availability of your
-                                  trip. We will check this automatically before you continue.
+                                  {t('checkout:travellers.dobWarning', 'Changing the date of birth may affect the price or availability of your trip. We will check this automatically before you continue.')}
                                 </p>
                               </div>
                               <div className="ck-dob-warn-btns">
                                 <button type="button" className="ck-dob-keep" onClick={() => setDobPrompt(null)}>
-                                  Keep {dmy(t.searchDob)}
+                                  {t('checkout:travellers.keepDate', { date: dmy(trav.searchDob), defaultValue: 'Keep {{date}}' })}
                                 </button>
                                 <button type="button" className="ck-dob-go" onClick={() => unlockDob(i)}>
-                                  Change date of birth
+                                  {t('checkout:travellers.changeDob', 'Change date of birth')}
                                 </button>
                               </div>
                             </div>
@@ -2056,8 +2126,8 @@ function CheckoutContent({ stripe, elements }) {
                           <div className="ck-rp-row">
                             <span className="ck-spin ck-rp-spin" />
                             <div>
-                              <b>Re-checking price and availability…</b>
-                              <span>The dates of birth changed, so we are asking the hotel{booking.api?.flight ? ' and the airline' : ''} again. You can finish the rest of the form meanwhile.</span>
+                              <b>{t('checkout:reprice.checking', 'Re-checking price and availability…')}</b>
+                              <span>{t('checkout:reprice.checkingSub', { andAirline: booking.api?.flight ? t('checkout:reprice.andTheAirline', ' and the airline') : '', defaultValue: 'The dates of birth changed, so we are asking the hotel{{andAirline}} again. You can finish the rest of the form meanwhile.' })}</span>
                             </div>
                           </div>
                         )}
@@ -2065,8 +2135,8 @@ function CheckoutContent({ stripe, elements }) {
                           <div className="ck-rp-row">
                             <span className="ck-rp-ok">{ICON.check}</span>
                             <div>
-                              <b>{reprice.status === 'same' ? 'Your price is unchanged' : 'New price accepted'}</b>
-                              <span>Confirmed for the updated traveller details{reprice.status === 'accepted' ? ` — ${money(total)} total` : ''}.</span>
+                              <b>{reprice.status === 'same' ? t('checkout:reprice.unchanged', 'Your price is unchanged') : t('checkout:reprice.accepted', 'New price accepted')}</b>
+                              <span>{t('checkout:reprice.confirmedFor', 'Confirmed for the updated traveller details')}{reprice.status === 'accepted' ? ` — ${t('checkout:reprice.total', { amount: money(total), defaultValue: '{{amount}} total' })}` : ''}.</span>
                             </div>
                           </div>
                         )}
@@ -2075,8 +2145,8 @@ function CheckoutContent({ stripe, elements }) {
                             <div className="ck-rp-row">
                               <span className="ck-rp-warn">{ICON.clock}</span>
                               <div>
-                                <b>The price for this holiday has changed</b>
-                                <span>The updated dates of birth change what the supplier charges. Accept the new price to continue, or put the original date back.</span>
+                                <b>{t('checkout:reprice.priceChanged', 'The price for this holiday has changed')}</b>
+                                <span>{t('checkout:reprice.priceChangedSub', 'The updated dates of birth change what the supplier charges. Accept the new price to continue, or put the original date back.')}</span>
                               </div>
                             </div>
                             <div className="ck-rp-prices">
@@ -2088,8 +2158,8 @@ function CheckoutContent({ stripe, elements }) {
                               </span>
                             </div>
                             <div className="ck-rp-btns">
-                              <button type="button" className="ck-rp-restore" onClick={restoreSearchDob}>Keep the original date</button>
-                              <button type="button" className="ck-rp-accept" onClick={acceptNewPrice}>Accept the new price</button>
+                              <button type="button" className="ck-rp-restore" onClick={restoreSearchDob}>{t('checkout:reprice.keepOriginalDate', 'Keep the original date')}</button>
+                              <button type="button" className="ck-rp-accept" onClick={acceptNewPrice}>{t('checkout:reprice.acceptNewPrice', 'Accept the new price')}</button>
                             </div>
                           </>
                         )}
@@ -2098,18 +2168,18 @@ function CheckoutContent({ stripe, elements }) {
                             <div className="ck-rp-row">
                               <span className="ck-rp-no">{ICON.ban}</span>
                               <div>
-                                <b>This trip is not available for the updated traveller details</b>
+                                <b>{t('checkout:reprice.unavailableTitle', 'This trip is not available for the updated traveller details')}</b>
                                 <span>
                                   {reprice.reason === 'flight'
-                                    ? 'The airline has no seats for this party on these flights.'
-                                    : 'The hotel has no room for this party on these dates.'}
-                                  {' '}You can put the original date of birth back, or change your dates on the hotel page.
+                                    ? t('checkout:reprice.noSeats', 'The airline has no seats for this party on these flights.')
+                                    : t('checkout:reprice.noRoom', 'The hotel has no room for this party on these dates.')}
+                                  {' '}{t('checkout:reprice.putBackOrChangeDates', 'You can put the original date of birth back, or change your dates on the hotel page.')}
                                 </span>
                               </div>
                             </div>
                             <div className="ck-rp-btns">
-                              <button type="button" className="ck-rp-restore" onClick={restoreSearchDob}>Put the original date back</button>
-                              <button type="button" className="ck-rp-accept" onClick={() => navigate(-1)}>Change dates</button>
+                              <button type="button" className="ck-rp-restore" onClick={restoreSearchDob}>{t('checkout:reprice.putBackOriginalDate', 'Put the original date back')}</button>
+                              <button type="button" className="ck-rp-accept" onClick={() => navigate(-1)}>{t('checkout:reprice.changeDates', 'Change dates')}</button>
                             </div>
                           </>
                         )}
@@ -2119,12 +2189,12 @@ function CheckoutContent({ stripe, elements }) {
                               <span className="ck-rp-warn">{ICON.ban}</span>
                               <div>
                                 <b>{reprice.message}</b>
-                                <span>We will not take a payment on a price we could not verify. Try again in a moment.</span>
+                                <span>{t('checkout:reprice.willNotChargeUnverified', 'We will not take a payment on a price we could not verify. Try again in a moment.')}</span>
                               </div>
                             </div>
                             <div className="ck-rp-btns">
-                              <button type="button" className="ck-rp-restore" onClick={restoreSearchDob}>Put the original date back</button>
-                              <button type="button" className="ck-rp-accept" onClick={() => runReprice(currentChildAges)}>Try again</button>
+                              <button type="button" className="ck-rp-restore" onClick={restoreSearchDob}>{t('checkout:reprice.putBackOriginalDate', 'Put the original date back')}</button>
+                              <button type="button" className="ck-rp-accept" onClick={() => runReprice(currentChildAges)}>{t('checkout:reprice.tryAgain', 'Try again')}</button>
                             </div>
                           </>
                         )}
@@ -2144,16 +2214,16 @@ function CheckoutContent({ stripe, elements }) {
                   {bagRates?.personalItem?.included !== false && (
                     <BaggageCard
                       icon={ICON.bag}
-                      title={bagRates?.personalItem?.label || 'Personal item'}
-                      note={bagRates?.personalItem?.note || 'A small personal item that fits under the seat in front of you.'}
-                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span></>}>
-                      {travellers.map((t, i) => (
-                        <BagTraveller key={i} index={i} name={travellerName(t)}>
+                      title={bagRates?.personalItem?.label || t('checkout:baggage.personalItem', 'Personal item')}
+                      note={bagRates?.personalItem?.note || t('checkout:baggage.personalItemNote', 'A small personal item that fits under the seat in front of you.')}
+                      legend={<><span className="ck-lg ok">{ICON.check} {t('checkout:baggage.includedInTicket', 'Included in your ticket')}</span></>}>
+                      {travellers.map((trav, i) => (
+                        <BagTraveller key={i} index={i} name={travellerName(trav)}>
                           {directions.map((d) => (
                             <div className="ck-bagrow" key={d.key}>
                               <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
-                              <span className="ck-bagrow-item">{ICON.bag} {bagRates?.personalItem?.label || 'Personal item'}</span>
-                              <span className="ck-bagrow-state"><span className="ck-chip-inc">Included</span>{ICON.checkCircle}</span>
+                              <span className="ck-bagrow-item">{ICON.bag} {bagRates?.personalItem?.label || t('checkout:baggage.personalItem', 'Personal item')}</span>
+                              <span className="ck-bagrow-state"><span className="ck-chip-inc">{t('checkout:baggage.included', 'Included')}</span>{ICON.checkCircle}</span>
                             </div>
                           ))}
                         </BagTraveller>
@@ -2169,33 +2239,33 @@ function CheckoutContent({ stripe, elements }) {
                   {(cabinAddOns.length > 0 || bagKnown) && (
                     <BaggageCard
                       icon={ICON.cabinBag}
-                      title={bagRates?.cabin?.label || 'Cabin baggage'}
-                      note={bagRates?.cabin?.note || 'A cabin bag that is stored in the overhead compartment.'}
-                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span></>}>
-                      {travellers.map((t, i) => (
-                        <BagTraveller key={i} index={i} name={travellerName(t)}>
+                      title={bagRates?.cabin?.label || t('checkout:baggage.cabinBaggage', 'Cabin baggage')}
+                      note={bagRates?.cabin?.note || t('checkout:baggage.cabinBaggageNote', 'A cabin bag that is stored in the overhead compartment.')}
+                      legend={<><span className="ck-lg ok">{ICON.check} {t('checkout:baggage.includedInTicket', 'Included in your ticket')}</span><span className="ck-lg add">{ICON.plusCircle} {t('checkout:baggage.availableToAdd', 'Available to add')}</span></>}>
+                      {travellers.map((trav, i) => (
+                        <BagTraveller key={i} index={i} name={travellerName(trav)}>
                           {directions.map((d) => {
                             const added = !!bags[bagKey(i, d.key)]?.cabin;
                             const price = Number(cabinAddOns[0]?.price) || 0;
                             return (
                               <div className="ck-bagrow" key={d.key}>
                                 <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
-                                <span className="ck-bagrow-item">{ICON.cabinBag} {bagRates?.cabin?.label || 'Cabin baggage'}</span>
+                                <span className="ck-bagrow-item">{ICON.cabinBag} {bagRates?.cabin?.label || t('checkout:baggage.cabinBaggage', 'Cabin baggage')}</span>
                                 <span className="ck-bagrow-state">
                                   {/* The state, then — separately — whether more can be bought.
                                       An included bag and a second bag are different questions. */}
                                   {cabinIncluded ? (
-                                    <><span className="ck-chip-inc">Included{cabinIncludedKg ? ` · ${cabinIncludedKg} kg` : ''}</span>{ICON.checkCircle}</>
+                                    <><span className="ck-chip-inc">{t('checkout:baggage.included', 'Included')}{cabinIncludedKg ? ` · ${cabinIncludedKg} kg` : ''}</span>{ICON.checkCircle}</>
                                   ) : added ? (
-                                    <span className="ck-chip-added">Added · {money(price)}</span>
+                                    <span className="ck-chip-added">{t('checkout:baggage.added', 'Added')} · {money(price)}</span>
                                   ) : (
-                                    <span className="ck-chip-not">{bagKnown ? 'Not included' : 'Not confirmed'}</span>
+                                    <span className="ck-chip-not">{bagKnown ? t('checkout:baggage.notIncluded', 'Not included') : t('checkout:baggage.notConfirmed', 'Not confirmed')}</span>
                                   )}
                                   {added ? (
-                                    <button type="button" className="ck-bag-remove" onClick={() => setBag(i, d.key, { cabin: false })}>Remove</button>
+                                    <button type="button" className="ck-bag-remove" onClick={() => setBag(i, d.key, { cabin: false })}>{t('checkout:baggage.remove', 'Remove')}</button>
                                   ) : cabinAddOns.length > 0 ? (
                                     <button type="button" className="ck-bag-add" onClick={() => setBag(i, d.key, { cabin: true })}>
-                                      + Add {cabinIncluded ? 'another cabin bag' : 'cabin baggage'} · {money(price)}
+                                      + {t('checkout:baggage.add', 'Add')} {cabinIncluded ? t('checkout:baggage.anotherCabinBag', 'another cabin bag') : t('checkout:baggage.cabinBaggageLower', 'cabin baggage')} · {money(price)}
                                     </button>
                                   ) : null}
                                 </span>
@@ -2213,11 +2283,11 @@ function CheckoutContent({ stripe, elements }) {
                   {(checkedAddOns.length > 0 || bagKnown) && (
                     <BaggageCard
                       icon={ICON.checkedBag}
-                      title="Checked baggage"
-                      note="Baggage transported in the aircraft hold."
-                      legend={<><span className="ck-lg ok">{ICON.check} Included in your ticket</span><span className="ck-lg add">{ICON.plusCircle} Available to add</span></>}>
-                      {travellers.map((t, i) => (
-                        <BagTraveller key={i} index={i} name={travellerName(t)}>
+                      title={t('checkout:baggage.checkedBaggage', 'Checked baggage')}
+                      note={t('checkout:baggage.checkedBaggageNote', 'Baggage transported in the aircraft hold.')}
+                      legend={<><span className="ck-lg ok">{ICON.check} {t('checkout:baggage.includedInTicket', 'Included in your ticket')}</span><span className="ck-lg add">{ICON.plusCircle} {t('checkout:baggage.availableToAdd', 'Available to add')}</span></>}>
+                      {travellers.map((trav, i) => (
+                        <BagTraveller key={i} index={i} name={travellerName(trav)}>
                           {directions.map((d) => {
                             const kg = checkedIncludedKg;
                             const pieces = checkedIncludedPieces;
@@ -2226,17 +2296,17 @@ function CheckoutContent({ stripe, elements }) {
                             return (
                               <div className="ck-bagrow" key={d.key}>
                                 <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
-                                <span className="ck-bagrow-item">{ICON.checkedBag} Checked baggage</span>
+                                <span className="ck-bagrow-item">{ICON.checkedBag} {t('checkout:baggage.checkedBaggage', 'Checked baggage')}</span>
                                 <span className="ck-bagrow-state">
                                   {/* What the ticket carries, then — separately — what can be
                                       added. An included allowance does not end the question:
                                       a traveller with 20 kg may still want a second bag, and
                                       the airline (or our table) may sell one. */}
                                   {included ? (
-                                    <><span className="ck-chip-inc">Included · {kg > 0 ? `${kg} kg` : `${pieces} ${pieces === 1 ? 'piece' : 'pieces'}`}</span>{ICON.checkCircle}</>
+                                    <><span className="ck-chip-inc">{t('checkout:baggage.included', 'Included')} · {kg > 0 ? `${kg} kg` : t('checkout:baggage.pieces', { count: pieces, defaultValue_one: '{{count}} piece', defaultValue_other: '{{count}} pieces' })}</span>{ICON.checkCircle}</>
                                   ) : (
                                     <span className={chosen ? 'ck-chip-added' : 'ck-chip-not'}>
-                                      {chosen ? `Added · ${chosen} kg` : (bagKnown ? 'Not included' : 'Not confirmed')}
+                                      {chosen ? `${t('checkout:baggage.added', 'Added')} · ${chosen} kg` : (bagKnown ? t('checkout:baggage.notIncluded', 'Not included') : t('checkout:baggage.notConfirmed', 'Not confirmed'))}
                                     </span>
                                   )}
                                   {included && chosen ? (
@@ -2244,9 +2314,9 @@ function CheckoutContent({ stripe, elements }) {
                                   ) : null}
                                   {checkedAddOns.length > 0 && (
                                     <select className="ck-bag-select" value={chosen || ''}
-                                      aria-label={`Add checked baggage for traveller ${i + 1}, ${d.label.toLowerCase()}`}
+                                      aria-label={t('checkout:baggage.addCheckedAria', { number: i + 1, direction: d.label.toLowerCase(), defaultValue: 'Add checked baggage for traveller {{number}}, {{direction}}' })}
                                       onChange={(e) => setBag(i, d.key, { checked: e.target.value ? Number(e.target.value) : null })}>
-                                      <option value="">+ Add {included ? 'more baggage' : 'checked baggage'}</option>
+                                      <option value="">+ {included ? t('checkout:baggage.addMoreBaggage', 'Add more baggage') : t('checkout:baggage.addCheckedBaggage', 'Add checked baggage')}</option>
                                       {checkedAddOns.map((r) => (
                                         <option key={r.kg} value={r.kg}>{r.kg} kg — {money(r.price)}</option>
                                       ))}
@@ -2271,50 +2341,50 @@ function CheckoutContent({ stripe, elements }) {
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
                     <div className="ck-card-titles">
-                      <h2 className="ck-card-title hd">Choose your transfer</h2>
-                      <p className="ck-card-sub">Select one transfer option for all travellers.</p>
+                      <h2 className="ck-card-title hd">{t('checkout:transfer.chooseYourTransfer', 'Choose your transfer')}</h2>
+                      <p className="ck-card-sub">{t('checkout:transfer.selectOneOption', 'Select one transfer option for all travellers.')}</p>
                     </div>
                   </div>
                   <div className="ck-bagkind">
                     <span className="ck-bagkind-ico">{ICON.van}</span>
                     <div className="ck-bagkind-text">
-                      <b>Airport transfer</b>
+                      <b>{t('checkout:transfer.airportTransfer', 'Airport transfer')}</b>
                       <span>
-                        From {srch.destination} airport to {booking.hotelName}
-                        {transfers?.pickupISO && arrivalISO ? ` — pickup ~${transfers.pickupISO.slice(11, 16)}, timed to your arrival` : ''}
+                        {t('checkout:transfer.fromAirportTo', { destination: srch.destination, hotel: booking.hotelName, defaultValue: 'From {{destination}} airport to {{hotel}}' })}
+                        {transfers?.pickupISO && arrivalISO ? ` — ${t('checkout:transfer.pickupTimed', { time: transfers.pickupISO.slice(11, 16), defaultValue: 'pickup ~{{time}}, timed to your arrival' })}` : ''}
                       </span>
                       <span className="ck-kind-chips">
-                        <span className="ck-kind-chip">{ICON.users} {pax} traveller{pax === 1 ? '' : 's'}</span>
-                        <span className="ck-kind-chip">{ICON.check} Arrival transfer</span>
+                        <span className="ck-kind-chip">{ICON.users} {t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}</span>
+                        <span className="ck-kind-chip">{ICON.check} {t('checkout:transfer.arrivalTransfer', 'Arrival transfer')}</span>
                       </span>
                     </div>
                   </div>
 
                   {transfers?.loading ? (
-                    <div className="ck-tr-wait"><span className="ck-spin" /> Checking transfer prices…</div>
+                    <div className="ck-tr-wait"><span className="ck-spin" /> {t('checkout:transfer.checkingPrices', 'Checking transfer prices…')}</div>
                   ) : transfers?.error ? (
                     <div className="ck-tr-err">
-                      {ICON.ban} <span>{transfers.error} You can still book — add a transfer later by contacting us.</span>
+                      {ICON.ban} <span>{transfers.error} {t('checkout:transfer.stillBookLater', 'You can still book — add a transfer later by contacting us.')}</span>
                     </div>
                   ) : transfers?.services?.length ? (
                     <div className="ck-tr-list">
-                      {transfers.services.slice(0, 5).map((t, ti) => (
+                      {transfers.services.slice(0, 5).map((svc, ti) => (
                         <button type="button" key={ti}
                           className={`ck-tr${transferPick === ti ? ' act' : ''}`}
                           onClick={() => setTransferPick(ti)}>
                           <span className="ck-tr-radio">{transferPick === ti && <i />}</span>
                           <span className="ck-tr-main">
                             <span className="ck-tr-name hd">
-                              {t.vehicle || 'Transfer'}
-                              <em>{t.transferType === 'SHARED' ? 'Shared' : 'Private'}</em>
+                              {svc.vehicle || t('checkout:transfer.transfer', 'Transfer')}
+                              <em>{svc.transferType === 'SHARED' ? t('checkout:transfer.shared', 'Shared') : t('checkout:transfer.private', 'Private')}</em>
                             </span>
                             <span className="ck-tr-sub">
-                              {t.pickup?.from || `${srch.destination} Airport`} → {t.pickup?.to || booking.hotelName}
-                              {t.maxPax ? ` · up to ${t.maxPax} passengers` : ''}
+                              {svc.pickup?.from || t('checkout:transfer.destinationAirport', { destination: srch.destination, defaultValue: '{{destination}} Airport' })} → {svc.pickup?.to || booking.hotelName}
+                              {svc.maxPax ? ` · ${t('checkout:transfer.upToPassengers', { count: svc.maxPax, defaultValue: 'up to {{count}} passengers' })}` : ''}
                             </span>
                           </span>
                           <span className="ck-tr-price">
-                            <small>total</small>{money(t.price)}
+                            <small>{t('checkout:transfer.total', 'total')}</small>{money(svc.price)}
                           </span>
                         </button>
                       ))}
@@ -2322,15 +2392,15 @@ function CheckoutContent({ stripe, elements }) {
                         onClick={() => setTransferPick(-1)}>
                         <span className="ck-tr-radio">{transferPick === -1 && <i />}</span>
                         <span className="ck-tr-main">
-                          <span className="ck-tr-name hd">No transfer</span>
-                          <span className="ck-tr-sub">I'll arrange my own way to the hotel</span>
+                          <span className="ck-tr-name hd">{t('checkout:transfer.noTransfer', 'No transfer')}</span>
+                          <span className="ck-tr-sub">{t('checkout:transfer.ownWayToHotel', 'I\'ll arrange my own way to the hotel')}</span>
                         </span>
-                        <span className="ck-tr-price"><small>total</small>{money(0)}</span>
+                        <span className="ck-tr-price"><small>{t('checkout:transfer.total', 'total')}</small>{money(0)}</span>
                       </button>
-                      <p className="ck-tr-note">{ICON.check} Prices are for the whole party and cover the airport pickup on arrival day.</p>
+                      <p className="ck-tr-note">{ICON.check} {t('checkout:transfer.pricesForWholeParty', 'Prices are for the whole party and cover the airport pickup on arrival day.')}</p>
                     </div>
                   ) : transfers ? (
-                    <div className="ck-tr-err">{ICON.ban} <span>No transfers are offered for this hotel on your arrival date.</span></div>
+                    <div className="ck-tr-err">{ICON.ban} <span>{t('checkout:transfer.noneOffered', 'No transfers are offered for this hotel on your arrival date.')}</span></div>
                   ) : null}
                 </section>
               )}
@@ -2342,17 +2412,17 @@ function CheckoutContent({ stripe, elements }) {
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
                     <div className="ck-card-titles">
-                      <h2 className="ck-card-title hd">Cancellation insurance</h2>
-                      <p className="ck-card-sub">Choose whether you would like cancellation insurance for all travellers.</p>
+                      <h2 className="ck-card-title hd">{t('checkout:insurance.cancellationTitle', 'Cancellation insurance')}</h2>
+                      <p className="ck-card-sub">{t('checkout:insurance.cancellationSub', 'Choose whether you would like cancellation insurance for all travellers.')}</p>
                     </div>
                   </div>
                   <div className="ck-bagkind">
                     <span className="ck-bagkind-ico">{ICON.shield}</span>
                     <div className="ck-bagkind-text">
-                      <b>Protect your trip</b>
-                      <span>One selection applies to all travellers in this booking.</span>
+                      <b>{t('checkout:insurance.protectYourTrip', 'Protect your trip')}</b>
+                      <span>{t('checkout:insurance.oneSelectionForAll', 'One selection applies to all travellers in this booking.')}</span>
                       <span className="ck-kind-chips">
-                        <span className="ck-kind-chip">{ICON.users} {pax} traveller{pax === 1 ? '' : 's'}</span>
+                        <span className="ck-kind-chip">{ICON.users} {t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}</span>
                       </span>
                     </div>
                   </div>
@@ -2363,11 +2433,11 @@ function CheckoutContent({ stripe, elements }) {
                       <span className="ck-tr-radio">{cancelIns === true && <i />}</span>
                       <span className="ck-tr-main">
                         <span className="ck-tr-name hd">{cancelOption.label}</span>
-                        <span className="ck-tr-sub">{cancelOption.description || 'Cancellation insurance for all travellers'}</span>
-                        {cancelOption.provider && <span className="ck-ins-by">Provided by {cancelOption.provider}</span>}
+                        <span className="ck-tr-sub">{cancelOption.description || t('checkout:insurance.cancellationForAll', 'Cancellation insurance for all travellers')}</span>
+                        {cancelOption.provider && <span className="ck-ins-by">{t('checkout:insurance.providedBy', { provider: cancelOption.provider, defaultValue: 'Provided by {{provider}}' })}</span>}
                       </span>
                       <span className="ck-tr-price">
-                        <small>total</small>
+                        <small>{t('checkout:transfer.total', 'total')}</small>
                         {money(priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: subtotal }))}
                       </span>
                     </button>
@@ -2375,21 +2445,19 @@ function CheckoutContent({ stripe, elements }) {
                       onClick={() => setCancelIns(false)}>
                       <span className="ck-tr-radio">{cancelIns === false && <i />}</span>
                       <span className="ck-tr-main">
-                        <span className="ck-tr-name hd">No cancellation insurance</span>
-                        <span className="ck-tr-sub">Continue without cancellation cover</span>
+                        <span className="ck-tr-name hd">{t('checkout:insurance.noCancellation', 'No cancellation insurance')}</span>
+                        <span className="ck-tr-sub">{t('checkout:insurance.continueWithoutCancellation', 'Continue without cancellation cover')}</span>
                       </span>
-                      <span className="ck-tr-price"><small>total</small>{money(0)}</span>
+                      <span className="ck-tr-price"><small>{t('checkout:transfer.total', 'total')}</small>{money(0)}</span>
                     </button>
                   </div>
-                  {cancelIns === null && <p className="ck-pick-note">Please select one option to continue.</p>}
+                  {cancelIns === null && <p className="ck-pick-note">{t('checkout:insurance.selectOneToContinue', 'Please select one option to continue.')}</p>}
 
                   {cancelOption.provider && (
                     <div className="ck-ins-legal">
                       {ICON.shield}
                       <p>
-                        SUNSKY acts solely as an insurance intermediary. For complete information about
-                        the insurance, its coverage, exclusions and policy terms, please refer to the
-                        insurer's own documents.
+                        {t('checkout:insurance.intermediaryNotice', 'SUNSKY acts solely as an insurance intermediary. For complete information about the insurance, its coverage, exclusions and policy terms, please refer to the insurer\'s own documents.')}
                       </p>
                     </div>
                   )}
@@ -2402,31 +2470,31 @@ function CheckoutContent({ stripe, elements }) {
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
                     <div className="ck-card-titles">
-                      <h2 className="ck-card-title hd">Travel insurance</h2>
-                      <p className="ck-card-sub">Choose travel insurance separately for each traveller.</p>
+                      <h2 className="ck-card-title hd">{t('checkout:insurance.travelTitle', 'Travel insurance')}</h2>
+                      <p className="ck-card-sub">{t('checkout:insurance.travelSub', 'Choose travel insurance separately for each traveller.')}</p>
                     </div>
                   </div>
                   <div className="ck-bagkind">
                     <span className="ck-bagkind-ico">{ICON.umbrella}</span>
                     <div className="ck-bagkind-text">
                       <b>{travelOption.label}</b>
-                      <span>{travelOption.description || 'Cover for you and your luggage while travelling.'}</span>
+                      <span>{travelOption.description || t('checkout:insurance.coverWhileTravelling', 'Cover for you and your luggage while travelling.')}</span>
                       <span className="ck-kind-chips">
-                        <span className="ck-kind-chip">{ICON.cal} {booking.nights} travel day{booking.nights === 1 ? '' : 's'}</span>
+                        <span className="ck-kind-chip">{ICON.cal} {t('checkout:duration.travelDays', { count: booking.nights, defaultValue_one: '{{count}} travel day', defaultValue_other: '{{count}} travel days' })}</span>
                         <span className="ck-kind-chip">{ICON.shieldCheck} {priceBasisLabel(travelOption, ccy)}</span>
                       </span>
-                      <span className="ck-kind-note">Each traveller can make a different choice.</span>
+                      <span className="ck-kind-note">{t('checkout:insurance.eachTravellerDifferentChoice', 'Each traveller can make a different choice.')}</span>
                     </div>
                   </div>
 
-                  {travellers.map((t, i) => {
+                  {travellers.map((trav, i) => {
                     const each = priceInsurance(travelOption, { pax: 1, nights: booking.nights, baseSubtotal: subtotal });
                     return (
                       <div className="ck-bagtrav" key={i}>
                         <div className="ck-bagtrav-head">
                           <span className="ck-bagtrav-n">{i + 1}</span>
                           <span className="ck-bagtrav-name hd">
-                            Traveller {i + 1}{travellerName(t) ? <span className="ck-trav-who"> — {travellerName(t)}</span> : null}
+                            {t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' })}{travellerName(trav) ? <span className="ck-trav-who"> — {travellerName(trav)}</span> : null}
                           </span>
                         </div>
                         <div className="ck-tr-list">
@@ -2435,35 +2503,33 @@ function CheckoutContent({ stripe, elements }) {
                             <span className="ck-tr-radio">{travelIns[i] === true && <i />}</span>
                             <span className="ck-tr-main">
                               <span className="ck-tr-name hd">{travelOption.label}</span>
-                              <span className="ck-tr-sub">{priceBasisLabel(travelOption, ccy)} × {booking.nights} day{booking.nights === 1 ? '' : 's'}</span>
-                              {travelOption.provider && <span className="ck-ins-by">Provided by {travelOption.provider}</span>}
+                              <span className="ck-tr-sub">{priceBasisLabel(travelOption, ccy)} × {t('checkout:duration.days', { count: booking.nights, defaultValue_one: '{{count}} day', defaultValue_other: '{{count}} days' })}</span>
+                              {travelOption.provider && <span className="ck-ins-by">{t('checkout:insurance.providedBy', { provider: travelOption.provider, defaultValue: 'Provided by {{provider}}' })}</span>}
                             </span>
-                            <span className="ck-tr-price"><small>total</small>{money(each)}</span>
+                            <span className="ck-tr-price"><small>{t('checkout:transfer.total', 'total')}</small>{money(each)}</span>
                           </button>
                           <button type="button" className={`ck-tr${travelIns[i] === false ? ' act' : ''}`}
                             onClick={() => setTravelIns((v) => ({ ...v, [i]: false }))}>
                             <span className="ck-tr-radio">{travelIns[i] === false && <i />}</span>
                             <span className="ck-tr-main">
-                              <span className="ck-tr-name hd">No travel insurance</span>
-                              <span className="ck-tr-sub">Continue without travel insurance</span>
+                              <span className="ck-tr-name hd">{t('checkout:insurance.noTravel', 'No travel insurance')}</span>
+                              <span className="ck-tr-sub">{t('checkout:insurance.continueWithoutTravel', 'Continue without travel insurance')}</span>
                             </span>
-                            <span className="ck-tr-price"><small>total</small>{money(0)}</span>
+                            <span className="ck-tr-price"><small>{t('checkout:transfer.total', 'total')}</small>{money(0)}</span>
                           </button>
                         </div>
                       </div>
                     );
                   })}
                   {travellers.some((_, i) => travelIns[i] === undefined) && (
-                    <p className="ck-pick-note">Please select one option for each traveller to continue.</p>
+                    <p className="ck-pick-note">{t('checkout:insurance.selectOneEachToContinue', 'Please select one option for each traveller to continue.')}</p>
                   )}
 
                   {travelOption.provider && (
                     <div className="ck-ins-legal">
                       {ICON.shield}
                       <p>
-                        SUNSKY acts solely as an insurance intermediary. For complete information about
-                        the insurance, its coverage, exclusions and policy terms, please refer to the
-                        insurer's own documents.
+                        {t('checkout:insurance.intermediaryNotice', 'SUNSKY acts solely as an insurance intermediary. For complete information about the insurance, its coverage, exclusions and policy terms, please refer to the insurer\'s own documents.')}
                       </p>
                     </div>
                   )}
@@ -2481,30 +2547,30 @@ function CheckoutContent({ stripe, elements }) {
                   <div className="ck-card-head">
                     <div className="ck-ico">{ICON.check}</div>
                     <div className="ck-card-titles">
-                      <h2 className="ck-card-title hd">Your trip</h2>
-                      <p className="ck-card-sub">Please check these details before you pay</p>
+                      <h2 className="ck-card-title hd">{t('checkout:overview.yourTrip', 'Your trip')}</h2>
+                      <p className="ck-card-sub">{t('checkout:overview.checkBeforePay', 'Please check these details before you pay')}</p>
                     </div>
                   </div>
 
                   <div className="ck-ov-grid">
                     <div className="ck-ov-item">
-                      <span className="ck-ov-k">Accommodation</span>
+                      <span className="ck-ov-k">{t('checkout:overview.accommodation', 'Accommodation')}</span>
                       <span className="ck-ov-v">{booking.hotelName}</span>
                     </div>
                     <div className="ck-ov-item">
-                      <span className="ck-ov-k">Destination</span>
+                      <span className="ck-ov-k">{t('checkout:overview.destination', 'Destination')}</span>
                       <span className="ck-ov-v">{booking.loc || '—'}</span>
                     </div>
                     <div className="ck-ov-item">
-                      <span className="ck-ov-k">Travel start date</span>
+                      <span className="ck-ov-k">{t('checkout:overview.travelStartDate', 'Travel start date')}</span>
                       <span className="ck-ov-v">{dmy(srch.checkin || booking.api?.hotel?.checkin) || booking.dateLabel}</span>
                     </div>
                     <div className="ck-ov-item">
-                      <span className="ck-ov-k">Travel end date</span>
+                      <span className="ck-ov-k">{t('checkout:overview.travelEndDate', 'Travel end date')}</span>
                       <span className="ck-ov-v">{dmy(srch.checkout || booking.api?.hotel?.checkout) || '—'}</span>
                     </div>
                     <div className="ck-ov-item">
-                      <span className="ck-ov-k">Board</span>
+                      <span className="ck-ov-k">{t('checkout:overview.board', 'Board')}</span>
                       {/* Still normalised through boardInfo so the WORDING is ours and
                           consistent ("All inclusive", never a supplier's stray spelling); the
                           capitals are applied in CSS on top. Uppercasing here instead would
@@ -2515,14 +2581,14 @@ function CheckoutContent({ stripe, elements }) {
                       </span>
                     </div>
                     <div className="ck-ov-item">
-                      <span className="ck-ov-k">Transport</span>
-                      <span className="ck-ov-v">{booking.api?.flight ? 'Flight' : 'Own transport'}</span>
+                      <span className="ck-ov-k">{t('checkout:overview.transport', 'Transport')}</span>
+                      <span className="ck-ov-v">{booking.api?.flight ? t('checkout:overview.flight', 'Flight') : t('checkout:overview.ownTransport', 'Own transport')}</span>
                     </div>
                   </div>
 
                   {booking.room && (
                     <div className="ck-ov-block">
-                      <div className="ck-ov-title hd">Rooms</div>
+                      <div className="ck-ov-title hd">{t('checkout:overview.rooms', 'Rooms')}</div>
                       <p className="ck-ov-line">
                         {Number(srch.rooms) > 1 ? `${srch.rooms} × ` : '1 × '}
                         <span className="ck-caps">{booking.room}</span>
@@ -2533,10 +2599,10 @@ function CheckoutContent({ stripe, elements }) {
 
                   {booking.flight && (
                     <div className="ck-ov-block">
-                      <div className="ck-ov-title hd">Transport</div>
+                      <div className="ck-ov-title hd">{t('checkout:overview.transport', 'Transport')}</div>
                       <div className="ck-ov-flights">
                         <div className="ck-ov-flight">
-                          <span className="ck-ov-dir">Outbound</span>
+                          <span className="ck-ov-dir">{t('checkout:flight.outbound', 'Outbound')}</span>
                           <span className="ck-ov-line">
                             {booking.flight.outDate ? `${booking.flight.outDate} · ` : ''}
                             {booking.flight.outDep} {booking.flight.outFrom} → {booking.flight.outArr} {booking.flight.outTo}
@@ -2554,7 +2620,7 @@ function CheckoutContent({ stripe, elements }) {
                         </div>
                         {booking.flight.retDep && (
                           <div className="ck-ov-flight">
-                            <span className="ck-ov-dir">Return</span>
+                            <span className="ck-ov-dir">{t('checkout:flight.return', 'Return')}</span>
                             <span className="ck-ov-line">
                               {booking.flight.retDate ? `${booking.flight.retDate} · ` : ''}
                               {booking.flight.retDep} {booking.flight.retFrom} → {booking.flight.retArr} {booking.flight.retTo}
@@ -2573,7 +2639,7 @@ function CheckoutContent({ stripe, elements }) {
                   )}
 
                   <div className="ck-ov-block">
-                    <div className="ck-ov-title hd">Your details</div>
+                    <div className="ck-ov-title hd">{t('checkout:overview.yourDetails', 'Your details')}</div>
                     <p className="ck-ov-line">
                       {[travellers[0]?.title, travellers[0]?.firstName, travellers[0]?.lastName].filter(Boolean).join(' ')}
                       {travellers[0]?.dateOfBirth ? ` (${dmy(travellers[0].dateOfBirth)})` : ''}
@@ -2581,7 +2647,7 @@ function CheckoutContent({ stripe, elements }) {
                     <p className="ck-ov-sub">{customerEmail}{contactPhoneShown ? ` · ${contactPhoneShown}` : ''}</p>
                     {travellers.length > 1 && (
                       <p className="ck-ov-sub">
-                        Travelling with {travellers.slice(1).map((t) => [t.firstName, t.lastName].filter(Boolean).join(' ') || 'traveller').join(', ')}
+                        {t('checkout:overview.travellingWith', 'Travelling with')} {travellers.slice(1).map((trav) => [trav.firstName, trav.lastName].filter(Boolean).join(' ') || t('checkout:travellers.travellerFallback', 'traveller')).join(', ')}
                       </p>
                     )}
                   </div>
@@ -2594,18 +2660,18 @@ function CheckoutContent({ stripe, elements }) {
                   <div className="ck-card-head">
                     <div className="ck-ico">{ICON.card}</div>
                     <div className="ck-card-titles">
-                      <h2 className="ck-card-title hd">Payment</h2>
-                      <p className="ck-card-sub">All transactions are encrypted and processed securely</p>
+                      <h2 className="ck-card-title hd">{t('checkout:payment.title', 'Payment')}</h2>
+                      <p className="ck-card-sub">{t('checkout:payment.sub', 'All transactions are encrypted and processed securely')}</p>
                     </div>
-                    <div className="ck-secure-pill">{ICON.lock} Secure</div>
+                    <div className="ck-secure-pill">{ICON.lock} {t('checkout:payment.secure', 'Secure')}</div>
                   </div>
 
                   <div className="ck-pm-row">
                     {[
-                      { id: 'card', label: 'Card', logo: <span className="ck-pm-cards"><i className="v">VISA</i><i className="m"><b /><b /></i></span> },
-                      { id: 'ideal', label: 'iDEAL', logo: <span className="ck-pm-ideal">iDEAL</span> },
-                      { id: 'bancontact', label: 'Bancontact', logo: <span className="ck-pm-bc">B<i>ancontact</i></span> },
-                      { id: 'paypal', label: 'PayPal', logo: <span className="ck-pm-pp">Pay<i>Pal</i></span> },
+                      { id: 'card', label: t('checkout:payment.card', 'Card'), logo: <span className="ck-pm-cards"><i className="v">VISA</i><i className="m"><b /><b /></i></span> },
+                      { id: 'ideal', label: t('checkout:payment.ideal', 'iDEAL'), logo: <span className="ck-pm-ideal">iDEAL</span> },
+                      { id: 'bancontact', label: t('checkout:payment.bancontact', 'Bancontact'), logo: <span className="ck-pm-bc">B<i>ancontact</i></span> },
+                      { id: 'paypal', label: t('checkout:payment.paypal', 'PayPal'), logo: <span className="ck-pm-pp">Pay<i>Pal</i></span> },
                     ].map((m) => (
                       <button key={m.id} className={`ck-pm${payMethod === m.id ? ' act' : ''}`} onClick={() => { setPayMethod(m.id); setErrors({}); }}>
                         {m.logo}
@@ -2627,8 +2693,8 @@ function CheckoutContent({ stripe, elements }) {
                             </div>
                             <div className="ck-cc-num">{stripe ? '•••• •••• •••• ••••' : (card.number || '•••• •••• •••• ••••')}</div>
                             <div className="ck-cc-bottom">
-                              <div><small>Card holder</small><span>{card.name || 'YOUR NAME'}</span></div>
-                              <div><small>Expires</small><span>{stripe ? '••/••' : (card.expiry || 'MM/YY')}</span></div>
+                              <div><small>{t('checkout:card.cardHolder', 'Card holder')}</small><span>{card.name || t('checkout:card.yourName', 'YOUR NAME')}</span></div>
+                              <div><small>{t('checkout:card.expires', 'Expires')}</small><span>{stripe ? '••/••' : (card.expiry || 'MM/YY')}</span></div>
                               <div className={`ck-cc-brand ${stripe ? stripeBrand : brand}`}>
                                 {(stripe ? stripeBrand : brand) === 'visa' && 'VISA'}
                                 {(stripe ? stripeBrand : brand) === 'mastercard' && <span className="ck-mc"><b /><b /></span>}
@@ -2640,18 +2706,18 @@ function CheckoutContent({ stripe, elements }) {
                           <div className="ck-cc-back">
                             <div className="ck-cc-mag" />
                             <div className="ck-cc-sig"><span>{stripe ? '•••' : (card.cvc || 'CVC')}</span></div>
-                            <div className="ck-cc-back-note">Your CVC is the 3–4 digit code on the back of your card</div>
+                            <div className="ck-cc-back-note">{t('checkout:card.cvcHint', 'Your CVC is the 3–4 digit code on the back of your card')}</div>
                           </div>
                         </div>
                       </div>
 
                       <div className="ck-pay-form">
-                        <Field label="Cardholder name" req err={errors['card.name']}>
+                        <Field label={t('checkout:fields.cardholderName', 'Cardholder name')} req err={errors['card.name']}>
                           <input className="ck-input" value={card.name} onChange={(e) => { setCard((c) => ({ ...c, name: e.target.value.toUpperCase() })); setErrors((er) => ({ ...er, 'card.name': undefined })); }} placeholder="NAME ON CARD" />
                         </Field>
                         {stripe ? (
                           <>
-                            <Field label="Card number" req err={errors['card.number']}>
+                            <Field label={t('checkout:fields.cardNumber', 'Card number')} req err={errors['card.number']}>
                               <div className="ck-input ck-stripe-el">
                                 <CardNumberElement options={{ style: STRIPE_ELEMENT_STYLE, showIcon: true }}
                                   onChange={(e) => {
@@ -2662,7 +2728,7 @@ function CheckoutContent({ stripe, elements }) {
                               </div>
                             </Field>
                             <div className="ck-row">
-                              <Field label="Expiry date" req err={errors['card.expiry']}>
+                              <Field label={t('checkout:fields.expiryDate', 'Expiry date')} req err={errors['card.expiry']}>
                                 <div className="ck-input ck-stripe-el">
                                   <CardExpiryElement options={{ style: STRIPE_ELEMENT_STYLE }}
                                     onChange={(e) => {
@@ -2671,7 +2737,7 @@ function CheckoutContent({ stripe, elements }) {
                                     }} />
                                 </div>
                               </Field>
-                              <Field label="CVC" req err={errors['card.cvc']}>
+                              <Field label={t('checkout:fields.cvc', 'CVC')} req err={errors['card.cvc']}>
                                 <div className="ck-input ck-stripe-el">
                                   <CardCvcElement options={{ style: STRIPE_ELEMENT_STYLE }}
                                     onFocus={() => setCvcFocus(true)} onBlur={() => setCvcFocus(false)}
@@ -2685,7 +2751,7 @@ function CheckoutContent({ stripe, elements }) {
                           </>
                         ) : (
                           <>
-                            <Field label="Card number" req err={errors['card.number']}>
+                            <Field label={t('checkout:fields.cardNumber', 'Card number')} req err={errors['card.number']}>
                               <div className="ck-input-ico">
                                 <input className="ck-input" inputMode="numeric" value={card.number}
                                   onChange={(e) => { const b = detectBrand(e.target.value); setCard((c) => ({ ...c, number: formatCardNum(e.target.value, b) })); setErrors((er) => ({ ...er, 'card.number': undefined })); }}
@@ -2694,12 +2760,12 @@ function CheckoutContent({ stripe, elements }) {
                               </div>
                             </Field>
                             <div className="ck-row">
-                              <Field label="Expiry date" req err={errors['card.expiry']}>
+                              <Field label={t('checkout:fields.expiryDate', 'Expiry date')} req err={errors['card.expiry']}>
                                 <input className="ck-input" inputMode="numeric" value={card.expiry}
                                   onChange={(e) => { setCard((c) => ({ ...c, expiry: formatExpiry(e.target.value) })); setErrors((er) => ({ ...er, 'card.expiry': undefined })); }}
                                   placeholder="MM/YY" maxLength={5} />
                               </Field>
-                              <Field label="CVC" req err={errors['card.cvc']}>
+                              <Field label={t('checkout:fields.cvc', 'CVC')} req err={errors['card.cvc']}>
                                 <input className="ck-input" inputMode="numeric" value={card.cvc}
                                   onFocus={() => setCvcFocus(true)} onBlur={() => setCvcFocus(false)}
                                   onChange={(e) => { setCard((c) => ({ ...c, cvc: e.target.value.replace(/\D/g, '').slice(0, 4) })); setErrors((er) => ({ ...er, 'card.cvc': undefined })); }}
@@ -2714,20 +2780,20 @@ function CheckoutContent({ stripe, elements }) {
 
                   {payMethod === 'ideal' && (
                     <div className="ck-alt-pay">
-                      <Field label="Choose your bank" req err={errors.idealBank}>
+                      <Field label={t('checkout:fields.chooseYourBank', 'Choose your bank')} req err={errors.idealBank}>
                         <select className="ck-input ck-select" value={idealBank} onChange={(e) => { setIdealBank(e.target.value); setErrors((er) => ({ ...er, idealBank: undefined })); }}>
-                          <option value="">Select your bank…</option>
+                          <option value="">{t('checkout:fields.selectYourBank', 'Select your bank…')}</option>
                           {IDEAL_BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
                         </select>
                       </Field>
-                      <div className="ck-redirect-note">{ICON.bank} After clicking <b>Pay</b> you'll be securely redirected to your bank to confirm the payment.</div>
+                      <div className="ck-redirect-note">{ICON.bank} <Trans i18nKey="checkout:payment.redirectToBank" t={t}>After clicking <b>Pay</b> you'll be securely redirected to your bank to confirm the payment.</Trans></div>
                     </div>
                   )}
 
                   {(payMethod === 'bancontact' || payMethod === 'paypal') && (
                     <div className="ck-alt-pay">
                       <div className="ck-redirect-note">
-                        {ICON.lock} After clicking <b>Pay</b> you'll be securely redirected to {payMethod === 'paypal' ? 'PayPal' : 'Bancontact'} to complete your payment.
+                        {ICON.lock} {t('checkout:payment.afterClicking', 'After clicking')} <b>{t('checkout:payment.payWord', 'Pay')}</b> {t('checkout:payment.redirectedToProvider', { provider: payMethod === 'paypal' ? 'PayPal' : 'Bancontact', defaultValue: 'you\'ll be securely redirected to {{provider}} to complete your payment.' })}
                       </div>
                     </div>
                   )}
@@ -2745,13 +2811,13 @@ function CheckoutContent({ stripe, elements }) {
                       <div className="ck-nr-head">
                         <span className="ck-nr-ico">{ICON.ban}</span>
                         <div>
-                          <b>Non-refundable accommodation</b>
-                          <p>{NR_CONSENT.notice}</p>
+                          <b>{t('checkout:nonRefundable.title', 'Non-refundable accommodation')}</b>
+                          <p>{NR_CONSENT.notice()}</p>
                         </div>
                       </div>
                       <div className="ck-nr-check">
                         <Check checked={nrAccept} onChange={(v) => { setNrAccept(v); setErrors((er) => ({ ...er, nrAccept: undefined })); }}>
-                          {NR_CONSENT.accept}
+                          {NR_CONSENT.accept()}
                         </Check>
                         {errors.nrAccept && <div className="ck-errmsg" style={{ marginLeft: 30 }}>{errors.nrAccept}</div>}
                       </div>
@@ -2759,7 +2825,7 @@ function CheckoutContent({ stripe, elements }) {
                   )}
 
                   <Check checked={billingSame} onChange={setBillingSame}>
-                    Billing address is the same as my customer details
+                    {t('checkout:payment.billingAddressSame', 'Billing address is the same as my customer details')}
                   </Check>
 
                   {/* ── Conditions & booking ──
@@ -2769,7 +2835,7 @@ function CheckoutContent({ stripe, elements }) {
                       a link, and this at least says what is behind them. */}
                   <div className={`ck-cond${errors.agree ? ' ck-cond-err' : ''}`}>
                     <div className="ck-cond-head">
-                      <div className="ck-cond-title hd">Conditions &amp; booking</div>
+                      <div className="ck-cond-title hd">{t('checkout:conditions.headingTitle', 'Conditions & booking')}</div>
                       <span className="ck-cond-count">{CONDITIONS.filter((c) => conds[c.id]).length}/{CONDITIONS.length}</span>
                     </div>
                     <ul className="ck-cond-list">
@@ -2789,7 +2855,7 @@ function CheckoutContent({ stripe, elements }) {
                       ))}
                     </ul>
                     <div className="ck-cond-foot">
-                      You cannot confirm your booking unless you accept all applicable conditions.
+                      {t('checkout:conditions.cannotConfirmUnless', 'You cannot confirm your booking unless you accept all applicable conditions.')}
                     </div>
                     {errors.agree && <div className="ck-errmsg ck-cond-errmsg">{errors.agree}</div>}
                   </div>
@@ -2799,9 +2865,9 @@ function CheckoutContent({ stripe, elements }) {
                   )}
 
                   <div className="ck-secure-row">
-                    <span className="ck-stripe-badge">Powered by <b>stripe</b></span>
-                    <span className="ck-ssl">{ICON.lock} 256-bit SSL encrypted</span>
-                    <span className="ck-ssl">{ICON.shieldCheck} PCI-DSS compliant</span>
+                    <span className="ck-stripe-badge">{t('checkout:payment.poweredBy', 'Powered by')} <b>stripe</b></span>
+                    <span className="ck-ssl">{ICON.lock} {t('checkout:hero.ssl256', '256-bit SSL encrypted')}</span>
+                    <span className="ck-ssl">{ICON.shieldCheck} {t('checkout:payment.pciCompliant', 'PCI-DSS compliant')}</span>
                   </div>
                 </section>
               )}
@@ -2809,12 +2875,12 @@ function CheckoutContent({ stripe, elements }) {
               {/* ──────── NAV BUTTONS ──────── */}
               <div className="ck-navbtns">
                 {step > 0
-                  ? <button className="ck-back-btn" onClick={back}>{ICON.arrowL} Back</button>
-                  : <button className="ck-back-btn" onClick={() => navigate(-1)}>{ICON.arrowL} {isFlight ? 'Back to flight' : isTransfer ? 'Back to transfers' : 'Back to hotel'}</button>}
+                  ? <button className="ck-back-btn" onClick={back}>{ICON.arrowL} {t('checkout:nav.back', 'Back')}</button>
+                  : <button className="ck-back-btn" onClick={() => navigate(-1)}>{ICON.arrowL} {isFlight ? t('checkout:nav.backToFlight', 'Back to flight') : isTransfer ? t('checkout:nav.backToTransfers', 'Back to transfers') : t('checkout:nav.backToHotel', 'Back to hotel')}</button>}
                 <button className={`ck-next-btn${paying ? ' busy' : ''}${repriceBlocks ? ' held' : ''}`}
                   onClick={ctaAction} disabled={ctaBlocked}>
                   {paying
-                    ? <><span className="ck-spin" /> Processing payment…</>
+                    ? <><span className="ck-spin" /> {t('checkout:nav.processingPayment', 'Processing payment…')}</>
                     : repriceBlocks && reprice.status === 'checking'
                       ? <><span className="ck-spin" /> {ctaLabel}</>
                       : <>{step === 2 && ICON.lock} {ctaLabel} {step < 2 && ICON.arrow}</>}
@@ -2846,24 +2912,24 @@ function CheckoutContent({ stripe, elements }) {
                 <div className="ck-sum-chips">
                   <span className="ck-sum-chip">{ICON.cal} {booking.dateLabel}</span>
                   {isFlight && <span className="ck-sum-chip">{ICON.plane} {booking.loc}</span>}
-                  {isTransfer && <span className="ck-sum-chip">{ICON.pin} {booking.transfer?.type === 'SHARED' ? 'Shared' : 'Private'} transfer</span>}
-                  {!isFlight && !isTransfer && <span className="ck-sum-chip">{ICON.moon} {booking.nights} nights</span>}
-                  <span className="ck-sum-chip">{ICON.users} {pax} {pax === 1 ? 'traveller' : 'travellers'}</span>
+                  {isTransfer && <span className="ck-sum-chip">{ICON.pin} {booking.transfer?.type === 'SHARED' ? t('checkout:transfer.shared', 'Shared') : t('checkout:transfer.private', 'Private')} {t('checkout:confirmation.transfer', 'transfer')}</span>}
+                  {!isFlight && !isTransfer && <span className="ck-sum-chip">{ICON.moon} {t('checkout:duration.nights', { count: booking.nights, defaultValue_one: '{{count}} night', defaultValue_other: '{{count}} nights' })}</span>}
+                  <span className="ck-sum-chip">{ICON.users} {t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}</span>
                   {!isFlight && !isTransfer && <span className="ck-sum-chip">{ICON.board} <span className="ck-caps">{booking.board}</span></span>}
                 </div>
 
                 {booking.transfer && (
                   <>
-                    <div className="ck-sum-sec">{ICON.pin} Transfer</div>
+                    <div className="ck-sum-sec">{ICON.pin} {t('checkout:summary.transfer', 'Transfer')}</div>
                     <div className="ck-sum-flight">
                       <div className="ck-sum-leg">
-                        <span className="ck-sum-leg-dir">OUT</span>
+                        <span className="ck-sum-leg-dir">{t('checkout:confirmation.out', 'OUT')}</span>
                         <span className="ck-sum-leg-time">{booking.transfer.time || ''}</span>
                         <span className="ck-sum-leg-route">{booking.transfer.from} → {booking.transfer.to}</span>
                       </div>
                       {booking.transfer.retDate && (
                         <div className="ck-sum-leg">
-                          <span className="ck-sum-leg-dir ret">RET</span>
+                          <span className="ck-sum-leg-dir ret">{t('checkout:confirmation.ret', 'RET')}</span>
                           <span className="ck-sum-leg-time" />
                           <span className="ck-sum-leg-route">{booking.transfer.retDate}</span>
                         </div>
@@ -2874,10 +2940,10 @@ function CheckoutContent({ stripe, elements }) {
 
                 {booking.flight && (
                   <>
-                    <div className="ck-sum-sec">{ICON.plane} Flights</div>
+                    <div className="ck-sum-sec">{ICON.plane} {t('checkout:summary.flights', 'Flights')}</div>
                     <div className="ck-sum-flight">
                       <div className="ck-sum-leg">
-                        <span className="ck-sum-leg-dir">OUT</span>
+                        <span className="ck-sum-leg-dir">{t('checkout:confirmation.out', 'OUT')}</span>
                         <span className="ck-sum-leg-time">{booking.flight.outDep} → {booking.flight.outArr}</span>
                         <span className="ck-sum-leg-route">{booking.flight.outFrom.split(' ')[0]} – {booking.flight.outTo.split(' ')[0]}</span>
                         {airlineCodes.out && (
@@ -2888,7 +2954,7 @@ function CheckoutContent({ stripe, elements }) {
                       </div>
                       {booking.flight.retDep && (
                         <div className="ck-sum-leg">
-                          <span className="ck-sum-leg-dir ret">RET</span>
+                          <span className="ck-sum-leg-dir ret">{t('checkout:confirmation.ret', 'RET')}</span>
                           <span className="ck-sum-leg-time">{booking.flight.retDep} → {booking.flight.retArr}</span>
                           <span className="ck-sum-leg-route">{booking.flight.retFrom.split(' ')[0]} – {booking.flight.retTo.split(' ')[0]}</span>
                           {airlineCodes.ret && (
@@ -2904,22 +2970,22 @@ function CheckoutContent({ stripe, elements }) {
 
                 {!isFlight && !isTransfer && (
                   <>
-                    <div className="ck-sum-sec">{ICON.bed} Room & board</div>
+                    <div className="ck-sum-sec">{ICON.bed} {t('checkout:summary.roomAndBoard', 'Room & board')}</div>
                     <div className="ck-sum-room">
                       <span className="ck-caps">{booking.room}</span>
-                      <small><span className="ck-caps">{booking.meal}</span> · included in price</small>
+                      <small><span className="ck-caps">{booking.meal}</span> · {t('checkout:confirmation.includedInPrice', 'included in price')}</small>
                     </div>
                   </>
                 )}
 
-                <div className="ck-sum-sec">{ICON.card} Price breakdown</div>
+                <div className="ck-sum-sec">{ICON.card} {t('checkout:summary.priceBreakdown', 'Price breakdown')}</div>
                 <div className="ck-sum-rows">
                   {isTransfer
-                    ? <div className="ck-sum-row"><span>Transfer (per vehicle, up to {booking.maxPax || pax} pax)</span><b>{money(base)}</b></div>
-                    : <div className="ck-sum-row"><span>{pax} × {money(booking.ppPrice)} p.p.</span><b>{money(base)}</b></div>}
-                  {roomExtraTotal > 0 && <div className="ck-sum-row"><span>Room upgrade</span><b>{money(roomExtraTotal)}</b></div>}
-                  {transferTotal > 0 && <div className="ck-sum-row"><span>Airport transfer (per vehicle)</span><b>{money(transferTotal)}</b></div>}
-                  <div className="ck-sum-row"><span>{isFlight ? 'Booking & service fee' : 'SGR Guarantee Fund'}</span><b>{money(SGR)}</b></div>
+                    ? <div className="ck-sum-row"><span>{t('checkout:summary.transferUpToPax', { count: booking.maxPax || pax, defaultValue: 'Transfer (per vehicle, up to {{count}} pax)' })}</span><b>{money(base)}</b></div>
+                    : <div className="ck-sum-row"><span>{t('checkout:summary.paxTimesPrice', { count: pax, price: money(booking.ppPrice), defaultValue: '{{count}} × {{price}} p.p.' })}</span><b>{money(base)}</b></div>}
+                  {roomExtraTotal > 0 && <div className="ck-sum-row"><span>{t('checkout:summary.roomUpgrade', 'Room upgrade')}</span><b>{money(roomExtraTotal)}</b></div>}
+                  {transferTotal > 0 && <div className="ck-sum-row"><span>{t('checkout:summary.airportTransfer', 'Airport transfer (per vehicle)')}</span><b>{money(transferTotal)}</b></div>}
+                  <div className="ck-sum-row"><span>{isFlight ? t('checkout:summary.bookingServiceFee', 'Booking & service fee') : t('checkout:summary.sgrFee', 'SGR Guarantee Fund')}</span><b>{money(SGR)}</b></div>
                   {baggageRows.map((g) => (
                     <div className="ck-sum-row" key={g.label}>
                       <span>{g.label}{g.count > 1 ? ` × ${g.count}` : ''}</span><b>{money(g.total)}</b>
@@ -2929,33 +2995,33 @@ function CheckoutContent({ stripe, elements }) {
                       "Insurance €91" says nothing about what was actually bought. */}
                   {cancelAmount > 0 && (
                     <div className="ck-sum-row ck-sum-row-ins">
-                      <span>{ICON.shieldCheck} {cancelOption?.label || 'Cancellation insurance'}</span><b>{money(cancelAmount)}</b>
+                      <span>{ICON.shieldCheck} {cancelOption?.label || t('checkout:insurance.cancellationFallback', 'Cancellation insurance')}</span><b>{money(cancelAmount)}</b>
                     </div>
                   )}
                   {travelAmount > 0 && (
                     <div className="ck-sum-row ck-sum-row-ins">
-                      <span>{ICON.shieldCheck} {travelOption?.label || 'Travel insurance'} × {travelCount}</span><b>{money(travelAmount)}</b>
+                      <span>{ICON.shieldCheck} {travelOption?.label || t('checkout:insurance.travelFallback', 'Travel insurance')} × {travelCount}</span><b>{money(travelAmount)}</b>
                     </div>
                   )}
                 </div>
 
                 <div className="ck-sum-total">
                   <div>
-                    <span className="ck-sum-total-label">Total</span>
-                    <span className="ck-sum-total-sub">incl. VAT & taxes</span>
+                    <span className="ck-sum-total-label">{t('checkout:summary.total', 'Total')}</span>
+                    <span className="ck-sum-total-sub">{t('checkout:summary.inclVatTaxes', 'incl. VAT & taxes')}</span>
                   </div>
                   <span className="ck-sum-total-val hd">{ccy}{animTotal.toLocaleString('en-US')}</span>
                 </div>
 
                 <div className="ck-countdown">
                   {ICON.clock}
-                  <>Prices are live and are only final once your payment completes</>
+                  <>{t('checkout:summary.pricesLive', 'Prices are live and are only final once your payment completes')}</>
                 </div>
 
                 <div className="ck-trust">
-                  <span className="ck-trust-item">{ICON.check} Secure Stripe payment</span>
-                  <span className="ck-trust-item">{ICON.check} Instant confirmation by email</span>
-                  <span className="ck-trust-item">{ICON.check} SGR & travel guarantee protected</span>
+                  <span className="ck-trust-item">{ICON.check} {t('checkout:summary.trustStripe', 'Secure Stripe payment')}</span>
+                  <span className="ck-trust-item">{ICON.check} {t('checkout:summary.trustEmail', 'Instant confirmation by email')}</span>
+                  <span className="ck-trust-item">{ICON.check} {t('checkout:summary.trustSgr', 'SGR & travel guarantee protected')}</span>
                 </div>
               </div>
             </div>
@@ -2965,7 +3031,7 @@ function CheckoutContent({ stripe, elements }) {
 
       {/* ═══ MOBILE STICKY BAR ═══ */}
       <div className="ck-mbar">
-        <div className="ck-mbar-price"><small>total</small>{ccy}{animTotal.toLocaleString('en-US')}</div>
+        <div className="ck-mbar-price"><small>{t('checkout:transfer.total', 'total')}</small>{ccy}{animTotal.toLocaleString('en-US')}</div>
         <button className="ck-mbar-btn" onClick={ctaAction} disabled={ctaBlocked}>
           {paying || (repriceBlocks && reprice.status === 'checking')
             ? <span className="ck-spin" />
@@ -2983,29 +3049,26 @@ function CheckoutContent({ stripe, elements }) {
           <div className="ck-modal" role="dialog" aria-modal="true" aria-labelledby="ck-review-title"
             onClick={(e) => e.stopPropagation()}>
             <div className="ck-modal-head">
-              <h2 className="ck-modal-title hd" id="ck-review-title">Review your details</h2>
-              <button className="ck-modal-x" onClick={() => setReviewOpen(false)} aria-label="Close">{ICON.x}</button>
+              <h2 className="ck-modal-title hd" id="ck-review-title">{t('checkout:review.title', 'Review your details')}</h2>
+              <button className="ck-modal-x" onClick={() => setReviewOpen(false)} aria-label={t('common:actions.close', 'Close')}>{ICON.x}</button>
             </div>
 
             <div className="ck-modal-body">
               <div className="ck-rv-main">
                 <p className="ck-rv-lede">
-                  It is important to review your details before you continue. Names and dates of
-                  birth cannot be changed free of charge once the booking is made — please check
-                  them against each traveller's passport or identity card.
+                  {t('checkout:review.lede', 'It is important to review your details before you continue. Names and dates of birth cannot be changed free of charge once the booking is made — please check them against each traveller\'s passport or identity card.')}
                 </p>
 
-                {travellers.map((t, i) => {
-                  const name = [titleFor(t.gender), t.firstName, t.lastName].filter(Boolean).join(' ').trim();
+                {travellers.map((trav, i) => {
+                  const name = [titleFor(trav.gender), trav.firstName, trav.lastName].filter(Boolean).join(' ').trim();
                   return (
                     <div className={`ck-rv-trav${reviewOk[i] ? ' ok' : ''}`} key={i}>
                       <div className="ck-rv-name hd">
-                        {name || `Traveller ${i + 1}`}
-                        {t.dateOfBirth && <span className="ck-rv-dob"> ({dmy(t.dateOfBirth)})</span>}
+                        {name || t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' })}
+                        {trav.dateOfBirth && <span className="ck-rv-dob"> ({dmy(trav.dateOfBirth)})</span>}
                       </div>
                       <Check checked={!!reviewOk[i]} onChange={(v) => setReviewOk((r) => ({ ...r, [i]: v }))}>
-                        Yes, this is my first name, last name and date of birth exactly as they
-                        appear on my passport or identity card.
+                        {t('checkout:review.confirmMatch', 'Yes, this is my first name, last name and date of birth exactly as they appear on my passport or identity card.')}
                       </Check>
                     </div>
                   );
@@ -3015,23 +3078,21 @@ function CheckoutContent({ stripe, elements }) {
               <aside className="ck-rv-aside">
                 <div className="ck-rv-tip">
                   <span className="ck-rv-tick">{ICON.check}</span>
-                  <p>Enter only the <b>first (given) name</b> and the <b>last name</b> as shown on the
-                    travel document. No nicknames, no initials, no middle names.</p>
+                  <p><Trans i18nKey="checkout:review.tipNames" t={t}>Enter only the <b>first (given) name</b> and the <b>last name</b> as shown on the travel document. No nicknames, no initials, no middle names.</Trans></p>
                 </div>
                 <div className="ck-rv-tip">
                   <span className="ck-rv-tick">{ICON.check}</span>
-                  <p>Check the <b>date of birth</b> too — it sets the fare type for each traveller,
-                    so a wrong year can change the price of the trip.</p>
+                  <p><Trans i18nKey="checkout:review.tipDob" t={t}>Check the <b>date of birth</b> too — it sets the fare type for each traveller, so a wrong year can change the price of the trip.</Trans></p>
                 </div>
               </aside>
             </div>
 
             <div className="ck-modal-foot">
-              <button className="ck-rv-edit" onClick={() => setReviewOpen(false)}>Edit details</button>
+              <button className="ck-rv-edit" onClick={() => setReviewOpen(false)}>{t('checkout:review.editDetails', 'Edit details')}</button>
               <button className="ck-rv-confirm" onClick={confirmReview} disabled={!allReviewed}>
                 {allReviewed
-                  ? <>Yes, I have checked and confirmed {ICON.arrow}</>
-                  : <>Tick every traveller to continue</>}
+                  ? <>{t('checkout:review.checkedAndConfirmed', 'Yes, I have checked and confirmed')} {ICON.arrow}</>
+                  : <>{t('checkout:review.tickEveryTraveller', 'Tick every traveller to continue')}</>}
               </button>
             </div>
           </div>
@@ -3048,9 +3109,11 @@ function CheckoutWithStripe() {
 }
 
 export default function Checkout() {
+  // Stripe's own hosted UI (card errors, the iDEAL bank picker) follows this locale.
+  const stripeLocale = i18n.language === 'nl' ? 'nl' : 'en';
   if (stripePromise) {
     return (
-      <Elements stripe={stripePromise} options={{ locale: 'en' }}>
+      <Elements stripe={stripePromise} options={{ locale: stripeLocale }}>
         <CheckoutWithStripe />
       </Elements>
     );

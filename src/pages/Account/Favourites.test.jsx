@@ -46,7 +46,7 @@ describe('Favourites', () => {
   it('shows a skeleton grid while loading (no cards, no empty state yet)', () => {
     favState = { data: null, loading: true, error: null };
     const { container } = renderPage();
-    expect(screen.queryByText(/no saved stays/i)).not.toBeInTheDocument();
+    expect(screen.queryByText(/nog geen opgeslagen verblijven/i)).not.toBeInTheDocument();
     // Skeleton cards animate in via [class*="skCard"]; assert several are present.
     expect(container.querySelectorAll('[class*="skCard"]').length).toBeGreaterThan(0);
   });
@@ -54,8 +54,8 @@ describe('Favourites', () => {
   it('renders the empty state with a browse CTA', () => {
     favState = { data: [], loading: false, error: null };
     renderPage();
-    expect(screen.getByText(/no saved stays yet/i)).toBeInTheDocument();
-    expect(screen.getByRole('link', { name: /browse hotels/i })).toHaveAttribute('href', '/results');
+    expect(screen.getByText(/nog geen opgeslagen verblijven/i)).toBeInTheDocument();
+    expect(screen.getByRole('link', { name: /bekijk hotels/i })).toHaveAttribute('href', '/results');
   });
 
   it('renders saved hotels as cards', () => {
@@ -65,7 +65,7 @@ describe('Favourites', () => {
     };
     renderPage();
     expect(screen.getByText('Ersoy Aga Otel')).toBeInTheDocument();
-    expect(screen.getByText(/view live prices/i)).toBeInTheDocument();
+    expect(screen.getByText(/bekijk live prijzen/i)).toBeInTheDocument();
     expect(screen.getByRole('link', { name: /Ersoy Aga Otel/i })).toHaveAttribute('href', '/hotel/638722');
   });
 

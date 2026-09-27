@@ -67,7 +67,7 @@ describe('the flight-details dialog', () => {
     const layover = outbound.querySelector('.fdm-layover');
     expect(styleOf(layover, '--gc')).toBe('2');
     expect(styleOf(layover, '--gr')).toBe('1');
-    expect(layover.textContent).toMatch(/5h 30m layover/i);
+    expect(layover.textContent).toMatch(/5h 30m overstap/i);
     // Named where it happens — the airport, not just the code.
     expect(layover.textContent).toMatch(/SAW/);
 
@@ -98,7 +98,7 @@ describe('the flight-details dialog', () => {
     expect(returnLeg.querySelectorAll('.fdm-legrail')).toHaveLength(1);
     expect(returnLeg.querySelectorAll('.fdm-carrier')).toHaveLength(1);
     // Said in words, not left to be inferred from the absence of a layover.
-    expect(returnLeg.querySelector('.fdm-flag').textContent).toMatch(/direct/i);
+    expect(returnLeg.querySelector('.fdm-flag').textContent).toMatch(/rechtstreekse/i);
   });
 
   /* The allowance is not summarised on the itinerary tab any more: this dialog's OTHER tab
@@ -112,25 +112,25 @@ describe('the flight-details dialog', () => {
     open();
     expect(journeys()[0].querySelectorAll('.bp-chip')).toHaveLength(0);
 
-    await user.click(screen.getByRole('tab', { name: /^baggage$/i }));
+    await user.click(screen.getByRole('tab', { name: /^bagage$/i }));
     const table = document.querySelector('.fdm-table');
     expect(table.textContent).toMatch(/20 kg/);
-    expect(table.textContent).toMatch(/Included/);
-    expect(table.textContent).not.toMatch(/Cabin bag \d+ ?kg/i);
+    expect(table.textContent).toMatch(/Inbegrepen/);
+    expect(table.textContent).not.toMatch(/Handbagage \d+ ?kg/i);
   });
 
   it('lists every flight in the baggage table, with a personal-item column', async () => {
     const user = userEvent.setup();
     open();
-    await user.click(screen.getByRole('tab', { name: /^baggage$/i }));
+    await user.click(screen.getByRole('tab', { name: /^bagage$/i }));
 
     // One table per direction; the columns are the same on both.
     expect(document.querySelectorAll('.fdm-table')).toHaveLength(2);
     const heads = [...document.querySelectorAll('.fdm-table thead th')]
       .slice(0, 6).map((th) => th.textContent);
-    expect(heads.join('|')).toMatch(/Personal item/);
-    expect(heads.join('|')).toMatch(/Cabin bag/);
-    expect(heads.join('|')).toMatch(/Checked baggage/);
+    expect(heads.join('|')).toMatch(/Klein handbagagestuk/);
+    expect(heads.join('|')).toMatch(/Handbagage/);
+    expect(heads.join('|')).toMatch(/Ruimbagage/);
 
     // Three flights across both directions — the allowance belongs to the FARE, so every one
     // of them carries the same figures rather than the table implying they differ.

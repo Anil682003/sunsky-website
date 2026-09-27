@@ -1,3 +1,4 @@
+import { useTranslation } from 'react-i18next';
 import { useMe } from '../../api';
 
 const Field = ({ label, value }) => (
@@ -8,9 +9,10 @@ const Field = ({ label, value }) => (
 );
 
 export default function Profile() {
+  const { t } = useTranslation('account');
   const { data: profile, loading, error } = useMe();
 
-  if (loading) return <div style={s.center}>Loading profile…</div>;
+  if (loading) return <div style={s.center}>{t('account:profile.loading', 'Loading profile…')}</div>;
   if (error)   return <div style={{ ...s.center, color: '#dc2626' }}>{error}</div>;
   if (!profile) return null;
 
@@ -25,36 +27,40 @@ export default function Profile() {
         <div>
           <div style={s.name}>{profile.name}</div>
           <div style={s.email}>{profile.email}</div>
-          <div style={s.roleBadge}>{isPro ? 'Professional Account' : 'Private Account'}</div>
+          <div style={s.roleBadge}>
+            {isPro ? t('account:profile.role.professional', 'Professional Account') : t('account:profile.role.private', 'Private Account')}
+          </div>
         </div>
       </div>
 
       {cp && (
         <div style={s.section}>
-          <div style={s.sectionTitle}>{isPro ? 'Company Details' : 'Personal Details'}</div>
+          <div style={s.sectionTitle}>
+            {isPro ? t('account:profile.sectionTitle.company', 'Company Details') : t('account:profile.sectionTitle.personal', 'Personal Details')}
+          </div>
           <div style={s.grid}>
             {isPrivate && (
               <>
-                <Field label="First Name" value={cp.firstName} />
-                <Field label="Last Name" value={cp.lastName} />
-                <Field label="Phone" value={cp.phone} />
-                <Field label="Nationality" value={cp.nationality} />
-                <Field label="Date of Birth" value={cp.dateOfBirth} />
-                <Field label="Gender" value={cp.gender} />
-                <Field label="Customer Code" value={cp.customerCode} />
-                <Field label="Preferred Language" value={cp.preferredLanguage} />
+                <Field label={t('account:profile.fields.firstName', 'First Name')} value={cp.firstName} />
+                <Field label={t('account:profile.fields.lastName', 'Last Name')} value={cp.lastName} />
+                <Field label={t('account:profile.fields.phone', 'Phone')} value={cp.phone} />
+                <Field label={t('account:profile.fields.nationality', 'Nationality')} value={cp.nationality} />
+                <Field label={t('account:profile.fields.dateOfBirth', 'Date of Birth')} value={cp.dateOfBirth} />
+                <Field label={t('account:profile.fields.gender', 'Gender')} value={cp.gender} />
+                <Field label={t('account:profile.fields.customerCode', 'Customer Code')} value={cp.customerCode} />
+                <Field label={t('account:profile.fields.preferredLanguage', 'Preferred Language')} value={cp.preferredLanguage} />
               </>
             )}
             {isPro && (
               <>
-                <Field label="Trading Name" value={cp.tradingName} />
-                <Field label="Legal Name" value={cp.legalName} />
-                <Field label="VAT Number" value={cp.vatNumber} />
-                <Field label="Industry" value={cp.industry} />
-                <Field label="Website" value={cp.website} />
-                <Field label="Customer Code" value={cp.customerCode} />
-                <Field label="Contact Person" value={`${cp.primaryContactFirstName || ''} ${cp.primaryContactLastName || ''}`.trim()} />
-                <Field label="Contact Phone" value={cp.primaryContactPhone} />
+                <Field label={t('account:profile.fields.tradingName', 'Trading Name')} value={cp.tradingName} />
+                <Field label={t('account:profile.fields.legalName', 'Legal Name')} value={cp.legalName} />
+                <Field label={t('account:profile.fields.vatNumber', 'VAT Number')} value={cp.vatNumber} />
+                <Field label={t('account:profile.fields.industry', 'Industry')} value={cp.industry} />
+                <Field label={t('account:profile.fields.website', 'Website')} value={cp.website} />
+                <Field label={t('account:profile.fields.customerCode', 'Customer Code')} value={cp.customerCode} />
+                <Field label={t('account:profile.fields.contactPerson', 'Contact Person')} value={`${cp.primaryContactFirstName || ''} ${cp.primaryContactLastName || ''}`.trim()} />
+                <Field label={t('account:profile.fields.contactPhone', 'Contact Phone')} value={cp.primaryContactPhone} />
               </>
             )}
           </div>
@@ -63,12 +69,12 @@ export default function Profile() {
 
       {cp && (
         <div style={s.section}>
-          <div style={s.sectionTitle}>Address</div>
+          <div style={s.sectionTitle}>{t('account:profile.sectionTitle.address', 'Address')}</div>
           <div style={s.grid}>
-            <Field label="Street" value={[cp.street, cp.houseNumber].filter(Boolean).join(' ')} />
-            <Field label="City" value={cp.city} />
-            <Field label="Postal Code" value={cp.postalCode} />
-            <Field label="Country" value={cp.country} />
+            <Field label={t('account:profile.fields.street', 'Street')} value={[cp.street, cp.houseNumber].filter(Boolean).join(' ')} />
+            <Field label={t('account:profile.fields.city', 'City')} value={cp.city} />
+            <Field label={t('account:profile.fields.postalCode', 'Postal Code')} value={cp.postalCode} />
+            <Field label={t('account:profile.fields.country', 'Country')} value={cp.country} />
           </div>
         </div>
       )}

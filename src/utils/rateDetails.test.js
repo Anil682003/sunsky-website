@@ -115,7 +115,9 @@ describe('boardInfo', () => {
   });
 
   it('turns a code into words a traveller can act on', () => {
-    expect(boardInfo('BB')).toMatchObject({ label: 'Bed & breakfast', gloss: 'Breakfast included' });
+    // i18n.t() falls back to Dutch, the site's default language, when nothing has switched
+    // it — the same default every other page-level test in this suite renders against.
+    expect(boardInfo('BB')).toMatchObject({ label: 'Logies & ontbijt', gloss: 'Ontbijt inbegrepen' });
     expect(boardInfo('AI').label).toBe('All inclusive');
   });
 
@@ -124,7 +126,7 @@ describe('boardInfo', () => {
   });
 
   it('never invents a meal plan when there is no board at all', () => {
-    expect(boardInfo(null, null).label).toBe('Standard rate');
+    expect(boardInfo(null, null).label).toBe('Standaardtarief');
   });
 });
 

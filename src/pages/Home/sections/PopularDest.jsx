@@ -1,197 +1,194 @@
 import { Link } from 'react-router-dom';
-import styles from './PopularDest.module.css';
-import { groupLinkUrl, groupLinkLabel } from '../../../utils/cmsDestinations';
-import { cmsText } from '../../../utils/cmsText';
 import { useTranslation } from 'react-i18next';
+import styles from './PopularDest.module.css';
+import SectionHead from './SectionHead';
+import { groupLinkUrl, groupLinkLabel } from '../../../utils/cmsDestinations';
+import { TONES, emojiTile, inferGroupStyle, inferLinkIcon, isEmoji, isGlyph } from '../../../utils/travelIcons';
+import { TravelEmoji, TravelGlyph } from '../../../components/TravelIcon/TravelIcon';
 
+// Shown only while the dashboard has no groups of its own. Their icons and tones come from
+// the same automatic rules as a dashboard card left without them.
 const FALLBACK_CARDS = [
-  { key:'distant', title:'Distant Destinations', count:'480+ holidays', colorClass:'blue',
-    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M22 2L11 13"/><path d="M22 2L15 22L11 13L2 9L22 2Z"/></svg>,
-    links:['Bali','Thailand','Maldives','Sri Lanka','Mexico','Dominican Republic'] },
-  { key:'allInclusive', title:'All Inclusive', count:'1,200+ holidays', colorClass:'gold',
-    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg>,
-    links:['Turkey All Inclusive','Egypt All Inclusive','Greece All Inclusive','Spain All Inclusive','Cape Verde'] },
-  { key:'lastMinute', title:'Last Minutes', count:'320+ deals', colorClass:'coral',
-    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg>,
-    links:['Last Minute Spain','Last Minute Turkey','Last Minute Greece','Last Minute Egypt','Last Minute Canary Islands'] },
-  { key:'cities', title:'Cities', count:'890+ trips', colorClass:'teal',
-    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="4" y="2" width="16" height="20" rx="1"/><path d="M9 6h1M14 6h1M9 10h1M14 10h1M9 14h1M14 14h1M9 18h6"/></svg>,
-    links:['Paris','Rome','Barcelona','London','Prague','Amsterdam'] },
-  { key:'car', title:'Car Destinations', count:'1,250+ routes', colorClass:'purple',
-    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><path d="M5 17h14M5 17a2 2 0 01-2-2V9a2 2 0 012-2h1l2-3h8l2 3h1a2 2 0 012 2v6a2 2 0 01-2 2"/><circle cx="7.5" cy="17" r="2"/><circle cx="16.5" cy="17" r="2"/></svg>,
-    links:['France by Car','Italy by Car','Spain by Car','Portugal by Car','Germany by Car'] },
-  { key:'periods', title:'Popular Periods', count:'Seasonal picks', colorClass:'green',
-    icon:<svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>,
-    links:['May Holidays','Summer Holidays','Autumn Break','Christmas Travel','Winter Sun'] },
+  { key: 'distant', title: 'Distant Destinations', count: '480+ holidays',
+    links: ['Bali', 'Thailand', 'Maldives', 'Sri Lanka', 'Mexico', 'Dominican Republic'] },
+  { key: 'allInclusive', title: 'All Inclusive', count: '1,200+ holidays',
+    links: ['Turkey All Inclusive', 'Egypt All Inclusive', 'Greece All Inclusive', 'Spain All Inclusive', 'Cape Verde'] },
+  { key: 'lastMinute', title: 'Last Minutes', count: '320+ deals',
+    links: ['Last Minute Spain', 'Last Minute Turkey', 'Last Minute Greece', 'Last Minute Egypt', 'Last Minute Canary Islands'] },
+  { key: 'cities', title: 'Cities', count: '890+ trips',
+    links: ['Paris', 'Rome', 'Barcelona', 'London', 'Prague', 'Amsterdam'] },
 ];
 
-const COLOR_CLASSES = ['blue','gold','coral','teal','purple','green'];
+const ChevronIcon = () => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M9 18l6-6-6-6" />
+  </svg>
+);
+
+const ArrowIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
+
+// The FALLBACK_CARDS `links` above are plain strings, this component's own copy rather
+// than dashboard content, so they are translated here. A dashboard link is shown as typed.
+const LINK_LABEL_KEYS = {
+  'Bali': 'bali', 'Thailand': 'thailand', 'Maldives': 'maldives', 'Sri Lanka': 'sriLanka',
+  'Mexico': 'mexico', 'Dominican Republic': 'dominicanRepublic',
+  'Turkey All Inclusive': 'turkeyAllInclusive', 'Egypt All Inclusive': 'egyptAllInclusive',
+  'Greece All Inclusive': 'greeceAllInclusive', 'Spain All Inclusive': 'spainAllInclusive',
+  'Cape Verde': 'capeVerde',
+  'Last Minute Spain': 'lastMinuteSpain', 'Last Minute Turkey': 'lastMinuteTurkey',
+  'Last Minute Greece': 'lastMinuteGreece', 'Last Minute Egypt': 'lastMinuteEgypt',
+  'Last Minute Canary Islands': 'lastMinuteCanaryIslands',
+  'Paris': 'paris', 'Rome': 'rome', 'Barcelona': 'barcelona', 'London': 'london',
+  'Prague': 'prague', 'Amsterdam': 'amsterdam',
+};
+const linkLabel = (t, raw) => {
+  const k = LINK_LABEL_KEYS[raw];
+  return k ? t(`popular.links.${k}`, raw) : raw;
+};
+
+/**
+ * The search behind a card's "View all" when the dashboard has not set one: every place in
+ * the card at once, plus the board type or holiday type if all of its links share it, so
+ * "View all all-inclusive" keeps the All Inclusive board and "View all cities" searches
+ * every city listed. Null when no link filters by anything.
+ */
+const combinedSearchUrl = (links, title) => {
+  const objects = links.filter((l) => l && typeof l === 'object');
+  const countries = new Set();
+  const destinations = new Set();
+  objects.forEach(({ dest }) => {
+    if (!dest?.code) return;
+    const code = String(dest.code).trim().toUpperCase();
+    if (dest.type === 'country') countries.add(code);
+    else if (dest.type === 'city') destinations.add(code);
+  });
+  const shared = (key) => {
+    const values = objects.map((l) => l[key]).filter((v) => v != null && v !== '').map(String);
+    return values.length && values.length === objects.length && new Set(values).size === 1 ? values[0] : null;
+  };
+  const board = shared('boardCode');
+  const theme = shared('holidayTypeId');
+
+  const qs = new URLSearchParams();
+  if (countries.size) qs.set('countries', [...countries].join(','));
+  if (destinations.size) qs.set('destinations', [...destinations].join(','));
+  if (board) qs.set('boards', board.toUpperCase());
+  if (theme) qs.set('themes', theme);
+  if ([...qs.keys()].length === 0) return null;
+  if (title) qs.set('destinationLabel', title);
+  return `/results?${qs.toString()}`;
+};
+
+/**
+ * One card, with everything the dashboard can set and a sensible stand-in for whatever it
+ * left blank: header glyph and tone from the title, an emoji per link from its place.
+ */
+const resolveCard = (group, index, t) => {
+  const auto = inferGroupStyle(group.title) || {};
+  const links = (Array.isArray(group.links) ? group.links : []).map((l) => {
+    const isObject = l && typeof l === 'object';
+    const raw = isObject ? l.label : l;
+    const icon = isObject && isEmoji(l.icon)
+      ? l.icon
+      : inferLinkIcon(raw, l?.dest?.name, l?.dest?.countryName) || inferLinkIcon(group.title) || 'world-map';
+    return {
+      label: isObject ? groupLinkLabel(l) : linkLabel(t, l),
+      href: groupLinkUrl(l),
+      icon,
+    };
+  });
+
+  const title = group.title || '';
+  const custom = group.viewAll && typeof group.viewAll === 'object' ? group.viewAll : null;
+  const viewAllHref = (custom && groupLinkUrl({ ...custom, label: title })) || combinedSearchUrl(group.links || [], title);
+  const viewAllLabel = custom?.label?.trim()
+    || t('popular.viewAll', { title: title.toLowerCase(), defaultValue: 'View all {{title}}' });
+
+  return {
+    title,
+    count: group.count,
+    glyph: isGlyph(group.icon) ? group.icon : auto.glyph || 'map-marker',
+    tone: TONES.includes(group.tone) ? group.tone : auto.tone || TONES[index % TONES.length],
+    links,
+    viewAll: viewAllHref ? { href: viewAllHref, label: viewAllLabel } : null,
+  };
+};
 
 export default function PopularDest({ cms }) {
   const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.popularDest;
-  const tag      = sh?.tag      || t('popular.tag', '🗺 Browse');
+  const tag      = sh?.tag      || t('popular.tag', 'Browse');
   const title    = sh?.title    || t('popular.title', 'Most popular destinations');
   const subtitle = sh?.subtitle || t('popular.subtitle', 'Browse our most searched and booked travel categories.');
 
-  const cards = (cms?.popularDestinationGroups?.length > 0)
-    ? cms.popularDestinationGroups.map((g, i) => ({
-        title:      g.title,
-        count:      g.count,
-        colorClass: COLOR_CLASSES[i % COLOR_CLASSES.length],
-        links:      Array.isArray(g.links) ? g.links : [],
-      }))
+  const groups = cms?.popularDestinationGroups?.length > 0
+    ? cms.popularDestinationGroups
     : FALLBACK_CARDS.map((c) => ({
         ...c,
         title: t(`popular.groups.${c.key}.title`, c.title),
         count: t(`popular.groups.${c.key}.count`, c.count),
       }));
-
-  const titleWords = String(title).trim().split(/\s+/);
-  const titleLast  = titleWords.pop();
-  const titleRest  = titleWords.join(' ');
+  const cards = groups.map((g, i) => resolveCard(g, i, t));
 
   return (
-    <section className={styles.sectionAlt}>
-
-      {/* ── layered sky scene behind everything ── */}
-      <div className={styles.bgArt} aria-hidden="true">
-        <span className={styles.glowBlue} />
-        <span className={styles.glowGold} />
-        <span className={styles.dotTexture} />
-        <span className={styles.ghostNum}>05</span>
-        <span className={styles.ghostWord}>{t('popular.ghostWord', 'wanderlust')}</span>
-        <span className={styles.cloudA} />
-        <span className={styles.cloudB} />
-
-        {/* dashed flight route weaving behind the stamp wall */}
-        <svg className={styles.bgRoute} viewBox="0 0 1440 780" fill="none" preserveAspectRatio="xMidYMid slice">
-          <path d="M-40 220 C140 110 300 300 480 250 C640 205 700 90 880 110 C1060 130 1120 260 1290 220 C1380 199 1420 170 1500 150"
-                stroke="rgba(31,79,216,0.15)" strokeWidth="2" strokeDasharray="0.5 9" strokeLinecap="round" />
-          <circle cx="480" cy="250" r="3.4" fill="rgba(255,159,28,0.55)" />
-          <circle cx="480" cy="250" r="7.5" stroke="rgba(255,159,28,0.28)" strokeWidth="1.4" />
-          <circle cx="880" cy="110" r="3.4" fill="rgba(31,79,216,0.38)" />
-          <circle cx="880" cy="110" r="7.5" stroke="rgba(31,79,216,0.2)" strokeWidth="1.4" />
-          <circle cx="1290" cy="220" r="3.4" fill="rgba(255,159,28,0.55)" />
-          <circle cx="1290" cy="220" r="7.5" stroke="rgba(255,159,28,0.28)" strokeWidth="1.4" />
-          <g transform="translate(1362 158) rotate(16)">
-            <path d="M22 2L11 13" stroke="rgba(31,79,216,0.4)" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="rgba(31,79,216,0.4)" strokeWidth="1.8" strokeLinejoin="round" fill="rgba(232,241,255,0.9)" />
-          </g>
-        </svg>
-
-        {/* oversized rotating passport stamp at the warm seam */}
-        <svg className={styles.bgStamp} viewBox="0 0 200 200" fill="none">
-          <defs>
-            <path id="pdBigArc" d="M100 100 m-70 0 a70 70 0 1 1 140 0 a70 70 0 1 1 -140 0" />
-          </defs>
-          <circle cx="100" cy="100" r="96" stroke="currentColor" strokeWidth="2" strokeDasharray="5 8" />
-          <circle cx="100" cy="100" r="52" stroke="currentColor" strokeWidth="1.4" />
-          <text fontSize="14" letterSpacing="3" fill="currentColor" fontFamily="Sora, sans-serif" fontWeight="700">
-            <textPath href="#pdBigArc">{t('popular.arc', 'POPULAR DESTINATIONS · SUNSKY TRAVEL ·')}</textPath>
-          </text>
-          <g transform="translate(85 85) scale(1.25)">
-            <path d="M22 2L11 13" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" />
-            <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="1.8" strokeLinejoin="round" />
-          </g>
-        </svg>
-
-        <span className={styles.grain} />
-      </div>
-
-      <div className={styles.section}>
-
-        <div className={styles.header}>
-          <div className={styles.headRow}>
-            <span className={styles.headIndex}>05</span>
-            <span className={styles.headEyebrow}>{tag}</span>
-            <span className={styles.headRule} aria-hidden="true" />
-            <span className={styles.headMicro} aria-hidden="true">GATE B12 · STAMP WALL · SSK-05</span>
-          </div>
-          <div className={styles.headMain}>
-            <div className={styles.headCopy}>
-              <h2 className={styles.title}>
-                {titleRest && <>{titleRest}{' '}</>}
-                <span className={styles.titleAccent}>{titleLast}</span>
-              </h2>
-              <p className={styles.sub}>{cmsText(subtitle)}</p>
-            </div>
-            <div className={styles.headAside} aria-hidden="true">
-              <span className={styles.headNote}>{t('popular.headNote', 'go on, collect them all!')}</span>
-              <svg className={styles.headArrow} viewBox="0 0 90 64" fill="none">
-                <path d="M82 6 C60 10 34 22 20 48" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeDasharray="1 6" />
-                <path d="M18 36 L19 50 L32 46" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-              </svg>
-            </div>
-          </div>
-        </div>
+    <section className={styles.section}>
+      <div className={styles.inner}>
+        <SectionHead eyebrow={tag} title={title} subtitle={subtitle} rule swash />
 
         <div className={styles.grid}>
           {cards.map((c, i) => (
             <article key={i} className={styles.card}>
-              {i === 0 && <span className={styles.featBadge}>{t('popular.mostLoved', 'Most loved')}</span>}
-
-              {/* passport stamp crossing the ticket edge */}
-              <svg className={`${styles.stamp} ${styles[c.colorClass]}`} viewBox="0 0 100 100" fill="none" aria-hidden="true">
-                <defs>
-                  <path id={`pdStampArc${i}`} d="M50 50 m-33 0 a33 33 0 1 1 66 0 a33 33 0 1 1 -66 0" />
-                </defs>
-                <circle cx="50" cy="50" r="46" stroke="currentColor" strokeWidth="1.8" strokeDasharray="3 5.5" />
-                <circle cx="50" cy="50" r="23.5" stroke="currentColor" strokeWidth="1.1" opacity="0.6" />
-                <text fontSize="9.5" letterSpacing="1.9" fill="currentColor" fontFamily="Sora, sans-serif" fontWeight="700">
-                  <textPath href={`#pdStampArc${i}`}>{`SUNSKY · COLLECTED · Nº ${String(i + 1).padStart(2, '0')}`}</textPath>
-                </text>
-                <g transform="translate(39 39) scale(0.92)">
-                  <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                  <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-                </g>
-              </svg>
-
-              <div className={styles.cardInner}>
-                <span className={styles.strip} aria-hidden="true" />
-                <div className={styles.cardHead}>
-                  {c.icon && <div className={`${styles.icon} ${styles[c.colorClass]}`}>{c.icon}</div>}
-                  <div className={styles.cardHeadText}>
-                    <div className={styles.cardTitle}>{c.title}</div>
-                    <div className={styles.cardCount}>{c.count}</div>
-                  </div>
-                </div>
-                <div className={styles.links}>
-                  {c.links.map((l, li) => {
-                    const label = groupLinkLabel(l);
-                    const href  = groupLinkUrl(l);
-                    // Legacy string links (and any the dashboard has not linked
-                    // yet) keep the previous inert anchor.
-                    return href ? (
-                      <Link key={`${label}-${li}`} to={href} title={t('popular.search', { label, defaultValue: 'Search {{label}}' })}>{label}</Link>
-                    ) : (
-                      <a key={`${label}-${li}`} href="#">{label}</a>
-                    );
-                  })}
-                </div>
-                <div className={styles.cardFoot}>
-                  <span className={styles.footCode}>{`SSK · ${String(i + 1).padStart(2, '0')}`}</span>
-                  <span className={styles.footRoute} aria-hidden="true">{`BRU ✈ ${(String(c.title).replace(/[^A-Za-z]/g, '').slice(0, 3) || 'SKY').toUpperCase()}`}</span>
-                  <span className={styles.footBarcode} aria-hidden="true" />
+              <div className={styles.cardHead}>
+                <span className={`${styles.tile} ${styles[`tone_${c.tone}`]}`}>
+                  <TravelGlyph name={c.glyph} className={styles.tileGlyph} />
+                </span>
+                <div className={styles.cardHeadText}>
+                  <h3 className={styles.cardTitle}>{c.title}</h3>
+                  {c.count && <p className={styles.cardCount}>{c.count}</p>}
                 </div>
               </div>
+
+              <ul className={styles.links}>
+                {c.links.map((l, li) => {
+                  const row = (
+                    <>
+                      <span className={`${styles.linkTile} ${styles[`tile_${emojiTile(l.icon)}`]}`}>
+                        <TravelEmoji name={l.icon} className={styles.linkEmoji} />
+                      </span>
+                      <span className={styles.linkBody}>
+                        <span className={styles.linkLabel}>{l.label}</span>
+                        <span className={styles.chevron}><ChevronIcon /></span>
+                      </span>
+                    </>
+                  );
+                  return (
+                    <li key={`${l.label}-${li}`}>
+                      {l.href ? (
+                        <Link to={l.href} className={styles.link} title={t('popular.search', { label: l.label, defaultValue: 'Search {{label}}' })}>
+                          {row}
+                        </Link>
+                      ) : (
+                        // Not linked in the dashboard yet: same row, nothing to click.
+                        <span className={`${styles.link} ${styles.linkStatic}`}>{row}</span>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+
+              {c.viewAll && (
+                <Link to={c.viewAll.href} className={styles.viewAll}>
+                  {c.viewAll.label}
+                  <ArrowIcon />
+                </Link>
+              )}
             </article>
           ))}
-
-          {/* scrapbook empty slot — next stamp placeholder */}
-          <div className={styles.slotGhost} aria-hidden="true">
-            <svg className={styles.slotRing} viewBox="0 0 120 120" fill="none">
-              <circle cx="60" cy="60" r="52" stroke="currentColor" strokeWidth="1.6" strokeDasharray="4 7" />
-              <circle cx="60" cy="60" r="31" stroke="currentColor" strokeWidth="1.1" opacity="0.6" />
-              <g transform="translate(47 47) scale(1.05)">
-                <path d="M22 2L11 13" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-                <path d="M22 2L15 22L11 13L2 9L22 2Z" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" />
-              </g>
-            </svg>
-            <span className={styles.slotNote}>your next stamp goes here…</span>
-          </div>
         </div>
-
       </div>
     </section>
   );

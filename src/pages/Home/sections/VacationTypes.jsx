@@ -1,7 +1,12 @@
 import { Link } from 'react-router-dom';
 import styles from './VacationTypes.module.css';
-import { cmsText } from '../../../utils/cmsText';
+import SectionHead from './SectionHead';
 import { useTranslation } from 'react-i18next';
+import {
+  Crown, Heart, Users, BadgeCheck, Sun, Flower2, Sparkles,
+  Star, Moon, Umbrella, Waves, Droplets, Wifi, Utensils, UtensilsCrossed,
+  Coffee, Baby, Dumbbell, PawPrint, Wind, BedDouble, Martini, Trees, Check,
+} from 'lucide-react';
 
 // Search links for the cards. The results page seeds these filters from the URL on entry, so a
 // card lands on a list already narrowed to that vacation type (empty scope → popular destinations,
@@ -27,6 +32,16 @@ const starGlyphs = (value) => {
 // facility catalogue just to name a filter — and never invents a name it cannot verify.
 const criterionText = (c) => (c?.filterKey === 'stars' ? starGlyphs(c.value) : String(c?.label ?? '').trim());
 const criterionLabel = (c) => String(c?.label ?? '').trim() || criterionText(c);
+
+// On the card a star rating is one gold star and a numeral rather than five
+// repeated glyphs: a single mark reads faster in a row of chips, and the
+// shorter chip leaves room for the filters beside it. Only the card's wording
+// changes — `criterionText` still spells the rating out for the URL's labels.
+const chipText = (c) => {
+  if (c?.filterKey !== 'stars') return criterionText(c);
+  const n = Math.round(Number(c?.value));
+  return n >= 1 && n <= 5 ? String(n) : '';
+};
 
 // The query string collapses a repeated criterion on its own, so drop it here too — otherwise the
 // card prints the same chip twice while the link filters on it once.
@@ -72,13 +87,72 @@ const FALLBACK_TYPES = [
   { key:'family', label:'Family Fun',    title:'Family Friendly',  desc:"Fun for the whole family with kids' activities.",      img:'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=800&q=80', href: searchUrl({ kids: '340' }) },
 ];
 
-/* decorative airline-style route codes, one per tag */
-const ROUTES = ['BRU ✈ AYT', 'AMS ✈ RHO', 'CGN ✈ HRG'];
+const ArrowIcon = () => (
+  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M5 12h14M13 6l6 6-6 6" />
+  </svg>
+);
+
+/* ── Marks for the badge and the filter chips ──
+   Both the badge wording and the chip labels are typed in the dashboard, in
+   either language, so these match on the words rather than on an id. Every
+   pattern carries its Dutch spelling alongside its English one, and anything
+   nobody listed still gets a mark — a generic one — rather than a bare pill.
+   Accents are stripped first so "café" and "cafe" match the same rule. */
+const norm = (s) => String(s ?? '')
+  .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  .toLowerCase();
+
+const BADGE_MARKS = [
+  [/premium|luxur|luxe|deluxe|exclusi|5[ -]?star|vip/,        Crown,      'labelIconGold'],
+  [/adult|volwassen|couple|koppel|romant|honeymoon|huwelijk/, Heart,      'labelIconRose'],
+  [/family|famil|gezin|kind|kids|child/,                      Users,      'labelIconTeal'],
+  [/all[ -]?in|alles inbegrepen|worry|zorgeloos|carefree/,    BadgeCheck, 'labelIconBlue'],
+  [/beach|strand|sun|zon|coast|kust|zee|sea/,                 Sun,        'labelIconGold'],
+  [/spa|wellness|relax|rust|calm|serene/,                     Flower2,    'labelIconTeal'],
+];
+
+const badgeMark = (label) => {
+  const text = norm(label);
+  const hit = BADGE_MARKS.find(([re]) => re.test(text));
+  return hit ? { Icon: hit[1], tone: hit[2] } : { Icon: Sparkles, tone: 'labelIconBlue' };
+};
+
+const CHIP_MARKS = [
+  [/jacuzzi|whirlpool|hot ?tub|bubbelbad|sauna/,              Droplets],
+  [/swim[ -]?up|pool|zwembad|aquapark|waterpark/,             Waves],
+  [/beach|strand|seafront|zeezicht|sea ?view/,                Umbrella],
+  [/spa|wellness|massage|hammam|thalasso/,                    Flower2],
+  [/all[ -]?in|alles inbegrepen|full ?board|volpension/,      UtensilsCrossed],
+  [/breakfast|ontbijt|half ?board|halfpension/,               Coffee],
+  [/restaurant|dining|diner|buffet|a ?la ?carte/,             Utensils],
+  [/\bbar\b|lounge|cocktail|apero/,                           Martini],
+  [/kid|child|kinder|family|gezin|creche|playground|speeltuin/, Baby],
+  [/adult|volwassen|no ?children|zonder kinderen/,            Moon],
+  [/wifi|wi-fi|internet/,                                     Wifi],
+  [/gym|fitness|sport|tennis|padel/,                          Dumbbell],
+  [/pet|dog|huisdier|hond/,                                   PawPrint],
+  [/air ?con|airco|climat|koeling/,                           Wind],
+  [/room|kamer|suite|bed|junior/,                             BedDouble],
+  [/garden|tuin|park|terras|terrace|palm/,                    Trees],
+  [/sun|zon|solarium/,                                        Sun],
+];
+
+const chipMark = (chip) => {
+  if (chip.star) return Star;
+  const text = norm(chip.text);
+  const hit = CHIP_MARKS.find(([re]) => re.test(text));
+  return hit ? hit[1] : Check;
+};
+
+// The dashboard label ("Luxury Collection") often just repeats the title; a label only earns
+// its badge when it says something the title does not.
+const sameWords = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
 
 export default function VacationTypes({ cms }) {
   const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.vacationTypes;
-  const tag      = sh?.tag      || t('vacationTypes.tag', '♡ Curated');
+  const tag      = sh?.tag      || t('vacationTypes.tag', 'Curated');
   const title    = sh?.title    || t('vacationTypes.title', 'Your favorite type of vacation');
   const subtitle = sh?.subtitle || t('vacationTypes.subtitle', 'Curated experiences designed around how you love to travel.');
 
@@ -100,7 +174,7 @@ export default function VacationTypes({ cms }) {
           // The chips name what the link applies, so a criteria list that produced no usable
           // filter prints none of them rather than promising a search the button cannot run.
           chips: (href && criteria.length && v.search?.showFacts !== false)
-            ? criteria.map((c) => ({ text: criterionText(c), star: c?.filterKey === 'stars' }))
+            ? criteria.map((c) => ({ text: chipText(c), star: c?.filterKey === 'stars' }))
                       .filter((c) => c.text)
             : [],
         };
@@ -113,133 +187,59 @@ export default function VacationTypes({ cms }) {
         buttonText: t('vacationTypes.explore', 'Explore'),
       }));
 
-  // Split the CMS title so the last word gets the cursive golden accent
-  const words = title.trim().split(' ');
-  const lastWord = words.pop();
-  const titleLead = words.join(' ');
-
   return (
-    <section className={styles.sectionAlt}>
+    <section className={styles.section}>
+      <div className={styles.inner}>
+        <SectionHead eyebrow={tag} title={title} subtitle={subtitle} />
 
-      {/* ── Layered sky scene (decorative) ── */}
-      <div className={styles.bgScene} aria-hidden="true">
-        <span className={styles.glowBlue} />
-        <span className={styles.glowGold} />
-        <span className={styles.dots} />
-        <span className={styles.ghostNum}>03</span>
-        <svg className={styles.route} viewBox="0 0 1200 320" fill="none" preserveAspectRatio="none">
-          <path
-            d="M-40 230 C 200 140, 380 250, 620 170 C 800 110, 980 150, 1240 70"
-            stroke="rgba(31,79,216,0.15)" strokeWidth="1.6"
-            strokeDasharray="7 9" strokeLinecap="round"
-          />
-          <circle cx="290" cy="196" r="4"   fill="rgba(31,79,216,0.22)" />
-          <circle cx="620" cy="170" r="4.5" fill="rgba(255,159,28,0.42)" />
-          <circle cx="900" cy="128" r="4"   fill="rgba(31,79,216,0.22)" />
-          <g transform="translate(1046 88) rotate(14)">
-            <path d="M2.5 12.4 21 4l-6.6 17-2.7-7.1-9.2-1.5z" fill="rgba(255,159,28,0.45)" />
-          </g>
-        </svg>
-        <span className={`${styles.vtCloud} ${styles.vtCloud1}`} />
-        <span className={`${styles.vtCloud} ${styles.vtCloud2}`} />
-        <span className={styles.grain} />
-      </div>
-
-      <div className={styles.section}>
-
-        {/* Boarding-pass section header */}
-        <div className={styles.headRow}>
-          <span className={styles.headIndex}>03</span>
-          <span className={styles.headEyebrow}>{tag}</span>
-          <span className={styles.headRule} aria-hidden="true" />
-          <span className={styles.headCode} aria-hidden="true">VAC · GATE 03</span>
-          <svg className={styles.headPlane} width="17" height="17" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-            <path d="M2.5 12.4 21 4l-6.6 17-2.7-7.1-9.2-1.5z" stroke="currentColor" strokeWidth="1.6" strokeLinejoin="round" />
-          </svg>
-        </div>
-        <div className={styles.header}>
-          <h2 className={styles.title}>
-            {titleLead && `${titleLead} `}
-            <span className={styles.titleAccent}>{lastWord}</span>
-          </h2>
-          <p className={styles.sub}>{cmsText(subtitle)}</p>
-        </div>
-
-        {/* Luggage-tag ticket cards */}
         <div className={styles.grid}>
-          {types.map((vac, i) => (
-            <article key={i} className={`${styles.card} ${i === 1 ? styles.offset : ''}`}>
-              {/* tag carries rotation + hover lift; card shell carries entrance + drop-shadow */}
-              <div className={styles.tag}>
-                {vac.label && <span className={styles.stamp}>{vac.label}</span>}
-
-                {/* ticket carries the notch + punch-hole mask so the shadow follows every cut */}
-                <div className={styles.ticket}>
-                  <span className={styles.eyelet} aria-hidden="true" />
-                  <div className={styles.cardMedia}>
-                    <img src={vac.img} alt={vac.title} loading="lazy" />
+          {types.map((vac, i) => {
+            const badge = vac.label && !sameWords(vac.label, vac.title) ? badgeMark(vac.label) : null;
+            return (
+            <article key={i} className={styles.card}>
+              <div className={styles.media}>
+                <img src={vac.img} alt={vac.title} loading="lazy" />
+                {badge && (
+                  <span className={styles.label}>
+                    <badge.Icon size={14} className={`${styles.labelIcon} ${styles[badge.tone]}`} aria-hidden="true" />
+                    {vac.label}
+                  </span>
+                )}
+              </div>
+              <div className={styles.body}>
+                <h3 className={styles.vacTitle}>{vac.title}</h3>
+                {vac.desc && <p className={styles.vacDesc}>{vac.desc}</p>}
+                {/* the filters this card's link applies */}
+                {vac.chips?.length > 0 && (
+                  <div className={styles.chips}>
+                    {vac.chips.map((c, ci) => {
+                      const ChipIcon = chipMark(c);
+                      return (
+                        <span key={ci} className={`${styles.chip} ${c.star ? styles.chipStar : ''}`}>
+                          <ChipIcon size={12} className={styles.chipIcon} aria-hidden="true" />
+                          {c.text}
+                        </span>
+                      );
+                    })}
                   </div>
-                  <div className={styles.cardBody}>
-                    <h3 className={styles.vacTitle}>{vac.title}</h3>
-                    <p className={styles.vacDesc}>{vac.desc}</p>
-                    {/* the filters this card's link applies — stays above the perforation so the
-                        stub keeps its fixed 62px height and the notch mask stays aligned */}
-                    {vac.chips?.length > 0 && (
-                      <div className={styles.chips}>
-                        {vac.chips.map((c, ci) => (
-                          <span key={ci} className={`${styles.chip} ${c.star ? styles.chipStar : ''}`}>{c.text}</span>
-                        ))}
-                      </div>
-                    )}
+                )}
+                {/* No link, no call to action: a button that goes nowhere is worse than none. */}
+                {vac.href && (
+                  <div className={styles.foot}>
+                    <Link className={styles.vacBtn} to={vac.href} title={t('vacationTypes.searchStays', {
+                      type: vac.title,
+                      defaultValue: 'Search {{type}} stays',
+                    })}>
+                      {vac.buttonText || t('vacationTypes.explore', 'Explore')}
+                      <ArrowIcon />
+                    </Link>
                   </div>
-                  <div className={styles.cardFoot}>
-                    <span className={styles.footMeta}>
-                      <span className={styles.vacRoute}>{ROUTES[i % ROUTES.length]}</span>
-                      <span className={styles.vacCode}>SSK · 03 · {String(i + 1).padStart(2, '0')}</span>
-                    </span>
-                    <span className={styles.barcode} aria-hidden="true" />
-                    {vac.href ? (
-                      <Link className={styles.vacBtn} to={vac.href} title={t('vacationTypes.searchStays', {
-                        type: vac.title,
-                        defaultValue: 'Search {{type}} stays',
-                      })}>
-                        {vac.buttonText || t('vacationTypes.explore', 'Explore')}
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </Link>
-                    ) : (
-                      <button className={styles.vacBtn} type="button">
-                        {vac.buttonText || t('vacationTypes.explore', 'Explore')}
-                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" aria-hidden="true">
-                          <path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
-                        </svg>
-                      </button>
-                    )}
-                  </div>
-                </div>
-
-                {/* luggage-tag string looping out of the punched eyelet */}
-                <svg className={styles.string} width="64" height="64" viewBox="0 0 64 64" fill="none" aria-hidden="true">
-                  <path
-                    d="M42 54 C 22 48, 6 34, 10 17 C 13 4, 32 3, 37 14 C 41 24, 31 30, 25 27"
-                    stroke="rgba(174,126,58,0.55)" strokeWidth="2" strokeLinecap="round"
-                  />
-                </svg>
+                )}
               </div>
             </article>
-          ))}
-
-          {/* handwritten note pointing at the offset middle tag */}
-          <div className={styles.annot} aria-hidden="true">
-            <span className={styles.annotText}>traveller favourite</span>
-            <svg className={styles.annotArrow} width="46" height="40" viewBox="0 0 46 40" fill="none">
-              <path d="M6 4 C 20 7, 31 15, 37 31" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
-              <path d="M30 27 l7.5 5.5 1.5-9.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
-            </svg>
-          </div>
+            );
+          })}
         </div>
-
       </div>
     </section>
   );

@@ -45,7 +45,7 @@ const renderCheckout = () => render(
   </Provider>
 );
 
-const phone = () => fieldByLabel('phone number', contactFields()).querySelector('input');
+const phone = () => fieldByLabel('telefoonnummer', contactFields()).querySelector('input');
 
 // The conditions live on the PAYMENT step, so every test below has to walk there first.
 const reachPayment = async (user) => {
@@ -53,13 +53,13 @@ const reachPayment = async (user) => {
   [...document.querySelectorAll('.ck-trav')].forEach((_, i) =>
     fillTraveller(i, { firstName: 'Ali', lastName: 'Benli', dob: '1990-01-01' }));
 
-  await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+  await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
   await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());
   for (const t of document.querySelectorAll('.ck-modal .ck-check')) await user.click(t);
   await user.click(document.querySelector('.ck-rv-confirm'));
-  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/add-ons/i));
-  await user.click(screen.getByRole('button', { name: /continue to payment/i }));
-  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/payment/i));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/extra's/i));
+  await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
 };
 
 describe('the booking conditions', () => {
@@ -140,14 +140,14 @@ describe('the phone number starts from the address country', () => {
     renderCheckout();
     expect(phone()).toHaveValue('');
 
-    fill('country', 'Belgium', contactFields());
+    fill('land', 'Belgium', contactFields());
     expect(phone()).toHaveValue('+32 ');
   });
 
   it('follows a change of mind while only the code is there', async () => {
     renderCheckout();
-    fill('country', 'Belgium', contactFields());
-    fill('country', 'Turkey', contactFields());
+    fill('land', 'Belgium', contactFields());
+    fill('land', 'Turkey', contactFields());
     expect(phone()).toHaveValue('+90 ');
   });
 
@@ -155,17 +155,17 @@ describe('the phone number starts from the address country', () => {
     const user = userEvent.setup();
     renderCheckout();
 
-    fill('country', 'Belgium', contactFields());
+    fill('land', 'Belgium', contactFields());
     await user.clear(phone());
     await user.type(phone(), '+44 7700 900123');      // a UK mobile on a Belgian address
 
-    fill('country', 'Netherlands', contactFields());
+    fill('land', 'Netherlands', contactFields());
     expect(phone()).toHaveValue('+44 7700 900123');
   });
 
   it('leaves the field alone for a country it cannot place', async () => {
     renderCheckout();
-    fill('country', 'Other', contactFields());        // "Other" names no single country
+    fill('land', 'Other', contactFields());        // "Other" names no single country
     expect(phone()).toHaveValue('');
   });
 
@@ -173,7 +173,7 @@ describe('the phone number starts from the address country', () => {
     const user = userEvent.setup();
     renderCheckout();
 
-    fill('country', 'Belgium', contactFields());
+    fill('land', 'Belgium', contactFields());
     expect(phone()).not.toHaveAttribute('readonly');
     expect(phone()).toBeEnabled();
 

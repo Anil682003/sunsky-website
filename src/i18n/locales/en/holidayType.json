@@ -1,0 +1,17 @@
+{
+  "fallbackName": "Holidays",
+  "titleFor": "Our best {{name}}",
+  "lede": "Pick a country and we’ll show you every stay we have there.",
+  "city": "City",
+  "exploreStays": "Explore stays",
+  "error": {
+    "title": "We couldn’t load these destinations",
+    "body": "The connection to our travel data failed. Give it another try.",
+    "tryAgain": "Try again"
+  },
+  "empty": {
+    "title": "No destinations yet",
+    "body": "We haven’t linked any countries to {{name}} yet. Check back soon.",
+    "exploreOther": "Explore other holidays"
+  }
+}

@@ -2,10 +2,9 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
-import mainLogoFallback from '../../assets/main-logo.png';
+import { resolveBrandLogo, BUNDLED_LOGO } from '../../hooks/useBrandLogo';
 import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig, useHolidayTypes } from '../../api';
-import { resolveCmsImageUrl } from '../../utils/cmsImage';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
 import { hotelDetailHref } from '../../utils/searchDefaults';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
@@ -99,15 +98,16 @@ export default function Navbar() {
   const { data: headerConfig } = useHeaderConfig();
   const { data: cmsConfig } = useHomepageConfig();
 
-  const headerLogo = resolveCmsImageUrl(headerConfig?.logoUrl);
-  const cmsMainLogo = resolveCmsImageUrl(cmsConfig?.logo?.mainUrl);
-
   // The dashboard decides again, with the bundled file as the safety net rather than the
   // source of truth. The CMS slot now holds the same cleaned wordmark that ships here, so
   // the two agree and a CMS outage is invisible instead of a missing logo. Whatever gets
   // uploaded next is what visitors see, so it wants the same treatment: real transparency,
   // trimmed margins, and roughly twice the drawn size for retina.
-  const mainLogo = headerLogo || cmsMainLogo || mainLogoFallback;
+  //
+  // The ORDER is resolveBrandLogo's, not this component's, because the same logo is now drawn
+  // on the footer, the sign-in pages and the voucher, and those must not be able to disagree
+  // with the bar about which mark the site uses.
+  const mainLogo = resolveBrandLogo({ header: headerConfig?.logoUrl, homepage: cmsConfig?.logo?.mainUrl });
   const logoAlt = headerConfig?.logoAltText?.trim() || 'SunSky';
   const logoHref = headerConfig?.logoLinkTarget?.trim() || '/';
 
@@ -272,8 +272,8 @@ export default function Navbar() {
             if (w && h) setLogoAspect(w / h);
           }}
           onError={(e) => {
-            if (e.currentTarget.src !== mainLogoFallback) {
-              e.currentTarget.src = mainLogoFallback;
+            if (e.currentTarget.src !== BUNDLED_LOGO) {
+              e.currentTarget.src = BUNDLED_LOGO;
               setLogoAspect(null);
             }
           }}

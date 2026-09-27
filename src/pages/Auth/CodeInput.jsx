@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import fp from './ForgotPassword.module.css';
 
 /**
@@ -12,6 +13,7 @@ import fp from './ForgotPassword.module.css';
 export const CODE_LENGTH = 6;
 
 export default function CodeInput({ value, onChange, disabled, invalid }) {
+  const { t } = useTranslation('auth');
   const refs = useRef([]);
 
   const setDigit = (i, digit) => {
@@ -67,7 +69,7 @@ export default function CodeInput({ value, onChange, disabled, invalid }) {
           onKeyDown={(e) => handleKeyDown(i, e)}
           onFocus={(e) => e.target.select()}
           disabled={disabled}
-          aria-label={`Digit ${i + 1} of ${CODE_LENGTH}`}
+          aria-label={t('auth:code.digitAria', { number: i + 1, total: CODE_LENGTH, defaultValue: 'Digit {{number}} of {{total}}' })}
         />
       ))}
     </div>

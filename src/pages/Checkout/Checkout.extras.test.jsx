@@ -66,11 +66,11 @@ const toExtras = async (user) => {
   fillContact();
   fillTraveller(0, { firstName: 'Ali', lastName: 'Benli', dob: '1990-01-01' });
   fillTraveller(1, { firstName: 'Aylin', lastName: 'Benli', dob: '1992-05-05', gender: 'FEMALE' });
-  await user.click(screen.getByRole('button', { name: /continue to add-ons/i }));
+  await user.click(screen.getByRole('button', { name: /doorgaan naar extra's/i }));
   await waitFor(() => expect(document.querySelector('.ck-modal')).toBeTruthy());
   for (const tick of document.querySelectorAll('.ck-modal .ck-check')) await user.click(tick);
   await user.click(document.querySelector('.ck-rv-confirm'));
-  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/add-ons/i));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/extra's/i));
 };
 
 /** The card whose title matches, so sections that share row styling stay apart. */
@@ -91,23 +91,23 @@ describe('baggage on the extras step', () => {
     renderCheckout(bookingWith({ checkedKg: 20, checkedPieces: 0, handKg: 8, infantKg: 0 }));
     await toExtras(user);
 
-    const checked = card('Checked baggage');
+    const checked = card('Ruimbagage');
     expect(checked).toBeTruthy();
     // Two travellers × two directions, every one of them already covered by the fare — stated,
     // never sold twice. A second bag is still offered, because carrying one does not mean
     // nobody wants another.
     const rows = [...checked.querySelectorAll('.ck-bagrow')];
     expect(rows).toHaveLength(4);
-    rows.forEach((r) => expect(r).toHaveTextContent('Included · 20 kg'));
+    rows.forEach((r) => expect(r).toHaveTextContent('Inbegrepen · 20 kg'));
     expect(checked.querySelectorAll('.ck-bag-select')).toHaveLength(4);
 
     // The client's rule: a fare with hold baggage carries a cabin bag too. The supplier
     // reports handLuggage as 0 on every option, so reading it literally would offer to sell
     // a bag the ticket already includes.
     const cabin = card('Cabin baggage');
-    [...cabin.querySelectorAll('.ck-bagrow')].forEach((r) => expect(r).toHaveTextContent(/included/i));
+    [...cabin.querySelectorAll('.ck-bagrow')].forEach((r) => expect(r).toHaveTextContent(/inbegrepen/i));
     expect([...cabin.querySelectorAll('.ck-bag-add')].map((b) => b.textContent))
-      .toEqual(expect.arrayContaining([expect.stringMatching(/another cabin bag/i)]));
+      .toEqual(expect.arrayContaining([expect.stringMatching(/nog een handbagagestuk/i)]));
   });
 
   it('follows the checked allowance for the cabin bag, even when the airline reports none', async () => {
@@ -119,8 +119,8 @@ describe('baggage on the extras step', () => {
 
     const cabin = card('Cabin baggage');
     [...cabin.querySelectorAll('.ck-bagrow')].forEach((r) => {
-      expect(r).toHaveTextContent(/included/i);
-      expect(r).not.toHaveTextContent(/not included/i);
+      expect(r).toHaveTextContent(/inbegrepen/i);
+      expect(r).not.toHaveTextContent(/niet inbegrepen/i);
     });
   });
 
@@ -132,7 +132,7 @@ describe('baggage on the extras step', () => {
     // Not "Not included" — that is a claim about the ticket we have no basis for. The bag is
     // still offered, which is the right thing to do when nobody has told us otherwise.
     const cabin = card('Cabin baggage');
-    expect(cabin).toHaveTextContent(/not confirmed/i);
+    expect(cabin).toHaveTextContent(/niet bevestigd/i);
     expect(cabin.querySelectorAll('.ck-bag-add').length).toBeGreaterThan(0);
   });
 
@@ -142,7 +142,7 @@ describe('baggage on the extras step', () => {
     renderCheckout(bookingWith({ checkedKg: 0, checkedPieces: 0, handKg: 8, infantKg: 0 }));
     await toExtras(user);
 
-    const checked = card('Checked baggage');
+    const checked = card('Ruimbagage');
     const selects = [...checked.querySelectorAll('.ck-bag-select')];
     expect(selects).toHaveLength(4);                 // 2 travellers × outbound + return
 
@@ -150,14 +150,14 @@ describe('baggage on the extras step', () => {
     // the bag rather than saying "Baggage": two different bags at the same price are
     // indistinguishable otherwise, and the traveller is checking what they are paying for.
     await user.selectOptions(selects[1], '20');
-    await waitFor(() => expect(sumRow('checked baggage 20 kg')).toBeTruthy());
-    expect(sumRow('checked baggage 20 kg')).toHaveTextContent('€35');
+    await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toBeTruthy());
+    expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€35');
 
     // A second, DIFFERENT bag is its own line — not merged into a count.
     await user.selectOptions(selects[2], '15');
-    await waitFor(() => expect(sumRow('checked baggage 15 kg')).toBeTruthy());
-    expect(sumRow('checked baggage 15 kg')).toHaveTextContent('€25');
-    expect(sumRow('checked baggage 20 kg')).toHaveTextContent('€35');
+    await waitFor(() => expect(sumRow('ruimbagage 15 kg')).toBeTruthy());
+    expect(sumRow('ruimbagage 15 kg')).toHaveTextContent('€25');
+    expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€35');
   });
 
   it('keeps the same bag on one line, with a count', async () => {
@@ -165,13 +165,13 @@ describe('baggage on the extras step', () => {
     renderCheckout(bookingWith({ checkedKg: 0, checkedPieces: 0, handKg: 8, infantKg: 0 }));
     await toExtras(user);
 
-    const selects = [...card('Checked baggage').querySelectorAll('.ck-bag-select')];
+    const selects = [...card('Ruimbagage').querySelectorAll('.ck-bag-select')];
     // The SAME bag twice — outbound and return of traveller 1.
     await user.selectOptions(selects[0], '20');
     await user.selectOptions(selects[1], '20');
 
-    await waitFor(() => expect(sumRow('checked baggage 20 kg')).toHaveTextContent('× 2'));
-    expect(sumRow('checked baggage 20 kg')).toHaveTextContent('€70');
+    await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('× 2'));
+    expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€70');
   });
 });
 
@@ -182,7 +182,7 @@ describe('the two insurance decisions', () => {
     await toExtras(user);
 
     // Cancellation: one choice for the booking.
-    const cancel = card('Protect your trip');
+    const cancel = card('Bescherm je reis');
     expect(cancel).toBeTruthy();
     await user.click([...cancel.querySelectorAll('.ck-tr')][0]);
 
@@ -197,11 +197,11 @@ describe('the two insurance decisions', () => {
     await waitFor(() => expect(sumRow('travel insurance')).toBeTruthy());
     expect(sumRow('travel insurance')).toHaveTextContent('€28');
 
-    await user.click(screen.getByRole('button', { name: /continue to payment/i }));
-    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/payment/i));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
+    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
     await user.click(screen.getByRole('button', { name: /bancontact/i }));
     acceptConditions();   // each condition has its own box now
-    await user.click(screen.getByRole('button', { name: /^pay /i }));
+    await user.click(screen.getByRole('button', { name: /^betaal /i }));
 
     await waitFor(() => expect(post.mock.calls.some(([url]) => String(url).includes('online-bookings'))).toBe(true));
     const [, body] = post.mock.calls.find(([url]) => String(url).includes('online-bookings'));

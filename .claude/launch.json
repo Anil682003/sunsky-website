@@ -17,6 +17,17 @@
       "env": {
         "VITE_API_URL": "https://admin.holidaybooking.be/api"
       }
+    },
+    {
+      "name": "dev-proxied-api",
+      "runtimeExecutable": "npm",
+      "runtimeArgs": ["run", "dev"],
+      "port": 5188,
+      "autoPort": true,
+      "env": {
+        "ADMIN_ORIGIN": "https://admin.holidaybooking.be",
+        "VITE_API_URL": "/__admin/api"
+      }
     }
   ]
 }

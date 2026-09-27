@@ -171,14 +171,14 @@ describe('areas', () => {
     await waitFor(() => expect(screen.getByText('Side')).toBeInTheDocument());
     const el = row('Side');
     expect(within(el).getByText('Antalya, Turkey · 267 hotels')).toBeInTheDocument();
-    expect(within(el).getByText('Area')).toBeInTheDocument();
+    expect(within(el).getByText('Gebied')).toBeInTheDocument();
   });
 
   it('counts areas separately from places and hotels in the tally', async () => {
     answer({ destinations: [DEST], zones: [ZONE], hotels: [HOTEL] });
     await type('side');
     await waitFor(() => expect(screen.getByText('Side')).toBeInTheDocument());
-    expect(screen.getByText('1 place · 1 area · 1 hotel')).toBeInTheDocument();
+    expect(screen.getByText('1 plaats · 1 gebied · 1 hotel')).toBeInTheDocument();
   });
 
   it('hands the area back keyed by the (destination, zone) pair', async () => {
@@ -220,7 +220,7 @@ describe('areas', () => {
     const { user } = setup();
     await user.click(screen.getByRole('textbox'));
 
-    await waitFor(() => expect(screen.getByText('Recent searches')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Recente zoekopdrachten')).toBeInTheDocument());
     expect(screen.getByText('Belek')).toBeInTheDocument();
     expect(screen.queryByText('Side')).not.toBeInTheDocument();
   });
@@ -286,7 +286,7 @@ describe('picking a result', () => {
 
   it('clearing empties the field and tells the caller the selection is gone', async () => {
     const { user, onSelect } = await type('rixos');
-    await user.click(screen.getByRole('button', { name: 'Clear' }));
+    await user.click(screen.getByRole('button', { name: 'Wissen' }));
     expect(onSelect).toHaveBeenCalledWith(null);
     expect(screen.getByRole('textbox')).toHaveValue('');
   });
@@ -335,32 +335,32 @@ describe('searching', () => {
     answer({ destinations: [], hotels: [] });
     await type('zzzz');
     await waitFor(() =>
-      expect(screen.getByText(/No hotels or destinations match “zzzz”/)).toBeInTheDocument());
+      expect(screen.getByText(/Geen hotels of bestemmingen komen overeen met “zzzz”/)).toBeInTheDocument());
   });
 
   it('survives an API failure without crashing the box', async () => {
     // filters.js swallows errors into an empty result; the box must render the empty state.
     searchSpy.mockResolvedValue({ destinations: [], hotels: [] });
     await type('rixos');
-    await waitFor(() => expect(screen.getByText(/No hotels or destinations match/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Geen hotels of bestemmingen komen overeen/)).toBeInTheDocument());
   });
 
   it('tolerates a malformed payload with fields missing', async () => {
     searchSpy.mockResolvedValue({});
     await type('rixos');
-    await waitFor(() => expect(screen.getByText(/No hotels or destinations match/)).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText(/Geen hotels of bestemmingen komen overeen/)).toBeInTheDocument());
   });
 
   it('counts places and hotels in the tally strip', async () => {
     answer({ destinations: [DEST, DEST_2], hotels: [HOTEL] });
     await type('an');
-    await waitFor(() => expect(screen.getByText('2 places · 1 hotel')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('2 plaatsen · 1 hotel')).toBeInTheDocument());
   });
 
   it('singularises the tally for a lone place', async () => {
     answer({ destinations: [DEST], hotels: [] });
     await type('an');
-    await waitFor(() => expect(screen.getByText('1 place')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('1 plaats')).toBeInTheDocument());
   });
 });
 
@@ -444,7 +444,7 @@ describe('recent searches', () => {
     const { user } = setup();
     await user.click(screen.getByRole('textbox'));
 
-    await waitFor(() => expect(screen.getByText('Recent searches')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Recente zoekopdrachten')).toBeInTheDocument());
     expect(within(row('Rixos Premium Belek')).getByText('Belek, Antalya, Turkey')).toBeInTheDocument();
   });
 
@@ -453,7 +453,7 @@ describe('recent searches', () => {
     const { user } = setup();
     await user.click(screen.getByRole('textbox'));
 
-    await waitFor(() => expect(screen.getByText('Recent searches')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Recente zoekopdrachten')).toBeInTheDocument());
     expect(thumbIn(row('Rixos Premium Belek'))).toHaveAttribute('src', IMG);
   });
 
@@ -462,7 +462,7 @@ describe('recent searches', () => {
     const { user } = setup();
     await user.click(screen.getByRole('textbox'));
 
-    await waitFor(() => expect(screen.getByText('Recent searches')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Recente zoekopdrachten')).toBeInTheDocument());
     expect(thumbIn(row('Rixos Unphotographed'))).toBeNull();
   });
 
@@ -470,7 +470,7 @@ describe('recent searches', () => {
     seedRecents([{ kind: 'hotel', hotelCode: '32243', name: 'Rixos Premium Belek', destinationCode: 'AYT', image: IMG }]);
     const { user, onSelect } = setup();
     await user.click(screen.getByRole('textbox'));
-    await waitFor(() => expect(screen.getByText('Recent searches')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Recente zoekopdrachten')).toBeInTheDocument());
 
     await user.click(row('Rixos Premium Belek'));
     expect(onSelect).toHaveBeenCalledWith(expect.objectContaining({ type: 'hotel', hotelCode: '32243' }));
@@ -529,7 +529,7 @@ describe('recent searches', () => {
     ]);
     const { user } = setup();
     await user.click(screen.getByRole('textbox'));
-    await waitFor(() => expect(screen.getByText('Recent searches')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Recente zoekopdrachten')).toBeInTheDocument());
 
     expect(screen.getByText('Good Hotel')).toBeInTheDocument();
     expect(screen.queryByText('No Code Hotel')).not.toBeInTheDocument();
@@ -540,15 +540,15 @@ describe('recent searches', () => {
     localStorage.setItem(RECENTS_KEY, 'not json{{{');
     const { user } = setup({ suggestions: [{ label: 'Antalya', url: '/results?destinations=AYT' }] });
     await user.click(screen.getByRole('textbox'));
-    await waitFor(() => expect(screen.getByText('Popular right now')).toBeInTheDocument());
-    expect(screen.queryByText('Recent searches')).not.toBeInTheDocument();
+    await waitFor(() => expect(screen.getByText('Nu populair')).toBeInTheDocument());
+    expect(screen.queryByText('Recente zoekopdrachten')).not.toBeInTheDocument();
   });
 
   it('ignores storage holding the wrong shape entirely', async () => {
     localStorage.setItem(RECENTS_KEY, JSON.stringify({ nope: true }));
     const { user } = setup();
     await user.click(screen.getByRole('textbox'));
-    expect(screen.queryByText('Recent searches')).not.toBeInTheDocument();
+    expect(screen.queryByText('Recente zoekopdrachten')).not.toBeInTheDocument();
   });
 
   it('still updates the on-screen list when storage refuses the write', async () => {
@@ -576,7 +576,7 @@ describe('idle panel', () => {
   it('offers popular destinations before anything is typed', async () => {
     const { user } = setup({ suggestions: SUGGESTIONS });
     await user.click(screen.getByRole('textbox'));
-    await waitFor(() => expect(screen.getByText('Popular right now')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Nu populair')).toBeInTheDocument());
     expect(screen.getByRole('button', { name: 'Antalya' })).toBeInTheDocument();
   });
 
@@ -592,27 +592,27 @@ describe('idle panel', () => {
     const { user } = setup({ suggestions: SUGGESTIONS });
     await user.type(screen.getByRole('textbox'), 'rixos');
     await waitFor(() => expect(screen.getByText('Rixos Premium Belek')).toBeInTheDocument());
-    expect(screen.queryByText('Popular right now')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nu populair')).not.toBeInTheDocument();
   });
 
   it('stays shut when there is nothing to offer', async () => {
     const { user } = setup({ suggestions: [] });
     await user.click(screen.getByRole('textbox'));
-    expect(screen.queryByText('Popular right now')).not.toBeInTheDocument();
-    expect(screen.queryByText('Recent searches')).not.toBeInTheDocument();
+    expect(screen.queryByText('Nu populair')).not.toBeInTheDocument();
+    expect(screen.queryByText('Recente zoekopdrachten')).not.toBeInTheDocument();
   });
 
   it('offers "browse all" only when the caller supplies a handler', async () => {
     const onBrowseAll = vi.fn();
     const { user } = await type('rixos', { onBrowseAll });
     await waitFor(() => expect(screen.getByText('Rixos Premium Belek')).toBeInTheDocument());
-    await user.click(screen.getByRole('button', { name: /browse all destinations/i }));
+    await user.click(screen.getByRole('button', { name: /bekijk alle bestemmingen/i }));
     expect(onBrowseAll).toHaveBeenCalled();
   });
 
   it('omits "browse all" when it has no handler', async () => {
     await type('rixos');
     await waitFor(() => expect(screen.getByText('Rixos Premium Belek')).toBeInTheDocument());
-    expect(screen.queryByRole('button', { name: /browse all destinations/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /bekijk alle bestemmingen/i })).not.toBeInTheDocument();
   });
 });

@@ -29,7 +29,7 @@ const iso = (d) => { const x = new Date(); x.setDate(x.getDate() + d); return x.
 const NIGHTS = 6;
 const CHECK_IN = iso(30);
 const RETURN_ON = iso(30 + NIGHTS);
-const DAYS_LABEL = '7 days';
+const DAYS_LABEL = '7 dagen';
 
 // A rate whose free-cancellation window has already closed but whose penalty is well under the
 // rate — cancellationState() calls that 'partial', the one case that used to print the figure.
@@ -70,7 +70,7 @@ const renderPage = () => render(
 );
 
 const stripDays = async () => waitFor(() => {
-  const bars = screen.getAllByRole('button', { name: /from €\d+/i });
+  const bars = screen.getAllByRole('button', { name: /vanaf €\d+/i });
   expect(bars.length).toBeGreaterThan(0);
   return bars;
 });
@@ -78,7 +78,7 @@ const stripDays = async () => waitFor(() => {
 const checkFirstDay = async (user) => {
   const days = await stripDays();
   await user.click(days[0]);
-  await user.click(await screen.findByRole('button', { name: /check price & availability/i }));
+  await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
@@ -96,7 +96,7 @@ describe('trip length is stated in days, never in nights', () => {
     renderPage();
     const bars = await stripDays();
     expect(bars[0]).toHaveAccessibleName(new RegExp(DAYS_LABEL, 'i'));
-    expect(bars[0]).not.toHaveAccessibleName(new RegExp(`${NIGHTS} (day|night)`, 'i'));
+    expect(bars[0]).not.toHaveAccessibleName(new RegExp(`${NIGHTS} (dag|nacht)`, 'i'));
   });
 
   it('carries the day count onto the line beside the check button', async () => {
@@ -123,7 +123,7 @@ describe('trip length is stated in days, never in nights', () => {
     await checkFirstDay(user);
     await waitFor(() => expect(container.querySelector('.av-facts')).toBeTruthy());
 
-    expect(container.textContent).not.toMatch(new RegExp(`\\b${NIGHTS} days\\b`));
+    expect(container.textContent).not.toMatch(new RegExp(`\\b${NIGHTS} dagen\\b`));
   });
 });
 
@@ -150,6 +150,6 @@ describe('a room row never quotes what cancelling would cost', () => {
     await checkFirstDay(user);
 
     await waitFor(() => expect(container.querySelector('.room-option')).toBeTruthy());
-    expect(container.querySelector('.room-option').textContent).toMatch(/non-refundable/i);
+    expect(container.querySelector('.room-option').textContent).toMatch(/niet-terugbetaalbaar/i);
   });
 });

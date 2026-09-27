@@ -1,0 +1,96 @@
+{
+  "price": {
+    "total": "Total",
+    "paid": "Paid",
+    "balanceDue": "Balance due"
+  },
+  "status": {
+    "confirmed": "Confirmed",
+    "pending": "Pending",
+    "cancelled": "Cancelled",
+    "draft": "Draft"
+  },
+  "profile": {
+    "loading": "Loading profile…",
+    "role": {
+      "professional": "Professional Account",
+      "private": "Private Account"
+    },
+    "sectionTitle": {
+      "company": "Company Details",
+      "personal": "Personal Details",
+      "address": "Address"
+    },
+    "fields": {
+      "firstName": "First Name",
+      "lastName": "Last Name",
+      "phone": "Phone",
+      "nationality": "Nationality",
+      "dateOfBirth": "Date of Birth",
+      "gender": "Gender",
+      "customerCode": "Customer Code",
+      "preferredLanguage": "Preferred Language",
+      "tradingName": "Trading Name",
+      "legalName": "Legal Name",
+      "vatNumber": "VAT Number",
+      "industry": "Industry",
+      "website": "Website",
+      "contactPerson": "Contact Person",
+      "contactPhone": "Contact Phone",
+      "street": "Street",
+      "city": "City",
+      "postalCode": "Postal Code",
+      "country": "Country"
+    }
+  },
+  "favourites": {
+    "eyebrow": "Your collection",
+    "title": "Saved stays",
+    "subtitleLoading": "Gathering the places you loved…",
+    "subtitleCount_one": "{{count}} hotel ready when you are — open one to see live prices.",
+    "subtitleCount_other": "{{count}} hotels ready when you are — open one to see live prices.",
+    "subtitleEmpty": "Heart any hotel and it lands here, ready to book when the moment’s right.",
+    "errorTitle": "We couldn’t load your favourites",
+    "emptyTitle": "No saved stays yet",
+    "emptyText": "Tap the heart on any hotel and it’ll be waiting for you here.",
+    "browseHotels": "Browse hotels",
+    "removeAria": "Remove from favourites",
+    "starLabel": "{{count}}-star",
+    "hotelFallbackName": "Hotel {{code}}",
+    "viewLivePrices": "View live prices",
+    "toastRemoved": "Removed from favourites",
+    "toastRemoveFailed": "Couldn’t remove favourite. Please try again."
+  },
+  "myBookings": {
+    "loading": "Loading your bookings…",
+    "subtitleCount_one": "{{count}} trip on your account",
+    "subtitleCount_other": "{{count}} trips on your account",
+    "subtitleEmpty": "Your trips will appear here once you book.",
+    "emptyTitle": "No bookings yet",
+    "emptyText": "Find your next sun-soaked getaway and it’ll show up right here.",
+    "startExploring": "Start exploring",
+    "departing": "Departing {{date}}",
+    "bookingDetails": "Booking details",
+    "booked": "Booked {{date}}",
+    "viewDetails": "View details",
+    "payment": {
+      "paid": "Paid",
+      "partPaid": "Part-paid",
+      "unpaid": "Unpaid"
+    }
+  },
+  "bookingDetail": {
+    "loading": "Loading booking…",
+    "notFound": "Booking not found.",
+    "backToBookings": "Back to my bookings",
+    "payment": "Payment",
+    "paymentStatus": "Payment status:",
+    "source": "Source:",
+    "whatsIncluded": "What’s included",
+    "travellers": "Travellers ({{count}})",
+    "ref": "Ref: {{ref}}",
+    "lead": "Lead",
+    "nights_one": "{{count}} night",
+    "nights_other": "{{count}} nights"
+  }
+}

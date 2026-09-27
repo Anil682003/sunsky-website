@@ -1,0 +1,73 @@
+{
+  "hero": {
+    "title": "Airport <1>transfers</1>",
+    "sub": "Private & shared rides between airports, hotels, ports and stations — booked in seconds."
+  },
+  "fields": {
+    "from": "From",
+    "to": "To",
+    "swap": "Swap",
+    "airportCodePlaceholder": "Airport code (e.g. PMI)",
+    "hotelCodePlaceholder": "Hotel code",
+    "codePlaceholder": "Code",
+    "pickupDate": "Pickup date",
+    "pickupTime": "Pickup time",
+    "returnDate": "Return date",
+    "returnTime": "Return time",
+    "passengers": "Passengers",
+    "adults": "Adults",
+    "children": "Children",
+    "infants": "Infants",
+    "addReturnTransfer": "Add return transfer",
+    "searching": "Searching…",
+    "searchTransfers": "Search transfers"
+  },
+  "locType": {
+    "airport": "Airport",
+    "hotel": "Hotel",
+    "port": "Port",
+    "station": "Station"
+  },
+  "sort": {
+    "priceAsc": "Price: Low to High",
+    "priceDesc": "Price: High to Low",
+    "capacity": "Capacity: Largest"
+  },
+  "pax": {
+    "adults_one": "{{count}} adult",
+    "adults_other": "{{count}} adults",
+    "children_one": "{{count}} child",
+    "children_other": "{{count}} children",
+    "infants_one": "{{count}} infant",
+    "infants_other": "{{count}} infants"
+  },
+  "errors": {
+    "missingFields": "Please choose a pickup, a drop-off and a date.",
+    "searchFailed": "Transfer search failed."
+  },
+  "results": {
+    "found_one": "{{count}} transfer found",
+    "found_other": "{{count}} transfers found",
+    "sort": "Sort",
+    "noneFoundTitle": "No transfers found",
+    "noneFoundBody": "Try a different date, or check the pickup / drop-off codes.",
+    "introTitle": "Where are you headed?",
+    "introBody": "Enter a pickup and drop-off above to see available transfers."
+  },
+  "card": {
+    "transfer": "Transfer",
+    "shared": "Shared",
+    "private": "Private",
+    "pax": "{{min}}–{{max}} pax",
+    "hotelToAirport": "Hotel → Airport",
+    "airportToHotel": "Airport → Hotel",
+    "freeCancellation": "Free cancellation",
+    "totalPrice": "total price",
+    "select": "Select"
+  },
+  "selbar": {
+    "flightNo": "Flight no. <1>(recommended)</1>",
+    "flightNoPlaceholder": "e.g. SN3721",
+    "continue": "Continue to book"
+  }
+}

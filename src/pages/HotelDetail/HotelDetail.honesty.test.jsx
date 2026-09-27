@@ -102,12 +102,12 @@ const renderPage = ({ withDates = true } = {}) => {
 
 const runCheck = async (user) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /from €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
   await user.click(days[0]);
-  await user.click(await screen.findByRole('button', { name: /check price & availability/i }));
+  await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
@@ -127,10 +127,10 @@ describe('a sold-out day disables the check button', () => {
     const { container } = renderPage();
     await runCheck(user);
 
-    const btn = await screen.findByRole('button', { name: /^not available$/i });
+    const btn = await screen.findByRole('button', { name: /^niet beschikbaar$/i });
     expect(btn).toBeDisabled();
     // The live "check" affordance must not still be offered for a day that has nothing.
-    expect(screen.queryByRole('button', { name: /check price & availability/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /prijs & beschikbaarheid controleren/i })).not.toBeInTheDocument();
   });
 
   it('re-enables the button when another day is picked', async () => {
@@ -138,30 +138,30 @@ describe('a sold-out day disables the check button', () => {
     emptyAvailability();
     const { container } = renderPage();
     await runCheck(user);
-    await screen.findByRole('button', { name: /^not available$/i });
+    await screen.findByRole('button', { name: /^niet beschikbaar$/i });
 
     // A different day in the matrix is a different question, so the button is live again.
-    const days = screen.getAllByRole('button', { name: /from €\d+/i });
+    const days = screen.getAllByRole('button', { name: /vanaf €\d+/i });
     await user.click(days[1]);
 
-    expect(await screen.findByRole('button', { name: /check price & availability/i })).toBeEnabled();
-    expect(screen.queryByRole('button', { name: /^not available$/i })).not.toBeInTheDocument();
+    expect(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i })).toBeEnabled();
+    expect(screen.queryByRole('button', { name: /^niet beschikbaar$/i })).not.toBeInTheDocument();
   });
 });
 
 describe('the fare strip never invents a week', () => {
   it('asks for dates instead of quoting a demo week when the search carries none', async () => {
     renderPage({ withDates: false });
-    expect(await screen.findByText(/choose your dates to see live prices/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /from €\d+/i })).not.toBeInTheDocument();
+    expect(await screen.findByText(/kies je data om live prijzen te zien/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /vanaf €\d+/i })).not.toBeInTheDocument();
   });
 
   it('reports an outage as an outage, and offers a retry', async () => {
     calendarMode = 'fail';
     renderPage();
-    expect(await screen.findByText(/couldn’t load live prices/i)).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: /try again/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /from €\d+/i })).not.toBeInTheDocument();
+    expect(await screen.findByText(/we konden geen live prijzen laden/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: /opnieuw proberen/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /vanaf €\d+/i })).not.toBeInTheDocument();
   });
 
   // A 5xx that answers with an HTML error page used to land in .catch() looking exactly like
@@ -169,21 +169,21 @@ describe('the fare strip never invents a week', () => {
   it('treats an error status as a failure, not as a sold-out hotel', async () => {
     calendarMode = 'http500';
     renderPage();
-    expect(await screen.findByText(/couldn’t load live prices/i)).toBeInTheDocument();
-    expect(screen.queryByText(/no availability for these dates/i)).not.toBeInTheDocument();
+    expect(await screen.findByText(/we konden geen live prijzen laden/i)).toBeInTheDocument();
+    expect(screen.queryByText(/geen beschikbaarheid voor deze data/i)).not.toBeInTheDocument();
   });
 
   it('says a full hotel is full, with no retry to offer', async () => {
     calendarMode = [];
     renderPage();
-    expect(await screen.findByText(/no availability for these dates/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /try again/i })).not.toBeInTheDocument();
+    expect(await screen.findByText(/geen beschikbaarheid voor deze data/i)).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /opnieuw proberen/i })).not.toBeInTheDocument();
   });
 
   it('renders the live fares it was given', async () => {
     renderPage();
     const days = await waitFor(() => {
-      const found = screen.getAllByRole('button', { name: /from €\d+/i });
+      const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
       expect(found.length).toBe(7);
       return found;
     });
@@ -191,14 +191,14 @@ describe('the fare strip never invents a week', () => {
     // for the whole party (€260 for the two adults searched), and the strip divides it so a
     // family is not comparing a party total against the per-person prices quoted everywhere
     // else. Still the supplier's own number — nothing here is invented.
-    expect(days[0]).toHaveAccessibleName(/from €130 per person/i);
+    expect(days[0]).toHaveAccessibleName(/vanaf €130 per persoon/i);
   });
 });
 
 describe('flights and rooms are live-only', () => {
   it('does not claim to have picked a cheapest flight before one is searched', async () => {
     renderPage();
-    await screen.findAllByRole('button', { name: /from €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
     expect(screen.queryByText(/selected the cheapest flight for you/i)).not.toBeInTheDocument();
     // the demo itineraries' flight numbers must appear nowhere
     expect(screen.queryByText(/TB\s?1742|HV\s?6035/)).not.toBeInTheDocument();
@@ -206,7 +206,7 @@ describe('flights and rooms are live-only', () => {
 
   it('never shows invented scarcity for rooms nobody has searched', async () => {
     renderPage();
-    await screen.findAllByRole('button', { name: /from €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
     expect(screen.queryByText(/only \d+ (rooms? )?available/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/double room design room/i)).not.toBeInTheDocument();
   });
@@ -238,11 +238,11 @@ describe('supplier failures are reported in words a traveller can use', () => {
     const { container } = renderPage();
     await runCheck(user);
 
-    expect(await screen.findByText(/couldn’t load live room prices/i)).toBeInTheDocument();
+    expect(await screen.findByText(/live roomprijzen.*niet laden/i)).toBeInTheDocument();
     expect(screen.queryByText(/timeout of \d+ms exceeded/i)).not.toBeInTheDocument();
     // "Suppliers" is our word, not a traveller's — the message must never name our plumbing.
     expect(screen.queryByText(/supplier/i)).not.toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /try again/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /opnieuw proberen/i }).length).toBeGreaterThan(0);
   });
 
   it('offers a retry that re-runs the search', async () => {
@@ -259,9 +259,9 @@ describe('supplier failures are reported in words a traveller can use', () => {
 
     const { container } = renderPage();
     await runCheck(user);
-    await screen.findByText(/couldn’t load live room prices/i);
+    await screen.findByText(/live roomprijzen.*niet laden/i);
 
-    const [retry] = screen.getAllByRole('button', { name: /try again/i });
+    const [retry] = screen.getAllByRole('button', { name: /opnieuw proberen/i });
     await user.click(retry);
 
     // In the room LIST specifically: the availability recap names the chosen room too now,
@@ -277,14 +277,14 @@ describe('checkout is only reachable with a real quote', () => {
   it('sends an unpriced booking to the availability check instead of to payment', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findAllByRole('button', { name: /from €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
 
     // Both the overview card and the sticky sidebar carry the button; either must refuse.
-    const [book] = await screen.findAllByRole('button', { name: /check availability/i });
+    const [book] = await screen.findAllByRole('button', { name: /^beschikbaarheid controleren$/i });
     await user.click(book);
 
     expect(screen.queryByTestId('checkout')).not.toBeInTheDocument();
-    expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/check availability first/i), 'info');
+    expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/beschikbaarheid.*zodat we je verblijf kunnen prijzen/i), 'info');
   });
 
   it('lets a checked booking through to payment', async () => {
@@ -292,7 +292,7 @@ describe('checkout is only reachable with a real quote', () => {
     const { container } = renderPage();
     await runCheck(user);
 
-    const book = await waitFor(() => screen.getByRole('button', { name: /continue to checkout/i }));
+    const book = await waitFor(() => screen.getByRole('button', { name: /doorgaan naar afrekenen/i }));
     expect(book).toBeEnabled();
     await user.click(book);
     expect(await screen.findByTestId('checkout')).toBeInTheDocument();
@@ -300,9 +300,9 @@ describe('checkout is only reachable with a real quote', () => {
 
   it('quotes no total until the stay has been priced', async () => {
     renderPage();
-    await screen.findAllByRole('button', { name: /from €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
     // the old card printed a flat "4 × €361 p.p." / "€1,424" for every unpriced hotel
     expect(screen.queryByText(/1,?444|1,?424|€\s?361/)).not.toBeInTheDocument();
-    expect(screen.getByText(/not priced yet/i)).toBeInTheDocument();
+    expect(screen.getByText(/nog niet geprijsd/i)).toBeInTheDocument();
   });
 });

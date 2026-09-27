@@ -1,0 +1,98 @@
+{
+  "dates": {
+    "monthsShort": "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec"
+  },
+  "pax": {
+    "adults_one": "{{count}} Adult",
+    "adults_other": "{{count}} Adults",
+    "children_one": "{{count}} Child",
+    "children_other": "{{count}} Children",
+    "infants_one": "{{count}} Infant",
+    "infants_other": "{{count}} Infants"
+  },
+  "stops": {
+    "none": "Non-stop",
+    "count_one": "{{count}} Stop",
+    "count_other": "{{count}} Stops"
+  },
+  "cabin": {
+    "economy": "Economy",
+    "premiumEconomy": "Premium Economy",
+    "business": "Business",
+    "first": "First"
+  },
+  "legTag": {
+    "outbound": "Outbound",
+    "return": "Return"
+  },
+  "badge": {
+    "cheapest": "Cheapest",
+    "fastest": "Fastest",
+    "bestValue": "Best Value"
+  },
+  "sort": {
+    "priceAsc": "Price: Low to High",
+    "priceDesc": "Price: High to Low",
+    "duration": "Duration: Shortest",
+    "depEarly": "Departure: Earliest",
+    "depLate": "Departure: Latest"
+  },
+  "price": {
+    "perPerson": "per person",
+    "total": "total"
+  },
+  "card": {
+    "select": "Select"
+  },
+  "hero": {
+    "tripThrough": "Your trip through",
+    "flightsTo": "Flights to",
+    "flightsCount_one": "{{count}} flight",
+    "flightsCount_other": "{{count}} flights"
+  },
+  "toolbar": {
+    "searching": "Searching…",
+    "legProgress": "Flight {{n}} of {{total}}",
+    "of": "of",
+    "flights": "flights",
+    "filters": "Filters",
+    "sort": "Sort"
+  },
+  "trip": {
+    "title": "Your trip",
+    "chosen": "chosen",
+    "choose": "Choose",
+    "total": "Trip total",
+    "soFar": "So far",
+    "note": "Each flight is priced and booked as its own one-way fare. The total is the sum of them, for {{pax}}.",
+    "continue": "Continue",
+    "chooseMore_one": "Choose {{count}} more flight",
+    "chooseMore_other": "Choose {{count}} more flights"
+  },
+  "legTabs": {
+    "ariaLabel": "Flights in this trip"
+  },
+  "filters": {
+    "airlines": "Airlines",
+    "stopsTitle": "{{from}} → {{to}} Stops",
+    "nonstop": "Non-stop",
+    "oneStop": "1 Stop",
+    "twoOrMoreStops": "2 Stops or more",
+    "departureFrom": "Departure from {{from}}",
+    "maxPrice": "Max price",
+    "upTo": "Up to {{amount}}",
+    "clearAll": "Clear all filters",
+    "clearAllCount": "Clear all filters ({{count}})"
+  },
+  "empty": {
+    "noFlightsMultiTitle": "No flights for {{from}} → {{to}} on {{date}}",
+    "noFlightsTitle": "No flights for this route and date",
+    "noMatchTitle": "No flights match your filters",
+    "noFlightsMultiBody": "This flight of the trip has no fare on that date. Change its date or airports in the search above, and the rest of the trip stays as it is.",
+    "noFlightsBody": "We could not find a fare for this search. Try another date, or a different departure airport.",
+    "noMatchBody": "Try widening your price range or clearing a filter."
+  },
+  "drawer": {
+    "show": "Show {{count}} flights"
+  }
+}

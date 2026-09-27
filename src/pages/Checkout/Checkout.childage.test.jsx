@@ -71,7 +71,7 @@ const renderCheckout = () => render(
 
 const childCard = () => [...document.querySelectorAll('.ck-trav')][1];   // 1 adult, then the child
 const panel = () => document.querySelector('.ck-rp');
-const cta = () => screen.getByRole('button', { name: /continue to add-ons|re-checking/i });
+const cta = () => screen.getByRole('button', { name: /doorgaan naar extra's|opnieuw gecontroleerd/i });
 
 beforeEach(() => {
   post.mockReset();
@@ -86,7 +86,7 @@ describe('a child slot with no date carried from the search', () => {
     await waitFor(() => expect(childCard()).toBeTruthy());
     // Editable (nothing to lock), but not silent about the age behind the price.
     expect(childCard().querySelector('input[type="date"]')).toBeTruthy();
-    expect(childCard()).toHaveTextContent(/priced as a 10-year-old/i);
+    expect(childCard()).toHaveTextContent(/geprijsd als 10-jarige/i);
   });
 
   it('re-checks the price when the date typed is not that age, and blocks payment until accepted', async () => {
@@ -98,7 +98,7 @@ describe('a child slot with no date carried from the search', () => {
     setDob(childCard(), '1996-01-01');
 
     await waitFor(() => expect(panel()).toBeTruthy(), { timeout: 3000 });
-    await waitFor(() => expect(panel()).toHaveTextContent(/the price for this holiday has changed/i), { timeout: 3000 });
+    await waitFor(() => expect(panel()).toHaveTextContent(/de prijs voor deze vakantie is gewijzigd/i), { timeout: 3000 });
 
     // The supplier was asked for the party actually being booked: two adults, no child.
     const call = post.mock.calls.find(([url]) => String(url).includes('hotel-availability'));
@@ -106,8 +106,8 @@ describe('a child slot with no date carried from the search', () => {
 
     // And nothing moves until the new price is accepted.
     expect(cta()).toBeDisabled();
-    await user.click(screen.getByRole('button', { name: /accept the new price/i }));
-    await waitFor(() => expect(panel()).toHaveTextContent(/new price accepted/i));
+    await user.click(screen.getByRole('button', { name: /nieuwe prijs accepteren/i }));
+    await waitFor(() => expect(panel()).toHaveTextContent(/nieuwe prijs geaccepteerd/i));
     expect(cta()).toBeEnabled();
   });
 

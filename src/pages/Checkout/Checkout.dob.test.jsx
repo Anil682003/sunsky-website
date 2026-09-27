@@ -72,7 +72,7 @@ const renderCheckout = () => render(
 
 const dobRows = () => [...document.querySelectorAll('.ck-dob-lock')];
 const panel = () => document.querySelector('.ck-rp');
-const cta = () => screen.getByRole('button', { name: /continue to add-ons|re-checking/i });
+const cta = () => screen.getByRole('button', { name: /doorgaan naar extra's|opnieuw gecontroleerd/i });
 
 // What each traveller card's editable date of birth reads. A locked row has no input at all —
 // it prints the date instead of offering it — so it contributes ''.
@@ -82,8 +82,8 @@ const dobValues = () => [...document.querySelectorAll('.ck-trav')]
 // Open the child's date of birth and put a new one in. The child row is the third traveller
 // (2 adults + 1 child), and its is the only card with a locked date to open.
 const changeChildDob = async (user, iso) => {
-  await user.click(screen.getByRole('button', { name: /^change$/i }));
-  await user.click(screen.getByRole('button', { name: /change date of birth/i }));
+  await user.click(screen.getByRole('button', { name: /^wijzigen$/i }));
+  await user.click(screen.getByRole('button', { name: /geboortedatum wijzigen/i }));
   const card = [...document.querySelectorAll('.ck-trav')][2];
   expect(setDob(card, iso), 'the unlocked date field').toBe(true);
 };
@@ -101,22 +101,22 @@ describe('a child date of birth from the search', () => {
     // One locked row — the child's. The adults were never asked in the search.
     await waitFor(() => expect(dobRows()).toHaveLength(1));
     expect(dobRows()[0]).toHaveTextContent('07/09/2016');
-    expect(dobRows()[0]).toHaveTextContent(/child/i);
+    expect(dobRows()[0]).toHaveTextContent(/kind/i);
     // No editable field holds that date — the adults' own date fields are untouched by this.
     expect(dobValues()).not.toContain(CHILD_DOB);
 
     // The warning comes first, in the client's words, and can be declined.
-    await user.click(screen.getByRole('button', { name: /^change$/i }));
+    await user.click(screen.getByRole('button', { name: /^wijzigen$/i }));
     const warn = document.querySelector('.ck-dob-warn');
-    expect(warn).toHaveTextContent(/may affect the price or availability/i);
-    expect(warn).toHaveTextContent(/check this automatically before you continue/i);
-    await user.click(screen.getByRole('button', { name: /keep 07\/09\/2016/i }));
+    expect(warn).toHaveTextContent(/kan de prijs of beschikbaarheid/i);
+    expect(warn).toHaveTextContent(/controleren dit automatisch voordat je verdergaat/i);
+    await user.click(screen.getByRole('button', { name: /behoud 07\/09\/2016/i }));
     expect(document.querySelector('.ck-dob-warn')).toBeFalsy();
     expect(dobRows()).toHaveLength(1);              // still locked
 
     // Accepting it opens the field.
-    await user.click(screen.getByRole('button', { name: /^change$/i }));
-    await user.click(screen.getByRole('button', { name: /change date of birth/i }));
+    await user.click(screen.getByRole('button', { name: /^wijzigen$/i }));
+    await user.click(screen.getByRole('button', { name: /geboortedatum wijzigen/i }));
     expect(dobRows()).toHaveLength(0);
     // Opened, and pre-filled with the searched date rather than blank.
     expect(dobValues()).toContain(CHILD_DOB);
@@ -135,7 +135,7 @@ describe('a child date of birth from the search', () => {
     await changeChildDob(user, '2013-09-07');
 
     await waitFor(() => expect(panel()).toBeTruthy(), { timeout: 3000 });
-    await waitFor(() => expect(panel()).toHaveTextContent(/the price for this holiday has changed/i), { timeout: 3000 });
+    await waitFor(() => expect(panel()).toHaveTextContent(/de prijs voor deze vakantie is gewijzigd/i), { timeout: 3000 });
 
     // The supplier was asked with the CORRECTED party: the 13-year-old counts as an adult and
     // no longer has a child age.
@@ -147,14 +147,14 @@ describe('a child date of birth from the search', () => {
     expect(panel()).toHaveTextContent('€620');     // 600 + 20 SGR, before
     expect(panel()).toHaveTextContent('€760');     // 740 + 20 SGR, after
 
-    await user.click(screen.getByRole('button', { name: /accept the new price/i }));
-    await waitFor(() => expect(panel()).toHaveTextContent(/new price accepted/i));
+    await user.click(screen.getByRole('button', { name: /nieuwe prijs accepteren/i }));
+    await waitFor(() => expect(panel()).toHaveTextContent(/nieuwe prijs geaccepteerd/i));
     expect(cta()).toBeEnabled();
     // And the money the page works from is the accepted quote, not the one it arrived with:
     // the stay line in the summary is now the re-priced room.
     const stayLine = [...document.querySelectorAll('.ck-sum-row')][0];
     expect(stayLine).toHaveTextContent('€740');
-    expect(panel()).toHaveTextContent('€760 total');
+    expect(panel()).toHaveTextContent('€760 totaal');
   });
 
   it('says so plainly when the corrected party has no room, and stays in the checkout', async () => {
@@ -170,13 +170,13 @@ describe('a child date of birth from the search', () => {
 
     await changeChildDob(user, '2013-09-07');
 
-    await waitFor(() => expect(panel()).toHaveTextContent(/not available for the updated traveller details/i), { timeout: 3000 });
+    await waitFor(() => expect(panel()).toHaveTextContent(/niet beschikbaar voor de bijgewerkte reizigersgegevens/i), { timeout: 3000 });
     expect(cta()).toBeDisabled();
     // Still on the checkout, on step 1 — never bounced back to the search.
-    expect(document.querySelector('.ck-step.act')).toHaveTextContent(/your details/i);
+    expect(document.querySelector('.ck-step.act')).toHaveTextContent(/jouw gegevens/i);
 
     // Putting the searched date back restores the priced holiday and clears the block.
-    await user.click(screen.getByRole('button', { name: /put the original date back/i }));
+    await user.click(screen.getByRole('button', { name: /oorspronkelijke datum terugzetten/i }));
     await waitFor(() => expect(panel()).toBeFalsy());
     expect(dobRows()[0]).toHaveTextContent('07/09/2016');
     expect(cta()).toBeEnabled();

@@ -1,10 +1,11 @@
 import { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import mainLogo from '../../assets/main-logo.png';
+import { useTranslation, Trans } from 'react-i18next';
+import { useBrandLogo } from '../../hooks/useBrandLogo';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
 // it, so it keeps the square mark — the same one the browser tab shows.
 import logoIcon from '../../assets/logo-icon.png';
-import styles from './Login.module.css';   // shared auth shell (sky scene, card, fields)
+import styles from './Login.module.css';   // shared auth shell (brand column, card, fields)
 import fp from './ForgotPassword.module.css';
 import CodeInput, { CODE_LENGTH } from './CodeInput';
 
@@ -29,6 +30,10 @@ export default function RegisterVerify({
   onResend,      // () => Promise<boolean>   — true when a new code went out
   onBack,        // () => void               — back to the form
 }) {
+  const { t } = useTranslation('auth');
+  // The logo the dashboard sets, with the bundled one showing until it lands.
+  const brandLogo = useBrandLogo();
+
   const [code, setCode] = useState('');
   const [invalid, setInvalid] = useState(false);
   const [secondsLeft, setSecondsLeft] = useState(RESEND_SECONDS);
@@ -68,42 +73,19 @@ export default function RegisterVerify({
 
   return (
     <div className={styles.page}>
-      {/* Shared sky scene */}
-      <div className={styles.bgArt} aria-hidden="true">
-        <div className={styles.bgGrad} />
-        <div className={`${styles.blob} ${styles.blob1}`} />
-        <div className={`${styles.blob} ${styles.blob2}`} />
-        <div className={`${styles.blob} ${styles.blob3}`} />
-        <div className={styles.ring} />
-        <div className={styles.ring2} />
-        <div className={styles.gridLines} />
-        <div className={styles.sun}>
-          <div className={styles.sunRays} />
-          <div className={styles.sunCore} />
-        </div>
-        <div className={`${styles.cloud} ${styles.cloud1}`} />
-        <div className={`${styles.cloud} ${styles.cloud2}`} />
-        <div className={`${styles.cloud} ${styles.cloud3}`} />
-        <svg className={styles.flightPath} viewBox="0 0 1600 900" fill="none">
-          <path d="M-40 190 C 380 110, 950 70, 1660 150" stroke="rgba(58,111,232,0.28)" strokeWidth="1.6" strokeDasharray="1 12" strokeLinecap="round" />
-        </svg>
-        <div className={styles.horizon} />
-        <div className={styles.grain} />
-      </div>
-
       {/* Left branding */}
       <div className={styles.brandPanel}>
         <Link to="/" className={styles.logo}>
           {/* The wordmark carries the name, so no text beside it. */}
-          <img src={mainLogo} alt="Sunsky Vakanties" className={styles.logoWordmark} />
+          <img src={brandLogo.src} alt={brandLogo.alt || 'Sunsky Vakanties'} onError={brandLogo.onError} className={styles.logoWordmark} />
         </Link>
 
         <div className={styles.brandHero}>
           <h2 className={styles.brandTitle}>
-            One last step<br />and you're <em>onboard</em>
+            <Trans i18nKey="auth:registerVerify.brandTitle" t={t}>One last step<br />and you're <em>onboard</em></Trans>
           </h2>
           <p className={styles.brandSub}>
-            We just need to know this inbox is really yours. Your account is created the moment the code checks out.
+            {t('auth:registerVerify.brandSub', 'We just need to know this inbox is really yours. Your account is created the moment the code checks out.')}
           </p>
         </div>
       </div>
@@ -113,24 +95,13 @@ export default function RegisterVerify({
         <div className={styles.card}>
           <div className={styles.cardInner}>
             <div className={styles.cardHead}>
-              <div className={styles.routeRow} aria-hidden="true">
-                <span>YOU</span>
-                <span className={styles.routeDash} />
-                <span className={styles.routePlane}>
-                  <svg width="15" height="15" viewBox="0 0 24 24" fill="currentColor" style={{ transform: 'rotate(90deg)' }}>
-                    <path d="M21.9 14.9L13.6 10.6V3.8c0-1-.7-1.8-1.6-1.8s-1.6.8-1.6 1.8v6.8L2.1 14.9v2.2l8.3-2.6v5.2L7.9 21.5v1.7l4.1-1.2 4.1 1.2v-1.7l-2.5-1.8v-5.2l8.3 2.6v-2.2z" />
-                  </svg>
-                </span>
-                <span className={styles.routeDash} />
-                <span>SUNSKY</span>
-              </div>
               <div className={styles.avatarRing}>
                 <img src={logoIcon} alt="" className={styles.avatarLogo} />
               </div>
 
-              <h1 className={styles.cardTitle}>Confirm your email</h1>
+              <h1 className={styles.cardTitle}>{t('auth:registerVerify.title', 'Confirm your email')}</h1>
               <p className={styles.cardSub}>
-                We sent a 6-digit code to <strong className={fp.emailStrong}>{email}</strong>
+                {t('auth:forgot.step2Sub', 'We sent a 6-digit code to')} <strong className={fp.emailStrong}>{email}</strong>
               </p>
             </div>
 
@@ -145,7 +116,7 @@ export default function RegisterVerify({
               {expiryMinutes != null && (
                 <p className={fp.hint}>
                   <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round"><circle cx="12" cy="12" r="10" /><path d="M12 6v6l4 2" /></svg>
-                  This code expires in {expiryMinutes} minutes
+                  {t('auth:codeExpiresIn', { count: expiryMinutes, defaultValue_one: 'This code expires in {{count}} minute', defaultValue_other: 'This code expires in {{count}} minutes' })}
                 </p>
               )}
 
@@ -153,11 +124,11 @@ export default function RegisterVerify({
                   sent, and the person waiting has no way to tell the difference. */}
               <p className={fp.hint}>
                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.9" strokeLinecap="round" strokeLinejoin="round"><path d="M4 4h16v16H4z" /><path d="M4 7l8 6 8-6" /></svg>
-                Not there within a minute? Check your spam or junk folder.
+                {t('auth:checkSpamFolder', 'Not there within a minute? Check your spam or junk folder.')}
               </p>
 
               <button className={styles.submitBtn} type="submit" disabled={busy || code.length !== CODE_LENGTH}>
-                <span>{submitting ? 'Creating account…' : 'Confirm and create account'}</span>
+                <span>{submitting ? t('auth:registerVerify.creatingAccount', 'Creating account…') : t('auth:registerVerify.confirmAndCreate', 'Confirm and create account')}</span>
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                   <path d="M5 12h14M12 5l7 7-7 7" />
                 </svg>
@@ -165,14 +136,14 @@ export default function RegisterVerify({
 
               <div className={fp.resendRow}>
                 {secondsLeft > 0 ? (
-                  <span className={fp.resendMuted}>Didn't get it? Resend in {secondsLeft}s</span>
+                  <span className={fp.resendMuted}>{t('auth:resendIn', { seconds: secondsLeft, defaultValue: 'Didn\'t get it? Resend in {{seconds}}s' })}</span>
                 ) : (
                   <button type="button" className={fp.linkBtn} onClick={resend} disabled={busy}>
-                    {resending ? 'Sending…' : 'Resend code'}
+                    {resending ? t('auth:registerVerify.sending', 'Sending…') : t('auth:resendCode', 'Resend code')}
                   </button>
                 )}
                 <button type="button" className={fp.linkBtn} onClick={onBack} disabled={busy}>
-                  Change details
+                  {t('auth:registerVerify.changeDetails', 'Change details')}
                 </button>
               </div>
             </form>

@@ -1,3 +1,5 @@
+import i18n from '../i18n';
+
 // Everything a traveller needs to know about ONE rate, pulled out of the shapes the
 // supplier actually sends us.
 //
@@ -17,7 +19,10 @@
 // Nothing here throws on a malformed input: every field is optional and every consumer
 // treats null as "don't show that line".
 
-/** Board code → what to actually put in front of a traveller, plus a one-line gloss. */
+/** Board code → what to actually put in front of a traveller, plus a one-line gloss.
+ *  English fallbacks only — the label goes through the site's shared `results:board.<code>`
+ *  dictionary (the same one the Results page and StayBar use), and the gloss through its own
+ *  `hotelDetail:rooms.boardGloss.<code>`, so a Dutch reader gets a Dutch board name here too. */
 const BOARD_MEANING = {
   RO: { label: 'Room only', gloss: 'No meals included' },
   SC: { label: 'Self catering', gloss: 'Kitchen facilities, no meals' },
@@ -36,11 +41,17 @@ const BOARD_MEANING = {
 export function boardInfo(boardCode, boardName) {
   const code = String(boardCode || '').trim().toUpperCase();
   const known = BOARD_MEANING[code];
-  if (known) return { code, ...known };
+  if (known) {
+    return {
+      code,
+      label: i18n.t(`results:board.${code}`, known.label),
+      gloss: i18n.t(`hotelDetail:rooms.boardGloss.${code}`, known.gloss),
+    };
+  }
   const raw = decodeEntities(String(boardName || '')).trim();
   return {
     code: code || null,
-    label: raw ? titleCase(raw) : 'Standard rate',
+    label: raw ? titleCase(raw) : i18n.t('hotelDetail:rooms.standardRate', 'Standard rate'),
     gloss: null,
   };
 }

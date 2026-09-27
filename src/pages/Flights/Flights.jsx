@@ -1,10 +1,21 @@
 import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
+import i18n from '../../i18n';
 import './Flights.css';
 import axiosInstance from '../../services/axiosInstance';
-import { buildContext, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal, legContexts, combineTrip } from './flightData';
+import { buildContext, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal, legContexts, combineTrip, cabinLabel } from './flightData';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import { useAirlineName } from '../../utils/airlineLogos';
+
+// The identifier stays English (it also drives the CSS class via
+// `f.badge.replace(/\s/g, '').toLowerCase()`); only the rendered label is translated.
+const badgeLabel = (b) => ({
+  Cheapest: i18n.t('flights:badge.cheapest', 'Cheapest'),
+  Fastest: i18n.t('flights:badge.fastest', 'Fastest'),
+  'Best Value': i18n.t('flights:badge.bestValue', 'Best Value'),
+}[b] || b);
+
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
@@ -31,12 +42,12 @@ const TIME_SLOTS = [
   { key: 2, label: '12–18', lo: 720, hi: 1080 },
   { key: 3, label: '18–00', lo: 1080, hi: 1440 },
 ];
-const SORTS = [
-  { v: 'price-asc', l: 'Price: Low to High' },
-  { v: 'price-desc', l: 'Price: High to Low' },
-  { v: 'dur', l: 'Duration: Shortest' },
-  { v: 'dep-early', l: 'Departure: Earliest' },
-  { v: 'dep-late', l: 'Departure: Latest' },
+const sortOptions = () => [
+  { v: 'price-asc', l: i18n.t('flights:sort.priceAsc', 'Price: Low to High') },
+  { v: 'price-desc', l: i18n.t('flights:sort.priceDesc', 'Price: High to Low') },
+  { v: 'dur', l: i18n.t('flights:sort.duration', 'Duration: Shortest') },
+  { v: 'dep-early', l: i18n.t('flights:sort.depEarly', 'Departure: Earliest') },
+  { v: 'dep-late', l: i18n.t('flights:sort.depLate', 'Departure: Latest') },
 ];
 const hm = (t) => { const [h, m] = t.split(':').map(Number); return h * 60 + m; };
 
@@ -85,20 +96,25 @@ const Leg = ({ leg, tag }) => (
 );
 
 function FlightCard({ f, onSelect, money }) {
+  const { t } = useTranslation('flights');
   return (
     <article className="fl-card">
-      {f.badge && <span className={`fl-badge ${f.badge.replace(/\s/g, '').toLowerCase()}`}>{f.badge === 'Fastest' && ICON.bolt} {f.badge}</span>}
+      {f.badge && <span className={`fl-badge ${f.badge.replace(/\s/g, '').toLowerCase()}`}>{f.badge === 'Fastest' && ICON.bolt} {badgeLabel(f.badge)}</span>}
       <div className="fl-card-in">
         <div className="fl-card-legs">
-          <Leg leg={f.out} tag="Outbound" />
-          {f.ret && <><div className="fl-legs-div" /><Leg leg={f.ret} tag="Return" /></>}
+          <Leg leg={f.out} tag={t('flights:legTag.outbound', 'Outbound')} />
+          {f.ret && <><div className="fl-legs-div" /><Leg leg={f.ret} tag={t('flights:legTag.return', 'Return')} /></>}
         </div>
         <div className="fl-card-price">
           {f.fareName && <div className="fl-fare-name">{f.fareName}</div>}
           {f.origPrice > f.price && <div className="fl-price-was">{money(f.origPrice)}</div>}
           <div className="fl-price">{money(f.price)}</div>
-          <div className="fl-price-sub">{f.pax > 1 ? `per person · ${money(flightTotal(f))} total` : 'per person'}</div>
-          <button className="fl-select" onClick={() => onSelect(f)}>Select {ICON.arrow}</button>
+          <div className="fl-price-sub">
+            {f.pax > 1
+              ? `${t('flights:price.perPerson', 'per person')} · ${money(flightTotal(f))} ${t('flights:price.total', 'total')}`
+              : t('flights:price.perPerson', 'per person')}
+          </div>
+          <button className="fl-select" onClick={() => onSelect(f)}>{t('flights:card.select', 'Select')} {ICON.arrow}</button>
         </div>
       </div>
     </article>
@@ -106,6 +122,7 @@ function FlightCard({ f, onSelect, money }) {
 }
 
 export default function Flights() {
+  const { t } = useTranslation('flights');
   const [params] = useSearchParams();
   const navigate = useNavigate();
 
@@ -256,7 +273,7 @@ export default function Flights() {
   // it is, and — once answered — which fare answered it. It is the page's spine, so it also
   // carries the state: done, being chosen now, or still to do.
   const legTabs = multi && (
-    <div className="fl-legtabs" role="tablist" aria-label="Flights in this trip">
+    <div className="fl-legtabs" role="tablist" aria-label={t('flights:legTabs.ariaLabel', 'Flights in this trip')}>
       {searches.map((s, i) => {
         const p = picks[i];
         const on = i === activeLeg;
@@ -289,8 +306,8 @@ export default function Flights() {
   const tripCard = multi && (
     <div className="fl-trip">
       <div className="fl-trip-head">
-        <h3 className="hd">Your trip</h3>
-        <span className="fl-trip-count">{Object.keys(picks).length}/{searches.length} chosen</span>
+        <h3 className="hd">{t('flights:trip.title', 'Your trip')}</h3>
+        <span className="fl-trip-count">{Object.keys(picks).length}/{searches.length} {t('flights:trip.chosen', 'chosen')}</span>
       </div>
       {searches.map((s, i) => {
         const p = picks[i];
@@ -305,31 +322,37 @@ export default function Flights() {
               {p ? `${fmtDateShort(s.depISO)} · ${p.out.depTime}` : fmtDateShort(s.depISO)}
             </span>
             <span className={`fl-trip-fare${p ? '' : ' none'}`}>
-              {p ? money(flightTotal(p)) : 'Choose'}
+              {p ? money(flightTotal(p)) : t('flights:trip.choose', 'Choose')}
             </span>
           </button>
         );
       })}
       <div className="fl-trip-total">
-        <span>{pickedAll ? 'Trip total' : 'So far'}</span>
+        <span>{pickedAll ? t('flights:trip.total', 'Trip total') : t('flights:trip.soFar', 'So far')}</span>
         <b>{money(tripTotal)}</b>
       </div>
       {/* Said plainly, because it is the one thing about this page that is not obvious: the
           supplier prices a route at a time, so this is separate one-way fares added up, not
           one through-fare for the whole journey. */}
       <p className="fl-trip-note">
-        Each flight is priced and booked as its own one-way fare. The total is the sum of them,
-        for {paxLabel(ctx)}.
+        {t('flights:trip.note', { pax: paxLabel(ctx), defaultValue: 'Each flight is priced and booked as its own one-way fare. The total is the sum of them, for {{pax}}.' })}
       </p>
       <button className="fl-trip-cta" disabled={!pickedAll} onClick={goTrip}>
-        {pickedAll ? <>Continue {ICON.arrow}</> : `Choose ${searches.length - Object.keys(picks).length} more flight${searches.length - Object.keys(picks).length === 1 ? '' : 's'}`}
+        {pickedAll
+          ? <>{t('flights:trip.continue', 'Continue')} {ICON.arrow}</>
+          : t('flights:trip.chooseMore', { count: searches.length - Object.keys(picks).length, defaultValue_one: 'Choose {{count}} more flight', defaultValue_other: 'Choose {{count}} more flights' })}
       </button>
     </div>
   );
 
+  const stopFilterOptions = [
+    { k: 0, l: t('flights:filters.nonstop', 'Non-stop') },
+    { k: 1, l: t('flights:filters.oneStop', '1 Stop') },
+    { k: 2, l: t('flights:filters.twoOrMoreStops', '2 Stops or more') },
+  ];
   const filters = (
     <div className="fl-fcard">
-      <Section title="Airlines" open={openSec.air} onToggle={() => setOpenSec((s) => ({ ...s, air: !s.air }))}>
+      <Section title={t('flights:filters.airlines', 'Airlines')} open={openSec.air} onToggle={() => setOpenSec((s) => ({ ...s, air: !s.air }))}>
         {airlineOpts.map((a) => (
           <label className="fl-check" key={a.code}>
             <input type="checkbox" checked={selAirlines.has(a.code)} onChange={() => toggleAirline(a.code)} />
@@ -337,8 +360,8 @@ export default function Flights() {
           </label>
         ))}
       </Section>
-      <Section title={`${view.from.code} → ${view.to.code} Stops`} open={openSec.stops} onToggle={() => setOpenSec((s) => ({ ...s, stops: !s.stops }))}>
-        {[{ k: 0, l: 'Non-stop' }, { k: 1, l: '1 Stop' }, { k: 2, l: '2 Stops or more' }].map((o) => (
+      <Section title={t('flights:filters.stopsTitle', { from: view.from.code, to: view.to.code, defaultValue: '{{from}} → {{to}} Stops' })} open={openSec.stops} onToggle={() => setOpenSec((s) => ({ ...s, stops: !s.stops }))}>
+        {stopFilterOptions.map((o) => (
           <label className="fl-check" key={o.k}>
             <input type="checkbox" checked={selStops.has(o.k)} onChange={() => toggleStop(o.k)} />
             <span>{o.l}</span>
@@ -346,7 +369,7 @@ export default function Flights() {
           </label>
         ))}
       </Section>
-      <Section title={`Departure from ${view.from.code}`} open={openSec.time} onToggle={() => setOpenSec((s) => ({ ...s, time: !s.time }))}>
+      <Section title={t('flights:filters.departureFrom', { from: view.from.code, defaultValue: 'Departure from {{from}}' })} open={openSec.time} onToggle={() => setOpenSec((s) => ({ ...s, time: !s.time }))}>
         <div className="fl-slots">
           {TIME_SLOTS.map((s) => (
             <button key={s.key} className={`fl-slot${selSlots.has(s.key) ? ' on' : ''}`} onClick={() => toggleSlot(s.key)}>
@@ -355,7 +378,7 @@ export default function Flights() {
           ))}
         </div>
       </Section>
-      <Section title="Max price" open={openSec.price} onToggle={() => setOpenSec((s) => ({ ...s, price: !s.price }))}>
+      <Section title={t('flights:filters.maxPrice', 'Max price')} open={openSec.price} onToggle={() => setOpenSec((s) => ({ ...s, price: !s.price }))}>
         <input
           type="range" className="fl-range"
           min={priceBounds.min} max={priceBounds.max} step={5}
@@ -364,7 +387,7 @@ export default function Flights() {
         />
         <div className="fl-range-labels">
           <span>{money(priceBounds.min)}</span>
-          <span className="fl-range-cur">Up to {money(maxPrice)}</span>
+          <span className="fl-range-cur">{t('flights:filters.upTo', { amount: money(maxPrice), defaultValue: 'Up to {{amount}}' })}</span>
           <span>{money(priceBounds.max)}</span>
         </div>
       </Section>
@@ -380,31 +403,31 @@ export default function Flights() {
         <span className="fl-hero-grid" />
         <div className="fl-hero-in">
           <div className="fl-bc">
-            <Link to="/">Home</Link><span className="fl-bc-sep">›</span>
-            <Link to="/">Flights</Link><span className="fl-bc-sep">›</span>
+            <Link to="/">{t('common:nav.home', 'Home')}</Link><span className="fl-bc-sep">›</span>
+            <Link to="/">{t('common:nav.services.flights', 'Flights')}</Link><span className="fl-bc-sep">›</span>
             <span className="fl-bc-here">{multi ? chain.join(' → ') : `${ctx.from.code} → ${ctx.to.code}`}</span>
           </div>
           <h1 className="fl-hero-title">
             {multi
-              ? <>Your trip through <em>{ctx.legs.map((l) => l.to).map((c) => c).join(', ')}</em></>
-              : <>Flights to <em>{ctx.to.city}</em></>}
+              ? <>{t('flights:hero.tripThrough', 'Your trip through')} <em>{ctx.legs.map((l) => l.to).map((c) => c).join(', ')}</em></>
+              : <>{t('flights:hero.flightsTo', 'Flights to')} <em>{ctx.to.city}</em></>}
           </h1>
           <div className="fl-hero-chips">
             {multi ? (
               <>
                 <span className="fl-hchip">{ICON.plane} {chain.join(' → ')}</span>
                 <span className="fl-hchip">{ICON.cal} {fmtDateShort(ctx.legs[0].date)} – {fmtDateShort(ctx.legs[ctx.legs.length - 1].date)}</span>
-                <span className="fl-hchip">{searches.length} flights</span>
+                <span className="fl-hchip">{t('flights:hero.flightsCount', { count: searches.length, defaultValue_one: '{{count}} flight', defaultValue_other: '{{count}} flights' })}</span>
               </>
             ) : (
               <>
                 <span className="fl-hchip">{ICON.plane} {ctx.from.code} <span className="fl-hchip-arrow">{ICON.swap}</span> {ctx.to.code}</span>
                 <span className="fl-hchip">{ICON.cal} {fmtDateShort(ctx.depISO)}{ctx.retISO ? ` – ${fmtDateShort(ctx.retISO)}` : ''}</span>
-                <span className="fl-hchip">{ctx.tripType === 'oneway' ? 'One way' : 'Round trip'}</span>
+                <span className="fl-hchip">{ctx.tripType === 'oneway' ? t('home:hero.flights.oneway', 'One way') : t('home:hero.flights.roundtrip', 'Round trip')}</span>
               </>
             )}
             <span className="fl-hchip">{ICON.users} {paxLabel(ctx)}</span>
-            <span className="fl-hchip fl-hchip-cabin">{ctx.cabin}</span>
+            <span className="fl-hchip fl-hchip-cabin">{cabinLabel(ctx.cabin)}</span>
           </div>
         </div>
       </header>
@@ -413,20 +436,20 @@ export default function Flights() {
       <div className="fl-toolbar">
         <div className="fl-toolbar-in">
           <div className="fl-count hd">
-            {loading ? <span className="fl-count-load"><span className="fl-count-dot" /> Searching…</span>
+            {loading ? <span className="fl-count-load"><span className="fl-count-dot" /> {t('flights:toolbar.searching', 'Searching…')}</span>
               : (
                 <>
-                  {multi && <span className="fl-count-leg">Flight {activeLeg + 1} of {searches.length} · {view.from.code} → {view.to.code}</span>}
-                  <span>{results.length}</span> of {allFlights.length} flights
+                  {multi && <span className="fl-count-leg">{t('flights:toolbar.legProgress', { n: activeLeg + 1, total: searches.length, defaultValue: 'Flight {{n}} of {{total}}' })} · {view.from.code} → {view.to.code}</span>}
+                  <span>{results.length}</span> {t('flights:toolbar.of', 'of')} {allFlights.length} {t('flights:toolbar.flights', 'flights')}
                 </>
               )}
           </div>
           <div className="fl-summary-right">
-            <button className="fl-mfilter" onClick={() => setDrawer(true)}>{ICON.filter} Filters{activeFilters > 0 && <em>{activeFilters}</em>}</button>
+            <button className="fl-mfilter" onClick={() => setDrawer(true)}>{ICON.filter} {t('flights:toolbar.filters', 'Filters')}{activeFilters > 0 && <em>{activeFilters}</em>}</button>
             <div className="fl-sortwrap">
-              <span className="fl-sortlbl">Sort</span>
+              <span className="fl-sortlbl">{t('flights:toolbar.sort', 'Sort')}</span>
               <select className="fl-sort" value={sort} onChange={(e) => setSort(e.target.value)}>
-                {SORTS.map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
+                {sortOptions().map((o) => <option key={o.v} value={o.v}>{o.l}</option>)}
               </select>
             </div>
           </div>
@@ -437,7 +460,7 @@ export default function Flights() {
         <aside className="fl-sidebar">
           {tripCard}
           {activeFilters > 0 && (
-            <button className="fl-clear" onClick={clearAll}>{ICON.x} Clear all filters ({activeFilters})</button>
+            <button className="fl-clear" onClick={clearAll}>{ICON.x} {t('flights:filters.clearAllCount', { count: activeFilters, defaultValue: 'Clear all filters ({{count}})' })}</button>
           )}
           {filters}
         </aside>
@@ -462,14 +485,16 @@ export default function Flights() {
             <div className="fl-empty">
               <div className="fl-empty-ic">{ICON.plane}</div>
               <h3>{allFlights.length === 0
-                ? (multi ? `No flights for ${view.from.code} → ${view.to.code} on ${fmtDateShort(view.depISO)}` : 'No flights for this route and date')
-                : 'No flights match your filters'}</h3>
+                ? (multi
+                  ? t('flights:empty.noFlightsMultiTitle', { from: view.from.code, to: view.to.code, date: fmtDateShort(view.depISO), defaultValue: 'No flights for {{from}} → {{to}} on {{date}}' })
+                  : t('flights:empty.noFlightsTitle', 'No flights for this route and date'))
+                : t('flights:empty.noMatchTitle', 'No flights match your filters')}</h3>
               <p>{allFlights.length === 0
                 ? (multi
-                  ? 'This flight of the trip has no fare on that date. Change its date or airports in the search above, and the rest of the trip stays as it is.'
-                  : 'We could not find a fare for this search. Try another date, or a different departure airport.')
-                : 'Try widening your price range or clearing a filter.'}</p>
-              {activeFilters > 0 && <button className="fl-empty-btn" onClick={clearAll}>Clear all filters</button>}
+                  ? t('flights:empty.noFlightsMultiBody', 'This flight of the trip has no fare on that date. Change its date or airports in the search above, and the rest of the trip stays as it is.')
+                  : t('flights:empty.noFlightsBody', 'We could not find a fare for this search. Try another date, or a different departure airport.'))
+                : t('flights:empty.noMatchBody', 'Try widening your price range or clearing a filter.')}</p>
+              {activeFilters > 0 && <button className="fl-empty-btn" onClick={clearAll}>{t('flights:filters.clearAll', 'Clear all filters')}</button>}
             </div>
           ) : (
             results.map((f, i) => (
@@ -487,12 +512,12 @@ export default function Flights() {
           <div className="fl-drawer-ov" onClick={() => setDrawer(false)} />
           <div className="fl-drawer">
             <div className="fl-drawer-head">
-              <h2 className="hd">Filters</h2>
+              <h2 className="hd">{t('flights:toolbar.filters', 'Filters')}</h2>
               <button className="fl-drawer-x" onClick={() => setDrawer(false)}>{ICON.x}</button>
             </div>
             <div className="fl-drawer-body">{filters}</div>
             <div className="fl-drawer-foot">
-              <button className="fl-drawer-apply" onClick={() => setDrawer(false)}>Show {results.length} flights</button>
+              <button className="fl-drawer-apply" onClick={() => setDrawer(false)}>{t('flights:drawer.show', { count: results.length, defaultValue: 'Show {{count}} flights' })}</button>
             </div>
           </div>
         </>

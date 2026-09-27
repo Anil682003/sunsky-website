@@ -65,21 +65,21 @@ describe('traveller 1 is also the lead booker', () => {
     renderCheckout();
 
     // The booker's identity fields ALWAYS accept the cursor (the read-only bug must not return).
-    ['first name', 'last name', 'date of birth'].forEach((l) => expect(booker(l)).not.toHaveAttribute('readonly'));
-    ['gender', 'nationality'].forEach((l) => expect(booker(l)).toBeEnabled());
+    ['voornaam', 'achternaam', 'geboortedatum'].forEach((l) => expect(booker(l)).not.toHaveAttribute('readonly'));
+    ['geslacht', 'nationaliteit'].forEach((l) => expect(booker(l)).toBeEnabled());
 
     // Unticked: what's typed in the booker does NOT leak into traveller 1.
-    await user.type(booker('first name'), 'Ali');
-    expect(trav('first name')).toHaveValue('');
+    await user.type(booker('voornaam'), 'Ali');
+    expect(trav('voornaam')).toHaveValue('');
 
     // Tick it: traveller 1 is populated from the booker, and from here both move together.
     await user.click(tickBox());
-    expect(trav('first name')).toHaveValue('Ali');
+    expect(trav('voornaam')).toHaveValue('Ali');
 
-    await user.type(booker('last name'), 'Benli');
+    await user.type(booker('achternaam'), 'Benli');
     // The surname is stored in capitals — printed on the ticket that way and matched on by the
     // airline — so the VALUE is uppercased, not just its display.
-    expect(trav('last name')).toHaveValue('BENLI');
+    expect(trav('achternaam')).toHaveValue('BENLI');
   });
 
   it('fills the booker from the traveller card too, once linked — either side, same record', async () => {
@@ -87,16 +87,16 @@ describe('traveller 1 is also the lead booker', () => {
     renderCheckout();
     await user.click(tickBox());   // link the two
 
-    await user.type(trav('first name'), 'Ilhan');
-    fill('date of birth', '2001-02-16', travCard());
-    fill('nationality', 'Turkish', travCard());
+    await user.type(trav('voornaam'), 'Ilhan');
+    fill('geboortedatum', '2001-02-16', travCard());
+    fill('nationaliteit', 'Turkish', travCard());
     // The radio itself is visually hidden, so it is clicked the way the label does it.
     travCard().querySelectorAll('.ck-radio input[type="radio"]')[1].click();   // Female
 
-    expect(booker('first name')).toHaveValue('Ilhan');
-    expect(booker('date of birth')).toHaveValue('2001-02-16');
-    expect(booker('nationality')).toHaveValue('Turkish');
-    expect(booker('gender')).toHaveValue('FEMALE');
+    expect(booker('voornaam')).toHaveValue('Ilhan');
+    expect(booker('geboortedatum')).toHaveValue('2001-02-16');
+    expect(booker('nationaliteit')).toHaveValue('Turkish');
+    expect(booker('geslacht')).toHaveValue('FEMALE');
   });
 
   it('only shares the five identity fields — the address and contact details stay the booker\'s', async () => {
@@ -104,16 +104,16 @@ describe('traveller 1 is also the lead booker', () => {
     renderCheckout();
     await user.click(tickBox());   // even linked, contact details are never shared
 
-    fill('phone number', '+32475123456');
-    fill('email', 'ali@example.com');
-    fill('emergency contact phone', '+32476987654');
-    await user.type(trav('first name'), 'Ali');
+    fill('telefoonnummer', '+32475123456');
+    fill('e-mailadres', 'ali@example.com');
+    fill('noodnummer', '+32476987654');
+    await user.type(trav('voornaam'), 'Ali');
 
     // A traveller edit does not disturb them, and the traveller card never asked for them.
-    expect(fieldByLabel('phone number').querySelector('input')).toHaveValue('+32475123456');
-    expect(fieldByLabel('email').querySelector('input')).toHaveValue('ali@example.com');
-    expect(fieldByLabel('emergency contact phone').querySelector('input')).toHaveValue('+32476987654');
-    expect(fieldByLabel('email', travCard())).toBeUndefined();
+    expect(fieldByLabel('telefoonnummer').querySelector('input')).toHaveValue('+32475123456');
+    expect(fieldByLabel('e-mailadres').querySelector('input')).toHaveValue('ali@example.com');
+    expect(fieldByLabel('noodnummer').querySelector('input')).toHaveValue('+32476987654');
+    expect(fieldByLabel('e-mailadres', travCard())).toBeUndefined();
   });
 
   it('separates the two records again when the tick comes off', async () => {
@@ -121,13 +121,13 @@ describe('traveller 1 is also the lead booker', () => {
     renderCheckout();
 
     await user.click(tickBox());                    // link them
-    await user.type(booker('first name'), 'Ali');
-    expect(trav('first name')).toHaveValue('Ali');
+    await user.type(booker('voornaam'), 'Ali');
+    expect(trav('voornaam')).toHaveValue('Ali');
 
     await user.click(tickBox());                    // unlink
-    await user.type(trav('first name'), 'x');       // "Alix" on the traveller only
-    expect(trav('first name')).toHaveValue('Alix');
-    expect(booker('first name')).toHaveValue('Ali');
+    await user.type(trav('voornaam'), 'x');       // "Alix" on the traveller only
+    expect(trav('voornaam')).toHaveValue('Alix');
+    expect(booker('voornaam')).toHaveValue('Ali');
   });
 
   it('keeps whatever was already typed when the tick goes on', async () => {
@@ -135,14 +135,14 @@ describe('traveller 1 is also the lead booker', () => {
     renderCheckout();
 
     // Unticked by default — fill the booker in on its own first.
-    await user.type(booker('first name'), 'Ali');
-    await user.type(booker('last name'), 'Benli');
-    expect(trav('first name')).toHaveValue('');
+    await user.type(booker('voornaam'), 'Ali');
+    await user.type(booker('achternaam'), 'Benli');
+    expect(trav('voornaam')).toHaveValue('');
 
     await user.click(tickBox());                    // on: the filled side wins, nothing is lost
-    expect(trav('first name')).toHaveValue('Ali');
-    expect(trav('last name')).toHaveValue('BENLI');  // surnames are stored capitalised
-    expect(booker('first name')).toHaveValue('Ali');
+    expect(trav('voornaam')).toHaveValue('Ali');
+    expect(trav('achternaam')).toHaveValue('BENLI');  // surnames are stored capitalised
+    expect(booker('voornaam')).toHaveValue('Ali');
   });
 
   it('offers the tick on traveller 1 alone', () => {
@@ -150,6 +150,6 @@ describe('traveller 1 is also the lead booker', () => {
     expect(document.querySelectorAll('.ck-leadbook')).toHaveLength(1);
     expect(travCard(0).querySelector('.ck-leadbook')).toBeTruthy();
     expect(travCard(1).querySelector('.ck-leadbook')).toBeFalsy();
-    expect(screen.getByText(/this traveller is also the lead booker/i)).toBeInTheDocument();
+    expect(screen.getByText(/deze reiziger is ook de hoofdboeker/i)).toBeInTheDocument();
   });
 });
