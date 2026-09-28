@@ -50,6 +50,10 @@ const FLEX_VALUES = [0, 1, 2, 3];
  * @param value        selected date, ISO (YYYY-MM-DD) or ''
  * @param onChange     (iso) => void
  * @param min          earliest selectable date, ISO — days before it are shown but dead
+ * @param isUnavailable (iso) => boolean — a day that cannot produce a valid trip. Shown, greyed
+ *                     and not selectable. This is how flight feasibility reaches the calendar:
+ *                     the calendar itself knows nothing about flights, it just asks.
+ * @param legend       show the Available / Selected / Not available key underneath
  * @param months       how many months to show side by side (2 on desktop; the CSS hides the
  *                     second one on phones, so the traveller never scrolls sideways)
  * @param flex         ± days currently chosen; pass with onFlexChange to show the strip
@@ -60,6 +64,8 @@ export default function DateCalendar({
   value,
   onChange,
   min,
+  isUnavailable,
+  legend = false,
   months = 2,
   flex,
   onFlexChange,
@@ -132,16 +138,29 @@ export default function DateCalendar({
                 {monthCells(y, m).map((d, idx) => {
                   if (d === null) return <span key={`b${idx}`} className={styles.blank} />;
                   const iso = toISO(y, m, d);
-                  const disabled = min ? iso < min : false;
+                  const tooEarly = min ? iso < min : false;
+                  const infeasible = !tooEarly && typeof isUnavailable === 'function' && isUnavailable(iso);
                   const isSelected = value === iso;
+                  // A date the traveller explicitly chose, which another change has since made
+                  // impossible, STAYS ON SCREEN and says so. Dropping it or quietly moving it
+                  // to the nearest working day is how someone ends up booking a week they
+                  // never picked. It is not selectable again; it is evidence of what they asked
+                  // for and of what needs deciding.
+                  const selectedButGone = isSelected && infeasible;
                   return (
                     <button
                       type="button"
                       key={iso}
-                      className={`${styles.day} ${isSelected ? styles.daySelected : ''} ${iso === todayISO ? styles.dayToday : ''}`}
-                      disabled={disabled}
+                      className={[
+                        styles.day,
+                        isSelected ? styles.daySelected : '',
+                        selectedButGone ? styles.daySelectedInvalid : '',
+                        infeasible && !isSelected ? styles.dayUnavailable : '',
+                        iso === todayISO ? styles.dayToday : '',
+                      ].filter(Boolean).join(' ')}
+                      disabled={tooEarly || infeasible}
                       aria-pressed={isSelected}
-                      aria-label={`${d} ${MONTH_NAMES[m]} ${y}`}
+                      aria-label={`${d} ${MONTH_NAMES[m]} ${y}${infeasible ? `, ${t('calendar.notAvailable', 'not available')}` : ''}`}
                       onClick={() => pick(iso)}
                     >
                       {d}
@@ -153,6 +172,14 @@ export default function DateCalendar({
           );
         })}
       </div>
+
+      {legend && (
+        <div className={styles.legend} aria-hidden="true">
+          <span className={styles.legendItem}><i className={styles.dotAvailable} />{t('calendar.legendAvailable', 'Available')}</span>
+          <span className={styles.legendItem}><i className={styles.dotSelected} />{t('calendar.legendSelected', 'Selected')}</span>
+          <span className={styles.legendItem}><i className={styles.dotUnavailable} />{t('calendar.legendUnavailable', 'Not available')}</span>
+        </div>
+      )}
 
       {showFlex && (
         <div className={styles.foot}>

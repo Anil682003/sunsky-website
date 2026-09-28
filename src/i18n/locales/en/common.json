@@ -1,4 +1,15 @@
 {
+  "dob": {
+    "months": "January,February,March,April,May,June,July,August,September,October,November,December",
+    "day": "Day",
+    "month": "Month",
+    "year": "Year",
+    "errorIncomplete": "Please enter a valid date of birth.",
+    "errorImpossible": "Please enter a valid date of birth.",
+    "errorFuture": "That date is in the future.",
+    "ageAtTravel_one": "{{count}} year old when you travel",
+    "ageAtTravel_other": "{{count}} years old when you travel"
+  },
   "availability": {
     "checking": "Checking availability…",
     "unavailable": "Not available",
@@ -96,6 +107,10 @@
     }
   },
   "calendar": {
+    "notAvailable": "not available",
+    "legendAvailable": "Available",
+    "legendSelected": "Selected",
+    "legendUnavailable": "Not available",
     "months": "January,February,March,April,May,June,July,August,September,October,November,December",
     "weekdays": "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
     "prevMonth": "Previous month",

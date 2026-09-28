@@ -100,3 +100,93 @@ describe('DateCalendar', () => {
     expect(heads[0]).toBe('ma');
   });
 });
+
+describe('dates that cannot produce a valid trip', () => {
+  // The calendar knows nothing about flights. It asks a predicate, so feasibility can be
+  // worked out somewhere that understands it and still reach the grid.
+  const noWeekends = (iso) => {
+    const [y, m, d] = iso.split('-').map(Number);
+    const wd = new Date(y, m - 1, d).getDay();
+    return wd === 0 || wd === 6;
+  };
+
+  it('greys them out and refuses the click', async () => {
+    const onChange = vi.fn();
+    render(<DateCalendar value="" onChange={onChange} min="2026-09-01" isUnavailable={noWeekends} />);
+
+    const saturday = dayIn('september 2026', 5);    // 5 Sept 2026 is a Saturday
+    expect(saturday).toBeDisabled();
+    await userEvent.click(saturday);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('leaves the workable days alone', async () => {
+    const onChange = vi.fn();
+    render(<DateCalendar value="" onChange={onChange} min="2026-09-01" isUnavailable={noWeekends} />);
+
+    const monday = dayIn('september 2026', 7);
+    expect(monday).toBeEnabled();
+    await userEvent.click(monday);
+    expect(onChange).toHaveBeenCalledWith('2026-09-07');
+  });
+
+  it('says so to a screen reader, not only in grey', () => {
+    render(<DateCalendar value="" onChange={() => {}} min="2026-09-01" isUnavailable={noWeekends} />);
+    expect(dayIn('september 2026', 5)).toHaveAccessibleName(/not available|niet beschikbaar/i);
+  });
+
+  it('behaves exactly as before when no predicate is given', async () => {
+    const onChange = vi.fn();
+    render(<DateCalendar value="" onChange={onChange} min="2026-09-01" />);
+    await userEvent.click(dayIn('september 2026', 5));
+    expect(onChange).toHaveBeenCalledWith('2026-09-05');
+  });
+});
+
+describe('a chosen date that something else has since invalidated', () => {
+  // The rule: keep it visible, show its state, never silently replace it. Quietly moving a
+  // traveller to the nearest working day is how someone books a week they did not pick.
+  const only13Bad = (iso) => iso === '2026-09-14';
+
+  it('stays exactly where the traveller left it', () => {
+    render(<DateCalendar value="2026-09-14" onChange={() => {}} min="2026-09-01" isUnavailable={only13Bad} />);
+    const day = dayIn('september 2026', 14);
+    expect(day).toBeInTheDocument();
+    expect(day).toHaveAttribute('aria-pressed', 'true');
+  });
+
+  it('is marked as no longer usable, and cannot be re-picked', async () => {
+    const onChange = vi.fn();
+    render(<DateCalendar value="2026-09-14" onChange={onChange} min="2026-09-01" isUnavailable={only13Bad} />);
+    const day = dayIn('september 2026', 14);
+    expect(day.className).toMatch(/daySelectedInvalid/);
+    expect(day).toBeDisabled();
+    await userEvent.click(day);
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('does not wear the invalid mark while it is still valid', () => {
+    render(<DateCalendar value="2026-09-14" onChange={() => {}} min="2026-09-01" />);
+    const day = dayIn('september 2026', 14);
+    expect(day.className).toMatch(/daySelected/);
+    expect(day.className).not.toMatch(/daySelectedInvalid/);
+    expect(day).toBeEnabled();
+  });
+});
+
+describe('the legend', () => {
+  it('is off unless asked for', () => {
+    render(<DateCalendar value="" onChange={() => {}} min="2026-09-01" />);
+    expect(screen.queryByText(/not available|niet beschikbaar/i)).not.toBeInTheDocument();
+  });
+
+  it('names the three states when shown', () => {
+    const { container } = render(<DateCalendar value="" onChange={() => {}} min="2026-09-01" legend />);
+    // Matched on the legend's own items rather than by text: "Available" is a substring of
+    // "Not available", so a loose text query finds two of the three and fails on the ambiguity.
+    const items = [...container.querySelectorAll('[class*="legendItem"]')].map((el) => el.textContent.trim());
+    expect(items).toHaveLength(3);
+    expect(items.join(' | ')).toMatch(/available|beschikbaar/i);
+    expect(items.join(' | ')).toMatch(/selected|geselecteerd/i);
+  });
+});
