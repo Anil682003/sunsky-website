@@ -124,7 +124,7 @@ describe('sidebar layout', () => {
     // cancellation terms anywhere in the journey, so offering to filter by them promised a
     // distinction nothing downstream would show.
     expect(headings).toEqual([
-      'Vervoer', 'Waarheen', 'Data & reizigers',
+      'Vervoer', 'Waarheen', 'Datum & reizigers',
       'Resultaten verfijnen',
       'Prijsklasse', 'Verzorging', 'Sterren', 'Soort accommodatie', 'Soort vakantie',
       'Alleen volwassenen', 'Faciliteiten', 'Activiteiten', 'Soort kamer',
@@ -144,7 +144,7 @@ describe('sidebar layout', () => {
     const groups = screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label'));
     // 'Cancellation policy' is gone with its filter. Transport leads now: it is a question
     // about the SEARCH, so it sits above the line, and the price view sits below it.
-    expect(groups).toEqual(['Soort vervoer', 'Prijsweergave']);
+    expect(groups).toEqual(['Soort vervoer', 'Reisduur', 'Prijsweergave']);
 
     // Exactly one option selected per group, and it reflects the default.
     // Hotel-only by default, so the words describe a STAY priced per room — a flight-inclusive
@@ -159,33 +159,48 @@ describe('sidebar layout', () => {
   // The dates and travellers are edited in place; only the button commits them. So the button
   // exists exactly while there is something to commit — never as a control that would re-run
   // the identical search, and never absent while the results are out of date.
-  it('offers nothing to commit on arrival', async () => {
+  const saveBtn = () => screen.getAllByRole('button', { name: /wijzigingen opslaan/i })[0];
+
+  it('has nothing to save on arrival', async () => {
     renderResults();
     await settled();
+    // Present, because it belongs to the section rather than appearing and vanishing at the
+    // foot of the sidebar; disabled, because nothing has been edited.
+    expect(saveBtn()).toBeDisabled();
+    // The old bottom-of-sidebar notice is gone with the button it belonged to.
     expect(screen.queryByText('Je zoekopdracht is gewijzigd')).not.toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /zoekopdracht bijwerken/i })).not.toBeInTheDocument();
-    // …but the line between the two halves is always drawn.
+    // …but the line between the two halves is still drawn.
     expect(screen.getByRole('heading', { name: 'Resultaten verfijnen', level: 3 })).toBeInTheDocument();
   });
 
-  it('says so, and offers the button, once the search has been changed', async () => {
+  it('becomes pressable once a traveller changes', async () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(screen.getAllByRole('button', { name: '+' })[0]);   // one more adult
-    expect(await screen.findByText('Je zoekopdracht is gewijzigd')).toBeInTheDocument();
-    expect(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]).toBeInTheDocument();
+    await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
+    await waitFor(() => expect(saveBtn()).toBeEnabled());
   });
 
-  it('takes both away again once the new search has run', async () => {
+  it('goes quiet again once the change has been saved', async () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(screen.getAllByRole('button', { name: '+' })[0]);
-    await screen.findByText('Je zoekopdracht is gewijzigd');
-    await user.click(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]);
-    await waitFor(() => expect(screen.queryByText('Je zoekopdracht is gewijzigd')).not.toBeInTheDocument());
-    await waitFor(() => expect(screen.queryByRole('button', { name: /zoekopdracht bijwerken/i })).not.toBeInTheDocument());
+    await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
+    await waitFor(() => expect(saveBtn()).toBeEnabled());
+    await user.click(saveBtn());
+    await waitFor(() => expect(saveBtn()).toBeDisabled());
+  });
+
+  // §15: the date and the two duration controls are NOT what this button is for. Picking a
+  // trip length re-searches on the spot, and must not leave the traveller looking at a button
+  // waiting to be pressed.
+  it('is not raised by an exact travel duration, which applies itself', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    const lengths = screen.getAllByRole('checkbox', { name: /^\d+ dagen/ });
+    await user.click(lengths[lengths.length - 1]);
+    await waitFor(() => expect(saveBtn()).toBeDisabled());
   });
 
   // Ticking a filter refines what came back; it does not change the SEARCH, so it must not

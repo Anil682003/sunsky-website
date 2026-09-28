@@ -17,8 +17,10 @@ import { topFacilities } from '../../utils/topFacilities';
 import { flagUrl } from '../../utils/countryFlag';
 import { countryName } from '../../utils/countryName';
 import { toTitleCase } from '../../utils/textCase';
-import { nightsToDays } from '../../utils/durations';
-import { dobsMatchAges, ageAtCheckIn } from '../../utils/childDob';
+import { DURATION_BANDS, bandByLabel, bandForNights, daysToNights, nightsToDays } from '../../utils/durations';
+import { dobsMatchAges, ageAtCheckIn, allDobsValid } from '../../utils/childDob';
+import DateCalendar from '../../components/DateCalendar/DateCalendar';
+import DobPicker from '../../components/DobPicker/DobPicker';
 import { loadPax, savePax, hasPaxParams } from '../../utils/paxStore';
 import { earliestCheckInISO } from '../../utils/leadTime';
 import { DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
@@ -539,11 +541,6 @@ export default function Results() {
   // plus its night bounds, so the results page can offer each individual length within the band
   // (like the reference site's "Travel time" filter) and re-price the search when one is picked.
   const urlDuration  = params.get('duration') || '';
-  const urlMinNights = parseInt(params.get('minNights'), 10);
-  const urlMaxNights = parseInt(params.get('maxNights'), 10);
-  const dayOptions = (Number.isFinite(urlMinNights) && Number.isFinite(urlMaxNights) && urlMaxNights >= urlMinNights)
-    ? Array.from({ length: Math.min(9, urlMaxNights - urlMinNights + 1) }, (_, i) => urlMinNights + i)
-    : [];
   // The stay length currently searched (nights) — derived from the committed check-in/out so the
   // matching Travel-time option is highlighted.
   const nightsBetween = (ci, co) => {
@@ -562,6 +559,30 @@ export default function Results() {
   // Sidebar draft state (not yet fetched)
   const [localCheckIn,  setLocalCheckIn]  = useState(initCheckIn);
   const [localCheckOut, setLocalCheckOut] = useState(initCheckOut);
+
+  // THE TRAVEL DURATION CATEGORY (§5). One of the five SUNSKY bands, and the only thing that
+  // decides which exact lengths are offered below it (§6) — the band no longer comes from
+  // whatever minNights/maxNights happened to be in the URL, because the customer can now
+  // change the category here and the two would immediately disagree.
+  //
+  // Seeded from the link they arrived on: its duration label if it carries one, otherwise the
+  // band the dates themselves fall into, so a hand-built URL still lands somewhere truthful.
+  const [selectedBand, setSelectedBand] = useState(() => (
+    urlDuration ? bandByLabel(urlDuration) : bandForNights(nightsBetween(initCheckIn, initCheckOut))
+  ));
+
+  // Exact lengths, in NIGHTS, for the chosen category. The band is worded in days and a stay is
+  // counted in nights (N days = N-1 nights), so the conversion happens once, here.
+  const dayOptions = useMemo(() => {
+    const minN = daysToNights(selectedBand.minDays);
+    const maxN = daysToNights(selectedBand.maxDays);
+    return Array.from({ length: maxN - minN + 1 }, (_, i) => minN + i);
+  }, [selectedBand]);
+
+  // Which panel is open, and whether Save has been pressed yet — an unfinished date of birth
+  // is not an error until something has asked for it.
+  const [calOpen, setCalOpen] = useState(false);
+  const [saveAttempted, setSaveAttempted] = useState(false);
 
   // PER-ROOM occupancy. One entry per room, each with its own adults + children and a DATE OF
   // BIRTH per child. The flat totals the cache needs — including the ages — are DERIVED below.
@@ -1728,9 +1749,12 @@ export default function Results() {
   // carries them once a search has been committed, before that the URL's own value stands), so
   // simply arriving on a link with children on it is not a change.
   const searchedChildAges = String(fetchParams.childAges ?? childAges ?? '');
-  const searchDirty =
-    localCheckIn !== fetchParams.checkIn ||
-    localCheckOut !== fetchParams.checkOut ||
+  // ONLY the travellers now (§15). The date and the two duration controls commit themselves the
+  // moment they are touched, so they can never be sitting here uncommitted; pressing + on an
+  // adult, though, must not fire a search per keystroke. The dates are deliberately not part of
+  // this comparison any more — including them would light the button for a change that has
+  // already been applied.
+  const travellersDirty =
     String(totalAdults) !== String(fetchParams.adults) ||
     String(totalChildren) !== String(fetchParams.children) ||
     String(roomsN) !== String(fetchParams.rooms) ||
@@ -1743,6 +1767,56 @@ export default function Results() {
     const checkOut = checkOutForNights(fetchParams.checkIn, n);
     setLocalCheckOut(checkOut);
     setFetchParams((prev) => ({ ...prev, checkOut }));
+  };
+
+  /**
+   * DEPARTURE DATE (§2, §3). The customer picks when they leave; the return is worked out from
+   * the exact duration they have chosen, and is never a second thing to pick. Applies itself —
+   * §15 lists the date among the changes that recalculate without the Save button.
+   *
+   * The stay length is carried across unchanged, so moving the departure moves the whole trip
+   * rather than silently stretching or shortening it.
+   */
+  const applyDeparture = (iso) => {
+    if (!iso || iso === fetchParams.checkIn) return;
+    const nights = searchedNights ?? daysToNights(selectedBand.days);
+    const checkOut = checkOutForNights(iso, nights);
+    setLocalCheckIn(iso);
+    setLocalCheckOut(checkOut);
+    setFetchParams((prev) => ({ ...prev, checkIn: iso, checkOut }));
+  };
+
+  /**
+   * TRAVEL DURATION CATEGORY (§5). Changing it recalculates which exact lengths are on offer,
+   * and applies one of them immediately so the results never sit under a category they do not
+   * belong to.
+   *
+   * Which one: the length already searched if the new category happens to contain it, otherwise
+   * that category's own representative length. The bands do not overlap, so in practice this is
+   * always the representative one — the clamp is there so the rule stays true if they ever do.
+   */
+  const applyBand = (band) => {
+    setSelectedBand(band);
+    const minN = daysToNights(band.minDays);
+    const maxN = daysToNights(band.maxDays);
+    const keep = searchedNights != null && searchedNights >= minN && searchedNights <= maxN;
+    applyDuration(keep ? searchedNights : daysToNights(band.days));
+  };
+
+  // Every child has a usable date of birth (§11). The gate on Save, not on typing.
+  const dobsValid = allDobsValid(roomsConfig, localCheckIn);
+
+  /**
+   * SAVE CHANGES (§13, §14). Belongs to Travellers & Rooms and to nothing else: adults,
+   * children, dates of birth, rooms and occupancy are edited together and applied together.
+   * Every other active filter is left exactly as it is.
+   */
+  const saveTravellers = () => {
+    setSaveAttempted(true);
+    // Refused rather than sent with a guessed age: the date of birth is what classifies the
+    // passenger, so a search built on a missing one would price a different child.
+    if (!dobsValid) return;
+    applySearch();
   };
 
   // Apply the picked scope — re-navigate the results page (keeps dates + occupancy, shareable URL).
@@ -1869,109 +1943,183 @@ export default function Results() {
         />
       </FilterSection>
 
-      {/* Dates & Guests — re-calls API */}
-      <FilterSection title={t('filters.datesGuests', 'Dates & Guests')} defaultOpen>
-        <div className={styles.dateGroup}>
-          <label className={styles.dateLabel}>{t('filters.checkIn', 'Check-in')}</label>
-          <input type="date" className={styles.dateInput} value={localCheckIn} min={earliestCheckInISO()} onChange={(e) => setLocalCheckIn(e.target.value)} />
+      {/* ═══════════ FILTER 1 — DATE & TRAVELLERS ═══════════
+          One section, four parts, in the order the specification fixes (§1, §16): when you
+          leave, how long for, exactly how long, and who is going. They used to be two separate
+          panels with the room cards sitting between the dates and the trip length.
+
+          The split that matters is §15. The first three apply themselves the moment they are
+          touched; the fourth is edited as a whole and applied by its own button, because
+          nobody wants a fresh search fired on every press of a plus sign. */}
+      <FilterSection title={t('filters.dateTravellers', 'Date & travellers')} defaultOpen>
+
+        {/* ── 1. DEPARTURE DATE ──
+            One date. The return is derived from this plus the exact duration below, and is
+            never separately selectable (§2, §7): a date on a calendar is not proof that a
+            flight can be built back from it. */}
+        <div className={styles.f1Block}>
+          <span className={styles.f1Label}>{t('filters.departureDate', 'Departure date')}</span>
+          <button
+            type="button"
+            className={styles.dateField}
+            onClick={() => setCalOpen((o) => !o)}
+            aria-expanded={calOpen}
+            aria-haspopup="dialog"
+          >
+            <Icon d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" size={15} sw={1.8} />
+            <span className={styles.dateFieldValue}>
+              {localCheckIn
+                ? new Date(`${localCheckIn}T00:00:00`).toLocaleDateString(i18nInstance.language, { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : t('filters.pickDate', 'Pick a date')}
+            </span>
+          </button>
+          {calOpen && (
+            <>
+              {/* Click-away. A transparent sheet behind the panel rather than a document
+                  listener, so it cannot fight the other popovers in this sidebar. */}
+              <button
+                type="button"
+                className={styles.calScrim}
+                aria-label={t('filters.closeCalendar', 'Close calendar')}
+                onClick={() => setCalOpen(false)}
+              />
+              <div className={styles.calPop} role="dialog" aria-label={t('filters.departureDate', 'Departure date')}>
+                <DateCalendar
+                  value={localCheckIn}
+                  onChange={(iso) => { applyDeparture(iso); setCalOpen(false); }}
+                  min={earliestCheckInISO()}
+                  months={1}
+                  legend
+                />
+              </div>
+            </>
+          )}
         </div>
-        <div className={styles.dateGroup}>
-          <label className={styles.dateLabel}>{t('filters.checkOut', 'Check-out')}</label>
-          <input type="date" className={styles.dateInput} value={localCheckOut} min={localCheckIn || earliestCheckInISO()} onChange={(e) => setLocalCheckOut(e.target.value)} />
+
+        {/* ── 2. TRAVEL DURATION ── the five SUNSKY categories, one active (§5). */}
+        <div className={styles.f1Block}>
+          <span className={styles.f1Label}>{t('filters.travelDuration', 'Travel duration')}</span>
+          <div className={styles.bandGrid} role="radiogroup" aria-label={t('filters.travelDuration', 'Travel duration')}>
+            {DURATION_BANDS.map((b) => {
+              const on = b.key === selectedBand.key;
+              return (
+                <button
+                  key={b.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  className={`${styles.bandBtn} ${on ? styles.bandBtnOn : ''}`}
+                  onClick={() => applyBand(b)}
+                >
+                  {t(`home:hero.durations.${b.key}`, b.label)}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        {roomsConfig.map((room, i) => (
-          <div key={i} className={styles.roomBlock}>
-            <div className={styles.roomHead}>
-              <span className={styles.roomTitle}>{t('filters.room', { number: i + 1, defaultValue: 'Room {{number}}' })}</span>
-              {roomsConfig.length > 1 && (
-                <button type="button" className={styles.roomRemove} onClick={() => removeRoom(i)}>{t('filters.removeRoom', 'Remove')}</button>
+
+        {/* ── 3. EXACT TRAVEL DURATION ──
+            A refinement of the category above, never an independent filter (§6): only lengths
+            inside the chosen band are listed. The counts are for the current search. */}
+        {dayOptions.length > 0 && (
+          <div className={styles.f1Block}>
+            <span className={styles.f1Label}>
+              {t('filters.exactDuration', 'Exact travel duration')}
+              <em className={styles.f1LabelNote}>{t(`home:hero.durations.${selectedBand.key}`, selectedBand.label)}</em>
+            </span>
+            {dayOptions.map((n) => (
+              <FilterCheck
+                key={n}
+                label={`${daysLabel(nightsToDays(n))}${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString(numberLocale)})` : ''}`}
+                checked={searchedNights === n}
+                onChange={() => applyDuration(n)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── 4. TRAVELLERS & ROOMS ──
+            Each room keeps its own occupancy, and a child's date of birth stays with the room
+            it was entered in (§8, §12). */}
+        <div className={styles.f1Block}>
+          <span className={styles.f1Label}>{t('filters.travellersRooms', 'Travellers & rooms')}</span>
+
+          {roomsConfig.map((room, i) => (
+            <div key={i} className={styles.roomBlock}>
+              <div className={styles.roomHead}>
+                <span className={styles.roomTitle}>{t('filters.room', { number: i + 1, defaultValue: 'Room {{number}}' })}</span>
+                {roomsConfig.length > 1 && (
+                  <button type="button" className={styles.roomRemove} onClick={() => removeRoom(i)}>{t('filters.removeRoom', 'Remove')}</button>
+                )}
+              </div>
+              <div className={styles.guestRow}>
+                <span className={styles.guestLabel}>{t('filters.adults', 'Adults')}</span>
+                <div className={styles.guestCounter}>
+                  <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, -1)} aria-label={t('filters.fewerAdults', 'Fewer adults')}>−</button>
+                  <span className={styles.guestNum}>{room.adults}</span>
+                  <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, +1)} aria-label={t('filters.moreAdults', 'More adults')}>+</button>
+                </div>
+              </div>
+              <div className={styles.guestRow}>
+                <span className={styles.guestLabel}>{t('filters.children', 'Children')}</span>
+                <div className={styles.guestCounter}>
+                  <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, -1)} aria-label={t('filters.fewerChildren', 'Fewer children')}>−</button>
+                  <span className={styles.guestNum}>{room.children}</span>
+                  <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, +1)} aria-label={t('filters.moreChildren', 'More children')}>+</button>
+                </div>
+              </div>
+
+              {/* Underneath the Children selector, one clearly separated block per child
+                  (§10.2, §10.3). Sliced to the count, so reducing the children in a room takes
+                  its pickers away with it rather than leaving orphans behind (§12). */}
+              {room.children > 0 && (
+                <div className={styles.dobList}>
+                  {room.dobs.slice(0, room.children).map((dob, ci) => (
+                    <DobPicker
+                      key={ci}
+                      id={`dob-r${i}-c${ci}`}
+                      label={t('filters.childDobLabel', { number: ci + 1, defaultValue: 'Date of birth — child {{number}}' })}
+                      value={dob}
+                      onChange={(iso) => setChildDob(i, ci, iso)}
+                      travelDate={localCheckIn}
+                      showError={saveAttempted}
+                    />
+                  ))}
+                </div>
               )}
             </div>
-            <div className={styles.guestRow}>
-              <span className={styles.guestLabel}>{t('filters.adults', 'Adults')}</span>
-              <div className={styles.guestCounter}>
-                <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, -1)}>−</button>
-                <span className={styles.guestNum}>{room.adults}</span>
-                <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, +1)}>+</button>
-              </div>
-            </div>
-            <div className={styles.guestRow}>
-              <span className={styles.guestLabel}>{t('filters.children', 'Children')}</span>
-              <div className={styles.guestCounter}>
-                <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, -1)}>−</button>
-                <span className={styles.guestNum}>{room.children}</span>
-                <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, +1)}>+</button>
-              </div>
-            </div>
-            {room.children > 0 && (
-              <div className={styles.childAges}>
-                {room.dobs.map((dob, ci) => {
-                  const age = ageAtCheckIn(dob, localCheckIn);
-                  return (
-                    <label key={ci} className={styles.childAge}>
-                      <span>
-                        {t('filters.childDob', { number: ci + 1, defaultValue: 'Child {{number}} date of birth' })}
-                        {age != null ? ` · ${age}` : ''}
-                      </span>
-                      <input type="date" value={dob} max={localCheckIn || undefined}
-                        onChange={(e) => setChildDob(i, ci, e.target.value)} />
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
-        {roomsConfig.length < 5 && (
-          <button type="button" className={styles.addRoomBtn} onClick={addRoom}>{t('filters.addRoom', '+ Add room')}</button>
-        )}
-      </FilterSection>
-
-      {/* TRAVEL TIME — the duration band chosen on the home page, with each individual stay length
-          inside it (like the reference site). Picking one re-prices at that exact duration; the
-          count shows how many hotels are available for that length in the current search. */}
-      {dayOptions.length > 0 && (
-        <FilterSection title={t('filters.travelTime', 'Travel time')} defaultOpen>
-          {urlDuration && <div className={styles.travelBand}>{urlDuration}</div>}
-          {dayOptions.map((n) => (
-            <FilterCheck
-              key={n}
-              label={`${daysLabel(nightsToDays(n))}${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString(numberLocale)})` : ''}`}
-              checked={searchedNights === n}
-              onChange={() => applyDuration(n)}
-            />
           ))}
-        </FilterSection>
-      )}
 
-      {/* ── The line between the two halves of this sidebar ──
-          Everything above re-runs the SEARCH; everything below refines what came back. The
-          dates and the travellers are edited in place and committed only by this button, so
-          until it is pressed the results underneath still belong to the previous search. The
-          notice says that out loud rather than leaving it to be noticed. */}
-      {(searchDirty || pendingSearch) && (
-        <div className={styles.searchUpdate}>
-          {searchDirty && !pendingSearch && (
-            <p className={styles.searchChanged}>
-              <Icon d="M20 6L9 17l-5-5" size={13} sw={3} />
-              {t('filters.searchChanged', 'Your search has changed')}
-            </p>
+          {roomsConfig.length < 5 && (
+            <button type="button" className={styles.addRoomBtn} onClick={addRoom}>{t('filters.addRoom', '+ Add room')}</button>
           )}
-          <button className={styles.applyBtn} onClick={applySearch} disabled={pendingSearch}>
+
+          {/* §13: after the room cards, the dates of birth and Add room — and belonging to this
+              section alone, not to the bottom of the whole sidebar. */}
+          <button
+            className={styles.applyBtn}
+            onClick={saveTravellers}
+            disabled={pendingSearch || !travellersDirty}
+          >
             {pendingSearch ? (
               <>
                 <span className={styles.applySpinner} aria-hidden="true" />
                 {t('filters.searchingResults', 'Searching results…')}
               </>
-            ) : (
-              <>
-                <Icon d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" size={13} sw={2.2} />
-                {t('filters.updateSearch', 'Update Search')}
-              </>
-            )}
+            ) : t('filters.saveChanges', 'Save changes')}
           </button>
+          {saveAttempted && !dobsValid && (
+            <p className={styles.saveBlocked} role="alert">
+              {t('filters.fixDobs', 'Please complete every date of birth above.')}
+            </p>
+          )}
         </div>
-      )}
+      </FilterSection>
+
+      {/* The line between the two halves of this sidebar: everything above re-runs the
+          SEARCH, everything below refines what came back. The Save button that used to live
+          here has moved into Travellers & Rooms, where §13 puts it — the dates and the two
+          duration controls no longer need it, because they commit themselves. */}
 
       <div className={styles.refineHead}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">

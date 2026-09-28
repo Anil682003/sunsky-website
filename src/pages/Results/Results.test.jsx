@@ -244,6 +244,11 @@ const dragSlider = (label, value) => {
   return el;
 };
 
+// A search, as opposed to one of the Exact Travel Duration counts. Both hit /contracts/cheapest
+// on page 1; the counts ask for pageSize=100 because they only read `total`.
+const isDurationCount = (c) => c.get('pageSize') === '100';
+const mainSearches = () => calls.filter((c) => c.get('page') === '1' && !isDurationCount(c));
+
 const settled = async () => {
   await waitFor(() => expect(screen.queryByText(/De beste deals zoeken/)).not.toBeInTheDocument());
 };
@@ -274,7 +279,7 @@ describe('initial load', () => {
     renderResults();
     await settled();
     await new Promise((r) => setTimeout(r, 500));   // outlive the 300ms debounce
-    expect(calls.filter((c) => c.get('page') === '1')).toHaveLength(1);
+    expect(mainSearches()).toHaveLength(1);
   });
 });
 
@@ -539,9 +544,9 @@ describe('price box', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    const before = calls.length;
+    const before = mainSearches().length;
     await user.type(priceField('Maximumprijs'), '900');
-    expect(calls.length).toBe(before);
+    expect(mainSearches().length).toBe(before);
     await user.tab();
     await waitFor(() => expect(lastCall().get('maxPrice')).toBe('900'));
   });
@@ -773,7 +778,7 @@ describe('debounce + request ordering', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    const before = calls.length;
+    const before = mainSearches().length;
 
     // Boards offered are exactly those the cache reported for this search, so pick three the
     // fixture actually contains — "Full Board" is not one of them.
@@ -789,7 +794,9 @@ describe('debounce + request ordering', () => {
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI,HB,UAI'));
     await new Promise((r) => setTimeout(r, 400));
     // Three clicks inside the debounce window must not mean three round-trips.
-    expect(calls.length - before).toBeLessThanOrEqual(2);
+    // Counted as SEARCHES: ticking a board also refreshes the Exact Travel Duration counts,
+    // which are one request per offered length and are not what this debounce guards.
+    expect(mainSearches().length - before).toBeLessThanOrEqual(2);
   });
 
   it('ignores a slow stale response that lands after a newer one', async () => {
@@ -910,15 +917,15 @@ describe('search change', () => {
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
 
     // Add a guest and re-search: a price bound from the old occupancy is meaningless.
-    await user.click(screen.getAllByRole('button', { name: '+' })[0]);
-    await user.click(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
+    await user.click(screen.getAllByRole('button', { name: /wijzigingen opslaan/i })[0]);
 
     await waitFor(() => expect(lastCall().get('adults')).toBe('3'));
     expect(lastCall().get('minPrice')).toBeNull();
     expect(lastCall().get('maxPrice')).toBeNull();
 
     // ...and exactly one request went out — no stale-bounds request followed by a clean one.
-    const adults3 = calls.filter((c) => c.get('adults') === '3');
+    const adults3 = mainSearches().filter((c) => c.get('adults') === '3');
     expect(adults3).toHaveLength(1);
   });
 
@@ -931,8 +938,8 @@ describe('search change', () => {
 
     // A guest is added first because the button only exists while the search HAS changed —
     // pressing it with nothing pending would re-run the identical search for nothing.
-    await user.click(screen.getAllByRole('button', { name: '+' })[0]);
-    await user.click(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
+    await user.click(screen.getAllByRole('button', { name: /wijzigingen opslaan/i })[0]);
     await waitFor(() => expect(lastCall().get('adults')).toBe('3'));
     expect(lastCall().get('boards')).toBe('AI');
   });

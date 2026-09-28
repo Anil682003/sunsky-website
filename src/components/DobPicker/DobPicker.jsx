@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './DobPicker.module.css';
 import {
@@ -39,7 +39,27 @@ export default function DobPicker({
   const { t } = useTranslation('common');
   const months = t('dob.months', MONTHS_EN).split(',');
 
-  const parts = dobToParts(value);
+  /**
+   * THE HALF-BUILT DATE LIVES HERE, not in the parent.
+   *
+   * The parent stores one ISO string, and a day with no month and no year is not one — so
+   * every partial selection assembles to '' and, if that were the only state, came straight
+   * back as an empty control. Picking "14" cleared itself and no date could ever be entered.
+   *
+   * So the three fields are held locally and only published once they make a real date. The
+   * parent's value still wins whenever it changes from outside (a child removed from a room
+   * shifts everyone else's date up a slot), which is the adjust-state-on-prop-change pattern
+   * rather than an effect: it re-renders once, before anything is painted.
+   */
+  const [parts, setParts] = useState(() => dobToParts(value));
+  const [lastValue, setLastValue] = useState(value);
+  if (value !== lastValue) {
+    setLastValue(value);
+    // Only when it disagrees with what is on screen — otherwise publishing our own complete
+    // date would bounce straight back and wipe the parts we just set.
+    if (value !== partsToDob(parts)) setParts(dobToParts(value));
+  }
+
   const thisYear = new Date().getFullYear();
   const years = useMemo(
     () => Array.from({ length: OLDEST_YEARS + 1 }, (_, i) => thisYear - i),
@@ -51,7 +71,10 @@ export default function DobPicker({
     [dayCount],
   );
 
-  const check = validateDob(value, { travelDate });
+  // Validated against what is actually on screen, so a date half-entered reads as unfinished
+  // rather than as whatever the parent last managed to store.
+  const assembled = partsToDob(parts);
+  const check = validateDob(assembled, { travelDate });
   // An incomplete date is not yet wrong, it is unfinished — so it only reads as an error once
   // something has actually asked for it (a Save attempt). A date that is complete and
   // impossible is wrong straight away, because nothing more is going to fix it.
@@ -63,7 +86,12 @@ export default function DobPicker({
     // silently emitting 31 November and calling it invalid a moment later.
     const max = daysInMonth(next.month, next.year);
     if (next.day && next.day > max) next.day = max;
-    onChange?.(partsToDob(next));
+    setParts(next);
+    // '' while it is still incomplete, which is exactly what the parent should store: a
+    // partial date is not a date of birth, and Save is gated on there being one.
+    const iso = partsToDob(next);
+    setLastValue(iso);
+    onChange?.(iso);
   };
 
   const errorText = () => {
