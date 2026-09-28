@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import {
-  DURATION_BANDS, bandByLabel, bandForNights, daysInBand, daysToNights, nightsToDays,
+  DURATION_BANDS, MAX_TRAVEL_DAYS, bandByLabel, bandForNights, daysInBand, daysToNights, nightsToDays,
 } from './durations';
 
 describe('daysToNights / nightsToDays', () => {
@@ -37,7 +37,7 @@ describe('bandForNights', () => {
 
   it('never leaves the field with no label to show', () => {
     expect(bandForNights(1).label).toBe('2-5 days');       // 2 days — first band
-    expect(bandForNights(400).label).toBe('25+ days');     // above the last
+    expect(bandForNights(400).label).toBe('25-29 days');   // above the last
     for (const junk of [null, undefined, 'seven', NaN, {}]) {
       expect(bandForNights(junk).label).toBe('6-10 days'); // the default week
     }
@@ -50,10 +50,14 @@ describe('daysInBand', () => {
     expect(daysInBand(bandByLabel('2-5 days'))).toEqual([2, 3, 4, 5]);
   });
 
-  it('caps the open-ended top band instead of printing eleven buttons', () => {
-    const top = daysInBand(bandByLabel('25+ days'));
-    expect(top[0]).toBe(25);
-    expect(top.length).toBeLessThanOrEqual(8);
+  it('stops the top band at 29, the longest trip SUNSKY sells', () => {
+    expect(daysInBand(bandByLabel('25-29 days'))).toEqual([25, 26, 27, 28, 29]);
+  });
+
+  it('offers nothing longer than 29 days anywhere', () => {
+    const longest = Math.max(...DURATION_BANDS.flatMap((b) => daysInBand(b)));
+    expect(longest).toBe(MAX_TRAVEL_DAYS);
+    expect(longest).toBe(29);
   });
 
   it('always contains the band\'s own representative length', () => {
@@ -70,6 +74,14 @@ describe('daysInBand', () => {
 describe('bandByLabel', () => {
   it('round-trips every label', () => {
     for (const b of DURATION_BANDS) expect(bandByLabel(b.label)).toEqual(b);
+  });
+
+  // The label rides in the search URL, so every link already shared carries the old spelling.
+  // Without the alias those searches would land in the default week band, silently changing
+  // the trip length someone was sent.
+  it('still understands the "25+ days" links already out there', () => {
+    expect(bandByLabel('25+ days').label).toBe('25-29 days');
+    expect(bandByLabel('25+ days').maxDays).toBe(29);
   });
   it('falls back to the week band on an unknown label', () => {
     expect(bandByLabel('nonsense').label).toBe('6-10 days');
