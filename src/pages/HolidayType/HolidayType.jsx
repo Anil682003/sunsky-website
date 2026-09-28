@@ -1,8 +1,8 @@
-import { useEffect, useMemo } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './HolidayType.module.css';
-import { useHolidayTypeCountries, useHomepageConfig, useCountries } from '../../api';
+import { useHolidayTypeCountries, useHomepageConfig, useCountries, fetchCityImages } from '../../api';
 import { destsForHolidayType, destUrl, destLabel, sectionSearchUrl } from '../../utils/cmsDestinations';
 import { countryName } from '../../utils/countryName';
 import ShowAllLink from '../../components/ShowAllLink/ShowAllLink';
@@ -57,6 +57,25 @@ export default function HolidayType() {
     return { byCode, byName };
   }, [allCountries]);
 
+  // The photos set for the picked cities in Geo Data (Cities), by code. Keyed on the codes as
+  // one string so the fetch runs once per set of cities, not on every render.
+  const cityCodeKey = cmsDests
+    .filter((d) => d.type === 'city')
+    .map((d) => String(d.code).trim().toUpperCase())
+    .join(',');
+  const [cityImages, setCityImages] = useState(() => new Map());
+  useEffect(() => {
+    if (!cityCodeKey) return undefined;
+    let live = true;
+    fetchCityImages(cityCodeKey.split(',')).then((rows) => {
+      if (!live) return;
+      setCityImages(new Map(
+        rows.filter((r) => r?.code && r.imageUrl).map((r) => [String(r.code).toUpperCase(), r.imageUrl])
+      ));
+    });
+    return () => { live = false; };
+  }, [cityCodeKey]);
+
   // One shape for both sources so the grid below renders them identically.
   const items = useMemo(() => {
     if (cmsDests.length) {
@@ -71,10 +90,14 @@ export default function HolidayType() {
           desc: d.type === 'city'
             ? (d.countryName ? countryName(parent?.isoCode, i18n.language, d.countryName) : t('holidayType:city', 'City'))
             : parent?.description || null,
-          flagUrl: parent?.flagUrl || null,
-          // Only a whole country carries usable artwork; a city would show its
-          // country's photo, which misleads.
-          imageUrl: d.type === 'country' ? parent?.imageUrl || null : null,
+          // A city never wears its country's flag (client request): it is a city, and its own
+          // photo, or a plain drawn card, says so better than Spain's flag on Barcelona.
+          flagUrl: d.type === 'country' ? parent?.flagUrl || null : null,
+          // A country shows its Geo Data photo, a city its own (never its country's, which
+          // would mislead).
+          imageUrl: d.type === 'country'
+            ? parent?.imageUrl || null
+            : cityImages.get(String(d.code).trim().toUpperCase()) || null,
           href: destUrl(d),
           title: destLabel(d),
           dest: d,
@@ -100,7 +123,7 @@ export default function HolidayType() {
         dest: { type: 'country', code: c.code || c.isoCode || '' },
       };
     });
-  }, [cmsDests, countries, countryLookup, t, i18n.language]);
+  }, [cmsDests, countries, countryLookup, cityImages, t, i18n.language]);
 
   // "Show all": every place on the page in one search, the way each card searches its own.
   // Places only: see sectionSearchUrl for why the holiday type does not travel as a filter.

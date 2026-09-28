@@ -12,10 +12,13 @@ import HolidayType from './HolidayType';
 
 let typeData;
 let cms;
+let allCountries;
+let cityRows;
 vi.mock('../../api', () => ({
   useHolidayTypeCountries: () => ({ execute: vi.fn(), data: typeData, loading: false, error: null }),
   useHomepageConfig: () => ({ data: cms }),
-  useCountries: () => ({ data: [] }),
+  useCountries: () => ({ data: allCountries }),
+  fetchCityImages: vi.fn(() => Promise.resolve(cityRows)),
 }));
 
 const renderPage = () => render(
@@ -38,6 +41,42 @@ beforeEach(() => {
     ],
   };
   cms = null;
+  allCountries = [];
+  cityRows = [];
+});
+
+describe('HolidayType city cards', () => {
+  // The Stedentrips page: cities the dashboard picked, each with a photo uploaded in Geo Data.
+  beforeEach(() => {
+    cms = {
+      featuredHolidayTypes: [{
+        holidayTypeId: 1,
+        title: 'Zonvakanties',
+        destinations: [
+          { type: 'city', code: 'BCN', name: 'Barcelona', countryName: 'Spanje' },
+          { type: 'city', code: 'ROE', name: 'Rome', countryName: 'Italië' },
+        ],
+      }],
+    };
+    allCountries = [
+      { id: 1, code: 'ES', isoCode: 'ES', name: 'Spanje', flagUrl: 'https://flagcdn.com/es.svg' },
+      { id: 2, code: 'IT', isoCode: 'IT', name: 'Italië', flagUrl: 'https://flagcdn.com/it.svg' },
+    ];
+    cityRows = [{ code: 'BCN', name: 'Barcelona', imageUrl: 'https://assets.test/geo/bcn.png' }];
+  });
+
+  it("shows the photo uploaded for the city in Geo Data", async () => {
+    renderPage();
+    const photo = await screen.findByRole('img', { name: 'Barcelona' });
+    expect(photo).toHaveAttribute('src', 'https://assets.test/geo/bcn.png');
+  });
+
+  it("never shows a city with its country's flag, photo or not", async () => {
+    const { container } = renderPage();
+    await screen.findByRole('img', { name: 'Barcelona' });
+    // Rome has no photo: it gets the plain drawn card, not Italy's flag.
+    expect(container.querySelectorAll('img[src*="flagcdn"]')).toHaveLength(0);
+  });
 });
 
 describe('HolidayType "Show all"', () => {

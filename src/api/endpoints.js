@@ -40,6 +40,9 @@ export const ENDPOINTS = {
     `/website/geo/airports?search=${encodeURIComponent(q)}&limit=${limit}`,
   geoPlaces: (countryIds) =>
     `/website/geo/places?countryIds=${countryIds.map((id) => encodeURIComponent(id)).join(',')}`,
+  // Each city's Geo Data photo, by Hotelbeds destination code (sunsky-admin geoPublic.controller).
+  geoCities: (codes) =>
+    `/website/geo/cities?codes=${codes.map((c) => encodeURIComponent(c)).join(',')}`,
 
   // What SUNSKY charges for the things it sells itself — insurance rates, baggage prices,
   // the booking fee, the deposit rule. The SAME record the server re-prices bookings with,
