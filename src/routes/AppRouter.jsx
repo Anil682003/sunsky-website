@@ -15,7 +15,7 @@ function PageLoader() {
   );
 }
 
-function renderRoute({ path, component: Component, layout, protected: isProtected }) {
+function renderRoute({ path, component: Component, layout, footer, protected: isProtected }) {
   let element = <Component />;
 
   if (isProtected) {
@@ -23,7 +23,7 @@ function renderRoute({ path, component: Component, layout, protected: isProtecte
   }
 
   if (layout) {
-    element = <Layout>{element}</Layout>;
+    element = <Layout footer={footer !== false}>{element}</Layout>;
   }
 
   return <Route key={path} path={path} element={element} />;
