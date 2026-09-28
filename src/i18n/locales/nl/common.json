@@ -1,4 +1,16 @@
 {
+  "availability": {
+    "checking": "Beschikbaarheid controleren…",
+    "unavailable": "Niet beschikbaar",
+    "priceUnknown": "Geen prijs voor deze data",
+    "noValidCombination": "We konden met deze keuzes geen reis samenstellen",
+    "error": {
+      "timeout": "We konden dit nu niet controleren. Je keuzes zijn bewaard, probeer het nog eens.",
+      "network": "We konden onze prijzen niet bereiken. Controleer je verbinding en probeer het opnieuw.",
+      "rateLimited": "Te veel zoekopdrachten tegelijk. Wacht even en probeer het opnieuw.",
+      "generic": "We konden dit nu niet controleren. Probeer het opnieuw."
+    }
+  },
   "actions": {
     "search": "Zoeken",
     "back": "Terug",

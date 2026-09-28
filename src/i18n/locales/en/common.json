@@ -1,4 +1,16 @@
 {
+  "availability": {
+    "checking": "Checking availability…",
+    "unavailable": "Not available",
+    "priceUnknown": "No price for these dates",
+    "noValidCombination": "We couldn’t put a trip together from these choices",
+    "error": {
+      "timeout": "We couldn’t check this just now. Your choices are saved, so try once more.",
+      "network": "We couldn’t reach our prices. Check your connection and try again.",
+      "rateLimited": "Too many searches at once. Wait a few seconds, then try again.",
+      "generic": "We couldn’t check this just now. Please try again."
+    }
+  },
   "actions": {
     "search": "Search",
     "back": "Back",
