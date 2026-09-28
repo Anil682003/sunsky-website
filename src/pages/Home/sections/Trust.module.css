@@ -97,20 +97,10 @@
   box-shadow: 0 1px 2px rgba(15, 40, 100, 0.04), 0 10px 30px rgba(15, 40, 100, 0.07);
 }
 
-/* The card's colour, breathed into the bottom corner rather than drawn as a block: enough to
-   tell the six cards apart at a glance, not enough to tint the text sitting on it. */
-.item::after {
-  content: '';
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  width: 62%;
-  height: 64%;
-  background: radial-gradient(115% 115% at 100% 100%, var(--tint) 0%, rgba(255, 255, 255, 0) 72%);
-  opacity: 0.8;
-  pointer-events: none;
-  z-index: -1;
-}
+/* No coloured glow in the card's corner, and one colour for every mark. The client's brief
+   asks for the trust and guarantee cards above all to look sober and structured; six tints
+   told the cards apart by decoration rather than by what they say. The per-card accents the
+   component still passes (--tint, --wash, --ink) are deliberately left unused here. */
 
 /* Mark on the left, arrow on the right, on one line. The row is a fixed height so every
    card's title starts on the same baseline whether it carries an icon or a seal. */
@@ -132,8 +122,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  background: var(--tint);
-  color: var(--ink);
+  background: var(--blue-light);
+  color: var(--blue-deep);
 }
 .icon svg { width: 30px; height: 30px; }
 
@@ -169,12 +159,12 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  background: var(--wash);
-  color: var(--ink);
+  background: var(--surface-alt);
+  color: var(--blue-deep);
   transition: transform 0.18s ease, background 0.18s ease;
 }
 .arrow svg { width: 16px; height: 16px; }
-.item:hover a.arrow { background: var(--tint); transform: translateX(2px); }
+.item:hover a.arrow { background: var(--blue-light); transform: translateX(2px); }
 a.arrow:focus-visible {
   outline: 3px solid rgba(31, 79, 216, 0.4);
   outline-offset: 3px;

@@ -5,9 +5,7 @@ import SectionHead from './SectionHead';
 import ShowAllLink from '../../../components/ShowAllLink/ShowAllLink';
 import { normalizeDests, destUrl, sectionSearchUrl } from '../../../utils/cmsDestinations';
 import { useTranslation } from 'react-i18next';
-import {
-  MapPin, Landmark, Building2, Church, Castle, Pyramid, Anchor, Waves, Mountain, Palmtree, Crown,
-} from 'lucide-react';
+import { MapPin } from 'lucide-react';
 
 /* Shown only until the dashboard's own destination tabs arrive. Place names are
    NOT translated — Mallorca is Mallorca — but the country tab labels and the
@@ -71,27 +69,20 @@ const ArrowIcon = () => (
 );
 
 /**
- * A landmark for each country tab.
- *
- * Tab labels come from the dashboard and can say anything, in either language,
- * so this matches on the name rather than on an id and falls back to a map pin.
- * A country nobody listed here still gets a sensible tab; it just gets the
- * generic mark instead of its own.
+ * How wide each card sits in the four-column grid, so every row is full and the first card of
+ * a row can lead it. A row of three is one wide card and two narrow ones; a row of four is four
+ * equal cards; a last row of two splits the width, and a lone card takes all of it.
  */
-const TAB_ICONS = {
-  spain: Landmark, spanje: Landmark,
-  turkey: Building2, turkije: Building2,
-  greece: Church, griekenland: Church,
-  italy: Castle, italie: Castle, italië: Castle,
-  egypt: Pyramid, egypte: Pyramid,
-  portugal: Anchor,
-  croatia: Waves, kroatie: Waves, kroatië: Waves,
-  morocco: Mountain, marokko: Mountain,
-  cyprus: Palmtree, cyprus_nl: Palmtree,
+const cardSpans = (n) => {
+  if (n % 4 === 0) return Array(n).fill('one');
+  const spans = [];
+  for (let left = n; left > 0; left -= 3) {
+    if (left >= 3) spans.push('wide', 'one', 'one');
+    else if (left === 2) spans.push('wide', 'wide');
+    else spans.push('full');
+  }
+  return spans;
 };
-
-const iconForTab = (label) =>
-  TAB_ICONS[String(label ?? '').trim().toLowerCase()] ?? MapPin;
 
 export default function Destinations({ cms }) {
   const { t } = useTranslation('home');
@@ -114,6 +105,8 @@ export default function Destinations({ cms }) {
     dests: (panel?.dest ?? []).map((d) => d.dest),
     label: panel?.label,
   });
+  const spans = cardSpans(panel?.dest?.length ?? 0);
+  const SPAN_CLASS = { wide: styles.cardWide, full: styles.cardFull, one: '' };
 
   return (
     <section className={styles.section}>
@@ -133,21 +126,17 @@ export default function Destinations({ cms }) {
         />
 
         <div className={styles.tabs}>
-          {Object.entries(TABS).map(([key, tab]) => {
-            const TabIcon = iconForTab(tab.label);
-            return (
-              <button
-                key={key}
-                type="button"
-                aria-pressed={safeActive === key}
-                className={`${styles.tab} ${safeActive === key ? styles.tabActive : ''}`}
-                onClick={() => setActive(key)}
-              >
-                <TabIcon size={16} className={styles.tabIcon} aria-hidden="true" />
-                {tab.label}
-              </button>
-            );
-          })}
+          {Object.entries(TABS).map(([key, tab]) => (
+            <button
+              key={key}
+              type="button"
+              aria-pressed={safeActive === key}
+              className={`${styles.tab} ${safeActive === key ? styles.tabActive : ''}`}
+              onClick={() => setActive(key)}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
 
         <div key={safeActive} className={styles.panel}>
@@ -162,14 +151,11 @@ export default function Destinations({ cms }) {
                 defaultValue: 'Search stays in {{place}}',
               }),
             } : {};
-            // The tall lead card only earns its two rows when there is a second row for it to
-            // sit beside; with three cards it would just hang one grid gap below the others.
-            const feat = i === 0 && panel.dest.length > 3;
             return (
             <Card
               key={i}
               {...cardProps}
-              className={`${styles.card} ${feat ? styles.cardFeat : ''} ${d.href ? styles.cardLink : ''}`}
+              className={[styles.card, SPAN_CLASS[spans[i]], d.href ? styles.cardLink : ''].filter(Boolean).join(' ')}
             >
               <img src={d.img} alt={d.name} loading="lazy" />
               <div className={styles.overlay}>
@@ -186,12 +172,7 @@ export default function Destinations({ cms }) {
                 </div>
                 {d.href && <span className={styles.go}><ArrowIcon /></span>}
               </div>
-              {d.badge && (
-                <div className={styles.badge}>
-                  <Crown size={13} className={styles.badgeIcon} aria-hidden="true" />
-                  {d.badge}
-                </div>
-              )}
+              {d.badge && <div className={styles.badge}>{d.badge}</div>}
             </Card>
             );
           })}

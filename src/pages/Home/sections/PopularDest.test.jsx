@@ -6,7 +6,7 @@ import PopularDest from './PopularDest';
 import styles from './PopularDest.module.css';
 
 /**
- * "Most popular destinations": one card per travel category, each link with its own emoji.
+ * "Most popular destinations": one card per travel category, each place listed by name.
  *
  * Everything on a card can be set in the dashboard (Homepage Settings), and everything left
  * blank is filled in here, so a card typed in before the icons existed still looks finished.
@@ -52,8 +52,6 @@ const renderSection = (groups) =>
 
 const card = (title) => screen.getByRole('heading', { level: 3, name: title }).closest('article');
 const headerIcon = (el) => el.querySelector(`.${styles.tile} [data-icon]`).getAttribute('data-icon');
-const linkIcon = (el, label) =>
-  within(el).getByText(label).closest('li').querySelector('[data-icon]').getAttribute('data-icon');
 const params = (href) => Object.fromEntries(new URL(href, 'https://x').searchParams);
 
 beforeAll(async () => {
@@ -72,13 +70,13 @@ describe('Most popular destinations', () => {
     expect(headerIcon(card('Cities'))).toBe('city');
   });
 
-  it('gives each link an emoji from its text or place', () => {
+  // A palm tree or a guardsman on every row read as childish; the client asked for them to go.
+  it('lists each place by name alone, with no emoji', () => {
     renderSection(LIVE);
-    expect(linkIcon(card('Verre reizen'), 'Bali')).toBe('desert-island');
-    expect(linkIcon(card('Verre reizen'), 'Thailand')).toBe('hindu-temple');
-    expect(linkIcon(card('All Inclusive'), 'Turkey All Inclusive')).toBe('mosque');
-    expect(linkIcon(card('Last Minutes'), 'Last Minute Canary Islands')).toBe('palm-tree');
-    expect(linkIcon(card('Cities'), 'Paris')).toBe('tokyo-tower');
+    for (const title of ['Verre reizen', 'All Inclusive', 'Last Minutes', 'Cities']) {
+      expect(card(title).querySelector('li [data-icon]')).toBeNull();
+    }
+    expect(within(card('Verre reizen')).getByText('Bali')).toBeInTheDocument();
   });
 
   it('uses what the dashboard picked over anything automatic', () => {
@@ -93,7 +91,6 @@ describe('Most popular destinations', () => {
     const c = card('Verre reizen');
     expect(headerIcon(c)).toBe('palm-tree');
     expect(c.querySelector(`.${styles.tile}`)).toHaveClass(styles.tone_purple);
-    expect(linkIcon(c, 'Bali')).toBe('sunset');
   });
 
   it('ignores icon and colour names it does not know', () => {
@@ -101,7 +98,6 @@ describe('Most popular destinations', () => {
     const c = card('Cities');
     expect(headerIcon(c)).toBe('city');
     expect(c.querySelector(`.${styles.tile}`)).toHaveClass(styles.tone_green);
-    expect(linkIcon(c, 'Paris')).toBe('tokyo-tower');
   });
 
   it('links each destination to its search, and leaves an unlinked one as text', () => {
