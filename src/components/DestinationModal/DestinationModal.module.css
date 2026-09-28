@@ -49,16 +49,6 @@
   color: var(--text-sec);
 }
 
-/* Dotted flight path doodle, tucked behind the close button. */
-.route {
-  position: absolute;
-  top: 8px; right: 64px;
-  width: 190px; height: 62px;
-  color: var(--blue-soft);
-  opacity: 0.85;
-  pointer-events: none;
-}
-
 .closeBtn {
   flex-shrink: 0;
   width: 36px; height: 36px;
@@ -373,11 +363,6 @@
   color: var(--text-sec);
   font-size: 0.66rem;
 }
-.themeIcon {
-  font-size: 0.85rem;
-  line-height: 1;
-}
-
 .chips {
   display: flex; flex-wrap: wrap; gap: 8px;
   padding: 0 16px 10px;
@@ -551,19 +536,17 @@
   padding: 13px 26px;
   border: none;
   border-radius: var(--r-full);
-  background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
-  color: #fff;
+  /* The site's one CTA orange, white label, no glow or lift. */
+  background: var(--cta-grad);
+  color: var(--cta-ink);
+  text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif;
   font-size: 0.88rem; font-weight: 700;
   cursor: pointer;
-  box-shadow: 0 8px 24px rgba(255, 159, 28, 0.35);
-  transition: all 0.3s var(--ease);
+  transition: filter 0.2s var(--ease);
   white-space: nowrap;
 }
-.applyBtn:hover:not(:disabled) {
-  transform: translateY(-2px);
-  box-shadow: 0 12px 32px rgba(255, 159, 28, 0.5);
-}
+.applyBtn:hover:not(:disabled) { filter: brightness(1.06); }
 .applyBtn:disabled {
   opacity: 0.45;
   cursor: not-allowed;

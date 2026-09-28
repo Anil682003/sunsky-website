@@ -26,8 +26,9 @@ import { countryName } from '../../utils/countryName';
  * on every change.
  */
 
-/* Rows carry the flag of the country they belong to, at every level, because with
-   three countries picked a list of city names alone does not say which is which. */
+/* Only a country row wears its flag. City rows used to repeat their country's flag so three
+   countries' cities could be told apart; the client asked for the flag to go from every city
+   and destination, so a city row now carries its name alone, as an area row always has. */
 function Flag({ flagUrl, flag, className }) {
   if (flagUrl) return <img className={className} src={flagUrl} alt="" loading="lazy" />;
   if (flag) return <span className={className} data-emoji="true">{flag}</span>;
@@ -284,7 +285,7 @@ export default function ScopePicker({
   })), [countries, i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cityItems = useMemo(() => cities.map((c) => ({
-    key: c.code, label: c.name, flag: c.flag, flagUrl: c.flagUrl, hint: '',
+    key: c.code, label: c.name, flag: '', flagUrl: '', hint: '',
   })), [cities]);
 
   const zoneItems = useMemo(() => zones.map((z) => ({
