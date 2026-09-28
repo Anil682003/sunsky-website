@@ -196,6 +196,22 @@
     "selectAll": "Alles selecteren",
     "chooseDestination": "Kies een bestemming",
     "search_one": "Zoek {{count}} bestemming",
-    "search_other": "Zoek {{count}} bestemmingen"
+    "search_other": "Zoek {{count}} bestemmingen",
+    "typeToSearch": "Typ om te zoeken…",
+    "chooseCountry": "Kies land…",
+    "chooseCity": "Kies stad…",
+    "chooseArea": "Kies regio…",
+    "popular": "Populair",
+    "everywhereElse": "Alle andere",
+    "noMatches": "Niets komt overeen.",
+    "pickCountryFirst": "Kies eerst een land.",
+    "pickCityFirst": "Kies eerst een stad.",
+    "noCountries": "Geen landen beschikbaar.",
+    "countryCount_one": "{{count}} land",
+    "countryCount_other": "{{count}} landen",
+    "cityCount_one": "{{count}} stad",
+    "cityCount_other": "{{count}} steden",
+    "areaCount_one": "{{count}} regio",
+    "areaCount_other": "{{count}} regio’s"
   }
 }

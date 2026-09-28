@@ -196,6 +196,22 @@
     "selectAll": "Select all",
     "chooseDestination": "Select a destination",
     "search_one": "Search {{count}} place",
-    "search_other": "Search {{count}} places"
+    "search_other": "Search {{count}} places",
+    "typeToSearch": "Type to search…",
+    "chooseCountry": "Choose country…",
+    "chooseCity": "Choose city…",
+    "chooseArea": "Choose area…",
+    "popular": "Popular",
+    "everywhereElse": "Everywhere else",
+    "noMatches": "Nothing matches that.",
+    "pickCountryFirst": "Choose a country first.",
+    "pickCityFirst": "Choose a city first.",
+    "noCountries": "No countries available.",
+    "countryCount_one": "{{count}} country",
+    "countryCount_other": "{{count}} countries",
+    "cityCount_one": "{{count}} city",
+    "cityCount_other": "{{count}} cities",
+    "areaCount_one": "{{count}} area",
+    "areaCount_other": "{{count}} areas"
   }
 }

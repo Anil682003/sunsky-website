@@ -68,6 +68,17 @@ const allImgs = (images) => {
 // Belgian sun-holiday market; the business can adjust this list.
 const DEFAULT_DESTINATIONS = ['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC'];
 
+// What the Where-picker floats to the top of its lists, above the alphabetical rest.
+// The cities are the same curated set as the empty-search fallback above, and the
+// countries are the ones those cities sit in plus the two the homepage leads on, so
+// there is one list to keep current rather than two that can drift apart. Countries the
+// dashboard does not sell simply never appear — the picker intersects this with the
+// live country list rather than trusting it.
+const POPULAR_SCOPE = {
+  countries: ['ES', 'TR', 'EG', 'MA', 'GR', 'IT'],
+  cities: DEFAULT_DESTINATIONS,
+};
+
 // Board codes → human labels. Names are Hotelbeds' OFFICIAL board dictionary
 // (/hotel-content-api/1.0/types/boards), covering every code that occurs in our cache — so no
 // raw code (e.g. "CB") ever leaks to the UI. getBoardLabel() falls back to the code for anything
@@ -1735,8 +1746,11 @@ export default function Results() {
   };
 
   // Apply the picked scope — re-navigate the results page (keeps dates + occupancy, shareable URL).
+  // Called on every pick now that the picker has no Apply button, so an empty scope is a
+  // real instruction ("I took my last country off") rather than a half-finished draft to
+  // ignore: it navigates with no place params, which lands back on the default sun
+  // destinations. Refusing it here would leave the last chip un-removable.
   const applyScope = ({ countries, destinations, zones }) => {
-    if (!countries.length && !destinations.length) return;
     const qp = new URLSearchParams();
     if (countries.length)    qp.set('countries', countries.join(','));
     if (destinations.length) qp.set('destinations', destinations.join(','));
@@ -1850,6 +1864,7 @@ export default function Results() {
           countries={countryOptions}
           status={countriesStatus}
           value={scope}
+          popular={POPULAR_SCOPE}
           onApply={applyScope}
         />
       </FilterSection>
