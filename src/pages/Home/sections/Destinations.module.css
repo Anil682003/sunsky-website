@@ -227,32 +227,3 @@
   .cardLink:hover, .cardLink:hover img, .cardLink:hover .go { transform: none; }
 }
 
-/* The tally on the right of the heading row. Quiet on purpose: it is there to
-   give a very wide, very light row something to end on, and to say how much is
-   behind the tabs. Numbers carry the weight; the words stay grey. */
-.tally {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  white-space: nowrap;
-  font-size: 0.875rem;
-  color: var(--text-sec);
-}
-.tallyNum {
-  font-family: 'Sora', sans-serif;
-  font-weight: 700;
-  color: var(--text);
-}
-.tallyDot {
-  width: 3px;
-  height: 3px;
-  margin: 0 4px;
-  border-radius: 50%;
-  background: var(--line-strong);
-}
-
-@media (max-width: 640px) {
-  /* On a phone the heading owns the full width; the tally would push the
-     title into a third line for no gain. */
-  .tally { display: none; }
-}

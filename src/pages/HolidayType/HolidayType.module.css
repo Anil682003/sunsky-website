@@ -62,6 +62,17 @@
   color: rgba(255,255,255,0.62);
 }
 
+/* Title and lede on the left; "Show all" on the right, level with the lede's last line and
+   clear of the cards that rise into the banner below it. */
+.bannerRow {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  gap: 20px 40px;
+}
+.bannerText { min-width: 0; }
+.showAll { flex-shrink: 0; margin-bottom: 2px; }
+
 /* ── Country grid ──────────────────────────────────────────────────────── */
 /* Pulled up into the banner's fade so the grid rises out of it. */
 .inner {
@@ -321,6 +332,7 @@
   .banner { padding: calc(var(--nav-h) + 36px) 0 120px; }
   .banner::after { height: 150px; }
   .bannerInner { padding: 0 18px; }
+  .bannerRow { flex-direction: column; align-items: flex-start; }
   .inner { margin-top: -90px; padding: 0 18px 64px; }
   .grid { grid-template-columns: repeat(2, 1fr); gap: 12px; }
   .card { aspect-ratio: 4 / 5; }

@@ -3,8 +3,9 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './HolidayType.module.css';
 import { useHolidayTypeCountries, useHomepageConfig, useCountries } from '../../api';
-import { destsForHolidayType, destUrl, destLabel } from '../../utils/cmsDestinations';
+import { destsForHolidayType, destUrl, destLabel, sectionSearchUrl } from '../../utils/cmsDestinations';
 import { countryName } from '../../utils/countryName';
+import ShowAllLink from '../../components/ShowAllLink/ShowAllLink';
 
 const titleFor = (t, name) => t('holidayType:titleFor', { name: String(name || t('holidayType:fallbackName', 'holidays')).toLowerCase(), defaultValue: 'Our best {{name}}' });
 // `name`/`title`/`paragraph1` below all come from the dashboard's own holiday-type CMS
@@ -76,6 +77,7 @@ export default function HolidayType() {
           imageUrl: d.type === 'country' ? parent?.imageUrl || null : null,
           href: destUrl(d),
           title: destLabel(d),
+          dest: d,
         };
       });
     }
@@ -95,9 +97,14 @@ export default function HolidayType() {
         imageUrl: c.imageUrl || null,
         href: `/results?${qs.toString()}`,
         title: cName,
+        dest: { type: 'country', code: c.code || c.isoCode || '' },
       };
     });
   }, [cmsDests, countries, countryLookup, t, i18n.language]);
+
+  // "Show all": every place on the page in one search, the way each card searches its own.
+  // Places only: see sectionSearchUrl for why the holiday type does not travel as a filter.
+  const showAllHref = sectionSearchUrl({ dests: items.map((it) => it.dest) });
 
   return (
     <div className={styles.page}>
@@ -112,15 +119,30 @@ export default function HolidayType() {
             <span className={styles.crumbActive}>{typeName || t('holidayType:fallbackName', 'Holidays')}</span>
           </nav>
 
-          <h1 className={styles.title}>{heading}</h1>
+          <div className={styles.bannerRow}>
+            <div className={styles.bannerText}>
+              <h1 className={styles.title}>{heading}</h1>
 
-          {holidayType?.paragraph1 ? (
-            <p className={styles.lede}>{holidayType.paragraph1}</p>
-          ) : (
-            <p className={styles.lede}>
-              {t('holidayType:lede', 'Pick a country and we’ll show you every stay we have there.')}
-            </p>
-          )}
+              {holidayType?.paragraph1 ? (
+                <p className={styles.lede}>{holidayType.paragraph1}</p>
+              ) : (
+                <p className={styles.lede}>
+                  {t('holidayType:lede', 'Pick a country and we’ll show you every stay we have there.')}
+                </p>
+              )}
+            </div>
+
+            {!loading && !error && items.length > 0 && (
+              <ShowAllLink
+                to={showAllHref}
+                tone="dark"
+                className={styles.showAll}
+                title={t('holidayType:showAllTitle', 'Every destination on this page in one search')}
+              >
+                {t('holidayType:showAll', 'Show all')}
+              </ShowAllLink>
+            )}
+          </div>
         </div>
       </div>
 

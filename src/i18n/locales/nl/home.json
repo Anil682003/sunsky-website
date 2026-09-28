@@ -123,7 +123,8 @@
       "luxury": "Luxe"
     },
     "countries": "landen",
-    "places": "bestemmingen"
+    "places": "bestemmingen",
+    "showAllIn": "Alle vakanties in {{place}}"
   },
   "popular": {
     "tag": "Bekijk",
@@ -319,5 +320,8 @@
       "Morocco": "Marokko",
       "Portugal": "Portugal"
     }
+  },
+  "sections": {
+    "showAll": "Toon alles"
   }
 }

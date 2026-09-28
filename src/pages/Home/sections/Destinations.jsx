@@ -2,7 +2,8 @@ import { useState } from 'react';
 import { Link } from 'react-router-dom';
 import styles from './Destinations.module.css';
 import SectionHead from './SectionHead';
-import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
+import ShowAllLink from '../../../components/ShowAllLink/ShowAllLink';
+import { normalizeDests, destUrl, sectionSearchUrl } from '../../../utils/cmsDestinations';
 import { useTranslation } from 'react-i18next';
 import {
   MapPin, Landmark, Building2, Church, Castle, Pyramid, Anchor, Waves, Mountain, Palmtree, Crown,
@@ -54,6 +55,8 @@ function buildTabsFromCms(destinationTabs) {
           badge: c.badge,
           img: c.imageUrl,
           href: linked ? destUrl(linked) : null,
+          // Kept for the tab's "Show all", which searches every linked card at once.
+          dest: linked || null,
         };
       }),
     };
@@ -100,37 +103,32 @@ export default function Destinations({ cms }) {
   const cmsTabs = buildTabsFromCms(cms?.destinationTabs);
   const TABS = cmsTabs || localiseTabs(t);
 
-  // Counted from what is actually on the page, so the figure can never claim
-  // more than the tabs hold. Places are de-duplicated by name: the same island
-  // listed under two countries is one destination to a reader.
-  const countryCount = Object.keys(TABS).length;
-  const placeCount = new Set(
-    Object.values(TABS).flatMap((tab) => (tab.dest ?? []).map((d) => String(d.name ?? '').trim().toLowerCase()))
-  ).size;
-
   const [active, setActive] = useState(Object.keys(TABS)[0]);
   const safeActive = TABS[active] ? active : Object.keys(TABS)[0];
   const panel = TABS[safeActive];
 
+  // "Show all" searches every place in the open tab at once, under the tab's name, so it
+  // follows the tab the reader is looking at. Null (and no button) when the tab's cards are
+  // not linked to places in the dashboard.
+  const showAllHref = sectionSearchUrl({
+    dests: (panel?.dest ?? []).map((d) => d.dest),
+    label: panel?.label,
+  });
+
   return (
     <section className={styles.section}>
       <div className={styles.inner}>
-        {/* The count fills the right of the heading row with a fact rather than
-            with decoration: it is counted from the tabs actually being shown,
-            so it cannot overstate what is on offer, and it disappears rather
-            than reads "1 country" when there is only one tab to count. */}
         <SectionHead
           eyebrow={tag}
           title={title}
           subtitle={subtitle}
-          action={countryCount > 1 ? (
-            <p className={styles.tally}>
-              <span className={styles.tallyNum}>{countryCount}</span>
-              {t('destinations.countries', 'countries')}
-              <span className={styles.tallyDot} aria-hidden="true" />
-              <span className={styles.tallyNum}>{placeCount}</span>
-              {t('destinations.places', 'destinations')}
-            </p>
+          action={showAllHref ? (
+            <ShowAllLink
+              to={showAllHref}
+              title={t('destinations.showAllIn', { place: panel.label, defaultValue: 'All holidays in {{place}}' })}
+            >
+              {t('sections.showAll', 'Show all')}
+            </ShowAllLink>
           ) : null}
         />
 

@@ -123,7 +123,8 @@
       "luxury": "Luxury"
     },
     "countries": "countries",
-    "places": "destinations"
+    "places": "destinations",
+    "showAllIn": "All holidays in {{place}}"
   },
   "popular": {
     "tag": "Browse",
@@ -319,5 +320,8 @@
       "Morocco": "Morocco",
       "Portugal": "Portugal"
     }
+  },
+  "sections": {
+    "showAll": "Show all"
   }
 }
