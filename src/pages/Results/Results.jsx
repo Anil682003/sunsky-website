@@ -26,6 +26,7 @@ import { earliestCheckInISO } from '../../utils/leadTime';
 import { DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { useToast } from '../../context/ToastContext';
+import { roundHotelStay, roundPackage, perPersonFrom } from '../../utils/priceRounding';
 import styles from './Results.module.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -2598,13 +2599,15 @@ export default function Results() {
                 const curImg    = gallery.length ? gallery[imgIdx] : dispImg;
                 // Headline price is PER PERSON — that's the figure a traveller compares and the
                 // one that stays meaningful on a package (the total here excludes the live flight).
-                // Prefer the cache's `perPerson` (computed against the searched occupancy incl.
-                // children); fall back to total ÷ party size only if it's missing.
-                const total = Number(h.totalAmount);
+                // Whole euros (rule 10): the stay rounds up per room, per person is derived from
+                // that and rounded up again. Worked out from the EXACT stay total so the card is
+                // right whichever cache version is answering, and so a package below rounds once.
                 const partySize = Math.max(1, (Number(fetchParams.adults) || 0) + (Number(fetchParams.children) || 0));
-                const perPersonVal = Number.isFinite(Number(h.perPerson)) && Number(h.perPerson) > 0
-                  ? Number(h.perPerson)
-                  : (Number.isFinite(total) ? total / partySize : NaN);
+                const roomsN = Math.max(1, Number(fetchParams.rooms) || 1);
+                const exactStay = Number(h.totalAmountUnrounded ?? h.totalAmount);
+                const perPersonVal = Number.isFinite(exactStay) && exactStay > 0
+                  ? perPersonFrom(roundHotelStay(exactStay, roomsN), partySize)
+                  : NaN;
                 // Package from-price (§33): with "Incl. flight" on, if a cached flight fare exists
                 // for this hotel's arrival airport, the headline becomes hotel + flight per person —
                 // never hotel-only. Cheapest arrival is used when the destination has several. Falls
@@ -2623,8 +2626,10 @@ export default function Results() {
                 }
                 const adultsForFare = Math.max(1, Number(fetchParams.adults) || 1);
                 const flightPerPerson = flightFare ? flightFare.price / adultsForFare : null;
-                const packagePerPerson = (isPackage && flightPerPerson != null && Number.isFinite(perPersonVal))
-                  ? perPersonVal + flightPerPerson
+                // A package is rounded ONCE, as a whole: exact hotel + the party's flight, then
+                // per person. The flight is the same per-person fare for every traveller, as before.
+                const packagePerPerson = (isPackage && flightPerPerson != null && Number.isFinite(exactStay) && exactStay > 0)
+                  ? perPersonFrom(roundPackage(exactStay, flightPerPerson * partySize), partySize)
                   : null;
                 const shownPerPerson = packagePerPerson != null ? packagePerPerson : perPersonVal;
                 // Split into whole + decimals (toFixed FIRST, so 99.999 → 100.00, not 99.00).
