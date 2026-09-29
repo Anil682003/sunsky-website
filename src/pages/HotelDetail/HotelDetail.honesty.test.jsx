@@ -261,7 +261,11 @@ describe('supplier failures are reported in words a traveller can use', () => {
     await runCheck(user);
     await screen.findByText(/live roomprijzen.*niet laden/i);
 
-    const [retry] = screen.getAllByRole('button', { name: /opnieuw proberen/i });
+    // Scoped to the ROOM block deliberately. The flight search in this test answers with an
+    // empty body, and the page now reports an answer it cannot read as an outage of its own,
+    // with its own retry, instead of as "no flights from Brussels" — so a page-wide query
+    // matches two buttons and would click the flight one.
+    const retry = container.querySelector('.room-section .live-retry');
     await user.click(retry);
 
     // In the room LIST specifically: the availability recap names the chosen room too now,

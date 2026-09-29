@@ -34,35 +34,54 @@ import {
 import { copyText } from '../../utils/copyText';
 import { roomNameFromCode } from '../../utils/roomNames';
 import { weatherIcon } from '../../utils/weatherIcons';
+// ONE availability vocabulary for the whole site. This page used to invent its own per block:
+// {loading:true} next to {error:'a finished sentence'} next to {rooms:[]}, four dialects for one
+// question, none of which could say "it exists but we could not price it". See friendlyError
+// below for what that cost the traveller.
+import {
+  AVAILABILITY, CAUSE, VALIDATION, available, unavailable, priceUnknown, checking, sourceError,
+  fromFailure, anyOf, isChecking, isUnknown,
+} from '../../utils/availability';
 import { useToast } from '../../context/ToastContext';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 
-/* Turn a failed supplier call into something a traveller can act on.
+/* Turn an availability STATE into something a traveller can act on.
  * axios reports its own internals — "timeout of 15000ms exceeded", "Network Error",
  * "Request failed with status code 502" — and these were being printed verbatim on the
  * booking page. A shopper cannot do anything with a millisecond count; they need to know
- * whether to wait, retry, or change their dates. `what` names the thing being searched. */
-const friendlyError = (e, what) => {
-  const msg = String(e?.message || '');
-  const status = e?.response?.status;
-  if (e?.code === 'ECONNABORTED' || /timeout/i.test(msg)) {
-    // Say what we could not do and what happens next — nothing else. The old wording
-    // ("taking longer than usual. Suppliers can be slow at busy times") narrated our own
-    // plumbing at a shopper who neither knows nor cares what a supplier is, described the
-    // failure as merely slow while showing it as an error, and then asked them to repeat
-    // the thing that had just failed. Nothing here is the traveller's to fix.
-    return i18n.t('hotelDetail:errors.timeout', { what, defaultValue: `We couldn’t load live ${what} prices just now. Your dates are saved — try once more, or pick another date above.` });
+ * whether to wait, retry, or change their dates. `what` names the thing being searched.
+ *
+ * WHY IT NO LONGER TAKES THE ERROR. It used to, which meant every catch block flattened the
+ * cause to a finished sentence on the spot. Downstream, where the page decides whether a
+ * retry is worth offering, whether a price may stay on screen, and above all whether a day
+ * gets drawn as "Not available", a timeout, a 500 and an unreadable answer were one
+ * indistinguishable string, so the only thing left to branch on was "is there a message",
+ * and every kind of failure got the same treatment. The cause now travels as a code on the
+ * state (src/utils/availability.js) and this function is the only place that turns it into
+ * words. `serverMsg` is our own API's message when it wrote one for people; a state carries
+ * no prose, by design. */
+const friendlyError = (av, what, serverMsg = null) => {
+  switch (av?.cause) {
+    case CAUSE.TIMEOUT:
+      // Say what we could not do and what happens next — nothing else. The old wording
+      // ("taking longer than usual. Suppliers can be slow at busy times") narrated our own
+      // plumbing at a shopper who neither knows nor cares what a supplier is, described the
+      // failure as merely slow while showing it as an error, and then asked them to repeat
+      // the thing that had just failed. Nothing here is the traveller's to fix.
+      return i18n.t('hotelDetail:errors.timeout', { what, defaultValue: `We couldn’t load live ${what} prices just now. Your dates are saved — try once more, or pick another date above.` });
+    case CAUSE.NETWORK:
+      return i18n.t('hotelDetail:errors.network', { what, defaultValue: `We couldn’t reach our ${what} prices. Check your connection and try again.` });
+    case CAUSE.RATE_LIMITED:
+      return i18n.t('hotelDetail:errors.tooMany', 'Too many searches at once. Wait a few seconds, then try again.');
+    case CAUSE.UPSTREAM:
+      return i18n.t('hotelDetail:errors.unavailable', { what, defaultValue: `Live ${what} prices are unavailable right now. Please try again shortly.` });
+    default:
+      // A rejected request (4xx) is our bug, not a supplier outage, and our own API writes its
+      // messages for people; anything else is an internal string a shopper cannot use.
+      return serverMsg || i18n.t('hotelDetail:errors.generic', { what, defaultValue: `We couldn’t load ${what} prices for these dates. Please try again.` });
   }
-  if (e?.code === 'ERR_NETWORK' || /network error/i.test(msg)) {
-    return i18n.t('hotelDetail:errors.network', { what, defaultValue: `We couldn’t reach our ${what} prices. Check your connection and try again.` });
-  }
-  if (status === 429) return i18n.t('hotelDetail:errors.tooMany', 'Too many searches at once. Wait a few seconds, then try again.');
-  if (status >= 500) return i18n.t('hotelDetail:errors.unavailable', { what, defaultValue: `Live ${what} prices are unavailable right now. Please try again shortly.` });
-  // Our own API writes its messages for people; anything else is an internal string.
-  const fromServer = e?.response?.data?.message;
-  return fromServer || i18n.t('hotelDetail:errors.generic', { what, defaultValue: `We couldn’t load ${what} prices for these dates. Please try again.` });
 };
 // Hotelbeds 400s on a child with no age, so a newly-added child gets this until asked.
 const CHILD_AGE_DEFAULT = 8;
@@ -94,6 +113,13 @@ function transformFlights(data, originCode) {
   // i.e. BRU → …→ BRU, printing "BRU → BRU · 1 stop" for a direct return trip.
   let flights = raw
     .map((f) => {
+      // A fare with no usable price is not an offer. `Number(null)` and `Number('')` are both
+      // 0, which is finite, so a missing price used to arrive here as `totalPrice: 0`, sort to
+      // the very top of the cheapest-first list, and be shown to the traveller as a free
+      // flight, then added to the package total as if it cost nothing. Dropped here and
+      // COUNTED by unpricedFares below, so an answer made entirely of unpriced fares is
+      // reported as "we could not price this", never as "no flights on these dates".
+      if (!(Number(f?.totalPrice) > 0)) return null;
       let outLegs = f.outbound?.legs?.length ? f.outbound.legs : (f.legs || []);
       let retLegs = f.inbound?.legs?.length ? f.inbound.legs : [];
       if (!outLegs.length) return null;
@@ -133,6 +159,9 @@ function transformFlights(data, originCode) {
     if (outs.length && ins.length) {
       flights = [];
       for (const ob of outs) for (const ib of ins) {
+        // Same rule as above, applied to the pairing: two halves that do not add up to a real
+        // fare are not a round trip anybody can buy. NaN (one half unpriced) fails this too.
+        if (!(Number(ob.totalPrice) + Number(ib.totalPrice) > 0)) continue;
         flights.push({
           totalPrice: (ob.totalPrice || 0) + (ib.totalPrice || 0),
           currency: ob.currency || 'EUR',
@@ -153,6 +182,35 @@ function transformFlights(data, originCode) {
   // fare classes for the same aircraft, times and baggage collapse to their cheapest.
   return dedupeFares(bookable);
 }
+/* Read a supplier BLOCK's own failure back into the shared vocabulary.
+ *
+ * The availability backend races every supplier inside one window and hands back a block per
+ * supplier that is shaped like an answer whether or not the supplier gave one: a miss comes
+ * back as {available:false, rooms:[], error:'Hotelbeds did not respond in time'}, and a
+ * supplier that was never called at all comes back as {notApplicable:true, rooms:[]}. An empty
+ * `rooms` array therefore means three completely different things, and reading them alike is
+ * exactly how a timed-out supplier ends up telling a customer the hotel is full. `error` is the
+ * one field that separates "said no" from "could not say", and the sentence in it is the only
+ * clue to the cause, so the timeout wording is recovered from it here rather than lost to the
+ * generic branch. */
+const blockFailure = (block, source) => {
+  const msg = String(block?.error || '');
+  const err = new Error(msg);
+  if (/did not respond in time|timed ?out|timeout/i.test(msg)) err.code = 'ECONNABORTED';
+  return fromFailure(err, { sources: [source], detail: 'supplier-block-error' });
+};
+
+/* How many fares the supplier sent that transformFlights had to drop for want of a price.
+ * "This airport has no flights on these dates" and "flights exist and none of them came with
+ * a fare" are invisibly the same thing once the list has been filtered, and they are the two
+ * sides of the rule this page kept breaking: the first is a confirmed no, the second is
+ * PRICE_UNKNOWN and must never be drawn as unavailability. */
+function unpricedFares(data) {
+  const raw = data?.results?.airtuerk?.flights;
+  if (!Array.isArray(raw)) return 0;
+  return raw.filter((f) => !(Number(f?.totalPrice) > 0)).length;
+}
+
 // "Care (Meals)" options. `match` tests the supplier's board name/code on a live room.
 const BOARD_PREFS = [
   { id: '',   label: 'No preference' },
@@ -1750,7 +1808,11 @@ export default function HotelDetail() {
   const [showAllFac, setShowAllFac] = useState(false);
   // Which category cards have had their "+N more" opened, keyed by category key.
   const roomRailRef = useRef(null);
-  // null = never asked · {loading} · {error} · {data} — the block is simply absent until asked.
+  // null = never asked · {loading} · {failure: <availability value>} · {data}. The block is
+  // simply absent until asked, and stays absent on a failure: a forecast is not an offer, so
+  // there is nothing here the page could wrongly claim. The cause is still classified rather
+  // than thrown away as `{error:true}`, so this block speaks the same dialect as the rest of
+  // the page and can be given words later without re-deriving what went wrong.
   const [weather, setWeather] = useState(null);
   const [openCats, setOpenCats] = useState(() => new Set());
   // Which value the copy buttons last put on the clipboard, so exactly one shows "Copied".
@@ -1795,9 +1857,13 @@ export default function HotelDetail() {
       .get('/weather', { params: { lat: info.latitude, lon: info.longitude } })
       .then(({ data }) => {
         if (cancelled) return;
-        setWeather(data?.success && data?.data ? { data: data.data } : { error: true });
+        // A 200 we cannot read is a failure, not an absence of weather. Same rule as the
+        // price calendar, classified by the same code so the two cannot drift apart.
+        setWeather(data?.success && data?.data
+          ? { data: data.data }
+          : { failure: sourceError({ cause: CAUSE.MALFORMED, sources: ['weather'] }) });
       })
-      .catch(() => { if (!cancelled) setWeather({ error: true }); });
+      .catch((e) => { if (!cancelled) setWeather({ failure: fromFailure(e, { sources: ['weather'] }) }); });
     return () => { cancelled = true; };
   }, [activeTab, info?.latitude, info?.longitude]);
 
@@ -1828,14 +1894,46 @@ export default function HotelDetail() {
   const [calError, setCalError]     = useState(false);
   const [calReload, setCalReload]   = useState(0);      // bumped by the Try again button
   const [calLoading, setCalLoading] = useState(false);
-  const [liveRooms, setLiveRooms]   = useState(null);   // {loading?|error?|rooms[]|cheapest}
+  // `av` is the shared availability value and the ONLY thing allowed to decide what this page
+  // claims about a day. `rooms` are the rates behind an AVAILABLE, `unpriced` the rates the
+  // supplier sent with no rate at all (kept, not dropped: see checkAvailabilityForDay), and
+  // `serverMsg` our own API's message when it wrote one for people. null = never asked.
+  const [liveRooms, setLiveRooms]   = useState(null);   // {av, rooms[]?, unpriced[]?, cheapest?, serverMsg?}
   const [checkedEmpty, setCheckedEmpty] = useState(new Set());
   // The hotel's TripAdvisor rating: { rate, count, type, outOf } or null. Primary source is the
   // harvested store, served on the bulk hotel-info record (`info.review`) — no live call. This
   // state is only a FALLBACK for a hotel the harvest hasn't covered yet: if the traveller picks
   // a date, the availability response carries a live rating we adopt (see checkAvailability).
   const [review, setReview]         = useState(null);
-  const [liveFlights, setLiveFlights] = useState(null); // {loading?|error?|flights[]|cheapest}
+  const [liveFlights, setLiveFlights] = useState(null); // {av, flights[]?, cheapest?, from?, checkin?, checkout?, probing?, alternatives?, unprobed?, serverMsg?}
+
+  // ── the page's one reading of "can this be booked" ──────────────────────────
+  // Everything below asks these, never the raw objects. `unavailable()` cannot be built
+  // without naming the sources that positively answered "none", and `fromFailure()` cannot
+  // return UNAVAILABLE at all, so a timeout, a 500, an unreadable answer or a room with no
+  // rate can no longer reach the traveller as "Not available".
+  const roomsAv = liveRooms?.av || null;
+  const flightsAv = liveFlights?.av || null;
+  const roomsChecking = isChecking(roomsAv);
+  const flightsChecking = isChecking(flightsAv);
+  const roomsFailed = roomsAv?.state === AVAILABILITY.SOURCE_ERROR;
+  const flightsFailed = flightsAv?.state === AVAILABILITY.SOURCE_ERROR;
+  // "It is there, we just have no price for it": rooms that came back without rates, or fares
+  // that came back without a price. Neither is a sold-out hotel or a route nobody flies.
+  const roomsPriceUnknown = roomsAv?.state === AVAILABILITY.PRICE_UNKNOWN;
+  const flightsPriceUnknown = flightsAv?.state === AVAILABILITY.PRICE_UNKNOWN;
+  // The only confirmed negative on the flight side, and it is only ever set from a supplier
+  // that really answered with a list and nothing bookable in it.
+  const flightsNone = flightsAv?.state === AVAILABILITY.UNAVAILABLE;
+  // Everything we could not settle: a failure, or a missing price. They share one amber row
+  // with a retry, because the traveller's next move is the same for both.
+  const roomsUnsettled = isUnknown(roomsAv);
+  const roomsMessage = !roomsUnsettled ? null
+    : roomsPriceUnknown
+      ? t('rooms.priceUnknown', 'This hotel has rooms for your dates, but no price came back. Try the check again.')
+      : friendlyError(roomsAv, 'room', liveRooms?.serverMsg);
+  const flightsMessage = !flightsFailed ? null
+    : friendlyError(flightsAv, 'flight', liveFlights?.serverMsg);
 
   // Scroll-reveal.
   //
@@ -2107,6 +2205,12 @@ export default function HotelDetail() {
   // picker can name this hotel's real meal plans for the day on show without calling a
   // supplier at all. (Verified per hotel: 130163 sells RO+BB where 300984 sells only RO.)
   const [dateBoards, setDateBoards] = useState(null);
+  // Whether the boards probe FAILED, as opposed to never having run. Both leave `dateBoards`
+  // null and both make the picker offer every meal plan, which is the right fallback: hiding
+  // a plan this hotel may well sell would be a claim we cannot support. But the hint
+  // under the picker must not tell a traveller to "check a date" when they already have and
+  // the call fell over.
+  const [boardsFailed, setBoardsFailed] = useState(false);
   const pickedIso = pd?.iso || baseCheckIn;
   useEffect(() => {
     if (!hotelCode || !destination || !pickedIso) { setDateBoards(null); return; }
@@ -2119,9 +2223,12 @@ export default function HotelDetail() {
     });
     let cancelled = false;
     fetch(`${CONTRACTS_API}/contracts/cheapest?${qs.toString()}`)
-      .then((r) => r.json())
-      .then((j) => { if (!cancelled) setDateBoards(Object.keys(j?.boardFacets || {})); })
-      .catch(() => { if (!cancelled) setDateBoards(null); });
+      // A 5xx that answers with a JSON body carries no boardFacets, and `Object.keys` of
+      // nothing is an empty list, indistinguishable from "this hotel sells no meal plan on
+      // that day". Read the status, so an outage is known to be an outage.
+      .then((r) => { if (!r.ok) throw new Error(`HTTP ${r.status}`); return r.json(); })
+      .then((j) => { if (!cancelled) { setDateBoards(Object.keys(j?.boardFacets || {})); setBoardsFailed(false); } })
+      .catch(() => { if (!cancelled) { setDateBoards(null); setBoardsFailed(true); } });
     return () => { cancelled = true; };
   }, [hotelCode, destination, pickedIso, nights, sAdults, sChildren, sRooms]);
 
@@ -2439,7 +2546,7 @@ export default function HotelDetail() {
   // no available rooms isn't a bookable holiday at all. So both sections hold on the loading
   // skeleton until BOTH results are in. Flights are only awaited for a package search; on
   // own-transport there is no flight leg to wait for.
-  const liveBusy = (transport === 'package' && !!liveFlights?.loading) || !!liveRooms?.loading;
+  const liveBusy = (transport === 'package' && flightsChecking) || roomsChecking;
 
   // Hotel + flight only. The airport transfer is priced and added at the checkout now, so
   // this page never quotes a total that includes something it does not sell.
@@ -2550,7 +2657,9 @@ export default function HotelDetail() {
     // airport-switch handlers fetch for the airport just picked, not the one on screen.
     const from = normaliseOrigin(fromOverride || origin);
     const seq = ++flightSeqRef.current;
-    setLiveFlights({ loading: true });
+    // No `keep`: this is a new question (a new day, a new airport), and carrying the old fare
+    // forward would park a price nobody has quoted for this choice underneath it.
+    setLiveFlights({ av: checking({ sources: ['airtuerk'] }) });
     searchFlightsRaw(from, checkin, checkout).then((data) => {
       if (seq !== flightSeqRef.current) return;
       console.log('[Detail] flight-availability response', data?.results);
@@ -2560,9 +2669,30 @@ export default function HotelDetail() {
       // but the package from-price the page opens on is the direct when one exists.
       setSelectedFlight(pickPriorityIndex(flights));
       if (!flights.length) {
-        // The chosen airport doesn't fly this route on these dates. Say so, and go find
-        // the airports that do — with prices — rather than leaving a dead end.
-        setLiveFlights({ flights: [], empty: true, from, checkin, checkout, probing: true, alternatives: null, unprobed: [] });
+        // WHY THIS IS THREE CASES AND NOT ONE. "No flights from Brussels for these dates" is a
+        // claim about the world, and it used to be printed for every empty list: including an
+        // answer that carried no flight block at all (an outage that replied 200) and an answer
+        // whose every fare arrived without a price. Only a supplier that really sent a list
+        // with nothing bookable in it has told us "none". The rest we simply do not know.
+        const block = data?.results?.airtuerk;
+        const av = !block || !Array.isArray(block.flights)
+          ? sourceError({ cause: CAUSE.MALFORMED, sources: ['airtuerk'], detail: 'no-flight-block' })
+          : block.error
+            // The supplier call itself failed. The backend still answers 200 with an empty
+            // `flights` array in that case, which is why this branch has to come first: without
+            // it, every flight outage read as "nobody flies this route on these dates".
+            ? blockFailure(block, 'airtuerk')
+            : unpricedFares(data) > 0
+              ? priceUnknown({ sources: ['airtuerk'], detail: 'fares-without-price' })
+              : unavailable({ confirmedBy: ['airtuerk'], detail: 'no-bookable-fare' });
+        // No alternative probe on a failure, for the same reason the catch block below skips
+        // it: a supplier that is down is down for every airport. Both honest negatives DO get
+        // the probe: the airport an hour up the motorway is exactly what comes next.
+        if (av.state === AVAILABILITY.SOURCE_ERROR) {
+          setLiveFlights({ av, serverMsg: null, flights: [], from, checkin, checkout });
+          return;
+        }
+        setLiveFlights({ av, flights: [], from, checkin, checkout, probing: true, alternatives: null, unprobed: [] });
         probeAlternatives(from, checkin, checkout, seq);
         return;
       }
@@ -2571,6 +2701,12 @@ export default function HotelDetail() {
       // cached 5 min, seq-guarded), and its results are shown as a DIFFERENCE against this
       // fare rather than as a bare price: "+€35 p.p." is a decision, "€287 p.p." is homework.
       setLiveFlights({
+        // The fare a supplier has just quoted for exactly these dates is LIVE_CONFIRMED; the
+        // list is cheapest-first, so flights[0] is the offer this state is about.
+        av: available({
+          price: flights[0].totalPrice, currency: flights[0].currency,
+          validation: VALIDATION.LIVE_CONFIRMED, sources: ['airtuerk'],
+        }),
         flights, cheapest: data?.results?.cheapest || null, from,
         checkin, checkout, probing: true, alternatives: null,
       });
@@ -2578,8 +2714,14 @@ export default function HotelDetail() {
     }).catch((e) => {
       // NO alternative probe on error: a supplier that's down is down for every airport,
       // and multiplying a failing call by four would only hammer it. Retry is offered.
+      // fromFailure() cannot produce UNAVAILABLE, which is the whole point of routing every
+      // catch block through it: a dead supplier can never surface as "no flights from here".
       if (seq === flightSeqRef.current) {
-        setLiveFlights({ error: friendlyError(e, 'flight') });
+        setLiveFlights({
+          av: fromFailure(e, { sources: ['airtuerk'] }),
+          serverMsg: e?.response?.data?.message || null,
+          from, checkin, checkout,
+        });
       }
     });
   };
@@ -2657,13 +2799,21 @@ export default function HotelDetail() {
   const checkAvailabilityForDay = (dayISO) => {
     const checkin = dayISO || pickedISO || baseCheckIn;
     if (!checkin) return;
+    // A day a supplier has already confirmed as empty never starts another live check. There
+    // is nothing left to ask, and asking would replace the honest "not available" card with a
+    // spinner and then re-derive the same answer at the cost of a supplier call.
+    if (checkedEmpty.has(checkin)) return;
     setLiveChecked(true);
     const checkout = addDaysISO(checkin, nights);
     console.log('[Detail] check availability →', { hotelCode, destination, checkin, checkout });
     if (!hotelCode || !checkin) { setLiveRooms(null); setLiveFlights(null); return; }
 
-    // Live hotel rooms
-    setLiveRooms({ loading: true });
+    // Live hotel rooms.
+    // No `keep`: the card shows a spinner where the price goes while this runs, and a figure a
+    // supplier confirmed for a DIFFERENT day or a different party must never sit under a new
+    // selection as though it had been quoted for it. CHECKING carries no price here by
+    // construction, so there is nothing to leak.
+    setLiveRooms({ av: checking({ sources: ['hotel-availability'] }) });
     axiosInstance.post('/hotel-availability/search', {
       hotelCode: String(hotelCode), checkin, checkout,
       adults: Number(sAdults) || 2, children: Number(sChildren) || 0,
@@ -2675,7 +2825,7 @@ export default function HotelDetail() {
       const hb = data?.results?.hotelbeds, dn = data?.results?.diana, wm = data?.results?.w2m;
       const dianaHotelId = dn?.dianaHotelId ?? dn?.hotelId ?? null;
       const w2mHotelCode = wm?.w2mHotelCode ?? null;
-      const rooms = [
+      const allRates = [
         ...((hb?.rooms) || []).map((r) => ({ ...r, supplier: 'hotelbeds' })),
         ...((dn?.rooms) || []).map((r) => ({ ...r, supplier: 'diana', dianaHotelId })),
         ...((wm?.rooms) || []).map((r) => ({ ...r, supplier: 'w2m', w2mHotelCode })),
@@ -2694,19 +2844,66 @@ export default function HotelDetail() {
         net: r.net ?? null, dianaHotelId: r.dianaHotelId || null,
         // World2Meet bookable identity — carried into the checkout hand-off.
         bookingCode: r.bookingCode || null, w2mHotelCode: r.w2mHotelCode || null,
-      })).filter((r) => r.price != null).sort((a, b) => a.price - b.price);
+      }));
+      /* THE BUG THIS REPLACES. This list used to end `.filter((r) => r.price != null)`, which
+         silently threw away every room the supplier returned without a rate. A hotel that HAS
+         rooms on these dates but quoted no price for them therefore arrived here as a hotel
+         with NO rooms at all, and the page drew that as the red "This trip is not available"
+         card, a dead "Not Available" button and a greyed-out bar in the strip. The customer was
+         told their holiday was sold out because our side had no number to print.
+         That is PRICE_UNKNOWN ("Check price"), never UNAVAILABLE, so the unpriced rooms are
+         kept and counted instead of dropped.
+         `bookable` is deliberately the same rule as bookablePrice() in utils/roomBoards.js:
+         null, '' and 0 are all unpriced, because Number('') is 0 and 0 is finite, so a missing
+         price would otherwise sort to the top of a cheapest-first list and be offered free. */
+      const bookable = (v) => (v == null || v === '' || !(Number(v) > 0) ? null : Number(v));
+      const rooms = allRates.filter((r) => bookable(r.price) != null).sort((a, b) => a.price - b.price);
+      const unpriced = allRates.filter((r) => bookable(r.price) == null);
       // No pick yet for this day's results. Null rather than 0: index 0 is the cheapest rate
       // from ANY supplier before the meal filter runs, which is exactly the rate the card used
       // to quote while the list below showed something else. `liveIndex` resolves the default
       // from what is actually on screen.
       setSelectedRoom((p) => ({ ...p, live: null }));
       const cheapest = data?.results?.cheapest || null;
-      setLiveRooms({ rooms, cheapest });
-      if (rooms.length === 0 && (!cheapest || !Number(cheapest.price))) {
+      // ONE VERDICT PER SUPPLIER, then combined. The hotel is bookable if ANY supplier can
+      // book it, so anyOf() is the right combinator, and its ordering is the whole safeguard:
+      // UNAVAILABLE ranks last, so "Hotelbeds has nothing" plus "Diana timed out" comes back
+      // SOURCE_ERROR rather than "sold out". The one supplier that might have said yes never
+      // answered, and the customer is owed that distinction.
+      const av = anyOf(['hotelbeds', 'diana', 'w2m'].map((key) => {
+        const block = data?.results?.[key];
+        // Never asked: no mapping, no credentials, out of scope for this hotel. A supplier
+        // that was not consulted is not a voice for or against.
+        if (!block || block.notApplicable) return null;
+        if (block.error) return blockFailure(block, key);
+        const mine = rooms.filter((r) => r.supplier === key);
+        if (mine.length) {
+          return available({
+            price: mine[0].price, currency: mine[0].currency,
+            validation: VALIDATION.LIVE_CONFIRMED, sources: [key],
+          });
+        }
+        // It holds the hotel but gave us nothing we can price: rooms with no rate, or an
+        // "available" block whose rooms never arrived. Both are "check price", not "sold out".
+        if (unpriced.some((r) => r.supplier === key) || block.available === true) {
+          return priceUnknown({ sources: [key], detail: 'rooms-without-rate' });
+        }
+        return unavailable({ confirmedBy: [key], detail: 'no-rooms' });
+      }).filter(Boolean));
+      setLiveRooms({ av, rooms, unpriced, cheapest });
+      // The one and only door to the red card, the dead button and the grey bar, and it now
+      // opens for a confirmed negative alone.
+      if (av.state === AVAILABILITY.UNAVAILABLE) {
         setCheckedEmpty((prev) => new Set(prev).add(checkin));
       }
       if (data?.review) setReview((prev) => prev ?? data.review);
-    }).catch((e) => setLiveRooms({ error: friendlyError(e, 'room') }));
+    }).catch((e) => setLiveRooms({
+      // fromFailure() cannot return UNAVAILABLE, which is the whole point of routing every
+      // catch block through it: a timeout can no longer be drawn as a sold-out hotel. The
+      // cause rides along as a code and only friendlyError turns it into a sentence.
+      av: fromFailure(e, { sources: ['hotel-availability'] }),
+      serverMsg: e?.response?.data?.message || null,
+    }));
 
     // Live flights for the newly picked dates — but only for a traveller who asked to fly.
     // Own transport prices the room alone. (The airport transfer is sold at the checkout,
@@ -2723,7 +2920,7 @@ export default function HotelDetail() {
     // Never hand off while flight/transfer availability is still loading — the
     // package contents (and the total) aren't final yet. The Book button is also
     // disabled in this state; this is the belt-and-braces guard.
-    if (liveFlights?.loading) return;
+    if (flightsChecking) return;
     // A booking needs a rate the supplier actually quoted. This used to be papered over by
     // the demo room/flight/meal, which gave the checkout something to show; with those gone
     // an unchecked booking would hand over a €0 stay, so send the traveller to the check
@@ -3023,7 +3220,9 @@ export default function HotelDetail() {
                   ? t('prices.boardHintKnown', 'Meal plans this hotel offers on the dates you checked.')
                   : dateBoards?.length
                     ? t('prices.boardHintOnDate', { day: pd?.day || '', date: pd?.date || niceDate(pickedIso) || '', defaultValue: `Meal plans this hotel sells on ${pd?.day || ''} ${pd?.date || niceDate(pickedIso) || ''}`.trim() + '.' })
-                    : t('prices.boardHintUnknown', 'Check a date to see which meal plans this hotel actually offers.')}
+                    : boardsFailed
+                      ? t('prices.boardHintUnavailable', 'We couldn’t check this hotel’s meal plans just now. Run the check below to see what is really on offer.')
+                      : t('prices.boardHintUnknown', 'Check a date to see which meal plans this hotel actually offers.')}
                 origin={origin} originOptions={AIRPORT_CODES} originLabel={airportName} destination={destination}
                 transport={transport}
                 nights={nights}
@@ -3146,14 +3345,17 @@ export default function HotelDetail() {
                       // `sel` class and aria-pressed below; losing it throws a ReferenceError on
                       // every render and blanks the whole page, so it must stay above isLoading.
                       const sel = pickedIdx === i;
-                      const isLoading = sel && liveChecked && liveRooms?.loading;
+                      const isLoading = sel && liveChecked && roomsChecking;
                       // Live came back with rooms for THIS day — the only point in the flow where
                       // availability is a fact rather than a cached guess, so it gets its own
                       // colour. Every clause matters: still loading, an error, or zero rooms are
                       // all "not confirmed", and painting any of them green would promise a room
                       // we have not actually been offered.
-                      const isLiveOk = sel && liveChecked && !liveRooms?.loading
-                        && !liveRooms?.error && (liveRooms?.rooms?.length > 0);
+                      // One state now carries every one of those clauses: AVAILABLE is reached
+                      // only from rates that came back with a real price, so a check still
+                      // running, a failure, a room with no rate and an empty answer are all
+                      // excluded by construction rather than by remembering to list them.
+                      const isLiveOk = sel && liveChecked && roomsAv?.state === AVAILABILITY.AVAILABLE;
                       const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
                       // A flat week fills its (shorter) canvas: with no profile to draw, a bar
                       // stopping two-thirds up is just a gap, not a reading.
@@ -3346,7 +3548,7 @@ export default function HotelDetail() {
                           </button>
                         </div>
                       ) : (
-                        <div className={`fc-res${liveRooms?.loading ? ' checking' : ''}${liveRooms?.error ? ' failed' : ''}`}>
+                        <div className={`fc-res${roomsChecking ? ' checking' : ''}${roomsUnsettled ? ' failed' : ''}`}>
                           <div className="av-card">
                             <div className="av-main">
                               {/* The mark says only what the check has actually established.
@@ -3357,27 +3559,29 @@ export default function HotelDetail() {
                                   holiday was available before anybody knew it was. In progress is a
                                   spinner, a failed check is amber, and the tick is earned only once
                                   rooms have actually come back. */}
-                              {liveRooms?.loading ? (
+                              {roomsChecking ? (
                                 <span className="fc-res-mark fc-res-mark-busy" aria-hidden="true" />
-                              ) : liveRooms?.error ? (
+                              ) : roomsUnsettled ? (
                                 <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f59e0b" /><path d="M12 7.4v5.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="16.4" r="1.35" fill="#fff" /></svg>
                               ) : (
                                 <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                               )}
                               <div className="av-head">
                                 <div className="avail-text">
-                                  {liveRooms?.loading ? t('prices.checkingLiveAvailability', 'Checking live availability…')
-                                    : liveRooms?.error ? (pdEstimate ? t('prices.showingEstimatedPrice', 'Showing estimated price') : t('prices.livePriceUnavailable', 'Live price unavailable'))
+                                  {roomsChecking ? t('prices.checkingLiveAvailability', 'Checking live availability…')
+                                    : roomsPriceUnknown ? t('prices.priceStillToCheck', 'Price still to be checked')
+                                    : roomsFailed ? (pdEstimate ? t('prices.showingEstimatedPrice', 'Showing estimated price') : t('prices.livePriceUnavailable', 'Live price unavailable'))
                                     : t('prices.holidayAvailable', 'Your holiday is available!')}
                                 </div>
                                 {/* The badge states what has been established, and nothing more:
                                     a price that came back from the supplier is confirmed, an
                                     estimate off the cache is not, and neither is a check still
                                     running. */}
-                                <div className={`av-confirm${liveRooms?.error ? ' warn' : ''}${liveRooms?.loading ? ' busy' : ''}`}>
+                                <div className={`av-confirm${roomsUnsettled ? ' warn' : ''}${roomsChecking ? ' busy' : ''}`}>
                                   <i className="av-dot" />
-                                  {liveRooms?.loading ? t('prices.askingHotelForRate', 'Asking the hotel for today’s rate')
-                                    : liveRooms?.error ? (pdEstimate ? t('prices.estimatedNotConfirmed', 'Estimated price — not confirmed') : t('prices.couldNotReachHotel', 'Could not reach the hotel'))
+                                  {roomsChecking ? t('prices.askingHotelForRate', 'Asking the hotel for today’s rate')
+                                    : roomsPriceUnknown ? t('prices.roomsWithoutPrice', 'Rooms are open, no price came back')
+                                    : roomsFailed ? (pdEstimate ? t('prices.estimatedNotConfirmed', 'Estimated price — not confirmed') : t('prices.couldNotReachHotel', 'Could not reach the hotel'))
                                     : t('prices.liveAvailabilityConfirmed', 'Live availability and price confirmed')}
                                 </div>
 
@@ -3394,7 +3598,7 @@ export default function HotelDetail() {
                                   actually pay is never left to be worked out. */}
                               <div className="av-price-row">
                                 <span className="avail-price-val">
-                                  {liveRooms?.loading
+                                  {roomsChecking
                                     ? <span className="avail-spin" />
                                     : (liveNow != null || pdEstimate)
                                       ? <><small>€</small>{ppOf(liveNow != null ? liveNow : Number(pd.price))}<em>p.p.</em></>
@@ -3432,7 +3636,8 @@ export default function HotelDetail() {
                                 {liveRoom ? (transport === 'hotel_only'
                                   ? t('prices.totalHolidayPrice', { nights: dayLabel(nights), defaultValue: `Total holiday price · ${dayLabel(nights)}` })
                                   : t('prices.liveRoomPrice', { nights: dayLabel(nights), defaultValue: `Live room price · ${dayLabel(nights)}` }))
-                                  : liveRooms?.error ? (pdEstimate ? t('prices.livePriceUnavailableEstimate', 'Live price unavailable — estimate shown') : t('prices.noEstimateTryAgain', 'No estimate for this day — try again'))
+                                  : roomsPriceUnknown ? t('prices.priceUnknownRetry', 'No price came back for these dates, try the check again')
+                                  : roomsFailed ? (pdEstimate ? t('prices.livePriceUnavailableEstimate', 'Live price unavailable — estimate shown') : t('prices.noEstimateTryAgain', 'No estimate for this day — try again'))
                                   : pdEstimate ? (pd?.lowest ? t('prices.lowestEstimatedPrice', 'Lowest estimated price') : t('prices.estimatedPrice', 'Estimated price'))
                                   : t('prices.noCachedEstimate', 'No cached estimate')}
                               </div>
@@ -3540,10 +3745,10 @@ export default function HotelDetail() {
                     </button>
                   </div>
                 ) : liveFlights ? (
-                  liveFlights.error ? (
+                  flightsFailed ? (
                     <div className="live-error">
                       {ICON.warn}
-                      <span className="live-error-msg">{liveFlights.error}</span>
+                      <span className="live-error-msg">{flightsMessage}</span>
                       <button type="button" className="live-retry"
                         onClick={() => fetchFlights(pd?.iso || baseCheckIn, pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut)}>
                         {t('actions.tryAgain', 'Try again')}
@@ -3629,10 +3834,17 @@ export default function HotelDetail() {
                         </div>
                       ) : null}
                     </>
-                  ) : liveFlights.empty ? (
+                  ) : (flightsNone || flightsPriceUnknown) ? (
                     <>
+                      {/* Two different answers, and they used to share one sentence. "No
+                          flights from Brussels for these dates" is a fact the supplier told
+                          us; fares that arrived with no price are not that fact, and saying
+                          so would talk a traveller out of a route that does fly. The
+                          alternative airports below are worth offering either way. */}
                       <div className="live-empty">
-                        {ICON.plane} {t('flights.noFlightsFrom', { airport: airportName(liveFlights.from || origin), defaultValue: `No flights from ${airportName(liveFlights.from || origin)} for these dates.` })}
+                        {ICON.plane} {flightsPriceUnknown
+                          ? t('flights.faresWithoutPrice', { airport: airportName(liveFlights.from || origin), defaultValue: `Flights from ${airportName(liveFlights.from || origin)} came back without a price. Try the check again, or compare another airport.` })
+                          : t('flights.noFlightsFrom', { airport: airportName(liveFlights.from || origin), defaultValue: `No flights from ${airportName(liveFlights.from || origin)} for these dates.` })}
                       </div>
                       {liveFlights.probing ? (
                         <div className="live-loading"><span className="live-spin" /> {t('flights.checkingNearbyAirports', 'Checking nearby departure airports…')}</div>
@@ -3731,10 +3943,14 @@ export default function HotelDetail() {
                 {liveRooms ? (
                   liveBusy ? (
                     <RoomsLoading />
-                  ) : liveRooms.error ? (
+                  ) : roomsUnsettled ? (
+                    /* ONE amber row for both things a check can leave unsettled: it failed, or
+                       it came back with rooms and no rates. The traveller's next move is the
+                       same either way and neither is a sold-out hotel. The second case used
+                       to read "No live rooms found for these dates." */
                     <div className="live-error">
                       {ICON.warn}
-                      <span className="live-error-msg">{liveRooms.error}</span>
+                      <span className="live-error-msg">{roomsMessage}</span>
                       {/* A timeout is the most common failure here and the one most likely to
                           succeed on a second attempt — don't make the traveller re-pick a day. */}
                       <button type="button" className="live-retry" onClick={checkAvailability}>{t('actions.tryAgain', 'Try again')}</button>
@@ -3902,6 +4118,9 @@ export default function HotelDetail() {
                       <div className="all-in-note">{ICON.shield} {t('rooms.allTaxesIncluded', 'All prices include taxes, fees and charges.')}</div>
                     </div>
                   ) : (
+                    /* Reached only on a CONFIRMED empty answer now: a supplier that named
+                       itself and said "none". Anything we could not settle took the amber row
+                       above, with a retry. */
                     <div className="live-empty">{ICON.bed} {t('rooms.noLiveRooms', 'No live rooms found for these dates.')}</div>
                   )
                 ) : (
@@ -4051,8 +4270,8 @@ export default function HotelDetail() {
                     </span>
                   </div>
                   <div className="overview-book-wrap">
-                    <button className="overview-book-btn" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>
-                      {liveFlights?.loading ? <>{t('overview.checkingFlightPrices', 'Checking flight prices…')}</>
+                    <button className="overview-book-btn" onClick={goCheckout} disabled={flightsChecking || dayUnavailable}>
+                      {flightsChecking ? <>{t('overview.checkingFlightPrices', 'Checking flight prices…')}</>
                         : dayUnavailable ? <>{t('overview.notAvailableDate', 'Not available for this date')}</>
                         : ovBase == null ? <>{t('actions.checkAvailability', 'Check availability')} {ICON.arrow}</>
                         : <>{t('overview.continueToCheckout', 'Continue to checkout')} {ICON.arrow}</>}
@@ -4747,8 +4966,8 @@ export default function HotelDetail() {
                 <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{dayLabel(nights)}</div>
               </div>
               <div className="bkcw">
-                <button className="bkc" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>
-                  {liveFlights?.loading ? t('sidebar.checkingFlights', 'Checking flights…')
+                <button className="bkc" onClick={goCheckout} disabled={flightsChecking || dayUnavailable}>
+                  {flightsChecking ? t('sidebar.checkingFlights', 'Checking flights…')
                     : dayUnavailable ? <>{t('overview.notAvailableDate', 'Not available for this date')}</>
                     : liveTotal == null ? <>{t('actions.checkAvailability', 'Check availability')} {ICON.arrow}</>
                     : <>{t('sidebar.bookNow', 'Book Now')} {ICON.arrow}</>}
@@ -4765,8 +4984,8 @@ export default function HotelDetail() {
         <div className="mbi">
           <div className="mbp"><small>{liveTotal != null ? t('sidebar.liveTotal', 'live total') : fromPP != null ? t('sidebar.perPersonFrom', 'per person from') : t('sidebar.noPriceYet', 'no price yet')}</small>{liveTotal != null
             ? `${ccy}${liveTotal.toLocaleString('en-GB')}` : fromPP != null ? `${ccy}${fromPP}` : '—'}</div>
-          <button className="mbc" onClick={goCheckout} disabled={liveFlights?.loading || dayUnavailable}>
-            {liveFlights?.loading ? t('sidebar.checkingShort', 'Checking…') : dayUnavailable ? t('sidebar.notAvailableShort', 'Not available') : `${liveTotal != null ? t('sidebar.bookNow', 'Book now') : t('sidebar.checkPrice', 'Check price')} →`}
+          <button className="mbc" onClick={goCheckout} disabled={flightsChecking || dayUnavailable}>
+            {flightsChecking ? t('sidebar.checkingShort', 'Checking…') : dayUnavailable ? t('sidebar.notAvailableShort', 'Not available') : `${liveTotal != null ? t('sidebar.bookNow', 'Book now') : t('sidebar.checkPrice', 'Check price')} →`}
           </button>
         </div>
       </div>
