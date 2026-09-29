@@ -12,6 +12,8 @@
   },
   "availability": {
     "checking": "Beschikbaarheid controleren…",
+    "checkingPrice": "Prijs wordt gecontroleerd…",
+    "checkAgain": "Opnieuw controleren",
     "unavailable": "Niet beschikbaar",
     "priceUnknown": "Geen prijs voor deze data",
     "noValidCombination": "We konden met deze keuzes geen reis samenstellen",
@@ -21,6 +23,13 @@
       "rateLimited": "Te veel zoekopdrachten tegelijk. Wacht even en probeer het opnieuw.",
       "generic": "We konden dit nu niet controleren. Probeer het opnieuw."
     }
+  },
+  "listing": {
+    "count_one": "{{count}} vakantie gevonden",
+    "count_other": "{{count}} vakanties gevonden",
+    "countIn_one": "{{count}} vakantie in {{place}}",
+    "countIn_other": "{{count}} vakanties in {{place}}",
+    "showMore": "Toon meer"
   },
   "actions": {
     "search": "Zoeken",

@@ -12,6 +12,8 @@
   },
   "availability": {
     "checking": "Checking availability…",
+    "checkingPrice": "Checking price…",
+    "checkAgain": "Check again",
     "unavailable": "Not available",
     "priceUnknown": "No price for these dates",
     "noValidCombination": "We couldn’t put a trip together from these choices",
@@ -21,6 +23,13 @@
       "rateLimited": "Too many searches at once. Wait a few seconds, then try again.",
       "generic": "We couldn’t check this just now. Please try again."
     }
+  },
+  "listing": {
+    "count_one": "{{count}} holiday found",
+    "count_other": "{{count}} holidays found",
+    "countIn_one": "{{count}} holiday in {{place}}",
+    "countIn_other": "{{count}} holidays in {{place}}",
+    "showMore": "Show more"
   },
   "actions": {
     "search": "Search",

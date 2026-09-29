@@ -68,6 +68,14 @@
       "perPerson": "Per kamer/verblijf"
     }
   },
+  "price": {
+    "from": "Vanaf € {{amount}} p.p.",
+    "totalTrip": "Totale reisprijs € {{amount}}",
+    "totalStay": "Totale verblijfsprijs € {{amount}}",
+    "average": "Gemiddeld € {{amount}} p.p.",
+    "viewAvailableDates": "Bekijk beschikbare data",
+    "nonePeriod": "Geen beschikbaar verblijf gevonden binnen de huidige zoekperiode"
+  },
   "flightClass": {
     "direct": "direct",
     "one_stop": "1 tussenstop",
