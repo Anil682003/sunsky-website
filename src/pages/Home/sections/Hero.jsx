@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './Hero.module.css';
@@ -99,6 +99,10 @@ const MAX_LEGS = 5;
 // The fields whose panel is the airport typeahead: the two on the round-trip row, plus a From
 // and a To for every multi-city leg.
 const AIRPORT_FIELD = /^(?:flightFrom|flightTo|leg\d+(?:From|To))$/;
+
+// At and below this width both search cards stack their fields into one column (the 1024px
+// block in Hero.module.css), which is when a panel has to hang under its own field.
+const STACKED_QUERY = '(max-width: 1024px)';
 
 // Field icons, hoisted out of the markup: the same handful of drawings appears on up to
 // sixteen fields once a five-leg multi-city trip is open, and inlining them buried the fields
@@ -410,6 +414,37 @@ export default function Hero() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Where an open panel hangs. On a wide screen each search card is one row, and every panel
+  // drops from the card's bottom edge (the stylesheet's default). Once the card stacks its
+  // fields into a column, that bottom edge sits under the Search button, a whole card away
+  // from the field that was tapped: on a phone the Departure calendar opened below Travellers
+  // and the button. So on a stacked card the open panel is pinned under its own field
+  // (`data-field` / `data-panel`), and if it then runs off the bottom of the screen the page
+  // scrolls that field up to just under the fixed navbar.
+  useLayoutEffect(() => {
+    const wrap = searchMode === 'package' ? searchBarRef.current : flightsRef.current;
+    const field = openField ? wrap?.querySelector(`[data-field="${openField}"]`) : null;
+    const panel = field ? wrap.querySelector('[data-panel]') : null;
+    const stacked = panel ? window.matchMedia?.(STACKED_QUERY) : null;
+    if (!stacked) return undefined;
+    const place = () => {
+      panel.style.top = stacked.matches
+        ? `${field.getBoundingClientRect().bottom - wrap.getBoundingClientRect().top + 8}px`
+        : '';
+    };
+    place();
+    if (stacked.matches && panel.getBoundingClientRect().bottom > window.innerHeight) {
+      const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 0;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({
+        top: window.scrollY + field.getBoundingClientRect().top - navH - 8,
+        behavior: reduce ? 'instant' : 'smooth',
+      });
+    }
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [openField, searchMode]);
 
   const toggleField = (field) => {
     setAirportQuery('');
@@ -888,6 +923,7 @@ export default function Hero() {
     return (
       <div
         key={id}
+        data-field={id}
         className={`${styles.sf} ${open ? styles.sfActive : ''}`}
         onClick={() => toggleField(id)}
       >
@@ -1084,7 +1120,7 @@ export default function Hero() {
       <div className={styles.sfDivider} />
       {/* Departure — opens the site's own two-month calendar (components/DateCalendar), not
           the browser's date picker, so the ± flexible-days choice can sit beside the dates. */}
-      <div className={`${styles.sf} ${openField === 'date' ? styles.sfActive : ''}`} onClick={() => toggleField('date')}>
+      <div data-field="date" className={`${styles.sf} ${openField === 'date' ? styles.sfActive : ''}`} onClick={() => toggleField('date')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -1098,7 +1134,7 @@ export default function Hero() {
         <span className={styles.sfHint}>{dateHint}</span>
       </div>
       <div className={styles.sfDivider} />
-      <div className={`${styles.sf} ${openField === 'duration' ? styles.sfActive : ''}`} onClick={() => toggleField('duration')}>
+      <div data-field="duration" className={`${styles.sf} ${openField === 'duration' ? styles.sfActive : ''}`} onClick={() => toggleField('duration')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -1118,7 +1154,7 @@ export default function Hero() {
           The picker itself lives with the other stay dropdowns (below), where it is
           centred under the whole search bar; a 960px panel nested inside this narrow
           field would either overflow the bar or hug its right edge oddly. */}
-      <div className={`${styles.sf} ${openField === 'transport' ? styles.sfActive : ''}`} onClick={() => toggleField('transport')}>
+      <div data-field="transport" className={`${styles.sf} ${openField === 'transport' ? styles.sfActive : ''}`} onClick={() => toggleField('transport')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
@@ -1132,7 +1168,7 @@ export default function Hero() {
         <span className={styles.sfHint}>{originsHint}</span>
       </div>
       <div className={styles.sfDivider} />
-      <div className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`} onClick={() => toggleField('travelers')}>
+      <div data-field="travelers" className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`} onClick={() => toggleField('travelers')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
@@ -1150,7 +1186,7 @@ export default function Hero() {
   const stayDropdowns = (
     <>
       {openField === 'transport' && (
-        <div className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
+        <div data-panel className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
           <div className={styles.tspHead}>
             <div>
               <div className={styles.tspTitle}>{t('hero.flyingFrom', 'Flying from')}</div>
@@ -1315,7 +1351,7 @@ export default function Hero() {
         </div>
       )}
       {openField === 'date' && (
-        <div className={`${styles.dropdown} ${styles.calDropdown}`}>
+        <div data-panel className={`${styles.dropdown} ${styles.calDropdown}`}>
           <DateCalendar
             value={date}
             onChange={setDate}
@@ -1328,7 +1364,7 @@ export default function Hero() {
         </div>
       )}
       {openField === 'duration' && (
-        <div className={`${styles.dropdown} ${styles.durDropdown}`}>
+        <div data-panel className={`${styles.dropdown} ${styles.durDropdown}`}>
           <div className={styles.durList}>
             {DURATIONS.map((d) => (
               <div key={d.label} className={`${styles.durOpt} ${duration === d.label ? styles.durOptActive : ''}`} onClick={() => { setDuration(d.label); setOpenField(null); }}>
@@ -1342,7 +1378,7 @@ export default function Hero() {
         </div>
       )}
       {openField === 'travelers' && (
-        <div className={`${styles.dropdown} ${styles.travDropdown}`}>
+        <div data-panel className={`${styles.dropdown} ${styles.travDropdown}`}>
           <div className={styles.travScroll}>
             {roomsList.map((room, ri) => (
               <div className={styles.roomCard} key={ri}>
@@ -1697,6 +1733,7 @@ export default function Hero() {
                   </>
                 )}
                 <div
+                  data-field="flightTravelers"
                   className={`${styles.sf} ${openField === 'flightTravelers' ? styles.sfActive : ''}`}
                   onClick={() => toggleField('flightTravelers')}
                 >
@@ -1724,7 +1761,7 @@ export default function Hero() {
               card, where a two-month calendar and a stepper list have room to be read. */}
 
           {datePanel && (
-            <div className={`${styles.flightDropdown} ${styles.calDropdownFlight}`}>
+            <div data-panel className={`${styles.flightDropdown} ${styles.calDropdownFlight}`}>
               <DateCalendar
                 value={datePanel.value}
                 onChange={datePanel.onChange}
@@ -1736,7 +1773,7 @@ export default function Hero() {
           )}
 
           {openField === 'flightTravelers' && (
-            <div className={`${styles.flightDropdown} ${styles.paxDropdown}`}>
+            <div data-panel className={`${styles.flightDropdown} ${styles.paxDropdown}`}>
               <div className={styles.travRow}>
                 <div>
                   <span className={styles.travLabel}>{t('hero.flights.adults', 'Adults')}</span>
