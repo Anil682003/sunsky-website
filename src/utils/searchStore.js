@@ -157,10 +157,16 @@ export const purgeSearch = () => {
  */
 export const loadSearch = () => {
   if (purgeSearch()) return null;
-  const rec = normalise(readRaw());
+  const raw = readRaw();
+  const rec = normalise(raw);
   if (!rec) return null;
   return {
     ...rec,
+    // Until 30 Sep 2026 the form defaulted to Brussels, so a lone "BRU" saved back then is that
+    // old default rather than a choice, and it comes back as No preference, the default now
+    // (spec 3.2). Anything else was picked by hand and is kept. Records written since carry
+    // `v: 2` and are restored exactly as saved.
+    origins: Number(raw?.v) >= 2 || rec.origins.join(',') !== 'BRU' ? rec.origins : [],
     date: futureDate(rec.date),
     flightDate: futureDate(rec.flightDate),
     // A return that is now in the past is meaningless even if the outbound survived.
@@ -179,7 +185,7 @@ export const saveSearch = (search) => {
   const rec = normalise(search);
   if (!rec) return null;
   try {
-    localStorage.setItem(KEY, JSON.stringify({ ...rec, at: Date.now() }));
+    localStorage.setItem(KEY, JSON.stringify({ ...rec, v: 2, at: Date.now() }));
   } catch { /* full or blocked — the search still stands for this session */ }
   return rec;
 };

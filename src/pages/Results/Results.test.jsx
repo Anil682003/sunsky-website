@@ -669,7 +669,7 @@ describe('price range', () => {
     await waitFor(() => {
       // The headline is the PER-PERSON fare (2 adults); the minPrice bound is on the total.
       // Reconstruct the total (×2) before checking it clears the bound.
-      const perPerson = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/,/g, '')));
+      const perPerson = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/[.,]/g, '')));
       const totals = perPerson.map((p) => p * 2);
       expect(Math.min(...totals)).toBeGreaterThanOrEqual(200);
     });
@@ -682,7 +682,7 @@ describe('price range', () => {
     await waitFor(() => expect(lastCall().get('maxPrice')).toBe('150'));
     await waitFor(() => {
       // Headline price renders as "€1,234.56" (symbol) — older cards said "EUR1234.56".
-      const prices = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/,/g, '')));
+      const prices = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/[.,]/g, '')));
       expect(Math.max(...prices)).toBeLessThanOrEqual(150);
     });
   });
@@ -855,7 +855,7 @@ describe('infinite scroll', () => {
 
     const prices = cards().map((c) => {
       const t = c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/);
-      return t ? Number(t[1].replace(/,/g, '')) : 0;
+      return t ? Number(t[1].replace(/[.,]/g, '')) : 0;
     });
     const sorted = [...prices].sort((a, b) => a - b);
     expect(prices).toEqual(sorted);

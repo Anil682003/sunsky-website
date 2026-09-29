@@ -1,7 +1,8 @@
-import { describe, it, expect } from 'vitest';
+import { describe, it, expect, afterEach } from 'vitest';
 import {
   DEPARTURE_AIRPORTS, AIRPORT_CODES, POPULAR_AIRPORTS, OTHER_AIRPORTS,
   DEFAULT_ORIGIN, airportLabel, airportCity, normaliseOrigin, airportToValue,
+  setDepartureAirports, getDepartureAirports, isDepartureAirport, parseOrigins,
 } from './airports';
 
 describe('the departure-airport list', () => {
@@ -77,5 +78,50 @@ describe('airportToValue', () => {
     expect(airportToValue({ code: 'ZZZ' })).toBe('ZZZ (ZZZ)');
     expect(airportToValue(null)).toBe('');
     expect(airportToValue({})).toBe('');
+  });
+});
+
+describe('the dashboard list is the authority (spec 3.6)', () => {
+  // The registry is module state: put the seed back so later tests see the usual list.
+  afterEach(() => setDepartureAirports(DEPARTURE_AIRPORTS));
+
+  it('once loaded, offers exactly the airports the dashboard lists', () => {
+    setDepartureAirports([
+      { code: 'CRL', name: 'Charleroi, Brussels South', sortOrder: 20 },
+      { code: 'ANR', name: 'Antwerp', sortOrder: 10 },
+    ]);
+    expect(getDepartureAirports().map((a) => a.code)).toEqual(['ANR', 'CRL']);
+    expect(isDepartureAirport('BRU')).toBe(false);   // deactivated: not merged back from the seed
+    expect(isDepartureAirport('crl')).toBe(true);
+  });
+
+  it('never falls back to an airport the dashboard switched off', () => {
+    setDepartureAirports([{ code: 'CRL', sortOrder: 20 }, { code: 'ANR', sortOrder: 10 }]);
+    expect(normaliseOrigin('BRU')).toBe('ANR');
+    expect(normaliseOrigin('JFK')).toBe('ANR');
+    expect(normaliseOrigin('CRL')).toBe('CRL');
+  });
+
+  it('ignores an empty or broken answer and keeps what it had', () => {
+    setDepartureAirports([]);
+    setDepartureAirports([{ name: 'no code' }]);
+    expect(isDepartureAirport('BRU')).toBe(true);
+  });
+});
+
+describe('parseOrigins', () => {
+  afterEach(() => setDepartureAirports(DEPARTURE_AIRPORTS));
+
+  it('reads origin and origins together, known codes only, de-duplicated', () => {
+    expect(parseOrigins('crl', 'BRU,CRL,JFK, ams ')).toEqual(['CRL', 'BRU', 'AMS']);
+  });
+
+  it('returns an empty list, meaning No preference, when nothing usable is given', () => {
+    expect(parseOrigins(null, undefined, '', 'JFK')).toEqual([]);
+  });
+
+  it('drops an airport the dashboard deactivated', () => {
+    setDepartureAirports([{ code: 'CRL' }]);
+    expect(parseOrigins('BRU,CRL')).toEqual(['CRL']);
   });
 });

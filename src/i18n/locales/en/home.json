@@ -235,6 +235,7 @@
       "inclFlight": "Incl. flight",
       "noPreference": "No preference",
       "noPreferenceSub": "Search all available departure airports",
+      "noPreferenceNote": "We'll search all available departure airports",
       "or": "or",
       "loading": "Departure airports are loading…",
       "yourSelection": "Your selection",

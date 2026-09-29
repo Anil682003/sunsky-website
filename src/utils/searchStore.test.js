@@ -212,3 +212,27 @@ describe('housekeeping', () => {
     expect(stored.children).toBeUndefined();
   });
 });
+
+describe('the old Brussels default (spec 3.2)', () => {
+  const KEY = 'sunsky.lastSearch';
+
+  it('restores a lone BRU saved before the change as No preference', () => {
+    localStorage.setItem(KEY, JSON.stringify({ ...A_TRIP, origins: ['BRU'], at: Date.now() }));
+    expect(loadSearch().origins).toEqual([]);
+  });
+
+  it('keeps any other old selection, which was picked by hand', () => {
+    localStorage.setItem(KEY, JSON.stringify({ ...A_TRIP, origins: ['CRL'], at: Date.now() }));
+    expect(loadSearch().origins).toEqual(['CRL']);
+  });
+
+  it('keeps a lone BRU chosen since the change', () => {
+    saveSearch({ ...A_TRIP, origins: ['BRU'] });
+    expect(loadSearch().origins).toEqual(['BRU']);
+  });
+
+  it('remembers No preference as an empty list', () => {
+    saveSearch({ ...A_TRIP, origins: [] });
+    expect(loadSearch().origins).toEqual([]);
+  });
+});

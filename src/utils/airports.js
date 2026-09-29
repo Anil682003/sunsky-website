@@ -118,23 +118,29 @@ export function isoFromFlagEmoji(flag) {
 export const airportIso = (a) =>
   String(a?.countryIso || '').toUpperCase() || isoFromFlagEmoji(a?.country || a?.flag);
 
-// ── Runtime registry: seeded, overridable by the admin master list ───────────
+// ── Runtime registry: seeded, replaced by the admin master list ──────────────
+const SEED_BY_CODE = new Map(SEED_DEPARTURE_AIRPORTS.map((a) => [a.code, a]));
 let _registry = SEED_DEPARTURE_AIRPORTS.slice();
 let _byCode = new Map(_registry.map((a) => [a.code, a]));
 
 /**
- * Replace/extend the departure-airport registry from the admin master list. Merges onto the
- * seed so a partial admin response never drops a known airport, and keeps the label/city/flag
- * the dashboard provides. Safe to call repeatedly; ignores an empty list.
+ * Replace the departure-airport registry with the admin master list (spec 3.6).
+ *
+ * The dashboard's list is the authority: once it has answered, the registry is EXACTLY the
+ * active departure airports it returned. The seed above is only the offline stand-in until
+ * then, and afterwards only lends a label, city or flag to an airport the dashboard still
+ * lists. It used to be MERGED underneath instead, so an airport the team deactivated in the
+ * dashboard stayed on offer from the seed. Safe to call repeatedly; an empty list (a failed
+ * or empty response) keeps whatever the registry already holds.
  * @param {{code,name?,label?,city?,flag?,country?,popular?,sortOrder?}[]} list
  */
 export function setDepartureAirports(list) {
   if (!Array.isArray(list) || !list.length) return;
-  const merged = new Map(_byCode);
+  const merged = new Map();
   for (const a of list) {
     if (!a || !a.code) continue;
     const code = String(a.code).toUpperCase();
-    const prev = merged.get(code);
+    const prev = _byCode.get(code) || SEED_BY_CODE.get(code);
     merged.set(code, {
       code,
       label: a.label || a.name || prev?.label || code,
@@ -149,8 +155,31 @@ export function setDepartureAirports(list) {
       available: a.available,   // §26 validity when annotated, else undefined
     });
   }
+  if (!merged.size) return;
   _registry = [...merged.values()].sort((x, y) => (x.sortOrder ?? 999) - (y.sortOrder ?? 999));
   _byCode = new Map(_registry.map((a) => [a.code, a]));
+}
+
+/** Is this code an active SUNSKY departure airport right now (spec 3.6)? */
+export const isDepartureAirport = (code) => _byCode.has(String(code || '').trim().toUpperCase());
+
+/**
+ * The departure airports a URL or a saved search asks for, as a clean list: known codes only,
+ * de-duplicated, first mention first. Takes any number of comma-separated values, so
+ * `?origin=` and `?origins=` can be read together.
+ *
+ * An EMPTY result means No preference: every active departure airport (spec 3.2). A code that
+ * is not on the active master list is dropped, never trusted (spec 3.6).
+ */
+export function parseOrigins(...values) {
+  const out = [];
+  for (const v of values) {
+    for (const part of String(v ?? '').split(',')) {
+      const code = part.trim().toUpperCase();
+      if (code && _byCode.has(code) && !out.includes(code)) out.push(code);
+    }
+  }
+  return out;
 }
 
 /** The current registry (seed until the admin list loads). */
@@ -163,13 +192,16 @@ export const airportLabel = (code) => _byCode.get(String(code || '').toUpperCase
 export const airportCity = (code) => _byCode.get(String(code || '').toUpperCase())?.city || code || '';
 
 /**
- * Normalise anything arriving from a URL. An origin the agency doesn't fly from would be
- * handed to the supplier verbatim and come back empty with no explanation, so an unknown
- * code falls back to the default rather than being trusted.
+ * Normalise anything arriving from a URL, for a caller that needs ONE concrete airport (the
+ * hotel page's live flight search). An origin the agency doesn't fly from would be handed to
+ * the supplier verbatim and come back empty with no explanation, so an unknown code falls back
+ * to the default while that is still active, else to the first active airport: never to one
+ * the dashboard has switched off.
  */
 export const normaliseOrigin = (code) => {
   const c = String(code || '').trim().toUpperCase();
-  return _byCode.has(c) ? c : DEFAULT_ORIGIN;
+  if (_byCode.has(c)) return c;
+  return _byCode.has(DEFAULT_ORIGIN) ? DEFAULT_ORIGIN : (_registry[0]?.code || DEFAULT_ORIGIN);
 };
 
 /**

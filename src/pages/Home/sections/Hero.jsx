@@ -7,7 +7,7 @@ import DestinationModal from '../../../components/DestinationModal/DestinationMo
 import DateCalendar from '../../../components/DateCalendar/DateCalendar';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { cmsText } from '../../../utils/cmsText';
-import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
+import { DURATION_BANDS, bandByLabel, stayDaysToNights, stayCheckOut, packageReturnDate } from '../../../utils/durations';
 import AirportSearch from '../../../components/AirportSearch/AirportSearch';
 import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
 import { flagUrl } from '../../../utils/countryFlag';
@@ -317,29 +317,28 @@ export default function Hero() {
   // hotel page already read from there.
   const [transport, setTransport] = useState(() => (remembered?.transport === 'hotel_only' ? 'hotel_only' : 'package'));
   // Airports the traveller can leave from — MULTI-select, because "Brussels or Charleroi,
-  // whichever works out" is how people actually shop. The FIRST pick is the airport the
-  // search prices from (`origin` in the URL — single-valued everywhere downstream); the
-  // whole list rides along as `origins` so the choice is never silently narrowed to one.
-  const [origins, setOrigins] = useState(() => (remembered?.origins?.length ? remembered.origins : [DEFAULT_ORIGIN]));
+  // whichever works out" is how people actually shop. The whole list rides in the URL as
+  // `origin` (the first) + `origins`.
+  //
+  // NONE CHOSEN MEANS "NO PREFERENCE": every active departure airport (spec 3.2). That is the
+  // default, so a search nobody narrowed compares all airports instead of quietly pricing
+  // from Brussels, and a search with no preference puts no airport in the URL at all.
+  const [origins, setOrigins] = useState(() => (remembered?.origins?.length ? remembered.origins : []));
   // §25 departure master list from the admin dashboard (seed fallback until it loads).
   const { airports: allAirports } = useDepartureAirports();
-  // Toggle, never below one: an empty "Flying from" has no honest label and no airport
-  // to search from, so the last ticked row cannot be un-ticked.
+  // Only airports still on the dashboard's active list count as chosen (spec 3.6): one the
+  // team deactivated since this search was saved simply drops out rather than being offered.
+  const knownOrigins = new Set(allAirports.map((a) => a.code));
+  const chosenOrigins = origins.filter((c) => knownOrigins.has(c));
+  // Un-ticking the last airport leaves none chosen, which is No preference, not an error.
   const toggleOrigin = (code) =>
-    setOrigins((prev) => (prev.includes(code)
-      ? (prev.length === 1 ? prev : prev.filter((c) => c !== code))
-      : [...prev, code]));
-  // "Clear all" is a soft reset — the picker cannot honestly have zero airports (see
-  // toggleOrigin above), so it falls back to the default origin rather than emptying the
-  // selection to a state the rest of the site cannot search.
-  const clearOrigins = () => setOrigins([DEFAULT_ORIGIN]);
-  // "No preference" is not a fourth kind of selection sitting beside the airport list — it
-  // is every departure airport ticked at once, which is exactly what "search all available
-  // departure airports" means. Modelling it that way keeps ONE source of truth (`origins`)
-  // and needs nothing new in the URL: the results page and the hotel page's flight search go
-  // on reading `origin` + `origins` as before, they just receive the whole list.
-  const noPreference = allAirports.length > 1 && origins.length === allAirports.length;
-  const selectAllOrigins = () => setOrigins(allAirports.map((a) => a.code));
+    setOrigins((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
+  // "Clear all" goes back to No preference.
+  const clearOrigins = () => setOrigins([]);
+  // No preference is nothing chosen, or every airport ticked by hand, which says the same.
+  const noPreference = chosenOrigins.length === 0
+    || (allAirports.length > 1 && allAirports.every((a) => chosenOrigins.includes(a.code)));
+  const selectAllOrigins = () => setOrigins([]);
   // Clicking an airport while "No preference" is on is the traveller narrowing from
   // "anywhere" down to one airport, not un-ticking one row of nineteen — so it starts their
   // selection fresh rather than leaving the other eighteen silently still selected.
@@ -549,14 +548,16 @@ export default function Hero() {
   // Params common to every search (dates, occupancy, duration band).
   const buildBaseParams = () => {
     const band = findBand(duration);
-    const nights = daysToNights(band.days);   // "7 days" band → 6 nights
+    // Day counting is per product (spec 3.4). Hotel Only: the band counts STAY days, so 8 days
+    // from 25 Oct checks out on 1 Nov. Package: it counts TRAVEL days, outbound to return
+    // departure inclusive, so the same 8 days fly home on 1 Nov, while the hotel nights come
+    // from the flight times, which only the backend knows. Same date today, named for what it
+    // is. Both helpers count in local dates, so no timezone can shift the day.
     let checkOut = '';
     if (date) {
-      // Compute in UTC so the checkout never shifts a day in a positive-offset timezone
-      // (`new Date('..T00:00:00')` is local, toISOString() is UTC → a day early for e.g. Belgium).
-      const d = new Date(date + 'T00:00:00Z');
-      d.setUTCDate(d.getUTCDate() + nights);
-      checkOut = d.toISOString().split('T')[0];
+      checkOut = (transport === 'hotel_only'
+        ? stayCheckOut(date, band.days)
+        : packageReturnDate(date, band.days)) || '';
     }
     // Ages are what the supplier prices on; the DATES are what gets booked and what the
     // checkout has to pre-fill, so both ride along from the one place they were typed.
@@ -574,8 +575,8 @@ export default function Hero() {
     // results page reads the dates it is given, and this says how firm those dates are.
     if (flexDays > 0) qs.set('flex', String(flexDays));
     // The results "Travel time" filter reads these as NIGHTS, so convert the band's day range.
-    qs.set('minNights', String(daysToNights(band.minDays)));
-    qs.set('maxNights', String(daysToNights(band.maxDays)));
+    qs.set('minNights', String(stayDaysToNights(band.minDays)));
+    qs.set('maxNights', String(stayDaysToNights(band.maxDays)));
     if (childAges.length) qs.set('childAges', childAges.join(','));
     if (childDobs.length) qs.set('childDobs', childDobs.join(','));
     // The traveller has just pressed search, so this party is their answer, not a draft:
@@ -598,8 +599,12 @@ export default function Hero() {
     // page's flight search. Origin rides even in own-transport mode so flipping to
     // "incl. flight" later starts from the airport picked here, not from the default.
     qs.set('transport', transport === 'package' ? 'package' : 'hotel_only');
-    qs.set('origin', origins[0] || DEFAULT_ORIGIN);
-    if (origins.length > 1) qs.set('origins', origins.join(','));
+    // No preference sends no airport: the results page reads a missing origin as "every
+    // active departure airport" (spec 3.2), not as Brussels.
+    if (!noPreference) {
+      qs.set('origin', chosenOrigins[0]);
+      if (chosenOrigins.length > 1) qs.set('origins', chosenOrigins.join(','));
+    }
 
     // The trip itself, kept for a week (utils/searchStore) so a holiday shopped over several
     // visits does not start from an empty form each time. The party is deliberately NOT
@@ -613,7 +618,7 @@ export default function Hero() {
       flexDays,
       duration,
       transport: transport === 'package' ? 'package' : 'hotel_only',
-      origins,
+      origins: noPreference ? [] : chosenOrigins,
     });
 
     return qs;
@@ -1007,11 +1012,11 @@ export default function Hero() {
   // "Flying from" field text: one airport reads as itself, several read as a count —
   // "4 airports" tells the traveller their whole selection is held, in space one name takes.
   const originsLabel = noPreference
-    ? t('hero.anyAirport', 'Any airport')
-    : origins.length === 1
-      ? `${airportCity(origins[0])} (${origins[0]})`
+    ? t('hero.transport.noPreference', 'No preference')
+    : chosenOrigins.length === 1
+      ? `${airportCity(chosenOrigins[0])} (${chosenOrigins[0]})`
       : t('hero.airportCount', {
-          count: origins.length,
+          count: chosenOrigins.length,
           defaultValue_one: '{{count}} airport',
           defaultValue_other: '{{count}} airports',
         });
@@ -1022,9 +1027,9 @@ export default function Hero() {
   const originsHint = transport === 'hotel_only'
     ? t('hero.noFlightHotelOnly', 'No flight, hotel only')
     : noPreference ? t('hero.allDepartureAirports', 'All departure airports')
-    : origins.length === 1 ? airportLabel(origins[0])
+    : chosenOrigins.length === 1 ? airportLabel(chosenOrigins[0])
     : t('hero.airportsSelected', {
-        count: origins.length,
+        count: chosenOrigins.length,
         defaultValue_one: '{{count}} airport selected',
         defaultValue_other: '{{count}} airports selected',
       });
@@ -1098,7 +1103,7 @@ export default function Hero() {
   // the terminal's name, because "Brussels BRU" says everything "Brussels Airport" does in
   // half the width, and the code is what distinguishes two airports of the same city.
   const airportRow = (a) => {
-    const on = origins.includes(a.code);
+    const on = !noPreference && chosenOrigins.includes(a.code);
     return (
       <button type="button" key={a.code} role="checkbox" aria-checked={on}
         title={a.label}
@@ -1258,7 +1263,7 @@ export default function Hero() {
                 </div>
                 <aside className={styles.tspSidebar}>
                   <div className={styles.tspSidebarTitle}>
-                    {t('hero.transport.yourSelection', 'Your selection')}{noPreference ? '' : ` (${origins.length})`}
+                    {t('hero.transport.yourSelection', 'Your selection')}{noPreference ? '' : ` (${chosenOrigins.length})`}
                   </div>
                   {/* Nineteen chips is not a summary of "anywhere" — it reads as a list the
                       traveller assembled by hand. One card says the same thing truthfully. */}
@@ -1268,13 +1273,13 @@ export default function Hero() {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
                       </span>
                       <div className={styles.tspChipMain}>
-                        <div className={styles.tspChipName}>No preference</div>
-                        <div className={styles.tspChipNote}>We'll search all available departure airports</div>
+                        <div className={styles.tspChipName}>{t('hero.transport.noPreference', 'No preference')}</div>
+                        <div className={styles.tspChipNote}>{t('hero.transport.noPreferenceNote', "We'll search all available departure airports")}</div>
                       </div>
                     </div>
                   ) : (
                   <div className={styles.tspSidebarList}>
-                    {origins.map((code) => {
+                    {chosenOrigins.map((code) => {
                       const a = airportByCode(code);
                       if (!a) return null;
                       return (
@@ -1292,8 +1297,7 @@ export default function Hero() {
                               name: a.label,
                               defaultValue: 'Remove {{name}}',
                             })}
-                            disabled={origins.length === 1}
-                          >
+                                  >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                           </button>
                         </div>
@@ -1313,7 +1317,7 @@ export default function Hero() {
                       {noPreference
                         ? t('hero.transport.noPreference', 'No preference')
                         : t('hero.airportsSelected', {
-                            count: origins.length,
+                            count: chosenOrigins.length,
                             defaultValue_one: '{{count}} airport selected',
                             defaultValue_other: '{{count}} airports selected',
                           })}
@@ -1339,7 +1343,7 @@ export default function Hero() {
                     type="button"
                     className={styles.tspClearAll}
                     onClick={clearOrigins}
-                    disabled={origins.length <= 1 && origins[0] === DEFAULT_ORIGIN}
+                    disabled={noPreference}
                   >
                     {t('hero.transport.clearAll', 'Clear all')}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>

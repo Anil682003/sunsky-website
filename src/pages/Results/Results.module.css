@@ -548,6 +548,11 @@
   color: var(--text-light); flex-shrink: 0;
 }
 .apRowOn .apCode { color: var(--blue-deep); }
+/* No flight from here to the one arrival picked (spec 3.7): still listed, greyed out, with why. */
+.apRowOff { opacity: 0.6; }
+.apRowOff input:disabled { cursor: not-allowed; }
+.apRowOff:has(input:disabled) { cursor: not-allowed; }
+.apReason { font-size: 11px; color: var(--text-light); font-style: italic; }
 .apHint { margin: 0 0 8px; font-size: 12px; color: var(--text-sec); }
 
 .originNote {
@@ -933,6 +938,11 @@
 /* What the fare covers: "8 days · 2 adults". */
 .rcPriceContext {
   font-size: 12px; font-weight: 500; color: var(--text-sec);
+}
+/* The concrete stay behind the price, "12 Oct → 19 Oct · 7 nights": shown while the search
+   allowed flexible dates, when "±3 days" alone would read as a range of prices. */
+.rcStayWindow {
+  font-size: 12px; font-weight: 700; color: var(--text);
 }
 /* "Incl. flight" reminder on every card: the fare above is hotel-only */
 .rcFlightNote {

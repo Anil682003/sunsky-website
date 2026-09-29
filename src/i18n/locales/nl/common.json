@@ -22,7 +22,11 @@
       "network": "We konden onze prijzen niet bereiken. Controleer je verbinding en probeer het opnieuw.",
       "rateLimited": "Te veel zoekopdrachten tegelijk. Wacht even en probeer het opnieuw.",
       "generic": "We konden dit nu niet controleren. Probeer het opnieuw."
-    }
+    },
+    "checkPrice": "Prijs controleren",
+    "notForSelection": "Niet beschikbaar voor jouw selectie",
+    "temporarilyUnavailable": "Beschikbaarheid tijdelijk niet op te halen",
+    "priceTemporarilyUnavailable": "Prijs tijdelijk niet op te halen"
   },
   "listing": {
     "count_one": "{{count}} vakantie gevonden",
@@ -249,5 +253,36 @@
     "cityCount_other": "{{count}} steden",
     "areaCount_one": "{{count}} regio",
     "areaCount_other": "{{count}} regio’s"
+  },
+  "offer": {
+    "included": "Inbegrepen",
+    "selected": "Geselecteerd",
+    "cheaper": "goedkoper",
+    "cheapest": "Goedkoopst",
+    "diffUp": "+€ {{amount}} p.p.",
+    "diffDown": "-€ {{amount}} p.p."
+  },
+  "localCosts": {
+    "payableToSunsky": "Te betalen aan SUNSKY € {{amount}}",
+    "mandatoryLocal": "Verplicht ter plaatse te betalen",
+    "totalKnown": "Totale bekende reiskosten € {{amount}}",
+    "uncertainRange": "{{cost}}, lokaal tarief ca. € {{min}}-€ {{max}} p.p. per nacht; het exacte bedrag wordt ter plaatse bepaald"
+  },
+  "feasibility": {
+    "notAvailableFrom": "Niet beschikbaar vanaf {{airport}}",
+    "earliestDeparture": "Vroegst mogelijke vertrekdatum: {{date}}",
+    "possibleDates_one": "{{count}} mogelijke vertrekdatum gevonden",
+    "possibleDates_other": "{{count}} mogelijke vertrekdata gevonden"
+  },
+  "routing": {
+    "nonstop": "Non-stop",
+    "throughStop": "Tussenlanding zonder overstap",
+    "oneConnection": "Maximaal één overstap"
+  },
+  "flightDetails": {
+    "details": "Vluchtdetails",
+    "baggage": "Bagage",
+    "notIncluded": "Niet inbegrepen",
+    "flightGone": "De gekozen vluchtoptie is niet meer beschikbaar"
   }
 }

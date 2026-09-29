@@ -161,7 +161,13 @@
     "priceFrom": "Van",
     "priceTo": "Tot",
     "availablePrices": "Beschikbare prijzen: {{from}} – {{to}}",
-    "clearPrice": "Wis prijsklasse"
+    "clearPrice": "Wis prijsklasse",
+    "noPreference": "Geen voorkeur",
+    "allDepartureAirports": "Alle vertrekluchthavens",
+    "airportsChecking": "We kijken welke luchthavens erheen vliegen…",
+    "airportsCheckFailed": "We konden nu niet nagaan welke luchthavens erheen vliegen, dus elke luchthaven blijft kiesbaar.",
+    "originNoteAny": "Bij elk hotel zie je de vertrekluchthaven met de laagste prijs. Vink luchthavens aan om alleen die te vergelijken.",
+    "airportNoFlight": "Geen vlucht naar {{place}} op deze data"
   },
   "hero": {
     "home": "Home",
@@ -171,7 +177,10 @@
     "findStay": "Vind jouw perfecte verblijf",
     "popularDestinations": "Populaire bestemmingen",
     "places": "{{count}} bestemmingen",
-    "inclFlightFrom": "Incl. vlucht · vanaf {{city}}"
+    "inclFlightFrom": "Incl. vlucht · vanaf {{city}}",
+    "inclFlightAny": "Incl. vlucht · vanaf elke luchthaven",
+    "inclFlightAirports_one": "Incl. vlucht · vanaf {{count}} luchthaven",
+    "inclFlightAirports_other": "Incl. vlucht · vanaf {{count}} luchthavens"
   },
   "toolbar": {
     "searching": "De beste deals zoeken…",
@@ -209,7 +218,10 @@
     "viewDeal": "Bekijk deal",
     "loadingMore": "Meer verblijven laden…",
     "endOfResults": "Je bent aan het einde. Alle {{count}} verblijven zijn getoond.",
-    "bestValue": "Beste prijs"
+    "bestValue": "Beste prijs",
+    "stayWindow_one": "{{from}} → {{to}} · {{count}} nacht",
+    "stayWindow_other": "{{from}} → {{to}} · {{count}} nachten",
+    "flightPricedLaterAny": "+ vlucht · prijs op de hotelpagina"
   },
   "lightbox": {
     "photosOf": "Foto’s van {{name}}",

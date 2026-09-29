@@ -16,6 +16,7 @@ import i18n from '../../i18n';
 import Confirmation from './Confirmation';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
+import { sellingEuros } from '../../utils/tripPrice';
 import './Checkout.css';
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
@@ -1127,7 +1128,10 @@ function CheckoutContent({ stripe, elements }) {
 
   const total = subtotal + insAmount;
   const animTotal = useCountUp(total);
-  const money = (n) => `${ccy}${Math.round(n).toLocaleString('en-US')}`;
+  // SUNSKY prices are whole euros, rounded UP (spec 2.3). Rounding to the NEAREST euro, as this
+  // did, could show less than the amount then charged (€501.40 read as €501); rounding up never
+  // does. The exact whole-euro charge itself comes with the API's own rounding.
+  const money = (n) => `${ccy}${(sellingEuros(n) ?? 0).toLocaleString('en-US')}`;
 
   /* ── scroll to top on step change + reveal anims ── */
   useEffect(() => {

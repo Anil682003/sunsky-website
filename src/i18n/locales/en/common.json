@@ -22,7 +22,11 @@
       "network": "We couldn’t reach our prices. Check your connection and try again.",
       "rateLimited": "Too many searches at once. Wait a few seconds, then try again.",
       "generic": "We couldn’t check this just now. Please try again."
-    }
+    },
+    "checkPrice": "Check price",
+    "notForSelection": "Not available for your selection",
+    "temporarilyUnavailable": "Availability temporarily unavailable",
+    "priceTemporarilyUnavailable": "Price temporarily unavailable"
   },
   "listing": {
     "count_one": "{{count}} holiday found",
@@ -249,5 +253,36 @@
     "cityCount_other": "{{count}} cities",
     "areaCount_one": "{{count}} area",
     "areaCount_other": "{{count}} areas"
+  },
+  "offer": {
+    "included": "Included",
+    "selected": "Selected",
+    "cheaper": "cheaper",
+    "cheapest": "Cheapest",
+    "diffUp": "+€ {{amount}} p.p.",
+    "diffDown": "-€ {{amount}} p.p."
+  },
+  "localCosts": {
+    "payableToSunsky": "Payable to SUNSKY € {{amount}}",
+    "mandatoryLocal": "Mandatory payment locally",
+    "totalKnown": "Total known cost of the trip € {{amount}}",
+    "uncertainRange": "{{cost}}, local rate approx. € {{min}}-€ {{max}} p.p. per night; exact amount determined locally"
+  },
+  "feasibility": {
+    "notAvailableFrom": "Not available from {{airport}}",
+    "earliestDeparture": "Earliest possible departure: {{date}}",
+    "possibleDates_one": "{{count}} possible departure date found",
+    "possibleDates_other": "{{count}} possible departure dates found"
+  },
+  "routing": {
+    "nonstop": "Non-stop",
+    "throughStop": "Stop without connection",
+    "oneConnection": "Maximum one connection"
+  },
+  "flightDetails": {
+    "details": "Flight details",
+    "baggage": "Baggage",
+    "notIncluded": "Not included",
+    "flightGone": "The selected flight option is no longer available"
   }
 }
