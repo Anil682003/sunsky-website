@@ -444,7 +444,10 @@
     "tryDifferentDate": "Probeer een andere vertrekdatum of pas je zoekcriteria aan.",
     "yourCurrentSelection": "Jouw huidige selectie",
     "yourDates": "jouw data",
-    "yourHoliday": "Jouw vakantie"
+    "yourHoliday": "Jouw vakantie",
+    "checkLivePriceTitle": "Bekijk de actuele prijs",
+    "livePricedTitle": "Dit verblijf krijgt een actuele prijs.",
+    "livePricedText": "Voor deze data hebben we geen opgeslagen prijs — controleer hieronder en de aanbieder geeft de echte prijs voor jouw gezelschap."
   },
   "rooms": {
     "allTaxesIncluded": "Alle prijzen zijn inclusief belastingen en kosten.",

@@ -444,7 +444,10 @@
     "tryDifferentDate": "Please try a different departure date or adjust your search criteria.",
     "yourCurrentSelection": "Your current selection",
     "yourDates": "your dates",
-    "yourHoliday": "Your holiday"
+    "yourHoliday": "Your holiday",
+    "checkLivePriceTitle": "Check the live price",
+    "livePricedTitle": "This stay is priced live.",
+    "livePricedText": "We don’t hold a cached price for these dates — check below and the supplier quotes the real price for your party."
   },
   "rooms": {
     "allTaxesIncluded": "All prices include taxes, fees and charges.",

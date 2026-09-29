@@ -956,6 +956,16 @@
   font-size: 14px; font-weight: 700; color: var(--text-sec);
   align-self: flex-start; margin-top: 4px; letter-spacing: 0;
 }
+/* No cached price: the hotel came from the live supplier check, which is asked WITHOUT prices.
+   Deliberately quieter than .rcPriceAmount — it is a prompt, not a figure to compare. */
+.rcPriceAsk {
+  font-family: 'Sora', sans-serif;
+  font-size: 17px; font-weight: 700;
+  color: var(--blue-deep); line-height: 1.25;
+  letter-spacing: -0.2px;
+  margin-top: 6px;
+}
+
 /* Caption under the fare: the amount shown IS the per-person price. */
 .rcPricePer {
   font-size: 12px; font-weight: 500; color: var(--text-sec);
@@ -978,6 +988,13 @@
 }
 .rcCta:hover { filter: brightness(1.06); }
 .rcCta:focus-visible { outline: 3px solid var(--blue-deep); outline-offset: 3px; }
+/* The live-price CTA carries a far longer label than "View Deal" — longer still in Dutch, "Klik
+   voor actuele prijzen" — and `nowrap` cut it off. This one variant may wrap to two lines;
+   every other card keeps its single-line button. */
+.rcCtaLive {
+  white-space: normal; text-align: center; line-height: 1.25;
+  padding-left: 16px; padding-right: 16px;
+}
 .rcCta svg { transition: transform 0.2s var(--ease); }
 .rcCta:hover svg { transform: translateX(3px); }
 
@@ -1055,6 +1072,12 @@
   text-align: center; padding: 28px 0 12px;
   font-size: 13px; font-weight: 600; color: var(--text-sec);
   border-top: 1px solid #eef3fb; margin-top: 8px;
+}
+/* Second line under the end-of-results count: the live supplier check, either still running or
+   reporting the extra stays appended below. */
+.endOfResultsNote {
+  margin-top: 6px;
+  font-size: 12.5px; font-weight: 600; color: var(--blue-deep);
 }
 
 /* ════════ Empty states ════════ */
