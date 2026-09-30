@@ -524,7 +524,7 @@ A price is **not** required. A schedule alone, or a one-way without a return, do
 
 - [ ] Main price follows 2.4.
 - [ ] Flight + Hotel cards also show the local outbound departure date, the exact trip duration and the departure airport, all from the same winning package.
-- [ ] Hotel Only cards show the stay window (check-in date and nights) when the search spans several dates or durations.
+- [x] Hotel Only cards show the stay window (check-in date and nights) when the search spans several dates or durations.
 - [ ] Show "Check price" with no amount when availability is proven but there is no reliable price. This includes W2M-only hotels before a live check.
   - Never borrow a Hotelbeds cache price for a W2M-only hotel.
 - [ ] Show "View available dates" when only shorter-than-minimum trips exist (2.6).
@@ -1153,22 +1153,22 @@ These can be built against what the site already receives. This is the realistic
 - [ ] While `CHECKING`, keep the customer's choices on screen, and never show a previously confirmed price as the price of a new selection (2.1).
 - [ ] "Show more" button, +20 each time, instead of infinite scroll (3.8).
 - [ ] Count label "N holidays found" / "N holidays in {place}", with a calculating state and no guessed number (3.8).
-- [ ] Stop defaulting to a price sort (3.8). The stable-random order itself is 9.2.
+- [x] Stop defaulting to a price sort (3.8). The stable-random order itself is 9.2.
 - [ ] `/results` defaults to Flight + Hotel, not Hotel Only (3.2).
-- [ ] Main price: "From EUR X p.p." only at exactly 2 adults + 1 room, otherwise the total (2.4).
+- [x] Main price: "From EUR X p.p." only at exactly 2 adults + 1 room, otherwise the total (2.4).
 - [ ] Remove every silent reset of a customer choice, and audit the sidebar handlers for auto-corrections (2.7).
 - [ ] When the combined filters give nothing, say so. Never switch a filter off by itself (3.8).
-- [ ] The "Cheapest" badge comes only from a known total; a "Check price" hotel never wins it (3.9).
-- [ ] Hotel Only cards show the stay window when the search spans several dates or durations (3.9).
+- [x] The "Cheapest" badge comes only from a known total; a "Check price" hotel never wins it (3.9).
+- [x] Hotel Only cards show the stay window when the search spans several dates or durations (3.9).
 
 **Homepage and airport selectors** `WEB`
 
-- [ ] Departure airports default to all active airports, shown as "No preference", not BRU (3.2).
+- [x] Departure airports default to all active airports, shown as "No preference", not BRU (3.2).
 - [ ] The seed fallback list can never offer an airport the dashboard has deactivated (3.6).
 - [ ] Infeasible airports stay visible but disabled with a reason, instead of being hidden (3.7).
   - Only a proven zero disables. Unknown shows a checking or error state, never "no flight".
   - The data for this already exists: `GET /api/flight-availability/departure-airports`.
-- [ ] Remove the automatic routing preference ("direct at any price wins", `MAX_STOPS = 2`) (3.6).
+- [x] Remove the automatic routing preference ("direct at any price wins", `MAX_STOPS = 2`) (3.6).
   - The replacement classification is backend work and is in 9.2.
 - [ ] When a filter removes the explicitly chosen flight, say so and ask for a new choice. Never replace it automatically (3.6).
 
@@ -1177,19 +1177,19 @@ These can be built against what the site already receives. This is the realistic
 Scope limit: the client froze this page's look on 2026-09-25. Everything here is failure
 handling, not layout. Anything visual is in 9.3.
 
-- [ ] Route every catch through the shared state machine so the cause survives (2.1).
-- [ ] Rooms that come back without a price are "Check price", not absent. Today `.filter(r => r.price != null)` drops them, so a hotel with rooms and no rates reads as sold out (2.1).
-- [ ] On a failed check: the new choice stays visible, no bookable price is claimed, a retry appears, and an unavailable cell never starts a live check (2.1).
+- [x] Route every catch through the shared state machine so the cause survives (2.1).
+- [x] Rooms that come back without a price are "Check price", not absent. Today `.filter(r => r.price != null)` drops them, so a hotel with rooms and no rates reads as sold out (2.1).
+- [x] On a failed check: the new choice stays visible, no bookable price is claimed, a retry appears, and an unavailable cell never starts a live check (2.1).
 
 **Shared helpers and wording** `WEB`
 
-- [ ] Matrix per-person helper: `ceil(rounded total / non-infant travellers)`, unit-tested against the spec's table (2.4).
-- [ ] Block an infants-only party: `non_infant_count` must be at least 1 (2.4).
-- [ ] Whole euros for SUNSKY prices; local costs keep their cents (2.3).
-- [ ] Split day counting per product. `days = nights + 1` is right for Hotel Only only; package travel days run outbound departure to return departure (3.4).
-- [ ] 29 travel days is the ceiling everywhere, so Hotel Only allows at most 28 nights (3.4).
+- [x] Matrix per-person helper: `ceil(rounded total / non-infant travellers)`, unit-tested against the spec's table (2.4).
+- [x] Block an infants-only party: `non_infant_count` must be at least 1 (2.4).
+- [x] Whole euros for SUNSKY prices; local costs keep their cents (2.3).
+- [x] Split day counting per product. `days = nights + 1` is right for Hotel Only only; package travel days run outbound departure to return departure (3.4).
+- [x] 29 travel days is the ceiling everywhere, so Hotel Only allows at most 28 nights (3.4).
 - [ ] Optional extras count only once the customer explicitly selects them (2.2).
-- [ ] The 30 new UI strings, EN and NL (3.13).
+- [x] The 30 new UI strings, EN and NL (3.13).
 
 **Already done this week**
 
