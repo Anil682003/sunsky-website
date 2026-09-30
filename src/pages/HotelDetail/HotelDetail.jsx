@@ -7,6 +7,7 @@ import { useSelector } from 'react-redux';
 import axiosInstance, { SUPPLIER_TIMEOUT } from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { rememberDestCode } from '../../utils/favDest';
+import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/priceRounding';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount, NO_BOARD_LABEL } from '../../utils/roomBoards';
@@ -1794,6 +1795,8 @@ export default function HotelDetail() {
   const sAdults   = String(ovr.adults   ?? state?.adults   ?? (qp('adults')   || storedPax?.adults   || '2'));
   const sChildren = String(ovr.children ?? state?.children ?? (qp('children') || storedPax?.children || '0'));
   const sRooms    = String(ovr.rooms ?? state?.rooms  ?? (qp('rooms')  || storedPax?.rooms  || '1'));
+  // Rooms booked — the whole-euro rounding unit is one room's stay (rule 10, utils/priceRounding).
+  const roomsCount = Math.max(1, parseInt(sRooms, 10) || 1);
   // Numeric party size, for the places that recap the search back to the traveller rather than
   // send it to a supplier. Defaults match sAdults/sChildren/sRooms above.
   const availAdults   = Number(sAdults)   || 2;
@@ -2236,7 +2239,7 @@ export default function HotelDetail() {
       const c = byDate[iso];
       // A day the cache hasn't costed comes back null; 0 is the page's word for "no price
       // yet", which the strip renders as "Check live price".
-      return { iso, day: calDay(iso), date: calDate(iso), price: Math.round(c?.price ?? 0), currency: c?.currency || 'EUR', nights };
+      return { iso, day: calDay(iso), date: calDate(iso), price: roundHotelStay(c?.price ?? 0, roomsCount), currency: c?.currency || 'EUR', nights };
     })
     : [];
   // Why the strip is empty, so the copy can say something true.
@@ -2269,7 +2272,7 @@ export default function HotelDetail() {
   const pd = (pickedISO && Object.keys(byDate).length)
     ? {
       iso: pickedISO, day: calDay(pickedISO), date: calDate(pickedISO),
-      price: Math.round(pickedEntry?.price ?? 0), currency: pickedEntry?.currency || 'EUR',
+      price: roundHotelStay(pickedEntry?.price ?? 0, roomsCount), currency: pickedEntry?.currency || 'EUR',
       lowest: !!pickedEntry?.isLowest, nights,
     }
     : null;
@@ -2307,7 +2310,7 @@ export default function HotelDetail() {
     return null;
   })();
   // Per person — the calendar prices a whole stay for the whole party.
-  const fromPP = stayFrom != null ? Math.round(stayFrom / paxCount) : null;
+  const fromPP = stayFrom != null ? perPersonFrom(stayFrom, paxCount) : null;
 
   // ── the meal plans that exist on the SELECTED day ────────────────────────────
   // Live availability is authoritative but it is a SUPPLIER hit, made only when the traveller
@@ -2482,9 +2485,12 @@ export default function HotelDetail() {
   // subtraction is done on the ROUNDED figures actually printed, so "€286 → €305, €19 higher"
   // adds up on screen rather than to a hidden third decimal.
   const cacheWas = pdEstimate ? Number(pd.price) : null;
-  const liveNow = liveRoom ? Math.round(liveRoom.price) : null;
+  // The live price is rounded by the SAME whole-euro rule as the cache figure it is compared
+  // with (rule 10). Nearest-rounding here against a cache that rounds up would report a false
+  // "€1 lower" on most stays.
+  const liveNow = liveRoom ? roundHotelStay(liveRoom.price, roomsCount) : null;
   /** One traveller's share in whole euros — for the strip, where a bar is 9px of type wide. */
-  const ppOf = (total) => (total != null ? Math.round(total / paxCount) : null);
+  const ppOf = (total) => (total != null ? perPersonFrom(total, paxCount) : null);
   // The move on the CARD's basis (party total) and on the STRIP's basis (per person). Null
   // when there is nothing honest to compare: no live answer yet, or a day the cache never
   // costed, where there is no earlier price to have moved from.
@@ -2526,13 +2532,15 @@ export default function HotelDetail() {
     return [
       { id: '', label: boardPrefLabel('', 'No preference') },
       ...offered.filter((b) => b.price != null)
-        .map((b) => ({ id: b.id, label: boardPrefLabel(b.id, b.label), note: t('stayBar.fromPrice', { ccy, amount: Math.round(b.price), defaultValue: `from ${ccy}${Math.round(b.price)}` }) })),
+        .map((b) => ({ id: b.id, label: boardPrefLabel(b.id, b.label), note: t('stayBar.fromPrice', { ccy, amount: roundHotelStay(b.price, roomsCount), defaultValue: `from ${ccy}${roundHotelStay(b.price, roomsCount)}` }) })),
       // A board the traveller has chosen that these dates don't offer stays visible and
       // labelled, so the list never silently drops the option they are looking at.
       ...offered.filter((b) => b.price == null && b.id === boardPref)
         .map((b) => ({ id: b.id, label: boardPrefLabel(b.id, b.label), note: t('stayBar.notOnTheseDates', 'not on these dates') })),
     ];
-  }, [boardsKnown, allRoomGroups, boardPref, ccy, dateBoards, t]);
+  }, [boardsKnown, allRoomGroups, boardPref, ccy, dateBoards, t, roomsCount]);
+  // Counted over the list that is RENDERED, which includes rooms that came back without a
+  // price. Counting roomGroups (priced only) would report fewer boards than are on screen.
   const nBoards = useMemo(() => boardCount(listGroups), [listGroups]);
 
   // Per-rate facts for the cards: board wording, occupancy, per-night / per-guest splits and
@@ -2719,7 +2727,12 @@ export default function HotelDetail() {
 
   // Hotel + flight only. The airport transfer is priced and added at the checkout now, so
   // this page never quotes a total that includes something it does not sell.
-  const liveTotal = liveRoom && !flightBlocked ? Math.round((liveRoom.price || 0) + (liveFlight?.totalPrice || 0)) : null;
+  // Whole euros (rule 10): a package rounds hotel + flight once; hotel only rounds per room.
+  // The flightBlocked guard stays: with a failed or unpriced flight check there is no package
+  // to quote, and the room price alone presented as a trip total is the wrong number.
+  const liveTotal = liveRoom && !flightBlocked
+    ? roundStayTotal(liveRoom.price || 0, liveFlight?.totalPrice || 0, roomsCount)
+    : null;
   const displayTotal = liveTotal != null ? liveTotal : stayFrom;
   // live-aware overview card numbers (hotel+flight base; transfer & SGR listed separately)
   const ovPax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
@@ -2787,6 +2800,7 @@ export default function HotelDetail() {
 
   // The same figure as `liveTotal`, so the overview can never quote a package the rest of the
   // page refuses to book (a failed or unpriced flight check, or a flight still to be chosen).
+  // Recomputing the rounding here would just be a second chance to disagree with it.
   const ovBase = liveTotal;
 
   // ── shared flight fetch (used on mount + day-click + airport/transport switches) ──
@@ -3161,15 +3175,17 @@ export default function HotelDetail() {
     const checkout = pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut;
     // ppPrice covers hotel+flight only — the transfer is priced PER VEHICLE and is
     // added by the checkout as its own line (never multiplied by travellers).
-    // EXACT sum (no rounding) — this is what the backend will charge.
+    // WHOLE-EURO total (rule 10) — this is what the backend will charge: it applies the same
+    // rounding (sunsky-admin priceValidation) to the supplier's re-priced amount. A package
+    // rounds hotel + flight once; hotel only rounds per room stay.
     // Without a live rate the stay total is whatever the page is quoting — the picked day or
     // the cheapest day in the calendar (`stayFrom`), NOT the total the results card arrived
     // with, which may price a search the traveller has since edited.
     const total = useLive
-      ? (liveRoom.price || 0) + (liveFlight?.totalPrice || 0)
-      : (stayFrom != null ? stayFrom : 0);
-    // EXACT per-person value — checkout multiplies back by pax, so any rounding
-    // here would make the displayed total drift ±€1/pax from the amount charged.
+      ? roundStayTotal(liveRoom.price || 0, liveFlight?.totalPrice || 0, roomsCount)
+      : (stayFrom != null ? roundHotelStay(stayFrom, roomsCount) : 0);
+    // Per-person share of that total, NOT rounded again — checkout multiplies back by pax,
+    // so rounding here would make the displayed total drift from the amount charged.
     const perPerson = Math.max(0.01, total / pax);
 
     // Only a room that was really returned by availability. Naming a demo room ("Double Room
@@ -3274,7 +3290,10 @@ export default function HotelDetail() {
               // World2Meet bookable identity (opaque BookingCode + its HotelCode).
               bookingCode: useLive ? (liveRoom.bookingCode || null) : null,
               w2mHotelCode: useLive ? (liveRoom.w2mHotelCode || null) : null,
+              // EXACT supplier price: the server re-prices against it (tamper check), then
+              // rounds the charge itself — the rounding is never taken from the client.
               price: useLive ? liveRoom.price : total, currency: ccy,
+              rooms: roomsCount,
             },
             flight: (useLive && liveFlight)
               ? {
@@ -4346,7 +4365,7 @@ export default function HotelDetail() {
                             const isCheapest = b.index === cheapestIndex;
                             // Against the cheapest board of THIS room — a like-for-like comparison
                             // the traveller is actually making on screen.
-                            const extra = b.price - g.cheapest.price;
+                            const extra = roundHotelStay(b.price, roomsCount) - roundHotelStay(g.cheapest.price, roomsCount);
                             // Per-person delta for the "+€X p.p." pill. Divide by the party size
                             // (adults + children) the search was priced for; a missing count
                             // falls back to the total so the number is never inflated.
@@ -4399,7 +4418,7 @@ export default function HotelDetail() {
                                     </>
                                   ) : (
                                     <div className="room-price-pill">
-                                      {ccy}{Math.round(b.price).toLocaleString('en-GB')}
+                                      {ccy}{roundHotelStay(b.price, roomsCount).toLocaleString('en-GB')}
                                     </div>
                                   )}
                                 </div>

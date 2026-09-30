@@ -16,7 +16,10 @@ import i18n from '../../i18n';
 import Confirmation from './Confirmation';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
+// Both, and they do different jobs: roundStayTotal rounds a whole package once (rule 10),
+// sellingEuros is the display rounding every SUNSKY price on screen goes through.
 import { sellingEuros } from '../../utils/tripPrice';
+import { roundStayTotal } from '../../utils/priceRounding';
 import './Checkout.css';
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
@@ -954,8 +957,14 @@ function CheckoutContent({ stripe, elements }) {
   // fixed for the life of the page, and a ref read during render is not.
   const quotedNow = quote.hotel + quote.flight;
   const quotedThen = (Number(booking.api?.hotel?.price) || 0) + (Number(booking.api?.flight?.price) || 0);
+  // A re-priced quote is exact supplier money; a stay that includes a hotel is charged in whole
+  // euros (rule 10, the same rounding the server applies), so it is rounded here too. A
+  // flight-only quote is not a stay and stays exact.
+  const repriced = booking.api?.hotel
+    ? roundStayTotal(quote.hotel, quote.flight, booking.api.hotel.rooms ?? booking.search?.rooms ?? 1)
+    : quotedNow;
   const base = isTransfer ? booking.ppPrice
-    : quotedNow !== quotedThen ? quotedNow
+    : quotedNow !== quotedThen ? repriced
     : booking.ppPrice * pax;
   const roomExtraTotal = (booking.roomExtra || 0) * pax;
   // Package add-on: the airport transfer, chosen HERE (extras step) and priced per vehicle,

@@ -30,6 +30,7 @@ import { earliestCheckInISO } from '../../utils/leadTime';
 import { normaliseOrigin, parseOrigins, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { useToast } from '../../context/ToastContext';
+import { roundHotelStay, roundPackage, perPersonFrom } from '../../utils/priceRounding';
 import styles from './Results.module.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -822,7 +823,10 @@ export default function Results() {
   const [boardFacets, setBoardFacets] = useState({});
   // Travel-time filter: { nights: priced-hotel count } for each day option (loaded in background).
   const [durationCounts, setDurationCounts] = useState({});
-  const [liked, setLiked]             = useState({});
+  // Set when page 1 of a search lands: { reqId }. The counts wait for it, so the
+  // search the user is looking at never shares the server with five background searches.
+  const [page1Done, setPage1Done] = useState(null);
+  const [liked, setLiked]            = useState({});
   const isAuth = useSelector((s) => s.auth?.isAuthenticated);
   const { showToast } = useToast();
   const [drawerOpen, setDrawerOpen]   = useState(false);
@@ -1404,6 +1408,7 @@ export default function Results() {
         setLoading(false);
         setFiltering(false);
         setPendingSearch(false);
+        setPage1Done({ reqId });
       })
       .catch((err) => {
         if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
@@ -1425,9 +1430,22 @@ export default function Results() {
   // duration, like the reference site's "Travel time" filter. Non-blocking: options render
   // immediately and each count fills in as its request returns. Re-runs when the search context
   // (scope, departure, occupancy, filters) changes so the counts stay honest.
+  //
+  // They start only once page 1 of the CURRENT search has landed (`page1Done` carries that
+  // search's reqId; the page-1 effect above runs first and bumps the ref, so a stale marker never
+  // matches). Fired alongside page 1 they were five extra cold searches competing with the one
+  // the user is waiting on.
+  //
+  // The selected stay length is still asked for, not read off page 1: for a single destination
+  // the cache prices only pageSize hotels, so page 1's `total` is the short one and would sit
+  // next to full totals for the other lengths.
   const appliedKey = JSON.stringify(applied);
   useEffect(() => {
     if (!priceScope || !priceScope.destinations.length || !dayOptions.length || !fetchParams.checkIn) {
+      setDurationCounts({});
+      return;
+    }
+    if (!page1Done || page1Done.reqId !== reqIdRef.current) {
       setDurationCounts({});
       return;
     }
@@ -1444,7 +1462,7 @@ export default function Results() {
     });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priceScopeKey, fetchParams.checkIn, fetchParams.adults, fetchParams.children, fetchParams.rooms, fetchParams.childAges, appliedKey, urlDuration]);
+  }, [priceScopeKey, fetchParams.checkIn, fetchParams.adults, fetchParams.children, fetchParams.rooms, fetchParams.childAges, appliedKey, urlDuration, page1Done]);
 
   // Load next page from API
   const loadMore = useCallback(() => {
@@ -2693,13 +2711,15 @@ export default function Results() {
                 const curImg    = gallery.length ? gallery[imgIdx] : dispImg;
                 // Headline price is PER PERSON — that's the figure a traveller compares and the
                 // one that stays meaningful on a package (the total here excludes the live flight).
-                // Prefer the cache's `perPerson` (computed against the searched occupancy incl.
-                // children); fall back to total ÷ party size only if it's missing.
-                const total = Number(h.totalAmount);
+                // Whole euros (rule 10): the stay rounds up per room, per person is derived from
+                // that and rounded up again. Worked out from the EXACT stay total so the card is
+                // right whichever cache version is answering, and so a package below rounds once.
                 const partySize = Math.max(1, (Number(fetchParams.adults) || 0) + (Number(fetchParams.children) || 0));
-                const perPersonVal = Number.isFinite(Number(h.perPerson)) && Number(h.perPerson) > 0
-                  ? Number(h.perPerson)
-                  : (Number.isFinite(total) ? total / partySize : NaN);
+                const roomsN = Math.max(1, Number(fetchParams.rooms) || 1);
+                const exactStay = Number(h.totalAmountUnrounded ?? h.totalAmount);
+                const perPersonVal = Number.isFinite(exactStay) && exactStay > 0
+                  ? perPersonFrom(roundHotelStay(exactStay, roomsN), partySize)
+                  : NaN;
                 // Package from-price (§33): with "Incl. flight" on, if a cached flight fare exists
                 // for this hotel's arrival airport, the headline becomes hotel + flight per person —
                 // never hotel-only. Cheapest arrival is used when the destination has several. Falls
@@ -2718,8 +2738,10 @@ export default function Results() {
                 }
                 const adultsForFare = Math.max(1, Number(fetchParams.adults) || 1);
                 const flightPerPerson = flightFare ? flightFare.price / adultsForFare : null;
-                const packagePerPerson = (isPackage && flightPerPerson != null && Number.isFinite(perPersonVal))
-                  ? perPersonVal + flightPerPerson
+                // A package is rounded ONCE, as a whole: exact hotel + the party's flight, then
+                // per person. The flight is the same per-person fare for every traveller, as before.
+                const packagePerPerson = (isPackage && flightPerPerson != null && Number.isFinite(exactStay) && exactStay > 0)
+                  ? perPersonFrom(roundPackage(exactStay, flightPerPerson * partySize), partySize)
                   : null;
                 const shownPerPerson = packagePerPerson != null ? packagePerPerson : perPersonVal;
                 // Is the price on this card a KNOWN total (spec 3.9)? Hotel Only: the cache's
@@ -2728,7 +2750,10 @@ export default function Results() {
                 // page", so its trip total is unknown, the spec's "Check price".
                 const priceKnown = isPackage
                   ? packagePerPerson != null
-                  : Number.isFinite(total) && total > 0;
+                  // `exactStay`, not the old `total`: the whole-euro rounding work renamed it,
+                  // and this line arrived from a parallel branch that still referenced the old
+                  // name. Same guard the per-person figure above already uses.
+                  : Number.isFinite(exactStay) && exactStay > 0;
                 // The stay this card's price belongs to: the contract's own nights when it sent
                 // them, else the searched dates. Shown on Hotel Only cards while the search asked
                 // for flexible dates, so "±3 days" never reads as a range of prices.
