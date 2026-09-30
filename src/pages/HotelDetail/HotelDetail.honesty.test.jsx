@@ -292,6 +292,23 @@ describe('checkout is only reachable with a real quote', () => {
   });
 
   it('lets a checked booking through to payment', async () => {
+    // A checked PACKAGE is a priced room AND a priced flight. The default mock answers the flight
+    // search with an empty body, which the page reads (rightly) as a flight check that failed,
+    // and a failed check claims no bookable price (spec 2.1). So this one serves a real fare.
+    const leg = (from, to, day, hh) => ({
+      from, to, airline: 'TK', flightNumber: `${hh}`, departure: `${day}T${hh}:00:00`, arrival: `${day}T${hh + 4}:00:00`, duration: 240,
+    });
+    const fare = {
+      totalPrice: 620, currency: 'EUR', flightKeys: ['f1'],
+      outbound: { legs: [leg('BRU', 'AYT', iso(27), 9)] },
+      inbound: { legs: [leg('AYT', 'BRU', iso(34), 14)] },
+    };
+    post.mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('hotel-availability')) return Promise.resolve({ data: { results: { hotelbeds: { rooms: RATES } } } });
+      if (u.includes('flight-availability')) return Promise.resolve({ data: { results: { airtuerk: { flights: [fare] } } } });
+      return Promise.resolve({ data: {} });
+    });
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);

@@ -195,12 +195,19 @@
       "autoSelected": "Automatisch gekozen voor jouw reisdata.",
       "bestPrice": "Beste prijs",
       "moreThanCheapest": "€{{amount}} meer dan de goedkoopste optie voor deze data.",
+      "pickedByYou": "Je hebt deze vlucht zelf gekozen.",
       "pickedOverCheapest": "Je koos deze in plaats van het goedkoopste tarief.",
       "yourChoice": "Jouw keuze",
       "yourFlights": "Jouw vluchten"
     },
     "checkingNearbyAirports": "Vertrekluchthavens in de buurt worden gecontroleerd…",
     "checkingOtherAirports": "Prijzen vanaf andere luchthavens worden gecontroleerd…",
+    "choice": {
+      "chooseFlight": "Kies een vlucht",
+      "gone": "De gekozen vluchtoptie is niet meer beschikbaar. Kies een andere vlucht.",
+      "noneMatch": "Geen enkele vlucht past bij je filters. Pas de filters aan om een vlucht te kiezen.",
+      "offFilters": "Je gekozen vlucht past niet meer bij je filters. Kies een andere vlucht of pas de filters aan."
+    },
     "chooseAnother_one": "Kies een andere vlucht · {{count}} optie",
     "chooseAnother_other": "Kies een andere vlucht · {{count}} opties",
     "continueWithoutFlights": "Doorgaan zonder vluchten",
@@ -468,6 +475,7 @@
     "bestPricedTitle": "Best geprijsde optie in deze kamer",
     "boardOptionsSuffix_one": " · {{count}} verzorgingsoptie",
     "boardOptionsSuffix_other": " · {{count}} verzorgingsopties",
+    "checkPrice": "Prijs controleren",
     "childrenSuffixDot_one": " · {{count}} kind",
     "childrenSuffixDot_other": " · {{count}} kinderen",
     "chooseYourRoom": "Kies je kamer",

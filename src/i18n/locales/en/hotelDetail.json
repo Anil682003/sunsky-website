@@ -195,12 +195,19 @@
       "autoSelected": "Automatically selected for your travel dates.",
       "bestPrice": "Best price",
       "moreThanCheapest": "€{{amount}} more than the cheapest option for these dates.",
+      "pickedByYou": "You chose this flight yourself.",
       "pickedOverCheapest": "You picked this one over the cheapest fare.",
       "yourChoice": "Your choice",
       "yourFlights": "Your flights"
     },
     "checkingNearbyAirports": "Checking nearby departure airports…",
     "checkingOtherAirports": "Checking prices from other airports…",
+    "choice": {
+      "chooseFlight": "Choose a flight",
+      "gone": "The selected flight option is no longer available. Choose another flight.",
+      "noneMatch": "No flight matches your filters. Change the filters to choose a flight.",
+      "offFilters": "Your chosen flight no longer matches your filters. Choose another flight or change the filters."
+    },
     "chooseAnother_one": "Choose another flight · {{count}} option",
     "chooseAnother_other": "Choose another flight · {{count}} options",
     "continueWithoutFlights": "Continue without flights",
@@ -468,6 +475,7 @@
     "bestPricedTitle": "Best-priced option in this room",
     "boardOptionsSuffix_one": " · {{count}} board option",
     "boardOptionsSuffix_other": " · {{count}} board options",
+    "checkPrice": "Check price",
     "childrenSuffixDot_one": " · {{count}} child",
     "childrenSuffixDot_other": " · {{count}} children",
     "chooseYourRoom": "Choose your room",
