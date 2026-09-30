@@ -108,6 +108,7 @@ const PAGE = 20;
 
 // Records every request the component made, so tests can assert the exact contract.
 let calls = [];
+let bulkBodies = [];   // JSON bodies sent to /hotels/bulk
 let latency = () => 0;          // per-URL delay, for race-condition tests
 let internalSource = () => false;
 
@@ -186,6 +187,7 @@ function cheapest(qs) {
 
 beforeEach(() => {
   calls = [];
+  bulkBodies = [];
   facetCalls.length = 0;
   facetLists = NO_FACETS;
   latency = () => 0;
@@ -193,6 +195,7 @@ beforeEach(() => {
   globalThis.fetch = vi.fn((url, opts) => {
     const u = String(url);
     if (u.includes('/hotels/bulk')) {
+      bulkBodies.push(JSON.parse(opts?.body || '{}'));
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
     }
     const qs = new URL(u).searchParams;
@@ -770,6 +773,18 @@ describe('price basis', () => {
     await waitFor(() => {
       expect(Number(slider('Maximumprijs').max)).toBeLessThan(totalCeiling);
     });
+  });
+});
+
+describe('hotel info for the cards', () => {
+  it('asks /hotels/bulk for the card view of the hotels on screen', async () => {
+    renderResults();
+    await settled();
+    await waitFor(() => expect(bulkBodies.length).toBeGreaterThan(0));
+    for (const b of bulkBodies) {
+      expect(b.view).toBe('card');
+      expect(b.hotelCodes.length).toBeGreaterThan(0);
+    }
   });
 });
 

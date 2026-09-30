@@ -1490,7 +1490,10 @@ export default function Results() {
       try {
         const res = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hotelCodes: need }),
+          // Card view: only what a card reads (name, stars, place, photos, facility names,
+          // review) — not every room, phone and description. The detail page asks for the
+          // full record itself.
+          body: JSON.stringify({ hotelCodes: need, view: 'card' }),
         });
         if (res.ok) {
           const data = await res.json();
