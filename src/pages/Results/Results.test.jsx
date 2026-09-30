@@ -773,6 +773,47 @@ describe('price basis', () => {
   });
 });
 
+describe('travel-time counts wait for page 1', () => {
+  const durationCounts = () => calls.filter(isDurationCount);
+
+  it('fires no count until the search the user is waiting on has landed', async () => {
+    latency = (qs) => (isDurationCount(qs) ? 0 : 400);
+    renderResults();
+    await waitFor(() => expect(mainSearches()).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 200));      // page 1 still in flight
+    expect(durationCounts()).toHaveLength(0);
+
+    await settled();
+    await waitFor(() => expect(durationCounts().length).toBeGreaterThan(0));
+  });
+
+  it('still counts the selected stay length with its own request, after page 1', async () => {
+    // Page 1's total is priced to pageSize for a single destination, so it is the short total.
+    renderResults();   // 15 → 18 Aug, 3 nights
+    await settled();
+    await waitFor(() => expect(durationCounts().map((c) => c.get('checkOut'))).toContain('2026-08-18'));
+    const page1At = calls.findIndex((c) => !isDurationCount(c));
+    const selectedAt = calls.findIndex((c) => isDurationCount(c) && c.get('checkOut') === '2026-08-18');
+    expect(selectedAt).toBeGreaterThan(page1At);
+  });
+
+  it('re-counts after a filter change only once the new page 1 is back', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await waitFor(() => expect(durationCounts().length).toBeGreaterThan(0));
+    const before = calls.length;
+
+    latency = (qs) => (isDurationCount(qs) ? 0 : 300);
+    await user.click(sidebarCheck('All inclusive'));
+    const aiCounts = () => calls.slice(before).filter((c) => isDurationCount(c) && c.get('boards') === 'AI');
+    await waitFor(() => expect(mainSearches().some((c) => c.get('boards') === 'AI')).toBe(true));
+    await new Promise((r) => setTimeout(r, 150));      // the AI search is still in flight
+    expect(aiCounts()).toHaveLength(0);
+    await waitFor(() => expect(calls.slice(before).some((c) => isDurationCount(c) && c.get('boards') === 'AI')).toBe(true));
+  });
+});
+
 describe('debounce + request ordering', () => {
   it('collapses a burst of toggles into one committed request', async () => {
     const user = userEvent.setup();

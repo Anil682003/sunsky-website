@@ -797,7 +797,10 @@ export default function Results() {
   const [boardFacets, setBoardFacets] = useState({});
   // Travel-time filter: { nights: priced-hotel count } for each day option (loaded in background).
   const [durationCounts, setDurationCounts] = useState({});
-  const [liked, setLiked]             = useState({});
+  // Set when page 1 of a search lands: { reqId }. The counts wait for it, so the
+  // search the user is looking at never shares the server with five background searches.
+  const [page1Done, setPage1Done] = useState(null);
+  const [liked, setLiked]            = useState({});
   const isAuth = useSelector((s) => s.auth?.isAuthenticated);
   const { showToast } = useToast();
   const [drawerOpen, setDrawerOpen]   = useState(false);
@@ -1346,6 +1349,7 @@ export default function Results() {
         setLoading(false);
         setFiltering(false);
         setPendingSearch(false);
+        setPage1Done({ reqId });
       })
       .catch((err) => {
         if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
@@ -1367,9 +1371,22 @@ export default function Results() {
   // duration, like the reference site's "Travel time" filter. Non-blocking: options render
   // immediately and each count fills in as its request returns. Re-runs when the search context
   // (scope, departure, occupancy, filters) changes so the counts stay honest.
+  //
+  // They start only once page 1 of the CURRENT search has landed (`page1Done` carries that
+  // search's reqId; the page-1 effect above runs first and bumps the ref, so a stale marker never
+  // matches). Fired alongside page 1 they were five extra cold searches competing with the one
+  // the user is waiting on.
+  //
+  // The selected stay length is still asked for, not read off page 1: for a single destination
+  // the cache prices only pageSize hotels, so page 1's `total` is the short one and would sit
+  // next to full totals for the other lengths.
   const appliedKey = JSON.stringify(applied);
   useEffect(() => {
     if (!priceScope || !priceScope.destinations.length || !dayOptions.length || !fetchParams.checkIn) {
+      setDurationCounts({});
+      return;
+    }
+    if (!page1Done || page1Done.reqId !== reqIdRef.current) {
       setDurationCounts({});
       return;
     }
@@ -1386,7 +1403,7 @@ export default function Results() {
     });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priceScopeKey, fetchParams.checkIn, fetchParams.adults, fetchParams.children, fetchParams.rooms, fetchParams.childAges, appliedKey, urlDuration]);
+  }, [priceScopeKey, fetchParams.checkIn, fetchParams.adults, fetchParams.children, fetchParams.rooms, fetchParams.childAges, appliedKey, urlDuration, page1Done]);
 
   // Load next page from API
   const loadMore = useCallback(() => {
