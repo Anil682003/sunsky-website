@@ -787,12 +787,14 @@ describe('travel-time counts wait for page 1', () => {
     await waitFor(() => expect(durationCounts().length).toBeGreaterThan(0));
   });
 
-  it('takes the selected stay length from page 1 instead of asking again', async () => {
+  it('still counts the selected stay length with its own request, after page 1', async () => {
+    // Page 1's total is priced to pageSize for a single destination, so it is the short total.
     renderResults();   // 15 → 18 Aug, 3 nights
     await settled();
-    await waitFor(() => expect(durationCounts().length).toBeGreaterThan(0));
-    await new Promise((r) => setTimeout(r, 100));
-    expect(durationCounts().map((c) => c.get('checkOut'))).not.toContain('2026-08-18');
+    await waitFor(() => expect(durationCounts().map((c) => c.get('checkOut'))).toContain('2026-08-18'));
+    const page1At = calls.findIndex((c) => !isDurationCount(c));
+    const selectedAt = calls.findIndex((c) => isDurationCount(c) && c.get('checkOut') === '2026-08-18');
+    expect(selectedAt).toBeGreaterThan(page1At);
   });
 
   it('re-counts after a filter change only once the new page 1 is back', async () => {

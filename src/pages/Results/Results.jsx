@@ -797,7 +797,7 @@ export default function Results() {
   const [boardFacets, setBoardFacets] = useState({});
   // Travel-time filter: { nights: priced-hotel count } for each day option (loaded in background).
   const [durationCounts, setDurationCounts] = useState({});
-  // Set when page 1 of a search lands: { reqId, nights, total }. The counts wait for it, so the
+  // Set when page 1 of a search lands: { reqId }. The counts wait for it, so the
   // search the user is looking at never shares the server with five background searches.
   const [page1Done, setPage1Done] = useState(null);
   const [liked, setLiked]            = useState({});
@@ -1349,7 +1349,7 @@ export default function Results() {
         setLoading(false);
         setFiltering(false);
         setPendingSearch(false);
-        setPage1Done({ reqId, nights: data.nights, total: data.total });
+        setPage1Done({ reqId });
       })
       .catch((err) => {
         if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
@@ -1375,8 +1375,11 @@ export default function Results() {
   // They start only once page 1 of the CURRENT search has landed (`page1Done` carries that
   // search's reqId; the page-1 effect above runs first and bumps the ref, so a stale marker never
   // matches). Fired alongside page 1 they were five extra cold searches competing with the one
-  // the user is waiting on. The selected stay length is page 1 itself, so its count is page 1's
-  // `total` rather than a sixth, identical request.
+  // the user is waiting on.
+  //
+  // The selected stay length is still asked for, not read off page 1: for a single destination
+  // the cache prices only pageSize hotels, so page 1's `total` is the short one and would sit
+  // next to full totals for the other lengths.
   const appliedKey = JSON.stringify(applied);
   useEffect(() => {
     if (!priceScope || !priceScope.destinations.length || !dayOptions.length || !fetchParams.checkIn) {
@@ -1388,11 +1391,8 @@ export default function Results() {
       return;
     }
     let live = true;
-    const fromPage1 = Number.isFinite(page1Done.total) && dayOptions.includes(page1Done.nights)
-      ? page1Done.nights : null;
-    setDurationCounts(fromPage1 != null ? { [fromPage1]: page1Done.total } : {});
+    setDurationCounts({});
     dayOptions.forEach((n) => {
-      if (n === fromPage1) return;
       const { url, opts } = buildRequest(fetchParams, priceScope, childAges, 1, applied, {
         checkOut: checkOutForNights(fetchParams.checkIn, n), pageSize: 100,
       });
