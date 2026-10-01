@@ -40,7 +40,10 @@ describe('cancellationState', () => {
     // extra for — printing "Non-refundable" on it is exactly backwards.
     const s = cancellationState([{ amount: '10259.14', from: '2026-09-01T23:00:00+03:00' }], 10259.14, now);
     expect(s.kind).toBe('free');
-    expect(s.until.toISOString()).toBe('2026-09-01T20:00:00.000Z');
+    // Shown to the traveller 12 hours early, because the hotel's deadline is in the hotel's own
+    // time zone (W2M, 1 Oct 2026). The supplier's own moment is kept alongside it.
+    expect(s.until.toISOString()).toBe('2026-09-01T08:00:00.000Z');
+    expect(s.untilSupplier.toISOString()).toBe('2026-09-01T20:00:00.000Z');
   });
 
   it('reads a PAST deadline at full value as non-refundable', () => {
@@ -62,12 +65,22 @@ describe('cancellationState', () => {
       { amount: '450', from: '2026-08-20T00:00:00Z' },
     ], 900, now);
     expect(s.kind).toBe('free');
-    expect(s.until.toISOString()).toBe('2026-08-20T00:00:00.000Z');
+    expect(s.until.toISOString()).toBe('2026-08-19T12:00:00.000Z');
+    expect(s.untilSupplier.toISOString()).toBe('2026-08-20T00:00:00.000Z');
   });
 
   it('says unknown rather than guessing when the supplier sent nothing', () => {
     expect(cancellationState([], 100, now).kind).toBe('unknown');
     expect(cancellationState(null, 100, now).kind).toBe('unknown');
+  });
+
+  // The margin's whole point: the last 12 hours before a supplier's deadline are not promised as
+  // free, because the hotel may already be inside its charging window in its own time zone.
+  it('stops promising free cancellation once inside the 12-hour safety margin', () => {
+    const s = cancellationState([{ amount: '500', from: '2026-08-04T20:00:00Z' }], 900, now);
+    expect(s.kind).toBe('partial');                   // 8 hours away — inside the margin
+    expect(s.untilSupplier.toISOString()).toBe('2026-08-04T20:00:00.000Z');
+    expect(s.safetyMarginMs).toBe(12 * 60 * 60 * 1000);
   });
 });
 
