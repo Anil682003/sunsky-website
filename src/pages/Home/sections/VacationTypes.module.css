@@ -117,7 +117,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  padding: 6px 12px 6px 10px;
+  padding: 6px 12px;
   border-radius: var(--r-full);
   background: #FFFFFF;
   color: var(--text);
@@ -125,14 +125,6 @@
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(7, 14, 31, 0.16);
 }
-/* The mark carries the badge's colour and the words stay dark, so three badges
-   in a row can be told apart at a glance without three coloured pills
-   shouting at each other. */
-.labelIcon { flex-shrink: 0; color: var(--blue-deep); }
-.labelIconBlue { color: var(--blue-deep); }
-.labelIconGold { color: #E29A12; }
-.labelIconTeal { color: #0E9A8A; }
-.labelIconRose { color: #D9557B; }
 
 .body {
   flex: 1;

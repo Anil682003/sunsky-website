@@ -123,7 +123,8 @@
       "luxury": "Luxury"
     },
     "countries": "countries",
-    "places": "destinations"
+    "places": "destinations",
+    "showAllIn": "All holidays in {{place}}"
   },
   "popular": {
     "tag": "Browse",
@@ -206,7 +207,7 @@
       "d6_10": "6-10 days",
       "d11_16": "11-16 days",
       "d17_24": "17-24 days",
-      "d25plus": "25+ days"
+      "d25plus": "25-29 days"
     },
     "flyingFrom": "Flying from",
     "hotelOnly": "Hotel only",
@@ -234,6 +235,7 @@
       "inclFlight": "Incl. flight",
       "noPreference": "No preference",
       "noPreferenceSub": "Search all available departure airports",
+      "noPreferenceNote": "We'll search all available departure airports",
       "or": "or",
       "loading": "Departure airports are loading…",
       "yourSelection": "Your selection",
@@ -319,5 +321,8 @@
       "Morocco": "Morocco",
       "Portugal": "Portugal"
     }
+  },
+  "sections": {
+    "showAll": "Show all"
   }
 }

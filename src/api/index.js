@@ -166,6 +166,19 @@ export const fetchGeoPlaces = async (countryIds) => {
   return res?.data?.data ?? [];
 };
 
+// The photo the dashboard set for each city in Geo Data (Cities), by destination code:
+// [{ id, code, name, imageUrl }]. A failed call resolves EMPTY rather than throwing, so a page
+// that asks simply keeps its drawn cards.
+export const fetchCityImages = async (codes) => {
+  if (!codes?.length) return [];
+  try {
+    const res = await axiosInstance.get(ENDPOINTS.geoCities(codes));
+    return res?.data?.data ?? [];
+  } catch {
+    return [];
+  }
+};
+
 /**
  * Airports matching a search term, from the dashboard's own airport list.
  *

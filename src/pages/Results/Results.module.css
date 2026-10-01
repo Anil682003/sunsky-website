@@ -548,6 +548,11 @@
   color: var(--text-light); flex-shrink: 0;
 }
 .apRowOn .apCode { color: var(--blue-deep); }
+/* No flight from here to the one arrival picked (spec 3.7): still listed, greyed out, with why. */
+.apRowOff { opacity: 0.6; }
+.apRowOff input:disabled { cursor: not-allowed; }
+.apRowOff:has(input:disabled) { cursor: not-allowed; }
+.apReason { font-size: 11px; color: var(--text-light); font-style: italic; }
 .apHint { margin: 0 0 8px; font-size: 12px; color: var(--text-sec); }
 
 .originNote {
@@ -934,6 +939,11 @@
 .rcPriceContext {
   font-size: 12px; font-weight: 500; color: var(--text-sec);
 }
+/* The concrete stay behind the price, "12 Oct → 19 Oct · 7 nights": shown while the search
+   allowed flexible dates, when "±3 days" alone would read as a range of prices. */
+.rcStayWindow {
+  font-size: 12px; font-weight: 700; color: var(--text);
+}
 /* "Incl. flight" reminder on every card: the fare above is hotel-only */
 .rcFlightNote {
   display: inline-flex; align-items: center; gap: 4px;
@@ -1299,4 +1309,95 @@
   .lbNavNext { right: 2px; }
   .lbThumb { width: 60px; height: 44px; }
   .lbClose { top: 12px; right: 12px; }
+}
+
+/* ═══════════ FILTER 1 — DATE & TRAVELLERS ═══════════
+   Four parts in one panel. Everything here is built from the tokens the panel already uses:
+   the 1.5px #e2eaf5 border, --r-sm corners, the #f8fbff rest tint and the blue focus ring. */
+
+.f1Block { padding: 14px 0; border-top: 1px solid #eef3fa; }
+.f1Block:first-child { padding-top: 2px; border-top: 0; }
+
+.f1Label {
+  display: flex; align-items: baseline; gap: 8px; flex-wrap: wrap;
+  margin-bottom: 9px;
+  font-family: 'Sora', sans-serif;
+  font-size: 11.5px; font-weight: 700;
+  letter-spacing: 0.7px; text-transform: uppercase;
+  color: var(--text-sec);
+}
+/* The category the exact lengths belong to, so the list is never read as a filter of its own. */
+.f1LabelNote {
+  font-style: normal; text-transform: none; letter-spacing: 0;
+  font-size: 11.5px; font-weight: 600; color: var(--blue-deep);
+}
+
+/* ── Departure date ── */
+.dateField {
+  width: 100%; box-sizing: border-box;
+  display: flex; align-items: center; gap: 9px;
+  padding: 0 13px; height: 44px;
+  border: 1.5px solid #e2eaf5; border-radius: var(--r-sm);
+  background: #f8fbff;
+  font-family: inherit; font-size: 13.5px; font-weight: 600; color: var(--text);
+  cursor: pointer; text-align: left;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+}
+.dateField:hover { border-color: #c7d8f2; }
+.dateField:focus-visible {
+  outline: none; border-color: var(--blue-ocean); background: var(--white);
+  box-shadow: 0 0 0 4px rgba(95,168,255,0.13);
+}
+.dateField svg { color: var(--blue-deep); flex-shrink: 0; }
+.dateFieldValue { font-variant-numeric: tabular-nums; }
+
+/* The calendar floats over the sidebar rather than pushing 400px of filters down the page
+   every time it opens. */
+.calPop {
+  position: absolute; z-index: 60; margin-top: 7px;
+  background: var(--white);
+  border: 1px solid var(--blue-light); border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(15,40,100,0.16);
+  padding: 6px;
+}
+.f1Block { position: relative; }
+/* Behind the panel, catching the click that closes it. */
+.calScrim {
+  position: fixed; inset: 0; z-index: 55;
+  background: transparent; border: 0; padding: 0; cursor: default;
+}
+
+/* ── Travel duration categories ── */
+.bandGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
+.bandBtn {
+  padding: 9px 4px; min-height: 46px;
+  border: 1.5px solid #e2eaf5; border-radius: var(--r-sm);
+  background: var(--white);
+  font-family: 'Sora', sans-serif; font-size: 12px; font-weight: 700; line-height: 1.25;
+  color: var(--text); cursor: pointer;
+  transition: all 0.2s var(--ease);
+}
+.bandBtn:hover { border-color: var(--blue-soft); background: var(--blue-bg); }
+.bandBtn:focus-visible { outline: 2px solid var(--blue-ocean); outline-offset: 2px; }
+/* The selected category is a filled brand-blue chip, as in the specification's mockup. White
+   ink on blue, never on a pale tint. */
+.bandBtnOn {
+  background: var(--blue-deep); border-color: var(--blue-deep); color: #fff;
+}
+.bandBtnOn:hover { background: var(--blue-deep); border-color: var(--blue-deep); }
+
+/* ── Dates of birth inside a room card ── */
+.dobList {
+  display: flex; flex-direction: column; gap: 14px;
+  margin-top: 12px; padding-top: 12px;
+  border-top: 1px dashed #e2eaf5;
+}
+
+/* Why the save did not happen, next to the button that refused. */
+.saveBlocked {
+  margin: 8px 0 0; font-size: 12px; font-weight: 600; color: #c9372f; line-height: 1.35;
+}
+
+@media (max-width: 420px) {
+  .bandGrid { grid-template-columns: repeat(2, 1fr); }
 }

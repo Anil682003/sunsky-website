@@ -3,8 +3,8 @@ import { useTranslation } from 'react-i18next';
 import styles from './PopularDest.module.css';
 import SectionHead from './SectionHead';
 import { groupLinkUrl, groupLinkLabel } from '../../../utils/cmsDestinations';
-import { TONES, emojiTile, inferGroupStyle, inferLinkIcon, isEmoji, isGlyph } from '../../../utils/travelIcons';
-import { TravelEmoji, TravelGlyph } from '../../../components/TravelIcon/TravelIcon';
+import { TONES, inferGroupStyle, isGlyph } from '../../../utils/travelIcons';
+import { TravelGlyph } from '../../../components/TravelIcon/TravelIcon';
 
 // Shown only while the dashboard has no groups of its own. Their icons and tones come from
 // the same automatic rules as a dashboard card left without them.
@@ -85,22 +85,17 @@ const combinedSearchUrl = (links, title) => {
 
 /**
  * One card, with everything the dashboard can set and a sensible stand-in for whatever it
- * left blank: header glyph and tone from the title, an emoji per link from its place.
+ * left blank: the header glyph from the title.
+ *
+ * The links carry no emoji. A palm tree, a camel or a guardsman on every row read as
+ * childish, and the client asked for the playful touches to go; the place name says it.
  */
 const resolveCard = (group, index, t) => {
   const auto = inferGroupStyle(group.title) || {};
-  const links = (Array.isArray(group.links) ? group.links : []).map((l) => {
-    const isObject = l && typeof l === 'object';
-    const raw = isObject ? l.label : l;
-    const icon = isObject && isEmoji(l.icon)
-      ? l.icon
-      : inferLinkIcon(raw, l?.dest?.name, l?.dest?.countryName) || inferLinkIcon(group.title) || 'world-map';
-    return {
-      label: isObject ? groupLinkLabel(l) : linkLabel(t, l),
-      href: groupLinkUrl(l),
-      icon,
-    };
-  });
+  const links = (Array.isArray(group.links) ? group.links : []).map((l) => ({
+    label: l && typeof l === 'object' ? groupLinkLabel(l) : linkLabel(t, l),
+    href: groupLinkUrl(l),
+  }));
 
   const title = group.title || '';
   const custom = group.viewAll && typeof group.viewAll === 'object' ? group.viewAll : null;
@@ -137,7 +132,7 @@ export default function PopularDest({ cms }) {
   return (
     <section className={styles.section}>
       <div className={styles.inner}>
-        <SectionHead eyebrow={tag} title={title} subtitle={subtitle} rule swash />
+        <SectionHead eyebrow={tag} title={title} subtitle={subtitle} />
 
         <div className={styles.grid}>
           {cards.map((c, i) => (
@@ -156,9 +151,6 @@ export default function PopularDest({ cms }) {
                 {c.links.map((l, li) => {
                   const row = (
                     <>
-                      <span className={`${styles.linkTile} ${styles[`tile_${emojiTile(l.icon)}`]}`}>
-                        <TravelEmoji name={l.icon} className={styles.linkEmoji} />
-                      </span>
                       <span className={styles.linkBody}>
                         <span className={styles.linkLabel}>{l.label}</span>
                         <span className={styles.chevron}><ChevronIcon /></span>

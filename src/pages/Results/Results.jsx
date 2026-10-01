@@ -17,14 +17,21 @@ import { topFacilities } from '../../utils/topFacilities';
 import { flagUrl } from '../../utils/countryFlag';
 import { countryName } from '../../utils/countryName';
 import { toTitleCase } from '../../utils/textCase';
-import { nightsToDays } from '../../utils/durations';
-import { dobsMatchAges, ageAtCheckIn } from '../../utils/childDob';
+import {
+  DURATION_BANDS, bandByLabel, bandForNights, stayDaysToNights as daysToNights, stayNightsToDays as nightsToDays,
+  stayNights, stayCheckOut, withinStayNightLimit, MAX_TRAVEL_DAYS,
+} from '../../utils/durations';
+import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { dobsMatchAges, ageAtCheckIn, allDobsValid } from '../../utils/childDob';
+import DateCalendar from '../../components/DateCalendar/DateCalendar';
+import DobPicker from '../../components/DobPicker/DobPicker';
 import { loadPax, savePax, hasPaxParams } from '../../utils/paxStore';
 import { earliestCheckInISO } from '../../utils/leadTime';
-import { DEFAULT_ORIGIN, normaliseOrigin, airportCity } from '../../utils/airports';
+import { normaliseOrigin, parseOrigins, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { useToast } from '../../context/ToastContext';
 import { fetchUnpricedHotels } from '../../api/unpricedHotels';
+import { roundHotelStay, roundPackage, perPersonFrom } from '../../utils/priceRounding';
 import styles from './Results.module.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -71,6 +78,17 @@ const allImgs = (images) => {
 // what we search when the traveller hits Search without choosing a place. Curated for the
 // Belgian sun-holiday market; the business can adjust this list.
 const DEFAULT_DESTINATIONS = ['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC'];
+
+// What the Where-picker floats to the top of its lists, above the alphabetical rest.
+// The cities are the same curated set as the empty-search fallback above, and the
+// countries are the ones those cities sit in plus the two the homepage leads on, so
+// there is one list to keep current rather than two that can drift apart. Countries the
+// dashboard does not sell simply never appear — the picker intersects this with the
+// live country list rather than trusting it.
+const POPULAR_SCOPE = {
+  countries: ['ES', 'TR', 'EG', 'MA', 'GR', 'IT'],
+  cities: DEFAULT_DESTINATIONS,
+};
 
 // Board codes → human labels. Names are Hotelbeds' OFFICIAL board dictionary
 // (/hotel-content-api/1.0/types/boards), covering every code that occurs in our cache — so no
@@ -161,10 +179,12 @@ const EMPTY_FILTERS = {
   adultsOnly: false,                     // "Only Adults" hotels (facility 203/group 85)
   // Transport type. 'hotel_only' → cache searchType=HOTEL_ONLY; 'package' → PACKAGE.
   transport: 'hotel_only',
-  // Departure airport, carried to the hotel page's flight search. Only meaningful while
+  // Departure airports, carried to the hotel page's flight search. Only meaningful while
   // transport === 'package'; kept when the traveller toggles back so switching to own
-  // transport and back doesn't lose the airport they already chose.
-  origin: DEFAULT_ORIGIN,
+  // transport and back doesn't lose the airports they already chose. EMPTY = No preference:
+  // every active departure airport (spec 3.2), each card naming whichever one prices it
+  // cheapest. Several ticked = OR, compared the same way.
+  origins: [],
   // Arrival airports (IATA) the traveller wants to fly INTO. Empty = no preference. Unlike
   // the departure airport, these really filter: each maps to the destinations it serves and
   // the search is narrowed to their union (see arrivalDestinations). A LIST because a country
@@ -367,7 +387,7 @@ function Segmented({ options, value, onChange, ariaLabel }) {
  * that one is a set — with nothing ticked meaning "any airport", which is why it needs no row
  * of its own for that.
  */
-function AirportList({ rows, selected, onPick, multiple, name, language }) {
+function AirportList({ rows, selected, onPick, multiple, name, language, unavailableNote }) {
   const { t } = useTranslation('results');
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -419,17 +439,22 @@ function AirportList({ rows, selected, onPick, multiple, name, language }) {
           {g.label && <p className={styles.apCountry}>{g.label}</p>}
           {g.rows.map((a) => {
             const on = selected.includes(a.code);
+            // A proven "no flight" greys the row out and says why rather than hiding it
+            // (spec 3.7). A row already picked stays clickable, so it can be taken off again.
+            const off = !!a.unavailable && !on;
             return (
-              <label key={a.code} className={`${styles.apRow} ${on ? styles.apRowOn : ''}`}>
+              <label key={a.code} className={`${styles.apRow} ${on ? styles.apRowOn : ''} ${a.unavailable ? styles.apRowOff : ''}`}>
                 <input
                   type={multiple ? 'checkbox' : 'radio'}
                   name={name}
                   checked={on}
+                  disabled={off}
                   onChange={() => onPick(a.code)}
                 />
                 <span className={styles.apText}>
                   <span className={styles.apCity}>{a.city}</span>
                   {a.label && a.label !== a.city && <span className={styles.apName}>{a.label}</span>}
+                  {a.unavailable && unavailableNote && <span className={styles.apReason}>{unavailableNote}</span>}
                 </span>
                 <span className={styles.apCode}>{a.code}</span>
               </label>
@@ -510,7 +535,15 @@ export default function Results() {
   const defaultCheckOut = (() => { const d = new Date(); d.setDate(d.getDate() + 37); return d.toISOString().split('T')[0]; })();
 
   const initCheckIn  = params.get('checkIn')  || defaultCheckIn;
-  const initCheckOut = params.get('checkOut') || defaultCheckOut;
+  // 29 travel days is the ceiling everywhere (spec 3.4), so at most 28 nights between these two
+  // dates. A link asking for longer is cut to the longest trip SUNSKY sells rather than priced
+  // as one nobody may book; one with no usable length gets the default week.
+  const initCheckOut = (() => {
+    const asked = params.get('checkOut') || defaultCheckOut;
+    const n = stayNights(initCheckIn, asked);
+    if (n == null) return stayCheckOut(initCheckIn, 8) || defaultCheckOut;
+    return withinStayNightLimit(n) ? asked : stayCheckOut(initCheckIn, MAX_TRAVEL_DAYS);
+  })();
   // The party last committed anywhere on the site, kept for 48 hours (utils/paxStore), used
   // only when the link itself does not say who is travelling — a results URL that carries an
   // occupancy is a search someone chose, whether they built it here or were sent it.
@@ -532,11 +565,10 @@ export default function Results() {
   // plus its night bounds, so the results page can offer each individual length within the band
   // (like the reference site's "Travel time" filter) and re-price the search when one is picked.
   const urlDuration  = params.get('duration') || '';
-  const urlMinNights = parseInt(params.get('minNights'), 10);
-  const urlMaxNights = parseInt(params.get('maxNights'), 10);
-  const dayOptions = (Number.isFinite(urlMinNights) && Number.isFinite(urlMaxNights) && urlMaxNights >= urlMinNights)
-    ? Array.from({ length: Math.min(9, urlMaxNights - urlMinNights + 1) }, (_, i) => urlMinNights + i)
-    : [];
+  // The ± days the traveller allowed around their date on the home page (0-3). The cache still
+  // prices ONE exact stay, so while any flexibility was asked for, a Hotel Only card names the
+  // stay its price belongs to (spec 3.9) instead of letting "±3 days" imply a range of prices.
+  const urlFlex = Math.min(3, Math.max(0, parseInt(params.get('flex'), 10) || 0));
   // The stay length currently searched (nights) — derived from the committed check-in/out so the
   // matching Travel-time option is highlighted.
   const nightsBetween = (ci, co) => {
@@ -555,6 +587,30 @@ export default function Results() {
   // Sidebar draft state (not yet fetched)
   const [localCheckIn,  setLocalCheckIn]  = useState(initCheckIn);
   const [localCheckOut, setLocalCheckOut] = useState(initCheckOut);
+
+  // THE TRAVEL DURATION CATEGORY (§5). One of the five SUNSKY bands, and the only thing that
+  // decides which exact lengths are offered below it (§6) — the band no longer comes from
+  // whatever minNights/maxNights happened to be in the URL, because the customer can now
+  // change the category here and the two would immediately disagree.
+  //
+  // Seeded from the link they arrived on: its duration label if it carries one, otherwise the
+  // band the dates themselves fall into, so a hand-built URL still lands somewhere truthful.
+  const [selectedBand, setSelectedBand] = useState(() => (
+    urlDuration ? bandByLabel(urlDuration) : bandForNights(nightsBetween(initCheckIn, initCheckOut))
+  ));
+
+  // Exact lengths, in NIGHTS, for the chosen category. The band is worded in days and a stay is
+  // counted in nights (N days = N-1 nights), so the conversion happens once, here.
+  const dayOptions = useMemo(() => {
+    const minN = daysToNights(selectedBand.minDays);
+    const maxN = daysToNights(selectedBand.maxDays);
+    return Array.from({ length: maxN - minN + 1 }, (_, i) => minN + i);
+  }, [selectedBand]);
+
+  // Which panel is open, and whether Save has been pressed yet — an unfinished date of birth
+  // is not an error until something has asked for it.
+  const [calOpen, setCalOpen] = useState(false);
+  const [saveAttempted, setSaveAttempted] = useState(false);
 
   // PER-ROOM occupancy. One entry per room, each with its own adults + children and a DATE OF
   // BIRTH per child. The flat totals the cache needs — including the ages — are DERIVED below.
@@ -672,11 +728,11 @@ export default function Results() {
     // rather than sent — the same rule as the star seed, for the same reason.
     const ratingSeed = Number(params.get('minRating'));
     const minRating = Number.isFinite(ratingSeed) && ratingSeed > 0 && ratingSeed <= 10 ? ratingSeed : null;
-    // Transport + departure airport arrive from the home search bar and from a shared link.
-    // An unrecognised airport falls back to the default rather than being passed to the
-    // supplier verbatim (see normaliseOrigin).
+    // Transport + departure airports arrive from the home search bar and from a shared link:
+    // `origin` (the first) + `origins` (all of them). A code not on the dashboard's active list
+    // is dropped rather than handed to the supplier (spec 3.6); none left is No preference.
     const transport = params.get('transport') === 'package' ? 'package' : null;
-    const origin    = params.get('origin') ? normaliseOrigin(params.get('origin')) : null;
+    const origins   = parseOrigins(params.get('origin'), params.get('origins'));
     // Arrivals are validated against the fetched list, not a hardcoded one, so they are taken
     // verbatim here — an airport that isn't in the list simply never matches and filters
     // nothing (see arrivalDestinations), which is the safe failure. One code or several:
@@ -695,7 +751,7 @@ export default function Results() {
       ...(maxCentre != null    ? { maxCentre } : {}),
       ...(minRating != null    ? { minRating } : {}),
       ...(transport            ? { transport } : {}),
-      ...(origin               ? { origin } : {}),
+      ...(origins.length       ? { origins } : {}),
       ...(arrivals.length      ? { arrivals } : {}),
     };
     // Deriving the guard from the seed itself means a filter added above can never be left out
@@ -725,12 +781,15 @@ export default function Results() {
 
   // ── DEPARTURE AIRPORTS ("Flying from") ──────────────────────────────────────────
   // §25 master list from the admin dashboard (terminals.isDeparture), never hard-coded.
-  // §26 validity (hide airports with no flight to the chosen arrival airport) activates once
-  // the flight cache holds data for that arrival — until then the full master list shows.
-  const { popular: popularAirports, other: otherAirports } = useDepartureAirports({
-    // §26 hides departures with no flight to where the traveller is going, which is only a
-    // question with ONE answer. With several arrivals picked there is no single destination to
-    // check against, so the master list shows in full rather than being narrowed by one of them.
+  // Which of them fly to the chosen arrival airport is checked once the flight cache holds
+  // data for it. One with no flight stays in the list, greyed out with the reason (spec 3.7),
+  // never hidden; until the check proves it, nothing is greyed out.
+  const {
+    popular: popularAirports, other: otherAirports,
+    available: departureAvailable, validity: departureValidity,
+  } = useDepartureAirports({
+    // A question with ONE answer: with several arrivals picked there is no single destination
+    // to check against, so every airport stays selectable rather than being judged by one.
     destination: applied.arrivals.length === 1 ? applied.arrivals[0] : undefined,
     checkIn: fetchParams.checkIn,
     checkOut: fetchParams.checkOut,
@@ -775,7 +834,10 @@ export default function Results() {
   const [boardFacets, setBoardFacets] = useState({});
   // Travel-time filter: { nights: priced-hotel count } for each day option (loaded in background).
   const [durationCounts, setDurationCounts] = useState({});
-  const [liked, setLiked]             = useState({});
+  // Set when page 1 of a search lands: { reqId }. The counts wait for it, so the
+  // search the user is looking at never shares the server with five background searches.
+  const [page1Done, setPage1Done] = useState(null);
+  const [liked, setLiked]            = useState({});
   const isAuth = useSelector((s) => s.auth?.isAuthenticated);
   const { showToast } = useToast();
   const [drawerOpen, setDrawerOpen]   = useState(false);
@@ -840,13 +902,13 @@ export default function Results() {
   const seenCodesRef   = useRef(new Set());
 
   // Debounce the UI filters into the committed set that actually drives fetching.
-  // `origin` is deliberately excluded from the comparison: the departure airport never
+  // `origins` is deliberately excluded from the comparison: the departure airport never
   // reaches the cache (flights are priced on the hotel page), so committing a copy that
   // differs only by origin would re-fire an IDENTICAL search — the page-1 effect keys on
   // this object — and reset the grid and scroll position for nothing.
   useEffect(() => {
     const timer = setTimeout(() => setApplied((prev) => {
-      const key = (f) => JSON.stringify(f, (k, v) => (k === 'origin' ? undefined : v));
+      const key = (f) => JSON.stringify(f, (k, v) => (k === 'origins' ? undefined : v));
       return key(prev) === key(filters) ? prev : filters;
     }), 300);
     return () => clearTimeout(timer);
@@ -923,9 +985,26 @@ export default function Results() {
   const departureRows = useMemo(
     () => [...popularAirports, ...otherAirports].map((a) => ({
       code: a.code, city: a.city || a.label, label: a.label, countryIso: a.countryIso || '',
+      // Proven to have no flight to the one arrival airport picked: shown, greyed, with why.
+      unavailable: departureAvailable?.[a.code] === false,
     })),
-    [popularAirports, otherAirports]
+    [popularAirports, otherAirports, departureAvailable]
   );
+
+  // The departure airports a package search prices from (spec 3.2, 3.6). The chosen ones that
+  // are still on the dashboard's active list; with none chosen (No preference), every active
+  // airport the flight cache has not proven to have no flight.
+  const activeOrigins = useMemo(() => {
+    const known = new Set(departureRows.map((a) => a.code));
+    return filters.origins.filter((c) => known.has(c));
+  }, [filters.origins, departureRows]);
+  const noOriginPreference = activeOrigins.length === 0;
+  const originsKey = (noOriginPreference
+    ? departureRows.filter((a) => !a.unavailable).map((a) => a.code)
+    : activeOrigins).join(',');
+  const toggleOriginFilter = (code) => setFilter('origins', activeOrigins.includes(code)
+    ? activeOrigins.filter((c) => c !== code)
+    : [...activeOrigins, code]);
 
   const arrivalOptions = useMemo(() => {
     if (!arrivalAirports.length || !scopeDestSet.size) return [];
@@ -964,9 +1043,11 @@ export default function Results() {
     [applied.arrivals, arrivalOptions]
   );
 
-  // Fetch the package flight fares whenever "Incl. flight" is on and we have an origin, dates and
-  // at least one arrival airport. One call per search feeds every card; on any failure the map
-  // stays empty and cards fall back to the honest hotel-only + "priced on hotel page" note.
+  // Fetch the package flight fares whenever "Incl. flight" is on and we have dates and at least
+  // one arrival airport. One call per departure airport being compared (see `originsKey`): per
+  // arrival the cheapest fare wins and remembers its airport, which the card then names. A
+  // failed call only loses that airport; if all fail the map stays empty and cards fall back to
+  // the honest hotel-only + "priced on hotel page" note.
   useEffect(() => {
     let live = true;
     const ctrl = new AbortController();
@@ -975,21 +1056,35 @@ export default function Results() {
     // fall back to the hotel-only + "priced on hotel page" note.
     const run = async () => {
       const arrivals = packageArrivalsKey ? packageArrivalsKey.split(',').filter(Boolean) : [];
-      if (filters.transport !== 'package' || !filters.origin || !fetchParams.checkIn || !arrivals.length) {
+      const from = originsKey ? originsKey.split(',') : [];
+      if (filters.transport !== 'package' || !from.length || !fetchParams.checkIn || !arrivals.length) {
         if (live) setPackageFares({});
         return;
       }
       try {
-        const f = await fetchPackageFares(
-          { origin: filters.origin, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut, adults: fetchParams.adults, children: fetchParams.children, arrivals },
-          { signal: ctrl.signal },
-        );
-        if (live) setPackageFares(f || {});
+        const merged = {};
+        // Six at a time: No preference can mean ~20 airports, and the fares API is shared.
+        for (let i = 0; i < from.length; i += 6) {
+          const batch = from.slice(i, i + 6);
+          const settled = await Promise.allSettled(batch.map((origin) => fetchPackageFares(
+            { origin, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut, adults: fetchParams.adults, children: fetchParams.children, arrivals },
+            { signal: ctrl.signal },
+          ).then((fares) => ({ origin, fares }))));
+          if (!live) return;
+          for (const s of settled) {
+            if (s.status !== 'fulfilled') continue;
+            for (const [arrival, fare] of Object.entries(s.value.fares || {})) {
+              if (!fare || fare.price == null) continue;
+              if (!merged[arrival] || fare.price < merged[arrival].price) merged[arrival] = { ...fare, origin: s.value.origin };
+            }
+          }
+        }
+        if (live) setPackageFares(merged);
       } catch { if (live) setPackageFares({}); }
     };
     run();
     return () => { live = false; ctrl.abort(); };
-  }, [filters.transport, filters.origin, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults, fetchParams.children, packageArrivalsKey]);
+  }, [filters.transport, originsKey, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults, fetchParams.children, packageArrivalsKey]);
 
   // The destinations the chosen arrival airport narrows the search to, intersected with the
   // scope the traveller already picked. `null` = no arrival filter. An EMPTY array is
@@ -1324,6 +1419,7 @@ export default function Results() {
         setLoading(false);
         setFiltering(false);
         setPendingSearch(false);
+        setPage1Done({ reqId });
       })
       .catch((err) => {
         if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
@@ -1345,9 +1441,22 @@ export default function Results() {
   // duration, like the reference site's "Travel time" filter. Non-blocking: options render
   // immediately and each count fills in as its request returns. Re-runs when the search context
   // (scope, departure, occupancy, filters) changes so the counts stay honest.
+  //
+  // They start only once page 1 of the CURRENT search has landed (`page1Done` carries that
+  // search's reqId; the page-1 effect above runs first and bumps the ref, so a stale marker never
+  // matches). Fired alongside page 1 they were five extra cold searches competing with the one
+  // the user is waiting on.
+  //
+  // The selected stay length is still asked for, not read off page 1: for a single destination
+  // the cache prices only pageSize hotels, so page 1's `total` is the short one and would sit
+  // next to full totals for the other lengths.
   const appliedKey = JSON.stringify(applied);
   useEffect(() => {
     if (!priceScope || !priceScope.destinations.length || !dayOptions.length || !fetchParams.checkIn) {
+      setDurationCounts({});
+      return;
+    }
+    if (!page1Done || page1Done.reqId !== reqIdRef.current) {
       setDurationCounts({});
       return;
     }
@@ -1364,7 +1473,7 @@ export default function Results() {
     });
     return () => { live = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [priceScopeKey, fetchParams.checkIn, fetchParams.adults, fetchParams.children, fetchParams.rooms, fetchParams.childAges, appliedKey, urlDuration]);
+  }, [priceScopeKey, fetchParams.checkIn, fetchParams.adults, fetchParams.children, fetchParams.rooms, fetchParams.childAges, appliedKey, urlDuration, page1Done]);
 
   // Load next page from API
   const loadMore = useCallback(() => {
@@ -1538,7 +1647,10 @@ export default function Results() {
       try {
         const res = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
           method: 'POST', headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ hotelCodes: need }),
+          // Card view: only what a card reads (name, stars, place, photos, facility names,
+          // review) — not every room, phone and description. The detail page asks for the
+          // full record itself.
+          body: JSON.stringify({ hotelCodes: need, view: 'card' }),
         });
         if (res.ok) {
           const data = await res.json();
@@ -1570,7 +1682,7 @@ export default function Results() {
   // tab can't receive react-router's in-memory `state` — so the whole search context rides
   // in the URL instead. HotelDetail reads these as its fallback and refetches the hotel
   // content itself, which also makes the detail page shareable/bookmarkable.
-  const detailHref = (h, name, starsVal, dest, img) => {
+  const detailHref = (h, name, starsVal, dest, img, fareOrigin) => {
     const qs = new URLSearchParams({
       checkIn:  fetchParams.checkIn,
       checkOut: fetchParams.checkOut,
@@ -1603,7 +1715,12 @@ export default function Results() {
     // Both ride in the URL because the card opens in a NEW TAB: router state doesn't
     // survive that jump, the query string does.
     qs.set('transport', filters.transport === 'package' ? 'package' : 'hotel_only');
-    qs.set('origin', normaliseOrigin(filters.origin));
+    // The hotel page prices from ONE airport: the one that priced this card, else the single
+    // airport chosen. With No preference and no fare yet none is sent, and the hotel page
+    // falls back to its own default.
+    const from = fareOrigin || (activeOrigins.length === 1 ? activeOrigins[0] : '');
+    if (from) qs.set('origin', normaliseOrigin(from));
+    if (activeOrigins.length > 1) qs.set('origins', activeOrigins.join(','));
     return `/hotel/${h.hotelCode}?${qs.toString()}`;
   };
 
@@ -1818,9 +1935,12 @@ export default function Results() {
   // carries them once a search has been committed, before that the URL's own value stands), so
   // simply arriving on a link with children on it is not a change.
   const searchedChildAges = String(fetchParams.childAges ?? childAges ?? '');
-  const searchDirty =
-    localCheckIn !== fetchParams.checkIn ||
-    localCheckOut !== fetchParams.checkOut ||
+  // ONLY the travellers now (§15). The date and the two duration controls commit themselves the
+  // moment they are touched, so they can never be sitting here uncommitted; pressing + on an
+  // adult, though, must not fire a search per keystroke. The dates are deliberately not part of
+  // this comparison any more — including them would light the button for a change that has
+  // already been applied.
+  const travellersDirty =
     String(totalAdults) !== String(fetchParams.adults) ||
     String(totalChildren) !== String(fetchParams.children) ||
     String(roomsN) !== String(fetchParams.rooms) ||
@@ -1835,9 +1955,62 @@ export default function Results() {
     setFetchParams((prev) => ({ ...prev, checkOut }));
   };
 
+  /**
+   * DEPARTURE DATE (§2, §3). The customer picks when they leave; the return is worked out from
+   * the exact duration they have chosen, and is never a second thing to pick. Applies itself —
+   * §15 lists the date among the changes that recalculate without the Save button.
+   *
+   * The stay length is carried across unchanged, so moving the departure moves the whole trip
+   * rather than silently stretching or shortening it.
+   */
+  const applyDeparture = (iso) => {
+    if (!iso || iso === fetchParams.checkIn) return;
+    const nights = searchedNights ?? daysToNights(selectedBand.days);
+    const checkOut = checkOutForNights(iso, nights);
+    setLocalCheckIn(iso);
+    setLocalCheckOut(checkOut);
+    setFetchParams((prev) => ({ ...prev, checkIn: iso, checkOut }));
+  };
+
+  /**
+   * TRAVEL DURATION CATEGORY (§5). Changing it recalculates which exact lengths are on offer,
+   * and applies one of them immediately so the results never sit under a category they do not
+   * belong to.
+   *
+   * Which one: the length already searched if the new category happens to contain it, otherwise
+   * that category's own representative length. The bands do not overlap, so in practice this is
+   * always the representative one — the clamp is there so the rule stays true if they ever do.
+   */
+  const applyBand = (band) => {
+    setSelectedBand(band);
+    const minN = daysToNights(band.minDays);
+    const maxN = daysToNights(band.maxDays);
+    const keep = searchedNights != null && searchedNights >= minN && searchedNights <= maxN;
+    applyDuration(keep ? searchedNights : daysToNights(band.days));
+  };
+
+  // Every child has a usable date of birth (§11). The gate on Save, not on typing.
+  const dobsValid = allDobsValid(roomsConfig, localCheckIn);
+
+  /**
+   * SAVE CHANGES (§13, §14). Belongs to Travellers & Rooms and to nothing else: adults,
+   * children, dates of birth, rooms and occupancy are edited together and applied together.
+   * Every other active filter is left exactly as it is.
+   */
+  const saveTravellers = () => {
+    setSaveAttempted(true);
+    // Refused rather than sent with a guessed age: the date of birth is what classifies the
+    // passenger, so a search built on a missing one would price a different child.
+    if (!dobsValid) return;
+    applySearch();
+  };
+
   // Apply the picked scope — re-navigate the results page (keeps dates + occupancy, shareable URL).
+  // Called on every pick now that the picker has no Apply button, so an empty scope is a
+  // real instruction ("I took my last country off") rather than a half-finished draft to
+  // ignore: it navigates with no place params, which lands back on the default sun
+  // destinations. Refusing it here would leave the last chip un-removable.
   const applyScope = ({ countries, destinations, zones }) => {
-    if (!countries.length && !destinations.length) return;
     const qp = new URLSearchParams();
     if (countries.length)    qp.set('countries', countries.join(','));
     if (destinations.length) qp.set('destinations', destinations.join(','));
@@ -1881,8 +2054,20 @@ export default function Results() {
   // Transport rides in the header only when it changes what the traveller will be shown —
   // "own transport" is the default and adds nothing worth a chip.
   if (filters.transport === 'package') {
-    heroChips.push({ icon: 'M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-1 .1-1.1.6l-.1.5c-.1.4.1.9.5 1.1L9 11l-4 4H2l-1 2 4 1 1 4 2-1v-3l4-4 2.7 4.8c.2.4.7.6 1.1.5l.5-.1c.5-.1.7-.6.6-1.1z', text: t('hero.inclFlightFrom', { city: airportCity(filters.origin), defaultValue: 'Incl. flight · from {{city}}' }) });
+    heroChips.push({ icon: 'M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-1 .1-1.1.6l-.1.5c-.1.4.1.9.5 1.1L9 11l-4 4H2l-1 2 4 1 1 4 2-1v-3l4-4 2.7 4.8c.2.4.7.6 1.1.5l.5-.1c.5-.1.7-.6.6-1.1z', text: noOriginPreference
+      ? t('hero.inclFlightAny', 'Incl. flight · from any airport')
+      : activeOrigins.length === 1
+        ? t('hero.inclFlightFrom', { city: airportCity(activeOrigins[0]), defaultValue: 'Incl. flight · from {{city}}' })
+        : t('hero.inclFlightAirports', { count: activeOrigins.length, defaultValue: 'Incl. flight · from {{count}} airports' }) });
   }
+
+  // Why a departure row is greyed out: no flight to the one arrival airport picked.
+  const departureNoFlightNote = applied.arrivals.length === 1
+    ? t('filters.airportNoFlight', {
+      place: arrivalRows.find((a) => a.code === applied.arrivals[0])?.city || applied.arrivals[0],
+      defaultValue: 'No flight to {{place}} for these dates',
+    })
+    : '';
 
   const sidebar = (
     <>
@@ -1893,24 +2078,43 @@ export default function Results() {
         <Segmented options={transportOptions} value={filters.transport} onChange={(v) => setFilter('transport', v)} ariaLabel={t('transport.aria', 'Transport type')} />
       </FilterSection>
 
-      {/* DEPARTURE AIRPORT — one choice. It is where the fare is priced FROM, and a fare has
-          one origin; it is not a filter on the hotels at all, which is what the note says. */}
+      {/* DEPARTURE AIRPORTS — where the fare is priced FROM; not a filter on the hotels. Nothing
+          ticked is No preference, every active airport (spec 3.2); several ticked are compared,
+          and each card names the airport that prices it cheapest. An airport with no flight to
+          the one arrival picked stays listed, greyed out with the reason (spec 3.7). */}
       {filters.transport === 'package' && (
         <FilterSection title={t('filters.departureAirport', 'Departure airport')} defaultOpen>
-          <div role="radiogroup" aria-label={t('filters.departureAirport', 'Departure airport')}>
+          <div role="group" aria-label={t('filters.departureAirport', 'Departure airport')}>
+            <label className={`${styles.apRow} ${noOriginPreference ? styles.apRowOn : ''}`}>
+              <input type="checkbox" checked={noOriginPreference} onChange={() => setFilter('origins', [])} />
+              <span className={styles.apText}>
+                <span className={styles.apCity}>{t('filters.noPreference', 'No preference')}</span>
+                <span className={styles.apName}>{t('filters.allDepartureAirports', 'All departure airports')}</span>
+              </span>
+            </label>
             <AirportList
               rows={departureRows}
-              selected={[filters.origin]}
-              onPick={(code) => setFilter('origin', code)}
+              selected={activeOrigins}
+              onPick={toggleOriginFilter}
+              multiple
               name="originAirport"
               language={i18nInstance.language}
+              unavailableNote={departureNoFlightNote}
             />
           </div>
+          {departureValidity === 'checking' && (
+            <p className={styles.originNote}>{t('filters.airportsChecking', 'Checking which airports fly there…')}</p>
+          )}
+          {departureValidity === 'error' && (
+            <p className={styles.originNote}>{t('filters.airportsCheckFailed', 'We couldn’t check which airports fly there just now, so every airport stays selectable.')}</p>
+          )}
           <p className={styles.originNote}>
-            {t(
-              'filters.originNote',
-              'Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.'
-            )}
+            {noOriginPreference
+              ? t('filters.originNoteAny', 'Each hotel shows the departure airport that prices it cheapest. Tick airports to compare only those.')
+              : t(
+                'filters.originNote',
+                'Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.'
+              )}
           </p>
         </FilterSection>
       )}
@@ -1951,113 +2155,188 @@ export default function Results() {
           countries={countryOptions}
           status={countriesStatus}
           value={scope}
+          popular={POPULAR_SCOPE}
           onApply={applyScope}
         />
       </FilterSection>
 
-      {/* Dates & Guests — re-calls API */}
-      <FilterSection title={t('filters.datesGuests', 'Dates & Guests')} defaultOpen>
-        <div className={styles.dateGroup}>
-          <label className={styles.dateLabel}>{t('filters.checkIn', 'Check-in')}</label>
-          <input type="date" className={styles.dateInput} value={localCheckIn} min={earliestCheckInISO()} onChange={(e) => setLocalCheckIn(e.target.value)} />
+      {/* ═══════════ FILTER 1 — DATE & TRAVELLERS ═══════════
+          One section, four parts, in the order the specification fixes (§1, §16): when you
+          leave, how long for, exactly how long, and who is going. They used to be two separate
+          panels with the room cards sitting between the dates and the trip length.
+
+          The split that matters is §15. The first three apply themselves the moment they are
+          touched; the fourth is edited as a whole and applied by its own button, because
+          nobody wants a fresh search fired on every press of a plus sign. */}
+      <FilterSection title={t('filters.dateTravellers', 'Date & travellers')} defaultOpen>
+
+        {/* ── 1. DEPARTURE DATE ──
+            One date. The return is derived from this plus the exact duration below, and is
+            never separately selectable (§2, §7): a date on a calendar is not proof that a
+            flight can be built back from it. */}
+        <div className={styles.f1Block}>
+          <span className={styles.f1Label}>{t('filters.departureDate', 'Departure date')}</span>
+          <button
+            type="button"
+            className={styles.dateField}
+            onClick={() => setCalOpen((o) => !o)}
+            aria-expanded={calOpen}
+            aria-haspopup="dialog"
+          >
+            <Icon d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" size={15} sw={1.8} />
+            <span className={styles.dateFieldValue}>
+              {localCheckIn
+                ? new Date(`${localCheckIn}T00:00:00`).toLocaleDateString(i18nInstance.language, { day: '2-digit', month: '2-digit', year: 'numeric' })
+                : t('filters.pickDate', 'Pick a date')}
+            </span>
+          </button>
+          {calOpen && (
+            <>
+              {/* Click-away. A transparent sheet behind the panel rather than a document
+                  listener, so it cannot fight the other popovers in this sidebar. */}
+              <button
+                type="button"
+                className={styles.calScrim}
+                aria-label={t('filters.closeCalendar', 'Close calendar')}
+                onClick={() => setCalOpen(false)}
+              />
+              <div className={styles.calPop} role="dialog" aria-label={t('filters.departureDate', 'Departure date')}>
+                <DateCalendar
+                  value={localCheckIn}
+                  onChange={(iso) => { applyDeparture(iso); setCalOpen(false); }}
+                  min={earliestCheckInISO()}
+                  months={1}
+                  legend
+                />
+              </div>
+            </>
+          )}
         </div>
-        <div className={styles.dateGroup}>
-          <label className={styles.dateLabel}>{t('filters.checkOut', 'Check-out')}</label>
-          <input type="date" className={styles.dateInput} value={localCheckOut} min={localCheckIn || earliestCheckInISO()} onChange={(e) => setLocalCheckOut(e.target.value)} />
+
+        {/* ── 2. TRAVEL DURATION ── the five SUNSKY categories, one active (§5). */}
+        <div className={styles.f1Block}>
+          <span className={styles.f1Label}>{t('filters.travelDuration', 'Travel duration')}</span>
+          <div className={styles.bandGrid} role="radiogroup" aria-label={t('filters.travelDuration', 'Travel duration')}>
+            {DURATION_BANDS.map((b) => {
+              const on = b.key === selectedBand.key;
+              return (
+                <button
+                  key={b.key}
+                  type="button"
+                  role="radio"
+                  aria-checked={on}
+                  className={`${styles.bandBtn} ${on ? styles.bandBtnOn : ''}`}
+                  onClick={() => applyBand(b)}
+                >
+                  {t(`home:hero.durations.${b.key}`, b.label)}
+                </button>
+              );
+            })}
+          </div>
         </div>
-        {roomsConfig.map((room, i) => (
-          <div key={i} className={styles.roomBlock}>
-            <div className={styles.roomHead}>
-              <span className={styles.roomTitle}>{t('filters.room', { number: i + 1, defaultValue: 'Room {{number}}' })}</span>
-              {roomsConfig.length > 1 && (
-                <button type="button" className={styles.roomRemove} onClick={() => removeRoom(i)}>{t('filters.removeRoom', 'Remove')}</button>
+
+        {/* ── 3. EXACT TRAVEL DURATION ──
+            A refinement of the category above, never an independent filter (§6): only lengths
+            inside the chosen band are listed. The counts are for the current search. */}
+        {dayOptions.length > 0 && (
+          <div className={styles.f1Block}>
+            <span className={styles.f1Label}>
+              {t('filters.exactDuration', 'Exact travel duration')}
+              <em className={styles.f1LabelNote}>{t(`home:hero.durations.${selectedBand.key}`, selectedBand.label)}</em>
+            </span>
+            {dayOptions.map((n) => (
+              <FilterCheck
+                key={n}
+                label={`${daysLabel(nightsToDays(n))}${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString(numberLocale)})` : ''}`}
+                checked={searchedNights === n}
+                onChange={() => applyDuration(n)}
+              />
+            ))}
+          </div>
+        )}
+
+        {/* ── 4. TRAVELLERS & ROOMS ──
+            Each room keeps its own occupancy, and a child's date of birth stays with the room
+            it was entered in (§8, §12). */}
+        <div className={styles.f1Block}>
+          <span className={styles.f1Label}>{t('filters.travellersRooms', 'Travellers & rooms')}</span>
+
+          {roomsConfig.map((room, i) => (
+            <div key={i} className={styles.roomBlock}>
+              <div className={styles.roomHead}>
+                <span className={styles.roomTitle}>{t('filters.room', { number: i + 1, defaultValue: 'Room {{number}}' })}</span>
+                {roomsConfig.length > 1 && (
+                  <button type="button" className={styles.roomRemove} onClick={() => removeRoom(i)}>{t('filters.removeRoom', 'Remove')}</button>
+                )}
+              </div>
+              <div className={styles.guestRow}>
+                <span className={styles.guestLabel}>{t('filters.adults', 'Adults')}</span>
+                <div className={styles.guestCounter}>
+                  <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, -1)} aria-label={t('filters.fewerAdults', 'Fewer adults')}>−</button>
+                  <span className={styles.guestNum}>{room.adults}</span>
+                  <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, +1)} aria-label={t('filters.moreAdults', 'More adults')}>+</button>
+                </div>
+              </div>
+              <div className={styles.guestRow}>
+                <span className={styles.guestLabel}>{t('filters.children', 'Children')}</span>
+                <div className={styles.guestCounter}>
+                  <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, -1)} aria-label={t('filters.fewerChildren', 'Fewer children')}>−</button>
+                  <span className={styles.guestNum}>{room.children}</span>
+                  <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, +1)} aria-label={t('filters.moreChildren', 'More children')}>+</button>
+                </div>
+              </div>
+
+              {/* Underneath the Children selector, one clearly separated block per child
+                  (§10.2, §10.3). Sliced to the count, so reducing the children in a room takes
+                  its pickers away with it rather than leaving orphans behind (§12). */}
+              {room.children > 0 && (
+                <div className={styles.dobList}>
+                  {room.dobs.slice(0, room.children).map((dob, ci) => (
+                    <DobPicker
+                      key={ci}
+                      id={`dob-r${i}-c${ci}`}
+                      label={t('filters.childDobLabel', { number: ci + 1, defaultValue: 'Date of birth — child {{number}}' })}
+                      value={dob}
+                      onChange={(iso) => setChildDob(i, ci, iso)}
+                      travelDate={localCheckIn}
+                      showError={saveAttempted}
+                    />
+                  ))}
+                </div>
               )}
             </div>
-            <div className={styles.guestRow}>
-              <span className={styles.guestLabel}>{t('filters.adults', 'Adults')}</span>
-              <div className={styles.guestCounter}>
-                <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, -1)}>−</button>
-                <span className={styles.guestNum}>{room.adults}</span>
-                <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, +1)}>+</button>
-              </div>
-            </div>
-            <div className={styles.guestRow}>
-              <span className={styles.guestLabel}>{t('filters.children', 'Children')}</span>
-              <div className={styles.guestCounter}>
-                <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, -1)}>−</button>
-                <span className={styles.guestNum}>{room.children}</span>
-                <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, +1)}>+</button>
-              </div>
-            </div>
-            {room.children > 0 && (
-              <div className={styles.childAges}>
-                {room.dobs.map((dob, ci) => {
-                  const age = ageAtCheckIn(dob, localCheckIn);
-                  return (
-                    <label key={ci} className={styles.childAge}>
-                      <span>
-                        {t('filters.childDob', { number: ci + 1, defaultValue: 'Child {{number}} date of birth' })}
-                        {age != null ? ` · ${age}` : ''}
-                      </span>
-                      <input type="date" value={dob} max={localCheckIn || undefined}
-                        onChange={(e) => setChildDob(i, ci, e.target.value)} />
-                    </label>
-                  );
-                })}
-              </div>
-            )}
-          </div>
-        ))}
-        {roomsConfig.length < 5 && (
-          <button type="button" className={styles.addRoomBtn} onClick={addRoom}>{t('filters.addRoom', '+ Add room')}</button>
-        )}
-      </FilterSection>
-
-      {/* TRAVEL TIME — the duration band chosen on the home page, with each individual stay length
-          inside it (like the reference site). Picking one re-prices at that exact duration; the
-          count shows how many hotels are available for that length in the current search. */}
-      {dayOptions.length > 0 && (
-        <FilterSection title={t('filters.travelTime', 'Travel time')} defaultOpen>
-          {urlDuration && <div className={styles.travelBand}>{urlDuration}</div>}
-          {dayOptions.map((n) => (
-            <FilterCheck
-              key={n}
-              label={`${daysLabel(nightsToDays(n))}${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString(numberLocale)})` : ''}`}
-              checked={searchedNights === n}
-              onChange={() => applyDuration(n)}
-            />
           ))}
-        </FilterSection>
-      )}
 
-      {/* ── The line between the two halves of this sidebar ──
-          Everything above re-runs the SEARCH; everything below refines what came back. The
-          dates and the travellers are edited in place and committed only by this button, so
-          until it is pressed the results underneath still belong to the previous search. The
-          notice says that out loud rather than leaving it to be noticed. */}
-      {(searchDirty || pendingSearch) && (
-        <div className={styles.searchUpdate}>
-          {searchDirty && !pendingSearch && (
-            <p className={styles.searchChanged}>
-              <Icon d="M20 6L9 17l-5-5" size={13} sw={3} />
-              {t('filters.searchChanged', 'Your search has changed')}
-            </p>
+          {roomsConfig.length < 5 && (
+            <button type="button" className={styles.addRoomBtn} onClick={addRoom}>{t('filters.addRoom', '+ Add room')}</button>
           )}
-          <button className={styles.applyBtn} onClick={applySearch} disabled={pendingSearch}>
+
+          {/* §13: after the room cards, the dates of birth and Add room — and belonging to this
+              section alone, not to the bottom of the whole sidebar. */}
+          <button
+            className={styles.applyBtn}
+            onClick={saveTravellers}
+            disabled={pendingSearch || !travellersDirty}
+          >
             {pendingSearch ? (
               <>
                 <span className={styles.applySpinner} aria-hidden="true" />
                 {t('filters.searchingResults', 'Searching results…')}
               </>
-            ) : (
-              <>
-                <Icon d="M21 21l-4.35-4.35M11 19a8 8 0 100-16 8 8 0 000 16z" size={13} sw={2.2} />
-                {t('filters.updateSearch', 'Update Search')}
-              </>
-            )}
+            ) : t('filters.saveChanges', 'Save changes')}
           </button>
+          {saveAttempted && !dobsValid && (
+            <p className={styles.saveBlocked} role="alert">
+              {t('filters.fixDobs', 'Please complete every date of birth above.')}
+            </p>
+          )}
         </div>
-      )}
+      </FilterSection>
+
+      {/* The line between the two halves of this sidebar: everything above re-runs the
+          SEARCH, everything below refines what came back. The Save button that used to live
+          here has moved into Travellers & Rooms, where §13 puts it — the dates and the two
+          duration controls no longer need it, because they commit themselves. */}
 
       <div className={styles.refineHead}>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
@@ -2546,13 +2825,15 @@ export default function Results() {
                 const curImg    = gallery.length ? gallery[imgIdx] : dispImg;
                 // Headline price is PER PERSON — that's the figure a traveller compares and the
                 // one that stays meaningful on a package (the total here excludes the live flight).
-                // Prefer the cache's `perPerson` (computed against the searched occupancy incl.
-                // children); fall back to total ÷ party size only if it's missing.
-                const total = Number(h.totalAmount);
+                // Whole euros (rule 10): the stay rounds up per room, per person is derived from
+                // that and rounded up again. Worked out from the EXACT stay total so the card is
+                // right whichever cache version is answering, and so a package below rounds once.
                 const partySize = Math.max(1, (Number(fetchParams.adults) || 0) + (Number(fetchParams.children) || 0));
-                const perPersonVal = Number.isFinite(Number(h.perPerson)) && Number(h.perPerson) > 0
-                  ? Number(h.perPerson)
-                  : (Number.isFinite(total) ? total / partySize : NaN);
+                const roomsN = Math.max(1, Number(fetchParams.rooms) || 1);
+                const exactStay = Number(h.totalAmountUnrounded ?? h.totalAmount);
+                const perPersonVal = Number.isFinite(exactStay) && exactStay > 0
+                  ? perPersonFrom(roundHotelStay(exactStay, roomsN), partySize)
+                  : NaN;
                 // Package from-price (§33): with "Incl. flight" on, if a cached flight fare exists
                 // for this hotel's arrival airport, the headline becomes hotel + flight per person —
                 // never hotel-only. Cheapest arrival is used when the destination has several. Falls
@@ -2571,13 +2852,38 @@ export default function Results() {
                 }
                 const adultsForFare = Math.max(1, Number(fetchParams.adults) || 1);
                 const flightPerPerson = flightFare ? flightFare.price / adultsForFare : null;
-                const packagePerPerson = (isPackage && flightPerPerson != null && Number.isFinite(perPersonVal))
-                  ? perPersonVal + flightPerPerson
+                // A package is rounded ONCE, as a whole: exact hotel + the party's flight, then
+                // per person. The flight is the same per-person fare for every traveller, as before.
+                const packagePerPerson = (isPackage && flightPerPerson != null && Number.isFinite(exactStay) && exactStay > 0)
+                  ? perPersonFrom(roundPackage(exactStay, flightPerPerson * partySize), partySize)
                   : null;
                 const shownPerPerson = packagePerPerson != null ? packagePerPerson : perPersonVal;
+                // Is the price on this card a KNOWN total (spec 3.9)? Hotel Only: the cache's
+                // total for the stay. Package: only once a cached flight fare completes it; a
+                // package card without one shows the hotel alone and "+ flight priced on hotel
+                // page", so its trip total is unknown, the spec's "Check price".
+                const priceKnown = isPackage
+                  ? packagePerPerson != null
+                  // `exactStay`, not the old `total`: the whole-euro rounding work renamed it,
+                  // and this line arrived from a parallel branch that still referenced the old
+                  // name. Same guard the per-person figure above already uses.
+                  : Number.isFinite(exactStay) && exactStay > 0;
+                // The stay this card's price belongs to: the contract's own nights when it sent
+                // them, else the searched dates. Shown on Hotel Only cards while the search asked
+                // for flexible dates, so "±3 days" never reads as a range of prices.
+                const stayNightsList = Array.isArray(h.nightlyBreakdown) ? h.nightlyBreakdown : [];
+                const stayIn = stayNightsList[0]?.date || fetchParams.checkIn;
+                const stayOut = stayNightsList.length
+                  ? new Date(Date.parse(`${stayNightsList[stayNightsList.length - 1].date}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)
+                  : fetchParams.checkOut;
+                const stayNightCount = stayNightsList.length || nightsBetween(stayIn, stayOut) || 0;
+                const showStayWindow = !isPackage && urlFlex > 0 && !!stayIn && !!stayOut && stayNightCount > 0;
                 // Split into whole + decimals (toFixed FIRST, so 99.999 → 100.00, not 99.00).
-                const [ppMajorRaw, ppDec] = Number.isFinite(shownPerPerson) ? shownPerPerson.toFixed(2).split('.') : ['—', null];
-                const ppMajor = ppDec != null ? Number(ppMajorRaw).toLocaleString('en-GB') : ppMajorRaw;
+                // Whole euros, rounded UP (spec 2.3): a SUNSKY price never shows cents, and never
+                // shows less than the fare it stands for.
+                const ppMajor = Number.isFinite(shownPerPerson)
+                  ? formatEuros(shownPerPerson, PRICE_KIND.SELLING, { locale: numberLocale })
+                  : '—';
                 // TripAdvisor rating (/10), from the harvested store on the bulk info record.
                 const rev = formatReview(info?.review);
                 // Curated top-5 amenities + overflow count for the chip row.
@@ -2643,7 +2949,10 @@ export default function Results() {
                         </span>
                       </>
                     )}
-                    {h.id === bestValueId && (
+                    {/* The badge claims the cheapest price in the whole search, so it only ever
+                        sits on a card whose price is a known total: a "Check price" hotel never
+                        wins it (spec 3.9). */}
+                    {h.id === bestValueId && priceKnown && (
                       <div className={styles.rcBadge}>
                         <Icon d="M13 10V3L4 14h7v7l9-11h-7z" size={11} sw={2} />
                         {t('card.bestValue', 'Best Value')}
@@ -2772,6 +3081,17 @@ export default function Results() {
                           the promise was made exactly where it could not be checked. */}
                       {/* What the total covers — the stay context that used to be two pills
                           in the body, now one quiet qualifying line above the fare. */}
+                      {showStayWindow && (
+                        <span className={styles.rcStayWindow}>
+                          {t('card.stayWindow', {
+                            count: stayNightCount,
+                            from: fmtDate(stayIn),
+                            to: fmtDate(stayOut),
+                            defaultValue_one: '{{from}} → {{to}} · {{count}} night',
+                            defaultValue_other: '{{from}} → {{to}} · {{count}} nights',
+                          })}
+                        </span>
+                      )}
                       <span className={styles.rcPriceContext}>
                         {nights > 0 ? daysLabel(nightsToDays(nights)) : t('card.total', 'Total')}
                         {Number(fetchParams.adults) > 0 && ` · ${t('card.adults', {
@@ -2793,7 +3113,7 @@ export default function Results() {
                       {isPackage && packagePerPerson != null && (
                         <span className={styles.rcFlightNote}>
                           {t('card.inclFlightFrom', {
-                            city: airportCity(filters.origin),
+                            city: airportCity(flightFare?.origin || activeOrigins[0]),
                             defaultValue: 'incl. flight from {{city}}',
                           })}
                           {flightFare?.priorityClass ? ` · ${flightClassLabel(flightFare.priorityClass)}` : ''}
@@ -2801,10 +3121,12 @@ export default function Results() {
                       )}
                       {isPackage && packagePerPerson == null && (
                         <span className={styles.rcFlightNote}>
-                          {t('card.flightPricedLater', {
-                            city: airportCity(filters.origin),
-                            defaultValue: '+ flight from {{city}} · priced on hotel page',
-                          })}
+                          {activeOrigins.length === 1
+                            ? t('card.flightPricedLater', {
+                              city: airportCity(activeOrigins[0]),
+                              defaultValue: '+ flight from {{city}} · priced on hotel page',
+                            })
+                            : t('card.flightPricedLaterAny', '+ flight · priced on hotel page')}
                         </span>
                       )}
                       {/* The headline is the PER-PERSON fare — the figure a traveller compares.
@@ -2823,7 +3145,6 @@ export default function Results() {
                           <div className={styles.rcPriceAmount}>
                             <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
                             {ppMajor}
-                            {ppDec != null && <span className={styles.rcPriceDec}>.{ppDec}</span>}
                           </div>
                           <div className={styles.rcPricePer}>{t('card.perPerson', 'per person')}</div>
                         </>
@@ -2838,7 +3159,7 @@ export default function Results() {
                           all still behave; target only changes the default click. */}
                       <Link
                         className={h.onRequest ? `${styles.rcCta} ${styles.rcCtaLive}` : styles.rcCta}
-                        to={detailHref(h, dispName, dispStars, hotelDest, curImg)}
+                        to={detailHref(h, dispName, dispStars, hotelDest, curImg, flightFare?.origin)}
                         target="_blank"
                         rel="noopener noreferrer"
                       >

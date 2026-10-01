@@ -56,6 +56,36 @@ export const groupLinkUrl = (link) => {
   return `/results?${qs.toString()}`;
 };
 
+/**
+ * The search behind a section's "Show all": every place the section shows, at once. Countries
+ * and cities keep their own params, as in destUrl, and `label` names the place in the results
+ * heading ("Stays in Spain").
+ *
+ * Places only, deliberately. Adding the section's holiday types as a filter looks like the
+ * faithful choice, but several types are tagged on no hotel at all (All inclusive and Last
+ * minute are a board and a date, not hotel themes), and one such type in the query empties
+ * the whole search. Each card in these sections searches its own place, unfiltered, and
+ * "Show all" does the same for all of them.
+ *
+ * Returns null when no place is linked, so a section never shows a "Show all" that goes
+ * nowhere.
+ */
+export const sectionSearchUrl = ({ dests = [], label = '' } = {}) => {
+  const countries = new Set();
+  const cities = new Set();
+  (Array.isArray(dests) ? dests : []).forEach((d) => {
+    if (!d?.code || (d.type !== 'country' && d.type !== 'city')) return;
+    (d.type === 'country' ? countries : cities).add(String(d.code).trim().toUpperCase());
+  });
+  if (!countries.size && !cities.size) return null;
+
+  const qs = new URLSearchParams();
+  if (countries.size) qs.set('countries', [...countries].join(','));
+  if (cities.size) qs.set('destinations', [...cities].join(','));
+  if (label) qs.set('destinationLabel', label);
+  return `/results?${qs.toString()}`;
+};
+
 /** Display text for a group link, whether it is a legacy string or an object. */
 export const groupLinkLabel = (link) =>
   typeof link === 'string' ? link : link?.label || link?.dest?.name || '';

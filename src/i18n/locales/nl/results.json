@@ -68,6 +68,14 @@
       "perPerson": "Per kamer/verblijf"
     }
   },
+  "price": {
+    "from": "Vanaf € {{amount}} p.p.",
+    "totalTrip": "Totale reisprijs € {{amount}}",
+    "totalStay": "Totale verblijfsprijs € {{amount}}",
+    "average": "Gemiddeld € {{amount}} p.p.",
+    "viewAvailableDates": "Bekijk beschikbare data",
+    "nonePeriod": "Geen beschikbaar verblijf gevonden binnen de huidige zoekperiode"
+  },
   "flightClass": {
     "direct": "direct",
     "one_stop": "1 tussenstop",
@@ -75,6 +83,20 @@
   },
   "months": "jan,feb,mrt,apr,mei,jun,jul,aug,sep,okt,nov,dec",
   "filters": {
+    "dateTravellers": "Datum & reizigers",
+    "departureDate": "Vertrekdatum",
+    "pickDate": "Kies een datum",
+    "closeCalendar": "Kalender sluiten",
+    "travelDuration": "Reisduur",
+    "exactDuration": "Exacte reisduur",
+    "travellersRooms": "Reizigers & kamers",
+    "childDobLabel": "Geboortedatum, kind {{number}}",
+    "saveChanges": "Wijzigingen opslaan",
+    "fixDobs": "Vul hierboven elke geboortedatum in.",
+    "fewerAdults": "Minder volwassenen",
+    "moreAdults": "Meer volwassenen",
+    "fewerChildren": "Minder kinderen",
+    "moreChildren": "Meer kinderen",
     "title": "Filters",
     "clearAll": "Alles wissen",
     "datesGuests": "Data & reizigers",
@@ -139,7 +161,13 @@
     "priceFrom": "Van",
     "priceTo": "Tot",
     "availablePrices": "Beschikbare prijzen: {{from}} – {{to}}",
-    "clearPrice": "Wis prijsklasse"
+    "clearPrice": "Wis prijsklasse",
+    "noPreference": "Geen voorkeur",
+    "allDepartureAirports": "Alle vertrekluchthavens",
+    "airportsChecking": "We kijken welke luchthavens erheen vliegen…",
+    "airportsCheckFailed": "We konden nu niet nagaan welke luchthavens erheen vliegen, dus elke luchthaven blijft kiesbaar.",
+    "originNoteAny": "Bij elk hotel zie je de vertrekluchthaven met de laagste prijs. Vink luchthavens aan om alleen die te vergelijken.",
+    "airportNoFlight": "Geen vlucht naar {{place}} op deze data"
   },
   "hero": {
     "home": "Home",
@@ -149,7 +177,10 @@
     "findStay": "Vind jouw perfecte verblijf",
     "popularDestinations": "Populaire bestemmingen",
     "places": "{{count}} bestemmingen",
-    "inclFlightFrom": "Incl. vlucht · vanaf {{city}}"
+    "inclFlightFrom": "Incl. vlucht · vanaf {{city}}",
+    "inclFlightAny": "Incl. vlucht · vanaf elke luchthaven",
+    "inclFlightAirports_one": "Incl. vlucht · vanaf {{count}} luchthaven",
+    "inclFlightAirports_other": "Incl. vlucht · vanaf {{count}} luchthavens"
   },
   "toolbar": {
     "searching": "De beste deals zoeken…",
@@ -194,7 +225,10 @@
     "viewLivePrices": "Klik voor actuele prijzen",
     "checkingMore": "We zoeken naar meer verblijven…",
     "onRequestNote_one": "Nog 1 verblijf is beschikbaar op deze data. Open het om de actuele prijs te zien.",
-    "onRequestNote_other": "Nog {{count}} verblijven zijn beschikbaar op deze data. Open er een om de actuele prijs te zien."
+    "onRequestNote_other": "Nog {{count}} verblijven zijn beschikbaar op deze data. Open er een om de actuele prijs te zien.",
+    "stayWindow_one": "{{from}} → {{to}} · {{count}} nacht",
+    "stayWindow_other": "{{from}} → {{to}} · {{count}} nachten",
+    "flightPricedLaterAny": "+ vlucht · prijs op de hotelpagina"
   },
   "lightbox": {
     "photosOf": "Foto’s van {{name}}",

@@ -108,6 +108,7 @@ const PAGE = 20;
 
 // Records every request the component made, so tests can assert the exact contract.
 let calls = [];
+let bulkBodies = [];   // JSON bodies sent to /hotels/bulk
 let latency = () => 0;          // per-URL delay, for race-condition tests
 let internalSource = () => false;
 
@@ -186,6 +187,7 @@ function cheapest(qs) {
 
 beforeEach(() => {
   calls = [];
+  bulkBodies = [];
   facetCalls.length = 0;
   facetLists = NO_FACETS;
   latency = () => 0;
@@ -193,6 +195,7 @@ beforeEach(() => {
   globalThis.fetch = vi.fn((url, opts) => {
     const u = String(url);
     if (u.includes('/hotels/bulk')) {
+      bulkBodies.push(JSON.parse(opts?.body || '{}'));
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
     }
     const qs = new URL(u).searchParams;
@@ -244,6 +247,11 @@ const dragSlider = (label, value) => {
   return el;
 };
 
+// A search, as opposed to one of the Exact Travel Duration counts. Both hit /contracts/cheapest
+// on page 1; the counts ask for pageSize=100 because they only read `total`.
+const isDurationCount = (c) => c.get('pageSize') === '100';
+const mainSearches = () => calls.filter((c) => c.get('page') === '1' && !isDurationCount(c));
+
 const settled = async () => {
   await waitFor(() => expect(screen.queryByText(/De beste deals zoeken/)).not.toBeInTheDocument());
 };
@@ -274,7 +282,7 @@ describe('initial load', () => {
     renderResults();
     await settled();
     await new Promise((r) => setTimeout(r, 500));   // outlive the 300ms debounce
-    expect(calls.filter((c) => c.get('page') === '1')).toHaveLength(1);
+    expect(mainSearches()).toHaveLength(1);
   });
 });
 
@@ -539,9 +547,9 @@ describe('price box', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    const before = calls.length;
+    const before = mainSearches().length;
     await user.type(priceField('Maximumprijs'), '900');
-    expect(calls.length).toBe(before);
+    expect(mainSearches().length).toBe(before);
     await user.tab();
     await waitFor(() => expect(lastCall().get('maxPrice')).toBe('900'));
   });
@@ -664,7 +672,7 @@ describe('price range', () => {
     await waitFor(() => {
       // The headline is the PER-PERSON fare (2 adults); the minPrice bound is on the total.
       // Reconstruct the total (×2) before checking it clears the bound.
-      const perPerson = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/,/g, '')));
+      const perPerson = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/[.,]/g, '')));
       const totals = perPerson.map((p) => p * 2);
       expect(Math.min(...totals)).toBeGreaterThanOrEqual(200);
     });
@@ -677,7 +685,7 @@ describe('price range', () => {
     await waitFor(() => expect(lastCall().get('maxPrice')).toBe('150'));
     await waitFor(() => {
       // Headline price renders as "€1,234.56" (symbol) — older cards said "EUR1234.56".
-      const prices = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/,/g, '')));
+      const prices = cards().map((c) => Number(c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/)[1].replace(/[.,]/g, '')));
       expect(Math.max(...prices)).toBeLessThanOrEqual(150);
     });
   });
@@ -768,12 +776,65 @@ describe('price basis', () => {
   });
 });
 
+describe('hotel info for the cards', () => {
+  it('asks /hotels/bulk for the card view of the hotels on screen', async () => {
+    renderResults();
+    await settled();
+    await waitFor(() => expect(bulkBodies.length).toBeGreaterThan(0));
+    for (const b of bulkBodies) {
+      expect(b.view).toBe('card');
+      expect(b.hotelCodes.length).toBeGreaterThan(0);
+    }
+  });
+});
+
+describe('travel-time counts wait for page 1', () => {
+  const durationCounts = () => calls.filter(isDurationCount);
+
+  it('fires no count until the search the user is waiting on has landed', async () => {
+    latency = (qs) => (isDurationCount(qs) ? 0 : 400);
+    renderResults();
+    await waitFor(() => expect(mainSearches()).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 200));      // page 1 still in flight
+    expect(durationCounts()).toHaveLength(0);
+
+    await settled();
+    await waitFor(() => expect(durationCounts().length).toBeGreaterThan(0));
+  });
+
+  it('still counts the selected stay length with its own request, after page 1', async () => {
+    // Page 1's total is priced to pageSize for a single destination, so it is the short total.
+    renderResults();   // 15 → 18 Aug, 3 nights
+    await settled();
+    await waitFor(() => expect(durationCounts().map((c) => c.get('checkOut'))).toContain('2026-08-18'));
+    const page1At = calls.findIndex((c) => !isDurationCount(c));
+    const selectedAt = calls.findIndex((c) => isDurationCount(c) && c.get('checkOut') === '2026-08-18');
+    expect(selectedAt).toBeGreaterThan(page1At);
+  });
+
+  it('re-counts after a filter change only once the new page 1 is back', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await waitFor(() => expect(durationCounts().length).toBeGreaterThan(0));
+    const before = calls.length;
+
+    latency = (qs) => (isDurationCount(qs) ? 0 : 300);
+    await user.click(sidebarCheck('All inclusive'));
+    const aiCounts = () => calls.slice(before).filter((c) => isDurationCount(c) && c.get('boards') === 'AI');
+    await waitFor(() => expect(mainSearches().some((c) => c.get('boards') === 'AI')).toBe(true));
+    await new Promise((r) => setTimeout(r, 150));      // the AI search is still in flight
+    expect(aiCounts()).toHaveLength(0);
+    await waitFor(() => expect(calls.slice(before).some((c) => isDurationCount(c) && c.get('boards') === 'AI')).toBe(true));
+  });
+});
+
 describe('debounce + request ordering', () => {
   it('collapses a burst of toggles into one committed request', async () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    const before = calls.length;
+    const before = mainSearches().length;
 
     // Boards offered are exactly those the cache reported for this search, so pick three the
     // fixture actually contains — "Full Board" is not one of them.
@@ -789,7 +850,9 @@ describe('debounce + request ordering', () => {
     await waitFor(() => expect(lastCall().get('boards')).toBe('AI,HB,UAI'));
     await new Promise((r) => setTimeout(r, 400));
     // Three clicks inside the debounce window must not mean three round-trips.
-    expect(calls.length - before).toBeLessThanOrEqual(2);
+    // Counted as SEARCHES: ticking a board also refreshes the Exact Travel Duration counts,
+    // which are one request per offered length and are not what this debounce guards.
+    expect(mainSearches().length - before).toBeLessThanOrEqual(2);
   });
 
   it('ignores a slow stale response that lands after a newer one', async () => {
@@ -848,7 +911,7 @@ describe('infinite scroll', () => {
 
     const prices = cards().map((c) => {
       const t = c.textContent.match(/(?:€|EUR)\s*([\d,.]+)/);
-      return t ? Number(t[1].replace(/,/g, '')) : 0;
+      return t ? Number(t[1].replace(/[.,]/g, '')) : 0;
     });
     const sorted = [...prices].sort((a, b) => a - b);
     expect(prices).toEqual(sorted);
@@ -910,15 +973,15 @@ describe('search change', () => {
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
 
     // Add a guest and re-search: a price bound from the old occupancy is meaningless.
-    await user.click(screen.getAllByRole('button', { name: '+' })[0]);
-    await user.click(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
+    await user.click(screen.getAllByRole('button', { name: /wijzigingen opslaan/i })[0]);
 
     await waitFor(() => expect(lastCall().get('adults')).toBe('3'));
     expect(lastCall().get('minPrice')).toBeNull();
     expect(lastCall().get('maxPrice')).toBeNull();
 
     // ...and exactly one request went out — no stale-bounds request followed by a clean one.
-    const adults3 = calls.filter((c) => c.get('adults') === '3');
+    const adults3 = mainSearches().filter((c) => c.get('adults') === '3');
     expect(adults3).toHaveLength(1);
   });
 
@@ -931,8 +994,8 @@ describe('search change', () => {
 
     // A guest is added first because the button only exists while the search HAS changed —
     // pressing it with nothing pending would re-run the identical search for nothing.
-    await user.click(screen.getAllByRole('button', { name: '+' })[0]);
-    await user.click(screen.getAllByRole('button', { name: /zoekopdracht bijwerken/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
+    await user.click(screen.getAllByRole('button', { name: /wijzigingen opslaan/i })[0]);
     await waitFor(() => expect(lastCall().get('adults')).toBe('3'));
     expect(lastCall().get('boards')).toBe('AI');
   });

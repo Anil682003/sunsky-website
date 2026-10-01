@@ -1,4 +1,40 @@
 {
+  "dob": {
+    "months": "January,February,March,April,May,June,July,August,September,October,November,December",
+    "day": "Day",
+    "month": "Month",
+    "year": "Year",
+    "errorIncomplete": "Please enter a valid date of birth.",
+    "errorImpossible": "Please enter a valid date of birth.",
+    "errorFuture": "That date is in the future.",
+    "ageAtTravel_one": "{{count}} year old when you travel",
+    "ageAtTravel_other": "{{count}} years old when you travel"
+  },
+  "availability": {
+    "checking": "Checking availability…",
+    "checkingPrice": "Checking price…",
+    "checkAgain": "Check again",
+    "unavailable": "Not available",
+    "priceUnknown": "No price for these dates",
+    "noValidCombination": "We couldn’t put a trip together from these choices",
+    "error": {
+      "timeout": "We couldn’t check this just now. Your choices are saved, so try once more.",
+      "network": "We couldn’t reach our prices. Check your connection and try again.",
+      "rateLimited": "Too many searches at once. Wait a few seconds, then try again.",
+      "generic": "We couldn’t check this just now. Please try again."
+    },
+    "checkPrice": "Check price",
+    "notForSelection": "Not available for your selection",
+    "temporarilyUnavailable": "Availability temporarily unavailable",
+    "priceTemporarilyUnavailable": "Price temporarily unavailable"
+  },
+  "listing": {
+    "count_one": "{{count}} holiday found",
+    "count_other": "{{count}} holidays found",
+    "countIn_one": "{{count}} holiday in {{place}}",
+    "countIn_other": "{{count}} holidays in {{place}}",
+    "showMore": "Show more"
+  },
   "actions": {
     "search": "Search",
     "back": "Back",
@@ -84,6 +120,10 @@
     }
   },
   "calendar": {
+    "notAvailable": "not available",
+    "legendAvailable": "Available",
+    "legendSelected": "Selected",
+    "legendUnavailable": "Not available",
     "months": "January,February,March,April,May,June,July,August,September,October,November,December",
     "weekdays": "Mon,Tue,Wed,Thu,Fri,Sat,Sun",
     "prevMonth": "Previous month",
@@ -196,6 +236,53 @@
     "selectAll": "Select all",
     "chooseDestination": "Select a destination",
     "search_one": "Search {{count}} place",
-    "search_other": "Search {{count}} places"
+    "search_other": "Search {{count}} places",
+    "typeToSearch": "Type to search…",
+    "chooseCountry": "Choose country…",
+    "chooseCity": "Choose city…",
+    "chooseArea": "Choose area…",
+    "popular": "Popular",
+    "everywhereElse": "Everywhere else",
+    "noMatches": "Nothing matches that.",
+    "pickCountryFirst": "Choose a country first.",
+    "pickCityFirst": "Choose a city first.",
+    "noCountries": "No countries available.",
+    "countryCount_one": "{{count}} country",
+    "countryCount_other": "{{count}} countries",
+    "cityCount_one": "{{count}} city",
+    "cityCount_other": "{{count}} cities",
+    "areaCount_one": "{{count}} area",
+    "areaCount_other": "{{count}} areas"
+  },
+  "offer": {
+    "included": "Included",
+    "selected": "Selected",
+    "cheaper": "cheaper",
+    "cheapest": "Cheapest",
+    "diffUp": "+€ {{amount}} p.p.",
+    "diffDown": "-€ {{amount}} p.p."
+  },
+  "localCosts": {
+    "payableToSunsky": "Payable to SUNSKY € {{amount}}",
+    "mandatoryLocal": "Mandatory payment locally",
+    "totalKnown": "Total known cost of the trip € {{amount}}",
+    "uncertainRange": "{{cost}}, local rate approx. € {{min}}-€ {{max}} p.p. per night; exact amount determined locally"
+  },
+  "feasibility": {
+    "notAvailableFrom": "Not available from {{airport}}",
+    "earliestDeparture": "Earliest possible departure: {{date}}",
+    "possibleDates_one": "{{count}} possible departure date found",
+    "possibleDates_other": "{{count}} possible departure dates found"
+  },
+  "routing": {
+    "nonstop": "Non-stop",
+    "throughStop": "Stop without connection",
+    "oneConnection": "Maximum one connection"
+  },
+  "flightDetails": {
+    "details": "Flight details",
+    "baggage": "Baggage",
+    "notIncluded": "Not included",
+    "flightGone": "The selected flight option is no longer available"
   }
 }

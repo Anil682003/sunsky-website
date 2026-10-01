@@ -29,6 +29,7 @@ import BookingConfirmation from '../pages/Booking/BookingConfirmation';
 import NotFound from '../pages/NotFound/NotFound';
 
 // layout: true  → wrapped in Navbar + Footer
+// footer: false → keeps the navbar but drops the footer (see Layout)
 // protected: true → requires auth, redirects to /login
 export const publicRoutes = [
   { path: '/login',    component: Login,    layout: false },
@@ -40,7 +41,7 @@ export const routes = [
   // Public pages
   { path: '/',           component: Home,      layout: true, protected: false },
   { path: '/results',    component: Results,   layout: true, protected: false },
-  { path: '/hotel/:hotelCode', component: HotelDetail, layout: true, protected: false },
+  { path: '/hotel/:hotelCode', component: HotelDetail, layout: true, footer: false, protected: false },
   { path: '/packages',   component: Packages,  layout: true, protected: false },
   { path: '/flights',    component: Flights,   layout: true, protected: false },
   { path: '/flights/:id', component: FlightDetail, layout: true, protected: false },

@@ -1,0 +1,90 @@
+/* The date-of-birth control, built from the same tokens as every other SUNSKY form field:
+   the 1.5px #e2eaf5 border, the --r-sm radius, the tinted #f8fbff rest state and the blue
+   focus ring the check-in field uses. Nothing here is a new look; the point of the redesign
+   was to stop the browser supplying one. */
+
+.wrap { display: flex; flex-direction: column; gap: 6px; }
+
+/* Above the fields, not beside them. Beside them the three selects were squeezed into
+   whatever the label left over, which on a phone was not enough to hit reliably. */
+.label {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-sec);
+  font-family: 'Sora', sans-serif;
+  letter-spacing: 0.1px;
+}
+
+/* Day is narrowest, year is fixed, month takes the slack — a month name is the only one of
+   the three whose width varies with the language. */
+.fields {
+  display: grid;
+  grid-template-columns: minmax(58px, 0.8fr) minmax(0, 1.5fr) minmax(66px, 0.9fr);
+  gap: 7px;
+}
+
+.field {
+  width: 100%;
+  min-width: 0;             /* grid children default to min-content: without this "September" widens the column */
+  box-sizing: border-box;
+  height: 40px;             /* the same height as the other controls in the panel */
+  padding: 0 9px;
+  border: 1.5px solid #e2eaf5;
+  border-radius: var(--r-sm);
+  background: #f8fbff;
+  font-family: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  outline: none;
+  cursor: pointer;
+  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
+  /* Keep the native dropdown behaviour (it is the right control on a phone) while taking
+     back the chrome around it. */
+  appearance: none;
+  -webkit-appearance: none;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235a6b85' stroke-width='2.4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 9px center;
+  padding-right: 26px;
+}
+
+.field:hover { border-color: #c7d8f2; }
+.field:focus {
+  border-color: var(--blue-ocean);
+  background: var(--white);
+  box-shadow: 0 0 0 4px rgba(95,168,255,0.13);
+}
+
+/* The error state has to be visible without colour alone: the border thickens and the field
+   lifts off the tinted background as well as turning red. */
+.fieldError {
+  border-color: #e2554d;
+  background: #fff6f5;
+}
+.fieldError:focus {
+  border-color: #e2554d;
+  box-shadow: 0 0 0 4px rgba(226,85,77,0.14);
+}
+
+.error {
+  margin: 0;
+  font-size: 12px;
+  font-weight: 600;
+  color: #c9372f;
+  line-height: 1.35;
+}
+
+.age {
+  margin: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--text-light);
+}
+
+/* Below this the sidebar is narrow enough that three columns start truncating the month.
+   Day and month share the top row, the year takes the second. */
+@media (max-width: 380px) {
+  .fields { grid-template-columns: minmax(54px, 0.8fr) minmax(0, 1.4fr); }
+  .fields > .field:last-child { grid-column: 1 / -1; }
+}

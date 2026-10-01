@@ -3,7 +3,7 @@ import styles from './VacationTypes.module.css';
 import SectionHead from './SectionHead';
 import { useTranslation } from 'react-i18next';
 import {
-  Crown, Heart, Users, BadgeCheck, Sun, Flower2, Sparkles,
+  Sun, Flower2,
   Star, Moon, Umbrella, Waves, Droplets, Wifi, Utensils, UtensilsCrossed,
   Coffee, Baby, Dumbbell, PawPrint, Wind, BedDouble, Martini, Trees, Check,
 } from 'lucide-react';
@@ -93,30 +93,17 @@ const ArrowIcon = () => (
   </svg>
 );
 
-/* ── Marks for the badge and the filter chips ──
-   Both the badge wording and the chip labels are typed in the dashboard, in
-   either language, so these match on the words rather than on an id. Every
-   pattern carries its Dutch spelling alongside its English one, and anything
-   nobody listed still gets a mark — a generic one — rather than a bare pill.
-   Accents are stripped first so "café" and "cafe" match the same rule. */
+/* ── Marks for the filter chips ──
+   The chip labels are typed in the dashboard, in either language, so these match on the
+   words rather than on an id. Every pattern carries its Dutch spelling alongside its
+   English one, and anything nobody listed still gets a mark, a generic one, rather than a
+   bare pill. Accents are stripped first so "café" and "cafe" match the same rule.
+
+   The badge on the photo has no mark: a crown, a heart or a sparkle in a colour of its own
+   was decoration, and the client asked for the playful touches to go. Its words carry it. */
 const norm = (s) => String(s ?? '')
   .normalize('NFD').replace(/\p{Diacritic}/gu, '')
   .toLowerCase();
-
-const BADGE_MARKS = [
-  [/premium|luxur|luxe|deluxe|exclusi|5[ -]?star|vip/,        Crown,      'labelIconGold'],
-  [/adult|volwassen|couple|koppel|romant|honeymoon|huwelijk/, Heart,      'labelIconRose'],
-  [/family|famil|gezin|kind|kids|child/,                      Users,      'labelIconTeal'],
-  [/all[ -]?in|alles inbegrepen|worry|zorgeloos|carefree/,    BadgeCheck, 'labelIconBlue'],
-  [/beach|strand|sun|zon|coast|kust|zee|sea/,                 Sun,        'labelIconGold'],
-  [/spa|wellness|relax|rust|calm|serene/,                     Flower2,    'labelIconTeal'],
-];
-
-const badgeMark = (label) => {
-  const text = norm(label);
-  const hit = BADGE_MARKS.find(([re]) => re.test(text));
-  return hit ? { Icon: hit[1], tone: hit[2] } : { Icon: Sparkles, tone: 'labelIconBlue' };
-};
 
 const CHIP_MARKS = [
   [/jacuzzi|whirlpool|hot ?tub|bubbelbad|sauna/,              Droplets],
@@ -194,17 +181,12 @@ export default function VacationTypes({ cms }) {
 
         <div className={styles.grid}>
           {types.map((vac, i) => {
-            const badge = vac.label && !sameWords(vac.label, vac.title) ? badgeMark(vac.label) : null;
+            const showBadge = Boolean(vac.label) && !sameWords(vac.label, vac.title);
             return (
             <article key={i} className={styles.card}>
               <div className={styles.media}>
                 <img src={vac.img} alt={vac.title} loading="lazy" />
-                {badge && (
-                  <span className={styles.label}>
-                    <badge.Icon size={14} className={`${styles.labelIcon} ${styles[badge.tone]}`} aria-hidden="true" />
-                    {vac.label}
-                  </span>
-                )}
+                {showBadge && <span className={styles.label}>{vac.label}</span>}
               </div>
               <div className={styles.body}>
                 <h3 className={styles.vacTitle}>{vac.title}</h3>

@@ -1,4 +1,40 @@
 {
+  "dob": {
+    "months": "januari,februari,maart,april,mei,juni,juli,augustus,september,oktober,november,december",
+    "day": "Dag",
+    "month": "Maand",
+    "year": "Jaar",
+    "errorIncomplete": "Vul een geldige geboortedatum in.",
+    "errorImpossible": "Vul een geldige geboortedatum in.",
+    "errorFuture": "Die datum ligt in de toekomst.",
+    "ageAtTravel_one": "{{count}} jaar op de reisdatum",
+    "ageAtTravel_other": "{{count}} jaar op de reisdatum"
+  },
+  "availability": {
+    "checking": "Beschikbaarheid controleren…",
+    "checkingPrice": "Prijs wordt gecontroleerd…",
+    "checkAgain": "Opnieuw controleren",
+    "unavailable": "Niet beschikbaar",
+    "priceUnknown": "Geen prijs voor deze data",
+    "noValidCombination": "We konden met deze keuzes geen reis samenstellen",
+    "error": {
+      "timeout": "We konden dit nu niet controleren. Je keuzes zijn bewaard, probeer het nog eens.",
+      "network": "We konden onze prijzen niet bereiken. Controleer je verbinding en probeer het opnieuw.",
+      "rateLimited": "Te veel zoekopdrachten tegelijk. Wacht even en probeer het opnieuw.",
+      "generic": "We konden dit nu niet controleren. Probeer het opnieuw."
+    },
+    "checkPrice": "Prijs controleren",
+    "notForSelection": "Niet beschikbaar voor jouw selectie",
+    "temporarilyUnavailable": "Beschikbaarheid tijdelijk niet op te halen",
+    "priceTemporarilyUnavailable": "Prijs tijdelijk niet op te halen"
+  },
+  "listing": {
+    "count_one": "{{count}} vakantie gevonden",
+    "count_other": "{{count}} vakanties gevonden",
+    "countIn_one": "{{count}} vakantie in {{place}}",
+    "countIn_other": "{{count}} vakanties in {{place}}",
+    "showMore": "Toon meer"
+  },
   "actions": {
     "search": "Zoeken",
     "back": "Terug",
@@ -84,6 +120,10 @@
     }
   },
   "calendar": {
+    "notAvailable": "niet beschikbaar",
+    "legendAvailable": "Beschikbaar",
+    "legendSelected": "Geselecteerd",
+    "legendUnavailable": "Niet beschikbaar",
     "months": "januari,februari,maart,april,mei,juni,juli,augustus,september,oktober,november,december",
     "weekdays": "ma,di,wo,do,vr,za,zo",
     "prevMonth": "Vorige maand",
@@ -196,6 +236,53 @@
     "selectAll": "Alles selecteren",
     "chooseDestination": "Kies een bestemming",
     "search_one": "Zoek {{count}} bestemming",
-    "search_other": "Zoek {{count}} bestemmingen"
+    "search_other": "Zoek {{count}} bestemmingen",
+    "typeToSearch": "Typ om te zoeken…",
+    "chooseCountry": "Kies land…",
+    "chooseCity": "Kies stad…",
+    "chooseArea": "Kies regio…",
+    "popular": "Populair",
+    "everywhereElse": "Alle andere",
+    "noMatches": "Niets komt overeen.",
+    "pickCountryFirst": "Kies eerst een land.",
+    "pickCityFirst": "Kies eerst een stad.",
+    "noCountries": "Geen landen beschikbaar.",
+    "countryCount_one": "{{count}} land",
+    "countryCount_other": "{{count}} landen",
+    "cityCount_one": "{{count}} stad",
+    "cityCount_other": "{{count}} steden",
+    "areaCount_one": "{{count}} regio",
+    "areaCount_other": "{{count}} regio’s"
+  },
+  "offer": {
+    "included": "Inbegrepen",
+    "selected": "Geselecteerd",
+    "cheaper": "goedkoper",
+    "cheapest": "Goedkoopst",
+    "diffUp": "+€ {{amount}} p.p.",
+    "diffDown": "-€ {{amount}} p.p."
+  },
+  "localCosts": {
+    "payableToSunsky": "Te betalen aan SUNSKY € {{amount}}",
+    "mandatoryLocal": "Verplicht ter plaatse te betalen",
+    "totalKnown": "Totale bekende reiskosten € {{amount}}",
+    "uncertainRange": "{{cost}}, lokaal tarief ca. € {{min}}-€ {{max}} p.p. per nacht; het exacte bedrag wordt ter plaatse bepaald"
+  },
+  "feasibility": {
+    "notAvailableFrom": "Niet beschikbaar vanaf {{airport}}",
+    "earliestDeparture": "Vroegst mogelijke vertrekdatum: {{date}}",
+    "possibleDates_one": "{{count}} mogelijke vertrekdatum gevonden",
+    "possibleDates_other": "{{count}} mogelijke vertrekdata gevonden"
+  },
+  "routing": {
+    "nonstop": "Non-stop",
+    "throughStop": "Tussenlanding zonder overstap",
+    "oneConnection": "Maximaal één overstap"
+  },
+  "flightDetails": {
+    "details": "Vluchtdetails",
+    "baggage": "Bagage",
+    "notIncluded": "Niet inbegrepen",
+    "flightGone": "De gekozen vluchtoptie is niet meer beschikbaar"
   }
 }

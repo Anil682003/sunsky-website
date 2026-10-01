@@ -1,278 +1,220 @@
-/* ============================================================================
-   ScopePicker — the Where filter. Three collapsible sections (countries →
-   cities → areas), one open at a time. Restrained: whitespace does the
-   separating, colour marks only what is selected.
-   ========================================================================== */
+/* ═══════════════════════════════════════════════════════════
+   SunSky — Where-picker
+   Three fields that look like selects and open into a searchable
+   list. Sized and spaced to sit in the results sidebar rail.
+   ═══════════════════════════════════════════════════════════ */
 
-.wrap { display: flex; flex-direction: column; }
+.wrap {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
 
-/* ── Selected pills ──────────────────────────────────────────────────────── */
+/* The stacking context each panel is positioned against. A later field's panel has
+   to sit over the field below it, so the open one is lifted in .controlOpen. */
+.field {
+  position: relative;
+}
 
-.selected {
-  padding: 13px 14px 12px;
-  margin-bottom: 10px;
-  border: 1px solid #dde8f8;
+.control {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--line);
   border-radius: 12px;
-  background: #f6f9fe;
-}
-
-.selectedHead {
-  display: flex; align-items: center; justify-content: space-between;
-  margin-bottom: 10px;
-}
-.selectedLabel {
-  font-size: 12px; font-weight: 600;
-  color: #64748b;
-}
-.clear {
-  border: none; background: none; padding: 0;
-  font-size: 12px; font-weight: 600;
-  color: #64748b; cursor: pointer;
-  transition: color 0.15s;
-}
-.clear:hover { color: #dc2626; }
-
-.pills { display: flex; flex-wrap: wrap; gap: 6px; }
-
-.pill {
-  display: inline-flex; align-items: center; gap: 7px;
-  max-width: 100%;
-  padding: 6px 7px 6px 10px;
-  border: 1px solid #e2e8f0;
-  border-radius: 8px;
-  background: #fff;
-  font-size: 12.5px; font-weight: 500;
-  color: #1e293b;
-}
-
-.pillFlag {
-  flex-shrink: 0;
-  width: 17px; height: 12px; object-fit: cover;
-  border-radius: 2px; border: 1px solid rgba(15, 23, 42, 0.1);
-}
-.pillFlag[data-emoji] { border: none; width: auto; font-size: 0.9rem; line-height: 1; }
-
-.pillX {
-  display: inline-flex; align-items: center; justify-content: center;
-  flex-shrink: 0;
-  width: 17px; height: 17px;
-  border: none; border-radius: 5px;
-  background: none;
-  color: #94a3b8;
+  background: #FFFFFF;
   cursor: pointer;
-  transition: background 0.15s, color 0.15s;
+  transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
 }
-.pillX:hover { background: #fee2e2; color: #dc2626; }
-
-/* ── Sections ────────────────────────────────────────────────────────────── */
-
-.sections {
-  display: flex; flex-direction: column; gap: 8px;
-  margin-bottom: 14px;
+.control:hover { border-color: var(--line-strong); }
+.controlOpen,
+.controlOpen:hover {
+  border-color: var(--blue-deep);
+  box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.14);
 }
 
-/* Each level is its own card, so the three steps read as distinct choices
-   rather than one long scroll. */
-.section {
-  border: 1px solid #e6ecf5;
-  border-radius: 12px;
-  background: #fff;
-  transition: border-color 0.18s ease, box-shadow 0.18s ease, background 0.18s ease;
-}
-.section:not(.sectionOpen):not(.locked):hover { border-color: #d3dfef; }
-
-.sectionOpen {
-  border-color: #c5d8f5;
-  box-shadow: 0 2px 10px rgba(15, 40, 100, 0.05);
-}
-
-.locked {
-  background: #fafbfd;
-  border-color: #eef2f7;
-}
-.locked .sectionTitle { color: #94a3b8; }
-
-.sectionHead {
-  display: flex; align-items: center; gap: 10px;
-  width: 100%;
-  padding: 14px 14px;
-  border: none; border-radius: 12px;
-  background: none;
-  text-align: left; font-family: inherit;
-  cursor: pointer;
-}
-.locked .sectionHead { cursor: default; }
-
-.sectionText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; }
-
-.sectionTitle {
-  font-family: 'Sora', sans-serif;
-  font-size: 13.5px; font-weight: 600;
-  color: #0f172a;
-}
-.sectionSummary {
-  font-size: 12px;
-  color: #94a3b8;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-.badge {
+.controlIcon {
+  display: flex;
   flex-shrink: 0;
-  display: inline-flex; align-items: center; justify-content: center;
-  min-width: 20px; height: 20px; padding: 0 6px;
-  border-radius: 6px;
-  background: #2563eb;
-  color: #fff;
-  font-size: 11px; font-weight: 700;
+  color: var(--blue-deep);
 }
 
-.chev { flex-shrink: 0; color: #cbd5e1; transition: transform 0.2s ease, color 0.2s ease; }
-.chevOpen { transform: rotate(180deg); color: #64748b; }
-
-.sectionBody {
-  padding: 0 14px 14px;
-  border-top: 1px solid #f1f5fa;
-  padding-top: 12px;
-}
-
-/* ── Search ──────────────────────────────────────────────────────────────── */
-
-.searchWrap { position: relative; margin-bottom: 10px; }
-
-.searchIcon {
-  position: absolute; left: 12px; top: 50%;
-  transform: translateY(-50%);
-  color: #94a3b8;
-  pointer-events: none;
-}
-
-.search {
-  width: 100%; box-sizing: border-box;
-  padding: 10px 12px 10px 34px;
-  border: 1px solid #e2e8f0; border-radius: 9px;
-  font-size: 13px; font-family: inherit;
-  background: #fff; color: #0f172a;
-  transition: border-color 0.15s, box-shadow 0.15s;
-}
-.search::placeholder { color: #a8b4c6; }
-.search:focus {
+.controlInput {
+  flex: 1;
+  min-width: 0;
+  border: 0;
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.09);
+  background: transparent;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--text);
+  cursor: inherit;
+  /* Truncate rather than wrap: "Canarische Eilanden" must not make the field two
+     lines tall and shift the whole rail. */
+  text-overflow: ellipsis;
+}
+.controlInput::placeholder {
+  color: var(--text-light);
+  font-weight: 500;
+}
+.controlInput:read-only { cursor: pointer; }
+
+.controlChev {
+  flex-shrink: 0;
+  color: var(--text-light);
+  transition: color 0.18s var(--ease);
+}
+.control:hover .controlChev { color: var(--text-sec); }
+.controlOpen .controlChev { color: var(--blue-deep); }
+
+/* ── The open panel ── */
+.panel {
+  position: absolute;
+  top: calc(100% + 6px);
+  left: 0;
+  right: 0;
+  /* Above the fields below it and above the cards to its right. */
+  z-index: 40;
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  background: #FFFFFF;
+  box-shadow: 0 4px 10px rgba(13, 27, 62, 0.06), 0 18px 40px rgba(13, 27, 62, 0.16);
+  overflow: hidden;
+  animation: scopeIn 0.14s var(--ease) both;
+}
+@keyframes scopeIn {
+  from { opacity: 0; transform: translateY(-4px); }
+  to   { opacity: 1; transform: none; }
 }
 
-/* ── List ────────────────────────────────────────────────────────────────── */
+/* What is already chosen, at the top of the list where it can be taken off again
+   without hunting for the row it came from. */
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 10px 10px 8px;
+  border-bottom: 1px solid var(--line);
+}
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 8px 4px 10px;
+  border: 1px solid rgba(31, 79, 216, 0.22);
+  border-radius: var(--r-full);
+  background: var(--blue-light, #EAF1FE);
+  color: var(--blue-deep);
+  font-family: 'Sora', sans-serif;
+  font-size: 0.72rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.16s var(--ease), border-color 0.16s var(--ease);
+}
+.chip:hover {
+  background: #DDE8FD;
+  border-color: rgba(31, 79, 216, 0.4);
+}
+.chip svg { opacity: 0.7; }
+.chip:hover svg { opacity: 1; }
 
 .list {
-  max-height: 290px; overflow-y: auto;
-  margin: 0 -4px; padding: 0 4px;
-  display: flex; flex-direction: column;
+  max-height: 290px;
+  overflow-y: auto;
+  margin: 0;
+  padding: 6px;
+  list-style: none;
   overscroll-behavior: contain;
 }
-.list::-webkit-scrollbar { width: 6px; }
-.list::-webkit-scrollbar-track { background: transparent; }
-.list::-webkit-scrollbar-thumb { background: #dde5f0; border-radius: 3px; }
-.list::-webkit-scrollbar-thumb:hover { background: #c3d0e3; }
 
-/* ── Group ───────────────────────────────────────────────────────────────── */
-
-.group + .group { margin-top: 6px; }
-
-.groupHead {
-  position: sticky; top: 0; z-index: 1;
-  display: flex; align-items: center; gap: 8px;
-  padding: 10px 8px 7px;
-  background: #fff;
+.heading {
+  padding: 8px 10px 5px;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.66rem;
+  font-weight: 700;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--text-light);
 }
-.groupFlag {
-  flex-shrink: 0;
-  width: 17px; height: 12px; object-fit: cover;
-  border-radius: 2px; border: 1px solid rgba(15, 23, 42, 0.1);
-}
-.groupFlag[data-emoji] { border: none; width: auto; font-size: 0.9rem; line-height: 1; }
 
-.groupName {
-  flex: 1; min-width: 0;
-  font-size: 12px; font-weight: 600;
-  color: #64748b;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-.groupAll {
-  flex-shrink: 0;
-  border: none; background: none; padding: 0;
-  font-family: inherit;
-  font-size: 11.5px; font-weight: 600;
-  color: #2563eb;
-  cursor: pointer;
-}
-.groupAll:hover { text-decoration: underline; }
-
-/* ── Row ─────────────────────────────────────────────────────────────────── */
-
-.row {
-  display: flex; align-items: center; gap: 11px;
+.option {
+  display: flex;
+  align-items: center;
+  gap: 9px;
   width: 100%;
-  padding: 9px 10px;
-  border: none; border-radius: 8px;
-  background: none;
-  text-align: left; font-family: inherit;
-  font-size: 13.5px;
-  color: #334155;
+  padding: 8px 10px;
+  border: 0;
+  border-radius: 9px;
+  background: transparent;
+  font-family: 'Sora', sans-serif;
+  font-size: 0.8125rem;
+  font-weight: 500;
+  color: var(--text);
+  text-align: left;
   cursor: pointer;
-  transition: background 0.13s;
+  transition: background 0.14s var(--ease);
 }
-.row:hover { background: #f6f9fe; }
-.rowOn { color: #0f172a; font-weight: 500; }
+.option:hover { background: var(--surface-alt); }
+.option:focus-visible {
+  outline: 2px solid rgba(31, 79, 216, 0.45);
+  outline-offset: -2px;
+}
+/* Already in the scope: kept in the list rather than hidden, so clicking it again
+   is how you take it out, and the list does not reshuffle under the cursor. */
+.optionOn {
+  background: var(--blue-light, #EAF1FE);
+  font-weight: 600;
+  color: var(--blue-deep);
+}
+.optionOn:hover { background: #DDE8FD; }
 
-.box {
+.optionFlag {
   flex-shrink: 0;
-  display: flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px;
-  border: 1.5px solid #cbd5e1; border-radius: 5px;
-  background: #fff; color: #fff;
-  transition: border-color 0.13s, background 0.13s;
+  width: 18px;
+  height: 13px;
+  border-radius: 2px;
+  object-fit: cover;
+  box-shadow: 0 0 0 1px rgba(13, 27, 62, 0.08);
 }
-.boxOn { border-color: #2563eb; background: #2563eb; }
+.optionFlag[data-emoji='true'] {
+  width: auto;
+  height: auto;
+  font-size: 14px;
+  line-height: 1;
+  box-shadow: none;
+}
 
-.flag {
+.optionName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+/* Which city an area sits in. Right-aligned and quiet: it disambiguates, it is not
+   what the reader is scanning for. */
+.optionHint {
   flex-shrink: 0;
-  width: 21px; height: 15px; object-fit: cover;
-  border-radius: 3px; border: 1px solid rgba(15, 23, 42, 0.1);
+  max-width: 45%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 0.7rem;
+  color: var(--text-light);
 }
-.flag[data-emoji] { border: none; width: auto; font-size: 1rem; line-height: 1; }
-
-.rowName {
-  flex: 1; min-width: 0;
-  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-}
-
-/* City code — quiet, informational, no pill. */
-.code {
-  flex-shrink: 0;
-  font-size: 11px; font-weight: 600;
-  letter-spacing: 0.03em;
-  color: #b4c0d1;
-}
-.rowOn .code { color: #7d90ab; }
 
 .note {
-  padding: 12px 10px; margin: 0;
-  font-size: 13px;
-  color: #94a3b8;
+  padding: 14px 12px;
+  font-size: 0.8125rem;
+  color: var(--text-sec);
+  text-align: center;
 }
 
-/* ── Apply ───────────────────────────────────────────────────────────────── */
-
-.apply {
-  width: 100%;
-  padding: 12px;
-  border: none; border-radius: 9px;
-  background: #2563eb;
-  color: #fff;
-  font-family: 'Sora', sans-serif;
-  font-size: 13px; font-weight: 600;
-  cursor: pointer;
-  transition: background 0.18s;
+@media (prefers-reduced-motion: reduce) {
+  .panel { animation: none; }
+  .control, .controlChev, .option, .chip { transition: none; }
 }
-.apply:hover:not(:disabled) { background: #1d4ed8; }
-.apply:disabled { background: #cbd5e1; cursor: default; }

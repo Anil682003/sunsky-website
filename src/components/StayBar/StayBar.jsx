@@ -2,7 +2,7 @@ import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './StayBar.module.css';
 import { earliestCheckInISO } from '../../utils/leadTime';
-import { DURATION_BANDS, bandByLabel, bandForNights, daysInBand, daysToNights } from '../../utils/durations';
+import { DURATION_BANDS, bandByLabel, bandForNights, daysInBand, stayDaysToNights } from '../../utils/durations';
 
 // The "edit my search" bar on the hotel page: departure date, who's travelling, board,
 // departure airport and length of stay.
@@ -345,7 +345,7 @@ export default function StayBar({
           open={openField === 'nights'} onToggle={toggle}>
           <OptionList current={band.label}
             options={DURATION_BANDS.map((b) => ({ id: b.label, label: t(`home:hero.durations.${b.key}`, b.label) }))}
-            onPick={(label) => { onChange({ nights: daysToNights(bandByLabel(label).days) }); close(); }} />
+            onPick={(label) => { onChange({ nights: stayDaysToNights(bandByLabel(label).days) }); close(); }} />
         </Field>
       </div>
 
@@ -353,7 +353,7 @@ export default function StayBar({
         <span className={styles.footLabel}>{t('stayBar.exactLength', 'Exact length')}</span>
         <div className={styles.chips}>
           {exactDays.map((d) => {
-            const n = daysToNights(d);   // "7 days" chip → 6 nights
+            const n = stayDaysToNights(d);   // "7 days" chip → 6 nights
             return (
               <button type="button" key={d} className={`${styles.chip}${nights === n ? ` ${styles.chipOn}` : ''}`}
                 onClick={() => onChange({ nights: n })} aria-pressed={nights === n}>

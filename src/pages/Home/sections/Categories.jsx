@@ -4,7 +4,8 @@ import styles from './Categories.module.css';
 import SectionHead from './SectionHead';
 import { useHolidayTypes } from '../../../api';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
-import { normalizeDests, destUrl } from '../../../utils/cmsDestinations';
+import { normalizeDests, destUrl, sectionSearchUrl } from '../../../utils/cmsDestinations';
+import ShowAllLink from '../../../components/ShowAllLink/ShowAllLink';
 import { useTranslation } from 'react-i18next';
 
 // The cards the homepage has always shown. They stay the visual source of truth:
@@ -124,10 +125,21 @@ export default function Categories({ cms }) {
 
   cards = cards.slice(0, MAX_CARDS);
 
+  // "Show all" searches every place the cards feature, in one search. Places only: see
+  // sectionSearchUrl for why the holiday types do not travel as a filter.
+  const showAllHref = sectionSearchUrl({ dests: cards.flatMap((c) => c.destinations ?? []) });
+
   return (
     <section className={styles.section}>
       <div className={styles.inner}>
-        <SectionHead eyebrow={tag} title={title} subtitle={subtitle} />
+        <SectionHead
+          eyebrow={tag}
+          title={title}
+          subtitle={subtitle}
+          action={showAllHref ? (
+            <ShowAllLink to={showAllHref}>{t('sections.showAll', 'Show all')}</ShowAllLink>
+          ) : null}
+        />
 
         <div className={styles.grid}>
           {cards.map((c) => {

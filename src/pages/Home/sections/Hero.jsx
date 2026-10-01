@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './Hero.module.css';
@@ -7,7 +7,7 @@ import DestinationModal from '../../../components/DestinationModal/DestinationMo
 import DateCalendar from '../../../components/DateCalendar/DateCalendar';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { cmsText } from '../../../utils/cmsText';
-import { DURATION_BANDS, bandByLabel, daysToNights } from '../../../utils/durations';
+import { DURATION_BANDS, bandByLabel, stayDaysToNights, stayCheckOut, packageReturnDate } from '../../../utils/durations';
 import AirportSearch from '../../../components/AirportSearch/AirportSearch';
 import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
 import { flagUrl } from '../../../utils/countryFlag';
@@ -99,6 +99,10 @@ const MAX_LEGS = 5;
 // The fields whose panel is the airport typeahead: the two on the round-trip row, plus a From
 // and a To for every multi-city leg.
 const AIRPORT_FIELD = /^(?:flightFrom|flightTo|leg\d+(?:From|To))$/;
+
+// At and below this width both search cards stack their fields into one column (the 1024px
+// block in Hero.module.css), which is when a panel has to hang under its own field.
+const STACKED_QUERY = '(max-width: 1024px)';
 
 // Field icons, hoisted out of the markup: the same handful of drawings appears on up to
 // sixteen fields once a five-leg multi-city trip is open, and inlining them buried the fields
@@ -313,29 +317,28 @@ export default function Hero() {
   // hotel page already read from there.
   const [transport, setTransport] = useState(() => (remembered?.transport === 'hotel_only' ? 'hotel_only' : 'package'));
   // Airports the traveller can leave from — MULTI-select, because "Brussels or Charleroi,
-  // whichever works out" is how people actually shop. The FIRST pick is the airport the
-  // search prices from (`origin` in the URL — single-valued everywhere downstream); the
-  // whole list rides along as `origins` so the choice is never silently narrowed to one.
-  const [origins, setOrigins] = useState(() => (remembered?.origins?.length ? remembered.origins : [DEFAULT_ORIGIN]));
+  // whichever works out" is how people actually shop. The whole list rides in the URL as
+  // `origin` (the first) + `origins`.
+  //
+  // NONE CHOSEN MEANS "NO PREFERENCE": every active departure airport (spec 3.2). That is the
+  // default, so a search nobody narrowed compares all airports instead of quietly pricing
+  // from Brussels, and a search with no preference puts no airport in the URL at all.
+  const [origins, setOrigins] = useState(() => (remembered?.origins?.length ? remembered.origins : []));
   // §25 departure master list from the admin dashboard (seed fallback until it loads).
   const { airports: allAirports } = useDepartureAirports();
-  // Toggle, never below one: an empty "Flying from" has no honest label and no airport
-  // to search from, so the last ticked row cannot be un-ticked.
+  // Only airports still on the dashboard's active list count as chosen (spec 3.6): one the
+  // team deactivated since this search was saved simply drops out rather than being offered.
+  const knownOrigins = new Set(allAirports.map((a) => a.code));
+  const chosenOrigins = origins.filter((c) => knownOrigins.has(c));
+  // Un-ticking the last airport leaves none chosen, which is No preference, not an error.
   const toggleOrigin = (code) =>
-    setOrigins((prev) => (prev.includes(code)
-      ? (prev.length === 1 ? prev : prev.filter((c) => c !== code))
-      : [...prev, code]));
-  // "Clear all" is a soft reset — the picker cannot honestly have zero airports (see
-  // toggleOrigin above), so it falls back to the default origin rather than emptying the
-  // selection to a state the rest of the site cannot search.
-  const clearOrigins = () => setOrigins([DEFAULT_ORIGIN]);
-  // "No preference" is not a fourth kind of selection sitting beside the airport list — it
-  // is every departure airport ticked at once, which is exactly what "search all available
-  // departure airports" means. Modelling it that way keeps ONE source of truth (`origins`)
-  // and needs nothing new in the URL: the results page and the hotel page's flight search go
-  // on reading `origin` + `origins` as before, they just receive the whole list.
-  const noPreference = allAirports.length > 1 && origins.length === allAirports.length;
-  const selectAllOrigins = () => setOrigins(allAirports.map((a) => a.code));
+    setOrigins((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
+  // "Clear all" goes back to No preference.
+  const clearOrigins = () => setOrigins([]);
+  // No preference is nothing chosen, or every airport ticked by hand, which says the same.
+  const noPreference = chosenOrigins.length === 0
+    || (allAirports.length > 1 && allAirports.every((a) => chosenOrigins.includes(a.code)));
+  const selectAllOrigins = () => setOrigins([]);
   // Clicking an airport while "No preference" is on is the traveller narrowing from
   // "anywhere" down to one airport, not un-ticking one row of nineteen — so it starts their
   // selection fresh rather than leaving the other eighteen silently still selected.
@@ -410,6 +413,37 @@ export default function Hero() {
     document.addEventListener('mousedown', handleClickOutside);
     return () => document.removeEventListener('mousedown', handleClickOutside);
   }, []);
+
+  // Where an open panel hangs. On a wide screen each search card is one row, and every panel
+  // drops from the card's bottom edge (the stylesheet's default). Once the card stacks its
+  // fields into a column, that bottom edge sits under the Search button, a whole card away
+  // from the field that was tapped: on a phone the Departure calendar opened below Travellers
+  // and the button. So on a stacked card the open panel is pinned under its own field
+  // (`data-field` / `data-panel`), and if it then runs off the bottom of the screen the page
+  // scrolls that field up to just under the fixed navbar.
+  useLayoutEffect(() => {
+    const wrap = searchMode === 'package' ? searchBarRef.current : flightsRef.current;
+    const field = openField ? wrap?.querySelector(`[data-field="${openField}"]`) : null;
+    const panel = field ? wrap.querySelector('[data-panel]') : null;
+    const stacked = panel ? window.matchMedia?.(STACKED_QUERY) : null;
+    if (!stacked) return undefined;
+    const place = () => {
+      panel.style.top = stacked.matches
+        ? `${field.getBoundingClientRect().bottom - wrap.getBoundingClientRect().top + 8}px`
+        : '';
+    };
+    place();
+    if (stacked.matches && panel.getBoundingClientRect().bottom > window.innerHeight) {
+      const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 0;
+      const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({
+        top: window.scrollY + field.getBoundingClientRect().top - navH - 8,
+        behavior: reduce ? 'instant' : 'smooth',
+      });
+    }
+    window.addEventListener('resize', place);
+    return () => window.removeEventListener('resize', place);
+  }, [openField, searchMode]);
 
   const toggleField = (field) => {
     setAirportQuery('');
@@ -514,14 +548,16 @@ export default function Hero() {
   // Params common to every search (dates, occupancy, duration band).
   const buildBaseParams = () => {
     const band = findBand(duration);
-    const nights = daysToNights(band.days);   // "7 days" band → 6 nights
+    // Day counting is per product (spec 3.4). Hotel Only: the band counts STAY days, so 8 days
+    // from 25 Oct checks out on 1 Nov. Package: it counts TRAVEL days, outbound to return
+    // departure inclusive, so the same 8 days fly home on 1 Nov, while the hotel nights come
+    // from the flight times, which only the backend knows. Same date today, named for what it
+    // is. Both helpers count in local dates, so no timezone can shift the day.
     let checkOut = '';
     if (date) {
-      // Compute in UTC so the checkout never shifts a day in a positive-offset timezone
-      // (`new Date('..T00:00:00')` is local, toISOString() is UTC → a day early for e.g. Belgium).
-      const d = new Date(date + 'T00:00:00Z');
-      d.setUTCDate(d.getUTCDate() + nights);
-      checkOut = d.toISOString().split('T')[0];
+      checkOut = (transport === 'hotel_only'
+        ? stayCheckOut(date, band.days)
+        : packageReturnDate(date, band.days)) || '';
     }
     // Ages are what the supplier prices on; the DATES are what gets booked and what the
     // checkout has to pre-fill, so both ride along from the one place they were typed.
@@ -539,8 +575,8 @@ export default function Hero() {
     // results page reads the dates it is given, and this says how firm those dates are.
     if (flexDays > 0) qs.set('flex', String(flexDays));
     // The results "Travel time" filter reads these as NIGHTS, so convert the band's day range.
-    qs.set('minNights', String(daysToNights(band.minDays)));
-    qs.set('maxNights', String(daysToNights(band.maxDays)));
+    qs.set('minNights', String(stayDaysToNights(band.minDays)));
+    qs.set('maxNights', String(stayDaysToNights(band.maxDays)));
     if (childAges.length) qs.set('childAges', childAges.join(','));
     if (childDobs.length) qs.set('childDobs', childDobs.join(','));
     // The traveller has just pressed search, so this party is their answer, not a draft:
@@ -563,8 +599,12 @@ export default function Hero() {
     // page's flight search. Origin rides even in own-transport mode so flipping to
     // "incl. flight" later starts from the airport picked here, not from the default.
     qs.set('transport', transport === 'package' ? 'package' : 'hotel_only');
-    qs.set('origin', origins[0] || DEFAULT_ORIGIN);
-    if (origins.length > 1) qs.set('origins', origins.join(','));
+    // No preference sends no airport: the results page reads a missing origin as "every
+    // active departure airport" (spec 3.2), not as Brussels.
+    if (!noPreference) {
+      qs.set('origin', chosenOrigins[0]);
+      if (chosenOrigins.length > 1) qs.set('origins', chosenOrigins.join(','));
+    }
 
     // The trip itself, kept for a week (utils/searchStore) so a holiday shopped over several
     // visits does not start from an empty form each time. The party is deliberately NOT
@@ -578,7 +618,7 @@ export default function Hero() {
       flexDays,
       duration,
       transport: transport === 'package' ? 'package' : 'hotel_only',
-      origins,
+      origins: noPreference ? [] : chosenOrigins,
     });
 
     return qs;
@@ -888,6 +928,7 @@ export default function Hero() {
     return (
       <div
         key={id}
+        data-field={id}
         className={`${styles.sf} ${open ? styles.sfActive : ''}`}
         onClick={() => toggleField(id)}
       >
@@ -971,11 +1012,11 @@ export default function Hero() {
   // "Flying from" field text: one airport reads as itself, several read as a count —
   // "4 airports" tells the traveller their whole selection is held, in space one name takes.
   const originsLabel = noPreference
-    ? t('hero.anyAirport', 'Any airport')
-    : origins.length === 1
-      ? `${airportCity(origins[0])} (${origins[0]})`
+    ? t('hero.transport.noPreference', 'No preference')
+    : chosenOrigins.length === 1
+      ? `${airportCity(chosenOrigins[0])} (${chosenOrigins[0]})`
       : t('hero.airportCount', {
-          count: origins.length,
+          count: chosenOrigins.length,
           defaultValue_one: '{{count}} airport',
           defaultValue_other: '{{count}} airports',
         });
@@ -986,9 +1027,9 @@ export default function Hero() {
   const originsHint = transport === 'hotel_only'
     ? t('hero.noFlightHotelOnly', 'No flight, hotel only')
     : noPreference ? t('hero.allDepartureAirports', 'All departure airports')
-    : origins.length === 1 ? airportLabel(origins[0])
+    : chosenOrigins.length === 1 ? airportLabel(chosenOrigins[0])
     : t('hero.airportsSelected', {
-        count: origins.length,
+        count: chosenOrigins.length,
         defaultValue_one: '{{count}} airport selected',
         defaultValue_other: '{{count}} airports selected',
       });
@@ -1062,7 +1103,7 @@ export default function Hero() {
   // the terminal's name, because "Brussels BRU" says everything "Brussels Airport" does in
   // half the width, and the code is what distinguishes two airports of the same city.
   const airportRow = (a) => {
-    const on = origins.includes(a.code);
+    const on = !noPreference && chosenOrigins.includes(a.code);
     return (
       <button type="button" key={a.code} role="checkbox" aria-checked={on}
         title={a.label}
@@ -1084,7 +1125,7 @@ export default function Hero() {
       <div className={styles.sfDivider} />
       {/* Departure — opens the site's own two-month calendar (components/DateCalendar), not
           the browser's date picker, so the ± flexible-days choice can sit beside the dates. */}
-      <div className={`${styles.sf} ${openField === 'date' ? styles.sfActive : ''}`} onClick={() => toggleField('date')}>
+      <div data-field="date" className={`${styles.sf} ${openField === 'date' ? styles.sfActive : ''}`} onClick={() => toggleField('date')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
@@ -1098,7 +1139,7 @@ export default function Hero() {
         <span className={styles.sfHint}>{dateHint}</span>
       </div>
       <div className={styles.sfDivider} />
-      <div className={`${styles.sf} ${openField === 'duration' ? styles.sfActive : ''}`} onClick={() => toggleField('duration')}>
+      <div data-field="duration" className={`${styles.sf} ${openField === 'duration' ? styles.sfActive : ''}`} onClick={() => toggleField('duration')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
@@ -1118,7 +1159,7 @@ export default function Hero() {
           The picker itself lives with the other stay dropdowns (below), where it is
           centred under the whole search bar; a 960px panel nested inside this narrow
           field would either overflow the bar or hug its right edge oddly. */}
-      <div className={`${styles.sf} ${openField === 'transport' ? styles.sfActive : ''}`} onClick={() => toggleField('transport')}>
+      <div data-field="transport" className={`${styles.sf} ${openField === 'transport' ? styles.sfActive : ''}`} onClick={() => toggleField('transport')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
@@ -1132,7 +1173,7 @@ export default function Hero() {
         <span className={styles.sfHint}>{originsHint}</span>
       </div>
       <div className={styles.sfDivider} />
-      <div className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`} onClick={() => toggleField('travelers')}>
+      <div data-field="travelers" className={`${styles.sf} ${styles.sfTravelers} ${openField === 'travelers' ? styles.sfActive : ''}`} onClick={() => toggleField('travelers')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75"/></svg>
@@ -1150,7 +1191,7 @@ export default function Hero() {
   const stayDropdowns = (
     <>
       {openField === 'transport' && (
-        <div className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
+        <div data-panel className={styles.tspPanel} onClick={(e) => e.stopPropagation()}>
           <div className={styles.tspHead}>
             <div>
               <div className={styles.tspTitle}>{t('hero.flyingFrom', 'Flying from')}</div>
@@ -1222,7 +1263,7 @@ export default function Hero() {
                 </div>
                 <aside className={styles.tspSidebar}>
                   <div className={styles.tspSidebarTitle}>
-                    {t('hero.transport.yourSelection', 'Your selection')}{noPreference ? '' : ` (${origins.length})`}
+                    {t('hero.transport.yourSelection', 'Your selection')}{noPreference ? '' : ` (${chosenOrigins.length})`}
                   </div>
                   {/* Nineteen chips is not a summary of "anywhere" — it reads as a list the
                       traveller assembled by hand. One card says the same thing truthfully. */}
@@ -1232,13 +1273,13 @@ export default function Hero() {
                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-.9.1-1.1.5l-.3.5c-.2.5-.1 1 .3 1.3L9 12l-2 3H4l-1 1 3 2 2 3 1-1v-3l3-2 3.5 5.3c.3.4.8.5 1.3.3l.5-.2c.4-.3.6-.7.5-1.2z"/></svg>
                       </span>
                       <div className={styles.tspChipMain}>
-                        <div className={styles.tspChipName}>No preference</div>
-                        <div className={styles.tspChipNote}>We'll search all available departure airports</div>
+                        <div className={styles.tspChipName}>{t('hero.transport.noPreference', 'No preference')}</div>
+                        <div className={styles.tspChipNote}>{t('hero.transport.noPreferenceNote', "We'll search all available departure airports")}</div>
                       </div>
                     </div>
                   ) : (
                   <div className={styles.tspSidebarList}>
-                    {origins.map((code) => {
+                    {chosenOrigins.map((code) => {
                       const a = airportByCode(code);
                       if (!a) return null;
                       return (
@@ -1256,8 +1297,7 @@ export default function Hero() {
                               name: a.label,
                               defaultValue: 'Remove {{name}}',
                             })}
-                            disabled={origins.length === 1}
-                          >
+                                  >
                             <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
                           </button>
                         </div>
@@ -1277,7 +1317,7 @@ export default function Hero() {
                       {noPreference
                         ? t('hero.transport.noPreference', 'No preference')
                         : t('hero.airportsSelected', {
-                            count: origins.length,
+                            count: chosenOrigins.length,
                             defaultValue_one: '{{count}} airport selected',
                             defaultValue_other: '{{count}} airports selected',
                           })}
@@ -1303,7 +1343,7 @@ export default function Hero() {
                     type="button"
                     className={styles.tspClearAll}
                     onClick={clearOrigins}
-                    disabled={origins.length <= 1 && origins[0] === DEFAULT_ORIGIN}
+                    disabled={noPreference}
                   >
                     {t('hero.transport.clearAll', 'Clear all')}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
@@ -1315,7 +1355,7 @@ export default function Hero() {
         </div>
       )}
       {openField === 'date' && (
-        <div className={`${styles.dropdown} ${styles.calDropdown}`}>
+        <div data-panel className={`${styles.dropdown} ${styles.calDropdown}`}>
           <DateCalendar
             value={date}
             onChange={setDate}
@@ -1328,7 +1368,7 @@ export default function Hero() {
         </div>
       )}
       {openField === 'duration' && (
-        <div className={`${styles.dropdown} ${styles.durDropdown}`}>
+        <div data-panel className={`${styles.dropdown} ${styles.durDropdown}`}>
           <div className={styles.durList}>
             {DURATIONS.map((d) => (
               <div key={d.label} className={`${styles.durOpt} ${duration === d.label ? styles.durOptActive : ''}`} onClick={() => { setDuration(d.label); setOpenField(null); }}>
@@ -1342,7 +1382,7 @@ export default function Hero() {
         </div>
       )}
       {openField === 'travelers' && (
-        <div className={`${styles.dropdown} ${styles.travDropdown}`}>
+        <div data-panel className={`${styles.dropdown} ${styles.travDropdown}`}>
           <div className={styles.travScroll}>
             {roomsList.map((room, ri) => (
               <div className={styles.roomCard} key={ri}>
@@ -1697,6 +1737,7 @@ export default function Hero() {
                   </>
                 )}
                 <div
+                  data-field="flightTravelers"
                   className={`${styles.sf} ${openField === 'flightTravelers' ? styles.sfActive : ''}`}
                   onClick={() => toggleField('flightTravelers')}
                 >
@@ -1724,7 +1765,7 @@ export default function Hero() {
               card, where a two-month calendar and a stepper list have room to be read. */}
 
           {datePanel && (
-            <div className={`${styles.flightDropdown} ${styles.calDropdownFlight}`}>
+            <div data-panel className={`${styles.flightDropdown} ${styles.calDropdownFlight}`}>
               <DateCalendar
                 value={datePanel.value}
                 onChange={datePanel.onChange}
@@ -1736,7 +1777,7 @@ export default function Hero() {
           )}
 
           {openField === 'flightTravelers' && (
-            <div className={`${styles.flightDropdown} ${styles.paxDropdown}`}>
+            <div data-panel className={`${styles.flightDropdown} ${styles.paxDropdown}`}>
               <div className={styles.travRow}>
                 <div>
                   <span className={styles.travLabel}>{t('hero.flights.adults', 'Adults')}</span>

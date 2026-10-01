@@ -13,5 +13,7 @@
     "title": "Nog geen bestemmingen",
     "body": "We hebben nog geen landen gekoppeld aan {{name}}. Kom binnenkort terug.",
     "exploreOther": "Ontdek andere vakanties"
-  }
+  },
+  "showAll": "Toon alles",
+  "showAllTitle": "Alle bestemmingen op deze pagina in één zoekopdracht"
 }

@@ -13,5 +13,7 @@
     "title": "No destinations yet",
     "body": "We haven’t linked any countries to {{name}} yet. Check back soon.",
     "exploreOther": "Explore other holidays"
-  }
+  },
+  "showAll": "Show all",
+  "showAllTitle": "Every destination on this page in one search"
 }

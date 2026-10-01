@@ -1,56 +1,190 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
+import { Globe, MapPin, Building2, ChevronDown, X, Search } from 'lucide-react';
 import styles from './ScopePicker.module.css';
 import { fetchDestinations, fetchZones } from '../../api/filters';
-import { zoneKey, zoneCity, scopeLeafCount } from '../../utils/scopeLeaves';
+import { zoneKey, zoneCity } from '../../utils/scopeLeaves';
 import { useTranslation } from 'react-i18next';
 import { countryName } from '../../utils/countryName';
 
 /**
- * Where-picker for the results sidebar: countries → cities → areas.
+ * Where-picker for the results sidebar: country → city → area.
  *
- * Three collapsible sections, one open at a time, so the rail never stacks three
- * scrolling lists. Cities load for every ticked country in a single call and group
- * under country headings; areas group under their city.
+ * Three fields that look like selects and behave like search boxes. Clicking one
+ * opens a list under it and puts the cursor in the field, so a traveller who knows
+ * where they are going types two letters instead of scrolling forty countries, and
+ * one who does not scrolls a list that starts with the places we actually sell.
  *
- * The parent owns the committed scope; this drafts locally and calls
- * onApply({ countries, destinations, zones }) on commit.
+ * Picking applies straight away. The previous version drafted a selection behind an
+ * Apply button, which meant the results behind it disagreed with the filter in front
+ * of it until you pressed the button, and a selection you never applied was silently
+ * thrown away when the panel closed.
+ *
+ * Each level is scoped by the one above: cities load for the chosen countries, areas
+ * for the chosen cities, and dropping a country drops the cities it owned.
+ *
+ * The parent owns the committed scope and receives { countries, destinations, zones }
+ * on every change.
  */
 
-const Check = () => (
-  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.5" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
-);
-
+/* Only a country row wears its flag. City rows used to repeat their country's flag so three
+   countries' cities could be told apart; the client asked for the flag to go from every city
+   and destination, so a city row now carries its name alone, as an area row always has. */
 function Flag({ flagUrl, flag, className }) {
-  return flagUrl
-    ? <img className={className || styles.flag} src={flagUrl} alt="" loading="lazy" />
-    : <span className={className || styles.flag} data-emoji="true">{flag || '\u{1F3F3}️'}</span>;
+  if (flagUrl) return <img className={className} src={flagUrl} alt="" loading="lazy" />;
+  if (flag) return <span className={className} data-emoji="true">{flag}</span>;
+  return null;
 }
 
-function Row({ label, code, checked, onToggle, flagUrl, flag }) {
-  return (
-    <button type="button" className={`${styles.row} ${checked ? styles.rowOn : ''}`} onClick={onToggle}>
-      <span className={`${styles.box} ${checked ? styles.boxOn : ''}`}>{checked && <Check />}</span>
-      {(flagUrl || flag) && <Flag flagUrl={flagUrl} flag={flag} />}
-      <span className={styles.rowName}>{label}</span>
-      {code && <span className={styles.code}>{code}</span>}
-    </button>
-  );
-}
+/* Diacritics stripped both sides, so "Griekenland" is reachable by "grie" and
+   "Málaga" by "mala". Matches anywhere in the name rather than only at the start:
+   people search for "Canaria" as readily as for "Gran". */
+const norm = (s) => String(s ?? '')
+  .normalize('NFD').replace(/\p{Diacritic}/gu, '')
+  .toLowerCase();
 
-function Section({ title, summary, count, open, locked, onToggle, children }) {
+/**
+ * One field: a closed summary, and an open panel with its own search.
+ *
+ * `items` are { key, label, flag, flagUrl, hint }. `selected` is a Set of keys.
+ * Everything else is presentation.
+ */
+function PickerField({
+  icon,
+  placeholder,
+  summary,
+  items,
+  selected,
+  popularKeys,
+  busy,
+  emptyNote,
+  onToggle,
+  labelOf,
+  testId,
+  t,
+}) {
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState('');
+  const rootRef = useRef(null);
+  const inputRef = useRef(null);
+
+  // The search term belongs to one visit to the panel, so it is cleared where the
+  // panel opens and closes rather than in an effect watching `open` — an effect that
+  // sets state runs a second render for something these two handlers already know.
+  const openPanel = () => { setQuery(''); setOpen(true); };
+  const closePanel = () => { setQuery(''); setOpen(false); };
+
+  // Closing on an outside click rather than on blur: blur fires when the cursor
+  // moves to the panel's own scrollbar, which would shut the list mid-scroll.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (!rootRef.current?.contains(e.target)) closePanel(); };
+    const onKey = (e) => { if (e.key === 'Escape') closePanel(); };
+    document.addEventListener('mousedown', onDown);
+    document.addEventListener('keydown', onKey);
+    return () => {
+      document.removeEventListener('mousedown', onDown);
+      document.removeEventListener('keydown', onKey);
+    };
+  }, [open]);
+
+  // Focus only. The field is read-only until it opens, so it cannot be focused
+  // before the render that makes it editable.
+  useEffect(() => { if (open) inputRef.current?.focus(); }, [open]);
+
+  const matches = useMemo(() => {
+    const q = norm(query.trim());
+    if (!q) return items;
+    return items.filter((i) => norm(i.label).includes(q) || norm(i.hint).includes(q));
+  }, [items, query]);
+
+  // While searching the headings go away: two groups over three results is more
+  // furniture than list. Unsearched, the places we actually sell come first.
+  const searching = Boolean(query.trim());
+  const popular = searching ? [] : matches.filter((i) => popularKeys?.has(i.key));
+  const rest = searching ? matches : matches.filter((i) => !popularKeys?.has(i.key));
+
+  const renderRow = (item) => {
+    const on = selected.has(item.key);
+    return (
+      <li key={item.key}>
+        <button
+          type="button"
+          role="option"
+          aria-selected={on}
+          className={`${styles.option} ${on ? styles.optionOn : ''}`}
+          onClick={() => { onToggle(item.key); closePanel(); }}
+        >
+          <Flag flagUrl={item.flagUrl} flag={item.flag} className={styles.optionFlag} />
+          <span className={styles.optionName}>{item.label}</span>
+          {item.hint && <span className={styles.optionHint}>{item.hint}</span>}
+        </button>
+      </li>
+    );
+  };
+
   return (
-    <div className={`${styles.section} ${open ? styles.sectionOpen : ''} ${locked ? styles.locked : ''}`}>
-      <button type="button" className={styles.sectionHead} onClick={locked ? undefined : onToggle} aria-expanded={open}>
-        <span className={styles.sectionText}>
-          <span className={styles.sectionTitle}>{title}</span>
-          <span className={styles.sectionSummary}>{summary}</span>
-        </span>
-        {count > 0 && <span className={styles.badge}>{count}</span>}
-        {!locked && (
-          <svg className={`${styles.chev} ${open ? styles.chevOpen : ''}`} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M6 9l6 6 6-6" /></svg>
-        )}
-      </button>
-      {open && !locked && <div className={styles.sectionBody}>{children}</div>}
+    <div className={styles.field} ref={rootRef}>
+      <div className={`${styles.control} ${open ? styles.controlOpen : ''}`}>
+        <span className={styles.controlIcon}>{icon}</span>
+        {/* One element in both states: closed it reads as the current value, open it
+            is the search box. Swapping elements would lose the cursor on open. */}
+        <input
+          ref={inputRef}
+          type="text"
+          className={styles.controlInput}
+          data-testid={testId}
+          role="combobox"
+          aria-expanded={open}
+          aria-haspopup="listbox"
+          autoComplete="off"
+          placeholder={open ? t('scopePicker.typeToSearch', 'Type to search…') : placeholder}
+          value={open ? query : summary}
+          readOnly={!open}
+          onChange={(e) => setQuery(e.target.value)}
+          onMouseDown={openPanel}
+          onFocus={openPanel}
+        />
+        {open
+          ? <Search size={16} className={styles.controlChev} aria-hidden="true" />
+          : <ChevronDown size={18} className={styles.controlChev} aria-hidden="true" />}
+      </div>
+
+      {open && (
+        <div className={styles.panel}>
+          {selected.size > 0 && (
+            <div className={styles.chips}>
+              {[...selected].map((key) => (
+                <button
+                  key={key}
+                  type="button"
+                  className={styles.chip}
+                  onClick={() => onToggle(key)}
+                  aria-label={t('scopePicker.remove', { name: labelOf(key), defaultValue: 'Remove {{name}}' })}
+                >
+                  {labelOf(key)}
+                  <X size={12} aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          )}
+
+          <ul className={styles.list} role="listbox">
+            {busy && <li className={styles.note}>{t('scopePicker.loading', 'Loading…')}</li>}
+            {!busy && !items.length && <li className={styles.note}>{emptyNote}</li>}
+            {!busy && items.length > 0 && !matches.length && (
+              <li className={styles.note}>{t('scopePicker.noMatches', 'Nothing matches that.')}</li>
+            )}
+            {popular.length > 0 && (
+              <li className={styles.heading}>{t('scopePicker.popular', 'Popular')}</li>
+            )}
+            {popular.map(renderRow)}
+            {rest.length > 0 && popular.length > 0 && (
+              <li className={styles.heading}>{t('scopePicker.everywhereElse', 'Everywhere else')}</li>
+            )}
+            {rest.map(renderRow)}
+          </ul>
+        </div>
+      )}
     </div>
   );
 }
@@ -59,51 +193,27 @@ export default function ScopePicker({
   countries = [],
   status = 'ok',
   value = { countries: [], destinations: [], zones: [] },
+  popular = { countries: [], cities: [] },
   onApply,
 }) {
   const { t, i18n } = useTranslation('common');
   // Same rule as the destination picker: the ISO code decides the word, the dashboard
   // decides which countries are sold. See utils/countryName.
   const countryLabel = (c) => countryName(c?.code, i18n.language, c?.name || '');
-  const [draftCountries, setDraftCountries] = useState(() => new Set(value.countries));
-  const [draftCities, setDraftCities]       = useState(() => new Set(value.destinations));
-  const [draftZones, setDraftZones]         = useState(() => new Set(value.zones));
-  // Which accordion sections are expanded. A Set (not a single key) so picking a country
-  // can reveal Cities AND Areas at once while Countries stays open — they behave like
-  // independent disclosures, not a one-at-a-time accordion.
-  const [open, setOpen] = useState(() => {
-    // Countries is always open; Cities/Areas start open too when there's already a
-    // selection to show (e.g. reopening the picker after a destination search).
-    const s = new Set(['country']);
-    if (value.countries?.length || value.destinations?.length) s.add('city');
-    if (value.destinations?.length || value.zones?.length) s.add('area');
-    return s;
-  });
-  const isOpen = (k) => open.has(k);
-  const toggleSection = (k) => setOpen((prev) => {
-    const next = new Set(prev);
-    if (next.has(k)) next.delete(k); else next.add(k);
-    return next;
-  });
 
+  const picked = {
+    countries: useMemo(() => new Set(value.countries), [value.countries]),
+    cities: useMemo(() => new Set(value.destinations), [value.destinations]),
+    zones: useMemo(() => new Set(value.zones || []), [value.zones]),
+  };
 
-  const [cities, setCities]         = useState([]);
+  const [cities, setCities] = useState([]);
   const [citiesBusy, setCitiesBusy] = useState(false);
-  const [zones, setZones]           = useState([]);
-  const [zonesBusy, setZonesBusy]   = useState(false);
+  const [zones, setZones] = useState([]);
+  const [zonesBusy, setZonesBusy] = useState(false);
 
-  // Re-seed the draft whenever the committed scope changes (back/forward nav).
-  const committedKey = `${value.countries.join(',')}|${value.destinations.join(',')}|${(value.zones || []).join(',')}`;
-  const [prevKey, setPrevKey] = useState(committedKey);
-  if (prevKey !== committedKey) {
-    setPrevKey(committedKey);
-    setDraftCountries(new Set(value.countries));
-    setDraftCities(new Set(value.destinations));
-    setDraftZones(new Set(value.zones || []));
-  }
-
-  const countryKey = useMemo(() => [...draftCountries].sort().join(','), [draftCountries]);
-  const cityKey    = useMemo(() => [...draftCities].sort().join(','), [draftCities]);
+  const countryKey = [...picked.countries].sort().join(',');
+  const cityKey = [...picked.cities].sort().join(',');
 
   const cityReq = useRef(0);
   useEffect(() => {
@@ -127,255 +237,140 @@ export default function ScopePicker({
       .finally(() => { if (seq === zoneReq.current) setZonesBusy(false); });
   }, [cityKey]);
 
-  // Dropping a country drops the cities it owned; dropping a city drops its areas.
+  const commit = (next) => onApply?.({
+    countries: [...next.countries],
+    destinations: [...next.cities],
+    zones: [...next.zones],
+  });
+
+  /* Dropping a country drops the cities it owned and their areas, so the scope can
+     never keep a city the country list no longer covers. */
   const toggleCountry = (code) => {
-    const adding = !draftCountries.has(code);
-    setDraftCountries((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) {
-        next.delete(code);
-        const orphan = new Set(cities.filter((c) => c.countryCode === code).map((c) => c.code));
-        if (orphan.size) {
-          setDraftCities((cs) => new Set([...cs].filter((c) => !orphan.has(c))));
-          setDraftZones((zs) => new Set([...zs].filter((z) => !orphan.has(zoneCity(z)))));
-        }
-      } else next.add(code);
-      return next;
-    });
-    // Picking a country drills down: reveal Cities and Areas together (Areas stays locked
-    // until a city is ticked, then expands on its own since it's already marked open).
-    if (adding) setOpen((prev) => new Set([...prev, 'city', 'area']));
+    const nextCountries = new Set(picked.countries);
+    let nextCities = new Set(picked.cities);
+    let nextZones = new Set(picked.zones);
+    if (nextCountries.has(code)) {
+      nextCountries.delete(code);
+      const orphan = new Set(cities.filter((c) => c.countryCode === code).map((c) => c.code));
+      if (orphan.size) {
+        nextCities = new Set([...nextCities].filter((c) => !orphan.has(c)));
+        nextZones = new Set([...nextZones].filter((z) => !orphan.has(zoneCity(z))));
+      }
+    } else nextCountries.add(code);
+    commit({ countries: nextCountries, cities: nextCities, zones: nextZones });
   };
 
   const toggleCity = (code) => {
-    const adding = !draftCities.has(code);
-    setDraftCities((prev) => {
-      const next = new Set(prev);
-      if (next.has(code)) {
-        next.delete(code);
-        setDraftZones((zs) => new Set([...zs].filter((z) => zoneCity(z) !== code)));
-      } else next.add(code);
-      return next;
-    });
-    // Picking a city reveals its areas/zones (they were closed by default).
-    if (adding) setOpen((prev) => new Set([...prev, 'area']));
+    const nextCities = new Set(picked.cities);
+    let nextZones = new Set(picked.zones);
+    if (nextCities.has(code)) {
+      nextCities.delete(code);
+      nextZones = new Set([...nextZones].filter((z) => zoneCity(z) !== code));
+    } else nextCities.add(code);
+    commit({ countries: picked.countries, cities: nextCities, zones: nextZones });
   };
 
-  const toggleZone = (key) => setDraftZones((prev) => {
-    const next = new Set(prev);
-    if (next.has(key)) next.delete(key); else next.add(key);
-    return next;
-  });
-
-  const clearAll = () => {
-    setDraftCountries(new Set()); setDraftCities(new Set()); setDraftZones(new Set()); setOpen(new Set(['country']));
+  const toggleZone = (key) => {
+    const nextZones = new Set(picked.zones);
+    if (nextZones.has(key)) nextZones.delete(key); else nextZones.add(key);
+    commit({ countries: picked.countries, cities: picked.cities, zones: nextZones });
   };
 
-  const countryOf   = (code) => countries.find((c) => c.code === code);
-  const cityOf      = (code) => cities.find((c) => c.code === code);
-  const nameOfZone  = (key) => zones.find((z) => zoneKey(z) === key)?.name || key;
+  const countryOf = (code) => countries.find((c) => c.code === code);
+  const cityOf = (code) => cities.find((c) => c.code === code);
+  const zoneOf = (key) => zones.find((z) => zoneKey(z) === key);
 
-  const shownCountries = countries;
+  const countryItems = useMemo(() => countries.map((c) => ({
+    key: c.code, label: countryLabel(c), flag: c.flag, flagUrl: c.flagUrl, hint: '',
+  })), [countries, i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const cityGroups = useMemo(() => {
-    const by = new Map();
-    for (const c of cities) {
-      const g = by.get(c.countryCode)
-        || { code: c.countryCode, name: c.countryName, flag: c.flag, flagUrl: c.flagUrl, items: [] };
-      g.items.push(c);
-      by.set(c.countryCode, g);
-    }
-    return [...by.values()];
-  }, [cities]);
+  const cityItems = useMemo(() => cities.map((c) => ({
+    key: c.code, label: c.name, flag: '', flagUrl: '', hint: '',
+  })), [cities]);
 
-  const zoneGroups = useMemo(() => {
-    const by = new Map();
-    for (const z of zones) {
-      const g = by.get(z.destinationCode) || { code: z.destinationCode, name: z.destinationName, items: [] };
-      g.items.push(z);
-      by.set(z.destinationCode, g);
-    }
-    return [...by.values()];
-  }, [zones]);
+  const zoneItems = useMemo(() => zones.map((z) => ({
+    key: zoneKey(z), label: z.name, flag: '', flagUrl: '',
+    // Which city an area belongs to, since two countries can both have a "Centro".
+    hint: z.destinationName || '',
+  })), [zones]);
 
-  // Select-all / clear for one group — the shortcut a 27-city country needs.
-  const toggleAllCities = (group) => {
-    const all = group.items.map((i) => i.code);
-    const every = all.every((c) => draftCities.has(c));
-    setDraftCities((prev) => {
-      const next = new Set(prev);
-      if (every) {
-        all.forEach((c) => next.delete(c));
-        setDraftZones((zs) => new Set([...zs].filter((z) => !all.includes(zoneCity(z)))));
-      } else all.forEach((c) => next.add(c));
-      return next;
-    });
+  /* Hoisted above the early returns below: these are hooks, and a hook that only
+     runs when the countries loaded would change the hook order on the render where
+     they have not. */
+  const popularCountryKeys = useMemo(() => new Set(popular.countries), [popular.countries]);
+  const popularCityKeys = useMemo(() => new Set(popular.cities), [popular.cities]);
+
+  /* The closed field says what is chosen, in the fewest words that stay true: one
+     place by name, several as a count. A count alone for a single pick would make
+     the reader open the field to find out which one. */
+  const summarise = (keys, labelFor, countKey, fallback) => {
+    if (!keys.size) return '';
+    if (keys.size === 1) return labelFor([...keys][0]) || fallback;
+    return t(countKey, { count: keys.size, defaultValue: fallback });
   };
-
-  const toggleAllZones = (group) => {
-    const all = group.items.map(zoneKey);
-    const every = all.every((k) => draftZones.has(k));
-    setDraftZones((prev) => {
-      const next = new Set(prev);
-      all.forEach((k) => (every ? next.delete(k) : next.add(k)));
-      return next;
-    });
-  };
-
-  // How many places this search actually covers — leaves, not the sum of the three tiers
-  // (see utils/scopeLeaves). The results hero counts the committed scope the same way.
-  const total = useMemo(
-    () => scopeLeafCount(
-      { countries: [...draftCountries], destinations: [...draftCities], zones: [...draftZones] },
-      cities,
-    ),
-    [draftCountries, draftCities, draftZones, cities],
-  );
-  const dirty =
-    countryKey !== [...value.countries].sort().join(',') ||
-    cityKey !== [...value.destinations].sort().join(',') ||
-    [...draftZones].sort().join(',') !== [...(value.zones || [])].sort().join(',');
 
   if (status === 'error') return <p className={styles.note}>{t('scopePicker.unavailable', 'Destination filter unavailable.')}</p>;
   if (!countries.length) return <p className={styles.note}>{t('scopePicker.loadingCountries', 'Loading countries…')}</p>;
 
   return (
     <div className={styles.wrap}>
-      {total > 0 && (
-        <div className={styles.selected}>
-          <div className={styles.selectedHead}>
-            <span className={styles.selectedLabel}>{t('scopePicker.selected', 'Selected')}</span>
-            <button type="button" className={styles.clear} onClick={clearAll}>{t('scopePicker.clearAll', 'Clear all')}</button>
-          </div>
-          <div className={styles.pills}>
-            {[...draftCountries].map((c) => {
-              const m = countryOf(c);
-              return (
-                <span className={styles.pill} key={`c-${c}`}>
-                  {m && <Flag flagUrl={m.flagUrl} flag={m.flag} className={styles.pillFlag} />}
-                  {countryLabel(m) || c}
-                  <button className={styles.pillX} onClick={() => toggleCountry(c)} aria-label={t('scopePicker.remove', { name: countryLabel(m) || c, defaultValue: 'Remove {{name}}' })}>
-                    <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                  </button>
-                </span>
-              );
-            })}
-            {[...draftCities].map((c) => (
-              <span className={styles.pill} key={`d-${c}`}>
-                {cityOf(c)?.name || c}
-                <button className={styles.pillX} onClick={() => toggleCity(c)} aria-label={t('scopePicker.remove', { name: cityOf(c)?.name || c, defaultValue: 'Remove {{name}}' })}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                </button>
-              </span>
-            ))}
-            {[...draftZones].map((z) => (
-              <span className={styles.pill} key={`z-${z}`}>
-                {nameOfZone(z)}
-                <button className={styles.pillX} onClick={() => toggleZone(z)} aria-label={`Remove ${nameOfZone(z)}`}>
-                  <svg width="9" height="9" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
-                </button>
-              </span>
-            ))}
-          </div>
-        </div>
-      )}
+      <PickerField
+        t={t}
+        testId="scope-country"
+        icon={<Globe size={17} aria-hidden="true" />}
+        placeholder={t('scopePicker.chooseCountry', 'Choose country…')}
+        summary={summarise(
+          picked.countries,
+          (k) => countryLabel(countryOf(k)),
+          'scopePicker.countryCount',
+          `${picked.countries.size} countries`,
+        )}
+        items={countryItems}
+        selected={picked.countries}
+        popularKeys={popularCountryKeys}
+        onToggle={toggleCountry}
+        labelOf={(k) => countryLabel(countryOf(k)) || k}
+        emptyNote={t('scopePicker.noCountries', 'No countries available.')}
+      />
 
-      <div className={styles.sections}>
-        <Section
-          title={t('scopePicker.countries', 'Countries')} count={draftCountries.size}
-          summary={draftCountries.size
-            ? t('scopePicker.countSelected', { count: draftCountries.size, defaultValue: '{{count}} selected' })
-            : t('scopePicker.anyCountry', 'Any country')}
-          open={isOpen('country')} onToggle={() => toggleSection('country')}
-        >
-          <div className={styles.list}>
-            {shownCountries.length === 0 && <p className={styles.note}>{t('scopePicker.noCountryMatch', 'No country matches that.')}</p>}
-            {shownCountries.map((c) => (
-              <Row
-                key={c.code} label={countryLabel(c)} flagUrl={c.flagUrl} flag={c.flag}
-                checked={draftCountries.has(c.code)} onToggle={() => toggleCountry(c.code)}
-              />
-            ))}
-          </div>
-        </Section>
+      <PickerField
+        t={t}
+        testId="scope-city"
+        icon={<MapPin size={17} aria-hidden="true" />}
+        placeholder={t('scopePicker.chooseCity', 'Choose city…')}
+        summary={summarise(
+          picked.cities,
+          (k) => cityOf(k)?.name,
+          'scopePicker.cityCount',
+          `${picked.cities.size} cities`,
+        )}
+        items={cityItems}
+        selected={picked.cities}
+        popularKeys={popularCityKeys}
+        busy={citiesBusy}
+        onToggle={toggleCity}
+        labelOf={(k) => cityOf(k)?.name || k}
+        emptyNote={t('scopePicker.pickCountryFirst', 'Choose a country first.')}
+      />
 
-        <Section
-          title={t('scopePicker.cities', 'Cities')} count={draftCities.size} locked={draftCountries.size === 0}
-          summary={draftCountries.size === 0 ? t('scopePicker.countryFirst', 'Select a country first')
-            : citiesBusy ? t('scopePicker.loading', 'Loading')
-            : draftCities.size ? t('scopePicker.countSelected', { count: draftCities.size, defaultValue: '{{count}} selected' })
-            : t('scopePicker.allCities', { count: cities.length, defaultValue: 'All {{count}} cities' })}
-          open={isOpen('city')} onToggle={() => toggleSection('city')}
-        >
-          <div className={styles.list}>
-            {citiesBusy && <p className={styles.note}>{t('scopePicker.loadingCities', 'Loading cities…')}</p>}
-            {!citiesBusy && cityGroups.length === 0 && <p className={styles.note}>{t('scopePicker.noCityMatch', 'No city matches that.')}</p>}
-            {cityGroups.map((g) => {
-              const every = g.items.every((i) => draftCities.has(i.code));
-              return (
-                <div className={styles.group} key={g.code}>
-                  <div className={styles.groupHead}>
-                    <Flag flagUrl={g.flagUrl} flag={g.flag} className={styles.groupFlag} />
-                    <span className={styles.groupName}>{g.name}</span>
-                    <button type="button" className={styles.groupAll} onClick={() => toggleAllCities(g)}>
-                      {every ? t('scopePicker.clear', 'Clear') : t('scopePicker.selectAll', 'Select all')}
-                    </button>
-                  </div>
-                  {g.items.map((c) => (
-                    <Row key={c.code} label={c.name} code={c.code} checked={draftCities.has(c.code)} onToggle={() => toggleCity(c.code)} />
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </Section>
-
-        <Section
-          title={t('scopePicker.areas', 'Areas')} count={draftZones.size} locked={draftCities.size === 0}
-          summary={draftCities.size === 0 ? t('scopePicker.cityFirst', 'Select a city first')
-            : zonesBusy ? t('scopePicker.loading', 'Loading')
-            : draftZones.size ? `${draftZones.size} selected`
-            : zones.length
-              ? t('scopePicker.allAreas', { count: zones.length, defaultValue: 'All {{count}} areas' })
-              : t('scopePicker.noneAvailable', 'None available')}
-          open={isOpen('area')} onToggle={() => toggleSection('area')}
-        >
-          <div className={styles.list}>
-            {zonesBusy && <p className={styles.note}>{t('scopePicker.loadingAreas', 'Loading areas…')}</p>}
-            {!zonesBusy && zoneGroups.length === 0 && <p className={styles.note}>{t('scopePicker.noAreas', 'No areas available for these cities.')}</p>}
-            {zoneGroups.map((g) => {
-              const every = g.items.every((i) => draftZones.has(zoneKey(i)));
-              return (
-                <div className={styles.group} key={g.code}>
-                  <div className={styles.groupHead}>
-                    <span className={styles.groupName}>{g.name}</span>
-                    <button type="button" className={styles.groupAll} onClick={() => toggleAllZones(g)}>
-                      {every ? t('scopePicker.clear', 'Clear') : t('scopePicker.selectAll', 'Select all')}
-                    </button>
-                  </div>
-                  {g.items.map((z) => (
-                    <Row key={zoneKey(z)} label={z.name} checked={draftZones.has(zoneKey(z))} onToggle={() => toggleZone(zoneKey(z))} />
-                  ))}
-                </div>
-              );
-            })}
-          </div>
-        </Section>
-      </div>
-
-      <button
-        type="button" className={styles.apply}
-        disabled={!dirty || total === 0}
-        onClick={() => onApply({ countries: [...draftCountries], destinations: [...draftCities], zones: [...draftZones] })}
-      >
-        {total === 0
-          ? t('scopePicker.chooseDestination', 'Select a destination')
-          : t('scopePicker.search', {
-              count: total,
-              defaultValue_one: 'Search {{count}} place',
-              defaultValue_other: 'Search {{count}} places',
-            })}
-      </button>
+      <PickerField
+        t={t}
+        testId="scope-area"
+        icon={<Building2 size={17} aria-hidden="true" />}
+        placeholder={t('scopePicker.chooseArea', 'Choose area…')}
+        summary={summarise(
+          picked.zones,
+          (k) => zoneOf(k)?.name,
+          'scopePicker.areaCount',
+          `${picked.zones.size} areas`,
+        )}
+        items={zoneItems}
+        selected={picked.zones}
+        busy={zonesBusy}
+        onToggle={toggleZone}
+        labelOf={(k) => zoneOf(k)?.name || k}
+        emptyNote={t('scopePicker.pickCityFirst', 'Choose a city first.')}
+      />
     </div>
   );
 }

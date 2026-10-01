@@ -7,8 +7,12 @@ import { countryName } from '../../utils/countryName';
 
 /**
  * Multi-destination picker. The traveller ticks one or more COUNTRIES on the
- * left rail, and each ticked country unfolds its REGIONS and CITIES as flag
- * chips on the right. No chips picked in a country = "anywhere in it".
+ * left rail, and each ticked country unfolds its REGIONS and CITIES as chips
+ * on the right. No chips picked in a country = "anywhere in it".
+ *
+ * Only a country wears its flag. A region or city chip sits inside its
+ * country's block, so the flag repeated on every place was noise, and the
+ * client asked for it to go.
  *
  * The caller owns the committed selection and passes it as `value`:
  *   {
@@ -216,7 +220,6 @@ export default function DestinationModal({
                 className={`${styles.chip} ${active ? styles.chipActive : ''}`}
                 onClick={() => togglePlace(group, type, item)}
               >
-                <Flag flagUrl={group.flagUrl} flag={group.flag} className={styles.chipFlag} />
                 {item.name}
                 {active && <span className={styles.chipCheck}><CheckIcon size={10} /></span>}
               </button>
@@ -247,13 +250,6 @@ export default function DestinationModal({
       >
         {/* ── Header ── */}
         <div className={styles.header}>
-          <svg className={styles.route} viewBox="0 0 220 70" fill="none" aria-hidden="true">
-            <path d="M4 62C50 54 68 20 110 22c38 2 52 26 102 10" stroke="currentColor" strokeWidth="1.6" strokeDasharray="1 7" strokeLinecap="round"/>
-            <circle cx="4" cy="62" r="3" fill="currentColor"/>
-            <g transform="translate(196 22) rotate(18)">
-              <path d="M10.5 0.8L8.7 6.1l4.9 3.4-0.3 1-5.9-1.5-2.9 4.2-1-0.1 0.9-4.8-4.1-1.1 0.1-0.9 4.5-0.6 1.9-5.6z" fill="currentColor"/>
-            </g>
-          </svg>
           <div className={styles.headText}>
             <h3 className={styles.title}>{t('destinationModal.title', 'Where’s the sun taking you?')}</h3>
             <p className={styles.subtitle}>
@@ -446,7 +442,6 @@ export default function DestinationModal({
                             {[...themed.entries()].map(([themeId, bucket]) => (
                               <div className={styles.group} key={`theme-${themeId}`}>
                                 <span className={styles.groupLabel}>
-                                  {bucket.icon && <span className={styles.themeIcon}>{bucket.icon}</span>}
                                   {bucket.name}
                                   <em className={styles.groupCount}>{bucket.cities.length}</em>
                                 </span>
@@ -461,7 +456,6 @@ export default function DestinationModal({
                                         className={`${styles.chip} ${active ? styles.chipActive : ''}`}
                                         onClick={() => togglePlace(groupCtx, 'city', item)}
                                       >
-                                        <Flag flagUrl={groupCtx.flagUrl} flag={groupCtx.flag} className={styles.chipFlag} />
                                         {item.name}
                                         {active && <span className={styles.chipCheck}><CheckIcon size={10} /></span>}
                                       </button>
@@ -500,7 +494,6 @@ export default function DestinationModal({
             ))}
             {draft.places.map((p) => (
               <span className={styles.recapChip} key={p.key}>
-                <Flag flagUrl={p.flagUrl} flag={p.flag} className={styles.chipFlag} />
                 {p.name}
                 <button type="button" className={styles.recapX} onClick={() => removePlace(p.key)} aria-label={t('destinationModal.remove', { name: p.name, defaultValue: 'Remove {{name}}' })}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>

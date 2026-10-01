@@ -1,0 +1,50 @@
+/* "Show all" beside a section heading. A quiet pill in the navigation blue rather than an
+   orange CTA: the cards in the section are the calls to action, and this is the way to all of
+   them at once. Same height, radius and hairline as the country tabs it often sits above. */
+.link {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 42px;
+  padding: 0 18px;
+  border-radius: var(--r-full);
+  border: 1px solid var(--line-strong);
+  background: #FFFFFF;
+  color: var(--blue-deep);
+  font-family: 'Sora', sans-serif;
+  font-size: 0.875rem;
+  font-weight: 600;
+  white-space: nowrap;
+  text-decoration: none;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
+}
+.link svg {
+  flex-shrink: 0;
+  transition: transform 0.2s var(--ease);
+}
+.link:hover {
+  border-color: var(--blue-deep);
+  background: var(--blue-light);
+}
+.link:hover svg { transform: translateX(3px); }
+.link:focus-visible {
+  outline: 3px solid rgba(31, 79, 216, 0.35);
+  outline-offset: 2px;
+}
+
+/* On a dark banner: the same pill, in white. */
+.dark {
+  border-color: rgba(255, 255, 255, 0.4);
+  background: rgba(255, 255, 255, 0.08);
+  color: #FFFFFF;
+}
+.dark:hover {
+  border-color: rgba(255, 255, 255, 0.75);
+  background: rgba(255, 255, 255, 0.16);
+}
+.dark:focus-visible { outline-color: rgba(255, 255, 255, 0.6); }
+
+@media (prefers-reduced-motion: reduce) {
+  .link, .link svg { transition: none; }
+  .link:hover svg { transform: none; }
+}

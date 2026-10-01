@@ -68,6 +68,14 @@
       "perPerson": "Per room/stay"
     }
   },
+  "price": {
+    "from": "From € {{amount}} p.p.",
+    "totalTrip": "Total trip price € {{amount}}",
+    "totalStay": "Total stay price € {{amount}}",
+    "average": "Average € {{amount}} p.p.",
+    "viewAvailableDates": "View available dates",
+    "nonePeriod": "No available stay found within the current search period"
+  },
   "flightClass": {
     "direct": "direct",
     "one_stop": "1 stop",
@@ -75,6 +83,20 @@
   },
   "months": "Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec",
   "filters": {
+    "dateTravellers": "Date & travellers",
+    "departureDate": "Departure date",
+    "pickDate": "Pick a date",
+    "closeCalendar": "Close calendar",
+    "travelDuration": "Travel duration",
+    "exactDuration": "Exact travel duration",
+    "travellersRooms": "Travellers & rooms",
+    "childDobLabel": "Date of birth, child {{number}}",
+    "saveChanges": "Save changes",
+    "fixDobs": "Please complete every date of birth above.",
+    "fewerAdults": "Fewer adults",
+    "moreAdults": "More adults",
+    "fewerChildren": "Fewer children",
+    "moreChildren": "More children",
     "title": "Filters",
     "clearAll": "Clear all",
     "datesGuests": "Dates & Guests",
@@ -139,7 +161,13 @@
     "priceFrom": "From",
     "priceTo": "To",
     "availablePrices": "Available prices: {{from}} – {{to}}",
-    "clearPrice": "Clear price range"
+    "clearPrice": "Clear price range",
+    "noPreference": "No preference",
+    "allDepartureAirports": "All departure airports",
+    "airportsChecking": "Checking which airports fly there…",
+    "airportsCheckFailed": "We couldn’t check which airports fly there just now, so every airport stays selectable.",
+    "originNoteAny": "Each hotel shows the departure airport that prices it cheapest. Tick airports to compare only those.",
+    "airportNoFlight": "No flight to {{place}} for these dates"
   },
   "hero": {
     "home": "Home",
@@ -149,7 +177,10 @@
     "findStay": "Find your perfect stay",
     "popularDestinations": "Popular destinations",
     "places": "{{count}} places",
-    "inclFlightFrom": "Incl. flight · from {{city}}"
+    "inclFlightFrom": "Incl. flight · from {{city}}",
+    "inclFlightAny": "Incl. flight · from any airport",
+    "inclFlightAirports_one": "Incl. flight · from {{count}} airport",
+    "inclFlightAirports_other": "Incl. flight · from {{count}} airports"
   },
   "toolbar": {
     "searching": "Searching the best deals…",
@@ -194,7 +225,10 @@
     "viewLivePrices": "Click to view live prices",
     "checkingMore": "Checking for more stays…",
     "onRequestNote_one": "1 more stay is available for these dates — open it to see its live price",
-    "onRequestNote_other": "{{count}} more stays are available for these dates — open one to see its live price"
+    "onRequestNote_other": "{{count}} more stays are available for these dates — open one to see its live price",
+    "stayWindow_one": "{{from}} → {{to}} · {{count}} night",
+    "stayWindow_other": "{{from}} → {{to}} · {{count}} nights",
+    "flightPricedLaterAny": "+ flight · priced on hotel page"
   },
   "lightbox": {
     "photosOf": "{{name}} photos",

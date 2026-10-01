@@ -90,7 +90,12 @@ export default function Confirmation({
 
   const isFlight = booking.kind === 'flight';
   const isTransfer = booking.kind === 'transfer';
-  const money = (n) => `${ccy}${Math.round(n).toLocaleString('en-US')}`;
+  // This is a record of what was CHARGED, so it shows the exact amount: cents only when the
+  // charge had any. Rounding here (as it used to, to the nearest euro) misstated the payment.
+  const money = (n) => {
+    const v = Math.round((Number(n) || 0) * 100) / 100;
+    return `${ccy}${v.toLocaleString('en-US', Number.isInteger(v) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+  };
   const animPaid = useCountUp(pricing.total);
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'auto' }); }, []);

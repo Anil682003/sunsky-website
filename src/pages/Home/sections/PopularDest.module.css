@@ -51,13 +51,14 @@
 }
 .tileGlyph { width: 32px; height: 32px; }
 
-.tone_blue   { background: #E8F1FC; color: #3D91E0; }
-.tone_orange { background: #FEF3E4; color: #F39C3B; }
-.tone_pink   { background: #FCE4EA; color: #E94C6B; }
-.tone_green  { background: #DCF7EC; color: #22AD80; }
-.tone_purple { background: #EEE9FE; color: #7C5CE0; }
-.tone_yellow { background: #FFF6D6; color: #DDA400; }
-.tone_teal   { background: #DDF4F6; color: #0E9AA7; }
+/* One quiet tone for every card. The dashboard can still pick a tone per card, and the
+   class still says which, but four colours side by side read as a toy box; the client
+   asked for calm, so each tone paints the same brand blue. */
+.tone_blue, .tone_orange, .tone_pink, .tone_green,
+.tone_purple, .tone_yellow, .tone_teal {
+  background: var(--blue-light);
+  color: var(--blue-deep);
+}
 
 .cardHeadText { min-width: 0; }
 .cardTitle {
@@ -74,7 +75,7 @@
   color: #7A8499;
 }
 
-/* ── Destination rows: emoji tile, name, chevron. The hairlines start at the name. ── */
+/* ── Destination rows: name and chevron, on hairlines. ── */
 .links {
   list-style: none;
   margin: 0;
@@ -89,28 +90,6 @@
   color: #1A2744;
   text-decoration: none;
 }
-/* A little postcard: sky, sand or sunset behind the emoji, like an app icon. */
-.linkTile {
-  width: 30px;
-  height: 30px;
-  flex-shrink: 0;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  overflow: hidden;
-  border-radius: 9px;
-}
-.linkEmoji { width: 25px; height: 25px; }
-
-.tile_sky      { background: linear-gradient(180deg, #A9DAFA 0%, #E1F3FD 100%); }
-.tile_sunset   { background: linear-gradient(180deg, #FFA95E 0%, #FFDA7A 100%); }
-.tile_beach    { background: linear-gradient(180deg, #A9DAFA 0%, #DDF2FD 58%, #F8DD9F 58%, #F2CD84 100%); }
-.tile_sea      { background: linear-gradient(180deg, #A6DDFB 0%, #74D2D4 100%); }
-.tile_sand     { background: linear-gradient(180deg, #FFEAC4 0%, #F7D197 100%); }
-.tile_mint     { background: linear-gradient(180deg, #D3F3E0 0%, #A6E0BE 100%); }
-.tile_rose     { background: linear-gradient(180deg, #FFDDE6 0%, #FFBFD0 100%); }
-.tile_lavender { background: linear-gradient(180deg, #E4DDFF 0%, #CBBDFC 100%); }
-
 .linkBody {
   flex: 1;
   min-width: 0;
