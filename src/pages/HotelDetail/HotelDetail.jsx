@@ -2837,6 +2837,8 @@ export default function HotelDetail() {
     return axiosInstance.post('/flight-availability/search', {
       from, to: destination, depdate: checkin, retdate: checkout,
       adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
+      // A package holiday: the backend returns only what the airport's connection policy allows.
+      package: true,
     }, { timeout: SUPPLIER_TIMEOUT }).then(({ data }) => {
       // Only a real answer is kept. A supplier that failed inside a 200 used to be cached for
       // five minutes, so "Try again" replayed the same failure without asking anyone.

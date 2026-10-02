@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { pickPriorityIndex, pickPriorityFlight, flightStops, MAX_STOPS_PER_DIRECTION } from './flightPriority';
+import { pickPriorityIndex, pickPriorityFlight, flightStops } from './flightPriority';
 
 const F = (stops, totalPrice) => ({ stops, totalPrice });
 
@@ -14,11 +14,13 @@ describe('default flight: the cheapest, no routing preference (spec 3.6)', () =>
     expect(pickPriorityIndex([F(1, 150), F(0, 140), F(1, 160)])).toBe(1);
   });
 
-  it('never picks a flight with two stops in one direction while one within the rule exists', () => {
-    // The old §23 engine would also have refused the €90 two-stop, but for the wrong reason:
-    // it would then have picked the €170 direct over the €150 one-stop.
-    const flights = [F(2, 90), F(1, 150), F(0, 170)];
-    expect(pickPriorityIndex(flights)).toBe(1);
+  it('applies no routing rule of its own: the backend already removed what the policy forbids', () => {
+    // Whatever arrives is allowed by the airport's policy, so the cheapest one wins.
+    expect(pickPriorityIndex([F(2, 90), F(1, 150), F(0, 170)])).toBe(0);
+  });
+
+  it('a caller may still narrow by stops', () => {
+    expect(pickPriorityIndex([F(1, 90), F(0, 170)], { maxStops: 0 })).toBe(1);
   });
 
   it('counts stops per direction, never added across both', () => {
@@ -26,7 +28,7 @@ describe('default flight: the cheapest, no routing preference (spec 3.6)', () =>
     const twoOut = { outLegs: [{}, {}, {}], retLegs: [{}], totalPrice: 250 };
     expect(flightStops(oneEachWay)).toBe(1);
     expect(flightStops(twoOut)).toBe(2);
-    expect(pickPriorityIndex([twoOut, oneEachWay])).toBe(1);
+    expect(pickPriorityIndex([twoOut, oneEachWay], { maxStops: 1 })).toBe(1);
   });
 
   it('derives stops from a bare legs list when no explicit stops', () => {
@@ -34,13 +36,9 @@ describe('default flight: the cheapest, no routing preference (spec 3.6)', () =>
     expect(pickPriorityIndex([{ legs: [{}, {}], totalPrice: 300 }, { legs: [{}], totalPrice: 400 }])).toBe(0);
   });
 
-  it('the ceiling is one stop per direction', () => {
-    expect(MAX_STOPS_PER_DIRECTION).toBe(1);
-  });
-
   it('empty, or nothing within the rule → 0 (always a valid index)', () => {
     expect(pickPriorityIndex([])).toBe(0);
-    expect(pickPriorityIndex([F(3, 50), F(2, 40)])).toBe(0);
+    expect(pickPriorityIndex([F(3, 50), F(2, 40)], { maxStops: 1 })).toBe(0);
   });
 
   it('skips flights without a usable price', () => {
