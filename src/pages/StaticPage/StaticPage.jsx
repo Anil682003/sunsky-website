@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { Link, useParams, useLocation, useNavigate } from 'react-router-dom';
+import { useTranslation } from 'react-i18next';
 import styles from './StaticPage.module.css';
 import { useStaticPages } from '../../api';
 import { parseBlocks } from '../../utils/richText';
@@ -101,6 +102,9 @@ function Faq({ items, sectionId }) {
 }
 
 export default function StaticPage() {
+  // 'common' rather than a namespace of its own: these are ten strings, and most of them
+  // (Home, the breadcrumb label) are the same words the rest of the site already uses.
+  const { t } = useTranslation('common');
   const { slug } = useParams();
   const { data, loading, error } = useStaticPages();
 
@@ -328,16 +332,16 @@ export default function StaticPage() {
       <div className={styles.page}>
         <header className={styles.hero}>
           <div className={styles.heroInner}>
-            <nav className={styles.crumbs} aria-label="Breadcrumb">
-              <Link to="/" className={styles.crumbLink}>Home</Link>
+            <nav className={styles.crumbs} aria-label={t('staticPage.breadcrumb', 'Breadcrumb')}>
+              <Link to="/" className={styles.crumbLink}>{t('nav.home', 'Home')}</Link>
               <span className={styles.crumbSep} aria-hidden="true">/</span>
-              <span className={styles.crumbCurrent}>Page not found</span>
+              <span className={styles.crumbCurrent}>{t('staticPage.notFound', 'Page not found')}</span>
             </nav>
-            <h1 className={styles.title}>We couldn’t find that page</h1>
+            <h1 className={styles.title}>{t('staticPage.notFoundTitle', 'We couldn’t find that page')}</h1>
             <p className={styles.lede}>
               {error
-                ? 'Our information pages didn’t load just now. Please try again in a moment.'
-                : 'The page you were looking for has moved or no longer exists.'}
+                ? t('staticPage.loadFailed', 'Our information pages didn’t load just now. Please try again in a moment.')
+                : t('staticPage.notFoundBody', 'The page you were looking for has moved or no longer exists.')}
             </p>
           </div>
         </header>
@@ -375,8 +379,8 @@ export default function StaticPage() {
         </svg>
 
         <div className={styles.heroInner}>
-          <nav className={styles.crumbs} aria-label="Breadcrumb">
-            <Link to="/" className={styles.crumbLink}>Home</Link>
+          <nav className={styles.crumbs} aria-label={t('staticPage.breadcrumb', 'Breadcrumb')}>
+            <Link to="/" className={styles.crumbLink}>{t('nav.home', 'Home')}</Link>
             {group?.title && (
               <>
                 <span className={styles.crumbSep} aria-hidden="true">/</span>
@@ -389,7 +393,7 @@ export default function StaticPage() {
 
           <div className={styles.heroTag}>
             <span className={styles.heroTagDot} aria-hidden="true" />
-            {group?.title || 'Information'}
+            {group?.title || t('staticPage.information', 'Information')}
           </div>
 
           <h1 className={styles.title}>{page.title}</h1>
@@ -444,7 +448,7 @@ export default function StaticPage() {
 
               {siblings.length > 1 && (
                 <div className={styles.sidebarMore}>
-                  <p className={styles.sidebarLabel}>More information</p>
+                  <p className={styles.sidebarLabel}>{t('staticPage.moreInformation', 'More information')}</p>
                   <ul className={styles.sidebarList}>
                     {siblings
                       .filter((s) => s.slug !== page.slug)
@@ -523,7 +527,7 @@ export default function StaticPage() {
           </div>
 
           {intro.length === 0 && sections.length === 0 && (
-            <p className={styles.para}>This page is being written. Please check back soon.</p>
+            <p className={styles.para}>{t('staticPage.empty', 'This page is being written. Please check back soon.')}</p>
           )}
         </article>
       </div>
