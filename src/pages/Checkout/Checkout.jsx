@@ -704,6 +704,8 @@ function CheckoutContent({ stripe, elements }) {
             from: srch.origin, to: srch.destination,
             depdate: srch.checkin, retdate: srch.checkout,
             adults: party.adults, children: party.children, infants: party.infants,
+            // A package holiday: only flights the airport's connection policy allows.
+            package: true,
           })
         : null;
 
