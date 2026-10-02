@@ -348,7 +348,7 @@ export default function StaticPage() {
 
         <div className={styles.missing}>
           <Link to="/" className={styles.cta}>
-            Back to home
+            {t('actions.backToHome', 'Back to home')}
             <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" aria-hidden="true"><path d="M5 12h14M12 5l7 7-7 7" /></svg>
           </Link>
         </div>
@@ -413,11 +413,11 @@ export default function StaticPage() {
 
       <div className={styles.body}>
         {sectionIndex.length > 1 && (
-          <nav className={styles.sidebar} aria-label={`On this page: ${page.title}`}>
+          <nav className={styles.sidebar} aria-label={t('staticPage.onThisPageAria', { title: page.title, defaultValue: 'On this page: {{title}}' })}>
             <div className={styles.sidebarCard}>
               <p className={styles.sidebarLabel}>
                 <span className={styles.sidebarLabelRule} aria-hidden="true" />
-                On this page
+                {t('staticPage.onThisPage', 'On this page')}
               </p>
               <ul className={styles.sidebarList}>
                 {sectionIndex.map(({ id, heading }, i) => {

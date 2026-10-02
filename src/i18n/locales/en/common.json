@@ -1,5 +1,7 @@
 {
   "staticPage": {
+    "onThisPage": "On this page",
+    "onThisPageAria": "On this page: {{title}}",
     "breadcrumb": "Breadcrumb",
     "notFound": "Page not found",
     "notFoundTitle": "We couldn’t find that page",

@@ -1,5 +1,7 @@
 {
   "staticPage": {
+    "onThisPage": "Op deze pagina",
+    "onThisPageAria": "Op deze pagina: {{title}}",
     "breadcrumb": "Kruimelpad",
     "notFound": "Pagina niet gevonden",
     "notFoundTitle": "We konden die pagina niet vinden",
