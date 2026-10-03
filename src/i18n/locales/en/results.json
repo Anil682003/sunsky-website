@@ -121,6 +121,9 @@
     "otherAirports": "Other airports",
     "originNote": "Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.",
     "arrivalAirport": "Arrival airport",
+    "connections": "Connections",
+    "nonstopOnly": "Non-stop flights only",
+    "nonstopNote": "Where a destination allows it, the cheapest flight may have one connection. Tick this to price non-stop flights only.",
     "airportSearch": "Search airport or city",
     "pickAirports": "Choose one or more airports",
     "noAirportMatch": "No airport matches that.",
@@ -221,7 +224,8 @@
     "bestValue": "Best Value",
     "stayWindow_one": "{{from}} → {{to}} · {{count}} night",
     "stayWindow_other": "{{from}} → {{to}} · {{count}} nights",
-    "flightPricedLaterAny": "+ flight · priced on hotel page"
+    "flightPricedLaterAny": "+ flight · priced on hotel page",
+    "noNonstopPriced": "No non-stop flight priced for these dates · see hotel page"
   },
   "lightbox": {
     "photosOf": "{{name}} photos",

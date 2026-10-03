@@ -199,7 +199,7 @@ describe('a flight the traveller picked is never swapped for another', () => {
 
     // Now narrow the list to direct flights, which the chosen one is not.
     await openFlightList(user);
-    await user.click(await screen.findByRole('checkbox', { name: /rechtstreekse vluchten/i }));
+    await user.click(await screen.findByRole('checkbox', { name: /^non-stop/i }));
     // Said where the choosing happens...
     await waitFor(() => expect(container.querySelector('.modal-flights').textContent).toMatch(/past niet meer bij je filters/i));
     await closeFlightList(user, container);
@@ -234,7 +234,7 @@ describe('a flight the traveller picked is never swapped for another', () => {
 
     // Nobody picked anything, so ticking "with a stop" moves the default onto a flight with one.
     await openFlightList(user);
-    await user.click(await screen.findByRole('checkbox', { name: /vluchten met tussenstop/i }));
+    await user.click(await screen.findByRole('checkbox', { name: /met één overstap/i }));
     await closeFlightList(user, container);
 
     await waitFor(() => expect(pageCard(container).textContent).toContain('TK 1940'));

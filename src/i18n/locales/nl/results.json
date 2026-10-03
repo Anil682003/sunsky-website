@@ -121,6 +121,9 @@
     "otherAirports": "Andere luchthavens",
     "originNote": "Vluchten worden op de hotelpagina geprijsd, eerst vanaf deze luchthaven. Wordt een route hier niet gevlogen, dan tonen we je de dichtstbijzijnde luchthavens die dat wel doen.",
     "arrivalAirport": "Aankomstluchthaven",
+    "connections": "Overstappen",
+    "nonstopOnly": "Alleen non-stop vluchten",
+    "nonstopNote": "Waar een bestemming het toelaat, kan de goedkoopste vlucht één overstap hebben. Vink dit aan voor alleen non-stop vluchten.",
     "airportSearch": "Zoek luchthaven of plaats",
     "pickAirports": "Kies één of meerdere luchthavens",
     "noAirportMatch": "Geen luchthaven komt overeen.",
@@ -221,7 +224,8 @@
     "bestValue": "Beste prijs",
     "stayWindow_one": "{{from}} → {{to}} · {{count}} nacht",
     "stayWindow_other": "{{from}} → {{to}} · {{count}} nachten",
-    "flightPricedLaterAny": "+ vlucht · prijs op de hotelpagina"
+    "flightPricedLaterAny": "+ vlucht · prijs op de hotelpagina",
+    "noNonstopPriced": "Geen non-stop vlucht geprijsd voor deze data · zie hotelpagina"
   },
   "lightbox": {
     "photosOf": "Foto’s van {{name}}",

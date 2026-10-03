@@ -126,7 +126,7 @@ export async function fetchDepartureAirports(params = {}, { signal } = {}) {
  * website adds each fare to the matching hotel's cached price to build the package total.
  * Empty/`null` for a route means no eligible flight (the hotel stays sellable hotel-only, §35).
  */
-export async function fetchPackageFares({ origin, checkIn, checkOut, adults, children, childAges, childAgesReturn, arrivals }, { signal } = {}) {
+export async function fetchPackageFares({ origin, checkIn, checkOut, adults, children, childAges, childAgesReturn, arrivals, routing }, { signal } = {}) {
   const { data } = await axiosInstance.get('/flight-availability/package-fares', {
     params: {
       // Each child pays the fare of their age on the flight date (build order, step 9): ages
@@ -134,6 +134,8 @@ export async function fetchPackageFares({ origin, checkIn, checkOut, adults, chi
       origin, checkIn, checkOut, adults, children,
       childAges: childAges || undefined,
       childAgesReturn: childAgesReturn || undefined,
+      // Build order, step 13: 'nonstop' → only non-stop flights (narrows the airport policy).
+      routing: routing || undefined,
       arrivals: Array.isArray(arrivals) ? arrivals.join(',') : arrivals,
     },
     signal,
