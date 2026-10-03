@@ -12,11 +12,15 @@
  */
 export function splitFareTypes(searchedAdults, childAges = []) {
   const ages = (childAges || []).map(Number).filter((a) => Number.isFinite(a) && a >= 0);
-  const grown = ages.filter((a) => a >= 12).length;
+  const adults = searchedAdults + ages.filter((a) => a >= 12).length;
+  const babies = ages.filter((a) => a < 2).length;
+  // One infant per adult lap: any more fly in a seat of their own at the child fare, as
+  // airlines do (and as the server's paxCounts and the package fares count them). Not a refusal.
+  const seated = adults > 0 ? Math.max(0, babies - adults) : 0;
   return {
-    adults: searchedAdults + grown,
-    children: ages.filter((a) => a >= 2 && a < 12).length,
-    infants: ages.filter((a) => a < 2).length,
+    adults,
+    children: ages.filter((a) => a >= 2 && a < 12).length + seated,
+    infants: babies - seated,
     // Hotelbeds wants an age for every non-adult in the room, infants included.
     childAges: ages.filter((a) => a < 12),
   };
