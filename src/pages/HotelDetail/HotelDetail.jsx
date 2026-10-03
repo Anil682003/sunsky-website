@@ -15,7 +15,7 @@ import { nightsToDays } from '../../utils/durations';
 import { rateDetails, boardInfo, decodeEntities } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS, dedupeFares,
-  fmtClock, FULL_DAY,
+  fmtClock, FULL_DAY, stopsOf,
 } from '../../utils/flightFilters';
 import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
@@ -2636,7 +2636,15 @@ export default function HotelDetail() {
   const toggleAirline = (code) =>
     setFAirlines((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
   // A filter set that survives one search rarely fits the next — reset when results change.
-  useEffect(() => { clearFlightFilters(); }, [allFlights]);
+  // Except the routing choice made on the results page (?routing=nonstop, build order step 13):
+  // it is set again on every new list that has a non-stop flight to keep. A list without one
+  // starts unfiltered, so no box the traveller cannot see is left ticked.
+  const wantsNonstop = qp('routing').toLowerCase() === 'nonstop';
+  useEffect(() => {
+    clearFlightFilters();
+    if (wantsNonstop && allFlights.some((f) => stopsOf(f) === 0) && allFlights.some((f) => stopsOf(f) > 0)) setFType('direct');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allFlights]);
   const shownFlights = pager.list === modalFlights ? pager.n : MODAL_PAGE;
 
   // ── which flight the page is holding (spec 2.7, 3.6, 3.10) ──────────────────────
@@ -5495,8 +5503,8 @@ export default function HotelDetail() {
               {facets.type && (
                 <div className="modal-filter-group">
                   <div className="modal-filter-title">
-                    {t('flightModal.flightType', 'Flight type')}
-                    <FilterHint text={t('flightModal.directFlightsHint', 'Direct flights have no stopover in either direction.')} />
+                    {t('flightModal.flightType', 'Connections')}
+                    <FilterHint text={t('flightModal.directFlightsHint', 'Non-stop flights have no stop in either direction. Where the destination allows it, a flight may have one connection; never more.')} />
                   </div>
                   {/* Two boxes, not three. "All flights" was a checkbox that could only ever
                       be ticked — the way back from a narrowed list — and a row whose count
@@ -5504,8 +5512,10 @@ export default function HotelDetail() {
                       nothing. Un-ticking either box is the way back now, which is what a
                       checkbox means everywhere else on this rail. */}
                   {[
-                    { id: 'direct', label: t('flightModal.directFlights', 'Direct flights'),       count: facets.type.direct },
-                    { id: 'stops',  label: t('flightModal.flightsWithStops', 'Flights with stop(s)'), count: facets.type.stops },
+                    // Build order, step 13: the airport's connection policy decides what can be
+                    // here at all (backend), so "with one connection" is never more than one.
+                    { id: 'direct', label: t('flightModal.directFlights', 'Non-stop'),            count: facets.type.direct },
+                    { id: 'stops',  label: t('flightModal.flightsWithStops', 'With one connection'), count: facets.type.stops },
                   ].map((o) => (
                     <label key={o.id} className={`modal-filter-opt${fType === o.id ? ' checked' : ''}`}>
                       <input type="checkbox" className="mf-input" checked={fType === o.id}

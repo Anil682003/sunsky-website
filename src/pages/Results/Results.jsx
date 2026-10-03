@@ -188,6 +188,10 @@ const EMPTY_FILTERS = {
   // search can have several usable airports and "Rhodes or Kos" is a real answer; the flight
   // fares endpoint has always taken a list of arrivals, so nothing downstream needed changing.
   arrivals: [],
+  // Build order, step 13: only non-stop flights in the package price. Narrows what the
+  // destination airport's connection policy allows; it can never widen it (the backend applies
+  // the policy first). The only routing choice worth having on a list of from-prices.
+  nonstop: false,
 };
 
 const MONTHS_EN = 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec';
@@ -217,7 +221,9 @@ const countActiveFilters = (f) =>
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0) +
-  (f.arrivals?.length || 0);
+  // Non-stop only acts on flights, so it is not counted while the search is hotel-only (its box
+  // is not shown then either): a count must never name a filter nobody can see to untick.
+  (f.arrivals?.length || 0) + (f.nonstop && f.transport === 'package' ? 1 : 0);
 
 // Any content facet active means the cache must be restricted to the resolved hotelCodes.
 const hasContentFacet = (f) =>
@@ -735,6 +741,8 @@ export default function Results() {
     // nothing (see arrivalDestinations), which is the safe failure. One code or several:
     // ?arrival=RHO and ?arrival=RHO,KGS both work, and older links keep working.
     const arrivals  = csv(params.get('arrival') || '').map((c) => c.trim().toUpperCase()).filter(Boolean);
+    // ?routing=nonstop. Anything else is no constraint: a URL can narrow, never widen.
+    const nonstop   = csv(params.get('routing') || '').some((r) => ['nonstop', 'non-stop', 'direct'].includes(r.toLowerCase()));
     const seed = {
       ...(boards.length        ? { boards } : {}),
       ...(themes.length        ? { themes } : {}),
@@ -750,6 +758,7 @@ export default function Results() {
       ...(transport            ? { transport } : {}),
       ...(origins.length       ? { origins } : {}),
       ...(arrivals.length      ? { arrivals } : {}),
+      ...(nonstop              ? { nonstop: true } : {}),
     };
     // Deriving the guard from the seed itself means a filter added above can never be left out
     // of it and silently ignored.
@@ -1063,7 +1072,7 @@ export default function Results() {
         for (let i = 0; i < from.length; i += 6) {
           const batch = from.slice(i, i + 6);
           const settled = await Promise.allSettled(batch.map((origin) => fetchPackageFares(
-            { origin, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut, adults: fetchParams.adults, children: fetchParams.children, childAges: ages, childAgesReturn: agesReturn, arrivals },
+            { origin, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut, adults: fetchParams.adults, children: fetchParams.children, childAges: ages, childAgesReturn: agesReturn, arrivals, routing: filters.nonstop ? 'nonstop' : undefined },
             { signal: ctrl.signal },
           ).then((fares) => ({ origin, fares }))));
           if (!live) return;
@@ -1080,7 +1089,7 @@ export default function Results() {
     };
     run();
     return () => { live = false; ctrl.abort(); };
-  }, [filters.transport, originsKey, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults, fetchParams.children, fetchParams.childAges, fetchParams.childDobs, childAges, childDobs, packageArrivalsKey]);
+  }, [filters.transport, filters.nonstop, originsKey, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults, fetchParams.children, fetchParams.childAges, fetchParams.childDobs, childAges, childDobs, packageArrivalsKey]);
 
   // The destinations the chosen arrival airport narrows the search to, intersected with the
   // scope the traveller already picked. `null` = no arrival filter. An EMPTY array is
@@ -1621,6 +1630,8 @@ export default function Results() {
     // Both ride in the URL because the card opens in a NEW TAB: router state doesn't
     // survive that jump, the query string does.
     qs.set('transport', filters.transport === 'package' ? 'package' : 'hotel_only');
+    // The routing choice follows the traveller to the hotel page (its "Non-stop" box).
+    if (filters.transport === 'package' && filters.nonstop) qs.set('routing', 'nonstop');
     // The hotel page prices from ONE airport: the one that priced this card, else the single
     // airport chosen. With No preference and no fare yet none is sent, and the hotel page
     // falls back to its own default.
@@ -2051,6 +2062,20 @@ export default function Results() {
             name="arrivalAirport"
             language={i18nInstance.language}
           />
+        </FilterSection>
+      )}
+
+      {/* CONNECTIONS (build order, step 13) — non-stop only. Shown once it can change something:
+          a priced flight has a stop (the airport allows one), or it is already ticked so it can be
+          unticked. With every destination direct-only it would filter nothing, so it stays away. */}
+      {filters.transport === 'package' && (filters.nonstop || Object.values(packageFares).some((f) => f && f.stops > 0)) && (
+        <FilterSection title={t('filters.connections', 'Connections')} defaultOpen>
+          <FilterCheck
+            label={t('filters.nonstopOnly', 'Non-stop flights only')}
+            checked={filters.nonstop}
+            onChange={() => setFilter('nonstop', !filters.nonstop)}
+          />
+          <p className={styles.originNote}>{t('filters.nonstopNote', 'Where a destination allows it, the cheapest flight may have one connection. Tick this to price non-stop flights only.')}</p>
         </FilterSection>
       )}
 
@@ -3015,7 +3040,9 @@ export default function Results() {
                       )}
                       {isPackage && packagePerPerson == null && (
                         <span className={styles.rcFlightNote}>
-                          {activeOrigins.length === 1
+                          {/* The choice stays visible as made: no non-stop flight priced here is
+                              said plainly, the hotel stays in the list, never a connection instead. */}
+                          {filters.nonstop ? t('card.noNonstopPriced', 'No non-stop flight priced for these dates · see hotel page') : activeOrigins.length === 1
                             ? t('card.flightPricedLater', {
                               city: airportCity(activeOrigins[0]),
                               defaultValue: '+ flight from {{city}} · priced on hotel page',
