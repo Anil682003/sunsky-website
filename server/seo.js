@@ -114,6 +114,105 @@ export function robotsTxt(origin, indexable) {
   ].join('\n');
 }
 
+/* ────────────────────────── resolving an SEO page ────────────────────────── */
+
+/**
+ * Ask the admin API what a path is.
+ *
+ * WHY THE SERVER DOES THIS AT ALL, rather than letting React handle it: SEO Master §12
+ * requires title, meta description, canonical, robots and H1 in "the initial server-rendered
+ * page output". A crawler never runs React, so a client-side title is a title Google does
+ * not see. This is also what lets a missing page answer a real 404 and a renamed slug answer
+ * a real 301, both of which §12 asks for and neither of which a SPA can do.
+ *
+ * Cached, because the same few hundred paths are requested over and over and the answer only
+ * changes when somebody edits Geo Data or the CMS.
+ */
+const SEO_TTL_MS = 10 * 60 * 1000;
+const SEO_MAX_ENTRIES = 2000;
+const seoCache = new Map();     // path -> { at, rec }
+const seoInflight = new Map();  // path -> Promise, so a burst on one path makes one call
+
+/**
+ * @param {string} apiBase   admin API base, e.g. https://admin.holidaybooking.be/api
+ * @param {string} pathname
+ * @param {number} timeoutMs
+ * @returns {Promise<object|null>} the resolved page, { status:'MOVED', redirectTo }, or null
+ */
+export async function resolveSeoPage(apiBase, pathname, timeoutMs = 2500) {
+  const hit = seoCache.get(pathname);
+  if (hit && Date.now() - hit.at < SEO_TTL_MS) return hit.rec;
+  if (seoInflight.has(pathname)) return seoInflight.get(pathname);
+
+  const run = (async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const url = `${apiBase}/website/seo/resolve?path=${encodeURIComponent(pathname)}`;
+      const res = await fetch(url, { signal: ctrl.signal });
+
+      // A 404 is a real answer and worth caching: it is how the server knows to send 404
+      // rather than 200 for this path, and re-asking on every hit of a crawled dead URL
+      // would be the most expensive thing this server does.
+      if (res.status === 404) return cacheSeo(pathname, { status: 'NOT_FOUND' });
+      if (!res.ok) return null;
+
+      const body = await res.json();
+      return cacheSeo(pathname, body?.data || null);
+    } catch {
+      // Timeout, admin down, bad JSON. Null means "no opinion", and the caller serves the
+      // plain shell with a 200 rather than inventing a 404 out of an outage.
+      return null;
+    } finally {
+      clearTimeout(timer);
+      seoInflight.delete(pathname);
+    }
+  })();
+
+  seoInflight.set(pathname, run);
+  return run;
+}
+
+function cacheSeo(pathname, rec) {
+  if (seoCache.size >= SEO_MAX_ENTRIES) {
+    // Oldest insertion first: Map preserves insertion order, so this is the cheapest
+    // bounded eviction available without pulling in an LRU.
+    const oldest = seoCache.keys().next().value;
+    if (oldest !== undefined) seoCache.delete(oldest);
+  }
+  seoCache.set(pathname, { at: Date.now(), rec });
+  return rec;
+}
+
+/** Test seam / ops: drop the cached resolutions. */
+export function __resetSeoCache() {
+  seoCache.clear();
+  seoInflight.clear();
+}
+
+/**
+ * The <head> tags for a resolved SEO page.
+ *
+ * Only what §12 names: title, description, canonical, robots. No Open Graph here - the hotel
+ * preview path owns that, and duplicating it would mean two places deciding what a share
+ * card says.
+ */
+export function seoHeadTags(page, origin, esc) {
+  const out = [];
+  if (page.metaDescription) {
+    out.push(`    <meta name="description" content="${esc(page.metaDescription)}">`);
+  }
+  if (page.canonicalPath) {
+    out.push(`    <link rel="canonical" href="${esc(origin + page.canonicalPath)}">`);
+  }
+  // Only when it is NOT the default. An explicit index,follow on every page is noise, and
+  // its absence already means the same thing.
+  if (page.robots && page.robots !== 'index,follow') {
+    out.push(`    <meta name="robots" content="${esc(page.robots)}">`);
+  }
+  return out.join('\n');
+}
+
 /* ────────────────────────── sitemap.xml ────────────────────────── */
 
 const xmlEscape = (s) => String(s)

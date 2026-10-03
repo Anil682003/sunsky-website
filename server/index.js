@@ -30,7 +30,10 @@ import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import { hotelImage } from '../src/utils/hotelImage.js';
 import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
-import { robotsTxt, sitemapXml, isKnownRoute, STATIC_SITEMAP_PATHS } from './seo.js';
+import {
+  robotsTxt, sitemapXml, isKnownRoute, STATIC_SITEMAP_PATHS,
+  resolveSeoPage, seoHeadTags,
+} from './seo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
@@ -46,6 +49,13 @@ const CACHE_API = (process.env.VITE_CACHE_API_URL || 'https://cache.holidaybooki
  * ends up in Google. Set SITE_INDEXABLE=false on anything that is not production.
  */
 const SITE_INDEXABLE = String(process.env.SITE_INDEXABLE ?? 'true').toLowerCase() !== 'false';
+/**
+ * The admin API, for resolving permanent SEO pages server-side.
+ *
+ * Same base URL the browser bundle talks to. Unset, SEO pages still render (React resolves
+ * them itself) but without server-rendered head tags or real status codes, so set it.
+ */
+const ADMIN_API = (process.env.VITE_API_URL || 'https://admin.holidaybooking.be/api').replace(/\/+$/, '');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -243,6 +253,8 @@ function metaBlock({ title, description, image, imageSize, url, canonical }) {
 // crawlers that resolve it by "first one wins" would show the generic card on every hotel.
 const DEFAULT_META_RE = /[ \t]*<meta\b[^>]*\b(?:property="og:[^"]*"|name="twitter:[^"]*"|name="description")[^>]*>\r?\n?/gi;
 const CANONICAL_RE = /[ \t]*<link\b[^>]*\brel="canonical"[^>]*>\r?\n?/gi;
+/** Just the description, leaving the Open Graph tags alone. Used on SEO pages. */
+const DESCRIPTION_RE = /[ \t]*<meta\b[^>]*\bname="description"[^>]*>\r?\n?/gi;
 
 function stamp(html, preview, url, canonical) {
   return html
@@ -367,13 +379,49 @@ const server = http.createServer(async (req, res) => {
         return;
       }
     }
-    /* ── SPA fallback, with an honest status code ──
-       React still owns the route and renders its NotFound page either way; what changes is
-       the HTTP status. A missing page used to answer 200, which is a soft 404: Google keeps
-       the URL in the index, treats the app shell as that page's content, and the same empty
-       shell ends up competing with real pages. SEO Master §12 requires a real 404, and the
-       Phase 1 launch gate checks for it. */
-    await sendHtml(req, res, html, req.method, isKnownRoute(pathname) ? 200 : 404);
+    /* ── permanent SEO pages (/zonvakanties/turkije/antalya and the rest of §5) ──
+       Anything that is not one of the app's own routes might be one of these, and only the
+       admin API knows: the URLs are built from live Geo Data. Asking it here is what puts a
+       real <title>, description and canonical into the HTML a crawler reads (§12 wants them
+       in the initial server-rendered output), and what lets a renamed slug answer a real
+       301 and a dead URL a real 404. */
+    if (!isKnownRoute(pathname)) {
+      const page = await resolveSeoPage(ADMIN_API, pathname);
+
+      if (page?.status === 'MOVED' && page.redirectTo) {
+        // §8, §12: an old slug 301s to the current URL rather than serving two of them.
+        res.writeHead(301, { Location: page.redirectTo, 'Cache-Control': 'no-cache' });
+        res.end();
+        return;
+      }
+
+      if (page?.status === 'OK') {
+        /* The site-wide description is REMOVED, not left as a fallback.
+           §11 defines no automatic meta description and forbids inventing one, so a page
+           with nothing written has none. Leaving the shell's generic line in place would
+           give every one of these pages the same description, which is a duplicate signal
+           across hundreds of URLs; with no description at all Google writes a snippet from
+           the page itself, which is both better and what the CMS tells authors will happen.
+           The Open Graph tags stay: a generic share card still beats no share card. */
+        const stamped = html
+          .replace(/<title>[\s\S]*?<\/title>/i, `<title>${esc(page.title || '')}</title>`)
+          .replace(DESCRIPTION_RE, '')
+          .replace(CANONICAL_RE, '')
+          .replace(/[ \t]*<\/head>/i, `${seoHeadTags(page, SITE_ORIGIN, esc)}\n  </head>`);
+        await sendHtml(req, res, stamped, req.method, 200);
+        return;
+      }
+
+      // NOT_FOUND from the resolver, or no answer at all. Null means the admin API timed out
+      // or is down, and an outage must not be turned into a 404 that Google will act on, so
+      // only a confirmed NOT_FOUND gets one.
+      const status = page?.status === 'NOT_FOUND' ? 404 : 200;
+      await sendHtml(req, res, html, req.method, status);
+      return;
+    }
+
+    /* ── SPA fallback for the app's own routes ── */
+    await sendHtml(req, res, html, req.method, 200);
   } catch (err) {
     console.error('[server]', req.method, req.url, err);
     if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain' });

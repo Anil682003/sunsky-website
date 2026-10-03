@@ -11,6 +11,7 @@ import About from '../pages/About/About';
 import Contact from '../pages/Contact/Contact';
 import Faq from '../pages/Faq/Faq';
 import StaticPage from '../pages/StaticPage/StaticPage';
+import SeoLanding from '../pages/SeoLanding/SeoLanding';
 import Login from '../pages/Auth/Login';
 import Register from '../pages/Auth/Register';
 import ForgotPassword from '../pages/Auth/ForgotPassword';
@@ -77,5 +78,25 @@ export const routes = [
   { path: '/booking/:ref',            component: BookingDetail,       layout: true, protected: true },
   { path: '/booking/:ref/confirmation', component: BookingConfirmation, layout: true, protected: true },
 ];
+
+/**
+ * Permanent SEO pages (SEO Master §5): /zonvakanties, /zonvakanties/turkije,
+ * /zonvakanties/turkije/antalya, /zonvakanties/turkije/antalya/side, plus /last-minute/…,
+ * /goedkope-vakanties/…, /all-inclusive/… and /reisgids/….
+ *
+ * WILDCARDS, AND THEY HAVE TO BE. The URLs are built from live Geo Data, so the set of valid
+ * paths is not knowable at build time; `SeoLanding` asks the backend what each one is and
+ * renders a not-found state when the answer is nothing. That is safe here because React
+ * Router ranks by specificity rather than by order: every static route above, /about and
+ * /faq and the rest, still wins against `/:a`.
+ *
+ * `server/index.js` answers the same question before React loads, so a crawler gets the real
+ * title and a real 404 status rather than this component's rendered one.
+ */
+const seoLandingRoutes = ['/:a', '/:a/:b', '/:a/:b/:c', '/:a/:b/:c/:d'].map((path) => ({
+  path, component: SeoLanding, layout: true, protected: false,
+}));
+
+routes.push(...seoLandingRoutes);
 
 export const notFoundRoute = { path: '*', component: NotFound, layout: true };

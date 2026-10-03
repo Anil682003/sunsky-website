@@ -56,4 +56,13 @@ export const ENDPOINTS = {
 
   // Geo — function so the search term is encoded into the URL at call time
   citySearch: (q) => `/geo/cities?search=${encodeURIComponent(q)}&active=true&limit=8`,
+
+  /**
+   * Permanent SEO pages (/zonvakanties/turkije/antalya and friends).
+   *
+   * The SAME endpoint `server/index.js` calls server-side to put the real title, description
+   * and canonical into the HTML before it is sent, which is what makes what a crawler reads
+   * and what a visitor sees the same thing.
+   */
+  seoResolve: (path) => `/website/seo/resolve?path=${encodeURIComponent(path)}`,
 };

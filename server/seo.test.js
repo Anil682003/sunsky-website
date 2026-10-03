@@ -42,6 +42,25 @@ describe('the server route list matches the React router', () => {
     const extra = APP_ROUTES.filter((p) => !routerPaths.includes(p));
     expect(extra).toEqual([]);
   });
+
+  /**
+   * The SEO landing wildcards are the one deliberate exception, and this says so out loud
+   * rather than leaving it to the regex above happening not to match them.
+   *
+   * `/:a`, `/:a/:b` and friends exist in the router so React can render a permanent SEO
+   * page. They must NOT be in APP_ROUTES: `isKnownRoute` returning true for them would make
+   * the server treat every unknown URL as one of its own routes, skip asking the resolver,
+   * and go back to answering 200 with the app shell for everything, which is the soft-404
+   * this file exists to prevent.
+   */
+  it('deliberately excludes the SEO landing wildcards', () => {
+    for (const wildcard of ['/:a', '/:a/:b', '/:a/:b/:c', '/:a/:b/:c/:d']) {
+      expect(APP_ROUTES).not.toContain(wildcard);
+    }
+    // And so an unknown path still falls through to the resolver.
+    expect(isKnownRoute('/zonvakanties/turkije/antalya')).toBe(false);
+    expect(isKnownRoute('/zonvakanties')).toBe(false);
+  });
 });
 
 /* ══════════════════ 404 vs 200 ══════════════════ */
