@@ -7,6 +7,7 @@
 // Admin calls go through axiosInstance, whose baseURL already ends in /api, so the paths
 // here are relative to /api (endpoints live at /api/hotel-filters/*).
 import axiosInstance from '../services/axiosInstance';
+import { sharedGet } from './sharedGet';
 
 /**
  * Holiday/theme types for the filter chips.
@@ -52,7 +53,8 @@ export async function searchDestinationsAndHotels(q, limit = 6, { signal } = {})
 
 /** Countries that have hotels → [{ code, isoCode, name, flag, flagUrl }]. Cascade level 1. */
 export async function fetchCountries() {
-  const { data } = await axiosInstance.get('/hotel-filters/countries');
+  // Shared: the results page and the search pickers ask for the same list (api/sharedGet.js).
+  const data = await sharedGet('/hotel-filters/countries');
   return data?.data ?? [];
 }
 
@@ -64,9 +66,8 @@ export async function fetchCountries() {
 export async function fetchDestinations(countryCode) {
   const codes = Array.isArray(countryCode) ? countryCode : [countryCode].filter(Boolean);
   if (!codes.length) return [];
-  const { data } = await axiosInstance.get('/hotel-filters/destinations', {
-    params: { countryCode: codes.join(',') },
-  });
+  // Shared: the results page and the Where picker ask for the same countries at once.
+  const data = await sharedGet('/hotel-filters/destinations', { params: { countryCode: [...codes].sort().join(',') } });
   return data?.data ?? [];
 }
 
@@ -185,7 +186,9 @@ export async function fetchMatchingHotels({ destinationCode, countryCode, themes
  * }>}
  */
 export async function fetchFacets({ countries = [], destinations = [], zones = [] } = {}, filters = {}, opts = {}) {
-  const { codes = true, attrs = true, signal } = opts;
+  // counts: false → only what the cache prices (matchedDestinations, hotelCodes), without the
+  // sidebar's facet counts, so page 1 can be priced while the counts load (admin facets?counts=0).
+  const { codes = true, attrs = true, counts = true, signal } = opts;
   const params = {};
   if (countries.length)    params.countries = countries.join(',');
   if (destinations.length) params.destinations = destinations.join(',');
@@ -209,6 +212,7 @@ export async function fetchFacets({ countries = [], destinations = [], zones = [
   if (filters.minRating)           params.minRating     = String(filters.minRating);
   if (!codes) params.codes = '0';
   if (!attrs) params.attrs = '0';
+  if (!counts) params.counts = '0';
   const empty = {
     scope: { countries, destinations, hotelCount: 0 },
     matchedDestinations: [], hotelCodes: [], attributes: {},

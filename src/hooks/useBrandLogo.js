@@ -17,7 +17,7 @@
 // prefer its own. A footer-only logo is still honoured when the header has none, but it can no
 // longer outrank the logo the agency actually edits.
 import { useEffect, useState } from 'react';
-import axiosInstance from '../services/axiosInstance';
+import { sharedGet } from '../api/sharedGet';
 import { ENDPOINTS } from '../api/endpoints';
 import { resolveCmsImageUrl } from '../utils/cmsImage';
 import bundledLogo from '../assets/main-logo.png';
@@ -54,10 +54,9 @@ function loadHeaderConfig() {
   // Guarded whole: a CMS that is down or a test with no axios mock must fall through to the
   // bundled logo, never throw inside a render.
   try {
-    _inflight = axiosInstance
-      .get(ENDPOINTS.headerConfig)
-      .then((res) => {
-        const body = res?.data;
+    // The same request the navbar's useHeaderConfig makes — shared, not sent twice.
+    _inflight = sharedGet(ENDPOINTS.headerConfig)
+      .then((body) => {
         _cache = (body?.success ? body.data?.headerConfig ?? body.data : null) || {};
         return _cache;
       })

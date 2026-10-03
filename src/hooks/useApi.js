@@ -1,5 +1,6 @@
 import { useState, useCallback, useEffect, useRef } from 'react';
 import axiosInstance from '../services/axiosInstance';
+import { sharedGet } from '../api/sharedGet';
 
 const useApi = (url, options = {}) => {
   const [data, setData] = useState(null);
@@ -15,6 +16,9 @@ const useApi = (url, options = {}) => {
     errorMessage = 'Something went wrong',
     onSuccess,
     onError,
+    // Public reference data the same for every visitor (CMS configs, holiday types): one request
+    // shared by every component asking at once, kept for a minute (api/sharedGet.js).
+    shared = false,
   } = options;
 
   const transformRef = useRef(transformResponse);
@@ -45,8 +49,9 @@ const useApi = (url, options = {}) => {
           ...(responseType && { responseType }),
         };
 
-        const response = await axiosInstance(config);
-        const result = response.data;
+        const result = shared && method === 'GET' && !responseType
+          ? await sharedGet(resolvedUrl, { params: hasParams ? resolvedParams : null })
+          : (await axiosInstance(config)).data;
         const transform = transformRef.current;
         const finalData = transform ? transform(result) : result;
         setData(finalData);
@@ -65,7 +70,7 @@ const useApi = (url, options = {}) => {
         setLoading(false);
       }
     },
-    [url, method, params, errorMessage, responseType]
+    [url, method, params, errorMessage, responseType, shared]
   );
 
   useEffect(() => {

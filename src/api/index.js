@@ -105,6 +105,7 @@ export const fetchFavouriteCodes = async () => {
 export const useHomepageConfig = () =>
   useApi(ENDPOINTS.homepageConfig, {
     immediate: true,
+    shared: true,
     transformResponse: (res) => (res?.success ? res.data.homepageConfig : null),
   });
 
@@ -123,6 +124,7 @@ export const useCheckoutConfig = () =>
 export const useHeaderConfig = () =>
   useApi(ENDPOINTS.headerConfig, {
     immediate: true,
+    shared: true,
     transformResponse: (res) => (res?.success ? res.data?.headerConfig ?? res.data : null),
   });
 
@@ -131,6 +133,7 @@ export const useHeaderConfig = () =>
 export const useFooterConfig = () =>
   useApi(ENDPOINTS.footerConfig, {
     immediate: true,
+    shared: true,
     transformResponse: (res) => (res?.success ? res.data?.footerConfig ?? res.data : null),
   });
 
@@ -204,6 +207,7 @@ export const searchAirports = async (q, limit = 8, { signal } = {}) => {
 export const useHolidayTypes = () =>
   useApi(ENDPOINTS.holidayTypes, {
     immediate: true,
+    shared: true,
     transformResponse: (res) => res?.data ?? [],
     errorMessage: 'Could not load holiday types',
   });
