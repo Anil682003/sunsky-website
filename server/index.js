@@ -30,12 +30,22 @@ import zlib from 'node:zlib';
 import { promisify } from 'node:util';
 import { hotelImage } from '../src/utils/hotelImage.js';
 import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
+import { robotsTxt, sitemapXml, isKnownRoute, STATIC_SITEMAP_PATHS } from './seo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
 const PORT = Number(process.env.PORT) || 8080;
 const SITE_ORIGIN = (process.env.SITE_ORIGIN || 'https://holidaybooking.be').replace(/\/+$/, '');
 const CACHE_API = (process.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be').replace(/\/+$/, '');
+/**
+ * Whether this deployment may be indexed at all.
+ *
+ * SEO Master launch gate asks for two opposite things from one file: "no accidental
+ * Disallow: /" in production, and "Staging/UAT protected". So it is an explicit switch, not a
+ * hostname guess - a staging box behind a production-looking domain is exactly how a UAT site
+ * ends up in Google. Set SITE_INDEXABLE=false on anything that is not production.
+ */
+const SITE_INDEXABLE = String(process.env.SITE_INDEXABLE ?? 'true').toLowerCase() !== 'false';
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -243,7 +253,7 @@ function stamp(html, preview, url, canonical) {
 }
 
 /* ── responses ── */
-async function sendHtml(req, res, html, method) {
+async function sendHtml(req, res, html, method, status = 200) {
   let body = Buffer.from(html, 'utf8');
   const headers = {
     'Content-Type': 'text/html; charset=utf-8',
@@ -258,7 +268,24 @@ async function sendHtml(req, res, html, method) {
     try { body = await compress(body, enc); headers['Content-Encoding'] = enc; } catch { /* send it raw */ }
   }
   headers['Content-Length'] = body.length;
-  res.writeHead(200, headers);
+  res.writeHead(status, headers);
+  res.end(method === 'HEAD' ? undefined : body);
+}
+
+/**
+ * robots.txt and sitemap.xml: plain text, short cache, never the HTML shell.
+ *
+ * Not compressed. Both are well under MIN_COMPRESS_BYTES, and a crawler fetching robots.txt
+ * benefits from the simplest possible response.
+ */
+function sendText(res, text, method, contentType, maxAge) {
+  const body = Buffer.from(text, 'utf8');
+  res.writeHead(200, {
+    'Content-Type': contentType,
+    'Content-Length': body.length,
+    'Cache-Control': `public, max-age=${maxAge}`,
+    'X-Content-Type-Options': 'nosniff',
+  });
   res.end(method === 'HEAD' ? undefined : body);
 }
 
@@ -308,6 +335,20 @@ const server = http.createServer(async (req, res) => {
     const file = await staticFile(pathname);
     if (file) { await sendFile(req, res, file, req.method); return; }
 
+    /* ── technical SEO, answered before the SPA shell ──
+       Both of these previously fell through to the SPA fallback, so a crawler asking for
+       /robots.txt got 200 with a React page as text/html. */
+    if (pathname === '/robots.txt') {
+      sendText(res, robotsTxt(SITE_ORIGIN, SITE_INDEXABLE), req.method,
+        'text/plain; charset=utf-8', 3600);
+      return;
+    }
+    if (pathname === '/sitemap.xml') {
+      sendText(res, sitemapXml(SITE_ORIGIN, STATIC_SITEMAP_PATHS), req.method,
+        'application/xml; charset=utf-8', 3600);
+      return;
+    }
+
     const html = await shell();
     const hotel = /^\/hotel\/([^/]+)\/?$/.exec(pathname);
     if (hotel) {
@@ -326,7 +367,13 @@ const server = http.createServer(async (req, res) => {
         return;
       }
     }
-    await sendHtml(req, res, html, req.method);   // SPA fallback: React owns the route
+    /* ── SPA fallback, with an honest status code ──
+       React still owns the route and renders its NotFound page either way; what changes is
+       the HTTP status. A missing page used to answer 200, which is a soft 404: Google keeps
+       the URL in the index, treats the app shell as that page's content, and the same empty
+       shell ends up competing with real pages. SEO Master §12 requires a real 404, and the
+       Phase 1 launch gate checks for it. */
+    await sendHtml(req, res, html, req.method, isKnownRoute(pathname) ? 200 : 404);
   } catch (err) {
     console.error('[server]', req.method, req.url, err);
     if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain' });
