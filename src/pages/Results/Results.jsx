@@ -221,7 +221,9 @@ const countActiveFilters = (f) =>
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0) +
-  (f.arrivals?.length || 0) + (f.nonstop ? 1 : 0);
+  // Non-stop only acts on flights, so it is not counted while the search is hotel-only (its box
+  // is not shown then either): a count must never name a filter nobody can see to untick.
+  (f.arrivals?.length || 0) + (f.nonstop && f.transport === 'package' ? 1 : 0);
 
 // Any content facet active means the cache must be restricted to the resolved hotelCodes.
 const hasContentFacet = (f) =>
