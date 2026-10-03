@@ -12,7 +12,9 @@ import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/price
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount, NO_BOARD_LABEL } from '../../utils/roomBoards';
-import { nightsToDays } from '../../utils/durations';
+import { nightsToDays, stayDays, packageTravelDays } from '../../utils/durations';
+import { trackViewItem } from '../../analytics';
+import { countryName } from '../../utils/countryName';
 import { rateDetails, boardInfo, decodeEntities } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS, dedupeFares,
@@ -1868,6 +1870,48 @@ export default function HotelDetail() {
   // Board preference: '' = no preference, else a boardRank key the room list filters on.
   const boardPref = ovr.board ?? '';
 
+  /**
+   * GA4 `view_item` (Tracking Master §10): the traveller opened a specific hotel.
+   *
+   * WAITS FOR `infoSettled`. The page renders immediately from the carried-in card data and
+   * fills in from /hotels/bulk a moment later, so firing on mount would report half of all
+   * hotels as "Hotel 123456" and lose the country entirely. One event per hotel per search
+   * context either way - the ref below is what stops the re-render that arrives with the real
+   * name from sending a second one.
+   *
+   * NO VALUE IS SENT. §10's example carries none, and the only figure available here is a
+   * from-price for a party that may not be this traveller's. §11 bans exactly that number
+   * from `begin_checkout`; seeding GA4's item revenue with it here would be no better.
+   */
+  const viewItemSentRef = useRef(null);
+  useEffect(() => {
+    if (!hotelCode || !infoSettled) return;
+
+    const isPackage = transport === 'package';
+    const key = `${hotelCode}|${transport}|${baseCheckIn}|${baseCheckOut}|${sAdults}|${sChildren}`;
+    if (viewItemSentRef.current === key) return;
+    viewItemSentRef.current = key;
+
+    trackViewItem({
+      transport,
+      country: info?.countryIso ? countryName(info.countryIso, 'en', info.countryIso) : null,
+      destination: info?.cityName || info?.city || null,
+      hotelCode,
+      hotelName,
+      departureDate: baseCheckIn,
+      departureAirport: isPackage ? origin : null,
+      duration: baseCheckIn && baseCheckOut
+        ? (isPackage ? packageTravelDays(baseCheckIn, baseCheckOut) : stayDays(baseCheckIn, baseCheckOut))
+        : null,
+      adults: Number(sAdults) || 0,
+      children: Number(sChildren) || 0,
+      board: boardPref || null,
+    });
+  }, [
+    hotelCode, infoSettled, transport, baseCheckIn, baseCheckOut, sAdults, sChildren,
+    hotelName, origin, boardPref, info?.countryIso, info?.cityName, info?.city,
+  ]);
+
   const [activeTab, setActiveTab] = useState('Prices');
   const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState({});
@@ -3257,6 +3301,11 @@ export default function HotelDetail() {
       state: {
         booking: {
           hotelCode, hotelName, stars: Math.min(stars, 5), loc: locLabel,
+          // Carried for the marketing layer, which needs a country on begin_checkout and
+          // purchase (Tracking Master §5) and has no other source for one: `loc` is a city
+          // label and the checkout never calls /hotels/bulk itself.
+          countryIso: info?.countryIso || null,
+          cityName: info?.cityName || info?.city || null,
           img: heroImage, board,
           nights, adults: pax, currency: ccy,
           // `perPerson` both times: checkout multiplies this back by pax, so handing it a

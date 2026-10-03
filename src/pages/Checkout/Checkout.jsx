@@ -21,6 +21,9 @@ import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import { sellingEuros } from '../../utils/tripPrice';
 import { roundStayTotal } from '../../utils/priceRounding';
 import { splitFareTypes } from '../../utils/fareTypes';
+import {
+  trackBeginCheckout, trackPurchase, contextFromBooking, stashPurchaseContext,
+} from '../../analytics';
 import './Checkout.css';
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
@@ -1122,6 +1125,30 @@ function CheckoutContent({ stripe, elements }) {
 
   const total = subtotal + insAmount;
   const animTotal = useCountUp(total);
+
+  /**
+   * GA4 `begin_checkout` (Tracking Master §11): the traveller arrived at checkout with a
+   * selected offer.
+   *
+   * ONCE PER CHECKOUT, at entry, and never again as they move between the three steps or as
+   * extras change the total. §11 wants "the actual selected offer entering checkout", which
+   * is this number; the amount they finally pay is what `purchase` reports, and §14 is
+   * explicit that the two are allowed to differ.
+   *
+   * `sellingEuros` because that is the whole-euro figure the traveller is shown and the
+   * backend will charge - sending the unrounded arithmetic total would put GA4 a few cents
+   * away from every booking in the admin.
+   */
+  const beginCheckoutSentRef = useRef(false);
+  useEffect(() => {
+    if (beginCheckoutSentRef.current) return;
+    // Wait for a real quote: the page renders a skeleton at 0 while the re-price runs, and a
+    // checkout reported at zero value would sit in the funnel contributing nothing.
+    const value = sellingEuros(total);
+    if (!value) return;
+    beginCheckoutSentRef.current = true;
+    trackBeginCheckout(contextFromBooking(booking, { value }));
+  }, [booking, total]);
   // SUNSKY prices are whole euros, rounded UP (spec 2.3). Rounding to the NEAREST euro, as this
   // did, could show less than the amount then charged (€501.40 read as €501); rounding up never
   // does. The exact whole-euro charge itself comes with the API's own rounding.
@@ -1614,6 +1641,13 @@ function CheckoutContent({ stripe, elements }) {
             // Redirect methods: Stripe sends the customer to the bank / PayPal and
             // back to returnUrl, where payment + supplier confirm are finalised. On a
             // successful redirect the browser navigates away and the code below never runs.
+            //
+            // Which is why the purchase context is stashed FIRST: everything React is
+            // holding here is gone by the time /checkout/return loads, and the stored
+            // booking it reads back cannot supply the destination, board or duration that
+            // the GA4 purchase event needs. Stays in the tab, never in the URL.
+            stashPurchaseContext(bookingId, contextFromBooking(booking, { value: sellingEuros(total) }));
+
             let res;
             if (payMethod === 'bancontact') {
               res = await stripe.confirmBancontactPayment(clientSecret, { payment_method: { billing_details }, return_url: returnUrl });
@@ -1642,15 +1676,46 @@ function CheckoutContent({ stripe, elements }) {
       // Payment has already succeeded here, so a confirm failure must NOT look like a
       // payment failure — but it also must NOT be silently hidden. We flag the booking
       // as "pending finalisation" so the success screen tells the customer the truth.
+      // Local, not the state flag: `setReservationPending` has not been applied by the time
+      // the tracking call below runs, and a purchase reported for a booking the supplier
+      // refused is exactly what §15 forbids.
+      let supplierConfirmed = true;
       try {
         await axiosInstance.post(`/website/online-bookings/${bookingId}/confirm`, { mode: paymentMode });
       } catch (confErr) {
         console.error('[Checkout] confirm/reservation step failed:', confErr?.response?.data?.message || confErr.message);
         setReservationPending(true);
+        supplierConfirmed = false;
       }
 
       setBookingRef(ref || `SSK-${Date.now().toString(36).toUpperCase().slice(-6)}`);
       setPaid(true);
+
+      /**
+       * GA4 `purchase` (Tracking Master §12) - SUNSKY's primary marketing conversion.
+       *
+       * THREE CONDITIONS, ALL FROM §15, AND ALL OF THEM MATTER:
+       *
+       *   `supplierConfirmed`  - "purchase must not fire when... supplier booking fails".
+       *                          Payment succeeded but the reservation did not, so the
+       *                          customer is told the booking is being finalised and Google
+       *                          is told nothing. A booking that is later rescued by hand
+       *                          is a manual conversion, not an automatic one.
+       *   `ref`                - "transaction_id must correspond to the unique SUNSKY
+       *                          booking reference". The `SSK-` fallback above is a display
+       *                          placeholder generated in the browser, not a reference, and
+       *                          must never be reported as one.
+       *   `value`              - §14: the FINAL confirmed amount wins over every earlier
+       *                          search, live-check and checkout figure.
+       *
+       * Deduplication against a refresh or a revisit is handled inside `trackPurchase`.
+       */
+      if (supplierConfirmed && ref) {
+        trackPurchase(contextFromBooking(booking, {
+          transactionId: ref,
+          value: sellingEuros(total),
+        }));
+      }
     } catch (err) {
       const msg = err?.response?.data?.message || err?.message || t('checkout:errors.paymentFailed', 'Payment failed. Please try again.');
       flashErrors({ submit: msg });

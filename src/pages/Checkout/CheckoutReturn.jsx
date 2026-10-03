@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/axiosInstance';
+import { trackPurchase, readPurchaseContext, clearPurchaseContext } from '../../analytics';
 
 /**
  * Redirect-payment return page  (route: /checkout/return)
@@ -68,6 +69,35 @@ export default function CheckoutReturn() {
         const { data } = await axiosInstance.get(`/website/online-bookings/${bookingId}`);
         booking = data?.data || null;
       } catch { /* non-fatal — payment already recorded */ }
+
+      /**
+       * GA4 `purchase` for the redirect payment methods (Tracking Master §12).
+       *
+       * The same §15 conditions as the card path, and they bite harder here because this
+       * page is a real URL a customer can refresh or reopen from history:
+       *
+       *   - `!reservationPending`: payment landed but the supplier did not confirm, which
+       *     §15 lists as "supplier booking fails". No conversion is reported.
+       *   - `bookingReference`: the unique SUNSKY reference, read back from the booking.
+       *   - the `trackPurchase` guard: a refresh re-runs this whole effect, and the
+       *     transaction id it would report is one already sent. It is dropped there.
+       *
+       * §14: the FINAL confirmed amount wins, so the booking's own `grandTotal` is
+       * preferred over the figure stashed at redirect time, which predates any adjustment
+       * the confirm step made.
+       */
+      const pending = readPurchaseContext(bookingId);
+      const reference = booking?.bookingReference;
+      if (!reservationPending && reference && pending) {
+        trackPurchase({
+          ...pending,
+          transactionId: reference,
+          value: Number(booking?.grandTotal) || pending.value,
+        });
+      }
+      // Cleared either way: a booking that failed to confirm must not have its context
+      // picked up by a later payment in the same tab.
+      if (!reservationPending) clearPurchaseContext();
 
       setState({
         status: reservationPending ? 'pending' : 'success',

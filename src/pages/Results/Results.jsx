@@ -19,8 +19,9 @@ import { countryName } from '../../utils/countryName';
 import { toTitleCase } from '../../utils/textCase';
 import {
   DURATION_BANDS, bandByLabel, bandForNights, stayDaysToNights as daysToNights, stayNightsToDays as nightsToDays,
-  stayNights, stayCheckOut, withinStayNightLimit, MAX_TRAVEL_DAYS,
+  stayNights, stayCheckOut, withinStayNightLimit, MAX_TRAVEL_DAYS, stayDays, packageTravelDays,
 } from '../../utils/durations';
+import { trackSearch, searchSignature } from '../../analytics';
 import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
 import { dobsMatchAges, ageAtCheckIn, allDobsValid, agesFromDobs } from '../../utils/childDob';
 import DateCalendar from '../../components/DateCalendar/DateCalendar';
@@ -1342,9 +1343,66 @@ export default function Results() {
     return t('hero.places', { count: parts.length, defaultValue: '{{count}} places' });
   }, [usingDefaultScope, urlLabel, scope, countryOptions, scopeCities, scopeZones, t, i18nInstance.language]);
 
+  /**
+   * What the marketing layer is told about this search (Tracking Master §9).
+   *
+   * COUNTRY AND DESTINATION ARE SENT ONLY WHEN THE SEARCH HAS EXACTLY ONE. A scope of
+   * "Turkey + Greece", or of three cities, has no single destination, and §18 forbids
+   * inventing one; picking the first would quietly attribute a multi-country search to
+   * whichever place happened to sort first.
+   *
+   * Names, not codes, and resolved in ENGLISH rather than the visitor's language. §7 requires
+   * one canonical analytics value per place - if this followed `i18nInstance.language` the
+   * same country would arrive as both "Turkey" and "Turkije" depending on who searched.
+   *
+   * `duration` comes from SUNSKY's own duration helpers, which differ by product: travel days
+   * for a package, stay days for hotel only (§5 forbids the marketing layer calculating its
+   * own).
+   */
+  const searchTracking = useMemo(() => {
+    const leaves = scopeLeaves(scope, scopeCities);
+    const oneCountry = leaves.countries.length === 1 && !leaves.destinations.length && !leaves.zones.length
+      ? leaves.countries[0] : null;
+    const oneDest = leaves.destinations.length === 1 && !leaves.countries.length && !leaves.zones.length
+      ? leaves.destinations[0] : null;
+    const isPackage = applied.transport === 'package';
+    const { checkIn, checkOut } = fetchParams;
+
+    return {
+      transport: applied.transport,
+      country: oneCountry ? countryName(oneCountry, 'en', oneCountry) : null,
+      destination: oneDest
+        ? (scopeCities.find((c) => c.code === oneDest)?.name || oneDest)
+        : null,
+      departureDate: checkIn,
+      // Only when the traveller picked exactly one. Empty means "no preference" (every active
+      // airport), which is not a departure airport and must not be reported as one.
+      departureAirport: isPackage && applied.origins?.length === 1 ? applied.origins[0] : null,
+      duration: checkIn && checkOut
+        ? (isPackage ? packageTravelDays(checkIn, checkOut) : stayDays(checkIn, checkOut))
+        : null,
+      adults: fetchParams.adults,
+      children: fetchParams.children,
+      board: applied.boards?.length === 1 ? applied.boards[0] : null,
+      // Everything else that narrows the result universe. Sort order is deliberately absent:
+      // §9 rules it out as a search trigger, and this string is what decides whether a new
+      // `search` event fires.
+      filterSignature: JSON.stringify([
+        fetchParams.rooms, applied.themes, applied.stars, applied.facilities, applied.activities,
+        applied.accommodation, applied.kids, applied.roomTypes, applied.arrivals, applied.origins,
+        applied.minPrice, applied.maxPrice, applied.priceBasis, applied.refundable,
+        applied.maxBeach, applied.maxCentre, applied.minRating, applied.adultsOnly,
+      ]),
+    };
+  }, [scope, scopeCities, applied, fetchParams]);
+
   // "A different search" (vs. a different filter): scope or head-counts/dates changed.
   const searchKey = `${scopeKey}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${fetchParams.childAges ?? childAges}`;
   const prevSearchKeyRef = useRef(null);
+  // The last search reported to GA4. Separate from `prevSearchKeyRef`, which tracks "is this
+  // a new search or a filter change" for the UI's loading state: a committed filter change IS
+  // a new search as far as §9 is concerned, but a re-sort is not.
+  const lastSearchSigRef = useRef(null);
 
   // A price bound is only meaningful for the search it was chosen in. Clear it on a search change
   // (adjusting state during render — React's documented pattern for reacting to changed inputs).
@@ -1398,6 +1456,20 @@ export default function Results() {
     const reqId = ++reqIdRef.current;
     const { url, opts } = buildRequest(fetchParams, priceScope, childAges, 1, applied);
     console.log('[Results] Page 1 fetch:', opts.method || 'GET', url);
+
+    // GA4 `search` (Tracking Master §9). On the request, not the response: the traveller
+    // performed a search whether or not the cache answers, and an event lost to a timeout
+    // would under-report the top of the funnel.
+    //
+    // THE SIGNATURE IS WHAT KEEPS THE §9 PROMISE. This effect also re-runs when only the sort
+    // order changed, and §9 lists "changes sorting" among the things that must NOT fire a
+    // search. `searchSignature()` omits sort (and paging), so a re-sort recomputes an
+    // identical signature and nothing is sent.
+    const sig = searchSignature(searchTracking);
+    if (sig && sig !== lastSearchSigRef.current) {
+      lastSearchSigRef.current = sig;
+      trackSearch(searchTracking);
+    }
 
     const ctrl = new AbortController();
     fetch(url, { ...opts, signal: ctrl.signal })
