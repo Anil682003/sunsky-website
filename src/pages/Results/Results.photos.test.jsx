@@ -45,9 +45,11 @@ const results = Array.from({ length: 20 }, (_, i) => ({
   currency: 'EUR', nightlyBreakdown: [],
 }));
 const photo = (i) => `https://photos.hotelbeds.com/giata/00/0000${i}/0000${i}a_hb_a_001.jpg`;
+const extra = (i, n) => `https://photos.hotelbeds.com/giata/00/0000${i}/0000${i}a_hb_a_00${n}.jpg`;
 const info = results.map((r, i) => ({
   hotelCode: r.hotelCode, name: r.hotelName,
-  images: i === 19 ? [] : [{ url: photo(i), visualOrder: 1 }],   // the last hotel has no photo
+  // the first hotel has a 3-photo gallery; the last hotel has no photo
+  images: i === 19 ? [] : [{ url: photo(i), visualOrder: 1 }, ...(i === 0 ? [{ url: extra(0, 2), visualOrder: 2 }, { url: extra(0, 3), visualOrder: 3 }] : [])],
 }));
 
 beforeEach(() => {
@@ -95,5 +97,27 @@ describe('result card photos', () => {
       fireEvent.error(img);
     }
     await waitFor(() => expect(cards[0].textContent).toMatch(/Geen afbeeldingen|No images available/));
+  });
+
+  it('once a card photo has loaded, the next and previous photos are fetched in the background', async () => {
+    const fetched = [];
+    const RealImage = globalThis.Image;
+    globalThis.Image = class { set src(v) { fetched.push(v); } };
+    try {
+      const { container } = renderPage();
+      await waitFor(() => expect(cardImgs(container).length).toBe(19));
+      const first = container.querySelector('article img[src*="photos.hotelbeds.com"]');
+      fireEvent.load(first);
+      // 1x screen in jsdom → the 320 px default variant, exactly what the card will request
+      expect(fetched).toEqual([extra(0, 2), extra(0, 3)]);
+      // the same photos are never fetched twice
+      fireEvent.load(first);
+      expect(fetched).toHaveLength(2);
+      // a card with a single photo prefetches nothing
+      fireEvent.load(cardImgs(container)[1]);
+      expect(fetched).toHaveLength(2);
+    } finally {
+      globalThis.Image = RealImage;
+    }
   });
 });

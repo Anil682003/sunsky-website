@@ -8,6 +8,7 @@ import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArriva
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
+import { hotelImageChain } from '../../utils/hotelImage';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import ScopePicker from '../../components/ScopePicker/ScopePicker';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
@@ -43,6 +44,18 @@ const PAGE_SIZE = 20;
 const EAGER_PHOTOS = PAGE_SIZE;
 const PRIORITY_PHOTOS = 6;
 const cardPhotoSize = () => (typeof window !== 'undefined' && window.devicePixelRatio >= 1.5 ? 'bigger' : 'default');
+// The card's arrows: once the photo on screen has loaded, the next and previous ones are fetched
+// quietly (low priority, each URL once), so a click shows them at once instead of a shimmer.
+const prefetchedPhotos = new Set();
+function prefetchPhoto(url, size) {
+  const src = hotelImageChain(url, size)[0];   // exactly what <HotelImg> will ask for first
+  if (!src || prefetchedPhotos.has(src) || typeof Image === 'undefined') return;
+  prefetchedPhotos.add(src);
+  const img = new Image();
+  img.fetchPriority = 'low';
+  img.decoding = 'async';
+  img.src = src;
+}
 // Default age used for a newly-added child until the traveller picks one. Hotelbeds requires
 // an age per child; without it a family search 400s, so we never send a childless-age.
 const CHILD_AGE_DEFAULT = 8;
@@ -2927,6 +2940,12 @@ export default function Results() {
                               loading={i < EAGER_PHOTOS ? 'eager' : 'lazy'}
                               fetchPriority={i < PRIORITY_PHOTOS ? 'high' : 'auto'}
                               onError={() => setFailedPhotos((prev) => new Set(prev).add(curImg))}
+                              onLoad={() => {
+                                if (gallery.length < 2) return;
+                                const n = gallery.length;
+                                prefetchPhoto(gallery[(imgIdx + 1) % n], cardPhotoSize());
+                                prefetchPhoto(gallery[(imgIdx - 1 + n) % n], cardPhotoSize());
+                              }}
                             />
                           )}
                           {/* Behind the photo: a shimmer while it downloads; the no-photo tile only
