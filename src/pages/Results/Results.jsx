@@ -22,7 +22,7 @@ import {
   stayNights, stayCheckOut, withinStayNightLimit, MAX_TRAVEL_DAYS,
 } from '../../utils/durations';
 import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
-import { dobsMatchAges, ageAtCheckIn, allDobsValid } from '../../utils/childDob';
+import { dobsMatchAges, ageAtCheckIn, allDobsValid, agesFromDobs } from '../../utils/childDob';
 import DateCalendar from '../../components/DateCalendar/DateCalendar';
 import DobPicker from '../../components/DobPicker/DobPicker';
 import { loadPax, savePax, hasPaxParams } from '../../utils/paxStore';
@@ -1050,13 +1050,19 @@ export default function Results() {
         if (live) setPackageFares({});
         return;
       }
+      // Children are priced on their age at each flight (step 9). With dates of birth that still
+      // match the ages, the return-date ages come from them (a birthday during the trip).
+      const ages = fetchParams.childAges ?? childAges ?? '';
+      const dobs = fetchParams.childDobs ?? childDobs ?? '';
+      const agesReturn = dobs && fetchParams.checkOut && dobsMatchAges(dobs, ages, fetchParams.checkIn)
+        ? agesFromDobs(dobs, fetchParams.checkOut) : '';
       try {
         const merged = {};
         // Six at a time: No preference can mean ~20 airports, and the fares API is shared.
         for (let i = 0; i < from.length; i += 6) {
           const batch = from.slice(i, i + 6);
           const settled = await Promise.allSettled(batch.map((origin) => fetchPackageFares(
-            { origin, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut, adults: fetchParams.adults, children: fetchParams.children, arrivals },
+            { origin, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut, adults: fetchParams.adults, children: fetchParams.children, childAges: ages, childAgesReturn: agesReturn, arrivals },
             { signal: ctrl.signal },
           ).then((fares) => ({ origin, fares }))));
           if (!live) return;
@@ -1073,7 +1079,7 @@ export default function Results() {
     };
     run();
     return () => { live = false; ctrl.abort(); };
-  }, [filters.transport, originsKey, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults, fetchParams.children, packageArrivalsKey]);
+  }, [filters.transport, originsKey, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults, fetchParams.children, fetchParams.childAges, fetchParams.childDobs, childAges, childDobs, packageArrivalsKey]);
 
   // The destinations the chosen arrival airport narrows the search to, intersected with the
   // scope the traveller already picked. `null` = no arrival filter. An EMPTY array is
