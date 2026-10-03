@@ -17,11 +17,17 @@
  * that needs node_modules it doesn't already have would break the next deploy.
  *
  * Requires Node 18+ (global fetch). Env: PORT (8080), SITE_ORIGIN, VITE_CACHE_API_URL.
+ *
+ * Text responses (JS, CSS, HTML, JSON, SVG) are compressed — brotli when the browser takes it,
+ * else gzip. The main bundle went out as 1.49 MB raw; brotli makes it ~0.3 MB. Assets are
+ * content-hashed, so each is compressed once and kept in memory until its file changes.
  */
 import http from 'node:http';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import zlib from 'node:zlib';
+import { promisify } from 'node:util';
 import { hotelImage } from '../src/utils/hotelImage.js';
 import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
 
@@ -41,6 +47,39 @@ const MIME = {
   '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8',
   '.webmanifest': 'application/manifest+json', '.pdf': 'application/pdf',
 };
+
+/* ── compression ── */
+const brotli = promisify(zlib.brotliCompress);
+const gzip = promisify(zlib.gzip);
+const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.map', '.svg', '.txt', '.xml', '.webmanifest']);
+const MIN_COMPRESS_BYTES = 1024;   // below this, compression only adds bytes
+// Brotli 9: ~4× smaller than raw for the bundle in ~170 ms, once per file (11 is 20× slower for 8%).
+const BROTLI_OPTS = { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9 } };
+
+/** The encoding to answer with: brotli when accepted, else gzip, else none (`q=0` = refused). */
+export function pickEncoding(acceptEncoding) {
+  const accepted = new Set();
+  for (const part of String(acceptEncoding || '').toLowerCase().split(',')) {
+    const [name, ...params] = part.trim().split(';').map((x) => x.trim());
+    const q = params.find((x) => x.startsWith('q='));
+    if (name && !(q && Number(q.slice(2)) === 0)) accepted.add(name);
+  }
+  if (accepted.has('br')) return 'br';
+  if (accepted.has('gzip')) return 'gzip';
+  return null;
+}
+
+const compress = (body, enc) => (enc === 'br' ? brotli(body, BROTLI_OPTS) : gzip(body, { level: 9 }));
+
+// file → { mtimeMs, br?: Promise<Buffer>, gzip?: Promise<Buffer> }. A failed compression is
+// forgotten (the next request retries) and the file goes out uncompressed meanwhile.
+const compressedFiles = new Map();
+function compressedFile(file, mtimeMs, body, enc) {
+  let entry = compressedFiles.get(file);
+  if (!entry || entry.mtimeMs !== mtimeMs) { entry = { mtimeMs }; compressedFiles.set(file, entry); }
+  if (!entry[enc]) entry[enc] = compress(body, enc).catch((err) => { delete entry[enc]; throw err; });
+  return entry[enc];
+}
 
 /* Preview crawlers. They get to WAIT for the hotel record; a human never does. */
 const CRAWLER_RE = /facebookexternalhit|facebookcatalog|whatsapp|twitterbot|telegrambot|linkedinbot|slackbot|slack-imgproxy|discordbot|pinterest|redditbot|skypeuripreview|applebot|googlebot|bingbot|yandex|duckduckbot|embedly|quora link preview|vkshare|w3c_validator|bitlybot|nuzzel|outbrain|flipboard|tumblr|iframely|google-inspectiontool|baiduspider/i;
@@ -204,31 +243,46 @@ function stamp(html, preview, url, canonical) {
 }
 
 /* ── responses ── */
-function sendHtml(res, html, method) {
-  const body = Buffer.from(html, 'utf8');
-  res.writeHead(200, {
+async function sendHtml(req, res, html, method) {
+  let body = Buffer.from(html, 'utf8');
+  const headers = {
     'Content-Type': 'text/html; charset=utf-8',
-    'Content-Length': body.length,
     // The shell names hashed asset files — never let a proxy pin an old one.
     'Cache-Control': 'no-cache',
     'X-Content-Type-Options': 'nosniff',
-  });
+    Vary: 'Accept-Encoding',
+  };
+  // The shell can differ per request (hotel preview tags), so it is compressed on the fly.
+  const enc = method === 'GET' && body.length >= MIN_COMPRESS_BYTES ? pickEncoding(req.headers['accept-encoding']) : null;
+  if (enc) {
+    try { body = await compress(body, enc); headers['Content-Encoding'] = enc; } catch { /* send it raw */ }
+  }
+  headers['Content-Length'] = body.length;
+  res.writeHead(200, headers);
   res.end(method === 'HEAD' ? undefined : body);
 }
 
-async function sendFile(res, file, method) {
+async function sendFile(req, res, file, method) {
   const ext = path.extname(file).toLowerCase();
   const st = await fsp.stat(file);
-  const body = method === 'HEAD' ? null : await fsp.readFile(file);
-  res.writeHead(200, {
+  let body = method === 'HEAD' ? null : await fsp.readFile(file);
+  const headers = {
     'Content-Type': MIME[ext] || 'application/octet-stream',
-    'Content-Length': body ? body.length : st.size,
     // Vite content-hashes everything under /assets, so those are safe to pin forever.
     'Cache-Control': file.includes(`${path.sep}assets${path.sep}`)
       ? 'public, max-age=31536000, immutable'
       : 'public, max-age=3600',
     'X-Content-Type-Options': 'nosniff',
-  });
+  };
+  if (COMPRESSIBLE.has(ext)) {
+    headers.Vary = 'Accept-Encoding';
+    const enc = body && body.length >= MIN_COMPRESS_BYTES ? pickEncoding(req.headers['accept-encoding']) : null;
+    if (enc) {
+      try { body = await compressedFile(file, st.mtimeMs, body, enc); headers['Content-Encoding'] = enc; } catch { /* send it raw */ }
+    }
+  }
+  headers['Content-Length'] = body ? body.length : st.size;
+  res.writeHead(200, headers);
   res.end(body ?? undefined);
 }
 
@@ -252,7 +306,7 @@ const server = http.createServer(async (req, res) => {
     const pathname = decodeURIComponent(url.pathname);
 
     const file = await staticFile(pathname);
-    if (file) { await sendFile(res, file, req.method); return; }
+    if (file) { await sendFile(req, res, file, req.method); return; }
 
     const html = await shell();
     const hotel = /^\/hotel\/([^/]+)\/?$/.exec(pathname);
@@ -268,11 +322,11 @@ const server = http.createServer(async (req, res) => {
         const shared = `${SITE_ORIGIN}${pathname}${url.search}`;
         const canonical = `${SITE_ORIGIN}${pathname}`;
         const preview = hotelPreview(code, usable, url.searchParams);
-        sendHtml(res, stamp(html, preview, shared, canonical), req.method);
+        await sendHtml(req, res, stamp(html, preview, shared, canonical), req.method);
         return;
       }
     }
-    sendHtml(res, html, req.method);   // SPA fallback: React owns the route
+    await sendHtml(req, res, html, req.method);   // SPA fallback: React owns the route
   } catch (err) {
     console.error('[server]', req.method, req.url, err);
     if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain' });
