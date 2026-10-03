@@ -23,6 +23,7 @@ import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { hotelImage } from '../src/utils/hotelImage.js';
+import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
@@ -130,15 +131,18 @@ function hotelPreview(code, rec, qs) {
   const inD = dayMonth(qs.get('checkIn'));
   const outD = dayMonth(qs.get('checkOut'));
 
+  // Dutch, because that is the site's own language and a crawler tells us nothing about the
+  // reader's. Each noun carries its own plural; Dutch does not form them the way English does.
   const stay = [
-    nights ? `${nights} nights` : '',
-    adults ? `${adults} adult${adults > 1 ? 's' : ''}${children ? `, ${children} child${children > 1 ? 'ren' : ''}` : ''}` : '',
+    nights ? `${nights} ${nights === 1 ? 'nacht' : 'nachten'}` : '',
+    adults ? `${adults} ${adults > 1 ? 'volwassenen' : 'volwassene'}${children ? `, ${children} ${children > 1 ? 'kinderen' : 'kind'}` : ''}` : '',
     inD && outD ? `${inD} – ${outD}` : '',
   ].filter(Boolean).join(' · ');
 
-  const blurb = String(rec?.description || '').replace(/\s+/g, ' ').trim();
+  // The Dutch description row when the backfill has one for this hotel, English otherwise.
+  const blurb = localizedDescription(rec, 'nl').replace(/\s+/g, ' ').trim();
   const lead = [
-    stars ? `${stars}-star` : '',
+    stars ? `${stars}-sterren` : '',
     place ? `in ${place}` : '',
   ].filter(Boolean).join(' ');
 
@@ -151,7 +155,7 @@ function hotelPreview(code, rec, qs) {
 
   return {
     title: place ? `${name} — ${place} | Sunsky` : `${name} | Sunsky`,
-    description: description || `Book ${name} with Sunsky — secure payment, no booking fees, instant confirmation.`,
+    description: description || `Boek ${name} bij Sunsky. Veilig betalen, geen boekingskosten, directe bevestiging.`,
     image,
     imageSize: sized ? { w: 800, h: 533 } : null,
   };

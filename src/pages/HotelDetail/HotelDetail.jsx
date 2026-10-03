@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import i18n from '../../i18n';
+import { localizedDescription } from '../../utils/hotelContentLanguage';
 import { useSelector } from 'react-redux';
 import axiosInstance, { SUPPLIER_TIMEOUT } from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
@@ -11,7 +12,9 @@ import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/price
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount, NO_BOARD_LABEL } from '../../utils/roomBoards';
-import { nightsToDays } from '../../utils/durations';
+import { nightsToDays, stayDays, packageTravelDays } from '../../utils/durations';
+import { trackViewItem } from '../../analytics';
+import { countryName } from '../../utils/countryName';
 import { rateDetails, boardInfo, decodeEntities } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS, dedupeFares,
@@ -1666,6 +1669,12 @@ export default function HotelDetail() {
     return () => { cancelled = true; };
   }, [hotelCode, state?.info]);
   const info = state?.info || fetchedInfo;
+  // Hotel prose in the traveller's language. Falls back to English when Hotelbeds has no Dutch
+  // text for a property, which is better than an empty About block.
+  const description = useMemo(
+    () => localizedDescription(info, i18n.language),
+    [info, i18n.language],
+  );
 
   // Header / booking facts, preferring the richest source available.
   // The REAL name from the hotel-info record (bulk) wins over the carried-in name, because the
@@ -1860,6 +1869,48 @@ export default function HotelDetail() {
   const transport = ovr.transport ?? ((state?.transport || qp('transport')) === 'hotel_only' ? 'hotel_only' : 'package');
   // Board preference: '' = no preference, else a boardRank key the room list filters on.
   const boardPref = ovr.board ?? '';
+
+  /**
+   * GA4 `view_item` (Tracking Master §10): the traveller opened a specific hotel.
+   *
+   * WAITS FOR `infoSettled`. The page renders immediately from the carried-in card data and
+   * fills in from /hotels/bulk a moment later, so firing on mount would report half of all
+   * hotels as "Hotel 123456" and lose the country entirely. One event per hotel per search
+   * context either way - the ref below is what stops the re-render that arrives with the real
+   * name from sending a second one.
+   *
+   * NO VALUE IS SENT. §10's example carries none, and the only figure available here is a
+   * from-price for a party that may not be this traveller's. §11 bans exactly that number
+   * from `begin_checkout`; seeding GA4's item revenue with it here would be no better.
+   */
+  const viewItemSentRef = useRef(null);
+  useEffect(() => {
+    if (!hotelCode || !infoSettled) return;
+
+    const isPackage = transport === 'package';
+    const key = `${hotelCode}|${transport}|${baseCheckIn}|${baseCheckOut}|${sAdults}|${sChildren}`;
+    if (viewItemSentRef.current === key) return;
+    viewItemSentRef.current = key;
+
+    trackViewItem({
+      transport,
+      country: info?.countryIso ? countryName(info.countryIso, 'en', info.countryIso) : null,
+      destination: info?.cityName || info?.city || null,
+      hotelCode,
+      hotelName,
+      departureDate: baseCheckIn,
+      departureAirport: isPackage ? origin : null,
+      duration: baseCheckIn && baseCheckOut
+        ? (isPackage ? packageTravelDays(baseCheckIn, baseCheckOut) : stayDays(baseCheckIn, baseCheckOut))
+        : null,
+      adults: Number(sAdults) || 0,
+      children: Number(sChildren) || 0,
+      board: boardPref || null,
+    });
+  }, [
+    hotelCode, infoSettled, transport, baseCheckIn, baseCheckOut, sAdults, sChildren,
+    hotelName, origin, boardPref, info?.countryIso, info?.cityName, info?.city,
+  ]);
 
   const [activeTab, setActiveTab] = useState('Prices');
   const [saved, setSaved] = useState(false);
@@ -3250,6 +3301,11 @@ export default function HotelDetail() {
       state: {
         booking: {
           hotelCode, hotelName, stars: Math.min(stars, 5), loc: locLabel,
+          // Carried for the marketing layer, which needs a country on begin_checkout and
+          // purchase (Tracking Master §5) and has no other source for one: `loc` is a city
+          // label and the checkout never calls /hotels/bulk itself.
+          countryIso: info?.countryIso || null,
+          cityName: info?.cityName || info?.city || null,
           img: heroImage, board,
           nights, adults: pax, currency: ccy,
           // `perPerson` both times: checkout multiplies this back by pax, so handing it a
@@ -4650,16 +4706,16 @@ export default function HotelDetail() {
                     stunning boutique hotel nestled on the pristine shores of…", which for
                     the 3% of records with no description was fiction with a hotel's name
                     on it. Nothing to say → the block does not render. */}
-                {(info?.description || hasPhotos) && (
+                {(description || hasPhotos) && (
                   <section className="hi-card hi-about">
-                    {info?.description && (
+                    {description && (
                       <div className="hi-about-copy">
                         <div className="hi-card-head">
                           <div className="hi-card-icon">{ICON.info}</div>
                           <h3 className="hi-card-title">{t('info.about', { hotelName, defaultValue: `About ${hotelName}` })}</h3>
                         </div>
-                        <div className={`hi-desc${expanded.d1 ? ' exp' : ''}`}>{info.description}</div>
-                        {info.description.length > 260 && (
+                        <div className={`hi-desc${expanded.d1 ? ' exp' : ''}`}>{description}</div>
+                        {description.length > 260 && (
                           <button className="hi-link" onClick={() => toggleExpand('d1')}>
                             {expanded.d1 ? t('actions.showLess', 'Show less') : t('actions.readMore', 'Read more')}
                             <S size={14} sw={2.5}><path d={expanded.d1 ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
