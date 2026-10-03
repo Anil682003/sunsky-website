@@ -30,7 +30,8 @@ import { earliestCheckInISO } from '../../utils/leadTime';
 import { normaliseOrigin, parseOrigins, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { useToast } from '../../context/ToastContext';
-import { roundHotelStay, roundPackage, perPersonFrom } from '../../utils/priceRounding';
+import { roundHotelStay, perPersonFrom } from '../../utils/priceRounding';
+import { packagePerPerson as packagePriceFrom } from '../../utils/packageCardPrice';
 import styles from './Results.module.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -2745,12 +2746,10 @@ export default function Results() {
                   const f = packageFares[ac];
                   if (f && f.price != null && (flightFare == null || f.price < flightFare.price)) flightFare = f;
                 }
-                const adultsForFare = Math.max(1, Number(fetchParams.adults) || 1);
-                const flightPerPerson = flightFare ? flightFare.price / adultsForFare : null;
-                // A package is rounded ONCE, as a whole: exact hotel + the party's flight, then
-                // per person. The flight is the same per-person fare for every traveller, as before.
-                const packagePerPerson = (isPackage && flightPerPerson != null && Number.isFinite(exactStay) && exactStay > 0)
-                  ? perPersonFrom(roundPackage(exactStay, flightPerPerson * partySize), partySize)
+                // The fare is already the WHOLE party's flight (build order, step 9), so it is
+                // added as it is and the package rounded once, then per person.
+                const packagePerPerson = isPackage
+                  ? packagePriceFrom(exactStay, flightFare ? flightFare.price : null, partySize)
                   : null;
                 const shownPerPerson = packagePerPerson != null ? packagePerPerson : perPersonVal;
                 // Is the price on this card a KNOWN total (spec 3.9)? Hotel Only: the cache's
