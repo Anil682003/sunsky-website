@@ -1140,11 +1140,14 @@ export default function Results() {
   // hotel in Antalya. The admin narrows the codes by the (destination, zone) pair for us.
   const needCodes = hasContentFacet(applied) || scope.zones.length > 0;
   const needAttrs = applied.sortBy === 'distance_beach' || applied.sortBy === 'distance_centre';
+  // Split in two so pricing never waits for the sidebar: (A) below resolves only WHAT to price
+  // (facets?counts=0 — the same calculation, minus the nine facet-count queries) and starts page 1;
+  // (B) further down loads the sidebar's counts in parallel. The counts are scope-level, so (B)
+  // does not re-run when a box is ticked.
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
     let live = true;
     const ctrl = new AbortController();
-    setFacetsStatus('loading');
     const selected = {
       themes: applied.themes, stars: applied.stars,
       facilities: applied.facilities, activities: applied.activities,
@@ -1152,10 +1155,11 @@ export default function Results() {
       maxBeach: applied.maxBeach, maxCentre: applied.maxCentre,
       adultsOnly: applied.adultsOnly, minRating: applied.minRating,
     };
-    fetchFacets(scope, selected, { codes: needCodes, attrs: needAttrs, signal: ctrl.signal })
+    fetchFacets(scope, selected, { codes: needCodes, attrs: needAttrs, counts: false, signal: ctrl.signal })
       .then((r) => {
         if (!live) return;
-        setFacets(r.facets || EMPTY_FACETS);
+        // An admin that predates counts=0 still sends the counts: use them rather than wait for (B).
+        if (r.facets) { setFacets(r.facets); setFacetsStatus('ok'); }
         // Keep the previous map when this request didn't ask for attributes — clearing it
         // would drop the distances a still-open distance sort is ordering by.
         if (r.attributes) setAttrMap(r.attributes);
@@ -1172,15 +1176,12 @@ export default function Results() {
           // a real, place-specific search keeps the full combined supplier set.
           source: usingDefaultScope ? 'external' : 'combined',
         });
-        setFacetsStatus('ok');
       })
       .catch((err) => {
         // A superseded request was cancelled on purpose — not an error, and the newer one owns
         // the state now.
         if (!live || err?.name === 'CanceledError' || err?.name === 'AbortError') return;
-        setFacets(EMPTY_FACETS);
         setAttrMap({});
-        setFacetsStatus('error');
         // Admin down: still price the scope's explicit destinations (content facets can't apply).
         setPriceScope({
           destinations: scope.destinations,
@@ -1191,6 +1192,28 @@ export default function Results() {
     return () => { live = false; ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey, contentKey, urlHotelCode, needCodes, needAttrs]);
+
+  // (B) The sidebar's facet counts. Scope-level ("what is in the searched area"), so they do not
+  // depend on the ticked boxes and are fetched once per scope, in parallel with pricing.
+  useEffect(() => {
+    if (!hasScope) return;
+    let live = true;
+    const ctrl = new AbortController();
+    setFacetsStatus('loading');
+    fetchFacets(scope, {}, { codes: false, attrs: false, signal: ctrl.signal })
+      .then((r) => {
+        if (!live) return;
+        setFacets(r.facets || EMPTY_FACETS);
+        setFacetsStatus('ok');
+      })
+      .catch((err) => {
+        if (!live || err?.name === 'CanceledError' || err?.name === 'AbortError') return;
+        setFacets(EMPTY_FACETS);
+        setFacetsStatus('error');
+      });
+    return () => { live = false; ctrl.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeKey]);
 
   // Refs so loadMore always sees latest values
   const fetchParamsRef = useRef(fetchParams);

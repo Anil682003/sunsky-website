@@ -1042,7 +1042,9 @@ describe('resilience', () => {
 // The content API is asked for the big optional payloads ONLY when the page will use them.
 // Getting this wrong is invisible in the UI and costs ~1 MB per request on a country search.
 describe('content-facet payload opt-ins', () => {
-  const lastFacetCall = () => facetCalls[facetCalls.length - 1];
+  // The pricing-scope call (counts=false) carries the ticked filters; the sidebar-counts call
+  // that runs beside it does not (facet counts are scope-level).
+  const lastFacetCall = () => facetCalls.filter((c) => c.opts.counts === false).at(-1);
 
   it('asks for neither hotelCodes nor attributes on a plain search', async () => {
     renderResults();
@@ -1085,7 +1087,9 @@ describe('content-facet payload opt-ins', () => {
 // admin like every other content facet — it is never applied to the page the cache already sent,
 // because the hotels on it are the cheapest twenty, not the best-rated twenty.
 describe('guest rating', () => {
-  const lastFacetCall = () => facetCalls[facetCalls.length - 1];
+  // The pricing-scope call (counts=false) carries the ticked filters; the sidebar-counts call
+  // that runs beside it does not (facet counts are scope-level).
+  const lastFacetCall = () => facetCalls.filter((c) => c.opts.counts === false).at(-1);
   const RATED = {
     ...NO_FACETS,
     review: [
@@ -1178,7 +1182,9 @@ describe('guest rating', () => {
 // type narrows the results while its box stays unticked — the traveller sees a short list with
 // no visible reason and no way to undo it. Every case below is about that boundary.
 describe('URL-seeded filters (vacation-type cards)', () => {
-  const lastFacetCall = () => facetCalls[facetCalls.length - 1];
+  // The pricing-scope call (counts=false) carries the ticked filters; the sidebar-counts call
+  // that runs beside it does not (facet counts are scope-level).
+  const lastFacetCall = () => facetCalls.filter((c) => c.opts.counts === false).at(-1);
   const seeded = (extra) =>
     `?destination=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1&${extra}`;
 
