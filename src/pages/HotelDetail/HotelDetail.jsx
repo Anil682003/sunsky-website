@@ -48,6 +48,7 @@ import {
   fromFailure, anyOf, isChecking, isUnknown,
 } from '../../utils/availability';
 import { useToast } from '../../context/ToastContext';
+import { splitFareTypes } from '../../utils/fareTypes';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -2822,8 +2823,12 @@ export default function HotelDetail() {
   // been checked for the new day. Anything that clears `liveRooms` bumps it (invalidateRooms).
   const roomsSeqRef = useRef(0);
   const invalidateRooms = () => { roomsSeqRef.current += 1; };
+  // The party as flight fare types — the same split the checkout and the booking re-price on
+  // (utils/fareTypes): an infant flies on a lap at the infant fare, a 12-year-old pays as an
+  // adult. Sending every child as a "child" quoted a fare here that checkout then corrected.
+  const flightParty = splitFareTypes(Number(sAdults) || 2, sChildAges ? sChildAges.split(',') : []);
   const flightSearchKey = (from, checkin, checkout) =>
-    `${from}|${checkin}|${checkout}|${Number(sAdults) || 2}|${Number(sChildren) || 0}`;
+    `${from}|${checkin}|${checkout}|${flightParty.adults}|${flightParty.children}|${flightParty.infants}`;
   const readFlightCache = (key) => {
     const hit = flightCacheRef.current.get(key);
     if (!hit) return null;
@@ -2836,7 +2841,7 @@ export default function HotelDetail() {
     if (cached) return Promise.resolve(cached);
     return axiosInstance.post('/flight-availability/search', {
       from, to: destination, depdate: checkin, retdate: checkout,
-      adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
+      adults: flightParty.adults, children: flightParty.children, infants: flightParty.infants,
       // A package holiday: the backend returns only what the airport's connection policy allows.
       package: true,
     }, { timeout: SUPPLIER_TIMEOUT }).then(({ data }) => {

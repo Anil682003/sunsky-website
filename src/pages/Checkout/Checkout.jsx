@@ -20,6 +20,7 @@ import AirlineMark from '../../components/AirlineMark/AirlineMark';
 // sellingEuros is the display rounding every SUNSKY price on screen goes through.
 import { sellingEuros } from '../../utils/tripPrice';
 import { roundStayTotal } from '../../utils/priceRounding';
+import { splitFareTypes } from '../../utils/fareTypes';
 import './Checkout.css';
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
@@ -537,28 +538,10 @@ const seedTravellers = (booking, account) => {
   return rows;
 };
 
-/**
- * How a party splits into fare types, using the SAME boundaries as the server's paxCounts
- * (backend/website/services/priceValidation.service.js): under 2 an infant, under 12 a child,
- * otherwise an adult, measured on the travel date. The two must agree — the server re-prices
- * the flight from the passengers' dates of birth, so a client that classified them differently
- * would send a total the server rejects as PRICE_CHANGED and the traveller would be stopped at
- * the last step with nothing to fix.
- *
- * @param searchedAdults how many adults the search itself described (their rows carry no
- *   searched date of birth, so they are counted, not derived)
- * @param childAges ages of the searched children, in search order
- */
-const splitFareTypes = (searchedAdults, childAges) => {
-  const grown = childAges.filter((a) => a >= 12).length;
-  return {
-    adults: searchedAdults + grown,
-    children: childAges.filter((a) => a >= 2 && a < 12).length,
-    infants: childAges.filter((a) => a < 2).length,
-    // Hotelbeds wants an age for every non-adult in the room, infants included.
-    childAges: childAges.filter((a) => a < 12),
-  };
-};
+// splitFareTypes (utils/fareTypes) uses the SAME boundaries as the server's paxCounts: the
+// server re-prices the flight from the passengers' dates of birth, so a client that classified
+// them differently would send a total the server rejects as PRICE_CHANGED and the traveller
+// would be stopped at the last step with nothing to fix.
 /** Two itineraries are the same flight when every leg is the same number at the same minute. */
 const sameItinerary = (a = [], b = []) => a.length === b.length && a.every((leg, i) => (
   String(leg.flightNumber || '') === String(b[i]?.flightNumber || '')
