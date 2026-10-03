@@ -32,7 +32,7 @@ import { hotelImage } from '../src/utils/hotelImage.js';
 import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
 import {
   robotsTxt, sitemapXml, isKnownRoute, STATIC_SITEMAP_PATHS,
-  resolveSeoPage, seoHeadTags,
+  resolveSeoPage, seoHeadTags, seoSitemapPaths,
 } from './seo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -356,8 +356,12 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     if (pathname === '/sitemap.xml') {
-      sendText(res, sitemapXml(SITE_ORIGIN, STATIC_SITEMAP_PATHS), req.method,
-        'application/xml; charset=utf-8', 3600);
+      // The eight hand-written routes plus every permanent SEO page the resolver will
+      // actually serve. §12: only PUBLISHED + INDEX + HTTP 200 canonical pages, which is
+      // what /seo/urls already filters for, so nothing here can list a 404.
+      const seoPaths = await seoSitemapPaths(ADMIN_API);
+      sendText(res, sitemapXml(SITE_ORIGIN, [...STATIC_SITEMAP_PATHS, ...seoPaths]),
+        req.method, 'application/xml; charset=utf-8', 3600);
       return;
     }
 

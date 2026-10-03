@@ -188,6 +188,38 @@ function cacheSeo(pathname, rec) {
 export function __resetSeoCache() {
   seoCache.clear();
   seoInflight.clear();
+  urlsCache = null;
+}
+
+/**
+ * Every indexable SEO URL, for the sitemap.
+ *
+ * Cached for an hour and served stale on failure. A sitemap that briefly lists yesterday's
+ * countries is harmless; one that empties out because the admin API blinked tells Google the
+ * site has lost its pages, which is not.
+ */
+const URLS_TTL_MS = 60 * 60 * 1000;
+let urlsCache = null;   // { at, paths }
+
+export async function seoSitemapPaths(apiBase, timeoutMs = 5000) {
+  if (urlsCache && Date.now() - urlsCache.at < URLS_TTL_MS) return urlsCache.paths;
+
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+  try {
+    const res = await fetch(`${apiBase}/website/seo/urls`, { signal: ctrl.signal });
+    if (!res.ok) throw new Error(`API ${res.status}`);
+    const body = await res.json();
+    const paths = Array.isArray(body?.data) ? body.data.filter((p) => typeof p === 'string' && p.startsWith('/')) : [];
+    urlsCache = { at: Date.now(), paths };
+    return paths;
+  } catch {
+    // Stale beats empty. Only an entirely cold cache yields nothing, and then the sitemap
+    // still carries the static pages.
+    return urlsCache?.paths || [];
+  } finally {
+    clearTimeout(timer);
+  }
 }
 
 /**
