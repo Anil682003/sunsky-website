@@ -408,7 +408,7 @@
     "higherAfterCheck": "hoger na live controle",
     "holidayAvailable": "Je vakantie is beschikbaar!",
     "legend": {
-      "cheapestOfWeek": "Goedkoopste van de week",
+      "cheapest": "Goedkoopst",
       "notAvailable": "Niet beschikbaar",
       "priceNotCached": "Prijs niet in cache — controleren",
       "yourSelectedDay": "Je gekozen dag"
