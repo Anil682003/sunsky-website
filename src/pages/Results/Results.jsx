@@ -24,6 +24,7 @@ import {
 } from '../../utils/durations';
 import { trackSearch, searchSignature } from '../../analytics';
 import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { fromFailure, isRetryable, messageKey } from '../../utils/availability';
 import { dobsMatchAges, ageAtCheckIn, allDobsValid, agesFromDobs } from '../../utils/childDob';
 import DateCalendar from '../../components/DateCalendar/DateCalendar';
 import DobPicker from '../../components/DobPicker/DobPicker';
@@ -847,6 +848,11 @@ export default function Results() {
   const [pendingSearch, setPendingSearch] = useState(false);
   const [filtering, setFiltering]     = useState(false);
   const [fetchingMore, setFetchingMore] = useState(false);
+  // A failed price call is SOURCE_ERROR (spec 2.1), never "No results found": we do not know
+  // there is nothing, we only know we could not ask. `retryTick` re-runs the page-1 fetch.
+  const [searchError, setSearchError] = useState(null);
+  const [moreError, setMoreError] = useState(null);
+  const [retryTick, setRetryTick] = useState(0);
   const [hasMore, setHasMore]         = useState(true);
   const [allHotels, setAllHotels]     = useState([]);
   const [nights, setNights]           = useState(0);
@@ -916,7 +922,6 @@ export default function Results() {
   // Lazy hotel-info loading
   const [infoMap, setInfoMap]         = useState({});
   const infoLoadingRef = useRef(new Set());
-  const sentinelRef    = useRef(null);
 
   // Pagination state tracked in refs to avoid stale closures in async callbacks
   const paginationRef  = useRef({ page: 1, hasMore: true, fetching: false });
@@ -1130,9 +1135,9 @@ export default function Results() {
   // Identity of the narrowing, for effect deps. `null` and `[]` are different states (no
   // filter vs. filter that matches nothing), so they must not collapse to the same key.
   const arrivalKey = arrivalDestinations === null ? '' : `arr:${arrivalDestinations.join(',')}`;
-  // loadMore runs from an IntersectionObserver callback and reads the committed values
-  // through refs; without this, page 2 would be built from whatever narrowing was in scope
-  // when the callback was created and could silently widen the search mid-scroll.
+  // loadMore (the "Show more" button) reads the committed values through refs; without this,
+  // page 2 would be built from whatever narrowing was in scope when the callback was created
+  // and could silently widen the search between pages.
   const arrivalDestRef = useRef(arrivalDestinations);
   // Keyed on `arrivalKey`, not the array identity: the memo returns a fresh array every time
   // its inputs re-evaluate, which would make an identity dep fire on every render.
@@ -1484,6 +1489,8 @@ export default function Results() {
     const isNewSearch = prevSearchKeyRef.current !== searchKey;
     prevSearchKeyRef.current = searchKey;
 
+    setSearchError(null);
+    setMoreError(null);
     if (isNewSearch) {
       setLoading(true);
       setAllHotels([]);
@@ -1517,7 +1524,7 @@ export default function Results() {
 
     const ctrl = new AbortController();
     fetch(url, { ...opts, signal: ctrl.signal })
-      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
+      .then((r) => { if (!r.ok) throw Object.assign(new Error(`API ${r.status}`), { status: r.status }); return r.json(); })
       .then((data) => {
         if (reqId !== reqIdRef.current) return;
         const results = data.results || [];
@@ -1545,6 +1552,7 @@ export default function Results() {
       .catch((err) => {
         if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
         console.error('[Results] Contracts API error:', err);
+        setSearchError(fromFailure(err));
         setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false); setPendingSearch(false);
         paginationRef.current = { page: 1, hasMore: false, fetching: false };
       });
@@ -1555,7 +1563,7 @@ export default function Results() {
     // arrival seeded from the URL resolves to its destinations only AFTER `applied` has
     // settled. Without it, a shared link with an arrival airport would render the unfiltered
     // search and never correct itself.
-  }, [scopeKey, fetchParams, applied, priceScopeKey, arrivalKey]);
+  }, [scopeKey, fetchParams, applied, priceScopeKey, arrivalKey, retryTick]);
 
   // TRAVEL-TIME COUNTS. For each day option in the band, price the same scope at that stay length
   // (in the background) and record how many hotels come back — the number shown next to each
@@ -1605,6 +1613,7 @@ export default function Results() {
 
     paginationRef.current = { ...pg, fetching: true };
     setFetchingMore(true);
+    setMoreError(null);
 
     const fp  = fetchParamsRef.current;
     const ca  = childAgesRef.current;
@@ -1615,7 +1624,7 @@ export default function Results() {
     console.log('[Results] Load more (page=' + pg.page + '):', opts.method || 'GET', url);
 
     fetch(url, opts)
-      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
+      .then((r) => { if (!r.ok) throw Object.assign(new Error(`API ${r.status}`), { status: r.status }); return r.json(); })
       .then((data) => {
         if (reqId !== reqIdRef.current) return;
         const results = data.results || [];
@@ -1640,6 +1649,7 @@ export default function Results() {
         if (reqId !== reqIdRef.current) return;
         console.error('[Results] Load more error:', err);
         paginationRef.current = { ...paginationRef.current, fetching: false };
+        setMoreError(fromFailure(err));        // the cards already shown stay; the button retries
         setFetchingMore(false);
       });
   }, [scopeLabel]);
@@ -1702,15 +1712,8 @@ export default function Results() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotels]);
 
-  // Infinite scroll — IntersectionObserver on sentinel.
-  useEffect(() => {
-    if (loading || !hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) loadMore(); }, { rootMargin: '400px' });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loading, hasMore, allHotels.length, loadMore]);
+  // Pages of 20 come on request: a "Show more" button (spec 3.8), not infinite scroll.
+  const retrySearch = useCallback(() => { setSearchError(null); setLoading(true); setRetryTick((n) => n + 1); }, []);
 
   // Deep link to the hotel/package detail page. The card opens it in a NEW TAB, and a new
   // tab can't receive react-router's in-memory `state` — so the whole search context rides
@@ -2689,14 +2692,17 @@ export default function Results() {
               </span>
             ) : (
               <span className={styles.countText}>
-                <span>
-                  <strong>{hotels.length}{hasMore ? '+' : ''}</strong>{' '}
-                  {t('toolbar.found', {
-                    count: hotels.length,
-                    defaultValue_one: 'stay found',
-                    defaultValue_other: 'stays found',
-                  })}
-                </span>
+                {/* No count while the search failed: "0 stays found" would claim there is nothing. */}
+                {!searchError && (
+                  <span>
+                    <strong>{hotels.length}{hasMore ? '+' : ''}</strong>{' '}
+                    {t('toolbar.found', {
+                      count: hotels.length,
+                      defaultValue_one: 'stay found',
+                      defaultValue_other: 'stays found',
+                    })}
+                  </span>
+                )}
                 {scopeLabel && (
                   <span className={styles.countSub}>
                     {t('toolbar.in', { place: scopeLabel, defaultValue: 'in {{place}}' })}
@@ -2826,6 +2832,19 @@ export default function Results() {
                 </div>
                 <h3>{t('empty.chooseTitle', 'Select where you want to go')}</h3>
                 <p>{t('empty.chooseText', 'Pick one or more countries or destinations in the “Where” filter.')}</p>
+              </div>
+            ) : searchError ? (
+              <div className={styles.noResults} role="alert">
+                <div className={styles.noResultsIcon}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="9" /><path d="M12 7.5v5.5M12 16.5h.01" />
+                  </svg>
+                </div>
+                <h3>{t('common:availability.temporarilyUnavailable', 'Availability temporarily unavailable')}</h3>
+                <p>{t(`common:${messageKey(searchError)}`, 'We couldn’t check this just now. Please try again.')}</p>
+                {isRetryable(searchError) && (
+                  <button className={styles.applyBtn} style={{ maxWidth: 220 }} onClick={retrySearch}>{t('common:availability.checkAgain', 'Check again')}</button>
+                )}
               </div>
             ) : hotels.length === 0 ? (
               <div className={styles.noResults}>
@@ -3218,7 +3237,14 @@ export default function Results() {
               })
             )}
 
-            {!loading && hasMore && <div ref={sentinelRef} style={{ height: '1px' }} />}
+            {!loading && hasMore && !fetchingMore && hotels.length > 0 && (
+              <div className={moreError ? `${styles.loadMore} ${styles.loadMoreFailed}` : styles.loadMore} role={moreError ? 'alert' : undefined}>
+                {moreError && <span>{t(`common:${messageKey(moreError)}`, 'We couldn’t check this just now. Please try again.')}</span>}
+                <button className={styles.applyBtn} style={{ maxWidth: 220 }} onClick={loadMore}>
+                  {moreError ? t('common:availability.checkAgain', 'Check again') : t('common:listing.showMore', 'Show more')}
+                </button>
+              </div>
+            )}
             {!loading && fetchingMore && (
               <div className={styles.loadMore}>
                 <span className={styles.loadMoreSpin} />

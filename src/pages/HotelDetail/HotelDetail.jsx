@@ -3614,7 +3614,7 @@ export default function HotelDetail() {
                     </span>
                     <span className="fc-legend-item">
                       <span className="fc-legend-swatch fc-legend-low" aria-hidden="true" />
-                      {t('prices.legend.cheapestOfWeek', 'Cheapest of the week')}
+                      {t('prices.legend.cheapest', 'Cheapest')}
                     </span>
                     <span className="fc-legend-item">
                       <span className="fc-legend-swatch fc-legend-sel" aria-hidden="true" />
@@ -3721,7 +3721,7 @@ export default function HotelDetail() {
                       // A flat week fills its (shorter) canvas: with no profile to draw, a bar
                       // stopping two-thirds up is just a gap, not a reading.
                       const h = priceVaries ? Math.round(44 + 44 * frac) : 100;
-                      // Cheapest of the week ON SCREEN, and only the first day at that price.
+                      // The "Cheapest" badge ON SCREEN, and only the first day at that price.
                       // The API flags the lowest of whichever week it answered, which would
                       // badge several days at once now that the strip stitches weeks together.
                       const isLow = priceVaries && i === lowIdx;

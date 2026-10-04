@@ -877,7 +877,7 @@ describe('debounce + request ordering', () => {
   });
 });
 
-describe('infinite scroll', () => {
+describe('show more (+20 per click, no infinite scroll)', () => {
   it('loads page 2 carrying the active filters', async () => {
     const user = userEvent.setup();
     renderResults();
@@ -892,7 +892,7 @@ describe('infinite scroll', () => {
     await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
     await waitFor(() => expect(cards().length).toBeGreaterThan(0));
 
-    globalThis.__IO__.trigger();
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
 
     await waitFor(() => {
       const p2 = calls.find((c) => c.get('page') === '2');
@@ -906,7 +906,7 @@ describe('infinite scroll', () => {
     await settled();
     expect(cards()).toHaveLength(20);
 
-    globalThis.__IO__.trigger();
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
     await waitFor(() => expect(cards().length).toBeGreaterThan(20));
 
     const prices = cards().map((c) => {
@@ -920,7 +920,7 @@ describe('infinite scroll', () => {
   it('does not duplicate hotels across pages', async () => {
     renderResults();
     await settled();
-    globalThis.__IO__.trigger();
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
     await waitFor(() => expect(cards().length).toBeGreaterThan(20));
     const names = cards().map((c) => within(c).getAllByRole('heading')[0].textContent);
     expect(new Set(names).size).toBe(names.length);
@@ -1002,10 +1002,32 @@ describe('search change', () => {
 });
 
 describe('resilience', () => {
-  it('renders an empty state instead of crashing when the API fails', async () => {
+  // A failed price call is SOURCE_ERROR (spec 2.1): "temporarily unavailable" with a retry,
+  // never "No results found" or "0 stays found" — we do not know there is nothing.
+  it('a failed search says availability is temporarily unavailable, offers a retry, and claims no count', async () => {
     globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) }));
     renderResults();
-    await waitFor(() => expect(screen.getByText('Geen resultaten gevonden')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Beschikbaarheid tijdelijk niet op te halen')).toBeInTheDocument());
+    expect(screen.queryByText('Geen resultaten gevonden')).not.toBeInTheDocument();
+    expect(screen.queryByText(/verblijven gevonden/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Opnieuw controleren' })).toBeInTheDocument();
+  });
+
+  it('a failed "Show more" keeps the cards, says so, and the button retries', async () => {
+    renderResults();
+    await settled();
+    expect(cards()).toHaveLength(20);
+    const working = globalThis.fetch;
+    globalThis.fetch = vi.fn((url, opts) => (String(url).includes('page=2')
+      ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) })
+      : working(url, opts)));
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Opnieuw controleren' })).toBeInTheDocument());
+    expect(cards()).toHaveLength(20);
+    globalThis.fetch = working;
+    fireEvent.click(screen.getByRole('button', { name: 'Opnieuw controleren' }));
+    await waitFor(() => expect(cards().length).toBeGreaterThan(20));
+    expect(screen.queryByRole('button', { name: 'Opnieuw controleren' })).not.toBeInTheDocument();
   });
 
   // An empty search used to dead-end on "Select a destination". It now lands on a curated set

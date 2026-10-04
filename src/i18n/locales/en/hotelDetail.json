@@ -408,7 +408,7 @@
     "higherAfterCheck": "higher after live check",
     "holidayAvailable": "Your holiday is available!",
     "legend": {
-      "cheapestOfWeek": "Cheapest of the week",
+      "cheapest": "Cheapest",
       "notAvailable": "Not available",
       "priceNotCached": "Price not cached — check it",
       "yourSelectedDay": "Your selected day"
