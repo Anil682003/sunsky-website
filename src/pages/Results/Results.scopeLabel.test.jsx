@@ -112,6 +112,6 @@ describe('hero scope label', () => {
 
   it('calls an empty search what it is', async () => {
     renderScope('');
-    await waitFor(() => expect(heading()).toHaveTextContent(/Populaire bestemmingen/));
+    await waitFor(() => expect(heading()).toHaveTextContent(/Alle bestemmingen/));
   });
 });
