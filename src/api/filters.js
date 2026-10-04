@@ -8,6 +8,7 @@
 // here are relative to /api (endpoints live at /api/hotel-filters/*).
 import axiosInstance from '../services/axiosInstance';
 import { sharedGet } from './sharedGet';
+import { facetsParams } from '../utils/facetsParams.js';
 
 /**
  * Holiday/theme types for the filter chips.
@@ -188,31 +189,9 @@ export async function fetchMatchingHotels({ destinationCode, countryCode, themes
 export async function fetchFacets({ countries = [], destinations = [], zones = [] } = {}, filters = {}, opts = {}) {
   // counts: false → only what the cache prices (matchedDestinations, hotelCodes), without the
   // sidebar's facet counts, so page 1 can be priced while the counts load (admin facets?counts=0).
-  const { codes = true, attrs = true, counts = true, signal } = opts;
-  const params = {};
-  if (countries.length)    params.countries = countries.join(',');
-  if (destinations.length) params.destinations = destinations.join(',');
-  if (zones.length)        params.zones = zones.join(',');
-  const join = (a) => (a && a.length ? a.join(',') : undefined);
-  if (join(filters.themes))        params.themes        = join(filters.themes);
-  if (join(filters.stars))         params.stars         = join(filters.stars);
-  if (join(filters.facilities))    params.facilities    = join(filters.facilities);
-  // `activities` entries are either a bare code (620) or a group-qualified "74:620" string, and
-  // they go over the wire VERBATIM. Coercing to Number would drop the group and silently widen
-  // "Spa centre" to every group that reuses code 620 (73 Waterpark), which is the over-matching
-  // the qualified form exists to stop.
-  if (join(filters.activities))    params.activities    = join(filters.activities);
-  if (join(filters.accommodation)) params.accommodation = join(filters.accommodation);
-  if (join(filters.kids))          params.kids          = join(filters.kids);
-  if (filters.maxBeach)            params.maxBeach      = String(filters.maxBeach);
-  if (filters.maxCentre)           params.maxCentre     = String(filters.maxCentre);
-  if (filters.adultsOnly)          params.adultsOnly    = '1';
-  // Minimum guest rating on the 10-point scale. Sent only when there IS a bound: '' and 0 both
-  // mean "no preference", and either would otherwise travel as a filter the traveller never set.
-  if (filters.minRating)           params.minRating     = String(filters.minRating);
-  if (!codes) params.codes = '0';
-  if (!attrs) params.attrs = '0';
-  if (!counts) params.counts = '0';
+  // The query itself is utils/facetsParams, shared with the "Show all" warmer.
+  const { signal } = opts;
+  const params = facetsParams({ countries, destinations, zones }, filters, opts);
   const empty = {
     scope: { countries, destinations, hotelCount: 0 },
     matchedDestinations: [], hotelCodes: [], attributes: {},

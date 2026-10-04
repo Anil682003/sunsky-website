@@ -36,6 +36,7 @@ import { useToast } from '../../context/ToastContext';
 import { roundHotelStay, perPersonFrom } from '../../utils/priceRounding';
 import { packagePerPerson as packagePriceFrom } from '../../utils/packageCardPrice';
 import styles from './Results.module.css';
+import { defaultSearchContext } from '../../utils/searchDefaults';
 import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -574,8 +575,9 @@ export default function Results() {
   // The empty search always has a scope (every destination), even while its list is loading.
   const hasScope  = usingDefaultScope || scope.countries.length > 0 || scope.destinations.length > 0;
 
-  const defaultCheckIn  = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]; })();
-  const defaultCheckOut = (() => { const d = new Date(); d.setDate(d.getDate() + 37); return d.toISOString().split('T')[0]; })();
+  // 30 days out, 7 nights, in UTC (utils/searchDefaults) — the same stay the hotel page and the
+  // "Show all" warmer use. Adding local days and printing UTC landed a day off around DST.
+  const { checkIn: defaultCheckIn, checkOut: defaultCheckOut } = defaultSearchContext();
 
   const initCheckIn  = params.get('checkIn')  || defaultCheckIn;
   // 29 travel days is the ceiling everywhere (spec 3.4), so at most 28 nights between these two

@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import styles from './Destinations.module.css';
 import SectionHead from './SectionHead';
 import ShowAllLink from '../../../components/ShowAllLink/ShowAllLink';
-import { normalizeDests, destUrl, sectionSearchUrl } from '../../../utils/cmsDestinations';
+import { destUrl, sectionSearchUrl } from '../../../utils/cmsDestinations';
+import { destinationTabs } from '../../../utils/showAllSearches';
 import { useTranslation } from 'react-i18next';
 import { MapPin } from 'lucide-react';
 
@@ -36,27 +37,24 @@ const localiseTabs = (t) =>
     ])
   );
 
-function buildTabsFromCms(destinationTabs) {
-  if (!destinationTabs?.length) return null;
+// The dashboard's tabs, cards and each tab's "Show all", from utils/showAllSearches — shared with
+// the "Show all" warmer, so the warmed search is the one behind the button.
+function buildTabsFromCms(cms) {
+  const tabs = destinationTabs(cms);
+  if (!tabs) return null;
   const result = {};
-  destinationTabs.forEach((tab, i) => {
-    const key = `tab_${i}`;
-    result[key] = {
-      label: tab.tab || `Tab ${i + 1}`,
-      dest: (tab.cards || []).map((c) => {
-        // A card is clickable only once the dashboard links it to a real
-        // country/city; otherwise it stays decorative, exactly as before.
-        const [linked] = normalizeDests(c.dest ? [c.dest] : []);
-        return {
-          name: c.name,
-          count: c.holidays,
-          badge: c.badge,
-          img: c.imageUrl,
-          href: linked ? destUrl(linked) : null,
-          // Kept for the tab's "Show all", which searches every linked card at once.
-          dest: linked || null,
-        };
-      }),
+  tabs.forEach((tab, i) => {
+    result[`tab_${i}`] = {
+      label: tab.label,
+      showAllUrl: tab.showAllUrl,
+      dest: tab.cards.map(({ card: c, dest }) => ({
+        name: c.name,
+        count: c.holidays,
+        badge: c.badge,
+        img: c.imageUrl,
+        href: dest ? destUrl(dest) : null,
+        dest,
+      })),
     };
   });
   return result;
@@ -91,7 +89,7 @@ export default function Destinations({ cms }) {
   const title    = sh?.title    || t('destinations.title', 'Our best sun destinations');
   const subtitle = sh?.subtitle || t('destinations.subtitle', 'Handpicked destinations with guaranteed sunshine and incredible value.');
 
-  const cmsTabs = buildTabsFromCms(cms?.destinationTabs);
+  const cmsTabs = buildTabsFromCms(cms);
   const TABS = cmsTabs || localiseTabs(t);
 
   const [active, setActive] = useState(Object.keys(TABS)[0]);
@@ -101,7 +99,7 @@ export default function Destinations({ cms }) {
   // "Show all" searches every place in the open tab at once, under the tab's name, so it
   // follows the tab the reader is looking at. Null (and no button) when the tab's cards are
   // not linked to places in the dashboard.
-  const showAllHref = sectionSearchUrl({
+  const showAllHref = panel?.showAllUrl ?? sectionSearchUrl({
     dests: (panel?.dest ?? []).map((d) => d.dest),
     label: panel?.label,
   });
