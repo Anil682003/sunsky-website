@@ -110,6 +110,10 @@ const PAGE = 20;
 let calls = [];
 let bulkBodies = [];   // JSON bodies sent to /hotels/bulk
 let latency = () => 0;          // per-URL delay, for race-condition tests
+// GET /contracts/destinations: every destination with inventory (what the empty search prices).
+// More than 8, so the search goes out as a POST, as it does on the live site.
+const ALL_DESTINATIONS = ['AGP', 'ALC', 'AYT', 'BCN', 'HRG', 'IST', 'LON', 'LPA', 'PMI', 'RAK', 'ROE', 'TFS'];
+let destinationsResponse = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ count: ALL_DESTINATIONS.length, destinations: ALL_DESTINATIONS.map((code) => ({ code })) }) });
 let internalSource = () => false;
 
 /**
@@ -188,6 +192,7 @@ function cheapest(qs) {
 beforeEach(() => {
   calls = [];
   bulkBodies = [];
+  destinationsResponse = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ count: ALL_DESTINATIONS.length, destinations: ALL_DESTINATIONS.map((code) => ({ code })) }) });
   facetCalls.length = 0;
   facetLists = NO_FACETS;
   latency = () => 0;
@@ -198,7 +203,11 @@ beforeEach(() => {
       bulkBodies.push(JSON.parse(opts?.body || '{}'));
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
     }
-    const qs = new URL(u).searchParams;
+    if (u.endsWith('/contracts/destinations')) return destinationsResponse();
+    // A many-destination search is a POST with a JSON body: read it as the same parameters.
+    const qs = opts?.method === 'POST'
+      ? new URLSearchParams(Object.entries(JSON.parse(opts.body)).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : String(v)]))
+      : new URL(u).searchParams;
     calls.push(qs);
     const body = cheapest(qs);
     const delay = latency(qs);
@@ -1030,28 +1039,37 @@ describe('resilience', () => {
     expect(screen.queryByRole('button', { name: 'Opnieuw controleren' })).not.toBeInTheDocument();
   });
 
-  // An empty search used to dead-end on "Select a destination". It now lands on a curated set
-  // of popular sun destinations that actually have priced inventory, cheapest-first — the
-  // traveller sees deals immediately and narrows from the Where filter.
-  it('falls back to popular destinations when no place is supplied', async () => {
+  // Spec I.1 §2: without a destination, every destination is searched — cheapest first, under
+  // "All destinations" — not a curated handful.
+  it('an empty search prices every destination with inventory, both sources', async () => {
     renderResults('?');
     await settled();
     await waitFor(() => expect(calls.length).toBeGreaterThan(0));
-    expect(lastCall().get('destinations').split(',')).toEqual(
-      ['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
-    expect(screen.getAllByText('Populaire bestemmingen').length).toBeGreaterThan(0);
+    expect(lastCall().get('destinations').split(',')).toEqual(ALL_DESTINATIONS);
+    expect(lastCall().get('source')).toBe('combined');
+    expect(screen.getAllByText('Alle bestemmingen').length).toBeGreaterThan(0);
     expect(cards().length).toBeGreaterThan(0);
   });
 
-  // The empty-search teaser uses the FAST external-only cache path. The slow half of a
-  // 'combined' search is Diana (SOAP): an 8-destination combined search measured ~17s cold and
-  // tripped the cache gateway → the 502 the user hit. The teaser doesn't need the secondary
-  // supplier, so it must not pay that cost.
-  it('prices the empty-search teaser with the fast external-only source', async () => {
+  it('an empty search falls back to the popular destinations when the list cannot be loaded', async () => {
+    destinationsResponse = () => Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) });
     renderResults('?');
     await settled();
     await waitFor(() => expect(calls.length).toBeGreaterThan(0));
-    expect(lastCall().get('source')).toBe('external');
+    expect(lastCall().get('destinations').split(',')).toEqual(['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
+    expect(cards().length).toBeGreaterThan(0);
+  });
+
+  it('an empty search prices nothing before its destination list is in (no empty first search)', async () => {
+    let release;
+    destinationsResponse = () => new Promise((r) => { release = () => r({ ok: true, json: () => Promise.resolve({ destinations: ALL_DESTINATIONS.map((code) => ({ code })) }) }); });
+    renderResults('?');
+    await new Promise((r) => setTimeout(r, 150));
+    expect(calls).toHaveLength(0);
+    expect(screen.queryByText('Geen resultaten gevonden')).not.toBeInTheDocument();
+    release();
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    expect(lastCall().get('destinations').split(',')).toEqual(ALL_DESTINATIONS);
   });
 
   it('keeps the full combined supplier set for a real, place-specific search', async () => {

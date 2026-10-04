@@ -92,9 +92,10 @@ const allImgs = (images) => {
     .filter(Boolean);
 };
 
-// Empty-search fallback: popular sun destinations (Hotelbeds codes) that have priced inventory —
-// what we search when the traveller hits Search without choosing a place. Curated for the
-// Belgian sun-holiday market; the business can adjust this list.
+// The empty search (no place chosen) searches EVERY destination with inventory (spec I.1 §2:
+// "Without a destination, all active SUNSKY destinations are searched"), listed by the cache's
+// /contracts/destinations. These popular sun destinations are only the fallback for when that
+// list cannot be loaded, and still lead the Where-picker (POPULAR_SCOPE below).
 const DEFAULT_DESTINATIONS = ['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC'];
 
 // What the Where-picker floats to the top of its lists, above the alphabetical rest.
@@ -535,6 +536,23 @@ export default function Results() {
   // A specific hotel picked from the home typeahead → restrict results to just that hotel.
   const urlHotelCode    = params.get('hotelCode') || '';
 
+  // Every destination the cache has inventory for, loaded only for the empty search (null until
+  // then). If the list cannot be loaded, the empty search falls back to DEFAULT_DESTINATIONS.
+  const [allDestinations, setAllDestinations] = useState(null);
+  const emptySearch = !csv(urlCountries).length && !csv(urlDestinations).length && !csv(urlCities).length && !legacyDest;
+  useEffect(() => {
+    if (!emptySearch || allDestinations) return;
+    let live = true;
+    fetch(`${CONTRACTS_API}/contracts/destinations`)
+      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
+      .then((d) => {
+        const codes = (d?.destinations ?? []).map((x) => x?.code).filter(Boolean);
+        if (live) setAllDestinations(codes.length ? codes : DEFAULT_DESTINATIONS);
+      })
+      .catch(() => { if (live) setAllDestinations(DEFAULT_DESTINATIONS); });
+    return () => { live = false; };
+  }, [emptySearch, allDestinations]);
+
   const { scope, usingDefaultScope } = useMemo(() => {
     // destinations = explicit `destinations` ∪ home-picker `cities`; fall back to the legacy
     // single `destination` only when neither is present (old links still work).
@@ -543,17 +561,17 @@ export default function Results() {
     const zones = csv(urlZones);
     const explicit = dests.length ? dests : (legacyDest ? [legacyDest] : []);
     // EMPTY SEARCH → no country and no destination chosen (e.g. the traveller clicked Search on
-    // the home page without picking a place). Rather than a blank "pick a destination" wall, we
-    // default to a curated set of popular sun destinations that actually have priced inventory,
-    // sorted cheapest-first — a "best deals" landing. The traveller refines via the Where filter.
+    // the home page without picking a place): every destination with inventory, cheapest first.
+    // While that list loads the scope is empty, and the price-scope step waits for it.
     if (!countries.length && !explicit.length) {
-      return { scope: { countries: [], destinations: DEFAULT_DESTINATIONS, zones: [] }, usingDefaultScope: true };
+      return { scope: { countries: [], destinations: allDestinations ?? [], zones: [] }, usingDefaultScope: true };
     }
     return { scope: { countries, destinations: explicit, zones }, usingDefaultScope: false };
-  }, [urlCountries, urlDestinations, urlCities, urlZones, legacyDest]);
+  }, [urlCountries, urlDestinations, urlCities, urlZones, legacyDest, allDestinations]);
   const scopeKey  = `${scope.countries.join(',')}|${scope.destinations.join(',')}|${scope.zones.join(',')}`;
   // Always have a scope now (the default fills it), so the results page is never blank.
-  const hasScope  = scope.countries.length > 0 || scope.destinations.length > 0;
+  // The empty search always has a scope (every destination), even while its list is loading.
+  const hasScope  = usingDefaultScope || scope.countries.length > 0 || scope.destinations.length > 0;
 
   const defaultCheckIn  = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]; })();
   const defaultCheckOut = (() => { const d = new Date(); d.setDate(d.getDate() + 37); return d.toISOString().split('T')[0]; })();
@@ -1172,6 +1190,7 @@ export default function Results() {
   // does not re-run when a box is ticked.
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
+    if (usingDefaultScope && !allDestinations) return;   // the empty search's list is still loading
     let live = true;
     const ctrl = new AbortController();
     const selected = {
@@ -1198,9 +1217,9 @@ export default function Results() {
           // A specific hotel (typeahead) pins the result to just that hotel. Otherwise restrict
           // the cache to the resolved hotelCodes only when a content facet is active.
           hotelCodes: urlHotelCode ? [urlHotelCode] : (needCodes ? (r.hotelCodes || []) : null),
-          // Empty-search teaser → fast external-only path (avoids the slow Diana leg that 502s);
-          // a real, place-specific search keeps the full combined supplier set.
-          source: usingDefaultScope ? 'external' : 'combined',
+          // Every search prices both sources. The empty search was external-only while a combined
+          // search ran its slow half live; both are answered from the snapshots now.
+          source: 'combined',
         });
       })
       .catch((err) => {
@@ -1212,7 +1231,7 @@ export default function Results() {
         setPriceScope({
           destinations: scope.destinations,
           hotelCodes: urlHotelCode ? [urlHotelCode] : (needCodes ? [] : null),
-          source: usingDefaultScope ? 'external' : 'combined',
+          source: 'combined',
         });
       });
     return () => { live = false; ctrl.abort(); };
@@ -1223,6 +1242,7 @@ export default function Results() {
   // depend on the ticked boxes and are fetched once per scope, in parallel with pricing.
   useEffect(() => {
     if (!hasScope) return;
+    if (usingDefaultScope && !allDestinations) return;   // the empty search's list is still loading
     let live = true;
     const ctrl = new AbortController();
     setFacetsStatus('loading');
@@ -1373,7 +1393,7 @@ export default function Results() {
   // places (utils/scopeLeaves). Names come from the cascade lists, falling back to the raw
   // code while they load, since a code still beats a blank hero.
   const scopeLabel = useMemo(() => {
-    if (usingDefaultScope) return t('hero.popularDestinations', 'Popular destinations');
+    if (usingDefaultScope) return t('hero.allDestinations', 'All destinations');
     if (urlLabel) return urlLabel;
     const countryNames = countryOptions.reduce(
       (m, c) => { m[c.code] = countryName(c.code, i18nInstance.language, c.name); return m; },
