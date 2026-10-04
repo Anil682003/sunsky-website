@@ -37,6 +37,7 @@ import { roundHotelStay, perPersonFrom } from '../../utils/priceRounding';
 import { packagePerPerson as packagePriceFrom } from '../../utils/packageCardPrice';
 import styles from './Results.module.css';
 import { defaultSearchContext } from '../../utils/searchDefaults';
+import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 const PAGE_SIZE = 20;
@@ -1395,7 +1396,11 @@ export default function Results() {
   // places (utils/scopeLeaves). Names come from the cascade lists, falling back to the raw
   // code while they load, since a code still beats a blank hero.
   const scopeLabel = useMemo(() => {
-    if (usingDefaultScope) return t('hero.allDestinations', 'All destinations');
+    if (usingDefaultScope) {
+      return allDestinations === DEFAULT_DESTINATIONS
+        ? t('hero.popularDestinations', 'Popular destinations')
+        : t('hero.allDestinations', 'All destinations');
+    }
     if (urlLabel) return urlLabel;
     const countryNames = countryOptions.reduce(
       (m, c) => { m[c.code] = countryName(c.code, i18nInstance.language, c.name); return m; },
@@ -1412,7 +1417,7 @@ export default function Results() {
     if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0];
     return t('hero.places', { count: parts.length, defaultValue: '{{count}} places' });
-  }, [usingDefaultScope, urlLabel, scope, countryOptions, scopeCities, scopeZones, t, i18nInstance.language]);
+  }, [usingDefaultScope, allDestinations, urlLabel, scope, countryOptions, scopeCities, scopeZones, t, i18nInstance.language]);
 
   /**
    * What the marketing layer is told about this search (Tracking Master §9).
@@ -1545,9 +1550,17 @@ export default function Results() {
     }
 
     const ctrl = new AbortController();
+    // The every-destination empty search may fall back to the popular destinations (see
+    // EMPTY_SEARCH_FALLBACK_MS): on a failure, or when it has not answered in time.
+    const canFallBack = usingDefaultScope && allDestinations !== DEFAULT_DESTINATIONS;
+    let timedOut = false;
+    const fallbackTimer = canFallBack
+      ? setTimeout(() => { timedOut = true; ctrl.abort(); }, EMPTY_SEARCH_FALLBACK_MS)
+      : null;
     fetch(url, { ...opts, signal: ctrl.signal })
       .then((r) => { if (!r.ok) throw Object.assign(new Error(`API ${r.status}`), { status: r.status }); return r.json(); })
       .then((data) => {
+        clearTimeout(fallbackTimer);
         if (reqId !== reqIdRef.current) return;
         const results = data.results || [];
         setNights(data.nights || 0);
@@ -1572,14 +1585,22 @@ export default function Results() {
         setPage1Done({ reqId });
       })
       .catch((err) => {
-        if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
+        clearTimeout(fallbackTimer);
+        if ((err.name === 'AbortError' && !timedOut) || reqId !== reqIdRef.current) return;
+        if (canFallBack) {
+          // Re-scoped to the popular destinations: the scope change re-runs this search, and the
+          // page keeps loading meanwhile.
+          console.warn('[Results] Every-destination search', timedOut ? 'timed out' : 'failed', '— showing the popular destinations');
+          setAllDestinations(DEFAULT_DESTINATIONS);
+          return;
+        }
         console.error('[Results] Contracts API error:', err);
         setSearchError(fromFailure(err));
         setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false); setPendingSearch(false);
         paginationRef.current = { page: 1, hasMore: false, fetching: false };
       });
 
-    return () => ctrl.abort();
+    return () => { clearTimeout(fallbackTimer); ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // `arrivalKey` is a dep in its own right: the airport list loads asynchronously, so an
     // arrival seeded from the URL resolves to its destinations only AFTER `applied` has

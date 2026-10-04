@@ -11,6 +11,8 @@ vi.mock('react-router-dom', async (orig) => ({
   useNavigate: () => navigateSpy,
 }));
 vi.mock('react-redux', () => ({ useSelector: (fn) => fn({ auth: { isAuthenticated: false } }) }));
+// The every-destination empty search's fallback wait (8 s live), shortened so a test can cross it.
+vi.mock('./emptySearchFallback', () => ({ EMPTY_SEARCH_FALLBACK_MS: 300 }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock('../../api', () => ({
   fetchFavouriteCodes: vi.fn(() => Promise.resolve(new Set())),
@@ -1058,6 +1060,42 @@ describe('resilience', () => {
     await waitFor(() => expect(calls.length).toBeGreaterThan(0));
     expect(lastCall().get('destinations').split(',')).toEqual(['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
     expect(cards().length).toBeGreaterThan(0);
+  });
+
+  // The every-destination search failing (or too slow) must not strand the visitor: the empty
+  // search is then priced over the popular destinations, and says so.
+  it('the every-destination search fails: the popular destinations are shown instead, no error', async () => {
+    const working = globalThis.fetch;
+    globalThis.fetch = vi.fn((url, opts) => (opts?.method === 'POST' && String(url).includes('/contracts/cheapest')
+      ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) })
+      : working(url, opts)));
+    renderResults('?');
+    await waitFor(() => expect(cards().length).toBeGreaterThan(0));
+    expect(lastCall().get('destinations').split(',')).toEqual(['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
+    expect(screen.getAllByText('Populaire bestemmingen').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Beschikbaarheid tijdelijk niet op te halen')).not.toBeInTheDocument();
+  });
+
+  it('the every-destination search takes too long (8 s live): the popular destinations are shown instead', async () => {
+    latency = (qs) => (qs.get('destinations')?.split(',').length > 8 ? 5_000 : 0);
+    renderResults('?');
+    await waitFor(() => expect(cards().length).toBeGreaterThan(0), { timeout: 3000 });
+    expect(lastCall().get('destinations').split(',')).toEqual(['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
+    expect(screen.getAllByText('Populaire bestemmingen').length).toBeGreaterThan(0);
+  });
+
+  it('a chosen place that fails is NOT swapped for other destinations: error and retry', async () => {
+    const asked = [];
+    globalThis.fetch = vi.fn((url) => {
+      if (!String(url).includes('/contracts/cheapest')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      asked.push(new URL(String(url)).searchParams.get('destinations') ?? new URL(String(url)).searchParams.get('destination'));
+      return Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) });
+    });
+    renderResults();
+    await waitFor(() => expect(screen.getByText('Beschikbaarheid tijdelijk niet op te halen')).toBeInTheDocument());
+    await new Promise((r) => setTimeout(r, 200));
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((d) => d === 'AYT')).toBe(true);     // only the chosen place, never the defaults
   });
 
   it('an empty search prices nothing before its destination list is in (no empty first search)', async () => {
