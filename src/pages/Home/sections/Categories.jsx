@@ -4,7 +4,8 @@ import styles from './Categories.module.css';
 import SectionHead from './SectionHead';
 import { useHolidayTypes } from '../../../api';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
-import { normalizeDests, destUrl, sectionSearchUrl } from '../../../utils/cmsDestinations';
+import { destUrl } from '../../../utils/cmsDestinations';
+import { categoryCards, categoriesShowAllUrl } from '../../../utils/showAllSearches';
 import ShowAllLink from '../../../components/ShowAllLink/ShowAllLink';
 import { useTranslation } from 'react-i18next';
 
@@ -23,9 +24,6 @@ const IMAGE_POOL = [
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80',
 ];
 
-// The categories grid is built for exactly four cards; the CMS decides which
-// holiday types fill them (Homepage Settings → Featured Holiday Types).
-const MAX_CARDS = 4;
 const slugify = (s) =>
   String(s || '').toLowerCase().trim().replace(/[^a-z0-9]+/g, '-').replace(/^-+|-+$/g, '');
 
@@ -81,53 +79,34 @@ export default function Categories({ cms }) {
     FALLBACK_CATS.find((c) => slugify(c.title) === slugify(name))?.img ||
     IMAGE_POOL[i % IMAGE_POOL.length];
 
-  // The grid is designed for MAX_CARDS cards, but the dashboard exposes every
-  // holiday type. The CMS picks which ones are featured (and their artwork);
-  // without a selection we simply show the first few types.
-  const featured = (cms?.featuredHolidayTypes ?? []).filter(
-    (f) => f && (f.holidayTypeId != null || f.title) && f.active !== false
-  );
-
-  const cardFromType = (type, i, f) => ({
-    key:  type.id ?? type.name,
-    name: type.name,
-    slug: type.slug || slugify(type.name),
-    img:  resolveCmsImageUrl(f?.imageUrl) || artworkFor(type.name, i),
-    destinations: normalizeDests(f?.destinations),
-  });
-
-  let cards;
-  if (featured.length > 0 && types.length > 0) {
-    // Hand-picked selection: resolve each entry against the live holiday types
-    // so names/slugs stay current; skip any type that no longer exists.
-    cards = featured
-      .map((f, i) => {
-        const type =
-          types.find((x) => String(x.id) === String(f.holidayTypeId)) ||
-          types.find((x) => slugify(x.name) === slugify(f.title));
-        return type ? cardFromType(type, i, f) : null;
-      })
-      .filter(Boolean);
-  } else if (types.length > 0) {
-    // No selection yet — show the first few types rather than all of them.
-    cards = types.map((type, i) => cardFromType(type, i));
-  } else {
+  // Which cards, and the places each links, come from utils/showAllSearches — shared with the
+  // "Show all" warmer, so the warmed search is the one behind this button. This adds the artwork
+  // and the wording.
+  const cards = categoryCards(cms, types, { fallbackCount: FALLBACK_CATS.length }).map((c, i) => {
+    if (c.type) {
+      return {
+        key:  c.type.id ?? c.type.name,
+        name: c.type.name,
+        slug: c.type.slug || slugify(c.type.name),
+        img:  resolveCmsImageUrl(c.featured?.imageUrl) || artworkFor(c.type.name, c.index ?? i),
+        destinations: c.destinations,
+      };
+    }
     // Types API unreachable: keep the original cards so the section never blanks.
-    cards = (cmsCats.length > 0 ? cmsCats : FALLBACK_CATS).map((c, i) => ({
-      key:  c.title,
+    const cat = c.cmsCategory || FALLBACK_CATS[i];
+    return {
+      key:  cat.title,
       // A shipped card carries a key; a dashboard one is already in its own words.
-      name: c.key ? t(`categories.cats.${c.key}`, c.title) : c.title,
-      slug: slugify(c.title),
-      img:  resolveCmsImageUrl(c.imageUrl) || c.img || IMAGE_POOL[i % IMAGE_POOL.length],
-      destinations: normalizeDests(c.destinations),
-    }));
-  }
-
-  cards = cards.slice(0, MAX_CARDS);
+      name: cat.key ? t(`categories.cats.${cat.key}`, cat.title) : cat.title,
+      slug: slugify(cat.title),
+      img:  resolveCmsImageUrl(cat.imageUrl) || cat.img || IMAGE_POOL[i % IMAGE_POOL.length],
+      destinations: c.destinations,
+    };
+  });
 
   // "Show all" searches every place the cards feature, in one search. Places only: see
   // sectionSearchUrl for why the holiday types do not travel as a filter.
-  const showAllHref = sectionSearchUrl({ dests: cards.flatMap((c) => c.destinations ?? []) });
+  const showAllHref = categoriesShowAllUrl(cms, types);
 
   return (
     <section className={styles.section}>
