@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './DestinationModal.module.css';
 import { fetchGeoPlaces } from '../../api';
@@ -20,7 +20,10 @@ import { countryName } from '../../utils/countryName';
  *     places:    [{ key, type:'region'|'city', id, code, name,
  *                   countryId, countryIso, countryName, flag, flagUrl }]
  *   }
- * Apply → onApply(draft). Close/Escape/backdrop discards the draft.
+ * Apply → onApply(draft). Close/Escape/backdrop ALSO hand back the draft: what the picker shows
+ * is what the search gets. Discarding it meant a traveller who removed every country and closed
+ * still saw the old countries in the search box, with no way to clear them (Apply is disabled
+ * while nothing is picked).
  *
  * Regions + cities are fetched per country (fetchGeoPlaces) the first time a
  * country is ticked and cached for the lifetime of the component, which stays
@@ -63,6 +66,8 @@ export default function DestinationModal({
   // countries stay a ten-row list instead of ten full chip lists to scroll past.
   const [activeId, setActiveId] = useState(null);
   const inflightRef = useRef(new Set());   // countryIds being fetched (guards duplicates)
+  // Closing keeps the current picks (see the header comment).
+  const dismiss = useCallback(() => (onApply ? onApply(draft) : onClose?.()), [onApply, onClose, draft]);
 
   // Re-seed the draft from the committed value each time the modal opens
   // (state adjustment during render, per the React "derived state" pattern).
@@ -80,7 +85,7 @@ export default function DestinationModal({
   // Close on Escape, stop background scroll while open.
   useEffect(() => {
     if (!open) return;
-    const onKeyDown = (e) => { if (e.key === 'Escape') onClose(); };
+    const onKeyDown = (e) => { if (e.key === 'Escape') dismiss(); };
     document.addEventListener('keydown', onKeyDown);
     const prevOverflow = document.body.style.overflow;
     document.body.style.overflow = 'hidden';
@@ -88,7 +93,7 @@ export default function DestinationModal({
       document.removeEventListener('keydown', onKeyDown);
       document.body.style.overflow = prevOverflow;
     };
-  }, [open, onClose]);
+  }, [open, dismiss]);
 
   // Fetch regions+cities for ticked countries that aren't cached yet. The
   // in-flight guard lives in a ref (no sync setState in the effect body);
@@ -240,7 +245,7 @@ export default function DestinationModal({
   };
 
   return createPortal(
-    <div className={styles.backdrop} onClick={onClose}>
+    <div className={styles.backdrop} onClick={dismiss}>
       <div
         className={styles.modal}
         role="dialog"
@@ -259,7 +264,7 @@ export default function DestinationModal({
               )}
             </p>
           </div>
-          <button className={styles.closeBtn} onClick={onClose} aria-label={t('destinationModal.close', 'Close')}>
+          <button className={styles.closeBtn} onClick={dismiss} aria-label={t('destinationModal.close', 'Close')}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
           </button>
         </div>
