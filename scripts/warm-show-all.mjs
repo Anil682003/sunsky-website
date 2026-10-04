@@ -27,11 +27,15 @@
  * WARM_EVERY_MIN, CMS_CHECK_MIN. `--once` runs one round and exits.
  */
 import { pathToFileURL } from 'node:url';
-import { showAllSearchUrls } from '../src/utils/showAllSearches.js';
+import { showAllSearchUrls, EMPTY_SEARCH_URLS } from '../src/utils/showAllSearches.js';
 import { cacheRequestsForLink, linkScope } from '../src/utils/warmSearches.js';
 import { facetsParams } from '../src/utils/facetsParams.js';
 
 const MINUTE = 60 * 1000;
+// A request that never answers must not stall the warmer: a search gets 3 minutes (an
+// every-destination search takes ~20 s cold), anything else 30 seconds.
+const SEARCH_TIMEOUT_MS = 3 * MINUTE;
+const CALL_TIMEOUT_MS = 30 * 1000;
 
 export function warmerConfig(env = process.env) {
   return {
@@ -44,7 +48,7 @@ export function warmerConfig(env = process.env) {
 }
 
 async function getJson(fetchFn, url) {
-  const r = await fetchFn(url);
+  const r = await fetchFn(url, { signal: AbortSignal.timeout(CALL_TIMEOUT_MS) });
   if (!r.ok) throw new Error(`${url} → HTTP ${r.status}`);
   return r.json();
 }
@@ -90,8 +94,11 @@ export async function warmLinks(cfg, links, fetchFn = fetch, log = console.log) 
       const requests = cacheRequestsForLink(link, { baseUrl: cfg.cache, destinations });
       let failed = 0;
       for (const { url, opts } of requests) {
-        // eslint-disable-next-line no-await-in-loop
-        const r = await fetchFn(url, { ...opts, headers: { ...(opts.headers || {}), 'X-Search-Warm': cfg.token } }).catch(() => null);
+        const r = await fetchFn(url, {
+          ...opts,
+          headers: { ...(opts.headers || {}), 'X-Search-Warm': cfg.token },
+          signal: AbortSignal.timeout(SEARCH_TIMEOUT_MS),
+        }).catch(() => null);
         if (!r?.ok) failed += 1;
       }
       done.push({ link, destinations: destinations.length, requests: requests.length, failed, ms: Date.now() - t0 });
@@ -125,55 +132,64 @@ export function nextAction(state, { now, cacheStartedAt, cfg }) {
   return 'wait';
 }
 
+/**
+ * One minute's work: decide (nextAction), re-read the homepage config, then warm everything
+ * ('full') or only the searches the config added ('check'). `state` carries what it knows.
+ */
+export async function runTick(state, cfg, fetchFn = fetch, log = console.log, now = Date.now()) {
+  const health = await getJson(fetchFn, `${cfg.cache}/health`).catch(() => null);
+  if (!health) { log('[warm] cache not reachable; next minute'); return 'unreachable'; }
+  const action = nextAction(state, { now, cacheStartedAt: health.startedAt, cfg });
+  if (action === 'wait') return action;
+  let links = state.links;
+  try {
+    links = await loadShowAllLinks(cfg, fetchFn);
+  } catch (err) {
+    // Never loaded yet: the empty search needs no config, so warm that much meanwhile; the
+    // config's searches follow at the next 5-minute check that can read it (they are "new").
+    if (!links.length) links = [...EMPTY_SEARCH_URLS];
+    log(`[warm] homepage config not loaded (${err.message}); warming the ${links.length} last known searches`);
+  }
+  state.lastCheckAt = now;
+  if (action === 'full') {
+    await warmLinks(cfg, links, fetchFn, log);
+    Object.assign(state, { lastFullAt: now, utcDate: new Date(now).toISOString().slice(0, 10), cacheStartedAt: health.startedAt });
+  } else {
+    const fresh = links.filter((l) => !state.links.includes(l));
+    if (fresh.length) {
+      log(`[warm] ${fresh.length} new "Show all" search(es) in the homepage config`);
+      await warmLinks(cfg, fresh, fetchFn, log);
+    }
+  }
+  state.links = links;
+  return action;
+}
+
+export const initialState = () => ({ lastFullAt: 0, lastCheckAt: 0, utcDate: null, cacheStartedAt: null, links: [] });
+
 async function main() {
   const cfg = warmerConfig();
   if (!cfg.token) {
-    console.error('[warm] SEARCH_WARM_TOKEN is not set (it must equal the cache\'s). Not starting.');
+    console.error("[warm] SEARCH_WARM_TOKEN is not set (it must equal the cache's). Not starting.");
     process.exit(1);
   }
-  const once = process.argv.includes('--once');
-  const state = { lastFullAt: 0, lastCheckAt: 0, utcDate: null, cacheStartedAt: null, links: [] };
+  if (process.argv.includes('--once')) {
+    await warmLinks(cfg, await loadShowAllLinks(cfg));
+    return;
+  }
+  const state = initialState();
   let running = false;
-
   const tick = async () => {
     if (running) return;
     running = true;
     try {
-      const now = Date.now();
-      const health = await getJson(fetch, `${cfg.cache}/health`).catch(() => null);
-      if (!health) { console.warn('[warm] cache not reachable; next minute'); return; }
-      const action = nextAction(state, { now, cacheStartedAt: health.startedAt, cfg });
-      if (action === 'wait') return;
-      let links = state.links;
-      try {
-        links = await loadShowAllLinks(cfg);
-      } catch (err) {
-        console.warn(`[warm] homepage config not loaded (${err.message}); using the last known searches`);
-      }
-      state.lastCheckAt = now;
-      if (action === 'full') {
-        await warmLinks(cfg, links);
-        Object.assign(state, { lastFullAt: now, utcDate: new Date(now).toISOString().slice(0, 10), cacheStartedAt: health.startedAt });
-      } else {
-        const fresh = links.filter((l) => !state.links.includes(l));
-        if (fresh.length) {
-          console.log(`[warm] ${fresh.length} new "Show all" search(es) in the homepage config`);
-          await warmLinks(cfg, fresh);
-        }
-      }
-      state.links = links;
+      await runTick(state, cfg);
     } catch (err) {
-      console.error(`[warm] tick failed: ${err.message}`);
+      console.error(`[warm] tick failed: ${err.message}`);   // e.g. the destination list; next minute
     } finally {
       running = false;
     }
   };
-
-  if (once) {
-    const links = await loadShowAllLinks(cfg);
-    await warmLinks(cfg, links);
-    return;
-  }
   console.log(`[warm] started: cache ${cfg.cache}, admin ${cfg.admin}, all every ${cfg.warmEveryMs / MINUTE} min, config every ${cfg.cmsCheckMs / MINUTE} min`);
   await tick();
   setInterval(tick, MINUTE);

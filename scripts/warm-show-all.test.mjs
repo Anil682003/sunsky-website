@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { warmerConfig, loadShowAllLinks, warmLinks, nextAction } from './warm-show-all.mjs';
+import { warmerConfig, loadShowAllLinks, warmLinks, nextAction, runTick, initialState } from './warm-show-all.mjs';
 
 const CFG = warmerConfig({ CACHE_API_URL: 'http://cache.test', ADMIN_API_URL: 'http://admin.test/api', SEARCH_WARM_TOKEN: 'tok' });
 const CMS = {
@@ -9,7 +9,7 @@ const CMS = {
 const ALL = ['AYT', 'BCN', 'LON', 'PMI', 'TFS', 'IST', 'ROE', 'RHO', 'AGP'];
 
 /** A stand-in for the admin and the cache, recording every call and how many ran at once. */
-function fakeServers({ facetsFail = false } = {}) {
+function fakeServers({ facetsFail = false, cmsFail = () => false, cacheDown = false } = {}) {
   const calls = [];
   let inFlight = 0;
   let maxInFlight = 0;
@@ -17,7 +17,11 @@ function fakeServers({ facetsFail = false } = {}) {
   const fetchFn = async (url, opts = {}) => {
     const u = String(url);
     calls.push({ url: u, opts });
-    if (u.endsWith('/cms/layout/homepage-config')) return json({ success: true, data: { homepageConfig: CMS } });
+    if (u.endsWith('/health')) return cacheDown ? Promise.reject(new Error('ECONNREFUSED')) : json({ startedAt: '2026-10-04T08:00:00.000Z' });
+    if (u.endsWith('/cms/layout/homepage-config')) {
+      if (cmsFail()) return { ok: false, status: 502, json: async () => ({}) };
+      return json({ success: true, data: { homepageConfig: CMS } });
+    }
     if (u.endsWith('/website/holiday-types')) return json({ data: [{ id: 1, name: 'Zon' }] });
     if (u.endsWith('/contracts/destinations')) return json({ destinations: ALL.map((code) => ({ code })) });
     if (u.includes('/hotel-filters/facets')) {
@@ -95,5 +99,40 @@ describe('when the warmer runs', () => {
     expect(nextAction(state, { now: t0 + 120000, cacheStartedAt: new Date(t0 + 30000).toISOString(), cfg })).toBe('full');
     expect(nextAction({ ...state, lastFullAt: Date.parse('2026-10-04T23:50:00Z'), lastCheckAt: Date.parse('2026-10-04T23:58:00Z') },
       { now: Date.parse('2026-10-05T00:00:30Z'), cacheStartedAt: started, cfg })).toBe('full');
+  });
+});
+
+describe('a minute of the warmer (runTick)', () => {
+  const linksWarmed = (calls) => new Set(cheapestCalls(calls).map((c) => (c.opts.method === 'POST' ? 'POST' : new URL(c.url).searchParams.get('destinations'))));
+  const at = Date.parse('2026-10-04T10:00:00Z');
+
+  it('the homepage config down on the first run: warms the empty search, then the rest once it loads', async () => {
+    let down = true;
+    const { fetchFn, calls } = fakeServers({ cmsFail: () => down });
+    const state = initialState();
+    expect(await runTick(state, CFG, fetchFn, () => {}, at)).toBe('full');
+    expect(cheapestCalls(calls)).toHaveLength(2 * 6);             // the two empty-search forms
+    down = false;
+    calls.length = 0;
+    expect(await runTick(state, CFG, fetchFn, () => {}, at + 5 * 60000)).toBe('check');
+    expect(cheapestCalls(calls)).toHaveLength(2 * 6);             // categories + the tab: the new ones only
+    expect(linksWarmed(calls)).toEqual(new Set(['AYT,IST', 'PMI']));
+  });
+
+  it('nothing new in the config at a check: no requests', async () => {
+    const { fetchFn, calls } = fakeServers();
+    const state = initialState();
+    await runTick(state, CFG, fetchFn, () => {}, at);
+    calls.length = 0;
+    expect(await runTick(state, CFG, fetchFn, () => {}, at + 5 * 60000)).toBe('check');
+    expect(cheapestCalls(calls)).toHaveLength(0);
+  });
+
+  it('the cache unreachable: does nothing, tries again next minute', async () => {
+    const { fetchFn, calls } = fakeServers({ cacheDown: true });
+    const state = initialState();
+    expect(await runTick(state, CFG, fetchFn, () => {}, at)).toBe('unreachable');
+    expect(cheapestCalls(calls)).toHaveLength(0);
+    expect(state.lastFullAt).toBe(0);
   });
 });
