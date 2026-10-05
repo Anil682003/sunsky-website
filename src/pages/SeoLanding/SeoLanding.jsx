@@ -6,6 +6,7 @@ import { ENDPOINTS } from '../../api/endpoints';
 import styles from './SeoLanding.module.css';
 import { SeoHotelCodeContext } from './seoHotelCode';
 import HotelDetail from '../HotelDetail/HotelDetail';
+import SeoOffers from './SeoOffers';
 
 /**
  * A permanent SEO page: /zonvakanties/turkije/antalya and the rest of the §5 architecture.
@@ -246,6 +247,19 @@ export default function SeoLanding() {
             <p key={i}>{para}</p>
           ))}
         </article>
+      )}
+
+      {/* §38: the commercial block. Not on an article: §14 keeps a guide editorial and gives
+          it one commercial link at the end, and a grid of priced hotel cards halfway through
+          "when is the best time to visit" is an advert interrupting the thing the reader
+          came for. */}
+      {!isGuide && (
+        <SeoOffers
+          scope={page.search}
+          heading={t('seo.offersHeadingPlace', 'Populaire hotels in {{place}}', {
+            place: lastCrumbLabel(page) || page.h1,
+          })}
+        />
       )}
 
       {/* §14: "Articles should link to relevant commercial pages." At the END of an article,
