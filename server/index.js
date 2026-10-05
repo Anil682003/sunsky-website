@@ -414,8 +414,15 @@ const server = http.createServer(async (req, res) => {
            across hundreds of URLs; with no description at all Google writes a snippet from
            the page itself, which is both better and what the CMS tells authors will happen.
            The Open Graph tags stay: a generic share card still beats no share card. */
+        /* Only replace the title when there IS one. Stamping an empty <title> is worse than
+           leaving the site-wide one: the tab shows nothing and Google picks a line of its
+           own from the page. The resolver already falls back to the page's heading, so this
+           is the last resort behind that. */
         const stamped = html
-          .replace(/<title>[\s\S]*?<\/title>/i, `<title>${esc(page.title || '')}</title>`)
+          .replace(
+            /<title>[\s\S]*?<\/title>/i,
+            page.title ? `<title>${esc(page.title)}</title>` : '$&',
+          )
           .replace(DESCRIPTION_RE, '')
           .replace(CANONICAL_RE, '')
           .replace(/[ \t]*<\/head>/i, `${seoHeadTags(page, SITE_ORIGIN, esc)}\n  </head>`);

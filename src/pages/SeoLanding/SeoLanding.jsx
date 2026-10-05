@@ -26,11 +26,20 @@ export default function SeoLanding() {
   const navigate = useNavigate();
   const { t } = useTranslation('common');
 
-  const [state, setState] = useState({ status: 'loading', page: null });
+  /**
+   * The resolved path travels WITH the result, and "loading" is derived from it rather than
+   * set at the top of the effect.
+   *
+   * Resetting state synchronously inside the effect costs an extra render and, worse, leaves
+   * a tick where the previous page's content is on screen under the new URL. Comparing the
+   * two is both cheaper and more honest: anything not resolved for the current path is, by
+   * definition, still loading.
+   */
+  const [state, setState] = useState({ status: 'loading', page: null, path: null });
+  const resolved = state.path === pathname;
 
   useEffect(() => {
     let live = true;
-    setState({ status: 'loading', page: null });
 
     axiosInstance.get(ENDPOINTS.seoResolve(pathname))
       .then(({ data }) => {
@@ -43,7 +52,7 @@ export default function SeoLanding() {
           navigate(page.redirectTo, { replace: true });
           return;
         }
-        setState({ status: 'ok', page });
+        setState({ status: 'ok', page, path: pathname });
       })
       .catch((err) => {
         if (!live) return;
@@ -52,13 +61,14 @@ export default function SeoLanding() {
         setState({
           status: err?.response?.status === 404 ? 'notfound' : 'error',
           page: null,
+          path: pathname,
         });
       });
 
     return () => { live = false; };
   }, [pathname, navigate]);
 
-  const page = state.page;
+  const page = resolved ? state.page : null;
 
   /**
    * Keep the document head right after an in-app navigation.
@@ -126,7 +136,7 @@ export default function SeoLanding() {
     return `/results?${qs.toString()}`;
   }, [page]);
 
-  if (state.status === 'loading') {
+  if (!resolved || state.status === 'loading') {
     return (
       <div className={styles.page}>
         <div className={styles.skelCrumb} />
@@ -137,7 +147,7 @@ export default function SeoLanding() {
     );
   }
 
-  if (state.status === 'notfound') {
+  if (resolved && state.status === 'notfound') {
     return (
       <div className={styles.page}>
         <div className={styles.notFound}>
@@ -183,6 +193,8 @@ export default function SeoLanding() {
     );
   }
 
+  const isGuide = page.pageType === 'TRAVEL_GUIDE';
+
   return (
     <div className={styles.page}>
       {/* §13: visible breadcrumbs matching the page hierarchy. */}
@@ -201,11 +213,20 @@ export default function SeoLanding() {
       )}
 
       <header className={styles.head}>
+        {isGuide && page.guideCategory && (
+          <span className={styles.kicker}>{page.guideCategory}</span>
+        )}
         <h1 className={styles.h1}>{page.h1}</h1>
         {page.intro && <p className={styles.intro}>{page.intro}</p>}
-        <Link to={searchHref} className={styles.cta}>
-          {t('seo.viewHolidays', 'Bekijk vakanties')}
-        </Link>
+        {/* No "book now" button at the top of an ARTICLE. A reader who has just arrived to
+            find out the best time to visit has not decided anything yet, and §14's rule is
+            that articles link to commercial pages, not that they open with an advert. The
+            link sits at the end instead, where it has been earned. */}
+        {!isGuide && (
+          <Link to={searchHref} className={styles.cta}>
+            {t('seo.viewHolidays', 'Bekijk vakanties')}
+          </Link>
+        )}
       </header>
 
       {page.heroImageUrl && (
@@ -227,13 +248,53 @@ export default function SeoLanding() {
         </article>
       )}
 
-      {/* §13: structured data for the breadcrumb trail. Safe to inline: every value comes
-          from our own API and JSON.stringify escapes it. */}
+      {/* §14: "Articles should link to relevant commercial pages." At the END of an article,
+          where a reader who has finished reading is actually ready to go and book. */}
+      {isGuide && page.commercialTarget?.path && (
+        <aside className={styles.targetCard}>
+          <div>
+            <span className={styles.targetKicker}>{t('seo.readyToBook', 'Klaar om te boeken?')}</span>
+            <strong>{page.commercialTarget.label}</strong>
+          </div>
+          <Link to={page.commercialTarget.path} className={styles.cta}>
+            {t('seo.viewHolidays', 'Bekijk vakanties')}
+          </Link>
+        </aside>
+      )}
+
+      {/* §14: "Commercial pages may show related Travel Guide articles." */}
+      {page.relatedGuides?.length > 0 && (
+        <section className={styles.related}>
+          <h2>{t('seo.relatedReading', 'Lees ook')}</h2>
+          <ul>
+            {page.relatedGuides.map((g) => (
+              <li key={g.path}>
+                <Link to={g.path}>
+                  <span className={styles.relatedTitle}>{g.title}</span>
+                  {g.category && <span className={styles.relatedCat}>{g.category}</span>}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {/* §13 and §15: structured data for the breadcrumb trail. Safe to inline: every value
+          comes from our own API and JSON.stringify escapes it. */}
       {page.breadcrumbs?.length > 1 && (
         <script
           type="application/ld+json"
-          // eslint-disable-next-line react/no-danger
           dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(page)) }}
+        />
+      )}
+
+      {/* §15: "Article for Travel Guide articles where appropriate." Only for articles, and
+          only when there is real body text: marking an empty page as an Article claims
+          content that is not there. Product/Offer/aggregateRating stay out of scope per §15. */}
+      {isGuide && page.content && (
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd(page)) }}
         />
       )}
     </div>
@@ -241,6 +302,33 @@ export default function SeoLanding() {
 }
 
 const lastCrumbLabel = (page) => page?.breadcrumbs?.[page.breadcrumbs.length - 1]?.label || null;
+
+/**
+ * Article, for a Travel Guide (§15).
+ *
+ * `author` and `publisher` are the Organization, not a person: these are agency articles and
+ * inventing a byline would be structured data that contradicts the page. Dates come from the
+ * CMS row's own timestamps, so they move when the ARTICLE is edited and not when a price
+ * changes, which is the distinction §12 draws for sitemap lastmod.
+ */
+function articleJsonLd(page) {
+  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const org = { '@type': 'Organization', name: 'SUNSKY' };
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: page.h1,
+    ...(page.metaDescription ? { description: page.metaDescription } : {}),
+    ...(page.heroImageUrl ? { image: page.heroImageUrl } : {}),
+    ...(page.publishedAt ? { datePublished: page.publishedAt } : {}),
+    ...(page.updatedAt ? { dateModified: page.updatedAt } : {}),
+    author: org,
+    publisher: org,
+    ...(page.canonicalPath
+      ? { mainEntityOfPage: { '@type': 'WebPage', '@id': `${origin}${page.canonicalPath}` } }
+      : {}),
+  };
+}
 
 /** BreadcrumbList, which §15 lists as in scope for Phase 1. */
 function breadcrumbJsonLd(page) {
