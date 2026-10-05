@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/axiosInstance';
 import { ENDPOINTS } from '../../api/endpoints';
 import styles from './SeoLanding.module.css';
+import { SeoHotelCodeContext } from './seoHotelCode';
+import HotelDetail from '../HotelDetail/HotelDetail';
 
 /**
  * A permanent SEO page: /zonvakanties/turkije/antalya and the rest of the §5 architecture.
@@ -144,6 +146,26 @@ export default function SeoLanding() {
           <Link to="/" className={styles.cta}>{t('seo.backHome', 'Terug naar de homepage')}</Link>
         </div>
       </div>
+    );
+  }
+
+  /**
+   * A hotel URL renders the REAL hotel page, not a summary of it.
+   *
+   * §8 allows exactly one canonical page per Hotelbeds code. Showing a thin landing page
+   * here while the rich, bookable page lived at /hotel/:hotelCode would be two URLs for one
+   * hotel, which is the duplicate that rule exists to prevent. So the readable URL is simply
+   * a nicer address for the same page; the code comes down through context because the URL
+   * carries a name slug, not a code.
+   *
+   * The head tags for it were already written server-side, so a crawler has the right title
+   * whether or not this component ever runs.
+   */
+  if (page?.status === 'OK' && page.pageType === 'HOTEL' && page.search?.hotelCode) {
+    return (
+      <SeoHotelCodeContext.Provider value={page.search.hotelCode}>
+        <HotelDetail />
+      </SeoHotelCodeContext.Provider>
     );
   }
 

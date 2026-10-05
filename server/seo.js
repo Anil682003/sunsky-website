@@ -223,6 +223,50 @@ export async function seoSitemapPaths(apiBase, timeoutMs = 5000) {
 }
 
 /**
+ * The readable canonical URL for a hotel code, or null.
+ *
+ * §8: one Hotelbeds code is one hotel identity and "maximum one canonical hotel SEO page".
+ * The site has linked to /hotel/:hotelCode for months in shares, favourites and emails, and
+ * the readable /hotel/turkije/antalya/monart-city now serves the same page. Redirecting the
+ * code form would be the textbook answer and also the one that breaks things; pointing its
+ * canonical at the readable URL consolidates the two without moving anybody.
+ *
+ * Shares the SEO cache, keyed distinctly so a code can never collide with a path.
+ */
+export async function canonicalForHotel(apiBase, hotelCode, timeoutMs = 2000) {
+  if (!/^\d+$/.test(String(hotelCode))) return null;
+  const key = `#hotel:${hotelCode}`;
+
+  const hit = seoCache.get(key);
+  if (hit && Date.now() - hit.at < SEO_TTL_MS) return hit.rec;
+  if (seoInflight.has(key)) return seoInflight.get(key);
+
+  const run = (async () => {
+    const ctrl = new AbortController();
+    const timer = setTimeout(() => ctrl.abort(), timeoutMs);
+    try {
+      const url = `${apiBase}/website/seo/resolve?hotelCode=${encodeURIComponent(hotelCode)}`;
+      const res = await fetch(url, { signal: ctrl.signal });
+      // A 404 means this hotel has no readable URL (inactive, or its country/destination is
+      // not active). Cached, so the answer is not re-asked on every crawl of that page.
+      if (res.status === 404) return cacheSeo(key, null);
+      if (!res.ok) return null;
+      const body = await res.json();
+      return cacheSeo(key, body?.data?.canonicalPath || null);
+    } catch {
+      // No opinion. The caller keeps the self-canonical it would have used anyway.
+      return null;
+    } finally {
+      clearTimeout(timer);
+      seoInflight.delete(key);
+    }
+  })();
+
+  seoInflight.set(key, run);
+  return run;
+}
+
+/**
  * The <head> tags for a resolved SEO page.
  *
  * Only what §12 names: title, description, canonical, robots. No Open Graph here - the hotel

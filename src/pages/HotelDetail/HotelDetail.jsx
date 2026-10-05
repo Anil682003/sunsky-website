@@ -15,6 +15,7 @@ import { groupRoomsByBoard, boardCount, NO_BOARD_LABEL } from '../../utils/roomB
 import { nightsToDays, stayDays, packageTravelDays } from '../../utils/durations';
 import { trackViewItem } from '../../analytics';
 import { countryName } from '../../utils/countryName';
+import { useSeoHotelCode } from '../SeoLanding/seoHotelCode';
 import { rateDetails, boardInfo, decodeEntities } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS, dedupeFares,
@@ -1627,7 +1628,18 @@ function HeroPhoto({ src, seed, onFail, ...rest }) {
 
 export default function HotelDetail() {
   const { t } = useTranslation('hotelDetail');
-  const { hotelCode } = useParams();
+  /**
+   * Two routes reach this page and only one of them has the code in the URL.
+   *
+   * /hotel/:hotelCode is the original handle and still supplies it as a param. The permanent
+   * SEO URL /hotel/turkije/antalya/monart-city (SEO Master §5) ends in a NAME slug, so
+   * `SeoLanding` resolves that slug to a code server-side and provides it through context.
+   * Nothing else about this page changes: it is the same page at a readable address, which
+   * is what §8's "maximum one canonical hotel SEO page" requires.
+   */
+  const { hotelCode: paramHotelCode } = useParams();
+  const seoHotelCode = useSeoHotelCode();
+  const hotelCode = paramHotelCode || seoHotelCode;
   const { state } = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();

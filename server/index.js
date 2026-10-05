@@ -32,7 +32,7 @@ import { hotelImage } from '../src/utils/hotelImage.js';
 import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
 import {
   robotsTxt, sitemapXml, isKnownRoute, STATIC_SITEMAP_PATHS,
-  resolveSeoPage, seoHeadTags, seoSitemapPaths,
+  resolveSeoPage, seoHeadTags, seoSitemapPaths, canonicalForHotel,
 } from './seo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -377,7 +377,14 @@ const server = http.createServer(async (req, res) => {
       const usable = rec || (cached && Date.now() - cached.at < TTL_MS ? cached.rec : null);
       if (usable || isCrawler) {
         const shared = `${SITE_ORIGIN}${pathname}${url.search}`;
-        const canonical = `${SITE_ORIGIN}${pathname}`;
+        /* The canonical points at the READABLE URL when the hotel has one.
+           §8 allows one canonical page per Hotelbeds code, and
+           /hotel/turkije/antalya/monart-city now serves the same page as /hotel/1672. This
+           tells Google which of the two to keep without redirecting the code URLs already
+           sitting in shares, favourites and emails. Falls back to self-canonical whenever
+           the readable URL cannot be built or the admin API has no answer. */
+        const readable = await canonicalForHotel(ADMIN_API, code);
+        const canonical = `${SITE_ORIGIN}${readable || pathname}`;
         const preview = hotelPreview(code, usable, url.searchParams);
         await sendHtml(req, res, stamp(html, preview, shared, canonical), req.method);
         return;
