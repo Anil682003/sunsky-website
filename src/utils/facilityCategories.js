@@ -44,6 +44,18 @@ const EXCLUDED_NAMES = /^(check-?in hour|check-?out hour|smoke detector|mobile p
 // ("Kids’ club", "Solarium "). Normalise so regexes and de-duplication both behave.
 export const cleanName = (raw) => String(raw || '').replace(/’/g, "'").replace(/\s+/g, ' ').trim();
 
+/**
+ * The name to SHOW for a facility row, as against the English one everything here matches on.
+ *
+ * The admin returns `facilityName` (English) and `facilityNameNl` side by side. Only the
+ * display label switches: swapping the English out would quietly break categorisation,
+ * exclusions and the popular-facility ladder, which are all English regexes. A facility
+ * Hotelbeds has no Dutch for keeps its English name rather than disappearing.
+ */
+export const displayName = (f, lang) =>
+  (String(lang || '').slice(0, 2).toLowerCase() === 'nl' ? cleanName(f?.facilityNameNl) : '') ||
+  cleanName(f?.facilityName);
+
 // `number` is a count only in these groups. In Location it is a year or a room total, and in
 // "Things to keep in mind" it is a threshold (Minimum check-in age = 18) — printing either as
 // "(18)" beside a facility name would read as eighteen of them.
@@ -149,7 +161,7 @@ const MIN_CARD_ITEMS = 1;
  *   categories — biggest first, with Hotel Services and Food & Drink pinned to the front
  *   total      — how many distinct amenities survived, for the subtitle
  */
-export function categoriseFacilities(facilities) {
+export function categoriseFacilities(facilities, lang) {
   if (!Array.isArray(facilities) || !facilities.length) return { categories: [], total: 0 };
 
   const buckets = new Map();
@@ -157,7 +169,9 @@ export function categoriseFacilities(facilities) {
 
   for (const f of facilities) {
     const group = String(f?.facilityGroupName || '');
+    // English throughout the matching below; `label` is the only thing the traveller sees.
     const name = cleanName(f?.facilityName);
+    const label = displayName(f, lang);
     // A row with no name renders as a bare tick — ~0.6% of the catalogue does this.
     if (!name || EXCLUDED_GROUPS.has(group) || EXCLUDED_NAMES.test(name)) continue;
     // The same amenity can arrive twice under different codes.
@@ -168,7 +182,10 @@ export function categoriseFacilities(facilities) {
     const cat = CATEGORIES.find((c) => c.match(group, name));
     if (!buckets.has(cat.key)) buckets.set(cat.key, []);
     buckets.get(cat.key).push({
-      name,
+      // `key` stays English so React keys and sorting are stable across a language switch,
+      // and so two facilities sharing one Dutch translation cannot collide.
+      key: name,
+      name: label || name,
       isPaid: !!f?.isPaid,
       count: COUNTABLE_GROUPS.has(group) && Number(f?.number) > 1 ? Number(f.number) : null,
     });
@@ -256,15 +273,15 @@ export function popularFacilities(facilities) {
 // What the supplier measures distance to, in the order a traveller cares about it. Anything not
 // listed here is dropped rather than guessed at.
 const NEARBY_ORDER = [
-  { re: /^beach$/i, label: 'Beach', icon: 'beach' },
-  { re: /^city centre$/i, label: 'City centre', icon: 'city' },
-  { re: /^entertainment area$/i, label: 'Entertainment area', icon: 'entertainment' },
-  { re: /^harbour$/i, label: 'Harbour', icon: 'harbour' },
-  { re: /^nearest bus ?\/ ?metro stop$/i, label: 'Bus / metro stop', icon: 'bus' },
-  { re: /^bus\/train station$/i, label: 'Bus / train station', icon: 'bus' },
-  { re: /^golf course$/i, label: 'Golf course', icon: 'golf' },
-  { re: /^ski slopes$/i, label: 'Ski slopes', icon: 'ski' },
-  { re: /^airport$/i, label: 'Airport', icon: 'plane' },
+  { re: /^beach$/i, key: 'beach', label: 'Beach', icon: 'beach' },
+  { re: /^city centre$/i, key: 'cityCentre', label: 'City centre', icon: 'city' },
+  { re: /^entertainment area$/i, key: 'entertainment', label: 'Entertainment area', icon: 'entertainment' },
+  { re: /^harbour$/i, key: 'harbour', label: 'Harbour', icon: 'harbour' },
+  { re: /^nearest bus ?\/ ?metro stop$/i, key: 'busMetro', label: 'Bus / metro stop', icon: 'bus' },
+  { re: /^bus\/train station$/i, key: 'busTrain', label: 'Bus / train station', icon: 'bus' },
+  { re: /^golf course$/i, key: 'golf', label: 'Golf course', icon: 'golf' },
+  { re: /^ski slopes$/i, key: 'skiSlopes', label: 'Ski slopes', icon: 'ski' },
+  { re: /^airport$/i, key: 'airport', label: 'Airport', icon: 'plane' },
 ];
 
 // Distances arrive in metres. A handful of rows are plainly wrong (a station "1 m" away, an
@@ -290,7 +307,7 @@ export function nearbyDistances(facilities) {
     if (!name || !Number.isFinite(metres) || metres < MIN_METRES || metres > MAX_METRES) continue;
     const spec = NEARBY_ORDER.find((n) => n.re.test(name));
     if (!spec || out.some((o) => o.label === spec.label)) continue;
-    out.push({ label: spec.label, icon: spec.icon, metres, text: formatDistance(metres) });
+    out.push({ key: spec.key, label: spec.label, icon: spec.icon, metres, text: formatDistance(metres) });
   }
 
   return out.sort((a, b) => a.metres - b.metres);
@@ -320,4 +337,4 @@ export function glanceFacts(facilities) {
   return out;
 }
 
-export default { categoriseFacilities, popularFacilities, nearbyDistances, glanceFacts, formatDistance, cleanName };
+export default { categoriseFacilities, popularFacilities, nearbyDistances, glanceFacts, formatDistance, cleanName, displayName };

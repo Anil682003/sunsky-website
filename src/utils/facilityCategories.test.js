@@ -230,3 +230,66 @@ describe('glanceFacts', () => {
     expect(glanceFacts([])).toEqual({});
   });
 });
+
+// ── Dutch display names ──────────────────────────────────────────────────────
+// The admin returns facilityName (English) and facilityNameNl side by side. Only the label a
+// traveller reads may switch: every category rule, exclusion and popular-facility regex in this
+// file matches on the English, so swapping it would reshuffle the whole tab silently.
+describe('Dutch facility names', () => {
+  const bilingual = [
+    ...['24-hour reception', 'Hotel safe', 'Concierge', 'Room service', 'Lift access']
+      .map((n, i) => f('Facilities', n, { facilityNameNl: `NL-${i}` })),
+    ...['Restaurant', 'Bar', 'Café'].map((n, i) => f('Catering', n, { facilityNameNl: `NL-cat-${i}` })),
+    ...['Buffet dinner', 'Breakfast buffet'].map((n, i) => f('Meals', n, { facilityNameNl: `NL-meal-${i}` })),
+  ];
+
+  const names = (res) => res.categories.flatMap((c) => c.items.map((i) => i.name));
+
+  it('shows the Dutch name to a Dutch reader', () => {
+    expect(names(categoriseFacilities(bilingual, 'nl'))).toContain('NL-0');
+  });
+
+  it('shows the English name to an English reader', () => {
+    const out = names(categoriseFacilities(bilingual, 'en'));
+    expect(out).toContain('24-hour reception');
+    expect(out).not.toContain('NL-0');
+  });
+
+  it('treats a regional tag as its base language', () => {
+    expect(names(categoriseFacilities(bilingual, 'nl-BE'))).toContain('NL-0');
+  });
+
+  it('falls back to English when a facility has no Dutch name', () => {
+    const mixed = [...bilingual, f('Facilities', 'Ironing service')];
+    expect(names(categoriseFacilities(mixed, 'nl'))).toContain('Ironing service');
+  });
+
+  // The whole point of keeping the English: the categories must not move when the language does.
+  it('puts facilities in the same categories in both languages', () => {
+    const en = categoriseFacilities(bilingual, 'en').categories.map((c) => [c.key, c.items.length]);
+    const nl = categoriseFacilities(bilingual, 'nl').categories.map((c) => [c.key, c.items.length]);
+    expect(nl).toEqual(en);
+  });
+
+  // The same facilities, keyed the same way. Order legitimately differs: each list is sorted by
+  // the name actually shown, so a Dutch list reads alphabetically in Dutch.
+  it('keeps a stable English key so a language switch does not remount rows', () => {
+    const keys = (lang) => categoriseFacilities(bilingual, lang)
+      .categories.flatMap((c) => c.items.map((i) => i.key)).sort();
+    expect(keys('nl')).toEqual(keys('en'));
+    expect(keys('nl')).toContain('24-hour reception');
+  });
+
+  it('still excludes what the English rules exclude, whatever the Dutch says', () => {
+    const excluded = [...bilingual, f('Hotel type', 'hotel', { facilityNameNl: 'hotel' })];
+    expect(names(categoriseFacilities(excluded, 'nl'))).not.toContain('hotel');
+  });
+
+  it('gives each nearby place a stable key for translation', () => {
+    const out = nearbyDistances([
+      f('Distances (in meters)', 'Beach', { distance: 300 }),
+      f('Distances (in meters)', 'Airport', { distance: 24000 }),
+    ]);
+    expect(out.map((n) => n.key)).toEqual(['beach', 'airport']);
+  });
+});

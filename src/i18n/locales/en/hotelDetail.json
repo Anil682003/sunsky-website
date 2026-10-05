@@ -261,7 +261,18 @@
       "mapOf": "Map of {{hotelName}}",
       "nearby": "Nearby",
       "openLargerMap": "Open larger map",
-      "title": "Location & Surroundings"
+      "title": "Location & Surroundings",
+      "nearbyPlace": {
+        "beach": "Beach",
+        "cityCentre": "City centre",
+        "entertainment": "Entertainment area",
+        "harbour": "Harbour",
+        "busMetro": "Bus / metro stop",
+        "busTrain": "Bus / train station",
+        "golf": "Golf course",
+        "skiSlopes": "Ski slopes",
+        "airport": "Airport"
+      }
     },
     "photoNOf": "Photo {{number}} of {{hotelName}}",
     "rooms": {

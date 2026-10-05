@@ -261,7 +261,18 @@
       "mapOf": "Kaart van {{hotelName}}",
       "nearby": "In de buurt",
       "openLargerMap": "Grotere kaart openen",
-      "title": "Ligging & Omgeving"
+      "title": "Ligging & Omgeving",
+      "nearbyPlace": {
+        "beach": "Strand",
+        "cityCentre": "Centrum",
+        "entertainment": "Uitgaansgebied",
+        "harbour": "Haven",
+        "busMetro": "Bus- / metrohalte",
+        "busTrain": "Bus- / treinstation",
+        "golf": "Golfbaan",
+        "skiSlopes": "Skipistes",
+        "airport": "Luchthaven"
+      }
     },
     "photoNOf": "Foto {{number}} van {{hotelName}}",
     "rooms": {

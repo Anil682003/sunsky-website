@@ -1981,7 +1981,7 @@ export default function HotelDetail() {
   // into travel-shaped categories. All four are pure functions of the same array.
   const rawFacilities = info?.facilities;
   const { categories: facCategories, total: facTotal } = useMemo(
-    () => categoriseFacilities(rawFacilities), [rawFacilities],
+    () => categoriseFacilities(rawFacilities, i18n.language), [rawFacilities, i18n.language],
   );
   const popularFacs = useMemo(() => popularFacilities(rawFacilities), [rawFacilities]);
   const nearby = useMemo(() => nearbyDistances(rawFacilities), [rawFacilities]);
@@ -4840,9 +4840,9 @@ export default function HotelDetail() {
                           <div className="hi-nearby">
                             <div className="hi-nearby-title">{t('info.location.nearby', 'Nearby')}</div>
                             {nearby.map((n) => (
-                              <div className="hi-nearby-row" key={n.label}>
+                              <div className="hi-nearby-row" key={n.key || n.label}>
                                 <span className="hi-nearby-icon">{FAC_SVG[n.icon] || FAC_SVG.check}</span>
-                                <span className="hi-nearby-label">{n.label}</span>
+                                <span className="hi-nearby-label">{t(`info.location.nearbyPlace.${n.key}`, n.label)}</span>
                                 <span className="hi-nearby-dist">{n.text}</span>
                               </div>
                             ))}
@@ -5224,7 +5224,7 @@ export default function HotelDetail() {
                                 </div>
                                 <ul className="hf-list">
                                   {items.map((item) => (
-                                    <li className="hf-item" key={item.name}>
+                                    <li className="hf-item" key={item.key || item.name}>
                                       <span className="hf-item-tick">{FAC_SVG.check}</span>
                                       <span className="hf-item-name">
                                         {item.name}{item.count ? ` (${item.count})` : ''}
