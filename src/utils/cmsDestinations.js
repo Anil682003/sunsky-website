@@ -5,8 +5,10 @@
 // rather than in either page: the /holidays/:slug grid, and the expandable slip
 // on the homepage Categories card.
 
-// Mirrors the CMS and backend caps.
-export const MAX_DESTS = 6;
+// Mirrors the CMS and backend caps (dashboard MAX_FEATURED_DESTINATIONS and the API's
+// normalizeFeaturedDestinations, which slices on read). All three move together: 24 clears the
+// largest real holiday type, which links 21 countries.
+export const MAX_DESTS = 24;
 
 // CMS destinations are free-form JSON — keep only entries that can actually
 // build a search link, so a half-filled dashboard row never renders a dead card.
