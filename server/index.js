@@ -32,7 +32,7 @@ import { hotelImage } from '../src/utils/hotelImage.js';
 import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
 import {
   robotsTxt, sitemapXml, isKnownRoute, STATIC_SITEMAP_PATHS,
-  resolveSeoPage, seoHeadTags, seoSitemapPaths, canonicalForHotel,
+  resolveSeoPage, seoHeadTags, seoSitemapPaths, canonicalForHotel, organizationScript,
 } from './seo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -49,6 +49,12 @@ const CACHE_API = (process.env.VITE_CACHE_API_URL || 'https://cache.holidaybooki
  * ends up in Google. Set SITE_INDEXABLE=false on anything that is not production.
  */
 const SITE_INDEXABLE = String(process.env.SITE_INDEXABLE ?? 'true').toLowerCase() !== 'false';
+/**
+ * The Trustpilot profile the review widget points at, reused as the Organization's sameAs.
+ * Same variable the bundle is built with, so the structured data and the widget can never
+ * name two different businesses.
+ */
+const TRUSTPILOT_DOMAIN = (process.env.VITE_TRUSTPILOT_DOMAIN || 'sunsky.be').trim();
 /**
  * The admin API, for resolving permanent SEO pages server-side.
  *
@@ -114,7 +120,20 @@ async function shell() {
   const file = path.join(DIST, 'index.html');
   const st = await fsp.stat(file);
   if (st.mtimeMs !== shellCache.mtime) {
-    shellCache = { mtime: st.mtimeMs, html: await fsp.readFile(file, 'utf8') };
+    const raw = await fsp.readFile(file, 'utf8');
+    /* Organization structured data (SEO Master §15) goes in HERE, once per build rather than
+       once per request. It describes the business, not the page, so it belongs on every HTML
+       response the server makes, and it costs nothing because it is baked into the cached
+       shell alongside the rest of <head>.
+       Not in index.html itself: the data comes from SUNSKY's legal notices and belongs with
+       the other server-side SEO concerns in seo.js, where the comment explaining the source
+       can live next to it. It is inert JSON-LD, not a script that runs, so the standing rule
+       about third-party tags in index.html does not apply either way. */
+    const html = raw.replace(
+      /[ \t]*<\/head>/i,
+      `${organizationScript(SITE_ORIGIN, { trustpilotDomain: TRUSTPILOT_DOMAIN })}\n  </head>`,
+    );
+    shellCache = { mtime: st.mtimeMs, html };
   }
   return shellCache.html;
 }

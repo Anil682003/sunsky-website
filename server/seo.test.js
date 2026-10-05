@@ -4,6 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   APP_ROUTES, isKnownRoute, robotsTxt, sitemapXml, STATIC_SITEMAP_PATHS,
+  organizationJsonLd, organizationScript,
 } from './seo.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -215,5 +216,85 @@ describe('sitemapXml (SEO Master §12)', () => {
   it('does not double the slash when the origin has a trailing one', () => {
     expect(sitemapXml('https://holidaybooking.be/', ['/about']))
       .toContain('<loc>https://holidaybooking.be/about</loc>');
+  });
+});
+
+/* ══════════════════ Organization (§15) ══════════════════ */
+
+describe('organizationJsonLd (SEO Master §15)', () => {
+  const org = organizationJsonLd(ORIGIN, { trustpilotDomain: 'sunsky.be' });
+
+  it('is the type §15 asks for', () => {
+    expect(org['@context']).toBe('https://schema.org');
+    // §15 lists "Organization". TravelAgency would be a valid, more specific subtype, but
+    // broadening the type is a scope decision rather than a developer one.
+    expect(org['@type']).toBe('Organization');
+  });
+
+  /**
+   * THE POINT OF THIS SUITE. Every value is taken from SUNSKY's own published legal notices.
+   * Structured data that disagrees with a company's own legal page is worse than none: it is
+   * a machine-readable contradiction, and it is the kind of thing that drifts silently when
+   * somebody edits one and forgets the other.
+   */
+  it('matches the registered details on the legal notices page', () => {
+    expect(org.legalName).toBe('SUNSKY Belgium BV');
+    expect(org.vatID).toBe('BE0544.295.209');
+    expect(org.taxID).toBe('0544.295.209');
+    expect(org.email).toBe('info@sunsky.be');
+    expect(org.address).toMatchObject({
+      '@type': 'PostalAddress',
+      streetAddress: 'Koolmijnlaan 143 bus 11',
+      postalCode: '3550',
+      addressLocality: 'Heusden-Zolder',
+      addressCountry: 'BE',
+    });
+  });
+
+  it('gives the phone number in E.164, which is what schema.org expects', () => {
+    // "+32 11 57 44 27" as printed; spaces are presentation, not part of the number.
+    expect(org.telephone).toBe('+3211574427');
+    expect(org.telephone).toMatch(/^\+[1-9]\d{6,14}$/);
+  });
+
+  it('points url and logo at this site, not at the agency site', () => {
+    // The Organization is being described ON holidaybooking.be; sunsky.be is a sameAs.
+    expect(org.url).toBe(`${ORIGIN}/`);
+    expect(org.logo).toBe(`${ORIGIN}/sunsky-icon.png`);
+    expect(org.sameAs).toContain('https://www.sunsky.be');
+  });
+
+  it('takes the Trustpilot profile from the same domain the widget uses', () => {
+    // So the structured data and the review widget can never name two different businesses.
+    expect(org.sameAs).toContain('https://www.trustpilot.com/review/sunsky.be');
+    const other = organizationJsonLd(ORIGIN, { trustpilotDomain: 'example.com' });
+    expect(other.sameAs).toContain('https://www.trustpilot.com/review/example.com');
+  });
+
+  it('omits the Trustpilot profile entirely when no domain is configured', () => {
+    const bare = organizationJsonLd(ORIGIN, {});
+    expect(bare.sameAs).toEqual(['https://www.sunsky.be']);
+  });
+});
+
+describe('organizationScript', () => {
+  it('produces a parseable ld+json block', () => {
+    const html = organizationScript(ORIGIN, { trustpilotDomain: 'sunsky.be' });
+    expect(html).toContain('<script type="application/ld+json">');
+    const json = html.replace(/^[\s\S]*?<script type="application\/ld\+json">/, '')
+      .replace(/<\/script>[\s\S]*$/, '')
+      .replace(/\u003c/g, '<');
+    expect(() => JSON.parse(json)).not.toThrow();
+    expect(JSON.parse(json).legalName).toBe('SUNSKY Belgium BV');
+  });
+
+  /**
+   * A `<` inside JSON-LD would end the script element early and spill the rest of the block
+   * into the document as markup. None of the business details contain one today; this is the
+   * guard for the day somebody edits ORG and pastes in a tag.
+   */
+  it('escapes < so the block cannot break out of the script element', () => {
+    expect(organizationScript(ORIGIN, { trustpilotDomain: 'a<b' })).not.toMatch(/[^\u0036]<(?!\/?script)/);
+    expect(organizationScript(ORIGIN, { trustpilotDomain: 'a<b' })).toContain('\u003c');
   });
 });

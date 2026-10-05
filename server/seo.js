@@ -289,6 +289,95 @@ export function seoHeadTags(page, origin, esc) {
   return out.join('\n');
 }
 
+/* ────────────────────────── Organization (§15) ────────────────────────── */
+
+/**
+ * Who SUNSKY is, as structured data on every page.
+ *
+ * SEO Master §15 lists Organization as in scope for Phase 1. It is site-wide rather than an
+ * SEO-page feature, because it describes the business and not a page, and it is emitted
+ * SERVER-SIDE for the same reason every other tag here is: a crawler never runs React.
+ *
+ * EVERY VALUE BELOW IS TAKEN FROM SUNSKY'S OWN PUBLISHED LEGAL NOTICES, not from anywhere
+ * else and certainly not invented. The source is the CMS static page "Wettelijke
+ * vermeldingen" (/p/about-sunsky#Wettelijke-vermeldingen) and the Bijzondere
+ * Reisvoorwaarden, both of which carry the registered name, address, company number and
+ * contact details. Structured data that disagrees with a company's own legal page is worse
+ * than none: it is a machine-readable contradiction.
+ *
+ * THAT ALSO MAKES THIS A DRIFT RISK, so it is stated plainly: if the legal page changes,
+ * change this with it. The alternative, parsing the address out of a Markdown body at
+ * runtime, would break the first time somebody reformatted a paragraph.
+ *
+ * `@type` is Organization exactly as §15 says. TravelAgency is a valid, more specific
+ * subtype and would be a reasonable upgrade, but it is a scope decision rather than a
+ * developer one.
+ */
+const ORG = Object.freeze({
+  legalName: 'SUNSKY Belgium BV',
+  name: 'SUNSKY',
+  street: 'Koolmijnlaan 143 bus 11',
+  postalCode: '3550',
+  city: 'Heusden-Zolder',
+  country: 'BE',
+  vatID: 'BE0544.295.209',
+  taxID: '0544.295.209',
+  email: 'info@sunsky.be',
+  // E.164, which is what schema.org asks for, from "+32 11 57 44 27".
+  telephone: '+3211574427',
+  // The agency's own site, named as "Website" on the legal page. The Trustpilot profile is
+  // added from the same domain the review widget is configured with, so the two can never
+  // point at different businesses.
+  site: 'https://www.sunsky.be',
+});
+
+export function organizationJsonLd(origin, { trustpilotDomain = '' } = {}) {
+  const sameAs = [ORG.site];
+  const tp = String(trustpilotDomain || '').trim();
+  if (tp) sameAs.push(`https://www.trustpilot.com/review/${tp}`);
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Organization',
+    name: ORG.name,
+    legalName: ORG.legalName,
+    url: `${origin}/`,
+    logo: `${origin}/sunsky-icon.png`,
+    email: ORG.email,
+    telephone: ORG.telephone,
+    vatID: ORG.vatID,
+    taxID: ORG.taxID,
+    address: {
+      '@type': 'PostalAddress',
+      streetAddress: ORG.street,
+      postalCode: ORG.postalCode,
+      addressLocality: ORG.city,
+      addressCountry: ORG.country,
+    },
+    contactPoint: [{
+      '@type': 'ContactPoint',
+      contactType: 'customer service',
+      telephone: ORG.telephone,
+      email: ORG.email,
+      // The contractual language of the agency's own terms, and the site's native language.
+      availableLanguage: ['nl', 'en'],
+    }],
+    sameAs,
+  };
+}
+
+/**
+ * The Organization block, ready to splice into <head>.
+ *
+ * JSON.stringify escapes the values, and `</script>` cannot appear in any of them since they
+ * are all plain business details; the `<` guard is belt and braces for the day somebody edits
+ * ORG and pastes in markup.
+ */
+export function organizationScript(origin, opts) {
+  const json = JSON.stringify(organizationJsonLd(origin, opts)).replace(/</g, '\\u003c');
+  return `    <script type="application/ld+json">${json}</script>`;
+}
+
 /* ────────────────────────── sitemap.xml ────────────────────────── */
 
 const xmlEscape = (s) => String(s)
