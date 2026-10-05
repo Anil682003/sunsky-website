@@ -146,8 +146,9 @@ describe('the settings screen', () => {
     await openSettings();
     expect(screen.getByText('Noodzakelijke cookies')).toBeInTheDocument();
     expect(screen.getByText('Altijd actief')).toBeInTheDocument();
-    // One toggle only, and it is not the necessary one.
-    expect(screen.getAllByRole('checkbox')).toHaveLength(1);
+    // One toggle per OPTIONAL category in use (analytics, marketing, external media) and
+    // none for the necessary one, which is not a choice.
+    expect(screen.getAllByRole('checkbox')).toHaveLength(3);
   });
 
   it('starts every optional category off', async () => {
@@ -157,11 +158,16 @@ describe('the settings screen', () => {
 
   /* "Do not display an empty category." The site has no analytics, tag manager or marketing
      pixel, so those three categories must not be shown to anybody. */
+  /**
+   * Analytics and marketing joined the list when the GTM container went live. `functional`
+   * is still dormant, and that is the assertion that keeps this test honest: the screen
+   * shows what the site USES, not every category that exists in the registry.
+   */
   it('shows only the categories the site actually uses', async () => {
     await openSettings();
     expect(screen.getByText('Externe media')).toBeInTheDocument();
-    expect(screen.queryByText('Analytische cookies')).not.toBeInTheDocument();
-    expect(screen.queryByText('Marketingcookies')).not.toBeInTheDocument();
+    expect(screen.getByText('Analytische cookies')).toBeInTheDocument();
+    expect(screen.getByText('Marketingcookies')).toBeInTheDocument();
     expect(screen.queryByText('Functionele cookies')).not.toBeInTheDocument();
   });
 
@@ -175,18 +181,38 @@ describe('the settings screen', () => {
 
   it('changes nothing until Selectie opslaan is pressed', async () => {
     await openSettings();
-    await userEvent.click(screen.getByRole('checkbox'));
+    // The toggles follow the registry order: analytics, marketing, external media.
+    const [analytics] = screen.getAllByRole('checkbox');
+    await userEvent.click(analytics);
     expect(readRecord()).toBeNull();
 
     await userEvent.click(btn('Selectie opslaan'));
-    expect(readRecord().cat.external_media).toBe(true);
+    expect(readRecord().cat.analytics).toBe(true);
   });
 
+  /**
+   * The point of a granular screen: accepting measurement must not quietly accept
+   * advertising too. Ticking analytics alone saves analytics alone.
+   */
   it('saves only what was selected', async () => {
     await openSettings();
-    // Toggle nothing, then save: a refusal by way of the settings screen.
+    const [analytics] = screen.getAllByRole('checkbox');
+    await userEvent.click(analytics);
     await userEvent.click(btn('Selectie opslaan'));
-    expect(readRecord().cat.external_media).toBe(false);
+
+    const { cat } = readRecord();
+    expect(cat.analytics).toBe(true);
+    expect(cat.marketing).toBe(false);
+    expect(cat.external_media).toBe(false);
+  });
+
+  it('saves a refusal when nothing is ticked', async () => {
+    await openSettings();
+    await userEvent.click(btn('Selectie opslaan'));
+    const { cat } = readRecord();
+    expect(cat.analytics).toBe(false);
+    expect(cat.marketing).toBe(false);
+    expect(cat.external_media).toBe(false);
   });
 });
 

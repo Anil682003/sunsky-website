@@ -147,10 +147,29 @@ describe('the purpose registry', () => {
   // an empty one. A dormant category must therefore stay out of everything the visitor is asked
   // about and everything a decision records. This fails the day somebody marks a category as in
   // use without a real service behind it.
+  /**
+   * Three in use since the GTM container went live: analytics and marketing for what the
+   * container carries, external_media for Trustpilot. `functional` stays dormant because
+   * nothing optional and non-measuring runs yet.
+   */
   it('asks about only the categories actually in use', () => {
-    expect(OPTIONAL_IN_USE.map((p) => p.key)).toEqual(['external_media']);
-    expect(Object.keys(allCategories())).toEqual(['external_media']);
-    expect(Object.keys(emptyCategories())).toEqual(['external_media']);
+    expect(OPTIONAL_IN_USE.map((p) => p.key)).toEqual(['analytics', 'marketing', 'external_media']);
+    expect(Object.keys(allCategories())).toEqual(['analytics', 'marketing', 'external_media']);
+    expect(Object.keys(emptyCategories())).toEqual(['analytics', 'marketing', 'external_media']);
+  });
+
+  /**
+   * Analytics and marketing are asked SEPARATELY, and that is not a formality: one is
+   * statistics and the other is advertising, and a visitor is entitled to accept the first
+   * without the second. Collapsing them into one toggle would make the granular screen a lie.
+   */
+  it('keeps analytics and marketing as separate choices', () => {
+    const keys = OPTIONAL_IN_USE.map((p) => p.key);
+    expect(keys).toContain('analytics');
+    expect(keys).toContain('marketing');
+    const granular = buildRecord('granular', { analytics: true, marketing: false });
+    expect(granular.cat.analytics).toBe(true);
+    expect(granular.cat.marketing).toBe(false);
   });
 
   // The other four are registered but dormant, so adding analytics later is a flag rather than

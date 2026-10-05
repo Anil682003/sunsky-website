@@ -123,3 +123,63 @@ describe('a visitor who has not agreed to anything', () => {
     expect(document.cookie).not.toMatch(/sunsky_consent/);
   });
 });
+
+/**
+ * THE GUARD THAT MATTERS NOW THAT A REAL CONTAINER EXISTS.
+ *
+ * The client's instruction was to install GTM the standard way: script high in <head>,
+ * noscript after <body>, site-wide. Done literally that loads Google for every visitor on
+ * first paint, before anyone has been asked anything, which is what this file exists to
+ * prevent and what the Belgian APD guidance behind `consentStore.js` forbids.
+ *
+ * So the container is injected at runtime after consent instead. This proves it: the real
+ * container id is forced on, and nothing from Google may still reach the page.
+ */
+vi.mock('../analytics/config', async (importOriginal) => ({
+  ...(await importOriginal()),
+  GTM_CONTAINER_ID: 'GTM-5S2JNLWZ',
+  GTM_ENABLED: true,
+  GTM_SCRIPT_URL: 'https://www.googletagmanager.com/gtm.js?id=GTM-5S2JNLWZ',
+  TRACKING_ENV: 'production',
+}));
+
+describe('a visitor who has not agreed, with GTM configured', () => {
+  it('gets no Google Tag Manager on the page', async () => {
+    const { default: Analytics } = await import('../analytics/Analytics');
+    render(
+      <MemoryRouter>
+        <ConsentProvider>
+          <CookieBanner />
+          <Analytics />
+        </ConsentProvider>
+      </MemoryRouter>,
+    );
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(document.querySelectorAll('script[src*="googletagmanager"]')).toHaveLength(0);
+    expect(document.querySelectorAll('iframe[src*="googletagmanager"]')).toHaveLength(0);
+    expect(foreignNodes()).toEqual([]);
+  });
+
+  /**
+   * Consent Mode's denied defaults DO belong on the page before consent: they are how Google
+   * is told permission is absent, they set no cookie and make no request, and they must be
+   * queued before the container ever boots.
+   */
+  it('still establishes the denied Consent Mode defaults', async () => {
+    const { default: Analytics } = await import('../analytics/Analytics');
+    render(
+      <MemoryRouter>
+        <ConsentProvider>
+          <Analytics />
+        </ConsentProvider>
+      </MemoryRouter>,
+    );
+    await new Promise((r) => setTimeout(r, 20));
+
+    const [cmd, action, payload] = window.dataLayer[0];
+    expect([cmd, action]).toEqual(['consent', 'default']);
+    expect(payload.analytics_storage).toBe('denied');
+    expect(payload.ad_storage).toBe('denied');
+  });
+});
