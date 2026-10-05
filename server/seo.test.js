@@ -4,7 +4,7 @@ import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import {
   APP_ROUTES, isKnownRoute, robotsTxt, sitemapXml, STATIC_SITEMAP_PATHS,
-  organizationJsonLd, organizationScript,
+  organizationJsonLd, organizationScript, siteVerificationTag,
 } from './seo.js';
 
 const here = path.dirname(fileURLToPath(import.meta.url));
@@ -296,5 +296,34 @@ describe('organizationScript', () => {
   it('escapes < so the block cannot break out of the script element', () => {
     expect(organizationScript(ORIGIN, { trustpilotDomain: 'a<b' })).not.toMatch(/[^\u0036]<(?!\/?script)/);
     expect(organizationScript(ORIGIN, { trustpilotDomain: 'a<b' })).toContain('\u003c');
+  });
+});
+
+/* ══════════════════ Search Console verification ══════════════════ */
+
+describe('siteVerificationTag', () => {
+  it('emits the meta tag for a real token', () => {
+    const t = 'AbCdEf1234567890_-xyzABCDEF';
+    expect(siteVerificationTag(t)).toBe(`    <meta name="google-site-verification" content="${t}">`);
+  });
+
+  it('emits nothing when unconfigured, so the tag never appears empty', () => {
+    expect(siteVerificationTag('')).toBe('');
+    expect(siteVerificationTag(undefined)).toBe('');
+    expect(siteVerificationTag(null)).toBe('');
+    expect(siteVerificationTag('   ')).toBe('');
+  });
+
+  /**
+   * The token comes from an environment variable and lands inside an HTML attribute in
+   * <head>. A quote or an angle bracket would break out of it, so anything that is not
+   * token-shaped is refused rather than escaped: a malformed token cannot verify anything
+   * anyway, so there is nothing to salvage.
+   */
+  it('refuses a token that is not token-shaped', () => {
+    expect(siteVerificationTag('short')).toBe('');
+    expect(siteVerificationTag('has spaces in it and is long enough')).toBe('');
+    expect(siteVerificationTag('abcdefghij1234567890"><script>')).toBe('');
+    expect(siteVerificationTag('x'.repeat(200))).toBe('');
   });
 });

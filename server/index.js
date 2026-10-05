@@ -32,7 +32,7 @@ import { hotelImage } from '../src/utils/hotelImage.js';
 import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
 import {
   robotsTxt, sitemapXml, isKnownRoute, STATIC_SITEMAP_PATHS,
-  resolveSeoPage, seoHeadTags, seoSitemapPaths, canonicalForHotel, organizationScript,
+  resolveSeoPage, seoHeadTags, seoSitemapPaths, canonicalForHotel, organizationScript, siteVerificationTag,
 } from './seo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -129,10 +129,11 @@ async function shell() {
        the other server-side SEO concerns in seo.js, where the comment explaining the source
        can live next to it. It is inert JSON-LD, not a script that runs, so the standing rule
        about third-party tags in index.html does not apply either way. */
-    const html = raw.replace(
-      /[ \t]*<\/head>/i,
-      `${organizationScript(SITE_ORIGIN, { trustpilotDomain: TRUSTPILOT_DOMAIN })}\n  </head>`,
-    );
+    const head = [
+      siteVerificationTag(process.env.GOOGLE_SITE_VERIFICATION),
+      organizationScript(SITE_ORIGIN, { trustpilotDomain: TRUSTPILOT_DOMAIN }),
+    ].filter(Boolean).join('\n');
+    const html = raw.replace(/[ \t]*<\/head>/i, `${head}\n  </head>`);
     shellCache = { mtime: st.mtimeMs, html };
   }
   return shellCache.html;

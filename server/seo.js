@@ -378,6 +378,31 @@ export function organizationScript(origin, opts) {
   return `    <script type="application/ld+json">${json}</script>`;
 }
 
+/* ────────────────────────── Search Console verification ────────────────────────── */
+
+/**
+ * The Google Search Console ownership meta tag, or '' when none is configured.
+ *
+ * SEO Master §20's launch gate asks for a "Search Console property + sitemap submission".
+ * Google offers several proofs of ownership; this supports the HTML-tag one, which is the
+ * only method that needs anything from the application.
+ *
+ * A DNS TXT record is the better choice where it is available, because it verifies the
+ * DOMAIN and so covers www, apex, http and https in a single property, which is exactly the
+ * split this site has. That method needs nothing here at all. This exists for the case where
+ * nobody can reach the registrar.
+ *
+ * The token is validated rather than interpolated blindly: it arrives from an environment
+ * variable, lands in <head>, and `"` or `>` in it would break out of the attribute.
+ */
+export function siteVerificationTag(token) {
+  const t = String(token ?? '').trim();
+  if (!t) return '';
+  // Google's tokens are URL-safe base64-ish: letters, digits, dash, underscore.
+  if (!/^[A-Za-z0-9_-]{20,100}$/.test(t)) return '';
+  return `    <meta name="google-site-verification" content="${t}">`;
+}
+
 /* ────────────────────────── sitemap.xml ────────────────────────── */
 
 const xmlEscape = (s) => String(s)

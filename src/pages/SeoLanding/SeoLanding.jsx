@@ -22,6 +22,21 @@ import SeoOffers from './SeoOffers';
  * call to action hands the entity to the existing Results page and that engine does the
  * work (§38: "These components must reuse the existing commercial engine").
  */
+/**
+ * The site's ONE canonical origin.
+ *
+ * NEVER `window.location.origin`, which is whatever hostname the visitor happened to use.
+ * www.holidaybooking.be currently serves the same site as the apex, and building the
+ * canonical from the current origin made every www page declare ITSELF canonical: the exact
+ * duplicate-content split a canonical exists to resolve, and it silently overwrote the
+ * correct apex canonical the server had already rendered into the HTML.
+ *
+ * Mirrors SITE_ORIGIN in server/index.js. Both are this site's own configuration and belong
+ * in the same .env, so they move together.
+ */
+const SITE_ORIGIN = (import.meta.env?.VITE_SITE_ORIGIN || 'https://holidaybooking.be')
+  .replace(/\/+$/, '');
+
 export default function SeoLanding() {
   const { pathname } = useLocation();
   const navigate = useNavigate();
@@ -100,7 +115,7 @@ export default function SeoLanding() {
       const l = upsert('link[rel="canonical"]', () => {
         const e = document.createElement('link'); e.setAttribute('rel', 'canonical'); return e;
       });
-      l.setAttribute('href', `${window.location.origin}${page.canonicalPath}`);
+      l.setAttribute('href', `${SITE_ORIGIN}${page.canonicalPath}`);
     }
     if (page.robots && page.robots !== 'index,follow') {
       const r = upsert('meta[name="robots"]', () => {
@@ -326,7 +341,7 @@ const lastCrumbLabel = (page) => page?.breadcrumbs?.[page.breadcrumbs.length - 1
  * changes, which is the distinction §12 draws for sitemap lastmod.
  */
 function articleJsonLd(page) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const origin = SITE_ORIGIN;
   const org = { '@type': 'Organization', name: 'SUNSKY' };
   return {
     '@context': 'https://schema.org',
@@ -346,7 +361,7 @@ function articleJsonLd(page) {
 
 /** BreadcrumbList, which §15 lists as in scope for Phase 1. */
 function breadcrumbJsonLd(page) {
-  const origin = typeof window !== 'undefined' ? window.location.origin : '';
+  const origin = SITE_ORIGIN;
   return {
     '@context': 'https://schema.org',
     '@type': 'BreadcrumbList',
