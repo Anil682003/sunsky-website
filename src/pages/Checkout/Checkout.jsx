@@ -51,6 +51,7 @@ const ICON = {
   users:  <S><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></S>,
   shield: <S><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></S>,
   shieldCheck: <S><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></S>,
+  lifebuoy: <S><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.6" /><line x1="5.6" y1="5.6" x2="9.4" y2="9.4" /><line x1="14.6" y1="14.6" x2="18.4" y2="18.4" /><line x1="18.4" y1="5.6" x2="14.6" y2="9.4" /><line x1="9.4" y1="14.6" x2="5.6" y2="18.4" /></S>,
   card:   <S><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></S>,
   lock:   <S><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></S>,
   check:  <S sw={2.5}><path d="M20 6L9 17l-5-5" /></S>,
@@ -83,14 +84,27 @@ const ICON = {
   checkCircle: <S sw={2.2}><circle cx="12" cy="12" r="9" /><path d="M8.5 12.5l2.5 2.5 4.5-5" /></S>,
   van:    <S sw={1.8}><path d="M3 17V8a1 1 0 011-1h9v10" /><path d="M13 10h4l4 4v3h-2" /><circle cx="7.5" cy="17.5" r="2" /><circle cx="17.5" cy="17.5" r="2" /><line x1="9.5" y1="17" x2="15.5" y2="17" /></S>,
   plusCircle: <S sw={2.2}><circle cx="12" cy="12" r="9" /><line x1="12" y1="8.5" x2="12" y2="15.5" /><line x1="8.5" y1="12" x2="15.5" y2="12" /></S>,
+  euro: <S sw={2.2}><path d="M16.5 6.5a6 6 0 100 11" /><line x1="4.5" y1="10" x2="12.5" y2="10" /><line x1="4.5" y1="13.5" x2="12.5" y2="13.5" /></S>,
+  infoCircle: <S sw={2.2}><circle cx="12" cy="12" r="9" /><line x1="12" y1="11" x2="12" y2="16.5" /><circle cx="12" cy="7.8" r="0.9" fill="currentColor" stroke="none" /></S>,
 };
 
 /* ════════ static config ════════ */
 const STEPS = [
   { id: 'info',    name: () => i18n.t('checkout:steps.info.name', 'Your details'), sub: () => i18n.t('checkout:steps.info.sub', 'Customer & travellers'), icon: ICON.user },
   { id: 'addons',  name: () => i18n.t('checkout:steps.addons.name', 'Add-ons'),    sub: () => i18n.t('checkout:steps.addons.sub', 'Insurance & extras'),  icon: ICON.shield },
+  { id: 'support', name: () => i18n.t('checkout:steps.support.name', 'Support package'), sub: () => i18n.t('checkout:steps.support.sub', 'Choose your cover'), icon: ICON.lifebuoy },
   { id: 'payment', name: () => i18n.t('checkout:steps.payment.name', 'Payment'),   sub: () => i18n.t('checkout:steps.payment.sub', 'Secure checkout'),    icon: ICON.card },
 ];
+
+/**
+ * Step indices BY NAME, derived from STEPS rather than written out.
+ *
+ * Every `step === n` in this file used to be a literal, so inserting a step meant renumbering
+ * twenty comparisons and showing the wrong panel wherever one was missed. Deriving them means
+ * the next insertion is a one-line change here.
+ */
+const STEP = STEPS.reduce((acc, s, i) => { acc[s.id.toUpperCase()] = i; return acc; }, {});
+const LAST_STEP = STEPS.length - 1;
 
 // Values (`v`) travel to the backend and stay English; only the rendered label is translated.
 const GENDERS_TRAVELLER = [
@@ -999,6 +1013,54 @@ function CheckoutContent({ stripe, elements }) {
   const checkedAddOns = (airlineAddOns?.checked?.length ? airlineAddOns.checked : null)
     || (bagRates?.checked || []);
   const hasFlight = !!booking.api?.flight;
+
+  /**
+   * SUPPORT PACKAGES (Support spec v1.0 §3, §5).
+   *
+   * The product decides which levels exist and what they cost: §1 covers Flight Only and
+   * Flight + Hotel only, and §3.1 prices them independently. A booking with a hotel is
+   * FLIGHT_HOTEL; a flight on its own is FLIGHT_ONLY. Anything else (a hotel-only or
+   * transfer-only booking) is out of scope for the module, so the step does not render at all
+   * rather than guessing a product.
+   */
+  const supportProduct = hasFlight ? (booking.api?.hotel || booking.hotelCode ? 'FLIGHT_HOTEL' : 'FLIGHT_ONLY') : null;
+  const [supportLevels, setSupportLevels] = useState([]);
+  // Starts settled when there is nothing to fetch, so the step never flashes a spinner for a
+  // booking that has no support product at all.
+  const [supportLoaded, setSupportLoaded] = useState(() => !supportProduct);
+  const [supportCode, setSupportCode] = useState(null);
+
+  useEffect(() => {
+    if (!supportProduct) return undefined;
+    let cancelled = false;
+    axiosInstance.get('/website/support-packages', { params: { product: supportProduct } })
+      .then((r) => {
+        if (cancelled) return;
+        const items = r.data?.data?.items || [];
+        setSupportLevels(items);
+        // §3.1's default is a preselection, not a lock: the traveller may pick any level. It is
+        // only applied once, so coming back to the step does not undo their choice.
+        setSupportCode((prev) => prev ?? (items.find((i) => i.isDefault)?.code ?? items[0]?.code ?? null));
+      })
+      .catch(() => {
+        // A package the traveller cannot see is a package they have not agreed to buy. Failing
+        // to an empty list skips the step and charges nothing, rather than preselecting a paid
+        // level they never saw.
+        if (!cancelled) setSupportLevels([]);
+      })
+      .finally(() => { if (!cancelled) setSupportLoaded(true); });
+    return () => { cancelled = true; };
+  }, [supportProduct]);
+
+  const supportLevel = supportLevels.find((l) => l.code === supportCode) || null;
+  /** §3.1 pricing unit: per person multiplies by the party, per booking is charged once. */
+  const supportCharge = useMemo(() => {
+    if (!supportLevel) return { chargedPersons: 0, amount: 0 };
+    const people = supportLevel.pricingUnit === 'PER_PERSON' ? Math.max(1, pax) : 1;
+    return { chargedPersons: people, amount: Math.round(Number(supportLevel.price) * people * 100) / 100 };
+  }, [supportLevel, pax]);
+  /** The step is skipped entirely when there is nothing to choose between. */
+  const showSupportStep = !!supportProduct && supportLevels.length > 0;
   /**
    * The marketing code for each direction, which is what a logo is looked up by.
    *
@@ -1123,7 +1185,10 @@ function CheckoutContent({ stripe, elements }) {
   // "Agreed" is every condition ticked — nothing else in the file has to know it changed shape.
   const agree = CONDITIONS.every((c) => conds[c.id]);
 
-  const total = subtotal + insAmount;
+  // The support package is a SUNSKY service charge, so it sits beside insurance on top of the
+  // subtotal rather than inside it: insurance is priced FROM the subtotal (see priceInsurance
+  // above), and folding the package in would quietly inflate those premiums.
+  const total = subtotal + insAmount + supportCharge.amount;
   const animTotal = useCountUp(total);
 
   /**
@@ -1181,7 +1246,7 @@ function CheckoutContent({ stripe, elements }) {
   const wantsTransfer = !isTransfer && !isFlight && srch.transport !== 'hotel_only'
     && !!srch.destination && !!(booking.api?.hotel?.hotelCode || booking.hotelCode);
   useEffect(() => {
-    if (step !== 1 || !wantsTransfer || transfers) return;
+    if (step !== STEP.ADDONS || !wantsTransfer || transfers) return;
     const checkin = srch.checkin || booking.api?.hotel?.checkin;
     if (!checkin) return;
     const outbound = arrivalISO || `${checkin}T12:00:00`;
@@ -1384,20 +1449,28 @@ function CheckoutContent({ stripe, elements }) {
     // The stepper is a shortcut, not a bypass: a traveller who came back to fix a spelling
     // has an unticked name again, and clicking "Payment" in the header must land on the
     // same check as the Continue button rather than sliding past it.
-    if (i > 0 && step === 0 && !allReviewed) return next();
+    if (i > 0 && step === STEP.INFO && !allReviewed) return next();
     setDir(i > step ? 1 : -1);
     setStep(i);
   };
 
+  /** The next visible step after `from`, skipping any the booking does not need. */
+  const nextVisible = (from, delta) => {
+    let n = from + delta;
+    while (n > 0 && n < LAST_STEP && !stepVisible(n)) n += delta;
+    return Math.min(Math.max(n, 0), LAST_STEP);
+  };
+  const stepVisible = (i) => (i === STEP.SUPPORT ? showSupportStep : true);
+
   const advance = () => {
     setErrors({});
     setDir(1);
-    const n = Math.min(step + 1, 2);
+    const n = nextVisible(step, 1);
     setStep(n);
-    setFurthest((f) => Math.max(f, n));
+    setFurthest((fs) => Math.max(fs, n));
   };
   const next = async () => {
-    if (step === 0) {
+    if (step === STEP.INFO) {
       const e = validateInfo();
       if (Object.keys(e).filter((k) => e[k]).length) return flashErrors(e);
       // Somebody who typed their address and clicked straight on has never left the field, so
@@ -1421,7 +1494,7 @@ function CheckoutContent({ stripe, elements }) {
     setReviewOpen(false);
     advance();
   };
-  const back = () => { setDir(-1); setStep((s) => Math.max(0, s - 1)); };
+  const back = () => { setDir(-1); setStep((s) => nextVisible(s, -1)); };
 
   /* Booking flow: create → Stripe PaymentIntent → confirm card → record payment → supplier confirm. */
   const pay = async () => {
@@ -1581,6 +1654,11 @@ function CheckoutContent({ stripe, elements }) {
         // Booking & service fee (SGR) shown to the customer — recorded on the booking
         // so the stored grand total matches what was charged.
         serviceFee: SGR,
+        // The chosen Support Package. Only the CODE and the product travel: the server prices
+        // it from its own configuration and writes the snapshot (Support spec §8), so a browser
+        // cannot name its own price, and the historical record is what SUNSKY sold rather than
+        // what the page happened to be showing.
+        supportPackage: supportLevel ? { code: supportLevel.code, productType: supportProduct } : undefined,
         passengers,
         // The number to ring, and the number to ring when that one cannot be reached — the
         // second is the whole point of asking for it, so it travels with the booking rather
@@ -1741,10 +1819,11 @@ function CheckoutContent({ stripe, elements }) {
 
   /* primary CTA per step (shared by bottom bar + mobile bar) */
   const ctaLabel = repriceBlocks && reprice.status === 'checking' ? t('checkout:cta.rechecking', 'Re-checking your price…')
-    : step === 0 ? t('checkout:cta.continueToAddons', 'Continue to add-ons')
-    : step === 1 ? t('checkout:cta.continueToPayment', 'Continue to payment')
+    : step === STEP.INFO ? t('checkout:cta.continueToAddons', 'Continue to add-ons')
+    : step === STEP.ADDONS ? (showSupportStep ? t('checkout:cta.continueToSupport', 'Continue to support package') : t('checkout:cta.continueToPayment', 'Continue to payment'))
+    : step === STEP.SUPPORT ? t('checkout:cta.continueToPayment', 'Continue to payment')
     : t('checkout:cta.pay', { amount: money(total), defaultValue: 'Pay {{amount}}' });
-  const ctaAction = step === 2 ? pay : next;
+  const ctaAction = step === STEP.PAYMENT ? pay : next;
   // One rule for every way forward (button, mobile bar): an outstanding re-check, an
   // unaccepted new price or an unavailable party stops the traveller here, at the panel that
   // explains why, rather than at the payment sheet.
@@ -1828,18 +1907,18 @@ function CheckoutContent({ stripe, elements }) {
         {/* ═══ STEPPER ═══ */}
         <div className="ck-stepper-wrap">
           <div className="ck-stepper">
-            {STEPS.map((s, i) => (
+            {STEPS.map((s, i) => ({ s, i })).filter(({ i }) => stepVisible(i)).map(({ s, i }, shown, all) => (
               <Fragment key={s.id}>
                 <button
                   className={`ck-step${i === step ? ' act' : ''}${i < step ? ' done' : ''}${i <= furthest ? ' reach' : ''}`}
                   onClick={() => goStep(i)}>
                   <span className="ck-step-dot">{i < step ? ICON.check : s.icon}</span>
                   <span className="ck-step-meta">
-                    <span className="ck-step-name hd">{i + 1}. {s.name()}</span>
+                    <span className="ck-step-name hd">{shown + 1}. {s.name()}</span>
                     <span className="ck-step-sub">{s.sub()}</span>
                   </span>
                 </button>
-                {i < STEPS.length - 1 && <span className={`ck-step-line${i < step ? ' done' : ''}`} />}
+                {shown < all.length - 1 && <span className={`ck-step-line${i < step ? ' done' : ''}`} />}
               </Fragment>
             ))}
           </div>
@@ -1851,7 +1930,7 @@ function CheckoutContent({ stripe, elements }) {
             <div key={step} className={`ck-pane ${dir === 1 ? 'ck-fwd' : 'ck-back'}`}>
 
               {/* ──────── STEP 1 : INFO ──────── */}
-              {step === 0 && (
+              {step === STEP.INFO && (
                 <>
                   {isAuthenticated ? (
                     <div className="ck-auth-banner ck-reveal">
@@ -2270,7 +2349,7 @@ function CheckoutContent({ stripe, elements }) {
               {/* ──────── STEP 2 : ADD-ONS ────────
                   Baggage first (it belongs to the flight the traveller just chose), then the
                   transfer, then the two insurance decisions. The client's order. */}
-              {step === 1 && hasFlight && bagRates?.enabled !== false && (
+              {step === STEP.ADDONS && hasFlight && bagRates?.enabled !== false && (
                 <>
                   {/* A. Personal item — stated, never sold: every fare carries one, and an
                       "add" button next to something already included is a trap. */}
@@ -2396,7 +2475,7 @@ function CheckoutContent({ stripe, elements }) {
                 </>
               )}
 
-              {step === 1 && wantsTransfer && (
+              {step === STEP.ADDONS && wantsTransfer && (
                 /* The airport transfer. One choice for everyone in the booking — the vehicle
                    carries the party, so it is priced per vehicle and never per traveller.
                    "No transfer" is the default: an opt-in extra that arrives pre-selected is
@@ -2471,7 +2550,7 @@ function CheckoutContent({ stripe, elements }) {
               {/* D. Cancellation insurance — ONE decision for the booking. If one traveller
                   cancels the holiday, the holiday is cancelled, so it is not a per-person
                   choice; the client's screen says exactly that and so does this. */}
-              {step === 1 && cancelOption && (
+              {step === STEP.ADDONS && cancelOption && (
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
                     <div className="ck-card-titles">
@@ -2529,7 +2608,7 @@ function CheckoutContent({ stripe, elements }) {
 
               {/* E. Travel insurance — PER TRAVELLER, because it insures a person: one of a
                   party may already be covered by a card or by a policy of their own. */}
-              {step === 1 && travelOption && (
+              {step === STEP.ADDONS && travelOption && (
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
                     <div className="ck-card-titles">
@@ -2600,12 +2679,121 @@ function CheckoutContent({ stripe, elements }) {
               )}
 
 
+              {/* ──────── STEP : SUPPORT PACKAGE ────────
+                  Support spec v1.0 §3 and §5. Every word on these cards is configuration: the
+                  title, badge, description, the service lines and their statuses all come from
+                  the dashboard, because §3 is explicit that level names "must not be hardcoded".
+
+                  §5.1 is the reason the three statuses read differently rather than as a tick
+                  and a cross: Included means the SUNSKY fee is covered, Paid means the service
+                  is available at the stated fee, Not included means it is not offered. The note
+                  at the foot carries §5.1's caveat that supplier charges and fare differences
+                  are never covered by any of them. */}
+              {step === STEP.SUPPORT && (
+                <section className="ck-card ck-reveal ck-sup">
+                  <div className="ck-card-head">
+                    <div className="ck-ico">{ICON.lifebuoy}</div>
+                    <div className="ck-card-titles">
+                      <h2 className="hd">{t('checkout:support.title', 'Your support package')}</h2>
+                      <p>{supportProduct === 'FLIGHT_HOTEL'
+                        ? t('checkout:support.subFlightHotel', 'Choose the level of SUNSKY support for your flight + hotel booking.')
+                        : t('checkout:support.subFlightOnly', 'Choose the level of SUNSKY support for your flight booking.')}</p>
+                    </div>
+                  </div>
+
+                  {!supportLoaded ? (
+                    <p className="ck-pick-note">{t('checkout:support.loading', 'Loading support packages…')}</p>
+                  ) : (
+                    <>
+                      <div className="ck-sup-grid">
+                        {supportLevels.map((lvl) => {
+                          const picked = lvl.code === supportCode;
+                          const people = lvl.pricingUnit === 'PER_PERSON' ? Math.max(1, pax) : 1;
+                          return (
+                            <button
+                              type="button"
+                              key={lvl.code}
+                              className={`ck-sup-card${picked ? ' act' : ''}`}
+                              aria-pressed={picked}
+                              onClick={() => setSupportCode(lvl.code)}
+                            >
+                              {lvl.badge && <span className="ck-sup-badge">{lvl.badge}</span>}
+                              <span className="ck-sup-top">
+                                <span className="ck-sup-radio">{picked && <i />}</span>
+                                <span className="ck-sup-name hd">{lvl.title}</span>
+                              </span>
+
+                              <span className="ck-sup-price">
+                                <strong>{money(lvl.price)}</strong>
+                                <small>{lvl.pricingUnit === 'PER_PERSON'
+                                  ? t('checkout:support.perPerson', 'per person')
+                                  : t('checkout:support.perBooking', 'per booking')}</small>
+                              </span>
+                              {/* What the party actually pays, so a per-person price does not
+                                  read as the whole charge for a family of four. */}
+                              {lvl.price > 0 && people > 1 && (
+                                <span className="ck-sup-total">
+                                  {t('checkout:support.totalForParty', {
+                                    count: people,
+                                    amount: money(Math.round(lvl.price * people * 100) / 100),
+                                    defaultValue: '{{amount}} for {{count}} travellers',
+                                  })}
+                                </span>
+                              )}
+
+                              {lvl.description && <span className="ck-sup-desc">{lvl.description}</span>}
+
+                              {lvl.services.length > 0 && (
+                                <span className="ck-sup-list">
+                                  {lvl.services.map((s) => (
+                                    <span key={s.code} className={`ck-sup-row ${s.status.toLowerCase()}`}>
+                                      <span className="ck-sup-mark" aria-hidden="true">
+                                        {s.status === 'INCLUDED' ? ICON.checkCircle : s.status === 'PAID' ? ICON.euro : ICON.x}
+                                      </span>
+                                      <span className="ck-sup-text">{s.text}</span>
+                                      <span className="ck-sup-val">
+                                        {s.status === 'INCLUDED' && t('checkout:support.included', 'Included')}
+                                        {s.status === 'NOT_INCLUDED' && t('checkout:support.notIncluded', 'Not included')}
+                                        {s.status === 'PAID' && (
+                                          <>
+                                            {money(s.fee)}
+                                            <small>{s.feeUnit === 'PER_REQUEST' ? t('checkout:support.perRequest', 'per request')
+                                              : s.feeUnit === 'PER_PERSON' ? t('checkout:support.perPerson', 'per person')
+                                              : t('checkout:support.perBooking', 'per booking')}</small>
+                                          </>
+                                        )}
+                                      </span>
+                                    </span>
+                                  ))}
+                                </span>
+                              )}
+
+                              <span className={`ck-sup-pick${picked ? ' act' : ''}`}>
+                                {picked
+                                  ? <>{ICON.check} {t('checkout:support.selected', 'Selected')}</>
+                                  : t('checkout:support.select', 'Select')}
+                              </span>
+                            </button>
+                          );
+                        })}
+                      </div>
+
+                      {/* §5.1: these statuses cover the SUNSKY service fee and nothing else. */}
+                      <p className="ck-sup-note">
+                        {ICON.infoCircle}
+                        <span>{t('checkout:support.disclaimer', 'Support packages cover SUNSKY service and handling fees only. Airline, hotel and other supplier charges, including fare differences, remain payable separately. Changes and cancellations stay subject to airline, hotel and supplier rules and availability.')}</span>
+                      </p>
+                    </>
+                  )}
+                </section>
+              )}
+
               {/* ──────── STEP 3 : OVERVIEW ────────
                   Everything about to be bought, in one place, before the card comes out. The
                   sidebar summary is a running total; this is the record — the same facts a
                   traveller will look for on the confirmation, in the same order. Nothing here
                   is decorative: every line is something they could still go back and change. */}
-              {step === 2 && (
+              {step === STEP.PAYMENT && (
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
                     <div className="ck-ico">{ICON.check}</div>
@@ -2718,7 +2906,7 @@ function CheckoutContent({ stripe, elements }) {
               )}
 
               {/* ──────── STEP 3 : PAYMENT ──────── */}
-              {step === 2 && (
+              {step === STEP.PAYMENT && (
                 <section className="ck-card ck-reveal">
                   <div className="ck-card-head">
                     <div className="ck-ico">{ICON.card}</div>
@@ -2946,7 +3134,7 @@ function CheckoutContent({ stripe, elements }) {
                     ? <><span className="ck-spin" /> {t('checkout:nav.processingPayment', 'Processing payment…')}</>
                     : repriceBlocks && reprice.status === 'checking'
                       ? <><span className="ck-spin" /> {ctaLabel}</>
-                      : <>{step === 2 && ICON.lock} {ctaLabel} {step < 2 && ICON.arrow}</>}
+                      : <>{step === STEP.PAYMENT && ICON.lock} {ctaLabel} {step < LAST_STEP && ICON.arrow}</>}
                 </button>
               </div>
             </div>
@@ -3064,6 +3252,17 @@ function CheckoutContent({ stripe, elements }) {
                   {travelAmount > 0 && (
                     <div className="ck-sum-row ck-sum-row-ins">
                       <span>{ICON.shieldCheck} {travelOption?.label || t('checkout:insurance.travelFallback', 'Travel insurance')} × {travelCount}</span><b>{money(travelAmount)}</b>
+                    </div>
+                  )}
+                  {supportCharge.amount > 0 && supportLevel && (
+                    <div className="ck-sum-row ck-sum-row-ins">
+                      <span>
+                        {ICON.lifebuoy} {supportLevel.title}
+                        {supportLevel.pricingUnit === 'PER_PERSON' && supportCharge.chargedPersons > 1
+                          ? ` × ${supportCharge.chargedPersons}`
+                          : ''}
+                      </span>
+                      <b>{money(supportCharge.amount)}</b>
                     </div>
                   )}
                 </div>
