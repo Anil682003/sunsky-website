@@ -55,6 +55,9 @@ export default function SeoOffers({ scope, heading }) {
     ? scope.destinationCodes.join(',')
     : scope?.destinationCode) || null;
 
+  /** A country page spans several resorts, so naming each card's is useful. One does not. */
+  const showLocation = (scope?.destinationCodes?.length || 0) > 1;
+
   /**
    * The scope travels WITH the result, so "loading" is derived rather than set at the top of
    * the effect. Besides costing an extra render, resetting there leaves a tick where the
@@ -172,7 +175,10 @@ export default function SeoOffers({ scope, heading }) {
                   </span>
                 )}
                 <span className={styles.name}>{c.name}</span>
-                {c.loc && <span className={styles.loc}>{c.loc}</span>}
+                {/* The place only when it tells the reader something. On an Antalya page
+                    every card is in Antalya, so printing it eight times is noise; on a
+                    country page it is the one thing that distinguishes the resorts. */}
+                {showLocation && c.loc && <span className={styles.loc}>{c.loc}</span>}
                 {c.review && (
                   <span className={styles.review} title={c.review.title}>
                     {c.review.score}
