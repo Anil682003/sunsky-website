@@ -146,6 +146,16 @@ export async function fetchPackageFares({ origin, checkIn, checkOut, adults, chi
 }
 
 /**
+ * Complete Flight + Hotel packages (admin package engine): the cheapest valid package per hotel,
+ * with its own price, dates, departure airport and flights. POST, because the content filter's
+ * hotelCodes can be a long list. See src/pages/Results/packageResults.js for the body.
+ */
+export async function fetchPackages(body, { signal } = {}) {
+  const { data } = await axiosInstance.post('/flight-availability/packages', body, { signal });
+  return data;
+}
+
+/**
  * Resolve the content filters to matching hotelCodes (+ attributes).
  * Pass the SEARCH destination so the set stays bounded and fast.
  *

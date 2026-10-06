@@ -4,7 +4,10 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
-import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackageFares } from '../../api/filters';
+import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
+import {
+  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, PACKAGE_CONCURRENCY,
+} from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
@@ -25,7 +28,7 @@ import {
 import { trackSearch, searchSignature } from '../../analytics';
 import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
 import { fromFailure, isRetryable, messageKey } from '../../utils/availability';
-import { dobsMatchAges, ageAtCheckIn, allDobsValid, agesFromDobs } from '../../utils/childDob';
+import { dobsMatchAges, ageAtCheckIn, allDobsValid } from '../../utils/childDob';
 import DateCalendar from '../../components/DateCalendar/DateCalendar';
 import DobPicker from '../../components/DobPicker/DobPicker';
 import { loadPax, savePax, hasPaxParams } from '../../utils/paxStore';
@@ -34,7 +37,6 @@ import { normaliseOrigin, parseOrigins, airportCity } from '../../utils/airports
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { useToast } from '../../context/ToastContext';
 import { roundHotelStay, perPersonFrom } from '../../utils/priceRounding';
-import { packagePerPerson as packagePriceFrom } from '../../utils/packageCardPrice';
 import styles from './Results.module.css';
 import { defaultSearchContext } from '../../utils/searchDefaults';
 import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
@@ -844,11 +846,12 @@ export default function Results() {
     adults: fetchParams.adults,
   });
 
-  // Flight fares for the package from-price (§33): cheapest eligible flight per arrival airport
-  // from the chosen departure airport. Keyed by arrival IATA; the card adds the fare for its
-  // own destination's airport to the cached hotel price. Empty until "Incl. flight" is on and
-  // the flight cache holds the route — then real package totals replace the hotel-only figure.
-  const [packageFares, setPackageFares] = useState({});
+  // "Incl. flight" (Levent, 6 Oct 2026): complete packages only, from the admin's package search.
+  // The groups of destinations asked (packageResults.js) and how many packages are shown; the
+  // destinations whose packages cannot be calculated yet (missing cache data, not "no flights").
+  const pkgRef = useRef({ reqId: 0, groups: [], shown: PAGE_SIZE, body: null });
+  const [pkgUnknown, setPkgUnknown] = useState([]);
+  const [pkgLoadingGroups, setPkgLoadingGroups] = useState(0);
   // Card photos that could not be loaded at any size: those cards show the no-photo tile.
   const [failedPhotos, setFailedPhotos] = useState(() => new Set());
 
@@ -1048,9 +1051,6 @@ export default function Results() {
     return filters.origins.filter((c) => known.has(c));
   }, [filters.origins, departureRows]);
   const noOriginPreference = activeOrigins.length === 0;
-  const originsKey = (noOriginPreference
-    ? departureRows.filter((a) => !a.unavailable).map((a) => a.code)
-    : activeOrigins).join(',');
   const toggleOriginFilter = (code) => setFilter('origins', activeOrigins.includes(code)
     ? activeOrigins.filter((c) => c !== code)
     : [...activeOrigins, code]);
@@ -1072,74 +1072,6 @@ export default function Results() {
     [arrivalOptions]
   );
 
-  // destinationCode → the arrival airports that serve it, so each hotel card can find the flight
-  // fare for its OWN destination (a country/multi-city page mixes destinations on one screen).
-  const destToArrivals = useMemo(() => {
-    const m = new Map();
-    for (const a of arrivalAirports) {
-      for (const d of a.destinations || []) {
-        if (!m.has(d)) m.set(d, []);
-        m.get(d).push(a.code);
-      }
-    }
-    return m;
-  }, [arrivalAirports]);
-
-  // Which arrival airports to price flights to: the one the traveller chose, else every airport
-  // serving the current scope. Stringified so the fetch effect only re-runs when the set changes.
-  const packageArrivalsKey = useMemo(
-    () => (applied.arrivals.length ? applied.arrivals : arrivalOptions.map((a) => a.code)).join(','),
-    [applied.arrivals, arrivalOptions]
-  );
-
-  // Fetch the package flight fares whenever "Incl. flight" is on and we have dates and at least
-  // one arrival airport. One call per departure airport being compared (see `originsKey`): per
-  // arrival the cheapest fare wins and remembers its airport, which the card then names. A
-  // failed call only loses that airport; if all fail the map stays empty and cards fall back to
-  // the honest hotel-only + "priced on hotel page" note.
-  useEffect(() => {
-    let live = true;
-    const ctrl = new AbortController();
-    // All setState happens inside run() (never synchronously in the effect body). Guarded so a
-    // missing/failing fares API (or a test mock without it) never breaks the page — cards simply
-    // fall back to the hotel-only + "priced on hotel page" note.
-    const run = async () => {
-      const arrivals = packageArrivalsKey ? packageArrivalsKey.split(',').filter(Boolean) : [];
-      const from = originsKey ? originsKey.split(',') : [];
-      if (filters.transport !== 'package' || !from.length || !fetchParams.checkIn || !arrivals.length) {
-        if (live) setPackageFares({});
-        return;
-      }
-      // Children are priced on their age at each flight (step 9). With dates of birth that still
-      // match the ages, the return-date ages come from them (a birthday during the trip).
-      const ages = fetchParams.childAges ?? childAges ?? '';
-      const dobs = fetchParams.childDobs ?? childDobs ?? '';
-      const agesReturn = dobs && fetchParams.checkOut && dobsMatchAges(dobs, ages, fetchParams.checkIn)
-        ? agesFromDobs(dobs, fetchParams.checkOut) : '';
-      try {
-        const merged = {};
-        // Six at a time: No preference can mean ~20 airports, and the fares API is shared.
-        for (let i = 0; i < from.length; i += 6) {
-          const batch = from.slice(i, i + 6);
-          const settled = await Promise.allSettled(batch.map((origin) => fetchPackageFares(
-            { origin, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut, adults: fetchParams.adults, children: fetchParams.children, childAges: ages, childAgesReturn: agesReturn, arrivals, routing: filters.nonstop ? 'nonstop' : undefined },
-            { signal: ctrl.signal },
-          ).then((fares) => ({ origin, fares }))));
-          if (!live) return;
-          for (const s of settled) {
-            if (s.status !== 'fulfilled') continue;
-            for (const [arrival, fare] of Object.entries(s.value.fares || {})) {
-              if (!fare || fare.price == null) continue;
-              if (!merged[arrival] || fare.price < merged[arrival].price) merged[arrival] = { ...fare, origin: s.value.origin };
-            }
-          }
-        }
-        if (live) setPackageFares(merged);
-      } catch { if (live) setPackageFares({}); }
-    };
-    run();
-    return () => { live = false; ctrl.abort(); };
-  }, [filters.transport, filters.nonstop, originsKey, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults, fetchParams.children, fetchParams.childAges, fetchParams.childDobs, childAges, childDobs, packageArrivalsKey]);
 
   // The destinations the chosen arrival airport narrows the search to, intersected with the
   // scope the traveller already picked. `null` = no arrival filter. An EMPTY array is
@@ -1505,6 +1437,75 @@ export default function Results() {
     ? `${priceScope.destinations.join(',')}|${priceScope.hotelCodes ? priceScope.hotelCodes.length + ':' + priceScope.hotelCodes.slice(0, 3).join(',') : 'all'}`
     : null;
 
+  // ── "Incl. flight": show the package groups that have answered ──────────────────────────
+  // Every group is asked at once (PACKAGE_CONCURRENCY at a time) and the list fills in as each
+  // answers, so a country is not as slow as its slowest destination. Sorted as one list.
+  const showPackages = (reqId) => {
+    const pk = pkgRef.current;
+    if (pk.reqId !== reqId || reqId !== reqIdRef.current) return;
+    const sortBy = appliedRef.current.sortBy;
+    const merged = mergePackages(pk.groups, sortBy);
+    const pending = pk.groups.some((g) => !g.done);
+    const more = merged.length > pk.shown || pk.groups.some((g) => g.hasMore);
+    setAllHotels(merged.slice(0, pk.shown).map((p) => mapPackage(p, scopeLabel)));
+    setHasMore(more || pending);
+    // The price slider's range, on the same basis as the filter (package total or p.p.).
+    const f = appliedRef.current;
+    if (f.minPrice === '' && f.maxPrice === '') {
+      growCeiling(merged.map((p) => (f.priceBasis === 'perPerson' ? p.pricePerPerson : p.sunskyPayableTotalRounded)).filter((n) => Number.isFinite(n)));
+    }
+    setBoardFacets(mergeBoardFacets(pk.groups));
+    setPkgUnknown(unknownDestinations(pk.groups));
+    setPkgLoadingGroups(pk.groups.filter((g) => !g.done).length);
+    if (merged.length || !pending) { setLoading(false); setFiltering(false); setPendingSearch(false); }
+    if (!pending) {
+      setCheapestCode(sortBy === 'price_asc' ? (merged[0]?.hotelCode ?? null) : null);
+      const failed = pk.groups.filter((g) => g.error);
+      if (failed.length && failed.length === pk.groups.length) setSearchError(fromFailure(failed[0].error));
+      paginationRef.current = { page: 2, hasMore: more, fetching: false };
+      setPage1Done({ reqId });
+    }
+  };
+  const runPackageGroups = async (groups, reqId, signal) => {
+    let next = 0;
+    const worker = async () => {
+      while (next < groups.length) {
+        const g = groups[next++];
+        try {
+          const r = await fetchPackages({ ...pkgRef.current.body, destinations: g.dests, page: g.page + 1 }, { signal });
+          g.hotels = [...g.hotels, ...(r?.hotels || [])];
+          g.hasMore = !!r?.hasMore;
+          g.page += 1;
+          g.destinationStatus = { ...(g.destinationStatus || {}), ...(r?.destinationStatus || {}) };
+          if (g.page === 1) g.boardFacets = r?.boardFacets || {};
+          g.error = null;
+        } catch (err) {
+          if (signal?.aborted || err?.name === 'CanceledError') return;
+          console.warn('[Results] package search failed for', g.dests.join(','), err?.message);
+          g.error = err;
+          g.hasMore = false;
+        }
+        g.done = true;
+        showPackages(reqId);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(PACKAGE_CONCURRENCY, groups.length) }, worker));
+  };
+  // "Show more" with packages: 20 more from the merged list, after asking the next page of every
+  // group that could still hold a package that sorts before them.
+  const loadMorePackages = () => {
+    const pk = pkgRef.current;
+    const reqId = pk.reqId;
+    if (reqId !== reqIdRef.current) return;
+    pk.shown += PAGE_SIZE;
+    const sortBy = appliedRef.current.sortBy;
+    const extend = groupsToExtend(pk.groups, mergePackages(pk.groups, sortBy), pk.shown, sortBy);
+    if (!extend.length) { showPackages(reqId); return; }
+    for (const g of extend) g.done = false;
+    setFetchingMore(true);
+    runPackageGroups(extend, reqId).finally(() => { if (reqId === reqIdRef.current) setFetchingMore(false); });
+  };
+
   // Page-1 fetch. Re-runs on a new search, on a committed filter change, and once the price
   // scope is resolved from the facets step.
   useEffect(() => {
@@ -1553,6 +1554,32 @@ export default function Results() {
     if (sig && sig !== lastSearchSigRef.current) {
       lastSearchSigRef.current = sig;
       trackSearch(searchTracking);
+    }
+
+    if (applied.transport === 'package') {
+      const ctrl = new AbortController();
+      const arrDests = arrivalDestRef.current;
+      const dests = arrDests ? priceScope.destinations.filter((d) => arrDests.includes(d)) : priceScope.destinations;
+      // A search without dates of its own (a homepage link) asks the precalculated default.
+      const undated = !params.get('checkIn') && fetchParams.checkIn === defaultCheckIn && fetchParams.checkOut === defaultCheckOut;
+      const body = packageBody({
+        fp: fetchParams, childAges, filters: applied, origins: applied.origins || [],
+        hotelCodes: Array.isArray(priceScope.hotelCodes) ? priceScope.hotelCodes : null,
+        dated: !undated, flex: urlFlex, bandNights: dayOptions,
+      });
+      const groups = chunkDestinations(dests).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
+      pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };
+      setPkgUnknown([]);
+      setNights(nightsBetween(fetchParams.checkIn, fetchParams.checkOut) || 0);
+      setCheapestCode(null);
+      setBoardFacets({});
+      if (!groups.length) {
+        setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false); setPendingSearch(false);
+        return undefined;
+      }
+      setPkgLoadingGroups(groups.length);
+      runPackageGroups(groups, reqId, ctrl.signal);
+      return () => ctrl.abort();
     }
 
     const ctrl = new AbortController();
@@ -1630,7 +1657,8 @@ export default function Results() {
   // next to full totals for the other lengths.
   const appliedKey = JSON.stringify(applied);
   useEffect(() => {
-    if (!priceScope || !priceScope.destinations.length || !dayOptions.length || !fetchParams.checkIn) {
+    // Hotel-only counts next to package results would count hotels without a flight.
+    if (applied.transport === 'package' || !priceScope || !priceScope.destinations.length || !dayOptions.length || !fetchParams.checkIn) {
       setDurationCounts({});
       return;
     }
@@ -1655,6 +1683,7 @@ export default function Results() {
 
   // Load next page from API
   const loadMore = useCallback(() => {
+    if (appliedRef.current.transport === 'package') { loadMorePackages(); return; }
     const pg = paginationRef.current;
     if (!pg.hasMore || pg.fetching) return;
     const ps = priceScopeRef.current;
@@ -1780,13 +1809,15 @@ export default function Results() {
   // in the URL instead. HotelDetail reads these as its fallback and refetches the hotel
   // content itself, which also makes the detail page shareable/bookmarkable.
   const detailHref = (h, name, starsVal, dest, img, fareOrigin) => {
+    // A package opens on ITS stay (the flights decide it), not the searched dates.
+    const stay = h.pkg?.stay;
     const qs = new URLSearchParams({
-      checkIn:  fetchParams.checkIn,
-      checkOut: fetchParams.checkOut,
+      checkIn:  stay?.checkin  || fetchParams.checkIn,
+      checkOut: stay?.checkout || fetchParams.checkOut,
       adults:   fetchParams.adults,
       children: fetchParams.children,
       rooms:    fetchParams.rooms,
-      nights:   String(nights || 7),
+      nights:   String(stay?.nights || nights || 7),
     });
     if (dest)       qs.set('destination', dest);
     if (name)       qs.set('name', name);
@@ -2247,7 +2278,7 @@ export default function Results() {
       {/* CONNECTIONS (build order, step 13) — non-stop only. Shown once it can change something:
           a priced flight has a stop (the airport allows one), or it is already ticked so it can be
           unticked. With every destination direct-only it would filter nothing, so it stays away. */}
-      {filters.transport === 'package' && (filters.nonstop || Object.values(packageFares).some((f) => f && f.stops > 0)) && (
+      {filters.transport === 'package' && (filters.nonstop || allHotels.some((h) => (h.pkg?.flight?.stops || 0) > 0)) && (
         <FilterSection title={t('filters.connections', 'Connections')} defaultOpen>
           <FilterCheck
             label={t('filters.nonstopOnly', 'Non-stop flights only')}
@@ -2847,6 +2878,19 @@ export default function Results() {
                 </button>
               </div>
             )}
+            {/* "Incl. flight": a destination the flight cache cannot calculate yet is named, not
+                silently left out and never called "no flights" (Levent, 6 Oct 2026). */}
+            {!loading && applied.transport === 'package' && pkgUnknown.length > 0 && (
+              <div className={styles.pkgNotice} role="status">
+                {t('pkg.unknownDestinations', {
+                  places: pkgUnknown.map((d) => scopeCities.find((c) => c.code === d)?.name || d).join(', '),
+                  defaultValue: 'Flight + hotel prices for {{places}} cannot be calculated yet: the flight data is still incomplete. These destinations are not left out because there are no flights.',
+                })}
+              </div>
+            )}
+            {!loading && applied.transport === 'package' && pkgLoadingGroups > 0 && (
+              <div className={styles.pkgLoading} role="status">{t('pkg.stillSearching', 'Still searching more destinations…')}</div>
+            )}
             {loading ? (
               [0, 1, 2].map((i) => (
                 <div key={i} className={styles.skeletonCard} style={{ animationDelay: `${i * 0.1}s` }}>
@@ -2913,9 +2957,13 @@ export default function Results() {
                     <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
                   </svg>
                 </div>
-                <h3>{t('empty.noneTitle', 'No results found')}</h3>
+                <h3>{applied.transport === 'package' && pkgUnknown.length > 0
+                  ? t('pkg.noneYetTitle', 'Flight + hotel prices cannot be calculated yet')
+                  : t('empty.noneTitle', 'No results found')}</h3>
                 <p>
-                  {activeCount > 0
+                  {applied.transport === 'package' && pkgUnknown.length > 0
+                    ? t('pkg.noneYetText', 'The flight data for this search is still incomplete. Try other dates, or choose Hotel only.')
+                    : activeCount > 0
                     ? t('empty.noneFiltered', 'No stays match your filters. Try relaxing them or widening your price range.')
                     : t('empty.noneWiden', 'Try different dates or a wider area.')}
                 </p>
@@ -2953,27 +3001,13 @@ export default function Results() {
                 const perPersonVal = Number.isFinite(exactStay) && exactStay > 0
                   ? perPersonFrom(roundHotelStay(exactStay, roomsN), partySize)
                   : NaN;
-                // Package from-price (§33): with "Incl. flight" on, if a cached flight fare exists
-                // for this hotel's arrival airport, the headline becomes hotel + flight per person —
-                // never hotel-only. Cheapest arrival is used when the destination has several. Falls
-                // back to the hotel figure (+ "priced on hotel page" note) when no flight is cached.
+                // "Incl. flight": every card is a complete package (Levent, 6 Oct 2026).
                 const isPackage = filters.transport === 'package';
-                // With arrivals chosen, only those that actually serve this hotel's city can
-                // price its flight; a hotel is shown at all because at least one of them does.
-                const servingHere = destToArrivals.get(hotelDest) || [];
-                const cardArrivals = applied.arrivals.length
-                  ? servingHere.filter((c) => applied.arrivals.includes(c))
-                  : servingHere;
-                let flightFare = null;
-                for (const ac of cardArrivals) {
-                  const f = packageFares[ac];
-                  if (f && f.price != null && (flightFare == null || f.price < flightFare.price)) flightFare = f;
-                }
-                // The fare is already the WHOLE party's flight (build order, step 9), so it is
-                // added as it is and the package rounded once, then per person.
-                const packagePerPerson = isPackage
-                  ? packagePriceFrom(exactStay, flightFare ? flightFare.price : null, partySize)
-                  : null;
+                // The package itself (admin package engine): its p.p. price, stay, airport and
+                // flights all come from one winning combination — nothing is added up here.
+                const pkg = isPackage ? h.pkg : null;
+                const flightFare = pkg ? { origin: pkg.departureAirport, price: pkg.components?.flight, stops: pkg.flight?.stops ?? 0 } : null;
+                const packagePerPerson = pkg ? pkg.pricePerPerson : null;
                 const shownPerPerson = packagePerPerson != null ? packagePerPerson : perPersonVal;
                 // Is the price on this card a KNOWN total (spec 3.9)? Hotel Only: the cache's
                 // total for the stay. Package: only once a cached flight fare completes it; a
@@ -2989,12 +3023,17 @@ export default function Results() {
                 // them, else the searched dates. Shown on Hotel Only cards while the search asked
                 // for flexible dates, so "±3 days" never reads as a range of prices.
                 const stayNightsList = Array.isArray(h.nightlyBreakdown) ? h.nightlyBreakdown : [];
-                const stayIn = stayNightsList[0]?.date || fetchParams.checkIn;
-                const stayOut = stayNightsList.length
+                const stayIn = pkg ? pkg.stay?.checkin : (stayNightsList[0]?.date || fetchParams.checkIn);
+                const stayOut = pkg ? pkg.stay?.checkout : (stayNightsList.length
                   ? new Date(Date.parse(`${stayNightsList[stayNightsList.length - 1].date}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)
-                  : fetchParams.checkOut;
-                const stayNightCount = stayNightsList.length || nightsBetween(stayIn, stayOut) || 0;
-                const showStayWindow = !isPackage && urlFlex > 0 && !!stayIn && !!stayOut && stayNightCount > 0;
+                  : fetchParams.checkOut);
+                const stayNightCount = pkg ? (pkg.stay?.nights || 0) : (stayNightsList.length || nightsBetween(stayIn, stayOut) || 0);
+                // A package always names its stay: the flights decide it (an overnight arrival
+                // starts the stay a day later), so it is not simply the searched dates.
+                const showStayWindow = (pkg || (!isPackage && urlFlex > 0)) && !!stayIn && !!stayOut && stayNightCount > 0;
+                const pkgTime = (local) => (typeof local === 'string' && local.length >= 16 ? local.slice(11, 16) : null);
+                const pkgOut = pkg ? pkgTime(pkg.flight?.outbound?.departureLocal) : null;
+                const pkgBack = pkg ? pkgTime(pkg.flight?.inbound?.departureLocal) : null;
                 // Split into whole + decimals (toFixed FIRST, so 99.999 → 100.00, not 99.00).
                 // Whole euros, rounded UP (spec 2.3): a SUNSKY price never shows cents, and never
                 // shows less than the fare it stands for.
@@ -3229,7 +3268,7 @@ export default function Results() {
                         </span>
                       )}
                       <span className={styles.rcPriceContext}>
-                        {nights > 0 ? daysLabel(nightsToDays(nights)) : t('card.total', 'Total')}
+                        {pkg?.flight?.travelDays > 0 ? daysLabel(pkg.flight.travelDays) : nights > 0 ? daysLabel(nightsToDays(nights)) : t('card.total', 'Total')}
                         {Number(fetchParams.adults) > 0 && ` · ${t('card.adults', {
                           count: Number(fetchParams.adults),
                           defaultValue_one: '{{count}} adult',
@@ -3253,9 +3292,15 @@ export default function Results() {
                             defaultValue: 'incl. flight from {{city}}',
                           })}
                           {flightFare?.priorityClass ? ` · ${flightClassLabel(flightFare.priorityClass)}` : ''}
+                          {pkg ? ` · ${flightFare.stops > 0 ? t('card.withStop', 'with stop') : t('card.direct', 'direct')}` : ''}
                         </span>
                       )}
-                      {isPackage && packagePerPerson == null && (
+                      {pkg && pkgOut && pkgBack && (
+                        <span className={styles.rcFlightTimes}>
+                          {t('card.flightTimes', { out: pkgOut, back: pkgBack, defaultValue: 'Out {{out}} · back {{back}}' })}
+                        </span>
+                      )}
+                      {isPackage && !pkg && packagePerPerson == null && (
                         <span className={styles.rcFlightNote}>
                           {/* The choice stays visible as made: no non-stop flight priced here is
                               said plainly, the hotel stays in the list, never a connection instead. */}

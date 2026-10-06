@@ -285,3 +285,12 @@
   .card, .imgClip img, .fav, .viewBtn, .railBtn { transition: none; }
   .cardLinked:hover .imgClip img { transform: none; }
 }
+
+/* The from-price while the package search answers (never the CMS figure). */
+.priceSkel {
+  width: 84px; height: 22px; border-radius: 6px;
+  background: linear-gradient(90deg, #e8f1ff 25%, #f3f8ff 50%, #e8f1ff 75%);
+  background-size: 200% 100%; animation: priceShimmer 1.5s infinite;
+}
+@keyframes priceShimmer { from { background-position: 200% 0; } to { background-position: -200% 0; } }
+@media (prefers-reduced-motion: reduce) { .priceSkel { animation: none; } }

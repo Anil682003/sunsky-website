@@ -67,7 +67,14 @@ vi.mock('../../api/filters', () => ({
   fetchThemes: vi.fn(() => Promise.resolve([])),
   searchDestinationsAndHotels: vi.fn(() => Promise.resolve({ destinations: [], hotels: [] })),
   fetchMatchingHotels: vi.fn(() => Promise.resolve({ count: 0, hotelCodes: [], attributes: {} })),
+  // "Incl. flight" lists complete packages from the admin's package search (packageResults.js).
+  fetchPackages: vi.fn((body) => {
+    pkgCalls.push(body);
+    return Promise.resolve({ hotels: [], hasMore: false, destinationStatus: {}, boardFacets: {} });
+  }),
 }));
+const pkgCalls = [];
+const lastPackageDests = () => [...(pkgCalls[pkgCalls.length - 1]?.destinations || [])].sort();
 
 // ── Fixture: hotels as RATE POOLS, not pre-picked winners ─────────────────────
 // This is the crux. The real cache stores many rates per hotel and picks the
@@ -462,10 +469,8 @@ describe('arrival airport ("Flying to")', () => {
     await openTransport(user);
 
     await user.click(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ }));
-    await waitFor(() => {
-      const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean).sort();
-      expect(dests).toEqual(['DLM', 'FET']);
-    });
+    // With flights included the page asks the package search for exactly those destinations.
+    await waitFor(() => expect(lastPackageDests()).toEqual(['DLM', 'FET']));
   });
 
   // Two airports mean EITHER, never both: intersecting them would return nothing the moment
@@ -477,12 +482,9 @@ describe('arrival airport ("Flying to")', () => {
     await openTransport(user);
 
     await user.click(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ }));
-    await waitFor(() => expect(lastCall().get('destinations')).toContain('DLM'));
+    await waitFor(() => expect(lastPackageDests()).toContain('DLM'));
     await user.click(arrivalBox(/Antalya/));
-    await waitFor(() => {
-      const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean).sort();
-      expect(dests).toEqual(['AYT', 'DLM', 'FET']);
-    });
+    await waitFor(() => expect(lastPackageDests()).toEqual(['AYT', 'DLM', 'FET']));
   });
 
   it('restores the full scope when the airport is un-ticked again', async () => {
@@ -493,13 +495,10 @@ describe('arrival airport ("Flying to")', () => {
 
     const dalaman = await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ });
     await user.click(dalaman);
-    await waitFor(() => expect(lastCall().get('destinations')).toContain('DLM'));
+    await waitFor(() => expect(lastPackageDests()).toContain('DLM'));
 
     await user.click(dalaman);
-    await waitFor(() => {
-      const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean);
-      expect(dests).not.toEqual(['DLM', 'FET']);
-    });
+    await waitFor(() => expect(lastPackageDests()).not.toEqual(['DLM', 'FET']));
   });
 
   // REGRESSION: most searches arrive scoped by DESTINATION only ("?destination=AYT" from the

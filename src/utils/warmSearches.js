@@ -90,10 +90,15 @@ export function cheapestRequest(baseUrl, stay, destinations, { checkOut = stay.c
  * Every cache request the results page sends for a link: page 1, then one count per exact length
  * in the band (the Travel-time filter). `destinations` is what the page prices: the admin's
  * matched destinations for the link's scope (facets), or the scope's own list.
+ *
+ * A Flight + Hotel link (transport=package) sends none (7 Oct 2026): the page lists complete
+ * packages from the admin's package search, whose default searches the admin precalculates.
+ * Warming SunSkyCache for those links would only load it with searches nobody makes.
  */
 export function cacheRequestsForLink(link, { baseUrl, destinations, now = new Date() }) {
   const params = new URLSearchParams(String(link).split('?')[1] || '');
   const stay = linkStay(params, now);
+  if (stay.packageSearch) return [];
   return [
     cheapestRequest(baseUrl, stay, destinations),
     ...stay.lengths.map((n) => cheapestRequest(baseUrl, stay, destinations, { checkOut: addNights(stay.checkIn, n), pageSize: COUNT_PAGE_SIZE })),

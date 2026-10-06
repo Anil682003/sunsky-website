@@ -112,6 +112,7 @@ export default function HolidayType() {
       // code — they diverge (Cyprus is NY, the UK is UK).
       qs.set('countries', c.code || c.isoCode || '');
       qs.set('destinationLabel', cName);
+      qs.set('transport', 'package');   // holiday-type pages open Flight + Hotel, like the homepage
       return {
         key: `country:${c.id}`,
         name: cName,
