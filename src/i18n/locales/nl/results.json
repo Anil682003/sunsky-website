@@ -226,7 +226,8 @@
     "stayWindow_one": "{{from}} → {{to}} · {{count}} nacht",
     "stayWindow_other": "{{from}} → {{to}} · {{count}} nachten",
     "flightPricedLaterAny": "+ vlucht · prijs op de hotelpagina",
-    "noNonstopPriced": "Geen non-stop vlucht geprijsd voor deze data · zie hotelpagina"
+    "noNonstopPriced": "Geen non-stop vlucht geprijsd voor deze data · zie hotelpagina",
+    "hotelNameUnavailable": "Hotel"
   },
   "lightbox": {
     "photosOf": "Foto’s van {{name}}",

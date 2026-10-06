@@ -548,5 +548,7 @@
     "roomsSuffix_one": " · {{count}} room",
     "roomsSuffix_other": " · {{count}} rooms",
     "travellingCompany": "Travelling company"
-  }
+  },
+  "hotelNameUnavailable": "Hotel",
+  "loadingHotelName": "Loading hotel name"
 }

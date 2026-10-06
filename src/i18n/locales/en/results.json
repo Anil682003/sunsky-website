@@ -226,7 +226,8 @@
     "stayWindow_one": "{{from}} → {{to}} · {{count}} night",
     "stayWindow_other": "{{from}} → {{to}} · {{count}} nights",
     "flightPricedLaterAny": "+ flight · priced on hotel page",
-    "noNonstopPriced": "No non-stop flight priced for these dates · see hotel page"
+    "noNonstopPriced": "No non-stop flight priced for these dates · see hotel page",
+    "hotelNameUnavailable": "Hotel"
   },
   "lightbox": {
     "photosOf": "{{name}} photos",
