@@ -265,7 +265,7 @@ describe('the live check asks about the package the card priced', () => {
     await priceDays();
     expect(screen.getByRole('button', { name: /eerdere data tonen/i }).disabled).toBe(true);
     await user.click(screen.getByRole('button', { name: /latere data tonen/i }));
-    await waitFor(() => expect(get).toHaveBeenLastCalledWith('/flight-availability/package-matrix', expect.objectContaining({
+    await waitFor(() => expect(get).toHaveBeenCalledWith('/flight-availability/package-matrix', expect.objectContaining({
       params: expect.objectContaining({ date: iso(45) }),
     })));
   });
@@ -366,5 +366,26 @@ describe('a package’s live price waits for its flight', () => {
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
     await waitFor(() => expect(screen.getAllByText(/€500/).length).toBeGreaterThan(0));
     expect(flightSearches()).toHaveLength(0);
+  });
+});
+
+describe('the hotel page offers only departure airports with a package to this hotel', () => {
+  it('asks for this hotel and its dates; the other-airport check probes only those airports', async () => {
+    get.mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('package-matrix')) return Promise.resolve({ data: MATRIX });
+      if (u.includes('/feasibility')) return Promise.resolve({ data: { success: true, origins: ['FRA', 'DUS'], arrivals: { AYT: { status: 'FEASIBLE', trips: 3 } } } });
+      return Promise.resolve({ data: {} });
+    });
+    const user = userEvent.setup();
+    renderPage();
+    await waitFor(() => expect(get.mock.calls.some(([u]) => String(u).includes('/feasibility'))).toBe(true));
+    const [, { params }] = get.mock.calls.find(([u]) => String(u).includes('/feasibility'));
+    expect(params).toMatchObject({ destinations: 'TRAYT', hotelCode: '592205', travelDays: '9', adults: '2' });
+    await runCheck(user);
+    await new Promise((r) => setTimeout(r, 300));
+    // The page's own search (FRA) plus the alternatives: never an airport without a package here.
+    const froms = [...new Set(flightSearches().map(([, body]) => body.from))];
+    expect(froms.every((f) => ['FRA', 'DUS'].includes(f))).toBe(true);
   });
 });
