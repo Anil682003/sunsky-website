@@ -56,6 +56,7 @@ const cell = (date, checkin, total, legsOut, legsBack) => ({
 let MATRIX;
 let SEARCH;           // the live search's flights
 let CONFIRM;          // { status, data } of the confirm endpoint
+let CAL;              // the hotel calendar's days (null: a priced week)
 
 const PKG_QS = [
   'pkgOut=XQ%7C141%7C' + encodeURIComponent(`${DEP}T23:35`),
@@ -72,6 +73,7 @@ beforeEach(() => {
   ] };
   SEARCH = [TK_FARE, PKG_FARE];
   CONFIRM = { status: 200, data: { success: true, status: 'CONFIRMED', flight: PKG_FARE } };
+  CAL = null;
   get.mockImplementation((url) => (String(url).includes('package-matrix')
     ? Promise.resolve({ data: MATRIX })
     : Promise.resolve({ data: {} })));
@@ -89,7 +91,7 @@ beforeEach(() => {
   globalThis.fetch = vi.fn((url) => {
     const u = String(url);
     if (u.includes('hotel-price-calendar')) {
-      const calendar = Array.from({ length: 7 }, (_, i) => ({ date: iso(27 + i), price: 300 + i * 10, currency: 'EUR' }));
+      const calendar = CAL || Array.from({ length: 7 }, (_, i) => ({ date: iso(27 + i), price: 300 + i * 10, currency: 'EUR' }));
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ calendar }) });
     }
     if (u.includes('/hotels/bulk')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [{ hotelCode: '592205', name: 'Royal Test', stars: 5, images: [], facilities: [] }] }) });
@@ -308,5 +310,27 @@ describe('the board on the page is the room\'s own', () => {
     await runCheck(user);
     await waitFor(() => expect(chips().some((c) => /logies|room only/i.test(c))).toBe(true));
     expect(chips().some((c) => /all inclusive/i.test(c))).toBe(false);
+  });
+});
+
+describe('the strip scales on the price it prints', () => {
+  it('seven days that all print €56 p.p. stand level, with no "Lowest price" (Belle Ocean, 9–15 Dec)', async () => {
+    // Party totals of €112 and €111 (rounded up) both print €56 p.p. for two.
+    CAL = Array.from({ length: 7 }, (_, i) => ({ date: iso(27 + i), price: i === 6 ? 110.4 : 111.54, currency: 'EUR' }));
+    const { container } = renderPage('', 'hotel_only');
+    const days = await priceDays();
+    expect(days.every((b) => /€56/.test(b.getAttribute('aria-label')))).toBe(true);
+    expect(container.querySelector('.fc-strip.fc-flat')).not.toBeNull();
+    expect(container.querySelector('.fc-lowtag')).toBeNull();
+  });
+
+  it('a real difference in the printed price still draws a profile and flags the cheapest', async () => {
+    CAL = Array.from({ length: 7 }, (_, i) => ({ date: iso(27 + i), price: i === 2 ? 90 : 120, currency: 'EUR' }));
+    const { container } = renderPage('', 'hotel_only');
+    await priceDays();
+    expect(container.querySelector('.fc-strip.fc-flat')).toBeNull();
+    const low = container.querySelector('.fc-lowtag');
+    expect(low).not.toBeNull();
+    expect(low.closest('.fc-col').getAttribute('aria-label')).toMatch(/€45/);
   });
 });
