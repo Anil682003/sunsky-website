@@ -227,7 +227,9 @@
     "ppPrice": "{{currency}}{{amount}} p.p.",
     "samePricePP": "zelfde prijs p.p.",
     "theseAirportsFly": "Deze luchthavens vliegen wel deze route — goedkoopste eerst:",
-    "yourFlights": "Jouw vluchten"
+    "yourFlights": "Jouw vluchten",
+    "packageFlightGone": "De vlucht van deze pakketreis is niet meer te koop. De beste beschikbare vlucht is geselecteerd, tegen de live prijs.",
+    "packageFlightUnchecked": "We konden de vlucht van deze pakketreis nu niet controleren. De beste beschikbare vlucht is geselecteerd, tegen de live prijs."
   },
   "info": {
     "about": "Over {{hotelName}}",
@@ -467,7 +469,13 @@
     "tryDifferentDate": "Probeer een andere vertrekdatum of pas je zoekcriteria aan.",
     "yourCurrentSelection": "Jouw huidige selectie",
     "yourDates": "jouw data",
-    "yourHoliday": "Jouw vakantie"
+    "yourHoliday": "Jouw vakantie",
+    "earlierDates": "Eerdere data",
+    "showEarlierDates": "Eerdere data tonen",
+    "laterDates": "Latere data",
+    "showLaterDates": "Latere data tonen",
+    "livePackagePrice": "Live prijs, vlucht + hotel · {{nights}}",
+    "hotelOnlyStripNote": "Dit zijn hotelprijzen. De vluchten worden toegevoegd wanneer je een datum controleert."
   },
   "rooms": {
     "allTaxesIncluded": "Alle prijzen zijn inclusief belastingen en kosten.",

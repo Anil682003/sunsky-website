@@ -39,6 +39,7 @@ import { useToast } from '../../context/ToastContext';
 import { roundHotelStay, perPersonFrom } from '../../utils/priceRounding';
 import styles from './Results.module.css';
 import { defaultSearchContext } from '../../utils/searchDefaults';
+import { packageParams } from '../../utils/packageHandoff';
 import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -1848,6 +1849,11 @@ export default function Results() {
     const from = fareOrigin || (activeOrigins.length === 1 ? activeOrigins[0] : '');
     if (from) qs.set('origin', normaliseOrigin(from));
     if (activeOrigins.length > 1) qs.set('origins', activeOrigins.join(','));
+    // The package this card priced: its flights, flight dates and arrival airport, so the hotel
+    // page's live check confirms exactly that package (utils/packageHandoff).
+    if (filters.transport === 'package' && h.pkg) {
+      for (const [k, v] of Object.entries(packageParams(h.pkg))) qs.set(k, v);
+    }
     return `/hotel/${h.hotelCode}?${qs.toString()}`;
   };
 

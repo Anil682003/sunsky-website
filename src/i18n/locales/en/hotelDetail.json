@@ -227,7 +227,9 @@
     "ppPrice": "{{currency}}{{amount}} p.p.",
     "samePricePP": "same price p.p.",
     "theseAirportsFly": "These airports do fly this route — cheapest first:",
-    "yourFlights": "Your flights"
+    "yourFlights": "Your flights",
+    "packageFlightGone": "The flight of this package is no longer on sale. The best available flight is selected instead, at its live price.",
+    "packageFlightUnchecked": "We could not check the flight of this package just now. The best available flight is selected, at its live price."
   },
   "info": {
     "about": "About {{hotelName}}",
@@ -467,7 +469,13 @@
     "tryDifferentDate": "Please try a different departure date or adjust your search criteria.",
     "yourCurrentSelection": "Your current selection",
     "yourDates": "your dates",
-    "yourHoliday": "Your holiday"
+    "yourHoliday": "Your holiday",
+    "earlierDates": "Earlier dates",
+    "showEarlierDates": "Show earlier dates",
+    "laterDates": "Later dates",
+    "showLaterDates": "Show later dates",
+    "livePackagePrice": "Live price, flight + hotel · {{nights}}",
+    "hotelOnlyStripNote": "These are hotel prices. Flights are added when you check a date."
   },
   "rooms": {
     "allTaxesIncluded": "All prices include taxes, fees and charges.",
