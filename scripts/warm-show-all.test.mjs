@@ -47,7 +47,8 @@ describe('the "Show all" warmer', () => {
   it('reads the homepage config and holiday types the way the website does', async () => {
     const { fetchFn } = fakeServers();
     const links = await loadShowAllLinks(CFG, fetchFn);
-    expect(links).toEqual(expect.arrayContaining(['/results?countries=TR', '/results?destinations=PMI&destinationLabel=Spanje', '/results']));
+    // Homepage links open Flight + Hotel (transport=package, 7 Oct 2026).
+    expect(links).toEqual(expect.arrayContaining(['/results?countries=TR&transport=package', '/results?destinations=PMI&destinationLabel=Spanje&transport=package', '/results']));
     expect(links).toHaveLength(4);   // categories, one tab, the two empty-search forms
   });
 
@@ -56,7 +57,11 @@ describe('the "Show all" warmer', () => {
     const links = await loadShowAllLinks(CFG, fetchFn);
     const done = await warmLinks(CFG, links, fetchFn, () => {});
     const sent = cheapestCalls(calls);
-    expect(sent).toHaveLength(links.length * 6);                  // page 1 + 5 lengths, per link
+    // Page 1 + 5 lengths per Hotel Only link. Flight + Hotel links are the admin's precalculated
+    // package searches: nothing to warm in SunSkyCache.
+    const hotelOnly = links.filter((l) => !l.includes('transport=package'));
+    expect(hotelOnly).toEqual(['/results']);
+    expect(sent).toHaveLength(hotelOnly.length * 6);
     expect(sent.every((c) => c.opts.headers['X-Search-Warm'] === 'tok')).toBe(true);
     expect(maxInFlight()).toBe(1);
     expect(done.every((d) => !d.error && d.failed === 0)).toBe(true);
@@ -111,12 +116,13 @@ describe('a minute of the warmer (runTick)', () => {
     const { fetchFn, calls } = fakeServers({ cmsFail: () => down });
     const state = initialState();
     expect(await runTick(state, CFG, fetchFn, () => {}, at)).toBe('full');
-    expect(cheapestCalls(calls)).toHaveLength(2 * 6);             // the two empty-search forms
+    expect(cheapestCalls(calls)).toHaveLength(6);                 // the empty search (its package form: nothing to warm)
     down = false;
     calls.length = 0;
     expect(await runTick(state, CFG, fetchFn, () => {}, at + 5 * 60000)).toBe('check');
-    expect(cheapestCalls(calls)).toHaveLength(2 * 6);             // categories + the tab: the new ones only
-    expect(linksWarmed(calls)).toEqual(new Set(['AYT,IST', 'PMI']));
+    // categories + the tab are new, but Flight + Hotel links: no SunSkyCache requests
+    expect(cheapestCalls(calls)).toHaveLength(0);
+    expect(linksWarmed(calls)).toEqual(new Set());
   });
 
   it('nothing new in the config at a check: no requests', async () => {

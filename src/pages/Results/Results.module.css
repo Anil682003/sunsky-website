@@ -951,6 +951,18 @@
   background: var(--blue-light);
   padding: 3px 8px; border-radius: var(--r-full);
 }
+/* A package card's flight times (out / back), under the "incl. flight" note */
+.rcFlightTimes {
+  font-size: 11px; font-weight: 600; color: var(--text-muted, #5b6678);
+  font-variant-numeric: tabular-nums;
+}
+/* Destinations whose packages cannot be calculated yet (missing flight data — not "no flights") */
+.pkgNotice {
+  margin: 0 0 12px; padding: 10px 14px; border-radius: 10px;
+  background: var(--blue-light); color: var(--blue-deep);
+  font-size: 13px; line-height: 1.45;
+}
+.pkgLoading { font-size: 12.5px; color: var(--text-muted, #5b6678); margin: 0 0 10px; }
 .rcPriceAmount {
   font-family: 'Sora', sans-serif;
   font-size: clamp(28px, 2.4vw, 34px); font-weight: 800;

@@ -1,6 +1,7 @@
 // Build order, step 13: "Non-stop flights only" on the results page. Shown only when it can change
-// something (a priced flight has a stop), sent to the package fares, carried in the URL, and it
-// can only narrow: the backend applies the destination airport's connection policy first.
+// something (a listed package's flight has a stop), sent to the package search, carried in the
+// URL, and it can only narrow: the backend applies the routing rule first. "Incl. flight" lists
+// complete packages only (Levent, 6 Oct 2026), so a hotel without a non-stop package is not shown.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -18,7 +19,13 @@ const EMPTY_FACETS = {
   holiday: [], stars: [], facilities: [], activities: [],
   accommodation: [], kids: [], beachDistance: [], centreDistance: [],
 };
-const fares = { current: {} };
+const pkgs = { current: [] };
+const pkg = (code, stops) => ({
+  hotelCode: code, destination: 'AYT', sunskyPayableTotal: 900, sunskyPayableTotalRounded: 900, pricePerPerson: 450, currency: 'EUR',
+  board: 'AI', room: 'DBL', stay: { checkin: '2026-11-03', checkout: '2026-11-10', nights: 7 }, departureAirport: 'BRU',
+  components: { flight: 400, hotel: 500 },
+  flight: { stops, travelDays: 8, outbound: { departureLocal: '2026-11-03T08:00' }, inbound: { departureLocal: '2026-11-10T14:00' } },
+});
 vi.mock('../../api/filters', () => ({
   fetchFacets: vi.fn(() => Promise.resolve({
     scope: { countries: [], destinations: ['AYT'], hotelCount: 0 },
@@ -33,69 +40,58 @@ vi.mock('../../api/filters', () => ({
     { code: 'AYT', name: 'Antalya Airport', countryCode: 'TR', destinations: ['AYT'], cityNames: ['Antalya'], zoneCodes: [] },
   ])),
   fetchDepartureAirports: vi.fn(() => Promise.resolve({ airports: [], filtered: null, cacheHasData: false })),
-  fetchPackageFares: vi.fn(() => Promise.resolve(fares.current)),
+  fetchPackages: vi.fn(() => Promise.resolve({ hotels: pkgs.current, hasMore: false, destinationStatus: { AYT: { status: pkgs.current.length ? 'FEASIBLE' : 'NOT_FEASIBLE' } }, boardFacets: {} })),
   fetchThemes: vi.fn(() => Promise.resolve([])),
   searchDestinationsAndHotels: vi.fn(() => Promise.resolve({ destinations: [], hotels: [] })),
   fetchMatchingHotels: vi.fn(() => Promise.resolve({ count: 0, hotelCodes: [], attributes: {} })),
 }));
 
-const results = Array.from({ length: 3 }, (_, i) => ({
-  hotelCode: String(300 + i), hotelName: `Hotel ${i}`, destinationCode: 'AYT', boardCode: 'AI', roomType: 'DBL',
-  classification: 'NOR', refundable: true, totalAmount: 600 + i * 10, perPerson: 300 + i * 5,
-  currency: 'EUR', nightlyBreakdown: [],
-}));
-
 beforeEach(async () => {
-  globalThis.fetch = vi.fn((url) => Promise.resolve({
-    ok: true,
-    json: () => Promise.resolve(String(url).includes('/hotels/bulk')
-      ? { data: [] }
-      : { nights: 3, count: 3, results, cheapest: results[0], hasMore: false, boardFacets: {} }),
-  }));
-  const { fetchPackageFares } = await import('../../api/filters');
-  fetchPackageFares.mockClear();
+  globalThis.fetch = vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) }));
+  const { fetchPackages } = await import('../../api/filters');
+  fetchPackages.mockClear();
 });
 
 const QUERY = '/results?destination=AYT&destinationLabel=Antalya&checkIn=2026-11-03&checkOut=2026-11-10&adults=2&children=0&rooms=1&transport=package';
 const renderAt = (extra = '') => render(<MemoryRouter initialEntries={[`${QUERY}${extra}`]}><Results /></MemoryRouter>);
 const nonstopBox = () => screen.queryAllByRole('checkbox', { name: 'Alleen non-stop vluchten' })[0];
-const lastFareCall = async () => {
-  const { fetchPackageFares } = await import('../../api/filters');
-  return fetchPackageFares.mock.calls.at(-1)?.[0];
+const lastPackageCall = async () => {
+  const { fetchPackages } = await import('../../api/filters');
+  return fetchPackages.mock.calls.at(-1)?.[0];
 };
 
 describe('Non-stop flights only (step 13)', () => {
-  it('is offered once a priced flight has a stop, and asks for non-stop fares when ticked', async () => {
-    fares.current = { AYT: { price: 300, currency: 'EUR', priorityClass: 'one_stop', stops: 1 } };
+  it('is offered once a listed package has a stop, and asks for non-stop packages when ticked', async () => {
+    pkgs.current = [pkg('300', 1), pkg('301', 0)];
     const user = userEvent.setup();
     renderAt();
     await waitFor(() => expect(nonstopBox()).toBeTruthy());
-    expect((await lastFareCall()).routing).toBeUndefined();
+    expect((await lastPackageCall()).routing).toBeUndefined();
 
     await user.click(nonstopBox());
-    await waitFor(async () => expect((await lastFareCall()).routing).toBe('nonstop'));
+    await waitFor(async () => expect((await lastPackageCall()).routing).toBe('nonstop'));
   });
 
-  it('is not offered when every priced flight is already non-stop (it would filter nothing)', async () => {
-    fares.current = { AYT: { price: 300, currency: 'EUR', priorityClass: 'direct', stops: 0 } };
+  it('is not offered when every listed package is already non-stop (it would filter nothing)', async () => {
+    pkgs.current = [pkg('300', 0)];
     renderAt();
-    await waitFor(async () => expect(await lastFareCall()).toBeTruthy());
+    await waitFor(async () => expect(await lastPackageCall()).toBeTruthy());
+    await screen.findByRole('article');
     expect(nonstopBox()).toBeFalsy();
   });
 
-  it('arrives ticked from ?routing=nonstop and says plainly when no non-stop flight is priced', async () => {
-    fares.current = { AYT: null };
+  it('arrives ticked from ?routing=nonstop; without a non-stop package nothing is listed', async () => {
+    pkgs.current = [];
     renderAt('&routing=nonstop');
     await waitFor(() => expect(nonstopBox()?.checked).toBe(true));
-    await waitFor(async () => expect((await lastFareCall())?.routing).toBe('nonstop'));
-    // the hotel stays in the list, and the card says why it has no flight price
-    expect((await screen.findAllByText(/Geen non-stop vlucht geprijsd/)).length).toBeGreaterThan(0);
+    await waitFor(async () => expect((await lastPackageCall())?.routing).toBe('nonstop'));
+    expect(screen.queryAllByRole('article')).toHaveLength(0);
   });
 
   it('ignores a routing the URL does not name: no constraint, never a wider one', async () => {
-    fares.current = { AYT: { price: 300, currency: 'EUR', priorityClass: 'direct', stops: 0 } };
+    pkgs.current = [pkg('300', 0)];
     renderAt('&routing=two_stops');
-    await waitFor(async () => expect(await lastFareCall()).toBeTruthy());
-    expect((await lastFareCall()).routing).toBeUndefined();
+    await waitFor(async () => expect(await lastPackageCall()).toBeTruthy());
+    expect((await lastPackageCall()).routing).toBeUndefined();
   });
 });

@@ -37,7 +37,7 @@ vi.mock('../../api/filters', () => ({
   fetchZones: vi.fn(() => Promise.resolve([])),
   fetchArrivalAirports: vi.fn(() => Promise.resolve([])),
   fetchThemes: vi.fn(() => Promise.resolve([])),
-  fetchPackageFares: vi.fn(() => Promise.resolve({})),
+  fetchPackages: vi.fn(() => Promise.resolve({ hotels: [], hasMore: false, destinationStatus: {}, boardFacets: {} })),
   searchDestinationsAndHotels: vi.fn(() => Promise.resolve({ destinations: [], hotels: [] })),
   fetchMatchingHotels: vi.fn(() => Promise.resolve({ count: 0, hotelCodes: [], attributes: {} })),
 }));
@@ -74,11 +74,11 @@ beforeEach(() => {
 const asSent = (r) => ({ url: r.url, method: r.opts.method || 'GET', body: r.opts.body ?? null });
 const sorted = (list) => [...list].map((r) => JSON.stringify(r)).sort();
 
-async function pageRequests(link) {
+async function pageRequests(link, expected) {
   render(<MemoryRouter initialEntries={[link]}><Results /></MemoryRouter>);
   // Page 1, then — once it is back — one count per exact length in the band.
-  await waitFor(() => expect(sent.length).toBeGreaterThanOrEqual(6), { timeout: 4000 });
-  await new Promise((r) => setTimeout(r, 200));      // nothing further arrives
+  if (expected) await waitFor(() => expect(sent.length).toBeGreaterThanOrEqual(expected), { timeout: 4000 });
+  await new Promise((r) => setTimeout(r, expected ? 200 : 1500));      // nothing further arrives
   return sent;
 }
 
@@ -100,9 +100,11 @@ describe('the warmer sends exactly what the results page sends', () => {
 
   for (const link of showAllSearchUrls(CMS, TYPES)) {
     it(`identical requests for ${link}`, async () => {
-      const page = await pageRequests(link);
       const warm = warmerRequests(link);
-      expect(warm).toHaveLength(6);                    // page 1 + the 5 lengths of the 6-10 days band
+      // Flight + Hotel links ask the admin's package search, not SunSkyCache: nothing to warm.
+      const pkg = new URLSearchParams(link.split('?')[1] || '').get('transport') === 'package';
+      expect(warm).toHaveLength(pkg ? 0 : 6);          // else page 1 + the 5 lengths of the 6-10 days band
+      const page = await pageRequests(link, warm.length);
       expect(sorted(page)).toEqual(sorted(warm));
     });
   }

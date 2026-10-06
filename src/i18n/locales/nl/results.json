@@ -227,7 +227,10 @@
     "stayWindow_other": "{{from}} → {{to}} · {{count}} nachten",
     "flightPricedLaterAny": "+ vlucht · prijs op de hotelpagina",
     "noNonstopPriced": "Geen non-stop vlucht geprijsd voor deze data · zie hotelpagina",
-    "hotelNameUnavailable": "Hotel"
+    "hotelNameUnavailable": "Hotel",
+    "flightTimes": "Heen {{out}} · terug {{back}}",
+    "withStop": "met tussenstop",
+    "direct": "rechtstreeks"
   },
   "lightbox": {
     "photosOf": "Foto’s van {{name}}",
@@ -246,5 +249,11 @@
     "removedFavourite": "Verwijderd uit favorieten",
     "addedFavourite": "Toegevoegd aan favorieten",
     "favouriteFailed": "De favorieten konden niet worden bijgewerkt. Probeer het opnieuw."
+  },
+  "pkg": {
+    "unknownDestinations": "Vlucht + hotelprijzen voor {{places}} kunnen nog niet berekend worden: de vluchtgegevens zijn nog onvolledig. Deze bestemmingen ontbreken niet omdat er geen vluchten zijn.",
+    "stillSearching": "We zoeken nog meer bestemmingen…",
+    "noneYetTitle": "Vlucht + hotelprijzen kunnen nog niet berekend worden",
+    "noneYetText": "De vluchtgegevens voor deze zoekopdracht zijn nog onvolledig. Probeer andere data, of kies Enkel hotel."
   }
 }

@@ -227,7 +227,10 @@
     "stayWindow_other": "{{from}} → {{to}} · {{count}} nights",
     "flightPricedLaterAny": "+ flight · priced on hotel page",
     "noNonstopPriced": "No non-stop flight priced for these dates · see hotel page",
-    "hotelNameUnavailable": "Hotel"
+    "hotelNameUnavailable": "Hotel",
+    "flightTimes": "Out {{out}} · back {{back}}",
+    "withStop": "with stop",
+    "direct": "direct"
   },
   "lightbox": {
     "photosOf": "{{name}} photos",
@@ -246,5 +249,11 @@
     "removedFavourite": "Removed from favourites",
     "addedFavourite": "Added to favourites",
     "favouriteFailed": "Couldn’t update favourites. Please try again."
+  },
+  "pkg": {
+    "unknownDestinations": "Flight + hotel prices for {{places}} cannot be calculated yet: the flight data is still incomplete. These destinations are not left out because there are no flights.",
+    "stillSearching": "Still searching more destinations…",
+    "noneYetTitle": "Flight + hotel prices cannot be calculated yet",
+    "noneYetText": "The flight data for this search is still incomplete. Try other dates, or choose Hotel only."
   }
 }
