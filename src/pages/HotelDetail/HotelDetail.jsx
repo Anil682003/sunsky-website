@@ -2371,10 +2371,24 @@ export default function HotelDetail() {
     : 'none';
   // Bar heights scale across the PRICED days only. Including the un-costed ones dragged the
   // floor to 0, which flattened every real price into the top of the range.
-  const priced = priceDays.filter((p) => p.price > 0).map((p) => p.price);
+  const paxCount = Math.max(1, (Number(sAdults) || 1) + (Number(sChildren) || 0));
+  // A package's p.p. price, as the package search and the matrix divide it: by the travellers who
+  // are not infants (a lap infant is not a share of the price).
+  const ppPax = useMatrix
+    ? (() => { const p = splitFareTypes(Number(sAdults) || 2, sChildAges ? sChildAges.split(',') : []); return Math.max(1, p.adults + p.children); })()
+    : paxCount;
+  // The per-person figure a bar PRINTS. Heights, "flat week" and the "Lowest price" flag are read
+  // off it, not off the party totals behind it: totals of €111 and €112 both print "€56", and
+  // scaling on the totals drew one of seven identical "€56" bars at half height under a "Lowest
+  // price" flag (Belle Ocean, 9–15 Dec 2026).
+  const shownPP = (p) => (Number(p.price) > 0 ? (p.pp ?? perPersonFrom(p.price, ppPax)) : 0);
+  const priced = priceDays.filter((p) => p.price > 0).map(shownPP);
   const pMin = priced.length ? Math.min(...priced) : 0;
   const pMax = priced.length ? Math.max(...priced) : 1;
   const priceVaries = pMin !== pMax;
+  // The cheapest whole-party total on screen, for the page's "from" figure (a total, not p.p.).
+  const totals = priceDays.filter((p) => p.price > 0).map((p) => p.price);
+  const minTotal = totals.length ? Math.min(...totals) : 0;
   // Which day carries the "Lowest price" flag. Days routinely TIE at the cheapest figure, and
   // matching on price alone badged every one of them — three bars all shouting "lowest" tells
   // the traveller nothing. The earliest day at that price wins the flag.
@@ -2382,7 +2396,7 @@ export default function HotelDetail() {
   // closest to the one asked: the contract's tie-break), so it is not re-derived here.
   const lowIdx = useMatrix
     ? priceDays.findIndex((p) => p.cheapest && p.price > 0)
-    : priceDays.findIndex((p) => p.price > 0 && p.price === pMin);
+    : priceDays.findIndex((p) => p.price > 0 && shownPP(p) === pMin);
   // The strip opens with the traveller's OWN departure date already selected, so the check
   // button is there for the date they searched instead of asking them to re-pick it. Derived
   // rather than stored: an explicit pick always wins, and because `applyFilter` clears the
@@ -2430,12 +2444,6 @@ export default function HotelDetail() {
   // showing it beside a re-priced calendar quotes two different stays at once. When there is
   // nothing true to quote it is null and the UI says so, rather than inventing a figure (this
   // used to read a hardcoded 765 on a cold visit).
-  const paxCount = Math.max(1, (Number(sAdults) || 1) + (Number(sChildren) || 0));
-  // A package's p.p. price, as the package search and the matrix divide it: by the travellers who
-  // are not infants (a lap infant is not a share of the price).
-  const ppPax = useMatrix
-    ? (() => { const p = splitFareTypes(Number(sAdults) || 2, sChildAges ? sChildAges.split(',') : []); return Math.max(1, p.adults + p.children); })()
-    : paxCount;
   const stayFrom = (() => {
     // The supplier was asked about the picked day and said no. Whatever the cache once
     // estimated for it is not a price anyone can pay — the hero chip, Book card and mobile
@@ -2443,7 +2451,7 @@ export default function HotelDetail() {
     // "not available" card.
     if (dayUnavailable) return null;
     if (Number(pd?.price) > 0) return Number(pd.price);
-    if (usingLive && pMin > 0) return pMin;
+    if (usingLive && minTotal > 0) return minTotal;
     if (!filtersTouched && Number(hotel?.totalAmount) > 0) return Number(hotel.totalAmount);
     return null;
   })();
@@ -3876,7 +3884,7 @@ export default function HotelDetail() {
                       // running, a failure, a room with no rate and an empty answer are all
                       // excluded by construction rather than by remembering to list them.
                       const isLiveOk = sel && liveChecked && roomsAv?.state === AVAILABILITY.AVAILABLE;
-                      const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
+                      const frac = hasPrice && priceVaries ? (shownPP(p) - pMin) / (pMax - pMin) : 0.55;
                       // A flat week fills its (shorter) canvas: with no profile to draw, a bar
                       // stopping two-thirds up is just a gap, not a reading.
                       const h = priceVaries ? Math.round(44 + 44 * frac) : 100;
@@ -3887,9 +3895,8 @@ export default function HotelDetail() {
                       // EVERY figure on this strip is per person. The calendar prices a whole
                       // stay for the whole party, so a family of four read a bar four times
                       // the number they would compare against anywhere else they shop.
-                      // Dividing by a constant leaves the profile untouched: `h` above is still
-                      // computed from the party totals, so the bars keep exactly the heights
-                      // they had and the cheapest day is still the shortest.
+                      // `h` above is computed from this same printed figure (shownPP), so two
+                      // bars that print the same price stand at the same height.
                       // A matrix date carries its own p.p. price (÷ travellers who are not infants).
                       const pp = hasPrice ? (p.pp ?? ppOf(p.price)) : 0;
                       // The live answer, shown on the day it was checked and on this strip's
