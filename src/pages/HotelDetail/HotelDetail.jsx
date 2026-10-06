@@ -1693,7 +1693,11 @@ export default function HotelDetail() {
   // price cache often has no hotelName and the card then passes a "Hotel {code}" placeholder —
   // which must never override the actual name once the info loads.
   const carriedName = hotel?.name && !/^Hotel\s+\d+$/i.test(hotel.name.trim()) ? hotel.name.trim() : '';
-  const hotelName = info?.name?.trim() || carriedName || `Hotel ${hotelCode}`;
+  // Never the hotel code (it flashed in the title until the info loaded, 7 Oct 2026): while the
+  // record loads the title and breadcrumb show a skeleton; a hotel without one is named neutrally.
+  const realName = info?.name?.trim() || carriedName;
+  const nameLoading = !realName && !infoSettled;
+  const hotelName = realName || t('hotelNameUnavailable', 'Hotel');
   // Never invent a rating: unknown star data renders NO stars (the old `|| 5`
   // fallback showed budget hotels as "5-star").
   const stars = Number(hotel?.stars) || Number(info?.stars) || 0;
@@ -3474,7 +3478,7 @@ export default function HotelDetail() {
                   is the only place that knows what the background currently is. */}
               <Link to="/">{t('common:nav.home', 'Home')}</Link><span className="bc-sep">›</span>
               <a onClick={() => navigate(-1)}>{t('breadcrumb.results', 'Results')}</a><span className="bc-sep">›</span>
-              <span className="bc-now">{hotelName}</span>
+              <span className="bc-now">{nameLoading ? <span className="hhn-skel bc-skel" aria-hidden="true" /> : hotelName}</span>
             </div>
             <div className="hha">
               <ShareSheet
@@ -3498,7 +3502,9 @@ export default function HotelDetail() {
           <div className="sd-hero-main">
             <div className="sd-hero-left">
               <div className="sd-hero-eyebrow">{ICON.shield} {t('verifiedStay', 'Verified stay')}{ratingLabel(dispRating) ? ` · ${ratingLabel(dispRating)}` : ''}</div>
-              <h1 className="hhn">{hotelName}</h1>
+              <h1 className="hhn">{nameLoading
+                ? <span className="hhn-skel" role="status" aria-label={t('loadingHotelName', 'Loading hotel name')} />
+                : hotelName}</h1>
               <div className="hhm">
                 <span className="hhs"><RatingMarks rating={dispRating} keySize={16} /></span>
                 <span className="hhl">

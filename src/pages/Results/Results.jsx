@@ -942,6 +942,8 @@ export default function Results() {
 
   // Lazy hotel-info loading
   const [infoMap, setInfoMap]         = useState({});
+  // Hotels whose info could not be loaded (after one retry): their card names them neutrally.
+  const [infoFailed, setInfoFailed]   = useState(() => new Set());
   const infoLoadingRef = useRef(new Set());
 
   // Pagination state tracked in refs to avoid stale closures in async callbacks
@@ -1369,7 +1371,10 @@ export default function Results() {
     return {
       id:           c.hotelCode,
       hotelCode:    c.hotelCode,
-      name:         c.hotelName ?? `Hotel ${c.hotelCode}`,
+      // No "Hotel {code}" stand-in: the price cache carries codes only, and a code flashed on the
+      // card until /hotels/bulk answered (7 Oct 2026). Without a name the card shows its name
+      // skeleton; the real name comes from the info record.
+      name:         c.hotelName ?? null,
       stars:        null,
       // Codes only — the words are resolved at render so they follow the language switch.
       boardCode:    bc,
@@ -1522,6 +1527,7 @@ export default function Results() {
       setLoading(true);
       setAllHotels([]);
       setInfoMap({});
+      setInfoFailed(new Set());
       setPriceCeiling(null);
       infoLoadingRef.current = new Set();
     } else {
@@ -1724,32 +1730,43 @@ export default function Results() {
     return allHotels;
   }, [allHotels, applied.sortBy, attrMap, infoMap]);
 
-  // Lazily load real hotel info (name/images/stars) for all visible hotels
+  // Lazily load real hotel info (name/images/stars) for all visible hotels. A failed request is
+  // tried once more; hotels still without a record after that are marked, so their card shows a
+  // neutral name instead of a skeleton that never resolves (never the hotel code).
   useEffect(() => {
-    const need = hotels.map((h) => String(h.hotelCode)).filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code));
+    const need = hotels.map((h) => String(h.hotelCode)).filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code) && !infoFailed.has(code));
     if (need.length === 0) return;
     need.forEach((c) => infoLoadingRef.current.add(c));
     let cancelled = false;
+    const load = async () => {
+      const res = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        // Card view: only what a card reads (name, stars, place, photos, facility names,
+        // review) — not every room, phone and description. The detail page asks for the
+        // full record itself.
+        body: JSON.stringify({ hotelCodes: need, view: 'card' }),
+      });
+      if (!res.ok) throw new Error(`hotels/bulk ${res.status}`);
+      const data = await res.json();
+      const add = {};
+      for (const info of (data?.data ?? [])) add[String(info.hotelCode)] = info;
+      return add;
+    };
     (async () => {
-      try {
-        const res = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          // Card view: only what a card reads (name, stars, place, photos, facility names,
-          // review) — not every room, phone and description. The detail page asks for the
-          // full record itself.
-          body: JSON.stringify({ hotelCodes: need, view: 'card' }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const add = {};
-          for (const info of (data?.data ?? [])) add[String(info.hotelCode)] = info;
-          if (!cancelled && Object.keys(add).length) setInfoMap((prev) => ({ ...prev, ...add }));
+      let add = null;
+      for (let attempt = 0; attempt < 2 && !add && !cancelled; attempt += 1) {
+        try {
+          add = await load();
+        } catch (e) {
+          console.warn('[Results] Hotel info bulk failed:', e);
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
         }
-      } catch (e) {
-        console.warn('[Results] Hotel info bulk failed:', e);
-      } finally {
-        need.forEach((c) => infoLoadingRef.current.delete(c));
       }
+      need.forEach((c) => infoLoadingRef.current.delete(c));
+      if (cancelled) return;
+      if (add && Object.keys(add).length) setInfoMap((prev) => ({ ...prev, ...add }));
+      const missing = need.filter((c) => !add?.[c]);
+      if (missing.length) setInfoFailed((prev) => new Set([...prev, ...missing]));
     })();
     return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2909,7 +2926,10 @@ export default function Results() {
             ) : (
               hotels.map((h, i) => {
                 const info      = infoMap[String(h.hotelCode)];
-                const dispName  = info?.name?.trim() || h.name;
+                // Never the hotel code: the real name, else a skeleton while the info loads, else
+                // (the info request failed, or the hotel has no record) a neutral word.
+                const dispName  = info?.name?.trim() || h.name
+                  || (infoFailed.has(String(h.hotelCode)) ? t('card.hotelNameUnavailable', 'Hotel') : '');
                 const dispStars = info?.stars ?? attrMap[String(h.hotelCode)]?.stars ?? h.stars;
                 // Star (hotel) vs key (apartment) rating. The bulk info record carries the kind;
                 // fall back to a plain star rating from the star count when info isn't in yet.

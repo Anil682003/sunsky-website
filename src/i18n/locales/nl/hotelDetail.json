@@ -548,5 +548,7 @@
     "roomsSuffix_one": " · {{count}} kamer",
     "roomsSuffix_other": " · {{count}} kamers",
     "travellingCompany": "Reisgezelschap"
-  }
+  },
+  "hotelNameUnavailable": "Hotel",
+  "loadingHotelName": "Hotelnaam laden"
 }

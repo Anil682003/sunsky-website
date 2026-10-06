@@ -414,6 +414,9 @@
 /* waiting on /hotels/bulk — hold the mosaic's shape rather than flashing the fallback */
 .sd .gi-skel { background:linear-gradient(100deg,#D7E6FF 18%,#EEF4FF 42%,#D7E6FF 66%); background-size:220% 100%; animation:sdTileIn .55s var(--ease) both, sdSkel 1.4s linear infinite; cursor:default; }
 .sd .gi-skel:hover { transform:none; box-shadow:0 12px 32px rgba(23,58,138,.3); }
+/* The hotel name while its info record loads: a bar in the title's place, never the hotel code. */
+.sd .hhn-skel { display:inline-block; width:min(420px,70%); height:.9em; vertical-align:middle; border-radius:8px; background:linear-gradient(100deg,#D7E6FF 18%,#EEF4FF 42%,#D7E6FF 66%); background-size:220% 100%; animation:sdSkel 1.4s linear infinite; }
+.sd .hhn-skel.bc-skel { width:140px; height:.8em; }
 @keyframes sdSkel { from { background-position:130% 0; } to { background-position:-130% 0; } }
 /* minmax(0,1fr), never a bare 1fr: a 1fr track's automatic minimum is min-content, so
    the widest thing inside (the fare strip, which is 7 fixed-width columns) pushed the
@@ -2718,6 +2721,7 @@
   .sd-hero-left > *, .sd-hero-photos .gi, .sd .ga, .sd-hero-glow2, .sd .hhb.saved svg, .sd .px-ph, .sd .px-overlay { animation:none; }
   .sd-hero-bg::before, .sd-hero-bg::after { animation:none; }
   .sd .gi-skel { animation:none; background:#E4EEFF; }
+  .sd .hhn-skel { animation:none; background:#E4EEFF; }
   .sd .fc-pop, .sd .fc-skel .fc-bar, .sd .fc-line { animation:none; }
   .sd .fc-col.sel .fc-tail { animation:none; }
   .sd .gi img { transition:none; }
