@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
 import {
-  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, PACKAGE_CONCURRENCY,
+  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, PACKAGE_CONCURRENCY, isoAddDays,
 } from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
@@ -35,6 +35,7 @@ import { loadPax, savePax, hasPaxParams } from '../../utils/paxStore';
 import { earliestCheckInISO } from '../../utils/leadTime';
 import { normaliseOrigin, parseOrigins, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
+import { usePackageAirports } from '../../hooks/usePackageAirports';
 import { useToast } from '../../context/ToastContext';
 import { roundHotelStay, perPersonFrom } from '../../utils/priceRounding';
 import styles from './Results.module.css';
@@ -1033,17 +1034,35 @@ export default function Results() {
     () => new Set(scope.destinations.length ? scope.destinations : (priceScope?.destinations ?? [])),
     [scope.destinations, priceScope]
   );
+
+  // Flight + Hotel: the departure and arrival airports with at least one valid package for this
+  // scope and these dates (admin /feasibility, every package rule). Only these are offered: an
+  // airport with no package here (Gazipasa: connections only; Eindhoven: no flight to Antalya)
+  // could only ever answer "No results". Unknown (loading, failed): nothing is hidden.
+  const pkgDated = !!params.get('checkIn');
+  const pkgNights = nightsBetween(fetchParams.checkIn, fetchParams.checkOut);
+  const pkgAirports = usePackageAirports({
+    enabled: filters.transport === 'package',
+    destinations: [...scopeDestSet],
+    from: pkgDated ? isoAddDays(fetchParams.checkIn, -urlFlex) : null,
+    to: pkgDated ? isoAddDays(fetchParams.checkIn, urlFlex) : null,
+    travelDays: pkgDated && pkgNights ? pkgNights + 1 : null,
+    adults: fetchParams.adults, children: fetchParams.children, childAges: fetchParams.childAges ?? childAges,
+  });
   // Both lists reach AirportList in ONE shape, so the component never has to know which end
   // of the flight it is drawing. The departure registry calls the flag `country` and the admin's
   // arrival rows call it `flag`; the city is what a traveller recognises, the airport's own name
   // is the confirmation under it.
   const departureRows = useMemo(
-    () => [...popularAirports, ...otherAirports].map((a) => ({
-      code: a.code, city: a.city || a.label, label: a.label, countryIso: a.countryIso || '',
-      // Proven to have no flight to the one arrival airport picked: shown, greyed, with why.
-      unavailable: departureAvailable?.[a.code] === false,
-    })),
-    [popularAirports, otherAirports, departureAvailable]
+    () => [...popularAirports, ...otherAirports]
+      // Flight + Hotel: only airports with a package here (a chosen one stays, to be unticked).
+      .filter((a) => !pkgAirports.origins || pkgAirports.origins.has(a.code) || filters.origins.includes(a.code))
+      .map((a) => ({
+        code: a.code, city: a.city || a.label, label: a.label, countryIso: a.countryIso || '',
+        // Proven to have no flight to the one arrival airport picked: shown, greyed, with why.
+        unavailable: departureAvailable?.[a.code] === false,
+      })),
+    [popularAirports, otherAirports, departureAvailable, pkgAirports.origins, filters.origins]
   );
 
   // The departure airports a package search prices from (spec 3.2, 3.6). The chosen ones that
@@ -1060,8 +1079,11 @@ export default function Results() {
 
   const arrivalOptions = useMemo(() => {
     if (!arrivalAirports.length || !scopeDestSet.size) return [];
-    return arrivalAirports.filter((a) => a.destinations.some((d) => scopeDestSet.has(d)));
-  }, [arrivalAirports, scopeDestSet]);
+    return arrivalAirports
+      .filter((a) => a.destinations.some((d) => scopeDestSet.has(d)))
+      // Flight + Hotel: only arrival airports with a package here (a chosen one stays).
+      .filter((a) => !pkgAirports.arrivals || (pkgAirports.arrivals[a.code]?.trips > 0) || filters.arrivals.includes(a.code));
+  }, [arrivalAirports, scopeDestSet, pkgAirports.arrivals, filters.arrivals]);
 
   const arrivalRows = useMemo(
     () => arrivalOptions.map((a) => ({

@@ -22,7 +22,7 @@ export const PACKAGE_PAGE = 100;
 /** The precalculated default (admin PACKAGE_PRECALC_NIGHTS). */
 export const PRECALC_NIGHTS = '7';
 
-const isoAddDays = (iso, n) => {
+export const isoAddDays = (iso, n) => {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
   return d.toISOString().slice(0, 10);

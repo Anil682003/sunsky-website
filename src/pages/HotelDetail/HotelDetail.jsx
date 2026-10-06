@@ -57,6 +57,7 @@ import {
   packageFromParams, packageApplies, flightQuestion, confirmBody, mergePackageFlight, PACKAGE_FLIGHT,
 } from '../../utils/packageHandoff';
 import { usePackageMatrix } from './usePackageMatrix';
+import { usePackageAirports } from '../../hooks/usePackageAirports';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -2222,6 +2223,20 @@ export default function HotelDetail() {
   // marked as hotel prices, so the traveller can still check a date live: flights are then
   // searched on the stay dates, as before.
   const useMatrix = pkgMode && (matrix.loading || matrix.days.length > 0);
+
+  // Flight + Hotel: the departure airports with a valid package to THIS hotel (its approved,
+  // covering arrival airports) in the fortnight around the departure (admin /feasibility). The
+  // Transport choice and the "another airport" chips offer only these; unknown: every airport.
+  const pkgAirportsAround = usePackageAirports({
+    enabled: pkgMode && !!matrixDate, destinations: destination ? [destination] : [], hotelCode,
+    from: matrixDate ? notBeforeToday(addDaysISO(matrixDate, -7)) : null,
+    to: matrixDate ? addDaysISO(matrixDate, 7) : null,
+    travelDays: matrixTravelDays, adults: sAdults, children: sChildren, childAges: sChildAges,
+  });
+  const originCodes = useMemo(
+    () => (pkgAirportsAround.origins ? departureCodes.filter((c) => pkgAirportsAround.origins.has(c) || c === origin) : departureCodes),
+    [departureCodes, pkgAirportsAround.origins, origin],
+  );
   // ── the paged fare strip ──
   // The cache endpoint always returns CAL_DAYS days FORWARD from the check-in it is handed, so
   // paging is nothing more than asking again from a different day. Today is the hard floor: the
@@ -3128,7 +3143,10 @@ export default function HotelDetail() {
   const probeAlternatives = (from, checkin, checkout, seq) => {
     // The live registry, read at the moment of probing: once the dashboard's master list has
     // loaded, an airport the team deactivated is not asked about at all.
-    const candidates = getDepartureAirports().filter((a) => a.popular && a.code !== from).map((a) => a.code);
+    // Only airports with a package to this hotel, when that is known (usePackageAirports).
+    const candidates = getDepartureAirports()
+      .filter((a) => a.popular && a.code !== from && (!pkgAirportsAround.origins || pkgAirportsAround.origins.has(a.code)))
+      .map((a) => a.code);
     const pax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
     Promise.allSettled(
       candidates.map((code) => searchFlightsRaw(code, checkin, checkout).then((data) => ({ code, data })))
@@ -3745,7 +3763,7 @@ export default function HotelDetail() {
                     : boardsFailed
                       ? t('prices.boardHintUnavailable', 'We couldn’t check this hotel’s meal plans just now. Run the check below to see what is really on offer.')
                       : t('prices.boardHintUnknown', 'Check a date to see which meal plans this hotel actually offers.')}
-                origin={origin} originOptions={departureCodes} originLabel={airportName} destination={destination}
+                origin={origin} originOptions={originCodes} originLabel={airportName} destination={destination}
                 transport={transport}
                 nights={nights}
                 touched={filtersTouched}
@@ -4469,7 +4487,7 @@ export default function HotelDetail() {
                     <div className="alt-airports">
                       <div className="alt-airports-label">{t('flights.flyingFromAnother', 'Flying from another airport?')}</div>
                       <div className="alt-airport-chips">
-                        {departureCodes.map((code) => (
+                        {originCodes.map((code) => (
                           <button type="button" key={code}
                             className={`alt-chip${origin === code ? ' act' : ''}`}
                             aria-pressed={origin === code}
