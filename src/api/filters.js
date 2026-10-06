@@ -150,8 +150,13 @@ export async function fetchPackageFares({ origin, checkIn, checkOut, adults, chi
  * with its own price, dates, departure airport and flights. POST, because the content filter's
  * hotelCodes can be a long list. See src/pages/Results/packageResults.js for the body.
  */
+// A safety net, not a waiting time: a package search answers in about a second (one SunSkyCache
+// request per stay). Cut off at the default 15 s, Istanbul's cold 22 s answer was lost and Turkey
+// showed no results (7 Oct 2026); 20 s leaves room for a cold destination on a busy server.
+export const PACKAGE_TIMEOUT_MS = 20_000;
+
 export async function fetchPackages(body, { signal } = {}) {
-  const { data } = await axiosInstance.post('/flight-availability/packages', body, { signal });
+  const { data } = await axiosInstance.post('/flight-availability/packages', body, { signal, timeout: PACKAGE_TIMEOUT_MS });
   return data;
 }
 

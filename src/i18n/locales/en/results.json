@@ -254,6 +254,10 @@
     "unknownDestinations": "Flight + hotel prices for {{places}} cannot be calculated yet: the flight data is still incomplete. These destinations are not left out because there are no flights.",
     "stillSearching": "Still searching more destinations…",
     "noneYetTitle": "Flight + hotel prices cannot be calculated yet",
-    "noneYetText": "The flight data for this search is still incomplete. Try other dates, or choose Hotel only."
+    "noneYetText": "The flight data for this search is still incomplete. Try other dates, or choose Hotel only.",
+    "failedDestinations": "Flight + hotel prices for {{places}} could not be loaded just now.",
+    "tryAgain": "Try again",
+    "failedTitle": "We could not load all flight + hotel prices",
+    "failedText": "Some destinations did not answer in time. Try again in a moment."
   }
 }
