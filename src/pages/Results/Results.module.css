@@ -1392,3 +1392,7 @@
 @media (max-width: 420px) {
   .bandGrid { grid-template-columns: repeat(2, 1fr); }
 }
+.pkgRetry {
+  background: none; border: 0; padding: 0; margin-left: 4px;
+  color: var(--blue-deep); font: inherit; font-weight: 700; text-decoration: underline; cursor: pointer;
+}

@@ -852,6 +852,8 @@ export default function Results() {
   // destinations whose packages cannot be calculated yet (missing cache data, not "no flights").
   const pkgRef = useRef({ reqId: 0, groups: [], shown: PAGE_SIZE, body: null });
   const [pkgUnknown, setPkgUnknown] = useState([]);
+  // Destinations whose package request FAILED (timeout, outage): not "no packages", unknown.
+  const [pkgFailed, setPkgFailed] = useState([]);
   const [pkgLoadingGroups, setPkgLoadingGroups] = useState(0);
   // Card photos that could not be loaded at any size: those cards show the no-photo tile.
   const [failedPhotos, setFailedPhotos] = useState(() => new Set());
@@ -1457,6 +1459,7 @@ export default function Results() {
     }
     setBoardFacets(mergeBoardFacets(pk.groups));
     setPkgUnknown(unknownDestinations(pk.groups));
+    setPkgFailed(pk.groups.filter((g) => g.done && g.error).flatMap((g) => g.dests));
     setPkgLoadingGroups(pk.groups.filter((g) => !g.done).length);
     if (merged.length || !pending) { setLoading(false); setFiltering(false); setPendingSearch(false); }
     if (!pending) {
@@ -1571,6 +1574,7 @@ export default function Results() {
       const groups = chunkDestinations(dests).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
       pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };
       setPkgUnknown([]);
+      setPkgFailed([]);
       setNights(nightsBetween(fetchParams.checkIn, fetchParams.checkOut) || 0);
       setCheapestCode(null);
       setBoardFacets({});
@@ -2894,6 +2898,17 @@ export default function Results() {
                 })}
               </div>
             )}
+            {/* Some destinations could not be loaded (timeout, outage). Said, with a retry: the
+                list is not "every package there is" while they are missing. */}
+            {!loading && applied.transport === 'package' && pkgFailed.length > 0 && allHotels.length > 0 && (
+              <div className={styles.pkgNotice} role="status">
+                {t('pkg.failedDestinations', {
+                  places: pkgFailed.map((d) => scopeCities.find((c) => c.code === d)?.name || d).join(', '),
+                  defaultValue: 'Flight + hotel prices for {{places}} could not be loaded just now.',
+                })}{' '}
+                <button type="button" className={styles.pkgRetry} onClick={retrySearch}>{t('pkg.tryAgain', 'Try again')}</button>
+              </div>
+            )}
             {!loading && applied.transport === 'package' && pkgLoadingGroups > 0 && (
               <div className={styles.pkgLoading} role="status">{t('pkg.stillSearching', 'Still searching more destinations…')}</div>
             )}
@@ -2963,17 +2978,24 @@ export default function Results() {
                     <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
                   </svg>
                 </div>
-                <h3>{applied.transport === 'package' && pkgUnknown.length > 0
+                <h3>{applied.transport === 'package' && pkgFailed.length > 0
+                  ? t('pkg.failedTitle', 'We could not load all flight + hotel prices')
+                  : applied.transport === 'package' && pkgUnknown.length > 0
                   ? t('pkg.noneYetTitle', 'Flight + hotel prices cannot be calculated yet')
                   : t('empty.noneTitle', 'No results found')}</h3>
                 <p>
-                  {applied.transport === 'package' && pkgUnknown.length > 0
+                  {/* A failed request is never "no results": the packages may well exist. */}
+                  {applied.transport === 'package' && pkgFailed.length > 0
+                    ? t('pkg.failedText', 'Some destinations did not answer in time. Try again in a moment.')
+                    : applied.transport === 'package' && pkgUnknown.length > 0
                     ? t('pkg.noneYetText', 'The flight data for this search is still incomplete. Try other dates, or choose Hotel only.')
                     : activeCount > 0
                     ? t('empty.noneFiltered', 'No stays match your filters. Try relaxing them or widening your price range.')
                     : t('empty.noneWiden', 'Try different dates or a wider area.')}
                 </p>
-                {activeCount > 0 && (
+                {applied.transport === 'package' && pkgFailed.length > 0 ? (
+                  <button className={styles.applyBtn} style={{ maxWidth: 200 }} onClick={retrySearch}>{t('pkg.tryAgain', 'Try again')}</button>
+                ) : activeCount > 0 && (
                   <button className={styles.applyBtn} style={{ maxWidth: 200 }} onClick={clearFilters}>{t('empty.clearFilters', 'Clear all filters')}</button>
                 )}
               </div>

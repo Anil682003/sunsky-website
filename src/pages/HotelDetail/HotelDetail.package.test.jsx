@@ -334,3 +334,37 @@ describe('the strip scales on the price it prints', () => {
     expect(low.closest('.fc-col').getAttribute('aria-label')).toMatch(/€45/);
   });
 });
+
+describe('a package’s live price waits for its flight', () => {
+  it('while the flight is checked, the room alone is never shown as the live price', async () => {
+    // The flight answers only when released; the room answers at once.
+    let release;
+    const held = new Promise((r) => { release = r; });
+    post.mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('hotel-availability')) return Promise.resolve({ data: { results: { hotelbeds: { rooms: ROOMS } } } });
+      if (u.includes('cached-search/confirm')) return held.then(() => ({ data: CONFIRM.data }));
+      if (u.includes('flight-availability/search')) return held.then(() => ({ data: { results: { airtuerk: { flights: SEARCH } } } }));
+      return Promise.resolve({ data: {} });
+    });
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    // The room (€500) is in; the flight is not. No €250 p.p. or €500 total as a live price anywhere.
+    await waitFor(() => expect(post.mock.calls.some(([u]) => String(u).includes('hotel-availability'))).toBe(true));
+    await new Promise((r) => setTimeout(r, 50));
+    expect(screen.queryAllByText(/€\s?500/).length).toBe(0);
+    expect(container.querySelector('.fc-amt-live')).toBeNull();
+    release();
+    await waitFor(() => expect(screen.getAllByText(/€1,500/).length).toBeGreaterThan(0));
+  });
+
+  it('Hotel only still shows the room’s live price as soon as it is in', async () => {
+    const user = userEvent.setup();
+    renderPage('', 'hotel_only');
+    await priceDays();
+    await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
+    await waitFor(() => expect(screen.getAllByText(/€500/).length).toBeGreaterThan(0));
+    expect(flightSearches()).toHaveLength(0);
+  });
+});

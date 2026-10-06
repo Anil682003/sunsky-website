@@ -40,6 +40,10 @@ vi.mock('../../api/filters', () => ({
   fetchArrivalAirports: vi.fn(() => Promise.resolve([])),
   fetchDepartureAirports: vi.fn(() => Promise.resolve({ airports: [], filtered: null, cacheHasData: false })),
   fetchPackages: vi.fn((body) => {
+    // A group holding a destination listed in answers.fail does not answer (a timeout).
+    if (body.destinations.some((d) => answers.fail?.includes(d))) {
+      return Promise.reject(Object.assign(new Error('timeout of 60000ms exceeded'), { code: 'ECONNABORTED' }));
+    }
     const hotels = body.destinations.flatMap((d) => answers.byDest[d]?.hotels || [])
       .sort((a, b) => a.sunskyPayableTotal - b.sunskyPayableTotal);
     const page = body.page || 1;
@@ -59,6 +63,7 @@ const sentToCache = [];
 beforeEach(async () => {
   sentToCache.length = 0;
   answers.byDest = {};
+  answers.fail = [];
   globalThis.fetch = vi.fn((url) => {
     if (String(url).includes('/contracts/cheapest')) sentToCache.push(String(url));
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [], results: [], hasMore: false }) });
@@ -142,5 +147,34 @@ describe('"Incl. flight" lists complete packages (Levent, 6 Oct 2026)', () => {
     await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(4));
     const bodies = await calls();
     expect(bodies.map((b) => b.page)).toEqual([1, 2]);
+  });
+});
+
+// Turkey from Brussels, 12 Dec (7 Oct 2026): the groups holding Antalya and Istanbul did not answer
+// in time, the group of İzmir/Dalaman answered "no package", and the page said "No results found".
+describe('a package request that failed is never "no results"', () => {
+  const COUNTRY = '?countries=TR&destinationLabel=Turkije&checkIn=2026-11-03&checkOut=2026-11-10&adults=2&children=0&rooms=1&transport=package';
+
+  it('nothing found and a group failed: says it could not load, offers a retry', async () => {
+    answers.fail = ['AYT'];
+    renderAt(COUNTRY);
+    expect(await screen.findByText(/niet alle vlucht \+ hotelprijzen laden/i)).toBeInTheDocument();
+    expect(screen.queryByText(/geen resultaten/i)).toBeNull();
+    expect(screen.getByRole('button', { name: /opnieuw proberen/i })).toBeInTheDocument();
+  });
+
+  it('results from the groups that answered, and the failed destinations named with a retry', async () => {
+    answers.fail = ['AYT'];
+    answers.byDest.BJV = { status: 'FEASIBLE', hotels: [pkg('b', 'BJV', 500)] };
+    renderAt(COUNTRY);
+    await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(1));
+    const notice = await screen.findByText(/konden nu niet geladen worden/i);
+    expect(notice.textContent).toMatch(/AYT|Antalya/);
+    expect(within(notice).getByRole('button', { name: /opnieuw proberen/i })).toBeInTheDocument();
+  });
+
+  it('package searches wait up to 20 s, not the default 15 s', async () => {
+    const { PACKAGE_TIMEOUT_MS } = await vi.importActual('../../api/filters');
+    expect(PACKAGE_TIMEOUT_MS).toBe(20_000);
   });
 });

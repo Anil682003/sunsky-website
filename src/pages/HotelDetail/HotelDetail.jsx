@@ -2884,7 +2884,10 @@ export default function HotelDetail() {
   // Whole euros (rule 10): a package rounds hotel + flight once; hotel only rounds per room.
   // The flightBlocked guard stays: with a failed or unpriced flight check there is no package
   // to quote, and the room price alone presented as a trip total is the wrong number.
-  const liveTotal = liveRoom && !flightBlocked
+  // A package has no live total while its flight is still being checked: the room alone, shown
+  // for a moment as "flight + hotel" (€105 p.p. before €341, 7 Oct 2026), is not that price.
+  // Hotel only is priced the moment the room is in, as before.
+  const liveTotal = liveRoom && !flightBlocked && !(transport === 'package' && flightsChecking)
     ? roundStayTotal(liveRoom.price || 0, liveFlight?.totalPrice || 0, roomsCount)
     : null;
   const displayTotal = liveTotal != null ? liveTotal : stayFrom;
@@ -3873,7 +3876,7 @@ export default function HotelDetail() {
                       // `sel` class and aria-pressed below; losing it throws a ReferenceError on
                       // every render and blanks the whole page, so it must stay above isLoading.
                       const sel = pickedIdx === i;
-                      const isLoading = sel && liveChecked && roomsChecking;
+                      const isLoading = sel && liveChecked && liveBusy;
                       // Live came back with rooms for THIS day — the only point in the flow where
                       // availability is a fact rather than a cached guess, so it gets its own
                       // colour. Every clause matters: still loading, an error, or zero rooms are
@@ -4088,7 +4091,7 @@ export default function HotelDetail() {
                                   holiday was available before anybody knew it was. In progress is a
                                   spinner, a failed check is amber, and the tick is earned only once
                                   rooms have actually come back. */}
-                              {roomsChecking ? (
+                              {liveBusy ? (
                                 <span className="fc-res-mark fc-res-mark-busy" aria-hidden="true" />
                               ) : roomsUnsettled ? (
                                 <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f59e0b" /><path d="M12 7.4v5.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="16.4" r="1.35" fill="#fff" /></svg>
@@ -4097,7 +4100,7 @@ export default function HotelDetail() {
                               )}
                               <div className="av-head">
                                 <div className="avail-text">
-                                  {roomsChecking ? t('prices.checkingLiveAvailability', 'Checking live availability…')
+                                  {liveBusy ? t('prices.checkingLiveAvailability', 'Checking live availability…')
                                     : roomsPriceUnknown ? t('prices.priceStillToCheck', 'Price still to be checked')
                                     : roomsFailed ? (pdEstimate ? t('prices.showingEstimatedPrice', 'Showing estimated price') : t('prices.livePriceUnavailable', 'Live price unavailable'))
                                     : t('prices.holidayAvailable', 'Your holiday is available!')}
@@ -4106,9 +4109,9 @@ export default function HotelDetail() {
                                     a price that came back from the supplier is confirmed, an
                                     estimate off the cache is not, and neither is a check still
                                     running. */}
-                                <div className={`av-confirm${roomsUnsettled ? ' warn' : ''}${roomsChecking ? ' busy' : ''}`}>
+                                <div className={`av-confirm${roomsUnsettled ? ' warn' : ''}${liveBusy ? ' busy' : ''}`}>
                                   <i className="av-dot" />
-                                  {roomsChecking ? t('prices.askingHotelForRate', 'Asking the hotel for today’s rate')
+                                  {liveBusy ? t('prices.askingHotelForRate', 'Asking the hotel for today’s rate')
                                     : roomsPriceUnknown ? t('prices.roomsWithoutPrice', 'Rooms are open, no price came back')
                                     : roomsFailed ? (pdEstimate ? t('prices.estimatedNotConfirmed', 'Estimated price — not confirmed') : t('prices.couldNotReachHotel', 'Could not reach the hotel'))
                                     : t('prices.liveAvailabilityConfirmed', 'Live availability and price confirmed')}
@@ -4127,7 +4130,7 @@ export default function HotelDetail() {
                                   actually pay is never left to be worked out. */}
                               <div className="av-price-row">
                                 <span className="avail-price-val">
-                                  {roomsChecking
+                                  {liveBusy
                                     ? <span className="avail-spin" />
                                     : (liveNow != null || pdEstimate)
                                       ? <><small>€</small>{ppOf(liveNow != null ? liveNow : Number(pd.price))}<em>p.p.</em></>

@@ -254,6 +254,10 @@
     "unknownDestinations": "Vlucht + hotelprijzen voor {{places}} kunnen nog niet berekend worden: de vluchtgegevens zijn nog onvolledig. Deze bestemmingen ontbreken niet omdat er geen vluchten zijn.",
     "stillSearching": "We zoeken nog meer bestemmingen…",
     "noneYetTitle": "Vlucht + hotelprijzen kunnen nog niet berekend worden",
-    "noneYetText": "De vluchtgegevens voor deze zoekopdracht zijn nog onvolledig. Probeer andere data, of kies Enkel hotel."
+    "noneYetText": "De vluchtgegevens voor deze zoekopdracht zijn nog onvolledig. Probeer andere data, of kies Enkel hotel.",
+    "failedDestinations": "Vlucht + hotelprijzen voor {{places}} konden nu niet geladen worden.",
+    "tryAgain": "Opnieuw proberen",
+    "failedTitle": "We konden niet alle vlucht + hotelprijzen laden",
+    "failedText": "Sommige bestemmingen antwoordden niet op tijd. Probeer het zo meteen opnieuw."
   }
 }
