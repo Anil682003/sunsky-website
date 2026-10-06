@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { hotelDetailHref, defaultSearchContext } from '../../../utils/searchDefaults';
 import { fetchPackages } from '../../../api/filters';
+import { packageParams } from '../../../utils/packageHandoff';
 import { formatReview } from '../../../utils/reviewBadge';
 import HotelPhotoFallback from '../../../components/HotelPhotoFallback/HotelPhotoFallback';
 import styles from './Hotels.module.css';
@@ -134,6 +135,8 @@ export default function Hotels({ cms }) {
         const ctx = pkg ? { ...defaultSearchContext(), checkIn: pkg.stay.checkin, checkOut: pkg.stay.checkout, nights: String(pkg.stay.nights) } : undefined;
         let href = hotelDetailHref(card, ctx);
         if (href && pkg?.departureAirport) href += `&origin=${encodeURIComponent(pkg.departureAirport)}`;
+        // The package's own flights, so the hotel page checks exactly the package priced here.
+        if (href && pkg) { const p = new URLSearchParams(packageParams(pkg)).toString(); if (p) href += `&${p}`; }
         return {
           ...card,
           price: pkg ? euros(pkg.pricePerPerson) : null,

@@ -701,8 +701,10 @@ function CheckoutContent({ stripe, elements }) {
       const mixChanged = party.adults !== (Number(srch.adults) || 1) || party.infants > 0;
       const flightReq = (mixChanged && booking.api?.flight && srch.destination)
         ? axiosInstance.post('/flight-availability/search', {
-            from: srch.origin, to: srch.destination,
-            depdate: srch.checkin, retdate: srch.checkout,
+            // The flight's own question when the hotel page handed it over (a package's flight
+            // can leave the day before check-in); the stay otherwise, as before.
+            from: srch.origin, to: srch.flightTo || srch.destination,
+            depdate: srch.flightDepdate || srch.checkin, retdate: srch.flightRetdate || srch.checkout,
             adults: party.adults, children: party.children, infants: party.infants,
             // A package holiday: only flights the airport's connection policy allows.
             package: true,
