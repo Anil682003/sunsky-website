@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
 import {
-  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, PACKAGE_CONCURRENCY, isoAddDays,
+  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, PACKAGE_CONCURRENCY, isoAddDays,
 } from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
@@ -485,7 +485,7 @@ function AirportList({ rows, selected, onPick, multiple, name, language, unavail
                 <span className={styles.apText}>
                   <span className={styles.apCity}>{a.city}</span>
                   {a.label && a.label !== a.city && <span className={styles.apName}>{a.label}</span>}
-                  {a.unavailable && unavailableNote && <span className={styles.apReason}>{unavailableNote}</span>}
+                  {a.unavailable && (a.reason || unavailableNote) && <span className={styles.apReason}>{a.reason || unavailableNote}</span>}
                 </span>
                 <span className={styles.apCode}>{a.code}</span>
               </label>
@@ -853,6 +853,8 @@ export default function Results() {
   // destinations whose packages cannot be calculated yet (missing cache data, not "no flights").
   const pkgRef = useRef({ reqId: 0, groups: [], shown: PAGE_SIZE, body: null });
   const [pkgUnknown, setPkgUnknown] = useState([]);
+  // The airports the package answers prove (mergeAirportFacets): null = not proven either way.
+  const [pkgProven, setPkgProven] = useState({ origins: null, arrivals: null });
   // Destinations whose package request FAILED (timeout, outage): not "no packages", unknown.
   const [pkgFailed, setPkgFailed] = useState([]);
   const [pkgLoadingGroups, setPkgLoadingGroups] = useState(0);
@@ -1053,16 +1055,31 @@ export default function Results() {
   // of the flight it is drawing. The departure registry calls the flag `country` and the admin's
   // arrival rows call it `flag`; the city is what a traveller recognises, the airport's own name
   // is the confirmation under it.
+  // Results-page strictness (Ch 1 §9A, ResultFacetFeasibility): an airport is offered when it has a
+  // valid package round trip (feasibility) and, once the package answers are complete, at least
+  // one hotel left under the other filters has a package through it. Unknown hides nothing.
+  const packageOrigin = (code) => (!pkgAirports.origins || pkgAirports.origins.has(code))
+    && (!pkgProven.origins || pkgProven.origins.has(code));
+  const packageArrival = (code) => (!pkgAirports.arrivals || pkgAirports.arrivals[code]?.trips > 0)
+    && (!pkgProven.arrivals || pkgProven.arrivals.has(code));
+  const choiceGoneNote = t('filters.airportChoiceGone', 'Not available for this search. Untick it or choose another airport.');
   const departureRows = useMemo(
     () => [...popularAirports, ...otherAirports]
-      // Flight + Hotel: only airports with a package here (a chosen one stays, to be unticked).
-      .filter((a) => !pkgAirports.origins || pkgAirports.origins.has(a.code) || filters.origins.includes(a.code))
-      .map((a) => ({
-        code: a.code, city: a.city || a.label, label: a.label, countryIso: a.countryIso || '',
-        // Proven to have no flight to the one arrival airport picked: shown, greyed, with why.
-        unavailable: departureAvailable?.[a.code] === false,
-      })),
-    [popularAirports, otherAirports, departureAvailable, pkgAirports.origins, filters.origins]
+      // Flight + Hotel: only airports with a package here. A chosen one always stays: when it no
+      // longer works it says so, and only the traveller unticks it (never replaced silently).
+      .filter((a) => packageOrigin(a.code) || filters.origins.includes(a.code))
+      .map((a) => {
+        const gone = filters.transport === 'package' && filters.origins.includes(a.code) && !packageOrigin(a.code);
+        return {
+          code: a.code, city: a.city || a.label, label: a.label, countryIso: a.countryIso || '',
+          // Proven to have no flight to the one arrival airport picked: shown, greyed, with why.
+          unavailable: gone || departureAvailable?.[a.code] === false,
+          reason: gone ? choiceGoneNote : undefined,
+        };
+      }),
+    // packageOrigin reads pkgAirports.origins and pkgProven.origins.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [popularAirports, otherAirports, departureAvailable, pkgAirports.origins, pkgProven.origins, filters.origins, filters.transport, choiceGoneNote]
   );
 
   // The departure airports a package search prices from (spec 3.2, 3.6). The chosen ones that
@@ -1082,8 +1099,10 @@ export default function Results() {
     return arrivalAirports
       .filter((a) => a.destinations.some((d) => scopeDestSet.has(d)))
       // Flight + Hotel: only arrival airports with a package here (a chosen one stays).
-      .filter((a) => !pkgAirports.arrivals || (pkgAirports.arrivals[a.code]?.trips > 0) || filters.arrivals.includes(a.code));
-  }, [arrivalAirports, scopeDestSet, pkgAirports.arrivals, filters.arrivals]);
+      .filter((a) => packageArrival(a.code) || filters.arrivals.includes(a.code));
+    // packageArrival reads pkgAirports.arrivals and pkgProven.arrivals.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrivalAirports, scopeDestSet, pkgAirports.arrivals, pkgProven.arrivals, filters.arrivals]);
 
   const arrivalRows = useMemo(
     () => arrivalOptions.map((a) => ({
@@ -1093,8 +1112,12 @@ export default function Results() {
       city: a.cityNames?.length ? a.cityNames.join(', ') : a.name,
       label: a.name,
       countryIso: a.countryCode || '',
+      ...(filters.transport === 'package' && filters.arrivals.includes(a.code) && !packageArrival(a.code)
+        ? { unavailable: true, reason: choiceGoneNote } : {}),
     })),
-    [arrivalOptions]
+    // packageArrival reads pkgAirports.arrivals and pkgProven.arrivals.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [arrivalOptions, filters.arrivals, filters.transport, pkgAirports.arrivals, pkgProven.arrivals, choiceGoneNote]
   );
 
 
@@ -1480,6 +1503,7 @@ export default function Results() {
       growCeiling(merged.map((p) => (f.priceBasis === 'perPerson' ? p.pricePerPerson : p.sunskyPayableTotalRounded)).filter((n) => Number.isFinite(n)));
     }
     setBoardFacets(mergeBoardFacets(pk.groups));
+    setPkgProven(mergeAirportFacets(pk.groups, pk.body || {}));
     setPkgUnknown(unknownDestinations(pk.groups));
     setPkgFailed(pk.groups.filter((g) => g.done && g.error).flatMap((g) => g.dests));
     setPkgLoadingGroups(pk.groups.filter((g) => !g.done).length);
@@ -1503,7 +1527,7 @@ export default function Results() {
           g.hasMore = !!r?.hasMore;
           g.page += 1;
           g.destinationStatus = { ...(g.destinationStatus || {}), ...(r?.destinationStatus || {}) };
-          if (g.page === 1) g.boardFacets = r?.boardFacets || {};
+          if (g.page === 1) { g.boardFacets = r?.boardFacets || {}; g.airportFacets = r?.airportFacets || null; }
           g.error = null;
         } catch (err) {
           if (signal?.aborted || err?.name === 'CanceledError') return;
@@ -1596,6 +1620,7 @@ export default function Results() {
       const groups = chunkDestinations(dests).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
       pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };
       setPkgUnknown([]);
+      setPkgProven({ origins: null, arrivals: null });
       setPkgFailed([]);
       setNights(nightsBetween(fetchParams.checkIn, fetchParams.checkOut) || 0);
       setCheapestCode(null);

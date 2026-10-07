@@ -2237,6 +2237,10 @@ export default function HotelDetail() {
     () => (pkgAirportsAround.origins ? departureCodes.filter((c) => pkgAirportsAround.origins.has(c) || c === origin) : departureCodes),
     [departureCodes, pkgAirportsAround.origins, origin],
   );
+  // The chosen departure airport can no longer make a package for this hotel (a cache update,
+  // or another choice changed): it stays chosen and says so; only the traveller picks another
+  // (Ch 1 §9A, Ch 3 case 23). Unknown (loading, failed) is never "not available".
+  const originGone = pkgMode && !!origin && !!pkgAirportsAround.origins && !pkgAirportsAround.origins.has(origin);
   // ── the paged fare strip ──
   // The cache endpoint always returns CAL_DAYS days FORWARD from the check-in it is handed, so
   // paging is nothing more than asking again from a different day. Today is the hard floor: the
@@ -3764,6 +3768,7 @@ export default function HotelDetail() {
                       ? t('prices.boardHintUnavailable', 'We couldn’t check this hotel’s meal plans just now. Run the check below to see what is really on offer.')
                       : t('prices.boardHintUnknown', 'Check a date to see which meal plans this hotel actually offers.')}
                 origin={origin} originOptions={originCodes} originLabel={airportName} destination={destination}
+                originNotes={originGone ? { [origin]: t('flights.originGoneShort', 'Not available') } : undefined}
                 transport={transport}
                 nights={nights}
                 touched={filtersTouched}
@@ -4485,6 +4490,11 @@ export default function HotelDetail() {
                         deltas from the design mock; a real delta would cost one live supplier
                         search per airport, so the price line is gone rather than faked. */}
                     <div className="alt-airports">
+                      {originGone && (
+                        <p className="alt-airports-label" role="status">
+                          {t('flights.originGone', { airport: airportName(origin), defaultValue: 'No package from {{airport}} for this hotel and these dates. Choose another airport.' })}
+                        </p>
+                      )}
                       <div className="alt-airports-label">{t('flights.flyingFromAnother', 'Flying from another airport?')}</div>
                       <div className="alt-airport-chips">
                         {originCodes.map((code) => (

@@ -214,6 +214,8 @@
     "deltaPP": "{{sign}} {{currency}}{{amount}} p.p.",
     "faresWithoutPrice": "Vluchten vanaf {{airport}} kwamen terug zonder prijs. Probeer de controle opnieuw of vergelijk een andere luchthaven.",
     "flyingFromAnother": "Vanaf een andere luchthaven vliegen?",
+    "originGone": "Geen pakketreis vanaf {{airport}} voor dit hotel en deze data. Kies een andere luchthaven.",
+    "originGoneShort": "Niet beschikbaar",
     "fromPP": "vanaf {{currency}}{{amount}} p.p.",
     "hotelOnlySub": "Je regelt zelf je vervoer. De prijs hierboven is alleen het verblijf.",
     "hotelOnlyTitle": "Alleen hotel — geen vluchten inbegrepen",
