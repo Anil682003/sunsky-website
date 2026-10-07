@@ -40,6 +40,11 @@
     "VIL": "Villa",
     "ROO": "Room"
   },
+  "perPage": {
+    "label": "Per page",
+    "aria": "Hotels per page",
+    "option": "{{count}} hotels"
+  },
   "sort": {
     "label": "Sort",
     "aria": "Sort results",

@@ -108,6 +108,33 @@ describe('Flight + Hotel offers only the airports that can make a package', () =
     expect(codesShown()).toMatch(/BRU/);
   });
 
+  it('an airport a card is priced from is always offered, even when the airport check lists none', async () => {
+    FEASIBILITY = { success: true, origins: [], arrivals: {} };
+    fetchPackages.mockImplementation(() => Promise.resolve({ ...NO_PACKAGES, hotels: [{
+      hotelCode: 'H1', destination: 'AYT', sunskyPayableTotal: 818, sunskyPayableTotalRounded: 818, pricePerPerson: 409, currency: 'EUR',
+      board: 'AI', room: 'DBL', stay: { checkin: '2027-07-04', checkout: '2027-07-10', nights: 6 },
+      departureAirport: 'DUS', arrivalAirport: 'AYT', origins: ['DUS'], arrivals: ['AYT'],
+      components: { flight: 400, hotel: 418 }, flight: { stops: 0, travelDays: 7, outbound: { departureLocal: '2027-07-04T08:00' }, inbound: { departureLocal: '2027-07-10T14:00' } },
+    }] }));
+    renderAt(URL_PKG);
+    await waitFor(() => expect(fetchPackages).toHaveBeenCalled());
+    await waitFor(() => expect(codesShown()).toMatch(/DUS/));
+    expect(codesShown()).not.toMatch(/BRU/);   // no card from BRU and the check lists nothing
+  });
+
+  it('Per page: 50 asks the price cache for 50 hotels, with the same search', async () => {
+    const { fireEvent } = await import('@testing-library/react');
+    renderAt(URL_PKG.replace('transport=package', 'transport=hotel_only'));
+    const select = await screen.findByLabelText(/Hotels per (page|pagina)/i);
+    expect(select.value).toBe('20');
+    globalThis.fetch.mockClear();
+    fireEvent.change(select, { target: { value: '50' } });
+    await waitFor(() => expect(globalThis.fetch.mock.calls.some(([u, o]) => /pageSize=50|"pageSize":"50"/.test(`${u} ${o?.body ?? ''}`))).toBe(true));
+    const [u, o] = globalThis.fetch.mock.calls.find(([url, opts]) => /pageSize=50|"pageSize":"50"/.test(`${url} ${opts?.body ?? ''}`));
+    expect(`${u} ${o?.body ?? ''}`).toMatch(/AYT/);   // same destination
+    try { window.localStorage.removeItem('sunsky.results.perPage'); } catch { /* ignore */ }
+  });
+
   it('when the check fails, every airport stays (unknown is never "no flights")', async () => {
     FEASIBILITY = null;
     renderAt(URL_PKG);
