@@ -109,7 +109,7 @@ export default function StayBar({
   checkIn, formatDate,
   adults, children: childCount, childAges = '', childDobs = '', rooms: roomCount = 1,
   board = '', boardOptions = [], boardHint = '',
-  origin, originOptions = [], originLabel = (c) => c, destination = '',
+  origin, originOptions = [], originLabel = (c) => c, destination = '', originNotes = {},
   transport = 'package',
   nights,
   touched = false, onChange, onBoardChange, onChildAges, onChildDobs, onReset,
@@ -311,7 +311,7 @@ export default function StayBar({
         <Field id="origin" icon={ICONS.plane} label={t('chips.transport', 'Transport')} open={openField === 'origin'} onToggle={toggle}
           value={transport === 'hotel_only'
             ? t('home:hero.hotelOnly', 'Hotel only')
-            : `${originLabel(origin)} (${origin})${destination ? ` → ${destination}` : ''}`} wide>
+            : `${originLabel(origin)} (${origin})${destination ? ` → ${destination}` : ''}${originNotes[origin] ? ` · ${originNotes[origin]}` : ''}`} wide>
           <div className={styles.modeRow} role="radiogroup" aria-label={t('home:hero.transport.mode', 'Transport mode')}>
             <button type="button"
               className={`${styles.modeBtn}${transport !== 'hotel_only' ? ` ${styles.modeBtnOn}` : ''}`}
@@ -331,7 +331,8 @@ export default function StayBar({
               <div className={styles.popTitle}>{t('home:hero.flyingFrom', 'Flying from')}</div>
               <OptionList scroll current={origin}
                 options={originOptions.map((o) => ({
-                  id: o, label: `${originLabel(o)} (${o})`, note: destination ? `→ ${destination}` : null,
+                  // A note on an airport (the chosen one that no longer makes a package) wins.
+                  id: o, label: `${originLabel(o)} (${o})`, note: originNotes[o] || (destination ? `→ ${destination}` : null),
                 }))}
                 onPick={(o) => { onChange({ origin: o }); close(); }} />
             </>

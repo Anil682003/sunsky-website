@@ -156,4 +156,25 @@ export function mergeBoardFacets(groups) {
   return out;
 }
 
-export default { PACKAGE_CONCURRENCY, chunkDestinations, packageBody, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, DEST_CHUNK, PACKAGE_PAGE, PRECALC_NIGHTS };
+/**
+ * PURE. The airports the package answers PROVE (Ch 1 §9A, ResultFacetFeasibility): the departure
+ * and arrival airports through which at least one hotel left after every other filter has a
+ * package. `null` = not proven either way, and nothing may be hidden for it: a group still
+ * loading or failed, an incomplete answer (stays left unpriced), an answer without facets, or a
+ * search that itself chose airports on that side (it only looked at those).
+ *
+ * @param {object[]} groups  the package groups (page 1's `airportFacets` on each)
+ * @param {{ origins?: string, arrivals?: string }} body  the /packages body that was sent
+ * @returns {{ origins: Set<string>|null, arrivals: Set<string>|null }}
+ */
+export function mergeAirportFacets(groups, body = {}) {
+  const proven = groups.length > 0 && groups.every((g) => g.done && !g.error && g.airportFacets?.complete === true);
+  if (!proven) return { origins: null, arrivals: null };
+  const side = (k) => new Set(groups.flatMap((g) => Object.entries(g.airportFacets[k] || {}).filter(([, n]) => n > 0).map(([a]) => a)));
+  return {
+    origins: body.origins ? null : side('origins'),
+    arrivals: body.arrivals ? null : side('arrivals'),
+  };
+}
+
+export default { PACKAGE_CONCURRENCY, chunkDestinations, packageBody, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, DEST_CHUNK, PACKAGE_PAGE, PRECALC_NIGHTS };

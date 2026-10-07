@@ -170,7 +170,8 @@
     "airportsChecking": "We kijken welke luchthavens erheen vliegen…",
     "airportsCheckFailed": "We konden nu niet nagaan welke luchthavens erheen vliegen, dus elke luchthaven blijft kiesbaar.",
     "originNoteAny": "Bij elk hotel zie je de vertrekluchthaven met de laagste prijs. Vink luchthavens aan om alleen die te vergelijken.",
-    "airportNoFlight": "Geen vlucht naar {{place}} op deze data"
+    "airportNoFlight": "Geen vlucht naar {{place}} op deze data",
+    "airportChoiceGone": "Niet beschikbaar voor deze zoekopdracht. Vink hem uit of kies een andere luchthaven."
   },
   "hero": {
     "home": "Home",

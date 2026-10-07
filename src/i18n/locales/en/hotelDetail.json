@@ -214,6 +214,8 @@
     "deltaPP": "{{sign}} {{currency}}{{amount}} p.p.",
     "faresWithoutPrice": "Flights from {{airport}} came back without a price. Try the check again, or compare another airport.",
     "flyingFromAnother": "Flying from another airport?",
+    "originGone": "No package from {{airport}} for this hotel and these dates. Choose another airport.",
+    "originGoneShort": "Not available",
     "fromPP": "from {{currency}}{{amount}} p.p.",
     "hotelOnlySub": "You're arranging your own way there. The price above is the stay alone.",
     "hotelOnlyTitle": "Hotel only — no flights included",

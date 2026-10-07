@@ -3,7 +3,7 @@
 // calculated yet.
 import { describe, it, expect } from 'vitest';
 import {
-  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, PRECALC_NIGHTS,
+  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, PRECALC_NIGHTS,
 } from './packageResults';
 
 const fp = { checkIn: '2026-11-13', checkOut: '2026-11-19', adults: '2', children: '1', rooms: '1', childAges: '8' };
@@ -80,5 +80,32 @@ describe('a package as a card', () => {
     const pkg = { hotelCode: '7', destination: 'AYT', sunskyPayableTotal: 1100.4, sunskyPayableTotalRounded: 1101, pricePerPerson: 551, board: 'AI', room: 'DBL', currency: 'EUR' };
     const c = mapPackage(pkg, 'Antalya');
     expect(c).toMatchObject({ hotelCode: '7', name: null, totalAmount: 1101, totalAmountUnrounded: 1100.4, perPerson: 551, boardCode: 'AI', roomType: 'DBL', loc: 'Antalya', destinationCode: 'AYT', pkg });
+  });
+});
+
+describe('the airports the package answers prove (Ch 1 §9A)', () => {
+  const g = (facets, o = {}) => ({ done: true, error: null, airportFacets: facets, ...o });
+  const f = (origins, arrivals, complete = true) => ({ origins, arrivals, complete });
+
+  it('complete answers: the union of the airports with at least one hotel', () => {
+    const r = mergeAirportFacets([g(f({ BRU: 3, LGG: 0 }, { AYT: 3 })), g(f({ AMS: 1 }, { DLM: 1 }))]);
+    expect([...r.origins].sort()).toEqual(['AMS', 'BRU']);
+    expect([...r.arrivals].sort()).toEqual(['AYT', 'DLM']);
+  });
+
+  it('nothing proven while a group loads or failed, or when an answer is incomplete or has no facets', () => {
+    const none = { origins: null, arrivals: null };
+    expect(mergeAirportFacets([g(f({ BRU: 1 }, {})), g(null, { done: false })])).toEqual(none);
+    expect(mergeAirportFacets([g(f({ BRU: 1 }, {})), g(null, { error: new Error('x') })])).toEqual(none);
+    expect(mergeAirportFacets([g(f({ BRU: 1 }, {}, false))])).toEqual(none);
+    expect(mergeAirportFacets([g(undefined)])).toEqual(none);
+    expect(mergeAirportFacets([])).toEqual(none);
+  });
+
+  it('a search that chose airports proves nothing about the others on that side', () => {
+    const r = mergeAirportFacets([g(f({ BRU: 2 }, { AYT: 2 }))], { origins: 'BRU' });
+    expect(r.origins).toBeNull();
+    expect([...r.arrivals]).toEqual(['AYT']);
+    expect(mergeAirportFacets([g(f({ BRU: 2 }, { AYT: 2 }))], { arrivals: 'AYT' }).arrivals).toBeNull();
   });
 });

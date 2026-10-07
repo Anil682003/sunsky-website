@@ -6,6 +6,7 @@ import { describe, it, expect, beforeEach, vi } from 'vitest';
 import { render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Results from './Results';
+import { fetchPackages } from '../../api/filters';
 
 vi.mock('react-router-dom', async (orig) => ({ ...(await orig()), useNavigate: () => vi.fn() }));
 vi.mock('react-redux', () => ({ useSelector: (fn) => fn({ auth: { isAuthenticated: false } }) }));
@@ -41,8 +42,10 @@ vi.mock('../../api/filters', () => ({
 }));
 
 let FEASIBILITY;
+const NO_PACKAGES = { hotels: [], hasMore: false, destinationStatus: {}, boardFacets: {} };
 beforeEach(() => {
   get.mockReset();
+  fetchPackages.mockImplementation(() => Promise.resolve(NO_PACKAGES));
   FEASIBILITY = { success: true, origins: ['BRU', 'DUS'], arrivals: { AYT: { status: 'FEASIBLE', trips: 129 }, GZP: { status: 'NOT_FEASIBLE', trips: 0 } } };
   get.mockImplementation((url) => (String(url).includes('/feasibility')
     ? (FEASIBILITY ? Promise.resolve({ data: FEASIBILITY }) : Promise.reject(new Error('down')))
@@ -51,6 +54,7 @@ beforeEach(() => {
 });
 const URL_PKG = '/results?destination=AYT&destinationLabel=Antalya&checkIn=2027-07-04&checkOut=2027-07-10&adults=2&children=2&childAges=10%2C6&rooms=1&transport=package';
 const renderAt = (u) => render(<MemoryRouter initialEntries={[u]}><Results /></MemoryRouter>);
+const GONE = /Niet beschikbaar voor deze zoekopdracht|Not available for this search/;
 const codesShown = () => [...document.querySelectorAll('label')].map((l) => l.textContent).join(' ');
 
 describe('Flight + Hotel offers only the airports that can make a package', () => {
@@ -75,6 +79,33 @@ describe('Flight + Hotel offers only the airports that can make a package', () =
     await waitFor(() => expect(get.mock.calls.some(([u]) => String(u).includes('/feasibility'))).toBe(true));
     await waitFor(() => expect(codesShown()).toMatch(/EIN/));
     expect(codesShown()).toMatch(/GZP/);
+  });
+
+  it('a chosen airport that no longer works stays chosen and says so (never dropped silently)', async () => {
+    renderAt(`${URL_PKG}&origins=EIN&arrival=GZP`);
+    // (the suite renders in Dutch)
+    await waitFor(() => expect(screen.getAllByText(GONE)).toHaveLength(2));
+    const ein = [...document.querySelectorAll('label')].find((l) => /EIN/.test(l.textContent));
+    expect(ein.querySelector('input').checked).toBe(true);
+    expect(ein.querySelector('input').disabled).toBe(false);   // can still be unticked
+    // A working choice carries no such note.
+    expect([...document.querySelectorAll('label')].find((l) => /BRU/.test(l.textContent)).textContent).not.toMatch(GONE);
+  });
+
+  it('a complete package answer proves the airports: Dusseldorf has flights but no hotel left, so it goes', async () => {
+    fetchPackages.mockImplementation(() => Promise.resolve({ ...NO_PACKAGES, airportFacets: { origins: { BRU: 4 }, arrivals: { AYT: 4 }, complete: true } }));
+    renderAt(URL_PKG);
+    await waitFor(() => expect(codesShown()).toMatch(/BRU/));
+    await waitFor(() => expect(codesShown()).not.toMatch(/DUS/));
+    expect(codesShown()).toMatch(/AYT/);
+  });
+
+  it('an incomplete package answer proves nothing: every feasible airport stays', async () => {
+    fetchPackages.mockImplementation(() => Promise.resolve({ ...NO_PACKAGES, airportFacets: { origins: { BRU: 4 }, arrivals: { AYT: 4 }, complete: false } }));
+    renderAt(URL_PKG);
+    await waitFor(() => expect(fetchPackages).toHaveBeenCalled());
+    await waitFor(() => expect(codesShown()).toMatch(/DUS/));
+    expect(codesShown()).toMatch(/BRU/);
   });
 
   it('when the check fails, every airport stays (unknown is never "no flights")', async () => {

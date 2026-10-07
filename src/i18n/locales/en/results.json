@@ -170,7 +170,8 @@
     "airportsChecking": "Checking which airports fly there…",
     "airportsCheckFailed": "We couldn’t check which airports fly there just now, so every airport stays selectable.",
     "originNoteAny": "Each hotel shows the departure airport that prices it cheapest. Tick airports to compare only those.",
-    "airportNoFlight": "No flight to {{place}} for these dates"
+    "airportNoFlight": "No flight to {{place}} for these dates",
+    "airportChoiceGone": "Not available for this search. Untick it or choose another airport."
   },
   "hero": {
     "home": "Home",

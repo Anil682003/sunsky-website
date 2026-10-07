@@ -388,4 +388,32 @@ describe('the hotel page offers only departure airports with a package to this h
     const froms = [...new Set(flightSearches().map(([, body]) => body.from))];
     expect(froms.every((f) => ['FRA', 'DUS'].includes(f))).toBe(true);
   });
+
+  it('a departure airport that no longer makes a package stays chosen and says so', async () => {
+    get.mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('package-matrix')) return Promise.resolve({ data: MATRIX });
+      if (u.includes('/feasibility')) return Promise.resolve({ data: { success: true, origins: ['DUS'], arrivals: { AYT: { status: 'FEASIBLE', trips: 3 } } } });
+      return Promise.resolve({ data: {} });
+    });
+    renderPage();
+    // (the suite renders in Dutch)
+    await waitFor(() => expect(document.body.textContent).toMatch(/\(FRA\)[^·]*· (Niet beschikbaar|Not available)/));
+    // Never swapped for DUS on its own: the matrix is still asked from FRA.
+    const matrixCalls = get.mock.calls.filter(([u]) => String(u).includes('package-matrix'));
+    expect(matrixCalls.at(-1)[1].params.origins).toBe('FRA');
+  });
+
+  it('unknown (the check failed) is never "not available"', async () => {
+    get.mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('package-matrix')) return Promise.resolve({ data: MATRIX });
+      if (u.includes('/feasibility')) return Promise.reject(new Error('down'));
+      return Promise.resolve({ data: {} });
+    });
+    renderPage();
+    await waitFor(() => expect(get.mock.calls.some(([u]) => String(u).includes('/feasibility'))).toBe(true));
+    await new Promise((r) => setTimeout(r, 300));
+    expect(document.body.textContent).not.toMatch(/\(FRA\)[^·]*· (Niet beschikbaar|Not available)/);
+  });
 });
