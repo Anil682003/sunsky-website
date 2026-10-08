@@ -1686,6 +1686,10 @@ export default function HotelDetail() {
     return () => { cancelled = true; };
   }, [hotelCode, state?.info]);
   const info = state?.info || fetchedInfo;
+  // Switched OFF in the admin — the hotel itself, or its zone, destination or country (Levent,
+  // 8 Oct 2026). No price check, no booking: the page says so and nothing more. The backend
+  // refuses the live check and the booking for it as well.
+  const unavailable = info?.active === false;
   // Hotel prose in the traveller's language. Falls back to English when Hotelbeds has no Dutch
   // text for a property, which is better than an empty About block.
   const description = useMemo(
@@ -3241,7 +3245,7 @@ export default function HotelDetail() {
 
   const checkAvailabilityForDay = (dayISO) => {
     const checkin = dayISO || pickedISO || baseCheckIn;
-    if (!checkin) return;
+    if (!checkin || unavailable) return;
     // A day a supplier has already confirmed as empty never starts another live check. There
     // is nothing left to ask, and asking would replace the honest "not available" card with a
     // spinner and then re-derive the same answer at the cost of a supplier call. Keyed on the
@@ -3625,6 +3629,23 @@ export default function HotelDetail() {
       />
     );
   };
+
+  if (unavailable) {
+    return (
+      <div className="sd" ref={pageRef}>
+        <div style={{ maxWidth: 640, margin: '120px auto 80px', padding: '0 16px', textAlign: 'center' }}>
+          <h1 style={{ fontSize: 26, marginBottom: 12 }}>{t('unavailable.title', 'This hotel is not available')}</h1>
+          {realName && <p style={{ fontWeight: 600, marginBottom: 8 }}>{realName}</p>}
+          <p style={{ opacity: 0.75, marginBottom: 24 }}>
+            {t('unavailable.body', 'It cannot be booked at the moment. Please choose another hotel.')}
+          </p>
+          <button type="button" className="fc-cta" onClick={() => navigate(-1)}>
+            {t('unavailable.back', 'Back to results')}
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="sd" ref={pageRef}>
