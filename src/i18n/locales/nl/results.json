@@ -43,6 +43,7 @@
   "sort": {
     "label": "Sorteren",
     "aria": "Resultaten sorteren",
+    "recommended": "Aanbevolen",
     "price_asc": "Prijs: laag naar hoog",
     "price_desc": "Prijs: hoog naar laag",
     "name_asc": "Naam: A tot Z",

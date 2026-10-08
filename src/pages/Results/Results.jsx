@@ -7,6 +7,7 @@ import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
 import {
   packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, PACKAGE_CONCURRENCY, isoAddDays,
+  packageTotal, cheapestPackage,
 } from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
@@ -42,6 +43,7 @@ import styles from './Results.module.css';
 import { defaultSearchContext } from '../../utils/searchDefaults';
 import { packageParams } from '../../utils/packageHandoff';
 import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
+import { resultSeed } from '../../utils/resultSeed';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 const PAGE_SIZE = 20;
@@ -142,6 +144,10 @@ const ROOM_LABELS = {
 const ROOM_FILTERS = ['DBL', 'DBT', 'TWN', 'TPL', 'FAM', 'SUI', 'JSU', 'STU', 'APT', 'BUN', 'ROO'];
 
 const SORT_OPTIONS = [
+  // The default (final contract, Ch 1 §2). Flight + Hotel: the stable random order of this
+  // session (resultSeed); Hotel only: price low to high, as before (a random order there would
+  // need every hotel of a destination priced before page 1).
+  { value: 'recommended', label: 'Recommended' },
   { value: 'price_asc',  label: 'Price: Low to High' },   // labels below are t() fallbacks
   { value: 'price_desc', label: 'Price: High to Low' },
   // Name + star sorts. Applied CLIENT-SIDE over the loaded results (the price cache orders by
@@ -192,7 +198,7 @@ const PRICE_CEILING_FALLBACK = 1000;
 // Content facets narrow the hotelCodes via the admin API; price facets go straight to the cache.
 const EMPTY_FILTERS = {
   boards: [], roomTypes: [], minPrice: '', maxPrice: '',
-  priceBasis: 'total', refundable: 'any', sortBy: 'price_asc',
+  priceBasis: 'total', refundable: 'any', sortBy: 'recommended',
   // Content facets (resolved against the admin content API into a hotelCode set for the cache).
   themes: [], stars: [], facilities: [], activities: [],
   accommodation: [], kids: [],           // accommodation type (group 20), kids amenities
@@ -857,6 +863,8 @@ export default function Results() {
   const [pkgProven, setPkgProven] = useState({ origins: null, arrivals: null });
   // Destinations whose package request FAILED (timeout, outage): not "no packages", unknown.
   const [pkgFailed, setPkgFailed] = useState([]);
+  // Flight + Hotel: the count from the groups' result snapshots (Ch 1 §2); null = not known yet.
+  const [pkgTotal, setPkgTotal] = useState(null);
   const [pkgLoadingGroups, setPkgLoadingGroups] = useState(0);
   // Card photos that could not be loaded at any size: those cards show the no-photo tile.
   const [failedPhotos, setFailedPhotos] = useState(() => new Set());
@@ -1520,9 +1528,11 @@ export default function Results() {
     setPkgUnknown(unknownDestinations(pk.groups));
     setPkgFailed(pk.groups.filter((g) => g.done && g.error).flatMap((g) => g.dests));
     setPkgLoadingGroups(pk.groups.filter((g) => !g.done).length);
+    setPkgTotal(packageTotal(pk.groups));
     if (merged.length || !pending) { setLoading(false); setFiltering(false); setPendingSearch(false); }
     if (!pending) {
-      setCheapestCode(sortBy === 'price_asc' ? (merged[0]?.hotelCode ?? null) : null);
+      setCheapestCode(sortBy === 'price_asc' ? (merged[0]?.hotelCode ?? null)
+        : sortBy === 'recommended' ? (cheapestPackage(merged)?.hotelCode ?? null) : null);
       const failed = pk.groups.filter((g) => g.error);
       if (failed.length && failed.length === pk.groups.length) setSearchError(fromFailure(failed[0].error));
       paginationRef.current = { page: 2, hasMore: more, fetching: false };
@@ -1535,8 +1545,12 @@ export default function Results() {
       while (next < groups.length) {
         const g = groups[next++];
         try {
-          const r = await fetchPackages({ ...pkgRef.current.body, destinations: g.dests, page: g.page + 1 }, { signal });
+          // Pages 2+ of a group come from the result snapshot of its page 1 (Ch 1 §2).
+          const snap = g.page > 0 && g.searchId ? { searchQueryId: g.searchId } : {};
+          const r = await fetchPackages({ ...pkgRef.current.body, ...snap, destinations: g.dests, page: g.page + 1 }, { signal });
           g.hotels = [...g.hotels, ...(r?.hotels || [])];
+          if (r?.searchQueryId) g.searchId = r.searchQueryId;
+          if (Number.isFinite(r?.count)) g.count = r.count;
           g.hasMore = !!r?.hasMore;
           g.page += 1;
           g.destinationStatus = { ...(g.destinationStatus || {}), ...(r?.destinationStatus || {}) };
@@ -1628,13 +1642,14 @@ export default function Results() {
       const body = packageBody({
         fp: fetchParams, childAges, filters: applied, origins: applied.origins || [],
         hotelCodes: Array.isArray(priceScope.hotelCodes) ? priceScope.hotelCodes : null,
-        dated: !undated, flex: urlFlex, bandNights: dayOptions,
+        dated: !undated, flex: urlFlex, bandNights: dayOptions, seed: resultSeed(),
       });
       const groups = chunkDestinations(dests).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
       pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };
       setPkgUnknown([]);
       setPkgProven({ origins: null, arrivals: null });
       setPkgFailed([]);
+      setPkgTotal(null);
       setNights(nightsBetween(fetchParams.checkIn, fetchParams.checkOut) || 0);
       setCheapestCode(null);
       setBoardFacets({});
@@ -1663,7 +1678,7 @@ export default function Results() {
         const results = data.results || [];
         setNights(data.nights || 0);
         setBoardFacets(data.boardFacets || {});
-        setCheapestCode(applied.sortBy === 'price_asc' ? (data.cheapest?.hotelCode ?? null) : null);
+        setCheapestCode(applied.sortBy === 'price_asc' || applied.sortBy === 'recommended' ? (data.cheapest?.hotelCode ?? null) : null);
 
         const seen   = seenCodesRef.current;
         const mapped = [];
@@ -1796,6 +1811,10 @@ export default function Results() {
         setFetchingMore(false);
       });
   }, [scopeLabel]);
+
+  // The count above the list: Flight + Hotel takes it from the result snapshots once every group
+  // has answered (Ch 1 §2); otherwise, and for Hotel only, the hotels loaded (with "+").
+  const shownTotal = applied.transport === 'package' ? pkgTotal : null;
 
   // Client-side sorts (name / stars / distance) over the loaded results. Price sorts are done by
   // the cache; these reorder what's loaded, using the info/attribute data as it arrives.
@@ -2856,9 +2875,9 @@ export default function Results() {
                 {/* No count while the search failed: "0 stays found" would claim there is nothing. */}
                 {!searchError && (
                   <span>
-                    <strong>{hotels.length}{hasMore ? '+' : ''}</strong>{' '}
+                    <strong>{shownTotal ?? hotels.length}{shownTotal == null && hasMore ? '+' : ''}</strong>{' '}
                     {t('toolbar.found', {
-                      count: hotels.length,
+                      count: shownTotal ?? hotels.length,
                       defaultValue_one: 'stay found',
                       defaultValue_other: 'stays found',
                     })}

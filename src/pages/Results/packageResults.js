@@ -53,8 +53,10 @@ export function chunkDestinations(destinations, size = DEST_CHUNK) {
  *   flex      ± days around the departure date (0–3)
  *   bandNights the duration category's lengths in nights: an undated search whose category does
  *             not include 7 nights asks those lengths (computed, not precalculated)
+ *   seed      the session's result_random_seed: the default order ('recommended') is the stable
+ *             random order (Ch 1 §2); without a seed it falls back to price order
  */
-export function packageBody({ fp, childAges = '', filters = {}, origins = [], hotelCodes = null, dated = true, flex = 0, bandNights = null }) {
+export function packageBody({ fp, childAges = '', filters = {}, origins = [], hotelCodes = null, dated = true, flex = 0, bandNights = null, seed = null }) {
   const body = {
     adults: String(fp.adults ?? '2'),
     children: String(fp.children ?? '0'),
@@ -87,6 +89,7 @@ export function packageBody({ fp, childAges = '', filters = {}, origins = [], ho
   if (Number.isFinite(max) && max > 0 && !(min != null && max < min)) body.maxPrice = max;
   if (filters.priceBasis && filters.priceBasis !== 'total') body.priceBasis = filters.priceBasis;
   if (filters.sortBy === 'price_desc') body.sortBy = 'price_desc';
+  else if (filters.sortBy === 'recommended' && seed) { body.sortBy = 'random'; body.resultRandomSeed = seed; }
   return body;
 }
 
@@ -112,7 +115,20 @@ export function mapPackage(p, label) {
   };
 }
 
-/** PURE. Merge the groups' sorted packages into one sorted list (cheapest first, or dearest). */
+/**
+ * PURE. The random order (Ch 1 §2) as the server sorts one answer: hotels without an automatic
+ * from-price last, then `randomRank`, then the hotel code. Only when both carry a rank (an admin
+ * without the random order answers in price order, and the page keeps that order).
+ */
+const ranked = (p) => Number.isFinite(p?.randomRank);
+const unpricedOf = (p) => (p?.fromPriceEligible === false ? 1 : 0);
+const byCode = (a, b) => (String(a.hotelCode) < String(b.hotelCode) ? -1 : String(a.hotelCode) > String(b.hotelCode) ? 1 : 0);
+export function randomOrder(a, b) {
+  return unpricedOf(a) - unpricedOf(b) || a.randomRank - b.randomRank || byCode(a, b);
+}
+const isRandom = (sortBy, list) => sortBy === 'recommended' && list.length > 0 && list.every(ranked);
+
+/** PURE. Merge the groups' sorted packages into one sorted list (cheapest first, dearest, or the random order). */
 export function mergePackages(groups, sortBy = 'price_asc') {
   const dir = sortBy === 'price_desc' ? -1 : 1;
   const seen = new Set();
@@ -122,6 +138,7 @@ export function mergePackages(groups, sortBy = 'price_asc') {
     seen.add(p.hotelCode);
     all.push(p);
   }
+  if (isRandom(sortBy, all)) return all.sort(randomOrder);
   return all.sort((a, b) => dir * (a.sunskyPayableTotal - b.sunskyPayableTotal) || (String(a.hotelCode) < String(b.hotelCode) ? -1 : 1));
 }
 
@@ -132,12 +149,34 @@ export function mergePackages(groups, sortBy = 'price_asc') {
  */
 export function groupsToExtend(groups, merged, shown, sortBy = 'price_asc') {
   const cutoff = merged[Math.min(shown, merged.length) - 1];
+  const random = isRandom(sortBy, merged);
   return groups.filter((g) => {
     if (!g.hasMore) return false;
     const last = g.hotels?.[g.hotels.length - 1];
     if (!last || !cutoff) return true;
+    if (random && ranked(last)) return randomOrder(last, cutoff) <= 0;
     return sortBy === 'price_desc' ? last.sunskyPayableTotal >= cutoff.sunskyPayableTotal : last.sunskyPayableTotal <= cutoff.sunskyPayableTotal;
   });
+}
+
+/**
+ * PURE. The total for the count ("624 holidays"), from the groups' result snapshots (Ch 1 §2):
+ * known only when every group has answered without an error and with a count; else null (the
+ * page then shows what is loaded, with "+").
+ */
+export function packageTotal(groups) {
+  if (!groups.length || !groups.every((g) => g.done && !g.error && Number.isFinite(g.count))) return null;
+  return groups.reduce((n, g) => n + g.count, 0);
+}
+
+/** PURE. The cheapest package with an automatic from-price (the "Cheapest" badge in any order). */
+export function cheapestPackage(list) {
+  let best = null;
+  for (const p of list || []) {
+    if (p?.fromPriceEligible === false || !Number.isFinite(p?.sunskyPayableTotal)) continue;
+    if (!best || p.sunskyPayableTotal < best.sunskyPayableTotal) best = p;
+  }
+  return best;
 }
 
 /** PURE. The destinations whose packages cannot be calculated yet (missing cache data). */
@@ -177,4 +216,4 @@ export function mergeAirportFacets(groups, body = {}) {
   };
 }
 
-export default { PACKAGE_CONCURRENCY, chunkDestinations, packageBody, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, DEST_CHUNK, PACKAGE_PAGE, PRECALC_NIGHTS };
+export default { PACKAGE_CONCURRENCY, chunkDestinations, packageBody, mapPackage, mergePackages, groupsToExtend, randomOrder, packageTotal, cheapestPackage, unknownDestinations, mergeBoardFacets, mergeAirportFacets, DEST_CHUNK, PACKAGE_PAGE, PRECALC_NIGHTS };
