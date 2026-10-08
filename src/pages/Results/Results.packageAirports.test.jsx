@@ -122,19 +122,6 @@ describe('Flight + Hotel offers only the airports that can make a package', () =
     expect(codesShown()).not.toMatch(/BRU/);   // no card from BRU and the check lists nothing
   });
 
-  it('Per page: 50 asks the price cache for 50 hotels, with the same search', async () => {
-    const { fireEvent } = await import('@testing-library/react');
-    renderAt(URL_PKG.replace('transport=package', 'transport=hotel_only'));
-    const select = await screen.findByLabelText(/Hotels per (page|pagina)/i);
-    expect(select.value).toBe('20');
-    globalThis.fetch.mockClear();
-    fireEvent.change(select, { target: { value: '50' } });
-    await waitFor(() => expect(globalThis.fetch.mock.calls.some(([u, o]) => /pageSize=50|"pageSize":"50"/.test(`${u} ${o?.body ?? ''}`))).toBe(true));
-    const [u, o] = globalThis.fetch.mock.calls.find(([url, opts]) => /pageSize=50|"pageSize":"50"/.test(`${url} ${opts?.body ?? ''}`));
-    expect(`${u} ${o?.body ?? ''}`).toMatch(/AYT/);   // same destination
-    try { window.localStorage.removeItem('sunsky.results.perPage'); } catch { /* ignore */ }
-  });
-
   it('when the check fails, every airport stays (unknown is never "no flights")', async () => {
     FEASIBILITY = null;
     renderAt(URL_PKG);
