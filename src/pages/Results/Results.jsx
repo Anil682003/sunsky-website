@@ -45,20 +45,10 @@ import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 const PAGE_SIZE = 20;
-// "Hotels per page" (Levent, 7 Oct 2026): how many hotels the list loads at once, and how many
-// each "Show more" adds. 20 stays the default; the choice is remembered in this browser.
-const PER_PAGE_OPTIONS = [20, 50, 75, 100];
-const PER_PAGE_KEY = 'sunsky.results.perPage';
-const readPerPage = () => {
-  try {
-    const n = Number(window.localStorage.getItem(PER_PAGE_KEY));
-    return PER_PAGE_OPTIONS.includes(n) ? n : PAGE_SIZE;
-  } catch { return PAGE_SIZE; }
-};
 // Card photos: the first render's cards load their photo straight away (the top ones first);
 // cards added by infinite scroll stay lazy. 800 px on high-density screens, the 320 px default
 // elsewhere — the card box is 230–336 CSS px wide, so 320 already fills it at 1x.
-const EAGER_PHOTOS = PAGE_SIZE;   // never more: with 100 cards the rest load as they scroll in
+const EAGER_PHOTOS = PAGE_SIZE;
 const PRIORITY_PHOTOS = 6;
 const cardPhotoSize = () => (typeof window !== 'undefined' && window.devicePixelRatio >= 1.5 ? 'bigger' : 'default');
 // The card's arrows: once the photo on screen has loaded, the next and previous ones are fetched
@@ -862,14 +852,6 @@ export default function Results() {
   // The groups of destinations asked (packageResults.js) and how many packages are shown; the
   // destinations whose packages cannot be calculated yet (missing cache data, not "no flights").
   const pkgRef = useRef({ reqId: 0, groups: [], shown: PAGE_SIZE, body: null });
-  const [perPage, setPerPageState] = useState(readPerPage);
-  const perPageRef = useRef(perPage);
-  const setPerPage = (n) => {
-    if (!PER_PAGE_OPTIONS.includes(n)) return;
-    try { window.localStorage.setItem(PER_PAGE_KEY, String(n)); } catch { /* private window: this visit only */ }
-    perPageRef.current = n;
-    setPerPageState(n);
-  };
   const [pkgUnknown, setPkgUnknown] = useState([]);
   // The airports the package answers prove (mergeAirportFacets): null = not proven either way.
   const [pkgProven, setPkgProven] = useState({ origins: null, arrivals: null });
@@ -1320,8 +1302,8 @@ export default function Results() {
       adults:             fp.adults,
       children:           fp.children,
       rooms:              String(roomsCount),
-      limit:              String(over.pageSize ?? perPageRef.current),
-      pageSize:           String(over.pageSize ?? perPageRef.current),
+      limit:              String(over.pageSize ?? PAGE_SIZE),
+      pageSize:           String(over.pageSize ?? PAGE_SIZE),
       page:               String(page),
       // 'combined' searches BOTH the external cache (Hotelbeds) and the internal supplier
       // (Diana, over SOAP). Diana is the slow half: an 8-destination combined search measured
@@ -1578,7 +1560,7 @@ export default function Results() {
     const pk = pkgRef.current;
     const reqId = pk.reqId;
     if (reqId !== reqIdRef.current) return;
-    pk.shown += perPageRef.current;
+    pk.shown += PAGE_SIZE;
     const sortBy = appliedRef.current.sortBy;
     const extend = groupsToExtend(pk.groups, mergePackages(pk.groups, sortBy), pk.shown, sortBy);
     if (!extend.length) { showPackages(reqId); return; }
@@ -1649,7 +1631,7 @@ export default function Results() {
         dated: !undated, flex: urlFlex, bandNights: dayOptions,
       });
       const groups = chunkDestinations(dests).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
-      pkgRef.current = { reqId, groups, shown: perPageRef.current, body };
+      pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };
       setPkgUnknown([]);
       setPkgProven({ origins: null, arrivals: null });
       setPkgFailed([]);
@@ -1691,7 +1673,7 @@ export default function Results() {
         if (applied.minPrice === '' && applied.maxPrice === '') {
           growCeiling(mapped.map((h) => (applied.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount)).filter((n) => Number.isFinite(n)));
         }
-        const more = data.hasMore ?? (results.length >= perPageRef.current);
+        const more = data.hasMore ?? (results.length >= PAGE_SIZE);
         paginationRef.current = { page: 2, hasMore: more, fetching: false };
         setHasMore(more);
         setAllHotels(mapped);
@@ -1722,7 +1704,7 @@ export default function Results() {
     // arrival seeded from the URL resolves to its destinations only AFTER `applied` has
     // settled. Without it, a shared link with an arrival airport would render the unfiltered
     // search and never correct itself.
-  }, [scopeKey, fetchParams, applied, priceScopeKey, arrivalKey, retryTick, perPage]);
+  }, [scopeKey, fetchParams, applied, priceScopeKey, arrivalKey, retryTick]);
 
   // TRAVEL-TIME COUNTS. For each day option in the band, price the same scope at that stay length
   // (in the background) and record how many hotels come back — the number shown next to each
@@ -1801,7 +1783,7 @@ export default function Results() {
             growCeiling(mapped.map((h) => (f.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount)).filter((n) => Number.isFinite(n)));
           }
         }
-        const more = data.hasMore ?? (results.length >= perPageRef.current);
+        const more = data.hasMore ?? (results.length >= PAGE_SIZE);
         paginationRef.current = { page: pg.page + 1, hasMore: more, fetching: false };
         setHasMore(more);
         setFetchingMore(false);
@@ -2908,15 +2890,6 @@ export default function Results() {
               <select className={styles.sortSelect} aria-label={t('sort.aria', 'Sort results')} value={filters.sortBy} onChange={(e) => setFilter('sortBy', e.target.value)}>
                 {SORT_OPTIONS.map((o) => (
                   <option key={o.value} value={o.value}>{t(`sort.${o.value}`, o.label)}</option>
-                ))}
-              </select>
-            </div>
-            <div className={styles.sortWrap}>
-              <span className={styles.sortLabel}>{t('perPage.label', 'Per page')}</span>
-              <select className={styles.sortSelect} aria-label={t('perPage.aria', 'Hotels per page')} value={perPage}
-                onChange={(e) => setPerPage(Number(e.target.value))}>
-                {PER_PAGE_OPTIONS.map((n) => (
-                  <option key={n} value={n}>{t('perPage.option', { count: n, defaultValue: '{{count}} hotels' })}</option>
                 ))}
               </select>
             </div>

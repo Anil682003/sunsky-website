@@ -40,11 +40,6 @@
     "VIL": "Villa",
     "ROO": "Kamer"
   },
-  "perPage": {
-    "label": "Per pagina",
-    "aria": "Hotels per pagina",
-    "option": "{{count}} hotels"
-  },
   "sort": {
     "label": "Sorteren",
     "aria": "Resultaten sorteren",
