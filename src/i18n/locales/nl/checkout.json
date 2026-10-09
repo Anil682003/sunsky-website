@@ -1,8 +1,21 @@
 {
   "steps": {
-    "info": { "name": "Jouw gegevens", "sub": "Klant & reizigers" },
-    "addons": { "name": "Extra's", "sub": "Verzekering & extra's" },
-    "payment": { "name": "Betaling", "sub": "Veilig afrekenen" }
+    "info": {
+      "name": "Jouw gegevens",
+      "sub": "Klant & reizigers"
+    },
+    "addons": {
+      "name": "Extra's",
+      "sub": "Verzekering & extra's"
+    },
+    "payment": {
+      "name": "Betaling",
+      "sub": "Veilig afrekenen"
+    },
+    "support": {
+      "name": "Supportpakket",
+      "sub": "Kies je dekking"
+    }
   },
   "gender": {
     "male": "Man",
@@ -191,7 +204,8 @@
     "rechecking": "Je prijs wordt opnieuw gecontroleerd…",
     "continueToAddons": "Doorgaan naar extra's",
     "continueToPayment": "Doorgaan naar betaling",
-    "pay": "Betaal {{amount}}"
+    "pay": "Betaal {{amount}}",
+    "continueToSupport": "Doorgaan naar supportpakket"
   },
   "gone": {
     "title": "Er is geen boeking om te betalen",
@@ -358,10 +372,22 @@
     "icsBookingReference": "Boekingsreferentie {{ref}}",
     "calendarDownloaded": "Agendabestand gedownload",
     "timeline": {
-      "email": { "title": "Bevestigingsmail", "sub": "Komt nu in je inbox aan" },
-      "docs": { "title": "Reisdocumenten", "sub": "7 dagen voor vertrek" },
-      "checkin": { "title": "Online inchecken", "sub": "Opent 48 uur voor je vlucht" },
-      "enjoy": { "title": "Geniet van je vakantie!", "sub": "{{destination}} wacht op je" }
+      "email": {
+        "title": "Bevestigingsmail",
+        "sub": "Komt nu in je inbox aan"
+      },
+      "docs": {
+        "title": "Reisdocumenten",
+        "sub": "7 dagen voor vertrek"
+      },
+      "checkin": {
+        "title": "Online inchecken",
+        "sub": "Opent 48 uur voor je vlucht"
+      },
+      "enjoy": {
+        "title": "Geniet van je vakantie!",
+        "sub": "{{destination}} wacht op je"
+      }
     },
     "paymentReceived": "Betaling ontvangen!",
     "bookingConfirmed": "Boeking bevestigd!",
@@ -484,5 +510,21 @@
     "indian": "Indiaas",
     "moroccan": "Marokkaans",
     "other": "Overig"
+  },
+  "support": {
+    "title": "Jouw supportpakket",
+    "subFlightOnly": "Kies het niveau van SUNSKY-support voor je vluchtboeking.",
+    "subFlightHotel": "Kies het niveau van SUNSKY-support voor je boeking van vlucht + hotel.",
+    "loading": "Supportpakketten laden…",
+    "perPerson": "per persoon",
+    "perBooking": "per boeking",
+    "perRequest": "per aanvraag",
+    "totalForParty_one": "{{amount}} voor {{count}} reiziger",
+    "totalForParty_other": "{{amount}} voor {{count}} reizigers",
+    "included": "Inbegrepen",
+    "notIncluded": "Niet inbegrepen",
+    "select": "Kiezen",
+    "selected": "Gekozen",
+    "disclaimer": "Supportpakketten dekken alleen de service- en behandelingskosten van SUNSKY. Kosten van luchtvaartmaatschappij, hotel en andere leveranciers, waaronder tariefverschillen, blijven apart verschuldigd. Wijzigingen en annuleringen blijven onderworpen aan de regels en beschikbaarheid van de luchtvaartmaatschappij, het hotel en de leverancier."
   }
 }

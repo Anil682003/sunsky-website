@@ -10,6 +10,7 @@ import { ToastProvider } from './context/ToastContext';
 import ToastContainer from './components/Toast/ToastContainer';
 import { ConsentProvider } from './context/ConsentContext';
 import CookieBanner from './components/CookieBanner/CookieBanner';
+import { Analytics } from './analytics';
 
 export default function App() {
   return (
@@ -18,6 +19,11 @@ export default function App() {
         {/* Consent sits OUTSIDE the router: what a visitor has agreed to has nothing to do
             with which page they are on, and gated components exist above the route tree. */}
         <ConsentProvider>
+          {/* Renders nothing. Pushes the Consent Mode defaults, applies the visitor's
+              decision, and injects the GTM container only once something has been granted.
+              Inside the provider and outside the router, for the same reason the banner is:
+              consent is not a property of the current page. */}
+          <Analytics />
           <BrowserRouter>
             {/* Inside the router because the notice links to the cookie policy with <Link>,
                 which throws outside router context — and BEFORE <AppRouter /> so its two

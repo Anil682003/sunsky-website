@@ -1,8 +1,21 @@
 {
   "steps": {
-    "info": { "name": "Your details", "sub": "Customer & travellers" },
-    "addons": { "name": "Add-ons", "sub": "Insurance & extras" },
-    "payment": { "name": "Payment", "sub": "Secure checkout" }
+    "info": {
+      "name": "Your details",
+      "sub": "Customer & travellers"
+    },
+    "addons": {
+      "name": "Add-ons",
+      "sub": "Insurance & extras"
+    },
+    "payment": {
+      "name": "Payment",
+      "sub": "Secure checkout"
+    },
+    "support": {
+      "name": "Support package",
+      "sub": "Choose your cover"
+    }
   },
   "gender": {
     "male": "Male",
@@ -191,7 +204,8 @@
     "rechecking": "Re-checking your price…",
     "continueToAddons": "Continue to add-ons",
     "continueToPayment": "Continue to payment",
-    "pay": "Pay {{amount}}"
+    "pay": "Pay {{amount}}",
+    "continueToSupport": "Continue to support package"
   },
   "gone": {
     "title": "There’s no booking to pay for",
@@ -358,10 +372,22 @@
     "icsBookingReference": "Booking reference {{ref}}",
     "calendarDownloaded": "Calendar file downloaded",
     "timeline": {
-      "email": { "title": "Confirmation email", "sub": "Arriving in your inbox right now" },
-      "docs": { "title": "Travel documents", "sub": "7 days before departure" },
-      "checkin": { "title": "Online check-in", "sub": "Opens 48h before your flight" },
-      "enjoy": { "title": "Enjoy your holiday!", "sub": "{{destination}} awaits you" }
+      "email": {
+        "title": "Confirmation email",
+        "sub": "Arriving in your inbox right now"
+      },
+      "docs": {
+        "title": "Travel documents",
+        "sub": "7 days before departure"
+      },
+      "checkin": {
+        "title": "Online check-in",
+        "sub": "Opens 48h before your flight"
+      },
+      "enjoy": {
+        "title": "Enjoy your holiday!",
+        "sub": "{{destination}} awaits you"
+      }
     },
     "paymentReceived": "Payment received!",
     "bookingConfirmed": "Booking confirmed!",
@@ -484,5 +510,21 @@
     "indian": "Indian",
     "moroccan": "Moroccan",
     "other": "Other"
+  },
+  "support": {
+    "title": "Your support package",
+    "subFlightOnly": "Choose the level of SUNSKY support for your flight booking.",
+    "subFlightHotel": "Choose the level of SUNSKY support for your flight + hotel booking.",
+    "loading": "Loading support packages…",
+    "perPerson": "per person",
+    "perBooking": "per booking",
+    "perRequest": "per request",
+    "totalForParty_one": "{{amount}} for {{count}} traveller",
+    "totalForParty_other": "{{amount}} for {{count}} travellers",
+    "included": "Included",
+    "notIncluded": "Not included",
+    "select": "Select",
+    "selected": "Selected",
+    "disclaimer": "Support packages cover SUNSKY service and handling fees only. Airline, hotel and other supplier charges, including fare differences, remain payable separately. Changes and cancellations stay subject to airline, hotel and supplier rules and availability."
   }
 }

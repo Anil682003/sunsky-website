@@ -130,7 +130,8 @@ describe('Most popular destinations', () => {
     expect(params(first.getAttribute('href'))).toMatchObject({ countries: 'TH', destinations: 'BAI' });
     // Filters only: the default text, the dashboard's search.
     const second = within(card('Cities')).getByRole('link', { name: 'View all cities' });
-    expect(params(second.getAttribute('href'))).toEqual({ themes: '12', destinationLabel: 'Cities' });
+    // …and, like every homepage link, Flight + Hotel.
+    expect(params(second.getAttribute('href'))).toEqual({ themes: '12', destinationLabel: 'Cities', transport: 'package' });
   });
 
   it('leaves "View all" out when there is nowhere for it to go', () => {

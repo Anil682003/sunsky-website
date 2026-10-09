@@ -43,6 +43,7 @@
   "sort": {
     "label": "Sort",
     "aria": "Sort results",
+    "recommended": "Recommended",
     "price_asc": "Price: Low to High",
     "price_desc": "Price: High to Low",
     "name_asc": "Name: A to Z",
@@ -121,6 +122,9 @@
     "otherAirports": "Other airports",
     "originNote": "Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.",
     "arrivalAirport": "Arrival airport",
+    "connections": "Connections",
+    "nonstopOnly": "Non-stop flights only",
+    "nonstopNote": "Where a destination allows it, the cheapest flight may have one connection. Tick this to price non-stop flights only.",
     "airportSearch": "Search airport or city",
     "pickAirports": "Choose one or more airports",
     "noAirportMatch": "No airport matches that.",
@@ -167,7 +171,8 @@
     "airportsChecking": "Checking which airports fly there…",
     "airportsCheckFailed": "We couldn’t check which airports fly there just now, so every airport stays selectable.",
     "originNoteAny": "Each hotel shows the departure airport that prices it cheapest. Tick airports to compare only those.",
-    "airportNoFlight": "No flight to {{place}} for these dates"
+    "airportNoFlight": "No flight to {{place}} for these dates",
+    "airportChoiceGone": "Not available for this search. Untick it or choose another airport."
   },
   "hero": {
     "home": "Home",
@@ -175,6 +180,7 @@
     "results": "Results",
     "staysIn": "Stays in",
     "findStay": "Find your perfect stay",
+    "allDestinations": "All destinations",
     "popularDestinations": "Popular destinations",
     "places": "{{count}} places",
     "inclFlightFrom": "Incl. flight · from {{city}}",
@@ -228,7 +234,12 @@
     "onRequestNote_other": "{{count}} more stays are available for these dates — open one to see its live price",
     "stayWindow_one": "{{from}} → {{to}} · {{count}} night",
     "stayWindow_other": "{{from}} → {{to}} · {{count}} nights",
-    "flightPricedLaterAny": "+ flight · priced on hotel page"
+    "flightPricedLaterAny": "+ flight · priced on hotel page",
+    "noNonstopPriced": "No non-stop flight priced for these dates · see hotel page",
+    "hotelNameUnavailable": "Hotel",
+    "flightTimes": "Out {{out}} · back {{back}}",
+    "withStop": "with stop",
+    "direct": "direct"
   },
   "lightbox": {
     "photosOf": "{{name}} photos",
@@ -247,5 +258,16 @@
     "removedFavourite": "Removed from favourites",
     "addedFavourite": "Added to favourites",
     "favouriteFailed": "Couldn’t update favourites. Please try again."
+  },
+  "pkg": {
+    "noFlightDestinations": "No flight + hotel packages to {{places}} for these dates: there are no flights. Showing the other destinations.",
+    "unknownDestinations": "Flight + hotel prices for {{places}} cannot be calculated yet: the flight data is still incomplete. These destinations are not left out because there are no flights.",
+    "stillSearching": "Still searching more destinations…",
+    "noneYetTitle": "Flight + hotel prices cannot be calculated yet",
+    "noneYetText": "The flight data for this search is still incomplete. Try other dates, or choose Hotel only.",
+    "failedDestinations": "Flight + hotel prices for {{places}} could not be loaded just now.",
+    "tryAgain": "Try again",
+    "failedTitle": "We could not load all flight + hotel prices",
+    "failedText": "Some destinations did not answer in time. Try again in a moment."
   }
 }

@@ -1,4 +1,16 @@
 {
+  "staticPage": {
+    "onThisPage": "Op deze pagina",
+    "onThisPageAria": "Op deze pagina: {{title}}",
+    "breadcrumb": "Kruimelpad",
+    "notFound": "Pagina niet gevonden",
+    "notFoundTitle": "We konden die pagina niet vinden",
+    "notFoundBody": "De pagina die je zocht is verplaatst of bestaat niet meer.",
+    "loadFailed": "Onze informatiepagina’s konden nu niet geladen worden. Probeer het zo meteen opnieuw.",
+    "information": "Informatie",
+    "moreInformation": "Meer informatie",
+    "empty": "Deze pagina wordt nog geschreven. Kom binnenkort nog eens terug."
+  },
   "dob": {
     "months": "januari,februari,maart,april,mei,juni,juli,augustus,september,oktober,november,december",
     "day": "Dag",

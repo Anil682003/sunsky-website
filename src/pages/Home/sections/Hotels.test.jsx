@@ -1,7 +1,20 @@
-import { describe, it, expect } from 'vitest';
-import { render, screen, within } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, within, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Hotels from './Hotels';
+import { fetchPackages } from '../../../api/filters';
+
+// The card's price is the hotel's real package from-price (the precalculated default search),
+// never the figure typed in the CMS.
+vi.mock('../../../api/filters', () => ({ fetchPackages: vi.fn() }));
+const PKG = {
+  hotelCode: '32243', destination: 'AYT', sunskyPayableTotal: 1100.4, sunskyPayableTotalRounded: 1101, pricePerPerson: 551,
+  stay: { checkin: '2026-11-10', checkout: '2026-11-17', nights: 7 }, departureAirport: 'BRU',
+};
+beforeEach(() => {
+  fetchPackages.mockReset();
+  fetchPackages.mockResolvedValue({ hotels: [PKG] });
+});
 
 // The "Populair bij onze vakantiegangers" row. Cards are picked in the CMS from the real hotels
 // table, so each one carries the hotel's BOOKABLE identity (hotelCode + destinationCode) and
@@ -70,12 +83,13 @@ describe('a CMS-picked hotel card', () => {
     expect(fav).toHaveAttribute('type', 'button');
   });
 
-  it('renders the CMS content the card was configured with', () => {
+  it('renders the CMS content the card was configured with (its price is the live one)', async () => {
     renderSection(cms([HOTEL]));
     const card = cardFor('Rixos Premium Belek');
     expect(within(card).getByText('🇹🇷 Antalya, Turkey')).toBeInTheDocument();
     expect(within(card).getByText('9.2')).toBeInTheDocument();
-    expect(card.textContent).toMatch(/€899/);
+    await waitFor(() => expect(card.textContent).toMatch(/€551/));
+    expect(card.textContent).not.toMatch(/€899/);
     expect(within(card).getByRole('img')).toHaveAttribute('src', HOTEL.imageUrl);
   });
 });
@@ -117,10 +131,40 @@ describe('section content', () => {
       .toBe('Populair bij onze vakantiegangers');
   });
 
-  it('renders a card with no price without its voucher stub', () => {
-    renderSection(cms([{ ...HOTEL, price: '' }]));
+  it('a hotel without a package shows no price (never the CMS figure), the hotel link stays', async () => {
+    fetchPackages.mockResolvedValue({ hotels: [] });
+    renderSection(cms([HOTEL]));
     const card = cardFor('Rixos Premium Belek');
-    expect(within(card).queryByRole('link', { name: /bekijk de deal/i })).not.toBeInTheDocument();
-    expect(card.textContent).not.toMatch(/From/);
+    await waitFor(() => expect(fetchPackages).toHaveBeenCalled());
+    await waitFor(() => expect(card.querySelector('[aria-hidden="true"] > div')).toBeNull());
+    expect(card.textContent).not.toMatch(/899/);
+    expect(within(card).getByRole('link', { name: /bekijk de deal/i })).toBeInTheDocument();
+  });
+});
+
+describe('the from-price', () => {
+  it('is the package from-price, asked from the precalculated default search', async () => {
+    renderSection(cms([HOTEL]));
+    const card = cardFor('Rixos Premium Belek');
+    expect(card.textContent).not.toMatch(/899/);                 // not the CMS price, not even while loading
+    await waitFor(() => expect(card.textContent).toMatch(/551/));
+    const body = fetchPackages.mock.calls[0][0];
+    expect(body).toMatchObject({ destinations: ['AYT'], hotelCodes: ['32243'], nights: '7', adults: '2', children: '0', rooms: '1' });
+    expect(body.from).toBeUndefined();
+  });
+
+  it('opens the hotel page on that package’s own stay and airport', async () => {
+    renderSection(cms([HOTEL]));
+    const card = cardFor('Rixos Premium Belek');
+    await waitFor(() => expect(card.textContent).toMatch(/551/));
+    const q = new URLSearchParams(within(card).getByRole('link', { name: /bekijk de deal/i }).getAttribute('href').split('?')[1]);
+    expect([q.get('checkIn'), q.get('checkOut'), q.get('nights'), q.get('origin')]).toEqual(['2026-11-10', '2026-11-17', '7', 'BRU']);
+  });
+
+  it('the package search failing shows no price, never the CMS one', async () => {
+    fetchPackages.mockRejectedValue(new Error('502'));
+    renderSection(cms([HOTEL]));
+    await waitFor(() => expect(fetchPackages).toHaveBeenCalled());
+    expect(cardFor('Rixos Premium Belek').textContent).not.toMatch(/899/);
   });
 });

@@ -80,6 +80,7 @@ const combinedSearchUrl = (links, title) => {
   if (theme) qs.set('themes', theme);
   if ([...qs.keys()].length === 0) return null;
   if (title) qs.set('destinationLabel', title);
+  qs.set('transport', 'package');   // homepage links open Flight + Hotel (utils/cmsDestinations)
   return `/results?${qs.toString()}`;
 };
 

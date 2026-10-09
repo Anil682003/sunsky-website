@@ -1,6 +1,8 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
-import { hotelDetailHref } from '../../../utils/searchDefaults';
+import { hotelDetailHref, defaultSearchContext } from '../../../utils/searchDefaults';
+import { fetchPackages } from '../../../api/filters';
+import { packageParams } from '../../../utils/packageHandoff';
 import { formatReview } from '../../../utils/reviewBadge';
 import HotelPhotoFallback from '../../../components/HotelPhotoFallback/HotelPhotoFallback';
 import styles from './Hotels.module.css';
@@ -8,15 +10,21 @@ import SectionHead from './SectionHead';
 import { useTranslation } from 'react-i18next';
 
 // The CMS-picked cards carry the hotel's real identity (hotelCode + destinationCode), so each
-// one links to that hotel's own live-priced detail page. The demo fallbacks below have no
+// one links to that hotel's own live-priced detail page.
+//
+// The price is the hotel's real Flight + Hotel from-price (7 Oct 2026): its cheapest complete
+// package in the precalculated default search (every departure airport, the next 30 days, 7
+// nights — a cache read), and the card opens the hotel page on that package's own stay. The
+// price typed in the CMS is never shown: a figure the customer then does not find on the hotel
+// page is exactly what the pricing rules forbid. No package → no price. The demo fallbacks below have no
 // hotelCode and stay non-clickable — a card that goes nowhere is better than one that opens an
 // empty search for a hotel that isn't in the inventory.
 const FALLBACK_HOTELS = [
-  { name:'Rixos Premium Belek',    loc:'🇹🇷 Antalya, Turkey',     score:'9.2', stars:5, price:'€899',  img:'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80' },
-  { name:'Atlantica Mare Village', loc:'🇨🇾 Ayia Napa, Cyprus',   score:'8.8', stars:5, price:'€749',  img:'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600&q=80' },
-  { name:'Iberostar Selection',    loc:'🇪🇸 Mallorca, Spain',      score:'9.0', stars:5, price:'€1,049',img:'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=80' },
-  { name:'Steigenberger Aldau',    loc:'🇪🇬 Hurghada, Egypt',      score:'8.6', stars:5, price:'€599',  img:'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=600&q=80' },
-  { name:'Secrets Lanzarote',      loc:'🇪🇸 Lanzarote, Spain',    score:'9.1', stars:5, price:'€879',  img:'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=600&q=80' },
+  { name:'Rixos Premium Belek',    loc:'🇹🇷 Antalya, Turkey',     score:'9.2', stars:5, img:'https://images.unsplash.com/photo-1566073771259-6a8506099945?w=600&q=80' },
+  { name:'Atlantica Mare Village', loc:'🇨🇾 Ayia Napa, Cyprus',   score:'8.8', stars:5, img:'https://images.unsplash.com/photo-1582719508461-905c673771fd?w=600&q=80' },
+  { name:'Iberostar Selection',    loc:'🇪🇸 Mallorca, Spain',      score:'9.0', stars:5, img:'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?w=600&q=80' },
+  { name:'Steigenberger Aldau',    loc:'🇪🇬 Hurghada, Egypt',      score:'8.6', stars:5, img:'https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=600&q=80' },
+  { name:'Secrets Lanzarote',      loc:'🇪🇸 Lanzarote, Spain',    score:'9.1', stars:5, img:'https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=600&q=80' },
 ];
 
 const Star = () => <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/></svg>;
@@ -68,15 +76,46 @@ function useRail(ref) {
   return { edges, step };
 }
 
+/**
+ * The cheapest package per hotel of these cards, from the precalculated default search.
+ * @returns {Map<string, object>|null} hotelCode → package; null while loading
+ */
+function usePackageFromPrices(cards) {
+  // The answer is kept with the cards it was asked for, so "loading" is derived (no setState
+  // inside the effect body).
+  const [answer, setAnswer] = useState({ key: null, byCode: null });
+  const priced = cards.filter((c) => c.hotelCode && c.destinationCode);
+  const key = priced.map((c) => `${c.hotelCode}@${c.destinationCode}`).join(',');
+  useEffect(() => {
+    if (!key) return undefined;
+    const ctrl = new AbortController();
+    const ctx = defaultSearchContext();
+    const list = key.split(',').map((k) => { const [hotelCode, destinationCode] = k.split('@'); return { hotelCode, destinationCode }; });
+    fetchPackages({
+      destinations: [...new Set(list.map((c) => String(c.destinationCode).toUpperCase()))].slice(0, 60),
+      hotelCodes: list.map((c) => String(c.hotelCode)),
+      nights: '7', adults: ctx.adults, children: ctx.children, rooms: ctx.rooms, pageSize: 100,
+    }, { signal: ctrl.signal })
+      .then((r) => setAnswer({ key, byCode: new Map((r?.hotels || []).map((p) => [String(p.hotelCode), p])) }))
+      .catch((e) => { if (e?.name !== 'CanceledError' && !ctrl.signal.aborted) setAnswer({ key, byCode: new Map() }); });
+    return () => ctrl.abort();
+  }, [key]);
+  if (!key) return new Map();
+  return answer.key === key ? answer.byCode : null;
+}
+
 export default function Hotels({ cms }) {
-  const { t } = useTranslation('home');
+  const { t, i18n } = useTranslation('home');
   const sh = cms?.sectionHeaders?.hotels;
   const tag      = sh?.tag      || t('hotels.tag', 'Top Rated');
   const title    = sh?.title    || t('hotels.title', 'Popular with our holidaymakers');
   const subtitle = sh?.subtitle || t('hotels.subtitle', 'Top-rated hotels loved by thousands of happy travelers.');
 
-  const hotels = (cms?.popularHotels?.length > 0)
-    ? cms.popularHotels.map((h) => {
+  const picked = cms?.popularHotels?.length > 0 ? cms.popularHotels : [];
+  const packages = usePackageFromPrices(picked);
+  const euros = (n) => `€${new Intl.NumberFormat(i18n.language === 'nl' ? 'nl-BE' : 'en-GB', { maximumFractionDigits: 0 }).format(n)}`;
+  const hotels = picked.length > 0
+    ? picked.map((h) => {
         // The real stored TripAdvisor rating (/10) wins over the manual marketing "score" — the
         // spec wants the homepage to show the stored rating. `rev` is null when the hotel has no
         // fresh rating, and the card then falls back to the CMS score.
@@ -87,12 +126,23 @@ export default function Hotels({ cms }) {
           score:      rev ? rev.score : h.score,
           scoreLabel: rev ? rev.label : t('hotels.guestScore', 'Guest score'),
           stars: h.stars || 5,
-          price: h.price,
           img:   h.imageUrl || h.img,
           hotelCode:       h.hotelCode ?? null,
           destinationCode: h.destinationCode ?? null,
         };
-        return { ...card, href: hotelDetailHref(card) };
+        const pkg = packages?.get(String(h.hotelCode)) || null;
+        // The hotel page opens on the package's own stay, so it shows the price the card names.
+        const ctx = pkg ? { ...defaultSearchContext(), checkIn: pkg.stay.checkin, checkOut: pkg.stay.checkout, nights: String(pkg.stay.nights) } : undefined;
+        let href = hotelDetailHref(card, ctx);
+        if (href && pkg?.departureAirport) href += `&origin=${encodeURIComponent(pkg.departureAirport)}`;
+        // The package's own flights, so the hotel page checks exactly the package priced here.
+        if (href && pkg) { const p = new URLSearchParams(packageParams(pkg)).toString(); if (p) href += `&${p}`; }
+        return {
+          ...card,
+          price: pkg ? euros(pkg.pricePerPerson) : null,
+          priceLoading: packages == null && !!(card.hotelCode && card.destinationCode),
+          href,
+        };
       })
     : FALLBACK_HOTELS.map((h) => ({ ...h, href: null, scoreLabel: t('hotels.guestScore', 'Guest score') }));
 
@@ -161,12 +211,16 @@ export default function Hotels({ cms }) {
                 <div className={styles.name}>{h.name}</div>
                 <div className={styles.loc}>{h.loc}</div>
 
-                {h.price && (
+                {/* Always a foot: the live from-price (or its placeholder) and the hotel link. */}
                   <div className={styles.foot}>
-                    <div className={styles.priceBlock}>
-                      <div className={styles.from}>{t('hotels.from', 'From')}</div>
-                      <div className={styles.price}>{h.price} <span className={styles.pp}>{t('hotels.perPerson', 'p.p.')}</span></div>
-                    </div>
+                    {h.price ? (
+                      <div className={styles.priceBlock}>
+                        <div className={styles.from}>{t('hotels.from', 'From')}</div>
+                        <div className={styles.price}>{h.price} <span className={styles.pp}>{t('hotels.perPerson', 'p.p.')}</span></div>
+                      </div>
+                    ) : h.priceLoading ? (
+                      <div className={styles.priceBlock} aria-hidden="true"><div className={styles.priceSkel} /></div>
+                    ) : <div className={styles.priceBlock} />}
                     {h.href ? (
                       <Link to={h.href} className={styles.viewBtn} aria-label={t('hotels.viewDealFor', {
                           name: h.name,
@@ -180,7 +234,6 @@ export default function Hotels({ cms }) {
                       </button>
                     )}
                   </div>
-                )}
               </div>
             </article>
           ))}

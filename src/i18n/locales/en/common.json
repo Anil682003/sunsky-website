@@ -1,4 +1,16 @@
 {
+  "staticPage": {
+    "onThisPage": "On this page",
+    "onThisPageAria": "On this page: {{title}}",
+    "breadcrumb": "Breadcrumb",
+    "notFound": "Page not found",
+    "notFoundTitle": "We couldn’t find that page",
+    "notFoundBody": "The page you were looking for has moved or no longer exists.",
+    "loadFailed": "Our information pages didn’t load just now. Please try again in a moment.",
+    "information": "Information",
+    "moreInformation": "More information",
+    "empty": "This page is being written. Please check back soon."
+  },
   "dob": {
     "months": "January,February,March,April,May,June,July,August,September,October,November,December",
     "day": "Day",

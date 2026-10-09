@@ -4,10 +4,15 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
-import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackageFares } from '../../api/filters';
+import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
+import {
+  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, PACKAGE_CONCURRENCY, isoAddDays,
+  packageTotal, cheapestPackage, noFlightPlaces,
+} from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
+import { hotelImageChain } from '../../utils/hotelImage';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import ScopePicker from '../../components/ScopePicker/ScopePicker';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
@@ -19,9 +24,11 @@ import { countryName } from '../../utils/countryName';
 import { toTitleCase } from '../../utils/textCase';
 import {
   DURATION_BANDS, bandByLabel, bandForNights, stayDaysToNights as daysToNights, stayNightsToDays as nightsToDays,
-  stayNights, stayCheckOut, withinStayNightLimit, MAX_TRAVEL_DAYS,
+  stayNights, stayCheckOut, withinStayNightLimit, MAX_TRAVEL_DAYS, stayDays, packageTravelDays,
 } from '../../utils/durations';
+import { trackSearch, searchSignature } from '../../analytics';
 import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { fromFailure, isRetryable, messageKey } from '../../utils/availability';
 import { dobsMatchAges, ageAtCheckIn, allDobsValid } from '../../utils/childDob';
 import DateCalendar from '../../components/DateCalendar/DateCalendar';
 import DobPicker from '../../components/DobPicker/DobPicker';
@@ -29,16 +36,39 @@ import { loadPax, savePax, hasPaxParams } from '../../utils/paxStore';
 import { earliestCheckInISO } from '../../utils/leadTime';
 import { normaliseOrigin, parseOrigins, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
+import { usePackageAirports } from '../../hooks/usePackageAirports';
 import { useToast } from '../../context/ToastContext';
 import { fetchUnpricedHotels } from '../../api/unpricedHotels';
-import { roundHotelStay, roundPackage, perPersonFrom } from '../../utils/priceRounding';
+import { roundHotelStay, perPersonFrom } from '../../utils/priceRounding';
 import styles from './Results.module.css';
+import { defaultSearchContext } from '../../utils/searchDefaults';
+import { packageParams } from '../../utils/packageHandoff';
+import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
+import { resultSeed } from '../../utils/resultSeed';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 const PAGE_SIZE = 20;
 // Stable empty list: the on-request hotels feed a useMemo, and a fresh [] each render would
 // invalidate it on every pass.
 const EMPTY_ON_REQUEST = [];
+// Card photos: the first render's cards load their photo straight away (the top ones first);
+// cards added by infinite scroll stay lazy. 800 px on high-density screens, the 320 px default
+// elsewhere — the card box is 230–336 CSS px wide, so 320 already fills it at 1x.
+const EAGER_PHOTOS = PAGE_SIZE;
+const PRIORITY_PHOTOS = 6;
+const cardPhotoSize = () => (typeof window !== 'undefined' && window.devicePixelRatio >= 1.5 ? 'bigger' : 'default');
+// The card's arrows: once the photo on screen has loaded, the next and previous ones are fetched
+// quietly (low priority, each URL once), so a click shows them at once instead of a shimmer.
+const prefetchedPhotos = new Set();
+function prefetchPhoto(url, size) {
+  const src = hotelImageChain(url, size)[0];   // exactly what <HotelImg> will ask for first
+  if (!src || prefetchedPhotos.has(src) || typeof Image === 'undefined') return;
+  prefetchedPhotos.add(src);
+  const img = new Image();
+  img.fetchPriority = 'low';
+  img.decoding = 'async';
+  img.src = src;
+}
 // Default age used for a newly-added child until the traveller picks one. Hotelbeds requires
 // an age per child; without it a family search 400s, so we never send a childless-age.
 const CHILD_AGE_DEFAULT = 8;
@@ -74,9 +104,10 @@ const allImgs = (images) => {
     .filter(Boolean);
 };
 
-// Empty-search fallback: popular sun destinations (Hotelbeds codes) that have priced inventory —
-// what we search when the traveller hits Search without choosing a place. Curated for the
-// Belgian sun-holiday market; the business can adjust this list.
+// The empty search (no place chosen) searches EVERY destination with inventory (spec I.1 §2:
+// "Without a destination, all active SUNSKY destinations are searched"), listed by the cache's
+// /contracts/destinations. These popular sun destinations are only the fallback for when that
+// list cannot be loaded, and still lead the Where-picker (POPULAR_SCOPE below).
 const DEFAULT_DESTINATIONS = ['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC'];
 
 // What the Where-picker floats to the top of its lists, above the alphabetical rest.
@@ -117,6 +148,10 @@ const ROOM_LABELS = {
 const ROOM_FILTERS = ['DBL', 'DBT', 'TWN', 'TPL', 'FAM', 'SUI', 'JSU', 'STU', 'APT', 'BUN', 'ROO'];
 
 const SORT_OPTIONS = [
+  // The default (final contract, Ch 1 §2). Flight + Hotel: the stable random order of this
+  // session (resultSeed); Hotel only: price low to high, as before (a random order there would
+  // need every hotel of a destination priced before page 1).
+  { value: 'recommended', label: 'Recommended' },
   { value: 'price_asc',  label: 'Price: Low to High' },   // labels below are t() fallbacks
   { value: 'price_desc', label: 'Price: High to Low' },
   // Name + star sorts. Applied CLIENT-SIDE over the loaded results (the price cache orders by
@@ -167,7 +202,7 @@ const PRICE_CEILING_FALLBACK = 1000;
 // Content facets narrow the hotelCodes via the admin API; price facets go straight to the cache.
 const EMPTY_FILTERS = {
   boards: [], roomTypes: [], minPrice: '', maxPrice: '',
-  priceBasis: 'total', refundable: 'any', sortBy: 'price_asc',
+  priceBasis: 'total', refundable: 'any', sortBy: 'recommended',
   // Content facets (resolved against the admin content API into a hotelCode set for the cache).
   themes: [], stars: [], facilities: [], activities: [],
   accommodation: [], kids: [],           // accommodation type (group 20), kids amenities
@@ -191,6 +226,10 @@ const EMPTY_FILTERS = {
   // search can have several usable airports and "Rhodes or Kos" is a real answer; the flight
   // fares endpoint has always taken a list of arrivals, so nothing downstream needed changing.
   arrivals: [],
+  // Build order, step 13: only non-stop flights in the package price. Narrows what the
+  // destination airport's connection policy allows; it can never widen it (the backend applies
+  // the policy first). The only routing choice worth having on a list of from-prices.
+  nonstop: false,
 };
 
 const MONTHS_EN = 'Jan,Feb,Mar,Apr,May,Jun,Jul,Aug,Sep,Oct,Nov,Dec';
@@ -220,7 +259,9 @@ const countActiveFilters = (f) =>
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0) +
-  (f.arrivals?.length || 0);
+  // Non-stop only acts on flights, so it is not counted while the search is hotel-only (its box
+  // is not shown then either): a count must never name a filter nobody can see to untick.
+  (f.arrivals?.length || 0) + (f.nonstop && f.transport === 'package' ? 1 : 0);
 
 // Any content facet active means the cache must be restricted to the resolved hotelCodes.
 const hasContentFacet = (f) =>
@@ -454,7 +495,7 @@ function AirportList({ rows, selected, onPick, multiple, name, language, unavail
                 <span className={styles.apText}>
                   <span className={styles.apCity}>{a.city}</span>
                   {a.label && a.label !== a.city && <span className={styles.apName}>{a.label}</span>}
-                  {a.unavailable && unavailableNote && <span className={styles.apReason}>{unavailableNote}</span>}
+                  {a.unavailable && (a.reason || unavailableNote) && <span className={styles.apReason}>{a.reason || unavailableNote}</span>}
                 </span>
                 <span className={styles.apCode}>{a.code}</span>
               </label>
@@ -511,6 +552,23 @@ export default function Results() {
   // A specific hotel picked from the home typeahead → restrict results to just that hotel.
   const urlHotelCode    = params.get('hotelCode') || '';
 
+  // Every destination the cache has inventory for, loaded only for the empty search (null until
+  // then). If the list cannot be loaded, the empty search falls back to DEFAULT_DESTINATIONS.
+  const [allDestinations, setAllDestinations] = useState(null);
+  const emptySearch = !csv(urlCountries).length && !csv(urlDestinations).length && !csv(urlCities).length && !legacyDest;
+  useEffect(() => {
+    if (!emptySearch || allDestinations) return;
+    let live = true;
+    fetch(`${CONTRACTS_API}/contracts/destinations`)
+      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
+      .then((d) => {
+        const codes = (d?.destinations ?? []).map((x) => x?.code).filter(Boolean);
+        if (live) setAllDestinations(codes.length ? codes : DEFAULT_DESTINATIONS);
+      })
+      .catch(() => { if (live) setAllDestinations(DEFAULT_DESTINATIONS); });
+    return () => { live = false; };
+  }, [emptySearch, allDestinations]);
+
   const { scope, usingDefaultScope } = useMemo(() => {
     // destinations = explicit `destinations` ∪ home-picker `cities`; fall back to the legacy
     // single `destination` only when neither is present (old links still work).
@@ -519,20 +577,21 @@ export default function Results() {
     const zones = csv(urlZones);
     const explicit = dests.length ? dests : (legacyDest ? [legacyDest] : []);
     // EMPTY SEARCH → no country and no destination chosen (e.g. the traveller clicked Search on
-    // the home page without picking a place). Rather than a blank "pick a destination" wall, we
-    // default to a curated set of popular sun destinations that actually have priced inventory,
-    // sorted cheapest-first — a "best deals" landing. The traveller refines via the Where filter.
+    // the home page without picking a place): every destination with inventory, cheapest first.
+    // While that list loads the scope is empty, and the price-scope step waits for it.
     if (!countries.length && !explicit.length) {
-      return { scope: { countries: [], destinations: DEFAULT_DESTINATIONS, zones: [] }, usingDefaultScope: true };
+      return { scope: { countries: [], destinations: allDestinations ?? [], zones: [] }, usingDefaultScope: true };
     }
     return { scope: { countries, destinations: explicit, zones }, usingDefaultScope: false };
-  }, [urlCountries, urlDestinations, urlCities, urlZones, legacyDest]);
+  }, [urlCountries, urlDestinations, urlCities, urlZones, legacyDest, allDestinations]);
   const scopeKey  = `${scope.countries.join(',')}|${scope.destinations.join(',')}|${scope.zones.join(',')}`;
   // Always have a scope now (the default fills it), so the results page is never blank.
-  const hasScope  = scope.countries.length > 0 || scope.destinations.length > 0;
+  // The empty search always has a scope (every destination), even while its list is loading.
+  const hasScope  = usingDefaultScope || scope.countries.length > 0 || scope.destinations.length > 0;
 
-  const defaultCheckIn  = (() => { const d = new Date(); d.setDate(d.getDate() + 30); return d.toISOString().split('T')[0]; })();
-  const defaultCheckOut = (() => { const d = new Date(); d.setDate(d.getDate() + 37); return d.toISOString().split('T')[0]; })();
+  // 30 days out, 7 nights, in UTC (utils/searchDefaults) — the same stay the hotel page and the
+  // "Show all" warmer use. Adding local days and printing UTC landed a day off around DST.
+  const { checkIn: defaultCheckIn, checkOut: defaultCheckOut } = defaultSearchContext();
 
   const initCheckIn  = params.get('checkIn')  || defaultCheckIn;
   // 29 travel days is the ceiling everywhere (spec 3.4), so at most 28 nights between these two
@@ -738,6 +797,8 @@ export default function Results() {
     // nothing (see arrivalDestinations), which is the safe failure. One code or several:
     // ?arrival=RHO and ?arrival=RHO,KGS both work, and older links keep working.
     const arrivals  = csv(params.get('arrival') || '').map((c) => c.trim().toUpperCase()).filter(Boolean);
+    // ?routing=nonstop. Anything else is no constraint: a URL can narrow, never widen.
+    const nonstop   = csv(params.get('routing') || '').some((r) => ['nonstop', 'non-stop', 'direct'].includes(r.toLowerCase()));
     const seed = {
       ...(boards.length        ? { boards } : {}),
       ...(themes.length        ? { themes } : {}),
@@ -753,6 +814,7 @@ export default function Results() {
       ...(transport            ? { transport } : {}),
       ...(origins.length       ? { origins } : {}),
       ...(arrivals.length      ? { arrivals } : {}),
+      ...(nonstop              ? { nonstop: true } : {}),
     };
     // Deriving the guard from the seed itself means a filter added above can never be left out
     // of it and silently ignored.
@@ -796,11 +858,25 @@ export default function Results() {
     adults: fetchParams.adults,
   });
 
-  // Flight fares for the package from-price (§33): cheapest eligible flight per arrival airport
-  // from the chosen departure airport. Keyed by arrival IATA; the card adds the fare for its
-  // own destination's airport to the cached hotel price. Empty until "Incl. flight" is on and
-  // the flight cache holds the route — then real package totals replace the hotel-only figure.
-  const [packageFares, setPackageFares] = useState({});
+  // "Incl. flight" (Levent, 6 Oct 2026): complete packages only, from the admin's package search.
+  // The groups of destinations asked (packageResults.js) and how many packages are shown; the
+  // destinations whose packages cannot be calculated yet (missing cache data, not "no flights").
+  const pkgRef = useRef({ reqId: 0, groups: [], shown: PAGE_SIZE, body: null });
+  const [pkgUnknown, setPkgUnknown] = useState([]);
+  // The airports the package answers prove (mergeAirportFacets): null = not proven either way.
+  const [pkgProven, setPkgProven] = useState({ origins: null, arrivals: null });
+  // Destinations whose package request FAILED (timeout, outage): not "no packages", unknown.
+  const [pkgFailed, setPkgFailed] = useState([]);
+  // Flight + Hotel: the count from the groups' result snapshots (Ch 1 §2); null = not known yet.
+  const [pkgTotal, setPkgTotal] = useState(null);
+  // Hotel only: the exact total of a random-order search (the cache priced every hotel); null =
+  // price order, where the cache prices only what the page needs and the count shows "+".
+  const [cacheTotal, setCacheTotal] = useState(null);
+  // Flight + Hotel: each group's answer per destination, for the "no flights to …" notice.
+  const [pkgStatusGroups, setPkgStatusGroups] = useState([]);
+  const [pkgLoadingGroups, setPkgLoadingGroups] = useState(0);
+  // Card photos that could not be loaded at any size: those cards show the no-photo tile.
+  const [failedPhotos, setFailedPhotos] = useState(() => new Set());
 
   // ── ARRIVAL AIRPORTS ("Flying to") ──────────────────────────────────────────────
   // Fetched, never hardcoded: the admin endpoint only returns airports linked to a
@@ -819,6 +895,11 @@ export default function Results() {
   const [pendingSearch, setPendingSearch] = useState(false);
   const [filtering, setFiltering]     = useState(false);
   const [fetchingMore, setFetchingMore] = useState(false);
+  // A failed price call is SOURCE_ERROR (spec 2.1), never "No results found": we do not know
+  // there is nothing, we only know we could not ask. `retryTick` re-runs the page-1 fetch.
+  const [searchError, setSearchError] = useState(null);
+  const [moreError, setMoreError] = useState(null);
+  const [retryTick, setRetryTick] = useState(0);
   const [hasMore, setHasMore]         = useState(true);
   const [allHotels, setAllHotels]     = useState([]);
   // Hotels the cache had no price for that World2Meet can still sell. Fetched once, when the
@@ -894,8 +975,12 @@ export default function Results() {
 
   // Lazy hotel-info loading
   const [infoMap, setInfoMap]         = useState({});
+  // Hotels whose info could not be loaded (after one retry): their card names them neutrally.
+  const [infoFailed, setInfoFailed]   = useState(() => new Set());
   const infoLoadingRef = useRef(new Set());
-  const sentinelRef    = useRef(null);
+  // Which search the hotel info belongs to: bumped where a new search resets the info, so an
+  // answer for the previous search is never applied to this one.
+  const infoGenRef = useRef(0);
 
   // Pagination state tracked in refs to avoid stale closures in async callbacks
   const paginationRef  = useRef({ page: 1, hasMore: true, fetching: false });
@@ -978,17 +1063,63 @@ export default function Results() {
     () => new Set(scope.destinations.length ? scope.destinations : (priceScope?.destinations ?? [])),
     [scope.destinations, priceScope]
   );
+
+  // Flight + Hotel: the departure and arrival airports with at least one valid package for this
+  // scope and these dates (admin /feasibility, every package rule). Only these are offered: an
+  // airport with no package here (Gazipasa: connections only; Eindhoven: no flight to Antalya)
+  // could only ever answer "No results". Unknown (loading, failed): nothing is hidden.
+  const pkgDated = !!params.get('checkIn');
+  const pkgNights = nightsBetween(fetchParams.checkIn, fetchParams.checkOut);
+  const pkgAirports = usePackageAirports({
+    enabled: filters.transport === 'package',
+    destinations: [...scopeDestSet],
+    from: pkgDated ? isoAddDays(fetchParams.checkIn, -urlFlex) : null,
+    to: pkgDated ? isoAddDays(fetchParams.checkIn, urlFlex) : null,
+    travelDays: pkgDated && pkgNights ? pkgNights + 1 : null,
+    adults: fetchParams.adults, children: fetchParams.children, childAges: fetchParams.childAges ?? childAges,
+  });
   // Both lists reach AirportList in ONE shape, so the component never has to know which end
   // of the flight it is drawing. The departure registry calls the flag `country` and the admin's
   // arrival rows call it `flag`; the city is what a traveller recognises, the airport's own name
   // is the confirmation under it.
+  // Results-page strictness (Ch 1 §9A, ResultFacetFeasibility): an airport is offered when it has a
+  // valid package round trip (feasibility) and, once the package answers are complete, at least
+  // one hotel left under the other filters has a package through it. Unknown hides nothing.
+  // An airport a loaded card is priced from is proven by that card: always offered, whatever the
+  // airport checks answered (7 Oct 2026: cards "from Keulen" under an empty airport list).
+  const pricedAirports = useMemo(() => {
+    const origins = new Set();
+    const arrivals = new Set();
+    for (const h of allHotels) {
+      const pk = h.pkg;
+      if (!pk) continue;
+      for (const o of pk.origins?.length ? pk.origins : [pk.departureAirport]) if (o) origins.add(o);
+      for (const a of pk.arrivals?.length ? pk.arrivals : [pk.arrivalAirport]) if (a) arrivals.add(a);
+    }
+    return { origins, arrivals };
+  }, [allHotels]);
+  const packageOrigin = (code) => pricedAirports.origins.has(code)
+    || ((!pkgAirports.origins || pkgAirports.origins.has(code)) && (!pkgProven.origins || pkgProven.origins.has(code)));
+  const packageArrival = (code) => pricedAirports.arrivals.has(code)
+    || ((!pkgAirports.arrivals || pkgAirports.arrivals[code]?.trips > 0) && (!pkgProven.arrivals || pkgProven.arrivals.has(code)));
+  const choiceGoneNote = t('filters.airportChoiceGone', 'Not available for this search. Untick it or choose another airport.');
   const departureRows = useMemo(
-    () => [...popularAirports, ...otherAirports].map((a) => ({
-      code: a.code, city: a.city || a.label, label: a.label, countryIso: a.countryIso || '',
-      // Proven to have no flight to the one arrival airport picked: shown, greyed, with why.
-      unavailable: departureAvailable?.[a.code] === false,
-    })),
-    [popularAirports, otherAirports, departureAvailable]
+    () => [...popularAirports, ...otherAirports]
+      // Flight + Hotel: only airports with a package here. A chosen one always stays: when it no
+      // longer works it says so, and only the traveller unticks it (never replaced silently).
+      .filter((a) => packageOrigin(a.code) || filters.origins.includes(a.code))
+      .map((a) => {
+        const gone = filters.transport === 'package' && filters.origins.includes(a.code) && !packageOrigin(a.code);
+        return {
+          code: a.code, city: a.city || a.label, label: a.label, countryIso: a.countryIso || '',
+          // Proven to have no flight to the one arrival airport picked: shown, greyed, with why.
+          unavailable: gone || departureAvailable?.[a.code] === false,
+          reason: gone ? choiceGoneNote : undefined,
+        };
+      }),
+    // packageOrigin reads pkgAirports.origins and pkgProven.origins.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [popularAirports, otherAirports, departureAvailable, pkgAirports.origins, pkgProven.origins, pricedAirports, filters.origins, filters.transport, choiceGoneNote]
   );
 
   // The departure airports a package search prices from (spec 3.2, 3.6). The chosen ones that
@@ -999,17 +1130,19 @@ export default function Results() {
     return filters.origins.filter((c) => known.has(c));
   }, [filters.origins, departureRows]);
   const noOriginPreference = activeOrigins.length === 0;
-  const originsKey = (noOriginPreference
-    ? departureRows.filter((a) => !a.unavailable).map((a) => a.code)
-    : activeOrigins).join(',');
   const toggleOriginFilter = (code) => setFilter('origins', activeOrigins.includes(code)
     ? activeOrigins.filter((c) => c !== code)
     : [...activeOrigins, code]);
 
   const arrivalOptions = useMemo(() => {
     if (!arrivalAirports.length || !scopeDestSet.size) return [];
-    return arrivalAirports.filter((a) => a.destinations.some((d) => scopeDestSet.has(d)));
-  }, [arrivalAirports, scopeDestSet]);
+    return arrivalAirports
+      .filter((a) => a.destinations.some((d) => scopeDestSet.has(d)))
+      // Flight + Hotel: only arrival airports with a package here (a chosen one stays).
+      .filter((a) => packageArrival(a.code) || filters.arrivals.includes(a.code));
+    // packageArrival reads pkgAirports.arrivals and pkgProven.arrivals.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [arrivalAirports, scopeDestSet, pkgAirports.arrivals, pkgProven.arrivals, pricedAirports, filters.arrivals]);
 
   const arrivalRows = useMemo(
     () => arrivalOptions.map((a) => ({
@@ -1019,72 +1152,14 @@ export default function Results() {
       city: a.cityNames?.length ? a.cityNames.join(', ') : a.name,
       label: a.name,
       countryIso: a.countryCode || '',
+      ...(filters.transport === 'package' && filters.arrivals.includes(a.code) && !packageArrival(a.code)
+        ? { unavailable: true, reason: choiceGoneNote } : {}),
     })),
-    [arrivalOptions]
+    // packageArrival reads pkgAirports.arrivals and pkgProven.arrivals.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [arrivalOptions, filters.arrivals, filters.transport, pkgAirports.arrivals, pkgProven.arrivals, pricedAirports, choiceGoneNote]
   );
 
-  // destinationCode → the arrival airports that serve it, so each hotel card can find the flight
-  // fare for its OWN destination (a country/multi-city page mixes destinations on one screen).
-  const destToArrivals = useMemo(() => {
-    const m = new Map();
-    for (const a of arrivalAirports) {
-      for (const d of a.destinations || []) {
-        if (!m.has(d)) m.set(d, []);
-        m.get(d).push(a.code);
-      }
-    }
-    return m;
-  }, [arrivalAirports]);
-
-  // Which arrival airports to price flights to: the one the traveller chose, else every airport
-  // serving the current scope. Stringified so the fetch effect only re-runs when the set changes.
-  const packageArrivalsKey = useMemo(
-    () => (applied.arrivals.length ? applied.arrivals : arrivalOptions.map((a) => a.code)).join(','),
-    [applied.arrivals, arrivalOptions]
-  );
-
-  // Fetch the package flight fares whenever "Incl. flight" is on and we have dates and at least
-  // one arrival airport. One call per departure airport being compared (see `originsKey`): per
-  // arrival the cheapest fare wins and remembers its airport, which the card then names. A
-  // failed call only loses that airport; if all fail the map stays empty and cards fall back to
-  // the honest hotel-only + "priced on hotel page" note.
-  useEffect(() => {
-    let live = true;
-    const ctrl = new AbortController();
-    // All setState happens inside run() (never synchronously in the effect body). Guarded so a
-    // missing/failing fares API (or a test mock without it) never breaks the page — cards simply
-    // fall back to the hotel-only + "priced on hotel page" note.
-    const run = async () => {
-      const arrivals = packageArrivalsKey ? packageArrivalsKey.split(',').filter(Boolean) : [];
-      const from = originsKey ? originsKey.split(',') : [];
-      if (filters.transport !== 'package' || !from.length || !fetchParams.checkIn || !arrivals.length) {
-        if (live) setPackageFares({});
-        return;
-      }
-      try {
-        const merged = {};
-        // Six at a time: No preference can mean ~20 airports, and the fares API is shared.
-        for (let i = 0; i < from.length; i += 6) {
-          const batch = from.slice(i, i + 6);
-          const settled = await Promise.allSettled(batch.map((origin) => fetchPackageFares(
-            { origin, checkIn: fetchParams.checkIn, checkOut: fetchParams.checkOut, adults: fetchParams.adults, children: fetchParams.children, arrivals },
-            { signal: ctrl.signal },
-          ).then((fares) => ({ origin, fares }))));
-          if (!live) return;
-          for (const s of settled) {
-            if (s.status !== 'fulfilled') continue;
-            for (const [arrival, fare] of Object.entries(s.value.fares || {})) {
-              if (!fare || fare.price == null) continue;
-              if (!merged[arrival] || fare.price < merged[arrival].price) merged[arrival] = { ...fare, origin: s.value.origin };
-            }
-          }
-        }
-        if (live) setPackageFares(merged);
-      } catch { if (live) setPackageFares({}); }
-    };
-    run();
-    return () => { live = false; ctrl.abort(); };
-  }, [filters.transport, originsKey, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults, fetchParams.children, packageArrivalsKey]);
 
   // The destinations the chosen arrival airport narrows the search to, intersected with the
   // scope the traveller already picked. `null` = no arrival filter. An EMPTY array is
@@ -1103,9 +1178,9 @@ export default function Results() {
   // Identity of the narrowing, for effect deps. `null` and `[]` are different states (no
   // filter vs. filter that matches nothing), so they must not collapse to the same key.
   const arrivalKey = arrivalDestinations === null ? '' : `arr:${arrivalDestinations.join(',')}`;
-  // loadMore runs from an IntersectionObserver callback and reads the committed values
-  // through refs; without this, page 2 would be built from whatever narrowing was in scope
-  // when the callback was created and could silently widen the search mid-scroll.
+  // loadMore (the "Show more" button) reads the committed values through refs; without this,
+  // page 2 would be built from whatever narrowing was in scope when the callback was created
+  // and could silently widen the search between pages.
   const arrivalDestRef = useRef(arrivalDestinations);
   // Keyed on `arrivalKey`, not the array identity: the memo returns a fresh array every time
   // its inputs re-evaluate, which would make an identity dep fire on every render.
@@ -1134,11 +1209,15 @@ export default function Results() {
   // hotel in Antalya. The admin narrows the codes by the (destination, zone) pair for us.
   const needCodes = hasContentFacet(applied) || scope.zones.length > 0;
   const needAttrs = applied.sortBy === 'distance_beach' || applied.sortBy === 'distance_centre';
+  // Split in two so pricing never waits for the sidebar: (A) below resolves only WHAT to price
+  // (facets?counts=0 — the same calculation, minus the nine facet-count queries) and starts page 1;
+  // (B) further down loads the sidebar's counts in parallel. The counts are scope-level, so (B)
+  // does not re-run when a box is ticked.
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
+    if (usingDefaultScope && !allDestinations) return;   // the empty search's list is still loading
     let live = true;
     const ctrl = new AbortController();
-    setFacetsStatus('loading');
     const selected = {
       themes: applied.themes, stars: applied.stars,
       facilities: applied.facilities, activities: applied.activities,
@@ -1146,10 +1225,11 @@ export default function Results() {
       maxBeach: applied.maxBeach, maxCentre: applied.maxCentre,
       adultsOnly: applied.adultsOnly, minRating: applied.minRating,
     };
-    fetchFacets(scope, selected, { codes: needCodes, attrs: needAttrs, signal: ctrl.signal })
+    fetchFacets(scope, selected, { codes: needCodes, attrs: needAttrs, counts: false, signal: ctrl.signal })
       .then((r) => {
         if (!live) return;
-        setFacets(r.facets || EMPTY_FACETS);
+        // An admin that predates counts=0 still sends the counts: use them rather than wait for (B).
+        if (r.facets) { setFacets(r.facets); setFacetsStatus('ok'); }
         // Keep the previous map when this request didn't ask for attributes — clearing it
         // would drop the distances a still-open distance sort is ordering by.
         if (r.attributes) setAttrMap(r.attributes);
@@ -1162,29 +1242,49 @@ export default function Results() {
           // A specific hotel (typeahead) pins the result to just that hotel. Otherwise restrict
           // the cache to the resolved hotelCodes only when a content facet is active.
           hotelCodes: urlHotelCode ? [urlHotelCode] : (needCodes ? (r.hotelCodes || []) : null),
-          // Empty-search teaser → fast external-only path (avoids the slow Diana leg that 502s);
-          // a real, place-specific search keeps the full combined supplier set.
-          source: usingDefaultScope ? 'external' : 'combined',
+          // Every search prices both sources. The empty search was external-only while a combined
+          // search ran its slow half live; both are answered from the snapshots now.
+          source: 'combined',
         });
-        setFacetsStatus('ok');
       })
       .catch((err) => {
         // A superseded request was cancelled on purpose — not an error, and the newer one owns
         // the state now.
         if (!live || err?.name === 'CanceledError' || err?.name === 'AbortError') return;
-        setFacets(EMPTY_FACETS);
         setAttrMap({});
-        setFacetsStatus('error');
         // Admin down: still price the scope's explicit destinations (content facets can't apply).
         setPriceScope({
           destinations: scope.destinations,
           hotelCodes: urlHotelCode ? [urlHotelCode] : (needCodes ? [] : null),
-          source: usingDefaultScope ? 'external' : 'combined',
+          source: 'combined',
         });
       });
     return () => { live = false; ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [scopeKey, contentKey, urlHotelCode, needCodes, needAttrs]);
+
+  // (B) The sidebar's facet counts. Scope-level ("what is in the searched area"), so they do not
+  // depend on the ticked boxes and are fetched once per scope, in parallel with pricing.
+  useEffect(() => {
+    if (!hasScope) return;
+    if (usingDefaultScope && !allDestinations) return;   // the empty search's list is still loading
+    let live = true;
+    const ctrl = new AbortController();
+    setFacetsStatus('loading');
+    fetchFacets(scope, {}, { codes: false, attrs: false, signal: ctrl.signal })
+      .then((r) => {
+        if (!live) return;
+        setFacets(r.facets || EMPTY_FACETS);
+        setFacetsStatus('ok');
+      })
+      .catch((err) => {
+        if (!live || err?.name === 'CanceledError' || err?.name === 'AbortError') return;
+        setFacets(EMPTY_FACETS);
+        setFacetsStatus('error');
+      });
+    return () => { live = false; ctrl.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeKey]);
 
   // Refs so loadMore always sees latest values
   const fetchParamsRef = useRef(fetchParams);
@@ -1254,6 +1354,12 @@ export default function Results() {
     if (f.priceBasis !== 'total') body.priceBasis = f.priceBasis;
     if (f.refundable !== 'any')   body.refundable = f.refundable;
     if (f.sortBy === 'price_desc') body.sortBy = 'price_desc';
+    // "Recommended": the stable random order of this session (Ch 1 §2). The cache applies it only
+    // when switched on (RESULTS_RANDOM_HOTEL_ONLY); off, it answers in price order as before.
+    // Same place as in the warmer (utils/warmSearches.js), so both still send the same search.
+    else if (f.sortBy === 'recommended') { body.sortBy = 'random'; body.resultRandomSeed = resultSeed(); }
+    // Pages 2+ of a random-order search: cut from page 1's result snapshot.
+    if (over.searchQueryId) body.searchQueryId = over.searchQueryId;
     if (f.transport === 'package') body.searchType = 'PACKAGE';
 
     // Content-filter hand-off. An empty resolved set means "facets selected but nothing matched"
@@ -1291,7 +1397,10 @@ export default function Results() {
     return {
       id:           c.hotelCode,
       hotelCode:    c.hotelCode,
-      name:         c.hotelName ?? `Hotel ${c.hotelCode}`,
+      // No "Hotel {code}" stand-in: the price cache carries codes only, and a code flashed on the
+      // card until /hotels/bulk answered (7 Oct 2026). Without a name the card shows its name
+      // skeleton; the real name comes from the info record.
+      name:         c.hotelName ?? null,
       stars:        null,
       // Codes only — the words are resolved at render so they follow the language switch.
       boardCode:    bc,
@@ -1318,7 +1427,11 @@ export default function Results() {
   // places (utils/scopeLeaves). Names come from the cascade lists, falling back to the raw
   // code while they load, since a code still beats a blank hero.
   const scopeLabel = useMemo(() => {
-    if (usingDefaultScope) return t('hero.popularDestinations', 'Popular destinations');
+    if (usingDefaultScope) {
+      return allDestinations === DEFAULT_DESTINATIONS
+        ? t('hero.popularDestinations', 'Popular destinations')
+        : t('hero.allDestinations', 'All destinations');
+    }
     if (urlLabel) return urlLabel;
     const countryNames = countryOptions.reduce(
       (m, c) => { m[c.code] = countryName(c.code, i18nInstance.language, c.name); return m; },
@@ -1335,11 +1448,68 @@ export default function Results() {
     if (parts.length === 0) return '';
     if (parts.length === 1) return parts[0];
     return t('hero.places', { count: parts.length, defaultValue: '{{count}} places' });
-  }, [usingDefaultScope, urlLabel, scope, countryOptions, scopeCities, scopeZones, t, i18nInstance.language]);
+  }, [usingDefaultScope, allDestinations, urlLabel, scope, countryOptions, scopeCities, scopeZones, t, i18nInstance.language]);
+
+  /**
+   * What the marketing layer is told about this search (Tracking Master §9).
+   *
+   * COUNTRY AND DESTINATION ARE SENT ONLY WHEN THE SEARCH HAS EXACTLY ONE. A scope of
+   * "Turkey + Greece", or of three cities, has no single destination, and §18 forbids
+   * inventing one; picking the first would quietly attribute a multi-country search to
+   * whichever place happened to sort first.
+   *
+   * Names, not codes, and resolved in ENGLISH rather than the visitor's language. §7 requires
+   * one canonical analytics value per place - if this followed `i18nInstance.language` the
+   * same country would arrive as both "Turkey" and "Turkije" depending on who searched.
+   *
+   * `duration` comes from SUNSKY's own duration helpers, which differ by product: travel days
+   * for a package, stay days for hotel only (§5 forbids the marketing layer calculating its
+   * own).
+   */
+  const searchTracking = useMemo(() => {
+    const leaves = scopeLeaves(scope, scopeCities);
+    const oneCountry = leaves.countries.length === 1 && !leaves.destinations.length && !leaves.zones.length
+      ? leaves.countries[0] : null;
+    const oneDest = leaves.destinations.length === 1 && !leaves.countries.length && !leaves.zones.length
+      ? leaves.destinations[0] : null;
+    const isPackage = applied.transport === 'package';
+    const { checkIn, checkOut } = fetchParams;
+
+    return {
+      transport: applied.transport,
+      country: oneCountry ? countryName(oneCountry, 'en', oneCountry) : null,
+      destination: oneDest
+        ? (scopeCities.find((c) => c.code === oneDest)?.name || oneDest)
+        : null,
+      departureDate: checkIn,
+      // Only when the traveller picked exactly one. Empty means "no preference" (every active
+      // airport), which is not a departure airport and must not be reported as one.
+      departureAirport: isPackage && applied.origins?.length === 1 ? applied.origins[0] : null,
+      duration: checkIn && checkOut
+        ? (isPackage ? packageTravelDays(checkIn, checkOut) : stayDays(checkIn, checkOut))
+        : null,
+      adults: fetchParams.adults,
+      children: fetchParams.children,
+      board: applied.boards?.length === 1 ? applied.boards[0] : null,
+      // Everything else that narrows the result universe. Sort order is deliberately absent:
+      // §9 rules it out as a search trigger, and this string is what decides whether a new
+      // `search` event fires.
+      filterSignature: JSON.stringify([
+        fetchParams.rooms, applied.themes, applied.stars, applied.facilities, applied.activities,
+        applied.accommodation, applied.kids, applied.roomTypes, applied.arrivals, applied.origins,
+        applied.minPrice, applied.maxPrice, applied.priceBasis, applied.refundable,
+        applied.maxBeach, applied.maxCentre, applied.minRating, applied.adultsOnly,
+      ]),
+    };
+  }, [scope, scopeCities, applied, fetchParams]);
 
   // "A different search" (vs. a different filter): scope or head-counts/dates changed.
   const searchKey = `${scopeKey}|${fetchParams.checkIn}|${fetchParams.checkOut}|${fetchParams.adults}|${fetchParams.children}|${fetchParams.rooms}|${fetchParams.childAges ?? childAges}`;
   const prevSearchKeyRef = useRef(null);
+  // The last search reported to GA4. Separate from `prevSearchKeyRef`, which tracks "is this
+  // a new search or a filter change" for the UI's loading state: a committed filter change IS
+  // a new search as far as §9 is concerned, but a re-sort is not.
+  const lastSearchSigRef = useRef(null);
 
   // A price bound is only meaningful for the search it was chosen in. Clear it on a search change
   // (adjusting state during render — React's documented pattern for reacting to changed inputs).
@@ -1361,6 +1531,84 @@ export default function Results() {
     ? `${priceScope.destinations.join(',')}|${priceScope.hotelCodes ? priceScope.hotelCodes.length + ':' + priceScope.hotelCodes.slice(0, 3).join(',') : 'all'}`
     : null;
 
+  // ── "Incl. flight": show the package groups that have answered ──────────────────────────
+  // Every group is asked at once (PACKAGE_CONCURRENCY at a time) and the list fills in as each
+  // answers, so a country is not as slow as its slowest destination. Sorted as one list.
+  const showPackages = (reqId) => {
+    const pk = pkgRef.current;
+    if (pk.reqId !== reqId || reqId !== reqIdRef.current) return;
+    const sortBy = appliedRef.current.sortBy;
+    const merged = mergePackages(pk.groups, sortBy);
+    const pending = pk.groups.some((g) => !g.done);
+    const more = merged.length > pk.shown || pk.groups.some((g) => g.hasMore);
+    setAllHotels(merged.slice(0, pk.shown).map((p) => mapPackage(p, scopeLabel)));
+    setHasMore(more || pending);
+    // The price slider's range, on the same basis as the filter (package total or p.p.).
+    const f = appliedRef.current;
+    if (f.minPrice === '' && f.maxPrice === '') {
+      growCeiling(merged.map((p) => (f.priceBasis === 'perPerson' ? p.pricePerPerson : p.sunskyPayableTotalRounded)).filter((n) => Number.isFinite(n)));
+    }
+    setBoardFacets(mergeBoardFacets(pk.groups));
+    setPkgProven(mergeAirportFacets(pk.groups, pk.body || {}));
+    setPkgUnknown(unknownDestinations(pk.groups));
+    setPkgFailed(pk.groups.filter((g) => g.done && g.error).flatMap((g) => g.dests));
+    setPkgLoadingGroups(pk.groups.filter((g) => !g.done).length);
+    setPkgTotal(packageTotal(pk.groups));
+    setPkgStatusGroups(pk.groups.map((g) => ({ dests: g.dests, done: g.done, error: g.error, destinationStatus: g.destinationStatus })));
+    if (merged.length || !pending) { setLoading(false); setFiltering(false); setPendingSearch(false); }
+    if (!pending) {
+      setCheapestCode(sortBy === 'price_asc' ? (merged[0]?.hotelCode ?? null)
+        : sortBy === 'recommended' ? (cheapestPackage(merged)?.hotelCode ?? null) : null);
+      const failed = pk.groups.filter((g) => g.error);
+      if (failed.length && failed.length === pk.groups.length) setSearchError(fromFailure(failed[0].error));
+      paginationRef.current = { page: 2, hasMore: more, fetching: false };
+      setPage1Done({ reqId });
+    }
+  };
+  const runPackageGroups = async (groups, reqId, signal) => {
+    let next = 0;
+    const worker = async () => {
+      while (next < groups.length) {
+        const g = groups[next++];
+        try {
+          // Pages 2+ of a group come from the result snapshot of its page 1 (Ch 1 §2).
+          const snap = g.page > 0 && g.searchId ? { searchQueryId: g.searchId } : {};
+          const r = await fetchPackages({ ...pkgRef.current.body, ...snap, destinations: g.dests, page: g.page + 1 }, { signal });
+          g.hotels = [...g.hotels, ...(r?.hotels || [])];
+          if (r?.searchQueryId) g.searchId = r.searchQueryId;
+          if (Number.isFinite(r?.count)) g.count = r.count;
+          g.hasMore = !!r?.hasMore;
+          g.page += 1;
+          g.destinationStatus = { ...(g.destinationStatus || {}), ...(r?.destinationStatus || {}) };
+          if (g.page === 1) { g.boardFacets = r?.boardFacets || {}; g.airportFacets = r?.airportFacets || null; }
+          g.error = null;
+        } catch (err) {
+          if (signal?.aborted || err?.name === 'CanceledError') return;
+          console.warn('[Results] package search failed for', g.dests.join(','), err?.message);
+          g.error = err;
+          g.hasMore = false;
+        }
+        g.done = true;
+        showPackages(reqId);
+      }
+    };
+    await Promise.all(Array.from({ length: Math.min(PACKAGE_CONCURRENCY, groups.length) }, worker));
+  };
+  // "Show more" with packages: 20 more from the merged list, after asking the next page of every
+  // group that could still hold a package that sorts before them.
+  const loadMorePackages = () => {
+    const pk = pkgRef.current;
+    const reqId = pk.reqId;
+    if (reqId !== reqIdRef.current) return;
+    pk.shown += PAGE_SIZE;
+    const sortBy = appliedRef.current.sortBy;
+    const extend = groupsToExtend(pk.groups, mergePackages(pk.groups, sortBy), pk.shown, sortBy);
+    if (!extend.length) { showPackages(reqId); return; }
+    for (const g of extend) g.done = false;
+    setFetchingMore(true);
+    runPackageGroups(extend, reqId).finally(() => { if (reqId === reqIdRef.current) setFetchingMore(false); });
+  };
+
   // Page-1 fetch. Re-runs on a new search, on a committed filter change, and once the price
   // scope is resolved from the facets step.
   useEffect(() => {
@@ -1377,32 +1625,89 @@ export default function Results() {
     const isNewSearch = prevSearchKeyRef.current !== searchKey;
     prevSearchKeyRef.current = searchKey;
 
+    setSearchError(null);
+    setMoreError(null);
     if (isNewSearch) {
       setLoading(true);
       setAllHotels([]);
       setInfoMap({});
+      setInfoFailed(new Set());
       setPriceCeiling(null);
       infoLoadingRef.current = new Set();
+      infoGenRef.current += 1;
     } else {
       setFiltering(true);
     }
     setHasMore(true);
     seenCodesRef.current  = new Set();
     paginationRef.current = { page: 1, hasMore: true, fetching: true };
+    setCacheTotal(null);
 
     const reqId = ++reqIdRef.current;
     const { url, opts } = buildRequest(fetchParams, priceScope, childAges, 1, applied);
     console.log('[Results] Page 1 fetch:', opts.method || 'GET', url);
 
+    // GA4 `search` (Tracking Master §9). On the request, not the response: the traveller
+    // performed a search whether or not the cache answers, and an event lost to a timeout
+    // would under-report the top of the funnel.
+    //
+    // THE SIGNATURE IS WHAT KEEPS THE §9 PROMISE. This effect also re-runs when only the sort
+    // order changed, and §9 lists "changes sorting" among the things that must NOT fire a
+    // search. `searchSignature()` omits sort (and paging), so a re-sort recomputes an
+    // identical signature and nothing is sent.
+    const sig = searchSignature(searchTracking);
+    if (sig && sig !== lastSearchSigRef.current) {
+      lastSearchSigRef.current = sig;
+      trackSearch(searchTracking);
+    }
+
+    if (applied.transport === 'package') {
+      const ctrl = new AbortController();
+      const arrDests = arrivalDestRef.current;
+      const dests = arrDests ? priceScope.destinations.filter((d) => arrDests.includes(d)) : priceScope.destinations;
+      // A search without dates of its own (a homepage link) asks the precalculated default.
+      const undated = !params.get('checkIn') && fetchParams.checkIn === defaultCheckIn && fetchParams.checkOut === defaultCheckOut;
+      const body = packageBody({
+        fp: fetchParams, childAges, filters: applied, origins: applied.origins || [],
+        hotelCodes: Array.isArray(priceScope.hotelCodes) ? priceScope.hotelCodes : null,
+        dated: !undated, flex: urlFlex, bandNights: dayOptions, seed: resultSeed(),
+      });
+      const groups = chunkDestinations(dests).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
+      pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };
+      setPkgUnknown([]);
+      setPkgProven({ origins: null, arrivals: null });
+      setPkgFailed([]);
+      setPkgTotal(null);
+      setPkgStatusGroups([]);
+      setNights(nightsBetween(fetchParams.checkIn, fetchParams.checkOut) || 0);
+      setCheapestCode(null);
+      setBoardFacets({});
+      if (!groups.length) {
+        setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false); setPendingSearch(false);
+        return undefined;
+      }
+      setPkgLoadingGroups(groups.length);
+      runPackageGroups(groups, reqId, ctrl.signal);
+      return () => ctrl.abort();
+    }
+
     const ctrl = new AbortController();
+    // The every-destination empty search may fall back to the popular destinations (see
+    // EMPTY_SEARCH_FALLBACK_MS): on a failure, or when it has not answered in time.
+    const canFallBack = usingDefaultScope && allDestinations !== DEFAULT_DESTINATIONS;
+    let timedOut = false;
+    const fallbackTimer = canFallBack
+      ? setTimeout(() => { timedOut = true; ctrl.abort(); }, EMPTY_SEARCH_FALLBACK_MS)
+      : null;
     fetch(url, { ...opts, signal: ctrl.signal })
-      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
+      .then((r) => { if (!r.ok) throw Object.assign(new Error(`API ${r.status}`), { status: r.status }); return r.json(); })
       .then((data) => {
+        clearTimeout(fallbackTimer);
         if (reqId !== reqIdRef.current) return;
         const results = data.results || [];
         setNights(data.nights || 0);
         setBoardFacets(data.boardFacets || {});
-        setCheapestCode(applied.sortBy === 'price_asc' ? (data.cheapest?.hotelCode ?? null) : null);
+        setCheapestCode(applied.sortBy === 'price_asc' || applied.sortBy === 'recommended' ? (data.cheapest?.hotelCode ?? null) : null);
 
         const seen   = seenCodesRef.current;
         const mapped = [];
@@ -1413,7 +1718,9 @@ export default function Results() {
           growCeiling(mapped.map((h) => (applied.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount)).filter((n) => Number.isFinite(n)));
         }
         const more = data.hasMore ?? (results.length >= PAGE_SIZE);
-        paginationRef.current = { page: 2, hasMore: more, fetching: false };
+        paginationRef.current = { page: 2, hasMore: more, fetching: false, searchQueryId: data.searchQueryId ?? null };
+        // The random order prices the whole search, so its total is exact: shown without "+".
+        setCacheTotal(data.randomOrder && Number.isFinite(data.total) ? data.total : null);
         setHasMore(more);
         setAllHotels(mapped);
         setLoading(false);
@@ -1422,19 +1729,28 @@ export default function Results() {
         setPage1Done({ reqId });
       })
       .catch((err) => {
-        if (err.name === 'AbortError' || reqId !== reqIdRef.current) return;
+        clearTimeout(fallbackTimer);
+        if ((err.name === 'AbortError' && !timedOut) || reqId !== reqIdRef.current) return;
+        if (canFallBack) {
+          // Re-scoped to the popular destinations: the scope change re-runs this search, and the
+          // page keeps loading meanwhile.
+          console.warn('[Results] Every-destination search', timedOut ? 'timed out' : 'failed', '— showing the popular destinations');
+          setAllDestinations(DEFAULT_DESTINATIONS);
+          return;
+        }
         console.error('[Results] Contracts API error:', err);
+        setSearchError(fromFailure(err));
         setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false); setPendingSearch(false);
         paginationRef.current = { page: 1, hasMore: false, fetching: false };
       });
 
-    return () => ctrl.abort();
+    return () => { clearTimeout(fallbackTimer); ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
     // `arrivalKey` is a dep in its own right: the airport list loads asynchronously, so an
     // arrival seeded from the URL resolves to its destinations only AFTER `applied` has
     // settled. Without it, a shared link with an arrival airport would render the unfiltered
     // search and never correct itself.
-  }, [scopeKey, fetchParams, applied, priceScopeKey, arrivalKey]);
+  }, [scopeKey, fetchParams, applied, priceScopeKey, arrivalKey, retryTick]);
 
   // TRAVEL-TIME COUNTS. For each day option in the band, price the same scope at that stay length
   // (in the background) and record how many hotels come back — the number shown next to each
@@ -1452,7 +1768,8 @@ export default function Results() {
   // next to full totals for the other lengths.
   const appliedKey = JSON.stringify(applied);
   useEffect(() => {
-    if (!priceScope || !priceScope.destinations.length || !dayOptions.length || !fetchParams.checkIn) {
+    // Hotel-only counts next to package results would count hotels without a flight.
+    if (applied.transport === 'package' || !priceScope || !priceScope.destinations.length || !dayOptions.length || !fetchParams.checkIn) {
       setDurationCounts({});
       return;
     }
@@ -1477,6 +1794,7 @@ export default function Results() {
 
   // Load next page from API
   const loadMore = useCallback(() => {
+    if (appliedRef.current.transport === 'package') { loadMorePackages(); return; }
     const pg = paginationRef.current;
     if (!pg.hasMore || pg.fetching) return;
     const ps = priceScopeRef.current;
@@ -1484,17 +1802,18 @@ export default function Results() {
 
     paginationRef.current = { ...pg, fetching: true };
     setFetchingMore(true);
+    setMoreError(null);
 
     const fp  = fetchParamsRef.current;
     const ca  = childAgesRef.current;
     const f   = appliedRef.current;
     const reqId = reqIdRef.current;
 
-    const { url, opts } = buildRequest(fp, ps, ca, pg.page, f);
+    const { url, opts } = buildRequest(fp, ps, ca, pg.page, f, pg.searchQueryId ? { searchQueryId: pg.searchQueryId } : {});
     console.log('[Results] Load more (page=' + pg.page + '):', opts.method || 'GET', url);
 
     fetch(url, opts)
-      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
+      .then((r) => { if (!r.ok) throw Object.assign(new Error(`API ${r.status}`), { status: r.status }); return r.json(); })
       .then((data) => {
         if (reqId !== reqIdRef.current) return;
         const results = data.results || [];
@@ -1511,7 +1830,7 @@ export default function Results() {
           }
         }
         const more = data.hasMore ?? (results.length >= PAGE_SIZE);
-        paginationRef.current = { page: pg.page + 1, hasMore: more, fetching: false };
+        paginationRef.current = { page: pg.page + 1, hasMore: more, fetching: false, searchQueryId: data.searchQueryId ?? pg.searchQueryId ?? null };
         setHasMore(more);
         setFetchingMore(false);
       })
@@ -1519,9 +1838,28 @@ export default function Results() {
         if (reqId !== reqIdRef.current) return;
         console.error('[Results] Load more error:', err);
         paginationRef.current = { ...paginationRef.current, fetching: false };
+        setMoreError(fromFailure(err));        // the cards already shown stay; the button retries
         setFetchingMore(false);
       });
   }, [scopeLabel]);
+
+  // The count above the list (Ch 1 §2): Flight + Hotel from the result snapshots once every group
+  // has answered; Hotel only from a random-order answer's exact total; otherwise the hotels loaded
+  // (with "+").
+  const shownTotal = applied.transport === 'package' ? pkgTotal : cacheTotal;
+
+  // "No flight + hotel packages to Albania and Bulgaria for these dates": named once every group
+  // has answered, only for a certain "no flight" (never for a destination still loading/failed).
+  const noFlightLabel = useMemo(() => {
+    const places = noFlightPlaces(pkgStatusGroups, scopeCities);
+    const cityName = (d) => scopeCities.find((c) => c.code === d)?.name || d;
+    const names = [
+      ...places.countries.map((c) => countryName(c, i18nInstance.language, countryOptions.find((o) => o.code === c)?.name || c)),
+      ...places.destinations.map(cityName),
+    ];
+    if (!names.length) return '';
+    try { return new Intl.ListFormat(i18nInstance.language, { type: 'conjunction' }).format(names); } catch { return names.join(', '); }
+  }, [pkgStatusGroups, scopeCities, countryOptions, i18nInstance.language]);
 
   // Client-side sorts (name / stars / distance) over the loaded results. Price sorts are done by
   // the cache; these reorder what's loaded, using the info/attribute data as it arrives.
@@ -1566,6 +1904,9 @@ export default function Results() {
   // Null when there is nothing to ask.
   const onRequestKey = useMemo(() => {
     if (loading || hasMore) return null;
+    // Hotel only. With Incl. flight a hotel is listed only as a complete flight + hotel package
+    // (contract Ch 3 §4); a W2M hotel without one is not a result there.
+    if (applied.transport === 'package') return null;
     const dests = priceScope?.destinations ?? [];
     const codes = Array.isArray(priceScope?.hotelCodes) ? priceScope.hotelCodes : null;
     // `[]` means the narrowing resolved to nothing at all — there is no hotel to ask about.
@@ -1579,7 +1920,7 @@ export default function Results() {
       || applied.boards.length || applied.roomTypes.length) return null;
     return JSON.stringify([dests, codes, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults,
       fetchParams.children, fetchParams.rooms, fetchParams.childAges ?? null, allHotels.length]);
-  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.minPrice, applied.maxPrice, applied.boards, applied.roomTypes]);
+  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.transport, applied.minPrice, applied.maxPrice, applied.boards, applied.roomTypes]);
 
   const onRequest = useMemo(
     () => (onRequestData.key === onRequestKey ? onRequestData.list : EMPTY_ON_REQUEST),
@@ -1637,59 +1978,70 @@ export default function Results() {
   // the end under every sort — they have no price to sort by and are a different offer.
   const displayHotels = useMemo(() => (onRequest.length ? [...hotels, ...onRequest] : hotels), [hotels, onRequest]);
 
-  // Lazily load real hotel info (name/images/stars) for all visible hotels
+  // Lazily load real hotel info (name/images/stars) for all visible hotels. A failed request is
+  // tried once more; hotels still without a record after that are marked, so their card shows a
+  // neutral name instead of a skeleton that never resolves (never the hotel code).
   useEffect(() => {
-    const need = displayHotels.map((h) => String(h.hotelCode)).filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code));
+    const need = displayHotels.map((h) => String(h.hotelCode)).filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code) && !infoFailed.has(code));
     if (need.length === 0) return;
     need.forEach((c) => infoLoadingRef.current.add(c));
-    let cancelled = false;
+    // NOT cancelled when the list changes. An answer that arrives after the list moved on (the
+    // next destination group answered, a "Show more") is still these hotels' info, and the
+    // hotels are marked as loading, so no later run asks for them again: throwing it away left
+    // their cards as skeletons for good. Frequent with the random order (Ch 1 §2), where every
+    // group that answers reshuffles the first 20 (9 Oct 2026). Only a NEW search drops it.
+    const gen = infoGenRef.current;
+    const stale = () => gen !== infoGenRef.current;
+    const load = async () => {
+      const res = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
+        method: 'POST', headers: { 'Content-Type': 'application/json' },
+        // Card view: only what a card reads (name, stars, place, photos, facility names,
+        // review) — not every room, phone and description. The detail page asks for the
+        // full record itself.
+        body: JSON.stringify({ hotelCodes: need, view: 'card' }),
+      });
+      if (!res.ok) throw new Error(`hotels/bulk ${res.status}`);
+      const data = await res.json();
+      const add = {};
+      for (const info of (data?.data ?? [])) add[String(info.hotelCode)] = info;
+      return add;
+    };
     (async () => {
-      try {
-        const res = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
-          method: 'POST', headers: { 'Content-Type': 'application/json' },
-          // Card view: only what a card reads (name, stars, place, photos, facility names,
-          // review) — not every room, phone and description. The detail page asks for the
-          // full record itself.
-          body: JSON.stringify({ hotelCodes: need, view: 'card' }),
-        });
-        if (res.ok) {
-          const data = await res.json();
-          const add = {};
-          for (const info of (data?.data ?? [])) add[String(info.hotelCode)] = info;
-          if (!cancelled && Object.keys(add).length) setInfoMap((prev) => ({ ...prev, ...add }));
+      let add = null;
+      for (let attempt = 0; attempt < 2 && !add && !stale(); attempt += 1) {
+        try {
+          add = await load();
+        } catch (e) {
+          console.warn('[Results] Hotel info bulk failed:', e);
+          if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
         }
-      } catch (e) {
-        console.warn('[Results] Hotel info bulk failed:', e);
-      } finally {
-        need.forEach((c) => infoLoadingRef.current.delete(c));
       }
+      if (stale()) return;                       // a new search: its own runs load its hotels
+      need.forEach((c) => infoLoadingRef.current.delete(c));
+      if (add && Object.keys(add).length) setInfoMap((prev) => ({ ...prev, ...add }));
+      const missing = need.filter((c) => !add?.[c]);
+      if (missing.length) setInfoFailed((prev) => new Set([...prev, ...missing]));
     })();
-    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [displayHotels]);
 
-  // Infinite scroll — IntersectionObserver on sentinel.
-  useEffect(() => {
-    if (loading || !hasMore) return;
-    const el = sentinelRef.current;
-    if (!el) return;
-    const observer = new IntersectionObserver(([entry]) => { if (entry.isIntersecting) loadMore(); }, { rootMargin: '400px' });
-    observer.observe(el);
-    return () => observer.disconnect();
-  }, [loading, hasMore, allHotels.length, loadMore]);
+  // Pages of 20 come on request: a "Show more" button (spec 3.8), not infinite scroll.
+  const retrySearch = useCallback(() => { setSearchError(null); setLoading(true); setRetryTick((n) => n + 1); }, []);
 
   // Deep link to the hotel/package detail page. The card opens it in a NEW TAB, and a new
   // tab can't receive react-router's in-memory `state` — so the whole search context rides
   // in the URL instead. HotelDetail reads these as its fallback and refetches the hotel
   // content itself, which also makes the detail page shareable/bookmarkable.
   const detailHref = (h, name, starsVal, dest, img, fareOrigin) => {
+    // A package opens on ITS stay (the flights decide it), not the searched dates.
+    const stay = h.pkg?.stay;
     const qs = new URLSearchParams({
-      checkIn:  fetchParams.checkIn,
-      checkOut: fetchParams.checkOut,
+      checkIn:  stay?.checkin  || fetchParams.checkIn,
+      checkOut: stay?.checkout || fetchParams.checkOut,
       adults:   fetchParams.adults,
       children: fetchParams.children,
       rooms:    fetchParams.rooms,
-      nights:   String(nights || 7),
+      nights:   String(stay?.nights || nights || 7),
     });
     if (dest)       qs.set('destination', dest);
     if (name)       qs.set('name', name);
@@ -1715,12 +2067,19 @@ export default function Results() {
     // Both ride in the URL because the card opens in a NEW TAB: router state doesn't
     // survive that jump, the query string does.
     qs.set('transport', filters.transport === 'package' ? 'package' : 'hotel_only');
+    // The routing choice follows the traveller to the hotel page (its "Non-stop" box).
+    if (filters.transport === 'package' && filters.nonstop) qs.set('routing', 'nonstop');
     // The hotel page prices from ONE airport: the one that priced this card, else the single
     // airport chosen. With No preference and no fare yet none is sent, and the hotel page
     // falls back to its own default.
     const from = fareOrigin || (activeOrigins.length === 1 ? activeOrigins[0] : '');
     if (from) qs.set('origin', normaliseOrigin(from));
     if (activeOrigins.length > 1) qs.set('origins', activeOrigins.join(','));
+    // The package this card priced: its flights, flight dates and arrival airport, so the hotel
+    // page's live check confirms exactly that package (utils/packageHandoff).
+    if (filters.transport === 'package' && h.pkg) {
+      for (const [k, v] of Object.entries(packageParams(h.pkg))) qs.set(k, v);
+    }
     return `/hotel/${h.hotelCode}?${qs.toString()}`;
   };
 
@@ -2145,6 +2504,20 @@ export default function Results() {
             name="arrivalAirport"
             language={i18nInstance.language}
           />
+        </FilterSection>
+      )}
+
+      {/* CONNECTIONS (build order, step 13) — non-stop only. Shown once it can change something:
+          a priced flight has a stop (the airport allows one), or it is already ticked so it can be
+          unticked. With every destination direct-only it would filter nothing, so it stays away. */}
+      {filters.transport === 'package' && (filters.nonstop || allHotels.some((h) => (h.pkg?.flight?.stops || 0) > 0)) && (
+        <FilterSection title={t('filters.connections', 'Connections')} defaultOpen>
+          <FilterCheck
+            label={t('filters.nonstopOnly', 'Non-stop flights only')}
+            checked={filters.nonstop}
+            onChange={() => setFilter('nonstop', !filters.nonstop)}
+          />
+          <p className={styles.originNote}>{t('filters.nonstopNote', 'Where a destination allows it, the cheapest flight may have one connection. Tick this to price non-stop flights only.')}</p>
         </FilterSection>
       )}
 
@@ -2642,14 +3015,17 @@ export default function Results() {
               </span>
             ) : (
               <span className={styles.countText}>
-                <span>
-                  <strong>{hotels.length}{hasMore ? '+' : ''}</strong>{' '}
-                  {t('toolbar.found', {
-                    count: hotels.length,
-                    defaultValue_one: 'stay found',
-                    defaultValue_other: 'stays found',
-                  })}
-                </span>
+                {/* No count while the search failed: "0 stays found" would claim there is nothing. */}
+                {!searchError && (
+                  <span>
+                    <strong>{shownTotal ?? hotels.length}{shownTotal == null && hasMore ? '+' : ''}</strong>{' '}
+                    {t('toolbar.found', {
+                      count: shownTotal ?? hotels.length,
+                      defaultValue_one: 'stay found',
+                      defaultValue_other: 'stays found',
+                    })}
+                  </span>
+                )}
                 {scopeLabel && (
                   <span className={styles.countSub}>
                     {t('toolbar.in', { place: scopeLabel, defaultValue: 'in {{place}}' })}
@@ -2734,6 +3110,40 @@ export default function Results() {
                 </button>
               </div>
             )}
+            {/* "Incl. flight": a destination the flight cache cannot calculate yet is named, not
+                silently left out and never called "no flights" (Levent, 6 Oct 2026). */}
+            {!loading && applied.transport === 'package' && pkgUnknown.length > 0 && (
+              <div className={styles.pkgNotice} role="status">
+                {t('pkg.unknownDestinations', {
+                  places: pkgUnknown.map((d) => scopeCities.find((c) => c.code === d)?.name || d).join(', '),
+                  defaultValue: 'Flight + hotel prices for {{places}} cannot be calculated yet: the flight data is still incomplete. These destinations are not left out because there are no flights.',
+                })}
+              </div>
+            )}
+            {/* A destination with certainly no package because there is no flight on these dates
+                (e.g. Albania in January): named, so the list is not read as "only Spain exists". */}
+            {!loading && applied.transport === 'package' && noFlightLabel && allHotels.length > 0 && (
+              <div className={styles.pkgNotice} role="status">
+                {t('pkg.noFlightDestinations', {
+                  places: noFlightLabel,
+                  defaultValue: 'No flight + hotel packages to {{places}} for these dates: there are no flights. Showing the other destinations.',
+                })}
+              </div>
+            )}
+            {/* Some destinations could not be loaded (timeout, outage). Said, with a retry: the
+                list is not "every package there is" while they are missing. */}
+            {!loading && applied.transport === 'package' && pkgFailed.length > 0 && allHotels.length > 0 && (
+              <div className={styles.pkgNotice} role="status">
+                {t('pkg.failedDestinations', {
+                  places: pkgFailed.map((d) => scopeCities.find((c) => c.code === d)?.name || d).join(', '),
+                  defaultValue: 'Flight + hotel prices for {{places}} could not be loaded just now.',
+                })}{' '}
+                <button type="button" className={styles.pkgRetry} onClick={retrySearch}>{t('pkg.tryAgain', 'Try again')}</button>
+              </div>
+            )}
+            {!loading && applied.transport === 'package' && pkgLoadingGroups > 0 && (
+              <div className={styles.pkgLoading} role="status">{t('pkg.stillSearching', 'Still searching more destinations…')}</div>
+            )}
             {loading ? (
               [0, 1, 2].map((i) => (
                 <div key={i} className={styles.skeletonCard} style={{ animationDelay: `${i * 0.1}s` }}>
@@ -2780,6 +3190,19 @@ export default function Results() {
                 <h3>{t('empty.chooseTitle', 'Select where you want to go')}</h3>
                 <p>{t('empty.chooseText', 'Pick one or more countries or destinations in the “Where” filter.')}</p>
               </div>
+            ) : searchError ? (
+              <div className={styles.noResults} role="alert">
+                <div className={styles.noResultsIcon}>
+                  <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+                    <circle cx="12" cy="12" r="9" /><path d="M12 7.5v5.5M12 16.5h.01" />
+                  </svg>
+                </div>
+                <h3>{t('common:availability.temporarilyUnavailable', 'Availability temporarily unavailable')}</h3>
+                <p>{t(`common:${messageKey(searchError)}`, 'We couldn’t check this just now. Please try again.')}</p>
+                {isRetryable(searchError) && (
+                  <button className={styles.applyBtn} style={{ maxWidth: 220 }} onClick={retrySearch}>{t('common:availability.checkAgain', 'Check again')}</button>
+                )}
+              </div>
             ) : displayHotels.length === 0 && onRequestBusy ? (
               /* The cache priced nothing, but another supplier is still being asked. "No results
                  found" would be a verdict we have not reached yet — and on a search for ONE
@@ -2797,20 +3220,34 @@ export default function Results() {
                     <circle cx="11" cy="11" r="8" /><path d="M21 21l-4.35-4.35" />
                   </svg>
                 </div>
-                <h3>{t('empty.noneTitle', 'No results found')}</h3>
+                <h3>{applied.transport === 'package' && pkgFailed.length > 0
+                  ? t('pkg.failedTitle', 'We could not load all flight + hotel prices')
+                  : applied.transport === 'package' && pkgUnknown.length > 0
+                  ? t('pkg.noneYetTitle', 'Flight + hotel prices cannot be calculated yet')
+                  : t('empty.noneTitle', 'No results found')}</h3>
                 <p>
-                  {activeCount > 0
+                  {/* A failed request is never "no results": the packages may well exist. */}
+                  {applied.transport === 'package' && pkgFailed.length > 0
+                    ? t('pkg.failedText', 'Some destinations did not answer in time. Try again in a moment.')
+                    : applied.transport === 'package' && pkgUnknown.length > 0
+                    ? t('pkg.noneYetText', 'The flight data for this search is still incomplete. Try other dates, or choose Hotel only.')
+                    : activeCount > 0
                     ? t('empty.noneFiltered', 'No stays match your filters. Try relaxing them or widening your price range.')
                     : t('empty.noneWiden', 'Try different dates or a wider area.')}
                 </p>
-                {activeCount > 0 && (
+                {applied.transport === 'package' && pkgFailed.length > 0 ? (
+                  <button className={styles.applyBtn} style={{ maxWidth: 200 }} onClick={retrySearch}>{t('pkg.tryAgain', 'Try again')}</button>
+                ) : activeCount > 0 && (
                   <button className={styles.applyBtn} style={{ maxWidth: 200 }} onClick={clearFilters}>{t('empty.clearFilters', 'Clear all filters')}</button>
                 )}
               </div>
             ) : (
               displayHotels.map((h, i) => {
                 const info      = infoMap[String(h.hotelCode)];
-                const dispName  = info?.name?.trim() || h.name;
+                // Never the hotel code: the real name, else a skeleton while the info loads, else
+                // (the info request failed, or the hotel has no record) a neutral word.
+                const dispName  = info?.name?.trim() || h.name
+                  || (infoFailed.has(String(h.hotelCode)) ? t('card.hotelNameUnavailable', 'Hotel') : '');
                 const dispStars = info?.stars ?? attrMap[String(h.hotelCode)]?.stars ?? h.stars;
                 // Star (hotel) vs key (apartment) rating. The bulk info record carries the kind;
                 // fall back to a plain star rating from the star count when info isn't in yet.
@@ -2834,29 +3271,13 @@ export default function Results() {
                 const perPersonVal = Number.isFinite(exactStay) && exactStay > 0
                   ? perPersonFrom(roundHotelStay(exactStay, roomsN), partySize)
                   : NaN;
-                // Package from-price (§33): with "Incl. flight" on, if a cached flight fare exists
-                // for this hotel's arrival airport, the headline becomes hotel + flight per person —
-                // never hotel-only. Cheapest arrival is used when the destination has several. Falls
-                // back to the hotel figure (+ "priced on hotel page" note) when no flight is cached.
+                // "Incl. flight": every card is a complete package (Levent, 6 Oct 2026).
                 const isPackage = filters.transport === 'package';
-                // With arrivals chosen, only those that actually serve this hotel's city can
-                // price its flight; a hotel is shown at all because at least one of them does.
-                const servingHere = destToArrivals.get(hotelDest) || [];
-                const cardArrivals = applied.arrivals.length
-                  ? servingHere.filter((c) => applied.arrivals.includes(c))
-                  : servingHere;
-                let flightFare = null;
-                for (const ac of cardArrivals) {
-                  const f = packageFares[ac];
-                  if (f && f.price != null && (flightFare == null || f.price < flightFare.price)) flightFare = f;
-                }
-                const adultsForFare = Math.max(1, Number(fetchParams.adults) || 1);
-                const flightPerPerson = flightFare ? flightFare.price / adultsForFare : null;
-                // A package is rounded ONCE, as a whole: exact hotel + the party's flight, then
-                // per person. The flight is the same per-person fare for every traveller, as before.
-                const packagePerPerson = (isPackage && flightPerPerson != null && Number.isFinite(exactStay) && exactStay > 0)
-                  ? perPersonFrom(roundPackage(exactStay, flightPerPerson * partySize), partySize)
-                  : null;
+                // The package itself (admin package engine): its p.p. price, stay, airport and
+                // flights all come from one winning combination — nothing is added up here.
+                const pkg = isPackage ? h.pkg : null;
+                const flightFare = pkg ? { origin: pkg.departureAirport, price: pkg.components?.flight, stops: pkg.flight?.stops ?? 0 } : null;
+                const packagePerPerson = pkg ? pkg.pricePerPerson : null;
                 const shownPerPerson = packagePerPerson != null ? packagePerPerson : perPersonVal;
                 // Is the price on this card a KNOWN total (spec 3.9)? Hotel Only: the cache's
                 // total for the stay. Package: only once a cached flight fare completes it; a
@@ -2872,12 +3293,17 @@ export default function Results() {
                 // them, else the searched dates. Shown on Hotel Only cards while the search asked
                 // for flexible dates, so "±3 days" never reads as a range of prices.
                 const stayNightsList = Array.isArray(h.nightlyBreakdown) ? h.nightlyBreakdown : [];
-                const stayIn = stayNightsList[0]?.date || fetchParams.checkIn;
-                const stayOut = stayNightsList.length
+                const stayIn = pkg ? pkg.stay?.checkin : (stayNightsList[0]?.date || fetchParams.checkIn);
+                const stayOut = pkg ? pkg.stay?.checkout : (stayNightsList.length
                   ? new Date(Date.parse(`${stayNightsList[stayNightsList.length - 1].date}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)
-                  : fetchParams.checkOut;
-                const stayNightCount = stayNightsList.length || nightsBetween(stayIn, stayOut) || 0;
-                const showStayWindow = !isPackage && urlFlex > 0 && !!stayIn && !!stayOut && stayNightCount > 0;
+                  : fetchParams.checkOut);
+                const stayNightCount = pkg ? (pkg.stay?.nights || 0) : (stayNightsList.length || nightsBetween(stayIn, stayOut) || 0);
+                // A package always names its stay: the flights decide it (an overnight arrival
+                // starts the stay a day later), so it is not simply the searched dates.
+                const showStayWindow = (pkg || (!isPackage && urlFlex > 0)) && !!stayIn && !!stayOut && stayNightCount > 0;
+                const pkgTime = (local) => (typeof local === 'string' && local.length >= 16 ? local.slice(11, 16) : null);
+                const pkgOut = pkg ? pkgTime(pkg.flight?.outbound?.departureLocal) : null;
+                const pkgBack = pkg ? pkgTime(pkg.flight?.inbound?.departureLocal) : null;
                 // Split into whole + decimals (toFixed FIRST, so 99.999 → 100.00, not 99.00).
                 // Whole euros, rounded UP (spec 2.3): a SUNSKY price never shows cents, and never
                 // shows less than the fare it stands for.
@@ -2899,8 +3325,27 @@ export default function Results() {
                   <div className={styles.rcImg}>
                     {infoReady
                       ? (<>
-                          {curImg && <HotelImg key={curImg} src={curImg} size="bigger" alt={dispName} loading="lazy" onError={(e) => { e.currentTarget.style.display = 'none'; }} />}
-                          <div className={styles.rcImgFallback}><HotelPhotoFallback variant="tile" seed={h.hotelCode} /></div>
+                          {curImg && !failedPhotos.has(curImg) && (
+                            <HotelImg
+                              key={curImg} src={curImg} size={cardPhotoSize()} alt={dispName}
+                              loading={i < EAGER_PHOTOS ? 'eager' : 'lazy'}
+                              fetchPriority={i < PRIORITY_PHOTOS ? 'high' : 'auto'}
+                              onError={() => setFailedPhotos((prev) => new Set(prev).add(curImg))}
+                              onLoad={() => {
+                                if (gallery.length < 2) return;
+                                const n = gallery.length;
+                                prefetchPhoto(gallery[(imgIdx + 1) % n], cardPhotoSize());
+                                prefetchPhoto(gallery[(imgIdx - 1 + n) % n], cardPhotoSize());
+                              }}
+                            />
+                          )}
+                          {/* Behind the photo: a shimmer while it downloads; the no-photo tile only
+                              when there is none, or every size of it failed. */}
+                          <div className={styles.rcImgFallback}>
+                            {curImg && !failedPhotos.has(curImg)
+                              ? <div className={styles.rcImgSkel} />
+                              : <HotelPhotoFallback variant="tile" seed={h.hotelCode} />}
+                          </div>
                         </>)
                       : <div className={styles.rcImgSkel} />}
                     {infoReady && gallery.length > 0 && (
@@ -3093,7 +3538,7 @@ export default function Results() {
                         </span>
                       )}
                       <span className={styles.rcPriceContext}>
-                        {nights > 0 ? daysLabel(nightsToDays(nights)) : t('card.total', 'Total')}
+                        {pkg?.flight?.travelDays > 0 ? daysLabel(pkg.flight.travelDays) : nights > 0 ? daysLabel(nightsToDays(nights)) : t('card.total', 'Total')}
                         {Number(fetchParams.adults) > 0 && ` · ${t('card.adults', {
                           count: Number(fetchParams.adults),
                           defaultValue_one: '{{count}} adult',
@@ -3117,11 +3562,19 @@ export default function Results() {
                             defaultValue: 'incl. flight from {{city}}',
                           })}
                           {flightFare?.priorityClass ? ` · ${flightClassLabel(flightFare.priorityClass)}` : ''}
+                          {pkg ? ` · ${flightFare.stops > 0 ? t('card.withStop', 'with stop') : t('card.direct', 'direct')}` : ''}
                         </span>
                       )}
-                      {isPackage && packagePerPerson == null && (
+                      {pkg && pkgOut && pkgBack && (
+                        <span className={styles.rcFlightTimes}>
+                          {t('card.flightTimes', { out: pkgOut, back: pkgBack, defaultValue: 'Out {{out}} · back {{back}}' })}
+                        </span>
+                      )}
+                      {isPackage && !pkg && packagePerPerson == null && (
                         <span className={styles.rcFlightNote}>
-                          {activeOrigins.length === 1
+                          {/* The choice stays visible as made: no non-stop flight priced here is
+                              said plainly, the hotel stays in the list, never a connection instead. */}
+                          {filters.nonstop ? t('card.noNonstopPriced', 'No non-stop flight priced for these dates · see hotel page') : activeOrigins.length === 1
                             ? t('card.flightPricedLater', {
                               city: airportCity(activeOrigins[0]),
                               defaultValue: '+ flight from {{city}} · priced on hotel page',
@@ -3175,7 +3628,14 @@ export default function Results() {
               })
             )}
 
-            {!loading && hasMore && <div ref={sentinelRef} style={{ height: '1px' }} />}
+            {!loading && hasMore && !fetchingMore && hotels.length > 0 && (
+              <div className={moreError ? `${styles.loadMore} ${styles.loadMoreFailed}` : styles.loadMore} role={moreError ? 'alert' : undefined}>
+                {moreError && <span>{t(`common:${messageKey(moreError)}`, 'We couldn’t check this just now. Please try again.')}</span>}
+                <button className={styles.applyBtn} style={{ maxWidth: 220 }} onClick={loadMore}>
+                  {moreError ? t('common:availability.checkAgain', 'Check again') : t('common:listing.showMore', 'Show more')}
+                </button>
+              </div>
+            )}
             {!loading && fetchingMore && (
               <div className={styles.loadMore}>
                 <span className={styles.loadMoreSpin} />

@@ -11,6 +11,8 @@ vi.mock('react-router-dom', async (orig) => ({
   useNavigate: () => navigateSpy,
 }));
 vi.mock('react-redux', () => ({ useSelector: (fn) => fn({ auth: { isAuthenticated: false } }) }));
+// The every-destination empty search's fallback wait (8 s live), shortened so a test can cross it.
+vi.mock('./emptySearchFallback', () => ({ EMPTY_SEARCH_FALLBACK_MS: 300 }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ showToast: vi.fn() }) }));
 vi.mock('../../api', () => ({
   fetchFavouriteCodes: vi.fn(() => Promise.resolve(new Set())),
@@ -65,7 +67,14 @@ vi.mock('../../api/filters', () => ({
   fetchThemes: vi.fn(() => Promise.resolve([])),
   searchDestinationsAndHotels: vi.fn(() => Promise.resolve({ destinations: [], hotels: [] })),
   fetchMatchingHotels: vi.fn(() => Promise.resolve({ count: 0, hotelCodes: [], attributes: {} })),
+  // "Incl. flight" lists complete packages from the admin's package search (packageResults.js).
+  fetchPackages: vi.fn((body) => {
+    pkgCalls.push(body);
+    return Promise.resolve({ hotels: [], hasMore: false, destinationStatus: {}, boardFacets: {} });
+  }),
 }));
+const pkgCalls = [];
+const lastPackageDests = () => [...(pkgCalls[pkgCalls.length - 1]?.destinations || [])].sort();
 
 // ── Fixture: hotels as RATE POOLS, not pre-picked winners ─────────────────────
 // This is the crux. The real cache stores many rates per hotel and picks the
@@ -110,6 +119,10 @@ const PAGE = 20;
 let calls = [];
 let bulkBodies = [];   // JSON bodies sent to /hotels/bulk
 let latency = () => 0;          // per-URL delay, for race-condition tests
+// GET /contracts/destinations: every destination with inventory (what the empty search prices).
+// More than 8, so the search goes out as a POST, as it does on the live site.
+const ALL_DESTINATIONS = ['AGP', 'ALC', 'AYT', 'BCN', 'HRG', 'IST', 'LON', 'LPA', 'PMI', 'RAK', 'ROE', 'TFS'];
+let destinationsResponse = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ count: ALL_DESTINATIONS.length, destinations: ALL_DESTINATIONS.map((code) => ({ code })) }) });
 let internalSource = () => false;
 
 /**
@@ -188,6 +201,7 @@ function cheapest(qs) {
 beforeEach(() => {
   calls = [];
   bulkBodies = [];
+  destinationsResponse = () => Promise.resolve({ ok: true, json: () => Promise.resolve({ count: ALL_DESTINATIONS.length, destinations: ALL_DESTINATIONS.map((code) => ({ code })) }) });
   facetCalls.length = 0;
   facetLists = NO_FACETS;
   latency = () => 0;
@@ -198,7 +212,11 @@ beforeEach(() => {
       bulkBodies.push(JSON.parse(opts?.body || '{}'));
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
     }
-    const qs = new URL(u).searchParams;
+    if (u.endsWith('/contracts/destinations')) return destinationsResponse();
+    // A many-destination search is a POST with a JSON body: read it as the same parameters.
+    const qs = opts?.method === 'POST'
+      ? new URLSearchParams(Object.entries(JSON.parse(opts.body)).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : String(v)]))
+      : new URL(u).searchParams;
     calls.push(qs);
     const body = cheapest(qs);
     const delay = latency(qs);
@@ -271,9 +289,13 @@ describe('initial load', () => {
     renderResults();
     await settled();
     const q = calls[0];
-    for (const k of ['boards', 'roomTypes', 'minPrice', 'maxPrice', 'priceBasis', 'refundable', 'sortBy']) {
+    for (const k of ['boards', 'roomTypes', 'minPrice', 'maxPrice', 'priceBasis', 'refundable']) {
       expect(q.get(k), `${k} should be absent when at its default`).toBeNull();
     }
+    // The default order ("Recommended", Ch 1 §2) is the random one with the session seed. Not a
+    // filter: with the cache's switch off it is the same cache entry and fast path as before.
+    expect(q.get('sortBy')).toBe('random');
+    expect(q.get('resultRandomSeed')).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
     expect(q.get('page')).toBe('1');
     expect(q.get('source')).toBe('combined');
   });
@@ -451,10 +473,8 @@ describe('arrival airport ("Flying to")', () => {
     await openTransport(user);
 
     await user.click(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ }));
-    await waitFor(() => {
-      const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean).sort();
-      expect(dests).toEqual(['DLM', 'FET']);
-    });
+    // With flights included the page asks the package search for exactly those destinations.
+    await waitFor(() => expect(lastPackageDests()).toEqual(['DLM', 'FET']));
   });
 
   // Two airports mean EITHER, never both: intersecting them would return nothing the moment
@@ -466,12 +486,9 @@ describe('arrival airport ("Flying to")', () => {
     await openTransport(user);
 
     await user.click(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ }));
-    await waitFor(() => expect(lastCall().get('destinations')).toContain('DLM'));
+    await waitFor(() => expect(lastPackageDests()).toContain('DLM'));
     await user.click(arrivalBox(/Antalya/));
-    await waitFor(() => {
-      const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean).sort();
-      expect(dests).toEqual(['AYT', 'DLM', 'FET']);
-    });
+    await waitFor(() => expect(lastPackageDests()).toEqual(['AYT', 'DLM', 'FET']));
   });
 
   it('restores the full scope when the airport is un-ticked again', async () => {
@@ -482,13 +499,10 @@ describe('arrival airport ("Flying to")', () => {
 
     const dalaman = await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ });
     await user.click(dalaman);
-    await waitFor(() => expect(lastCall().get('destinations')).toContain('DLM'));
+    await waitFor(() => expect(lastPackageDests()).toContain('DLM'));
 
     await user.click(dalaman);
-    await waitFor(() => {
-      const dests = (lastCall().get('destinations') || '').split(',').filter(Boolean);
-      expect(dests).not.toEqual(['DLM', 'FET']);
-    });
+    await waitFor(() => expect(lastPackageDests()).not.toEqual(['DLM', 'FET']));
   });
 
   // REGRESSION: most searches arrive scoped by DESTINATION only ("?destination=AYT" from the
@@ -615,11 +629,12 @@ describe('sort', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
+    const before = calls.length;
     await user.selectOptions(screen.getByRole('combobox', { name: 'Resultaten sorteren' }), 'name_asc');
     // Name/star sorts are client-side (the cache orders by price), so no sortBy is sent — the
     // loaded cards just re-order. "Cheap Hotel 1" is alphabetically first.
     await waitFor(() => expect(within(cards()[0]).getByText('Cheap Hotel 1')).toBeInTheDocument());
-    expect(lastCall().get('sortBy')).toBeNull();
+    expect(calls.slice(before).every((c) => c.get('sortBy') === null)).toBe(true);
   });
 });
 
@@ -877,7 +892,7 @@ describe('debounce + request ordering', () => {
   });
 });
 
-describe('infinite scroll', () => {
+describe('show more (+20 per click, no infinite scroll)', () => {
   it('loads page 2 carrying the active filters', async () => {
     const user = userEvent.setup();
     renderResults();
@@ -892,7 +907,7 @@ describe('infinite scroll', () => {
     await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
     await waitFor(() => expect(cards().length).toBeGreaterThan(0));
 
-    globalThis.__IO__.trigger();
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
 
     await waitFor(() => {
       const p2 = calls.find((c) => c.get('page') === '2');
@@ -906,7 +921,7 @@ describe('infinite scroll', () => {
     await settled();
     expect(cards()).toHaveLength(20);
 
-    globalThis.__IO__.trigger();
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
     await waitFor(() => expect(cards().length).toBeGreaterThan(20));
 
     const prices = cards().map((c) => {
@@ -920,7 +935,7 @@ describe('infinite scroll', () => {
   it('does not duplicate hotels across pages', async () => {
     renderResults();
     await settled();
-    globalThis.__IO__.trigger();
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
     await waitFor(() => expect(cards().length).toBeGreaterThan(20));
     const names = cards().map((c) => within(c).getAllByRole('heading')[0].textContent);
     expect(new Set(names).size).toBe(names.length);
@@ -1002,34 +1017,101 @@ describe('search change', () => {
 });
 
 describe('resilience', () => {
-  it('renders an empty state instead of crashing when the API fails', async () => {
+  // A failed price call is SOURCE_ERROR (spec 2.1): "temporarily unavailable" with a retry,
+  // never "No results found" or "0 stays found" — we do not know there is nothing.
+  it('a failed search says availability is temporarily unavailable, offers a retry, and claims no count', async () => {
     globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) }));
     renderResults();
-    await waitFor(() => expect(screen.getByText('Geen resultaten gevonden')).toBeInTheDocument());
+    await waitFor(() => expect(screen.getByText('Beschikbaarheid tijdelijk niet op te halen')).toBeInTheDocument());
+    expect(screen.queryByText('Geen resultaten gevonden')).not.toBeInTheDocument();
+    expect(screen.queryByText(/verblijven gevonden/)).not.toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Opnieuw controleren' })).toBeInTheDocument();
   });
 
-  // An empty search used to dead-end on "Select a destination". It now lands on a curated set
-  // of popular sun destinations that actually have priced inventory, cheapest-first — the
-  // traveller sees deals immediately and narrows from the Where filter.
-  it('falls back to popular destinations when no place is supplied', async () => {
+  it('a failed "Show more" keeps the cards, says so, and the button retries', async () => {
+    renderResults();
+    await settled();
+    expect(cards()).toHaveLength(20);
+    const working = globalThis.fetch;
+    globalThis.fetch = vi.fn((url, opts) => (String(url).includes('page=2')
+      ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) })
+      : working(url, opts)));
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Opnieuw controleren' })).toBeInTheDocument());
+    expect(cards()).toHaveLength(20);
+    globalThis.fetch = working;
+    fireEvent.click(screen.getByRole('button', { name: 'Opnieuw controleren' }));
+    await waitFor(() => expect(cards().length).toBeGreaterThan(20));
+    expect(screen.queryByRole('button', { name: 'Opnieuw controleren' })).not.toBeInTheDocument();
+  });
+
+  // Spec I.1 §2: without a destination, every destination is searched — cheapest first, under
+  // "All destinations" — not a curated handful.
+  it('an empty search prices every destination with inventory, both sources', async () => {
     renderResults('?');
     await settled();
     await waitFor(() => expect(calls.length).toBeGreaterThan(0));
-    expect(lastCall().get('destinations').split(',')).toEqual(
-      ['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
-    expect(screen.getAllByText('Populaire bestemmingen').length).toBeGreaterThan(0);
+    expect(lastCall().get('destinations').split(',')).toEqual(ALL_DESTINATIONS);
+    expect(lastCall().get('source')).toBe('combined');
+    expect(screen.getAllByText('Alle bestemmingen').length).toBeGreaterThan(0);
     expect(cards().length).toBeGreaterThan(0);
   });
 
-  // The empty-search teaser uses the FAST external-only cache path. The slow half of a
-  // 'combined' search is Diana (SOAP): an 8-destination combined search measured ~17s cold and
-  // tripped the cache gateway → the 502 the user hit. The teaser doesn't need the secondary
-  // supplier, so it must not pay that cost.
-  it('prices the empty-search teaser with the fast external-only source', async () => {
+  it('an empty search falls back to the popular destinations when the list cannot be loaded', async () => {
+    destinationsResponse = () => Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) });
     renderResults('?');
     await settled();
     await waitFor(() => expect(calls.length).toBeGreaterThan(0));
-    expect(lastCall().get('source')).toBe('external');
+    expect(lastCall().get('destinations').split(',')).toEqual(['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
+    expect(cards().length).toBeGreaterThan(0);
+  });
+
+  // The every-destination search failing (or too slow) must not strand the visitor: the empty
+  // search is then priced over the popular destinations, and says so.
+  it('the every-destination search fails: the popular destinations are shown instead, no error', async () => {
+    const working = globalThis.fetch;
+    globalThis.fetch = vi.fn((url, opts) => (opts?.method === 'POST' && String(url).includes('/contracts/cheapest')
+      ? Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) })
+      : working(url, opts)));
+    renderResults('?');
+    await waitFor(() => expect(cards().length).toBeGreaterThan(0));
+    expect(lastCall().get('destinations').split(',')).toEqual(['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
+    expect(screen.getAllByText('Populaire bestemmingen').length).toBeGreaterThan(0);
+    expect(screen.queryByText('Beschikbaarheid tijdelijk niet op te halen')).not.toBeInTheDocument();
+  });
+
+  it('the every-destination search takes too long (8 s live): the popular destinations are shown instead', async () => {
+    latency = (qs) => (qs.get('destinations')?.split(',').length > 8 ? 5_000 : 0);
+    renderResults('?');
+    await waitFor(() => expect(cards().length).toBeGreaterThan(0), { timeout: 3000 });
+    expect(lastCall().get('destinations').split(',')).toEqual(['PMI', 'TFS', 'AGP', 'AYT', 'RAK', 'LPA', 'HRG', 'ALC']);
+    expect(screen.getAllByText('Populaire bestemmingen').length).toBeGreaterThan(0);
+  });
+
+  it('a chosen place that fails is NOT swapped for other destinations: error and retry', async () => {
+    const asked = [];
+    globalThis.fetch = vi.fn((url) => {
+      if (!String(url).includes('/contracts/cheapest')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      asked.push(new URL(String(url)).searchParams.get('destinations') ?? new URL(String(url)).searchParams.get('destination'));
+      return Promise.resolve({ ok: false, status: 503, json: () => Promise.resolve({}) });
+    });
+    renderResults();
+    await waitFor(() => expect(screen.getByText('Beschikbaarheid tijdelijk niet op te halen')).toBeInTheDocument());
+    await new Promise((r) => setTimeout(r, 200));
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((d) => d === 'AYT')).toBe(true);     // only the chosen place, never the defaults
+  });
+
+  it('an empty search prices nothing before its destination list is in (no empty first search)', async () => {
+    let release;
+    destinationsResponse = () => new Promise((r) => { release = () => r({ ok: true, json: () => Promise.resolve({ destinations: ALL_DESTINATIONS.map((code) => ({ code })) }) }); });
+    renderResults('?');
+    await new Promise((r) => setTimeout(r, 150));
+    expect(calls).toHaveLength(0);
+    expect(screen.queryByText('Geen resultaten gevonden')).not.toBeInTheDocument();
+    release();
+    await waitFor(() => expect(calls.length).toBeGreaterThan(0));
+    expect(lastCall().get('destinations').split(',')).toEqual(ALL_DESTINATIONS);
   });
 
   it('keeps the full combined supplier set for a real, place-specific search', async () => {
@@ -1042,7 +1124,9 @@ describe('resilience', () => {
 // The content API is asked for the big optional payloads ONLY when the page will use them.
 // Getting this wrong is invisible in the UI and costs ~1 MB per request on a country search.
 describe('content-facet payload opt-ins', () => {
-  const lastFacetCall = () => facetCalls[facetCalls.length - 1];
+  // The pricing-scope call (counts=false) carries the ticked filters; the sidebar-counts call
+  // that runs beside it does not (facet counts are scope-level).
+  const lastFacetCall = () => facetCalls.filter((c) => c.opts.counts === false).at(-1);
 
   it('asks for neither hotelCodes nor attributes on a plain search', async () => {
     renderResults();
@@ -1085,7 +1169,9 @@ describe('content-facet payload opt-ins', () => {
 // admin like every other content facet — it is never applied to the page the cache already sent,
 // because the hotels on it are the cheapest twenty, not the best-rated twenty.
 describe('guest rating', () => {
-  const lastFacetCall = () => facetCalls[facetCalls.length - 1];
+  // The pricing-scope call (counts=false) carries the ticked filters; the sidebar-counts call
+  // that runs beside it does not (facet counts are scope-level).
+  const lastFacetCall = () => facetCalls.filter((c) => c.opts.counts === false).at(-1);
   const RATED = {
     ...NO_FACETS,
     review: [
@@ -1178,7 +1264,9 @@ describe('guest rating', () => {
 // type narrows the results while its box stays unticked — the traveller sees a short list with
 // no visible reason and no way to undo it. Every case below is about that boundary.
 describe('URL-seeded filters (vacation-type cards)', () => {
-  const lastFacetCall = () => facetCalls[facetCalls.length - 1];
+  // The pricing-scope call (counts=false) carries the ticked filters; the sidebar-counts call
+  // that runs beside it does not (facet counts are scope-level).
+  const lastFacetCall = () => facetCalls.filter((c) => c.opts.counts === false).at(-1);
   const seeded = (extra) =>
     `?destination=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1&${extra}`;
 
@@ -1342,5 +1430,60 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     await settled();
     expect(screen.queryByRole('button', { name: /deze filters verwijderen/i })).not.toBeInTheDocument();
     expect(lastCall().get('boards')).toBeNull();
+  });
+});
+
+// Hotel only, "Recommended" = the stable random order (Ch 1 §2, Levent 9 Oct 2026): the page asks
+// it with the session seed; when the cache answers in random order (switched on), its total is
+// exact and later pages are cut from page 1's snapshot.
+describe('random order (Hotel only)', () => {
+  const hotelsFrom = (from, n) => Array.from({ length: n }, (_, i) => ({
+    hotelCode: String(from + i), boardCode: 'AI', roomType: 'DBL', classification: 'NOR', refundable: true,
+    totalAmount: 300 + i, perPerson: 150, currency: 'EUR', nightlyBreakdown: [],
+  }));
+  const answer = (qs) => {
+    const page = Number(qs.get('page') || 1);
+    if (qs.get('sortBy') !== 'random') return { nights: 3, count: 20, total: 20, results: hotelsFrom(1, 20), cheapest: null, hasMore: true, boardFacets: {} };
+    return { nights: 3, count: 20, total: 57, results: hotelsFrom(page * 100, 20), cheapest: hotelsFrom(100, 1)[0], hasMore: page < 3, boardFacets: {}, randomOrder: true, searchQueryId: 'snap-1', resultRandomSeed: qs.get('resultRandomSeed') };
+  };
+  beforeEach(() => {
+    globalThis.fetch = vi.fn((url, opts) => {
+      const u = String(url);
+      if (u.includes('/hotels/bulk')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      if (u.endsWith('/contracts/destinations')) return destinationsResponse();
+      const qs = opts?.method === 'POST'
+        ? new URLSearchParams(Object.entries(JSON.parse(opts.body)).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : String(v)]))
+        : new URL(u).searchParams;
+      calls.push(qs);
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(answer(qs)) });
+    });
+  });
+
+  it('asks the random order with the session seed; the exact total has no "+"; Show more keeps the snapshot', async () => {
+    renderResults();
+    await settled();
+    const p1 = mainSearches().at(-1);
+    expect(p1.get('sortBy')).toBe('random');
+    expect(p1.get('resultRandomSeed')).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+    expect(p1.get('searchQueryId')).toBeNull();
+    expect(screen.getByText((_, el) => el?.textContent?.trim() === '57 verblijven gevonden')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
+    await waitFor(() => expect(calls.some((c) => c.get('page') === '2')).toBe(true));
+    const p2 = calls.find((c) => c.get('page') === '2');
+    expect(p2.get('searchQueryId')).toBe('snap-1');
+    expect(p2.get('resultRandomSeed')).toBe(p1.get('resultRandomSeed'));
+    // The Travel-time counts ask the same order (same cache entries as the warmer).
+    await waitFor(() => expect(calls.some(isDurationCount)).toBe(true));
+    expect(calls.filter(isDurationCount).every((c) => c.get('sortBy') === 'random')).toBe(true);
+  });
+
+  it('an explicit price sort sends no random order and no seed', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.selectOptions(screen.getAllByRole('combobox', { name: 'Resultaten sorteren' })[0], 'price_desc');
+    await waitFor(() => expect(lastCall().get('sortBy')).toBe('price_desc'));
+    expect(lastCall().get('resultRandomSeed')).toBeNull();
   });
 });

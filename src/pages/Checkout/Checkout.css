@@ -998,3 +998,72 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   .ck .ck-gone { padding: calc(var(--nav-h) + 38px) 18px 110px; }
   .ck .ck-gone-btn { width: 100%; min-height: 48px; }
 }
+
+/* ══════════ SUPPORT PACKAGE STEP ══════════
+   Support spec v1.0 §3, §5. A card per configured level: everything in it (title, badge,
+   description, the service lines) is dashboard configuration, so nothing here assumes how many
+   levels exist or what they are called. */
+
+.ck-sup-grid { display:grid; grid-template-columns:repeat(auto-fit, minmax(270px, 1fr)); gap:14px; margin-top:4px; }
+
+.ck-sup-card { position:relative; display:flex; flex-direction:column; gap:10px; width:100%; text-align:left;
+  padding:18px 18px 16px; border-radius:var(--r-lg); border:1.5px solid var(--border); background:var(--white);
+  transition:border-color .25s var(--ease), box-shadow .25s var(--ease); cursor:pointer; }
+.ck-sup-card:hover { border-color:var(--blue-soft); }
+.ck-sup-card.act { border-color:var(--blue); box-shadow:0 0 0 4px rgba(31,79,216,.08); }
+
+/* The badge sits on the border, so a long one ("Most Popular") cannot push the title down and
+   leave the cards in a row with mismatched headers. */
+.ck-sup-badge { position:absolute; top:-10px; right:16px; padding:3px 11px; border-radius:var(--r-full);
+  background:var(--sun); color:var(--cta-ink); font-size:10.5px; font-weight:800; letter-spacing:.03em;
+  text-transform:uppercase; white-space:nowrap; }
+
+.ck-sup-top { display:flex; align-items:center; gap:10px; }
+.ck-sup-radio { flex:none; width:20px; height:20px; border-radius:50%; border:2px solid var(--border);
+  display:flex; align-items:center; justify-content:center; }
+.ck-sup-card.act .ck-sup-radio { border-color:var(--blue); }
+.ck-sup-radio i { width:10px; height:10px; border-radius:50%; background:var(--blue); }
+.ck-sup-name { font-size:16px; font-weight:800; color:var(--text); }
+
+.ck-sup-price { display:flex; align-items:baseline; gap:6px; font-family:'Sora',sans-serif; }
+.ck-sup-price strong { font-size:26px; font-weight:800; color:var(--text); line-height:1; }
+.ck-sup-price small { font-size:12px; font-weight:600; color:var(--text-sec); }
+.ck-sup-total { font-size:12px; color:var(--text-sec); margin-top:-4px; }
+.ck-sup-desc { font-size:13px; line-height:1.5; color:var(--text-sec); }
+
+.ck-sup-list { display:flex; flex-direction:column; gap:7px; padding-top:10px; border-top:1px solid var(--border-light); }
+.ck-sup-row { display:flex; align-items:flex-start; gap:9px; font-size:13px; line-height:1.4; }
+.ck-sup-mark { flex:none; display:flex; width:17px; height:17px; margin-top:1px; }
+.ck-sup-mark svg { width:17px; height:17px; }
+.ck-sup-row.included .ck-sup-mark { color:#16a34a; }
+.ck-sup-row.paid .ck-sup-mark { color:var(--blue); }
+.ck-sup-row.not_included .ck-sup-mark { color:var(--text-light); }
+.ck-sup-text { flex:1; min-width:0; color:var(--text); overflow-wrap:anywhere; }
+.ck-sup-row.not_included .ck-sup-text { color:var(--text-light); }
+
+/* The value column keeps its own width so "Included" and a fee line up down the card rather
+   than drifting with the length of each service name. */
+.ck-sup-val { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:1px;
+  font-size:12.5px; font-weight:700; text-align:right; }
+.ck-sup-val small { font-size:10.5px; font-weight:600; color:var(--text-sec); white-space:nowrap; }
+.ck-sup-row.included .ck-sup-val { color:#16a34a; }
+.ck-sup-row.paid .ck-sup-val { color:var(--text); }
+.ck-sup-row.not_included .ck-sup-val { color:var(--text-light); font-weight:600; }
+
+.ck-sup-pick { margin-top:auto; display:flex; align-items:center; justify-content:center; gap:7px;
+  padding:11px 14px; border-radius:var(--r-md); border:1.5px solid var(--blue); background:var(--white);
+  color:var(--blue); font-size:14px; font-weight:800; transition:background .2s var(--ease), color .2s var(--ease); }
+.ck-sup-pick svg { width:16px; height:16px; }
+.ck-sup-card:hover .ck-sup-pick { background:var(--blue-pale); }
+.ck-sup-pick.act { background:var(--blue); color:var(--white); }
+.ck-sup-card:hover .ck-sup-pick.act { background:var(--blue); }
+
+.ck-sup-note { display:flex; align-items:flex-start; gap:10px; margin-top:16px; padding:13px 15px;
+  border-radius:var(--r-md); background:var(--blue-bg); color:var(--text-sec);
+  font-size:12.5px; line-height:1.55; }
+.ck-sup-note svg { flex:none; width:17px; height:17px; margin-top:1px; color:var(--blue); }
+
+@media (max-width:560px) {
+  .ck-sup-grid { grid-template-columns:1fr; }
+  .ck-sup-price strong { font-size:23px; }
+}

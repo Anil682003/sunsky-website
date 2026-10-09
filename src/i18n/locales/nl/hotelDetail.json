@@ -157,16 +157,16 @@
     "clearAllFilters": "Alle filters wissen",
     "departureTimeOutbound": "Vertrektijd - Heenreis",
     "departureTimeReturn": "Vertrektijd - Terugreis",
-    "directFlights": "Rechtstreekse vluchten",
-    "directFlightsHint": "Rechtstreekse vluchten hebben geen tussenstop in beide richtingen.",
+    "directFlights": "Non-stop",
+    "directFlightsHint": "Non-stop vluchten hebben geen tussenstop, heen noch terug. Waar de bestemming het toelaat, kan een vlucht één overstap hebben; nooit meer.",
     "excludeBaggage": "Zonder ruimbagage",
     "filters": "Filters",
     "flightOptions_one": "{{count}} vluchtoptie",
     "flightOptions_other": "{{count}} vluchtopties",
-    "flightType": "Type vlucht",
+    "flightType": "Overstappen",
     "flightsFound_one": "{{count}} vlucht gevonden",
     "flightsFound_other": "{{count}} vluchten gevonden",
-    "flightsWithStops": "Vluchten met tussenstop(pen)",
+    "flightsWithStops": "Met één overstap",
     "hideFilters": "Filters verbergen",
     "includeBaggage": "Met ruimbagage",
     "nMore": "{{count}} meer",
@@ -214,6 +214,8 @@
     "deltaPP": "{{sign}} {{currency}}{{amount}} p.p.",
     "faresWithoutPrice": "Vluchten vanaf {{airport}} kwamen terug zonder prijs. Probeer de controle opnieuw of vergelijk een andere luchthaven.",
     "flyingFromAnother": "Vanaf een andere luchthaven vliegen?",
+    "originGone": "Geen pakketreis vanaf {{airport}} voor dit hotel en deze data. Kies een andere luchthaven.",
+    "originGoneShort": "Niet beschikbaar",
     "fromPP": "vanaf {{currency}}{{amount}} p.p.",
     "hotelOnlySub": "Je regelt zelf je vervoer. De prijs hierboven is alleen het verblijf.",
     "hotelOnlyTitle": "Alleen hotel — geen vluchten inbegrepen",
@@ -227,7 +229,9 @@
     "ppPrice": "{{currency}}{{amount}} p.p.",
     "samePricePP": "zelfde prijs p.p.",
     "theseAirportsFly": "Deze luchthavens vliegen wel deze route — goedkoopste eerst:",
-    "yourFlights": "Jouw vluchten"
+    "yourFlights": "Jouw vluchten",
+    "packageFlightGone": "De vlucht van deze pakketreis is niet meer te koop. De beste beschikbare vlucht is geselecteerd, tegen de live prijs.",
+    "packageFlightUnchecked": "We konden de vlucht van deze pakketreis nu niet controleren. De beste beschikbare vlucht is geselecteerd, tegen de live prijs."
   },
   "info": {
     "about": "Over {{hotelName}}",
@@ -261,7 +265,18 @@
       "mapOf": "Kaart van {{hotelName}}",
       "nearby": "In de buurt",
       "openLargerMap": "Grotere kaart openen",
-      "title": "Ligging & Omgeving"
+      "title": "Ligging & Omgeving",
+      "nearbyPlace": {
+        "beach": "Strand",
+        "cityCentre": "Centrum",
+        "entertainment": "Uitgaansgebied",
+        "harbour": "Haven",
+        "busMetro": "Bus- / metrohalte",
+        "busTrain": "Bus- / treinstation",
+        "golf": "Golfbaan",
+        "skiSlopes": "Skipistes",
+        "airport": "Luchthaven"
+      }
     },
     "photoNOf": "Foto {{number}} van {{hotelName}}",
     "rooms": {
@@ -408,7 +423,7 @@
     "higherAfterCheck": "hoger na live controle",
     "holidayAvailable": "Je vakantie is beschikbaar!",
     "legend": {
-      "cheapestOfWeek": "Goedkoopste van de week",
+      "cheapest": "Goedkoopst",
       "notAvailable": "Niet beschikbaar",
       "priceNotCached": "Prijs niet in cache — controleren",
       "yourSelectedDay": "Je gekozen dag"
@@ -459,7 +474,13 @@
     "yourHoliday": "Jouw vakantie",
     "checkLivePriceTitle": "Bekijk de actuele prijs",
     "livePricedTitle": "Dit verblijf krijgt een actuele prijs.",
-    "livePricedText": "Voor deze data hebben we geen opgeslagen prijs — controleer hieronder en de aanbieder geeft de echte prijs voor jouw gezelschap."
+    "livePricedText": "Voor deze data hebben we geen opgeslagen prijs — controleer hieronder en de aanbieder geeft de echte prijs voor jouw gezelschap.",
+    "earlierDates": "Eerdere data",
+    "showEarlierDates": "Eerdere data tonen",
+    "laterDates": "Latere data",
+    "showLaterDates": "Latere data tonen",
+    "livePackagePrice": "Live prijs, vlucht + hotel · {{nights}}",
+    "hotelOnlyStripNote": "Dit zijn hotelprijzen. De vluchten worden toegevoegd wanneer je een datum controleert."
   },
   "rooms": {
     "allTaxesIncluded": "Alle prijzen zijn inclusief belastingen en kosten.",
@@ -540,5 +561,7 @@
     "roomsSuffix_one": " · {{count}} kamer",
     "roomsSuffix_other": " · {{count}} kamers",
     "travellingCompany": "Reisgezelschap"
-  }
+  },
+  "hotelNameUnavailable": "Hotel",
+  "loadingHotelName": "Hotelnaam laden"
 }

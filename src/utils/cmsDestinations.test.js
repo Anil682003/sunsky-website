@@ -37,9 +37,10 @@ describe('sectionSearchUrl', () => {
 
   // A holiday type such as All inclusive is tagged on no hotel, and one in the query empties the
   // whole search, so the link carries places and nothing that could filter them away.
-  it('carries places only, never a filter', () => {
+  it('carries places only, never a filter (and Flight + Hotel, like every homepage link)', () => {
     const url = sectionSearchUrl({ dests: [country('TR')], themes: [13], boards: ['AI'] });
-    expect([...params(url).keys()]).toEqual(['countries']);
+    expect([...params(url).keys()]).toEqual(['countries', 'transport']);
+    expect(params(url).get('transport')).toBe('package');
   });
 
   it('returns null when no place is linked, so no dead button renders', () => {

@@ -1,0 +1,111 @@
+/*
+ * The commercial block on a permanent SEO page (§38).
+ *
+ * Quiet on purpose. The page's job is to be read and to rank; the cards are the shop window
+ * beside the text, not a results grid, so they stay calm and let the copy lead.
+ */
+
+.block { margin: 44px 0 0; }
+
+.heading {
+  font-size: 21px;
+  color: #1a2744;
+  margin: 0 0 4px;
+  letter-spacing: -0.01em;
+}
+.sub {
+  font-size: 13.5px;
+  color: #5b6b86;
+  margin: 0 0 18px;
+}
+
+.grid {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+  gap: 16px;
+}
+
+.card {
+  border: 1px solid #e6ebf4;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #fff;
+  transition: border-color .15s ease, box-shadow .15s ease, transform .12s ease;
+}
+.card:hover {
+  border-color: #d8dfec;
+  box-shadow: 0 4px 14px rgba(16, 24, 40, .07);
+  transform: translateY(-2px);
+}
+
+.cardLink { display: block; text-decoration: none; color: inherit; }
+
+.media {
+  aspect-ratio: 4 / 3;
+  background: #eef1f7;
+  overflow: hidden;
+}
+.img { width: 100%; height: 100%; object-fit: cover; display: block; }
+
+.body {
+  padding: 11px 13px 13px;
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+
+.stars { color: #f5a51e; font-size: 12px; letter-spacing: 1px; line-height: 1; }
+
+.name {
+  font-size: 14.5px;
+  font-weight: 600;
+  color: #1a2744;
+  line-height: 1.3;
+  /* Two lines, then clip. A hotel name is often very long and a ragged card grid is worse
+     than a truncated name. */
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.loc { font-size: 12.5px; color: #7b89a1; }
+
+.review { font-size: 12.5px; color: #1a2744; font-weight: 600; }
+.review small { font-weight: 500; color: #8a97ad; margin-left: 5px; }
+
+.price {
+  margin-top: 7px;
+  font-size: 17px;
+  font-weight: 700;
+  color: #1a2744;
+  display: flex;
+  align-items: baseline;
+  gap: 5px;
+  flex-wrap: wrap;
+}
+.price small { font-size: 11.5px; font-weight: 500; color: #7b89a1; }
+
+/* ── skeleton ── */
+.skelHeading {
+  height: 20px; width: 210px; border-radius: 7px;
+  background: #eef1f7; margin-bottom: 22px;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.skelMedia {
+  aspect-ratio: 4 / 3; background: #eef1f7;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+.skelLine {
+  height: 12px; border-radius: 6px; background: #eef1f7;
+  animation: pulse 1.4s ease-in-out infinite;
+}
+
+@keyframes pulse { 0%, 100% { opacity: 1 } 50% { opacity: .55 } }
+
+@media (max-width: 520px) {
+  .grid { grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 12px; }
+}

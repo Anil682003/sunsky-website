@@ -76,15 +76,20 @@ export const PURPOSES = Object.freeze([
   }),
   Object.freeze({
     key: 'analytics',
+    // IN USE since the GTM container GTM-5S2JNLWZ went live. Google Analytics 4 measures
+    // the visit through it, so the category is real and must be offered.
     optional: true,
-    inUse: false,
+    inUse: true,
     label: 'Analytische cookies',
     description: 'Bezoekersstatistieken, prestatiemeting en foutanalyse.',
   }),
   Object.freeze({
     key: 'marketing',
+    // IN USE alongside analytics: the same container carries Google Ads conversion
+    // measurement, which is advertising rather than statistics and is asked separately so a
+    // visitor can accept one without the other.
     optional: true,
-    inUse: false,
+    inUse: true,
     label: 'Marketingcookies',
     description: 'Advertenties, remarketing, profilering of marketingmeting.',
   }),

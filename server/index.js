@@ -17,18 +17,51 @@
  * that needs node_modules it doesn't already have would break the next deploy.
  *
  * Requires Node 18+ (global fetch). Env: PORT (8080), SITE_ORIGIN, VITE_CACHE_API_URL.
+ *
+ * Text responses (JS, CSS, HTML, JSON, SVG) are compressed — brotli when the browser takes it,
+ * else gzip. The main bundle went out as 1.49 MB raw; brotli makes it ~0.3 MB. Assets are
+ * content-hashed, so each is compressed once and kept in memory until its file changes.
  */
 import http from 'node:http';
 import fsp from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import zlib from 'node:zlib';
+import { promisify } from 'node:util';
 import { hotelImage } from '../src/utils/hotelImage.js';
+import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
+import {
+  robotsTxt, sitemapXml, isKnownRoute, STATIC_SITEMAP_PATHS,
+  resolveSeoPage, seoHeadTags, seoSitemapPaths, canonicalForHotel, organizationScript, siteVerificationTag,
+} from './seo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
 const PORT = Number(process.env.PORT) || 8080;
 const SITE_ORIGIN = (process.env.SITE_ORIGIN || 'https://holidaybooking.be').replace(/\/+$/, '');
 const CACHE_API = (process.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be').replace(/\/+$/, '');
+/**
+ * Whether this deployment may be indexed at all.
+ *
+ * SEO Master launch gate asks for two opposite things from one file: "no accidental
+ * Disallow: /" in production, and "Staging/UAT protected". So it is an explicit switch, not a
+ * hostname guess - a staging box behind a production-looking domain is exactly how a UAT site
+ * ends up in Google. Set SITE_INDEXABLE=false on anything that is not production.
+ */
+const SITE_INDEXABLE = String(process.env.SITE_INDEXABLE ?? 'true').toLowerCase() !== 'false';
+/**
+ * The Trustpilot profile the review widget points at, reused as the Organization's sameAs.
+ * Same variable the bundle is built with, so the structured data and the widget can never
+ * name two different businesses.
+ */
+const TRUSTPILOT_DOMAIN = (process.env.VITE_TRUSTPILOT_DOMAIN || 'sunsky.be').trim();
+/**
+ * The admin API, for resolving permanent SEO pages server-side.
+ *
+ * Same base URL the browser bundle talks to. Unset, SEO pages still render (React resolves
+ * them itself) but without server-rendered head tags or real status codes, so set it.
+ */
+const ADMIN_API = (process.env.VITE_API_URL || 'https://admin.holidaybooking.be/api').replace(/\/+$/, '');
 
 const MIME = {
   '.html': 'text/html; charset=utf-8', '.js': 'text/javascript; charset=utf-8',
@@ -40,6 +73,39 @@ const MIME = {
   '.txt': 'text/plain; charset=utf-8', '.xml': 'application/xml; charset=utf-8',
   '.webmanifest': 'application/manifest+json', '.pdf': 'application/pdf',
 };
+
+/* ── compression ── */
+const brotli = promisify(zlib.brotliCompress);
+const gzip = promisify(zlib.gzip);
+const COMPRESSIBLE = new Set(['.html', '.js', '.mjs', '.css', '.json', '.map', '.svg', '.txt', '.xml', '.webmanifest']);
+const MIN_COMPRESS_BYTES = 1024;   // below this, compression only adds bytes
+// Brotli 9: ~4× smaller than raw for the bundle in ~170 ms, once per file (11 is 20× slower for 8%).
+const BROTLI_OPTS = { params: { [zlib.constants.BROTLI_PARAM_QUALITY]: 9 } };
+
+/** The encoding to answer with: brotli when accepted, else gzip, else none (`q=0` = refused). */
+export function pickEncoding(acceptEncoding) {
+  const accepted = new Set();
+  for (const part of String(acceptEncoding || '').toLowerCase().split(',')) {
+    const [name, ...params] = part.trim().split(';').map((x) => x.trim());
+    const q = params.find((x) => x.startsWith('q='));
+    if (name && !(q && Number(q.slice(2)) === 0)) accepted.add(name);
+  }
+  if (accepted.has('br')) return 'br';
+  if (accepted.has('gzip')) return 'gzip';
+  return null;
+}
+
+const compress = (body, enc) => (enc === 'br' ? brotli(body, BROTLI_OPTS) : gzip(body, { level: 9 }));
+
+// file → { mtimeMs, br?: Promise<Buffer>, gzip?: Promise<Buffer> }. A failed compression is
+// forgotten (the next request retries) and the file goes out uncompressed meanwhile.
+const compressedFiles = new Map();
+function compressedFile(file, mtimeMs, body, enc) {
+  let entry = compressedFiles.get(file);
+  if (!entry || entry.mtimeMs !== mtimeMs) { entry = { mtimeMs }; compressedFiles.set(file, entry); }
+  if (!entry[enc]) entry[enc] = compress(body, enc).catch((err) => { delete entry[enc]; throw err; });
+  return entry[enc];
+}
 
 /* Preview crawlers. They get to WAIT for the hotel record; a human never does. */
 const CRAWLER_RE = /facebookexternalhit|facebookcatalog|whatsapp|twitterbot|telegrambot|linkedinbot|slackbot|slack-imgproxy|discordbot|pinterest|redditbot|skypeuripreview|applebot|googlebot|bingbot|yandex|duckduckbot|embedly|quora link preview|vkshare|w3c_validator|bitlybot|nuzzel|outbrain|flipboard|tumblr|iframely|google-inspectiontool|baiduspider/i;
@@ -54,7 +120,21 @@ async function shell() {
   const file = path.join(DIST, 'index.html');
   const st = await fsp.stat(file);
   if (st.mtimeMs !== shellCache.mtime) {
-    shellCache = { mtime: st.mtimeMs, html: await fsp.readFile(file, 'utf8') };
+    const raw = await fsp.readFile(file, 'utf8');
+    /* Organization structured data (SEO Master §15) goes in HERE, once per build rather than
+       once per request. It describes the business, not the page, so it belongs on every HTML
+       response the server makes, and it costs nothing because it is baked into the cached
+       shell alongside the rest of <head>.
+       Not in index.html itself: the data comes from SUNSKY's legal notices and belongs with
+       the other server-side SEO concerns in seo.js, where the comment explaining the source
+       can live next to it. It is inert JSON-LD, not a script that runs, so the standing rule
+       about third-party tags in index.html does not apply either way. */
+    const head = [
+      siteVerificationTag(process.env.GOOGLE_SITE_VERIFICATION),
+      organizationScript(SITE_ORIGIN, { trustpilotDomain: TRUSTPILOT_DOMAIN }),
+    ].filter(Boolean).join('\n');
+    const html = raw.replace(/[ \t]*<\/head>/i, `${head}\n  </head>`);
+    shellCache = { mtime: st.mtimeMs, html };
   }
   return shellCache.html;
 }
@@ -130,15 +210,18 @@ function hotelPreview(code, rec, qs) {
   const inD = dayMonth(qs.get('checkIn'));
   const outD = dayMonth(qs.get('checkOut'));
 
+  // Dutch, because that is the site's own language and a crawler tells us nothing about the
+  // reader's. Each noun carries its own plural; Dutch does not form them the way English does.
   const stay = [
-    nights ? `${nights} nights` : '',
-    adults ? `${adults} adult${adults > 1 ? 's' : ''}${children ? `, ${children} child${children > 1 ? 'ren' : ''}` : ''}` : '',
+    nights ? `${nights} ${nights === 1 ? 'nacht' : 'nachten'}` : '',
+    adults ? `${adults} ${adults > 1 ? 'volwassenen' : 'volwassene'}${children ? `, ${children} ${children > 1 ? 'kinderen' : 'kind'}` : ''}` : '',
     inD && outD ? `${inD} – ${outD}` : '',
   ].filter(Boolean).join(' · ');
 
-  const blurb = String(rec?.description || '').replace(/\s+/g, ' ').trim();
+  // The Dutch description row when the backfill has one for this hotel, English otherwise.
+  const blurb = localizedDescription(rec, 'nl').replace(/\s+/g, ' ').trim();
   const lead = [
-    stars ? `${stars}-star` : '',
+    stars ? `${stars}-sterren` : '',
     place ? `in ${place}` : '',
   ].filter(Boolean).join(' ');
 
@@ -151,7 +234,7 @@ function hotelPreview(code, rec, qs) {
 
   return {
     title: place ? `${name} — ${place} | Sunsky` : `${name} | Sunsky`,
-    description: description || `Book ${name} with Sunsky — secure payment, no booking fees, instant confirmation.`,
+    description: description || `Boek ${name} bij Sunsky. Veilig betalen, geen boekingskosten, directe bevestiging.`,
     image,
     imageSize: sized ? { w: 800, h: 533 } : null,
   };
@@ -190,6 +273,8 @@ function metaBlock({ title, description, image, imageSize, url, canonical }) {
 // crawlers that resolve it by "first one wins" would show the generic card on every hotel.
 const DEFAULT_META_RE = /[ \t]*<meta\b[^>]*\b(?:property="og:[^"]*"|name="twitter:[^"]*"|name="description")[^>]*>\r?\n?/gi;
 const CANONICAL_RE = /[ \t]*<link\b[^>]*\brel="canonical"[^>]*>\r?\n?/gi;
+/** Just the description, leaving the Open Graph tags alone. Used on SEO pages. */
+const DESCRIPTION_RE = /[ \t]*<meta\b[^>]*\bname="description"[^>]*>\r?\n?/gi;
 
 function stamp(html, preview, url, canonical) {
   return html
@@ -200,31 +285,63 @@ function stamp(html, preview, url, canonical) {
 }
 
 /* ── responses ── */
-function sendHtml(res, html, method) {
-  const body = Buffer.from(html, 'utf8');
-  res.writeHead(200, {
+async function sendHtml(req, res, html, method, status = 200) {
+  let body = Buffer.from(html, 'utf8');
+  const headers = {
     'Content-Type': 'text/html; charset=utf-8',
-    'Content-Length': body.length,
     // The shell names hashed asset files — never let a proxy pin an old one.
     'Cache-Control': 'no-cache',
+    'X-Content-Type-Options': 'nosniff',
+    Vary: 'Accept-Encoding',
+  };
+  // The shell can differ per request (hotel preview tags), so it is compressed on the fly.
+  const enc = method === 'GET' && body.length >= MIN_COMPRESS_BYTES ? pickEncoding(req.headers['accept-encoding']) : null;
+  if (enc) {
+    try { body = await compress(body, enc); headers['Content-Encoding'] = enc; } catch { /* send it raw */ }
+  }
+  headers['Content-Length'] = body.length;
+  res.writeHead(status, headers);
+  res.end(method === 'HEAD' ? undefined : body);
+}
+
+/**
+ * robots.txt and sitemap.xml: plain text, short cache, never the HTML shell.
+ *
+ * Not compressed. Both are well under MIN_COMPRESS_BYTES, and a crawler fetching robots.txt
+ * benefits from the simplest possible response.
+ */
+function sendText(res, text, method, contentType, maxAge) {
+  const body = Buffer.from(text, 'utf8');
+  res.writeHead(200, {
+    'Content-Type': contentType,
+    'Content-Length': body.length,
+    'Cache-Control': `public, max-age=${maxAge}`,
     'X-Content-Type-Options': 'nosniff',
   });
   res.end(method === 'HEAD' ? undefined : body);
 }
 
-async function sendFile(res, file, method) {
+async function sendFile(req, res, file, method) {
   const ext = path.extname(file).toLowerCase();
   const st = await fsp.stat(file);
-  const body = method === 'HEAD' ? null : await fsp.readFile(file);
-  res.writeHead(200, {
+  let body = method === 'HEAD' ? null : await fsp.readFile(file);
+  const headers = {
     'Content-Type': MIME[ext] || 'application/octet-stream',
-    'Content-Length': body ? body.length : st.size,
     // Vite content-hashes everything under /assets, so those are safe to pin forever.
     'Cache-Control': file.includes(`${path.sep}assets${path.sep}`)
       ? 'public, max-age=31536000, immutable'
       : 'public, max-age=3600',
     'X-Content-Type-Options': 'nosniff',
-  });
+  };
+  if (COMPRESSIBLE.has(ext)) {
+    headers.Vary = 'Accept-Encoding';
+    const enc = body && body.length >= MIN_COMPRESS_BYTES ? pickEncoding(req.headers['accept-encoding']) : null;
+    if (enc) {
+      try { body = await compressedFile(file, st.mtimeMs, body, enc); headers['Content-Encoding'] = enc; } catch { /* send it raw */ }
+    }
+  }
+  headers['Content-Length'] = body ? body.length : st.size;
+  res.writeHead(200, headers);
   res.end(body ?? undefined);
 }
 
@@ -248,7 +365,25 @@ const server = http.createServer(async (req, res) => {
     const pathname = decodeURIComponent(url.pathname);
 
     const file = await staticFile(pathname);
-    if (file) { await sendFile(res, file, req.method); return; }
+    if (file) { await sendFile(req, res, file, req.method); return; }
+
+    /* ── technical SEO, answered before the SPA shell ──
+       Both of these previously fell through to the SPA fallback, so a crawler asking for
+       /robots.txt got 200 with a React page as text/html. */
+    if (pathname === '/robots.txt') {
+      sendText(res, robotsTxt(SITE_ORIGIN, SITE_INDEXABLE), req.method,
+        'text/plain; charset=utf-8', 3600);
+      return;
+    }
+    if (pathname === '/sitemap.xml') {
+      // The eight hand-written routes plus every permanent SEO page the resolver will
+      // actually serve. §12: only PUBLISHED + INDEX + HTTP 200 canonical pages, which is
+      // what /seo/urls already filters for, so nothing here can list a 404.
+      const seoPaths = await seoSitemapPaths(ADMIN_API);
+      sendText(res, sitemapXml(SITE_ORIGIN, [...STATIC_SITEMAP_PATHS, ...seoPaths]),
+        req.method, 'application/xml; charset=utf-8', 3600);
+      return;
+    }
 
     const html = await shell();
     const hotel = /^\/hotel\/([^/]+)\/?$/.exec(pathname);
@@ -262,13 +397,69 @@ const server = http.createServer(async (req, res) => {
       const usable = rec || (cached && Date.now() - cached.at < TTL_MS ? cached.rec : null);
       if (usable || isCrawler) {
         const shared = `${SITE_ORIGIN}${pathname}${url.search}`;
-        const canonical = `${SITE_ORIGIN}${pathname}`;
+        /* The canonical points at the READABLE URL when the hotel has one.
+           §8 allows one canonical page per Hotelbeds code, and
+           /hotel/turkije/antalya/monart-city now serves the same page as /hotel/1672. This
+           tells Google which of the two to keep without redirecting the code URLs already
+           sitting in shares, favourites and emails. Falls back to self-canonical whenever
+           the readable URL cannot be built or the admin API has no answer. */
+        const readable = await canonicalForHotel(ADMIN_API, code);
+        const canonical = `${SITE_ORIGIN}${readable || pathname}`;
         const preview = hotelPreview(code, usable, url.searchParams);
-        sendHtml(res, stamp(html, preview, shared, canonical), req.method);
+        await sendHtml(req, res, stamp(html, preview, shared, canonical), req.method);
         return;
       }
     }
-    sendHtml(res, html, req.method);   // SPA fallback: React owns the route
+    /* ── permanent SEO pages (/zonvakanties/turkije/antalya and the rest of §5) ──
+       Anything that is not one of the app's own routes might be one of these, and only the
+       admin API knows: the URLs are built from live Geo Data. Asking it here is what puts a
+       real <title>, description and canonical into the HTML a crawler reads (§12 wants them
+       in the initial server-rendered output), and what lets a renamed slug answer a real
+       301 and a dead URL a real 404. */
+    if (!isKnownRoute(pathname)) {
+      const page = await resolveSeoPage(ADMIN_API, pathname);
+
+      if (page?.status === 'MOVED' && page.redirectTo) {
+        // §8, §12: an old slug 301s to the current URL rather than serving two of them.
+        res.writeHead(301, { Location: page.redirectTo, 'Cache-Control': 'no-cache' });
+        res.end();
+        return;
+      }
+
+      if (page?.status === 'OK') {
+        /* The site-wide description is REMOVED, not left as a fallback.
+           §11 defines no automatic meta description and forbids inventing one, so a page
+           with nothing written has none. Leaving the shell's generic line in place would
+           give every one of these pages the same description, which is a duplicate signal
+           across hundreds of URLs; with no description at all Google writes a snippet from
+           the page itself, which is both better and what the CMS tells authors will happen.
+           The Open Graph tags stay: a generic share card still beats no share card. */
+        /* Only replace the title when there IS one. Stamping an empty <title> is worse than
+           leaving the site-wide one: the tab shows nothing and Google picks a line of its
+           own from the page. The resolver already falls back to the page's heading, so this
+           is the last resort behind that. */
+        const stamped = html
+          .replace(
+            /<title>[\s\S]*?<\/title>/i,
+            page.title ? `<title>${esc(page.title)}</title>` : '$&',
+          )
+          .replace(DESCRIPTION_RE, '')
+          .replace(CANONICAL_RE, '')
+          .replace(/[ \t]*<\/head>/i, `${seoHeadTags(page, SITE_ORIGIN, esc)}\n  </head>`);
+        await sendHtml(req, res, stamped, req.method, 200);
+        return;
+      }
+
+      // NOT_FOUND from the resolver, or no answer at all. Null means the admin API timed out
+      // or is down, and an outage must not be turned into a 404 that Google will act on, so
+      // only a confirmed NOT_FOUND gets one.
+      const status = page?.status === 'NOT_FOUND' ? 404 : 200;
+      await sendHtml(req, res, html, req.method, status);
+      return;
+    }
+
+    /* ── SPA fallback for the app's own routes ── */
+    await sendHtml(req, res, html, req.method, 200);
   } catch (err) {
     console.error('[server]', req.method, req.url, err);
     if (!res.headersSent) res.writeHead(500, { 'Content-Type': 'text/plain' });

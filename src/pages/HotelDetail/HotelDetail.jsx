@@ -3,6 +3,7 @@ import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import i18n from '../../i18n';
+import { localizedDescription } from '../../utils/hotelContentLanguage';
 import { useSelector } from 'react-redux';
 import axiosInstance, { SUPPLIER_TIMEOUT } from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
@@ -11,11 +12,14 @@ import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/price
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount, NO_BOARD_LABEL } from '../../utils/roomBoards';
-import { nightsToDays } from '../../utils/durations';
+import { nightsToDays, stayDays, packageTravelDays } from '../../utils/durations';
+import { trackViewItem } from '../../analytics';
+import { countryName } from '../../utils/countryName';
+import { useSeoHotelCode } from '../SeoLanding/seoHotelCode';
 import { rateDetails, boardInfo, decodeEntities } from '../../utils/rateDetails';
 import {
   splitRoundTrip, flightFacets, applyFlightFilters, sortFlights, SORTS, dedupeFares,
-  fmtClock, FULL_DAY,
+  fmtClock, FULL_DAY, stopsOf,
 } from '../../utils/flightFilters';
 import { formatReview, scoreWord, scoreBand } from '../../utils/reviewBadge';
 import { airportName, airlineName, flightNumber } from '../../utils/flightNames';
@@ -49,6 +53,12 @@ import {
 } from '../../utils/availability';
 import { useToast } from '../../context/ToastContext';
 import { fetchUnpricedHotels } from '../../api/unpricedHotels';
+import { splitFareTypes } from '../../utils/fareTypes';
+import {
+  packageFromParams, packageApplies, flightQuestion, confirmBody, mergePackageFlight, PACKAGE_FLIGHT,
+} from '../../utils/packageHandoff';
+import { usePackageMatrix } from './usePackageMatrix';
+import { usePackageAirports } from '../../hooks/usePackageAirports';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -1624,7 +1634,18 @@ function HeroPhoto({ src, seed, onFail, ...rest }) {
 
 export default function HotelDetail() {
   const { t } = useTranslation('hotelDetail');
-  const { hotelCode } = useParams();
+  /**
+   * Two routes reach this page and only one of them has the code in the URL.
+   *
+   * /hotel/:hotelCode is the original handle and still supplies it as a param. The permanent
+   * SEO URL /hotel/turkije/antalya/monart-city (SEO Master §5) ends in a NAME slug, so
+   * `SeoLanding` resolves that slug to a code server-side and provides it through context.
+   * Nothing else about this page changes: it is the same page at a readable address, which
+   * is what §8's "maximum one canonical hotel SEO page" requires.
+   */
+  const { hotelCode: paramHotelCode } = useParams();
+  const seoHotelCode = useSeoHotelCode();
+  const hotelCode = paramHotelCode || seoHotelCode;
   const { state } = useLocation();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
@@ -1672,13 +1693,29 @@ export default function HotelDetail() {
     return () => { cancelled = true; };
   }, [hotelCode, state?.info]);
   const info = state?.info || fetchedInfo;
+  // Switched OFF in the admin — the hotel itself, or its zone, destination or country (Levent,
+  // 8 Oct 2026). No price check, no booking: the page says so and nothing more. The backend
+  // refuses the live check and the booking for it as well.
+  // Named hotelOff, never `unavailable`: that name is the availability-state builder imported
+  // above, and shadowing it broke every sold-out day on this page (8 Oct 2026).
+  const hotelOff = info?.active === false;
+  // Hotel prose in the traveller's language. Falls back to English when Hotelbeds has no Dutch
+  // text for a property, which is better than an empty About block.
+  const description = useMemo(
+    () => localizedDescription(info, i18n.language),
+    [info, i18n.language],
+  );
 
   // Header / booking facts, preferring the richest source available.
   // The REAL name from the hotel-info record (bulk) wins over the carried-in name, because the
   // price cache often has no hotelName and the card then passes a "Hotel {code}" placeholder —
   // which must never override the actual name once the info loads.
   const carriedName = hotel?.name && !/^Hotel\s+\d+$/i.test(hotel.name.trim()) ? hotel.name.trim() : '';
-  const hotelName = info?.name?.trim() || carriedName || `Hotel ${hotelCode}`;
+  // Never the hotel code (it flashed in the title until the info loaded, 7 Oct 2026): while the
+  // record loads the title and breadcrumb show a skeleton; a hotel without one is named neutrally.
+  const realName = info?.name?.trim() || carriedName;
+  const nameLoading = !realName && !infoSettled;
+  const hotelName = realName || t('hotelNameUnavailable', 'Hotel');
   // Never invent a rating: unknown star data renders NO stars (the old `|| 5`
   // fallback showed budget hotels as "5-star").
   const stars = Number(hotel?.stars) || Number(info?.stars) || 0;
@@ -1866,6 +1903,57 @@ export default function HotelDetail() {
   const transport = ovr.transport ?? ((state?.transport || qp('transport')) === 'hotel_only' ? 'hotel_only' : 'package');
   // Board preference: '' = no preference, else a boardRank key the room list filters on.
   const boardPref = ovr.board ?? '';
+  // ── the package this page is about (utils/packageHandoff) ──
+  // The results card hands over the package it priced: its flights, flight dates and arrival
+  // airport. A date picked in the package matrix replaces it with that date's package. The live
+  // check asks about exactly that package when its stay is the one being checked; any other stay
+  // asks the stay dates, as before. Own transport has no package.
+  const urlPkg = useMemo(() => packageFromParams((k) => searchParams.get(k)), [searchParams]);
+  const [pkgPick, setPkgPick] = useState(null);
+  const pkgMode = transport === 'package';
+  // (`pkgOffer`, the package of the day on screen, is read below the matrix.)
+
+  /**
+   * GA4 `view_item` (Tracking Master §10): the traveller opened a specific hotel.
+   *
+   * WAITS FOR `infoSettled`. The page renders immediately from the carried-in card data and
+   * fills in from /hotels/bulk a moment later, so firing on mount would report half of all
+   * hotels as "Hotel 123456" and lose the country entirely. One event per hotel per search
+   * context either way - the ref below is what stops the re-render that arrives with the real
+   * name from sending a second one.
+   *
+   * NO VALUE IS SENT. §10's example carries none, and the only figure available here is a
+   * from-price for a party that may not be this traveller's. §11 bans exactly that number
+   * from `begin_checkout`; seeding GA4's item revenue with it here would be no better.
+   */
+  const viewItemSentRef = useRef(null);
+  useEffect(() => {
+    if (!hotelCode || !infoSettled) return;
+
+    const isPackage = transport === 'package';
+    const key = `${hotelCode}|${transport}|${baseCheckIn}|${baseCheckOut}|${sAdults}|${sChildren}`;
+    if (viewItemSentRef.current === key) return;
+    viewItemSentRef.current = key;
+
+    trackViewItem({
+      transport,
+      country: info?.countryIso ? countryName(info.countryIso, 'en', info.countryIso) : null,
+      destination: info?.cityName || info?.city || null,
+      hotelCode,
+      hotelName,
+      departureDate: baseCheckIn,
+      departureAirport: isPackage ? origin : null,
+      duration: baseCheckIn && baseCheckOut
+        ? (isPackage ? packageTravelDays(baseCheckIn, baseCheckOut) : stayDays(baseCheckIn, baseCheckOut))
+        : null,
+      adults: Number(sAdults) || 0,
+      children: Number(sChildren) || 0,
+      board: boardPref || null,
+    });
+  }, [
+    hotelCode, infoSettled, transport, baseCheckIn, baseCheckOut, sAdults, sChildren,
+    hotelName, origin, boardPref, info?.countryIso, info?.cityName, info?.city,
+  ]);
 
   const [activeTab, setActiveTab] = useState('Prices');
   const [saved, setSaved] = useState(false);
@@ -1936,7 +2024,7 @@ export default function HotelDetail() {
   // into travel-shaped categories. All four are pure functions of the same array.
   const rawFacilities = info?.facilities;
   const { categories: facCategories, total: facTotal } = useMemo(
-    () => categoriseFacilities(rawFacilities), [rawFacilities],
+    () => categoriseFacilities(rawFacilities, i18n.language), [rawFacilities, i18n.language],
   );
   const popularFacs = useMemo(() => popularFacilities(rawFacilities), [rawFacilities]);
   const nearby = useMemo(() => nearbyDistances(rawFacilities), [rawFacilities]);
@@ -2129,6 +2217,45 @@ export default function HotelDetail() {
 
   const toggleExpand = (id) => setExpanded((p) => ({ ...p, [id]: !p[id] }));
 
+  // ── Flight + Hotel: the strip is the package matrix (usePackageMatrix) ──
+  // Departure dates with a complete package of this hotel, each priced flight + hotel from the
+  // cache, so the strip quotes on the same basis as the results card. The trip length is the
+  // package's own (an overnight flight makes a 6-night stay of an 8-day trip), and it stays put
+  // when a date is picked, so picking never re-asks the matrix; editing the nights does.
+  const matrixTravelDays = ovr.travelDays ?? (ovr.nights == null && urlPkg?.travelDays ? urlPkg.travelDays : nights + 1);
+  const matrixBase = urlPkg && urlPkg.checkin === baseCheckIn ? urlPkg.depdate : baseCheckIn;
+  const [mAnchor, setMAnchor] = useState({ base: null, date: null });
+  const matrixDate = (mAnchor.base === matrixBase && mAnchor.date) || matrixBase;
+  const [matrixReload, setMatrixReload] = useState(0);
+  const matrix = usePackageMatrix({
+    enabled: pkgMode && !!matrixDate, hotelCode, destination, date: matrixDate, travelDays: matrixTravelDays,
+    origin, adults: sAdults, children: sChildren, childAges: sChildAges, rooms: sRooms,
+    routing: qp('routing').toLowerCase() === 'nonstop' ? 'nonstop' : '', reload: matrixReload,
+  });
+  const matrixByDate = useMemo(() => Object.fromEntries(matrix.days.map((d) => [d.iso, d])), [matrix.days]);
+  // The strip is the matrix while it loads and whenever it has dates. When it cannot answer (it
+  // failed, or has no package date around this one in the cache) the hotel calendar stands in,
+  // marked as hotel prices, so the traveller can still check a date live: flights are then
+  // searched on the stay dates, as before.
+  const useMatrix = pkgMode && (matrix.loading || matrix.days.length > 0);
+
+  // Flight + Hotel: the departure airports with a valid package to THIS hotel (its approved,
+  // covering arrival airports) in the fortnight around the departure (admin /feasibility). The
+  // Transport choice and the "another airport" chips offer only these; unknown: every airport.
+  const pkgAirportsAround = usePackageAirports({
+    enabled: pkgMode && !!matrixDate, destinations: destination ? [destination] : [], hotelCode,
+    from: matrixDate ? notBeforeToday(addDaysISO(matrixDate, -7)) : null,
+    to: matrixDate ? addDaysISO(matrixDate, 7) : null,
+    travelDays: matrixTravelDays, adults: sAdults, children: sChildren, childAges: sChildAges,
+  });
+  const originCodes = useMemo(
+    () => (pkgAirportsAround.origins ? departureCodes.filter((c) => pkgAirportsAround.origins.has(c) || c === origin) : departureCodes),
+    [departureCodes, pkgAirportsAround.origins, origin],
+  );
+  // The chosen departure airport can no longer make a package for this hotel (a cache update,
+  // or another choice changed): it stays chosen and says so; only the traveller picks another
+  // (Ch 1 §9A, Ch 3 case 23). Unknown (loading, failed) is never "not available".
+  const originGone = pkgMode && !!origin && !!pkgAirportsAround.origins && !pkgAirportsAround.origins.has(origin);
   // ── the paged fare strip ──
   // The cache endpoint always returns CAL_DAYS days FORWARD from the check-in it is handed, so
   // paging is nothing more than asking again from a different day. Today is the hard floor: the
@@ -2161,7 +2288,8 @@ export default function HotelDetail() {
 
   useEffect(() => {
     if (urlLive) return;                   // nothing cached to fetch — see `urlLive`
-    if (!hotelCode || !destination || !winStart) { setCalError(false); return; }
+    // Flight + Hotel prices on the package matrix below: a hotel-only price is not a package.
+    if (useMatrix || !hotelCode || !destination || !winStart) { setCalError(false); return; }
     const asked = askedRef.current;
     if (asked.scope !== calScope) { asked.scope = calScope; asked.days = new Set(); }
 
@@ -2235,7 +2363,7 @@ export default function HotelDetail() {
     const warm = rest.length ? setTimeout(() => rest.forEach((b) => load(b, false)), 500) : null;
 
     return () => { cancelled = true; if (warm) clearTimeout(warm); };
-  }, [hotelCode, destination, winStart, nights, sAdults, sChildren, sRooms, calScope, today, urlLive]);
+  }, [useMatrix, hotelCode, destination, winStart, nights, sAdults, sChildren, sRooms, calScope, today, urlLive]);
 
   // Live prices only. There is deliberately NO demo fallback: this strip used to drop to a
   // hardcoded week of March 2026 fares whenever the call failed OR the hotel was genuinely
@@ -2243,10 +2371,29 @@ export default function HotelDetail() {
   // like seven bookable days, and the day the traveller clicked carried no date to price.
   // Only the days priced under the CURRENT search count; anything left from a previous one is
   // ignored rather than shown next to freshly quoted days.
-  const byDate = cal.scope === calScope ? cal.byDate : {};
+  const stripLoading = useMatrix ? matrix.loading : calLoading;
+  const stripReload = () => (useMatrix ? setMatrixReload((n) => n + 1) : setCalReload((n) => n + 1));
+  // The arrows: one day for the hotel calendar, the next flight dates for the matrix.
+  const stripCanBack = useMatrix ? !!matrix.prev : canPageBack;
+  const stripCanForward = useMatrix ? !!matrix.next : true;
+  const stripStep = (delta) => {
+    if (!useMatrix) { pageDay(delta); return; }
+    const d = delta < 0 ? matrix.prev : matrix.next;
+    if (d) setMAnchor({ base: matrixBase, date: d });
+  };
+
+  const byDate = useMatrix ? matrixByDate : (cal.scope === calScope ? cal.byDate : {});
   const winDates = winStart ? Array.from({ length: CAL_DAYS }, (_, i) => addDaysISO(winStart, i)) : [];
-  const usingLive = winDates.some((iso) => byDate[iso]);
-  const priceDays = usingLive
+  const usingLive = useMatrix ? matrix.days.length > 0 : winDates.some((iso) => byDate[iso]);
+  const priceDays = useMatrix
+    // The bar names the DEPARTURE date (the matrix is of flight dates); `iso` is the stay's
+    // check-in, the day the rest of the page prices.
+    ? matrix.days.map((d) => ({
+      iso: d.iso, day: calDay(d.departure), date: calDate(d.departure), departure: d.departure,
+      price: d.price, pp: d.perPerson, currency: d.currency || 'EUR', nights: d.nights || nights,
+      state: d.state, cheapest: d.cheapest, pkg: d.pkg,
+    }))
+    : usingLive
     ? winDates.map((iso) => {
       const c = byDate[iso];
       // A day the cache hasn't costed comes back null; 0 is the page's word for "no price
@@ -2261,14 +2408,32 @@ export default function HotelDetail() {
     : 'none';
   // Bar heights scale across the PRICED days only. Including the un-costed ones dragged the
   // floor to 0, which flattened every real price into the top of the range.
-  const priced = priceDays.filter((p) => p.price > 0).map((p) => p.price);
+  const paxCount = Math.max(1, (Number(sAdults) || 1) + (Number(sChildren) || 0));
+  // A package's p.p. price, as the package search and the matrix divide it: by the travellers who
+  // are not infants (a lap infant is not a share of the price).
+  const ppPax = useMatrix
+    ? (() => { const p = splitFareTypes(Number(sAdults) || 2, sChildAges ? sChildAges.split(',') : []); return Math.max(1, p.adults + p.children); })()
+    : paxCount;
+  // The per-person figure a bar PRINTS. Heights, "flat week" and the "Lowest price" flag are read
+  // off it, not off the party totals behind it: totals of €111 and €112 both print "€56", and
+  // scaling on the totals drew one of seven identical "€56" bars at half height under a "Lowest
+  // price" flag (Belle Ocean, 9–15 Dec 2026).
+  const shownPP = (p) => (Number(p.price) > 0 ? (p.pp ?? perPersonFrom(p.price, ppPax)) : 0);
+  const priced = priceDays.filter((p) => p.price > 0).map(shownPP);
   const pMin = priced.length ? Math.min(...priced) : 0;
   const pMax = priced.length ? Math.max(...priced) : 1;
   const priceVaries = pMin !== pMax;
+  // The cheapest whole-party total on screen, for the page's "from" figure (a total, not p.p.).
+  const totals = priceDays.filter((p) => p.price > 0).map((p) => p.price);
+  const minTotal = totals.length ? Math.min(...totals) : 0;
   // Which day carries the "Lowest price" flag. Days routinely TIE at the cheapest figure, and
   // matching on price alone badged every one of them — three bars all shouting "lowest" tells
   // the traveller nothing. The earliest day at that price wins the flag.
-  const lowIdx = priceDays.findIndex((p) => p.price > 0 && p.price === pMin);
+  // The matrix names its own "Cheapest" (lowest total, then the longest trip, then the date
+  // closest to the one asked: the contract's tie-break), so it is not re-derived here.
+  const lowIdx = useMatrix
+    ? priceDays.findIndex((p) => p.cheapest && p.price > 0)
+    : priceDays.findIndex((p) => p.price > 0 && shownPP(p) === pMin);
   // ── A hotel only World2Meet can sell on these dates ─────────────────────────────
   // The header search opens a hotel it names straight on THIS page — it never passes through the
   // results list, so it never carries `live=1`. When the cache calendar comes back with nothing
@@ -2283,7 +2448,8 @@ export default function HotelDetail() {
   // and could flip the page to the live layout and back when the next block brought prices.
   const weekAnswered = cal.scope === calScope && winDates.length > 0
     && winDates.every((iso) => cal.answered.has(iso));
-  const w2mKey = (!urlLive && hotelCode && baseCheckIn && weekAnswered && !calError && !usingLive)
+  // Hotel only: in flight + hotel mode the package matrix decides (contract Ch 3 §4).
+  const w2mKey = (!useMatrix && !urlLive && hotelCode && baseCheckIn && weekAnswered && !calError && !usingLive)
     ? [hotelCode, destination, baseCheckIn, nights, sAdults, sChildren, sRooms, sChildAges].join('|')
     : null;
   const [w2mSell, setW2mSell] = useState({ key: null, ok: false });
@@ -2321,13 +2487,20 @@ export default function HotelDetail() {
   // The picked day itself is read from the whole cache, NOT the visible week, so paging never
   // silently drops the traveller's chosen date out of the action card and the checkout hand-off.
   const pickedEntry = pickedISO ? byDate[pickedISO] : null;
+  // The package the live check asks about: a date picked in the matrix, else the results card's
+  // package on its own day, else the matrix's package for the day on screen (a date typed in the
+  // search bar). It answers only its own stay (packageApplies); any other stay asks its dates.
+  const pkgOffer = !pkgMode ? null
+    : (pkgPick || (urlPkg && urlPkg.checkin === pickedISO ? urlPkg : null) || pickedEntry?.pkg || null);
   // In `liveOnly` there is no cache to read a day out of, but the traveller still has a date —
   // the one they searched — and the action card is the whole point of the page.
   const pd = (pickedISO && (liveOnly || Object.keys(byDate).length))
     ? {
       iso: pickedISO, day: calDay(pickedISO), date: calDate(pickedISO),
-      price: roundHotelStay(pickedEntry?.price ?? 0, roomsCount), currency: pickedEntry?.currency || 'EUR',
-      lowest: !!pickedEntry?.isLowest, nights,
+      // A package total is already whole euros for the whole trip (rounded once, up).
+      price: useMatrix ? (Number(pickedEntry?.price) || 0) : roundHotelStay(pickedEntry?.price ?? 0, roomsCount),
+      currency: pickedEntry?.currency || 'EUR',
+      lowest: useMatrix ? !!pickedEntry?.cheapest : !!pickedEntry?.isLowest, nights,
     }
     : null;
 
@@ -2351,7 +2524,6 @@ export default function HotelDetail() {
   // showing it beside a re-priced calendar quotes two different stays at once. When there is
   // nothing true to quote it is null and the UI says so, rather than inventing a figure (this
   // used to read a hardcoded 765 on a cold visit).
-  const paxCount = Math.max(1, (Number(sAdults) || 1) + (Number(sChildren) || 0));
   const stayFrom = (() => {
     // The supplier was asked about the picked day and said no. Whatever the cache once
     // estimated for it is not a price anyone can pay — the hero chip, Book card and mobile
@@ -2359,12 +2531,12 @@ export default function HotelDetail() {
     // "not available" card.
     if (dayUnavailable) return null;
     if (Number(pd?.price) > 0) return Number(pd.price);
-    if (usingLive && pMin > 0) return pMin;
+    if (usingLive && minTotal > 0) return minTotal;
     if (!filtersTouched && Number(hotel?.totalAmount) > 0) return Number(hotel.totalAmount);
     return null;
   })();
   // Per person — the calendar prices a whole stay for the whole party.
-  const fromPP = stayFrom != null ? perPersonFrom(stayFrom, paxCount) : null;
+  const fromPP = stayFrom != null ? perPersonFrom(stayFrom, ppPax) : null;
 
   // ── the meal plans that exist on the SELECTED day ────────────────────────────
   // Live availability is authoritative but it is a SUPPLIER hit, made only when the traveller
@@ -2447,8 +2619,13 @@ export default function HotelDetail() {
     // stop matching the ages being priced — a stale date is worse than none (see childDob.js).
     if (sChildDobs) url.searchParams.set('childDobs', sChildDobs);
     else url.searchParams.delete('childDobs');
+    // The card's package belongs to its own stay: a stay edited away from it leaves the link, so a
+    // refresh never asks that package's flights for another stay.
+    if (urlPkg && (baseCheckIn !== urlPkg.checkin || baseCheckOut !== urlPkg.checkout)) {
+      for (const k of ['pkgOut', 'pkgBack', 'pkgDep', 'pkgRet', 'pkgFrom', 'pkgTo', 'pkgFlight', 'pkgDays']) url.searchParams.delete(k);
+    }
     if (url.toString() !== window.location.href) window.history.replaceState(window.history.state, '', url);
-  }, [filtersTouched, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms, sChildAges, sChildDobs, nights, transport, origin]);
+  }, [filtersTouched, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms, sChildAges, sChildDobs, nights, transport, origin, urlPkg]);
 
   // Only a REAL "from" figure goes in the message; `stayFrom` already refuses the €0 the price
   // cache returns for an uncosted day and the total of a search that has since been edited.
@@ -2520,6 +2697,9 @@ export default function HotelDetail() {
   // rate rather than from rateInfo, whose map only covers the rates a board FILTER left on
   // screen; the selection can point outside it.
   const liveBoard = liveRoom ? boardInfo(liveRoom.boardCode, liveRoom.board).label : null;
+  // The board the hero chip and the booking card name: the selected room's, else the meal plan
+  // the traveller asked for, else nothing (nothing is known before a check).
+  const shownBoard = liveBoard || (() => { const bp = BOARD_PREFS.find((b) => b.id && b.id === boardPref); return bp ? boardPrefLabel(bp.id, bp.label) : null; })();
 
   // ── the live price against the estimate it replaced ──────────────────────────
   // The strip quotes a CACHED estimate per day; the check then asks the supplier what that day
@@ -2538,22 +2718,7 @@ export default function HotelDetail() {
   // change of exactly the party size. Each surface compares against its own basis, and each
   // subtraction is done on the ROUNDED figures actually printed, so "€286 → €305, €19 higher"
   // adds up on screen rather than to a hidden third decimal.
-  const cacheWas = pdEstimate ? Number(pd.price) : null;
-  // The live price is rounded by the SAME whole-euro rule as the cache figure it is compared
-  // with (rule 10). Nearest-rounding here against a cache that rounds up would report a false
-  // "€1 lower" on most stays.
-  const liveNow = liveRoom ? roundHotelStay(liveRoom.price, roomsCount) : null;
-  /** One traveller's share in whole euros — for the strip, where a bar is 9px of type wide. */
-  const ppOf = (total) => (total != null ? perPersonFrom(total, paxCount) : null);
-  // The move on the CARD's basis (party total) and on the STRIP's basis (per person). Null
-  // when there is nothing honest to compare: no live answer yet, or a day the cache never
-  // costed, where there is no earlier price to have moved from.
-  const priceMoved = (cacheWas != null && liveNow != null && liveNow !== cacheWas)
-    ? liveNow - cacheWas
-    : null;
-  const wasPP = ppOf(cacheWas);
-  const nowPP = ppOf(liveNow);
-  const ppMoved = (wasPP != null && nowPP != null && nowPP !== wasPP) ? nowPP - wasPP : null;
+  // (cacheWas / liveNow / ppMoved: below liveTotal, which a package compares against.)
 
   // ── which meal plans this hotel actually sells ───────────────────────────────
   // The picker used to offer all six unconditionally, so a hotel that only sells room-only
@@ -2689,7 +2854,15 @@ export default function HotelDetail() {
   const toggleAirline = (code) =>
     setFAirlines((prev) => (prev.includes(code) ? prev.filter((c) => c !== code) : [...prev, code]));
   // A filter set that survives one search rarely fits the next — reset when results change.
-  useEffect(() => { clearFlightFilters(); }, [allFlights]);
+  // Except the routing choice made on the results page (?routing=nonstop, build order step 13):
+  // it is set again on every new list that has a non-stop flight to keep. A list without one
+  // starts unfiltered, so no box the traveller cannot see is left ticked.
+  const wantsNonstop = qp('routing').toLowerCase() === 'nonstop';
+  useEffect(() => {
+    clearFlightFilters();
+    if (wantsNonstop && allFlights.some((f) => stopsOf(f) === 0) && allFlights.some((f) => stopsOf(f) > 0)) setFType('direct');
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [allFlights]);
   const shownFlights = pager.list === modalFlights ? pager.n : MODAL_PAGE;
 
   // ── which flight the page is holding (spec 2.7, 3.6, 3.10) ──────────────────────
@@ -2717,14 +2890,21 @@ export default function HotelDetail() {
   const pickLost = !!pick && !!liveFlights && !flightsChecking && !flightsFailed && !flightsPriceUnknown && pickIdx < 0;
   const filtersOn = activeFilterCount > 0;
   const passingIdx = useMemo(() => new Set(modalFlights.map((f) => f.idx)), [modalFlights]);
+  // The package's own flight (the one the results card priced), when the live answer holds it.
+  // It is the page's default, so it yields to the traveller's filters like any default would.
+  const pkgSig = liveFlights?.pkgSig || null;
   const autoIdx = useMemo(() => {
     if (!allFlights.length) return -1;
+    if (pkgSig) {
+      const at = allFlights.findIndex((f) => flightSig(f) === pkgSig);
+      if (at >= 0 && (!filtersOn || passingIdx.has(at))) return at;
+    }
     if (filtersOn) {
       const pool = allFlights.map((f, idx) => ({ f, idx })).filter(({ idx }) => passingIdx.has(idx));
       if (pool.length) return pool[pickPriorityIndex(pool.map(({ f }) => f))].idx;
     }
     return pickPriorityIndex(allFlights);
-  }, [allFlights, filtersOn, passingIdx]);
+  }, [allFlights, filtersOn, passingIdx, pkgSig]);
   // Index into `allFlights` of the flight on the card, or -1 when the explicit pick is gone.
   const selectedFlight = pick ? pickIdx : autoIdx;
   // The flight held does not pass the filters that are set: an explicit pick they now exclude,
@@ -2784,10 +2964,32 @@ export default function HotelDetail() {
   // Whole euros (rule 10): a package rounds hotel + flight once; hotel only rounds per room.
   // The flightBlocked guard stays: with a failed or unpriced flight check there is no package
   // to quote, and the room price alone presented as a trip total is the wrong number.
-  const liveTotal = liveRoom && !flightBlocked
+  // A package has no live total while its flight is still being checked: the room alone, shown
+  // for a moment as "flight + hotel" (€105 p.p. before €341, 7 Oct 2026), is not that price.
+  // Hotel only is priced the moment the room is in, as before.
+  const liveTotal = liveRoom && !flightBlocked && !(transport === 'package' && flightsChecking)
     ? roundStayTotal(liveRoom.price || 0, liveFlight?.totalPrice || 0, roomsCount)
     : null;
   const displayTotal = liveTotal != null ? liveTotal : stayFrom;
+
+  const cacheWas = pdEstimate ? Number(pd.price) : null;
+  // The live price is rounded by the SAME whole-euro rule as the cache figure it is compared
+  // with (rule 10). Nearest-rounding here against a cache that rounds up would report a false
+  // "€1 lower" on most stays.
+  // Flight + Hotel: the strip quotes a package (flight + hotel), so the live answer it is
+  // compared with is the package total, never the room alone (that "moved" by an airfare).
+  const liveNow = useMatrix ? liveTotal : (liveRoom ? roundHotelStay(liveRoom.price, roomsCount) : null);
+  /** One traveller's share in whole euros — for the strip, where a bar is 9px of type wide. */
+  const ppOf = (total) => (total != null ? perPersonFrom(total, ppPax) : null);
+  // The move on the CARD's basis (party total) and on the STRIP's basis (per person). Null
+  // when there is nothing honest to compare: no live answer yet, or a day the cache never
+  // costed, where there is no earlier price to have moved from.
+  const priceMoved = (cacheWas != null && liveNow != null && liveNow !== cacheWas)
+    ? liveNow - cacheWas
+    : null;
+  const wasPP = ppOf(cacheWas);
+  const nowPP = ppOf(liveNow);
+  const ppMoved = (wasPP != null && nowPP != null && nowPP !== wasPP) ? nowPP - wasPP : null;
   // live-aware overview card numbers (hotel+flight base; transfer & SGR listed separately)
   const ovPax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
 
@@ -2830,7 +3032,10 @@ export default function HotelDetail() {
       fetchFlights(checkin, checkout, nextOrigin);
       return;
     }
-    setOvr((p) => ({ ...p, ...patch }));
+    // A new length of stay is a new trip length for the matrix (a picked date's length is kept
+    // only until the traveller sets one), and a new check-in or party is a new package question.
+    setOvr((p) => ({ ...p, ...patch, ...(keys.includes('nights') ? { travelDays: undefined } : {}) }));
+    if (!keys.every((k) => k === 'childDobs' || k === 'board')) setPkgPick(null);
     // Every live result was priced under the OLD parameters, so it goes — a rate fetched for
     // dates the traveller has just changed must never stay on screen, let alone be bookable.
     setLiveChecked(false);
@@ -2850,7 +3055,7 @@ export default function HotelDetail() {
     const keepsTheDay = keys.every((k) => k === 'childAges' || k === 'childDobs' || k === 'nights');
     if (!keepsTheDay) setSelectedISO(null);
   };
-  const resetFilters = () => { setOvr({}); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); invalidateRooms(); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); };
+  const resetFilters = () => { setOvr({}); setPkgPick(null); setMAnchor({ base: null, date: null }); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); invalidateRooms(); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); };
 
   // The same figure as `liveTotal`, so the overview can never quote a package the rest of the
   // page refuses to book (a failed or unpriced flight check, or a flight still to be chosen).
@@ -2876,21 +3081,30 @@ export default function HotelDetail() {
   // been checked for the new day. Anything that clears `liveRooms` bumps it (invalidateRooms).
   const roomsSeqRef = useRef(0);
   const invalidateRooms = () => { roomsSeqRef.current += 1; };
+  // The party as flight fare types — the same split the checkout and the booking re-price on
+  // (utils/fareTypes): an infant flies on a lap at the infant fare, a 12-year-old pays as an
+  // adult. Sending every child as a "child" quoted a fare here that checkout then corrected.
+  const flightParty = splitFareTypes(Number(sAdults) || 2, sChildAges ? sChildAges.split(',') : []);
   const flightSearchKey = (from, checkin, checkout) =>
-    `${from}|${checkin}|${checkout}|${Number(sAdults) || 2}|${Number(sChildren) || 0}`;
+    `${from}|${checkin}|${checkout}|${flightParty.adults}|${flightParty.children}|${flightParty.infants}`;
   const readFlightCache = (key) => {
     const hit = flightCacheRef.current.get(key);
     if (!hit) return null;
     if (Date.now() - hit.at > FLIGHT_CACHE_TTL_MS) { flightCacheRef.current.delete(key); return null; }
     return hit.data;
   };
+  // The package's stay asks the package's flight dates and arrival airport (an overnight flight
+  // leaves the day before check-in); every other stay asks its own dates (utils/packageHandoff).
   const searchFlightsRaw = (from, checkin, checkout) => {
-    const key = flightSearchKey(from, checkin, checkout);
+    const fq = flightQuestion(pkgOffer, checkin, checkout, destination);
+    const key = `${flightSearchKey(from, fq.depdate, fq.retdate)}|${fq.to}`;
     const cached = readFlightCache(key);
     if (cached) return Promise.resolve(cached);
     return axiosInstance.post('/flight-availability/search', {
-      from, to: destination, depdate: checkin, retdate: checkout,
-      adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
+      from, to: fq.to, depdate: fq.depdate, retdate: fq.retdate,
+      adults: flightParty.adults, children: flightParty.children, infants: flightParty.infants,
+      // A package holiday: the backend returns only what the airport's connection policy allows.
+      package: true,
     }, { timeout: SUPPLIER_TIMEOUT }).then(({ data }) => {
       // Only a real answer is kept. A supplier that failed inside a 200 used to be cached for
       // five minutes, so "Try again" replayed the same failure without asking anyone.
@@ -2913,10 +3127,27 @@ export default function HotelDetail() {
     // No `keep`: this is a new question (a new day, a new airport), and carrying the old fare
     // forward would park a price nobody has quoted for this choice underneath it.
     setLiveFlights({ av: checking({ sources: ['airtuerk'] }) });
-    searchFlightsRaw(from, checkin, checkout).then((data) => {
+    // The package's own flight is confirmed alongside the search: the search returns a capped
+    // list, the confirm looks for exactly these flights (no cap). Only from the package's own
+    // departure airport, and only for its own stay.
+    const pkgHere = packageApplies(pkgOffer, checkin, checkout) && pkgOffer.from === from ? pkgOffer : null;
+    const confirmReq = pkgHere
+      ? axiosInstance.post('/flight-availability/cached-search/confirm', confirmBody(pkgHere, flightParty), { timeout: SUPPLIER_TIMEOUT }).then(({ data }) => data)
+      : Promise.resolve(null);
+    Promise.allSettled([searchFlightsRaw(from, checkin, checkout), confirmReq]).then(([searched, confirmed]) => {
       if (seq !== flightSeqRef.current) return;
+      // A 502 (the supplier failed) carries its answer in the body: SOURCE_ERROR, never "gone".
+      const conf = confirmed.status === 'fulfilled' ? confirmed.value : (confirmed.reason?.response?.data || null);
+      const confFlights = conf?.flight && (conf.status === 'CONFIRMED' || conf.status === 'PRICE_CHANGED')
+        ? transformFlights({ results: { airtuerk: { flights: [conf.flight] } } }, from)
+        : [];
+      // The search failed: the package flight alone is still an answer; without it, the failure is.
+      if (searched.status === 'rejected' && !confFlights.length) throw searched.reason;
+      const data = searched.status === 'fulfilled' ? searched.value : { results: { airtuerk: { flights: [] } } };
       console.log('[Detail] flight-availability response', data?.results);
-      const flights = transformFlights(data, from);
+      const merged = pkgHere ? mergePackageFlight(transformFlights(data, from), confFlights, pkgHere, flightSig, conf?.status ?? null) : null;
+      const flights = merged ? merged.flights : transformFlights(data, from);
+      const pkgInfo = merged ? { pkgSig: merged.pkgSig, pkgStatus: merged.status } : {};
       // Nothing is selected here any more. The default used to be written into the selection
       // on every answer, which silently replaced a flight the traveller had explicitly chosen
       // whenever the list was fetched again. The page now derives the default (the cheapest
@@ -2936,7 +3167,7 @@ export default function HotelDetail() {
           setLiveFlights({ av, serverMsg: null, flights: [], from, checkin, checkout });
           return;
         }
-        setLiveFlights({ av, flights: [], from, checkin, checkout, probing: true, alternatives: null, unprobed: [] });
+        setLiveFlights({ av, flights: [], from, checkin, checkout, probing: true, alternatives: null, unprobed: [], ...pkgInfo });
         probeAlternatives(from, checkin, checkout, seq);
         return;
       }
@@ -2952,7 +3183,7 @@ export default function HotelDetail() {
           validation: VALIDATION.LIVE_CONFIRMED, sources: ['airtuerk'],
         }),
         flights, cheapest: data?.results?.cheapest || null, from,
-        checkin, checkout, probing: true, alternatives: null,
+        checkin, checkout, probing: true, alternatives: null, ...pkgInfo,
       });
       probeAlternatives(from, checkin, checkout, seq);
     }).catch((e) => {
@@ -2977,7 +3208,10 @@ export default function HotelDetail() {
   const probeAlternatives = (from, checkin, checkout, seq) => {
     // The live registry, read at the moment of probing: once the dashboard's master list has
     // loaded, an airport the team deactivated is not asked about at all.
-    const candidates = getDepartureAirports().filter((a) => a.popular && a.code !== from).map((a) => a.code);
+    // Only airports with a package to this hotel, when that is known (usePackageAirports).
+    const candidates = getDepartureAirports()
+      .filter((a) => a.popular && a.code !== from && (!pkgAirportsAround.origins || pkgAirportsAround.origins.has(a.code)))
+      .map((a) => a.code);
     const pax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
     Promise.allSettled(
       candidates.map((code) => searchFlightsRaw(code, checkin, checkout).then((data) => ({ code, data })))
@@ -3033,14 +3267,27 @@ export default function HotelDetail() {
     fetchFlights(checkin, checkout, code);
   };
 
-  const pickDay = (iso) => {
+  const pickDay = (iso, entry = null) => {
     if (!iso || checkedEmpty.has(emptyKey(iso))) return;
+    if (useMatrix) {
+      // A matrix date with flights and no room for any of their stays has nothing to sell.
+      if (entry?.state === 'NO_VALID_COMBINATION') return;
+      // The date's own package. The results card's package stays when its own date is picked
+      // again: that is the package the traveller came here for.
+      const own = !!(urlPkg && entry?.pkg && entry.pkg.checkin === urlPkg.checkin && entry.pkg.depdate === urlPkg.depdate);
+      setPkgPick(own ? null : (entry?.pkg || null));
+      // Its stay may be a night shorter or longer than the one on screen (flight times decide
+      // it). The trip length the matrix was asked for stays, so the strip is not asked again.
+      const n = own ? urlPkg.nights : entry?.pkg?.nights;
+      if (n && n !== nights) setOvr((p) => ({ ...p, nights: n, travelDays: matrixTravelDays }));
+    } else {
+      // Re-centre on the chosen day, so the three days either side are on screen to compare
+      // against — which is the whole reason for picking a date here rather than in the date
+      // field. Clamped like every other window move: a day in the first half-week sits as near
+      // the middle as today allows rather than dragging the strip into the past.
+      setWin({ base: baseCheckIn, start: notBeforeToday(addDaysISO(iso, -CAL_CENTRE)) });
+    }
     setSelectedISO(iso);
-    // Re-centre on the chosen day, so the three days either side are on screen to compare
-    // against — which is the whole reason for picking a date here rather than in the date
-    // field. Clamped like every other window move: a day in the first half-week sits as near
-    // the middle as today allows rather than dragging the strip into the past.
-    setWin({ base: baseCheckIn, start: notBeforeToday(addDaysISO(iso, -CAL_CENTRE)) });
     setLiveChecked(false);
     invalidateRooms();
     setLiveRooms(null);
@@ -3055,7 +3302,7 @@ export default function HotelDetail() {
 
   const checkAvailabilityForDay = (dayISO) => {
     const checkin = dayISO || pickedISO || baseCheckIn;
-    if (!checkin) return;
+    if (!checkin || hotelOff) return;
     // A day a supplier has already confirmed as empty never starts another live check. There
     // is nothing left to ask, and asking would replace the honest "not available" card with a
     // spinner and then re-derive the same answer at the cost of a supplier call. Keyed on the
@@ -3248,7 +3495,9 @@ export default function HotelDetail() {
     // Only a room that was really returned by availability. Naming a demo room ("Double Room
     // Design Room") on the payment summary described a room that had never been priced.
     const roomName = useLive ? liveRoom.name : '';
-    const board = useLive ? (liveRoom.board || hotel?.board || 'All inclusive') : (hotel?.board || 'All inclusive');
+    // The board of the room being booked. There is no fallback: the old 'All inclusive' was
+    // printed on room-only stays (hotel.board is never set from a link).
+    const board = useLive ? (liveRoom.board || liveBoard || '') : '';
 
     const outLg = liveFlight?.outLegs || [];
     const retLg = liveFlight?.retLegs || [];
@@ -3278,8 +3527,11 @@ export default function HotelDetail() {
     // Only ever a flight that was really searched and selected. The non-live branch used to
     // hand the DEMO itinerary to checkout, so a customer who never ran an availability check
     // reached the payment summary looking at a 07:00 TUI fly departure that did not exist.
+    // The flight's own dates and airports: a package's flight can leave the day before
+    // check-in and return the day of check-out or before (utils/packageHandoff).
+    const fq = flightQuestion(pkgOffer, checkin, checkout, destination);
     const dispFlight = (liveFlight && allLegs.length)
-      ? flatFlight(outLg, retLg, pd?.date, calDate(checkout))
+      ? flatFlight(outLg, retLg, calDate(fq.depdate), calDate(fq.retdate))
       : null;
 
     const outLabel = dispFlight?.outDate?.replace('.', '') || '';
@@ -3292,6 +3544,11 @@ export default function HotelDetail() {
       state: {
         booking: {
           hotelCode, hotelName, stars: Math.min(stars, 5), loc: locLabel,
+          // Carried for the marketing layer, which needs a country on begin_checkout and
+          // purchase (Tracking Master §5) and has no other source for one: `loc` is a city
+          // label and the checkout never calls /hotels/bulk itself.
+          countryIso: info?.countryIso || null,
+          cityName: info?.cityName || info?.city || null,
           img: heroImage, board,
           nights, adults: pax, currency: ccy,
           // `perPerson` both times: checkout multiplies this back by pax, so handing it a
@@ -3328,6 +3585,8 @@ export default function HotelDetail() {
             // every availability call, so the room/board pair is the stable identity.
             roomCode: useLive ? (liveRoom.roomCode || null) : null,
             boardCode: useLive ? (liveRoom.boardCode || null) : null,
+            // The flight's own question, for a re-price (its dates are not the stay's).
+            flightTo: fq.to, flightDepdate: fq.depdate, flightRetdate: fq.retdate,
           },
           // ── payload for the backend Online-booking create call ──
           api: {
@@ -3356,7 +3615,7 @@ export default function HotelDetail() {
               ? {
                   // The airport the fare was REALLY searched from — this was hardcoded to
                   // Brussels, so a booking flown from Eindhoven was recorded as ex-BRU.
-                  from: origin, to: destination, depdate: checkin, retdate: checkout,
+                  from: liveFlights?.from || origin, to: fq.to, depdate: fq.depdate, retdate: fq.retdate,
                   price: liveFlight.totalPrice, currency: ccy, legs: allLegs,
                   fareBreakdown: liveFlight.fareBreakdown || [],
                   // Opaque Airtuerk bookable keys — REQUIRED for live re-pricing
@@ -3431,6 +3690,23 @@ export default function HotelDetail() {
     );
   };
 
+  if (hotelOff) {
+    return (
+      <div className="sd" ref={pageRef}>
+        <div style={{ maxWidth: 640, margin: '120px auto 80px', padding: '0 16px', textAlign: 'center' }}>
+          <h1 style={{ fontSize: 26, marginBottom: 12 }}>{t('unavailable.title', 'This hotel is not available')}</h1>
+          {realName && <p style={{ fontWeight: 600, marginBottom: 8 }}>{realName}</p>}
+          <p style={{ opacity: 0.75, marginBottom: 24 }}>
+            {t('unavailable.body', 'It cannot be booked at the moment. Please choose another hotel.')}
+          </p>
+          <button type="button" className="fc-cta" onClick={() => navigate(-1)}>
+            {t('unavailable.back', 'Back to results')}
+          </button>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="sd" ref={pageRef}>
       {/* Hero — blends into the transparent app navbar; mosaic lives inside it */}
@@ -3448,7 +3724,7 @@ export default function HotelDetail() {
                   is the only place that knows what the background currently is. */}
               <Link to="/">{t('common:nav.home', 'Home')}</Link><span className="bc-sep">›</span>
               <a onClick={() => navigate(-1)}>{t('breadcrumb.results', 'Results')}</a><span className="bc-sep">›</span>
-              <span className="bc-now">{hotelName}</span>
+              <span className="bc-now">{nameLoading ? <span className="hhn-skel bc-skel" aria-hidden="true" /> : hotelName}</span>
             </div>
             <div className="hha">
               <ShareSheet
@@ -3472,7 +3748,9 @@ export default function HotelDetail() {
           <div className="sd-hero-main">
             <div className="sd-hero-left">
               <div className="sd-hero-eyebrow">{ICON.shield} {t('verifiedStay', 'Verified stay')}{ratingLabel(dispRating) ? ` · ${ratingLabel(dispRating)}` : ''}</div>
-              <h1 className="hhn">{hotelName}</h1>
+              <h1 className="hhn">{nameLoading
+                ? <span className="hhn-skel" role="status" aria-label={t('loadingHotelName', 'Loading hotel name')} />
+                : hotelName}</h1>
               <div className="hhm">
                 <span className="hhs"><RatingMarks rating={dispRating} keySize={16} /></span>
                 <span className="hhl">
@@ -3487,7 +3765,7 @@ export default function HotelDetail() {
               </div>
               <span className="sd-hero-rule" />
               <div className="sd-hero-chips">
-                <span className="sd-chip">{ICON.board} {hotel?.board || t('chips.allInclusive', 'All inclusive')}</span>
+                {shownBoard && <span className="sd-chip">{ICON.board} {shownBoard}</span>}
                 <span className="sd-chip">{ICON.moon} {dayLabel(nights)}</span>
                 <span className="sd-chip">{ICON.users} {t('chips.adults', { count: Number(sAdults) || 2, defaultValue: `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}` })}{Number(sChildren) > 0 ? t('chips.childrenSuffix', { count: Number(sChildren), defaultValue: `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` }) : ''}</span>
                 {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} {t('chips.fromPP', { currency: ccy, amount: fromPP, defaultValue: `from ${ccy}${fromPP} p.p.` })}</span>}
@@ -3574,7 +3852,8 @@ export default function HotelDetail() {
                     : boardsFailed
                       ? t('prices.boardHintUnavailable', 'We couldn’t check this hotel’s meal plans just now. Run the check below to see what is really on offer.')
                       : t('prices.boardHintUnknown', 'Check a date to see which meal plans this hotel actually offers.')}
-                origin={origin} originOptions={departureCodes} originLabel={airportName} destination={destination}
+                origin={origin} originOptions={originCodes} originLabel={airportName} destination={destination}
+                originNotes={originGone ? { [origin]: t('flights.originGoneShort', 'Not available') } : undefined}
                 transport={transport}
                 nights={nights}
                 touched={filtersTouched}
@@ -3604,7 +3883,7 @@ export default function HotelDetail() {
                     </span>
                     <span className="fc-legend-item">
                       <span className="fc-legend-swatch fc-legend-low" aria-hidden="true" />
-                      {t('prices.legend.cheapestOfWeek', 'Cheapest of the week')}
+                      {t('prices.legend.cheapest', 'Cheapest')}
                     </span>
                     <span className="fc-legend-item">
                       <span className="fc-legend-swatch fc-legend-sel" aria-hidden="true" />
@@ -3623,6 +3902,15 @@ export default function HotelDetail() {
                   than an apology about our cache — a traveller does not care that we are
                   warming an index, they care whether the number they are looking at is the
                   number they will pay, and what to do about it. */}
+              {/* Flight + Hotel without package dates in the cache: the bars are the hotel's own
+                  prices, and the flight is priced by the live check. Said, so a hotel price is
+                  never read as a holiday price. */}
+              {usingLive && pkgMode && !useMatrix && (
+                <div className="fc-estimate fc-estimate-hotel" role="note">
+                  <span className="fc-estimate-ico" aria-hidden="true">{ICON.info}</span>
+                  <span className="fc-estimate-text">{t('prices.hotelOnlyStripNote', 'These are hotel prices. Flights are added when you check a date.')}</span>
+                </div>
+              )}
               {usingLive && (
                 <div className="fc-estimate" role="note">
                   <span className="fc-estimate-ico" aria-hidden="true">{ICON.info}</span>
@@ -3652,16 +3940,16 @@ export default function HotelDetail() {
                   that came back empty — otherwise a blank week is a dead end with no way back. */}
               {!liveOnly && (
               <div className="fc-week">
-                {winStart && (
-                  <button type="button" className="fc-arrow" onClick={() => pageDay(-1)}
-                    disabled={!canPageBack}
-                    title={canPageBack ? t('prices.oneDayEarlier', 'One day earlier') : t('prices.earliestDatesBookable', 'These are the earliest dates you can still book')}
-                    aria-label={t('prices.showOneDayEarlier', 'Show one day earlier')}>
+                {(useMatrix ? usingLive : winStart) && (
+                  <button type="button" className="fc-arrow" onClick={() => stripStep(-1)}
+                    disabled={!stripCanBack}
+                    title={useMatrix ? t('prices.earlierDates', 'Earlier dates') : canPageBack ? t('prices.oneDayEarlier', 'One day earlier') : t('prices.earliestDatesBookable', 'These are the earliest dates you can still book')}
+                    aria-label={useMatrix ? t('prices.showEarlierDates', 'Show earlier dates') : t('prices.showOneDayEarlier', 'Show one day earlier')}>
                     <S sw={2.5}><path d="M15 18l-6-6 6-6" /></S>
                   </button>
                 )}
                 <div className="fc-weekmain">
-              {(calLoading || w2mChecking) && !usingLive ? (
+              {(stripLoading || w2mChecking) && !usingLive ? (
                 <div className="fc-strip">
                   {[62, 78, 50, 88, 58, 72, 46].map((h, i) => (
                     <div key={i} className="fc-col fc-skel">
@@ -3685,7 +3973,7 @@ export default function HotelDetail() {
                     <>
                       <p className="fc-blank-title">{t('prices.couldNotLoadPrices', 'We couldn’t load live prices')}</p>
                       <p className="fc-blank-sub">{t('prices.priceServiceDidntAnswer', 'The price service didn’t answer. Your dates are still saved.')}</p>
-                      <button type="button" className="fc-blank-btn" onClick={() => setCalReload((n) => n + 1)}>{t('actions.tryAgain', 'Try again')}</button>
+                      <button type="button" className="fc-blank-btn" onClick={stripReload}>{t('actions.tryAgain', 'Try again')}</button>
                     </>
                   ) : (
                     <>
@@ -3704,12 +3992,12 @@ export default function HotelDetail() {
                   <div className={`fc-strip${priceVaries ? '' : ' fc-flat'}`}>
                     {priceDays.map((p, i) => {
                       const hasPrice = Number(p.price) > 0;
-                      const isEmpty = checkedEmpty.has(emptyKey(p.iso));
+                      const isEmpty = checkedEmpty.has(emptyKey(p.iso)) || p.state === 'NO_VALID_COMBINATION';
                       // Is THIS the day the traveller has picked. Referenced by isLoading, the
                       // `sel` class and aria-pressed below; losing it throws a ReferenceError on
                       // every render and blanks the whole page, so it must stay above isLoading.
                       const sel = pickedIdx === i;
-                      const isLoading = sel && liveChecked && roomsChecking;
+                      const isLoading = sel && liveChecked && liveBusy;
                       // Live came back with rooms for THIS day — the only point in the flow where
                       // availability is a fact rather than a cached guess, so it gets its own
                       // colour. Every clause matters: still loading, an error, or zero rooms are
@@ -3720,21 +4008,21 @@ export default function HotelDetail() {
                       // running, a failure, a room with no rate and an empty answer are all
                       // excluded by construction rather than by remembering to list them.
                       const isLiveOk = sel && liveChecked && roomsAv?.state === AVAILABILITY.AVAILABLE;
-                      const frac = hasPrice && priceVaries ? (p.price - pMin) / (pMax - pMin) : 0.55;
+                      const frac = hasPrice && priceVaries ? (shownPP(p) - pMin) / (pMax - pMin) : 0.55;
                       // A flat week fills its (shorter) canvas: with no profile to draw, a bar
                       // stopping two-thirds up is just a gap, not a reading.
                       const h = priceVaries ? Math.round(44 + 44 * frac) : 100;
-                      // Cheapest of the week ON SCREEN, and only the first day at that price.
+                      // The "Cheapest" badge ON SCREEN, and only the first day at that price.
                       // The API flags the lowest of whichever week it answered, which would
                       // badge several days at once now that the strip stitches weeks together.
                       const isLow = priceVaries && i === lowIdx;
                       // EVERY figure on this strip is per person. The calendar prices a whole
                       // stay for the whole party, so a family of four read a bar four times
                       // the number they would compare against anywhere else they shop.
-                      // Dividing by a constant leaves the profile untouched: `h` above is still
-                      // computed from the party totals, so the bars keep exactly the heights
-                      // they had and the cheapest day is still the shortest.
-                      const pp = hasPrice ? ppOf(p.price) : 0;
+                      // `h` above is computed from this same printed figure (shownPP), so two
+                      // bars that print the same price stand at the same height.
+                      // A matrix date carries its own p.p. price (÷ travellers who are not infants).
+                      const pp = hasPrice ? (p.pp ?? ppOf(p.price)) : 0;
                       // The live answer, shown on the day it was checked and on this strip's
                       // own per-person basis — never the party total, which would look like a
                       // sudden jump the size of the party rather than a price change.
@@ -3747,7 +4035,7 @@ export default function HotelDetail() {
                         // all seven and snap.
                         <button type="button" key={i}
                           className={`fc-col${sel ? ' sel' : ''}${isLiveOk ? ' fc-ok' : ''}${isEmpty ? ' fc-empty' : !hasPrice ? ' fc-nopr' : ''}`}
-                          onClick={() => pickDay(p.iso)}
+                          onClick={() => pickDay(p.iso, p)}
                           disabled={isEmpty}
                           aria-pressed={sel}
                           aria-label={isEmpty ? t('prices.dayNotAvailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available` })
@@ -3820,9 +4108,10 @@ export default function HotelDetail() {
                 </>
               )}
                 </div>
-                {winStart && (
-                  <button type="button" className="fc-arrow" onClick={() => pageDay(1)}
-                    title={t('prices.oneDayLater', 'One day later')} aria-label={t('prices.showOneDayLater', 'Show one day later')}>
+                {(useMatrix ? usingLive : winStart) && (
+                  <button type="button" className="fc-arrow" onClick={() => stripStep(1)}
+                    disabled={!stripCanForward}
+                    title={useMatrix ? t('prices.laterDates', 'Later dates') : t('prices.oneDayLater', 'One day later')} aria-label={useMatrix ? t('prices.showLaterDates', 'Show later dates') : t('prices.showOneDayLater', 'Show one day later')}>
                     <S sw={2.5}><path d="M9 18l6-6-6-6" /></S>
                   </button>
                 )}
@@ -3924,7 +4213,7 @@ export default function HotelDetail() {
                                   holiday was available before anybody knew it was. In progress is a
                                   spinner, a failed check is amber, and the tick is earned only once
                                   rooms have actually come back. */}
-                              {roomsChecking ? (
+                              {liveBusy ? (
                                 <span className="fc-res-mark fc-res-mark-busy" aria-hidden="true" />
                               ) : roomsUnsettled ? (
                                 <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f59e0b" /><path d="M12 7.4v5.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="16.4" r="1.35" fill="#fff" /></svg>
@@ -3933,7 +4222,7 @@ export default function HotelDetail() {
                               )}
                               <div className="av-head">
                                 <div className="avail-text">
-                                  {roomsChecking ? t('prices.checkingLiveAvailability', 'Checking live availability…')
+                                  {liveBusy ? t('prices.checkingLiveAvailability', 'Checking live availability…')
                                     : roomsPriceUnknown ? t('prices.priceStillToCheck', 'Price still to be checked')
                                     : roomsFailed ? (pdEstimate ? t('prices.showingEstimatedPrice', 'Showing estimated price') : t('prices.livePriceUnavailable', 'Live price unavailable'))
                                     : t('prices.holidayAvailable', 'Your holiday is available!')}
@@ -3942,9 +4231,9 @@ export default function HotelDetail() {
                                     a price that came back from the supplier is confirmed, an
                                     estimate off the cache is not, and neither is a check still
                                     running. */}
-                                <div className={`av-confirm${roomsUnsettled ? ' warn' : ''}${roomsChecking ? ' busy' : ''}`}>
+                                <div className={`av-confirm${roomsUnsettled ? ' warn' : ''}${liveBusy ? ' busy' : ''}`}>
                                   <i className="av-dot" />
-                                  {roomsChecking ? t('prices.askingHotelForRate', 'Asking the hotel for today’s rate')
+                                  {liveBusy ? t('prices.askingHotelForRate', 'Asking the hotel for today’s rate')
                                     : roomsPriceUnknown ? t('prices.roomsWithoutPrice', 'Rooms are open, no price came back')
                                     : roomsFailed ? (pdEstimate ? t('prices.estimatedNotConfirmed', 'Estimated price — not confirmed') : t('prices.couldNotReachHotel', 'Could not reach the hotel'))
                                     : t('prices.liveAvailabilityConfirmed', 'Live availability and price confirmed')}
@@ -3963,7 +4252,7 @@ export default function HotelDetail() {
                                   actually pay is never left to be worked out. */}
                               <div className="av-price-row">
                                 <span className="avail-price-val">
-                                  {roomsChecking
+                                  {liveBusy
                                     ? <span className="avail-spin" />
                                     : (liveNow != null || pdEstimate)
                                       ? <><small>€</small>{ppOf(liveNow != null ? liveNow : Number(pd.price))}<em>p.p.</em></>
@@ -4000,7 +4289,9 @@ export default function HotelDetail() {
                                     number. On an own-transport stay the room IS the holiday. */}
                                 {liveRoom ? (transport === 'hotel_only'
                                   ? t('prices.totalHolidayPrice', { nights: dayLabel(nights), defaultValue: `Total holiday price · ${dayLabel(nights)}` })
-                                  : t('prices.liveRoomPrice', { nights: dayLabel(nights), defaultValue: `Live room price · ${dayLabel(nights)}` }))
+                                  : useMatrix && liveNow != null
+                                    ? t('prices.livePackagePrice', { nights: dayLabel(nights), defaultValue: `Live price, flight + hotel · ${dayLabel(nights)}` })
+                                    : t('prices.liveRoomPrice', { nights: dayLabel(nights), defaultValue: `Live room price · ${dayLabel(nights)}` }))
                                   : roomsPriceUnknown ? t('prices.priceUnknownRetry', 'No price came back for these dates, try the check again')
                                   : roomsFailed ? (pdEstimate ? t('prices.livePriceUnavailableEstimate', 'Live price unavailable — estimate shown') : t('prices.noEstimateTryAgain', 'No estimate for this day — try again'))
                                   : pdEstimate ? (pd?.lowest ? t('prices.lowestEstimatedPrice', 'Lowest estimated price') : t('prices.estimatedPrice', 'Estimated price'))
@@ -4131,6 +4422,15 @@ export default function HotelDetail() {
                       {/* The airport the fares were REALLY searched from — this line used to
                           hardcode Brussels while quoting Eindhoven prices. */}
                       <div className="flight-note">{ICON.clock} {t('flights.liveFaresFrom', { airport: airportName(liveFlights.from || origin), defaultValue: `Live fares from ${airportName(liveFlights.from || origin)} for your selected travel dates.` })}</div>
+                      {/* The package's own flight could not be held: the supplier no longer sells
+                          it, or it could not be checked. Said, because the price is not the
+                          card's any more. (A check that failed is never "sold out".) */}
+                      {!pick && liveFlights.pkgStatus === PACKAGE_FLIGHT.NOT_AVAILABLE && (
+                        <div className="flight-note flight-note-pkg" role="status">{ICON.info} {t('flights.packageFlightGone', 'The flight of this package is no longer on sale. The best available flight is selected instead, at its live price.')}</div>
+                      )}
+                      {!pick && liveFlights.pkgStatus === PACKAGE_FLIGHT.UNKNOWN && (
+                        <div className="flight-note flight-note-pkg" role="status">{ICON.info} {t('flights.packageFlightUnchecked', 'We could not check the flight of this package just now. The best available flight is selected, at its live price.')}</div>
+                      )}
                       {/* ONE flight on the page, every other option behind "Change flight".
                           Two cards side by side asked a traveller to compare before they had
                           been told what they were comparing, and the second was whichever fare
@@ -4289,9 +4589,14 @@ export default function HotelDetail() {
                         deltas from the design mock; a real delta would cost one live supplier
                         search per airport, so the price line is gone rather than faked. */}
                     <div className="alt-airports">
+                      {originGone && (
+                        <p className="alt-airports-label" role="status">
+                          {t('flights.originGone', { airport: airportName(origin), defaultValue: 'No package from {{airport}} for this hotel and these dates. Choose another airport.' })}
+                        </p>
+                      )}
                       <div className="alt-airports-label">{t('flights.flyingFromAnother', 'Flying from another airport?')}</div>
                       <div className="alt-airport-chips">
-                        {departureCodes.map((code) => (
+                        {originCodes.map((code) => (
                           <button type="button" key={code}
                             className={`alt-chip${origin === code ? ' act' : ''}`}
                             aria-pressed={origin === code}
@@ -4710,16 +5015,16 @@ export default function HotelDetail() {
                     stunning boutique hotel nestled on the pristine shores of…", which for
                     the 3% of records with no description was fiction with a hotel's name
                     on it. Nothing to say → the block does not render. */}
-                {(info?.description || hasPhotos) && (
+                {(description || hasPhotos) && (
                   <section className="hi-card hi-about">
-                    {info?.description && (
+                    {description && (
                       <div className="hi-about-copy">
                         <div className="hi-card-head">
                           <div className="hi-card-icon">{ICON.info}</div>
                           <h3 className="hi-card-title">{t('info.about', { hotelName, defaultValue: `About ${hotelName}` })}</h3>
                         </div>
-                        <div className={`hi-desc${expanded.d1 ? ' exp' : ''}`}>{info.description}</div>
-                        {info.description.length > 260 && (
+                        <div className={`hi-desc${expanded.d1 ? ' exp' : ''}`}>{description}</div>
+                        {description.length > 260 && (
                           <button className="hi-link" onClick={() => toggleExpand('d1')}>
                             {expanded.d1 ? t('actions.showLess', 'Show less') : t('actions.readMore', 'Read more')}
                             <S size={14} sw={2.5}><path d={expanded.d1 ? 'M18 15l-6-6-6 6' : 'M6 9l6 6 6-6'} /></S>
@@ -4844,9 +5149,9 @@ export default function HotelDetail() {
                           <div className="hi-nearby">
                             <div className="hi-nearby-title">{t('info.location.nearby', 'Nearby')}</div>
                             {nearby.map((n) => (
-                              <div className="hi-nearby-row" key={n.label}>
+                              <div className="hi-nearby-row" key={n.key || n.label}>
                                 <span className="hi-nearby-icon">{FAC_SVG[n.icon] || FAC_SVG.check}</span>
-                                <span className="hi-nearby-label">{n.label}</span>
+                                <span className="hi-nearby-label">{t(`info.location.nearbyPlace.${n.key}`, n.label)}</span>
                                 <span className="hi-nearby-dist">{n.text}</span>
                               </div>
                             ))}
@@ -5228,7 +5533,7 @@ export default function HotelDetail() {
                                 </div>
                                 <ul className="hf-list">
                                   {items.map((item) => (
-                                    <li className="hf-item" key={item.name}>
+                                    <li className="hf-item" key={item.key || item.name}>
                                       <span className="hf-item-tick">{FAC_SVG.check}</span>
                                       <span className="hf-item-name">
                                         {item.name}{item.count ? ` (${item.count})` : ''}
@@ -5371,7 +5676,7 @@ export default function HotelDetail() {
                 <div className="bkdi"><span className="bkdk">{transport === 'hotel_only' ? ICON.bed : ICON.plane}</span>{transport === 'hotel_only'
                   ? t('chips.hotelOnly', 'Hotel only')
                   : destination ? `${airportName(origin)} (${origin}) → ${destination}` : `${airportName(origin)} (${origin})`}</div>
-                <div className="bkdi"><span className="bkdk">{ICON.board}</span>{hotel?.board || t('chips.allInclusive', 'All inclusive')}</div>
+                {shownBoard && <div className="bkdi"><span className="bkdk">{ICON.board}</span>{shownBoard}</div>}
                 <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{dayLabel(nights)}</div>
               </div>
               <div className="bkcw">
@@ -5563,8 +5868,8 @@ export default function HotelDetail() {
               {facets.type && (
                 <div className="modal-filter-group">
                   <div className="modal-filter-title">
-                    {t('flightModal.flightType', 'Flight type')}
-                    <FilterHint text={t('flightModal.directFlightsHint', 'Direct flights have no stopover in either direction.')} />
+                    {t('flightModal.flightType', 'Connections')}
+                    <FilterHint text={t('flightModal.directFlightsHint', 'Non-stop flights have no stop in either direction. Where the destination allows it, a flight may have one connection; never more.')} />
                   </div>
                   {/* Two boxes, not three. "All flights" was a checkbox that could only ever
                       be ticked — the way back from a narrowed list — and a row whose count
@@ -5572,8 +5877,10 @@ export default function HotelDetail() {
                       nothing. Un-ticking either box is the way back now, which is what a
                       checkbox means everywhere else on this rail. */}
                   {[
-                    { id: 'direct', label: t('flightModal.directFlights', 'Direct flights'),       count: facets.type.direct },
-                    { id: 'stops',  label: t('flightModal.flightsWithStops', 'Flights with stop(s)'), count: facets.type.stops },
+                    // Build order, step 13: the airport's connection policy decides what can be
+                    // here at all (backend), so "with one connection" is never more than one.
+                    { id: 'direct', label: t('flightModal.directFlights', 'Non-stop'),            count: facets.type.direct },
+                    { id: 'stops',  label: t('flightModal.flightsWithStops', 'With one connection'), count: facets.type.stops },
                   ].map((o) => (
                     <label key={o.id} className={`modal-filter-opt${fType === o.id ? ' checked' : ''}`}>
                       <input type="checkbox" className="mf-input" checked={fType === o.id}

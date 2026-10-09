@@ -43,6 +43,7 @@
   "sort": {
     "label": "Sorteren",
     "aria": "Resultaten sorteren",
+    "recommended": "Aanbevolen",
     "price_asc": "Prijs: laag naar hoog",
     "price_desc": "Prijs: hoog naar laag",
     "name_asc": "Naam: A tot Z",
@@ -121,6 +122,9 @@
     "otherAirports": "Andere luchthavens",
     "originNote": "Vluchten worden op de hotelpagina geprijsd, eerst vanaf deze luchthaven. Wordt een route hier niet gevlogen, dan tonen we je de dichtstbijzijnde luchthavens die dat wel doen.",
     "arrivalAirport": "Aankomstluchthaven",
+    "connections": "Overstappen",
+    "nonstopOnly": "Alleen non-stop vluchten",
+    "nonstopNote": "Waar een bestemming het toelaat, kan de goedkoopste vlucht één overstap hebben. Vink dit aan voor alleen non-stop vluchten.",
     "airportSearch": "Zoek luchthaven of plaats",
     "pickAirports": "Kies één of meerdere luchthavens",
     "noAirportMatch": "Geen luchthaven komt overeen.",
@@ -167,7 +171,8 @@
     "airportsChecking": "We kijken welke luchthavens erheen vliegen…",
     "airportsCheckFailed": "We konden nu niet nagaan welke luchthavens erheen vliegen, dus elke luchthaven blijft kiesbaar.",
     "originNoteAny": "Bij elk hotel zie je de vertrekluchthaven met de laagste prijs. Vink luchthavens aan om alleen die te vergelijken.",
-    "airportNoFlight": "Geen vlucht naar {{place}} op deze data"
+    "airportNoFlight": "Geen vlucht naar {{place}} op deze data",
+    "airportChoiceGone": "Niet beschikbaar voor deze zoekopdracht. Vink hem uit of kies een andere luchthaven."
   },
   "hero": {
     "home": "Home",
@@ -175,6 +180,7 @@
     "results": "Resultaten",
     "staysIn": "Verblijven in",
     "findStay": "Vind jouw perfecte verblijf",
+    "allDestinations": "Alle bestemmingen",
     "popularDestinations": "Populaire bestemmingen",
     "places": "{{count}} bestemmingen",
     "inclFlightFrom": "Incl. vlucht · vanaf {{city}}",
@@ -228,7 +234,12 @@
     "onRequestNote_other": "Nog {{count}} verblijven zijn beschikbaar op deze data. Open er een om de actuele prijs te zien.",
     "stayWindow_one": "{{from}} → {{to}} · {{count}} nacht",
     "stayWindow_other": "{{from}} → {{to}} · {{count}} nachten",
-    "flightPricedLaterAny": "+ vlucht · prijs op de hotelpagina"
+    "flightPricedLaterAny": "+ vlucht · prijs op de hotelpagina",
+    "noNonstopPriced": "Geen non-stop vlucht geprijsd voor deze data · zie hotelpagina",
+    "hotelNameUnavailable": "Hotel",
+    "flightTimes": "Heen {{out}} · terug {{back}}",
+    "withStop": "met tussenstop",
+    "direct": "rechtstreeks"
   },
   "lightbox": {
     "photosOf": "Foto’s van {{name}}",
@@ -247,5 +258,16 @@
     "removedFavourite": "Verwijderd uit favorieten",
     "addedFavourite": "Toegevoegd aan favorieten",
     "favouriteFailed": "De favorieten konden niet worden bijgewerkt. Probeer het opnieuw."
+  },
+  "pkg": {
+    "noFlightDestinations": "Geen vlucht + hotelpakketten naar {{places}} op deze data: er zijn geen vluchten. We tonen de andere bestemmingen.",
+    "unknownDestinations": "Vlucht + hotelprijzen voor {{places}} kunnen nog niet berekend worden: de vluchtgegevens zijn nog onvolledig. Deze bestemmingen ontbreken niet omdat er geen vluchten zijn.",
+    "stillSearching": "We zoeken nog meer bestemmingen…",
+    "noneYetTitle": "Vlucht + hotelprijzen kunnen nog niet berekend worden",
+    "noneYetText": "De vluchtgegevens voor deze zoekopdracht zijn nog onvolledig. Probeer andere data, of kies Enkel hotel.",
+    "failedDestinations": "Vlucht + hotelprijzen voor {{places}} konden nu niet geladen worden.",
+    "tryAgain": "Opnieuw proberen",
+    "failedTitle": "We konden niet alle vlucht + hotelprijzen laden",
+    "failedText": "Sommige bestemmingen antwoordden niet op tijd. Probeer het zo meteen opnieuw."
   }
 }

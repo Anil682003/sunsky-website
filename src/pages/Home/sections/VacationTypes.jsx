@@ -16,9 +16,10 @@ const boardUrl = (code, label) => {
   const qs = new URLSearchParams();
   qs.set('boards', String(code).trim().toUpperCase());
   if (label) qs.set('boardLabel', label);
+  qs.set('transport', 'package');   // homepage links open Flight + Hotel (utils/cmsDestinations)
   return `/results?${qs.toString()}`;
 };
-const searchUrl = (params) => `/results?${new URLSearchParams(params).toString()}`;
+const searchUrl = (params) => `/results?${new URLSearchParams({ ...params, transport: 'package' }).toString()}`;
 
 // A dashboard card can carry a list of filter criteria instead of a single board code. Each is
 // { filterKey, value, label }; criteria sharing a filterKey OR together, which is exactly how the
@@ -78,6 +79,7 @@ const criteriaUrl = (criteria, cardTitle) => {
   if (cardTitle) qs.set('cardLabel', cardTitle);
   const labels = criteria.map(criterionLabel).filter(Boolean);
   if (labels.length) qs.set('filterLabels', labels.join('|'));
+  qs.set('transport', 'package');
   return `/results?${qs.toString()}`;
 };
 

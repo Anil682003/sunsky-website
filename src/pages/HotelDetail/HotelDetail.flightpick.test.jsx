@@ -107,9 +107,9 @@ const auth = createSlice({ name: 'auth', initialState: { isAuthenticated: false 
 const makeStore = () => configureStore({ reducer: { auth: auth.reducer } });
 
 // No `transport` param — the page defaults to `package`, which is what runs a flight search.
-const renderPage = () => render(
+const renderPage = (extra = '') => render(
   <Provider store={makeStore()}>
-    <MemoryRouter initialEntries={[`/hotel/300984?checkIn=${CHECK_IN}&checkOut=${CHECK_OUT}&adults=2&children=0&rooms=1&nights=7&destination=ADB&name=Test+Hotel`]}>
+    <MemoryRouter initialEntries={[`/hotel/300984?checkIn=${CHECK_IN}&checkOut=${CHECK_OUT}&adults=2&children=0&rooms=1&nights=7&destination=ADB&name=Test+Hotel${extra}`]}>
       <Routes>
         <Route path="/hotel/:hotelCode" element={<HotelDetail />} />
         <Route path="/checkout" element={<div data-testid="checkout">CHECKOUT</div>} />
@@ -347,8 +347,19 @@ describe('the filter rail acts on the live results', () => {
     await openFilters(user);
     await waitFor(() => expect(modalCards(container).length).toBe(3));
 
-    await user.click(screen.getByRole('checkbox', { name: /rechtstreekse vluchten/i }));
+    await user.click(screen.getByRole('checkbox', { name: /^non-stop/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(2));
+    expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
+  });
+
+  // Build order, step 13: "Non-stop flights only" ticked on the results page follows the
+  // traveller here, ticked and in force, so the card does not quietly hold a connection.
+  it('arrives with Non-stop ticked from the results page (?routing=nonstop)', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage('&transport=package&routing=nonstop');
+    await openFilters(user);
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: /^non-stop/i }).checked).toBe(true));
+    expect(modalCards(container).length).toBe(2);
     expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
   });
 
@@ -357,7 +368,7 @@ describe('the filter rail acts on the live results', () => {
     const { container } = renderPage();
     await openFilters(user);
 
-    await user.click(screen.getByRole('checkbox', { name: /vluchten met tussenstop/i }));
+    await user.click(screen.getByRole('checkbox', { name: /met één overstap/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(1));
     expect(container.querySelector('.modal-flights').textContent).toContain('Turkish');
   });
@@ -390,7 +401,7 @@ describe('the filter rail acts on the live results', () => {
     const { container } = renderPage();
     await openFilters(user);
 
-    await user.click(screen.getByRole('checkbox', { name: /vluchten met tussenstop/i }));
+    await user.click(screen.getByRole('checkbox', { name: /met één overstap/i }));
     await waitFor(() => expect(screen.getByText(/1 van 3 vluchten komen overeen/i)).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: /alle filters resetten/i }));
@@ -410,7 +421,7 @@ describe('the filter rail acts on the live results', () => {
     const body = () => container.querySelector('.modal-body');
     expect(body().className).toContain('rail-open');
 
-    await user.click(screen.getByRole('checkbox', { name: /vluchten met tussenstop/i }));
+    await user.click(screen.getByRole('checkbox', { name: /met één overstap/i }));
     // Queried by class, not by role: both controls are `display:none` until the media query
     // that owns them matches, and jsdom evaluates no media queries.
     await user.click(container.querySelector('.modal-rail-fold'));

@@ -5,8 +5,10 @@
 // rather than in either page: the /holidays/:slug grid, and the expandable slip
 // on the homepage Categories card.
 
-// Mirrors the CMS and backend caps.
-export const MAX_DESTS = 6;
+// Mirrors the CMS and backend caps (dashboard MAX_FEATURED_DESTINATIONS and the API's
+// normalizeFeaturedDestinations, which slices on read). All three move together: 24 clears the
+// largest real holiday type, which links 21 countries.
+export const MAX_DESTS = 24;
 
 // CMS destinations are free-form JSON — keep only entries that can actually
 // build a search link, so a half-filled dashboard row never renders a dead card.
@@ -18,6 +20,11 @@ export const normalizeDests = (list) =>
 export const destLabel = (d) =>
   d.type === 'city' && d.countryName ? `${d.name}, ${d.countryName}` : d.name || d.code;
 
+// Homepage links open Flight + Hotel (the product the site sells, and the hero's default): with
+// `transport=package` the results page lists complete packages, from the precalculated default
+// search when the link carries no dates (7 Oct 2026).
+export const PACKAGE_TRANSPORT = 'package';
+
 // The results page scopes a search by Hotelbeds codes: whole countries go in
 // `countries`, single cities in `destinations` — the same params the results
 // sidebar itself writes back. Dates are deliberately omitted; Results defaults
@@ -27,6 +34,7 @@ export const destUrl = (d) => {
   qs.set(d.type === 'country' ? 'countries' : 'destinations', d.code);
   const label = destLabel(d);
   if (label) qs.set('destinationLabel', label);
+  qs.set('transport', PACKAGE_TRANSPORT);
   return `/results?${qs.toString()}`;
 };
 
@@ -53,6 +61,7 @@ export const groupLinkUrl = (link) => {
   if ([...qs.keys()].length === 0) return null;
   const label = link.label || d?.name || '';
   if (label) qs.set('destinationLabel', label);
+  qs.set('transport', PACKAGE_TRANSPORT);
   return `/results?${qs.toString()}`;
 };
 
@@ -83,6 +92,7 @@ export const sectionSearchUrl = ({ dests = [], label = '' } = {}) => {
   if (countries.size) qs.set('countries', [...countries].join(','));
   if (cities.size) qs.set('destinations', [...cities].join(','));
   if (label) qs.set('destinationLabel', label);
+  qs.set('transport', PACKAGE_TRANSPORT);
   return `/results?${qs.toString()}`;
 };
 
