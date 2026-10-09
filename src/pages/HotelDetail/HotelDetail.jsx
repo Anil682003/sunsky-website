@@ -1689,7 +1689,9 @@ export default function HotelDetail() {
   // Switched OFF in the admin — the hotel itself, or its zone, destination or country (Levent,
   // 8 Oct 2026). No price check, no booking: the page says so and nothing more. The backend
   // refuses the live check and the booking for it as well.
-  const unavailable = info?.active === false;
+  // Named hotelOff, never `unavailable`: that name is the availability-state builder imported
+  // above, and shadowing it broke every sold-out day on this page (8 Oct 2026).
+  const hotelOff = info?.active === false;
   // Hotel prose in the traveller's language. Falls back to English when Hotelbeds has no Dutch
   // text for a property, which is better than an empty About block.
   const description = useMemo(
@@ -3245,7 +3247,7 @@ export default function HotelDetail() {
 
   const checkAvailabilityForDay = (dayISO) => {
     const checkin = dayISO || pickedISO || baseCheckIn;
-    if (!checkin || unavailable) return;
+    if (!checkin || hotelOff) return;
     // A day a supplier has already confirmed as empty never starts another live check. There
     // is nothing left to ask, and asking would replace the honest "not available" card with a
     // spinner and then re-derive the same answer at the cost of a supplier call. Keyed on the
@@ -3630,7 +3632,7 @@ export default function HotelDetail() {
     );
   };
 
-  if (unavailable) {
+  if (hotelOff) {
     return (
       <div className="sd" ref={pageRef}>
         <div style={{ maxWidth: 640, margin: '120px auto 80px', padding: '0 16px', textAlign: 'center' }}>
