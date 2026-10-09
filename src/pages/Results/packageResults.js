@@ -188,6 +188,41 @@ export function unknownDestinations(groups) {
   return [...new Set(out)];
 }
 
+/** The answers that mean "certainly no package here: no flight" (not "not calculated yet"). */
+const NO_FLIGHT = new Set(['NO_VALID_FLIGHT', 'NO_ARRIVAL_AIRPORT']);
+
+/**
+ * PURE. The places to name in "No flight + hotel packages to … for these dates" (9 Oct 2026: a
+ * 3-country January search showed only Spain, with no word on Albania and Bulgaria). Only once
+ * every group has answered without an error, so a destination still loading or failed is never
+ * called "no flights". A country is named when none of its searched destinations has a package
+ * for that reason; otherwise the destinations themselves. `cities`: { code, countryCode }.
+ *
+ * @returns {{ countries: string[], destinations: string[] }}
+ */
+export function noFlightPlaces(groups, cities = []) {
+  const none = { countries: [], destinations: [] };
+  if (!groups.length || !groups.every((g) => g.done && !g.error)) return none;
+  const status = Object.assign({}, ...groups.map((g) => g.destinationStatus || {}));
+  const searched = [...new Set(groups.flatMap((g) => g.dests || []))];
+  const noFlight = new Set(searched.filter((d) => status[d]?.status === 'NOT_FEASIBLE' && NO_FLIGHT.has(status[d]?.reason)));
+  if (!noFlight.size) return none;
+  const countryOf = new Map((cities || []).map((c) => [c.code, c.countryCode || null]));
+  const byCountry = new Map();
+  for (const d of searched) {
+    const c = countryOf.get(d);
+    if (!c) continue;
+    if (!byCountry.has(c)) byCountry.set(c, []);
+    byCountry.get(c).push(d);
+  }
+  const countries = [];
+  const covered = new Set();
+  for (const [c, dests] of byCountry) {
+    if (dests.every((d) => noFlight.has(d))) { countries.push(c); dests.forEach((d) => covered.add(d)); }
+  }
+  return { countries, destinations: [...noFlight].filter((d) => !covered.has(d)) };
+}
+
 /** PURE. Board facets summed over the groups (each group covers other destinations). */
 export function mergeBoardFacets(groups) {
   const out = {};
@@ -216,4 +251,4 @@ export function mergeAirportFacets(groups, body = {}) {
   };
 }
 
-export default { PACKAGE_CONCURRENCY, chunkDestinations, packageBody, mapPackage, mergePackages, groupsToExtend, randomOrder, packageTotal, cheapestPackage, unknownDestinations, mergeBoardFacets, mergeAirportFacets, DEST_CHUNK, PACKAGE_PAGE, PRECALC_NIGHTS };
+export default { PACKAGE_CONCURRENCY, chunkDestinations, packageBody, mapPackage, mergePackages, groupsToExtend, randomOrder, packageTotal, cheapestPackage, noFlightPlaces, unknownDestinations, mergeBoardFacets, mergeAirportFacets, DEST_CHUNK, PACKAGE_PAGE, PRECALC_NIGHTS };

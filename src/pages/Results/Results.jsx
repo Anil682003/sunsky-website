@@ -7,7 +7,7 @@ import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
 import {
   packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, PACKAGE_CONCURRENCY, isoAddDays,
-  packageTotal, cheapestPackage,
+  packageTotal, cheapestPackage, noFlightPlaces,
 } from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
@@ -865,6 +865,11 @@ export default function Results() {
   const [pkgFailed, setPkgFailed] = useState([]);
   // Flight + Hotel: the count from the groups' result snapshots (Ch 1 §2); null = not known yet.
   const [pkgTotal, setPkgTotal] = useState(null);
+  // Hotel only: the exact total of a random-order search (the cache priced every hotel); null =
+  // price order, where the cache prices only what the page needs and the count shows "+".
+  const [cacheTotal, setCacheTotal] = useState(null);
+  // Flight + Hotel: each group's answer per destination, for the "no flights to …" notice.
+  const [pkgStatusGroups, setPkgStatusGroups] = useState([]);
   const [pkgLoadingGroups, setPkgLoadingGroups] = useState(0);
   // Card photos that could not be loaded at any size: those cards show the no-photo tile.
   const [failedPhotos, setFailedPhotos] = useState(() => new Set());
@@ -1338,6 +1343,12 @@ export default function Results() {
     if (f.priceBasis !== 'total') body.priceBasis = f.priceBasis;
     if (f.refundable !== 'any')   body.refundable = f.refundable;
     if (f.sortBy === 'price_desc') body.sortBy = 'price_desc';
+    // "Recommended": the stable random order of this session (Ch 1 §2). The cache applies it only
+    // when switched on (RESULTS_RANDOM_HOTEL_ONLY); off, it answers in price order as before.
+    // Same place as in the warmer (utils/warmSearches.js), so both still send the same search.
+    else if (f.sortBy === 'recommended') { body.sortBy = 'random'; body.resultRandomSeed = resultSeed(); }
+    // Pages 2+ of a random-order search: cut from page 1's result snapshot.
+    if (over.searchQueryId) body.searchQueryId = over.searchQueryId;
     if (f.transport === 'package') body.searchType = 'PACKAGE';
 
     // Content-filter hand-off. An empty resolved set means "facets selected but nothing matched"
@@ -1532,6 +1543,7 @@ export default function Results() {
     setPkgFailed(pk.groups.filter((g) => g.done && g.error).flatMap((g) => g.dests));
     setPkgLoadingGroups(pk.groups.filter((g) => !g.done).length);
     setPkgTotal(packageTotal(pk.groups));
+    setPkgStatusGroups(pk.groups.map((g) => ({ dests: g.dests, done: g.done, error: g.error, destinationStatus: g.destinationStatus })));
     if (merged.length || !pending) { setLoading(false); setFiltering(false); setPendingSearch(false); }
     if (!pending) {
       setCheapestCode(sortBy === 'price_asc' ? (merged[0]?.hotelCode ?? null)
@@ -1618,6 +1630,7 @@ export default function Results() {
     setHasMore(true);
     seenCodesRef.current  = new Set();
     paginationRef.current = { page: 1, hasMore: true, fetching: true };
+    setCacheTotal(null);
 
     const reqId = ++reqIdRef.current;
     const { url, opts } = buildRequest(fetchParams, priceScope, childAges, 1, applied);
@@ -1654,6 +1667,7 @@ export default function Results() {
       setPkgProven({ origins: null, arrivals: null });
       setPkgFailed([]);
       setPkgTotal(null);
+      setPkgStatusGroups([]);
       setNights(nightsBetween(fetchParams.checkIn, fetchParams.checkOut) || 0);
       setCheapestCode(null);
       setBoardFacets({});
@@ -1693,7 +1707,9 @@ export default function Results() {
           growCeiling(mapped.map((h) => (applied.priceBasis === 'perPerson' ? h.perPerson : h.totalAmount)).filter((n) => Number.isFinite(n)));
         }
         const more = data.hasMore ?? (results.length >= PAGE_SIZE);
-        paginationRef.current = { page: 2, hasMore: more, fetching: false };
+        paginationRef.current = { page: 2, hasMore: more, fetching: false, searchQueryId: data.searchQueryId ?? null };
+        // The random order prices the whole search, so its total is exact: shown without "+".
+        setCacheTotal(data.randomOrder && Number.isFinite(data.total) ? data.total : null);
         setHasMore(more);
         setAllHotels(mapped);
         setLoading(false);
@@ -1782,7 +1798,7 @@ export default function Results() {
     const f   = appliedRef.current;
     const reqId = reqIdRef.current;
 
-    const { url, opts } = buildRequest(fp, ps, ca, pg.page, f);
+    const { url, opts } = buildRequest(fp, ps, ca, pg.page, f, pg.searchQueryId ? { searchQueryId: pg.searchQueryId } : {});
     console.log('[Results] Load more (page=' + pg.page + '):', opts.method || 'GET', url);
 
     fetch(url, opts)
@@ -1803,7 +1819,7 @@ export default function Results() {
           }
         }
         const more = data.hasMore ?? (results.length >= PAGE_SIZE);
-        paginationRef.current = { page: pg.page + 1, hasMore: more, fetching: false };
+        paginationRef.current = { page: pg.page + 1, hasMore: more, fetching: false, searchQueryId: data.searchQueryId ?? pg.searchQueryId ?? null };
         setHasMore(more);
         setFetchingMore(false);
       })
@@ -1816,9 +1832,23 @@ export default function Results() {
       });
   }, [scopeLabel]);
 
-  // The count above the list: Flight + Hotel takes it from the result snapshots once every group
-  // has answered (Ch 1 §2); otherwise, and for Hotel only, the hotels loaded (with "+").
-  const shownTotal = applied.transport === 'package' ? pkgTotal : null;
+  // The count above the list (Ch 1 §2): Flight + Hotel from the result snapshots once every group
+  // has answered; Hotel only from a random-order answer's exact total; otherwise the hotels loaded
+  // (with "+").
+  const shownTotal = applied.transport === 'package' ? pkgTotal : cacheTotal;
+
+  // "No flight + hotel packages to Albania and Bulgaria for these dates": named once every group
+  // has answered, only for a certain "no flight" (never for a destination still loading/failed).
+  const noFlightLabel = useMemo(() => {
+    const places = noFlightPlaces(pkgStatusGroups, scopeCities);
+    const cityName = (d) => scopeCities.find((c) => c.code === d)?.name || d;
+    const names = [
+      ...places.countries.map((c) => countryName(c, i18nInstance.language, countryOptions.find((o) => o.code === c)?.name || c)),
+      ...places.destinations.map(cityName),
+    ];
+    if (!names.length) return '';
+    try { return new Intl.ListFormat(i18nInstance.language, { type: 'conjunction' }).format(names); } catch { return names.join(', '); }
+  }, [pkgStatusGroups, scopeCities, countryOptions, i18nInstance.language]);
 
   // Client-side sorts (name / stars / distance) over the loaded results. Price sorts are done by
   // the cache; these reorder what's loaded, using the info/attribute data as it arrives.
@@ -2983,6 +3013,16 @@ export default function Results() {
                 {t('pkg.unknownDestinations', {
                   places: pkgUnknown.map((d) => scopeCities.find((c) => c.code === d)?.name || d).join(', '),
                   defaultValue: 'Flight + hotel prices for {{places}} cannot be calculated yet: the flight data is still incomplete. These destinations are not left out because there are no flights.',
+                })}
+              </div>
+            )}
+            {/* A destination with certainly no package because there is no flight on these dates
+                (e.g. Albania in January): named, so the list is not read as "only Spain exists". */}
+            {!loading && applied.transport === 'package' && noFlightLabel && allHotels.length > 0 && (
+              <div className={styles.pkgNotice} role="status">
+                {t('pkg.noFlightDestinations', {
+                  places: noFlightLabel,
+                  defaultValue: 'No flight + hotel packages to {{places}} for these dates: there are no flights. Showing the other destinations.',
                 })}
               </div>
             )}

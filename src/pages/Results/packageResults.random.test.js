@@ -78,3 +78,29 @@ describe('the count and the cheapest badge', () => {
     expect(cheapestPackage([])).toBeNull();
   });
 });
+
+import { noFlightPlaces } from './packageResults';
+describe('no-flight places for the notice', () => {
+  const cities = [{ code: 'TIA', countryCode: 'AL' }, { code: 'DRR', countryCode: 'AL' }, { code: 'VAR', countryCode: 'BG' }, { code: 'PMI', countryCode: 'ES' }];
+  const g = (dests, st, o = {}) => ({ dests, done: true, error: null, destinationStatus: st, ...o });
+  const NF = { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' };
+  it('countries when all their places have no flight, else the places', () => {
+    expect(noFlightPlaces([g(['TIA', 'DRR', 'VAR', 'PMI'], { TIA: NF, DRR: NF, VAR: NF, PMI: { status: 'FEASIBLE' } })], cities))
+      .toEqual({ countries: ['AL', 'BG'], destinations: [] });
+    expect(noFlightPlaces([g(['TIA', 'DRR'], { TIA: NF, DRR: { status: 'FEASIBLE' } })], cities))
+      .toEqual({ countries: [], destinations: ['TIA'] });
+  });
+  it('no airport is also "no flight"; other reasons and UNKNOWN are not', () => {
+    expect(noFlightPlaces([g(['TIA'], { TIA: { status: 'NOT_FEASIBLE', reason: 'NO_ARRIVAL_AIRPORT' } })], cities).countries).toEqual(['AL']);
+    expect(noFlightPlaces([g(['TIA', 'DRR'], { TIA: { status: 'UNKNOWN' }, DRR: { status: 'NOT_FEASIBLE', reason: 'NO_HOTEL_FOR_FLIGHT_STAYS' } })], cities))
+      .toEqual({ countries: [], destinations: [] });
+  });
+  it('nothing while a group is loading or failed', () => {
+    expect(noFlightPlaces([g(['TIA'], { TIA: NF }), g(['VAR'], {}, { done: false })], cities)).toEqual({ countries: [], destinations: [] });
+    expect(noFlightPlaces([g(['TIA'], { TIA: NF }), g(['VAR'], {}, { error: new Error('x') })], cities)).toEqual({ countries: [], destinations: [] });
+    expect(noFlightPlaces([], cities)).toEqual({ countries: [], destinations: [] });
+  });
+  it('a place without a known country is named itself', () => {
+    expect(noFlightPlaces([g(['XXX'], { XXX: NF })], cities)).toEqual({ countries: [], destinations: ['XXX'] });
+  });
+});

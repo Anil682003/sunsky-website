@@ -30,12 +30,12 @@ const pkg = (code, dest, total, extra = {}) => ({
 vi.mock('../../api/filters', () => ({
   fetchFacets: vi.fn((scope) => Promise.resolve({
     scope: { countries: scope.countries ?? [], destinations: scope.destinations ?? [], hotelCount: 0 },
-    matchedDestinations: scope.destinations?.length ? scope.destinations : ['AYT', 'IST', 'ADB', 'DLM', 'BJV'],
+    matchedDestinations: answers.matched ?? (scope.destinations?.length ? scope.destinations : ['AYT', 'IST', 'ADB', 'DLM', 'BJV']),
     included: { hotelCodes: false, attributes: false },
     facets: EMPTY_FACETS,
   })),
   fetchCountries: vi.fn(() => Promise.resolve([{ code: 'TR', name: 'Turkey' }])),
-  fetchDestinations: vi.fn(() => Promise.resolve([])),
+  fetchDestinations: vi.fn(() => Promise.resolve(answers.cities || [])),
   fetchZones: vi.fn(() => Promise.resolve([])),
   fetchArrivalAirports: vi.fn(() => Promise.resolve([])),
   fetchDepartureAirports: vi.fn(() => Promise.resolve({ airports: [], filtered: null, cacheHasData: false })),
@@ -50,7 +50,7 @@ vi.mock('../../api/filters', () => ({
     const size = 2;   // small pages, to exercise "Show more" across groups
     return Promise.resolve({
       hotels: hotels.slice((page - 1) * size, page * size), hasMore: hotels.length > page * size,
-      destinationStatus: Object.fromEntries(body.destinations.map((d) => [d, { status: answers.byDest[d]?.status || 'NOT_FEASIBLE' }])),
+      destinationStatus: Object.fromEntries(body.destinations.map((d) => [d, { status: answers.byDest[d]?.status || 'NOT_FEASIBLE', ...(answers.byDest[d]?.reason ? { reason: answers.byDest[d].reason } : {}) }])),
       boardFacets: {},
     });
   }),
@@ -64,6 +64,8 @@ beforeEach(async () => {
   sentToCache.length = 0;
   answers.byDest = {};
   answers.fail = [];
+  answers.matched = undefined;
+  answers.cities = undefined;
   globalThis.fetch = vi.fn((url) => {
     if (String(url).includes('/contracts/cheapest')) sentToCache.push(String(url));
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [], results: [], hasMore: false }) });
@@ -176,5 +178,67 @@ describe('a package request that failed is never "no results"', () => {
   it('package searches wait up to 20 s, not the default 15 s', async () => {
     const { PACKAGE_TIMEOUT_MS } = await vi.importActual('../../api/filters');
     expect(PACKAGE_TIMEOUT_MS).toBe(20_000);
+  });
+});
+
+// 9 Oct 2026: a Spain + Albania + Bulgaria search in January listed only Spain, with no word why.
+describe('destinations without a flight on these dates are named', () => {
+  const COUNTRIES = '?countries=ES,AL,BG&destinationLabel=Spanje&checkIn=2027-01-01&checkOut=2027-01-07&adults=2&children=0&rooms=1&transport=package';
+  beforeEach(() => {
+    answers.cities = [
+      { code: 'PMI', name: 'Mallorca', countryCode: 'ES' },
+      { code: 'TIA', name: 'Tirana', countryCode: 'AL' }, { code: 'DRR', name: 'Durrës', countryCode: 'AL' },
+      { code: 'VAR', name: 'Varna', countryCode: 'BG' },
+    ];
+    answers.matched = ['PMI', 'TIA', 'DRR', 'VAR'];
+  });
+
+  it('whole countries without a flight are named; the list shows the others', async () => {
+    answers.byDest = {
+      PMI: { status: 'FEASIBLE', hotels: [pkg('a', 'PMI', 900)] },
+      TIA: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' }, DRR: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' },
+      VAR: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' },
+    };
+    renderAt(COUNTRIES);
+    const notice = await screen.findByText(/Geen vlucht \+ hotelpakketten naar/);
+    expect(notice.textContent).toMatch(/Alban/);
+    expect(notice.textContent).toMatch(/Bulgar/);
+    expect(notice.textContent).not.toMatch(/Tirana|Durr|Varna/);
+    expect(screen.getAllByRole('article')).toHaveLength(1);
+  });
+
+  it('only some places of a country without a flight: those places are named, not the country', async () => {
+    answers.byDest = {
+      PMI: { status: 'FEASIBLE', hotels: [pkg('a', 'PMI', 900)] },
+      TIA: { status: 'FEASIBLE', hotels: [pkg('b', 'TIA', 700)] }, DRR: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' },
+      VAR: { status: 'FEASIBLE', hotels: [pkg('c', 'VAR', 800)] },
+    };
+    renderAt(COUNTRIES);
+    const notice = await screen.findByText(/Geen vlucht \+ hotelpakketten naar/);
+    expect(notice.textContent).toMatch(/Durrës/);
+    expect(notice.textContent).not.toMatch(/Alban/);
+  });
+
+  it('missing data (UNKNOWN), or no package for another reason, is never called "no flights"', async () => {
+    answers.byDest = {
+      PMI: { status: 'FEASIBLE', hotels: [pkg('a', 'PMI', 900)] },
+      TIA: { status: 'UNKNOWN' }, DRR: { status: 'NOT_FEASIBLE', reason: 'NO_HOTEL_FOR_FLIGHT_STAYS' }, VAR: { status: 'NOT_FEASIBLE' },
+    };
+    renderAt(COUNTRIES);
+    await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(screen.queryByText(/Geen vlucht \+ hotelpakketten naar/)).toBeNull();
+  });
+
+  it('a group that failed: no "no flights" notice for anything', async () => {
+    answers.byDest = {
+      PMI: { status: 'FEASIBLE', hotels: [pkg('a', 'PMI', 900)] },
+      TIA: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' }, DRR: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' },
+      VAR: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' },
+    };
+    answers.fail = ['TIA'];   // its group (all 4 destinations) times out
+    renderAt(COUNTRIES);
+    await new Promise((r) => setTimeout(r, 600));
+    expect(screen.queryByText(/Geen vlucht \+ hotelpakketten naar/)).toBeNull();
   });
 });
