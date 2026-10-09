@@ -60,6 +60,9 @@ export function linkStay(params, now = new Date()) {
 }
 
 /** One /contracts/cheapest request, as Results.jsx buildRequest makes it (no filters). */
+/** The warmer's seed: any valid one warms the same cache entry (see cheapestRequest). */
+export const WARM_SEED = 'warm';
+
 export function cheapestRequest(baseUrl, stay, destinations, { checkOut = stay.checkOut, pageSize = PAGE_SIZE, page = 1 } = {}) {
   const rooms = Math.max(1, parseInt(stay.rooms, 10) || 1);
   const body = {
@@ -77,6 +80,11 @@ export function cheapestRequest(baseUrl, stay, destinations, { checkOut = stay.c
     maxChildrenPerRoom: String(Math.ceil((parseInt(stay.children, 10) || 0) / rooms)),
   };
   if (stay.childAges) body.childAges = stay.childAges;
+  // The page's default order is "Recommended" = the random order (Ch 1 §2). The seed decides only
+  // the order the cache serves, not the priced search it caches, so any seed warms the entry every
+  // visitor reads.
+  body.sortBy = 'random';
+  body.resultRandomSeed = WARM_SEED;
   if (stay.packageSearch) body.searchType = 'PACKAGE';
   if (body.destinations.length > MANY_DESTINATIONS) {
     return { url: `${baseUrl}/contracts/cheapest`, opts: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } };

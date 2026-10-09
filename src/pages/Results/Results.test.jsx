@@ -289,9 +289,13 @@ describe('initial load', () => {
     renderResults();
     await settled();
     const q = calls[0];
-    for (const k of ['boards', 'roomTypes', 'minPrice', 'maxPrice', 'priceBasis', 'refundable', 'sortBy']) {
+    for (const k of ['boards', 'roomTypes', 'minPrice', 'maxPrice', 'priceBasis', 'refundable']) {
       expect(q.get(k), `${k} should be absent when at its default`).toBeNull();
     }
+    // The default order ("Recommended", Ch 1 §2) is the random one with the session seed. Not a
+    // filter: with the cache's switch off it is the same cache entry and fast path as before.
+    expect(q.get('sortBy')).toBe('random');
+    expect(q.get('resultRandomSeed')).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
     expect(q.get('page')).toBe('1');
     expect(q.get('source')).toBe('combined');
   });
@@ -625,11 +629,12 @@ describe('sort', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
+    const before = calls.length;
     await user.selectOptions(screen.getByRole('combobox', { name: 'Resultaten sorteren' }), 'name_asc');
     // Name/star sorts are client-side (the cache orders by price), so no sortBy is sent — the
     // loaded cards just re-order. "Cheap Hotel 1" is alphabetically first.
     await waitFor(() => expect(within(cards()[0]).getByText('Cheap Hotel 1')).toBeInTheDocument());
-    expect(lastCall().get('sortBy')).toBeNull();
+    expect(calls.slice(before).every((c) => c.get('sortBy') === null)).toBe(true);
   });
 });
 
@@ -1425,5 +1430,60 @@ describe('URL-seeded filters (vacation-type cards)', () => {
     await settled();
     expect(screen.queryByRole('button', { name: /deze filters verwijderen/i })).not.toBeInTheDocument();
     expect(lastCall().get('boards')).toBeNull();
+  });
+});
+
+// Hotel only, "Recommended" = the stable random order (Ch 1 §2, Levent 9 Oct 2026): the page asks
+// it with the session seed; when the cache answers in random order (switched on), its total is
+// exact and later pages are cut from page 1's snapshot.
+describe('random order (Hotel only)', () => {
+  const hotelsFrom = (from, n) => Array.from({ length: n }, (_, i) => ({
+    hotelCode: String(from + i), boardCode: 'AI', roomType: 'DBL', classification: 'NOR', refundable: true,
+    totalAmount: 300 + i, perPerson: 150, currency: 'EUR', nightlyBreakdown: [],
+  }));
+  const answer = (qs) => {
+    const page = Number(qs.get('page') || 1);
+    if (qs.get('sortBy') !== 'random') return { nights: 3, count: 20, total: 20, results: hotelsFrom(1, 20), cheapest: null, hasMore: true, boardFacets: {} };
+    return { nights: 3, count: 20, total: 57, results: hotelsFrom(page * 100, 20), cheapest: hotelsFrom(100, 1)[0], hasMore: page < 3, boardFacets: {}, randomOrder: true, searchQueryId: 'snap-1', resultRandomSeed: qs.get('resultRandomSeed') };
+  };
+  beforeEach(() => {
+    globalThis.fetch = vi.fn((url, opts) => {
+      const u = String(url);
+      if (u.includes('/hotels/bulk')) return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: [] }) });
+      if (u.endsWith('/contracts/destinations')) return destinationsResponse();
+      const qs = opts?.method === 'POST'
+        ? new URLSearchParams(Object.entries(JSON.parse(opts.body)).map(([k, v]) => [k, Array.isArray(v) ? v.join(',') : String(v)]))
+        : new URL(u).searchParams;
+      calls.push(qs);
+      return Promise.resolve({ ok: true, json: () => Promise.resolve(answer(qs)) });
+    });
+  });
+
+  it('asks the random order with the session seed; the exact total has no "+"; Show more keeps the snapshot', async () => {
+    renderResults();
+    await settled();
+    const p1 = mainSearches().at(-1);
+    expect(p1.get('sortBy')).toBe('random');
+    expect(p1.get('resultRandomSeed')).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
+    expect(p1.get('searchQueryId')).toBeNull();
+    expect(screen.getByText((_, el) => el?.textContent?.trim() === '57 verblijven gevonden')).toBeTruthy();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
+    await waitFor(() => expect(calls.some((c) => c.get('page') === '2')).toBe(true));
+    const p2 = calls.find((c) => c.get('page') === '2');
+    expect(p2.get('searchQueryId')).toBe('snap-1');
+    expect(p2.get('resultRandomSeed')).toBe(p1.get('resultRandomSeed'));
+    // The Travel-time counts ask the same order (same cache entries as the warmer).
+    await waitFor(() => expect(calls.some(isDurationCount)).toBe(true));
+    expect(calls.filter(isDurationCount).every((c) => c.get('sortBy') === 'random')).toBe(true);
+  });
+
+  it('an explicit price sort sends no random order and no seed', async () => {
+    const user = userEvent.setup();
+    renderResults();
+    await settled();
+    await user.selectOptions(screen.getAllByRole('combobox', { name: 'Resultaten sorteren' })[0], 'price_desc');
+    await waitFor(() => expect(lastCall().get('sortBy')).toBe('price_desc'));
+    expect(lastCall().get('resultRandomSeed')).toBeNull();
   });
 });

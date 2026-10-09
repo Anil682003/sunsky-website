@@ -58,6 +58,18 @@ const CMS = {
 };
 const TYPES = [{ id: 1, name: 'Zonvakanties' }, { id: 2, name: 'Stedentrips' }];
 
+// The session seed (random order, Ch 1 §2) differs per visitor and decides only the order the cache
+// serves, not the priced search it caches: compared without it. Everything else must be identical.
+const noSeed = ({ url, method, body }) => {
+  const [path, query = ''] = url.split('?');
+  const qs = new URLSearchParams(query);
+  const seeded = qs.has('resultRandomSeed');
+  qs.delete('resultRandomSeed');
+  let b = body;
+  if (b) { const o = JSON.parse(b); if ('resultRandomSeed' in o) { delete o.resultRandomSeed; b = JSON.stringify(o); } }
+  return { url: query ? `${path}?${qs.toString()}` : path, method, body: b, seeded: seeded || (!!body && 'resultRandomSeed' in JSON.parse(body)) };
+};
+
 let sent = [];
 beforeEach(() => {
   sent = [];
@@ -66,12 +78,12 @@ beforeEach(() => {
     if (u.endsWith('/contracts/destinations')) {
       return Promise.resolve({ ok: true, json: () => Promise.resolve({ destinations: ALL.map((code) => ({ code })) }) });
     }
-    if (u.includes('/contracts/cheapest')) sent.push({ url: u, method: opts.method || 'GET', body: opts.body ?? null });
+    if (u.includes('/contracts/cheapest')) sent.push(noSeed({ url: u, method: opts.method || 'GET', body: opts.body ?? null }));
     return Promise.resolve({ ok: true, json: () => Promise.resolve({ results: [], total: 0, hasMore: false, boardFacets: {}, cheapest: null }) });
   });
 });
 
-const asSent = (r) => ({ url: r.url, method: r.opts.method || 'GET', body: r.opts.body ?? null });
+const asSent = (r) => noSeed({ url: r.url, method: r.opts.method || 'GET', body: r.opts.body ?? null });
 const sorted = (list) => [...list].map((r) => JSON.stringify(r)).sort();
 
 async function pageRequests(link, expected) {

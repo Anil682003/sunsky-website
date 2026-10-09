@@ -253,6 +253,7 @@
     "favouriteFailed": "De favorieten konden niet worden bijgewerkt. Probeer het opnieuw."
   },
   "pkg": {
+    "noFlightDestinations": "Geen vlucht + hotelpakketten naar {{places}} op deze data: er zijn geen vluchten. We tonen de andere bestemmingen.",
     "unknownDestinations": "Vlucht + hotelprijzen voor {{places}} kunnen nog niet berekend worden: de vluchtgegevens zijn nog onvolledig. Deze bestemmingen ontbreken niet omdat er geen vluchten zijn.",
     "stillSearching": "We zoeken nog meer bestemmingen…",
     "noneYetTitle": "Vlucht + hotelprijzen kunnen nog niet berekend worden",

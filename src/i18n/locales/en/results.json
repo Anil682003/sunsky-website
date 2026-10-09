@@ -253,6 +253,7 @@
     "favouriteFailed": "Couldn’t update favourites. Please try again."
   },
   "pkg": {
+    "noFlightDestinations": "No flight + hotel packages to {{places}} for these dates: there are no flights. Showing the other destinations.",
     "unknownDestinations": "Flight + hotel prices for {{places}} cannot be calculated yet: the flight data is still incomplete. These destinations are not left out because there are no flights.",
     "stillSearching": "Still searching more destinations…",
     "noneYetTitle": "Flight + hotel prices cannot be calculated yet",
