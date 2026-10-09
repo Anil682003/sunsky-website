@@ -962,6 +962,9 @@ export default function Results() {
   // Hotels whose info could not be loaded (after one retry): their card names them neutrally.
   const [infoFailed, setInfoFailed]   = useState(() => new Set());
   const infoLoadingRef = useRef(new Set());
+  // Which search the hotel info belongs to: bumped where a new search resets the info, so an
+  // answer for the previous search is never applied to this one.
+  const infoGenRef = useRef(0);
 
   // Pagination state tracked in refs to avoid stale closures in async callbacks
   const paginationRef  = useRef({ page: 1, hasMore: true, fetching: false });
@@ -1608,6 +1611,7 @@ export default function Results() {
       setInfoFailed(new Set());
       setPriceCeiling(null);
       infoLoadingRef.current = new Set();
+      infoGenRef.current += 1;
     } else {
       setFiltering(true);
     }
@@ -1850,7 +1854,13 @@ export default function Results() {
     const need = hotels.map((h) => String(h.hotelCode)).filter((code) => !infoMap[code] && !infoLoadingRef.current.has(code) && !infoFailed.has(code));
     if (need.length === 0) return;
     need.forEach((c) => infoLoadingRef.current.add(c));
-    let cancelled = false;
+    // NOT cancelled when the list changes. An answer that arrives after the list moved on (the
+    // next destination group answered, a "Show more") is still these hotels' info, and the
+    // hotels are marked as loading, so no later run asks for them again: throwing it away left
+    // their cards as skeletons for good. Frequent with the random order (Ch 1 §2), where every
+    // group that answers reshuffles the first 20 (9 Oct 2026). Only a NEW search drops it.
+    const gen = infoGenRef.current;
+    const stale = () => gen !== infoGenRef.current;
     const load = async () => {
       const res = await fetch(`${CONTRACTS_API}/hotels/bulk`, {
         method: 'POST', headers: { 'Content-Type': 'application/json' },
@@ -1867,7 +1877,7 @@ export default function Results() {
     };
     (async () => {
       let add = null;
-      for (let attempt = 0; attempt < 2 && !add && !cancelled; attempt += 1) {
+      for (let attempt = 0; attempt < 2 && !add && !stale(); attempt += 1) {
         try {
           add = await load();
         } catch (e) {
@@ -1875,13 +1885,12 @@ export default function Results() {
           if (attempt === 0) await new Promise((r) => setTimeout(r, 1500));
         }
       }
+      if (stale()) return;                       // a new search: its own runs load its hotels
       need.forEach((c) => infoLoadingRef.current.delete(c));
-      if (cancelled) return;
       if (add && Object.keys(add).length) setInfoMap((prev) => ({ ...prev, ...add }));
       const missing = need.filter((c) => !add?.[c]);
       if (missing.length) setInfoFailed((prev) => new Set([...prev, ...missing]));
     })();
-    return () => { cancelled = true; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotels]);
 

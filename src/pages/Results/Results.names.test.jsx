@@ -94,4 +94,38 @@ describe('hotel names on result cards', () => {
     const { container } = renderPage();
     await waitFor(() => expect(cardTitles(container)).toEqual(names), { timeout: 4000 });
   });
+
+  // 9 Oct 2026: an info answer that landed after the list had changed (the next package group
+  // answered, a "Show more") was thrown away, and nothing asked for those hotels again, so their
+  // cards stayed skeletons for good. Frequent with the random order, where each group reshuffles
+  // the first 20.
+  it('the list changes while the info loads: the earlier hotels still get their names', async () => {
+    const mk = (from) => Array.from({ length: 20 }, (_, i) => ({
+      hotelCode: String(from + i), boardCode: 'AI', roomType: 'DBL', classification: 'NOR', refundable: true,
+      totalAmount: 100 + from + i, perPerson: 50, currency: 'EUR', nightlyBreakdown: [],
+    }));
+    const page1 = mk(1000);
+    const page2 = mk(2000);
+    const named = (list) => ({ ok: true, json: () => Promise.resolve({ data: list.map((r) => ({ hotelCode: r.hotelCode, name: `Hotel name ${r.hotelCode}`, images: [] })) }) });
+    let releasePage1;
+    globalThis.fetch = vi.fn((url, opts) => {
+      if (String(url).includes('/hotels/bulk')) {
+        const codes = JSON.parse(opts.body).hotelCodes;
+        if (codes.includes('1000')) return new Promise((resolve) => { releasePage1 = () => resolve(named(page1)); });
+        return Promise.resolve(named(page2.filter((r) => codes.includes(r.hotelCode))));
+      }
+      const page = new URL(String(url), 'http://x').searchParams.get('page');
+      const list = page === '2' ? page2 : page1;
+      return Promise.resolve({ ok: true, json: () => Promise.resolve({ nights: 3, count: 20, total: 40, results: list, cheapest: page1[0], hasMore: page !== '2', boardFacets: {} }) });
+    });
+    const { container, getByRole } = renderPage();
+    await waitFor(() => expect(container.querySelectorAll('article').length).toBe(20));
+    await waitFor(() => expect(releasePage1).toBeTypeOf('function'));
+    getByRole('button', { name: 'Toon meer' }).click();
+    await waitFor(() => expect(container.querySelectorAll('article').length).toBe(40));
+    await waitFor(() => expect(cardTitles(container)).toHaveLength(20));   // page 2 named, page 1 still loading
+    releasePage1();
+    await waitFor(() => expect(cardTitles(container)).toHaveLength(40));
+    expect(cardTitles(container)[0]).toBe('Hotel name 1000');
+  });
 });
