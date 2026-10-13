@@ -182,20 +182,6 @@ const TRANSPORT_OPTIONS = [
 const FLIGHT_CLASS_LABEL = { direct: 'direct', one_stop: '1 stop', two_stop: '2 stops' };
 const flightClassLabel = (c) =>
   (c && FLIGHT_CLASS_LABEL[c] ? i18n.t(`results:flightClass.${c}`, FLIGHT_CLASS_LABEL[c]) : '');
-// Two pairs, because the words have to describe what is actually in the price. With a flight
-// included it is a trip, priced per traveller; hotel-only it is a stay, priced per room. The
-// client's design draws both, on screens 8 and 8A.
-const PRICE_BASIS_OPTIONS = {
-  package: [
-    { value: 'total',     label: 'Total trip price' },
-    { value: 'perPerson', label: 'Per person' },
-  ],
-  hotel_only: [
-    { value: 'total',     label: 'Total stay price' },
-    { value: 'perPerson', label: 'Per room/stay' },
-  ],
-};
-
 const PRICE_STEP = 50;
 const PRICE_CEILING_FALLBACK = 1000;
 
@@ -2136,11 +2122,6 @@ export default function Results() {
   // Distance is single-select per type: re-picking the active bucket clears it ("Any distance").
   const setMaxDistance = (key, metres) => setFilter(key, filters[key] === metres ? '' : metres);
 
-  const setPriceBasis = (value) => {
-    if (filters.priceBasis === value) return;
-    setPriceCeiling(null);
-    setFilters((f) => ({ ...f, priceBasis: value, minPrice: '', maxPrice: '' }));
-  };
 
   const toggleArrival = (code) => setFilters((f) => ({
     ...f,
@@ -2204,8 +2185,6 @@ export default function Results() {
 
   // Which pair of words the basis toggle shows depends on what is in the price, so it is
   // built HERE, below the filter state it reads, not at the top of the component.
-  const priceBasisOptions = (PRICE_BASIS_OPTIONS[filters.transport] ?? PRICE_BASIS_OPTIONS.hotel_only)
-    .map((o) => ({ ...o, label: t(`priceBasis.${filters.transport === 'package' ? 'pkg' : 'hotel'}.${o.value}`, o.label) }));
 
   const ceiling = priceCeiling ?? PRICE_CEILING_FALLBACK;
   const sliderMin = filters.minPrice === '' ? 0 : Math.min(Number(filters.minPrice), ceiling);
@@ -2720,7 +2699,6 @@ export default function Results() {
 
       {/* Price Range */}
       <FilterSection title={t('filters.priceRange', 'Price Range')} defaultOpen>
-        <Segmented options={priceBasisOptions} value={filters.priceBasis} onChange={setPriceBasis} ariaLabel={t('priceBasis.aria', 'Price basis')} />
         {/* Typed bounds as well as the handles: a slider is fine for "roughly", useless for
             "under 900". Both write the same two filters, so they cannot disagree. Committed on
             blur and on Enter rather than per keystroke — mid-word a "9" of "900" is a real
