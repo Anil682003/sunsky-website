@@ -94,21 +94,42 @@ export function decodeEntities(s) {
 }
 
 /**
+ * A deadline a supplier states in ITS OWN time zone, shown to a traveller in ours, is a trap.
+ *
+ * W2M's example (1 Oct 2026): a hotel in Thailand sets its deadline at 00:00 local, which is
+ * 17:00 the previous day in Belgium. A traveller reading our screen would believe they had most
+ * of another day. Juniper therefore recommend a safety margin of up to 12 hours on any deadline
+ * put in front of a customer, and we apply the full 12.
+ *
+ * The margin is for DISPLAY only. It never decides what a cancellation costs: before cancelling
+ * we always ask W2M for the current fee (`OnlyCancellationFees="true"`), so the charge comes
+ * from the supplier at that moment and not from our arithmetic. Erring early can only ever make
+ * a traveller cancel sooner than strictly necessary — the error that costs nobody money.
+ */
+export const CANCELLATION_SAFETY_MARGIN_MS = 12 * 60 * 60 * 1000;
+
+/**
  * What the cancellation policies mean RIGHT NOW.
  *
  * @param {Array<{amount?:string|number, from?:string}>} policies
  * @param {number|null} price   the rate's own price, to tell a full-value penalty from a partial one
  * @param {Date} now            injectable so tests don't depend on the wall clock
- * @returns {{kind:'free'|'partial'|'none'|'unknown', until:Date|null, amount:number|null, full:boolean}}
+ * @returns {{kind:'free'|'partial'|'none'|'unknown', until:Date|null, untilSupplier:Date|null,
+ *            amount:number|null, full:boolean, safetyMarginMs:number}}
  *   free    — cancel for nothing up to `until`
  *   partial — a penalty applies from `until`, but it is less than the full price
  *   none    — the penalty window has already opened; cancelling costs money today
  *   unknown — the supplier told us nothing
+ *
+ *   `until` is what a traveller should act on: the supplier's deadline less the safety margin.
+ *   `untilSupplier` is the raw deadline, kept for records and for support to reason with.
  */
 export function cancellationState(policies, price = null, now = new Date()) {
-  if (!Array.isArray(policies) || policies.length === 0) {
-    return { kind: 'unknown', until: null, amount: null, full: false };
-  }
+  const unknown = {
+    kind: 'unknown', until: null, untilSupplier: null, amount: null, full: false,
+    safetyMarginMs: CANCELLATION_SAFETY_MARGIN_MS,
+  };
+  if (!Array.isArray(policies) || policies.length === 0) return unknown;
 
   // Earliest deadline first — that is the one that ends the free window.
   const parsed = policies
@@ -116,14 +137,26 @@ export function cancellationState(policies, price = null, now = new Date()) {
     .filter((p) => p.at != null)
     .sort((a, b) => a.at - b.at);
 
-  if (parsed.length === 0) return { kind: 'unknown', until: null, amount: null, full: false };
+  if (parsed.length === 0) return unknown;
 
   const first = parsed[0];
   // A penalty at or above the rate is a 100% charge — say "non-refundable", not "€8,720 fee".
   const full = first.amount != null && price != null && first.amount >= price - 0.01;
 
-  if (first.at > now) return { kind: 'free', until: first.at, amount: first.amount, full };
-  return { kind: full ? 'none' : 'partial', until: first.at, amount: first.amount, full };
+  // The moment we put in front of the traveller, pulled back by the margin.
+  const safeUntil = new Date(first.at.getTime() - CANCELLATION_SAFETY_MARGIN_MS);
+  const base = {
+    until: safeUntil,
+    untilSupplier: first.at,
+    amount: first.amount,
+    full,
+    safetyMarginMs: CANCELLATION_SAFETY_MARGIN_MS,
+  };
+
+  // "Free" only while the SAFE moment is still ahead. Inside the last 12 hours the supplier may
+  // still be charging nothing, but we will not promise it.
+  if (safeUntil > now) return { kind: 'free', ...base };
+  return { kind: full ? 'none' : 'partial', ...base };
 }
 
 /**
