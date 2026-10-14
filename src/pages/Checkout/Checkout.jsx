@@ -8,7 +8,7 @@ import axiosInstance from '../../services/axiosInstance';
 import { ENDPOINTS } from '../../api/endpoints';
 import { ageAtCheckIn } from '../../utils/childDob';
 import { cancellationState, parseRateKey, boardInfo } from '../../utils/rateDetails';
-import { DEFAULT_PRICING, priceInsurance, priceBasisLabel } from '../../utils/checkoutPricing';
+import { DEFAULT_PRICING, priceInsurance, priceBasisLabel, insuredDays } from '../../utils/checkoutPricing';
 import { useCheckoutConfig, useFooterConfig } from '../../api';
 import { checkoutLegalLinks } from '../../utils/legalLinks';
 import { countryName } from '../../utils/countryName';
@@ -2624,7 +2624,10 @@ function CheckoutContent({ stripe, elements }) {
                       <b>{travelOption.label}</b>
                       <span>{travelOption.description || t('checkout:insurance.coverWhileTravelling', 'Cover for you and your luggage while travelling.')}</span>
                       <span className="ck-kind-chips">
-                        <span className="ck-kind-chip">{ICON.cal} {t('checkout:duration.travelDays', { count: booking.nights, defaultValue_one: '{{count}} travel day', defaultValue_other: '{{count}} travel days' })}</span>
+                        {/* The days the cover is CHARGED for, not the hotel nights. A one-way
+                            flight has no nights, and "0 reisdagen" beside a EUR 4 total read
+                            as a bug even though the price was right. */}
+                        <span className="ck-kind-chip">{ICON.cal} {t('checkout:duration.travelDays', { count: insuredDays(booking.nights), defaultValue_one: '{{count}} travel day', defaultValue_other: '{{count}} travel days' })}</span>
                         <span className="ck-kind-chip">{ICON.shieldCheck} {priceBasisLabel(travelOption, ccy)}</span>
                       </span>
                       <span className="ck-kind-note">{t('checkout:insurance.eachTravellerDifferentChoice', 'Each traveller can make a different choice.')}</span>
@@ -2647,7 +2650,7 @@ function CheckoutContent({ stripe, elements }) {
                             <span className="ck-tr-radio">{travelIns[i] === true && <i />}</span>
                             <span className="ck-tr-main">
                               <span className="ck-tr-name hd">{travelOption.label}</span>
-                              <span className="ck-tr-sub">{priceBasisLabel(travelOption, ccy)} × {t('checkout:duration.days', { count: booking.nights, defaultValue_one: '{{count}} day', defaultValue_other: '{{count}} days' })}</span>
+                              <span className="ck-tr-sub">{priceBasisLabel(travelOption, ccy)} × {t('checkout:duration.days', { count: insuredDays(booking.nights), defaultValue_one: '{{count}} day', defaultValue_other: '{{count}} days' })}</span>
                               {travelOption.provider && <span className="ck-ins-by">{t('checkout:insurance.providedBy', { provider: travelOption.provider, defaultValue: 'Provided by {{provider}}' })}</span>}
                             </span>
                             <span className="ck-tr-price"><small>{t('checkout:transfer.total', 'total')}</small>{money(each)}</span>

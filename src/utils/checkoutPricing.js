@@ -35,10 +35,27 @@ export const DEFAULT_PRICING = {
  * @param option  a block from pricing.insurance
  * @param ctx     { pax, nights, baseSubtotal } — pax excludes infants
  */
+/**
+ * How many days an insurance line is ACTUALLY charged for.
+ *
+ * EXPORTED SO THE SCREEN CANNOT CONTRADICT THE CHARGE. A one-way flight has no hotel nights,
+ * so `booking.nights` is 0, and the insurance panel printed "0 reisdagen ... x 0 dagen" next
+ * to a total of EUR 4. The price was never wrong: both this and the server's
+ * `priceInsuranceOption` floor the count at one, and the server independently resolves a
+ * dateless trip to 1 (`... || 1`). Only the label was reading the raw number.
+ *
+ * A single travel day is also the right answer rather than a fudge: the traveller is covered
+ * for the day they fly, and insurance for zero days is not a thing anyone can buy.
+ *
+ * Changing this formula means changing `priceInsuranceOption` on the server with it, or the
+ * booking is rejected for a price mismatch. Naming the existing floor, as here, does not.
+ */
+export const insuredDays = (nights) => Math.max(1, Number(nights) || 1);
+
 export const priceInsurance = (option, { pax = 1, nights = 1, baseSubtotal = 0 } = {}) => {
   if (!option || option.enabled === false) return 0;
   const value = Number(option.value) || 0;
-  const n = Math.max(1, Number(nights) || 1);
+  const n = insuredDays(nights);
   const p = Math.max(1, Number(pax) || 1);
   switch (option.mode) {
     case 'perPersonPerDay': return Math.max(0, Math.round(value * p * n));
@@ -87,4 +104,4 @@ export const computeDeposit = (pricing, grandTotal, departureDate) => {
   return { amount, balance: Math.round((Number(grandTotal) || 0) - amount), balanceDueDate, percent: pct };
 };
 
-export default { DEFAULT_PRICING, priceInsurance, priceBasisLabel, computeDeposit };
+export default { DEFAULT_PRICING, priceInsurance, priceBasisLabel, computeDeposit, insuredDays };
