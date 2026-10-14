@@ -78,7 +78,8 @@
     "checkinKg": "Check-in {{kg}} kg included",
     "checkinPieces_one": "Check-in {{count}} piece included",
     "checkinPieces_other": "Check-in {{count}} pieces included",
-    "noHoldBaggage": "No hold baggage in this fare"
+    "noHoldBaggage": "No hold baggage in this fare",
+    "handWithHold": "A cabin bag and one small personal item are included with this fare."
   },
   "fare": {
     "title": "Fare summary",

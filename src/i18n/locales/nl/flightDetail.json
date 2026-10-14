@@ -78,7 +78,8 @@
     "checkinKg": "Incheckbagage {{kg}} kg inbegrepen",
     "checkinPieces_one": "Incheckbagage {{count}} stuk inbegrepen",
     "checkinPieces_other": "Incheckbagage {{count}} stuks inbegrepen",
-    "noHoldBaggage": "Geen ruimbagage in dit tarief"
+    "noHoldBaggage": "Geen ruimbagage in dit tarief",
+    "handWithHold": "Een handbagagestuk en één klein persoonlijk item zijn inbegrepen bij dit tarief."
   },
   "fare": {
     "title": "Tariefoverzicht",

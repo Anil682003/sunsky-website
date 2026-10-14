@@ -294,6 +294,20 @@ export default function FlightDetail() {
     const handKg = Number(leg?.baggage?.handKg) || 0;
     const known = !!leg?.baggage;
     const hasChecked = kg > 0 || pieces > 0;
+    /**
+     * A fare with hold baggage carries a cabin bag too.
+     *
+     * The SAME rule the checkout applies, and for the same reason: Airtuerk reports
+     * handLuggage as 0 on every option (verified against live AYT-DUS data, where every fare
+     * returns checkedKg 20-25 and handKg 0), so reading it literally claims no cabin bag on a
+     * ticket that includes one.
+     *
+     * It lives in both places because the two screens disagreeing is what the client reported:
+     * this page said the allowance was included, the checkout said it was not confirmed and
+     * offered to sell it. One rule, stated once per screen, is what keeps them saying the
+     * same thing.
+     */
+    const cabinIncluded = handKg > 0 || hasChecked;
     return (
       <>
         <div className="fd-bag-leglabel">{label}: {leg.fromCode} → {leg.toCode} ({leg.airline})</div>
@@ -304,9 +318,11 @@ export default function FlightDetail() {
             <div className="fd-bag-desc">
               {handKg > 0
                 ? <Trans i18nKey="flightDetail:baggage.handIncluded" t={t} values={{ kg: handKg }}>Up to <b>{{ kg: handKg }} kg</b> of hand baggage, plus one small personal item.</Trans>
-                : <>{t('flightDetail:baggage.handRulesUnknown', 'Hand baggage rules are set by the operating airline and are confirmed with your fare before payment.')}</>}
+                : cabinIncluded
+                  ? <>{t('flightDetail:baggage.handWithHold', 'A cabin bag and one small personal item are included with this fare.')}</>
+                  : <>{t('flightDetail:baggage.handRulesUnknown', 'Hand baggage rules are set by the operating airline and are confirmed with your fare before payment.')}</>}
             </div>
-            {handKg > 0 && <span className="fd-bag-tag inc">{t('flightDetail:baggage.included', 'Included')}</span>}
+            {cabinIncluded && <span className="fd-bag-tag inc">{t('flightDetail:baggage.included', 'Included')}</span>}
           </div>
         </div>
         <div className="fd-bag-card">
