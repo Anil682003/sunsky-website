@@ -239,6 +239,21 @@ export default function FlightDetail() {
           depdate: flight.out.depDateISO, retdate: isRound ? flight.ret.depDateISO : undefined,
           price: fb.total, currency: 'EUR',
           tripType: isMulti ? 'multicity' : isRound ? 'roundtrip' : 'oneway', supplier: 'Airtuerk',
+          /**
+           * THE ALLOWANCE HAS TO TRAVEL WITH THE BOOKING, or the checkout contradicts this page.
+           *
+           * The checkout reads `booking.api.flight.baggage` and treats a missing object as
+           * "the supplier told us nothing", which it renders as "Niet bevestigd" and offers to
+           * sell. This page meanwhile shows the same fare's included kilos from the very same
+           * data. So a traveller saw baggage included here and unconfirmed one screen later,
+           * and was invited to pay for what the fare already covered.
+           *
+           * `tripBag` is the trip-level figure, which the supplier computes as the more
+           * restrictive of the two directions, so it is the only allowance true of the whole
+           * journey. The package path already passes exactly this (HotelDetail's
+           * `baggage: f.baggage || null`); flight-only was the one route that dropped it.
+           */
+          baggage: tripBag,
           // Opaque Airtuerk bookable key(s) needed for live reservation (basket/create).
           // One-way → 1 key; round trip → 2 keys (outbound + return).
           flightKeys: Array.isArray(flight.flightKeys) && flight.flightKeys.length
