@@ -2380,14 +2380,20 @@ export default function Results() {
       : '',
   ].filter(Boolean).join(', ');
 
+  // No date chosen yet: the search runs on the default window (30 days out, a week — the
+  // precalculated one), but that window is not the traveller's choice and every card shows its
+  // own dates. So the summary says "Any date", and no date or length is shown as picked.
+  const undatedSearch = !params.get('checkIn') && fetchParams.checkIn === defaultCheckIn && fetchParams.checkOut === defaultCheckOut;
   const heroChips = [];
-  if (fetchParams.checkIn && fetchParams.checkOut) {
+  if (undatedSearch) {
+    heroChips.push({ icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z', text: t('hero.anyDate', 'Any date') });
+  } else if (fetchParams.checkIn && fetchParams.checkOut) {
     heroChips.push({ icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z', text: `${fmtDate(fetchParams.checkIn)} — ${fmtDate(fetchParams.checkOut)}` });
   }
   // DAYS, not nights, everywhere on this screen. The Travel-time filter beside it already
   // counts in days ("7 days (122)"), so a "6 nights" chip next to a ticked "7 days" row
   // described the same stay with two different numbers.
-  if (nights > 0) heroChips.push({ icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z', text: daysLabel(nightsToDays(nights)) });
+  if (nights > 0 && !undatedSearch) heroChips.push({ icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z', text: daysLabel(nightsToDays(nights)) });
   heroChips.push({ icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75', text: guestSummary });
   // Transport rides in the header only when it changes what the traveller will be shown —
   // "own transport" is the default and adds nothing worth a chip.
@@ -2461,7 +2467,9 @@ export default function Results() {
           "Rhodes or Kos" is a real answer. Nothing ticked means any airport, so the list needs
           no row for that. Rendered only when the scope HAS linked airports, so it never appears
           as an empty control promising a narrowing that cannot happen. */}
-      {filters.transport === 'package' && arrivalOptions.length > 0 && (
+      {/* One possible arrival airport is no choice: the block only shows with two or more,
+          or while the traveller still has a pick to see or clear. */}
+      {filters.transport === 'package' && (arrivalOptions.length > 1 || filters.arrivals.length > 0) && (
         <FilterSection title={t('filters.arrivalAirport', 'Arrival airport')} defaultOpen>
           <p className={styles.apHint}>{t('filters.pickAirports', 'Choose one or more airports')}</p>
           {filters.arrivals.length > 0 && (
@@ -2537,7 +2545,7 @@ export default function Results() {
           >
             <Icon d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" size={15} sw={1.8} />
             <span className={styles.dateFieldValue}>
-              {localCheckIn
+              {localCheckIn && !(undatedSearch && localCheckIn === fetchParams.checkIn)
                 ? new Date(`${localCheckIn}T00:00:00`).toLocaleDateString(i18nInstance.language, { day: '2-digit', month: '2-digit', year: 'numeric' })
                 : t('filters.pickDate', 'Pick a date')}
             </span>
@@ -2570,7 +2578,7 @@ export default function Results() {
           <span className={styles.f1Label}>{t('filters.travelDuration', 'Travel duration')}</span>
           <div className={styles.bandGrid} role="radiogroup" aria-label={t('filters.travelDuration', 'Travel duration')}>
             {DURATION_BANDS.map((b) => {
-              const on = b.key === selectedBand.key;
+              const on = b.key === selectedBand.key && (!undatedSearch || !!urlDuration);
               return (
                 <button
                   key={b.key}
@@ -2600,7 +2608,7 @@ export default function Results() {
               <FilterCheck
                 key={n}
                 label={`${daysLabel(nightsToDays(n))}${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString(numberLocale)})` : ''}`}
-                checked={searchedNights === n}
+                checked={!undatedSearch && searchedNights === n}
                 onChange={() => applyDuration(n)}
               />
             ))}
