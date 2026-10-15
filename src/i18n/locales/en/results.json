@@ -184,6 +184,7 @@
     "popularDestinations": "Popular destinations",
     "places": "{{count}} places",
     "inclFlightFrom": "Incl. flight · from {{city}}",
+    "anyDate": "Any date",
     "inclFlightAny": "Incl. flight · from any airport",
     "inclFlightAirports_one": "Incl. flight · from {{count}} airport",
     "inclFlightAirports_other": "Incl. flight · from {{count}} airports"
