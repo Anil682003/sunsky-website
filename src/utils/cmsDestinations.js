@@ -29,11 +29,15 @@ export const PACKAGE_TRANSPORT = 'package';
 // `countries`, single cities in `destinations` — the same params the results
 // sidebar itself writes back. Dates are deliberately omitted; Results defaults
 // to a 7-night stay 30 days out when they are absent.
-export const destUrl = (d) => {
+export const destUrl = (d, holidayTypeId = null) => {
   const qs = new URLSearchParams();
   qs.set(d.type === 'country' ? 'countries' : 'destinations', d.code);
   const label = destLabel(d);
   if (label) qs.set('destinationLabel', label);
+  // Reached through a holiday type (Zonvakanties → Turkije): the type stays in the search, so the
+  // results open with it already applied (Master Ch 1 §12B.1 / §12B.4). Without it a country
+  // search shows all its hotels, Istanbul's city trips included.
+  if (holidayTypeId != null && holidayTypeId !== '') qs.set('themes', String(holidayTypeId));
   qs.set('transport', PACKAGE_TRANSPORT);
   return `/results?${qs.toString()}`;
 };

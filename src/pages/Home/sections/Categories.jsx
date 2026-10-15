@@ -86,6 +86,7 @@ export default function Categories({ cms }) {
     if (c.type) {
       return {
         key:  c.type.id ?? c.type.name,
+        typeId: c.type.id ?? null,
         name: c.type.name,
         slug: c.type.slug || slugify(c.type.name),
         img:  resolveCmsImageUrl(c.featured?.imageUrl) || artworkFor(c.type.name, c.index ?? i),
@@ -171,7 +172,7 @@ export default function Categories({ cms }) {
                         {dests.map((d) => (
                           <Link
                             key={`${d.type}:${d.code}`}
-                            to={destUrl(d)}
+                            to={destUrl(d, c.typeId)}
                             className={styles.destChip}
                             tabIndex={open ? 0 : -1}
                           >
