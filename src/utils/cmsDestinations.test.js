@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sectionSearchUrl } from './cmsDestinations';
+import { sectionSearchUrl, destUrl } from './cmsDestinations';
 
 /**
  * The search behind every "Show all": one results link for every place a section shows. These
@@ -47,5 +47,18 @@ describe('sectionSearchUrl', () => {
     expect(sectionSearchUrl()).toBeNull();
     expect(sectionSearchUrl({ dests: [] })).toBeNull();
     expect(sectionSearchUrl({ dests: [{ name: 'Sri Lanka' }], label: 'Verre reizen' })).toBeNull();
+  });
+});
+
+describe('destUrl: a destination reached through a holiday type', () => {
+  it('carries the holiday type, so the results open with it applied (Zonvakanties → Turkije)', () => {
+    const qs = new URLSearchParams(destUrl({ type: 'country', code: 'TR', name: 'Turkije' }, 1).split('?')[1]);
+    expect(qs.get('countries')).toBe('TR');
+    expect(qs.get('themes')).toBe('1');
+  });
+  it('without a holiday type, no themes filter', () => {
+    const qs = new URLSearchParams(destUrl({ type: 'city', code: 'IST', name: 'Istanbul' }).split('?')[1]);
+    expect(qs.get('destinations')).toBe('IST');
+    expect(qs.get('themes')).toBeNull();
   });
 });

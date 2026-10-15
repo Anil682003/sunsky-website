@@ -33,6 +33,7 @@ export default function HolidayType() {
   }, [slug, execute]);
 
   const holidayType = data?.holidayType ?? null;
+  const holidayTypeId = holidayType?.id ?? null;
   const countries   = data?.countries ?? [];
 
   const typeName = holidayType?.name || nameFromSlug(slug);
@@ -98,7 +99,7 @@ export default function HolidayType() {
           imageUrl: d.type === 'country'
             ? parent?.imageUrl || null
             : cityImages.get(String(d.code).trim().toUpperCase()) || null,
-          href: destUrl(d),
+          href: destUrl(d, holidayTypeId),
           title: destLabel(d),
           dest: d,
         };
@@ -112,6 +113,7 @@ export default function HolidayType() {
       // code — they diverge (Cyprus is NY, the UK is UK).
       qs.set('countries', c.code || c.isoCode || '');
       qs.set('destinationLabel', cName);
+      if (holidayTypeId != null) qs.set('themes', String(holidayTypeId));   // the type stays applied (§12B.4)
       qs.set('transport', 'package');   // holiday-type pages open Flight + Hotel, like the homepage
       return {
         key: `country:${c.id}`,
@@ -124,7 +126,7 @@ export default function HolidayType() {
         dest: { type: 'country', code: c.code || c.isoCode || '' },
       };
     });
-  }, [cmsDests, countries, countryLookup, cityImages, t, i18n.language]);
+  }, [cmsDests, countries, countryLookup, cityImages, t, i18n.language, holidayTypeId]);
 
   // "Show all": every place on the page in one search, the way each card searches its own.
   // Places only: see sectionSearchUrl for why the holiday type does not travel as a filter.
