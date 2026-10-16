@@ -40,7 +40,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-09 | Mandatory local costs next to the price | Medium | **Needs API** | BLOCKED |
 | UI-10 | "View available dates" when only short trips exist | Medium | Ready | **DONE** (`093ac29`) |
 | UI-11 | Same state wording everywhere | Medium | Ready | |
-| UI-12 | Route control: two states | Medium | Ready | |
+| UI-12 | Route control: two states | Medium | Ready | **DONE** (`fa977e5`) |
 | UI-13 | Destination counts in the destination filter | Later | Ready | |
 | UI-15 | W2M-only hotels as a second group with "Check price" | Later | **Waiting** | BLOCKED |
 | UI-16 | Flights only from the cache | Later | Ready | **DONE** (`4700b45`) |
