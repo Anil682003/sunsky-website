@@ -9,6 +9,8 @@ import {
   dateWindows,
   mergeDepartureDates,
   makeIsUnavailable,
+  mergeDurations,
+  makeDurationUnavailable,
   departureSummary,
   MAX_DESTINATIONS,
   WINDOW_DAYS,
@@ -257,5 +259,73 @@ describe('departureSummary', () => {
     const a = departureSummary(new Set(['2026-11-03', '2026-12-02']));
     const b = departureSummary(new Set(['2026-12-02', '2026-11-03']));
     expect(a).toEqual(b);
+  });
+});
+
+/**
+ * Which trip lengths have a package (UI-07 / Ch1 §9A, Ch3 §6).
+ *
+ * Same shape of problem as the dates: refusing a length is a claim, and the answer has to
+ * support it. "An unknown length is not clickable but is not called sold out."
+ */
+describe('trip lengths that have a package', () => {
+  const durations = (...days) => days.map((travelDays) => ({ travelDays, nights: [travelDays - 1], fromPrice: 300, currency: 'EUR' }));
+
+  it('collects the lengths across answers', () => {
+    const d = mergeDurations([
+      { durations: durations(5, 8), arrivals: {} },
+      { durations: durations(8, 15), arrivals: {} },
+    ]);
+    expect([...d].sort((a, b) => a - b)).toEqual([5, 8, 15]);
+  });
+
+  it('refuses to judge when an arrival is UNKNOWN or the answer is truncated', () => {
+    expect(mergeDurations([{ durations: durations(8), arrivals: { ADB: { status: 'UNKNOWN' } } }])).toBeNull();
+    expect(mergeDurations([{ truncated: true, durations: durations(8), arrivals: {} }])).toBeNull();
+  });
+
+  it('a successful answer with no lengths is a real answer', () => {
+    expect(mergeDurations([{ durations: [], arrivals: {} }])).toEqual(new Set());
+  });
+
+  it('disables a length with no package and leaves the others alone', () => {
+    const unavailable = makeDurationUnavailable(new Set([5, 8]));
+    expect(unavailable(8)).toBe(false);
+    expect(unavailable(9)).toBe(true);
+  });
+
+  it('disables nothing at all when the lengths are unknown', () => {
+    expect(makeDurationUnavailable(null)).toBeNull();
+  });
+
+  it('never refuses a length it cannot read', () => {
+    const unavailable = makeDurationUnavailable(new Set([8]));
+    expect(unavailable(undefined)).toBe(false);
+    expect(unavailable('not a number')).toBe(false);
+    expect(unavailable(0)).toBe(false);
+  });
+
+  it('withholds the lengths entirely when the question fixed one', async () => {
+    // Asked with travelDays=8 the endpoint answers about 8 days ALONE. Taking that as the full
+    // list would mark every other duration button sold out on a question nobody asked.
+    get.mockResolvedValue({
+      data: { success: true, arrivals: { AYT: { status: 'FEASIBLE' } }, departureDates: [], durations: durations(8) },
+    });
+    const { result } = renderHook(() => usePackageDepartureDates({
+      enabled: true, destinations: ['AYT'], from: '2026-11-01', to: '2026-11-30', travelDays: 8, adults: 2, children: 0,
+    }));
+    await waitFor(() => expect(result.current.state).toBe('ok'));
+    expect(result.current.durations).toBeNull();
+  });
+
+  it('returns the lengths when the question left the length open', async () => {
+    get.mockResolvedValue({
+      data: { success: true, arrivals: { AYT: { status: 'FEASIBLE' } }, departureDates: [], durations: durations(5, 8, 15) },
+    });
+    const { result } = renderHook(() => usePackageDepartureDates({
+      enabled: true, destinations: ['AYT'], from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
+    }));
+    await waitFor(() => expect(result.current.state).toBe('ok'));
+    expect([...result.current.durations].sort((a, b) => a - b)).toEqual([5, 8, 15]);
   });
 });

@@ -91,3 +91,42 @@ describe('StayBar departure date', () => {
     expect(chosen.getAttribute('aria-pressed')).toBe('true');
   });
 });
+
+/**
+ * Exact trip lengths (UI-07 / Ch1 §9A, Ch3 §6). A length with no complete package cannot be
+ * chosen, and one the traveller already chose is never silently swapped for one that works.
+ */
+describe('StayBar exact length', () => {
+  const chip = (days) => screen.getByRole('button', { name: new RegExp(`^${days} (days|dagen)`) });
+
+  it('refuses a length with no package and leaves the rest alone', async () => {
+    render(<StayBar {...base} nights={6} durationUnavailable={(d) => d === 9} />);
+    expect(chip(9)).toBeDisabled();
+    expect(chip(9).getAttribute('aria-label')).toMatch(/not available|niet beschikbaar/i);
+    expect(chip(7)).not.toBeDisabled();
+  });
+
+  it('refuses nothing while the answer is unknown', () => {
+    // null is what the hook returns for a failed, incomplete or length-fixed question. Every
+    // chip stays pickable: "an unknown length is not clickable but is not called sold out".
+    render(<StayBar {...base} nights={6} durationUnavailable={null} />);
+    for (const d of [7, 8, 9]) expect(chip(d)).not.toBeDisabled();
+  });
+
+  it('a length already chosen stays chosen when the new dates cannot do it', () => {
+    // 7 days picked (6 nights), and nothing that long flies any more.
+    render(<StayBar {...base} nights={6} durationUnavailable={(d) => d === 7} />);
+    const c = chip(7);
+    expect(c.getAttribute('aria-pressed')).toBe('true');
+    expect(c).toBeDisabled();
+    expect(c.getAttribute('aria-label')).toMatch(/not available|niet beschikbaar/i);
+  });
+
+  it('picking an available length reports the nights behind it', async () => {
+    const user = userEvent.setup();
+    const onChange = vi.fn();
+    render(<StayBar {...base} nights={6} onChange={onChange} durationUnavailable={() => false} />);
+    await user.click(chip(8));
+    expect(onChange).toHaveBeenCalledWith({ nights: 7 });
+  });
+});

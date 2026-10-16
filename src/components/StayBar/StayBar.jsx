@@ -120,6 +120,8 @@ export default function StayBar({
   // (iso) => boolean for a departure day this search cannot fly, or null to grey nothing.
   // Built by the page from the feasibility answer; the bar itself knows nothing about flights.
   isUnavailable = null,
+  // (travelDays) => boolean for a trip length with no complete package, or null to refuse none.
+  durationUnavailable = null,
   // The first flyable day and how many there are, for the calendar to state (UI-02). Same
   // arrangement as isUnavailable: the page works it out, the bar only passes it on.
   earliestAvailable = null,
@@ -373,9 +375,26 @@ export default function StayBar({
         <div className={styles.chips}>
           {exactDays.map((d) => {
             const n = stayDaysToNights(d);   // "7 days" chip → 6 nights
+            const picked = nights === n;
+            // UI-07: a length with no complete package is refused. An unknown answer refuses
+            // nothing — `durationUnavailable` is null until we can actually say.
+            const gone = typeof durationUnavailable === 'function' && durationUnavailable(d);
+            // A length the traveller already picked that the new dates cannot do STAYS, marked.
+            // Dropping it, or snapping to the nearest length that works, is how someone books a
+            // week they never chose.
+            const pickedButGone = picked && gone;
             return (
-              <button type="button" key={d} className={`${styles.chip}${nights === n ? ` ${styles.chipOn}` : ''}`}
-                onClick={() => onChange({ nights: n })} aria-pressed={nights === n}>
+              <button type="button" key={d}
+                className={[
+                  styles.chip,
+                  picked ? styles.chipOn : '',
+                  pickedButGone ? styles.chipOnGone : '',
+                  gone && !picked ? styles.chipGone : '',
+                ].filter(Boolean).join(' ')}
+                disabled={gone}
+                onClick={() => onChange({ nights: n })}
+                aria-pressed={picked}
+                aria-label={`${t('stayBar.daysChip', { count: d, defaultValue: `${d} days` })}${gone ? `, ${t('common:availability.notAvailable', 'not available')}` : ''}`}>
                 {t('stayBar.daysChip', { count: d, defaultValue: `${d} days` })}
               </button>
             );

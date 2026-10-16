@@ -103,6 +103,47 @@ export function makeIsUnavailable(dates, flex = 0, range = null) {
 }
 
 /**
+ * PURE. Which trip lengths a complete package exists for (UI-07 / Ch1 §9A, Ch3 §6).
+ *
+ * Same refusal rules as the dates: a truncated answer, or any arrival reported UNKNOWN, means we
+ * cannot say, and a length absent from an answer we do not trust must not be called sold out.
+ *
+ * `travelDays` counts the outbound and return days, so 8 days is usually 7 nights. The endpoint
+ * also reports the `nights` each length gives; this keeps only the length, because that is what
+ * the duration buttons are labelled with.
+ */
+export function mergeDurations(answers) {
+  const lengths = new Set();
+  for (const a of answers) {
+    if (!a || a.truncated) return null;
+    for (const st of Object.values(a.arrivals || {})) {
+      if (st?.status === 'UNKNOWN') return null;
+    }
+    for (const d of a.durations || []) {
+      const n = Number(d?.travelDays);
+      if (Number.isFinite(n) && n > 0) lengths.add(n);
+    }
+  }
+  return lengths;
+}
+
+/**
+ * PURE. The predicate a duration button asks.
+ *
+ * @param durations Set of flyable trip lengths in days, or null when unknown
+ * @returns (travelDays) => boolean, or null when no button should be disabled at all
+ */
+export function makeDurationUnavailable(durations) {
+  if (!durations) return null;
+  return (travelDays) => {
+    const n = Number(travelDays);
+    // A length we cannot read is not a length we can refuse.
+    if (!Number.isFinite(n) || n <= 0) return false;
+    return !durations.has(n);
+  };
+}
+
+/**
  * PURE. What the calendar can say out loud about the answer (UI-02 / Ch1 §9A).
  *
  * `makeIsUnavailable` answers "is this day greyed", one day at a time, which is all the greying
@@ -170,9 +211,9 @@ export function usePackageDepartureDates(q) {
         return data;
       })))
       .then((answers) => {
-        setAnswer({ key, dates: mergeDepartureDates(answers), state: 'ok' });
+        setAnswer({ key, dates: mergeDepartureDates(answers), durations: mergeDurations(answers), state: 'ok' });
       })
-      .catch(() => { if (!ctrl.signal.aborted) setAnswer({ key, dates: null, state: 'error' }); });
+      .catch(() => { if (!ctrl.signal.aborted) setAnswer({ key, dates: null, durations: null, state: 'error' }); });
 
     return () => ctrl.abort();
     // `key` names every input that changes the question.
@@ -184,6 +225,11 @@ export function usePackageDepartureDates(q) {
     dates: current ? answer.dates : null,
     // The window the answer covers. Days outside it were never judged; see makeIsUnavailable.
     range: current && answer.state === 'ok' ? { from: q.from, to: q.to } : null,
+    // Which trip lengths have a package (UI-07). Withheld entirely when the caller fixed
+    // `travelDays`, because the endpoint then answers about that length ALONE: taking it as the
+    // full list would mark every other duration button sold out on the strength of a question
+    // that never asked about them.
+    durations: current && !q.travelDays ? (answer.durations ?? null) : null,
     state: tooWide ? 'too-wide' : !key ? 'idle' : current ? answer.state : 'loading',
   };
 }

@@ -60,7 +60,7 @@ import {
 } from '../../utils/packageHandoff';
 import { usePackageMatrix } from './usePackageMatrix';
 import { usePackageAirports } from '../../hooks/usePackageAirports';
-import { usePackageDepartureDates, makeIsUnavailable, departureSummary } from '../../hooks/usePackageDepartureDates';
+import { usePackageDepartureDates, makeIsUnavailable, makeDurationUnavailable, departureSummary } from '../../hooks/usePackageDepartureDates';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -2303,6 +2303,25 @@ export default function HotelDetail() {
     adults: sAdults, children: sChildren, childAges: sChildAges,
   });
   const staySummary = useMemo(() => departureSummary(stayDates.dates), [stayDates.dates]);
+
+  // UI-07 (Ch1 §9A, Ch3 §6): which exact trip lengths this hotel can actually be packaged for.
+  //
+  // A second question, deliberately. The one above fixes `travelDays` so its dates are the days
+  // that fly AT THE CHOSEN LENGTH, which is what the calendar needs. An answer narrowed that way
+  // knows nothing about the other lengths, so asking it for the duration chips would mark every
+  // length but the current one sold out. Both are cached for two minutes server side.
+  const stayDurations = usePackageDepartureDates({
+    enabled: pkgMode && !!destination,
+    destinations: destination ? [destination] : [],
+    hotelCode,
+    from: stayDateFrom,
+    to: addDaysISO(stayDateFrom, DEPARTURE_LOOKAHEAD_DAYS),
+    adults: sAdults, children: sChildren, childAges: sChildAges,
+  });
+  const durationUnavailable = useMemo(
+    () => makeDurationUnavailable(stayDurations.durations),
+    [stayDurations.durations]
+  );
   // No flexibility control on this bar: the traveller picks one departure day, so ±0.
   const departureUnavailable = useMemo(
     () => makeIsUnavailable(stayDates.dates, 0, stayDates.range),
@@ -3964,6 +3983,7 @@ export default function HotelDetail() {
                 transport={transport}
                 nights={nights}
                 isUnavailable={departureUnavailable}
+                durationUnavailable={durationUnavailable}
                 earliestAvailable={staySummary?.earliest ?? null}
                 availableCount={staySummary?.count ?? null}
                 touched={filtersTouched}

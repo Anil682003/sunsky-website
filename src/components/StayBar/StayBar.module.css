@@ -215,6 +215,22 @@
 }
 .chip:hover { border-color: var(--blue-soft, #9dbcf5); color: var(--blue, #1f4fd8); background: #f2f7fe; }
 .chipOn { background: var(--blue, #1f4fd8); border-color: var(--blue, #1f4fd8); color: #fff; }
+
+/* UI-07: a trip length with no complete package. Struck through rather than merely faded, so it
+   reads as "we checked, there is nothing" instead of "still loading". */
+.chipGone {
+  color: #a8b4c8; background: #f7f9fc; border-color: #e8eef7;
+  text-decoration: line-through; cursor: not-allowed;
+}
+.chipGone:hover { color: #a8b4c8; background: #f7f9fc; border-color: #e8eef7; }
+
+/* A length the traveller chose that the new dates cannot do. It stays, and stays theirs:
+   still the selected colour, struck through, so the thing to change is obvious. */
+.chipOnGone {
+  background: var(--blue, #1f4fd8); border-color: var(--blue, #1f4fd8); color: #fff;
+  text-decoration: line-through; opacity: .62; cursor: not-allowed;
+}
+.chipOnGone:hover { background: var(--blue, #1f4fd8); border-color: var(--blue, #1f4fd8); color: #fff; }
 .reset {
   margin-left: auto; font-family: inherit; font-size: 12px; font-weight: 700; color: var(--blue, #1f4fd8);
   background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
