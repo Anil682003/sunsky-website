@@ -258,3 +258,34 @@ export function mergeAirportFacets(groups, body = {}) {
 }
 
 export default { PACKAGE_CONCURRENCY, chunkDestinations, packageBody, mapPackage, mergePackages, groupsToExtend, randomOrder, packageTotal, cheapestPackage, noFlightPlaces, unknownDestinations, mergeBoardFacets, mergeAirportFacets, DEST_CHUNK, PACKAGE_PAGE, PRECALC_NIGHTS };
+
+/**
+ * PURE. Hotels per destination across the package groups (UI-13, Ch 1 §5).
+ *
+ * `null` means no number may be shown, and it is returned generously:
+ *  - a group that has not answered yet (the page asks per destination group, and a count that
+ *    is still settling printed as a final figure is simply wrong);
+ *  - a group that failed;
+ *  - any answer flagged `complete: false`, which is the backend saying the same thing.
+ *
+ * The counts are already unique hotels per destination, so summing across groups cannot
+ * double-count: each group covers its own destinations. That is also what keeps a hotel from
+ * being counted twice when both its country and its destination are ticked, because the country
+ * total is the sum of ITS destinations rather than a separate tally.
+ *
+ * @param {object[]} groups  the package groups, page 1's `destinationFacets` on each
+ * @returns {Object<string, number>|null}
+ */
+export function mergeDestinationCounts(groups) {
+  if (!Array.isArray(groups) || !groups.length) return null;
+  const out = {};
+  for (const g of groups) {
+    if (!g?.done || g.error) return null;
+    const f = g.destinationFacets;
+    if (!f || f.complete === false) return null;
+    for (const [code, n] of Object.entries(f.counts || {})) {
+      out[code] = (out[code] || 0) + (Number(n) || 0);
+    }
+  }
+  return out;
+}

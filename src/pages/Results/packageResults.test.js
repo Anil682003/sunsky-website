@@ -3,7 +3,8 @@
 // calculated yet.
 import { describe, it, expect } from 'vitest';
 import {
-  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, PRECALC_NIGHTS,
+  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets,
+  mergeDestinationCounts, mergeAirportFacets, PRECALC_NIGHTS,
 } from './packageResults';
 
 const fp = { checkIn: '2026-11-13', checkOut: '2026-11-19', adults: '2', children: '1', rooms: '1', childAges: '8' };
@@ -142,5 +143,58 @@ describe('mapPackage carries why a hotel has no from-price (UI-10)', () => {
 
   it('a missing minimum is null rather than zero, so nothing claims "at least 0 days"', () => {
     expect(mapPackage({ ...base, fromPriceEligible: false }, 'Antalya').minTravelDays).toBeNull();
+  });
+});
+
+/**
+ * Hotels per destination in the scope filter (UI-13, Ch 1 §5).
+ *
+ * The page asks per destination group, so a number can only be printed once every group has
+ * answered and said its answer is complete. A count that is still settling, shown as if final,
+ * is a wrong number rather than a missing one.
+ */
+describe('mergeDestinationCounts', () => {
+  const g = (dests, counts, extra = {}) => ({
+    dests, done: true, error: null,
+    destinationFacets: { counts, complete: true },
+    ...extra,
+  });
+
+  it('sums the groups, each covering its own destinations', () => {
+    expect(mergeDestinationCounts([
+      g(['AYT'], { AYT: 624 }),
+      g(['BCN', 'AGP'], { BCN: 500, AGP: 311 }),
+    ])).toEqual({ AYT: 624, BCN: 500, AGP: 311 });
+  });
+
+  it('says nothing while a group is still answering', () => {
+    expect(mergeDestinationCounts([
+      g(['AYT'], { AYT: 624 }),
+      { dests: ['BCN'], done: false, error: null },
+    ])).toBeNull();
+  });
+
+  it('says nothing when a group failed', () => {
+    expect(mergeDestinationCounts([g(['AYT'], { AYT: 624 }, { error: new Error('down') })])).toBeNull();
+  });
+
+  it('says nothing when the backend flags the answer incomplete', () => {
+    expect(mergeDestinationCounts([
+      { dests: ['AYT'], done: true, error: null, destinationFacets: { counts: { AYT: 624 }, complete: false } },
+    ])).toBeNull();
+  });
+
+  it('says nothing when a group answered without the facet at all', () => {
+    expect(mergeDestinationCounts([{ dests: ['AYT'], done: true, error: null, destinationFacets: null }])).toBeNull();
+  });
+
+  it('a complete answer of zero is a real answer', () => {
+    // Nothing matched here, which is information. Only an answer we do not have is null.
+    expect(mergeDestinationCounts([g(['AYT'], { AYT: 0 })])).toEqual({ AYT: 0 });
+  });
+
+  it('says nothing when there are no groups', () => {
+    expect(mergeDestinationCounts([])).toBeNull();
+    expect(mergeDestinationCounts(null)).toBeNull();
   });
 });

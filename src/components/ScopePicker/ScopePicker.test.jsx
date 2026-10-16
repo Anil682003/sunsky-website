@@ -38,12 +38,13 @@ const COUNTRIES = [
  * against a stub parent that stores what it is given is the only way the selected
  * state on screen means anything.
  */
-function Harness({ onApply, initial = { countries: [], destinations: [], zones: [] } }) {
+function Harness({ onApply, initial = { countries: [], destinations: [], zones: [] }, counts = null }) {
   const [value, setValue] = useState(initial);
   return (
     <ScopePicker
       countries={COUNTRIES}
       value={value}
+      counts={counts}
       popular={{ countries: ['ES'], cities: [] }}
       onApply={(next) => { onApply?.(next); setValue(next); }}
     />
@@ -174,5 +175,69 @@ describe('ScopePicker — choosing where to search', () => {
     await openField(user, 'scope-country');
     await pick(user, 'Turkije');
     expect(onApply).toHaveBeenCalledWith({ countries: ['ES'], destinations: ['PMI'], zones: [] });
+  });
+});
+
+/**
+ * Hotels per place (UI-13, Ch 1 §5). A number next to a place is a claim, so it appears only
+ * where the search can back it, and a country is the sum of ITS destinations so that a hotel
+ * matched by both "Turkey" and "Antalya" is still counted once.
+ */
+describe('ScopePicker — hotels per place', () => {
+  it('shows a destination count straight from the search', async () => {
+    const { user } = setup({
+      initial: { countries: ['TR'], destinations: [], zones: [] },
+      counts: { AYT: 624, IST: 97 },
+    });
+    await openField(user, 'scope-city');
+    const antalya = await screen.findByRole('option', { name: /^Antalya/ });
+    expect(antalya.textContent).toMatch(/624/);
+    expect((await screen.findByRole('option', { name: /^Istanbul/ })).textContent).toMatch(/97/);
+  });
+
+  it('a country totals its own destinations, so a hotel is never counted twice', async () => {
+    // Turkey = Antalya + Istanbul = 721. Not a separate tally that could also include a hotel
+    // already counted under Antalya.
+    const { user } = setup({
+      initial: { countries: ['TR'], destinations: [], zones: [] },
+      counts: { AYT: 624, IST: 97, PMI: 500 },
+    });
+    await openField(user, 'scope-country');
+    const turkey = await screen.findByRole('option', { name: /^Turkije/ });
+    expect(turkey.textContent).toMatch(/721/);
+  });
+
+  it('shows no number for a country whose destinations are not loaded', async () => {
+    // Spain is not selected, so its destinations are unknown here. A partial total would
+    // understate it, and a zero would call it sold out.
+    const { user } = setup({
+      initial: { countries: ['TR'], destinations: [], zones: [] },
+      counts: { AYT: 624, IST: 97 },
+    });
+    await openField(user, 'scope-country');
+    const spain = await screen.findByRole('option', { name: /^Spanje/ });
+    expect(spain.textContent).not.toMatch(/\d/);
+  });
+
+  it('shows no numbers at all when the search cannot say', async () => {
+    // null is what the page passes while a group is still answering or the answer is
+    // incomplete. Every row stays bare rather than claiming a figure that is still settling.
+    const { user } = setup({
+      initial: { countries: ['TR'], destinations: [], zones: [] },
+      counts: null,
+    });
+    await openField(user, 'scope-city');
+    const antalya = await screen.findByRole('option', { name: /^Antalya/ });
+    expect(antalya.textContent).not.toMatch(/\d/);
+  });
+
+  it('a destination with nothing left shows zero rather than going blank', async () => {
+    // Zero is an answer: this place has no hotels under the current filters.
+    const { user } = setup({
+      initial: { countries: ['TR'], destinations: [], zones: [] },
+      counts: { AYT: 0, IST: 97 },
+    });
+    await openField(user, 'scope-city');
+    expect((await screen.findByRole('option', { name: /^Antalya/ })).textContent).toMatch(/0/);
   });
 });

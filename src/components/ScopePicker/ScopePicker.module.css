@@ -218,3 +218,15 @@
   .panel { animation: none; }
   .control, .controlChev, .option, .chip { transition: none; }
 }
+
+/* UI-13: hotels per place. Muted and tabular so the eye reads the names first and the numbers
+   line up; absent entirely when the search cannot back a number. */
+.optionCount {
+  flex-shrink: 0;
+  margin-left: auto;
+  padding-left: 10px;
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+  color: #8fa5c6;
+}
+.optionOn .optionCount { color: inherit; opacity: .8; }

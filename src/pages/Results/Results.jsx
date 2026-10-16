@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
 import {
-  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, PACKAGE_CONCURRENCY, isoAddDays,
+  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, mergeDestinationCounts, PACKAGE_CONCURRENCY, isoAddDays,
   packageTotal, cheapestPackage, noFlightPlaces,
 } from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
@@ -907,6 +907,10 @@ export default function Results() {
   const [cheapestCode, setCheapestCode] = useState(null);
   // Dynamic board facets from the cache: { boardCode: hotelCount } for THIS search.
   const [boardFacets, setBoardFacets] = useState({});
+  // UI-13 (Ch1 §5): hotels per destination under every other filter, keyed by destination code.
+  // null until a search answers, and null again whenever the answer is incomplete: a count that
+  // is still settling must not be printed as if it were final.
+  const [destCounts, setDestCounts] = useState(null);
   // Travel-time filter: { nights: priced-hotel count } for each day option (loaded in background).
   const [durationCounts, setDurationCounts] = useState({});
   // Set when page 1 of a search lands: { reqId }. The counts wait for it, so the
@@ -1587,6 +1591,7 @@ export default function Results() {
       growCeiling(merged.map((p) => (f.priceBasis === 'perPerson' ? p.pricePerPerson : p.sunskyPayableTotalRounded)).filter((n) => Number.isFinite(n)));
     }
     setBoardFacets(mergeBoardFacets(pk.groups));
+    setDestCounts(mergeDestinationCounts(pk.groups));
     setPkgProven(mergeAirportFacets(pk.groups, pk.body || {}));
     setPkgUnknown(unknownDestinations(pk.groups));
     setPkgFailed(pk.groups.filter((g) => g.done && g.error).flatMap((g) => g.dests));
@@ -1618,7 +1623,7 @@ export default function Results() {
           g.hasMore = !!r?.hasMore;
           g.page += 1;
           g.destinationStatus = { ...(g.destinationStatus || {}), ...(r?.destinationStatus || {}) };
-          if (g.page === 1) { g.boardFacets = r?.boardFacets || {}; g.airportFacets = r?.airportFacets || null; }
+          if (g.page === 1) { g.boardFacets = r?.boardFacets || {}; g.airportFacets = r?.airportFacets || null; g.destinationFacets = r?.destinationFacets || null; }
           g.error = null;
         } catch (err) {
           if (signal?.aborted || err?.name === 'CanceledError') return;
@@ -1656,7 +1661,7 @@ export default function Results() {
     }
     if (!priceScope) return;                       // wait for facets resolution
     if (!priceScope.destinations.length) {         // scope resolved to nothing to price
-      setAllHotels([]); setBoardFacets({}); setHasMore(false); setLoading(false); setFiltering(false);
+      setAllHotels([]); setBoardFacets({}); setDestCounts(null); setHasMore(false); setLoading(false); setFiltering(false);
       return;
     }
 
@@ -1745,6 +1750,8 @@ export default function Results() {
         const results = data.results || [];
         setNights(data.nights || 0);
         setBoardFacets(data.boardFacets || {});
+        // Hotel Only: the cache answers destinationCounts directly.
+        setDestCounts(data.destinationCounts || null);
         setCheapestCode(applied.sortBy === 'price_asc' || applied.sortBy === 'recommended' ? (data.cheapest?.hotelCode ?? null) : null);
 
         const seen   = seenCodesRef.current;
@@ -2602,6 +2609,7 @@ export default function Results() {
           status={countriesStatus}
           value={scope}
           popular={POPULAR_SCOPE}
+          counts={destCounts}
           onApply={applyScope}
         />
       </FilterSection>

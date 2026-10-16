@@ -105,6 +105,10 @@ function PickerField({
 
   const renderRow = (item) => {
     const on = selected.has(item.key);
+    // UI-13: how many hotels this place actually offers under the other filters. `null` means
+    // we cannot back a number, and no number is printed: a blank is honest, a "0" is a claim
+    // that the place is sold out.
+    const count = item.count;
     return (
       <li key={item.key}>
         <button
@@ -117,6 +121,11 @@ function PickerField({
           <Flag flagUrl={item.flagUrl} flag={item.flag} className={styles.optionFlag} />
           <span className={styles.optionName}>{item.label}</span>
           {item.hint && <span className={styles.optionHint}>{item.hint}</span>}
+          {count != null && (
+            <span className={styles.optionCount} aria-label={t('scopePicker.hotelCount', { count, defaultValue: `${count} hotels` })}>
+              {count.toLocaleString()}
+            </span>
+          )}
         </button>
       </li>
     );
@@ -194,6 +203,17 @@ export default function ScopePicker({
   status = 'ok',
   value = { countries: [], destinations: [], zones: [] },
   popular = { countries: [], cities: [] },
+  /**
+   * UI-13 (Ch1 §5): hotels per place under the other filters, keyed by destination code, or
+   * null when the search cannot say. Counted on unique hotels by the backend, so a country is
+   * the SUM of its destinations rather than a number that double-counts a hotel matched by both
+   * "Turkey" and "Antalya".
+   *
+   * A country total is only shown once its destinations are known, which happens when it is
+   * selected. Before that we have counts for places we cannot attribute to it, and inventing a
+   * partial total would understate the country.
+   */
+  counts = null,
   onApply,
 }) {
   const { t, i18n } = useTranslation('common');
@@ -280,13 +300,29 @@ export default function ScopePicker({
   const cityOf = (code) => cities.find((c) => c.code === code);
   const zoneOf = (key) => zones.find((z) => zoneKey(z) === key);
 
+  /**
+   * A country's total is the sum of the counts of ITS destinations, and only when we know which
+   * those are. `cities` holds the destinations of the countries currently selected, so an
+   * unselected country gets no number rather than a wrong one. Summing per destination is also
+   * what stops a hotel being counted twice when both "Turkey" and "Antalya" are ticked.
+   */
+  const countryCount = (code) => {
+    if (!counts) return null;
+    const mine = cities.filter((c) => c.countryCode === code || c.country === code);
+    if (!mine.length) return null;
+    return mine.reduce((sum, c) => sum + (Number(counts[c.code]) || 0), 0);
+  };
+
   const countryItems = useMemo(() => countries.map((c) => ({
     key: c.code, label: countryLabel(c), flag: c.flag, flagUrl: c.flagUrl, hint: '',
-  })), [countries, i18n.language]); // eslint-disable-line react-hooks/exhaustive-deps
+    count: countryCount(c.code),
+  })), [countries, i18n.language, counts, cities]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const cityItems = useMemo(() => cities.map((c) => ({
     key: c.code, label: c.name, flag: '', flagUrl: '', hint: '',
-  })), [cities]);
+    // Straight from the backend: already unique hotels under every other filter.
+    count: counts ? (Number(counts[c.code]) || 0) : null,
+  })), [cities, counts]);
 
   const zoneItems = useMemo(() => zones.map((z) => ({
     key: zoneKey(z), label: z.name, flag: '', flagUrl: '',
