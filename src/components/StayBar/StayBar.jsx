@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react';
 import { useTranslation } from 'react-i18next';
 import styles from './StayBar.module.css';
+import DateCalendar from '../DateCalendar/DateCalendar';
 import { earliestCheckInISO } from '../../utils/leadTime';
 import { DURATION_BANDS, bandByLabel, bandForNights, daysInBand, stayDaysToNights } from '../../utils/durations';
 
@@ -35,7 +36,7 @@ const Tick = () => (
 );
 
 // one field: the closed control plus, when open, its popover
-function Field({ id, icon, label, value, open, onToggle, children, wide }) {
+function Field({ id, icon, label, value, open, onToggle, children, wide, popClass = '' }) {
   return (
     <div className={`${styles.field}${open ? ` ${styles.fieldOpen}` : ''}${wide ? ` ${styles.fieldWide}` : ''}`}>
       <button type="button" className={styles.trigger} onClick={() => onToggle(id)}
@@ -47,7 +48,11 @@ function Field({ id, icon, label, value, open, onToggle, children, wide }) {
         </span>
         <Chevron />
       </button>
-      {open && <div className={styles.pop} role="dialog" aria-label={label}>{children}</div>}
+      {open && (
+        <div className={`${styles.pop}${popClass ? ` ${popClass}` : ''}`} role="dialog" aria-label={label}>
+          {children}
+        </div>
+      )}
     </div>
   );
 }
@@ -112,12 +117,14 @@ export default function StayBar({
   origin, originOptions = [], originLabel = (c) => c, destination = '', originNotes = {},
   transport = 'package',
   nights,
+  // (iso) => boolean for a departure day this search cannot fly, or null to grey nothing.
+  // Built by the page from the feasibility answer; the bar itself knows nothing about flights.
+  isUnavailable = null,
   touched = false, onChange, onBoardChange, onChildAges, onChildDobs, onReset,
 }) {
   const { t } = useTranslation('hotelDetail');
   const [openField, setOpenField] = useState(null);
   const barRef = useRef(null);
-  const dateRef = useRef(null);
   const toggle = (f) => setOpenField((p) => (p === f ? null : f));
   const close = () => setOpenField(null);
 
@@ -227,19 +234,24 @@ export default function StayBar({
   return (
     <div className={styles.bar} ref={barRef}>
       <div className={styles.fields}>
-        <div className={`${styles.field} ${styles.fieldWide}`}>
-          <button type="button" className={styles.trigger}
-            onClick={() => { dateRef.current?.showPicker?.(); dateRef.current?.focus(); }}>
-            <span className={styles.ico}>{ICONS.cal}</span>
-            <span className={styles.body}>
-              <span className={styles.label}>{t('stayBar.departureDate', 'Departure date')}</span>
-              <span className={styles.value}>{checkIn ? formatDate(checkIn) : t('home:hero.pickDate', 'Pick a date')}</span>
-            </span>
-            <Chevron />
-          </button>
-          <input ref={dateRef} type="date" className={styles.dateHidden} value={checkIn || ''} min={earliest}
-            onChange={(e) => { if (e.target.value) onChange({ checkIn: e.target.value }); }} />
-        </div>
+        {/* The site's own calendar, in the same popover every other field here uses.
+            It was a hidden <input type="date"> fired through showPicker(), which handed the
+            traveller the browser's calendar — and a native picker cannot grey the days this
+            search has no flight for (UI-01, Ch1 §7 §9A). It can only take a min and a max,
+            so an impossible Tuesday looked exactly like a possible one. */}
+        <Field id="date" icon={ICONS.cal}
+          label={t('stayBar.departureDate', 'Departure date')}
+          value={checkIn ? formatDate(checkIn) : t('home:hero.pickDate', 'Pick a date')}
+          open={openField === 'date'} onToggle={toggle} wide popClass={styles.popCal}>
+          <DateCalendar
+            value={checkIn || ''}
+            onChange={(iso) => { onChange({ checkIn: iso }); close(); }}
+            min={earliest}
+            months={1}
+            legend
+            isUnavailable={isUnavailable}
+          />
+        </Field>
 
         <Field id="pax" icon={ICONS.users} label={t('stayBar.travellingCompany', 'Travelling company')} value={paxLabel}
           open={openField === 'pax'} onToggle={toggle} wide>
