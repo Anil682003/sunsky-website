@@ -124,6 +124,25 @@ let _registry = SEED_DEPARTURE_AIRPORTS.slice();
 let _byCode = new Map(_registry.map((a) => [a.code, a]));
 
 /**
+ * The order every departure-airport list shows them in (UI-18, Master §12B.6): the ones marked
+ * Popular in GeoData → Airports first, then the rest in the order configured there.
+ *
+ * PURE, and ORDER ONLY. This decides what a traveller reads down a list, nothing else. "No
+ * preference" still compares every active departure airport, so the cheapest package may well
+ * leave from one that is not popular, and marking an airport Popular in the dashboard must
+ * never move a price, a count or a from-price. Keeping the rule here, in the one place the
+ * registry is built, is what makes that true by construction: there is no second ordering for
+ * a pricing path to pick up.
+ *
+ * The code is the last tiebreak so two airports sharing a `sortOrder` keep the same order on
+ * every load, rather than sitting wherever the answer happened to arrive.
+ */
+export const byPopularThenOrder = (x, y) =>
+  (y?.popular === true) - (x?.popular === true)
+  || (x?.sortOrder ?? 999) - (y?.sortOrder ?? 999)
+  || (String(x?.code) < String(y?.code) ? -1 : String(x?.code) > String(y?.code) ? 1 : 0);
+
+/**
  * Replace the departure-airport registry with the admin master list (spec 3.6).
  *
  * The dashboard's list is the authority: once it has answered, the registry is EXACTLY the
@@ -156,7 +175,7 @@ export function setDepartureAirports(list) {
     });
   }
   if (!merged.size) return;
-  _registry = [...merged.values()].sort((x, y) => (x.sortOrder ?? 999) - (y.sortOrder ?? 999));
+  _registry = [...merged.values()].sort(byPopularThenOrder);
   _byCode = new Map(_registry.map((a) => [a.code, a]));
 }
 

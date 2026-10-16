@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import {
   DEPARTURE_AIRPORTS, AIRPORT_CODES, POPULAR_AIRPORTS, OTHER_AIRPORTS,
   DEFAULT_ORIGIN, airportLabel, airportCity, normaliseOrigin, airportToValue,
-  setDepartureAirports, getDepartureAirports, isDepartureAirport, parseOrigins,
+  setDepartureAirports, getDepartureAirports, isDepartureAirport, parseOrigins, byPopularThenOrder,
 } from './airports';
 
 describe('the departure-airport list', () => {
@@ -90,15 +90,19 @@ describe('the dashboard list is the authority (spec 3.6)', () => {
       { code: 'CRL', name: 'Charleroi, Brussels South', sortOrder: 20 },
       { code: 'ANR', name: 'Antwerp', sortOrder: 10 },
     ]);
-    expect(getDepartureAirports().map((a) => a.code)).toEqual(['ANR', 'CRL']);
+    // CRL before ANR despite the higher sortOrder: the dashboard sent no `popular` flag, so
+    // each keeps the seed's, and CRL is curated popular while ANR is not (UI-18).
+    expect(getDepartureAirports().map((a) => a.code)).toEqual(['CRL', 'ANR']);
     expect(isDepartureAirport('BRU')).toBe(false);   // deactivated: not merged back from the seed
     expect(isDepartureAirport('crl')).toBe(true);
   });
 
   it('never falls back to an airport the dashboard switched off', () => {
     setDepartureAirports([{ code: 'CRL', sortOrder: 20 }, { code: 'ANR', sortOrder: 10 }]);
-    expect(normaliseOrigin('BRU')).toBe('ANR');
-    expect(normaliseOrigin('JFK')).toBe('ANR');
+    // With BRU switched off the fallback is the first airport on offer, which is now the
+    // popular one rather than whichever had the lowest sortOrder.
+    expect(normaliseOrigin('BRU')).toBe('CRL');
+    expect(normaliseOrigin('JFK')).toBe('CRL');
     expect(normaliseOrigin('CRL')).toBe('CRL');
   });
 
@@ -123,5 +127,66 @@ describe('parseOrigins', () => {
   it('drops an airport the dashboard deactivated', () => {
     setDepartureAirports([{ code: 'CRL' }]);
     expect(parseOrigins('BRU,CRL')).toEqual(['CRL']);
+  });
+});
+
+/**
+ * UI-18 (Master §12B.6). Departure lists show the Popular airports first, then the rest in the
+ * order configured in GeoData → Airports.
+ *
+ * ORDER ONLY. The point of the task is that it changes what a traveller reads and nothing else:
+ * "No preference" still compares every active departure airport, so the cheapest package may
+ * leave from one that is not popular, and marking an airport Popular must never move a price.
+ */
+describe('popular departure airports come first (UI-18)', () => {
+  afterEach(() => setDepartureAirports(DEPARTURE_AIRPORTS));
+
+  const a = (code, popular, sortOrder) => ({ code, name: code, popular, sortOrder });
+
+  it('puts the popular ones above the rest, whatever order they arrive in', () => {
+    setDepartureAirports([
+      a('LIL', false, 1),
+      a('DUS', false, 2),
+      a('BRU', true, 10),
+      a('CRL', true, 11),
+    ]);
+    expect(getDepartureAirports().map((x) => x.code)).toEqual(['BRU', 'CRL', 'LIL', 'DUS']);
+  });
+
+  it('keeps the configured order within each group', () => {
+    // A low sortOrder does not promote a non-popular airport past a popular one, and the
+    // dashboard's ordering still decides the sequence inside both halves.
+    setDepartureAirports([a('CRL', true, 9), a('BRU', true, 2), a('DUS', false, 1)]);
+    expect(getDepartureAirports().map((x) => x.code)).toEqual(['BRU', 'CRL', 'DUS']);
+  });
+
+  it('an airport the dashboard says nothing about is not treated as popular', () => {
+    setDepartureAirports([{ code: 'ZZZ', name: 'Z' }, a('BRU', true, 5)]);
+    expect(getDepartureAirports()[0].code).toBe('BRU');
+  });
+
+  it('two airports sharing a sort order keep the same order on every load', () => {
+    // Without the code tiebreak they would sit wherever the answer happened to arrive, so a
+    // list could silently reshuffle between two visits.
+    const once = () => {
+      setDepartureAirports([a('DUS', false, 5), a('BRE', false, 5), a('CGN', false, 5)]);
+      return getDepartureAirports().map((x) => x.code);
+    };
+    expect(once()).toEqual(['BRE', 'CGN', 'DUS']);
+    expect(once()).toEqual(once());
+  });
+
+  it('the comparator itself is total and survives junk', () => {
+    expect(byPopularThenOrder({ code: 'A', popular: true }, { code: 'B' })).toBeLessThan(0);
+    expect(byPopularThenOrder({ code: 'A' }, { code: 'B', popular: true })).toBeGreaterThan(0);
+    expect(byPopularThenOrder({ code: 'A' }, { code: 'A' })).toBe(0);
+    expect(() => [undefined, null, { code: 'A' }].sort(byPopularThenOrder)).not.toThrow();
+  });
+
+  it('a truthy-but-not-true popular flag is not promoted', () => {
+    // The registry normalises to a real boolean; anything else would make the order depend on
+    // how the dashboard happened to serialise the field.
+    setDepartureAirports([{ code: 'AAA', popular: 'yes', sortOrder: 9 }, a('BRU', true, 9)]);
+    expect(getDepartureAirports()[0].code).toBe('BRU');
   });
 });
