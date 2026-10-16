@@ -39,7 +39,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-08 | Count wording and the counting state | Medium | Ready | **DONE** (`24ed197`) |
 | UI-09 | Mandatory local costs next to the price | Medium | **Needs API** | BLOCKED |
 | UI-10 | "View available dates" when only short trips exist | Medium | Ready | **DONE** (`093ac29`) |
-| UI-11 | Same state wording everywhere | Medium | Ready | |
+| UI-11 | Same state wording everywhere | Medium | Ready | **DONE** (`c56368f`) |
 | UI-12 | Route control: two states | Medium | Ready | **DONE** (`fa977e5`) |
 | UI-13 | Destination counts in the destination filter | Later | Ready | |
 | UI-15 | W2M-only hotels as a second group with "Check price" | Later | **Waiting** | BLOCKED |
@@ -307,8 +307,21 @@ still use their own words.
   search period"
 
 **API:** `utils/availability.js` has the states.
-**Where:** unused strings `availability.checkPrice`, `availability.notForSelection`,
-`availability.priceTemporarilyUnavailable`, `price.nonePeriod`.
+**Where:** the price strip in `HotelDetail.jsx`.
+
+**Done** in `c56368f`. A bar can carry no price for three reasons, and the strip had two words
+between them: a live check that came back empty (a confirmed negative, and correct), a
+`NO_VALID_COMBINATION` that also read "Not available", and a `SOURCE_ERROR` that fell through to
+"Check live price" — inviting a check we had already tried and failed.
+
+The third is the one that matters. `SOURCE_ERROR` means we failed to ASK, and reading it as "not
+available" tells a traveller a holiday is gone when nobody ever looked.
+
+Two things worth knowing before touching it again: a strip column is 78px wide on a phone, so the
+bar carries a short form while the button's `aria-label` carries the canonical sentence (one
+vocabulary, two lengths, deliberate); and `price.nonePeriod` lived in **results.json**, the wrong
+namespace for a string three screens share, so it moved to `common.availability.nonePeriod` and
+the hotel page's own `prices.noAvailability` is gone.
 
 ### UI-12 — Route control: two states (replaces the three-choice routing filter)
 **Pages:** Results, Hotel page (alternative flights) · **Spec:** Ch1 §12B.9 · §12B.6
