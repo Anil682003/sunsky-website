@@ -60,6 +60,7 @@ import {
 } from '../../utils/packageHandoff';
 import { usePackageMatrix } from './usePackageMatrix';
 import { usePackageAirports } from '../../hooks/usePackageAirports';
+import { usePackageDepartureDates, makeIsUnavailable } from '../../hooks/usePackageDepartureDates';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -351,6 +352,11 @@ const longDate = (iso) => {
 // midnight, so serialising through UTC handed back the previous day for every traveller east
 // of Greenwich (IST: "20 Mar + 7 nights" → 26 Mar) — a whole night short in the availability
 // search, the checkout payload and the shared link.
+// How far ahead the departure calendar asks which days can be flown. /feasibility takes 31 days
+// per request, so a quarter costs three; the full twelve-month horizon would cost twelve. Days
+// past it were never judged and stay selectable rather than greyed on no evidence.
+const DEPARTURE_LOOKAHEAD_DAYS = 92;
+
 const addDaysISO = (iso, n) => {
   const d = new Date(iso + 'T00:00:00');
   if (isNaN(d.getTime())) return iso;
@@ -2274,6 +2280,33 @@ export default function HotelDetail() {
   // or another choice changed): it stays chosen and says so; only the traveller picks another
   // (Ch 1 §9A, Ch 3 case 23). Unknown (loading, failed) is never "not available".
   const originGone = pkgMode && !!origin && !!pkgAirportsAround.origins && !pkgAirportsAround.origins.has(origin);
+
+  // UI-01 (Ch1 §7, §9A): the departure days this search can actually fly, so the StayBar
+  // calendar can grey the rest. This page is where the feature earns its keep: one hotel means
+  // one destination, so its arrival airports sit well inside the ten the endpoint will take,
+  // where a multi-country results search usually does not.
+  //
+  // Asked from today rather than around the chosen date, because this calendar is how the
+  // traveller MOVES that date; judging only the fortnight they are already on would grey every
+  // day they might move to.
+  const pkgArrivalCodes = useMemo(
+    () => Object.keys(pkgAirportsAround.arrivals || {}),
+    [pkgAirportsAround.arrivals]
+  );
+  const stayDateFrom = earliestCheckInISO();
+  const stayDates = usePackageDepartureDates({
+    enabled: pkgMode && pkgAirportsAround.state === 'ok',
+    arrivals: pkgArrivalCodes,
+    from: stayDateFrom,
+    to: addDaysISO(stayDateFrom, DEPARTURE_LOOKAHEAD_DAYS),
+    travelDays: matrixTravelDays,
+    adults: sAdults, children: sChildren, childAges: sChildAges,
+  });
+  // No flexibility control on this bar: the traveller picks one departure day, so ±0.
+  const departureUnavailable = useMemo(
+    () => makeIsUnavailable(stayDates.dates, 0, stayDates.range),
+    [stayDates.dates, stayDates.range]
+  );
   // ── the paged fare strip ──
   // The cache endpoint always returns CAL_DAYS days FORWARD from the check-in it is handed, so
   // paging is nothing more than asking again from a different day. Today is the hard floor: the
@@ -3929,6 +3962,7 @@ export default function HotelDetail() {
                 originNotes={originGone ? { [origin]: t('flights.originGoneShort', 'Not available') } : undefined}
                 transport={transport}
                 nights={nights}
+                isUnavailable={departureUnavailable}
                 touched={filtersTouched}
                 onChange={applyFilter}
                 onBoardChange={(id) => setOvr((p) => ({ ...p, board: id }))}
