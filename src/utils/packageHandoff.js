@@ -218,6 +218,11 @@ export function matrixDays(cells) {
       state: c.state,
       cheapest: !!c.cheapest,
       currency: c.currency || 'EUR',
+      // The airport this date's winner actually leaves from (UI-03). With several departure
+      // airports competing, two neighbouring dates can have different ones, so the strip has to
+      // be able to say which — and picking the date has to take that airport with it, rather
+      // than the one that happened to price the card.
+      from: up(c.departureAirport) || pkg?.from || null,
       pkg,
     };
     const had = byIso.get(iso);

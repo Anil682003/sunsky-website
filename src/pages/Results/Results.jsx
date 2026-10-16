@@ -2075,7 +2075,12 @@ export default function Results() {
     // falls back to its own default.
     const from = fareOrigin || (activeOrigins.length === 1 ? activeOrigins[0] : '');
     if (from) qs.set('origin', normaliseOrigin(from));
-    if (activeOrigins.length > 1) qs.set('origins', activeOrigins.join(','));
+    // EVERY ticked airport travels, not only two or more (UI-03). The hotel page prices each
+    // matrix date from whichever of them is cheapest, so the absence of this parameter has to
+    // mean "no preference, let them all compete" — which it cannot if we send it only when
+    // plural, because one ticked airport would then look exactly like none. `origin` above is
+    // the airport that priced THIS card, which is the offer's starting point, not a filter.
+    if (activeOrigins.length) qs.set('origins', activeOrigins.join(','));
     // The package this card priced: its flights, flight dates and arrival airport, so the hotel
     // page's live check confirms exactly that package (utils/packageHandoff).
     if (filters.transport === 'package' && h.pkg) {

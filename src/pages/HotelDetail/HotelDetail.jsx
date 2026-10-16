@@ -2228,9 +2228,26 @@ export default function HotelDetail() {
   const [mAnchor, setMAnchor] = useState({ base: null, date: null });
   const matrixDate = (mAnchor.base === matrixBase && mAnchor.date) || matrixBase;
   const [matrixReload, setMatrixReload] = useState(0);
+  /**
+   * The departure airports the strip prices each date from (UI-03).
+   *
+   * Not `origin`. That is the airport which priced the card the traveller clicked, and using it
+   * here would quietly turn one winning flight into a filter on all seven dates — the contract's
+   * "an airport choice is never narrowed without the traveller doing it", broken by the page that
+   * is supposed to honour it. So:
+   *
+   *   they picked an airport here  → that one, because it IS their choice;
+   *   they ticked some on Results  → those compete, each date from the cheapest of them;
+   *   they ticked none             → empty, which the API reads as every active airport.
+   *
+   * Only `originPicked` narrows it. `ovr.origin` alone is also set by picking a date, which
+   * follows that date's winner; letting that narrow the strip would re-price the other six from
+   * it and move the prices the traveller was comparing.
+   */
+  const matrixOrigins = ovr.originPicked && ovr.origin ? [ovr.origin] : qp('origins');
   const matrix = usePackageMatrix({
     enabled: pkgMode && !!matrixDate, hotelCode, destination, date: matrixDate, travelDays: matrixTravelDays,
-    origin, adults: sAdults, children: sChildren, childAges: sChildAges, rooms: sRooms,
+    origins: matrixOrigins, adults: sAdults, children: sChildren, childAges: sChildAges, rooms: sRooms,
     routing: qp('routing').toLowerCase() === 'nonstop' ? 'nonstop' : '', reload: matrixReload,
   });
   const matrixByDate = useMemo(() => Object.fromEntries(matrix.days.map((d) => [d.iso, d])), [matrix.days]);
@@ -2424,6 +2441,14 @@ export default function HotelDetail() {
   const pMin = priced.length ? Math.min(...priced) : 0;
   const pMax = priced.length ? Math.max(...priced) : 1;
   const priceVaries = pMin !== pMax;
+  // Do the dates on screen leave from more than one airport (UI-03)? Only then is the code
+  // worth printing under each column: with one airport it repeats seven times and says nothing,
+  // with two it explains why one date is cheaper than its neighbour.
+  //
+  // Not memoised: it is a Set over at most seven strings, and `priceDays` is built
+  // conditionally just above, which is exactly the shape the compiler cannot verify a
+  // useMemo against.
+  const airportsVary = new Set(priceDays.map((p) => p.from).filter(Boolean)).size > 1;
   // The cheapest whole-party total on screen, for the page's "from" figure (a total, not p.p.).
   const totals = priceDays.filter((p) => p.price > 0).map((p) => p.price);
   const minTotal = totals.length ? Math.min(...totals) : 0;
@@ -3300,7 +3325,11 @@ export default function HotelDetail() {
   const applyAlternative = (code) => {
     const checkin = liveFlights?.checkin || pd?.iso || baseCheckIn;
     const checkout = liveFlights?.checkout || (pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut);
-    setOvr((p) => ({ ...p, origin: code }));
+    // `originPicked` separates THIS from the airport that merely follows a chosen date: only a
+    // traveller naming an airport narrows the strip to it (UI-03). Without the distinction,
+    // picking a date would re-price the other six from that date's airport and the strip would
+    // shift under the hand that touched it.
+    setOvr((p) => ({ ...p, origin: code, originPicked: true }));
     fetchFlights(checkin, checkout, code);
   };
 
@@ -3317,6 +3346,13 @@ export default function HotelDetail() {
       // it). The trip length the matrix was asked for stays, so the strip is not asked again.
       const n = own ? urlPkg.nights : entry?.pkg?.nights;
       if (n && n !== nights) setOvr((p) => ({ ...p, nights: n, travelDays: matrixTravelDays }));
+      // Picking a date picks the airport its winner leaves from (UI-03). With several airports
+      // competing, the cheapest package on this date may well start somewhere other than the one
+      // that priced the card, and the offer below has to be that package, not a rebuild of it
+      // from the old airport. The traveller can still change it afterwards; this only follows
+      // the date they chose.
+      const dayFrom = own ? urlPkg.from : entry?.from;
+      if (dayFrom && dayFrom !== origin) setOvr((p) => ({ ...p, origin: dayFrom }));
     } else {
       // Re-centre on the chosen day, so the three days either side are on screen to compare
       // against — which is the whole reason for picking a date here rather than in the date
@@ -4028,6 +4064,11 @@ export default function HotelDetail() {
                       profile to show and no "Lowest price" tag to leave room for. */}
                   <div className={`fc-strip${priceVaries ? '' : ' fc-flat'}`}>
                     {priceDays.map((p, i) => {
+                      // Which airport this date leaves from, shown only when the week actually
+                      // holds more than one (UI-03). Printing the same code under all seven
+                      // columns is noise; printing it when they differ is the only way to see
+                      // that Tuesday is cheaper because it goes from Amsterdam.
+                      const showFrom = airportsVary && p.from;
                       const hasPrice = Number(p.price) > 0;
                       const isEmpty = checkedEmpty.has(emptyKey(p.iso)) || p.state === 'NO_VALID_COMBINATION';
                       // Is THIS the day the traveller has picked. Referenced by isLoading, the
@@ -4075,10 +4116,14 @@ export default function HotelDetail() {
                           onClick={() => pickDay(p.iso, p)}
                           disabled={isEmpty}
                           aria-pressed={sel}
-                          aria-label={isEmpty ? t('prices.dayNotAvailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available` })
+                          aria-label={(isEmpty ? t('prices.dayNotAvailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available` })
                             : liveHere ? t('prices.dayLivePriceLabel', { day: p.day, date: p.date, currency: ccy, amount: nowPP, moveNote: ppMoved != null ? t('prices.dayMoveNote', { currency: ccy, delta: Math.abs(ppMoved), direction: ppMoved < 0 ? t('prices.lower', 'lower') : t('prices.higher', 'higher'), wasAmount: wasPP, defaultValue: `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` }) : '', nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${dayLabel(p.nights)}` })
                             : hasPrice ? t('prices.dayFromPriceLabel', { day: p.day, date: p.date, currency: ccy, amount: pp, nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, from ${ccy}${pp} per person, ${dayLabel(p.nights)}` })
-                            : t('prices.dayCheckLivePrice', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, check live price` })}>
+                            : t('prices.dayCheckLivePrice', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, check live price` }))
+                            // The departure airport is rendered as a bare code in the column;
+                            // aria-label replaces the button's inner text, so without this a
+                            // screen reader would never learn that this date leaves elsewhere.
+                            + (showFrom ? t('prices.dayFromAirport', { code: p.from, defaultValue: `, departing from ${p.from}` }) : '')}>
                           <span className="fc-barzone">
                             {/* Only one flag fits above a bar. Once a day has been checked, how
                                 its price MOVED is newer and more useful than whether it was the
@@ -4135,6 +4180,7 @@ export default function HotelDetail() {
                           <span className="fc-under" key={p.iso}>
                             <span className="fc-wk">{(p.day || '').substring(0, 3)}</span>
                             <span className="fc-date">{p.date}</span>
+                            {showFrom && <span className="fc-from">{p.from}</span>}
                             <span className="fc-dot" aria-hidden="true" />
                           </span>
                           <span className="fc-tail" aria-hidden="true" />

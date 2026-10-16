@@ -3780,3 +3780,15 @@
 .sd .av-card .avail-price-val { font-size:44px; }
 .sd .av-card .av-price-total { margin-top:2px; }
 .sd .av-card .av-price-label { text-align:center; }
+
+/* The departure airport under a strip column (UI-03). Only rendered when the week holds more
+   than one, so it never repeats the same code seven times. */
+.fc-from {
+  display: block;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: .04em;
+  color: #6b7280;
+  margin-top: 1px;
+}
+.fc-col.sel .fc-from { color: #1f4fd8; }

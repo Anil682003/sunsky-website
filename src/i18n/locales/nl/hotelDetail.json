@@ -480,7 +480,8 @@
     "laterDates": "Latere data",
     "showLaterDates": "Latere data tonen",
     "livePackagePrice": "Live prijs, vlucht + hotel · {{nights}}",
-    "hotelOnlyStripNote": "Dit zijn hotelprijzen. De vluchten worden toegevoegd wanneer je een datum controleert."
+    "hotelOnlyStripNote": "Dit zijn hotelprijzen. De vluchten worden toegevoegd wanneer je een datum controleert.",
+    "dayFromAirport": ", vertrek vanaf {{code}}"
   },
   "rooms": {
     "allTaxesIncluded": "Alle prijzen zijn inclusief belastingen en kosten.",

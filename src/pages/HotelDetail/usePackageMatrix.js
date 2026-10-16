@@ -9,14 +9,38 @@ import { fromFailure } from '../../utils/availability';
 import { matrixDays } from '../../utils/packageHandoff';
 
 /**
+ * The departure airports the matrix competes across, as the API's `origins` wants them.
+ *
+ * A LIST, not one airport (UI-03): the traveller may have ticked several on the results page, or
+ * none at all, and each date should be priced from whichever of them is cheapest that day. An
+ * empty string means "every active departure airport", which is what the API does without
+ * `origins` — so no preference stays no preference instead of quietly becoming the airport that
+ * happened to price the card they clicked.
+ *
+ * PURE, and exported for the tests: this is the whole difference between a strip that prices
+ * seven dates from one airport and one that lets them compete.
+ */
+export function originsParam(origins) {
+  const list = Array.isArray(origins) ? origins : String(origins || '').split(',');
+  const seen = new Set();
+  for (const raw of list) {
+    const code = String(raw || '').trim().toUpperCase();
+    if (code.length === 3) seen.add(code);
+  }
+  return [...seen].sort().join(',');
+}
+
+/**
  * @param {object} q  enabled, hotelCode, destination, date (departure, YYYY-MM-DD), travelDays,
- *                    origin, adults, children, childAges (csv), rooms, routing ('nonstop' | ''),
+ *                    origins (array or csv; empty = every airport), adults, children,
+ *                    childAges (csv), rooms, routing ('nonstop' | ''),
  *                    reload (a counter: a new value asks again)
  * @returns {{ scope: string, loading: boolean, error: object|null, days: object[], prev: string|null, next: string|null, status: string|null }}
  */
 export function usePackageMatrix(q) {
+  const origins = originsParam(q.origins);
   const scope = q.enabled && q.hotelCode && q.destination && q.date
-    ? [q.hotelCode, q.destination, q.date, q.travelDays, q.origin, q.adults, q.children, q.childAges, q.rooms, q.routing, q.reload].join('|')
+    ? [q.hotelCode, q.destination, q.date, q.travelDays, origins, q.adults, q.children, q.childAges, q.rooms, q.routing, q.reload].join('|')
     : '';
   const [answer, setAnswer] = useState({ scope: '', days: [], prev: null, next: null, status: null, error: null });
 
@@ -25,7 +49,7 @@ export function usePackageMatrix(q) {
     const ctrl = new AbortController();
     const params = {
       hotelCode: String(q.hotelCode), destination: q.destination, date: q.date,
-      travelDays: String(q.travelDays || ''), origins: q.origin || '',
+      travelDays: String(q.travelDays || ''), origins,
       adults: q.adults, children: q.children, rooms: q.rooms,
     };
     if (q.childAges) params.childAges = q.childAges;

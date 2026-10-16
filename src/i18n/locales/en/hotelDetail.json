@@ -480,7 +480,8 @@
     "laterDates": "Later dates",
     "showLaterDates": "Show later dates",
     "livePackagePrice": "Live price, flight + hotel · {{nights}}",
-    "hotelOnlyStripNote": "These are hotel prices. Flights are added when you check a date."
+    "hotelOnlyStripNote": "These are hotel prices. Flights are added when you check a date.",
+    "dayFromAirport": ", departing from {{code}}"
   },
   "rooms": {
     "allTaxesIncluded": "All prices include taxes, fees and charges.",

@@ -136,7 +136,11 @@ describe('the strip of a Flight + Hotel package is the package matrix', () => {
     renderPage();
     const days = await priceDays();
     expect(get).toHaveBeenCalledWith('/flight-availability/package-matrix', expect.objectContaining({
-      params: expect.objectContaining({ hotelCode: '592205', destination: 'TRAYT', date: DEP, travelDays: '9', origins: 'FRA', adults: '2' }),
+      // `origins: ''` = every active departure airport (UI-03). The URL carries `origin=FRA`,
+      // but that is the airport which priced the card, not an airport the traveller asked for;
+      // a real choice arrives as `origins`. Sending FRA here would turn one winning flight into
+      // a filter on all seven dates.
+      params: expect.objectContaining({ hotelCode: '592205', destination: 'TRAYT', date: DEP, travelDays: '9', origins: '', adults: '2' }),
     }));
     expect(globalThis.fetch.mock.calls.some(([u]) => String(u).includes('hotel-price-calendar'))).toBe(false);
     // Per person, flight + hotel: €1,400 for two is €700 p.p.
@@ -399,9 +403,19 @@ describe('the hotel page offers only departure airports with a package to this h
     renderPage();
     // (the suite renders in Dutch)
     await waitFor(() => expect(document.body.textContent).toMatch(/\(FRA\)[^·]*· (Niet beschikbaar|Not available)/));
-    // Never swapped for DUS on its own: the matrix is still asked from FRA.
+    // Never swapped for DUS on its own. The chip above still reads FRA; what the matrix is
+    // asked for is every airport (UI-03), because this URL carries no `origins` and so no
+    // choice to honour. The page must not quietly adopt DUS as the chosen airport either way.
     const matrixCalls = get.mock.calls.filter(([u]) => String(u).includes('package-matrix'));
-    expect(matrixCalls.at(-1)[1].params.origins).toBe('FRA');
+    expect(matrixCalls.at(-1)[1].params.origins).toBe('');
+  });
+
+  it('the airports the traveller ticked on Results are the ones the strip prices from', async () => {
+    // The other half of UI-03: a real choice DOES narrow it, and survives the hand-off.
+    renderPage(`&${PKG_QS}&origins=FRA,DUS`);
+    await priceDays();
+    const matrixCalls = get.mock.calls.filter(([u]) => String(u).includes('package-matrix'));
+    expect(matrixCalls.at(-1)[1].params.origins).toBe('DUS,FRA');
   });
 
   it('unknown (the check failed) is never "not available"', async () => {
