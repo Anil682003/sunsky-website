@@ -70,25 +70,29 @@ export function hotelImageForWidth(url, cssWidth, dpr = (typeof window !== 'unde
 }
 
 /**
- * The variant a RESULT CARD should ask for, given the screen's pixel density.
+ * The variant a RESULT CARD asks for. Always `bigger` (800 px, 82 KB).
  *
- * Separate from `hotelImageForWidth` on purpose. That one steps from `bigger` (800 px, 82 KB)
- * straight to `original` (2048 px, 525 KB), which is right for a hero or a lightbox and ruinous
- * for a card: twenty of them on a phone is 10 MB of photos to cure an upscale nobody would
- * notice. A card stops at `bigger`.
+ * It used to depend on `devicePixelRatio`, and that was the bug, twice over. The original cut
+ * was `>= 1.5`, which failed every Windows laptop at 125% scaling. Moving it to `> 1` fixed
+ * those and still left people soft, because BROWSER ZOOM MULTIPLIES devicePixelRatio: at 90%
+ * zoom a 1x screen reports 0.9 and a 1.25 screen reports 1.125, so the same machine crosses the
+ * line in both directions depending on a setting nobody thinks of as a display setting. A
+ * threshold on a number that moves like that does not have a correct value; it only has a
+ * different set of people it fails.
  *
- * The cut used to be `dpr >= 1.5`, which quietly failed the most common desktop there is.
- * Windows ships at 125% display scaling, so a great many laptops report 1.25, landed just under
- * the threshold, and were served the 320 px thumbnail for a card box of 230-336 CSS px — about
- * 420 device px at that density, a 1.3x upscale, which is exactly the softness people describe
- * as "the photos look bad". Anything above 1x now gets the larger file; the extra 65 KB only
- * goes to screens that can actually resolve it.
+ * So the card stops asking. 320 px was never comfortably enough for a box of 230-336 CSS px
+ * anyway, and `bigger` was exactly what every card requested before the October 3rd
+ * perf change (#48) introduced the conditional, which is the last time nobody complained about
+ * photo quality. The 65 KB is worth not having this conversation again.
  *
- * @param {number} dpr devicePixelRatio
- * @returns {'default'|'bigger'}
+ * Still NOT `hotelImageForWidth`: that steps from `bigger` straight to `original` (2048 px,
+ * 525 KB), so twenty cards on a phone would pull 10 MB. That helper is right for the hero and
+ * the lightbox, where one large image is the whole point.
+ *
+ * @returns {'bigger'}
  */
-export function cardPhotoVariant(dpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1) {
-  return Number(dpr) > 1 ? 'bigger' : 'default';
+export function cardPhotoVariant() {
+  return 'bigger';
 }
 
 /**

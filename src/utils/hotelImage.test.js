@@ -141,36 +141,20 @@ describe('hotelImageChain', () => {
 });
 
 describe('cardPhotoVariant', () => {
-  it('asks for the larger file on any screen denser than 1x', () => {
-    // 1.25 is the one that matters: Windows ships at 125% display scaling, so a great many
-    // laptops report exactly this. The old cut of >= 1.5 left them on the 320 px thumbnail,
-    // stretched across a card box needing about 420 device px.
-    expect(cardPhotoVariant(1.25)).toBe('bigger');
-    expect(cardPhotoVariant(1.5)).toBe('bigger');
-    expect(cardPhotoVariant(2)).toBe('bigger');
-    expect(cardPhotoVariant(3)).toBe('bigger');
+  it('always asks for the larger file, whatever the screen reports', () => {
+    // Deliberately independent of devicePixelRatio. Two thresholds were tried and both failed:
+    // >= 1.5 missed every Windows laptop at 125% scaling, and > 1 still missed anyone browsing
+    // at 90% zoom, because zoom MULTIPLIES devicePixelRatio. A cut on a number that moves with
+    // a browser setting has no correct value.
+    for (const dpr of [0.75, 0.9, 1, 1.125, 1.25, 1.5, 2, 3]) {
+      expect(cardPhotoVariant(dpr)).toBe('bigger');
+    }
+    expect(cardPhotoVariant()).toBe('bigger');
   });
 
-  it('leaves a plain 1x screen on the small file', () => {
-    // 320 px covers a 336 px box closely enough at 1x, and 18 KB beats 82 KB when the extra
-    // pixels cannot be resolved anyway.
-    expect(cardPhotoVariant(1)).toBe('default');
-  });
-
-  it('never reaches for original, however dense the screen', () => {
-    // The guard against "fixing" this with hotelImageForWidth: original is 525 KB, and twenty
+  it('never reaches for original, however tempting', () => {
+    // The guard against 'fixing' this with hotelImageForWidth: original is 525 KB, and twenty
     // cards of it on a phone is 10 MB to cure an upscale nobody would notice.
-    expect(cardPhotoVariant(4)).toBe('bigger');
-  });
-
-  it('treats a nonsense density as 1x rather than guessing upward', () => {
-    // Number(NaN) > 1 is false and 0 > 1 is false, so both land on the small file. Guessing
-    // upward would push 82 KB at every card on the strength of a bad reading.
-    expect(cardPhotoVariant(0)).toBe('default');
-    expect(cardPhotoVariant(NaN)).toBe('default');
-    // Omitting it is NOT the same thing: that means "read the screen", which in a real browser
-    // may well be 2. Asserted against the environment's own value so this does not quietly
-    // become a claim about jsdom.
-    expect(cardPhotoVariant()).toBe(window.devicePixelRatio > 1 ? 'bigger' : 'default');
+    expect(cardPhotoVariant(4)).not.toBe('original');
   });
 });

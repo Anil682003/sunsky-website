@@ -108,8 +108,11 @@ describe('result card photos', () => {
       await waitFor(() => expect(cardImgs(container).length).toBe(19));
       const first = container.querySelector('article img[src*="photos.hotelbeds.com"]');
       fireEvent.load(first);
-      // 1x screen in jsdom → the 320 px default variant, exactly what the card will request
-      expect(fetched).toEqual([extra(0, 2), extra(0, 3)]);
+      // Prefetched at the size the card will actually request, which is `bigger` on every
+      // screen now. Prefetching a different variant from the one the <img> asks for would warm
+      // the wrong file and the card would still wait for its own download.
+      const bigger = (u) => u.replace('/giata/', '/giata/bigger/');
+      expect(fetched).toEqual([bigger(extra(0, 2)), bigger(extra(0, 3))]);
       // the same photos are never fetched twice
       fireEvent.load(first);
       expect(fetched).toHaveLength(2);
