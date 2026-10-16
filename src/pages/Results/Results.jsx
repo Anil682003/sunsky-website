@@ -2581,12 +2581,15 @@ export default function Results() {
           unticked. With every destination direct-only it would filter nothing, so it stays away. */}
       {filters.transport === 'package' && (filters.nonstop || allHotels.some((h) => (h.pkg?.flight?.stops || 0) > 0)) && (
         <FilterSection title={t('filters.connections', 'Connections')} defaultOpen>
+          {/* The same two states as the hotel page's flight list (UI-12, §12B.9): untouched is
+              every route the destination allows, ticked is direct both ways. One wording in both
+              places, so the traveller meets the same question twice rather than two. */}
           <FilterCheck
-            label={t('filters.nonstopOnly', 'Non-stop flights only')}
+            label={t('filters.nonstopBothWays', 'Direct outbound and return only')}
             checked={filters.nonstop}
             onChange={() => setFilter('nonstop', !filters.nonstop)}
           />
-          <p className={styles.originNote}>{t('filters.nonstopNote', 'Where a destination allows it, the cheapest flight may have one connection. Tick this to price non-stop flights only.')}</p>
+          <p className={styles.originNote}>{t('filters.nonstopNote', 'Leave this off for every route the destination allows, which may include one connection. Tick it to price direct flights out and back only.')}</p>
         </FilterSection>
       )}
 

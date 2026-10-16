@@ -157,7 +157,6 @@
     "clearAllFilters": "Clear all filters",
     "departureTimeOutbound": "Departure time - Outbound",
     "departureTimeReturn": "Departure time - Return",
-    "directFlights": "Non-stop",
     "directFlightsHint": "Non-stop flights have no stop in either direction. Where the destination allows it, a flight may have one connection; never more.",
     "excludeBaggage": "Exclude baggage",
     "filters": "Filters",
@@ -166,7 +165,6 @@
     "flightType": "Connections",
     "flightsFound_one": "{{count}} flight found",
     "flightsFound_other": "{{count}} flights found",
-    "flightsWithStops": "With one connection",
     "hideFilters": "Hide filters",
     "includeBaggage": "Include baggage",
     "nMore": "{{count}} more",
@@ -186,7 +184,8 @@
     "showNFlights_other": "Show {{count}} flights",
     "sort": "Sort:",
     "titleEarliest": "{{title}} — earliest",
-    "titleLatest": "{{title}} — latest"
+    "titleLatest": "{{title}} — latest",
+    "nonstopBothWays": "Direct outbound and return only"
   },
   "flights": {
     "addDestinationPrompt": "Add a destination to your search to see live fares.",

@@ -199,7 +199,7 @@ describe('a flight the traveller picked is never swapped for another', () => {
 
     // Now narrow the list to direct flights, which the chosen one is not.
     await openFlightList(user);
-    await user.click(await screen.findByRole('checkbox', { name: /^non-stop/i }));
+    await user.click(await screen.findByRole('checkbox', { name: /rechtstreeks heen en terug/i }));
     // Said where the choosing happens...
     await waitFor(() => expect(container.querySelector('.modal-flights').textContent).toMatch(/past niet meer bij je filters/i));
     await closeFlightList(user, container);
@@ -232,9 +232,12 @@ describe('a flight the traveller picked is never swapped for another', () => {
     await runCheck(user);
     await waitFor(() => expect(pageCard(container)?.textContent).toContain('XQ 1653'));
 
-    // Nobody picked anything, so ticking "with a stop" moves the default onto a flight with one.
+    // Nobody picked anything, so the page's own default follows the filters. Driven by the
+    // AIRLINE filter rather than the routing one: UI-12 left a single "direct only" box, and
+    // that can only ever push the default TOWARDS a direct flight — which is what the cheapest
+    // already is here, so nothing would move and the test would prove nothing.
     await openFlightList(user);
-    await user.click(await screen.findByRole('checkbox', { name: /met één overstap/i }));
+    await user.click(await screen.findByRole('checkbox', { name: /turkish/i }));
     await closeFlightList(user, container);
 
     await waitFor(() => expect(pageCard(container).textContent).toContain('TK 1940'));

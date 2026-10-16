@@ -347,7 +347,7 @@ describe('the filter rail acts on the live results', () => {
     await openFilters(user);
     await waitFor(() => expect(modalCards(container).length).toBe(3));
 
-    await user.click(screen.getByRole('checkbox', { name: /^non-stop/i }));
+    await user.click(screen.getByRole('checkbox', { name: /rechtstreeks heen en terug/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(2));
     expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
   });
@@ -358,18 +358,27 @@ describe('the filter rail acts on the live results', () => {
     const user = userEvent.setup();
     const { container } = renderPage('&transport=package&routing=nonstop');
     await openFilters(user);
-    await waitFor(() => expect(screen.getByRole('checkbox', { name: /^non-stop/i }).checked).toBe(true));
+    await waitFor(() => expect(screen.getByRole('checkbox', { name: /rechtstreeks heen en terug/i }).checked).toBe(true));
     expect(modalCards(container).length).toBe(2);
     expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
   });
 
-  it('keeps only the flights with a stop', async () => {
+  // UI-12: two states, so the way back is un-ticking the one box. There is no longer a
+  // "with one connection" option to choose — that would be a third state — and un-ticking
+  // returns to every route the destination allows rather than to a different filter.
+  it('un-ticking returns the connecting flights to the list', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await openFilters(user);
+    await waitFor(() => expect(modalCards(container).length).toBe(3));
 
-    await user.click(screen.getByRole('checkbox', { name: /met één overstap/i }));
-    await waitFor(() => expect(modalCards(container).length).toBe(1));
+    const box = screen.getByRole('checkbox', { name: /rechtstreeks heen en terug/i });
+    await user.click(box);
+    await waitFor(() => expect(modalCards(container).length).toBe(2));
+    expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
+
+    await user.click(box);
+    await waitFor(() => expect(modalCards(container).length).toBe(3));
     expect(container.querySelector('.modal-flights').textContent).toContain('Turkish');
   });
 
@@ -401,8 +410,9 @@ describe('the filter rail acts on the live results', () => {
     const { container } = renderPage();
     await openFilters(user);
 
-    await user.click(screen.getByRole('checkbox', { name: /met één overstap/i }));
-    await waitFor(() => expect(screen.getByText(/1 van 3 vluchten komen overeen/i)).toBeInTheDocument());
+    await user.click(screen.getByRole('checkbox', { name: /rechtstreeks heen en terug/i }));
+    // 2 of 3: the fixture holds two direct flights and one with a connection.
+    await waitFor(() => expect(screen.getByText(/2 van 3 vluchten komen overeen/i)).toBeInTheDocument());
 
     await user.click(screen.getByRole('button', { name: /alle filters resetten/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(3));
@@ -421,7 +431,7 @@ describe('the filter rail acts on the live results', () => {
     const body = () => container.querySelector('.modal-body');
     expect(body().className).toContain('rail-open');
 
-    await user.click(screen.getByRole('checkbox', { name: /met één overstap/i }));
+    await user.click(screen.getByRole('checkbox', { name: /rechtstreeks heen en terug/i }));
     // Queried by class, not by role: both controls are `display:none` until the media query
     // that owns them matches, and jsdom evaluates no media queries.
     await user.click(container.querySelector('.modal-rail-fold'));
@@ -431,8 +441,8 @@ describe('the filter rail acts on the live results', () => {
 
     await user.click(container.querySelector('.modal-rail-tab'));
     await waitFor(() => expect(body().className).toContain('rail-open'));
-    // The filter it was folded over is still on.
-    expect(modalCards(container)).toHaveLength(1);
+    // The filter it was folded over is still on: 2 of the 3 flights are direct.
+    expect(modalCards(container)).toHaveLength(2);
   });
 
   it('offers a departure-time range built from the real departures', async () => {

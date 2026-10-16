@@ -157,7 +157,6 @@
     "clearAllFilters": "Alle filters wissen",
     "departureTimeOutbound": "Vertrektijd - Heenreis",
     "departureTimeReturn": "Vertrektijd - Terugreis",
-    "directFlights": "Non-stop",
     "directFlightsHint": "Non-stop vluchten hebben geen tussenstop, heen noch terug. Waar de bestemming het toelaat, kan een vlucht één overstap hebben; nooit meer.",
     "excludeBaggage": "Zonder ruimbagage",
     "filters": "Filters",
@@ -166,7 +165,6 @@
     "flightType": "Overstappen",
     "flightsFound_one": "{{count}} vlucht gevonden",
     "flightsFound_other": "{{count}} vluchten gevonden",
-    "flightsWithStops": "Met één overstap",
     "hideFilters": "Filters verbergen",
     "includeBaggage": "Met ruimbagage",
     "nMore": "{{count}} meer",
@@ -186,7 +184,8 @@
     "showNFlights_other": "Toon {{count}} vluchten",
     "sort": "Sorteren:",
     "titleEarliest": "{{title}} — vroegst",
-    "titleLatest": "{{title}} — laatst"
+    "titleLatest": "{{title}} — laatst",
+    "nonstopBothWays": "Alleen rechtstreeks heen en terug"
   },
   "flights": {
     "addDestinationPrompt": "Voeg een bestemming toe aan je zoekopdracht om live tarieven te zien.",

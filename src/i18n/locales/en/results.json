@@ -123,8 +123,7 @@
     "originNote": "Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.",
     "arrivalAirport": "Arrival airport",
     "connections": "Connections",
-    "nonstopOnly": "Non-stop flights only",
-    "nonstopNote": "Where a destination allows it, the cheapest flight may have one connection. Tick this to price non-stop flights only.",
+    "nonstopNote": "Leave this off for every route the destination allows, which may include one connection. Tick it to price direct flights out and back only.",
     "airportSearch": "Search airport or city",
     "pickAirports": "Choose one or more airports",
     "noAirportMatch": "No airport matches that.",
@@ -172,7 +171,8 @@
     "airportsCheckFailed": "We couldn’t check which airports fly there just now, so every airport stays selectable.",
     "originNoteAny": "Each hotel shows the departure airport that prices it cheapest. Tick airports to compare only those.",
     "airportNoFlight": "No flight to {{place}} for these dates",
-    "airportChoiceGone": "Not available for this search. Untick it or choose another airport."
+    "airportChoiceGone": "Not available for this search. Untick it or choose another airport.",
+    "nonstopBothWays": "Direct outbound and return only"
   },
   "hero": {
     "home": "Home",

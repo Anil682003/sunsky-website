@@ -6002,27 +6002,32 @@ export default function HotelDetail() {
                     {t('flightModal.flightType', 'Connections')}
                     <FilterHint text={t('flightModal.directFlightsHint', 'Non-stop flights have no stop in either direction. Where the destination allows it, a flight may have one connection; never more.')} />
                   </div>
-                  {/* Two boxes, not three. "All flights" was a checkbox that could only ever
-                      be ticked — the way back from a narrowed list — and a row whose count
-                      always equalled the unfiltered total read as a filter that filtered
-                      nothing. Un-ticking either box is the way back now, which is what a
-                      checkbox means everywhere else on this rail. */}
-                  {[
-                    // Build order, step 13: the airport's connection policy decides what can be
-                    // here at all (backend), so "with one connection" is never more than one.
-                    { id: 'direct', label: t('flightModal.directFlights', 'Non-stop'),            count: facets.type.direct },
-                    { id: 'stops',  label: t('flightModal.flightsWithStops', 'With one connection'), count: facets.type.stops },
-                  ].map((o) => (
-                    <label key={o.id} className={`modal-filter-opt${fType === o.id ? ' checked' : ''}`}>
-                      <input type="checkbox" className="mf-input" checked={fType === o.id}
-                        onChange={() => setFType((v) => (v === o.id ? 'all' : o.id))} />
-                      <span className="modal-filter-cb" aria-hidden="true">
-                        {fType === o.id && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}
-                      </span>
-                      <span className="mfo-label">{o.label}</span>
-                      <span className="mfo-count">{o.count}</span>
-                    </label>
-                  ))}
+                  {/* ONE box with two states (UI-12, §12B.9). It was two — "Non-stop" and
+                      "With one connection" — which is three options once you count leaving both
+                      alone, and the spec is explicit that the customer is never offered three.
+                      The engine still distinguishes NONSTOP, THROUGH_STOP and CONNECTION; the
+                      traveller is asked one question.
+
+                      Unticked is "every route this destination allows", which is not the same as
+                      every route: the destination's Flight Connection Policy has already decided
+                      what can appear in this list at all, so clearing the box returns to what the
+                      backend permitted and can never widen past it.
+
+                      The group renders only when the set holds both kinds (`facets.type`), so on
+                      a DIRECT_ONLY destination there is nothing to narrow and no box at all. */}
+                  <label className={`modal-filter-opt${fType === 'direct' ? ' checked' : ''}`}>
+                    <input
+                      type="checkbox"
+                      className="mf-input"
+                      checked={fType === 'direct'}
+                      onChange={() => setFType((v) => (v === 'direct' ? 'all' : 'direct'))}
+                    />
+                    <span className="modal-filter-cb" aria-hidden="true">
+                      {fType === 'direct' && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}
+                    </span>
+                    <span className="mfo-label">{t('flightModal.nonstopBothWays', 'Direct outbound and return only')}</span>
+                    <span className="mfo-count">{facets.type.direct}</span>
+                  </label>
                 </div>
               )}
 

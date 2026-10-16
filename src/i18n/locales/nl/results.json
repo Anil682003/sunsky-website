@@ -123,8 +123,7 @@
     "originNote": "Vluchten worden op de hotelpagina geprijsd, eerst vanaf deze luchthaven. Wordt een route hier niet gevlogen, dan tonen we je de dichtstbijzijnde luchthavens die dat wel doen.",
     "arrivalAirport": "Aankomstluchthaven",
     "connections": "Overstappen",
-    "nonstopOnly": "Alleen non-stop vluchten",
-    "nonstopNote": "Waar een bestemming het toelaat, kan de goedkoopste vlucht één overstap hebben. Vink dit aan voor alleen non-stop vluchten.",
+    "nonstopNote": "Laat dit uit voor alle toegestane vluchten, eventueel met één overstap. Vink aan om alleen rechtstreekse vluchten heen en terug te prijzen.",
     "airportSearch": "Zoek luchthaven of plaats",
     "pickAirports": "Kies één of meerdere luchthavens",
     "noAirportMatch": "Geen luchthaven komt overeen.",
@@ -172,7 +171,8 @@
     "airportsCheckFailed": "We konden nu niet nagaan welke luchthavens erheen vliegen, dus elke luchthaven blijft kiesbaar.",
     "originNoteAny": "Bij elk hotel zie je de vertrekluchthaven met de laagste prijs. Vink luchthavens aan om alleen die te vergelijken.",
     "airportNoFlight": "Geen vlucht naar {{place}} op deze data",
-    "airportChoiceGone": "Niet beschikbaar voor deze zoekopdracht. Vink hem uit of kies een andere luchthaven."
+    "airportChoiceGone": "Niet beschikbaar voor deze zoekopdracht. Vink hem uit of kies een andere luchthaven.",
+    "nonstopBothWays": "Alleen rechtstreeks heen en terug"
   },
   "hero": {
     "home": "Home",

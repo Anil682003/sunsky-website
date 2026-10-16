@@ -54,7 +54,7 @@ beforeEach(async () => {
 
 const QUERY = '/results?destination=AYT&destinationLabel=Antalya&checkIn=2026-11-03&checkOut=2026-11-10&adults=2&children=0&rooms=1&transport=package';
 const renderAt = (extra = '') => render(<MemoryRouter initialEntries={[`${QUERY}${extra}`]}><Results /></MemoryRouter>);
-const nonstopBox = () => screen.queryAllByRole('checkbox', { name: 'Alleen non-stop vluchten' })[0];
+const nonstopBox = () => screen.queryAllByRole('checkbox', { name: 'Alleen rechtstreeks heen en terug' })[0];
 const lastPackageCall = async () => {
   const { fetchPackages } = await import('../../api/filters');
   return fetchPackages.mock.calls.at(-1)?.[0];
