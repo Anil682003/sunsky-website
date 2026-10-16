@@ -31,7 +31,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 |---|---|---|---|---|
 | UI-01 | Disable impossible departure dates in every calendar | High | Ready\* | |
 | UI-02 | Open the calendar on the first month with a possible departure | High | Ready\* | |
-| UI-03 | Matrix: each date from the cheapest of the chosen airports | High | Ready | |
+| UI-03 | Matrix: each date from the cheapest of the chosen airports | High | Ready | **DONE** (`1fe3278`) |
 | UI-04 | Room and board price differences against the current selection | High | Ready | **DONE** |
 | UI-05 | Disable impossible destinations and airports on the homepage | Medium | Ready | **DONE** |
 | UI-06 | Ask before dropping airports that clash with a new destination | Medium | **Needs API** | BLOCKED |
@@ -125,6 +125,24 @@ date's airport. Today the hotel page keeps one airport (the card's) and prices e
 returns `departureAirport`.
 **Where:** `packageHandoff.js` (carry the selection), `HotelDetail/usePackageMatrix.js` (send a list),
 `HotelDetail.jsx` (show each cell's airport, use it when a date is picked).
+
+**Done** in `1fe3278`. Each cell already returned `departureAirport`; nothing read it. The strip
+now asks with `origins` (a list) instead of one airport, prints the code under a column only when
+the week holds more than one, and appends it to the column's aria-label, since aria-label replaces
+a button's inner text.
+
+Two things that were not obvious going in:
+
+- **Results had to send `origins` whenever ANY airport is ticked**, not only two or more.
+  Previously one ticked airport and none ticked arrived identically, so "no preference" had to be
+  guessed, and the guess was the airport that priced the clicked card.
+- **Picking a date and picking an airport are different acts.** A date adopts its winner's airport
+  for the offer, because the cheapest package that day may start elsewhere. But it must not narrow
+  the strip, or the other six dates re-price and the prices being compared move. Only the airport
+  chips set `ovr.originPicked`, and only that narrows.
+
+Two tests asserted the old narrowing and were updated; a new one covers that a real choice
+(`origins=FRA,DUS`) still reaches the API.
 
 ### UI-04 — Room and board price differences against the current selection · DONE
 **Pages:** Hotel page · **Spec:** Ch1 §8 · Ch2 §6 · Ch3 §6
