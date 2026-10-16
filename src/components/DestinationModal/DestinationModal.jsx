@@ -44,12 +44,22 @@ function Flag({ flagUrl, flag, className }) {
     : <span className={className} data-emoji="true">{flag || '🏳️'}</span>;
 }
 
+/**
+ * @param isUnavailable (item) => boolean — a destination no flight reaches from the departure
+ *   airport the traveller chose. Shown, greyed, not selectable, with the reason on it. The
+ *   modal knows nothing about flights; it asks, exactly as DateCalendar does. Omit it (the
+ *   default says "no") and nothing is ever greyed, which is what every caller without a
+ *   departure airport wants.
+ * @param unavailableReason text for those chips, e.g. "Not available from Charleroi".
+ */
 export default function DestinationModal({
   open,
   countries = [],
   loading = false,
   error = null,
   value = { countries: [], places: [] },
+  isUnavailable,
+  unavailableReason = '',
   onApply,
   onClose,
 }) {
@@ -218,12 +228,20 @@ export default function DestinationModal({
           {shown.map((item) => {
             const key = placeKey(type, item.id);
             const active = selectedKeys.has(key);
+            // A place already picked is never greyed, even when the airport since chosen
+            // cannot reach it: Ch1 §9A says a traveller's choice stays visible and keeps its
+            // tick, so they can see what no longer fits and decide for themselves. Taking it
+            // away silently is the one thing the contract forbids outright.
+            const blocked = !active && typeof isUnavailable === 'function' && isUnavailable(item);
             return (
               <button
                 key={key}
                 type="button"
-                className={`${styles.chip} ${active ? styles.chipActive : ''}`}
-                onClick={() => togglePlace(group, type, item)}
+                className={`${styles.chip} ${active ? styles.chipActive : ''} ${blocked ? styles.chipBlocked : ''}`}
+                onClick={() => !blocked && togglePlace(group, type, item)}
+                disabled={blocked}
+                aria-disabled={blocked || undefined}
+                title={blocked ? unavailableReason || undefined : undefined}
               >
                 {item.name}
                 {active && <span className={styles.chipCheck}><CheckIcon size={10} /></span>}

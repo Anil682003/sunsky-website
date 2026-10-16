@@ -33,7 +33,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-02 | Open the calendar on the first month with a possible departure | High | Ready\* | |
 | UI-03 | Matrix: each date from the cheapest of the chosen airports | High | Ready | |
 | UI-04 | Room and board price differences against the current selection | High | Ready | **DONE** |
-| UI-05 | Disable impossible destinations and airports on the homepage | Medium | Ready | |
+| UI-05 | Disable impossible destinations and airports on the homepage | Medium | Ready | **WIP** — destinations done, airports not |
 | UI-06 | Ask before dropping airports that clash with a new destination | Medium | **Needs API** | BLOCKED |
 | UI-07 | Only offer trip lengths that have a package | Medium | Ready | |
 | UI-08 | Count wording and the counting state | Medium | Ready | |
@@ -154,8 +154,28 @@ alternative. Today rows show "+€ X p.p. vs cheapest" and never a minus.
 
 Visible gaps against the contract.
 
-### UI-05 — Disable impossible destinations and airports on the homepage
+### UI-05 — Disable impossible destinations and airports on the homepage · WIP
 **Pages:** Home · **Spec:** Ch1 §9A · Ch3 §4A · cases 19, 20
+
+**Half done.** The destination direction is finished and tested: pick one departure airport and
+destinations it cannot reach are greyed in the picker with "Niet beschikbaar vanaf …".
+`src/hooks/useDestinationFeasibility.js` (10 unit tests) + `DestinationModal` now takes an
+`isUnavailable` predicate (4 component tests), wired from `Hero.jsx`.
+
+**Still to do — the airport direction:** pick Antalya and ANR should grey, with a country
+staying selectable when any of its destinations works (case 20). No new endpoint is needed:
+`usePackageAirports` already answers it with `origins`. What is missing is calling it from
+`Hero.jsx` for the chosen destinations and giving the package departure-airport picker the same
+predicate treatment. Note that picker is **not** `AirportSearch` — that component serves the
+Flights tab; the package picker is elsewhere in `Hero.jsx` and needs locating first.
+
+Two decisions already made and worth keeping:
+- The greying only runs with **exactly one** departure airport chosen. The endpoint takes one
+  origin, and with several picked a destination is reachable when any of them reaches it, which
+  needs a request per airport. Until that exists, greying nothing is the honest answer rather
+  than greying on the first airport alone.
+- `travelDays` is deliberately not sent. A narrower question yields more NOT_FEASIBLE answers,
+  and the expensive mistake is greying a destination the traveller could have flown.
 
 After picking Charleroi, destinations without a round trip from CRL are greyed with
 "Not available from Charleroi", and the other way round. A country stays selectable if any

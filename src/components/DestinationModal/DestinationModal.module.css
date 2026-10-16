@@ -391,6 +391,20 @@
   color: var(--blue-deep);
   font-weight: 600;
 }
+/* No flight reaches this destination from the departure airport the traveller chose. Kept on
+   screen rather than removed (Ch1 §9A) so they can see it is there and why it is not offered,
+   instead of hunting for a place that silently vanished. The hover lift is cancelled too: a
+   chip that rises under the cursor reads as clickable whatever its colour says. */
+.chipBlocked,
+.chipBlocked:hover {
+  border-color: #E8EAEE;
+  background: #F6F7F9;
+  color: #9AA3B0;
+  cursor: not-allowed;
+  transform: none;
+  text-decoration: line-through;
+  text-decoration-color: rgba(154, 163, 176, 0.55);
+}
 
 .chipFlag {
   flex-shrink: 0;

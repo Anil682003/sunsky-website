@@ -14,6 +14,9 @@ import { flagUrl } from '../../../utils/countryFlag';
 import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
+import { useDestinationFeasibility } from '../../../hooks/useDestinationFeasibility';
+// One definition of ISO date arithmetic, shared with the results page and the feasibility hooks.
+import { isoAddDays } from '../../Results/packageResults';
 import { earliestCheckInISO } from '../../../utils/leadTime';
 import { loadPax, savePax } from '../../../utils/paxStore';
 import { loadSearch, saveSearch } from '../../../utils/searchStore';
@@ -503,6 +506,37 @@ export default function Hero() {
 
   const totalAdults   = roomsList.reduce((n, r) => n + r.adults, 0);
   const totalChildren = roomsList.reduce((n, r) => n + r.children, 0);
+
+  /**
+   * Destinations this departure airport cannot reach (UI-05 / Ch1 §9A, case 19).
+   *
+   * Asked only for a Flight + Hotel search with EXACTLY ONE airport chosen. The endpoint takes
+   * one origin, and with several picked a destination is reachable when any of them reaches it
+   * — answering that needs a request per airport, and until it exists greying nothing is the
+   * honest answer rather than greying on the first airport alone. No preference means every
+   * airport, so nothing is narrowed either.
+   *
+   * `travelDays` is deliberately not sent. A narrower question produces more NOT_FEASIBLE
+   * answers, and the failure that costs us money is greying a destination the traveller could
+   * in fact have flown, not leaving one selectable that a later search rules out.
+   */
+  const feasibilityOrigin = (transport === 'package' && chosenOrigins.length === 1)
+    ? chosenOrigins[0]
+    : '';
+  const { unreachable: unreachableDests } = useDestinationFeasibility({
+    enabled: !!feasibilityOrigin,
+    origin: feasibilityOrigin,
+    // Only a date the traveller actually chose narrows the window; otherwise the endpoint's
+    // own default (the next 31 days) stands.
+    from: date || undefined,
+    to: date ? isoAddDays(date, Math.max(0, Number(flexDays) || 0)) : undefined,
+    adults: totalAdults,
+    children: totalChildren,
+  });
+
+  /** A place the chosen airport cannot reach. Matched on the destination code the API keys by. */
+  const placeUnavailable = (item) =>
+    !!unreachableDests && !!item?.code && unreachableDests.has(String(item.code).toUpperCase());
 
   const setRoomAdults = (roomIdx, next) =>
     setRoomsList((prev) =>
@@ -1828,6 +1862,13 @@ export default function Hero() {
         loading={countriesLoading}
         error={countriesError}
         value={destSelection}
+        isUnavailable={placeUnavailable}
+        unavailableReason={feasibilityOrigin
+          // `common:` because this page's `t` is bound to the home namespace while feasibility.*
+          // lives in common.json. Without the prefix it finds nothing, falls back to the English
+          // default, and shows a Dutch traveller "Not available from Charleroi".
+          ? t('common:feasibility.notAvailableFrom', 'Not available from {{airport}}', { airport: airportLabel(feasibilityOrigin) })
+          : ''}
         onApply={handleDestinationApply}
         onClose={() => setDestModalOpen(false)}
       />
