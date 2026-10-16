@@ -110,11 +110,10 @@
 .optOn .optNote { color: var(--blue-mid, #3a6fe8); }
 .tick { flex-shrink: 0; color: var(--blue, #1f4fd8); }
 
-/* date field — visually hidden input, only used for the native calendar picker */
-.dateHidden {
-  position: absolute; bottom: 0; left: 16px; width: 0; height: 0; opacity: 0;
-  pointer-events: none; border: none; padding: 0;
-}
+/* The departure date opens the site's own calendar in a .pop like every other field. A month
+   grid is wider than the 360px .pop caps at, which clips the last column. Only this popover
+   is widened; the others are lists and want the narrower box. */
+.popCal { max-width: 420px; padding: 10px; }
 
 /* child date-of-birth pickers */
 .dobSection {

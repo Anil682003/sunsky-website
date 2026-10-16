@@ -362,7 +362,20 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
-    const pathname = decodeURIComponent(url.pathname);
+
+    // A path like /% or /%zz is not a valid percent-escape, and decodeURIComponent throws
+    // URIError on it. That landed in the handler's catch, so every scanner probing malformed
+    // URLs — and they probe constantly — was answered 500 Internal Server Error and logged with
+    // a stack trace. Both are wrong: the request is the client's mistake, not ours, and the
+    // noise buries real errors in the same log.
+    let pathname;
+    try {
+      pathname = decodeURIComponent(url.pathname);
+    } catch {
+      res.writeHead(400, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
+      res.end('Bad Request');
+      return;
+    }
 
     const file = await staticFile(pathname);
     if (file) { await sendFile(req, res, file, req.method); return; }
