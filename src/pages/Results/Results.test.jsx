@@ -508,14 +508,15 @@ describe('arrival airport ("Flying to")', () => {
   // REGRESSION: most searches arrive scoped by DESTINATION only ("?destination=AYT" from the
   // hero) and carry no `countries`. A country-keyed fetch never fired for them, so the filter
   // was invisible on the most common path while working fine on a country search.
-  it('appears on a destination-only search, which carries no country', async () => {
+  it('is not shown when the scope has only ONE arrival airport (nothing to choose)', async () => {
     const user = userEvent.setup();
-    renderResults();   // default fixture: ?destination=AYT, no countries=
+    renderResults();   // default fixture: ?destination=AYT, no countries= — only Antalya airport serves it
     await settled();
     await openTransport(user);
-    // AYT is in scope, so the airports serving it are offered.
-    expect(await screen.findByRole('checkbox', { name: /Antalya/ })).toBeInTheDocument();
-    // Dalaman serves nothing in an Antalya-only scope and must not be offered.
+    // One airport is no choice (Levent 15 Oct): no block, and certainly not Dalaman, which serves
+    // nothing in an Antalya-only scope.
+    await waitFor(() => expect(screen.queryByText('Aankomstluchthaven')).not.toBeInTheDocument());
+    expect(screen.queryByRole('checkbox', { name: /Antalya/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('checkbox', { name: /Marmaris/ })).not.toBeInTheDocument();
   });
 
@@ -594,16 +595,15 @@ describe('price box', () => {
     expect(lastCall().get('minPrice')).toBeNull();
   });
 
-  // A hotel-only price is a stay, priced per room; add a flight and it is a trip, priced per
-  // traveller. Same toggle, and the words have to say which.
-  it('renames the basis toggle when a flight is included', async () => {
+  // Unified Results §8.1 / T26: the price filter compares the complete total only, so there is
+  // no per-person / total switch, with or without a flight.
+  it('has no price-basis toggle, hotel only or incl. flight', async () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    expect(sidebarRadio('Totale verblijfprijs')).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Totale verblijfprijs' })).not.toBeInTheDocument();
     await user.click(sidebarRadio('Incl. vlucht'));
-    await waitFor(() => expect(screen.getAllByRole('radio', { name: 'Totale reisprijs' })[0]).toBeInTheDocument());
-    expect(screen.getAllByRole('radio', { name: 'Per persoon' })[0]).toBeInTheDocument();
+    expect(screen.queryByRole('radio', { name: 'Per persoon' })).not.toBeInTheDocument();
   });
 
   // The slider's ceiling is a round number that only grows; what the search returned is a
@@ -760,34 +760,12 @@ describe('price range', () => {
 });
 
 describe('price basis', () => {
-  it('sends priceBasis=perPerson and clears any bounds set on the total scale', async () => {
-    const user = userEvent.setup();
+  it('never sends a per-person basis: bounds are on the complete total (T26)', async () => {
     renderResults();
     await settled();
-
     dragSlider('Minimumprijs', 200);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
-
-    await user.click(sidebarRadio('Per kamer/verblijf'));
-    await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
-    // Bounds must not carry across scales — €200 total is not €200 per person.
-    expect(lastCall().get('minPrice')).toBeNull();
-    expect(lastCall().get('maxPrice')).toBeNull();
-  });
-
-  it('regrows the slider ceiling on the per-person scale instead of stranding it', async () => {
-    const user = userEvent.setup();
-    renderResults();
-    await settled();
-    const totalCeiling = Number(slider('Maximumprijs').max);
-
-    await user.click(sidebarRadio('Per kamer/verblijf'));
-    await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
-
-    // 2 adults -> per-person prices are half the total, so the ceiling must come down.
-    await waitFor(() => {
-      expect(Number(slider('Maximumprijs').max)).toBeLessThan(totalCeiling);
-    });
+    expect(lastCall().get('priceBasis')).toBeNull();
   });
 });
 
@@ -898,13 +876,12 @@ describe('show more (+20 per click, no infinite scroll)', () => {
     renderResults();
     await settled();
 
-    // Price basis, not a board: this test is about page 2 CARRYING the active filter, so the
-    // filter has to change the request without shrinking the result set below one page.
-    // `boards=AI` matches only four hotels in the mock, so hasMore goes false and there is no
-    // page 2 left to assert on — the test then fails for the opposite reason to the one it is
-    // guarding. priceBasis is echoed in the query but filters nothing.
-    await user.click(sidebarRadio('Per kamer/verblijf'));
-    await waitFor(() => expect(lastCall().get('priceBasis')).toBe('perPerson'));
+    // A filter that changes the request without shrinking the result set below one page
+    // (`boards=AI` matches only four hotels in the mock, leaving no page 2 to assert on).
+    // A minimum of €1 changes the request but keeps every hotel, so there is still a page 2.
+    void user;
+    dragSlider('Minimumprijs', 1);
+    await waitFor(() => expect(lastCall().get('minPrice')).toBe('1'));
     await waitFor(() => expect(cards().length).toBeGreaterThan(0));
 
     fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
@@ -912,7 +889,7 @@ describe('show more (+20 per click, no infinite scroll)', () => {
     await waitFor(() => {
       const p2 = calls.find((c) => c.get('page') === '2');
       expect(p2).toBeTruthy();
-      expect(p2.get('priceBasis')).toBe('perPerson');   // page 2 must not silently drop the filter
+      expect(p2.get('minPrice')).toBe('1');   // page 2 must not silently drop the filter
     });
   });
 

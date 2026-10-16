@@ -70,8 +70,10 @@ describe('Flight + Hotel offers only the airports that can make a package', () =
     await waitFor(() => expect(codesShown()).toMatch(/BRU/));
     await waitFor(() => expect(codesShown()).not.toMatch(/EIN/));
     expect(codesShown()).toMatch(/DUS/);
-    expect(codesShown()).toMatch(/AYT/);
+    // Gazipasa goes, which leaves Antalya airport as the ONLY arrival: one airport is no choice,
+    // so the arrival block is not shown at all (Levent 15 Oct).
     expect(codesShown()).not.toMatch(/GZP/);
+    expect(codesShown()).not.toMatch(/AYT/);
   });
 
   it('a chosen airport stays visible, so it can be unticked', async () => {
@@ -97,7 +99,7 @@ describe('Flight + Hotel offers only the airports that can make a package', () =
     renderAt(URL_PKG);
     await waitFor(() => expect(codesShown()).toMatch(/BRU/));
     await waitFor(() => expect(codesShown()).not.toMatch(/DUS/));
-    expect(codesShown()).toMatch(/AYT/);
+    expect(codesShown()).not.toMatch(/AYT/);   // the only arrival left: no block to choose from
   });
 
   it('an incomplete package answer proves nothing: every feasible airport stays', async () => {

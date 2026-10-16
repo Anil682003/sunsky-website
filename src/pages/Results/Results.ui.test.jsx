@@ -144,13 +144,8 @@ describe('sidebar layout', () => {
     const groups = screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label'));
     // 'Cancellation policy' is gone with its filter. Transport leads now: it is a question
     // about the SEARCH, so it sits above the line, and the price view sits below it.
-    expect(groups).toEqual(['Soort vervoer', 'Reisduur', 'Prijsweergave']);
-
-    // Exactly one option selected per group, and it reflects the default.
-    // Hotel-only by default, so the words describe a STAY priced per room — a flight-inclusive
-    // search relabels the same toggle 'Totale reisprijs / Per persoon'.
-    expect(screen.getByRole('radio', { name: 'Totale verblijfprijs' })).toHaveAttribute('aria-checked', 'true');
-    expect(screen.getByRole('radio', { name: 'Per kamer/verblijf' })).toHaveAttribute('aria-checked', 'false');
+    // The price-view toggle is gone (Unified Results §8.1, T26: total price only).
+    expect(groups).toEqual(['Soort vervoer', 'Reisduur']);
     // The 'Any' radio belonged to the cancellation group — it must not have survived it.
     expect(screen.queryByRole('radio', { name: 'Any' })).not.toBeInTheDocument();
   });

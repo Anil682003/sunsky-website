@@ -184,6 +184,7 @@
     "popularDestinations": "Populaire bestemmingen",
     "places": "{{count}} bestemmingen",
     "inclFlightFrom": "Incl. vlucht · vanaf {{city}}",
+    "anyDate": "Elke datum",
     "inclFlightAny": "Incl. vlucht · vanaf elke luchthaven",
     "inclFlightAirports_one": "Incl. vlucht · vanaf {{count}} luchthaven",
     "inclFlightAirports_other": "Incl. vlucht · vanaf {{count}} luchthavens"
