@@ -45,7 +45,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-15 | W2M-only hotels as a second group with "Check price" | Later | **Waiting** | BLOCKED |
 | UI-16 | Flights only from the cache | Later | Ready | **DONE** (`4700b45`) |
 | UI-17 | Sort rules: unknown values last, stable ties, Hotelbeds first | Later | Ready | |
-| UI-18 | Popular departure airports first | Medium | Ready | |
+| UI-18 | Popular departure airports first | Medium | Ready | **DONE** (`a4cde56`) |
 | UI-19 | Intermediate category pages: navigation only, "Toon alles" | Medium | Ready | |
 | UI-20 | Last Minute 42-day default and All Inclusive by real board | Medium | Ready | |
 | UI-21 | Optional date range per homepage card | Later | Ready | |
@@ -338,7 +338,17 @@ and prices, counts and from-prices never change because of it.
 - Toggling Popular in the admin never changes a shown price
 
 **API:** the departure list returns `popular: true`, popular first (admin §12B.6 PR).
-**Where:** `utils/airports.js`, `AirportSearch`, `usePackageAirports`.
+**Where:** `utils/airports.js` only, as it turned out.
+
+**Done** in `a4cde56`. The registry already received `popular` per airport and sorted by `sortOrder`
+alone, so the dashboard flag changed nothing visible. One comparator in `setDepartureAirports`
+covers every list, because they all read `getDepartureAirports()` and none re-sorts it; the static
+`POPULAR_AIRPORTS`/`OTHER_AIRPORTS` seed snapshots have no users outside their own module.
+
+Knock-on worth knowing: `normaliseOrigin` falls back to the first airport on offer, so with the
+default switched off it now lands on a popular one rather than the lowest `sortOrder`. Not a
+price. And the homepage groups airports BY COUNTRY, so popular-first applies within each country
+group there; that grouping predates this task and was left alone.
 
 ### UI-19 — Intermediate category pages: navigation only, "Toon alles"
 **Pages:** Home → category pages · **Spec:** Ch1 §12B.1, §12B.4
