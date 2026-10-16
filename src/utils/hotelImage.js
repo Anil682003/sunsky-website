@@ -70,6 +70,28 @@ export function hotelImageForWidth(url, cssWidth, dpr = (typeof window !== 'unde
 }
 
 /**
+ * The variant a RESULT CARD should ask for, given the screen's pixel density.
+ *
+ * Separate from `hotelImageForWidth` on purpose. That one steps from `bigger` (800 px, 82 KB)
+ * straight to `original` (2048 px, 525 KB), which is right for a hero or a lightbox and ruinous
+ * for a card: twenty of them on a phone is 10 MB of photos to cure an upscale nobody would
+ * notice. A card stops at `bigger`.
+ *
+ * The cut used to be `dpr >= 1.5`, which quietly failed the most common desktop there is.
+ * Windows ships at 125% display scaling, so a great many laptops report 1.25, landed just under
+ * the threshold, and were served the 320 px thumbnail for a card box of 230-336 CSS px — about
+ * 420 device px at that density, a 1.3x upscale, which is exactly the softness people describe
+ * as "the photos look bad". Anything above 1x now gets the larger file; the extra 65 KB only
+ * goes to screens that can actually resolve it.
+ *
+ * @param {number} dpr devicePixelRatio
+ * @returns {'default'|'bigger'}
+ */
+export function cardPhotoVariant(dpr = (typeof window !== 'undefined' ? window.devicePixelRatio : 1) || 1) {
+  return Number(dpr) > 1 ? 'bigger' : 'default';
+}
+
+/**
  * Ordered fallback URLs for a hotel photo: the requested size first, then progressively safer
  * sizes, always ending at `default` (which the CDN never fails to serve). A component walks
  * this list on each `onError`, so a missing large variant degrades to a smaller real image

@@ -12,7 +12,7 @@ import {
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
 import HotelImg from '../../components/HotelImg/HotelImg';
-import { hotelImageChain } from '../../utils/hotelImage';
+import { hotelImageChain, cardPhotoVariant } from '../../utils/hotelImage';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import ScopePicker from '../../components/ScopePicker/ScopePicker';
 import { formatReview, scoreWord } from '../../utils/reviewBadge';
@@ -60,11 +60,11 @@ const PAGE_SIZE = 20;
 // invalidate it on every pass.
 const EMPTY_ON_REQUEST = [];
 // Card photos: the first render's cards load their photo straight away (the top ones first);
-// cards added by infinite scroll stay lazy. 800 px on high-density screens, the 320 px default
-// elsewhere — the card box is 230–336 CSS px wide, so 320 already fills it at 1x.
+// cards added by infinite scroll stay lazy. Which SIZE to ask for lives in utils/hotelImage
+// beside the variant table it reasons about, and is tested there.
 const EAGER_PHOTOS = PAGE_SIZE;
 const PRIORITY_PHOTOS = 6;
-const cardPhotoSize = () => (typeof window !== 'undefined' && window.devicePixelRatio >= 1.5 ? 'bigger' : 'default');
+const cardPhotoSize = () => cardPhotoVariant();
 // The card's arrows: once the photo on screen has loaded, the next and previous ones are fetched
 // quietly (low priority, each URL once), so a click shows them at once instead of a shimmer.
 const prefetchedPhotos = new Set();

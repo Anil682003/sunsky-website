@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { hotelImage, hotelImageForWidth, hotelImageChain, VARIANT_WIDTH } from './hotelImage';
+import { hotelImage, hotelImageForWidth, hotelImageChain, VARIANT_WIDTH, cardPhotoVariant } from './hotelImage';
 
 const CDN = 'https://photos.hotelbeds.com/giata/';
 const PATH = '00/000022/000022a_hb_a_005.jpg';
@@ -137,5 +137,40 @@ describe('hotelImageChain', () => {
     expect(hotelImageChain(null, 'bigger')).toEqual([]);
     expect(hotelImageChain('', 'bigger')).toEqual([]);
     expect(hotelImageChain(undefined, 'bigger')).toEqual([]);
+  });
+});
+
+describe('cardPhotoVariant', () => {
+  it('asks for the larger file on any screen denser than 1x', () => {
+    // 1.25 is the one that matters: Windows ships at 125% display scaling, so a great many
+    // laptops report exactly this. The old cut of >= 1.5 left them on the 320 px thumbnail,
+    // stretched across a card box needing about 420 device px.
+    expect(cardPhotoVariant(1.25)).toBe('bigger');
+    expect(cardPhotoVariant(1.5)).toBe('bigger');
+    expect(cardPhotoVariant(2)).toBe('bigger');
+    expect(cardPhotoVariant(3)).toBe('bigger');
+  });
+
+  it('leaves a plain 1x screen on the small file', () => {
+    // 320 px covers a 336 px box closely enough at 1x, and 18 KB beats 82 KB when the extra
+    // pixels cannot be resolved anyway.
+    expect(cardPhotoVariant(1)).toBe('default');
+  });
+
+  it('never reaches for original, however dense the screen', () => {
+    // The guard against "fixing" this with hotelImageForWidth: original is 525 KB, and twenty
+    // cards of it on a phone is 10 MB to cure an upscale nobody would notice.
+    expect(cardPhotoVariant(4)).toBe('bigger');
+  });
+
+  it('treats a nonsense density as 1x rather than guessing upward', () => {
+    // Number(NaN) > 1 is false and 0 > 1 is false, so both land on the small file. Guessing
+    // upward would push 82 KB at every card on the strength of a bad reading.
+    expect(cardPhotoVariant(0)).toBe('default');
+    expect(cardPhotoVariant(NaN)).toBe('default');
+    // Omitting it is NOT the same thing: that means "read the screen", which in a real browser
+    // may well be 2. Asserted against the environment's own value so this does not quietly
+    // become a claim about jsdom.
+    expect(cardPhotoVariant()).toBe(window.devicePixelRatio > 1 ? 'bigger' : 'default');
   });
 });
