@@ -437,7 +437,6 @@
     "lowerAfterCheck": "lower after live check",
     "lowestEstimatedPrice": "Lowest estimated price",
     "lowestPrice": "Lowest price",
-    "noAvailability": "No availability for these dates",
     "noCachedEstimate": "No cached estimate",
     "noEstimateTryAgain": "No estimate for this day — try again",
     "noFlightsIncluded": "No flights included",
@@ -480,7 +479,10 @@
     "showLaterDates": "Show later dates",
     "livePackagePrice": "Live price, flight + hotel · {{nights}}",
     "hotelOnlyStripNote": "These are hotel prices. Flights are added when you check a date.",
-    "dayFromAirport": ", departing from {{code}}"
+    "dayFromAirport": ", departing from {{code}}",
+    "dayNotForSelection": "{{day}} {{date}}, not available for your selection",
+    "dayPriceUnavailable": "{{day}} {{date}}, price temporarily unavailable",
+    "priceUnavailableShort": "Price unavailable"
   },
   "rooms": {
     "allTaxesIncluded": "All prices include taxes, fees and charges.",

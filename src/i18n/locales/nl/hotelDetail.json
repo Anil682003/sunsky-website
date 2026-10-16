@@ -437,7 +437,6 @@
     "lowerAfterCheck": "lager na live controle",
     "lowestEstimatedPrice": "Laagste geschatte prijs",
     "lowestPrice": "Laagste prijs",
-    "noAvailability": "Geen beschikbaarheid voor deze data",
     "noCachedEstimate": "Geen schatting in cache",
     "noEstimateTryAgain": "Geen schatting voor deze dag — probeer het opnieuw",
     "noFlightsIncluded": "Geen vluchten inbegrepen",
@@ -480,7 +479,10 @@
     "showLaterDates": "Latere data tonen",
     "livePackagePrice": "Live prijs, vlucht + hotel · {{nights}}",
     "hotelOnlyStripNote": "Dit zijn hotelprijzen. De vluchten worden toegevoegd wanneer je een datum controleert.",
-    "dayFromAirport": ", vertrek vanaf {{code}}"
+    "dayFromAirport": ", vertrek vanaf {{code}}",
+    "dayNotForSelection": "{{day}} {{date}}, niet beschikbaar voor jouw selectie",
+    "dayPriceUnavailable": "{{day}} {{date}}, prijs tijdelijk niet beschikbaar",
+    "priceUnavailableShort": "Prijs niet beschikbaar"
   },
   "rooms": {
     "allTaxesIncluded": "Alle prijzen zijn inclusief belastingen en kosten.",

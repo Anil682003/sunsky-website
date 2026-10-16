@@ -38,7 +38,8 @@
     "checkPrice": "Prijs controleren",
     "notForSelection": "Niet beschikbaar voor jouw selectie",
     "temporarilyUnavailable": "Beschikbaarheid tijdelijk niet op te halen",
-    "priceTemporarilyUnavailable": "Prijs tijdelijk niet op te halen"
+    "priceTemporarilyUnavailable": "Prijs tijdelijk niet op te halen",
+    "nonePeriod": "Geen beschikbaar verblijf gevonden binnen de huidige zoekperiode"
   },
   "listing": {
     "count_one": "{{count}} vakantie gevonden",

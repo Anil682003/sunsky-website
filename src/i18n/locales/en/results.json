@@ -74,8 +74,7 @@
     "totalTrip": "Total trip price € {{amount}}",
     "totalStay": "Total stay price € {{amount}}",
     "average": "Average € {{amount}} p.p.",
-    "viewAvailableDates": "View available dates",
-    "nonePeriod": "No available stay found within the current search period"
+    "viewAvailableDates": "View available dates"
   },
   "flightClass": {
     "direct": "direct",

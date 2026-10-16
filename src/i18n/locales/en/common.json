@@ -38,7 +38,8 @@
     "checkPrice": "Check price",
     "notForSelection": "Not available for your selection",
     "temporarilyUnavailable": "Availability temporarily unavailable",
-    "priceTemporarilyUnavailable": "Price temporarily unavailable"
+    "priceTemporarilyUnavailable": "Price temporarily unavailable",
+    "nonePeriod": "No available stay found within the current search period"
   },
   "listing": {
     "count_one": "{{count}} holiday found",

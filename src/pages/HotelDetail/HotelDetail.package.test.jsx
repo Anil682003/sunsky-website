@@ -431,3 +431,50 @@ describe('the hotel page offers only departure airports with a package to this h
     expect(document.body.textContent).not.toMatch(/\(FRA\)[^·]*· (Niet beschikbaar|Not available)/);
   });
 });
+
+/**
+ * UI-11 (Ch 1 §11). One vocabulary for the states, so the strip stops saying two words for
+ * three different things.
+ *
+ * The distinction that matters: SOURCE_ERROR means we failed to ASK. Calling that "not
+ * available" tells a traveller a holiday is gone when nobody ever looked, and it is the one
+ * mistake the shared vocabulary exists to prevent.
+ */
+describe('the strip says which kind of "no price" this is', () => {
+  const priced = () => ({ ...cell(DEP, CHECK_IN, 1400, [PKG_OUT], [PKG_BACK]), cheapest: true });
+
+  it('a date the cache could not price says the price is unavailable, never "not available"', async () => {
+    MATRIX = { success: true, status: 'AVAILABLE', prev: null, next: null, cells: [
+      priced(),
+      { date: iso(31), state: 'SOURCE_ERROR', flights: 2 },
+    ] };
+    renderPage();
+    await priceDays();
+
+    const failed = await screen.findByRole('button', { name: /prijs tijdelijk niet beschikbaar/i });
+    expect(failed).toBeInTheDocument();
+    // Not the confirmed negative, and not an invitation to check something we already failed to read.
+    expect(failed.textContent).not.toMatch(/^niet beschikbaar$/i);
+    expect(failed.textContent).toMatch(/prijs niet beschikbaar/i);
+  });
+
+  it('flights exist but nothing pairs with them: not available FOR YOUR SELECTION', async () => {
+    MATRIX = { success: true, status: 'AVAILABLE', prev: null, next: null, cells: [
+      priced(),
+      { date: iso(31), state: 'NO_VALID_COMBINATION', flights: 3 },
+    ] };
+    renderPage();
+    await priceDays();
+
+    expect(await screen.findByRole('button', { name: /niet beschikbaar voor jouw selectie/i })).toBeInTheDocument();
+  });
+
+  it('nothing in the period uses the shared wording, not the page\'s own', async () => {
+    MATRIX = { success: true, status: 'NO_PRICED_DATE', cells: [], prev: null, next: null };
+    CAL = { success: true, calendar: [] };
+    renderPage();
+    await waitFor(() => expect(
+      screen.getByText(/geen beschikbaar verblijf gevonden binnen de huidige zoekperiode/i)
+    ).toBeInTheDocument());
+  });
+});

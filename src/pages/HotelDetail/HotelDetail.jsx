@@ -4107,7 +4107,9 @@ export default function HotelDetail() {
                     </>
                   ) : (
                     <>
-                      <p className="fc-blank-title">{t('prices.noAvailability', 'No availability for these dates')}</p>
+                      {/* The shared wording (UI-11), not this page's own phrasing of it. The
+                          line under it still says what to do next. */}
+                      <p className="fc-blank-title">{t('common:availability.nonePeriod', 'No available stay found within the current search period')}</p>
                       <p className="fc-blank-sub">{t('prices.nothingOnOfferFor', { date: niceDate(baseCheckIn) || t('prices.yourDates', 'your dates'), defaultValue: `This hotel has nothing on offer for ${niceDate(baseCheckIn) || 'your dates'}. Try another date or a different length of stay.` })}</p>
                     </>
                   )}
@@ -4128,6 +4130,21 @@ export default function HotelDetail() {
                       const showFrom = airportsVary && p.from;
                       const hasPrice = Number(p.price) > 0;
                       const isEmpty = checkedEmpty.has(emptyKey(p.iso)) || p.state === 'NO_VALID_COMBINATION';
+                      /* UI-11: one vocabulary for the three ways a bar can carry no price, which
+                         the strip used to say with two words between them.
+
+                           a live check came back empty   → "Not available". A confirmed negative.
+                           NO_VALID_COMBINATION           → "Not available for your selection":
+                                                            the flights and the hotel both exist,
+                                                            no pairing of them makes this trip.
+                           SOURCE_ERROR                   → "Price temporarily unavailable". We
+                                                            failed to ASK. Reading that as "not
+                                                            available" tells a traveller a
+                                                            holiday is gone when nobody ever
+                                                            looked, which is the one mistake this
+                                                            vocabulary exists to stop.             */
+                      const notForSelection = !checkedEmpty.has(emptyKey(p.iso)) && p.state === 'NO_VALID_COMBINATION';
+                      const priceFailed = p.state === 'SOURCE_ERROR';
                       // Is THIS the day the traveller has picked. Referenced by isLoading, the
                       // `sel` class and aria-pressed below; losing it throws a ReferenceError on
                       // every render and blanks the whole page, so it must stay above isLoading.
@@ -4173,9 +4190,12 @@ export default function HotelDetail() {
                           onClick={() => pickDay(p.iso, p)}
                           disabled={isEmpty}
                           aria-pressed={sel}
-                          aria-label={(isEmpty ? t('prices.dayNotAvailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available` })
+                          aria-label={(isEmpty ? (notForSelection
+                              ? t('prices.dayNotForSelection', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available for your selection` })
+                              : t('prices.dayNotAvailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available` }))
                             : liveHere ? t('prices.dayLivePriceLabel', { day: p.day, date: p.date, currency: ccy, amount: nowPP, moveNote: ppMoved != null ? t('prices.dayMoveNote', { currency: ccy, delta: Math.abs(ppMoved), direction: ppMoved < 0 ? t('prices.lower', 'lower') : t('prices.higher', 'higher'), wasAmount: wasPP, defaultValue: `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` }) : '', nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${dayLabel(p.nights)}` })
                             : hasPrice ? t('prices.dayFromPriceLabel', { day: p.day, date: p.date, currency: ccy, amount: pp, nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, from ${ccy}${pp} per person, ${dayLabel(p.nights)}` })
+                            : priceFailed ? t('prices.dayPriceUnavailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, price temporarily unavailable` })
                             : t('prices.dayCheckLivePrice', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, check live price` }))
                             // The departure airport is rendered as a bare code in the column;
                             // aria-label replaces the button's inner text, so without this a
@@ -4229,7 +4249,13 @@ export default function HotelDetail() {
                                     <span className="fc-nts">{dayLabel(p.nights)}</span>
                                   </>
                                 ) : (
-                                  <span className="fc-check">{t('prices.checkLivePrice', 'Check live price')}</span>
+                                  /* A column is 78px wide on a phone, so the bar carries the
+                                     short form and the button's aria-label the full sentence.
+                                     "Check live price" would be wrong here: we already tried
+                                     and the source did not answer. */
+                                  <span className="fc-check">{priceFailed
+                                    ? t('prices.priceUnavailableShort', 'Price unavailable')
+                                    : t('prices.checkLivePrice', 'Check live price')}</span>
                                 )}
                               </span>
                             </span>

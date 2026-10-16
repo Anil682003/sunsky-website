@@ -176,7 +176,8 @@ describe('the fare strip never invents a week', () => {
   it('says a full hotel is full, with no retry to offer', async () => {
     calendarMode = [];
     renderPage();
-    expect(await screen.findByText(/geen beschikbaarheid voor deze data/i)).toBeInTheDocument();
+    // The shared wording since UI-11; this page no longer phrases it its own way.
+    expect(await screen.findByText(/geen beschikbaar verblijf gevonden binnen de huidige zoekperiode/i)).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /opnieuw proberen/i })).not.toBeInTheDocument();
   });
 
