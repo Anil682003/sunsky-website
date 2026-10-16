@@ -107,7 +107,7 @@ export default function HolidayType() {
           imageUrl: d.type === 'country'
             ? parent?.imageUrl || null
             : cityImages.get(String(d.code).trim().toUpperCase()) || null,
-          href: destUrl(d, holidayTypeId),
+          href: destUrl(d, holidayTypeId, slug),
           title: destLabel(d),
           dest: d,
         };
@@ -151,7 +151,7 @@ export default function HolidayType() {
     zones: scope?.zones,
     label: typeName,
   });
-  const showAllHref = scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest) });
+  const showAllHref = scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug });
 
   return (
     <div className={styles.page}>

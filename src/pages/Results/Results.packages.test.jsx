@@ -55,6 +55,7 @@ vi.mock('../../api/filters', () => ({
       hotels: hotels.slice((page - 1) * size, page * size), hasMore: hotels.length > page * size,
       destinationStatus: Object.fromEntries(body.destinations.map((d) => [d, { status: answers.byDest[d]?.status || 'NOT_FEASIBLE', ...(answers.byDest[d]?.reason ? { reason: answers.byDest[d].reason } : {}) }])),
       boardFacets: {},
+      ...(answers.entryApplied ? { entryApplied: answers.entryApplied } : {}),
     });
   }),
   fetchThemes: vi.fn(() => Promise.resolve([])),
@@ -68,6 +69,7 @@ beforeEach(async () => {
   answers.byDest = {};
   answers.fail = [];
   answers.hang = [];
+  answers.entryApplied = null;
   answers.matched = undefined;
   answers.cities = undefined;
   globalThis.fetch = vi.fn((url) => {
@@ -332,5 +334,69 @@ describe('a party other than 2 adults / 1 room (UI-25)', () => {
     await screen.findByRole('article');
     // The banner above the list, so a half-filled page is never read as the whole answer.
     expect(await screen.findByRole('status')).toHaveTextContent(/we zoeken nog meer bestemmingen/i);
+  });
+});
+
+/**
+ * UI-20 (§12B.2). The entry rides to the API; the SERVER decides whether its default still
+ * applies, because it only does where the traveller has not already chosen. Computing that here
+ * would be a second implementation of a rule that has to agree with the server's to the day.
+ */
+describe('the homepage door the search came through', () => {
+  it('is sent to the package search', async () => {
+    answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1100)] };
+    renderAt(`${DATED}&entry=last_minute`);
+    await screen.findByRole('article');
+    const [body] = await calls();
+    expect(body.entry).toBe('last_minute');
+  });
+
+  it('a search that came through no door sends none', async () => {
+    answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1100)] };
+    renderAt(DATED);
+    await screen.findByRole('article');
+    const [body] = await calls();
+    expect(body.entry).toBeUndefined();
+  });
+
+  it('an entry the contract does not know is dropped, not forwarded', async () => {
+    // A type someone named "Last Minute Deals" is not this door. Forwarding it would ask the
+    // server to apply a default to a search the traveller never asked to narrow.
+    answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1100)] };
+    renderAt(`${DATED}&entry=last-minute-deals`);
+    await screen.findByRole('article');
+    const [body] = await calls();
+    expect(body.entry).toBeUndefined();
+  });
+});
+
+describe('what the door applied is said out loud (UI-20)', () => {
+  it('a Last Minute window the server applied shows among the trip chips', async () => {
+    // Narrowing a traveller's dates without saying so leaves them unable to account for the
+    // list, and unable to replace the default they never saw.
+    answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1100)] };
+    answers.entryApplied = { entry: 'last_minute', window: { from: '2026-11-03', to: '2026-12-15' } };
+    renderAt(`${DATED}&entry=last_minute`);
+    await screen.findByRole('article');
+    // The chip text sits in a span inside the strip, so more than one node carries it.
+    expect((await screen.findAllByText(/last minute/i)).length).toBeGreaterThan(0);
+  });
+
+  it('an All Inclusive restriction names the boards it kept', async () => {
+    answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1100)] };
+    answers.entryApplied = { entry: 'all_inclusive', boards: ['AI', 'UAI'] };
+    renderAt(`${DATED}&entry=all_inclusive`);
+    await screen.findByRole('article');
+    expect((await screen.findAllByText(/all inclusive.*AI, UAI/i)).length).toBeGreaterThan(0);
+  });
+
+  it('nothing applied says nothing: the traveller\'s own choices stood', async () => {
+    // The server sends no `entryApplied` once they have set dates or a meal plan. Announcing a
+    // default that was not applied would be worse than silence.
+    answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1100)] };
+    answers.entryApplied = null;
+    renderAt(`${DATED}&entry=last_minute`);
+    await screen.findByRole('article');
+    expect(screen.queryByText(/last minute/i)).toBeNull();
   });
 });

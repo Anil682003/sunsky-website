@@ -186,7 +186,9 @@
     "anyDate": "Any date",
     "inclFlightAny": "Incl. flight · from any airport",
     "inclFlightAirports_one": "Incl. flight · from {{count}} airport",
-    "inclFlightAirports_other": "Incl. flight · from {{count}} airports"
+    "inclFlightAirports_other": "Incl. flight · from {{count}} airports",
+    "allInclusiveApplied": "All Inclusive only ({{boards}})",
+    "lastMinuteApplied": "Last minute · {{from}} — {{to}}"
   },
   "toolbar": {
     "searching": "Searching the best deals…",

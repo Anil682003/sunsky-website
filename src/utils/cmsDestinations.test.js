@@ -120,3 +120,34 @@ describe('holidayScopeSearchUrl', () => {
     expect(url).not.toMatch(/111/);
   });
 });
+
+/**
+ * UI-20 (§12B.2). Last Minute and All Inclusive are doors that carry a default with them, so the
+ * link says which door was used. Every other holiday type is just a filter and says nothing.
+ */
+describe('a holiday-type link names the entry it came through', () => {
+  const q = (url) => new URLSearchParams(String(url).split('?')[1]);
+
+  it('Last Minute and All Inclusive are named, hyphens and all', () => {
+    expect(q(destUrl({ type: 'country', code: 'TR', name: 'Turkije' }, 4, 'last-minute')).get('entry'))
+      .toBe('last_minute');
+    expect(q(destUrl({ type: 'city', code: 'AYT', name: 'Antalya' }, 9, 'all-inclusive')).get('entry'))
+      .toBe('all_inclusive');
+  });
+
+  it('any other type carries no entry, so no default is applied behind the traveller', () => {
+    expect(q(destUrl({ type: 'country', code: 'TR', name: 'Turkije' }, 4, 'zonvakanties')).get('entry'))
+      .toBeNull();
+    expect(q(destUrl({ type: 'country', code: 'TR', name: 'Turkije' }, 4)).get('entry')).toBeNull();
+  });
+
+  it('"Toon alles" through one of those doors keeps it', () => {
+    const url = sectionSearchUrl({ dests: [{ type: 'country', code: 'TR', name: 'Turkije' }], entry: 'last-minute' });
+    expect(q(url).get('entry')).toBe('last_minute');
+  });
+
+  it('a Show all across several types carries none, because no single door applies', () => {
+    const url = sectionSearchUrl({ dests: [{ type: 'country', code: 'TR', name: 'Turkije' }] });
+    expect(q(url).get('entry')).toBeNull();
+  });
+});

@@ -172,7 +172,7 @@ export default function Categories({ cms }) {
                         {dests.map((d) => (
                           <Link
                             key={`${d.type}:${d.code}`}
-                            to={destUrl(d, c.typeId)}
+                            to={destUrl(d, c.typeId, c.slug)}
                             className={styles.destChip}
                             tabIndex={open ? 0 : -1}
                           >

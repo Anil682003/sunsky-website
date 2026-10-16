@@ -52,6 +52,7 @@ import { defaultSearchContext } from '../../utils/searchDefaults';
 import { packageParams } from '../../utils/packageHandoff';
 import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
 import { countState, CALCULATING } from './resultCount';
+import { entryOf, appliedSummary, LAST_MINUTE, ALL_INCLUSIVE } from '../../utils/entryRules';
 import { resultSeed } from '../../utils/resultSeed';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -907,6 +908,9 @@ export default function Results() {
   const [cheapestCode, setCheapestCode] = useState(null);
   // Dynamic board facets from the cache: { boardCode: hotelCount } for THIS search.
   const [boardFacets, setBoardFacets] = useState({});
+  // UI-20: what the homepage door's default actually turned into, as the server reports it.
+  // null whenever nothing was applied, which is the normal case once the traveller has chosen.
+  const [entryApplied, setEntryApplied] = useState(null);
   // UI-13 (Ch1 §5): hotels per destination under every other filter, keyed by destination code.
   // null until a search answers, and null again whenever the answer is incomplete: a count that
   // is still settling must not be printed as if it were final.
@@ -1591,6 +1595,8 @@ export default function Results() {
       growCeiling(merged.map((p) => (f.priceBasis === 'perPerson' ? p.pricePerPerson : p.sunskyPayableTotalRounded)).filter((n) => Number.isFinite(n)));
     }
     setBoardFacets(mergeBoardFacets(pk.groups));
+    // Every group was asked the same question, so the first that answered speaks for all.
+    setEntryApplied(pk.groups.find((g) => g.entryApplied)?.entryApplied ?? null);
     setDestCounts(mergeDestinationCounts(pk.groups));
     setPkgProven(mergeAirportFacets(pk.groups, pk.body || {}));
     setPkgUnknown(unknownDestinations(pk.groups));
@@ -1623,7 +1629,10 @@ export default function Results() {
           g.hasMore = !!r?.hasMore;
           g.page += 1;
           g.destinationStatus = { ...(g.destinationStatus || {}), ...(r?.destinationStatus || {}) };
-          if (g.page === 1) { g.boardFacets = r?.boardFacets || {}; g.airportFacets = r?.airportFacets || null; g.destinationFacets = r?.destinationFacets || null; }
+          // `entryApplied` is the server's answer to "did the door's default survive the
+          // traveller's own choices" (§12B.2, UI-20). Every group is asked the same question, so
+          // the first page of any of them carries it.
+          if (g.page === 1) { g.boardFacets = r?.boardFacets || {}; g.airportFacets = r?.airportFacets || null; g.destinationFacets = r?.destinationFacets || null; g.entryApplied = r?.entryApplied ?? null; }
           g.error = null;
         } catch (err) {
           if (signal?.aborted || err?.name === 'CanceledError') return;
@@ -1714,6 +1723,7 @@ export default function Results() {
         fp: fetchParams, childAges, filters: applied, origins: applied.origins || [],
         hotelCodes: Array.isArray(priceScope.hotelCodes) ? priceScope.hotelCodes : null,
         dated: !undated, flex: urlFlex, bandNights: dayOptions, seed: resultSeed(),
+        entry: entryOf(params.get('entry')),
       });
       const groups = chunkDestinations(dests).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
       pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };
@@ -2474,6 +2484,8 @@ export default function Results() {
   // precalculated one), but that window is not the traveller's choice and every card shows its
   // own dates. So the summary says "Any date", and no date or length is shown as picked.
   const undatedSearch = !params.get('checkIn') && fetchParams.checkIn === defaultCheckIn && fetchParams.checkOut === defaultCheckOut;
+  // What the door actually applied, or null when the traveller's own choices stood.
+  const entrySummary = appliedSummary(entryApplied);
   const heroChips = [];
   if (undatedSearch) {
     heroChips.push({ icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z', text: t('hero.anyDate', 'Any date') });
@@ -2485,6 +2497,22 @@ export default function Results() {
   // described the same stay with two different numbers.
   if (nights > 0 && !undatedSearch) heroChips.push({ icon: 'M21 12.79A9 9 0 1111.21 3 7 7 0 0021 12.79z', text: daysLabel(nightsToDays(nights)) });
   heroChips.push({ icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75', text: guestSummary });
+  /* What a homepage door applied on the traveller's behalf (§12B.2, UI-20).
+     It belongs among the trip chips because it IS part of the search: Last Minute narrowed the
+     dates, All Inclusive narrowed the board. Naming it is what makes it something they can
+     replace, rather than a result they cannot account for. Absent whenever their own choices
+     already stood, which is what the server reports by sending no `entryApplied`. */
+  if (entrySummary?.entry === ALL_INCLUSIVE) {
+    heroChips.push({
+      icon: 'M12 2l2.4 7.4H22l-6 4.4 2.3 7.2-6.3-4.6L5.7 21 8 13.8 2 9.4h7.6z',
+      text: t('hero.allInclusiveApplied', { boards: entrySummary.boards.join(', '), defaultValue: 'All Inclusive only ({{boards}})' }),
+    });
+  } else if (entrySummary?.entry === LAST_MINUTE) {
+    heroChips.push({
+      icon: 'M12 6v6l4 2M12 22a10 10 0 100-20 10 10 0 000 20z',
+      text: t('hero.lastMinuteApplied', { from: fmtDate(entrySummary.from), to: fmtDate(entrySummary.to), defaultValue: 'Last minute · {{from}} — {{to}}' }),
+    });
+  }
   // Transport rides in the header only when it changes what the traveller will be shown —
   // "own transport" is the default and adds nothing worth a chip.
   if (filters.transport === 'package') {

@@ -56,7 +56,7 @@ export function chunkDestinations(destinations, size = DEST_CHUNK) {
  *   seed      the session's result_random_seed: the default order ('recommended') is the stable
  *             random order (Ch 1 §2); without a seed it falls back to price order
  */
-export function packageBody({ fp, childAges = '', filters = {}, origins = [], hotelCodes = null, dated = true, flex = 0, bandNights = null, seed = null }) {
+export function packageBody({ fp, childAges = '', filters = {}, origins = [], hotelCodes = null, dated = true, flex = 0, bandNights = null, seed = null, entry = null }) {
   const body = {
     adults: String(fp.adults ?? '2'),
     children: String(fp.children ?? '0'),
@@ -88,6 +88,11 @@ export function packageBody({ fp, childAges = '', filters = {}, origins = [], ho
   if (Number.isFinite(min) && min > 0) body.minPrice = min;
   if (Number.isFinite(max) && max > 0 && !(min != null && max < min)) body.maxPrice = max;
   if (filters.priceBasis && filters.priceBasis !== 'total') body.priceBasis = filters.priceBasis;
+  // The homepage door this search came through (§12B.2, UI-20). The SERVER decides whether its
+  // default still applies — it does not, once the traveller has set dates or a meal plan — and
+  // reports back as `entryApplied`. Computing that here would be a second implementation of a
+  // rule that has to agree with the server's to the day.
+  if (entry) body.entry = entry;
   if (filters.sortBy === 'price_desc') body.sortBy = 'price_desc';
   else if (filters.sortBy === 'recommended' && seed) { body.sortBy = 'random'; body.resultRandomSeed = seed; }
   return body;

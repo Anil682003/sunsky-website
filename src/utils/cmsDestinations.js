@@ -5,6 +5,8 @@
 // rather than in either page: the /holidays/:slug grid, and the expandable slip
 // on the homepage Categories card.
 
+import { entryOf } from './entryRules';
+
 // Mirrors the CMS and backend caps (dashboard MAX_FEATURED_DESTINATIONS and the API's
 // normalizeFeaturedDestinations, which slices on read). All three move together: 24 clears the
 // largest real holiday type, which links 21 countries.
@@ -29,7 +31,7 @@ export const PACKAGE_TRANSPORT = 'package';
 // `countries`, single cities in `destinations` — the same params the results
 // sidebar itself writes back. Dates are deliberately omitted; Results defaults
 // to a 7-night stay 30 days out when they are absent.
-export const destUrl = (d, holidayTypeId = null) => {
+export const destUrl = (d, holidayTypeId = null, entry = null) => {
   const qs = new URLSearchParams();
   qs.set(d.type === 'country' ? 'countries' : 'destinations', d.code);
   const label = destLabel(d);
@@ -38,6 +40,11 @@ export const destUrl = (d, holidayTypeId = null) => {
   // results open with it already applied (Master Ch 1 §12B.1 / §12B.4). Without it a country
   // search shows all its hotels, Istanbul's city trips included.
   if (holidayTypeId != null && holidayTypeId !== '') qs.set('themes', String(holidayTypeId));
+  // Two types are doors rather than filters (§12B.2, UI-20): Last Minute brings a departure
+  // window with it and All Inclusive a board restriction. The server applies either one only
+  // where the traveller has not already chosen, so this names the door and nothing more.
+  const door = entryOf(entry);
+  if (door) qs.set('entry', door);
   qs.set('transport', PACKAGE_TRANSPORT);
   return `/results?${qs.toString()}`;
 };
@@ -83,7 +90,7 @@ export const groupLinkUrl = (link) => {
  * Returns null when no place is linked, so a section never shows a "Show all" that goes
  * nowhere.
  */
-export const sectionSearchUrl = ({ dests = [], label = '' } = {}) => {
+export const sectionSearchUrl = ({ dests = [], label = '', entry = null } = {}) => {
   const countries = new Set();
   const cities = new Set();
   (Array.isArray(dests) ? dests : []).forEach((d) => {
@@ -96,6 +103,9 @@ export const sectionSearchUrl = ({ dests = [], label = '' } = {}) => {
   if (countries.size) qs.set('countries', [...countries].join(','));
   if (cities.size) qs.set('destinations', [...cities].join(','));
   if (label) qs.set('destinationLabel', label);
+  // "Toon alles" through Last Minute or All Inclusive keeps that door's default (UI-20).
+  const door = entryOf(entry);
+  if (door) qs.set('entry', door);
   qs.set('transport', PACKAGE_TRANSPORT);
   return `/results?${qs.toString()}`;
 };
