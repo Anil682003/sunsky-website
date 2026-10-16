@@ -36,15 +36,22 @@ export const destUrl = (d, holidayTypeId = null, entry = null) => {
   qs.set(d.type === 'country' ? 'countries' : 'destinations', d.code);
   const label = destLabel(d);
   if (label) qs.set('destinationLabel', label);
-  // Reached through a holiday type (Zonvakanties → Turkije): the type stays in the search, so the
-  // results open with it already applied (Master Ch 1 §12B.1 / §12B.4). Without it a country
-  // search shows all its hotels, Istanbul's city trips included.
-  if (holidayTypeId != null && holidayTypeId !== '') qs.set('themes', String(holidayTypeId));
   // Two types are doors rather than filters (§12B.2, UI-20): Last Minute brings a departure
   // window with it and All Inclusive a board restriction. The server applies either one only
   // where the traveller has not already chosen, so this names the door and nothing more.
   const door = entryOf(entry);
   if (door) qs.set('entry', door);
+  // Reached through a holiday type (Zonvakanties → Turkije): the type stays in the search, so the
+  // results open with it already applied (Master Ch 1 §12B.1 / §12B.4). Without it a country
+  // search shows all its hotels, Istanbul's city trips included.
+  //
+  // Only ever for a type the catalogue can answer as a filter, which means one the dashboard
+  // links to countries or destinations: `themes=` resolves through those, so countries=ES with
+  // themes=2 is Spain's city trips rather than Spain entire. A door is not such a type, and
+  // neither is a hotel-content one. Measured against the live catalogue on 16 Oct 2026: a
+  // `themes=` for Last Minute, All Inclusive, Adults only or Beachfront matches zero hotels, so
+  // sending it beside the door would turn a working search into an empty page.
+  if (!door && holidayTypeId != null && holidayTypeId !== '') qs.set('themes', String(holidayTypeId));
   qs.set('transport', PACKAGE_TRANSPORT);
   return `/results?${qs.toString()}`;
 };

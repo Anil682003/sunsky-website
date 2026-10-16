@@ -1,8 +1,16 @@
 import { describe, it, expect, beforeAll, beforeEach, vi } from 'vitest';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import i18n from '../../i18n';
 import HolidayType from './HolidayType';
+
+// A card is a button that navigates rather than a link, so where it goes is only observable by
+// clicking it. The router itself stays real; only the navigate call is captured.
+const navigated = [];
+vi.mock('react-router-dom', async (importOriginal) => {
+  const actual = await importOriginal();
+  return { ...actual, useNavigate: () => (to) => navigated.push(to) };
+});
 
 /**
  * A holiday type page (/holidays/zonvakanties): a grid of places, each searching its own. Its
@@ -23,8 +31,8 @@ vi.mock('../../api', () => ({
   fetchCityImages: vi.fn(() => Promise.resolve(cityRows)),
 }));
 
-const renderPage = () => render(
-  <MemoryRouter initialEntries={['/holidays/zonvakanties']}>
+const renderPage = (slug = 'zonvakanties') => render(
+  <MemoryRouter initialEntries={[`/holidays/${slug}`]}>
     <Routes>
       <Route path="/holidays/:slug" element={<HolidayType />} />
     </Routes>
@@ -47,6 +55,7 @@ beforeEach(() => {
   cityRows = [];
   // No scope by default, so the existing cases keep asserting the countries fallback.
   scopeData = null;
+  navigated.length = 0;
 });
 
 describe('HolidayType city cards', () => {
@@ -163,5 +172,111 @@ describe('HolidayType "Show all" uses the type scope', () => {
     scopeData = { destinations: [], zones: [], hotelCodes: [] };
     renderPage();
     expect(query(showAll()).get('countries')).toBe('TR,NY');
+  });
+});
+
+/**
+ * The cards on the page, and what each one searches (UI-19, Ch1 §12B.1, §12B.4).
+ *
+ * A card is a geographic choice: it keeps the category and adds that place. How the category
+ * travels depends on what the category IS. A type the dashboard links to countries is a filter
+ * the catalogue can answer, so it travels as `themes=`, and countries=ES with themes=2 is
+ * Spain's city trips rather than Spain entire. Last Minute and All Inclusive are not that: they
+ * are a departure window and a board, linked to no country, and `themes=` for them matches no
+ * hotel at all. They travel as the door they are.
+ */
+describe('HolidayType cards: a place, with the category still applied', () => {
+  const cards = () => screen.queryAllByRole('button').filter((b) => b.querySelector('h3'));
+  const cardNamed = (name) => cards().find((b) => b.querySelector('h3').textContent === name);
+
+  const went = () => new URL(navigated.at(-1), 'https://example.test').searchParams;
+
+  it('keeps the category on a country card, so Spain is not searched entire', () => {
+    typeData = {
+      holidayType: { id: 2, name: 'Stedentrips', slug: 'stedentrips' },
+      countries: [{ id: 1, code: 'ES', isoCode: 'ES', name: 'Spanje' }],
+    };
+    renderPage('stedentrips');
+    fireEvent.click(cardNamed('Spanje'));
+    // themes= resolves through the countries and destinations the type is linked to, so this is
+    // Spain's city-trip destinations rather than all 8,000 Spanish hotels.
+    expect(went().get('countries')).toBe('ES');
+    expect(went().get('themes')).toBe('2');
+    expect(went().get('transport')).toBe('package');
+  });
+
+  it('lists every active country for a door, instead of dead-ending', () => {
+    // All Inclusive is linked to no country by design: it is a board, not a place.
+    typeData = { holidayType: { id: 13, name: 'All Inclusive', slug: 'all-inclusive' }, countries: [] };
+    allCountries = [
+      { id: 1, code: 'ES', isoCode: 'ES', name: 'Spanje' },
+      { id: 2, code: 'TR', isoCode: 'TR', name: 'Turkije' },
+    ];
+    renderPage('all-inclusive');
+    expect(cards().map((b) => b.querySelector('h3').textContent)).toEqual(['Spanje', 'Turkije']);
+    expect(screen.queryByText(/nog geen bestemmingen/i)).toBeNull();
+  });
+
+  it('a type that is neither a door nor linked to a country still says so plainly', () => {
+    // Adults only is a hotel attribute. Nothing the page could link to would be that category,
+    // so an honest empty state beats a grid of countries that are not it.
+    typeData = { holidayType: { id: 30, name: 'Adults Only', slug: 'adults-only' }, countries: [] };
+    allCountries = [{ id: 1, code: 'ES', isoCode: 'ES', name: 'Spanje' }];
+    renderPage('adults-only');
+    expect(cards()).toHaveLength(0);
+    expect(screen.getByText('Nog geen bestemmingen')).toBeInTheDocument();
+  });
+
+  it("a door's card carries the door, never a themes filter that matches no hotel", () => {
+    typeData = { holidayType: { id: 13, name: 'All Inclusive', slug: 'all-inclusive' }, countries: [] };
+    allCountries = [{ id: 1, code: 'ES', isoCode: 'ES', name: 'Spanje' }];
+    renderPage('all-inclusive');
+    fireEvent.click(cardNamed('Spanje'));
+    expect(went().get('countries')).toBe('ES');
+    expect(went().get('entry')).toBe('all_inclusive');
+    // themes=13 matches no hotel at all, so sending it here would empty the search.
+    expect(went().get('themes')).toBeNull();
+  });
+
+  it("carries the door on \"Toon alles\" too, for a type with no geography of its own", () => {
+    typeData = { holidayType: { id: 12, name: 'Last Minute', slug: 'last-minute' }, countries: [] };
+    allCountries = [{ id: 1, code: 'ES', isoCode: 'ES', name: 'Spanje' }];
+    renderPage('last-minute');
+    const p = query(showAll());
+    expect(p.get('countries')).toBe('ES');
+    expect(p.get('entry')).toBe('last_minute');
+    expect(p.get('themes')).toBeNull();
+  });
+
+  it('shows the grid rather than the empty state while the countries are still coming', () => {
+    typeData = { holidayType: { id: 12, name: 'Last Minute', slug: 'last-minute' }, countries: [] };
+    allCountries = null;   // the request has not landed
+    renderPage('last-minute');
+    expect(screen.queryByText(/nog geen bestemmingen/i)).toBeNull();
+    expect(cards()).toHaveLength(0);
+  });
+});
+
+/** §12B.1: these pages navigate. They never price. */
+describe('HolidayType prices and dates', () => {
+  it('shows no price anywhere, because a category has no one price', () => {
+    const { container } = renderPage();
+    expect(container.textContent).not.toMatch(/€/);
+    expect(container.textContent).not.toMatch(/\bvanaf\b/i);
+  });
+
+  it('puts no date in a link, however the type is named', () => {
+    // "Zonvakanties 2027" is a title, not a departure window: a year in it must not quietly
+    // become a date on the search.
+    typeData = {
+      holidayType: { id: 1, name: 'Zonvakanties 2027', slug: 'zonvakanties' },
+      countries: [{ id: 7, code: 'TR', isoCode: 'TR', name: 'Turkije' }],
+    };
+    renderPage();
+    const p = query(showAll());
+    expect(p.get('checkIn')).toBeNull();
+    expect(p.get('checkOut')).toBeNull();
+    expect([...p.keys()].some((k) => /date|month|year/i.test(k))).toBe(false);
+    expect(showAll().getAttribute('href')).not.toMatch(/2027/);
   });
 });

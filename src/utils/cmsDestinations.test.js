@@ -135,6 +135,29 @@ describe('a holiday-type link names the entry it came through', () => {
       .toBe('all_inclusive');
   });
 
+  /* A door and a themes filter are two ways of saying the same thing, and only one of them
+     works. `themes=` resolves through the countries and destinations a type is linked to, and a
+     door is linked to none, so on the live catalogue themes=13 (All Inclusive) matches zero
+     hotels. Sent beside the door it does not narrow the search, it empties it. */
+  it('a door carries no themes filter, which would empty the search it just opened', () => {
+    const lastMinute = q(destUrl({ type: 'country', code: 'TR', name: 'Turkije' }, 12, 'last-minute'));
+    expect(lastMinute.get('entry')).toBe('last_minute');
+    expect(lastMinute.get('themes')).toBeNull();
+    expect(lastMinute.get('countries')).toBe('TR');
+
+    const allIn = q(destUrl({ type: 'city', code: 'AYT', name: 'Antalya' }, 13, 'all-inclusive'));
+    expect(allIn.get('entry')).toBe('all_inclusive');
+    expect(allIn.get('themes')).toBeNull();
+    expect(allIn.get('destinations')).toBe('AYT');
+  });
+
+  it('a type linked to countries keeps its filter, which is what narrows Spain to its cities', () => {
+    // countries=ES with themes=2 is Spain's city-trip destinations, not Spain entire.
+    const p2 = q(destUrl({ type: 'country', code: 'ES', name: 'Spanje' }, 2, 'stedentrips'));
+    expect(p2.get('themes')).toBe('2');
+    expect(p2.get('entry')).toBeNull();
+  });
+
   it('any other type carries no entry, so no default is applied behind the traveller', () => {
     expect(q(destUrl({ type: 'country', code: 'TR', name: 'Turkije' }, 4, 'zonvakanties')).get('entry'))
       .toBeNull();

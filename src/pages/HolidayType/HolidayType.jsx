@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './HolidayType.module.css';
 import { useHolidayTypeCountries, useHolidayTypeScope, useHomepageConfig, useCountries, fetchCityImages } from '../../api';
 import { destsForHolidayType, destUrl, destLabel, sectionSearchUrl, holidayScopeSearchUrl } from '../../utils/cmsDestinations';
+import { entryOf } from '../../utils/entryRules';
 import { countryName } from '../../utils/countryName';
 import ShowAllLink from '../../components/ShowAllLink/ShowAllLink';
 
@@ -42,7 +43,10 @@ export default function HolidayType() {
 
   const holidayType = data?.holidayType ?? null;
   const holidayTypeId = holidayType?.id ?? null;
-  const countries   = data?.countries ?? [];
+  /* Memoised because it is a dependency of the grid below: `?? []` hands back a new empty
+     array on every render while the request is in flight, which would rebuild the grid each
+     time for no reason. */
+  const countries = useMemo(() => data?.countries ?? [], [data]);
 
   const typeName = holidayType?.name || nameFromSlug(slug);
   const heading  = holidayType?.title || titleFor(t, typeName);
@@ -85,6 +89,14 @@ export default function HolidayType() {
     return () => { live = false; };
   }, [cityCodeKey]);
 
+  /* Last Minute and All Inclusive are doors, not places (§12B.2, UI-20): one is a departure
+     window and the other a board, so the dashboard links them to no country at all and the grid
+     above comes back empty. The page still owes the traveller somewhere to go (§12B.1), so a
+     door lists every active country instead of dead-ending on "no destinations yet". What keeps
+     the category is `entry`, which the server applies where the traveller has not chosen; the
+     type's own id would be a `themes=` filter, and for these two that matches no hotel. */
+  const door = entryOf(slug);
+
   // One shape for both sources so the grid below renders them identically.
   const items = useMemo(() => {
     if (cmsDests.length) {
@@ -113,28 +125,34 @@ export default function HolidayType() {
         };
       });
     }
-    // No CMS selection — fall back to the countries linked in the dashboard.
-    return countries.map((c) => {
+    // No CMS selection — fall back to the countries linked in the dashboard, or, for a door
+    // that has none by design, to every active country.
+    const grid = countries.length ? countries : (door ? (allCountries ?? []) : []);
+    return grid.map((c) => {
       const cName = countryName(c.isoCode, i18n.language, c.name);
-      const qs = new URLSearchParams();
       // The results page matches Country.code (the Hotelbeds code), NOT the ISO
       // code — they diverge (Cyprus is NY, the UK is UK).
-      qs.set('countries', c.code || c.isoCode || '');
-      qs.set('destinationLabel', cName);
-      if (holidayTypeId != null) qs.set('themes', String(holidayTypeId));   // the type stays applied (§12B.4)
-      qs.set('transport', 'package');   // holiday-type pages open Flight + Hotel, like the homepage
+      const dest = { type: 'country', code: c.code || c.isoCode || '', name: cName };
       return {
         key: `country:${c.id}`,
         name: cName,
         desc: c.description || null,
         flagUrl: c.flagUrl || null,
         imageUrl: c.imageUrl || null,
-        href: `/results?${qs.toString()}`,
+        // Built by the same rule as every other card on the site, rather than a second copy of
+        // it here: that is what carries the type as a filter where the catalogue can answer one
+        // and as a door where it cannot, and opens Flight + Hotel like the homepage.
+        href: destUrl(dest, holidayTypeId, slug),
         title: cName,
-        dest: { type: 'country', code: c.code || c.isoCode || '' },
+        dest,
       };
     });
-  }, [cmsDests, countries, countryLookup, cityImages, t, i18n.language, holidayTypeId]);
+  }, [cmsDests, countries, door, allCountries, countryLookup, cityImages, t, i18n.language, holidayTypeId, slug]);
+
+  /* A door's grid is the active countries, which is a second request. Until it lands the page is
+     still loading: without this the empty state shows first and then swaps to a full grid. */
+  const gridPending = !countries.length && door != null && !Array.isArray(allCountries);
+  const busy = loading || gridPending;
 
   // "Show all": every stay of this category in one search (UI-19, Ch1 §12B.1, §12B.4).
   //
@@ -179,7 +197,7 @@ export default function HolidayType() {
               )}
             </div>
 
-            {!loading && !error && items.length > 0 && (
+            {!busy && !error && items.length > 0 && (
               <ShowAllLink
                 to={showAllHref}
                 tone="dark"
@@ -194,7 +212,7 @@ export default function HolidayType() {
       </div>
 
       <div className={styles.inner}>
-        {loading && (
+        {busy && (
           <div className={styles.grid}>
             {Array.from({ length: 8 }).map((_, i) => (
               <div key={i} className={`${styles.card} ${styles.skeleton}`} />
@@ -202,7 +220,7 @@ export default function HolidayType() {
           </div>
         )}
 
-        {!loading && error && (
+        {!busy && error && (
           <div className={styles.state}>
             <span className={styles.stateIcon}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M12 9v4M12 17h.01"/><path d="M10.29 3.86L1.82 18a2 2 0 001.71 3h16.94a2 2 0 001.71-3L13.71 3.86a2 2 0 00-3.42 0z"/></svg>
@@ -213,7 +231,7 @@ export default function HolidayType() {
           </div>
         )}
 
-        {!loading && !error && items.length === 0 && (
+        {!busy && !error && items.length === 0 && (
           <div className={styles.state}>
             <span className={styles.stateIcon}>
               <svg width="26" height="26" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round"><path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0118 0z"/><circle cx="12" cy="10" r="3"/></svg>
@@ -224,7 +242,7 @@ export default function HolidayType() {
           </div>
         )}
 
-        {!loading && !error && items.length > 0 && (
+        {!busy && !error && items.length > 0 && (
           <div className={styles.grid}>
             {items.map((c, i) => {
               const hasPhoto = Boolean(c.imageUrl);
