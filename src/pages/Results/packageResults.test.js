@@ -109,3 +109,38 @@ describe('the airports the package answers prove (Ch 1 §9A)', () => {
     expect(mergeAirportFacets([g(f({ BRU: 2 }, { AYT: 2 }))], { arrivals: 'AYT' }).arrivals).toBeNull();
   });
 });
+
+/**
+ * UI-10 (Ch 1 §10, Ch 2 case 19, Ch 3 case 13). An automatic from-price needs a trip of at least
+ * 3 travel days for a city trip and 5 for anything else. A hotel whose only complete packages are
+ * shorter keeps its place in the list and offers its available dates instead of a price.
+ *
+ * Quoting the short trip would be the real failure: a two-night package advertised as the price
+ * of a holiday, with the traveller finding out at the hotel page that it buys a different trip.
+ */
+describe('mapPackage carries why a hotel has no from-price (UI-10)', () => {
+  const base = { hotelCode: 'H1', destination: 'AYT', sunskyPayableTotal: 1100, pricePerPerson: 550 };
+
+  it('flags a hotel the from-price rule excluded, with the minimum it fell short of', () => {
+    const card = mapPackage({ ...base, fromPriceEligible: false, commercialMinDays: 5 }, 'Antalya');
+    expect(card.noFromPrice).toBe(true);
+    expect(card.minTravelDays).toBe(5);
+  });
+
+  it('a priced hotel is not flagged', () => {
+    const card = mapPackage({ ...base, fromPriceEligible: true, commercialMinDays: 5 }, 'Antalya');
+    expect(card.noFromPrice).toBe(false);
+    expect(card.totalAmount).toBe(1100);
+  });
+
+  it('an answer that says nothing about eligibility is treated as priced', () => {
+    // Only an explicit `false` withholds the price. Reading a missing field as "not eligible"
+    // would blank the price on every hotel the moment the API stopped sending it.
+    expect(mapPackage(base, 'Antalya').noFromPrice).toBe(false);
+    expect(mapPackage({ ...base, fromPriceEligible: undefined }, 'Antalya').noFromPrice).toBe(false);
+  });
+
+  it('a missing minimum is null rather than zero, so nothing claims "at least 0 days"', () => {
+    expect(mapPackage({ ...base, fromPriceEligible: false }, 'Antalya').minTravelDays).toBeNull();
+  });
+});

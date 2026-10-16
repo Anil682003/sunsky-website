@@ -3651,7 +3651,17 @@ export default function Results() {
                       {/* No cached price for this one: it came from the supplier availability
                           check, which we deliberately ask without prices. The traveller gets a
                           real, live price on the hotel page. */}
-                      {h.onRequest ? (
+                      {/* Only short trips exist for this hotel, so there is no automatic
+                          from-price to quote (UI-10). It stays in the list — it IS bookable,
+                          just not for the length asked for — and points at the dates it has
+                          instead of a figure that would describe a different trip.
+                          Mutually exclusive with `onRequest` by construction: that one is Hotel
+                          only, and `fromPriceEligible` comes from the package search. */}
+                      {h.noFromPrice ? (
+                        <div className={styles.rcPriceAsk}>
+                          {t('price.viewAvailableDates', 'View available dates')}
+                        </div>
+                      ) : h.onRequest ? (
                         <div className={styles.rcPriceAsk}>
                           {t('card.priceOnRequest', 'Price on request')}
                         </div>

@@ -242,3 +242,47 @@ describe('destinations without a flight on these dates are named', () => {
     expect(screen.queryByText(/Geen vlucht \+ hotelpakketten naar/)).toBeNull();
   });
 });
+
+/**
+ * UI-10 (Ch 1 §10). An automatic from-price needs a trip of at least 3 travel days for a city
+ * trip and 5 for anything else. A hotel whose only complete packages are shorter stays in the
+ * list and offers its dates instead of a price.
+ *
+ * (Dutch: `src/test/setup.js` loads the real i18n, which starts on the site's own language.)
+ */
+describe('a hotel with only short trips keeps its place, without a price', () => {
+  it('offers its available dates instead of a figure that would describe a different trip', async () => {
+    answers.byDest.AYT = {
+      status: 'FEASIBLE',
+      hotels: [
+        pkg('34585', 'AYT', 1100.4),
+        pkg('99001', 'AYT', 300, { fromPriceEligible: false, commercialMinDays: 5 }),
+      ],
+    };
+    renderAt(DATED);
+    const cards = await screen.findAllByRole('article');
+    expect(cards).toHaveLength(2);
+
+    const short = cards.find((c) => c.textContent.includes('Bekijk beschikbare data'));
+    expect(short).toBeTruthy();
+    // The cheap short trip must not be quoted: €150 p.p. would undercut every real holiday on
+    // the page and buy something else entirely.
+    expect(short.textContent).not.toMatch(/150/);
+
+    // The eligible hotel is untouched.
+    const priced = cards.find((c) => c !== short);
+    expect(priced.textContent).toMatch(/551/);
+    expect(priced.textContent).not.toMatch(/Bekijk beschikbare data/);
+  });
+
+  it('is not called sold out, and still opens its hotel page', async () => {
+    answers.byDest.AYT = {
+      status: 'FEASIBLE',
+      hotels: [pkg('99001', 'AYT', 300, { fromPriceEligible: false, commercialMinDays: 3 })],
+    };
+    renderAt(DATED);
+    const card = await screen.findByRole('article');
+    expect(card.textContent).toMatch(/Bekijk beschikbare data/);
+    expect(within(card).getByRole('link')).toHaveAttribute('href', expect.stringContaining('/hotel/99001'));
+  });
+});

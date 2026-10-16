@@ -111,6 +111,12 @@ export function mapPackage(p, label) {
     img: null,
     loc: label,
     destinationCode: p.destination,
+    // No automatic from-price for this hotel (UI-10, Ch 1 §10): the only complete packages it
+    // has are shorter than the commercial minimum — 3 travel days for a city trip, 5 otherwise —
+    // so quoting one would advertise a weekend break as the price of a holiday. The hotel still
+    // belongs in the list; the card offers its available dates instead of a figure.
+    noFromPrice: p?.fromPriceEligible === false,
+    minTravelDays: Number(p?.commercialMinDays) || null,
     pkg: p,
   };
 }
