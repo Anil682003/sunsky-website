@@ -43,7 +43,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-12 | Route control: two states | Medium | Ready | |
 | UI-13 | Destination counts in the destination filter | Later | Ready | |
 | UI-15 | W2M-only hotels as a second group with "Check price" | Later | **Waiting** | BLOCKED |
-| UI-16 | Flights only from the cache | Later | Ready | |
+| UI-16 | Flights only from the cache | Later | Ready | **DONE** (`4700b45`) |
 | UI-17 | Sort rules: unknown values last, stable ties, Hotelbeds first | Later | Ready | |
 | UI-18 | Popular departure airports first | Medium | Ready | |
 | UI-19 | Intermediate category pages: navigation only, "Toon alles" | Medium | Ready | |
@@ -123,7 +123,7 @@ date's airport. Today the hotel page keeps one airport (the card's) and prices e
 
 **API:** `GET /package-matrix` takes `origins=BRU,AMS` or no origins (all airports); each day
 returns `departureAirport`.
-**Where:** `packageHandoff.js` (carry the selection), `usePackageMatrix.js` (send a list),
+**Where:** `packageHandoff.js` (carry the selection), `HotelDetail/usePackageMatrix.js` (send a list),
 `HotelDetail.jsx` (show each cell's airport, use it when a date is picked).
 
 ### UI-04 — Room and board price differences against the current selection · DONE
@@ -343,7 +343,7 @@ ignored for Hotel only but kept for a switch back.
 - Hotel only after Flight + Hotel: same party and dates, no airport filter applied
 - Missing flights never switch the product automatically
 
-**Where:** `searchStore.js`, `packageHandoff.js`, `Results.jsx`.
+**Where:** `utils/searchStore.js`, `utils/packageHandoff.js`, `Results.jsx`.
 
 ### UI-23 — Results filters per §12B.5
 **Pages:** Results · **Spec:** Ch1 §12B.5
@@ -439,6 +439,24 @@ The contract treats Flight Only as a later chapter.
 **API:** `POST /flight-availability/cached-search` and `/cached-search/confirm`.
 **Where:** `Flights.jsx`.
 
+**Done** in `4700b45`. The list reads `cached-search`, falling back to the live `/search` when the
+cache answers `complete: false` (no return fare imported for that route and date, which is a gap
+in the import, never a sold-out route). Select posts `cached-search/confirm` and the page shows
+which of the four outcomes happened.
+
+The rule the implementation is built around: **only a definite `NOT_AVAILABLE` from the server
+disables a flight.** A 502, a timeout, a dropped connection or an answer we do not recognise all
+read as "could not check right now", with the button still live. Reporting an unreachable supplier
+as "sold out" walks a customer away from a flight they could have bought, and nothing in the system
+would ever record that it happened. A `CONFIRMED` carrying no `flightKeys` is refused for the
+mirror-image reason: it would send someone to checkout holding nothing to reserve.
+
+Two things worth knowing if this is touched again: the supplier's legs are kept on each mapped
+flight untouched (`flight.confirm`), because the confirm re-finds the itinerary by airline, flight
+number and local departure to the minute, so anything rebuilt from the display shape misses; and
+the check state is keyed to its search rather than cleared in an effect, since flight ids are
+rebuilt per search and a stale result would otherwise land on an unrelated card.
+
 ### UI-17 — Sort rules: unknown values last, stable ties, Hotelbeds group first
 **Pages:** Results · **Spec:** Ch2 §4 · Ch3 §5
 
@@ -469,7 +487,7 @@ its own range replaces the 42-day default. A customer date change replaces it.
 **API:** each Travel Categories card in the homepage config carries `enableDateRange`, `startDate`,
 `endDate` (validated on save). Apply only when enabled; package searches longer than 31 days go
 month by month.
-**Where:** homepage cards, `searchStore.js`.
+**Where:** homepage cards, `utils/searchStore.js`.
 
 ### UI-26 — Admin: Monitoring page · not this repo
 **Pages:** Admin panel → System · **Spec:** Ch1 §12A
