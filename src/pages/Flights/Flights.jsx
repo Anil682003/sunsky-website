@@ -7,6 +7,62 @@ import axiosInstance from '../../services/axiosInstance';
 import { buildContext, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal, legContexts, combineTrip, cabinLabel } from './flightData';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import { useAirlineName } from '../../utils/airlineLogos';
+import confirmFlight, { canConfirm, CONFIRMED, PRICE_CHANGED, NOT_AVAILABLE } from './confirmFlight';
+
+/** The search body, shared by the cached search and the live fallback so both price the same party. */
+const searchBody = (s) => ({
+  from: s.from.code,
+  to: s.to.code,
+  depdate: s.depISO,
+  retdate: s.tripType === 'roundtrip' ? s.retISO : undefined,
+  adults: s.adults,
+  children: s.children,
+  infants: s.infants,
+});
+
+/**
+ * One leg's flights, from the cache, falling back to the live search when the cache says its
+ * answer is incomplete.
+ *
+ * `complete: false` on a round trip means the cache holds no return fare for that route and date
+ * (the Airtürk feed only grew a return direction in October 2026). That is a gap in what we
+ * imported, not a sold-out route, so showing an empty list would invent an answer the cache never
+ * gave. The live search is slow but correct, and this is the only path that still calls it.
+ */
+async function fetchLegFlights(s) {
+  const body = searchBody(s);
+  const { data } = await axiosInstance.post('/flight-availability/cached-search', body);
+  if (data?.complete === false) {
+    const live = await axiosInstance.post('/flight-availability/search', body);
+    return live.data;
+  }
+  return data;
+}
+
+/**
+ * Does this fare still have to be checked live?
+ *
+ * A cached fare carries no bookable keys — the contract says `flightKeys` is always `[]` until
+ * it is confirmed — so the empty list is the honest test rather than reading a source label. A
+ * live fare (the `complete: false` fallback above) already has its keys and goes straight through.
+ */
+const needsConfirm = (f) => !(f?.flightKeys?.length) && canConfirm(f);
+
+/** Shared empty value, so a search with nothing gone does not build a new Set on every render. */
+const EMPTY_GONE = { key: '', ids: new Set() };
+
+/**
+ * Swap a cached card for the live, bookable flight the confirm returned.
+ *
+ * The answer arrives in the raw `/search` shape, so it goes through the same mapper the list
+ * used; what is kept from the cached card is only its identity — the id the list and the
+ * multi-city picks are keyed by, and the badge the user is looking at.
+ */
+const mergeLive = (cached, live, s) => {
+  const mapped = mapAirtuerkFlight(live, s, 0);
+  if (!mapped) return cached;
+  return { ...mapped, id: cached.id, legIndex: cached.legIndex, badge: cached.badge };
+};
 
 // The identifier stays English (it also drives the CSS class via
 // `f.badge.replace(/\s/g, '').toLowerCase()`); only the rendered label is translated.
@@ -95,10 +151,14 @@ const Leg = ({ leg, tag }) => (
   </div>
 );
 
-function FlightCard({ f, onSelect, money }) {
+function FlightCard({ f, onSelect, money, state, isGone }) {
   const { t } = useTranslation('flights');
+  const checking = state?.kind === 'checking';
+  // Only a definite NOT_AVAILABLE from the server disables the button. A check that failed
+  // leaves it enabled so the traveller can simply try again (UI-16).
+  const failed = state?.kind === 'sourceError';
   return (
-    <article className="fl-card">
+    <article className={`fl-card${isGone ? ' gone' : ''}`}>
       {f.badge && <span className={`fl-badge ${f.badge.replace(/\s/g, '').toLowerCase()}`}>{f.badge === 'Fastest' && ICON.bolt} {badgeLabel(f.badge)}</span>}
       <div className="fl-card-in">
         <div className="fl-card-legs">
@@ -114,7 +174,31 @@ function FlightCard({ f, onSelect, money }) {
               ? `${t('flights:price.perPerson', 'per person')} · ${money(flightTotal(f))} ${t('flights:price.total', 'total')}`
               : t('flights:price.perPerson', 'per person')}
           </div>
-          <button className="fl-select" onClick={() => onSelect(f)}>{t('flights:card.select', 'Select')} {ICON.arrow}</button>
+          <button
+            className="fl-select"
+            onClick={() => onSelect(f)}
+            disabled={checking || isGone}
+            aria-busy={checking || undefined}
+          >
+            {checking
+              ? t('flights:confirm.checking', 'Checking availability…')
+              : isGone
+                ? t('flights:confirm.gone', 'No longer available')
+                : <>{t('flights:card.select', 'Select')} {ICON.arrow}</>}
+          </button>
+
+          {/* A failed check says so and offers another go. It never claims the seat is sold:
+              the supplier being unreachable tells us nothing about the flight. */}
+          {failed && (
+            <p className="fl-confirm-msg err" role="status">
+              {t('flights:confirm.couldNotCheck', 'Could not check right now. Please try again.')}
+            </p>
+          )}
+          {isGone && (
+            <p className="fl-confirm-msg gone" role="status">
+              {t('flights:confirm.goneHint', 'This flight was taken while you were looking. Please pick another.')}
+            </p>
+          )}
         </div>
       </div>
     </article>
@@ -172,24 +256,43 @@ export default function Flights() {
   const [maxPrice, setMaxPrice] = useState(priceBounds.max);
   const [openSec, setOpenSec] = useState({ air: true, stops: true, time: true, price: true });
   const [drawer, setDrawer] = useState(false);
+  /**
+   * The live check on Select (UI-16): which flight is being checked, and what came back. One at
+   * a time, because Select is one choice.
+   *
+   * Both pieces of state carry the search they belong to and are read as empty when it no longer
+   * matches, the way `usePackageAirports` keys its answer. A new search rebuilds the flight ids
+   * from scratch, so a "no longer available" from the previous one could otherwise land on a
+   * card it was never about. Keying it costs one comparison; clearing it in an effect would
+   * cost a second render pass on every search.
+   */
+  const searchKey = useMemo(
+    () => JSON.stringify(searches.map((s) => [s.from?.code, s.to?.code, s.depISO, s.retISO, s.tripType, s.adults, s.children, s.infants])),
+    [searches],
+  );
+  const [confirmRaw, setConfirmRaw] = useState(null);
+  const [goneRaw, setGoneRaw] = useState(EMPTY_GONE);
+  const confirmState = confirmRaw?.key === searchKey ? confirmRaw : null;
+  const gone = goneRaw.key === searchKey ? goneRaw.ids : EMPTY_GONE.ids;
+  const setConfirmState = (next) => setConfirmRaw(next ? { ...next, key: searchKey } : null);
 
   // reset price ceiling whenever the route/search changes
   useEffect(() => { setMaxPrice(priceBounds.max); }, [priceBounds.max]);
-  // Live flights from the Airtürk availability API. One request per search context: a plain
-  // trip fires one, a multi-city trip fires one per flight, all at once. A leg that comes
-  // back empty is an empty leg, not an empty trip — the others still list.
+  // Flights from the flight cache (UI-16). The cache answers in milliseconds where a live
+  // Airtürk search takes ten seconds or more, so the list appears at once; the price is real
+  // but indicative and carries no bookable keys until Select confirms it.
+  //
+  // One request per search context: a plain trip fires one, a multi-city trip fires one per
+  // flight, all at once. A leg that comes back empty is an empty leg, not an empty trip — the
+  // others still list.
   useEffect(() => {
     const usable = searches.filter((s) => s.from?.code && s.to?.code && s.depISO);
     if (usable.length !== searches.length) { setLegFlights(null); setLoading(false); return; }
     setLoading(true);
     let cancelled = false;
     Promise.all(searches.map((s, legIdx) =>
-      axiosInstance.post('/flight-availability/search', {
-        from: s.from.code, to: s.to.code, depdate: s.depISO,
-        retdate: s.tripType === 'roundtrip' ? s.retISO : undefined,
-        adults: s.adults, children: s.children, infants: s.infants,
-      })
-        .then(({ data }) => {
+      fetchLegFlights(s)
+        .then((data) => {
           const raw = data?.results?.airtuerk?.flights || [];
           return badgeFlights(
             raw.map((af, i) => mapAirtuerkFlight(af, s, i))
@@ -247,12 +350,66 @@ export default function Flights() {
   // On a plain trip, choosing a fare IS the choice and the detail page opens. On a multi-city
   // trip it answers one flight of several, so it stays on this page and moves to the next
   // flight still unanswered — the trip is not complete until every leg has a fare.
-  const onSelect = (f) => {
+  /**
+   * Carry a chosen flight forward: on a plain trip the detail page opens, on a multi-city trip
+   * it answers one flight of several and the page moves to the next unanswered one.
+   */
+  const carry = (f) => {
     if (!multi) { navigate(`/flights/${f.id}`, { state: { flight: f, ctx } }); return; }
     const next = { ...picks, [activeLeg]: f };
     setPicks(next);
     const unanswered = searches.findIndex((_, i) => !next[i]);
     if (unanswered >= 0) { setActiveLeg(unanswered); window.scrollTo({ top: 0, behavior: 'smooth' }); }
+  };
+
+  /**
+   * Select (UI-16). A cached fare is indicative and has no bookable keys, so one live check runs
+   * here before the traveller goes any further. A live fare already carries its keys and skips
+   * straight through.
+   *
+   * The live flight from the answer replaces the cached one: it is the priced, bookable
+   * itinerary, and checkout uses it unchanged. Carrying the cached object forward would take an
+   * indicative price and an empty key list into the booking.
+   */
+  const onSelect = async (f) => {
+    if (!needsConfirm(f)) { carry(f); return; }
+
+    const s = searches[f.legIndex ?? activeLeg] || searches[0];
+    setConfirmState({ id: f.id, kind: 'checking' });
+    const result = await confirmFlight(f, s);
+
+    if (result.kind === CONFIRMED) {
+      setConfirmState(null);
+      carry(mergeLive(f, result.flight, s));
+      return;
+    }
+    if (result.kind === PRICE_CHANGED) {
+      // The traveller decides. Moving them on at a price they have not seen is the one thing
+      // this check exists to prevent.
+      setConfirmState({
+        id: f.id, kind: 'priceChanged', cached: f,
+        flight: mergeLive(f, result.flight, s), livePrice: result.livePrice, difference: result.difference,
+      });
+      return;
+    }
+    if (result.kind === NOT_AVAILABLE) {
+      setGoneRaw((prev) => ({
+        key: searchKey,
+        ids: new Set(prev.key === searchKey ? prev.ids : []).add(f.id),
+      }));
+      setConfirmState({ id: f.id, kind: 'notAvailable' });
+      return;
+    }
+    // SOURCE_ERROR: we could not ask. Never presented as sold out — the seat may well exist.
+    setConfirmState({ id: f.id, kind: 'sourceError' });
+  };
+
+  /** Continue at the confirmed new price. */
+  const acceptPriceChange = () => {
+    const s = confirmState;
+    if (!s?.flight) return;
+    setConfirmState(null);
+    carry(s.flight);
   };
 
   const trip = useMemo(
@@ -499,7 +656,13 @@ export default function Flights() {
           ) : (
             results.map((f, i) => (
               <div key={f.id} style={{ animationDelay: `${Math.min(i, 6) * 0.06}s` }} className="fl-card-wrap">
-                <FlightCard f={f} onSelect={onSelect} money={money} />
+                <FlightCard
+                  f={f}
+                  onSelect={onSelect}
+                  money={money}
+                  state={confirmState?.id === f.id ? confirmState : null}
+                  isGone={gone.has(f.id)}
+                />
               </div>
             ))
           )}
@@ -518,6 +681,44 @@ export default function Flights() {
             <div className="fl-drawer-body">{filters}</div>
             <div className="fl-drawer-foot">
               <button className="fl-drawer-apply" onClick={() => setDrawer(false)}>{t('flights:drawer.show', { count: results.length, defaultValue: 'Show {{count}} flights' })}</button>
+            </div>
+          </div>
+        </>
+      )}
+
+      {/* The live check found the flight at another price (UI-16). The contract says show the
+          new price, then continue — so it is shown, and continuing stays the traveller's click.
+          Built into the page rather than a browser confirm dialog. */}
+      {confirmState?.kind === 'priceChanged' && (
+        <>
+          <div className="fl-drawer-ov" onClick={() => setConfirmState(null)} />
+          <div className="fl-pricechg" role="dialog" aria-modal="true" aria-labelledby="fl-pricechg-h">
+            <h2 className="hd" id="fl-pricechg-h">
+              {t('flights:confirm.priceChangedTitle', 'The price has changed')}
+            </h2>
+            <p className="fl-pricechg-lede">
+              {t(
+                'flights:confirm.priceChangedLede',
+                'This flight is still available, but the airline is now asking a different fare.',
+              )}
+            </p>
+            <div className="fl-pricechg-rows">
+              <div className="fl-pricechg-row">
+                <span>{t('flights:confirm.priceWas', 'Price shown')}</span>
+                <s>{money(flightTotal(confirmState.cached))}</s>
+              </div>
+              <div className="fl-pricechg-row now">
+                <span>{t('flights:confirm.priceNow', 'Price now')}</span>
+                <b>{money(confirmState.livePrice ?? flightTotal(confirmState.flight))}</b>
+              </div>
+            </div>
+            <div className="fl-pricechg-btns">
+              <button className="fl-pricechg-back" onClick={() => setConfirmState(null)}>
+                {t('flights:confirm.backToList', 'Back to the list')}
+              </button>
+              <button className="fl-pricechg-go" onClick={acceptPriceChange}>
+                {t('flights:confirm.continueAt', 'Continue at this price')}
+              </button>
             </div>
           </div>
         </>

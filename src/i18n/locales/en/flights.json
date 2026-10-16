@@ -94,5 +94,17 @@
   },
   "drawer": {
     "show": "Show {{count}} flights"
+  },
+  "confirm": {
+    "checking": "Checking availability…",
+    "gone": "No longer available",
+    "goneHint": "This flight was taken while you were looking. Please pick another.",
+    "couldNotCheck": "Could not check right now. Please try again.",
+    "priceChangedTitle": "The price has changed",
+    "priceChangedLede": "This flight is still available, but the airline is now asking a different fare.",
+    "priceWas": "Price shown",
+    "priceNow": "Price now",
+    "backToList": "Back to the list",
+    "continueAt": "Continue at this price"
   }
 }

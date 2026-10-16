@@ -390,6 +390,20 @@ export function mapAirtuerkFlight(af, ctx, idx) {
     flightKeys: Array.isArray(af.flightKeys) && af.flightKeys.length
       ? af.flightKeys
       : (af.flightKey ? [af.flightKey] : []),
+    // The supplier's legs, kept exactly as they arrived, so a cached flight can be confirmed
+    // on Select (UI-16). The confirm endpoint re-finds the itinerary by airline, flight number
+    // and local departure to the minute, so anything rebuilt from the display shape above would
+    // simply not match and a bookable flight would come back NOT_AVAILABLE. Only used for
+    // cached results; a live fare already carries its keys and never needs confirming.
+    confirm: {
+      outbound: af?.outbound?.legs?.length ? { legs: af.outbound.legs } : null,
+      inbound: af?.inbound?.legs?.length ? { legs: af.inbound.legs } : null,
+      legs: Array.isArray(af?.legs) && af.legs.length ? af.legs : null,
+    },
+    // Where this fare came from and how far it can be trusted. A cached fare is a real price
+    // but an indicative one, and it carries no bookable keys until it is confirmed.
+    source: af.source || null,
+    offerValidation: af.offerValidation || null,
     badge: '', live: true,
   };
 }

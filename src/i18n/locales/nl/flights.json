@@ -94,5 +94,17 @@
   },
   "drawer": {
     "show": "Toon {{count}} vluchten"
+  },
+  "confirm": {
+    "checking": "Beschikbaarheid controleren…",
+    "gone": "Niet meer beschikbaar",
+    "goneHint": "Deze vlucht is intussen verkocht. Kies een andere.",
+    "couldNotCheck": "We konden dit nu niet controleren. Probeer het opnieuw.",
+    "priceChangedTitle": "De prijs is gewijzigd",
+    "priceChangedLede": "Deze vlucht is nog beschikbaar, maar de luchtvaartmaatschappij vraagt nu een ander tarief.",
+    "priceWas": "Getoonde prijs",
+    "priceNow": "Prijs nu",
+    "backToList": "Terug naar de lijst",
+    "continueAt": "Doorgaan met deze prijs"
   }
 }

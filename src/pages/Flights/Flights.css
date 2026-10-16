@@ -305,3 +305,72 @@ img.fl-leg-logo { background:#fff; border:1px solid var(--border-light); padding
   .fl-leg-mid { order:3; width:100%; flex:1 1 100%; }
   .fl-sortlbl { display:none; }
 }
+
+/* ── Live confirm on Select (UI-16) ─────────────────────────────────────────
+   A cached fare is indicative, so Select checks it live. These are the three
+   things that check can say. */
+
+.fl-select[disabled] { opacity: .6; cursor: not-allowed; }
+.fl-select[aria-busy="true"] { cursor: progress; }
+
+.fl-card.gone { opacity: .62; }
+
+.fl-confirm-msg {
+  margin: 8px 0 0;
+  font-size: 12.5px;
+  line-height: 1.4;
+  text-align: right;
+}
+.fl-confirm-msg.err { color: #b45309; }
+.fl-confirm-msg.gone { color: #6b7280; }
+
+/* The price-change dialog. Shares the drawer's overlay, so it dims the page the
+   same way the filters do. */
+.fl-pricechg {
+  position: fixed;
+  z-index: 60;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  width: min(420px, calc(100vw - 32px));
+  background: #fff;
+  border-radius: 14px;
+  padding: 22px;
+  box-shadow: 0 18px 50px rgba(16, 24, 40, .22);
+}
+
+.fl-pricechg .hd { margin: 0 0 6px; font-size: 18px; }
+.fl-pricechg-lede { margin: 0 0 16px; color: #5b6678; font-size: 13.5px; line-height: 1.5; }
+
+.fl-pricechg-rows {
+  border: 1px solid #e5e7eb;
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+.fl-pricechg-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  padding: 10px 14px;
+  font-size: 13.5px;
+}
+.fl-pricechg-row + .fl-pricechg-row { border-top: 1px solid #f3f4f6; }
+.fl-pricechg-row s { color: #9ca3af; }
+.fl-pricechg-row.now { background: #f9fafb; }
+.fl-pricechg-row.now b { font-size: 17px; }
+
+.fl-pricechg-btns { display: flex; gap: 10px; }
+.fl-pricechg-btns button {
+  flex: 1;
+  border-radius: 9px;
+  padding: 11px 14px;
+  font-size: 13.5px;
+  font-weight: 600;
+  cursor: pointer;
+  border: 1px solid transparent;
+}
+.fl-pricechg-back { background: #fff; border-color: #d1d5db; color: #374151; }
+.fl-pricechg-back:hover { background: #f9fafb; }
+.fl-pricechg-go { background: #1f4fd8; color: #fff; }
+.fl-pricechg-go:hover { background: #1a43b8; }
