@@ -32,7 +32,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-01 | Disable impossible departure dates in every calendar | High | Ready\* | |
 | UI-02 | Open the calendar on the first month with a possible departure | High | Ready\* | |
 | UI-03 | Matrix: each date from the cheapest of the chosen airports | High | Ready | |
-| UI-04 | Room and board price differences against the current selection | High | Ready | |
+| UI-04 | Room and board price differences against the current selection | High | Ready | **DONE** |
 | UI-05 | Disable impossible destinations and airports on the homepage | Medium | Ready | |
 | UI-06 | Ask before dropping airports that clash with a new destination | Medium | **Needs API** | BLOCKED |
 | UI-07 | Only offer trip lengths that have a package | Medium | Ready | |
@@ -126,8 +126,13 @@ returns `departureAirport`.
 **Where:** `packageHandoff.js` (carry the selection), `usePackageMatrix.js` (send a list),
 `HotelDetail.jsx` (show each cell's airport, use it when a date is picked).
 
-### UI-04 — Room and board price differences against the current selection
+### UI-04 — Room and board price differences against the current selection · DONE
 **Pages:** Hotel page · **Spec:** Ch1 §8 · Ch2 §6 · Ch3 §6
+
+Done. The arithmetic is `src/pages/HotelDetail/roomDelta.js` (10 unit tests); the rendering is
+covered by `HotelDetail.roomdiff.test.jsx` (4 tests). The baseline is the rate the page is
+quoting, so a cheaper room now reads as a saving, with its own green pill. A row with no
+baseline keeps showing its own total, and an unpriced rate still says "Check price".
 
 The starting room says "Included". After a pick it says "Selected" with no price. Every other room
 shows "+€ X p.p." or "−€ X p.p." against the current complete price, and the old room becomes an
@@ -510,6 +515,23 @@ Code exists but was not confirmed end to end. Test, then move to done or open a 
 ## Findings while building
 
 Things learned in this repo that the backlog does not say. Add to this as we go.
+
+### 0. Two file paths in the backlog are wrong, and one namespace trap bites silently
+
+`usePackageMatrix.js` is at **`src/pages/HotelDetail/usePackageMatrix.js`**, not `src/hooks/`.
+`searchStore.js` is at **`src/utils/searchStore.js`**, not `src/store/`. Both matter for UI-03,
+UI-20, UI-21 and UI-22.
+
+More important: the backlog says the ready-made strings are in `common.json`, and they are, but
+`HotelDetail.jsx` binds its translator with `useTranslation('hotelDetail')`. A bare
+`t('offer.included', 'Included')` therefore resolves against the wrong namespace, finds nothing,
+and **renders the English default** — so the page looks right in a test and in English, while a
+Dutch traveller reads "Included". Use the `common:` prefix (`t('common:offer.included', …)`),
+which this file already does for `nav.home` and the calendar names.
+
+This is invisible unless you either watch for the `[i18n] missing hotelDetail:…` warning in a
+test run or assert on the Dutch string. Any task pulling `feasibility.*`, `localCosts.*`,
+`availability.*` or `listing.*` into a page with its own namespace has the same trap waiting.
 
 ### 1. UI-01 / UI-02: the feasibility endpoint has two branches, and only one returns dates
 

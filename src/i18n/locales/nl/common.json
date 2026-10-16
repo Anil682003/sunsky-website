@@ -272,7 +272,8 @@
     "cheaper": "goedkoper",
     "cheapest": "Goedkoopst",
     "diffUp": "+€ {{amount}} p.p.",
-    "diffDown": "-€ {{amount}} p.p."
+    "diffDown": "-€ {{amount}} p.p.",
+    "samePrice": "Zelfde prijs"
   },
   "localCosts": {
     "payableToSunsky": "Te betalen aan SUNSKY € {{amount}}",

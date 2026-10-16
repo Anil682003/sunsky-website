@@ -1796,6 +1796,13 @@
   font-style:normal; font-size:11.5px; font-weight:600; color:var(--text-sec);
   letter-spacing:0;
 }
+/* A room that costs LESS than the one being quoted. Green rather than the neutral blue so the
+   saving reads as a saving at a glance: the minus sign alone is easy to miss at this size, and
+   it is the one number on the row a traveller is pleased to see. */
+.sd .room-delta-pill.cheaper {
+  background:var(--green-light); color:var(--green);
+}
+.sd .room-delta-pill.cheaper em { color:var(--green); opacity:.75; }
 .sd .room-delta-vs {
   font-size:11px; font-weight:500; color:var(--text-sec);
 }

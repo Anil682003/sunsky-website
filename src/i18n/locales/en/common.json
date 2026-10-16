@@ -272,7 +272,8 @@
     "cheaper": "cheaper",
     "cheapest": "Cheapest",
     "diffUp": "+€ {{amount}} p.p.",
-    "diffDown": "-€ {{amount}} p.p."
+    "diffDown": "-€ {{amount}} p.p.",
+    "samePrice": "Same price"
   },
   "localCosts": {
     "payableToSunsky": "Payable to SUNSKY € {{amount}}",

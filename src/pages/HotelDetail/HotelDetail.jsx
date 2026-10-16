@@ -54,6 +54,7 @@ import {
 import { useToast } from '../../context/ToastContext';
 import { fetchUnpricedHotels } from '../../api/unpricedHotels';
 import { splitFareTypes } from '../../utils/fareTypes';
+import { roomDelta } from './roomDelta';
 import {
   packageFromParams, packageApplies, flightQuestion, confirmBody, mergePackageFlight, PACKAGE_FLIGHT,
 } from '../../utils/packageHandoff';
@@ -2689,6 +2690,42 @@ export default function HotelDetail() {
     ? selectedRoom.live
     : (roomGroups[0]?.boards?.[0]?.index ?? null);
 
+  /**
+   * The price every other room row is measured against: the rate the page is CURRENTLY quoting
+   * (UI-04 / Ch1 §8, Ch2 §6, Ch3 §6).
+   *
+   * It used to be each group's own cheapest, which answered a question nobody asks. A traveller
+   * who has chosen a sea-view half-board room is not wondering what it costs relative to the
+   * cheapest rate in that same room; they are wondering what moving from where they stand now
+   * costs. Comparing against the cheapest also made every figure a surcharge, so a room that
+   * would SAVE them money looked like one more thing to pay for, and the way back down was
+   * invisible.
+   *
+   * Searched across `roomGroups` rather than the group being drawn, because the quoted rate can
+   * sit in a different room, and in a collapsed one: the baseline must not change just because
+   * its row is off screen.
+   */
+  const liveRatePrice = useMemo(() => {
+    if (liveIndex == null) return null;
+    for (const g of roomGroups) {
+      for (const b of g.boards || []) if (b.index === liveIndex) return b.price;
+    }
+    return null;
+  }, [roomGroups, liveIndex]);
+
+  /**
+   * Who a room difference is divided by: every traveller who pays a share of the room.
+   *
+   * A lap infant is not one, so it never divides the difference. Deliberately separate from
+   * `ppPax` above, which answers the same question only on the package path and falls back to a
+   * plain head count otherwise — borrowing it would have divided by the infant on hotel-only
+   * stays and quietly understated every room upgrade.
+   */
+  const roomDeltaPax = useMemo(() => {
+    const p = splitFareTypes(Number(sAdults) || 2, sChildAges ? sChildAges.split(',') : []);
+    return Math.max(1, p.adults + p.children);
+  }, [sAdults, sChildAges]);
+
   // live selection → live price shown in the Book Now card / mobile bar / checkout
   const liveRoom = (liveRooms?.rooms?.length && liveIndex != null) ? liveRooms.rooms[liveIndex] : null;
   // The board of THAT rate, named exactly as the room rows name it — the availability recap
@@ -4743,14 +4780,15 @@ export default function HotelDetail() {
                             // raw pick, so the row ticked here is always the rate priced above.
                             const isSel = liveIndex === b.index;
                             const isCheapest = b.index === cheapestIndex;
-                            // Against the cheapest board of THIS room — a like-for-like comparison
-                            // the traveller is actually making on screen.
-                            const extra = roundHotelStay(b.price, roomsCount) - roundHotelStay(g.cheapest.price, roomsCount);
-                            // Per-person delta for the "+€X p.p." pill. Divide by the party size
-                            // (adults + children) the search was priced for; a missing count
-                            // falls back to the total so the number is never inflated.
-                            const partySize = Math.max(1, (gInfo?.guests ?? d?.guests) || 1);
-                            const perPerson = Math.round(extra / partySize);
+                            // Signed against the rate the page is quoting right now, so the row
+                            // answers "what does moving here cost me, from where I am?" — which
+                            // means it can be a saving, and says so. See roomDelta.js.
+                            const { diff, perPerson, rowTotal } = roomDelta({
+                              rowPrice: b.price,
+                              basePrice: liveRatePrice,
+                              rooms: roomsCount,
+                              pax: roomDeltaPax,
+                            });
                             return (
                               <div
                                 key={b.index}
@@ -4776,29 +4814,42 @@ export default function HotelDetail() {
                                   {d?.packageRate && <span className="rchip rchip-mute">{t('rooms.packageRate', 'Package rate')}</span>}
                                 </div>
 
-                                {/* Right-hand action column — one of three things depending on the
-                                    row's state:
-                                      selected → the green SELECTED button (the affordance)
-                                      cheapest & unselected → its own total (nothing to compare to)
-                                      other → the per-person surcharge vs the cheapest, matching
-                                              the mockup's "+ €107 p.p." pill with "vs cheapest"
-                                              caption underneath. */}
+                                {/* Right-hand action column — what the row's state makes true:
+                                      quoted rate → the green button, reading "Included" until the
+                                        traveller has chosen anything and "Selected" once they have,
+                                        because before a choice nothing has been selected BY them;
+                                        either way no figure, since this is the price already shown
+                                      dearer / cheaper → the signed per-person difference from it
+                                      same price → said in words; "+€0 p.p." is not an answer
+                                      no baseline → its own total, the only honest thing left */}
                                 <div className="room-cta">
                                   {isSel ? (
                                     <button type="button" className="room-select-btn" aria-pressed="true">
-                                      {ICON.check}<span>{t('flightCard.selected', 'Selected')}</span>
+                                      {ICON.check}
+                                      <span>
+                                        {/* `common:` because this page's `t` is bound to the
+                                            hotelDetail namespace and these strings live in
+                                            common.json, where the contract puts offer.*. Without
+                                            the prefix they silently fall back to the English
+                                            default and a Dutch traveller reads "Included". */}
+                                        {selectedRoom.live == null
+                                          ? t('common:offer.included', 'Included')
+                                          : t('common:offer.selected', 'Selected')}
+                                      </span>
                                     </button>
-                                  ) : extra > 1 ? (
-                                    <>
-                                      <div className="room-delta-pill">
-                                        +{ccy}{perPerson.toLocaleString('en-GB')}
-                                        <em>p.p.</em>
-                                      </div>
-                                      <div className="room-delta-vs">{t('rooms.vsCheapest', 'vs cheapest')}</div>
-                                    </>
-                                  ) : (
+                                  ) : perPerson == null ? (
                                     <div className="room-price-pill">
-                                      {ccy}{roundHotelStay(b.price, roomsCount).toLocaleString('en-GB')}
+                                      {ccy}{rowTotal.toLocaleString('en-GB')}
+                                    </div>
+                                  ) : perPerson === 0 ? (
+                                    <div className="room-delta-vs">{t('common:offer.samePrice', 'Same price')}</div>
+                                  ) : (
+                                    /* The currency comes from `ccy`, not from the € baked into
+                                       offer.diffUp / offer.diffDown: those strings assume euros and
+                                       a hotel priced in another currency would be mislabelled. */
+                                    <div className={`room-delta-pill${diff < 0 ? ' cheaper' : ''}`}>
+                                      {diff < 0 ? '−' : '+'}{ccy}{perPerson.toLocaleString('en-GB')}
+                                      <em>p.p.</em>
                                     </div>
                                   )}
                                 </div>

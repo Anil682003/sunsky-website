@@ -95,7 +95,9 @@ describe('the card and the room list name the same rate', () => {
     expect(cardBoard(container)).toMatch(/all inclusive/i);
     await waitFor(() => expect(selectedRow(container)).toBeTruthy());
     expect(selectedRow(container).textContent).toMatch(/all inclusive/i);
-    expect(selectedRow(container).textContent).toMatch(/geselecteerd/i);
+    // "Inbegrepen", not "Geselecteerd": the traveller has not chosen this row, the page opened
+    // on it. The row only claims to be selected once they pick something (UI-04).
+    expect(selectedRow(container).textContent).toMatch(/inbegrepen/i);
   });
 
   it('quotes a rate the meal filter still shows, not a cheaper one it hid', async () => {
@@ -117,7 +119,9 @@ describe('the card and the room list name the same rate', () => {
     const row = selectedRow(container);
     expect(row).toBeTruthy();
     expect(row.textContent).toMatch(/logies & ontbijt/i);
-    expect(row.textContent).toMatch(/geselecteerd/i);
+    // Still "Inbegrepen": the meal filter moved which rate is quoted, but the traveller has not
+    // picked a row, so nothing here was selected by them (UI-04).
+    expect(row.textContent).toMatch(/inbegrepen/i);
   });
 
   it('keeps an explicit pick when it survives the filter', async () => {
