@@ -31,7 +31,17 @@ export const PACKAGE_TRANSPORT = 'package';
 // `countries`, single cities in `destinations` — the same params the results
 // sidebar itself writes back. Dates are deliberately omitted; Results defaults
 // to a 7-night stay 30 days out when they are absent.
-export const destUrl = (d, holidayTypeId = null, entry = null) => {
+/**
+ * A card's departure window, as search params (UI-21). Applies to the travel START only, which
+ * is why the names say `start`: a return may legitimately fall after `startTo`.
+ */
+const applyRange = (qs, range) => {
+  if (!range?.from || !range?.to) return;
+  qs.set('startFrom', range.from);
+  qs.set('startTo', range.to);
+};
+
+export const destUrl = (d, holidayTypeId = null, entry = null, range = null) => {
   const qs = new URLSearchParams();
   qs.set(d.type === 'country' ? 'countries' : 'destinations', d.code);
   const label = destLabel(d);
@@ -52,6 +62,7 @@ export const destUrl = (d, holidayTypeId = null, entry = null) => {
   // `themes=` for Last Minute, All Inclusive, Adults only or Beachfront matches zero hotels, so
   // sending it beside the door would turn a working search into an empty page.
   if (!door && holidayTypeId != null && holidayTypeId !== '') qs.set('themes', String(holidayTypeId));
+  applyRange(qs, range);
   qs.set('transport', PACKAGE_TRANSPORT);
   return `/results?${qs.toString()}`;
 };
@@ -138,7 +149,7 @@ export const sectionSearchUrl = ({ dests = [], label = '', entry = null } = {}) 
  * @returns a /results URL, or null when the type resolves to nowhere (the caller then keeps
  *          whatever link it had, rather than offering one that searches everything).
  */
-export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '' } = {}) => {
+export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '', range = null } = {}) => {
   const codes = [...new Set((Array.isArray(destinations) ? destinations : [])
     .map((d) => String(d ?? '').trim().toUpperCase()).filter(Boolean))];
   // The scope reports a zone as { destination, zone }; the results page wants the zone codes.
@@ -152,6 +163,7 @@ export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '
   if (codes.length) qs.set('destinations', codes.join(','));
   if (zoneCodes.length) qs.set('zones', zoneCodes.join(','));
   if (label) qs.set('destinationLabel', label);
+  applyRange(qs, range);
   qs.set('transport', PACKAGE_TRANSPORT);
   return `/results?${qs.toString()}`;
 };
@@ -168,11 +180,35 @@ const slugify = (s) =>
  * CMS config. Matches on id first, then on the cached title, so a card still
  * resolves if the dashboard stored a title but no id.
  */
-export const destsForHolidayType = (cms, { id, slug } = {}) => {
-  const entry = (cms?.featuredHolidayTypes ?? []).find((f) => {
+const cardForHolidayType = (cms, { id, slug } = {}) =>
+  (cms?.featuredHolidayTypes ?? []).find((f) => {
     if (!f) return false;
     if (id != null && f.holidayTypeId != null) return String(f.holidayTypeId) === String(id);
     return slug ? slugify(f.title) === slug : false;
   });
-  return normalizeDests(entry?.destinations);
+
+export const destsForHolidayType = (cms, { id, slug } = {}) =>
+  normalizeDests(cardForHolidayType(cms, { id, slug })?.destinations);
+
+/**
+ * The departure window a homepage card carries (UI-21, Ch1 §12B.3), or null.
+ *
+ * The dashboard stores `startDate` and `endDate` on a Travel Categories card whether or not the
+ * range is switched on, so the flag decides, not the presence of the dates. "Enable Date Range =
+ * NO: stored dates have no effect" is the acceptance case, and it is the whole reason this reads
+ * `enableDateRange` rather than just checking for dates.
+ *
+ * The window applies to the travel START only: the outbound for a package, the check-in for a
+ * hotel. A return may fall outside it, which is why this is not a "trip must fit inside" filter.
+ */
+export const dateRangeForHolidayType = (cms, { id, slug } = {}) => {
+  const card = cardForHolidayType(cms, { id, slug });
+  if (!card || card.enableDateRange !== true) return null;
+  const from = String(card.startDate ?? '').slice(0, 10);
+  const to = String(card.endDate ?? '').slice(0, 10);
+  // A half-configured range is not a range. Applying one end of it would silently narrow the
+  // search in a direction nobody chose.
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(from) || !/^\d{4}-\d{2}-\d{2}$/.test(to)) return null;
+  if (to < from) return null;
+  return { from, to };
 };

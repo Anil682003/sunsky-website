@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sectionSearchUrl, destUrl, holidayScopeSearchUrl } from './cmsDestinations';
+import { sectionSearchUrl, destUrl, holidayScopeSearchUrl, dateRangeForHolidayType } from './cmsDestinations';
 
 /**
  * The search behind every "Show all": one results link for every place a section shows. These
@@ -172,5 +172,68 @@ describe('a holiday-type link names the entry it came through', () => {
   it('a Show all across several types carries none, because no single door applies', () => {
     const url = sectionSearchUrl({ dests: [{ type: 'country', code: 'TR', name: 'Turkije' }] });
     expect(q(url).get('entry')).toBeNull();
+  });
+});
+
+/**
+ * A homepage card's own departure window (UI-21, Ch 1 §12B.3).
+ *
+ * The dashboard stores the dates whether or not the range is switched on, so the flag decides.
+ * The window constrains the travel START only: a return may fall after it.
+ */
+describe('dateRangeForHolidayType', () => {
+  const cms = (card) => ({ featuredHolidayTypes: [{ holidayTypeId: 7, title: 'Zonvakanties', ...card }] });
+
+  it('reads an enabled range', () => {
+    expect(dateRangeForHolidayType(cms({ enableDateRange: true, startDate: '2027-06-01', endDate: '2027-08-31' }), { id: 7 }))
+      .toEqual({ from: '2027-06-01', to: '2027-08-31' });
+  });
+
+  it('ignores stored dates when the range is switched off', () => {
+    // The acceptance case: "Enable Date Range = NO: stored dates have no effect." The dashboard
+    // keeps the dates on the card, so checking for their presence would apply a range nobody
+    // turned on.
+    expect(dateRangeForHolidayType(cms({ enableDateRange: false, startDate: '2027-06-01', endDate: '2027-08-31' }), { id: 7 })).toBeNull();
+    expect(dateRangeForHolidayType(cms({ startDate: '2027-06-01', endDate: '2027-08-31' }), { id: 7 })).toBeNull();
+  });
+
+  it('refuses a half-configured or reversed range', () => {
+    // Applying one end would narrow the search in a direction nobody chose.
+    expect(dateRangeForHolidayType(cms({ enableDateRange: true, startDate: '2027-06-01' }), { id: 7 })).toBeNull();
+    expect(dateRangeForHolidayType(cms({ enableDateRange: true, endDate: '2027-08-31' }), { id: 7 })).toBeNull();
+    expect(dateRangeForHolidayType(cms({ enableDateRange: true, startDate: '2027-09-01', endDate: '2027-06-01' }), { id: 7 })).toBeNull();
+  });
+
+  it('tolerates a full timestamp and no card at all', () => {
+    expect(dateRangeForHolidayType(cms({ enableDateRange: true, startDate: '2027-06-01T00:00:00.000Z', endDate: '2027-08-31T00:00:00.000Z' }), { id: 7 }))
+      .toEqual({ from: '2027-06-01', to: '2027-08-31' });
+    expect(dateRangeForHolidayType(null, { id: 7 })).toBeNull();
+    expect(dateRangeForHolidayType(cms({ enableDateRange: true, startDate: '2027-06-01', endDate: '2027-08-31' }), { id: 99 })).toBeNull();
+  });
+});
+
+describe('a card range travels into the search', () => {
+  const qsOf = (url) => new URLSearchParams(String(url).split('?')[1]);
+  const RANGE = { from: '2027-06-01', to: '2027-08-31' };
+
+  it('rides a destination link as a START window', () => {
+    const p = qsOf(destUrl({ type: 'country', code: 'ES', name: 'Spanje' }, 7, null, RANGE));
+    expect(p.get('startFrom')).toBe('2027-06-01');
+    expect(p.get('startTo')).toBe('2027-08-31');
+    // Not checkIn/checkOut: those would pin one departure day and a fixed return.
+    expect(p.get('checkIn')).toBeNull();
+    expect(p.get('checkOut')).toBeNull();
+  });
+
+  it('rides "Show all" too', () => {
+    const p = qsOf(holidayScopeSearchUrl({ destinations: ['AYT'], label: 'Zonvakanties', range: RANGE }));
+    expect(p.get('startFrom')).toBe('2027-06-01');
+    expect(p.get('startTo')).toBe('2027-08-31');
+  });
+
+  it('adds nothing when the card has no range', () => {
+    const p = qsOf(destUrl({ type: 'country', code: 'ES', name: 'Spanje' }, 7, null, null));
+    expect(p.get('startFrom')).toBeNull();
+    expect(p.get('startTo')).toBeNull();
   });
 });

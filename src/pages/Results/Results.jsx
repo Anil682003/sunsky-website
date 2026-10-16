@@ -623,6 +623,20 @@ export default function Results() {
   // prices ONE exact stay, so while any flexibility was asked for, a Hotel Only card names the
   // stay its price belongs to (spec 3.9) instead of letting "±3 days" imply a range of prices.
   const urlFlex = Math.min(3, Math.max(0, parseInt(params.get('flex'), 10) || 0));
+  /**
+   * UI-21 (Ch1 §12B.3): the departure window a homepage card arrived with. It constrains the
+   * travel START only, so a return may fall after it.
+   *
+   * Only ever a starting point. The moment the traveller picks a date of their own it is their
+   * choice that counts, which `packageBody` enforces by preferring `checkIn` over this. Both
+   * ends are required: half a window would narrow the search in a direction nobody chose.
+   */
+  const cardWindow = useMemo(() => {
+    const from = params.get('startFrom') || '';
+    const to = params.get('startTo') || '';
+    const ok = (v) => /^\d{4}-\d{2}-\d{2}$/.test(v);
+    return ok(from) && ok(to) && to >= from ? { from, to } : null;
+  }, [params]);
   // The stay length currently searched (nights) — derived from the committed check-in/out so the
   // matching Travel-time option is highlighted.
   const nightsBetween = (ci, co) => {
@@ -1724,6 +1738,9 @@ export default function Results() {
         hotelCodes: Array.isArray(priceScope.hotelCodes) ? priceScope.hotelCodes : null,
         dated: !undated, flex: urlFlex, bandNights: dayOptions, seed: resultSeed(),
         entry: entryOf(params.get('entry')),
+        // UI-21: the window a homepage card brought with it. Ignored the moment the traveller
+        // picks a date of their own, which packageBody enforces by preferring fp.checkIn.
+        startWindow: cardWindow,
       });
       const groups = chunkDestinations(dests).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
       pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };

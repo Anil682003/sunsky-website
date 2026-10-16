@@ -3,7 +3,7 @@ import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './HolidayType.module.css';
 import { useHolidayTypeCountries, useHolidayTypeScope, useHomepageConfig, useCountries, fetchCityImages } from '../../api';
-import { destsForHolidayType, destUrl, destLabel, sectionSearchUrl, holidayScopeSearchUrl } from '../../utils/cmsDestinations';
+import { destsForHolidayType, destUrl, destLabel, sectionSearchUrl, holidayScopeSearchUrl, dateRangeForHolidayType } from '../../utils/cmsDestinations';
 import { entryOf } from '../../utils/entryRules';
 import { countryName } from '../../utils/countryName';
 import ShowAllLink from '../../components/ShowAllLink/ShowAllLink';
@@ -55,6 +55,18 @@ export default function HolidayType() {
   // linked-country grid — that list is the editorial one, so it wins.
   const { data: cms } = useHomepageConfig();
   const cmsDests = destsForHolidayType(cms, { id: holidayType?.id, slug });
+  /**
+   * UI-21 (Ch1 §12B.3): the departure window this card carries, if the dashboard switched one
+   * on. It rides every link out of this page so the search opens inside it.
+   *
+   * Memoised because it answers with a fresh object, and the links below are themselves
+   * memoised against it: an unstable identity here would rebuild every link on every render
+   * and quietly undo that memo.
+   */
+  const cardRange = useMemo(
+    () => dateRangeForHolidayType(cms, { id: holidayType?.id, slug }),
+    [cms, holidayType?.id, slug]
+  );
 
   // Every country, purely to borrow flags/artwork for the CMS entries (a picked
   // country need not be linked to this holiday type, so `countries` may not hold it).
@@ -119,7 +131,7 @@ export default function HolidayType() {
           imageUrl: d.type === 'country'
             ? parent?.imageUrl || null
             : cityImages.get(String(d.code).trim().toUpperCase()) || null,
-          href: destUrl(d, holidayTypeId, slug),
+          href: destUrl(d, holidayTypeId, slug, cardRange),
           title: destLabel(d),
           dest: d,
         };
@@ -142,12 +154,14 @@ export default function HolidayType() {
         // Built by the same rule as every other card on the site, rather than a second copy of
         // it here: that is what carries the type as a filter where the catalogue can answer one
         // and as a door where it cannot, and opens Flight + Hotel like the homepage.
-        href: destUrl(dest, holidayTypeId, slug),
+        href: destUrl(dest, holidayTypeId, slug, cardRange),
         title: cName,
         dest,
       };
     });
-  }, [cmsDests, countries, door, allCountries, countryLookup, cityImages, t, i18n.language, holidayTypeId, slug]);
+    // `cardRange` belongs here: the homepage config is a second request, so without it the
+    // links would be built before the card's window is known and never rebuilt once it lands.
+  }, [cmsDests, countries, door, allCountries, countryLookup, cityImages, t, i18n.language, holidayTypeId, slug, cardRange]);
 
   /* A door's grid is the active countries, which is a second request. Until it lands the page is
      still loading: without this the empty state shows first and then swaps to a full grid. */
@@ -168,6 +182,7 @@ export default function HolidayType() {
     destinations: scope?.destinations,
     zones: scope?.zones,
     label: typeName,
+    range: cardRange,
   });
   const showAllHref = scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug });
 

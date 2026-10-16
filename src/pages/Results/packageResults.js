@@ -22,6 +22,9 @@ export const PACKAGE_PAGE = 100;
 /** The precalculated default (admin PACKAGE_PRECALC_NIGHTS). */
 export const PRECALC_NIGHTS = '7';
 
+/** /packages accepts at most this many days in one departure window. */
+export const PACKAGE_WINDOW_DAYS = 31;
+
 export const isoAddDays = (iso, n) => {
   const d = new Date(`${iso}T00:00:00Z`);
   d.setUTCDate(d.getUTCDate() + n);
@@ -56,7 +59,7 @@ export function chunkDestinations(destinations, size = DEST_CHUNK) {
  *   seed      the session's result_random_seed: the default order ('recommended') is the stable
  *             random order (Ch 1 §2); without a seed it falls back to price order
  */
-export function packageBody({ fp, childAges = '', filters = {}, origins = [], hotelCodes = null, dated = true, flex = 0, bandNights = null, seed = null, entry = null }) {
+export function packageBody({ fp, childAges = '', filters = {}, origins = [], hotelCodes = null, dated = true, flex = 0, bandNights = null, seed = null, entry = null, startWindow = null }) {
   const body = {
     adults: String(fp.adults ?? '2'),
     children: String(fp.children ?? '0'),
@@ -65,7 +68,18 @@ export function packageBody({ fp, childAges = '', filters = {}, origins = [], ho
   };
   const ages = fp.childAges || childAges;
   if (ages) body.childAges = ages;
-  if (dated && fp.checkIn) {
+  // UI-21 (Ch1 §12B.3): a homepage card can carry its own departure window, and it is the
+  // traveller's starting point rather than a date they chose, so an explicit date beats it.
+  // The window constrains the travel START only; the return may fall after `to`.
+  //
+  // /packages takes at most 31 days, so a longer range is clipped here rather than silently
+  // rejected by the server. Clipping to the FIRST 31 days keeps the soonest departures, which
+  // is what someone who clicked "June to August" is most likely to want to see first.
+  if (dated && !fp.checkIn && startWindow?.from && startWindow?.to) {
+    const limit = isoAddDays(startWindow.from, PACKAGE_WINDOW_DAYS - 1);
+    body.from = startWindow.from;
+    body.to = startWindow.to > limit ? limit : startWindow.to;
+  } else if (dated && fp.checkIn) {
     body.from = flex > 0 ? isoAddDays(fp.checkIn, -flex) : fp.checkIn;
     body.to = flex > 0 ? isoAddDays(fp.checkIn, flex) : fp.checkIn;
     // The trip length in days (N nights = N + 1 days); the flights decide the exact stay.

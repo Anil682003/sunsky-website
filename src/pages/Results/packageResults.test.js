@@ -4,7 +4,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets,
-  mergeDestinationCounts, mergeAirportFacets, PRECALC_NIGHTS,
+  mergeDestinationCounts, mergeAirportFacets, PRECALC_NIGHTS, PACKAGE_WINDOW_DAYS,
 } from './packageResults';
 
 const fp = { checkIn: '2026-11-13', checkOut: '2026-11-19', adults: '2', children: '1', rooms: '1', childAges: '8' };
@@ -196,5 +196,45 @@ describe('mergeDestinationCounts', () => {
   it('says nothing when there are no groups', () => {
     expect(mergeDestinationCounts([])).toBeNull();
     expect(mergeDestinationCounts(null)).toBeNull();
+  });
+});
+
+/**
+ * A homepage card's departure window (UI-21, Ch 1 §12B.3).
+ *
+ * It is where the traveller starts, not what they chose. An explicit date always wins, and the
+ * window constrains the travel START only, so a return may fall after it.
+ */
+describe('packageBody with a card window', () => {
+  const fp = { checkIn: '', checkOut: '', adults: 2, children: 0, rooms: 1 };
+  const win = { from: '2027-06-01', to: '2027-06-20' };
+
+  it('searches the card window when the traveller has chosen no date', () => {
+    const b = packageBody({ fp, dated: true, startWindow: win });
+    expect(b.from).toBe('2027-06-01');
+    expect(b.to).toBe('2027-06-20');
+  });
+
+  it('an explicit date beats the card window', () => {
+    // The card suggested June; the traveller said 15 March. Their choice stands, and the
+    // window must not quietly widen it back out.
+    const b = packageBody({ fp: { ...fp, checkIn: '2027-03-15' }, dated: true, flex: 0, startWindow: win });
+    expect(b.from).toBe('2027-03-15');
+    expect(b.to).toBe('2027-03-15');
+  });
+
+  it('clips a range longer than the endpoint accepts, keeping the soonest departures', () => {
+    // /packages takes 31 days. Someone who clicked "June to August" is shown June first
+    // rather than getting a 400 nobody can see.
+    const b = packageBody({ fp, dated: true, startWindow: { from: '2027-06-01', to: '2027-08-31' } });
+    expect(b.from).toBe('2027-06-01');
+    const days = (new Date(`${b.to}T00:00:00Z`) - new Date(`${b.from}T00:00:00Z`)) / 86400000 + 1;
+    expect(days).toBeLessThanOrEqual(PACKAGE_WINDOW_DAYS);
+  });
+
+  it('adds no window when the card carries none, or only half of one', () => {
+    expect(packageBody({ fp, dated: true, startWindow: null }).from).toBeUndefined();
+    expect(packageBody({ fp, dated: true, startWindow: { from: '2027-06-01' } }).from).toBeUndefined();
+    expect(packageBody({ fp, dated: true, startWindow: { to: '2027-06-20' } }).from).toBeUndefined();
   });
 });
