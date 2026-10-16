@@ -38,7 +38,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-07 | Only offer trip lengths that have a package | Medium | Ready | |
 | UI-08 | Count wording and the counting state | Medium | Ready | **DONE** (`24ed197`) |
 | UI-09 | Mandatory local costs next to the price | Medium | **Needs API** | BLOCKED |
-| UI-10 | "View available dates" when only short trips exist | Medium | Ready | |
+| UI-10 | "View available dates" when only short trips exist | Medium | Ready | **DONE** (`093ac29`) |
 | UI-11 | Same state wording everywhere | Medium | Ready | |
 | UI-12 | Route control: two states | Medium | Ready | |
 | UI-13 | Destination counts in the destination filter | Later | Ready | |
@@ -278,7 +278,15 @@ shorter trips stays in the list with "View available dates" and no price.
 - After the customer picks 4 days, the price shows
 
 **API:** live (#296): each hotel in `/packages` has `fromPriceEligible` and `commercialMinDays`.
-**Where:** string `price.viewAvailableDates` (exists, unused).
+**Where:** string `price.viewAvailableDates` — in **results.json**, not common.json as stated above.
+
+**Done** in `093ac29`. The API has answered `fromPriceEligible` since #296 and packageResults already
+sorted those hotels last, but `mapPackage` never carried the flag to the card. What it prevents is
+worse than a blank price: the short package has a real total, so a two-night trip at EUR 150 p.p.
+would head a list of week-long holidays and undercut every one of them. Only an explicit `false`
+withholds the price, so a field the API stops sending cannot blank the whole board. The paired
+criterion needed no work: the card hands the hotel page its short package through the existing
+parameters, and the matrix prices that duration normally.
 
 ### UI-11 — Same state wording everywhere
 **Pages:** Results, Hotel page, Matrix · **Spec:** Ch1 §11
