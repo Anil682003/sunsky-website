@@ -37,7 +37,7 @@ import { earliestCheckInISO } from '../../utils/leadTime';
 import { normaliseOrigin, parseOrigins, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { usePackageAirports } from '../../hooks/usePackageAirports';
-import { usePackageDepartureDates, makeIsUnavailable } from '../../hooks/usePackageDepartureDates';
+import { usePackageDepartureDates, makeIsUnavailable, departureSummary } from '../../hooks/usePackageDepartureDates';
 
 // How far ahead the calendar asks about flyable departure dates. The endpoint takes 31 days per
 // request, so a quarter costs three; the full twelve-month horizon would cost twelve every time
@@ -1094,6 +1094,7 @@ export default function Results() {
     travelDays: pkgDated && pkgNights ? pkgNights + 1 : null,
     adults: fetchParams.adults, children: fetchParams.children, childAges: fetchParams.childAges ?? childAges,
   });
+  const pkgSummary = useMemo(() => departureSummary(pkgDates.dates), [pkgDates.dates]);
   const departureUnavailable = useMemo(
     () => makeIsUnavailable(pkgDates.dates, urlFlex, pkgDates.range),
     [pkgDates.dates, pkgDates.range, urlFlex]
@@ -2653,6 +2654,8 @@ export default function Results() {
                   months={1}
                   legend
                   isUnavailable={departureUnavailable}
+                  earliestAvailable={pkgSummary?.earliest ?? null}
+                  availableCount={pkgSummary?.count ?? null}
                 />
               </div>
             </>

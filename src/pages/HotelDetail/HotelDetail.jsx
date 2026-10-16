@@ -60,7 +60,7 @@ import {
 } from '../../utils/packageHandoff';
 import { usePackageMatrix } from './usePackageMatrix';
 import { usePackageAirports } from '../../hooks/usePackageAirports';
-import { usePackageDepartureDates, makeIsUnavailable } from '../../hooks/usePackageDepartureDates';
+import { usePackageDepartureDates, makeIsUnavailable, departureSummary } from '../../hooks/usePackageDepartureDates';
 import './HotelDetail.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -2302,6 +2302,7 @@ export default function HotelDetail() {
     travelDays: matrixTravelDays,
     adults: sAdults, children: sChildren, childAges: sChildAges,
   });
+  const staySummary = useMemo(() => departureSummary(stayDates.dates), [stayDates.dates]);
   // No flexibility control on this bar: the traveller picks one departure day, so ±0.
   const departureUnavailable = useMemo(
     () => makeIsUnavailable(stayDates.dates, 0, stayDates.range),
@@ -3963,6 +3964,8 @@ export default function HotelDetail() {
                 transport={transport}
                 nights={nights}
                 isUnavailable={departureUnavailable}
+                earliestAvailable={staySummary?.earliest ?? null}
+                availableCount={staySummary?.count ?? null}
                 touched={filtersTouched}
                 onChange={applyFilter}
                 onBoardChange={(id) => setOvr((p) => ({ ...p, board: id }))}

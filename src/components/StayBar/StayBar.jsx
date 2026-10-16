@@ -120,6 +120,10 @@ export default function StayBar({
   // (iso) => boolean for a departure day this search cannot fly, or null to grey nothing.
   // Built by the page from the feasibility answer; the bar itself knows nothing about flights.
   isUnavailable = null,
+  // The first flyable day and how many there are, for the calendar to state (UI-02). Same
+  // arrangement as isUnavailable: the page works it out, the bar only passes it on.
+  earliestAvailable = null,
+  availableCount = null,
   touched = false, onChange, onBoardChange, onChildAges, onChildDobs, onReset,
 }) {
   const { t } = useTranslation('hotelDetail');
@@ -250,6 +254,8 @@ export default function StayBar({
             months={1}
             legend
             isUnavailable={isUnavailable}
+            earliestAvailable={earliestAvailable}
+            availableCount={availableCount}
           />
         </Field>
 

@@ -103,6 +103,28 @@ export function makeIsUnavailable(dates, flex = 0, range = null) {
 }
 
 /**
+ * PURE. What the calendar can say out loud about the answer (UI-02 / Ch1 §9A).
+ *
+ * `makeIsUnavailable` answers "is this day greyed", one day at a time, which is all the greying
+ * needs and no use for "which month should open". This reduces the same answer to the two facts
+ * the calendar states: the first day that flies, and how many do.
+ *
+ * The count is of days that genuinely fly, not of days the calendar leaves selectable. With ±2
+ * on, more days stay clickable than fly, and saying "9 possible departure dates found" when
+ * three of them are only reachable by shifting would be a larger claim than the cache made.
+ *
+ * @param dates Set of flyable ISO dates, or null when we cannot say
+ * @returns {{ earliest: string, count: number }|null} — null when unknown OR when nothing flies,
+ *          because "the earliest departure is nothing" is not a sentence worth printing.
+ */
+export function departureSummary(dates) {
+  if (!dates || dates.size === 0) return null;
+  let earliest = null;
+  for (const iso of dates) if (earliest === null || iso < earliest) earliest = iso;
+  return { earliest, count: dates.size };
+}
+
+/**
  * @param {object} q  enabled, destinations[] (hotel destination codes), hotelCode?, origins[]?,
  *                    from, to, travelDays?, adults, children, childAges?, routing?
  * @returns {{ dates: Set<string>|null, state: 'idle'|'loading'|'ok'|'error'|'too-wide' }}

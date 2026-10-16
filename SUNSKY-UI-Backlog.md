@@ -30,7 +30,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | ID | Task | Priority | API | Status |
 |---|---|---|---|---|
 | UI-01 | Disable impossible departure dates in every calendar | High | Ready | **DONE** — all three pages |
-| UI-02 | Open the calendar on the first month with a possible departure | High | Ready\* | |
+| UI-02 | Open the calendar on the first month with a possible departure | High | Ready | **DONE** |
 | UI-03 | Matrix: each date from the cheapest of the chosen airports | High | Ready | **DONE** (`1fe3278`) |
 | UI-04 | Room and board price differences against the current selection | High | Ready | **DONE** |
 | UI-05 | Disable impossible destinations and airports on the homepage | Medium | Ready | **DONE** |
@@ -93,8 +93,14 @@ ask per visible month). **But see Findings 1.**
 **Where:** `DateCalendar` already takes `isUnavailable`; pass it from `Hero.jsx`, `Results.jsx`,
 `StayBar.jsx`. Reuse `usePackageAirports`.
 
-### UI-02 — Open the calendar on the first month with a possible departure
+### UI-02 — Open the calendar on the first month with a possible departure · DONE
 **Pages:** Home, Results, Hotel page · **Spec:** Ch1 §9A · Ch3 §5A
+
+Done on all three. `departureSummary()` in `usePackageDepartureDates.js` reduces the answer to
+the two facts the calendar states (4 unit tests); `DateCalendar` takes `earliestAvailable` and
+`availableCount` (5 component tests) and jumps to that month during render rather than in an
+effect, so no wrong month flashes past. It jumps once, only while nothing is chosen and the
+traveller has not paged, and only forward. Both strings were already in EN and NL.
 
 With no date chosen, the calendar jumps to the first month that has a flight and says
 "Earliest possible departure: 14 March 2027". With one date: "1 possible departure date found".

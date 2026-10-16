@@ -9,6 +9,7 @@ import {
   dateWindows,
   mergeDepartureDates,
   makeIsUnavailable,
+  departureSummary,
   MAX_DESTINATIONS,
   WINDOW_DAYS,
 } from './usePackageDepartureDates';
@@ -229,5 +230,32 @@ describe('asking the endpoint', () => {
     await waitFor(() => expect(result.current.state).toBe('ok'));
     const [, opts] = get.mock.calls[0];
     expect(opts.params).toMatchObject({ adults: 3, children: 1, childAges: '8', travelDays: '8', origins: 'BRU' });
+  });
+});
+
+describe('departureSummary', () => {
+  it('names the first day that flies and how many do', () => {
+    const s = departureSummary(new Set(['2026-12-02', '2026-11-03', '2026-11-20']));
+    expect(s).toEqual({ earliest: '2026-11-03', count: 3 });
+  });
+
+  it('one flyable day in six months is still an answer', () => {
+    // The case the spec names: NRN with a single flight. The calendar opens on that month and
+    // says "1 possible departure date found".
+    expect(departureSummary(new Set(['2027-03-14']))).toEqual({ earliest: '2027-03-14', count: 1 });
+  });
+
+  it('says nothing when there is nothing to say', () => {
+    // Unknown and "nothing flies" both return null: there is no earliest departure to print in
+    // either case, and a calendar that announces an earliest date it does not have is worse
+    // than one that stays quiet.
+    expect(departureSummary(null)).toBeNull();
+    expect(departureSummary(new Set())).toBeNull();
+  });
+
+  it('does not care what order the dates arrived in', () => {
+    const a = departureSummary(new Set(['2026-11-03', '2026-12-02']));
+    const b = departureSummary(new Set(['2026-12-02', '2026-11-03']));
+    expect(a).toEqual(b);
   });
 });

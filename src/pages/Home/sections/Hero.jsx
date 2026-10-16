@@ -15,7 +15,7 @@ import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { useDestinationFeasibility, isAirportUnreachable } from '../../../hooks/useDestinationFeasibility';
-import { usePackageDepartureDates, makeIsUnavailable } from '../../../hooks/usePackageDepartureDates';
+import { usePackageDepartureDates, makeIsUnavailable, departureSummary } from '../../../hooks/usePackageDepartureDates';
 import { usePackageAirports } from '../../../hooks/usePackageAirports';
 
 // How far ahead the homepage calendar asks about flyable departure days. The endpoint answers
@@ -586,6 +586,7 @@ export default function Hero() {
     adults: totalAdults,
     children: totalChildren,
   });
+  const heroSummary = useMemo(() => departureSummary(heroDates.dates), [heroDates.dates]);
   const departureUnavailable = useMemo(
     // The traveller's ± window counts: a day flies if any day inside it does, which is exactly
     // what the search will do with it.
@@ -1466,6 +1467,8 @@ export default function Hero() {
             min={todayISO}
             months={2}
             isUnavailable={departureUnavailable}
+            earliestAvailable={heroSummary?.earliest ?? null}
+            availableCount={heroSummary?.count ?? null}
             flex={flexDays}
             onFlexChange={setFlexDays}
             onDone={() => setOpenField(null)}

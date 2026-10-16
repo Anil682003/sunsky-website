@@ -127,6 +127,16 @@
 .daySelectedInvalid:disabled { color:#8A5D05; }
 
 /* The key under the grid, straight from the specification's mockup. */
+/* What the feasibility answer says in words (UI-02). Sits between the grid and the legend: it
+   explains the greying above it, so it belongs with the grid rather than after the key. */
+.feasNote {
+  display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px;
+  padding:10px 4px 0;
+  font-size:12px; line-height:1.4;
+}
+.feasEarliest { font-weight:700; color:var(--text); }
+.feasCount { font-weight:500; color:var(--text-light); }
+
 .legend {
   display:flex; flex-wrap:wrap; gap:14px;
   padding:10px 4px 2px;

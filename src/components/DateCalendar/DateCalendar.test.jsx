@@ -190,3 +190,82 @@ describe('the legend', () => {
     expect(items.join(' | ')).toMatch(/selected|geselecteerd/i);
   });
 });
+
+/**
+ * UI-02 (Ch1 §9A): with nothing chosen, open on the first month that has a departure and say so.
+ * Never choose it for the traveller.
+ */
+describe('DateCalendar: the earliest possible departure', () => {
+  it('opens on the month that has the only flight, five months ahead', () => {
+    // The case the spec names: one flight from NRN in six months. Without this the traveller
+    // pages through five empty months to find it, or gives up first.
+    render(
+      <DateCalendar
+        value=""
+        onChange={() => {}}
+        min="2026-09-01"
+        earliestAvailable="2027-03-14"
+        availableCount={1}
+      />
+    );
+    expect(screen.getByText('maart 2027')).toBeInTheDocument();
+    expect(screen.queryByText('september 2026')).not.toBeInTheDocument();
+  });
+
+  it('names the date and the count, without selecting anything', () => {
+    const onChange = vi.fn();
+    render(
+      <DateCalendar
+        value=""
+        onChange={onChange}
+        min="2026-09-01"
+        earliestAvailable="2027-03-14"
+        availableCount={1}
+      />
+    );
+    expect(screen.getByText(/14 maart 2027/)).toBeInTheDocument();
+    expect(screen.getByText(/1 mogelijke vertrekdatum gevonden/)).toBeInTheDocument();
+    // §9A: jumping to the month is help; choosing the day for them is not.
+    expect(onChange).not.toHaveBeenCalled();
+  });
+
+  it('leaves a chosen date alone and stays on its month', () => {
+    // The traveller has already answered this question, so the calendar must not drag them
+    // somewhere else to re-answer it.
+    render(
+      <DateCalendar
+        value="2026-09-14"
+        onChange={() => {}}
+        min="2026-09-01"
+        earliestAvailable="2027-03-14"
+        availableCount={9}
+      />
+    );
+    expect(screen.getByText('september 2026')).toBeInTheDocument();
+    expect(screen.queryByText(/14 maart 2027/)).not.toBeInTheDocument();
+    // The count still tells them how much choice they have.
+    expect(screen.getByText(/9 mogelijke vertrekdata gevonden/)).toBeInTheDocument();
+  });
+
+  it('does not move the view out from under someone who has paged', async () => {
+    const { rerender } = render(
+      <DateCalendar value="" onChange={() => {}} min="2026-09-01" />
+    );
+    // Two months are drawn, so there is more than one next-month control; either moves the view.
+    await userEvent.click(screen.getAllByRole('button', { name: /volgende maand|next month/i })[0]);
+    expect(screen.getByText('oktober 2026')).toBeInTheDocument();
+
+    // The feasibility answer lands late, as it does in the real page. The traveller is reading
+    // October; yanking them to March would be the calendar talking over them.
+    rerender(
+      <DateCalendar value="" onChange={() => {}} min="2026-09-01" earliestAvailable="2027-03-14" availableCount={1} />
+    );
+    expect(screen.getByText('oktober 2026')).toBeInTheDocument();
+  });
+
+  it('says nothing at all when there is no answer', () => {
+    render(<DateCalendar value="" onChange={() => {}} min="2026-09-01" />);
+    expect(screen.queryByText(/mogelijke vertrek/)).not.toBeInTheDocument();
+    expect(screen.getByText('september 2026')).toBeInTheDocument();
+  });
+});
