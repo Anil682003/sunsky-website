@@ -132,8 +132,22 @@ const runCheck = async (user) => {
   ));
 };
 
-// The cards inside the modal only — the page itself also renders the chosen flight as a card.
-const modalCards = (container) => [...container.querySelectorAll('.modal-flights .flight-card')];
+/* Every flight card in the DIALOG (the page behind it renders the chosen flight as a card
+   too, which is why these are scoped), in the order they appear.
+   Since UI-24 the flight being HELD is rendered above the list and outside `.modal-flights`,
+   so this spans both: the held card first, then the alternatives. That keeps "how many
+   flights is the traveller being shown" meaning what it always meant — the held flight did
+   not disappear, it moved. `listedCards` is the narrower question. */
+const modalCards = (container) => [
+  ...container.querySelectorAll('.modal-held .flight-card, .modal-flights .flight-card'),
+];
+/** Only the alternatives: what the traveller could switch TO. */
+const listedCards = (container) => [...container.querySelectorAll('.modal-flights .flight-card')];
+/** The flight being held, shown apart above the list (UI-24). */
+const heldCard = (container) => container.querySelector('.modal-held .flight-card');
+/* For "is this flight on screen at all". It has to span both places, or a flight would read
+   as filtered away merely because it is the one being held. */
+const cardsText = (container) => modalCards(container).map((c) => c.textContent).join(' ');
 
 describe('the change-flight modal lists flights, not fare classes', () => {
   it('collapses four fare classes on one aircraft into one card', async () => {
@@ -190,14 +204,16 @@ describe('green marks the flight you chose, and only that one', () => {
     await runCheck(user);
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
-    const [cheapest, alternative] = modalCards(container);
-    await user.click(alternative.querySelector('.fc-pick'));
+    await user.click(listedCards(container)[0].querySelector('.fc-pick'));
 
-    await waitFor(() => expect(alternative.classList.contains('selected')).toBe(true));
+    // The two trade places: the chosen flight is now held above the list and the one it
+    // replaced is an alternative. Different nodes, so they have to be re-read.
+    await waitFor(() => expect(heldCard(container).classList.contains('selected')).toBe(true));
+    const [leftBehind] = listedCards(container);
     // The card just left behind gives the green frame up...
-    expect(cheapest.classList.contains('selected')).toBe(false);
+    expect(leftBehind.classList.contains('selected')).toBe(false);
     // ...and falls back to the blue "cheapest" marking rather than staying lit in green.
-    expect(cheapest.classList.contains('cheapest')).toBe(true);
+    expect(leftBehind.classList.contains('cheapest')).toBe(true);
     // Still exactly one green card on screen — the whole point.
     expect(modalCards(container).filter((c) => c.classList.contains('selected'))).toHaveLength(1);
   });
@@ -230,12 +246,12 @@ describe('a card says what switching to it costs, and offers the switch', () => 
     await runCheck(user);
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
-    await user.click(modalCards(container)[1].querySelector('.fc-pick'));
+    await user.click(listedCards(container)[0].querySelector('.fc-pick'));
 
     await waitFor(() => {
-      const [cheaper, nowHeld] = modalCards(container);
+      const [cheaper] = listedCards(container);
       // The dearer flight is now the baseline, so the cheaper one is a SAVING, not a cost.
-      expect(nowHeld.querySelector('.fc-pick')).toBeNull();
+      expect(heldCard(container).querySelector('.fc-pick')).toBeNull();
       expect(cheaper.querySelector('.fc-swing').className).toContain('down');
       expect(cheaper.querySelector('.fc-swing').textContent).toContain('19.00');
     });
@@ -262,12 +278,12 @@ describe('a card says what switching to it costs, and offers the switch', () => 
     await runCheck(user);
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
-    expect(modalCards(container)[0].textContent).not.toMatch(/laagste tarief/i);
+    expect(heldCard(container).textContent).not.toMatch(/laagste tarief/i);
 
     // Take the dearer one; the cheapest is now an alternative and earns the chip.
-    await user.click(modalCards(container)[1].querySelector('.fc-pick'));
+    await user.click(listedCards(container)[0].querySelector('.fc-pick'));
     await waitFor(() => {
-      expect(modalCards(container)[0].querySelector('.fc-best').textContent).toMatch(/laagste tarief/i);
+      expect(listedCards(container)[0].querySelector('.fc-best').textContent).toMatch(/laagste tarief/i);
     });
   });
 });
@@ -349,7 +365,7 @@ describe('the filter rail acts on the live results', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /rechtstreeks heen en terug/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(2));
-    expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
+    expect(cardsText(container)).not.toContain('Turkish');
   });
 
   // Build order, step 13: "Non-stop flights only" ticked on the results page follows the
@@ -360,7 +376,7 @@ describe('the filter rail acts on the live results', () => {
     await openFilters(user);
     await waitFor(() => expect(screen.getByRole('checkbox', { name: /rechtstreeks heen en terug/i }).checked).toBe(true));
     expect(modalCards(container).length).toBe(2);
-    expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
+    expect(cardsText(container)).not.toContain('Turkish');
   });
 
   // UI-12: two states, so the way back is un-ticking the one box. There is no longer a
@@ -375,11 +391,11 @@ describe('the filter rail acts on the live results', () => {
     const box = screen.getByRole('checkbox', { name: /rechtstreeks heen en terug/i });
     await user.click(box);
     await waitFor(() => expect(modalCards(container).length).toBe(2));
-    expect(container.querySelector('.modal-flights').textContent).not.toContain('Turkish');
+    expect(cardsText(container)).not.toContain('Turkish');
 
     await user.click(box);
     await waitFor(() => expect(modalCards(container).length).toBe(3));
-    expect(container.querySelector('.modal-flights').textContent).toContain('Turkish');
+    expect(cardsText(container)).toContain('Turkish');
   });
 
   it('separates the fares that carry a hold bag from the one that does not', async () => {
@@ -392,7 +408,7 @@ describe('the filter rail acts on the live results', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /zonder ruimbagage/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(1));
-    expect(container.querySelector('.modal-flights').textContent).toContain('06:15');
+    expect(cardsText(container)).toContain('06:15');
   });
 
   it('keeps the flights an airline actually operates', async () => {
@@ -402,7 +418,7 @@ describe('the filter rail acts on the live results', () => {
 
     await user.click(screen.getByRole('checkbox', { name: /turkish airlines/i }));
     await waitFor(() => expect(modalCards(container).length).toBe(1));
-    expect(container.querySelector('.modal-flights').textContent).toContain('TK 1940');
+    expect(cardsText(container)).toContain('TK 1940');
   });
 
   it('says how many of the results are left, and puts them all back', async () => {
@@ -469,7 +485,7 @@ describe('the filter rail acts on the live results', () => {
     fireEvent.change(latest, { target: { value: String(10 * 60) } });
 
     await waitFor(() => expect(modalCards(container).length).toBe(2));
-    expect(container.querySelector('.modal-flights').textContent).not.toContain('1,112');
+    expect(cardsText(container)).not.toContain('1,112');
   });
 });
 

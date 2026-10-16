@@ -185,7 +185,8 @@
     "sort": "Sorteren:",
     "titleEarliest": "{{title}} — vroegst",
     "titleLatest": "{{title}} — laatst",
-    "nonstopBothWays": "Alleen rechtstreeks heen en terug"
+    "nonstopBothWays": "Alleen rechtstreeks heen en terug",
+    "yourFlight": "De vlucht die je nu hebt"
   },
   "flights": {
     "addDestinationPrompt": "Voeg een bestemming toe aan je zoekopdracht om live tarieven te zien.",

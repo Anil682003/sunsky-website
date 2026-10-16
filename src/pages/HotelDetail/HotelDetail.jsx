@@ -807,10 +807,13 @@ function JourneyTimeline({ label, legs }) {
 const AIRLINES_COLLAPSED = 4;
 
 /* How many flight cards the change-flight modal lists before "Show more flights", and how
-   many each press adds. Six is what a laptop screen holds without the list turning into a
-   scroll — the point of the list is comparison, and a card you have to hunt for is not in
-   the comparison. */
-const MODAL_PAGE = 6;
+   many each press adds (§12B.9, UI-24).
+
+   It was six, chosen so a laptop screen held the whole list without scrolling. The contract
+   asks for twenty, and twenty is the better answer for the reason the old number was picked:
+   the point of this list is comparison, and six cards out of forty is not a comparison, it is
+   a sample. There is no cap on what exists behind it — "Show more" keeps adding twenty. */
+const MODAL_PAGE = 20;
 
 /**
  * The ⓘ beside a filter group's title. Native `title` rather than a scripted tooltip: it
@@ -3029,6 +3032,24 @@ export default function HotelDetail() {
   // The fare the traveller is holding right now — every other card's price impact is measured
   // against this, and it moves as soon as they choose a different flight.
   const selectedFare = selectedFlight >= 0 ? (allFlights[selectedFlight]?.totalPrice ?? null) : null;
+  /* The alternatives: everything that matches the filters EXCEPT the flight already held
+     (§12B.9, UI-24). That one is shown on its own above the list, so the traveller is not
+     asked to spot their own choice among the options they are choosing between.
+
+     Kept as its own list rather than filtered in place, because the counts, the facets and
+     `passingIdx` are all about what MATCHES the filters, and the held flight does match. It
+     has been moved, not excluded. */
+  const listedFlights = useMemo(
+    () => modalFlights.filter((f) => f.idx !== selectedFlight),
+    [modalFlights, selectedFlight],
+  );
+  /* The held flight itself, for the card above the list. Only when it is actually in the
+     matching set: a pick that was lost, or that the traveller's own filters now exclude, has
+     a notice of its own and must not be shown as though it were still theirs to keep. */
+  const heldFlight = useMemo(
+    () => modalFlights.find((f) => f.idx === selectedFlight) || null,
+    [modalFlights, selectedFlight],
+  );
   // A package is priced and booked WITH a flight that is current and inside the traveller's own
   // filters. A flight check that failed or came back without a price, or a choice still to be
   // made, leaves no bookable total: never the room alone, quietly booked as a hotel-only stay.
@@ -6181,6 +6202,25 @@ export default function HotelDetail() {
               </div>
             </div>
 
+            {/* The flight the traveller is holding, on its own ABOVE the list and outside it
+                (§12B.9, UI-24). It is not one of the choices, it is the thing the choices are
+                measured against, so it stays on screen while they compare without sitting
+                among them. Absent when the pick was lost or the filters now exclude it, which
+                the notice inside the list explains instead. */}
+            {heldFlight && (
+              <div className="modal-held">
+                <div className="modal-held-label">
+                  {t('flightModal.yourFlight', 'The flight you have now')}
+                </div>
+                <FlightCard
+                  f={{ ...heldFlight, price: Math.round(heldFlight.totalPrice), delta: cheapestFare == null ? null : heldFlight.totalPrice - cheapestFare }}
+                  selected
+                  cheapest={heldFlight.idx === 0}
+                  option={{ impact: 0, perPerson: 0 }}
+                  onSelect={() => {}}
+                />
+              </div>
+            )}
             <div className="modal-flights">
               {/* What the figures on these cards are, said once at the top rather than
                   guessed at per card. The headline on each card is per person, because that
@@ -6209,7 +6249,13 @@ export default function HotelDetail() {
               )}
               {modalFlights.length ? (
                 <>
-                  {modalFlights.slice(0, shownFlights).map((f) => (
+                  {/* The flight they are holding is shown apart, above, and left out here
+                      (§12B.9, UI-24). Listing it again asks the traveller to find their own
+                      choice among the alternatives and work out which row is already theirs;
+                      every card below is something they could switch TO. The counts above
+                      still describe the whole matching set, because the held flight matches
+                      the filters too and has not disappeared, it has moved. */}
+                  {listedFlights.slice(0, shownFlights).map((f) => (
                     <FlightCard
                       key={f.idx}
                       f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
@@ -6236,13 +6282,19 @@ export default function HotelDetail() {
                     />
                   ))}
                   {/* A charter weekend can come back with forty fares. The first handful is
-                      what gets compared; the rest are there for whoever asks. */}
-                  {modalFlights.length > shownFlights && (
+                      what gets compared; the rest are there for whoever asks.
+
+                      Counted over the LISTED flights, not the matching ones: the held flight
+                      is above the list, so counting it would promise one more card than a
+                      press can produce and leave the button there with nothing left to add.
+                      The pager still keys off `modalFlights`, which is what resets the page
+                      when the filters change. */}
+                  {listedFlights.length > shownFlights && (
                     <button type="button" className="show-more-flights"
                       onClick={() => setPager({ list: modalFlights, n: shownFlights + MODAL_PAGE })}>
                       <S size={15} sw={2.4}><path d="M6 9l6 6 6-6" /></S>
                       {t('flightModal.showMoreFlights', 'Show more flights')}
-                      <em>{t('flightModal.nMore', { count: modalFlights.length - shownFlights, defaultValue: `${modalFlights.length - shownFlights} more` })}</em>
+                      <em>{t('flightModal.nMore', { count: listedFlights.length - shownFlights, defaultValue: `${listedFlights.length - shownFlights} more` })}</em>
                     </button>
                   )}
                 </>

@@ -185,7 +185,8 @@
     "sort": "Sort:",
     "titleEarliest": "{{title}} — earliest",
     "titleLatest": "{{title}} — latest",
-    "nonstopBothWays": "Direct outbound and return only"
+    "nonstopBothWays": "Direct outbound and return only",
+    "yourFlight": "The flight you have now"
   },
   "flights": {
     "addDestinationPrompt": "Add a destination to your search to see live fares.",
