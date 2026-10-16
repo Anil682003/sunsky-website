@@ -40,6 +40,9 @@ vi.mock('../../api/filters', () => ({
   fetchArrivalAirports: vi.fn(() => Promise.resolve([])),
   fetchDepartureAirports: vi.fn(() => Promise.resolve({ airports: [], filtered: null, cacheHasData: false })),
   fetchPackages: vi.fn((body) => {
+    // A group holding a destination in answers.hang never answers at all: the state UI-25
+    // is about, where one destination is still being calculated while another has replied.
+    if (body.destinations.some((d) => answers.hang?.includes(d))) return new Promise(() => {});
     // A group holding a destination listed in answers.fail does not answer (a timeout).
     if (body.destinations.some((d) => answers.fail?.includes(d))) {
       return Promise.reject(Object.assign(new Error('timeout of 60000ms exceeded'), { code: 'ECONNABORTED' }));
@@ -64,6 +67,7 @@ beforeEach(async () => {
   sentToCache.length = 0;
   answers.byDest = {};
   answers.fail = [];
+  answers.hang = [];
   answers.matched = undefined;
   answers.cities = undefined;
   globalThis.fetch = vi.fn((url) => {
@@ -284,5 +288,49 @@ describe('a hotel with only short trips keeps its place, without a price', () =>
     const card = await screen.findByRole('article');
     expect(card.textContent).toMatch(/Bekijk beschikbare data/);
     expect(within(card).getByRole('link')).toHaveAttribute('href', expect.stringContaining('/hotel/99001'));
+  });
+});
+
+/**
+ * UI-25 (Ch 3 §8A, Ch 1 §2). Only the default party — 2 adults, one room — is precalculated.
+ * Any other party is worked out on request, which on a cold search takes seconds rather than
+ * milliseconds, so the page has to be honest about the wait.
+ *
+ * No code changed for this: the three things it asks for already hold, and these tests are here
+ * so they keep holding. The one that would cost real money if it broke is the first.
+ */
+describe('a party other than 2 adults / 1 room (UI-25)', () => {
+  it('is priced for ITS party, so the precalculated 2-adult answer can never stand in', async () => {
+    // The precalculated round is served only to a request that names no party. This body always
+    // names one, so a 3-adult search cannot be answered with 2-adult prices — the failure here
+    // would be a quoted holiday the traveller cannot buy at that price.
+    answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1650)] };
+    renderAt('?destination=AYT&destinationLabel=Antalya&checkIn=2026-11-03&checkOut=2026-11-10&adults=3&children=0&rooms=1&transport=package');
+    await screen.findByRole('article');
+    const [body] = await calls();
+    expect(body).toMatchObject({ adults: '3' });
+  });
+
+  it('states no total while a destination is still being calculated', async () => {
+    // Two destinations, one still working. A running total is the sum of whoever answered
+    // first, and printing it shows a precise number that is about to change.
+    answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1100)] };
+    answers.hang = ['BJV'];
+    renderAt('?countries=TR&destinationLabel=Turkije&checkIn=2026-11-03&checkOut=2026-11-10&adults=3&children=0&rooms=1&transport=package');
+
+    await screen.findByRole('article');
+    await waitFor(() => expect(screen.getByText(/berekenen/i)).toBeInTheDocument());
+    // Never a count beside it while one destination is outstanding.
+    expect(screen.queryByText(/vakanties gevonden|vakanties in/i)).toBeNull();
+  });
+
+  it('says the search is still running rather than letting the page look finished', async () => {
+    answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1100)] };
+    answers.hang = ['BJV'];
+    renderAt('?countries=TR&destinationLabel=Turkije&checkIn=2026-11-03&checkOut=2026-11-10&adults=3&children=0&rooms=1&transport=package');
+
+    await screen.findByRole('article');
+    // The banner above the list, so a half-filled page is never read as the whole answer.
+    expect(await screen.findByRole('status')).toHaveTextContent(/we zoeken nog meer bestemmingen/i);
   });
 });
