@@ -5,18 +5,29 @@
 // a question too wide to ask. That asymmetry is the whole point — "unknown is not impossible", and
 // a greyed day the traveller could in fact have flown is a lost sale we never find out about.
 //
-// The feasibility endpoint has two branches and only one of them carries dates:
-//   ?destinations=  (hotel destination codes) -> origins + arrivals, NO dates   (usePackageAirports)
-//   ?arrivals=      (destination AIRPORT codes) -> departureDates               (this hook)
-// So the caller passes the arrival airports it already learned from usePackageAirports.
+// Asked with `destinations=` (hotel destination codes), which is what the search already has.
+//
+// It used to go the long way round. The endpoint had two branches and only `arrivals=` (destination
+// AIRPORT codes, at most ten) carried `departureDates`, so this hook waited for usePackageAirports
+// to turn destinations into airports and then asked again. The cache team added departureDates to
+// the destinations branch on 16 Oct 2026, so one question answers it.
+//
+// That is not only tidier: the old cap was ten ARRIVAL AIRPORTS, and a search across a few
+// countries passes ten long before it runs out of destinations, at which point the calendar greyed
+// nothing at all. The limit is now sixty destinations, matching the server's
+// MAX_FEASIBILITY_DESTINATIONS, so the greying actually works on the wide searches that need it
+// most.
 import { useEffect, useState } from 'react';
 import axiosInstance from '../services/axiosInstance';
 // One definition of ISO date arithmetic. packageResults.js is a pure module (no JSX, no React)
 // and already carries this, tested; a second copy here is how the two drift apart.
 import { isoAddDays } from '../pages/Results/packageResults';
 
-/** The endpoint refuses more than this many arrival airports in one question. */
-export const MAX_ARRIVALS = 10;
+/**
+ * The endpoint refuses more than this many destinations in one question.
+ * Mirrors MAX_FEASIBILITY_DESTINATIONS in packageFeasibility.controller.js.
+ */
+export const MAX_DESTINATIONS = 60;
 
 /** The endpoint refuses a window longer than this, so a range is asked in chunks. */
 export const WINDOW_DAYS = 31;
@@ -92,22 +103,22 @@ export function makeIsUnavailable(dates, flex = 0, range = null) {
 }
 
 /**
- * @param {object} q  enabled, arrivals[] (destination airport codes), origins[]?, from, to,
- *                    travelDays?, adults, children, childAges?, routing?
+ * @param {object} q  enabled, destinations[] (hotel destination codes), hotelCode?, origins[]?,
+ *                    from, to, travelDays?, adults, children, childAges?, routing?
  * @returns {{ dates: Set<string>|null, state: 'idle'|'loading'|'ok'|'error'|'too-wide' }}
  */
 export function usePackageDepartureDates(q) {
-  const arrivals = [...new Set((q.arrivals || []).filter(Boolean))].sort();
+  const destinations = [...new Set((q.destinations || []).filter(Boolean))].sort();
   const origins = [...new Set((q.origins || []).filter(Boolean))].sort();
 
-  // More arrival airports than the endpoint will take. We could ask about ten of them, but the
-  // answer would be "no flight to these ten", and greying on it would hide days that fly to the
-  // eleventh. A wide search simply greys nothing.
-  const tooWide = arrivals.length > MAX_ARRIVALS;
+  // More destinations than the endpoint will take. We could ask about sixty of them, but the
+  // answer would be "no flight to these sixty", and greying on it would hide days that fly to
+  // the sixty-first. A search that wide simply greys nothing.
+  const tooWide = destinations.length > MAX_DESTINATIONS;
 
-  const windows = q.enabled && arrivals.length && !tooWide ? dateWindows(q.from, q.to) : [];
+  const windows = q.enabled && destinations.length && !tooWide ? dateWindows(q.from, q.to) : [];
   const key = windows.length
-    ? [arrivals.join(','), origins.join(','), q.from, q.to, q.travelDays || '', q.adults, q.children, q.childAges || '', q.routing || ''].join('|')
+    ? [destinations.join(','), q.hotelCode || '', origins.join(','), q.from, q.to, q.travelDays || '', q.adults, q.children, q.childAges || '', q.routing || ''].join('|')
     : '';
 
   const [answer, setAnswer] = useState({ key: '', dates: null, state: 'idle' });
@@ -116,10 +127,13 @@ export function usePackageDepartureDates(q) {
     if (!key) return undefined;
     const ctrl = new AbortController();
     const base = {
-      arrivals: arrivals.join(','),
+      destinations: destinations.join(','),
       adults: q.adults,
       children: q.children,
     };
+    // One hotel's own question: the server narrows to the arrival airports whose GeoData scope
+    // covers it, so the dates match the hotel the page is about rather than its whole destination.
+    if (q.hotelCode) base.hotelCode = String(q.hotelCode);
     if (origins.length) base.origins = origins.join(',');
     if (q.travelDays) base.travelDays = String(q.travelDays);
     if (q.childAges) base.childAges = q.childAges;

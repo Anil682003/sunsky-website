@@ -2289,14 +2289,14 @@ export default function HotelDetail() {
   // Asked from today rather than around the chosen date, because this calendar is how the
   // traveller MOVES that date; judging only the fortnight they are already on would grey every
   // day they might move to.
-  const pkgArrivalCodes = useMemo(
-    () => Object.keys(pkgAirportsAround.arrivals || {}),
-    [pkgAirportsAround.arrivals]
-  );
   const stayDateFrom = earliestCheckInISO();
   const stayDates = usePackageDepartureDates({
-    enabled: pkgMode && pkgAirportsAround.state === 'ok',
-    arrivals: pkgArrivalCodes,
+    // Asked with this hotel's destination rather than the airports the question above returns,
+    // so it no longer waits on that answer. `hotelCode` keeps it about THIS hotel: the server
+    // narrows to the arrival airports whose GeoData scope covers it.
+    enabled: pkgMode && !!destination,
+    destinations: destination ? [destination] : [],
+    hotelCode,
     from: stayDateFrom,
     to: addDaysISO(stayDateFrom, DEPARTURE_LOOKAHEAD_DAYS),
     travelDays: matrixTravelDays,

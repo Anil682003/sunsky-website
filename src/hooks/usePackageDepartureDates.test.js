@@ -9,7 +9,7 @@ import {
   dateWindows,
   mergeDepartureDates,
   makeIsUnavailable,
-  MAX_ARRIVALS,
+  MAX_DESTINATIONS,
   WINDOW_DAYS,
 } from './usePackageDepartureDates';
 
@@ -125,24 +125,39 @@ describe('the predicate the calendar asks', () => {
 describe('asking the endpoint', () => {
   beforeEach(() => get.mockReset());
 
-  it('asks with arrival airport codes, not hotel destinations', async () => {
-    // The destinations branch of this endpoint returns no dates at all, so asking it that way
-    // would silently come back empty and grey the entire calendar.
+  it('asks with hotel destination codes, which is what the search already has', async () => {
+    // This used to assert the opposite. The destinations branch carried no dates until the cache
+    // team added departureDates to it (16 Oct 2026), so the hook had to turn destinations into
+    // arrival airports first and ask that way. One question does it now.
     get.mockResolvedValue(ok(['2026-11-03']));
     const { result } = renderHook(() => usePackageDepartureDates({
-      enabled: true, arrivals: ['AYT', 'GZP'], from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
+      enabled: true, destinations: ['AYT', 'GZP'], from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
     }));
     await waitFor(() => expect(result.current.state).toBe('ok'));
     const [, opts] = get.mock.calls[0];
-    expect(opts.params.arrivals).toBe('AYT,GZP');
-    expect(opts.params.destinations).toBeUndefined();
+    expect(opts.params.destinations).toBe('AYT,GZP');
+    expect(opts.params.arrivals).toBeUndefined();
     expect([...result.current.dates]).toEqual(['2026-11-03']);
+  });
+
+  it('one hotel asks about itself, so the dates match that hotel and not its whole destination', async () => {
+    // hotelCode makes the server narrow to the arrival airports whose GeoData scope covers this
+    // hotel. Without it a hotel served by only one of its destination's airports would be judged
+    // on flights it cannot actually use.
+    get.mockResolvedValue(ok(['2026-11-03']));
+    const { result } = renderHook(() => usePackageDepartureDates({
+      enabled: true, destinations: ['AYT'], hotelCode: '165406',
+      from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
+    }));
+    await waitFor(() => expect(result.current.state).toBe('ok'));
+    const [, opts] = get.mock.calls[0];
+    expect(opts.params.hotelCode).toBe('165406');
   });
 
   it('asks one request per window and merges them', async () => {
     get.mockResolvedValue(ok(['2026-11-03']));
     const { result } = renderHook(() => usePackageDepartureDates({
-      enabled: true, arrivals: ['AYT'], from: '2026-11-01', to: '2027-01-15', adults: 2, children: 0,
+      enabled: true, destinations: ['AYT'], from: '2026-11-01', to: '2027-01-15', adults: 2, children: 0,
     }));
     await waitFor(() => expect(result.current.state).toBe('ok'));
     expect(get.mock.calls.length).toBe(dateWindows('2026-11-01', '2027-01-15').length);
@@ -153,7 +168,7 @@ describe('asking the endpoint', () => {
     // it exercises it without handing the runner a bare rejected promise to complain about.
     get.mockResolvedValue({ data: { success: false, message: 'index unavailable' } });
     const { result } = renderHook(() => usePackageDepartureDates({
-      enabled: true, arrivals: ['AYT'], from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
+      enabled: true, destinations: ['AYT'], from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
     }));
     await waitFor(() => expect(result.current.state).toBe('error'));
     expect(result.current.dates).toBeNull();
@@ -165,7 +180,7 @@ describe('asking the endpoint', () => {
       ? Promise.reject(new Error('down'))
       : Promise.resolve({ data: {} })));
     const { result } = renderHook(() => usePackageDepartureDates({
-      enabled: true, arrivals: ['AYT'], from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
+      enabled: true, destinations: ['AYT'], from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
     }));
     await waitFor(() => expect(get).toHaveBeenCalled());
     await new Promise((r) => { setTimeout(r, 100); });
@@ -174,11 +189,12 @@ describe('asking the endpoint', () => {
   });
 
   it('asks nothing, and greys nothing, for a search too wide to judge', async () => {
-    // Eleven arrival airports cannot be asked in one question, and an answer about ten of them
-    // would hide days that fly to the eleventh.
-    const many = Array.from({ length: MAX_ARRIVALS + 1 }, (_, i) => `A${i}`);
+    // Sixty-one destinations cannot be asked in one question, and an answer about sixty of them
+    // would hide days that fly to the sixty-first. The ceiling used to be ten ARRIVAL AIRPORTS,
+    // which a few countries passed easily, so wide searches greyed nothing at all.
+    const many = Array.from({ length: MAX_DESTINATIONS + 1 }, (_, i) => `A${i}`);
     const { result } = renderHook(() => usePackageDepartureDates({
-      enabled: true, arrivals: many, from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
+      enabled: true, destinations: many, from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
     }));
     expect(result.current.state).toBe('too-wide');
     expect(result.current.dates).toBeNull();
@@ -198,7 +214,7 @@ describe('asking the endpoint', () => {
       arrivals: { AYT: { status: 'FEASIBLE' }, ADB: { status: 'UNKNOWN', reason: 'NO_RETURN_FARES' } },
     }));
     const { result } = renderHook(() => usePackageDepartureDates({
-      enabled: true, arrivals: ['AYT', 'ADB'], from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
+      enabled: true, destinations: ['AYT', 'ADB'], from: '2026-11-01', to: '2026-11-30', adults: 2, children: 0,
     }));
     await waitFor(() => expect(result.current.state).toBe('ok'));
     expect(result.current.dates).toBeNull();
@@ -207,7 +223,7 @@ describe('asking the endpoint', () => {
   it('carries the party and trip length into the question', async () => {
     get.mockResolvedValue(ok([]));
     const { result } = renderHook(() => usePackageDepartureDates({
-      enabled: true, arrivals: ['AYT'], from: '2026-11-01', to: '2026-11-30',
+      enabled: true, destinations: ['AYT'], from: '2026-11-01', to: '2026-11-30',
       adults: 3, children: 1, childAges: '8', travelDays: 8, origins: ['BRU'],
     }));
     await waitFor(() => expect(result.current.state).toBe('ok'));

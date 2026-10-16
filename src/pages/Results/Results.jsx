@@ -1074,17 +1074,19 @@ export default function Results() {
   });
 
   // UI-01 (Ch1 §7, §9A): the departure dates this search can actually fly, so the calendar can
-  // grey the ones it cannot. The dates live on the OTHER branch of /feasibility — the one asked
-  // with arrival airport codes — so the airports learned above are what we ask with.
+  // grey the ones it cannot. Asked with the same destinations as the airport question above,
+  // independently of it.
   //
   // We look a quarter ahead rather than the full twelve months: the endpoint takes 31 days per
   // request, and a year would be twelve requests every time the panel opens. Days past the window
   // were never judged, and makeIsUnavailable leaves them selectable.
-  const pkgArrivalCodes = useMemo(() => Object.keys(pkgAirports.arrivals || {}), [pkgAirports.arrivals]);
   const pkgDateFrom = earliestCheckInISO();
   const pkgDates = usePackageDepartureDates({
-    enabled: filters.transport === 'package' && pkgAirports.state === 'ok',
-    arrivals: pkgArrivalCodes,
+    // Asked with the scope's destinations, so it no longer waits for the airport question to
+    // come back first. That gate also meant a search wide enough to pass ten arrival airports
+    // greyed nothing at all; the limit is sixty destinations now.
+    enabled: filters.transport === 'package',
+    destinations: [...scopeDestSet],
     from: pkgDateFrom,
     to: isoAddDays(pkgDateFrom, DEPARTURE_LOOKAHEAD_DAYS),
     // Only when the traveller has fixed an exact length. A duration BAND (6-10 days) must not be

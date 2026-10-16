@@ -629,8 +629,20 @@ airports first (available as `byDestination[dest].arrivals`) and then calling ag
 `arrivals=`, capped at 10 airports and 31 days per request, so one request per visible calendar
 month on three screens.
 
-**Worth asking the cache team:** if `packageAirports` also returned `departureDates`, UI-01 and
-UI-02 would reuse the existing hook instead of a two-call sequence.
+**RESOLVED 16 Oct 2026.** The cache team added `departureDates`, `durations` and `truncated` to
+the `destinations=` branch, so one question answers it. Verified live:
+
+```
+GET /api/flight-availability/feasibility?destinations=AYT&adults=2&children=0
+keys: success, window, origins, arrivals, byDestination, departureDates, durations, truncated
+```
+
+`usePackageDepartureDates` now asks with `destinations=` and no longer waits on
+`usePackageAirports` first. The bigger win is the ceiling: it was **ten arrival airports**, which
+a search across a few countries passes easily, and past it the calendar greyed nothing at all.
+It is now **sixty destinations** (the server's `MAX_FEASIBILITY_DESTINATIONS`), so the greying
+works on the wide searches that need it most. One hotel passes `hotelCode` too, which makes the
+server narrow to the arrival airports whose GeoData scope covers it.
 
 The response shape to build against, from `docs/api/flight-feasibility.md` in sunsky-admin:
 
