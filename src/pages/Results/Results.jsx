@@ -37,6 +37,12 @@ import { earliestCheckInISO } from '../../utils/leadTime';
 import { normaliseOrigin, parseOrigins, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { usePackageAirports } from '../../hooks/usePackageAirports';
+import { usePackageDepartureDates, makeIsUnavailable } from '../../hooks/usePackageDepartureDates';
+
+// How far ahead the calendar asks about flyable departure dates. The endpoint takes 31 days per
+// request, so a quarter costs three; the full twelve-month horizon would cost twelve every time
+// the panel opens. Days beyond this are left selectable rather than greyed on no evidence.
+const DEPARTURE_LOOKAHEAD_DAYS = 92;
 import { useToast } from '../../context/ToastContext';
 import { fetchUnpricedHotels } from '../../api/unpricedHotels';
 import { roundHotelStay, perPersonFrom } from '../../utils/priceRounding';
@@ -1065,6 +1071,30 @@ export default function Results() {
     travelDays: pkgDated && pkgNights ? pkgNights + 1 : null,
     adults: fetchParams.adults, children: fetchParams.children, childAges: fetchParams.childAges ?? childAges,
   });
+
+  // UI-01 (Ch1 §7, §9A): the departure dates this search can actually fly, so the calendar can
+  // grey the ones it cannot. The dates live on the OTHER branch of /feasibility — the one asked
+  // with arrival airport codes — so the airports learned above are what we ask with.
+  //
+  // We look a quarter ahead rather than the full twelve months: the endpoint takes 31 days per
+  // request, and a year would be twelve requests every time the panel opens. Days past the window
+  // were never judged, and makeIsUnavailable leaves them selectable.
+  const pkgArrivalCodes = useMemo(() => Object.keys(pkgAirports.arrivals || {}), [pkgAirports.arrivals]);
+  const pkgDateFrom = earliestCheckInISO();
+  const pkgDates = usePackageDepartureDates({
+    enabled: filters.transport === 'package' && pkgAirports.state === 'ok',
+    arrivals: pkgArrivalCodes,
+    from: pkgDateFrom,
+    to: isoAddDays(pkgDateFrom, DEPARTURE_LOOKAHEAD_DAYS),
+    // Only when the traveller has fixed an exact length. A duration BAND (6-10 days) must not be
+    // narrowed to one number here, or days that fly at 7 nights get greyed because 9 does not.
+    travelDays: pkgDated && pkgNights ? pkgNights + 1 : null,
+    adults: fetchParams.adults, children: fetchParams.children, childAges: fetchParams.childAges ?? childAges,
+  });
+  const departureUnavailable = useMemo(
+    () => makeIsUnavailable(pkgDates.dates, urlFlex, pkgDates.range),
+    [pkgDates.dates, pkgDates.range, urlFlex]
+  );
   // Both lists reach AirportList in ONE shape, so the component never has to know which end
   // of the flight it is drawing. The departure registry calls the flag `country` and the admin's
   // arrival rows call it `flag`; the city is what a traveller recognises, the airport's own name
@@ -2544,6 +2574,7 @@ export default function Results() {
                   min={earliestCheckInISO()}
                   months={1}
                   legend
+                  isUnavailable={departureUnavailable}
                 />
               </div>
             </>
