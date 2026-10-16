@@ -51,6 +51,7 @@ import styles from './Results.module.css';
 import { defaultSearchContext } from '../../utils/searchDefaults';
 import { packageParams } from '../../utils/packageHandoff';
 import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
+import { countState, CALCULATING } from './resultCount';
 import { resultSeed } from '../../utils/resultSeed';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -1468,6 +1469,23 @@ export default function Results() {
   }, [usingDefaultScope, allDestinations, urlLabel, scope, countryOptions, scopeCities, scopeZones, t, i18nInstance.language]);
 
   /**
+   * The ONE place this search is scoped to, or '' when it is not one place (§5, UI-08).
+   *
+   * `scopeLabel` above cannot answer this: it also returns "All destinations" for the default
+   * scope and "3 places" for a multi-scope, and neither belongs after the word "in". The count
+   * reads "624 holidays in Turkey" only when the search genuinely has a Turkey to name, and
+   * "3,842 holidays found" otherwise. The branches mirror the memo above so the two can only
+   * disagree if both are changed.
+   */
+  const scopeOnePlace = useMemo(() => {
+    if (usingDefaultScope) return '';
+    if (urlLabel) return urlLabel;
+    const leaves = scopeLeaves(scope, scopeCities);
+    const n = leaves.countries.length + leaves.destinations.length + leaves.zones.length;
+    return n === 1 ? scopeLabel : '';
+  }, [usingDefaultScope, urlLabel, scope, scopeCities, scopeLabel]);
+
+  /**
    * What the marketing layer is told about this search (Tracking Master §9).
    *
    * COUNTRY AND DESTINATION ARE SENT ONLY WHEN THE SEARCH HAS EXACTLY ONE. A scope of
@@ -1888,6 +1906,48 @@ export default function Results() {
     () => sortHotels(allHotels, applied.sortBy, { info: infoMap, attrs: attrMap }),
     [allHotels, applied.sortBy, attrMap, infoMap]
   );
+
+  /* ── The count above the list (UI-08, Ch 1 §2, §5) ──────────────────────────────────────
+     "3,842 holidays found", or "624 holidays in Turkey" when the search is scoped to one place.
+
+     The hard part is not the wording, it is knowing when we are entitled to print a number at
+     all. Two moments where the figure on screen is not the answer:
+
+       • Flight + Hotel destinations answer group by group. Until the last group is in, the
+         running total is simply the sum of whoever replied first — an exact-looking number that
+         grows while the traveller watches it.
+       • After a filter change the count still belongs to the previous filters.
+
+     Both show the counting state instead. `hotels.length` is never dressed up as a total
+     either: with Hotel only in price order the cache prices just what the page needs, so the
+     count carries a "+" rather than claiming the list is all there is. */
+  const count = countState({
+    loading, filtering, transport: applied.transport, pkgLoadingGroups,
+    shownTotal, loadedCount: hotels.length, hasMore,
+  });
+  const countPending = count.kind === CALCULATING;
+  const countValue = count.value ?? 0;
+  const countApprox = count.approx;
+  const countPhrase = useMemo(() => {
+    const phrase = scopeOnePlace
+      ? t('common:listing.countIn', { count: countValue, place: scopeOnePlace, defaultValue_one: '{{count}} holiday in {{place}}', defaultValue_other: '{{count}} holidays in {{place}}' })
+      : t('common:listing.count', { count: countValue, defaultValue_one: '{{count}} holiday found', defaultValue_other: '{{count}} holidays found' });
+    // The number sits INSIDE the sentence so the plural agrees with it in languages that
+    // inflect, which rules out rendering it separately and prepending it. It is split back out
+    // to be emphasised — and found by index rather than assumed to come first, since word order
+    // is exactly the thing a translation is free to change. Not found: the sentence still reads,
+    // just without the emphasis.
+    const token = String(countValue);
+    const at = phrase.indexOf(token);
+    if (at < 0) return phrase;
+    return (
+      <>
+        {phrase.slice(0, at)}
+        <strong>{token}{countApprox ? '+' : ''}</strong>
+        {phrase.slice(at + token.length)}
+      </>
+    );
+  }, [scopeOnePlace, countValue, countApprox, t]);
 
   // ── Hotels with no cached price, still sellable at World2Meet ──────────────
   // Asked for ONCE per search, when the priced list has ended: the traveller has seen everything
@@ -3020,25 +3080,20 @@ export default function Results() {
                 <span className={styles.countPulse} />
                 {t('toolbar.searching', 'Searching the best deals…')}
               </span>
-            ) : (
-              <span className={styles.countText}>
-                {/* No count while the search failed: "0 stays found" would claim there is nothing. */}
-                {!searchError && (
-                  <span>
-                    <strong>{shownTotal ?? hotels.length}{shownTotal == null && hasMore ? '+' : ''}</strong>{' '}
-                    {t('toolbar.found', {
-                      count: shownTotal ?? hotels.length,
-                      defaultValue_one: 'stay found',
-                      defaultValue_other: 'stays found',
-                    })}
-                  </span>
-                )}
-                {scopeLabel && (
-                  <span className={styles.countSub}>
-                    {t('toolbar.in', { place: scopeLabel, defaultValue: 'in {{place}}' })}
-                  </span>
-                )}
+            ) : countPending ? (
+              // The total is still being worked out, so no number is shown (UI-08). Printing the
+              // running one would state a figure we are about to contradict: with Flight + Hotel
+              // the destinations answer group by group, so an early total is simply the sum of
+              // whoever replied first, and after a filter change the number on screen belongs to
+              // the previous filters entirely.
+              <span className={styles.countSearching}>
+                <span className={styles.countPulse} />
+                {t('common:listing.calculating', 'Calculating…')}
               </span>
+            ) : (
+              // No count while the search failed: "0 holidays found" would claim there is
+              // nothing, which is a verdict a failed search has not reached.
+              <span className={styles.countText}>{!searchError && countPhrase}</span>
             )}
           </div>
           {/* The trip the list is for: dates, length and party, as one quiet line */}

@@ -45,7 +45,8 @@
     "count_other": "{{count}} holidays found",
     "countIn_one": "{{count}} holiday in {{place}}",
     "countIn_other": "{{count}} holidays in {{place}}",
-    "showMore": "Show more"
+    "showMore": "Show more",
+    "calculating": "Calculating…"
   },
   "actions": {
     "search": "Search",

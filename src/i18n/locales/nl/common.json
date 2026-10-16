@@ -45,7 +45,8 @@
     "count_other": "{{count}} vakanties gevonden",
     "countIn_one": "{{count}} vakantie in {{place}}",
     "countIn_other": "{{count}} vakanties in {{place}}",
-    "showMore": "Toon meer"
+    "showMore": "Toon meer",
+    "calculating": "Berekenen…"
   },
   "actions": {
     "search": "Zoeken",

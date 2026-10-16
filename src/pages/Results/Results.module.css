@@ -58,11 +58,9 @@
   font-family: 'Sora', sans-serif; font-size: 15px;
   font-weight: 600; color: var(--text-sec); white-space: nowrap;
 }
-.countText { display: flex; flex-direction: column; line-height: 1.3; }
-.countSub {
-  font-family: 'DM Sans', sans-serif;
-  font-size: 12px; font-weight: 500; color: var(--text-sec);
-}
+/* One line now, not a count stacked over "in Turkey" (UI-08): the place is part of the
+   sentence, so there is no second line to lay out and `.countSub` has no users left. */
+.countText { line-height: 1.3; }
 .resultCount strong {
   font-size: 18px; font-weight: 800; color: var(--text); margin-right: 2px;
 }

@@ -281,8 +281,10 @@ describe('initial load', () => {
     renderResults();
     await settled();
     expect(cards()).toHaveLength(20);
-    // The count is split across elements (<strong>20+</strong> stays found).
-    expect(screen.getByText((_, el) => el?.textContent?.trim() === '20+ verblijven gevonden')).toBeTruthy();
+    // One sentence now (UI-08): the place is inside it, not on a line of its own.
+    // The wrapper and the span both carry it, so the exact text is asserted without
+    // pinning which element holds it.
+    expect(screen.getAllByText((_, el) => el?.textContent?.trim() === '20+ vakanties in Antalya').length).toBeGreaterThan(0);
   });
 
   it('omits every filter param at defaults, so the cache takes its fast path', async () => {
@@ -995,13 +997,13 @@ describe('search change', () => {
 
 describe('resilience', () => {
   // A failed price call is SOURCE_ERROR (spec 2.1): "temporarily unavailable" with a retry,
-  // never "No results found" or "0 stays found" — we do not know there is nothing.
+  // never "No results found" or "0 holidays found" — we do not know there is nothing.
   it('a failed search says availability is temporarily unavailable, offers a retry, and claims no count', async () => {
     globalThis.fetch = vi.fn(() => Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({}) }));
     renderResults();
     await waitFor(() => expect(screen.getByText('Beschikbaarheid tijdelijk niet op te halen')).toBeInTheDocument());
     expect(screen.queryByText('Geen resultaten gevonden')).not.toBeInTheDocument();
-    expect(screen.queryByText(/verblijven gevonden/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/vakanties gevonden/)).not.toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Opnieuw controleren' })).toBeInTheDocument();
   });
 
@@ -1443,7 +1445,9 @@ describe('random order (Hotel only)', () => {
     expect(p1.get('sortBy')).toBe('random');
     expect(p1.get('resultRandomSeed')).toMatch(/^[A-Za-z0-9_-]{1,64}$/);
     expect(p1.get('searchQueryId')).toBeNull();
-    expect(screen.getByText((_, el) => el?.textContent?.trim() === '57 verblijven gevonden')).toBeTruthy();
+    // The wrapper and the span both carry it, so the exact text is asserted without
+    // pinning which element holds it.
+    expect(screen.getAllByText((_, el) => el?.textContent?.trim() === '57 vakanties in Antalya').length).toBeGreaterThan(0);
 
     fireEvent.click(screen.getByRole('button', { name: 'Toon meer' }));
     await waitFor(() => expect(calls.some((c) => c.get('page') === '2')).toBe(true));
