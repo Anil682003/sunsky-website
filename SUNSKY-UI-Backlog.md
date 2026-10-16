@@ -35,16 +35,16 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-04 | Room and board price differences against the current selection | High | Ready | **DONE** |
 | UI-05 | Disable impossible destinations and airports on the homepage | Medium | Ready | **DONE** |
 | UI-06 | Ask before dropping airports that clash with a new destination | Medium | **Needs API** | BLOCKED |
-| UI-07 | Only offer trip lengths that have a package | Medium | Ready | |
+| UI-07 | Only offer trip lengths that have a package | Medium | Ready |**DONE** (`911f151`) |
 | UI-08 | Count wording and the counting state | Medium | Ready | **DONE** (`24ed197`) |
 | UI-09 | Mandatory local costs next to the price | Medium | **Needs API** | BLOCKED |
 | UI-10 | "View available dates" when only short trips exist | Medium | Ready | **DONE** (`093ac29`) |
 | UI-11 | Same state wording everywhere | Medium | Ready | **DONE** (`c56368f`) |
 | UI-12 | Route control: two states | Medium | Ready | **DONE** (`fa977e5`) |
-| UI-13 | Destination counts in the destination filter | Later | Ready | |
+| UI-13 | Destination counts in the destination filter | Later | Ready |**DONE** (`145ed4f`) |
 | UI-15 | W2M-only hotels as a second group with "Check price" | Later | **Waiting** | BLOCKED |
 | UI-16 | Flights only from the cache | Later | Ready | **DONE** (`4700b45`) |
-| UI-17 | Sort rules: unknown values last, stable ties, Hotelbeds first | Later | Ready | |
+| UI-17 | Sort rules: unknown values last, stable ties, Hotelbeds first | Later | Ready |**DONE** (`c8cc76c`) |
 | UI-18 | Popular departure airports first | Medium | Ready | **DONE** (`a4cde56`) |
 | UI-19 | Intermediate category pages: navigation only, "Toon alles" | Medium | Ready | |
 | UI-20 | Last Minute 42-day default and All Inclusive by real board | Medium | Ready | |
