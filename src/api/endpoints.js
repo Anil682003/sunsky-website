@@ -53,6 +53,11 @@ export const ENDPOINTS = {
   holidayTypes:    '/website/holiday-types',
   holidayTypeCountries: (idOrSlug) =>
     `/website/holiday-types/${encodeURIComponent(idOrSlug)}/countries`,
+  // Where a holiday type actually applies: { destinations, zones, hotelCodes }. The countries
+  // endpoint above answers what to DRAW; this answers what to SEARCH, and they are not the same
+  // list — a country is linked when any destination in it carries the type.
+  holidayTypeScope: (idOrSlug) =>
+    `/website/holiday-types/${encodeURIComponent(idOrSlug)}/scope`,
 
   // Geo — function so the search term is encoded into the URL at call time
   citySearch: (q) => `/geo/cities?search=${encodeURIComponent(q)}&active=true&limit=8`,

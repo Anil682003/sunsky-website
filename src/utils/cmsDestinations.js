@@ -100,6 +100,45 @@ export const sectionSearchUrl = ({ dests = [], label = '' } = {}) => {
   return `/results?${qs.toString()}`;
 };
 
+/**
+ * "Show all" on a holiday-type page: every stay of this category, nowhere in particular.
+ *
+ * Built from the type's SCOPE (the destinations and zones it actually covers), not from the
+ * country cards on the page. The two differ, and the difference matters: a country is listed
+ * when any destination inside it carries the type, so searching the countries returns Spain
+ * entire when the category is three Spanish city breaks.
+ *
+ * The category is carried as that geography rather than as a theme filter, which is the only
+ * way it works today. A holiday type sent as `themes=` matches on hotel content, and types
+ * that are linked at country or destination level sit on no hotel at all, so the filter
+ * intersects to nothing and the page comes back empty. Sending the destinations the type
+ * resolves to asks the same question and gets an answer.
+ *
+ * `hotelCodes` from the scope are deliberately dropped: a type can carry thousands and they do
+ * not fit in a URL. They are hotels outside the listed destinations, so leaving them out
+ * narrows the search slightly rather than widening it, which is the safe direction.
+ *
+ * @returns a /results URL, or null when the type resolves to nowhere (the caller then keeps
+ *          whatever link it had, rather than offering one that searches everything).
+ */
+export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '' } = {}) => {
+  const codes = [...new Set((Array.isArray(destinations) ? destinations : [])
+    .map((d) => String(d ?? '').trim().toUpperCase()).filter(Boolean))];
+  // The scope reports a zone as { destination, zone }; the results page wants the zone codes.
+  const zoneCodes = [...new Set((Array.isArray(zones) ? zones : [])
+    .map((z) => String((z && typeof z === 'object' ? z.zone : z) ?? '').trim().toUpperCase())
+    .filter(Boolean))];
+
+  if (!codes.length && !zoneCodes.length) return null;
+
+  const qs = new URLSearchParams();
+  if (codes.length) qs.set('destinations', codes.join(','));
+  if (zoneCodes.length) qs.set('zones', zoneCodes.join(','));
+  if (label) qs.set('destinationLabel', label);
+  qs.set('transport', PACKAGE_TRANSPORT);
+  return `/results?${qs.toString()}`;
+};
+
 /** Display text for a group link, whether it is a legacy string or an object. */
 export const groupLinkLabel = (link) =>
   typeof link === 'string' ? link : link?.label || link?.dest?.name || '';

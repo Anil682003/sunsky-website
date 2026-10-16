@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sectionSearchUrl, destUrl } from './cmsDestinations';
+import { sectionSearchUrl, destUrl, holidayScopeSearchUrl } from './cmsDestinations';
 
 /**
  * The search behind every "Show all": one results link for every place a section shows. These
@@ -60,5 +60,63 @@ describe('destUrl: a destination reached through a holiday type', () => {
     const qs = new URLSearchParams(destUrl({ type: 'city', code: 'IST', name: 'Istanbul' }).split('?')[1]);
     expect(qs.get('destinations')).toBe('IST');
     expect(qs.get('themes')).toBeNull();
+  });
+});
+
+/**
+ * "Show all" on a holiday-type page. The page draws COUNTRIES, because a country is listed
+ * when any destination inside it carries the type. Searching those countries is a different,
+ * much wider question than "every stay of this category", which is what the button promises.
+ */
+describe('holidayScopeSearchUrl', () => {
+  const qs = (url) => new URLSearchParams(String(url).split('?')[1]);
+
+  it('searches the destinations the type resolves to', () => {
+    const p = qs(holidayScopeSearchUrl({ destinations: ['BCN', 'AYT'], label: 'Stedentrips' }));
+    expect(p.get('destinations')).toBe('BCN,AYT');
+    expect(p.get('destinationLabel')).toBe('Stedentrips');
+    expect(p.get('transport')).toBe('package');
+  });
+
+  it('never sends the type as a themes filter', () => {
+    // A holiday type linked at country or destination level sits on no hotel, so themes=
+    // intersects to nothing and the page comes back empty. The geography carries the
+    // category instead.
+    const p = qs(holidayScopeSearchUrl({ destinations: ['BCN'], label: 'Zonvakanties' }));
+    expect(p.get('themes')).toBeNull();
+    expect(p.get('holidayType')).toBeNull();
+  });
+
+  it('never widens to whole countries', () => {
+    const p = qs(holidayScopeSearchUrl({ destinations: ['BCN'] }));
+    expect(p.get('countries')).toBeNull();
+  });
+
+  it('takes the zone code out of a scope zone row', () => {
+    // The scope reports { destination, zone }; the results page reads zone codes.
+    const p = qs(holidayScopeSearchUrl({ destinations: ['AYT'], zones: [{ destination: 'AYT', zone: 'BEL' }] }));
+    expect(p.get('zones')).toBe('BEL');
+    expect(p.get('destinations')).toBe('AYT');
+  });
+
+  it('is case-insensitive and drops blanks and duplicates', () => {
+    const p = qs(holidayScopeSearchUrl({ destinations: ['bcn', 'BCN', '', null, ' ayt '] }));
+    expect(p.get('destinations')).toBe('BCN,AYT');
+  });
+
+  it('answers null when the type resolves to nowhere, so the caller keeps its own link', () => {
+    // Returning a bare /results here would turn "Show all" for one category into a search
+    // across the entire site, which is worse than the imperfect link it replaces.
+    expect(holidayScopeSearchUrl({ destinations: [], zones: [] })).toBeNull();
+    expect(holidayScopeSearchUrl({})).toBeNull();
+    expect(holidayScopeSearchUrl()).toBeNull();
+  });
+
+  it('leaves hotelCodes out of the URL', () => {
+    // A type can carry thousands; they do not fit in a URL. They sit outside the listed
+    // destinations, so omitting them narrows rather than widens, which is the safe direction.
+    const url = holidayScopeSearchUrl({ destinations: ['AYT'], hotelCodes: ['111', '222'] });
+    expect(url).not.toMatch(/hotelCode/i);
+    expect(url).not.toMatch(/111/);
   });
 });

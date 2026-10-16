@@ -14,8 +14,10 @@ let typeData;
 let cms;
 let allCountries;
 let cityRows;
+let scopeData;
 vi.mock('../../api', () => ({
   useHolidayTypeCountries: () => ({ execute: vi.fn(), data: typeData, loading: false, error: null }),
+  useHolidayTypeScope: () => ({ execute: vi.fn(), data: scopeData, loading: false, error: null }),
   useHomepageConfig: () => ({ data: cms }),
   useCountries: () => ({ data: allCountries }),
   fetchCityImages: vi.fn(() => Promise.resolve(cityRows)),
@@ -43,6 +45,8 @@ beforeEach(() => {
   cms = null;
   allCountries = [];
   cityRows = [];
+  // No scope by default, so the existing cases keep asserting the countries fallback.
+  scopeData = null;
 });
 
 describe('HolidayType city cards', () => {
@@ -110,5 +114,54 @@ describe('HolidayType "Show all"', () => {
     typeData = { holidayType: { id: 1, name: 'Zonvakanties' }, countries: [] };
     renderPage();
     expect(showAll()).toBeNull();
+  });
+});
+
+/**
+ * "Show all" searches the type's SCOPE, not the countries on the page (UI-19, Ch1 §12B.1).
+ *
+ * The grid lists countries, and a country is listed when any destination inside it carries the
+ * type. So the old link searched Turkey entire for a category that might be two Turkish resorts.
+ */
+describe('HolidayType "Show all" uses the type scope', () => {
+  it('searches the destinations the type resolves to, not the countries on the page', () => {
+    scopeData = { destinations: ['AYT', 'BJV'], zones: [], hotelCodes: [] };
+    renderPage();
+    const p = query(showAll());
+    expect(p.get('destinations')).toBe('AYT,BJV');
+    // Turkey and Cyprus are the country cards. Searching those is the wider question.
+    expect(p.get('countries')).toBeNull();
+  });
+
+  it('carries the category as geography, never as a themes filter', () => {
+    // A type linked at country or destination level sits on no hotel, so themes= intersects
+    // to nothing and the results page comes back empty.
+    scopeData = { destinations: ['AYT'], zones: [], hotelCodes: [] };
+    renderPage();
+    const p = query(showAll());
+    expect(p.get('themes')).toBeNull();
+    expect(p.get('transport')).toBe('package');
+  });
+
+  it('narrows to a zone when the type is linked at zone level', () => {
+    scopeData = { destinations: ['AYT'], zones: [{ destination: 'AYT', zone: 'BEL' }], hotelCodes: [] };
+    renderPage();
+    expect(query(showAll()).get('zones')).toBe('BEL');
+  });
+
+  it('falls back to the countries link when the scope has not answered', () => {
+    // The scope is a second request. Until it lands, or if it fails, the button keeps working
+    // as it always did rather than vanishing or searching the whole site.
+    scopeData = null;
+    renderPage();
+    const p = query(showAll());
+    expect(p.get('countries')).toBe('TR,NY');
+    expect(p.get('destinations')).toBeNull();
+  });
+
+  it('falls back when the type resolves to nowhere', () => {
+    scopeData = { destinations: [], zones: [], hotelCodes: [] };
+    renderPage();
+    expect(query(showAll()).get('countries')).toBe('TR,NY');
   });
 });

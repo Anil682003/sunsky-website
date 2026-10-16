@@ -221,6 +221,20 @@ export const useHolidayTypeCountries = () =>
   });
 
 /**
+ * Where a holiday type applies: the destinations, zones and individually linked hotels.
+ *
+ * Separate from the countries call because the two answer different questions. The countries
+ * are what the page DRAWS, and a country is listed when any destination inside it carries the
+ * type. The scope is what "Show all" SEARCHES, and searching the whole country would return
+ * stays that are not of this type at all.
+ */
+export const useHolidayTypeScope = () =>
+  useApi(ENDPOINTS.holidayTypeScope, {
+    transformResponse: (res) => res?.data ?? null,
+    errorMessage: 'Could not resolve where this holiday type applies',
+  });
+
+/**
  * The language to ask the CMS for: whatever the visitor is currently reading.
  *
  * Read at call time rather than captured once, so switching language in the

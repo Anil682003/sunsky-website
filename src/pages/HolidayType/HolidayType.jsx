@@ -2,8 +2,8 @@ import { useEffect, useMemo, useState } from 'react';
 import { Link, useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './HolidayType.module.css';
-import { useHolidayTypeCountries, useHomepageConfig, useCountries, fetchCityImages } from '../../api';
-import { destsForHolidayType, destUrl, destLabel, sectionSearchUrl } from '../../utils/cmsDestinations';
+import { useHolidayTypeCountries, useHolidayTypeScope, useHomepageConfig, useCountries, fetchCityImages } from '../../api';
+import { destsForHolidayType, destUrl, destLabel, sectionSearchUrl, holidayScopeSearchUrl } from '../../utils/cmsDestinations';
 import { countryName } from '../../utils/countryName';
 import ShowAllLink from '../../components/ShowAllLink/ShowAllLink';
 
@@ -27,10 +27,18 @@ export default function HolidayType() {
   const navigate = useNavigate();
 
   const { execute, data, loading, error } = useHolidayTypeCountries();
+  // Where this type applies, for "Show all". Its failure is not the page's failure: the grid
+  // below is drawn from the countries call, so a scope that does not answer costs the button
+  // its precision, nothing more.
+  const { execute: loadScope, data: scope } = useHolidayTypeScope();
 
   useEffect(() => {
     if (slug) execute(slug);
   }, [slug, execute]);
+
+  useEffect(() => {
+    if (slug) loadScope(slug);
+  }, [slug, loadScope]);
 
   const holidayType = data?.holidayType ?? null;
   const holidayTypeId = holidayType?.id ?? null;
@@ -128,9 +136,22 @@ export default function HolidayType() {
     });
   }, [cmsDests, countries, countryLookup, cityImages, t, i18n.language, holidayTypeId]);
 
-  // "Show all": every place on the page in one search, the way each card searches its own.
-  // Places only: see sectionSearchUrl for why the holiday type does not travel as a filter.
-  const showAllHref = sectionSearchUrl({ dests: items.map((it) => it.dest) });
+  // "Show all": every stay of this category in one search (UI-19, Ch1 §12B.1, §12B.4).
+  //
+  // Driven by the type's SCOPE rather than by the cards on this page. The cards are countries,
+  // and a country is listed when any destination inside it carries the type, so searching them
+  // returned Spain entire for a category that is three Spanish city breaks. The scope is the
+  // destinations and zones the type actually resolves to.
+  //
+  // The countries link stays as the fallback. If the scope call is still in flight, fails, or
+  // the type resolves to nowhere, the button keeps working exactly as it did rather than
+  // disappearing or searching everything.
+  const scopeUrl = holidayScopeSearchUrl({
+    destinations: scope?.destinations,
+    zones: scope?.zones,
+    label: typeName,
+  });
+  const showAllHref = scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest) });
 
   return (
     <div className={styles.page}>
