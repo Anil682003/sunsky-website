@@ -13,6 +13,19 @@ caused it, and anything we learn while building (see **Findings**) has somewhere
 **Totals at import:** 26 open tasks · 4 high priority · 22 API ready · 3 need backend · 1 waiting
 on another team · 33 already complete.
 
+## The published page
+
+This board is also published as a page the client can open:
+<https://claude.ai/artifact/c382bbe6-df6b-4d90-9228-e7e28aca2910>
+
+Its source is [`docs/ui-backlog.html`](docs/ui-backlog.html). **Keep the two in step: when a task
+lands, update the `STATUS` map in that file with the commit hash and republish it to the same
+URL.** The page links every hash to github.com/Anil682003/sunsky-website, so the client can read
+a claim and then read the change that backs it.
+
+Only the status and the commits are ours. The task text in that file is the spec as the cache
+team wrote it and is left alone, so the two can still be compared.
+
 ## Status key
 
 | Mark | Meaning |

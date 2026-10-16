@@ -1,0 +1,355 @@
+<!--
+  The source of the SUNSKY UI Backlog artifact.
+
+  Published to https://claude.ai/artifact/c382bbe6-df6b-4d90-9228-e7e28aca2910
+  Kept in the repo so ANY session can update and republish it: edit the STATUS map below
+  when a task lands, then publish this file to that same URL.
+
+  Status and commits are the only things we own here. The task text is the spec as the
+  cache team wrote it and is left alone, so the two can still be compared.
+-->
+<title>SUNSKY UI Backlog</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Public+Sans:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+:root {
+  --bg: #f6f8fb; --surface: #ffffff; --fg: #17202e; --muted: #5b6678; --line: #dde3ec; --accent: #1d5fa8; --accent-bg: #e4eef9;
+  --p1: #b8323a; --p1-bg: #fbe5e6; --p2: #b26a00; --p2-bg: #fbefd9; --p3: #4f6a86; --p3-bg: #e7edf4;
+  --done: #1f8a55; --done-bg: #e3f4ea;
+  --wip: #7a4ec2; --wip-bg: #efe7fb;
+  --block: #8a6d1f; --block-bg: #f7eed5;
+  --f-display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --f-body: "Public Sans", "Segoe UI", system-ui, sans-serif;
+  --f-mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0f141c; --surface: #171e29; --fg: #e6ebf2; --muted: #9aa6b8; --line: #2a3443; --accent: #6aa6ea; --accent-bg: #1a2a3f;
+  --p1: #f08088; --p1-bg: #3d1c20; --p2: #f0b354; --p2-bg: #3a2c12; --p3: #a9bdd3; --p3-bg: #222d3b;
+  --done: #5fd29a; --done-bg: #173226; --wip: #c3a6f0; --wip-bg: #241a33; --block: #e3c87a; --block-bg: #322a16; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #0f141c; --surface: #171e29; --fg: #e6ebf2; --muted: #9aa6b8; --line: #2a3443; --accent: #6aa6ea; --accent-bg: #1a2a3f;
+  --p1: #f08088; --p1-bg: #3d1c20; --p2: #f0b354; --p2-bg: #3a2c12; --p3: #a9bdd3; --p3-bg: #222d3b;
+  --done: #5fd29a; --done-bg: #173226; --wip: #c3a6f0; --wip-bg: #241a33; --block: #e3c87a; --block-bg: #322a16; color-scheme: dark }
+body { background: var(--bg); color: var(--fg); font: 15px/1.55 var(--f-body); margin: 0; }
+.wrap { max-width: 1040px; margin: 0 auto; padding-inline: 20px; padding-block: 36px 64px; display: grid; gap: 30px; }
+h1 { font: 700 2.1rem/1.1 var(--f-display); margin: 0; letter-spacing: -0.01em; text-wrap: balance; }
+h2 { font: 700 1.3rem/1.2 var(--f-display); margin: 0; text-wrap: balance; }
+h3 { font: 700 1.05rem/1.3 var(--f-display); margin: 0; text-wrap: balance; }
+.eyebrow { font: 500 .75rem var(--f-mono); letter-spacing: .08em; text-transform: uppercase; color: var(--accent); }
+.lede { color: var(--muted); margin: 6px 0 0; max-width: 72ch; }
+.stats { display: flex; flex-wrap: wrap; gap: 12px; }
+.stat { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 12px 16px; min-width: 120px; flex: 1 1 120px; }
+.stat b { display: block; font: 700 1.8rem/1.1 var(--f-display); font-variant-numeric: tabular-nums; }
+.stat span { font-size: .82rem; color: var(--muted); }
+.stat.is-done b { color: var(--done); }
+.stat.is-wip b { color: var(--wip); }
+.stat.is-block b { color: var(--block); }
+.bar { display: flex; height: 10px; border-radius: 999px; overflow: hidden; border: 1px solid var(--line); background: var(--surface); }
+.bar i { display: block; }
+.bar .s-done { background: var(--done); }
+.bar .s-wip { background: var(--wip); }
+.bar .s-todo { background: var(--p3); }
+.bar .s-blocked { background: var(--block); }
+.rules { background: var(--accent-bg); border-radius: 10px; padding: 16px 20px; }
+.rules ul { margin: 8px 0 0; padding-left: 20px; display: grid; gap: 4px; }
+.group { display: grid; gap: 12px; }
+.group-head { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.group-head p { margin: 0; color: var(--muted); font-size: .9rem; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; padding: 16px 18px; display: grid; gap: 10px; }
+.card.s-done { border-left: 4px solid var(--done); }
+.card.s-wip { border-left: 4px solid var(--wip); }
+.card.s-blocked { border-left: 4px solid var(--block); }
+.card.s-todo { border-left: 4px solid var(--p3); }
+.card-top { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.id { font: 500 .78rem var(--f-mono); color: var(--muted); }
+.tag { font: 600 .72rem var(--f-body); padding: 2px 8px; border-radius: 999px; background: var(--p3-bg); color: var(--p3); white-space: nowrap; }
+.tag.p1 { background: var(--p1-bg); color: var(--p1); }
+.tag.p2 { background: var(--p2-bg); color: var(--p2); }
+.tag.st-done { background: var(--done-bg); color: var(--done); }
+.tag.st-wip { background: var(--wip-bg); color: var(--wip); }
+.tag.st-blocked { background: var(--block-bg); color: var(--block); }
+.tag.dep { background: transparent; border: 1px solid var(--line); color: var(--muted); }
+.card p { margin: 0; max-width: 78ch; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.cols > div { min-width: 0; }
+.label { font: 500 .7rem var(--f-mono); letter-spacing: .07em; text-transform: uppercase; color: var(--muted); margin-bottom: 4px; }
+.cols ul { margin: 0; padding-left: 18px; display: grid; gap: 3px; font-size: .9rem; }
+code { font: .82rem var(--f-mono); background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere; }
+.shipped { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; border-top: 1px dashed var(--line); padding-top: 10px; }
+.shipped .label { margin: 0; }
+a.sha { font: 500 .78rem var(--f-mono); color: var(--accent); background: var(--accent-bg); border-radius: 6px; padding: 2px 8px; text-decoration: none; }
+a.sha:hover { text-decoration: underline; }
+.note { font-size: .88rem; color: var(--muted); }
+.done-list { background: var(--surface); border: 1px solid var(--line); border-radius: 10px; overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: .88rem; min-width: 620px; }
+th { text-align: left; font: 500 .7rem var(--f-mono); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); padding: 10px 14px; border-bottom: 1px solid var(--line); }
+td { padding: 9px 14px; border-bottom: 1px solid var(--line); vertical-align: top; }
+tr:last-child td { border-bottom: 0; }
+td.ok { color: var(--done); font-weight: 600; white-space: nowrap; }
+td.ref { font: .78rem var(--f-mono); color: var(--muted); white-space: nowrap; }
+footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--line); padding-top: 16px; }
+@media (max-width: 700px) { .cols { grid-template-columns: minmax(0, 1fr); } h1 { font-size: 1.7rem; } }
+</style>
+
+<div class="wrap">
+  <header>
+    <div class="eyebrow" id="eyebrow"></div>
+    <h1>SUNSKY UI Backlog</h1>
+    <p class="lede">The website against the Search &amp; Offer Contract (chapters 1&ndash;3, with the §12B amendments of 11 October 2026). Each task keeps the spec as it was written; what we add is whether it has shipped and the commit that shipped it, so the two can always be compared.</p>
+  </header>
+
+  <div class="stats" id="stats"></div>
+  <div class="bar" id="bar"></div>
+
+  <div class="rules">
+    <h3>Rules that apply to every task</h3>
+    <ul>
+      <li>Never replace a choice the customer made. If it becomes invalid, keep it visible with "Not available" and let them pick again.</li>
+      <li>Unknown is not impossible. A loading or failed check never shows "Not available" or hides an option.</li>
+      <li>No supplier live call before "Check price &amp; availability". Home, Results and the hotel page before the check read cache APIs only.</li>
+      <li>Ready-made English strings are in <code>src/i18n/locales/en/common.json</code>. Dutch copies are needed for new ones.</li>
+    </ul>
+  </div>
+
+  <main id="groups" style="display:grid;gap:30px"></main>
+
+  <section class="group">
+    <div class="group-head"><h2>Complete before this backlog</h2><p>Shipped earlier, listed so nobody redoes it.</p></div>
+    <div class="done-list"><table><thead><tr><th>Done</th><th>What the customer gets</th><th>Spec</th><th>PR</th></tr></thead><tbody id="done"></tbody></table></div>
+  </section>
+
+  <footer id="foot"></footer>
+</div>
+
+<script>
+const REPO = 'https://github.com/Anil682003/sunsky-website/commit/';
+const UPDATED = '16 October 2026';
+
+/* Status and the commits that carry it. The ONLY part of this page we maintain:
+   when a task lands, add its entry here and republish. `note` is for anything the
+   commit alone would not tell a reader. */
+const STATUS = {
+  'UI-01': { s: 'done', c: ['d91fa74', 'f05158a', '4bbf380', 'f850256'], note: 'Shipped in four parts: Results, then the hotel page, then Home.' },
+  'UI-02': { s: 'done', c: ['6d85167'] },
+  'UI-03': { s: 'done', c: ['1fe3278'], note: 'Results now sends every ticked airport, not only two or more: one ticked and none ticked used to arrive identically.' },
+  'UI-04': { s: 'done', c: ['37be2e0'] },
+  'UI-05': { s: 'done', c: ['f5d985c', '26c5f3c'] },
+  'UI-06': { s: 'blocked', c: [], note: 'Needs backend data.' },
+  'UI-07': { s: 'done', c: ['911f151'] },
+  'UI-08': { s: 'done', c: ['24ed197'], note: 'The rule lives in src/pages/Results/resultCount.js: a number is shown only when it answers the question being asked.' },
+  'UI-09': { s: 'blocked', c: [], note: 'Needs the tax data from the hotel rates.' },
+  'UI-10': { s: 'done', c: ['093ac29'], note: 'The string is price.viewAvailableDates in results.json, not common.json as the task says.' },
+  'UI-11': { s: 'done', c: ['c56368f'], note: 'A strip column is 78px on a phone, so the bar carries a short form and the aria-label the canonical sentence. price.nonePeriod moved to common.availability.nonePeriod.' },
+  'UI-12': { s: 'done', c: ['fa977e5'], note: 'The three-option UI was not the routing.* strings, which were never wired to anything, but a pair of checkboxes in the hotel page flight list.' },
+  'UI-13': { s: 'done', c: ['145ed4f'] },
+  'UI-15': { s: 'blocked', c: [], note: 'Waiting on the W2M availability index.' },
+  'UI-16': { s: 'done', c: ['4700b45'], note: 'Only a definite NOT_AVAILABLE disables a flight. A 502, a timeout or an unrecognised answer all read as a check that did not happen.' },
+  'UI-17': { s: 'done', c: ['7eeebb1', 'c8cc76c'] },
+  'UI-18': { s: 'done', c: ['a4cde56'], note: 'One comparator in setDepartureAirports covers every list. Order only: no price, count or from-price moves.' },
+  'UI-19': { s: 'wip', c: ['87b09c2'], note: '"Toon alles" now searches the category. The intermediate page itself is still to build.' },
+  'UI-20': { s: 'done', c: ['723b9c7'], note: 'The site names the door and repeats what the server applied; it does not compute the window or the board family.' },
+  'UI-21': { s: 'todo', c: [], note: 'Needs a departure-date WINDOW, which Results does not have: it reads an exact checkIn/checkOut only.' },
+  'UI-22': { s: 'todo', c: [] },
+  'UI-23': { s: 'wip', c: [], note: 'In progress.' },
+  'UI-24': { s: 'todo', c: [] },
+  'UI-25': { s: 'done', c: ['3e07d2c'], note: 'No production code needed: all three criteria already held. Tests added so they keep holding.' },
+  'UI-26': { s: 'other', c: [], note: 'Belongs to sunsky-admin, not this repo.' },
+  'UI-27': { s: 'blocked', c: [], note: 'Needs offer-eligible facet counts from the backend.' },
+};
+
+const GROUPS = {
+  wip:     ['In progress', 'Being worked on now.'],
+  todo:    ['Still to build', 'Nothing blocking them.'],
+  blocked: ['Waiting on others', 'The backend or another team has to ship first. Not held up on the UI side.'],
+  done:    ['Shipped', 'Merged, with the commit that carries it.'],
+  other:   ['Not this repo', 'Listed here only because it arrived in the same backlog.'],
+};
+const PRI = { p1: ['High', 'p1'], p2: ['Medium', 'p2'], p3: ['Later', 'p3'] };
+
+const TASKS = [
+ { id: 'UI-01', p: 'p1', title: 'Disable impossible departure dates in every calendar', pages: 'Home, Results, Hotel page', spec: 'Ch1 §7, §9A · Ch3 §5A',
+   what: 'For Flight + Hotel, a departure date with no valid round trip is greyed and cannot be picked. Dates whose status is unknown stay selectable.',
+   accept: ['BRU → Antalya, 7 days: a day without a flight is grey with "not available"', 'A date picked earlier that later becomes impossible stays selected and shows "Not available"', 'With ±2 days, a date counts as possible if any day in the window works', 'Feasibility request failed → nothing is greyed'],
+   api: '<code>GET /flight-availability/feasibility</code> returns dates per airport (max 31 days per call).', files: '<code>DateCalendar</code> takes <code>isUnavailable</code>; passed from <code>Hero.jsx</code>, <code>Results.jsx</code>, <code>StayBar.jsx</code>.' },
+ { id: 'UI-02', p: 'p1', title: 'Open the calendar on the first month with a possible departure', pages: 'Home, Results, Hotel page', spec: 'Ch1 §9A · Ch3 §5A',
+   what: 'With no date chosen, the calendar jumps to the first month that has a flight and says "Earliest possible departure: 14 March 2027". Nothing is selected for the customer.',
+   accept: ['NRN with one flight in six months: calendar opens on that month', 'No date becomes selected until the customer clicks'],
+   api: 'Feasibility API (earliest date).', files: 'Strings <code>feasibility.earliestDeparture</code>, <code>feasibility.possibleDates</code>.' },
+ { id: 'UI-03', p: 'p1', title: 'Matrix: each date from the cheapest of the chosen airports', pages: 'Results → Hotel page', spec: 'Ch1 §9 · Ch3 §5',
+   what: 'The departure airports picked on the results page travel to the hotel page. Each matrix date shows the cheapest complete package from any of them, with that date\'s airport.',
+   accept: ['Results with BRU + AMS ticked: one date can be "from BRU" and the next "from AMS"', 'No airport ticked: every active airport competes per date', 'Picking a date selects that date\'s airport for the offer', 'An airport choice is never narrowed to one without the traveller doing it'],
+   api: '<code>GET /package-matrix</code> takes <code>origins=BRU,AMS</code>; each day returns <code>departureAirport</code>.', files: '<code>packageHandoff.js</code>, <code>HotelDetail/usePackageMatrix.js</code>, <code>HotelDetail.jsx</code>.' },
+ { id: 'UI-04', p: 'p1', title: 'Room and board price differences against the current selection', pages: 'Hotel page', spec: 'Ch1 §8 · Ch2 §6 · Ch3 §6',
+   what: 'The starting room says "Included". After a pick it says "Selected". Every other room shows "+€ X p.p." or "−€ X p.p." against the current complete price.',
+   accept: ['Pick a dearer room: the cheaper room now shows "−€ X p.p."', 'p.p. = ceil(|difference| ÷ adults + children); infants not counted', 'Two rooms: changing the board changes it for both', 'No price → "Check price", no number'],
+   api: 'Prices are on the page already.', files: '<code>HotelDetail.jsx</code>, <code>roomDelta.js</code>.' },
+ { id: 'UI-05', p: 'p2', title: 'Disable impossible destinations and airports on the homepage', pages: 'Home', spec: 'Ch1 §9A · Ch3 §4A',
+   what: 'After picking Charleroi, destinations without a round trip from CRL are greyed with "Not available from Charleroi", and the other way round.',
+   accept: ['CRL + New York: New York greyed', 'Turkey picked: ANR selectable when another Turkish destination works', 'Unknown or failed check: nothing greyed'],
+   api: '<code>GET /feasibility/destinations?origin=CRL</code>.', files: '<code>Hero.jsx</code>, <code>DestinationModal</code>, <code>AirportSearch</code>.' },
+ { id: 'UI-06', p: 'p2', title: 'Ask before dropping airports that clash with a new destination', pages: 'Home, Results', spec: 'Ch1 §9A · Ch3 §4A',
+   what: 'BRU + ANR selected, new destination only works from BRU: show which airports do not fit and ask before removing ANR. The confirmation is built into the page.',
+   accept: ['Without confirmation the selection is unchanged', 'Only one clashing airport selected: the destination is not selectable until the airport changes'],
+   api: 'Same as UI-05.', files: '<code>Hero.jsx</code>, <code>Results.jsx</code>.' },
+ { id: 'UI-07', p: 'p2', title: 'Only offer trip lengths that have a package', pages: 'Home, Hotel page', spec: 'Ch1 §9A · Ch3 §6',
+   what: 'Exact-length buttons are clickable only when a complete package exists for that length. A length picked earlier stays visible with "Not available".',
+   accept: ['8 days picked, new date has no 8-day return: "8 days" stays selected with "Not available"', 'Unknown length is not clickable but is not called sold out'],
+   api: 'Feasibility returns lengths; the matrix returns duration buttons.', files: '<code>HotelDetail.jsx</code> duration chips, <code>Hero.jsx</code>.' },
+ { id: 'UI-08', p: 'p2', title: 'Count wording and the counting state', pages: 'Results', spec: 'Ch1 §2, §5',
+   what: 'Show "3,842 holidays found", or "624 holidays in Turkey" with one destination. While the total is still being worked out, show a counting state, not a guessed number.',
+   accept: ['Hotel only and Incl. flight both say "holidays"', 'Filter change: the count shows "Calculating…", then the new total', 'An answer that is not complete never shows an exact-looking number'],
+   api: 'Ready.', files: '<code>Results.jsx</code>, <code>resultCount.js</code>.' },
+ { id: 'UI-09', p: 'p2', title: 'Mandatory local costs next to the price', pages: 'Results card, Hotel page, Checkout', spec: 'Ch1 §10 · Ch2 §5 · Ch3 §4',
+   what: '"Payable to SUNSKY € X", then "Mandatory payment locally: € 5 p.p. per night" or the exact total. For an uncertain amount: the kind of cost and the range, with no made-up total.',
+   accept: ['A known €12.40 tax shows as €12.40 and is not added to the price', 'Range €7–€10 shows as text, no total'],
+   api: 'Needs the tax data from the hotel rates in the cache and live responses.', files: 'Strings <code>localCosts.*</code>.' },
+ { id: 'UI-10', p: 'p2', title: '"View available dates" when only short trips exist', pages: 'Results card, Hotel page', spec: 'Ch1 §10 · Ch3 case 13',
+   what: 'Automatic from-prices need at least 3 days (city trip) or 5 days (other). A hotel that only has shorter trips stays in the list with "View available dates" and no price.',
+   accept: ['Only a 4-day Antalya trip: card shows "View available dates"', 'After the customer picks 4 days, the price shows'],
+   api: 'Each hotel in <code>/packages</code> has <code>fromPriceEligible</code> and <code>commercialMinDays</code>.', files: '<code>packageResults.js</code>, <code>Results.jsx</code>.' },
+ { id: 'UI-11', p: 'p2', title: 'Same state wording everywhere', pages: 'Results, Hotel page, Matrix', spec: 'Ch1 §11',
+   what: 'One set of words for the states: "Check price", "Not available", "Not available for your selection", "Availability temporarily unavailable", "Price temporarily unavailable".',
+   accept: ['Timeout on the matrix → "Price temporarily unavailable", never "Not available"', 'Direct hotel entry with nothing in the period: "No available stay found within the current search period"'],
+   api: '<code>utils/availability.js</code> has the states.', files: 'The price strip in <code>HotelDetail.jsx</code>.' },
+ { id: 'UI-12', p: 'p2', title: 'Route control: two states', pages: 'Results, Hotel page', spec: 'Ch1 §12B.9 · §12B.6',
+   what: 'One shared control with two states. Off: every route the destination\'s Flight Connection Policy allows. On: direct both ways. The engine keeps NONSTOP / THROUGH_STOP / CONNECTION internally; no three-option customer UI.',
+   accept: ['Destination DIRECT_ONLY: nothing to narrow, so no control', 'DIRECT_OR_MAX_1_STOP: off shows one-stop packages too; on keeps only direct out and back', 'Changing it keeps every other choice'],
+   api: '<code>routing=NONSTOP</code> on /packages, /package-matrix, /package-flights.', files: '<code>HotelDetail.jsx</code> flight list, <code>Results.jsx</code> filter.' },
+ { id: 'UI-13', p: 'p3', title: 'Destination counts in the destination filter', pages: 'Results', spec: 'Ch1 §5',
+   what: '"Turkey 624, Spain 811" next to each destination, counted on unique hotels under the other filters.',
+   accept: ['Turkey + Antalya selected: a hotel counts once'],
+   api: '<code>/packages</code> answers <code>destinationFacets.counts</code>; <code>/contracts/cheapest</code> answers <code>destinationCounts</code>.', files: '<code>ScopePicker</code>.' },
+ { id: 'UI-15', p: 'p3', title: 'W2M-only hotels as a second group with "Check price"', pages: 'Results', spec: 'Ch2 §3–4 · Ch3 §5',
+   what: 'After all Hotelbeds hotels, the hotels only W2M has, priced "Check price", always after the priced ones in price sorts.',
+   accept: ['Price sort never moves a W2M-only hotel above the Hotelbeds group'],
+   api: 'Waiting on the W2M availability index.', files: '—' },
+ { id: 'UI-16', p: 'p3', title: 'Flights only from the cache', pages: 'Flights', spec: 'Build order (extra)',
+   what: 'Search results from the cache in milliseconds, then one live check when the customer clicks Select.',
+   accept: ['Select → confirmed, price changed or not available, shown before booking'],
+   api: '<code>POST /flight-availability/cached-search</code> and <code>/cached-search/confirm</code>.', files: '<code>Flights.jsx</code>, <code>confirmFlight.js</code>.' },
+ { id: 'UI-17', p: 'p3', title: 'Sort rules: unknown values last, stable ties', pages: 'Results', spec: 'Ch2 §4 · Ch3 §5',
+   what: 'Stars, distance and name sorts: hotels without a reliable value go after the ones with a value, in both directions. Equal values keep a stable order on the hotel ID.',
+   accept: ['Stars 1 → 5: hotels without stars at the end', 'Two hotels with equal stars keep the same order on every reload', 'Price sort: Check price after every priced hotel'],
+   api: 'Not needed (client-side sorts).', files: '<code>Results.jsx</code>, <code>resultSort.js</code>.' },
+ { id: 'UI-18', p: 'p2', title: 'Popular departure airports first', pages: 'Home, Results, Hotel page', spec: 'Ch1 §12B.6',
+   what: 'Departure airport lists show the Popular ones first (set in GeoData → Airports), then the rest in the configured order. Order only.',
+   accept: ['Popular airports at the top of every departure list', 'No preference: the cheapest package may still leave from a non-popular airport', 'Toggling Popular never changes a shown price'],
+   api: 'The departure list returns <code>popular: true</code>.', files: '<code>utils/airports.js</code>.' },
+ { id: 'UI-19', p: 'p2', title: 'Intermediate category pages: navigation only, "Toon alles"', pages: 'Home → category pages', spec: 'Ch1 §12B.1, §12B.4',
+   what: 'Zonvakanties, Stedentrips, All Inclusive and Last Minute open an intermediate page listing their geographic choices, with no numeric prices. "Toon alles" keeps the category with no location.',
+   accept: ['Stedentrips → Barcelona: results limited to Barcelona, still the Stedentrips type', 'Toon alles: the category, every active destination', 'No price on generic vacation-type cards or intermediate pages', 'A year in a card title does not restrict dates'],
+   api: '<code>GET /api/website/holiday-types/:idOrSlug/scope</code>.', files: '<code>Home/sections</code>, a new intermediate page.' },
+ { id: 'UI-20', p: 'p2', title: 'Last Minute 42-day default and All Inclusive by real board', pages: 'Home entry, Results', spec: 'Ch1 §12B.2',
+   what: 'Last Minute starts with an auto-applied period today → +42 days, shown in the search summary. All Inclusive keeps only offers whose own room rate has an AI-family board. A customer choice replaces either.',
+   accept: ['Last Minute: dates prefilled, editable; picking 15 March replaces it', 'All Inclusive: a hotel with an AI theme but only HB rates does not qualify', 'Half Board picked after an AI entry: no hidden AI constraint left'],
+   api: '<code>/packages?entry=last_minute</code> or <code>entry=all_inclusive</code>; <code>entryApplied</code> in the answer.', files: '<code>utils/entryRules.js</code>, <code>cmsDestinations.js</code>, <code>Results.jsx</code>.' },
+ { id: 'UI-21', p: 'p3', title: 'Optional date range per homepage card', pages: 'Home', spec: 'Ch1 §12B.3',
+   what: 'A card with Enable Date Range applies its Start–End to the travel START date only, shown in the search summary. A customer date change replaces it.',
+   accept: ['Range 1 Jun–31 Aug: outbound in that window, return may fall after', 'Enable Date Range = NO: stored dates have no effect'],
+   api: 'Each card carries <code>enableDateRange</code>, <code>startDate</code>, <code>endDate</code>.', files: 'Homepage cards, <code>utils/searchStore.js</code>.' },
+ { id: 'UI-22', p: 'p2', title: 'SearchContext precedence and product switching', pages: 'Home, Results, Hotel page', spec: 'Ch1 §12B.4',
+   what: 'Per dimension: the customer\'s explicit choice, else an auto-applied entry choice, else the default. A winning offer\'s date, duration, airport or board never becomes a customer filter.',
+   accept: ['Card click to hotel page carries the exact winning package, not a filter', 'Hotel only after Flight + Hotel: same party and dates, no airport filter', 'Missing flights never switch the product automatically'],
+   api: 'Existing APIs.', files: '<code>utils/searchStore.js</code>, <code>utils/packageHandoff.js</code>, <code>Results.jsx</code>.' },
+ { id: 'UI-23', p: 'p2', title: 'Results filters per §12B.5', pages: 'Results', spec: 'Ch1 §12B.5',
+   what: 'Remove "Soort vakantie" and "Soort kamer". Stars include "Zonder officiële classificatie". OR within a group, AND across groups. Save/Apply panels stay draft until saved.',
+   accept: ['Two stars ticked = either; two facilities ticked = both', 'Draft airport/board changes do not move prices until Save', 'No 50/100/150/200 page-size control'],
+   api: 'Star filter value <code>0</code> = unclassified; each hotel row carries <code>classification</code>.', files: '<code>Results.jsx</code> filter panel, <code>ScopePicker</code>.' },
+ { id: 'UI-24', p: 'p2', title: 'Compact alternative-flight panel', pages: 'Hotel page', spec: 'Ch1 §12B.9',
+   what: 'The selected flight shown apart and excluded from the list; first 20 valid complete constructions, Show more adds 20. Each card: signed ± € p.p. against the current complete package, not the one-way flight difference.',
+   accept: ['Selected flight not repeated in the list', '20 + 20 paging', 'Picking an alternative re-prices the complete package; nothing replaced silently'],
+   api: '<code>GET /package-flights</code>.', files: '<code>HotelDetail.jsx</code> alternative flights block.' },
+ { id: 'UI-25', p: 'p2', title: '"Calculating…" for a party other than 2 adults / 1 room', pages: 'Results, Hotel page', spec: 'Ch3 §8A · Ch1 §2',
+   what: 'Only the default party is precalculated. Any other party is computed on request. While that answer is on its way, show a calculating state, never a 2-adult price for another party, and never "No results".',
+   accept: ['3 adults: a calculating state until their own prices arrive', 'The count shows the calculating state, then the exact total', 'No 2-adult price is ever shown for a 3-adult search'],
+   api: '/packages answers per destination group.', files: '<code>Results.jsx</code>, <code>packageResults.js</code>.' },
+ { id: 'UI-26', p: 'p3', title: 'Admin: Monitoring page', pages: 'Admin panel → System', spec: 'Ch1 §12A',
+   what: 'One admin page showing GET /api/system/monitoring: a top status, then panels for the search cache, Hotelbeds updates, Airtürk imports and W2M mappings.',
+   accept: ['Cache stopped: page loads, panel shows the error, status Attention', 'Two failed Hotelbeds updates in a row: Attention', 'No flight import for 26 h: Attention'],
+   api: '<code>GET /api/system/monitoring</code>.', files: 'sunsky-admin frontend, System menu.' },
+ { id: 'UI-27', p: 'p3', title: 'Facet counts on complete offers', pages: 'Results', spec: 'Unified Results §9.3',
+   what: 'Star and facility counts count distinct hotels that have a qualifying complete offer under every other filter. Today these counts come from hotel content only.',
+   accept: ['4★ + 5★ ticked: the count equals the hotels shown', 'Pool + aquapark: count = hotels with both'],
+   api: 'Needs offer-eligible counts from /contracts/cheapest and /packages.', files: '<code>Results.jsx</code> facet panel.' },
+];
+
+const VERIFY = [
+  ['Clicking a matrix cell moves the ± window and keeps the flexibility mode', 'Ch1 §7'],
+  ['An active price filter leaves out "Check price" hotels', 'Ch1 §2'],
+  ['"Check price" sorts after priced hotels in both price sorts', 'Ch2 §4'],
+  ['Two rooms always get one common board', 'Ch2 §5'],
+  ['Matrix: an alternative date outside the flexibility window leaves the SearchContext unchanged until clicked', 'Unified Results T29'],
+  ['Results card → hotel page keeps the exact SearchContext, winner, dates, rooms and airports', 'Unified Results T21'],
+];
+
+const DONE = [
+  ['Undated search says "Any date"; the arrival-airport block only with two or more airports', 'Levent 15 Oct', 'web #67'],
+  ['Destination links from a holiday type keep the type applied', '§12B.1 · §12B.4', 'web (15 Oct)'],
+  ['Price filter on the total trip / stay price only', 'Unified Results §8.1', 'merged 13 Oct'],
+  ['Hotel only / Incl. flight on Home, Results and the hotel page', 'Ch1 §4', '#54'],
+  ['Results card → hotel page opens with the same package and price', 'Ch3 §5', '#55'],
+  ['Hotel page: live round-trip price; no hotel-only price flash during the check', 'Ch3 §7', '#57'],
+  ['Departure and arrival filters show only airports that can make a package', 'Ch1 §9A', '#58'],
+  ['Default order: stable random per session, count and pages from one snapshot', 'Ch1 §2', '#63 #65'],
+  ['A failed search says so with a retry, never "No results"', 'Ch1 §11', '#49 #57'],
+  ['20 cards, "Show more", total above the list, "Cheapest" label', 'Ch1 §2', '#49'],
+  ['From € X p.p. only for 2 adults / 1 room; otherwise Total trip price + average', 'Ch1 §8', '#44'],
+  ['Child ages sent to package fares; teen input', 'Ch1 §8', '#43'],
+  ['Whole-euro rounding; matrix p.p. rounded up', 'Ch1 §8', '#39'],
+  ['Hotel page 7-date package matrix with paging; hotel-only 7-day strip', 'Ch2 §6 · Ch3 §6', '—'],
+  ['Flight details popup with baggage per leg', 'Ch1 §8', '—'],
+  ['Live check across Hotelbeds, W2M and Diana', 'Ch2 §6', '—'],
+  ['Whole site in Dutch', '—', '#35–#38'],
+];
+
+/* ── render ─────────────────────────────────────────────────────────────── */
+const st = (id) => STATUS[id] || { s: 'todo', c: [] };
+const count = (s) => TASKS.filter((t) => st(t.id).s === s).length;
+const n = { done: count('done'), wip: count('wip'), todo: count('todo'), blocked: count('blocked'), other: count('other') };
+const tracked = TASKS.length - n.other;
+
+document.getElementById('eyebrow').textContent =
+  `sunsky-website · ${n.done} of ${tracked} shipped · updated ${UPDATED}`;
+
+document.getElementById('stats').innerHTML = [
+  [n.done, 'shipped', 'is-done'], [n.wip, 'in progress', 'is-wip'], [n.todo, 'still to build', ''],
+  [n.blocked, 'waiting on others', 'is-block'], [tracked, 'tracked here', ''],
+].map(([v, l, cls]) => `<div class="stat ${cls}"><b>${v}</b><span>${l}</span></div>`).join('');
+
+document.getElementById('bar').innerHTML = ['done', 'wip', 'todo', 'blocked']
+  .map((s) => `<i class="s-${s}" style="width:${(n[s] / tracked) * 100}%" title="${GROUPS[s][0]}: ${n[s]}"></i>`).join('');
+
+const shas = (c) => c.length
+  ? `<div class="shipped"><span class="label">Commit${c.length > 1 ? 's' : ''}</span>${
+      c.map((h) => `<a class="sha" href="${REPO}${h}" target="_blank" rel="noopener noreferrer">${h}</a>`).join('')}</div>`
+  : '';
+
+document.getElementById('groups').innerHTML = Object.keys(GROUPS).map((key) => {
+  const list = TASKS.filter((t) => st(t.id).s === key);
+  if (!list.length) return '';
+  return `<section class="group"><div class="group-head"><h2>${GROUPS[key][0]} (${list.length})</h2><p>${GROUPS[key][1]}</p></div>
+  ${list.map((t) => {
+    const s = st(t.id);
+    return `<article class="card s-${s.s}" id="${t.id}">
+    <div class="card-top"><span class="id">${t.id}</span><span class="tag st-${s.s}">${GROUPS[s.s][0]}</span><span class="tag ${PRI[t.p][1]}">${PRI[t.p][0]}</span><span class="tag dep">${t.pages}</span><span class="id">${t.spec}</span></div>
+    <h3>${t.title}</h3>
+    <p>${t.what}</p>
+    ${s.note ? `<p class="note">${s.note}</p>` : ''}
+    <div class="cols">
+      <div><div class="label">Done when</div><ul>${t.accept.map((a) => `<li>${a}</li>`).join('')}</ul></div>
+      <div><div class="label">API</div><p style="font-size:.9rem">${t.api}</p><div class="label" style="margin-top:8px">Where</div><p style="font-size:.9rem">${t.files}</p></div>
+    </div>
+    ${shas(s.c)}
+  </article>`;
+  }).join('')}</section>`;
+}).join('') + `<section class="group"><div class="group-head"><h2>Please verify</h2><p>Code exists but was not confirmed end to end.</p></div>
+  <div class="done-list"><table><thead><tr><th>Check</th><th>Spec</th></tr></thead><tbody>${
+    VERIFY.map((v) => `<tr><td>${v[0]}</td><td class="ref">${v[1]}</td></tr>`).join('')}</tbody></table></div></section>`;
+
+document.getElementById('done').innerHTML = DONE.map((d) =>
+  `<tr><td class="ok">✓ Done</td><td>${d[0]}</td><td class="ref">${d[1]}</td><td class="ref">${d[2]}</td></tr>`).join('');
+
+document.getElementById('foot').textContent =
+  `Every commit links to github.com/Anil682003/sunsky-website. UI-14 was never issued. ` +
+  `UI-26 belongs to the dashboard and is not counted in the ${tracked} tracked here.`;
+</script>
