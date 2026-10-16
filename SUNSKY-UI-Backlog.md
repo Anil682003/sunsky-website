@@ -29,7 +29,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 
 | ID | Task | Priority | API | Status |
 |---|---|---|---|---|
-| UI-01 | Disable impossible departure dates in every calendar | High | Ready\* | |
+| UI-01 | Disable impossible departure dates in every calendar | High | Ready | **DONE** — all three pages |
 | UI-02 | Open the calendar on the first month with a possible departure | High | Ready\* | |
 | UI-03 | Matrix: each date from the cheapest of the chosen airports | High | Ready | **DONE** (`1fe3278`) |
 | UI-04 | Room and board price differences against the current selection | High | Ready | **DONE** |

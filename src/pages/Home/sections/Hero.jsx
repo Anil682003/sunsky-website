@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useLayoutEffect } from 'react';
+import { useState, useRef, useEffect, useLayoutEffect, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './Hero.module.css';
@@ -15,7 +15,14 @@ import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { useDestinationFeasibility, isAirportUnreachable } from '../../../hooks/useDestinationFeasibility';
+import { usePackageDepartureDates, makeIsUnavailable } from '../../../hooks/usePackageDepartureDates';
 import { usePackageAirports } from '../../../hooks/usePackageAirports';
+
+// How far ahead the homepage calendar asks about flyable departure days. The endpoint answers
+// 31 days per request, so a quarter costs three and the full twelve-month horizon would cost
+// twelve every time the panel opens. Days beyond it stay selectable rather than greyed on no
+// evidence. Matches DEPARTURE_LOOKAHEAD_DAYS on Results and the hotel page.
+const HERO_DEPARTURE_LOOKAHEAD_DAYS = 92;
 // One definition of ISO date arithmetic, shared with the results page and the feasibility hooks.
 import { isoAddDays } from '../../Results/packageResults';
 import { earliestCheckInISO } from '../../../utils/leadTime';
@@ -559,6 +566,33 @@ export default function Hero() {
   const destinationCodes = destSelection.places
     .filter((p) => p.type === 'city' && p.code)
     .map((p) => String(p.code));
+  /**
+   * The departure days this search can actually fly (UI-01 / Ch1 §7, §9A).
+   *
+   * The homepage was the one calendar of the three still offering every day. It asks about the
+   * same destinations as the airport question below, and only once the traveller has named at
+   * least one: with nothing chosen there is no question to ask, and a calendar greyed on a
+   * search nobody has described yet would be greyed on nothing.
+   *
+   * A quarter ahead, like the other two, because the endpoint answers 31 days per request and a
+   * full year would be twelve of them every time the panel opens. `makeIsUnavailable` leaves
+   * days past the window selectable, since they were never judged.
+   */
+  const heroDates = usePackageDepartureDates({
+    enabled: transport === 'package' && destinationCodes.length > 0,
+    destinations: destinationCodes,
+    from: todayISO,
+    to: isoAddDays(todayISO, HERO_DEPARTURE_LOOKAHEAD_DAYS),
+    adults: totalAdults,
+    children: totalChildren,
+  });
+  const departureUnavailable = useMemo(
+    // The traveller's ± window counts: a day flies if any day inside it does, which is exactly
+    // what the search will do with it.
+    () => makeIsUnavailable(heroDates.dates, flexDays, heroDates.range),
+    [heroDates.dates, heroDates.range, flexDays]
+  );
+
   const { origins: reachableOrigins } = usePackageAirports({
     enabled: transport === 'package' && destinationCodes.length > 0,
     destinations: destinationCodes,
@@ -1431,6 +1465,7 @@ export default function Hero() {
             onChange={setDate}
             min={todayISO}
             months={2}
+            isUnavailable={departureUnavailable}
             flex={flexDays}
             onFlexChange={setFlexDays}
             onDone={() => setOpenField(null)}
