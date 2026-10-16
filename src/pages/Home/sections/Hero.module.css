@@ -621,6 +621,16 @@
 }
 .tspRow:hover { background:var(--blue-bg); }
 .tspRowOn { background:transparent; }
+/* No package reaches the chosen destination from this airport (UI-05 / Ch1 §9A). Left on the
+   list rather than removed, so the traveller can see it exists and is not offered instead of
+   wondering where it went. The hover tint is cancelled with it: a row that lights up under the
+   cursor reads as clickable whatever its colour says. */
+.tspRowBlocked,
+.tspRowBlocked:hover {
+  background:transparent;
+  opacity:.42;
+  cursor:not-allowed;
+}
 .tspName {
   flex:1;
   min-width:0;

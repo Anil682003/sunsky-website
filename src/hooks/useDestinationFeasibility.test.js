@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { unreachableDestinations, isCountryUnreachable } from './useDestinationFeasibility';
+import { unreachableDestinations, isCountryUnreachable, isAirportUnreachable } from './useDestinationFeasibility';
 
 /**
  * UI-05 / Ch1 §9A. A destination is greyed only when the cache can PROVE no round trip reaches
@@ -74,5 +74,38 @@ describe('isCountryUnreachable', () => {
 
   it('country codes are matched without caring about case', () => {
     expect(isCountryUnreachable(['nyc', 'mia'], unreachable)).toBe(true);
+  });
+});
+
+describe('isAirportUnreachable', () => {
+  const reachable = new Set(['BRU', 'CRL']);
+
+  it('greys an airport that serves none of the chosen destinations', () => {
+    // Antalya picked and ANR flies nowhere near it: case 19, the airport direction.
+    expect(isAirportUnreachable('ANR', reachable)).toBe(true);
+    expect(isAirportUnreachable('BRU', reachable)).toBe(false);
+  });
+
+  it('never greys an airport the traveller already chose', () => {
+    // Ch1 §9A: their choice stays visible and usable so they can see what no longer fits and
+    // change it themselves, rather than finding it disabled under the cursor.
+    expect(isAirportUnreachable('ANR', reachable, true)).toBe(false);
+  });
+
+  it('with no trustworthy answer, nothing is greyed', () => {
+    // Loading, a failed request, or only a whole country picked — all arrive here as null.
+    // That is also case 20: with Turkey as a whole chosen, every airport stays in play.
+    expect(isAirportUnreachable('ANR', null)).toBe(false);
+    expect(isAirportUnreachable('ANR', undefined)).toBe(false);
+  });
+
+  it('a missing code is never greyed', () => {
+    expect(isAirportUnreachable('', reachable)).toBe(false);
+    expect(isAirportUnreachable(undefined, reachable)).toBe(false);
+  });
+
+  it('codes are matched without caring about case', () => {
+    expect(isAirportUnreachable('bru', reachable)).toBe(false);
+    expect(isAirportUnreachable('anr', reachable)).toBe(true);
   });
 });

@@ -53,6 +53,26 @@ export function isCountryUnreachable(codes, unreachable) {
 }
 
 /**
+ * PURE. Should this departure airport be shown as unavailable? (UI-05, the other direction.)
+ *
+ * The counterpart to `unreachableDestinations`, and it reads the opposite way round because the
+ * API does: `usePackageAirports` answers with the airports that DO work, so anything outside
+ * that set is what cannot. Same asymmetry though — `reachable` is null whenever the answer was
+ * not trustworthy, and then nothing is greyed.
+ *
+ * An airport the traveller already chose is never greyed. Ch1 §9A: a choice that stops being
+ * possible stays visible so they can see what no longer fits and change it themselves.
+ *
+ * @param code      the airport being drawn
+ * @param reachable Set of airports that can serve the chosen destinations, or null
+ * @param chosen    is this airport already ticked?
+ */
+export function isAirportUnreachable(code, reachable, chosen = false) {
+  if (chosen || !reachable || !code) return false;
+  return !reachable.has(String(code).toUpperCase());
+}
+
+/**
  * @param q  enabled, origin, from?, to?, travelDays?, adults, children, childAges?
  * @returns {{ unreachable: Set<string>|null, state: 'idle'|'loading'|'ok'|'error' }}
  *          `unreachable` is null in every state except a trustworthy 'ok'.

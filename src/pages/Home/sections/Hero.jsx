@@ -14,7 +14,8 @@ import { flagUrl } from '../../../utils/countryFlag';
 import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
-import { useDestinationFeasibility } from '../../../hooks/useDestinationFeasibility';
+import { useDestinationFeasibility, isAirportUnreachable } from '../../../hooks/useDestinationFeasibility';
+import { usePackageAirports } from '../../../hooks/usePackageAirports';
 // One definition of ISO date arithmetic, shared with the results page and the feasibility hooks.
 import { isoAddDays } from '../../Results/packageResults';
 import { earliestCheckInISO } from '../../../utils/leadTime';
@@ -537,6 +538,35 @@ export default function Hero() {
   /** A place the chosen airport cannot reach. Matched on the destination code the API keys by. */
   const placeUnavailable = (item) =>
     !!unreachableDests && !!item?.code && unreachableDests.has(String(item.code).toUpperCase());
+
+  /**
+   * The other direction (UI-05, case 20): departure airports that can reach what was chosen.
+   *
+   * Only CITY picks carry a hotel destination code — `p.code` on a city is `hotels
+   * .destinationCode`, which is exactly what this endpoint keys on. A whole country or a region
+   * carries its own code (`Country.code`, not even the ISO one), and the destination codes
+   * underneath it live in the modal's lazily-fetched places, not here. So with only a country
+   * picked we ask nothing and grey nothing.
+   *
+   * That is not a gap, it is case 20: "Turkey picked: ANR selectable when another Turkish
+   * destination works". With the country as a whole chosen, any Turkish destination keeps every
+   * airport in play, which is precisely what greying nothing says. Pick Antalya specifically and
+   * the question becomes answerable, so ANR greys.
+   *
+   * `origins` is the union over every destination asked about, so picking two cities keeps an
+   * airport that serves either of them.
+   */
+  const destinationCodes = destSelection.places
+    .filter((p) => p.type === 'city' && p.code)
+    .map((p) => String(p.code));
+  const { origins: reachableOrigins } = usePackageAirports({
+    enabled: transport === 'package' && destinationCodes.length > 0,
+    destinations: destinationCodes,
+    from: date || undefined,
+    to: date ? isoAddDays(date, Math.max(0, Number(flexDays) || 0)) : undefined,
+    adults: totalAdults,
+    children: totalChildren,
+  });
 
   const setRoomAdults = (roomIdx, next) =>
     setRoomsList((prev) =>
@@ -1138,11 +1168,17 @@ export default function Hero() {
   // half the width, and the code is what distinguishes two airports of the same city.
   const airportRow = (a) => {
     const on = !noPreference && chosenOrigins.includes(a.code);
+    // No package reaches the chosen destination from here (UI-05). The rule, including why a
+    // ticked airport is never greyed, lives in useDestinationFeasibility.
+    const blocked = isAirportUnreachable(a.code, reachableOrigins, on);
+    const blockedLabel = t('common:availability.notForSelection', 'Not available for your selection');
     return (
       <button type="button" key={a.code} role="checkbox" aria-checked={on}
-        title={a.label}
-        className={`${styles.tspRow} ${on ? styles.tspRowOn : ''}`}
-        onClick={() => pickOrigin(a.code)}>
+        title={blocked ? `${a.label} — ${blockedLabel}` : a.label}
+        disabled={blocked}
+        aria-disabled={blocked || undefined}
+        className={`${styles.tspRow} ${on ? styles.tspRowOn : ''} ${blocked ? styles.tspRowBlocked : ''}`}
+        onClick={() => !blocked && pickOrigin(a.code)}>
         <span className={styles.tspName}>{a.city || a.label}</span>
         <span className={styles.tspCode}>{a.code}</span>
         <span className={`${styles.tspTick} ${on ? styles.tspTickOn : ''}`} aria-hidden="true">
