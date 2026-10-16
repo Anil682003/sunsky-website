@@ -40,6 +40,7 @@ import { usePackageAirports } from '../../hooks/usePackageAirports';
 import { useToast } from '../../context/ToastContext';
 import { fetchUnpricedHotels } from '../../api/unpricedHotels';
 import { roundHotelStay, perPersonFrom } from '../../utils/priceRounding';
+import { sortHotels } from '../../utils/resultSort';
 import styles from './Results.module.css';
 import { defaultSearchContext } from '../../utils/searchDefaults';
 import { packageParams } from '../../utils/packageHandoff';
@@ -1849,30 +1850,14 @@ export default function Results() {
 
   // Client-side sorts (name / stars / distance) over the loaded results. Price sorts are done by
   // the cache; these reorder what's loaded, using the info/attribute data as it arrives.
-  const hotels = useMemo(() => {
-    const sb = applied.sortBy;
-    const distField = sb === 'distance_beach' ? 'beachMetres' : sb === 'distance_centre' ? 'centreMetres' : null;
-    if (distField) {
-      const dist = (h) => {
-        const v = attrMap[String(h.hotelCode)]?.[distField];
-        return typeof v === 'number' && v >= 0 ? v : Infinity;
-      };
-      return [...allHotels].sort((a, b) => dist(a) - dist(b));
-    }
-    if (sb === 'name_asc' || sb === 'name_desc') {
-      const nameOf = (h) => (infoMap[String(h.hotelCode)]?.name || h.name || '').trim();
-      const dir = sb === 'name_asc' ? 1 : -1;
-      return [...allHotels].sort((a, b) => dir * nameOf(a).localeCompare(nameOf(b), 'en', { sensitivity: 'base' }));
-    }
-    if (sb === 'stars_asc' || sb === 'stars_desc') {
-      const starsOf = (h) => Number(infoMap[String(h.hotelCode)]?.stars ?? attrMap[String(h.hotelCode)]?.stars ?? 0) || 0;
-      const dir = sb === 'stars_desc' ? -1 : 1;
-      // Tie-break by name so equal-star hotels keep a stable, readable order.
-      const nameOf = (h) => (infoMap[String(h.hotelCode)]?.name || h.name || '').trim();
-      return [...allHotels].sort((a, b) => dir * (starsOf(a) - starsOf(b)) || nameOf(a).localeCompare(nameOf(b), 'en', { sensitivity: 'base' }));
-    }
-    return allHotels;
-  }, [allHotels, applied.sortBy, attrMap, infoMap]);
+  // The rules themselves (an unknown value sorts last in BOTH directions; equal values break on
+  // the hotel code, not on the order the pages happened to arrive in) live in utils/resultSort.js
+  // with their tests. They used to be inline here, where missing stars were read as 0 and so
+  // opened "Stars: 1 to 5" with every hotel whose rating had not loaded yet.
+  const hotels = useMemo(
+    () => sortHotels(allHotels, applied.sortBy, { info: infoMap, attrs: attrMap }),
+    [allHotels, applied.sortBy, attrMap, infoMap]
+  );
 
   // ── Hotels with no cached price, still sellable at World2Meet ──────────────
   // Asked for ONCE per search, when the priced list has ended: the traveller has seen everything
