@@ -59,7 +59,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-16 | Flights only from the cache | Later | Ready | **DONE** (`4700b45`) |
 | UI-17 | Sort rules: unknown values last, stable ties, Hotelbeds first | Later | Ready |**DONE** (`c8cc76c`) |
 | UI-18 | Popular departure airports first | Medium | Ready | **DONE** (`a4cde56`) |
-| UI-19 | Intermediate category pages: navigation only, "Toon alles" | Medium | Ready | |
+| UI-19 | Intermediate category pages: navigation only, "Toon alles" | Medium | Ready | **DONE** (`87b09c2`, `0a02f0e`) |
 | UI-20 | Last Minute 42-day default and All Inclusive by real board | Medium | Ready | **DONE** (`723b9c7`) |
 | UI-21 | Optional date range per homepage card | Later | Ready | |
 | UI-22 | SearchContext precedence and product switching | Medium | Ready | |

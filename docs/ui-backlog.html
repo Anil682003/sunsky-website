@@ -146,7 +146,7 @@ const STATUS = {
   'UI-16': { s: 'done', c: ['4700b45'], note: 'Only a definite NOT_AVAILABLE disables a flight. A 502, a timeout or an unrecognised answer all read as a check that did not happen.' },
   'UI-17': { s: 'done', c: ['7eeebb1', 'c8cc76c'] },
   'UI-18': { s: 'done', c: ['a4cde56'], note: 'One comparator in setDepartureAirports covers every list. Order only: no price, count or from-price moves.' },
-  'UI-19': { s: 'wip', c: ['87b09c2'], note: '"Toon alles" now searches the category. The intermediate page itself is still to build.' },
+  'UI-19': { s: 'done', c: ['87b09c2', '0a02f0e'], note: 'The intermediate page already existed at /holidays/:slug. What was missing: a card carried the category as a themes= filter, which matches no hotel for All Inclusive or Last Minute, so those two pages opened empty searches and listed no countries at all. A category now travels as the filter where the catalogue can answer one and as its UI-20 door where it cannot.' },
   'UI-20': { s: 'done', c: ['723b9c7'], note: 'The site names the door and repeats what the server applied; it does not compute the window or the board family.' },
   'UI-21': { s: 'todo', c: [], note: 'Needs a departure-date WINDOW, which Results does not have: it reads an exact checkIn/checkOut only.' },
   'UI-22': { s: 'todo', c: [] },
