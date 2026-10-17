@@ -107,12 +107,13 @@ describe('"Incl. flight" lists complete packages (Levent, 6 Oct 2026)', () => {
     expect([q.get('checkIn'), q.get('checkOut'), q.get('origin')]).toEqual(['2026-11-04', '2026-11-10', 'BRU']);
   });
 
-  it('a link without dates asks the precalculated default (instant)', async () => {
+  it('a link without dates asks the stored 12-month search (no dates, no length)', async () => {
     answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('1', 'AYT', 900)] };
     renderAt('?destinations=AYT&destinationLabel=Antalya&transport=package');
     await screen.findByRole('article');
     const [body] = await calls();
-    expect(body).toMatchObject({ destinations: ['AYT'], nights: '7' });
+    expect(body).toMatchObject({ destinations: ['AYT'] });
+    expect(body.nights).toBeUndefined();
     expect(body.from).toBeUndefined();
     expect(body.travelDays).toBeUndefined();
   });

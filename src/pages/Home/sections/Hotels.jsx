@@ -94,7 +94,8 @@ function usePackageFromPrices(cards) {
     fetchPackages({
       destinations: [...new Set(list.map((c) => String(c.destinationCode).toUpperCase()))].slice(0, 60),
       hotelCodes: list.map((c) => String(c.hotelCode)),
-      nights: '7', adults: ctx.adults, children: ctx.children, rooms: ctx.rooms, pageSize: 100,
+      // No date, no length: the hotel's from-price over the whole 12-month horizon (admin Phase C).
+      adults: ctx.adults, children: ctx.children, rooms: ctx.rooms, pageSize: 100,
     }, { signal: ctrl.signal })
       .then((r) => setAnswer({ key, byCode: new Map((r?.hotels || []).map((p) => [String(p.hotelCode), p])) }))
       .catch((e) => { if (e?.name !== 'CanceledError' && !ctrl.signal.aborted) setAnswer({ key, byCode: new Map() }); });

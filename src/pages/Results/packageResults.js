@@ -85,11 +85,12 @@ export function packageBody({ fp, childAges = '', filters = {}, origins = [], ho
     // The trip length in days (N nights = N + 1 days); the flights decide the exact stay.
     const n = nightsOf(fp.checkIn, fp.checkOut);
     if (n) body.travelDays = String(n + 1);
-  } else {
-    body.nights = Array.isArray(bandNights) && bandNights.length && !bandNights.includes(Number(PRECALC_NIGHTS))
-      ? bandNights.join(',')
-      : PRECALC_NIGHTS;
+  } else if (Array.isArray(bandNights) && bandNights.length) {
+    body.nights = bandNights.includes(Number(PRECALC_NIGHTS)) ? PRECALC_NIGHTS : bandNights.join(',');
   }
+  // No date and no length: no `nights` at all. The admin then answers from its nightly 12-month
+  // search — every departure date through 12 months and every trip length, cheapest complete
+  // package per hotel (Ch 1 §8A, Phase C) — and falls back to the 30-day 7-night default itself.
   if (origins.length) body.origins = origins.join(',');
   if (filters.arrivals?.length) body.arrivals = filters.arrivals.join(',');
   if (filters.nonstop) body.routing = 'nonstop';

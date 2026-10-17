@@ -24,10 +24,10 @@ describe('the request body', () => {
     expect(packageBody({ fp, flex: 2 })).toMatchObject({ from: '2026-11-11', to: '2026-11-15' });
   });
 
-  it('a search without dates of its own asks exactly the precalculated default', () => {
+  it('a search without dates or length sends neither: the admin answers from its 12-month search', () => {
     const b = packageBody({ fp: { ...fp, children: '0', childAges: '' }, dated: false });
-    expect(b).toMatchObject({ nights: PRECALC_NIGHTS, adults: '2', children: '0', rooms: '1' });
-    for (const k of ['from', 'to', 'travelDays', 'origins', 'boards', 'hotelCodes', 'routing', 'sortBy', 'childAges']) expect(b[k]).toBeUndefined();
+    expect(b).toMatchObject({ adults: '2', children: '0', rooms: '1' });
+    for (const k of ['nights', 'from', 'to', 'travelDays', 'origins', 'boards', 'hotelCodes', 'routing', 'sortBy', 'childAges']) expect(b[k]).toBeUndefined();
   });
 
   it('a band without 7 nights asks its own lengths', () => {
