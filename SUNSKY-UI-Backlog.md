@@ -63,7 +63,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-20 | Last Minute 42-day default and All Inclusive by real board | Medium | Ready | **DONE** (`723b9c7`) |
 | UI-21 | Optional date range per homepage card | Later | Ready | **DONE** (`4c39b13`) |
 | UI-22 | SearchContext precedence and product switching | Medium | Ready | **DONE** (`5c8c2cf`) |
-| UI-23 | Results filters per §12B.5 | Medium | Ready | |
+| UI-23 | Results filters per §12B.5 | Medium | Ready | **DONE** (`6b86b86`) — Adults Only merge still a decision |
 | UI-24 | Compact alternative-flight panel | Medium | Ready | **DONE** (`5bcfbd1`) |
 | UI-25 | "Calculating…" for a party other than 2 adults / 1 room | Medium | Ready | **DONE** (`3e07d2c`, verified) |
 | UI-26 | Admin: Monitoring page | Later | Ready | n/a — **sunsky-admin**, not this repo |
