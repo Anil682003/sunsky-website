@@ -1757,7 +1757,9 @@ export default function Results() {
       const body = packageBody({
         fp: fetchParams, childAges, filters: applied, origins: applied.origins || [],
         hotelCodes: Array.isArray(priceScope.hotelCodes) ? priceScope.hotelCodes : null,
-        dated: !undated, flex: urlFlex, bandNights: dayOptions, seed: resultSeed(),
+        // No dates and no duration chosen (the band then only mirrors the default dates): no
+        // length either, so the admin answers from its 12-month search (Phase C, Ch 1 §8A).
+        dated: !undated, flex: urlFlex, bandNights: undated && !urlDuration ? null : dayOptions, seed: resultSeed(),
         entry: entryOf(params.get('entry')),
         // UI-21: the window a homepage card brought with it. Ignored the moment the traveller
         // picks a date of their own, which packageBody enforces by preferring fp.checkIn.

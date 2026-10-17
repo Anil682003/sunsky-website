@@ -149,7 +149,7 @@ describe('the from-price', () => {
     expect(card.textContent).not.toMatch(/899/);                 // not the CMS price, not even while loading
     await waitFor(() => expect(card.textContent).toMatch(/551/));
     const body = fetchPackages.mock.calls[0][0];
-    expect(body).toMatchObject({ destinations: ['AYT'], hotelCodes: ['32243'], nights: '7', adults: '2', children: '0', rooms: '1' });
+    expect(body).toMatchObject({ destinations: ['AYT'], hotelCodes: ['32243'], adults: '2', children: '0', rooms: '1' });
     expect(body.from).toBeUndefined();
   });
 
