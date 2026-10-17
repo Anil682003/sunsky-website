@@ -154,7 +154,6 @@ const ROOM_LABELS = {
 
 // Room codes the cache ACTUALLY holds (verified against live inventory). Offering a code the
 // data never contains gives the user a filter that always returns nothing.
-const ROOM_FILTERS = ['DBL', 'DBT', 'TWN', 'TPL', 'FAM', 'SUI', 'JSU', 'STU', 'APT', 'BUN', 'ROO'];
 
 const SORT_OPTIONS = [
   // The default (final contract, Ch 1 §2). Flight + Hotel: the stable random order of this
@@ -196,7 +195,7 @@ const PRICE_CEILING_FALLBACK = 1000;
 
 // Content facets narrow the hotelCodes via the admin API; price facets go straight to the cache.
 const EMPTY_FILTERS = {
-  boards: [], roomTypes: [], minPrice: '', maxPrice: '',
+  boards: [], minPrice: '', maxPrice: '',
   priceBasis: 'total', refundable: 'any', sortBy: 'recommended',
   // Content facets (resolved against the admin content API into a hotelCode set for the cache).
   themes: [], stars: [], facilities: [], activities: [],
@@ -245,7 +244,7 @@ const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
 
 // How many filters the user has actively changed — drives the sidebar count pill.
 const countActiveFilters = (f) =>
-  f.boards.length + f.roomTypes.length +
+  f.boards.length +
   (f.themes?.length || 0) + (f.stars?.length || 0) +
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
@@ -520,11 +519,19 @@ export default function Results() {
   // and t only changes identity when the language does.
   const daysLabel = useCallback((d) => t('filters.days', { count: d, defaultValue: '{{count}} days' }), [t]);
   const starLabel = useCallback(
-    (n) => t('filters.stars', {
-      count: n,
-      defaultValue_one: '{{count}}-star',
-      defaultValue_other: '{{count}}-star',
-    }),
+    (n) => (
+      /* §12B.5: zero is a category, not a rating. The backend sends `stars: 0` for a hotel that
+         is POSITIVELY unclassified, officially without a star rating, which is a different
+         statement from an apartment graded in keys or from a rating we simply do not hold.
+         "0-star" would read as the worst hotel on the list rather than an unrated one. */
+      n === 0
+        ? t('filters.starsUnclassified', 'No official classification')
+        : t('filters.stars', {
+          count: n,
+          defaultValue_one: '{{count}}-star',
+          defaultValue_other: '{{count}}-star',
+        })
+    ),
     [t]
   );
   // The option lists are module constants, so their labels resolve here.
@@ -1403,7 +1410,6 @@ export default function Results() {
     if (ages) body.childAges = ages;
 
     if (f.boards.length)    body.boards    = f.boards;
-    if (f.roomTypes.length) body.roomTypes = f.roomTypes;
 
     const min = f.minPrice === '' ? null : Number(f.minPrice);
     const max = f.maxPrice === '' ? null : Number(f.maxPrice);
@@ -1571,7 +1577,7 @@ export default function Results() {
       // `search` event fires.
       filterSignature: JSON.stringify([
         fetchParams.rooms, applied.themes, applied.stars, applied.facilities, applied.activities,
-        applied.accommodation, applied.kids, applied.roomTypes, applied.arrivals, applied.origins,
+        applied.accommodation, applied.kids, applied.arrivals, applied.origins,
         applied.minPrice, applied.maxPrice, applied.priceBasis, applied.refundable,
         applied.maxBeach, applied.maxCentre, applied.minRating, applied.adultsOnly,
       ]),
@@ -2030,10 +2036,10 @@ export default function Results() {
     // meal plan or room type the traveller filtered for. So under any of them the extra hotels
     // are not offered at all, rather than offered in contradiction of the filter.
     if (applied.minPrice !== '' || applied.maxPrice !== ''
-      || applied.boards.length || applied.roomTypes.length) return null;
+      || applied.boards.length) return null;
     return JSON.stringify([dests, codes, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults,
       fetchParams.children, fetchParams.rooms, fetchParams.childAges ?? null, allHotels.length]);
-  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.transport, applied.minPrice, applied.maxPrice, applied.boards, applied.roomTypes]);
+  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.transport, applied.minPrice, applied.maxPrice, applied.boards]);
 
   const onRequest = useMemo(
     () => (onRequestData.key === onRequestKey ? onRequestData.list : EMPTY_ON_REQUEST),
@@ -2222,7 +2228,7 @@ export default function Results() {
       });
   };
 
-  // Toggle a code in one of the multi-select filter arrays (boards / roomTypes / stars / facilities / activities / themes).
+  // Toggle a code in one of the multi-select filter arrays (boards / stars / facilities / activities / themes).
   const toggleCode = (key, code) => setFilters((f) => ({
     ...f,
     [key]: f[key].includes(code) ? f[key].filter((x) => x !== code) : [...f[key], code],
@@ -3003,7 +3009,7 @@ export default function Results() {
       </FilterSection>
 
       {/* Holiday Type — DYNAMIC from the admin facets (only themes that apply to the scope, with counts). */}
-      <FilterSection title={t('filters.holidayType', 'Holiday Type')} defaultOpen>
+      <FilterSection title={t('filters.holidayType', 'Themes')} defaultOpen>
         {facetsStatus === 'error' ? (
           <p className={styles.filterEmpty}>{t('filters.holidayTypesUnavailable', 'Holiday types unavailable (content service unreachable).')}</p>
         ) : facetsStatus === 'loading' && facets.holiday.length === 0 ? (
@@ -3103,12 +3109,12 @@ export default function Results() {
         )}
       </FilterSection>
 
-      {/* Room Type — server-side (`roomTypes`) */}
-      <FilterSection title={t('filters.roomType', 'Room Type')} defaultOpen={false}>
-        {ROOM_FILTERS.map((code) => (
-          <FilterCheck key={code} label={getRoomLabel(code)} checked={filters.roomTypes.includes(code)} onChange={() => toggleCode('roomTypes', code)} />
-        ))}
-      </FilterSection>
+      {/* No Room Type filter: §12B.5 removes "Soort kamer".
+          A room is chosen on the hotel page, against that hotel's real rates and what each one
+          costs, which is where the choice means something. Filtering the LIST by it hid hotels
+          that DO sell the room, because the cheapest rate the search happened to price was a
+          different one. `getRoomLabel` stays: the cards still name the room a price belongs
+          to, which is the honest use of that vocabulary. */}
 
       {/* No Cancellation filter. We don't state a rate's cancellation terms anywhere in the
           journey any more, so offering to filter by them promised a distinction the rest of

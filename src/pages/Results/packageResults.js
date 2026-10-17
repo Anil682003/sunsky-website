@@ -48,7 +48,7 @@ export function chunkDestinations(destinations, size = DEST_CHUNK) {
  * @param {object} p
  *   fp        committed params (checkIn, checkOut, adults, children, rooms, childAges)
  *   childAges ages fallback (string)
- *   filters   applied filters (boards, roomTypes, refundable, minPrice, maxPrice, priceBasis,
+ *   filters   applied filters (boards, refundable, minPrice, maxPrice, priceBasis,
  *             sortBy, nonstop, origins, arrivals)
  *   origins   departure airports chosen ([] = No preference: all of them)
  *   hotelCodes the content filter's codes, or null
@@ -95,7 +95,6 @@ export function packageBody({ fp, childAges = '', filters = {}, origins = [], ho
   if (filters.nonstop) body.routing = 'nonstop';
   if (Array.isArray(hotelCodes)) body.hotelCodes = hotelCodes;
   if (filters.boards?.length) body.boards = filters.boards;
-  if (filters.roomTypes?.length) body.roomTypes = filters.roomTypes;
   if (filters.refundable && filters.refundable !== 'any') body.refundable = filters.refundable;
   const min = filters.minPrice === '' || filters.minPrice == null ? null : Number(filters.minPrice);
   const max = filters.maxPrice === '' || filters.maxPrice == null ? null : Number(filters.maxPrice);

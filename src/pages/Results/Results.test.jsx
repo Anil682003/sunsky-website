@@ -249,10 +249,6 @@ const sidebarCheck = (name) => {
 };
 const sidebarRadio = (name) => screen.getAllByRole('radio', { name })[0];
 
-// Room Type ships collapsed (like the old Rate Type section did), so open it first.
-const openRoomType = async (user) => {
-  await user.click(screen.getAllByText('Soort kamer')[0]);
-};
 
 // jsdom cannot drag a range thumb, and userEvent refuses to click an element with
 // pointer-events:none (which the overlaid dual-slider inputs deliberately have).
@@ -384,32 +380,25 @@ describe('board filter', () => {
   });
 });
 
-describe('room type filter', () => {
-  it('sends the real inventory codes (SUI/JSU), not the demo’s STE/JNR', async () => {
-    const user = userEvent.setup();
+describe('room type', () => {
+  // The Room Type filter was REMOVED (§12B.5 drops "Soort kamer"). A room is chosen on the
+  // hotel page, against that hotel's real rates and what each one costs, which is where the
+  // choice means something. Filtering the LIST by it hid hotels that DO sell the room, because
+  // the cheapest rate the search happened to price was a different one. These lock the removal
+  // in: the control is gone, and roomTypes must never reach the cache again.
+  it('offers no room type control in the sidebar', async () => {
     renderResults();
     await settled();
-    await openRoomType(user);
-    await user.click(sidebarCheck('Suite'));
-    await waitFor(() => expect(lastCall().get('roomTypes')).toBe('SUI'));
-    await waitFor(() => expect(cards()).toHaveLength(1));
-    expect(screen.getByText('Resort Beta')).toBeInTheDocument();
+    expect(screen.queryByText('Soort kamer')).not.toBeInTheDocument();
+    for (const name of ['Suite', 'Junior suite']) {
+      expect(screen.queryByRole('checkbox', { name })).not.toBeInTheDocument();
+    }
   });
 
-  it('offers no room code that the inventory never contains', async () => {
-    const user = userEvent.setup();
+  it('never sends roomTypes to the cache', async () => {
     renderResults();
     await settled();
-    await openRoomType(user);
-    // Every advertised code must be reachable — a filter that can never match is a dead end.
-    const REAL = new Set(HOTELS.flatMap((h) => h.rates.map((r) => r.roomType)));
-    for (const dead of ['STE', 'JNR', 'TRP']) {
-      expect(REAL.has(dead), `${dead} is not a real code`).toBe(false);
-      expect(screen.queryByRole('checkbox', { name: dead })).not.toBeInTheDocument();
-    }
-    // And the real ones ARE offered.
-    expect(sidebarCheck('Suite')).toBeInTheDocument();
-    expect(sidebarCheck('Junior suite')).toBeInTheDocument();
+    expect(lastCall().get('roomTypes')).toBeNull();
   });
 });
 
@@ -969,10 +958,14 @@ describe('clear all + empty state', () => {
     renderResults();
     await settled();
 
-    // No hotel has a UAI rate in a Suite.
+    // A board AND a price ceiling: two filter groups, and nothing survives both. The only
+    // Ultra all inclusive rate here is €2000. This used to pair the board with a Suite, but
+    // §12B.5 removed the room type filter. The number box commits on Enter, not per keystroke,
+    // which is why the slider (jsdom cannot drag it) is not the way in.
     await user.click(sidebarCheck('Ultra all inclusive'));
-    await openRoomType(user);
-    await user.click(sidebarCheck('Suite'));
+    const maxBox = screen.getAllByLabelText('Maximumprijs')[0];
+    await user.clear(maxBox);
+    await user.type(maxBox, '100{Enter}');
     await waitFor(() => expect(screen.getByText('Geen resultaten gevonden')).toBeInTheDocument());
 
     expect(screen.getByText(/Geen verblijven passen bij je filters/)).toBeInTheDocument();

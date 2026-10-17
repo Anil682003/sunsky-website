@@ -13,11 +13,11 @@ describe('the request body', () => {
   it('a dated search: that departure date (± flex), the trip length in days, the page\'s filters', () => {
     const b = packageBody({
       fp, origins: ['BRU', 'CRL'], hotelCodes: ['1', '2'], flex: 0,
-      filters: { boards: ['AI'], roomTypes: ['DBL'], refundable: 'yes', minPrice: '300', maxPrice: '900', priceBasis: 'perPerson', sortBy: 'price_desc', nonstop: true, arrivals: ['SAW'] },
+      filters: { boards: ['AI'], refundable: 'yes', minPrice: '300', maxPrice: '900', priceBasis: 'perPerson', sortBy: 'price_desc', nonstop: true, arrivals: ['SAW'] },
     });
     expect(b).toMatchObject({
       from: '2026-11-13', to: '2026-11-13', travelDays: '7', adults: '2', children: '1', childAges: '8', rooms: '1',
-      origins: 'BRU,CRL', arrivals: 'SAW', routing: 'nonstop', hotelCodes: ['1', '2'], boards: ['AI'], roomTypes: ['DBL'],
+      origins: 'BRU,CRL', arrivals: 'SAW', routing: 'nonstop', hotelCodes: ['1', '2'], boards: ['AI'],
       refundable: 'yes', minPrice: 300, maxPrice: 900, priceBasis: 'perPerson', sortBy: 'price_desc',
     });
     expect(b.nights).toBeUndefined();
