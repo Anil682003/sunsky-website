@@ -533,6 +533,31 @@ describe('arrival airport ("Flying to")', () => {
     await waitFor(() => expect(screen.queryByText('Aankomstluchthaven')).not.toBeInTheDocument());
   });
 
+  /* UI-22 (Ch1 §12B.4): an arrival airport is a FLIGHT choice, so Hotel only must not be
+     narrowed by it.
+
+     This was wrong, and invisibly so. The Arrival airport block only renders for a package,
+     so after switching to Hotel only the control was gone while the narrowing was still
+     running: hotels vanished from an unrelated search with nothing on screen to explain it
+     and no way to undo it. */
+  it('stops narrowing by arrival airport when the traveller switches to Hotel only', async () => {
+    /* The airport list is only fetched for a package, so it has to be loaded the way a
+       traveller loads it: in Flight + Hotel. Switching afterwards leaves the list and the
+       choice in state while the control disappears with the flight, and that is exactly when
+       the narrowing used to keep running with nothing on screen to explain it. */
+    const user = userEvent.setup();
+    renderResults(countryScope + '&transport=package&arrival=AYT');
+    await settled();
+    await waitFor(() => expect(arrivalBox(/Antalya/)).toBeChecked());
+
+    await user.click(sidebarRadio('Alleen hotel'));
+
+    // The whole country is priced again, not just the city that airport serves.
+    await waitFor(() => {
+      const asked = lastCall().get('destinations').split(',');
+      expect(asked.length).toBeGreaterThan(1);
+    });
+  });
   // A link somebody shared can carry more than one.
   it('ticks every airport a shared link arrives with', async () => {
     const user = userEvent.setup();

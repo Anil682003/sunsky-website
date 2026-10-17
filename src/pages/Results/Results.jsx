@@ -1209,6 +1209,21 @@ export default function Results() {
   // meaningful and distinct: the airport serves nothing inside this scope, so the search must
   // return nothing rather than silently widening back to the whole scope.
   const arrivalDestinations = useMemo(() => {
+    /* UI-22 (Ch1 §12B.4): an arrival airport is a FLIGHT choice, so it narrows nothing in
+       Hotel only.
+
+       This already held before the line below existed, but only as a side effect: the airport
+       list is fetched with `enabled: transport === 'package'`, so switching empties it, the
+       lookup below finds no match and returns null. That is a true answer reached by accident.
+       Give the hook a cache of its last result, which is an ordinary optimisation someone
+       could add tomorrow, and the narrowing would quietly come back on a control the traveller
+       can no longer see, because the Arrival airport block renders for a package only.
+
+       So the rule is stated where the decision is made. The choice itself is KEPT in
+       `applied.arrivals`, exactly as the departure airports are, so switching back restores
+       what they picked: the spec asks for both halves, ignored for Hotel only and kept for the
+       switch back. */
+    if (applied.transport !== 'package') return null;
     if (!applied.arrivals.length) return null;
     const picked = arrivalAirports.filter((a) => applied.arrivals.includes(a.code));
     if (!picked.length) return null;                      // list not loaded yet — don't filter
@@ -1217,7 +1232,7 @@ export default function Results() {
     const served = [...new Set(picked.flatMap((a) => a.destinations || []))];
     if (!scopeDestSet.size) return served;
     return served.filter((d) => scopeDestSet.has(d));
-  }, [applied.arrivals, arrivalAirports, scopeDestSet]);
+  }, [applied.transport, applied.arrivals, arrivalAirports, scopeDestSet]);
   // Identity of the narrowing, for effect deps. `null` and `[]` are different states (no
   // filter vs. filter that matches nothing), so they must not collapse to the same key.
   const arrivalKey = arrivalDestinations === null ? '' : `arr:${arrivalDestinations.join(',')}`;
