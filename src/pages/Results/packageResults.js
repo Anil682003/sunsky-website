@@ -15,6 +15,14 @@
 
 /** Destinations per request: small enough that the first hotels show quickly. */
 export const DEST_CHUNK = 4;
+/**
+ * Destinations per request for a search without dates or length: the admin answers those from its
+ * stored 12-month search (13 destinations in ~0.3 s), so a wide search ("8 countries", ~100
+ * destinations) goes in ~5 requests instead of ~25 — fewer re-sorts while the list fills.
+ */
+export const UNDATED_DEST_CHUNK = 20;
+/** PURE. Destinations per request for this package body: undated → UNDATED_DEST_CHUNK. */
+export const chunkSizeFor = (body = {}) => (!body.from && !body.to && !body.nights && !body.travelDays ? UNDATED_DEST_CHUNK : DEST_CHUNK);
 /** Groups asked at the same time (each runs its destinations on the admin, 2 at a time). */
 export const PACKAGE_CONCURRENCY = 4;
 /** Packages asked per group per page. */
