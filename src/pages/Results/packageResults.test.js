@@ -3,7 +3,7 @@
 // calculated yet.
 import { describe, it, expect } from 'vitest';
 import {
-  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets,
+  packageBody, chunkDestinations, chunkSizeFor, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets,
   mergeDestinationCounts, mergeAirportFacets, PRECALC_NIGHTS, PACKAGE_WINDOW_DAYS,
 } from './packageResults';
 
@@ -48,6 +48,13 @@ describe('groups', () => {
   it('destinations in groups of 4', () => {
     expect(chunkDestinations(['A', 'B', 'C', 'D', 'E'])).toEqual([['A', 'B', 'C', 'D'], ['E']]);
     expect(chunkDestinations([])).toEqual([]);
+  });
+
+  it('an undated search asks 20 destinations per request (stored 12-month answers), a dated one 4', () => {
+    expect(chunkSizeFor({ adults: '2' })).toBe(20);
+    expect(chunkSizeFor({ from: '2027-05-01', to: '2027-05-01', travelDays: '7' })).toBe(4);
+    expect(chunkSizeFor({ nights: '7' })).toBe(4);
+    expect(chunkDestinations(Array.from({ length: 100 }, (_, i) => `D${i}`), chunkSizeFor({})).length).toBe(5);
   });
 
   const p = (code, total) => ({ hotelCode: code, sunskyPayableTotal: total });

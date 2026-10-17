@@ -6,7 +6,7 @@ import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
 import {
-  packageBody, chunkDestinations, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, mergeDestinationCounts, PACKAGE_CONCURRENCY, isoAddDays,
+  packageBody, chunkDestinations, chunkSizeFor, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, mergeDestinationCounts, PACKAGE_CONCURRENCY, isoAddDays,
   packageTotal, cheapestPackage, noFlightPlaces,
 } from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
@@ -1765,7 +1765,7 @@ export default function Results() {
         // picks a date of their own, which packageBody enforces by preferring fp.checkIn.
         startWindow: cardWindow,
       });
-      const groups = chunkDestinations(dests).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
+      const groups = chunkDestinations(dests, chunkSizeFor(body)).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
       pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };
       setPkgUnknown([]);
       setPkgProven({ origins: null, arrivals: null });
