@@ -123,7 +123,7 @@ footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--lin
 
 <script>
 const REPO = 'https://github.com/Anil682003/sunsky-website/commit/';
-const UPDATED = '16 October 2026';
+const UPDATED = '17 October 2026';
 
 /* Status and the commits that carry it. The ONLY part of this page we maintain:
    when a task lands, add its entry here and republish. `note` is for anything the
@@ -148,9 +148,9 @@ const STATUS = {
   'UI-18': { s: 'done', c: ['a4cde56'], note: 'One comparator in setDepartureAirports covers every list. Order only: no price, count or from-price moves.' },
   'UI-19': { s: 'done', c: ['87b09c2', '0a02f0e'], note: 'The intermediate page already existed at /holidays/:slug. What was missing: a card carried the category as a themes= filter, which matches no hotel for All Inclusive or Last Minute, so those two pages opened empty searches and listed no countries at all. A category now travels as the filter where the catalogue can answer one and as its UI-20 door where it cannot.' },
   'UI-20': { s: 'done', c: ['723b9c7'], note: 'The site names the door and repeats what the server applied; it does not compute the window or the board family.' },
-  'UI-21': { s: 'todo', c: [], note: 'Needs a departure-date WINDOW, which Results does not have: it reads an exact checkIn/checkOut only.' },
+  'UI-21': { s: 'done', c: ['4c39b13'], note: 'The window travels as startFrom / startTo, which constrain the travel START only: a return may fall after the range, so pinning checkOut would have turned "leave in June" into a fixed trip length. An explicit date always wins over the card. The flag decides, not the dates: the dashboard keeps startDate and endDate on a card whether or not the range is switched on. Nothing changes on the site until a card has Enable Date Range turned on; all four are currently off.' },
   'UI-22': { s: 'todo', c: [] },
-  'UI-23': { s: 'wip', c: [], note: 'In progress.' },
+  'UI-23': { s: 'todo', c: [], note: 'Started and backed out rather than half-landed. Removing "Soort kamer" is straightforward, but the existing empty-results test reaches that state by combining Ultra all inclusive with a Suite, and Suite is the filter being removed. With the default test fixture every other filter group is empty, so there is no second group left to produce an empty result. The test needs its own facet data before the removal can land with its coverage intact. Separately, "Thema\'s includes Adults Only" needs a decision: adultsOnly is a backend content facet while Adults Only is also one of the 14 themes, and they may not select the same hotels.' },
   'UI-24': { s: 'done', c: ['5bcfbd1'], note: 'The held flight moved out of the list and above it. Counts and facets still describe the whole matching set, because it matches the filters too.' },
   'UI-25': { s: 'done', c: ['3e07d2c'], note: 'No production code needed: all three criteria already held. Tests added so they keep holding.' },
   'UI-26': { s: 'other', c: [], note: 'Belongs to sunsky-admin, not this repo.' },
