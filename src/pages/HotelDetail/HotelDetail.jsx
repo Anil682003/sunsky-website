@@ -4432,7 +4432,9 @@ export default function HotelDetail() {
                             <div className={`av-price${priceMoved != null ? (priceMoved < 0 ? ' avail-moved-down' : ' avail-moved-up') : ''}`}>
                               {/* A lavender day has no estimate — €0 is not a price and must
                                   never be printed as one. A quiet dash says "nothing to quote". */}
-                              <div className="av-price-label">{liveRoom ? t('prices.livePrice', 'Live price') : pdEstimate ? t('prices.estimatedPrice', 'Estimated price') : ''}</div>
+                              {/* While the live check runs, the figure under it is the last known (cached,
+                                  indicative) price: never labelled "live" before it is (Ch 1 §8A). */}
+                              <div className="av-price-label">{liveBusy ? (pdEstimate || liveNow != null ? t('prices.lastKnownPrice', 'Last known price') : '') : liveRoom ? t('prices.livePrice', 'Live price') : pdEstimate ? t('prices.estimatedPrice', 'Estimated price') : ''}</div>
                               {/* PER PERSON is the headline, because that is the figure the fare
                                   strip beside it quotes and the one travellers compare on. The
                                   party total sits directly under it in words, so the number they
@@ -4457,7 +4459,7 @@ export default function HotelDetail() {
                                 </div>
                               )}
                               {(liveRoom || pdEstimate) && (
-                                <div className="av-price-total">
+                                <div className={`av-price-total${liveBusy ? ' av-price-known' : ''}`}>
                                   {/* The estimate stays on screen struck through: the traveller
                                       chose this day off that number and is owed an account of
                                       where it went. */}
@@ -4474,7 +4476,8 @@ export default function HotelDetail() {
                                     NOT in this figure, so calling it the total holiday price would
                                     be a straight untruth — the Book card below quotes a bigger
                                     number. On an own-transport stay the room IS the holiday. */}
-                                {liveRoom ? (transport === 'hotel_only'
+                                {liveBusy ? t('prices.checkingTodaysPrice', 'Checking today’s price…')
+                                  : liveRoom ? (transport === 'hotel_only'
                                   ? t('prices.totalHolidayPrice', { nights: dayLabel(nights), defaultValue: `Total holiday price · ${dayLabel(nights)}` })
                                   : useMatrix && liveNow != null
                                     ? t('prices.livePackagePrice', { nights: dayLabel(nights), defaultValue: `Live price, flight + hotel · ${dayLabel(nights)}` })

@@ -433,6 +433,8 @@
     "livePrice": "Live price",
     "livePriceUnavailable": "Live price unavailable",
     "livePriceUnavailableEstimate": "Live price unavailable — estimate shown",
+    "lastKnownPrice": "Last known price",
+    "checkingTodaysPrice": "Checking today’s price…",
     "liveRoomPrice": "Live room price · {{nights}}",
     "lower": "lower",
     "lowerAfterCheck": "lower after live check",

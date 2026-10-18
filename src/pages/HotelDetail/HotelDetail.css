@@ -1033,6 +1033,8 @@
   font-variant-numeric:tabular-nums lining-nums;
 }
 .sd .av-price-total b { font-weight:800; color:var(--text-sec); }
+/* The last known (cached) price while the live check runs: shown, but quiet — it is not live yet. */
+.sd .av-price-total.av-price-known { opacity:.55; }
 .sd .av-price-total .avail-price-old { color:var(--text-light); font-weight:600; margin-right:7px; text-decoration:line-through; }
 .sd .avail-move {
   display:inline-flex; align-items:center; gap:8px; margin-top:12px;

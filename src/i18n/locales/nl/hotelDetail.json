@@ -433,6 +433,8 @@
     "livePrice": "Live prijs",
     "livePriceUnavailable": "Live prijs niet beschikbaar",
     "livePriceUnavailableEstimate": "Live prijs niet beschikbaar — schatting getoond",
+    "lastKnownPrice": "Laatst bekende prijs",
+    "checkingTodaysPrice": "Prijs van vandaag wordt gecontroleerd…",
     "liveRoomPrice": "Live kamerprijs · {{nights}}",
     "lower": "lager",
     "lowerAfterCheck": "lager na live controle",
