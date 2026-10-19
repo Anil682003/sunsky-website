@@ -2,7 +2,9 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './PopularDest.module.css';
 import SectionHead from './SectionHead';
-import { groupLinkUrl, groupLinkLabel } from '../../../utils/cmsDestinations';
+import { groupLinkUrl, groupLinkLabel, linkEntry } from '../../../utils/cmsDestinations';
+import { ALL_INCLUSIVE } from '../../../utils/entryRules';
+import { useHolidayTypes } from '../../../api';
 import { TONES, inferGroupStyle, isGlyph } from '../../../utils/travelIcons';
 import { TravelGlyph } from '../../../components/TravelIcon/TravelIcon';
 
@@ -55,8 +57,13 @@ const linkLabel = (t, raw) => {
  * the card at once, plus the board type or holiday type if all of its links share it, so
  * "View all all-inclusive" keeps the All Inclusive board and "View all cities" searches
  * every city listed. Null when no link filters by anything.
+ *
+ * A shared value that is a door travels as `entry=`, by the same rule as a single link (see
+ * linkEntry in utils/cmsDestinations). "View all Last Minutes" is where it matters most: it
+ * is the one search that would otherwise ask for every place in the card at once AND a
+ * holiday type tagged on no hotel, so it was both the slowest and the emptiest link we had.
  */
-const combinedSearchUrl = (links, title) => {
+const combinedSearchUrl = (links, title, types) => {
   const objects = links.filter((l) => l && typeof l === 'object');
   const countries = new Set();
   const destinations = new Set();
@@ -72,12 +79,15 @@ const combinedSearchUrl = (links, title) => {
   };
   const board = shared('boardCode');
   const theme = shared('holidayTypeId');
+  const door = linkEntry({ boardCode: board, holidayTypeId: theme }, types);
+  const themeIsDoor = theme != null && linkEntry({ holidayTypeId: theme }, types) != null;
 
   const qs = new URLSearchParams();
   if (countries.size) qs.set('countries', [...countries].join(','));
   if (destinations.size) qs.set('destinations', [...destinations].join(','));
-  if (board) qs.set('boards', board.toUpperCase());
-  if (theme) qs.set('themes', theme);
+  if (door) qs.set('entry', door);
+  if (board && !(door === ALL_INCLUSIVE && board.toUpperCase() === 'AI')) qs.set('boards', board.toUpperCase());
+  if (theme && !themeIsDoor) qs.set('themes', theme);
   if ([...qs.keys()].length === 0) return null;
   if (title) qs.set('destinationLabel', title);
   qs.set('transport', 'package');   // homepage links open Flight + Hotel (utils/cmsDestinations)
@@ -91,16 +101,16 @@ const combinedSearchUrl = (links, title) => {
  * The links carry no emoji. A palm tree, a camel or a guardsman on every row read as
  * childish, and the client asked for the playful touches to go; the place name says it.
  */
-const resolveCard = (group, index, t) => {
+const resolveCard = (group, index, t, types) => {
   const auto = inferGroupStyle(group.title) || {};
   const links = (Array.isArray(group.links) ? group.links : []).map((l) => ({
     label: l && typeof l === 'object' ? groupLinkLabel(l) : linkLabel(t, l),
-    href: groupLinkUrl(l),
+    href: groupLinkUrl(l, types),
   }));
 
   const title = group.title || '';
   const custom = group.viewAll && typeof group.viewAll === 'object' ? group.viewAll : null;
-  const viewAllHref = (custom && groupLinkUrl({ ...custom, label: title })) || combinedSearchUrl(group.links || [], title);
+  const viewAllHref = (custom && groupLinkUrl({ ...custom, label: title }, types)) || combinedSearchUrl(group.links || [], title, types);
   const viewAllLabel = custom?.label?.trim()
     || t('popular.viewAll', { title: title.toLowerCase(), defaultValue: 'View all {{title}}' });
 
@@ -116,6 +126,9 @@ const resolveCard = (group, index, t) => {
 
 export default function PopularDest({ cms }) {
   const { t } = useTranslation('home');
+  // Shared across the page, so this costs no extra request: the catalogue is what turns a
+  // holiday-type id stored by the dashboard into the slug that says whether it is a door.
+  const { data: types } = useHolidayTypes();
   const sh = cms?.sectionHeaders?.popularDest;
   const tag      = sh?.tag      || t('popular.tag', 'Browse');
   const title    = sh?.title    || t('popular.title', 'Most popular destinations');
@@ -128,7 +141,7 @@ export default function PopularDest({ cms }) {
         title: t(`popular.groups.${c.key}.title`, c.title),
         count: t(`popular.groups.${c.key}.count`, c.count),
       }));
-  const cards = groups.map((g, i) => resolveCard(g, i, t));
+  const cards = groups.map((g, i) => resolveCard(g, i, t, types));
 
   return (
     <section className={styles.section}>

@@ -5,7 +5,7 @@
 // rather than in either page: the /holidays/:slug grid, and the expandable slip
 // on the homepage Categories card.
 
-import { entryOf } from './entryRules';
+import { entryOf, ALL_INCLUSIVE } from './entryRules.js';  // .js: scripts/warm-show-all.mjs imports this file under plain Node
 
 // Mirrors the CMS and backend caps (dashboard MAX_FEATURED_DESTINATIONS and the API's
 // normalizeFeaturedDestinations, which slices on read). All three move together: 24 clears the
@@ -67,6 +67,42 @@ export const destUrl = (d, holidayTypeId = null, entry = null, range = null) => 
   return `/results?${qs.toString()}`;
 };
 
+/** The slug the catalogue knows a holiday type by, from the id a CMS link stores. */
+const slugForTypeId = (id, types) => {
+  if (id == null || id === '') return '';
+  const row = (Array.isArray(types) ? types : []).find((t) => String(t?.id) === String(id));
+  return row?.slug || '';
+};
+
+/**
+ * PURE. The door a popular-destination link opens, or null for an ordinary link.
+ *
+ * Two of the dashboard's choices are doors rather than filters, and both were being sent as
+ * filters, which is why these links came back slow and empty:
+ *
+ *   Holiday type "Last Minutes" travelled as `themes=12`. That type is tagged on no hotel, so
+ *   the search intersected to nothing: every hotel in the scope was priced and then thrown
+ *   away. It is a departure window, not a hotel theme.
+ *
+ *   Board "All Inclusive" travelled as `boards=AI`, which is the AI code alone. The door means
+ *   the AI FAMILY, so Ultra All Inclusive and the mapped boards were being excluded from a link
+ *   whose whole promise is all-inclusive.
+ *
+ * The type is matched by its SLUG, never its id or its display name: ids are per-environment
+ * data, and the dashboard names this type "Last Minutes" while the entry is `last_minute`. The
+ * slug (`last-minute`) is what `entryOf` already normalises, which is also what UI-19 uses, so
+ * the two agree by construction rather than by a second list kept in step by hand.
+ *
+ * Without `types` nothing is recognised and the link keeps its old shape. That is deliberate:
+ * a caller that cannot resolve slugs should not guess from an id.
+ */
+export function linkEntry(link, types) {
+  const fromType = entryOf(slugForTypeId(link?.holidayTypeId, types));
+  if (fromType) return fromType;
+  if (String(link?.boardCode ?? '').trim().toUpperCase() === 'AI') return ALL_INCLUSIVE;
+  return null;
+}
+
 /**
  * A quick link under a "Most popular destinations" group. Any combination of a
  * place, a board type and a holiday type — "Turkey All Inclusive" is a country
@@ -76,15 +112,26 @@ export const destUrl = (d, holidayTypeId = null, entry = null, range = null) => 
  * Legacy entries are plain strings (label only) and stay unlinked.
  * Returns null when there is nothing to filter by, so the caller renders text.
  */
-export const groupLinkUrl = (link) => {
+export const groupLinkUrl = (link, types = null) => {
   if (!link || typeof link !== 'object') return null;
   const qs = new URLSearchParams();
   const d = link.dest;
   if (d && d.code && (d.type === 'country' || d.type === 'city')) {
     qs.set(d.type === 'country' ? 'countries' : 'destinations', String(d.code).trim().toUpperCase());
   }
-  if (link.boardCode) qs.set('boards', String(link.boardCode).trim().toUpperCase());
-  if (link.holidayTypeId != null && link.holidayTypeId !== '') {
+
+  const door = linkEntry(link, types);
+  if (door) qs.set('entry', door);
+
+  // The board still travels, unless the door already says it: `entry=all_inclusive` means the
+  // whole AI family, and adding `boards=AI` beside it would narrow straight back to one code.
+  const board = String(link.boardCode ?? '').trim().toUpperCase();
+  if (board && !(door === ALL_INCLUSIVE && board === 'AI')) qs.set('boards', board);
+
+  // A holiday type travels as a filter only when it is not itself a door. See the note above
+  // for why sending a door as `themes=` empties the search.
+  const typeIsDoor = entryOf(slugForTypeId(link.holidayTypeId, types)) != null;
+  if (!typeIsDoor && link.holidayTypeId != null && link.holidayTypeId !== '') {
     qs.set('themes', String(link.holidayTypeId));
   }
   if ([...qs.keys()].length === 0) return null;

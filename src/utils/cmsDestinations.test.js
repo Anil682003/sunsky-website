@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { sectionSearchUrl, destUrl, holidayScopeSearchUrl, dateRangeForHolidayType } from './cmsDestinations';
+import { sectionSearchUrl, destUrl, holidayScopeSearchUrl, dateRangeForHolidayType, groupLinkUrl, linkEntry } from './cmsDestinations';
 
 /**
  * The search behind every "Show all": one results link for every place a section shows. These
@@ -235,5 +235,80 @@ describe('a card range travels into the search', () => {
     const p = qsOf(destUrl({ type: 'country', code: 'ES', name: 'Spanje' }, 7, null, null));
     expect(p.get('startFrom')).toBeNull();
     expect(p.get('startTo')).toBeNull();
+  });
+});
+
+/**
+ * A popular-destination link carries a DOOR, not a filter, when the dashboard pointed it at
+ * Last Minutes or All Inclusive. Both were travelling as filters and that is what made these
+ * links slow and empty: holiday type 12 is tagged on no hotel, so themes=12 priced the whole
+ * scope and then discarded it, and boards=AI narrowed the all-inclusive card to one board code
+ * instead of the AI family. The server applies a door only where the traveller has not already
+ * chosen, so sending it costs nothing when they have.
+ */
+const TYPES = [
+  { id: 12, slug: 'last-minute', name: 'Last Minutes' },
+  { id: 13, slug: 'all-inclusive', name: 'All Inclusive' },
+  { id: 7, slug: 'city-trips', name: 'Stedentrips' },
+];
+
+describe('a popular-destination link opens the door the dashboard chose', () => {
+  it('sends the Last Minutes type as entry=last_minute and not as a theme', () => {
+    const q = params(groupLinkUrl({ dest: country('ES'), label: 'Last Minute Spanje', holidayTypeId: 12 }, TYPES));
+    expect(q.get('entry')).toBe('last_minute');
+    expect(q.get('themes')).toBeNull();
+    expect(q.get('countries')).toBe('ES');
+    expect(q.get('destinationLabel')).toBe('Last Minute Spanje');
+  });
+
+  it('sends an All Inclusive board as entry=all_inclusive, dropping boards=AI so the whole AI family stays', () => {
+    const q = params(groupLinkUrl({ dest: country('TR'), label: 'Turkije All Inclusive', boardCode: 'AI' }, TYPES));
+    expect(q.get('entry')).toBe('all_inclusive');
+    expect(q.get('boards')).toBeNull();
+    expect(q.get('countries')).toBe('TR');
+  });
+
+  it('recognises the All Inclusive holiday type too, not only the board', () => {
+    const q = params(groupLinkUrl({ dest: country('EG'), holidayTypeId: 13 }, TYPES));
+    expect(q.get('entry')).toBe('all_inclusive');
+    expect(q.get('themes')).toBeNull();
+  });
+
+  it('leaves an ordinary holiday type as the theme filter it is', () => {
+    const q = params(groupLinkUrl({ dest: city('PAR'), holidayTypeId: 7 }, TYPES));
+    expect(q.get('themes')).toBe('7');
+    expect(q.get('entry')).toBeNull();
+  });
+
+  it('keeps a board that is not all-inclusive, beside its door', () => {
+    const q = params(groupLinkUrl({ dest: country('ES'), boardCode: 'HB', holidayTypeId: 12 }, TYPES));
+    expect(q.get('entry')).toBe('last_minute');
+    expect(q.get('boards')).toBe('HB');
+  });
+
+  it('changes nothing when the catalogue has not loaded, rather than guessing from an id', () => {
+    const q = params(groupLinkUrl({ dest: country('ES'), holidayTypeId: 12 }, null));
+    expect(q.get('themes')).toBe('12');
+    expect(q.get('entry')).toBeNull();
+  });
+
+  it('does not treat a type merely NAMED like a door as one: only the slug counts', () => {
+    const q = params(groupLinkUrl({ dest: country('ES'), holidayTypeId: 99 }, [
+      { id: 99, slug: 'last-minute-deals', name: 'Last Minute' },
+    ]));
+    expect(q.get('entry')).toBeNull();
+    expect(q.get('themes')).toBe('99');
+  });
+
+  it('still returns null for a link with nothing to filter by', () => {
+    expect(groupLinkUrl({ label: 'Bali' }, TYPES)).toBeNull();
+    expect(groupLinkUrl('Bali', TYPES)).toBeNull();
+  });
+
+  it('linkEntry reads the slug, the board, or neither', () => {
+    expect(linkEntry({ holidayTypeId: 12 }, TYPES)).toBe('last_minute');
+    expect(linkEntry({ boardCode: 'ai' }, TYPES)).toBe('all_inclusive');
+    expect(linkEntry({ boardCode: 'HB', holidayTypeId: 7 }, TYPES)).toBeNull();
+    expect(linkEntry({}, TYPES)).toBeNull();
   });
 });

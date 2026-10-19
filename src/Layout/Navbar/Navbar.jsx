@@ -158,6 +158,11 @@ export default function Navbar() {
     navigate('/');
   };
 
+  // The holiday-type catalogue, read once for both menus below. It is what turns a stored
+  // holiday-type id into the slug that says whether a popular-destination link is a door
+  // (entry=last_minute / entry=all_inclusive) rather than a hotel-theme filter.
+  const { data: allTypes } = useHolidayTypes();
+
   // Popular destinations, drawn from the CMS popular-destination groups the homepage already
   // fetches — zero extra API calls. groupLinkUrl builds the right params per entry (whole
   // countries → ?countries=, cities → ?destinations=); unlinked legacy strings drop out.
@@ -168,7 +173,7 @@ export default function Navbar() {
     const out = [];
     for (const g of cmsConfig?.popularDestinationGroups ?? []) {
       for (const link of g?.links ?? []) {
-        const url = groupLinkUrl(link);
+        const url = groupLinkUrl(link, allTypes);
         const label = groupLinkLabel(link);
         if (!url || !label || seen.has(label)) continue;
         seen.add(label);
@@ -177,12 +182,11 @@ export default function Navbar() {
       }
     }
     return out;
-  }, [cmsConfig]);
+  }, [cmsConfig, allTypes]);
   const searchSuggestions = useMemo(() => popularDests.slice(0, 6), [popularDests]);
 
   // Top holiday types for the right-hand menu: the CMS featured list leads (dashboard order),
   // topped up from the full admin list to 5. Each opens its /holidays/:slug page.
-  const { data: allTypes } = useHolidayTypes();
   const topHolidayTypes = useMemo(() => {
     const seen = new Set();
     const out = [];
