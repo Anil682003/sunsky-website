@@ -1,0 +1,5 @@
+# The warmer runs as an executable script, so its first line is a shebang. Vite's import
+# analysis cannot parse a shebang that ends CRLF, which silently stopped its whole test file
+# from being collected (SyntaxError on the import line, 10 tests never run). core.autocrlf
+# would put the CRLF back on every checkout, so the ending is pinned here instead.
+scripts/*.mjs text eol=lf
