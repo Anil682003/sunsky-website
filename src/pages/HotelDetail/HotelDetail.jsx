@@ -3494,8 +3494,13 @@ export default function HotelDetail() {
         board: decodeEntities(r.boardName) || r.boardCode || '',
         price: r.sellingRate ?? r.net ?? r.price ?? null, currency: r.currency || 'EUR', supplier: r.supplier,
         // Prefer the supplier's explicit refundable flag (W2M sets it); else derive from policies.
+        // Hotelbeds states it in its rate class (NRF = non-refundable). Its cancellation
+        // policies cannot decide it: a refundable HB rate carries them too (charges from a
+        // date), which marked almost every HB rate non-refundable.
         refundable: r.refundable !== undefined ? r.refundable
+          : r.rateClass ? String(r.rateClass).toUpperCase() !== 'NRF'
           : (Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies.length === 0 : undefined),
+        rateClass: r.rateClass || null,
         cancellation: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies : [],
         rateKey: r.rateKey || null, roomCode: r.roomCode || null, boardCode: r.boardCode || null,
         net: r.net ?? null, dianaHotelId: r.dianaHotelId || null,
