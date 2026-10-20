@@ -14,7 +14,7 @@ import { flagUrl } from '../../../utils/countryFlag';
 import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
-import { useDestinationFeasibility, isAirportUnreachable } from '../../../hooks/useDestinationFeasibility';
+import { useDestinationFeasibility, isAirportUnreachable, visibleAirportGroups } from '../../../hooks/useDestinationFeasibility';
 import { usePackageDepartureDates, makeIsUnavailable, departureSummary } from '../../../hooks/usePackageDepartureDates';
 import { usePackageAirports } from '../../../hooks/usePackageAirports';
 
@@ -1172,6 +1172,15 @@ export default function Hero() {
     }))
     .sort((x, y) => x.order - y.order || x.name.localeCompare(y.name));
 
+  // An airport this search cannot fly from is left out rather than shown dead. The rule, and
+  // why dropping rows is safe when greying them was the contract's wording, is in
+  // visibleAirportGroups.
+  const { groups: visibleCountryGroups, hiddenCount: hiddenAirportCount } = visibleAirportGroups(
+    countryGroups,
+    reachableOrigins,
+    (code) => !noPreference && chosenOrigins.includes(code)
+  );
+
   // The country flag beside a name: a real image (flagcdn), because Windows has no flag
   // glyphs and would print the emoji as the bare letters "BE". The emoji stays as the
   // fallback for a country flagcdn doesn't know.
@@ -1315,7 +1324,7 @@ export default function Hero() {
             </button>
             <button type="button" role="radio" aria-checked={transport === 'hotel_only'}
               className={`${styles.tspTab} ${transport === 'hotel_only' ? styles.tspTabOn : ''}`}
-              onClick={() => { setTransport('hotel_only'); setOpenField(null); }}>
+              onClick={() => setTransport('hotel_only')}>
               <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8"/><path d="M4 10V6a2 2 0 012-2h12a2 2 0 012 2v4"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
               {t('hero.hotelOnly', 'Hotel only')}
             </button>
@@ -1350,9 +1359,15 @@ export default function Hero() {
                   <div className={styles.tspSectionLabel}>{t('hero.allDepartureAirports', 'All departure airports')}</div>
                   {countryGroups.length === 0 ? (
                     <div className={styles.tspEmpty}>{t('hero.transport.loading', 'Departure airports are loading…')}</div>
+                  ) : visibleCountryGroups.length === 0 ? (
+                    /* Every airport was ruled out. Saying so beats an empty panel that looks
+                       like a failed load, and "No preference" above still works. */
+                    <div className={styles.tspEmpty}>
+                      {t('hero.transport.noneForSearch', 'No departure airport can fly this search. Try other dates or another destination.')}
+                    </div>
                   ) : (
                     <div className={styles.tspCountryCols}>
-                      {countryGroups.map((g) => (
+                      {visibleCountryGroups.map((g) => (
                         <div className={styles.tspCountryGroup} key={g.iso + g.name}>
                           <div className={styles.tspCountryHead}>
                             {countryFlag(g, styles.tspCountryFlag)}
@@ -1363,6 +1378,18 @@ export default function Hero() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+                  {/* The airports are gone from the list but the fact is not: without this the
+                      traveller cannot tell a shorter list from a site that has forgotten
+                      Charleroi exists. */}
+                  {hiddenAirportCount > 0 && visibleCountryGroups.length > 0 && (
+                    <div className={styles.tspHiddenNote}>
+                      {t('hero.transport.hiddenAirports', {
+                        count: hiddenAirportCount,
+                        defaultValue_one: '{{count}} airport is not shown: it has no flights for this search.',
+                        defaultValue_other: '{{count}} airports are not shown: they have no flights for this search.',
+                      })}
                     </div>
                   )}
                 </div>
@@ -1452,6 +1479,35 @@ export default function Hero() {
                   >
                     {t('hero.transport.clearAll', 'Clear all')}
                     <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M3 6h18"/><path d="M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2"/><path d="M19 6l-1 14a2 2 0 01-2 2H8a2 2 0 01-2-2L5 6"/></svg>
+                  </button>
+                </div>
+              </div>
+            </>
+          )}
+          {transport === 'hotel_only' && (
+            /* Picking "Hotel only" used to close the panel on the spot. It was the only control
+               on the page that decided for the traveller that they were finished, it gave them
+               no moment to read what they had just chosen or to change their mind, and the tab
+               beside it behaved the other way. The panel stays open now and Save closes it, as
+               everywhere else. There is no airport list to show, so this says plainly why. */
+            <>
+              <div className={styles.tspHotelOnly}>
+                <span className={styles.tspHotelOnlyIcon} aria-hidden="true">
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8"/><path d="M4 10V6a2 2 0 012-2h12a2 2 0 012 2v4"/><line x1="2" y1="20" x2="22" y2="20"/></svg>
+                </span>
+                <div>
+                  <div className={styles.tspHotelOnlyTitle}>
+                    {t('hero.transport.hotelOnlyTitle', 'No flight included')}
+                  </div>
+                  <div className={styles.tspHotelOnlySub}>
+                    {t('hero.transport.hotelOnlySub', "We'll search accommodation only, so there is no departure airport to choose.")}
+                  </div>
+                </div>
+              </div>
+              <div className={styles.tspFoot}>
+                <div className={styles.tspFootActions}>
+                  <button type="button" className={styles.tspSave} onClick={() => setOpenField(null)}>
+                    {t('hero.transport.save', 'Save')}
                   </button>
                 </div>
               </div>

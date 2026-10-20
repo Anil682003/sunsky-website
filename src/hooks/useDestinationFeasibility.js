@@ -73,6 +73,44 @@ export function isAirportUnreachable(code, reachable, chosen = false) {
 }
 
 /**
+ * PURE. The departure list with the airports this search cannot use taken out of it.
+ *
+ * A column of dead grey rows reads as a broken page and the traveller can act on none of it,
+ * so they are dropped instead. What makes that safe rather than a lie is `isAirportUnreachable`
+ * above: it answers false while the feasibility answer is loading or failed, and false for an
+ * airport already ticked. So an UNKNOWN is never hidden, and a choice the traveller made never
+ * vanishes from under them (Ch1 §9A). Hiding is only ever applied to a proven negative.
+ *
+ * A country group left with no airports is dropped too: a flag and "BELGIUM" with nothing
+ * under it looks worse than the rows it replaced.
+ *
+ * `hiddenCount` is returned so the panel can admit that the list is shorter than the full
+ * roster, which is the one thing greying did better than hiding.
+ *
+ * @param groups    [{ airports: [{ code }], ... }]
+ * @param reachable Set of usable airports, or null when the answer is not trustworthy
+ * @param isChosen  (code) => boolean — is this airport already ticked?
+ * @returns {{ groups: Array, hiddenCount: number }}
+ */
+export function visibleAirportGroups(groups, reachable, isChosen = () => false) {
+  const list = Array.isArray(groups) ? groups : [];
+  let hiddenCount = 0;
+
+  const kept = list
+    .map((g) => {
+      const airports = (g.airports || []).filter((a) => {
+        const hide = isAirportUnreachable(a?.code, reachable, !!isChosen(a?.code));
+        if (hide) hiddenCount += 1;
+        return !hide;
+      });
+      return { ...g, airports };
+    })
+    .filter((g) => g.airports.length > 0);
+
+  return { groups: kept, hiddenCount };
+}
+
+/**
  * @param q  enabled, origin, from?, to?, travelDays?, adults, children, childAges?
  * @returns {{ unreachable: Set<string>|null, state: 'idle'|'loading'|'ok'|'error' }}
  *          `unreachable` is null in every state except a trustworthy 'ok'.

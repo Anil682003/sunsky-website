@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { unreachableDestinations, isCountryUnreachable, isAirportUnreachable } from './useDestinationFeasibility';
+import { unreachableDestinations, isCountryUnreachable, isAirportUnreachable, visibleAirportGroups } from './useDestinationFeasibility';
 
 /**
  * UI-05 / Ch1 §9A. A destination is greyed only when the cache can PROVE no round trip reaches
@@ -107,5 +107,69 @@ describe('isAirportUnreachable', () => {
   it('codes are matched without caring about case', () => {
     expect(isAirportUnreachable('bru', reachable)).toBe(false);
     expect(isAirportUnreachable('anr', reachable)).toBe(true);
+  });
+});
+
+/**
+ * Hiding, rather than greying, the departure airports this search cannot use.
+ *
+ * The contract's wording is "keep it visible with Not available". Dropping the row is only
+ * defensible because the two things that rule protects, an unknown answer and a choice the
+ * traveller already made, are exactly the two cases that never reach the filter. These tests
+ * exist to keep that true: if hiding ever starts eating an unknown or a ticked airport, the
+ * change has stopped being cosmetic and has started lying to the customer.
+ */
+describe('visibleAirportGroups', () => {
+  const groups = [
+    { iso: 'BE', airports: [{ code: 'BRU' }, { code: 'CRL' }, { code: 'ANR' }] },
+    { iso: 'DE', airports: [{ code: 'DUS' }, { code: 'NRN' }] },
+  ];
+  const reachable = new Set(['BRU', 'DUS']);
+  const codesOf = (gs) => gs.flatMap((g) => g.airports.map((a) => a.code));
+
+  it('drops the airports that cannot fly, and counts them', () => {
+    const out = visibleAirportGroups(groups, reachable);
+    expect(codesOf(out.groups)).toEqual(['BRU', 'DUS']);
+    expect(out.hiddenCount).toBe(3);
+  });
+
+  it('hides nothing while the answer is unknown', () => {
+    // The whole list stays. A loading or failed feasibility check must never read as
+    // "these airports do not exist".
+    for (const notAnswer of [null, undefined]) {
+      const out = visibleAirportGroups(groups, notAnswer);
+      expect(codesOf(out.groups)).toEqual(['BRU', 'CRL', 'ANR', 'DUS', 'NRN']);
+      expect(out.hiddenCount).toBe(0);
+    }
+  });
+
+  it('never hides an airport the traveller has already ticked', () => {
+    // Charleroi no longer works for this search, but they chose it. It stays, and stays
+    // greyed by isAirportUnreachable, so they can see what broke and change it themselves.
+    const out = visibleAirportGroups(groups, reachable, (code) => code === 'CRL');
+    expect(codesOf(out.groups)).toContain('CRL');
+    expect(out.hiddenCount).toBe(2);
+  });
+
+  it('drops a country left with no airports, rather than leaving a bare flag', () => {
+    const out = visibleAirportGroups(groups, new Set(['DUS']));
+    expect(out.groups.map((g) => g.iso)).toEqual(['DE']);
+  });
+
+  it('returns nothing to draw when every airport is ruled out', () => {
+    const out = visibleAirportGroups(groups, new Set(['XXX']));
+    expect(out.groups).toEqual([]);
+    expect(out.hiddenCount).toBe(5);
+  });
+
+  it('does not mutate the groups it was given', () => {
+    const before = JSON.parse(JSON.stringify(groups));
+    visibleAirportGroups(groups, reachable);
+    expect(groups).toEqual(before);
+  });
+
+  it('survives a malformed group', () => {
+    expect(visibleAirportGroups(null, reachable)).toEqual({ groups: [], hiddenCount: 0 });
+    expect(visibleAirportGroups([{ iso: 'BE' }], reachable)).toEqual({ groups: [], hiddenCount: 0 });
   });
 });
