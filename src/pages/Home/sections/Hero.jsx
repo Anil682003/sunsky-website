@@ -214,7 +214,10 @@ export default function Hero() {
 
   // The dashboard's own hero copy wins when it has any; these are what shows until
   // then, and they follow the reader's language.
-  const [cmsBadge, setCmsBadge]         = useState('');
+  // null, not '': the dashboard emptying the badge is a REAL choice ("no badge"), and the
+  // only way to tell it from "never configured" is to keep the unset case out of the string
+  // space entirely. Same rule the title parts below already follow.
+  const [cmsBadge, setCmsBadge]         = useState(null);
   const [cmsTitle, setCmsTitle]         = useState('');
   // The dashboard's three-part title, once it has one. Null means it is still on
   // the older single field and renderHeroTitle reads that instead.
@@ -225,7 +228,9 @@ export default function Hero() {
   useEffect(() => {
     const hero = cmsConfig?.hero;
     if (!hero) return;
-    if (hero.badgeText)        setCmsBadge(hero.badgeText);
+    // != null, not truthiness: the API sends badgeText:"" for a badge the dashboard
+  // cleared, and a truthy test threw that answer away and re-showed the built-in text.
+    if (hero.badgeText != null) setCmsBadge(hero.badgeText);
     if (hero.title)            setCmsTitle(hero.title);
     // An empty highlight is a real choice (a title with no accent), so the parts
     // count as set when ANY of the three has been written, not when all have.
@@ -297,6 +302,10 @@ export default function Hero() {
     }
     return () => { alive = false; };
   }, [packageBgUrl, flightBgUrl]);
+
+  // The badge the hero shows: unset falls back to the shipped line, while set-and-empty
+  // renders no badge at all — clearing the field in the dashboard is how you remove it.
+  const badgeText = cmsBadge == null ? t('hero.badge', 'Holidays at guaranteed best prices') : cmsBadge;
 
   // A layer shows once it has something to show: either a CMS photo that has finished
   // decoding, or no CMS photo at all, in which case its built-in image is already in the CSS.
@@ -1660,9 +1669,7 @@ export default function Hero() {
       </div>
 
       <div className={styles.content}>
-        <div className={styles.badge}>
-          {cmsBadge || t('hero.badge', 'Holidays at guaranteed best prices')}
-        </div>
+        {badgeText && <div className={styles.badge}>{badgeText}</div>}
 
         <h1 className={styles.title}>
           {renderHeroTitleParts(cmsTitleParts || {}, styles.script)
