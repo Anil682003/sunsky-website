@@ -447,7 +447,14 @@
   padding:0 26px 16px;
 }
 .tspTab {
-  flex:1;
+  /* Sized to the label, not to the panel. These used to be flex:1, which split the 960px
+     panel between two two-word buttons and gave each one about 450px of pill for "Incl.
+     flight" — the control read as the main thing on the panel rather than a choice above
+     the airport list. The min-width keeps the two matched so they still look like one
+     segmented control, and the phone rule below puts the stretching back where the panel
+     is actually narrow. */
+  flex:0 0 auto;
+  min-width:176px;
   display:inline-flex;
   align-items:center;
   justify-content:center;
@@ -1593,6 +1600,9 @@
   .tspPanel { left:0; right:0; margin-left:0; width:auto; max-height:min(85vh, 700px); }
   .tspHead    { padding:18px 16px 12px; }
   .tspTabs    { padding:0 16px 14px; gap:8px; }
+  /* Back to sharing the row here: two 176px pills plus the gap overflow a 375px phone,
+     and on a panel this narrow filling the width is the right answer anyway. */
+  .tspTab     { flex:1 1 0; min-width:0; }
   /* The card keeps its text; the pin drawing is the first thing to go, since it is
      decorative and a phone's width belongs to the words. */
   .tspAny { width:calc(100% - 32px); margin:0 16px; padding:13px 14px; }
