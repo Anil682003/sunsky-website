@@ -40,7 +40,7 @@ describe('remembering the last search', () => {
     saveSearch(A_TRIP);
     const back = loadSearch();
 
-    expect(back.countries).toEqual([{ id: 7, code: 'TR', name: 'Turkey' }]);
+    expect(back.countries[0]).toMatchObject({ id: 7, code: 'TR', name: 'Turkey' });
     expect(back.places[0]).toMatchObject({ type: 'city', code: 'AYT', name: 'Antalya' });
     expect(back.date).toBe(A_TRIP.date);
     expect(back.flexDays).toBe(2);
@@ -161,9 +161,49 @@ describe('what is refused', () => {
   it('keeps only the fields the picker needs, not whatever the modal was holding', () => {
     saveSearch({
       ...A_TRIP,
-      countries: [{ id: 7, code: 'TR', name: 'Turkey', hotelCount: 812, expanded: true, children: [1, 2] }],
+      countries: [{
+        id: 7, code: 'TR', name: 'Turkey', isoCode: 'TR', flag: '', flagUrl: 'https://flagcdn.com/tr.svg',
+        // Everything below was true while the modal was open and is not worth a week's storage.
+        hotelCount: 812, expanded: true, children: [1, 2],
+      }],
     });
-    expect(Object.keys(loadSearch().countries[0]).sort()).toEqual(['code', 'id', 'name']);
+    expect(Object.keys(loadSearch().countries[0]).sort())
+      .toEqual(['code', 'flag', 'flagUrl', 'id', 'isoCode', 'name']);
+  });
+
+  /**
+   * Two things the cleaner used to drop that the picker could not do without. Both showed up
+   * as the same complaint: "I reopened it and it had forgotten what I picked."
+   */
+  it('brings the flag back with the country, so the field and the modal can draw it', () => {
+    saveSearch({
+      ...A_TRIP,
+      countries: [{ id: 7, code: 'TR', name: 'Turkey', isoCode: 'TR', flagUrl: 'https://flagcdn.com/tr.svg' }],
+    });
+    const back = loadSearch().countries[0];
+    expect(back.flagUrl).toBe('https://flagcdn.com/tr.svg');
+    // isoCode travels with it: countryName() translates the country's name by it.
+    expect(back.isoCode).toBe('TR');
+  });
+
+  it('brings a place back with the identity the modal ticks it by', () => {
+    saveSearch({
+      ...A_TRIP,
+      places: [{ type: 'city', id: 41, key: 'city-41', code: 'AYT', name: 'Antalya', countryId: 7 }],
+    });
+    const back = loadSearch().places[0];
+    expect(back.id).toBe(41);
+    // Rebuilt from type + id rather than trusted from storage, so the two cannot disagree.
+    expect(back.key).toBe('city-41');
+  });
+
+  it('leaves a place with no id unkeyed rather than inventing one', () => {
+    // A record written before ids were stored. It restores, and simply does not pre-tick.
+    saveSearch({ ...A_TRIP, places: [{ type: 'city', code: 'AYT', name: 'Antalya', countryId: 7 }] });
+    const back = loadSearch().places[0];
+    expect(back.id).toBeNull();
+    expect(back.key).toBeUndefined();
+    expect(back.code).toBe('AYT');
   });
 
   it('refuses a flex window outside the range the calendar offers', () => {

@@ -57,15 +57,34 @@ const futureDate = (v) => (isIsoDate(v) && v >= todayISO() ? v : '');
 /**
  * Keep only the fields the picker actually needs to rebuild a selection.
  *
- * Whatever the destination modal handed over may carry flags, counts and nested lists that
+ * Whatever the destination modal handed over may carry counts and nested place lists that
  * were true when it was open; storing the shape wholesale would put a week-old copy of that
  * back into the form. `code` is what the search sends and `name` is what the field shows.
+ *
+ * "Needs to rebuild" is the whole bar, and this used to fall short of it twice over:
+ *
+ *   The FLAG was dropped, so a remembered country came back with no `flagUrl` and no `flag`,
+ *   and both the search field's flag strip and the modal's country block fell through to the
+ *   white-flag emoji. A flag URL is a CDN file named after an ISO code — it does not go stale
+ *   the way a place count does, so there was nothing to protect against. `isoCode` went with
+ *   it, which is what countryName() translates the country's name by.
+ *
+ *   The place IDENTITY was dropped. The modal matches a selected place by `${type}-${id}`,
+ *   and `id` was not kept, so a restored place could never match the row it came from: the
+ *   footer counted "3 selected" while not one chip in the list showed as ticked.
  */
 const cleanCountries = (list) =>
   (Array.isArray(list) ? list : [])
     .filter((c) => c && (c.code || c.id))
     .slice(0, MAX_COUNTRIES)
-    .map((c) => ({ id: c.id ?? null, code: str(c.code, 8), name: str(c.name) }));
+    .map((c) => ({
+      id: c.id ?? null,
+      code: str(c.code, 8),
+      name: str(c.name),
+      isoCode: str(c.isoCode, 8),
+      flag: str(c.flag, 8),
+      flagUrl: str(c.flagUrl, 300),
+    }));
 
 const cleanPlaces = (list) =>
   (Array.isArray(list) ? list : [])
@@ -73,11 +92,18 @@ const cleanPlaces = (list) =>
     .slice(0, MAX_PLACES)
     .map((p) => ({
       type: p.type,
+      // The id the modal keys a tick by. Kept alongside `key` rather than instead of it, so a
+      // record written before this change still restores: the modal rebuilds the key from
+      // type + id, and an older record simply has neither and behaves as it did.
+      id: p.id ?? null,
       code: str(p.code, 8),
       name: str(p.name),
       countryId: p.countryId ?? null,
       countryCode: str(p.countryCode, 8),
-    }));
+      countryIso: str(p.countryIso, 8),
+      countryName: str(p.countryName),
+    }))
+    .map((p) => (p.id == null ? p : { ...p, key: `${p.type}-${p.id}` }));
 
 const cleanOrigins = (list) =>
   (Array.isArray(list) ? list : [])
