@@ -21,7 +21,11 @@
 
 .btn {
   min-width: 0;
-  padding: 4px 12px;
+  /* The flag sits on the code's baseline-ish centre, so the button is a flex row. */
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 10px;
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -34,6 +38,24 @@
   transition: background 0.2s var(--ease, cubic-bezier(.22,1,.36,1)),
               color 0.2s var(--ease, cubic-bezier(.22,1,.36,1));
 }
+/* 18x12 keeps the flag below the cap height of the 0.72rem code beside it, so it reads
+   as a mark on the label rather than a second element competing with it. The hairline
+   stops a white-heavy flag (the Union Jack) dissolving into the bar behind it. */
+.flag {
+  width: 18px;
+  height: 12px;
+  flex-shrink: 0;
+  display: block;
+  border-radius: 2px;
+  box-shadow: 0 0 0 1px rgba(15, 40, 100, 0.14);
+  /* The inactive language is dimmed, flag and all, so "which one am I reading" stays
+     legible at a glance; the colour alone was doing that job before. */
+  opacity: 0.55;
+  transition: opacity 0.2s var(--ease, cubic-bezier(.22,1,.36,1));
+}
+.btn:hover .flag { opacity: 1; }
+.btnOn .flag { opacity: 1; }
+
 .btn:hover { background: transparent; color: var(--blue-deep, #1F4FD8); }
 .btn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 2px; }
 
@@ -53,7 +75,9 @@
   padding: 9px 12px;
   font-size: 0.78rem;
 }
+/* Thumb-sized sheet, so the flag grows with the label. */
+.compact .flag { width: 21px; height: 14px; }
 
 @media (prefers-reduced-motion: reduce) {
-  .btn { transition: none; }
+  .btn, .flag { transition: none; }
 }

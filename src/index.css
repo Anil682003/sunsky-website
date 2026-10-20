@@ -72,12 +72,15 @@
      hand in six files (60px, and 52px on mobile), which is why the navbar
      stylesheet carries three separate comments warning not to change it.
      Navbar.module.css sets the bar to exactly this; nothing else should
-     hardcode it. Currently 11px of breathing room above and below a 56px
+     hardcode it. Currently 16px of breathing room above and below a 56px
      logo, which is the tallest thing in the bar. */
-  --nav-h: 78px;
-  /* The header bar: the soft cream (a softened --sun-warm) it wore before 2026-09-18, which
-     the client asked to keep. The mobile drawer drops out of it in the same colour. */
-  --nav-bg: #FFFBF2;
+  --nav-h: 88px;
+  /* The header bar wears the hero search bar's glass, so the two read as one surface:
+     the same near-white, the same blur and saturate on .nav (and on the mobile drawer that
+     drops out of it). Over the hero photo it lets the image through the way the search bar
+     does; over a white page it simply reads white. */
+  --nav-bg: rgba(255,255,255,0.9);
+  --nav-blur: blur(24px) saturate(160%);
 }
 
 *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }

@@ -2,6 +2,26 @@ import { useTranslation } from 'react-i18next';
 import styles from './LanguageSwitch.module.css';
 import { SUPPORTED_LANGUAGES, setLanguage } from '../../i18n';
 
+/* 3:2 flags, drawn to the box so the two sit at identical weight in the bar. */
+const FlagBE = () => (
+  <svg viewBox="0 0 9 6" className={styles.flag} aria-hidden="true" focusable="false">
+    <rect width="3" height="6" x="0" fill="#2D2926" />
+    <rect width="3" height="6" x="3" fill="#FAE042" />
+    <rect width="3" height="6" x="6" fill="#ED2939" />
+  </svg>
+);
+const FlagGB = () => (
+  <svg viewBox="0 0 60 40" className={styles.flag} aria-hidden="true" focusable="false">
+    <rect width="60" height="40" fill="#012169" />
+    <path d="M0 0l60 40M60 0L0 40" stroke="#FFF" strokeWidth="8" />
+    <path d="M0 0l60 40M60 0L0 40" stroke="#C8102E" strokeWidth="4" />
+    <path d="M30 0v40M0 20h60" stroke="#FFF" strokeWidth="13" />
+    <path d="M30 0v40M0 20h60" stroke="#C8102E" strokeWidth="8" />
+  </svg>
+);
+/* Closed list, like entryOf: a language with no flag here simply shows its code. */
+const FLAGS = { nl: FlagBE, en: FlagGB };
+
 /**
  * The language control in the header.
  *
@@ -11,10 +31,16 @@ import { SUPPORTED_LANGUAGES, setLanguage } from '../../i18n';
  * third language is ever added this should become a menu; two is the number that
  * makes a toggle the right shape.
  *
- * NOT a flag. Flags are countries, not languages: Dutch is not Dutch-the-country
- * here, English is not the United Kingdom, and a Belgian site labelling Dutch
- * with a Netherlands flag would be its own small insult. Short codes, with the
- * full language name carried for screen readers.
+ * A flag beside each code, at the client's request. Flags are countries rather than
+ * languages, which is why this used to carry codes alone, so the pairing is chosen to be
+ * the least wrong one available: Dutch here is the Dutch of BELGIUM, the country the
+ * agency trades in, so it flies the Belgian flag and never the Netherlands'. English gets
+ * the Union Jack, the convention every Belgian travel site uses for it.
+ *
+ * The flag is decorative only (aria-hidden): the accessible name stays the full language
+ * name, so a screen reader still hears "Nederlands", not "flag of Belgium". Drawn inline
+ * rather than set as an emoji — Windows ships no flag glyphs at all, so an emoji flag
+ * renders there as two bare letters in a box.
  *
  * Switching does not reload. i18next re-renders whatever is on screen, so the
  * reader keeps their place, their scroll position and anything they had typed.
@@ -32,6 +58,7 @@ export default function LanguageSwitch({ className = '', compact = false }) {
       {SUPPORTED_LANGUAGES.map((lng) => {
         const active = lng === current;
         const name = t(`language.${lng}`, lng.toUpperCase());
+        const Flag = FLAGS[lng];
         return (
           <button
             key={lng}
@@ -45,6 +72,7 @@ export default function LanguageSwitch({ className = '', compact = false }) {
             aria-label={active ? name : t('language.switchTo', { language: name, defaultValue: `Switch to ${name}` })}
             onClick={() => setLanguage(lng)}
           >
+            {Flag && <Flag />}
             {lng.toUpperCase()}
           </button>
         );

@@ -296,6 +296,11 @@ export default function Navbar() {
           on mobile, where it moves into the drawer. */}
       {showHeaderSearch && (
         <div className={styles.headerSearch}>
+          {/* The two browse menus sit together as one pair, left of the ticket, rather than
+              flanking it. Two matching dropdowns either side of the search read as two
+              unrelated controls; side by side they read as one "browse" group, and the
+              search keeps the bar's only other job to itself. */}
+          <div className={styles.headerMenus}>
           <HeaderMenu
             label={t('nav.popularDestinations', 'Popular destinations')}
             buttonIcon={<MenuGlobe />}
@@ -313,9 +318,6 @@ export default function Navbar() {
               onPick: () => goToSuggestion(d.url),
             }))}
           />
-          <div className={styles.searchGrow}>
-            <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
-          </div>
           <HeaderMenu
             label={t('nav.holidayTypes', 'Holiday types')}
             buttonIcon={<TypeSun />}
@@ -324,7 +326,10 @@ export default function Navbar() {
               defaultValue_one: '{{count}} holiday type',
               defaultValue_other: '{{count}} holiday types',
             })}
-            align="right"
+            // Both panels now drop from the left of the pair, so both draw their golden
+            // thread the same way; "right" belonged to the menu that used to sit at the
+            // cluster's right edge.
+            align="left"
             // `type`, not `t`: the parameter was called `t` and shadowed the
             // translation function, so `t(...)` inside it called a holiday-type
             // object. It only crashed where the CMS actually returns types.
@@ -336,6 +341,10 @@ export default function Navbar() {
               onPick: () => { navigate(`/holidays/${type.slug}`); },
             }))}
           />
+          </div>
+          <div className={styles.searchGrow}>
+            <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
+          </div>
         </div>
       )}
 
@@ -408,16 +417,19 @@ export default function Navbar() {
           </div>
         ) : (
           <div className={styles.authBtns}>
-            <Link
-              to="/login"
-              className={`${styles.signInBtn} ${dark ? styles.signInDark : styles.signInLight}`}
-            >
-              <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            {/* One pill carrying both ways in, split by a slash, rather than a quiet text
+                link beside a loud orange button. Still TWO links inside it: sign in and
+                register are different destinations, and collapsing them into a single
+                control would make the traveller pick again on the next screen. The slash
+                is aria-hidden so a screen reader reads two plain links, not "slash". */}
+            <Link to="/login" className={styles.authPillLink}>
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
               {t('nav.signIn', 'Sign In')}
             </Link>
-            <Link to="/register" className={styles.registerBtn}>
+            <span className={styles.authPillSlash} aria-hidden="true">/</span>
+            <Link to="/register" className={styles.authPillLink}>
               {t('nav.register', 'Register')}
             </Link>
           </div>

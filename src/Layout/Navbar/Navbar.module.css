@@ -1,18 +1,25 @@
 /* ── Base nav ── */
 /* One appearance in every state — the bar no longer goes transparent over the
-   hero. Scrolling only compacts it and deepens the shadow. The background is a
-   flat warm cream, so no backdrop blur is needed behind it. */
+   hero. Scrolling only compacts it and deepens the shadow. The surface is the hero
+   search bar's glass (--nav-bg + --nav-blur), so the bar and the search bar beneath it read
+   as the same material. The contents stay dark in every state: 0.9 alpha over a blur
+   is near-white on any backdrop, photo included. */
 .nav {
   position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
   /* Explicit, not padding-driven. The height is the contract every other stylesheet
      depends on, so it is stated once here and read from --nav-h everywhere else. */
   height: var(--nav-h);
   box-sizing: border-box;
-  padding: 0 36px;
+  /* 48, up from 36: the logo and the auth pill sat close to the window edge once the
+     bar grew taller, and the extra air is what makes the taller bar read as deliberate
+     rather than simply stretched. */
+  padding: 0 48px;
   display: flex; align-items: center; justify-content: space-between;
   gap: 32px;
   transition: padding 0.45s var(--ease), box-shadow 0.45s var(--ease);
   background: var(--nav-bg);
+  backdrop-filter: var(--nav-blur);
+  -webkit-backdrop-filter: var(--nav-blur);
   box-shadow: 0 2px 14px rgba(15,40,100,0.05);
 }
 .scrolled, .solid {
@@ -82,22 +89,52 @@
 .headerSearch {
   flex: 1 1 auto; min-width: 0;
   /* Capped so it doesn't stretch absurdly on an ultra-wide screen; centred
-     within whatever space flex:1 gives it once the cap is hit. */
-  max-width: 1200px; margin: 0 auto;
-  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+     within whatever space flex:1 gives it once the cap is hit. 1040, down from 1200:
+     the cluster's own centre is the midpoint between the logo and the auth block, which
+     are not the same width, so a narrower cap pulls the group back toward the middle of
+     the window without resorting to absolute positioning (which broke this twice). */
+  max-width: 1040px; margin: 0 auto;
+  /* Centred, not space-between. With the menus paired on one side there are only two
+     children left, and space-between would shove them to opposite edges with a canyon
+     of air between. Centring keeps the pair and the ticket reading as one cluster. */
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+}
+/* The browse pair: Popular destinations + Holiday types, side by side. */
+.headerMenus {
+  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
 }
 .searchGrow {
   /* Fixed, not growing — the ticket stays one size whether idle, focused, or
      the viewport is wide. flex-shrink (not grow) lets it narrow gracefully
-     if the cluster itself is tight, but it never stretches past 620px, which
-     is also the dropdown's width — the panel is never wider than the field
-     it drops from. Whatever room the cluster has beyond menus + this fixed
-     620px is spent as flanking air (space-between), not on the ticket. */
-  flex: 0 1 620px; min-width: 0; max-width: 620px;
+     if the cluster itself is tight, but it never stretches past this width.
+     The dropdown is left:0/right:0 against this box, so the panel follows the
+     field and the two can never disagree. 460, down from 620: with both menus
+     now on its left the cluster is wider, the ticket no longer needs to carry the
+     bar's whole middle on its own, and the width it gives back is what lets the
+     group shift toward the window's centre (see the pad below). */
+  flex: 0 1 460px; min-width: 0; max-width: 460px;
+}
+
+/* ── Pulling the middle group toward the window's centre ──
+   The group sits left of centre because its two flanks are not the same weight: the logo
+   is ~112px, while the language switch plus the auth pill come to ~390px. Measured at
+   1600px the group's centre landed 142px left of the window's.
+
+   It cannot simply be centred. Centred exactly, its right edge runs under the language
+   switch — which is the overlap this cluster has already been rebuilt twice to avoid, so
+   it is not worth risking again for a cosmetic nudge. Instead the cluster carries a left
+   pad, which moves the centred content right by half the pad, and the pad is capped where
+   the group still clears the language switch with room to spare (at 1600px: centre 721
+   instead of 658, right edge 1139 against a switch starting at 1154).
+
+   Only above 1180px: below that .hmWrap hides and the ticket IS the cluster, so a pad
+   would just shove a lone search box sideways. */
+@media (min-width: 1181px) {
+  .headerSearch { padding-left: clamp(0px, 8vw, 130px); }
 }
 
 /* The flanking menus need elbow room; below ~1180px they yield it, and the
-   ticket's own flex-basis (620, shrinking) takes over the solo width. */
+   ticket's own flex-basis (shrinking) takes over the solo width. */
 @media (max-width: 1180px) {
   .hmWrap { display: none; }
   .trustpilotSlot { display: none; }
@@ -244,66 +281,49 @@
 @media (max-width: 900px) { .langSlot { display: none; } }
 
 .authArea { display: flex; align-items: center; flex-shrink: 0; }
-.authBtns { display: flex; align-items: center; gap: 10px; }
 
-/* The three auth controls — signed-in, signed-out, register — are pinned to one explicit
-   height so they agree with each other. They no longer decide the bar's height; --nav-h
-   does. Tuning by padding still does not hold, though: font leading and fractional border
-   rendering both shift the result. */
-.signInBtn, .registerBtn, .avatarBtn { height: 38px; box-sizing: border-box; }
-
-.signInBtn {
-  padding: 0 16px; line-height: 1; border-radius: var(--r-full);
-  font-size: 13px; font-weight: 700; font-family: 'Sora', sans-serif;
-  transition: all 0.3s var(--ease); white-space: nowrap;
-  text-decoration: none; display: inline-flex; align-items: center; gap: 7px;
-}
-.signInBtn svg { opacity: 0.75; }
-.signInLight {
-  color: rgba(255,255,255,0.92);
-  border: 0;
-  background: transparent;
-}
-.signInLight:hover {
-  background: transparent;
-  color: #fff;
-}
-.signInDark {
-  color: var(--text-sec);
-  border: 0;
-  background: transparent;
-}
-.signInDark:hover {
-  background: transparent;
-  color: var(--blue-deep);
-}
-
-.registerBtn {
-  padding: 0 20px; line-height: 1; border-radius: var(--r-full);
+/* ── Signed-out: one pill, "Sign in / Register" ──
+   The pill is the orange CTA the Register button used to be; both labels now sit on it,
+   so the bar has ONE call to action instead of a quiet link losing to a loud button
+   beside it. White ink on the gradient, never dark: the client has asked for that twice. */
+.authBtns {
+  display: inline-flex; align-items: center; gap: 2px;
+  height: 38px; box-sizing: border-box;
+  padding: 0 6px;
+  border-radius: var(--r-full);
   background: var(--cta-grad);
-  color: var(--cta-ink); text-shadow: var(--cta-ink-shadow);
-  font-size: 13px; font-weight: 700;
-  font-family: 'Sora', sans-serif;
   box-shadow: 0 2px 8px rgba(194,84,10,0.22);
   transition: filter 0.2s var(--ease), box-shadow 0.2s var(--ease);
-  position: relative; overflow: hidden;
-  display: inline-flex; align-items: center; gap: 10px;
-  text-decoration: none; white-space: nowrap;
 }
-.registerBtn:hover {
+.authBtns:hover {
   filter: brightness(1.06);
   box-shadow: 0 4px 12px rgba(194,84,10,0.3);
 }
-.registerArrow {
-  width: 24px; height: 24px; border-radius: 50%;
-  background: rgba(255,255,255,0.24);
-  display: flex; align-items: center; justify-content: center;
-  transition: transform 0.3s var(--ease), background 0.3s;
+/* Each half keeps its own hit area and its own focus ring — they are two destinations
+   wearing one pill, not one button. */
+.authPillLink {
+  display: inline-flex; align-items: center; gap: 6px;
+  padding: 0 11px; height: 30px; border-radius: var(--r-full);
+  color: var(--cta-ink); text-shadow: var(--cta-ink-shadow);
+  font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+  line-height: 1; white-space: nowrap; text-decoration: none;
+  transition: background 0.2s var(--ease);
 }
-.registerBtn:hover .registerArrow {
-  background: rgba(255,255,255,0.34);
-  transform: translateX(2px);
+.authPillLink:hover { background: rgba(255,255,255,0.18); }
+.authPillLink:focus-visible { outline: 2px solid #fff; outline-offset: -2px; }
+.authPillLink svg { opacity: 0.85; }
+.authPillSlash {
+  color: rgba(255,255,255,0.55);
+  font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 500;
+  line-height: 1; user-select: none;
 }
+
+/* The signed-IN control still pins its own height so it agrees with the signed-out pill
+   above. It no longer decides the bar's height; --nav-h does. Tuning by padding still does
+   not hold, though: font leading and fractional border rendering both shift the result.
+   The old .signInBtn / .registerBtn / .registerArrow rules went with the two separate
+   buttons they styled; the mobile drawer has always had its own pair. */
+.avatarBtn { height: 38px; box-sizing: border-box; }
 
 /* ── User avatar dropdown ── */
 .userMenu { position: relative; }
@@ -401,8 +421,11 @@
 /* ── Mobile drawer ── */
 .mobile {
   position: absolute; top: 100%; left: 0; right: 0;
-  /* Matches the bar it drops out of */
+  /* Matches the bar it drops out of, glass and all — without the blur the drawer would
+     be the one translucent surface with page content legible straight through it. */
   background: var(--nav-bg);
+  backdrop-filter: var(--nav-blur);
+  -webkit-backdrop-filter: var(--nav-blur);
   padding: 12px 16px 20px;
   box-shadow: var(--shadow-lg);
   border-top: 1px solid rgba(0,0,0,0.05);
