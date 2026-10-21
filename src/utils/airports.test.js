@@ -2,7 +2,7 @@ import { describe, it, expect, afterEach } from 'vitest';
 import {
   DEPARTURE_AIRPORTS, AIRPORT_CODES, POPULAR_AIRPORTS, OTHER_AIRPORTS,
   DEFAULT_ORIGIN, airportLabel, airportCity, normaliseOrigin, airportToValue,
-  setDepartureAirports, getDepartureAirports, isDepartureAirport, parseOrigins, byPopularThenOrder,
+  setDepartureAirports, getDepartureAirports, isDepartureAirport, parseOrigins, byPopularThenOrder, departureGroups,
 } from './airports';
 
 describe('the departure-airport list', () => {
@@ -188,5 +188,57 @@ describe('popular departure airports come first (UI-18)', () => {
     // how the dashboard happened to serialise the field.
     setDepartureAirports([{ code: 'AAA', popular: 'yes', sortOrder: 9 }, a('BRU', true, 9)]);
     expect(getDepartureAirports()[0].code).toBe('BRU');
+  });
+});
+
+/**
+ * The departure picker groups by country, and that grouping is what made the dashboard's
+ * "Popular departure" toggle invisible: the registry arrives popular-first, then the panel
+ * scattered those airports across Belgium, Germany and the Netherlands.
+ */
+describe('departureGroups: popular airports lead the picker', () => {
+  const BRU = { code: 'BRU', countryIso: 'BE', popular: true, sortOrder: 10 };
+  const CRL = { code: 'CRL', countryIso: 'BE', sortOrder: 20 };
+  const AMS = { code: 'AMS', countryIso: 'NL', sortOrder: 30 };
+  const DUS = { code: 'DUS', countryIso: 'DE', popular: true, sortOrder: 90 };
+  const ORDER = { BE: 1, NL: 2, DE: 3 };
+  const opts = { popularLabel: 'Popular', labelFor: (iso) => iso, countryOrder: ORDER };
+  const groups = (list) => departureGroups(list, opts);
+
+  it('puts the popular ones first, in one group of their own', () => {
+    const g = groups([CRL, AMS, BRU, DUS]);
+    expect(g[0]).toMatchObject({ popular: true, name: 'Popular' });
+    expect(g[0].airports.map((a) => a.code)).toEqual(['BRU', 'DUS']);
+  });
+
+  it('does not repeat a popular airport under its country', () => {
+    const g = groups([CRL, AMS, BRU, DUS]);
+    const everywhere = g.flatMap((x) => x.airports.map((a) => a.code));
+    expect(everywhere.filter((c) => c === 'BRU')).toHaveLength(1);
+    // Germany's only airport was popular, so Germany is gone rather than left empty.
+    expect(g.map((x) => x.iso)).toEqual([null, 'BE', 'NL']);
+  });
+
+  it('keeps the agency country order below the popular group', () => {
+    const g = groups([AMS, CRL, BRU]);
+    expect(g.map((x) => x.iso)).toEqual([null, 'BE', 'NL']);
+  });
+
+  it('leaves the panel alone when nothing is marked popular', () => {
+    const g = groups([CRL, AMS]);
+    expect(g.some((x) => x.popular)).toBe(false);
+    expect(g.map((x) => x.iso)).toEqual(['BE', 'NL']);
+  });
+
+  it('leaves the panel alone when EVERY airport is popular, rather than labelling the whole list', () => {
+    const g = groups([BRU, DUS]);
+    expect(g.some((x) => x.popular)).toBe(false);
+    expect(g.map((x) => x.iso)).toEqual(['BE', 'DE']);
+  });
+
+  it('survives junk without throwing', () => {
+    expect(() => departureGroups(null, opts)).not.toThrow();
+    expect(() => departureGroups([null, undefined, BRU], opts)).not.toThrow();
+    expect(departureGroups([], opts)).toEqual([]);
   });
 });

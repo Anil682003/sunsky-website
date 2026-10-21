@@ -243,3 +243,47 @@ export const airportToValue = (a) => {
     : (a.city || a.name || a.code);
   return `${label} (${a.code})`;
 };
+
+/**
+ * The departure picker's groups, in the order it shows them.
+ *
+ * The panel groups airports by COUNTRY, and that grouping is what used to bury the agency's
+ * POPULAR setting: the registry arrives popular-first (byPopularThenOrder above), and then the
+ * panel scattered those airports across Belgium, Germany and the Netherlands, so marking one
+ * popular in the dashboard had no visible effect whatsoever. The popular ones now lead, in a
+ * group of their own.
+ *
+ * ORDER ONLY, exactly as the flag is defined (Master §12B.6). "No preference" still compares
+ * every active departure airport, so this moves no price, no count and no from-price.
+ *
+ * A popular airport is taken OUT of its country group rather than repeated in it: the same
+ * airport twice in one list reads as two different airports. And the split only happens when
+ * there is something to split — if EVERY airport is popular the heading would be labelling the
+ * whole list, so the panel is left exactly as it was.
+ *
+ * PURE. `labelFor(iso)` names a country and `popularLabel` names the leading group, both passed
+ * in because the words are translated and this file holds no translations.
+ *
+ * @returns [{ iso, emoji, name, order, popular?, airports }]
+ */
+export function departureGroups(airports, { popularLabel = 'Popular', labelFor = (iso) => iso || '', countryOrder = {} } = {}) {
+  const all = Array.isArray(airports) ? airports.filter(Boolean) : [];
+  const popular = all.filter((a) => a.popular);
+  const split = popular.length > 0 && popular.length < all.length;
+
+  const byCountry = new Map();
+  for (const a of split ? all.filter((x) => !x.popular) : all) {
+    const iso = String(a.countryIso || '').toUpperCase();
+    const key = iso || a.country || '??';
+    if (!byCountry.has(key)) byCountry.set(key, { iso, emoji: a.country || '', airports: [] });
+    byCountry.get(key).airports.push(a);
+  }
+
+  const countries = [...byCountry.values()]
+    .map((g) => ({ ...g, name: labelFor(g.iso) || g.emoji || '', order: countryOrder[g.iso] ?? 99 }))
+    .sort((x, y) => x.order - y.order || x.name.localeCompare(y.name));
+
+  return split
+    ? [{ iso: null, emoji: '', popular: true, name: popularLabel, order: -1, airports: popular }, ...countries]
+    : countries;
+}

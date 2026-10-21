@@ -9,7 +9,7 @@ import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { cmsText } from '../../../utils/cmsText';
 import { DURATION_BANDS, bandByLabel, stayDaysToNights, stayCheckOut, packageReturnDate } from '../../../utils/durations';
 import AirportSearch from '../../../components/AirportSearch/AirportSearch';
-import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
+import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso, departureGroups } from '../../../utils/airports';
 import { flagUrl, flagSrc } from '../../../utils/countryFlag';
 import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { countryName } from '../../../utils/countryName';
@@ -1192,20 +1192,13 @@ export default function Hero() {
   // decides the word rather than whatever the dashboard stored.
   const groupName = (iso) => countryName(iso, i18n.language, iso || '');
 
-  // Group the airports by country, then sort those groups so the home countries lead.
-  const groups = new Map();
-  for (const a of allAirports) {
-    const key = airportIso(a) || a.country || '??';
-    if (!groups.has(key)) groups.set(key, { iso: airportIso(a), emoji: a.country || '', airports: [] });
-    groups.get(key).airports.push(a);
-  }
-  const countryGroups = [...groups.values()]
-    .map((g) => ({
-      ...g,
-      name: groupName(g.iso) || g.emoji || '',
-      order: COUNTRY_ORDER[g.iso] ?? 99,
-    }))
-    .sort((x, y) => x.order - y.order || x.name.localeCompare(y.name));
+  // The groups the panel shows, popular airports leading — see departureGroups in
+  // utils/airports for why the country grouping made the dashboard's Popular setting invisible.
+  const countryGroups = departureGroups(allAirports, {
+    popularLabel: t('hero.transport.popularAirports', 'Popular departure airports'),
+    labelFor: groupName,
+    countryOrder: COUNTRY_ORDER,
+  });
 
   // An airport this search cannot fly from is left out rather than shown dead. The rule, and
   // why dropping rows is safe when greying them was the contract's wording, is in
@@ -1403,9 +1396,13 @@ export default function Hero() {
                   ) : (
                     <div className={styles.tspCountryCols}>
                       {visibleCountryGroups.map((g) => (
-                        <div className={styles.tspCountryGroup} key={g.iso + g.name}>
+                        <div className={styles.tspCountryGroup} key={g.popular ? 'popular' : g.iso + g.name}>
                           <div className={styles.tspCountryHead}>
-                            {countryFlag(g, styles.tspCountryFlag)}
+                            {/* The popular group has no country, so it wears a star where the
+                                others wear a flag. */}
+                            {g.popular
+                              ? <svg className={styles.tspCountryFlag} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M12 2.6l2.9 5.9 6.5.9-4.7 4.6 1.1 6.5-5.8-3-5.8 3 1.1-6.5L2.6 9.4l6.5-.9z"/></svg>
+                              : countryFlag(g, styles.tspCountryFlag)}
                             <span className={styles.tspCountryName}>{g.name}</span>
                           </div>
                           <div className={styles.tspCountryList}>

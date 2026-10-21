@@ -234,6 +234,7 @@
       "mode": "Transport mode",
       "inclFlight": "Incl. flight",
       "noPreference": "No preference",
+      "popularAirports": "Popular departure airports",
       "noPreferenceSub": "Search all available departure airports",
       "noPreferenceNote": "We'll search all available departure airports",
       "or": "or",
