@@ -18,8 +18,16 @@
 /** Board shown when a rate carries no board information at all — never invent a meal plan. */
 export const NO_BOARD_LABEL = 'Standard rate';
 
-const roomKeyOf = (r) => String(r.roomCode || r.name || 'Room').trim().toLowerCase() || 'room';
+// THE ROOM HEADING is the visible room name, 100% identical after whitespace cleanup (Master /
+// Build Step 49; case kept): offers from several suppliers or room codes under the same name
+// are grouped for presentation. Grouping by the supplier ROOM CODE showed one name several
+// times (Hotelbeds and W2M codes differ; W2M even used a per-offer token as code) — the
+// duplicates Levent reported on 18 Oct 2026. Presentation only: each option keeps its own
+// original rate (index → rateKey/bookingCode, supplier, room code).
+const roomKeyOf = (r) => String(r.name || 'Room').replace(/\s+/g, ' ').trim() || 'Room';
 const boardKeyOf = (r) => String(r.boardCode || r.board || '').trim().toUpperCase() || '__none__';
+/** Cancellation class of a rate: 'NR' / 'RF' / 'UNKNOWN' (ROOM-P1 §5). */
+const classOf = (r) => (r.refundable === false ? 'NR' : r.refundable === true ? 'RF' : 'UNKNOWN');
 
 /**
  * A bookable price, or null.
@@ -51,11 +59,11 @@ export function groupRoomsByBoard(rooms) {
     if (price == null) return;
 
     const rk = roomKeyOf(r);
-    if (!byRoom.has(rk)) {
-      byRoom.set(rk, { key: rk, name: String(r.name || 'Room').trim() || 'Room', boards: new Map() });
-    }
+    if (!byRoom.has(rk)) byRoom.set(rk, { key: rk, name: rk, boards: new Map() });
     const group = byRoom.get(rk);
-    const bk = boardKeyOf(r);
+    // Per board AND cancellation class the cheapest rate: a refundable option is no longer
+    // dropped because a non-refundable one is cheaper (ROOM-P1 §5: NR first, RF alongside).
+    const bk = `${boardKeyOf(r)}|${classOf(r)}`;
     const prev = group.boards.get(bk);
     // Strictly cheaper wins, so an equal-priced later duplicate never reshuffles the list.
     if (!prev || price < prev.price) {
@@ -63,10 +71,27 @@ export function groupRoomsByBoard(rooms) {
         ...r,
         price,
         index,
+        cancelClass: classOf(r),
         boardLabel: String(r.board || r.boardCode || '').trim() || NO_BOARD_LABEL,
       });
     }
   });
+  // Which classes stay per board (ROOM-P1 §5): a refundable rate STRICTLY cheaper than the
+  // non-refundable one makes it redundant; at an equal price both stay (no blind suppression).
+  // An UNKNOWN rate stays only when it is cheaper than every confirmed one of that board.
+  for (const g of byRoom.values()) {
+    const byBoard = new Map();
+    for (const [k, b] of g.boards) {
+      const board = k.slice(0, k.lastIndexOf('|'));
+      if (!byBoard.has(board)) byBoard.set(board, {});
+      byBoard.get(board)[b.cancelClass] = k;
+    }
+    for (const cls of byBoard.values()) {
+      const p = (c) => (cls[c] ? g.boards.get(cls[c]).price : Infinity);
+      if (cls.NR && cls.RF && p('RF') < p('NR')) g.boards.delete(cls.NR);
+      if (cls.UNKNOWN && Math.min(p('NR'), p('RF')) <= p('UNKNOWN')) g.boards.delete(cls.UNKNOWN);
+    }
+  }
 
   return [...byRoom.values()]
     .map((g) => {

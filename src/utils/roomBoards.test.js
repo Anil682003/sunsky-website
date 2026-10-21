@@ -67,12 +67,39 @@ describe('groupRoomsByBoard', () => {
     expect(groups[0].cheapest.price).toBe(120);
   });
 
-  it('separates rooms that share a name but not a code', () => {
+  it('one heading per identical visible name, whatever the supplier or room code (Step 49)', () => {
     const groups = groupRoomsByBoard([
-      rate({ name: 'Double Sea View', roomCode: 'DBL-A', price: 100 }),
-      rate({ name: 'Double Sea View', roomCode: 'DBL-B', price: 150 }),
+      rate({ name: 'Double Sea View', roomCode: 'DBL-A', price: 150, supplier: 'hotelbeds' }),
+      rate({ name: 'Double  Sea View ', roomCode: null, price: 100, supplier: 'w2m' }),
+      rate({ name: 'DOUBLE SEA VIEW', roomCode: 'X', price: 90 }),          // not identical: own heading
     ]);
-    expect(groups).toHaveLength(2);
+    expect(groups.map((g) => g.name)).toEqual(['DOUBLE SEA VIEW', 'Double Sea View']);
+    const sea = groups.find((g) => g.name === 'Double Sea View');
+    expect(sea.boards).toHaveLength(1);
+    expect(sea.boards[0].supplier).toBe('w2m');                            // the cheapest keeps its own rate
+    expect(sea.boards[0].index).toBe(1);
+  });
+
+  it('non-refundable cheaper: the refundable option stays beside it (ROOM-P1 §5)', () => {
+    const g = groupRoomsByBoard([
+      rate({ name: 'Double', price: 100, refundable: false }),
+      rate({ name: 'Double', price: 130, refundable: true }),
+    ])[0];
+    expect(g.boards.map((b) => [b.cancelClass, b.price])).toEqual([['NR', 100], ['RF', 130]]);
+  });
+
+  it('refundable strictly cheaper replaces the non-refundable; equal prices keep both', () => {
+    const cheaper = groupRoomsByBoard([rate({ name: 'D', price: 120, refundable: false }), rate({ name: 'D', price: 110, refundable: true })])[0];
+    expect(cheaper.boards.map((b) => b.cancelClass)).toEqual(['RF']);
+    const equal = groupRoomsByBoard([rate({ name: 'D', price: 120, refundable: false }), rate({ name: 'D', price: 120, refundable: true })])[0];
+    expect(equal.boards.map((b) => b.cancelClass).sort()).toEqual(['NR', 'RF']);
+  });
+
+  it('an unknown cancellation class stays only when cheaper than every confirmed one', () => {
+    const shown = groupRoomsByBoard([rate({ name: 'D', price: 90 }), rate({ name: 'D', price: 100, refundable: true })])[0];
+    expect(shown.boards.map((b) => b.cancelClass).sort()).toEqual(['RF', 'UNKNOWN']);
+    const hidden = groupRoomsByBoard([rate({ name: 'D', price: 110 }), rate({ name: 'D', price: 100, refundable: false })])[0];
+    expect(hidden.boards.map((b) => b.cancelClass)).toEqual(['NR']);
   });
 
   it('groups by name when no room code is supplied (Diana has none)', () => {
@@ -84,7 +111,7 @@ describe('groupRoomsByBoard', () => {
     expect(groups[0].boards).toHaveLength(2);
   });
 
-  it('room grouping ignores case and padding in the key', () => {
+  it('room codes do not split a heading', () => {
     const groups = groupRoomsByBoard([
       rate({ name: 'Double', roomCode: ' dbl ', price: 100 }),
       rate({ name: 'Double', roomCode: 'DBL', price: 120, boardCode: 'BB', board: 'Bed and Breakfast' }),
