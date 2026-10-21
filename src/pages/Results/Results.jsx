@@ -1406,6 +1406,11 @@ export default function Results() {
       maxAdultsPerRoom:   maxA,
       maxChildrenPerRoom: maxC,
     };
+    // Several rooms: the exact split per room (one room needs none, and leaving it out keeps the
+    // default search on the cache entry the warmers fill).
+    if (roomsCount > 1 && /^\d+-\d+(,\d+-\d+)*$/.test(fp.occupancy || '') && fp.occupancy.split(',').length === roomsCount) {
+      body.occupancy = fp.occupancy;
+    }
     const ages = fp.childAges || ca;
     if (ages) body.childAges = ages;
 
@@ -2384,6 +2389,9 @@ export default function Results() {
       childDobs:          allChildDobs.filter(Boolean).length === allChildDobs.length ? allChildDobs.join(',') : '',
       maxAdultsPerRoom:   String(maxAdultsPerRoom),
       maxChildrenPerRoom: String(maxChildrenPerRoom),
+      // Who sleeps in which room, "adults-children" per room: the cache prices each room for its
+      // real party (Master Step 19/20) instead of N copies of the fullest room.
+      occupancy:          roomsConfig.map((r) => `${r.adults}-${r.children}`).join(','),
     }));
     // Committed, so it is worth remembering for the next visit (48 hours, utils/paxStore).
     // Only here, on the traveller's own "Update search" — arriving on a link somebody else
