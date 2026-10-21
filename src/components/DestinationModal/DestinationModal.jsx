@@ -490,7 +490,11 @@ export default function DestinationModal({
                                 <div className={styles.chips}>
                                   {bucket.cities.map((item) => {
                                     const key = placeKey('city', item.id);
-                                    const active = selectedKeys.has(key);
+                                    // Same identity as renderChips below. A city WITH a theme
+                                    // renders here instead of there, and this copy kept the
+                                    // id-based test after the other was fixed — which is why
+                                    // Bodrum, under "Zonvakanties", still came back unticked.
+                                    const active = selectedKeys.has(draftKey('city', groupCtx.countryId, item.code));
                                     return (
                                       <button
                                         key={key}

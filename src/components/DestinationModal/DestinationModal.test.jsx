@@ -58,7 +58,10 @@ const PLACES_TR = {
   countryId: 3, code: 'TR', isoCode: 'TR', name: 'Turkije', flagUrl: 'https://flagcdn.com/tr.svg',
   regions: [],
   cities: [
-    { id: 1470, code: 'BJV', name: 'Bodrum' },
+    // THEMED: a city with a theme renders through the grouped branch, not renderChips.
+    // Bodrum is themed on the live data, and that branch kept the old id-based tick after the
+    // other one was fixed, so the bug survived in exactly the place it was reported from.
+    { id: 1470, code: 'BJV', name: 'Bodrum', themes: [{ id: 1, name: 'Zonvakanties', icon: '☀' }] },
     { id: 1471, code: 'DID', name: 'Didim' },
   ],
 };
