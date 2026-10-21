@@ -293,20 +293,7 @@ export default function Navbar() {
           </span>
         )}
       </Link>
-      </div>
-
-      {/* Centered search — home page only. A REAL flex child between the logo and the auth
-          block (not absolutely positioned) so the browser's own layout fills the gap between
-          them — it can never overlap either side, on any resize, with no JS measurement. Hidden
-          on mobile, where it moves into the drawer. */}
-      {showHeaderSearch && (
-        <div className={styles.headerSearch}>
-          {/* The two browse menus sit together as one pair, left of the ticket, rather than
-              flanking it. Two matching dropdowns either side of the search read as two
-              unrelated controls; side by side they read as one "browse" group, and the
-              search keeps the bar's only other job to itself. */}
-          <div className={styles.headerMenus}>
-          <HeaderMenu
+      <HeaderMenu
             label={t('nav.popularDestinations', 'Popular destinations')}
             buttonIcon={<MenuGlobe />}
             tally={t('nav.destinations', {
@@ -346,7 +333,14 @@ export default function Navbar() {
               onPick: () => { navigate(`/holidays/${type.slug}`); },
             }))}
           />
-          </div>
+      </div>
+
+      {/* Centered search — home page only. A REAL flex child between the logo and the auth
+          block (not absolutely positioned) so the browser's own layout fills the gap between
+          them — it can never overlap either side, on any resize, with no JS measurement. Hidden
+          on mobile, where it moves into the drawer. */}
+      {showHeaderSearch && (
+        <div className={styles.headerSearch}>
           <div className={styles.searchGrow}>
             <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
           </div>

@@ -38,6 +38,10 @@ export default function HeaderMenu({ label, buttonIcon, tally, items, align = 'l
         onClick={() => setOpen((o) => !o)}
         aria-expanded={open}
         aria-haspopup="menu"
+        // The label is hidden below 1500px to give the search ticket its width back, so the
+        // button carries the name itself rather than borrowing it from the span.
+        aria-label={label}
+        title={label}
       >
         <span className={styles.hmBtnIcon}>{buttonIcon}</span>
         <span className={styles.hmBtnLabel}>{label}</span>

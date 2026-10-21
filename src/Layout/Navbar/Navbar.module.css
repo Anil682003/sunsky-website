@@ -27,18 +27,28 @@
 }
 
 /* ── The two flanks ──
-   Equal flex weight and a zero basis, so whatever room the cluster does not take is split
-   evenly between them — which lands the cluster on the WINDOW's centre rather than on the
-   midpoint between two unequal neighbours. That midpoint is what the old pad was chasing by
-   hand; it was always an approximation, because the right-hand side changes width with the
-   language, with signing in, and with whether the Trustpilot slot has anything in it.
+   Equal flex weight, so whatever room the ticket does not take is split evenly between them
+   and the ticket stays on the window's centre rather than on the midpoint between two
+   unequal neighbours.
 
-   Flex, not absolute positioning: the cluster still sits in normal flow between these two,
+   Basis AUTO, not 0. With the browse menus moved up beside the logo the left flank carries
+   about 520px and the right about 370, and a zero basis made both grow to the SAME width:
+   230px of dead air sat inside the right flank while the search ticket was squeezed to
+   228px and its placeholder was clipped mid-word. Sizing to content first and sharing only
+   the leftover keeps the two balanced wherever there is slack, and spends the slack on the
+   ticket instead of on empty space when there is not.
+
+   Flex, not absolute positioning: the ticket still sits in normal flow between these two,
    so it cannot be made to overlap either of them by a resize. That overlap is the failure
    this bar has already been rebuilt twice to avoid, and it is the reason the obvious
    "left:50%; translateX(-50%)" is not used here. */
 .navSide {
-  flex: 1 1 0;
+  /* Content width, and it does NOT grow. Growing is what starved the ticket: with grow:1
+     here and grow:0 on the ticket, every spare pixel went to the flanks — 300px of it into
+     empty space inside them — while the ticket sat on its 260px floor with the placeholder
+     clipped. Now the spare goes to the ticket, and the flanks still shrink if the bar is
+     genuinely too tight. */
+  flex: 0 1 auto;
   min-width: 0;
   display: flex; align-items: center;
   gap: 24px;
@@ -109,37 +119,42 @@
 .headerSearch {
   /* Content width, not flex:1. Growing would make it eat the flanks' share and the whole
      equal-flank arrangement above would mean nothing. It still SHRINKS (the 1 in the
-     middle), so on a tight bar the ticket narrows rather than anything overlapping. */
-  flex: 0 1 auto; min-width: 0;
-  /* Capped so it doesn't stretch absurdly on an ultra-wide screen; centred
-     within whatever space flex:1 gives it once the cap is hit. 1040, down from 1200:
-     the cluster's own centre is the midpoint between the logo and the auth block, which
-     are not the same width, so a narrower cap pulls the group back toward the middle of
-     the window without resorting to absolute positioning (which broke this twice). */
-  max-width: 1040px; margin: 0 auto;
-  /* Centred, not space-between. With the menus paired on one side there are only two
-     children left, and space-between would shove them to opposite edges with a canyon
-     of air between. Centring keeps the pair and the ticket reading as one cluster. */
+     middle), so on a tight bar the ticket narrows rather than anything overlapping.
+
+     No max-width and no auto margins: the ticket inside carries the cap, and an auto margin
+     here would quietly swallow the space this is meant to be handing to it.
+
+     This is the piece that GROWS. The ticket itself still refuses to stretch past its own
+     max-width, so the extra room becomes air either side of a fixed-size ticket rather than
+     a stretched band. */
+  flex: 1 1 auto; min-width: 0;
   display: flex; align-items: center; justify-content: center; gap: 14px;
 }
-/* The browse pair: Popular destinations + Holiday types, side by side. */
-.headerMenus {
-  display: flex; align-items: center; gap: 4px; flex-shrink: 0;
-}
 .searchGrow {
-  /* Fixed, not growing — the ticket stays one size whether idle, focused, or
-     the viewport is wide. flex-shrink (not grow) lets it narrow gracefully
-     if the cluster itself is tight, but it never stretches past this width.
-     The dropdown is left:0/right:0 against this box, so the panel follows the
-     field and the two can never disagree. 460, down from 620: with both menus
-     now on its left the cluster is wider, the ticket no longer needs to carry the
-     bar's whole middle on its own, and the width it gives back is what lets the
-     group shift toward the window's centre (see the pad below). */
-  flex: 0 1 460px; min-width: 0; max-width: 460px;
+  /* Never grows past this, so the ticket is one size on a wide screen rather than a
+     stretched band, and the dropdown (left:0/right:0 against this box) follows it exactly.
+
+     It still shrinks when the bar is tight, but only to the floor. Below about 260px the
+     placeholder — "Search city, region or hotel" — is clipped mid-word, which is the
+     complaint this width answers; once the floor is reached the flanks give way instead of
+     the ticket. */
+  flex: 0 1 560px; min-width: 260px; max-width: 560px;
 }
 
 /* The flanking menus need elbow room; below ~1180px they yield it, and the
    ticket's own flex-basis (shrinking) takes over the solo width. */
+/* ── Where the browse menus give room back ──
+   The two menus sit beside the logo, which puts ~520px on the left of the bar. Below about
+   1500px that leaves the search ticket on its 260px floor, cramped, on exactly the widths
+   most laptops use (1280, 1366, 1440).
+
+   So the LABELS go first and the buttons stay: a globe and a sun with their chevrons, which
+   is ~240px back for the ticket while the navigation itself survives. The trigger carries
+   aria-label and title, so the name is still there for a screen reader and on hover.
+   Only below 1180 do the menus go entirely. */
+@media (max-width: 1500px) {
+  .hmBtnLabel { display: none; }
+}
 @media (max-width: 1180px) {
   .hmWrap { display: none; }
   .trustpilotSlot { display: none; }
