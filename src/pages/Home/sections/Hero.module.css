@@ -1632,9 +1632,24 @@
 @media(max-width:768px) {
   .searchBar { flex-direction:column; border-radius:var(--r-lg); padding:16px; gap:0; }
   .sf { padding:14px 16px; }
-  /* Stacked fields are full-width — the panel follows suit instead of the wide 960px
-     desktop layout that would spill off a phone screen. Sidebar drops below the list. */
-  .tspPanel { left:0; right:0; margin-left:0; width:auto; max-height:min(85vh, 700px); }
+  /* On a phone the panel is a BOTTOM SHEET, not a dropdown.
+     Hung under the field it starts wherever the field happens to sit: measured on a 390x844
+     screen it opened at y=726 and ran to 1405, so Save was 560px below the fold. On iOS the
+     last stretch of that also sits behind Safari's toolbar, which is how it was reported —
+     "the save button is behind the website url". Pinned to the viewport instead, Save is
+     always the thing immediately above the browser's own chrome.
+
+     dvh, not vh: iOS measures vh against the viewport with the toolbar HIDDEN, so a vh-sized
+     sheet is taller than what is actually on screen and puts its own footer out of reach
+     again. The vh line stays first as the fallback for anything without dvh. */
+  .tspPanel {
+    position:fixed;
+    top:auto; bottom:0; left:0; right:0;
+    margin-left:0; width:auto; max-width:none;
+    max-height:min(85vh, 700px);
+    max-height:min(85dvh, 700px);
+    border-radius:20px 20px 0 0;
+  }
   .tspHead    { padding:18px 16px 12px; }
   .tspTabs    { padding:0 16px 14px; gap:8px; }
   /* Back to sharing the row here: two 176px pills plus the gap overflow a 375px phone,
@@ -1648,8 +1663,10 @@
   .tspOr { margin:12px 16px; }
   .tspBody    { padding:0 16px 4px; grid-template-columns:1fr; gap:16px; }
   /* A phone has no room for the count and both buttons on one line — the actions drop to
-     their own row underneath, Save taking the width it deserves as the primary one. */
-  .tspFoot    { padding:12px 16px 16px; flex-wrap:wrap; gap:10px; }
+     their own row underneath, Save taking the width it deserves as the primary one.
+     The extra bottom padding is the home indicator and, on a notchless phone, nothing: an
+     unsupported env() resolves to 0, so this is just 16px there. */
+  .tspFoot    { padding:12px 16px calc(16px + env(safe-area-inset-bottom)); flex-wrap:wrap; gap:10px; }
   .tspFootActions { width:100%; }
   .tspSave    { flex:1; padding:12px 20px; }
   .tspCountryCols { column-count:1; }

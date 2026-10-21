@@ -473,13 +473,21 @@ export default function Hero() {
     const panel = field ? wrap.querySelector('[data-panel]') : null;
     const stacked = panel ? window.matchMedia?.(STACKED_QUERY) : null;
     if (!stacked) return undefined;
+    // A panel the stylesheet turns into a BOTTOM SHEET on a phone (position:fixed, bottom:0)
+    // positions itself against the viewport and needs none of this. Writing an inline `top`
+    // onto one is actively harmful: with both a top and a bottom set and no height, it
+    // stretches between them, which squeezed the scrolling list to 4px and pushed the footer
+    // — the Save button — clean off the bottom of the screen.
+    const isSheet = () => getComputedStyle(panel).position === 'fixed';
     const place = () => {
+      if (isSheet()) { panel.style.top = ''; return; }
       panel.style.top = stacked.matches
         ? `${field.getBoundingClientRect().bottom - wrap.getBoundingClientRect().top + 8}px`
         : '';
     };
     place();
-    if (stacked.matches && panel.getBoundingClientRect().bottom > window.innerHeight) {
+    // Nor does a sheet need the page scrolled under it: it is already against the viewport.
+    if (!isSheet() && stacked.matches && panel.getBoundingClientRect().bottom > window.innerHeight) {
       const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 0;
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       window.scrollTo({
