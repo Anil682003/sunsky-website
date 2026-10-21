@@ -15,7 +15,7 @@
      rather than simply stretched. */
   padding: 0 48px;
   display: flex; align-items: center; justify-content: space-between;
-  gap: 32px;
+  gap: 24px;
   transition: padding 0.45s var(--ease), box-shadow 0.45s var(--ease);
   background: var(--nav-bg);
   backdrop-filter: var(--nav-blur);
@@ -25,6 +25,26 @@
 .scrolled, .solid {
   box-shadow: 0 10px 36px rgba(15,40,100,0.08);
 }
+
+/* ── The two flanks ──
+   Equal flex weight and a zero basis, so whatever room the cluster does not take is split
+   evenly between them — which lands the cluster on the WINDOW's centre rather than on the
+   midpoint between two unequal neighbours. That midpoint is what the old pad was chasing by
+   hand; it was always an approximation, because the right-hand side changes width with the
+   language, with signing in, and with whether the Trustpilot slot has anything in it.
+
+   Flex, not absolute positioning: the cluster still sits in normal flow between these two,
+   so it cannot be made to overlap either of them by a resize. That overlap is the failure
+   this bar has already been rebuilt twice to avoid, and it is the reason the obvious
+   "left:50%; translateX(-50%)" is not used here. */
+.navSide {
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex; align-items: center;
+  gap: 24px;
+}
+/* The right flank fills from the right, so its last item ends on the bar's padding. */
+.navSideEnd { justify-content: flex-end; }
 
 /* ── Logo ── */
 .logo {
@@ -87,7 +107,10 @@
    overlap after a resize that didn't fire the expected browser event) before
    landing on this simpler, structurally-safe approach. */
 .headerSearch {
-  flex: 1 1 auto; min-width: 0;
+  /* Content width, not flex:1. Growing would make it eat the flanks' share and the whole
+     equal-flank arrangement above would mean nothing. It still SHRINKS (the 1 in the
+     middle), so on a tight bar the ticket narrows rather than anything overlapping. */
+  flex: 0 1 auto; min-width: 0;
   /* Capped so it doesn't stretch absurdly on an ultra-wide screen; centred
      within whatever space flex:1 gives it once the cap is hit. 1040, down from 1200:
      the cluster's own centre is the midpoint between the logo and the auth block, which
@@ -113,24 +136,6 @@
      bar's whole middle on its own, and the width it gives back is what lets the
      group shift toward the window's centre (see the pad below). */
   flex: 0 1 460px; min-width: 0; max-width: 460px;
-}
-
-/* ── Pulling the middle group toward the window's centre ──
-   The group sits left of centre because its two flanks are not the same weight: the logo
-   is ~112px, while the language switch plus the auth pill come to ~390px. Measured at
-   1600px the group's centre landed 142px left of the window's.
-
-   It cannot simply be centred. Centred exactly, its right edge runs under the language
-   switch — which is the overlap this cluster has already been rebuilt twice to avoid, so
-   it is not worth risking again for a cosmetic nudge. Instead the cluster carries a left
-   pad, which moves the centred content right by half the pad, and the pad is capped where
-   the group still clears the language switch with room to spare (at 1600px: centre 721
-   instead of 658, right edge 1139 against a switch starting at 1154).
-
-   Only above 1180px: below that .hmWrap hides and the ticket IS the cluster, so a pad
-   would just shove a lone search box sideways. */
-@media (min-width: 1181px) {
-  .headerSearch { padding-left: clamp(0px, 8vw, 130px); }
 }
 
 /* The flanking menus need elbow room; below ~1180px they yield it, and the
@@ -274,7 +279,9 @@
    visitor who cannot read the page needs, so it comes before "Sign In" in both
    reading and tab order. Hidden below the header's mobile breakpoint, where it
    moves into the sheet instead of competing with the logo for width. */
-.langSlot { display: flex; align-items: center; flex-shrink: 0; margin-right: 12px; }
+/* No margin-right: the flank is a flex row with its own gap, which used to come from
+   the nav between top-level children and now comes from .navSide. */
+.langSlot { display: flex; align-items: center; flex-shrink: 0; }
 /* Hidden at the SAME width the auth buttons are (see the 900px block below), so
    there is never a gap where the desktop bar is showing but the language control
    is not. Below this the burger sheet carries it instead. */

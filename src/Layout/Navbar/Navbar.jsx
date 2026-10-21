@@ -265,6 +265,10 @@ export default function Navbar() {
   return (
     <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
 
+      {/* The bar is three parts: this flank, the cluster, and the flank below. The two
+          flanks carry equal flex weight, which is what puts the cluster on the window's
+          centre no matter how wide either side's contents are. */}
+      <div className={styles.navSide}>
       {/* Logo */}
       <Link to={logoHref} className={styles.logo}>
         <img
@@ -289,6 +293,7 @@ export default function Navbar() {
           </span>
         )}
       </Link>
+      </div>
 
       {/* Centered search — home page only. A REAL flex child between the logo and the auth
           block (not absolutely positioned) so the browser's own layout fills the gap between
@@ -348,6 +353,7 @@ export default function Navbar() {
         </div>
       )}
 
+      <div className={`${styles.navSide} ${styles.navSideEnd}`}>
       {/* Trustpilot's star rating. The header has room for a score and nothing else, so it
           stays empty until the agency's plan actually includes a score widget — a logo with
           no rating on it would take the slot and tell a traveller nothing. The slot collapses
@@ -452,6 +458,7 @@ export default function Navbar() {
           </svg>
         )}
       </button>
+      </div>
 
       {/* Mobile drawer */}
       {mobileOpen && (
