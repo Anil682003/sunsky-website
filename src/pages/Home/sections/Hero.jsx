@@ -10,7 +10,7 @@ import { cmsText } from '../../../utils/cmsText';
 import { DURATION_BANDS, bandByLabel, stayDaysToNights, stayCheckOut, packageReturnDate } from '../../../utils/durations';
 import AirportSearch from '../../../components/AirportSearch/AirportSearch';
 import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso } from '../../../utils/airports';
-import { flagUrl } from '../../../utils/countryFlag';
+import { flagUrl, flagSrc } from '../../../utils/countryFlag';
 import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
@@ -1750,11 +1750,15 @@ export default function Hero() {
                 <span className={`${styles.sfValue} ${!destinationLabel ? styles.sfPlaceholder : ''}`}>
                   {destFlags.length > 0 && (
                     <span className={styles.sfFlags}>
-                      {destFlags.map((c) =>
-                        c.flagUrl
-                          ? <img key={c.id ?? c.isoCode} className={styles.sfFlag} src={c.flagUrl} alt="" />
-                          : <span key={c.id ?? c.isoCode} className={styles.sfFlagEmoji}>{c.flag || '🏳️'}</span>
-                      )}
+                      {destFlags.map((c) => {
+                        // Not c.flagUrl: four of the admin's country codes are Hotelbeds
+                        // codes rather than ISO, so the URL built from them 404s (see
+                        // utils/countryFlag).
+                        const src = flagSrc(c);
+                        return src
+                          ? <img key={c.id ?? c.isoCode} className={styles.sfFlag} src={src} alt="" />
+                          : <span key={c.id ?? c.isoCode} className={styles.sfFlagEmoji}>{c.flag || '🏳️'}</span>;
+                      })}
                     </span>
                   )}
                   {destinationLabel || t('hero.whereTo', 'Where to?')}

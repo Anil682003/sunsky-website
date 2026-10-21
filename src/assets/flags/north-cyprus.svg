@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 800" role="img">
+  <!--
+    Northern Cyprus. The only country in the agency's list with no flag on flagcdn, because
+    it has no ISO 3166 code for the CDN to key one by, so it is drawn here rather than
+    fetched. Everything else resolves to a CDN file (see utils/countryFlag.js).
+  -->
+  <rect width="1200" height="800" fill="#fff"/>
+  <rect y="100" width="1200" height="60" fill="#E30A17"/>
+  <rect y="640" width="1200" height="60" fill="#E30A17"/>
+  <!-- Crescent: a red disc with a white one bitten out of its right-hand side. -->
+  <circle cx="545" cy="400" r="130" fill="#E30A17"/>
+  <circle cx="590" cy="400" r="104" fill="#fff"/>
+  <!-- Five-point star, outer r 78 / inner r 31 about (730, 400). -->
+  <path fill="#E30A17" d="M730 322 L748 375 L804 376 L760 410 L776 463 L730 431 L684 463 L700 410 L656 376 L712 375 Z"/>
+</svg>

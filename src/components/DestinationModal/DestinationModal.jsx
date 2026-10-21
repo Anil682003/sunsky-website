@@ -4,6 +4,7 @@ import styles from './DestinationModal.module.css';
 import { fetchGeoPlaces } from '../../api';
 import { useTranslation } from 'react-i18next';
 import { countryName } from '../../utils/countryName';
+import { flagSrc } from '../../utils/countryFlag';
 
 /**
  * Multi-destination picker. The traveller ticks one or more COUNTRIES on the
@@ -50,10 +51,14 @@ const CheckIcon = ({ size = 11 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
 );
 
-function Flag({ flagUrl, flag, className }) {
-  return flagUrl
-    ? <img className={className} src={flagUrl} alt="" loading="lazy" />
-    : <span className={className} data-emoji="true">{flag || '🏳️'}</span>;
+// Takes the country, not just its stored URL. Four of the admin's codes are Hotelbeds codes
+// rather than ISO, so the flag URL it built for them 404s and the picker fell through to the
+// white-flag emoji; flagSrc rebuilds those (see utils/countryFlag).
+function Flag({ country, className }) {
+  const src = flagSrc(country);
+  return src
+    ? <img className={className} src={src} alt="" loading="lazy" />
+    : <span className={className} data-emoji="true">{country?.flag || '🏳️'}</span>;
 }
 
 /**
@@ -341,7 +346,7 @@ export default function DestinationModal({
                   <span className={`${styles.tick} ${active ? styles.tickOn : ''}`}>
                     {active && <CheckIcon />}
                   </span>
-                  <Flag flagUrl={c.flagUrl} flag={c.flag} className={styles.rowFlag} />
+                  <Flag country={c} className={styles.rowFlag} />
                   <span className={styles.rowName}>{countryLabel(c)}</span>
                   {active && (
                     <span className={styles.rowBadge}>{picked > 0 ? picked : t('destinationModal.all', 'All')}</span>
@@ -394,7 +399,7 @@ export default function DestinationModal({
                     <span className={`${styles.chev} ${isOpen ? styles.chevOpen : ''}`}>
                       <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" strokeLinejoin="round"><path d="M9 18l6-6-6-6"/></svg>
                     </span>
-                    <Flag flagUrl={c.flagUrl} flag={c.flag} className={styles.blockFlag} />
+                    <Flag country={c} className={styles.blockFlag} />
                     <div className={styles.blockText}>
                       <span className={styles.blockName}>{countryLabel(c)}</span>
                       <span className={styles.blockSub}>
@@ -530,7 +535,7 @@ export default function DestinationModal({
             )}
             {wholeCountries.map((c) => (
               <span className={styles.recapChip} key={`country-${c.id}`}>
-                <Flag flagUrl={c.flagUrl} flag={c.flag} className={styles.chipFlag} />
+                <Flag country={c} className={styles.chipFlag} />
                 {countryLabel(c)}
                 <em className={styles.recapAll}>{t('destinationModal.anywhereShort', 'Anywhere')}</em>
                 <button type="button" className={styles.recapX} onClick={() => toggleCountry(c)} aria-label={t('destinationModal.remove', { name: countryLabel(c), defaultValue: 'Remove {{name}}' })}>
