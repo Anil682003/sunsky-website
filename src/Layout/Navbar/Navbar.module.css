@@ -12,8 +12,19 @@
   box-sizing: border-box;
   /* 48, up from 36: the logo and the auth pill sat close to the window edge once the
      bar grew taller, and the extra air is what makes the taller bar read as deliberate
-     rather than simply stretched. */
-  padding: 0 48px;
+     rather than simply stretched.
+
+     Past 1696px the padding grows instead, holding the contents to 1600px centred on the
+     window. On a 1920 monitor the logo and the auth pill were pinned to the far corners
+     with the bar's middle mostly air, which read as two separate things rather than one
+     header. 1600 and not the 1280 the page sections use: the bar carries ~520px of logo
+     and browse menus, a 560px search ticket and ~370px of language and auth, so 1280
+     would put the ticket back on its 260px floor with the placeholder clipped, which is
+     the exact regression `e474967` was fixing. 1600 leaves ~100px of slack.
+
+     max(), so nothing changes at or below 1696px: every laptop width keeps today's
+     layout, and only the wide screens that actually have spare room give it up. */
+  padding: 0 max(48px, calc((100% - 1600px) / 2));
   display: flex; align-items: center; justify-content: space-between;
   gap: 24px;
   transition: padding 0.45s var(--ease), box-shadow 0.45s var(--ease);
@@ -296,6 +307,21 @@
    moves into the sheet instead of competing with the logo for width. */
 /* No margin-right: the flank is a flex row with its own gap, which used to come from
    the nav between top-level children and now comes from .navSide. */
+/* ── Contact ──
+   Pitched at the browse menus' weight, not the auth pill's: it is a way through to a
+   person, not the bar's call to action, and a second filled control beside the orange
+   pill would split the one thing the bar is asking for. Square, because it carries an
+   icon alone; the hover tint is the menus' so the three read as one family. */
+.contactBtn {
+  display: flex; align-items: center; justify-content: center;
+  width: 38px; height: 38px; flex-shrink: 0;
+  border-radius: var(--r-full);
+  color: var(--text);
+  text-decoration: none;
+  transition: background 0.25s var(--ease), color 0.25s var(--ease);
+}
+.contactBtn:hover { background: rgba(255,255,255,0.55); color: var(--sun-orange); }
+
 .langSlot { display: flex; align-items: center; flex-shrink: 0; }
 /* Hidden at the SAME width the auth buttons are (see the 900px block below), so
    there is never a gap where the desktop bar is showing but the language control
