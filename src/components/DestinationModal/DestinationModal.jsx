@@ -34,6 +34,18 @@ const CHIP_LIMIT = 36;   // chips shown per group before the "+N more" expander
 
 const placeKey = (type, id) => `${type}-${id}`;
 
+/**
+ * PURE. How a picked place is recognised again: its type, its country and its CODE.
+ *
+ * Not its id. A selection restored from the store may predate the store keeping ids, and a
+ * place with no id could not be matched to the row it came from — the footer counted
+ * "1 place selected" while every chip in the list sat unticked, and removing it from the
+ * footer removed every other keyless place with it. A code is stable, is unique inside its
+ * country, and the store has always kept it.
+ */
+const draftKey = (type, countryId, code) =>
+  `${type}-${countryId ?? ''}-${String(code ?? '').toUpperCase()}`;
+
 const CheckIcon = ({ size = 11 }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.2" strokeLinecap="round" strokeLinejoin="round"><path d="M20 6L9 17l-5-5" /></svg>
 );
@@ -136,7 +148,13 @@ export default function DestinationModal({
   }, [open, draft.countries, placesByCountry, errorIds]);
 
   const selectedIds = useMemo(() => new Set(draft.countries.map((c) => c.id)), [draft.countries]);
-  const selectedKeys = useMemo(() => new Set(draft.places.map((p) => p.key)), [draft.places]);
+
+  // Which places are picked, by the identity above rather than by a stored key, so a
+  // selection restored from an older record ticks its chips on the first open.
+  const selectedKeys = useMemo(
+    () => new Set(draft.places.map((p) => draftKey(p.type, p.countryId, p.code))),
+    [draft.places]
+  );
 
   const placesInCountry = (countryId) => draft.places.filter((p) => p.countryId === countryId);
 
@@ -166,9 +184,10 @@ export default function DestinationModal({
 
   const togglePlace = (group, type, item) => {
     const key = placeKey(type, item.id);
+    const dk = draftKey(type, group.countryId, item.code);
     setDraft((d) => {
-      if (d.places.some((p) => p.key === key)) {
-        return { ...d, places: d.places.filter((p) => p.key !== key) };
+      if (d.places.some((p) => draftKey(p.type, p.countryId, p.code) === dk)) {
+        return { ...d, places: d.places.filter((p) => draftKey(p.type, p.countryId, p.code) !== dk) };
       }
       return {
         ...d,
@@ -188,8 +207,8 @@ export default function DestinationModal({
   const clearCountryPlaces = (countryId) =>
     setDraft((d) => ({ ...d, places: d.places.filter((p) => p.countryId !== countryId) }));
 
-  const removePlace = (key) =>
-    setDraft((d) => ({ ...d, places: d.places.filter((p) => p.key !== key) }));
+  const removePlace = (dk) =>
+    setDraft((d) => ({ ...d, places: d.places.filter((p) => draftKey(p.type, p.countryId, p.code) !== dk) }));
 
   const clearAll = () => setDraft({ countries: [], places: [] });
 
@@ -227,7 +246,7 @@ export default function DestinationModal({
         <div className={styles.chips}>
           {shown.map((item) => {
             const key = placeKey(type, item.id);
-            const active = selectedKeys.has(key);
+            const active = selectedKeys.has(draftKey(type, group.countryId, item.code));
             // A place already picked is never greyed, even when the airport since chosen
             // cannot reach it: Ch1 §9A says a traveller's choice stays visible and keeps its
             // tick, so they can see what no longer fits and decide for themselves. Taking it
@@ -516,9 +535,9 @@ export default function DestinationModal({
               </span>
             ))}
             {draft.places.map((p) => (
-              <span className={styles.recapChip} key={p.key}>
+              <span className={styles.recapChip} key={draftKey(p.type, p.countryId, p.code)}>
                 {p.name}
-                <button type="button" className={styles.recapX} onClick={() => removePlace(p.key)} aria-label={t('destinationModal.remove', { name: p.name, defaultValue: 'Remove {{name}}' })}>
+                <button type="button" className={styles.recapX} onClick={() => removePlace(draftKey(p.type, p.countryId, p.code))} aria-label={t('destinationModal.remove', { name: p.name, defaultValue: 'Remove {{name}}' })}>
                   <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round"><path d="M18 6L6 18M6 6l12 12" /></svg>
                 </button>
               </span>

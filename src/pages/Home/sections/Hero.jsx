@@ -414,9 +414,35 @@ export default function Hero() {
     setDestModalOpen(false);
   };
 
-  const destinationLabel = selectionLabel(destSelection, i18n.language, t);
+  /**
+   * A remembered selection, re-joined against the live country list.
+   *
+   * What the store keeps is IDENTITY (id and code) plus a name to show before the catalogue
+   * has loaded. Everything else a country draws with — its flag, its isoCode — is catalogue
+   * data, and reading it back out of a week-old record is how it goes wrong: a record written
+   * before the store kept flags has none, and nothing the traveller does short of picking the
+   * country again will give it one. So the catalogue wins wherever it has an answer, and the
+   * stored row is the fallback rather than the source.
+   *
+   * This is also what makes the flag survive a country being renamed or re-flagged in the
+   * dashboard, which a stored copy never could.
+   */
+  const hydratedSelection = useMemo(() => {
+    if (!countries.length) return destSelection;
+    const byId = new Map(countries.map((c) => [String(c.id), c]));
+    const byCode = new Map(countries.map((c) => [String(c.code ?? c.isoCode ?? '').toUpperCase(), c]));
+    const hydrated = destSelection.countries.map((c) => {
+      const live = byId.get(String(c.id)) || byCode.get(String(c.code ?? '').toUpperCase());
+      // Keep the stored name: it is what the traveller picked and what the field already shows.
+      return live ? { ...live, ...c, flag: live.flag ?? c.flag, flagUrl: live.flagUrl ?? c.flagUrl, isoCode: live.isoCode ?? c.isoCode } : c;
+    });
+    const changed = hydrated.some((c, i) => c !== destSelection.countries[i]);
+    return changed ? { ...destSelection, countries: hydrated } : destSelection;
+  }, [countries, destSelection]);
+
+  const destinationLabel = selectionLabel(hydratedSelection, i18n.language, t);
   // Small flag strip rendered ahead of the label (first few picked countries) in the modal field.
-  const destFlags = destSelection.countries.slice(0, 4);
+  const destFlags = hydratedSelection.countries.slice(0, 4);
 
   const searchBarRef = useRef(null);
   const flightsRef = useRef(null);
@@ -1998,7 +2024,7 @@ export default function Hero() {
         countries={countries}
         loading={countriesLoading}
         error={countriesError}
-        value={destSelection}
+        value={hydratedSelection}
         isUnavailable={placeUnavailable}
         unavailableReason={feasibilityOrigin
           // `common:` because this page's `t` is bound to the home namespace while feasibility.*
