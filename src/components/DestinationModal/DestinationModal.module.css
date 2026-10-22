@@ -623,3 +623,21 @@
   .footActions { order: 2; justify-content: space-between; }
   .applyBtn { flex: 1; justify-content: center; }
 }
+
+/* The line under the popular block in the countries rail.
+   Without it the list reads as mis-sorted: Turkey, Spain, Greece and then back to Albania
+   looks like a bug unless something says where the agency's picks stop and the alphabet
+   starts. A quiet rule and a small caption, not a heading — the popular rows above it need no
+   label, they are simply first. */
+.railDivider {
+  display: flex; align-items: center; gap: 8px;
+  margin: 10px 10px 6px;
+  font-size: 0.68rem; font-weight: 700;
+  letter-spacing: 0.6px; text-transform: uppercase;
+  color: var(--text-sec);
+  white-space: nowrap;
+}
+.railDivider::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--line);
+}

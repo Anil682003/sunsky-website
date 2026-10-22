@@ -117,3 +117,48 @@ describe('DestinationModal: a selection restored from an older stored record', (
     expect(onApply.mock.calls[0][0].places.map((x) => x.code)).toEqual(['DID']);
   });
 });
+
+/**
+ * The rail used to be plain alphabetical, so Albania and Aruba led while Spain and Turkey sat
+ * below the fold. The dashboard now marks countries Popular and ranks them (GeoData →
+ * Countries) and the API publishes that as `popular` / `popularOrder`.
+ */
+const ALB = { id: 10, code: 'AL', isoCode: 'AL', name: 'Albanië' };
+const ESP = { id: 11, code: 'ES', isoCode: 'ES', name: 'Spanje', popular: true, popularOrder: 2 };
+const TUR = { id: 12, code: 'TR', isoCode: 'TR', name: 'Turkije', popular: true, popularOrder: 1 };
+
+const railNames = () =>
+  screen.getAllByRole('button')
+    .map((b) => b.textContent.trim())
+    .filter((t) => /Albanië|Spanje|Turkije/.test(t));
+
+describe('DestinationModal: the countries rail leads with the agency’s picks', () => {
+  const openWith = (countries) => {
+    const props = { countries, value: { countries: [], places: [] }, onApply: vi.fn(), onClose: vi.fn() };
+    const view = render(<DestinationModal open={false} {...props} />);
+    view.rerender(<DestinationModal open {...props} />);
+    return view;
+  };
+
+  it('puts the popular countries first, in the dashboard’s rank', () => {
+    openWith([ALB, ESP, TUR]);
+    expect(railNames().map((t) => t.replace(/\s+/g, ' '))).toEqual(['Turkije', 'Spanje', 'Albanië']);
+  });
+
+  it('rules a line under the popular block so the list does not read as mis-sorted', () => {
+    openWith([ALB, ESP, TUR]);
+    expect(screen.getByText(/Alle landen|All countries/)).toBeInTheDocument();
+  });
+
+  it('draws no line when nothing is popular — a caption over the whole list labels nothing', () => {
+    openWith([ALB, { ...ESP, popular: false, popularOrder: null }]);
+    expect(screen.queryByText(/Alle landen|All countries/)).toBeNull();
+  });
+
+  it('lists every country exactly once', () => {
+    openWith([ALB, ESP, TUR]);
+    const names = railNames();
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).toHaveLength(3);
+  });
+});

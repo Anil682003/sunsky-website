@@ -1,10 +1,11 @@
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Fragment, useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { createPortal } from 'react-dom';
 import styles from './DestinationModal.module.css';
 import { fetchGeoPlaces } from '../../api';
 import { useTranslation } from 'react-i18next';
 import { countryName } from '../../utils/countryName';
 import { flagSrc } from '../../utils/countryFlag';
+import { orderCountries } from '../../utils/countryOrder';
 
 /**
  * Multi-destination picker. The traveller ticks one or more COUNTRIES on the
@@ -151,6 +152,12 @@ export default function DestinationModal({
         for (const id of missing) inflightRef.current.delete(id);
       });
   }, [open, draft.countries, placesByCountry, errorIds]);
+
+  // The rail's order: the countries the agency marked Popular in GeoData lead, in the rank it
+  // set, then the rest alphabetically. `popularCount` is how many rows that block is, so the
+  // rail can rule a line under it — a list that jumps Turkey, Spain, then back to Albania reads
+  // as mis-sorted unless it says why. See utils/countryOrder.
+  const { list: railCountries, popularCount } = useMemo(() => orderCountries(countries), [countries]);
 
   const selectedIds = useMemo(() => new Set(draft.countries.map((c) => c.id)), [draft.countries]);
 
@@ -333,12 +340,17 @@ export default function DestinationModal({
               <div className={styles.railState}>{t('destinationModal.noCountries', 'No countries available.')}</div>
             )}
 
-            {!loading && !error && countries.map((c) => {
+            {!loading && !error && railCountries.map((c, i) => {
               const active = selectedIds.has(c.id);
               const picked = active ? placesInCountry(c.id).length : 0;
               return (
+                <Fragment key={c.id ?? c.isoCode}>
+                {i === popularCount && popularCount > 0 && (
+                  <div className={styles.railDivider} role="presentation">
+                    <span>{t('destinationModal.allCountries', 'All countries')}</span>
+                  </div>
+                )}
                 <button
-                  key={c.id ?? c.isoCode}
                   type="button"
                   className={`${styles.countryRow} ${active ? styles.countryRowActive : ''}`}
                   onClick={() => toggleCountry(c)}
@@ -352,6 +364,7 @@ export default function DestinationModal({
                     <span className={styles.rowBadge}>{picked > 0 ? picked : t('destinationModal.all', 'All')}</span>
                   )}
                 </button>
+                </Fragment>
               );
             })}
           </aside>

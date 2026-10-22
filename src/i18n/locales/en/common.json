@@ -169,6 +169,7 @@
     "all": "All",
     "countriesError": "Could not load countries. Please try again.",
     "noCountries": "No countries available.",
+    "allCountries": "All countries",
     "emptyTitle": "Start with a country",
     "emptyText": "Tick any country on the left and its regions & cities will appear here — mix as many as you like.",
     "anywhere": "Anywhere in the country",

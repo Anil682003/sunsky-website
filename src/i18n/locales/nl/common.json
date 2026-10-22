@@ -169,6 +169,7 @@
     "all": "Alle",
     "countriesError": "De landen konden niet worden geladen. Probeer het opnieuw.",
     "noCountries": "Geen landen beschikbaar.",
+    "allCountries": "Alle landen",
     "emptyTitle": "Begin met een land",
     "emptyText": "Vink links een land aan en de regio’s & steden verschijnen hier. Combineer er zoveel je wilt.",
     "anywhere": "Overal in het land",
