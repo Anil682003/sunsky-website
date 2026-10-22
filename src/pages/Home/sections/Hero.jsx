@@ -12,6 +12,7 @@ import AirportSearch from '../../../components/AirportSearch/AirportSearch';
 import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso, departureGroups } from '../../../utils/airports';
 import { flagUrl, flagSrc } from '../../../utils/countryFlag';
 import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
+import { heroCopy } from './heroCopy';
 import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import { useDestinationFeasibility, isAirportUnreachable, visibleAirportGroups } from '../../../hooks/useDestinationFeasibility';
@@ -214,15 +215,15 @@ export default function Hero() {
 
   // The dashboard's own hero copy wins when it has any; these are what shows until
   // then, and they follow the reader's language.
-  // null, not '': the dashboard emptying the badge is a REAL choice ("no badge"), and the
-  // only way to tell it from "never configured" is to keep the unset case out of the string
-  // space entirely. Same rule the title parts below already follow.
+  // null, not '': the dashboard emptying the badge or the subtitle is a REAL choice (take
+  // that line off the hero), and the only way to tell it from "never configured" is to keep
+  // the unset case out of the string space entirely. Same rule the title parts below follow.
   const [cmsBadge, setCmsBadge]         = useState(null);
   const [cmsTitle, setCmsTitle]         = useState('');
   // The dashboard's three-part title, once it has one. Null means it is still on
   // the older single field and renderHeroTitle reads that instead.
   const [cmsTitleParts, setCmsTitleParts] = useState(null);
-  const [cmsSubtitle, setCmsSubtitle]   = useState('');
+  const [cmsSubtitle, setCmsSubtitle]   = useState(null);
   const [cmsSearchBtn, setCmsSearchBtn] = useState('');
 
   useEffect(() => {
@@ -245,7 +246,8 @@ export default function Hero() {
         after: hero.titleAfter ?? '',
       });
     }
-    if (hero.subtitle)         setCmsSubtitle(hero.subtitle);
+    // Same as the badge: subtitle:"" is the dashboard clearing it, not leaving it unset.
+    if (hero.subtitle != null) setCmsSubtitle(hero.subtitle);
     if (hero.searchButtonText) setCmsSearchBtn(hero.searchButtonText);
   }, [cmsConfig]);
 
@@ -303,9 +305,17 @@ export default function Hero() {
     return () => { alive = false; };
   }, [packageBgUrl, flightBgUrl]);
 
-  // The badge the hero shows: unset falls back to the shipped line, while set-and-empty
-  // renders no badge at all — clearing the field in the dashboard is how you remove it.
-  const badgeText = cmsBadge == null ? t('hero.badge', 'Holidays at guaranteed best prices') : cmsBadge;
+  // The badge and subtitle the hero shows: unset falls back to the shipped line, while
+  // set-and-empty renders nothing at all. Clearing the field in the dashboard is how you
+  // remove it.
+  const badgeText = heroCopy(cmsBadge, t('hero.badge', 'Holidays at guaranteed best prices'));
+  const subtitleText = heroCopy(
+    cmsSubtitle,
+    t(
+      'hero.subtitle',
+      'Sun-soaked beaches, vibrant cities, and hidden gems — all at the best guaranteed prices.'
+    )
+  );
 
   // A layer shows once it has something to show: either a CMS photo that has finished
   // decoding, or no CMS photo at all, in which case its built-in image is already in the CSS.
@@ -1710,15 +1720,7 @@ export default function Hero() {
             )}
         </h1>
 
-        <p className={styles.subtitle}>
-          {cmsText(
-            cmsSubtitle
-            || t(
-              'hero.subtitle',
-              'Sun-soaked beaches, vibrant cities, and hidden gems — all at the best guaranteed prices.'
-            )
-          )}
-        </p>
+        {subtitleText && <p className={styles.subtitle}>{cmsText(subtitleText)}</p>}
 
         <div className={styles.modeTabs}>
           <button

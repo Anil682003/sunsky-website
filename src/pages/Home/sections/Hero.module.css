@@ -101,6 +101,10 @@
   text-shadow:0 1px 4px rgba(7,14,31,0.5), 0 8px 28px rgba(7,14,31,0.35);
   animation:fadeUp 0.9s var(--ease) 0.5s both;
 }
+/* No subtitle (the dashboard cleared it): the tabs keep the 40px they normally sit below
+   the subtitle, instead of closing up to the title's own 24px. The two margins collapse
+   into one, so this is the whole gap, not an addition to the title's. */
+.title + .modeTabs { margin-top:40px; }
 
 /* Mode tabs — two separate rounded pills sitting on the photo: white for the tab you can
    switch to, brand blue for the one you're on. They read as buttons rather than as a
