@@ -2,10 +2,12 @@
 
 /* ════════ Hero header ════════
    The brand-blue band that names the search: breadcrumb, title and the trip as three chips.
-   One gradient and no decoration; the searched place, in sun gold, is the band's one accent. */
+   One gradient and no decoration; the searched place, in sun gold, is the band's one accent.
+   The gradient is the shared --hero-sky token, so this band and every other page header stay
+   the same colour rather than drifting apart the next time one of them is touched. */
 .hero {
   position: relative;
-  background: linear-gradient(120deg, #2350D8 0%, #3A6FE8 60%, #5B93F3 100%);
+  background: var(--hero-sky);
   /* The header is opaque, so the band starts BELOW it rather than sliding underneath. */
   margin-top: var(--nav-h);
   padding: 34px 40px 42px;
@@ -14,9 +16,9 @@
 .breadcrumb {
   display: flex; align-items: center; gap: 9px;
   font-size: 12.5px; font-weight: 600; letter-spacing: 0.2px;
-  color: rgba(255,255,255,0.8); margin-bottom: 12px;
+  color: rgba(255,255,255,0.9); margin-bottom: 12px;
 }
-.bcSep { color: rgba(255,255,255,0.5); }
+.bcSep { color: rgba(255,255,255,0.65); }
 .bcActive { color: #fff; }
 .heroTitle {
   font-family: 'Sora', sans-serif;

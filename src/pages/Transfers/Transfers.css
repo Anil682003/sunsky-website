@@ -5,7 +5,7 @@
 /* ── hero + search ── */
 .tr-hero {
   position: relative; overflow: hidden;
-  background: linear-gradient(160deg, var(--dark) 0%, var(--dark2) 55%, #10245c 100%);
+  background: var(--hero-sky);
   padding: calc(var(--nav-h) + 60px) 20px 90px;
 }
 .tr-hero-glow {
@@ -19,7 +19,7 @@
 .tr-bc-here { color: #fff; font-weight: 600; }
 .tr-hero-title { font-size: clamp(30px, 5vw, 46px); font-weight: 800; color: #fff; letter-spacing: -0.02em; }
 .tr-hero-title em { font-style: normal; color: var(--sun-gold); }
-.tr-hero-sub { margin-top: 10px; color: var(--blue-soft); font-size: 15px; max-width: 560px; }
+.tr-hero-sub { margin-top: 10px; color: rgba(255,255,255,0.85); font-size: 15px; max-width: 560px; }
 
 /* search card (glass) */
 .tr-searchcard {

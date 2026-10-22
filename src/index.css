@@ -23,6 +23,20 @@
   --cta-ink: #FFFFFF;
   --cta-ink-shadow: 0 1px 1px rgba(90,38,0,.35);
   --coral: #FF6B6B;
+  /**
+   * The page-header sky. Every full-width hero uses this one definition, so the client's
+   * "same treatment everywhere" is a single line rather than six copies that drift.
+   *
+   * Deepest at 0% and open sky at 100% on purpose, because the copy sits over the opening
+   * stop. #2563E0 is as light as that stop can go and still hold body copy at 4.77:1; the next
+   * step up drops it to 4.34 and fails. The extra lightness is therefore spent on the far end,
+   * which carries no text, so the band reads as sky without costing legibility.
+   *
+   * The white fade each hero ends in is what separates it from the photo cards below, so a
+   * brighter sky does not blend into them.
+   */
+  --hero-sky: linear-gradient(135deg, #2563E0 0%, #4A86EF 44%, #8FCDFF 100%);
+
   --dark: #070E1F;
   --dark2: #0D1A33;
   --text: #1A2744;

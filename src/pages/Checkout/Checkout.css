@@ -48,7 +48,7 @@
   background:
     radial-gradient(ellipse 70% 120% at 85% -10%, rgba(95,168,255,.28), transparent 55%),
     radial-gradient(ellipse 60% 100% at 8% 120%, rgba(31,79,216,.45), transparent 60%),
-    linear-gradient(125deg,#0A1430 0%,#10245E 48%,#1f4fd8 120%); }
+    var(--hero-sky); }
 .ck-hero-bg { position:absolute; inset:0; pointer-events:none; }
 .ck-hero-glow { position:absolute; top:-140px; right:8%; width:360px; height:360px; border-radius:50%;
   background:radial-gradient(circle,rgba(255,159,28,.14),transparent 65%); filter:blur(26px); animation:ckFloat 12s ease-in-out infinite; }
@@ -68,7 +68,7 @@
 .ck-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; letter-spacing:.7px; text-transform:uppercase; color:var(--gold); }
 .ck-eyebrow svg { width:14px; height:14px; }
 .ck-title { font-size:clamp(1.65rem,3.6vw,2.45rem); font-weight:800; color:#fff; letter-spacing:-.6px; line-height:1.12; margin-top:8px; }
-.ck-hero-sub { font-size:14px; color:rgba(255,255,255,.72); margin-top:8px; }
+.ck-hero-sub { font-size:14px; color:rgba(255,255,255,.88); margin-top:8px; }
 .ck-hero-badges { display:flex; gap:9px; flex-wrap:wrap; animation:ckFadeUp .6s var(--ease) .14s both; }
 .ck-hbadge { display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:var(--r-full);
   background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);

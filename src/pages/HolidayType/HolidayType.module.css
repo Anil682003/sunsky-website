@@ -1,10 +1,10 @@
 .page { background: var(--white); min-height: 70vh; }
 
-/* ── Dark banner ───────────────────────────────────────────────────────── */
+/* ── Sky banner ────────────────────────────────────────────────────────── */
 .banner {
   position: relative;
   overflow: hidden;
-  background: linear-gradient(160deg, var(--dark) 0%, var(--dark2) 60%, #12224a 100%);
+  background: var(--hero-sky);
   /* Top pad clears the fixed navbar — same 104px the results page uses.
      The deep bottom pad is what the mosaic is pulled up into. */
   padding: calc(var(--nav-h) + 44px) 0 150px;
@@ -40,9 +40,9 @@
 }
 
 .crumbs { display: flex; align-items: center; gap: 8px; font-size: 0.82rem; margin-bottom: 20px; }
-.crumbLink { color: rgba(255,255,255,0.55); text-decoration: none; transition: color 0.25s var(--ease); }
+.crumbLink { color: rgba(255,255,255,0.78); text-decoration: none; transition: color 0.25s var(--ease); }
 .crumbLink:hover { color: #fff; }
-.crumbSep { color: rgba(255,255,255,0.3); }
+.crumbSep { color: rgba(255,255,255,0.5); }
 .crumbActive { color: var(--sun-gold); font-weight: 600; }
 
 .title {
@@ -59,7 +59,7 @@
   max-width: 60ch;
   font-size: 1.02rem;
   line-height: 1.7;
-  color: rgba(255,255,255,0.62);
+  color: rgba(255,255,255,0.92);
 }
 
 /* Title and lede on the left; "Show all" on the right, level with the lede's last line and

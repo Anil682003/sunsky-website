@@ -37,7 +37,7 @@
   background:
     radial-gradient(ellipse 70% 120% at 85% -10%, rgba(95,168,255,.28), transparent 55%),
     radial-gradient(ellipse 60% 100% at 8% 120%, rgba(31,79,216,.45), transparent 60%),
-    linear-gradient(125deg,#0A1430 0%,#10245E 48%,#1f4fd8 120%); }
+    var(--hero-sky); }
 .fd-hero-glow { position:absolute; top:-130px; right:9%; width:340px; height:340px; border-radius:50%; background:radial-gradient(circle,rgba(95,168,255,.26),transparent 65%); filter:blur(20px); pointer-events:none; }
 .fd-hero-glow2 { position:absolute; bottom:-150px; left:-40px; width:360px; height:360px; border-radius:50%; background:radial-gradient(circle,rgba(255,159,28,.12),transparent 65%); filter:blur(30px); pointer-events:none; }
 .fd-hero-grid { position:absolute; inset:0; pointer-events:none;
