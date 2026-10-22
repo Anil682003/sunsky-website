@@ -24,7 +24,7 @@
 
      max(), so nothing changes at or below 1696px: every laptop width keeps today's
      layout, and only the wide screens that actually have spare room give it up. */
-  padding: 0 max(48px, calc((100% - 1600px) / 2));
+  padding: 0 max(64px, calc((100% - 1600px) / 2));
   display: flex; align-items: center; justify-content: space-between;
   gap: 24px;
   transition: padding 0.45s var(--ease), box-shadow 0.45s var(--ease);
@@ -74,7 +74,7 @@
 }
 /* Bundled mark: a square icon sitting beside the "SunSky" wordmark. */
 .logoImg {
-  width: 32px; height: 32px; object-fit: contain;
+  width: 40px; height: 40px; object-fit: contain;
   transition: transform 0.4s var(--ease-spring);
 }
 .logo:hover .logoImg { transform: scale(1.04); }
@@ -92,7 +92,7 @@
    clamps every image to max-width:100%, so on a narrow bar a fixed height would stay put
    while the width shrank and object-fit:contain would pad the difference with dead space. */
 .logoImgCms {
-  max-height: 56px;
+  max-height: 64px;
   max-width: 100%;
   width: auto;
   height: auto;
@@ -101,8 +101,8 @@
 .logo:hover .logoImgCms { transform: scale(1.04); }
 
 .logoText {
-  font-family: 'Sora', sans-serif; font-size: 19px;
-  font-weight: 800; letter-spacing: -0.6px;
+  font-family: 'Sora', sans-serif; font-size: 22px;
+  font-weight: 800; letter-spacing: -0.7px;
   transition: color 0.4s;
 }
 .logoLight { color: #fff; }
@@ -149,7 +149,7 @@
      placeholder — "Search city, region or hotel" — is clipped mid-word, which is the
      complaint this width answers; once the floor is reached the flanks give way instead of
      the ticket. */
-  flex: 0 1 560px; min-width: 260px; max-width: 560px;
+  flex: 0 1 430px; min-width: 260px; max-width: 430px;
 }
 
 /* The flanking menus need elbow room; below ~1180px they yield it, and the
@@ -163,7 +163,21 @@
    is ~240px back for the ticket while the navigation itself survives. The trigger carries
    aria-label and title, so the name is still there for a screen reader and on hover.
    Only below 1180 do the menus go entirely. */
+/* ── Which words the bar gives up first, and when ──
+   Three labelled things compete for the middle: the browse menus' two words (~240px), the
+   support word (~110px) and the search ticket. A globe and a sun on their own say very little,
+   so the MENU WORDS are the last to go, and the ticket pays for them by narrowing — which is
+   what it has the room to do, down to the 260px floor where its placeholder starts clipping.
+
+   The support word yields first, at 1500: it is a single word beside a handset that already
+   carries its name in aria-label and title, so losing it costs the least. */
 @media (max-width: 1500px) {
+  .contactLabel { display: none; }
+  .contactBtn { padding: 0; }
+}
+/* The menu words hold on to 1280. Below that the two menus disappear entirely anyway (1180),
+   and between 1180 and 1280 the bar is too tight to carry words and a usable ticket both. */
+@media (max-width: 1280px) {
   .hmBtnLabel { display: none; }
 }
 @media (max-width: 1180px) {
@@ -314,11 +328,24 @@
    icon alone; the hover tint is the menus' so the three read as one family. */
 .contactBtn {
   display: flex; align-items: center; justify-content: center;
-  width: 38px; height: 38px; flex-shrink: 0;
+  gap: 7px;
+  /* Width grows with the label where there is room for one; back to a 38px circle without it
+     (see the 1500px rule, which drops the word alongside the browse menus' labels). */
+  min-width: 38px; height: 38px; flex-shrink: 0;
+  padding: 0 4px;
   border-radius: var(--r-full);
   color: var(--text);
   text-decoration: none;
   transition: background 0.25s var(--ease), color 0.25s var(--ease);
+}
+.contactBtn svg { flex-shrink: 0; }
+/* The word beside the handset. Same weight and size as the browse menus' labels, because it
+   sits in the same row and is the same kind of thing: a named way in. */
+.contactLabel {
+  font-family: 'Sora', sans-serif;
+  font-size: 13px; font-weight: 700;
+  white-space: nowrap;
+  padding-right: 4px;
 }
 .contactBtn:hover { background: rgba(255,255,255,0.55); color: var(--sun-orange); }
 

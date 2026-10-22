@@ -72,6 +72,10 @@ const SERVICES = [
   },
 ];
 
+// A CMS link can point anywhere: an internal route goes through the router, anything with a
+// scheme (https:, tel:, mailto:) is a plain anchor.
+const isExternalHref = (href) => /^(https?:|tel:|mailto:)/i.test(String(href || ''));
+
 function getInitials(user) {
   if (!user) return 'U';
   const name = user.firstName || user.name || user.email || '';
@@ -111,6 +115,45 @@ export default function Navbar() {
   const logoAlt = headerConfig?.logoAltText?.trim() || 'SunSky';
   const logoHref = headerConfig?.logoLinkTarget?.trim() || '/';
 
+  // The word beside the handset. The dashboard owns it (Header settings → Support label), and
+  // the translated default stands in until it is set. CMS copy has no language column, so a
+  // value typed there shows as typed in both languages — the same trade every other CMS string
+  // on this site makes, and the reason the default is a translation rather than a hardcoded
+  // Dutch word.
+  // CMS → Layout → Header → Header Blocks. `siteHeader` is the backend's complete, normalised
+  // layout; until it loads (or against a backend that predates it) every block shows, which is
+  // exactly what the bar did before it was configurable. The two older flags below are gated on
+  // it too: they were stored long before the website read them, so their values only mean
+  // something once the migration that introduced siteHeader has reset them.
+  const site = headerConfig?.siteHeader;
+  const blockOn = (key) => site?.[key]?.enabled !== false;
+  const showLanguage = !site || headerConfig?.enableLanguageSelector !== false;
+  const showAccountEntry = !site || headerConfig?.enableAccountMenu !== false;
+  const loginHref = (site && headerConfig?.loginUrl?.trim()) || '/login';
+  const accountLabel = (site && headerConfig?.accountDisplayLabel?.trim()) || t('nav.myAccount', 'My Account');
+
+  const supportLabel =
+    site?.support?.label?.trim() || headerConfig?.supportLabel?.trim() || t('nav.customerService', 'Klantendienst');
+  const supportHref = site?.support?.link?.trim() || '/faq';
+  const destinationsLabel = site?.popularDestinations?.label?.trim() || t('nav.popularDestinations', 'Popular destinations');
+  const holidayTypesLabel = site?.holidayTypes?.label?.trim() || t('nav.holidayTypes', 'Holiday types');
+  const maxDests = site?.popularDestinations?.maxItems || 7;
+
+  // The phone menu: the CMS Navigation Menu items when the dashboard asks for them, otherwise
+  // the four services. Rows with no name or no target are drafts, not links.
+  const customMobileLinks = site?.mobileMenu?.useCustomLinks
+    ? (headerConfig?.navigationMenuItems ?? [])
+        .filter((i) => i && i.isActive !== false && i.itemName?.trim() && i.linkTarget?.trim())
+        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
+    : [];
+  const openCmsLink = (item) => {
+    const href = item.linkTarget.trim();
+    setMobileOpen(false);
+    if (item.type === 'ANCHOR') { window.location.hash = href.replace(/^#?/, '#'); return; }
+    if (item.type === 'EXTERNAL_LINK' || isExternalHref(href)) { window.location.assign(href); return; }
+    navigate(href);
+  };
+
   // Whether the logo is a wide wordmark or a square icon decides how it is sized AND whether
   // the "SunSky" text sits beside it: a wordmark already carries the name, a square icon does
   // not. Measured from the image itself on load rather than assumed.
@@ -131,6 +174,7 @@ export default function Navbar() {
   // auth screens. Login/register render without this layout anyway, but they are
   // excluded explicitly so the intent is clear if that ever changes.
   const showHeaderSearch =
+    blockOn('search') &&
     !location.pathname.startsWith('/hotel/') &&
     location.pathname !== '/login' &&
     location.pathname !== '/register';
@@ -178,16 +222,26 @@ export default function Navbar() {
         if (!url || !label || seen.has(label)) continue;
         seen.add(label);
         out.push({ label, url, sub: g?.title || '' });
-        if (out.length >= 7) return out;
+        if (out.length >= maxDests) return out;
       }
     }
     return out;
-  }, [cmsConfig, allTypes]);
+  }, [cmsConfig, allTypes, maxDests]);
   const searchSuggestions = useMemo(() => popularDests.slice(0, 6), [popularDests]);
 
   // Top holiday types for the right-hand menu: the CMS featured list leads (dashboard order),
   // topped up from the full admin list to 5. Each opens its /holidays/:slug page.
+  //
+  // When the backend serves siteHeader, its `resolved` list IS the menu: the dashboard's
+  // choice (CMS → Header → Holiday Types Menu), already filtered server side to ACTIVE types
+  // and capped. The derivation below is only the fallback for an older backend.
   const topHolidayTypes = useMemo(() => {
+    const resolved = site?.holidayTypes?.resolved;
+    if (Array.isArray(resolved)) {
+      return resolved
+        .filter((r) => r && r.slug)
+        .map((r) => ({ title: r.label || r.name, slug: r.slug }));
+    }
     const seen = new Set();
     const out = [];
     const push = (title, slug) => {
@@ -196,8 +250,22 @@ export default function Navbar() {
       seen.add(key);
       out.push({ title, slug: slug || key });
     };
+    // A featured entry is resolved against the LIVE type list before it is linked, exactly as
+    // the homepage Categories cards do it. Its `title` is dashboard copy and is often not the
+    // type's name — "Sun Holidays" is the type whose slug is `zonvakanties`, "City Trip" is
+    // `stedentrips` — so the slug this used to invent from the title led to a page that does
+    // not exist. Two of the four live entries were landing nowhere.
+    const liveById = new Map((allTypes ?? []).map((t) => [String(t.id), t]));
+    const liveByName = new Map((allTypes ?? []).map((t) => [slugify(t.name), t]));
     for (const f of cmsConfig?.featuredHolidayTypes ?? []) {
-      if (f && f.active !== false && f.title) push(f.title);
+      if (f && f.active !== false && f.title) {
+        const live = liveById.get(String(f.holidayTypeId)) || liveByName.get(slugify(f.title));
+        // Only when it resolves. An entry naming a type that no longer exists has no page to
+        // open, and a menu row that goes nowhere is worse than one row fewer. Until the type
+        // list has loaded nothing resolves, which is already true of the top-up loop below,
+        // so the menu simply waits rather than offering dead links.
+        if (live) push(f.title, live.slug);
+      }
       if (out.length >= 5) return out;
     }
     for (const t of allTypes ?? []) {
@@ -205,7 +273,7 @@ export default function Navbar() {
       if (out.length >= 5) break;
     }
     return out;
-  }, [cmsConfig, allTypes]);
+  }, [cmsConfig, allTypes, site]);
 
   // Header search.
   //
@@ -293,8 +361,9 @@ export default function Navbar() {
           </span>
         )}
       </Link>
+      {blockOn('popularDestinations') && (
       <HeaderMenu
-            label={t('nav.popularDestinations', 'Popular destinations')}
+            label={destinationsLabel}
             buttonIcon={<MenuGlobe />}
             tally={t('nav.destinations', {
               count: popularDests.length,
@@ -310,8 +379,9 @@ export default function Navbar() {
               onPick: () => goToSuggestion(d.url),
             }))}
           />
+      )}
           <HeaderMenu
-            label={t('nav.holidayTypes', 'Holiday types')}
+            label={holidayTypesLabel}
             buttonIcon={<TypeSun />}
             tally={t('nav.holidayTypes', {
               count: topHolidayTypes.length,
@@ -348,36 +418,52 @@ export default function Navbar() {
       )}
 
       <div className={`${styles.navSide} ${styles.navSideEnd}`}>
-      {/* Contact. First in this flank, so it lands just past the search ticket on the home
+      {/* Help. First in this flank, so it lands just past the search ticket on the home
           page and in that same spot on every other page, where there is no ticket. An icon
           rather than a word: the bar is already carrying five, and the two browse menus give
           their labels up below 1500px to keep the ticket off its floor. The name is on the
           control for a screen reader and on hover, and this one stays down to phone width,
-          where it sits beside the burger and is the quickest way to reach a human. */}
-      <Link
-        to="/contact"
-        className={styles.contactBtn}
-        aria-label={t('actions.contactUs', 'Contact us')}
-        title={t('actions.contactUs', 'Contact us')}
-      >
+          where it sits beside the burger.
+
+          It opens the help centre (/faq), not /contact: the questions there answer most of
+          what people ring about, and the FAQ page carries the ways to reach a human anyway.
+          The accessible name says "Help" to match where it goes — a control announced as
+          "Contact us" that lands on a list of questions is a small lie to anyone who cannot
+          see the page. */}
+      {blockOn('support') && (() => {
+        const inner = (
+          <>
         <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
           <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
         </svg>
-      </Link>
+        {/* aria-hidden: the label repeats the accessible name the Link already carries, so
+            without this a screen reader announces it twice. */}
+        <span className={styles.contactLabel} aria-hidden="true">{supportLabel}</span>
+          </>
+        );
+        const common = { className: styles.contactBtn, 'aria-label': supportLabel, title: supportLabel };
+        return isExternalHref(supportHref)
+          ? <a href={supportHref} {...common}>{inner}</a>
+          : <Link to={supportHref} {...common}>{inner}</Link>;
+      })()}
 
       {/* Trustpilot's star rating. The header has room for a score and nothing else, so it
           stays empty until the agency's plan actually includes a score widget — a logo with
           no rating on it would take the slot and tell a traveller nothing. The slot collapses
           to zero width when empty (see .trustpilotSlot:empty). */}
+      {blockOn('trustpilot') && (
       <div className={styles.trustpilotSlot}>
         <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} />
       </div>
+      )}
 
       {/* Language, then the auth buttons. Before them on purpose: somebody who
           cannot read the page needs to fix that before they can sign in. */}
+      {showLanguage && (
       <div className={styles.langSlot}>
         <LanguageSwitch />
       </div>
+      )}
 
       {/* Desktop auth buttons */}
       <div className={styles.authArea}>
@@ -389,7 +475,7 @@ export default function Navbar() {
             >
               <div className={styles.avatarCircle}>{getInitials(user)}</div>
               <span className={`${styles.avatarName} ${dark ? styles.avatarNameDark : styles.avatarNameLight}`}>
-                {user?.firstName || t('nav.myAccount', 'My Account')}
+                {user?.firstName || accountLabel}
               </span>
               <svg
                 className={`${styles.chevron} ${dropOpen ? styles.chevronUp : ''}`}
@@ -432,14 +518,14 @@ export default function Navbar() {
               </div>
             )}
           </div>
-        ) : (
+        ) : showAccountEntry && (
           <div className={styles.authBtns}>
             {/* One pill carrying both ways in, split by a slash, rather than a quiet text
                 link beside a loud orange button. Still TWO links inside it: sign in and
                 register are different destinations, and collapsing them into a single
                 control would make the traveller pick again on the next screen. The slash
                 is aria-hidden so a screen reader reads two plain links, not "slash". */}
-            <Link to="/login" className={styles.authPillLink}>
+            <Link to={loginHref} className={styles.authPillLink}>
               <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                 <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
               </svg>
@@ -480,7 +566,15 @@ export default function Navbar() {
             </div>
           )}
           <div className={styles.mobileLinks}>
-            {SERVICES.map((l) => (
+            {customMobileLinks.length > 0 ? customMobileLinks.map((item) => (
+              <button
+                key={item.id ?? item.itemName}
+                className={`${styles.mobileLink} ${item.linkTarget === location.pathname ? styles.mobileLinkActive : ''}`}
+                onClick={() => openCmsLink(item)}
+              >
+                {item.itemName}
+              </button>
+            )) : SERVICES.map((l) => (
               <button
                 key={l.path}
                 className={`${styles.mobileLink} ${l.match.includes(location.pathname) ? styles.mobileLinkActive : ''}`}
@@ -491,9 +585,11 @@ export default function Navbar() {
               </button>
             ))}
           </div>
+          {showLanguage && (
           <div className={styles.mobileLang}>
             <LanguageSwitch compact />
           </div>
+          )}
 
           <div className={styles.mobileDivider} />
           {isAuthenticated ? (
@@ -509,9 +605,9 @@ export default function Navbar() {
               <button className={styles.mobileLink} onClick={() => { navigate('/account/profile'); setMobileOpen(false); }}>{t('nav.profile', 'Profile')}</button>
               <button className={styles.mobileLogout} onClick={handleLogout}>{t('nav.signOut', 'Sign Out')}</button>
             </div>
-          ) : (
+          ) : showAccountEntry && (
             <div className={styles.mobileAuth}>
-              <button className={styles.mobileSignIn} onClick={() => { navigate('/login'); setMobileOpen(false); }}>{t('nav.signIn', 'Sign In')}</button>
+              <button className={styles.mobileSignIn} onClick={() => { navigate(loginHref); setMobileOpen(false); }}>{t('nav.signIn', 'Sign In')}</button>
               <button className={styles.mobileRegister} onClick={() => { navigate('/register'); setMobileOpen(false); }}>
                 {t('nav.registerQuick', "Register — it's quick!")}
               </button>
