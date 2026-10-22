@@ -215,7 +215,6 @@ export default function HolidayType() {
             {!busy && !error && items.length > 0 && (
               <ShowAllLink
                 to={showAllHref}
-                tone="dark"
                 className={styles.showAll}
                 title={t('holidayType:showAllTitle', 'Every destination on this page in one search')}
               >

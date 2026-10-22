@@ -52,7 +52,7 @@
 .ckc-glow.g1 { top:-120px; right:10%; width:360px; height:360px; background:radial-gradient(circle,rgba(255,159,28,.16),transparent 65%); animation:ckcFloat 11s ease-in-out infinite; }
 .ckc-glow.g2 { bottom:-160px; left:-60px; width:420px; height:420px; background:radial-gradient(circle,rgba(95,168,255,.22),transparent 65%); animation:ckcFloat 14s ease-in-out infinite reverse; }
 .ckc-gridbg { position:absolute; inset:0;
-  background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-image:linear-gradient(rgba(22,36,61,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(22,36,61,.05) 1px,transparent 1px);
   background-size:54px 54px;
   -webkit-mask-image:radial-gradient(ellipse 85% 80% at 50% -10%,#000 30%,transparent 75%);
   mask-image:radial-gradient(ellipse 85% 80% at 50% -10%,#000 30%,transparent 75%); }
@@ -86,7 +86,7 @@
 .ckc-ring { position:absolute; inset:0; border-radius:50%; border:2px solid rgba(255,209,102,.5); }
 .ckc-ring.r1 { animation:ckcRing 2.4s var(--ease) .9s infinite; }
 .ckc-ring.r2 { animation:ckcRing 2.4s var(--ease) 1.5s infinite; border-color:rgba(95,168,255,.45); }
-.ckc-ring.r3 { animation:ckcRing 2.4s var(--ease) 2.1s infinite; border-color:rgba(255,255,255,.3); }
+.ckc-ring.r3 { animation:ckcRing 2.4s var(--ease) 2.1s infinite; border-color:rgba(22,36,61,.14); }
 .ckc-check { position:relative; width:120px; height:120px; filter:drop-shadow(0 14px 30px rgba(16,185,129,.35)); animation:ckcPop .7s var(--ease-spring) .15s both; }
 .ckc-check-bg { fill:rgba(255,255,255,.06); stroke:none; }
 .ckc-check-circ { fill:none; stroke:url(#0); stroke:var(--green); stroke-width:5; stroke-linecap:round;
@@ -94,18 +94,18 @@
 .ckc-check-tick { fill:none; stroke:#fff; stroke-width:7; stroke-linecap:round; stroke-linejoin:round;
   stroke-dasharray:60; stroke-dashoffset:60; animation:ckcDraw .55s var(--ease) 1.15s forwards; }
 
-.ckc-title { font-size:clamp(2rem,4.6vw,3.1rem); font-weight:800; color:#fff; letter-spacing:-1px; line-height:1.08;
+.ckc-title { font-size:clamp(2rem,4.6vw,3.1rem); font-weight:800; color:var(--hero-ink); letter-spacing:-1px; line-height:1.08;
   animation:ckcFadeUp .7s var(--ease) .4s both; }
-.ckc-sub { font-size:clamp(14px,1.7vw,16.5px); color:rgba(255,255,255,.78); margin-top:12px; animation:ckcFadeUp .7s var(--ease) .55s both; }
+.ckc-sub { font-size:clamp(14px,1.7vw,16.5px); color:var(--hero-ink-soft); margin-top:12px; animation:ckcFadeUp .7s var(--ease) .55s both; }
 .ckc-sub b { color:var(--gold); font-weight:700; }
 
 /* reference pill with copy */
 .ckc-ref-row { margin-top:24px; animation:ckcFadeUp .7s var(--ease) .7s both; }
 .ckc-ref { display:inline-flex; align-items:center; gap:14px; padding:11px 13px 11px 20px; border-radius:var(--r-full);
-  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.22); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
-  color:#fff; transition:all .3s var(--ease); }
-.ckc-ref:hover { background:rgba(255,255,255,.16); border-color:rgba(255,255,255,.4); transform:translateY(-1px); }
-.ckc-ref-label { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:rgba(255,255,255,.6); font-weight:700; }
+  background:rgba(255,255,255,.82); border:1px solid rgba(22,36,61,.12); backdrop-filter:blur(12px); -webkit-backdrop-filter:blur(12px);
+  color:var(--hero-ink); transition:all .3s var(--ease); }
+.ckc-ref:hover { background:#fff; border-color:rgba(22,36,61,.22); transform:translateY(-1px); }
+.ckc-ref-label { font-size:11px; text-transform:uppercase; letter-spacing:.8px; color:var(--hero-ink-faint); font-weight:700; }
 .ckc-ref-val { font-size:17px; font-weight:800; letter-spacing:1.5px; color:var(--gold); }
 .ckc-ref-copy { display:inline-flex; align-items:center; gap:6px; padding:7px 14px; border-radius:var(--r-full);
   background:rgba(255,255,255,.14); font-size:12px; font-weight:700; transition:all .3s var(--ease); }

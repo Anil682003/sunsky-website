@@ -27,24 +27,24 @@
     radial-gradient(ellipse 70% 120% at 85% -10%, rgba(95,168,255,.28), transparent 55%),
     radial-gradient(ellipse 60% 100% at 8% 120%, rgba(31,79,216,.45), transparent 60%),
     var(--hero-sky); }
-.fl-hero-glow { position:absolute; top:-130px; right:9%; width:340px; height:340px; border-radius:50%; background:radial-gradient(circle,rgba(95,168,255,.26),transparent 65%); filter:blur(20px); pointer-events:none; }
-.fl-hero-glow2 { position:absolute; bottom:-150px; left:-40px; width:360px; height:360px; border-radius:50%; background:radial-gradient(circle,rgba(255,159,28,.12),transparent 65%); filter:blur(30px); pointer-events:none; }
+.fl-hero-glow { position:absolute; top:-130px; right:9%; width:340px; height:340px; border-radius:50%; background:radial-gradient(circle,rgba(95,168,255,.12),transparent 65%); filter:blur(20px); pointer-events:none; }
+.fl-hero-glow2 { position:absolute; bottom:-150px; left:-40px; width:360px; height:360px; border-radius:50%; background:radial-gradient(circle,rgba(255,159,28,.07),transparent 65%); filter:blur(30px); pointer-events:none; }
 .fl-hero-grid { position:absolute; inset:0; pointer-events:none;
-  background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-image:linear-gradient(rgba(22,36,61,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(22,36,61,.05) 1px,transparent 1px);
   background-size:54px 54px;
   -webkit-mask-image:radial-gradient(ellipse 55% 95% at 16% 0%,#000 25%,transparent 70%);
   mask-image:radial-gradient(ellipse 55% 95% at 16% 0%,#000 25%,transparent 70%); }
 .fl-hero-in { position:relative; z-index:2; max-width:1480px; margin:0 auto; padding:0 clamp(16px,3vw,40px); animation:flUp .6s var(--ease) both; }
-.fl-bc { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:rgba(255,255,255,.55); margin-bottom:12px; }
-.fl-bc a { color:rgba(255,255,255,.78); }
-.fl-bc a:hover { color:#fff; }
-.fl-bc-sep { color:rgba(255,255,255,.3); }
+.fl-bc { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--hero-ink-faint); margin-bottom:12px; }
+.fl-bc a { color:var(--hero-ink-soft); }
+.fl-bc a:hover { color:var(--hero-ink); }
+.fl-bc-sep { color:var(--hero-ink-faint); }
 .fl-bc-here { color:var(--gold); font-variant-numeric:tabular-nums; }
-.fl-hero-title { font-family:'Sora',sans-serif; font-size:clamp(1.9rem,3.2vw,2.9rem); font-weight:800; color:#fff; letter-spacing:-.022em; line-height:1.08; }
+.fl-hero-title { font-family:'Sora',sans-serif; font-size:clamp(1.9rem,3.2vw,2.9rem); font-weight:800; color:var(--hero-ink); letter-spacing:-.022em; line-height:1.08; }
 .fl-hero-title em { font-style:normal; background:linear-gradient(115deg,var(--sun),var(--gold)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 .fl-hero-chips { display:flex; flex-wrap:wrap; gap:9px; margin-top:16px; }
-.fl-hchip { display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:var(--r-full); background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); color:#fff; font-size:12.5px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
-.fl-hchip svg { width:14px; height:14px; color:var(--blue-soft); }
+.fl-hchip { display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:var(--r-full); background:rgba(255,255,255,.78); border:1px solid rgba(22,36,61,.12); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px); color:var(--hero-ink); font-size:12.5px; font-weight:700; white-space:nowrap; font-variant-numeric:tabular-nums; }
+.fl-hchip svg { width:14px; height:14px; color:var(--blue-deep); }
 .fl-hchip-arrow { display:inline-flex; }
 .fl-hchip-arrow svg { width:13px; height:13px; }
 .fl-hchip-cabin { background:var(--cta-grad); border-color:transparent; color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); font-weight:800; }

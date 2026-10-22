@@ -51,29 +51,29 @@
     var(--hero-sky); }
 .ck-hero-bg { position:absolute; inset:0; pointer-events:none; }
 .ck-hero-glow { position:absolute; top:-140px; right:8%; width:360px; height:360px; border-radius:50%;
-  background:radial-gradient(circle,rgba(255,159,28,.14),transparent 65%); filter:blur(26px); animation:ckFloat 12s ease-in-out infinite; }
+  background:radial-gradient(circle,rgba(255,159,28,.08),transparent 65%); filter:blur(26px); animation:ckFloat 12s ease-in-out infinite; }
 .ck-hero-grid { position:absolute; inset:0;
-  background-image:linear-gradient(rgba(255,255,255,.045) 1px,transparent 1px),linear-gradient(90deg,rgba(255,255,255,.045) 1px,transparent 1px);
+  background-image:linear-gradient(rgba(22,36,61,.05) 1px,transparent 1px),linear-gradient(90deg,rgba(22,36,61,.05) 1px,transparent 1px);
   background-size:54px 54px;
   -webkit-mask-image:radial-gradient(ellipse 85% 80% at 62% -10%,#000 30%,transparent 72%);
   mask-image:radial-gradient(ellipse 85% 80% at 62% -10%,#000 30%,transparent 72%); }
 .ck-hero-inner { position:relative; z-index:2; max-width:1280px; margin:0 auto; padding:0 clamp(20px,3.5vw,48px); }
-.ck-bc { display:flex; align-items:center; gap:7px; font-size:12.5px; color:rgba(255,255,255,.55); flex-wrap:wrap; animation:ckFadeUp .5s var(--ease) both; }
-.ck-bc a { color:rgba(255,255,255,.78); cursor:pointer; transition:color .2s; }
-.ck-bc a:hover { color:#fff; }
+.ck-bc { display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--hero-ink-faint); flex-wrap:wrap; animation:ckFadeUp .5s var(--ease) both; }
+.ck-bc a { color:var(--hero-ink-soft); cursor:pointer; transition:color .2s; }
+.ck-bc a:hover { color:var(--hero-ink); }
 .ck-bc-sep { opacity:.4; }
-.ck-bc-here { color:#fff; font-weight:600; }
+.ck-bc-here { color:var(--hero-ink); font-weight:600; }
 .ck-hero-row { display:flex; justify-content:space-between; align-items:flex-end; gap:28px; margin-top:18px; flex-wrap:wrap; }
 .ck-hero-left { animation:ckFadeUp .6s var(--ease) .05s both; }
 .ck-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; letter-spacing:.7px; text-transform:uppercase; color:var(--gold); }
 .ck-eyebrow svg { width:14px; height:14px; }
 .ck-title { font-size:clamp(1.65rem,3.6vw,2.45rem); font-weight:800; color:#fff; letter-spacing:-.6px; line-height:1.12; margin-top:8px; }
-.ck-hero-sub { font-size:14px; color:rgba(255,255,255,.88); margin-top:8px; }
+.ck-hero-sub { font-size:14px; color:var(--hero-ink-soft); margin-top:8px; }
 .ck-hero-badges { display:flex; gap:9px; flex-wrap:wrap; animation:ckFadeUp .6s var(--ease) .14s both; }
 .ck-hbadge { display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:var(--r-full);
-  background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  color:#fff; font-size:12.5px; font-weight:600; }
-.ck-hbadge svg { color:var(--gold); width:14px; height:14px; }
+  background:rgba(255,255,255,.78); border:1px solid rgba(22,36,61,.12); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
+  color:var(--hero-ink); font-size:12.5px; font-weight:600; }
+.ck-hbadge svg { color:var(--blue-deep); width:14px; height:14px; }
 
 /* ════ MAIN LAYOUT ════ */
 .ck-main { max-width:1280px; margin:0 auto; padding:0 clamp(20px,3.5vw,48px) 90px; }

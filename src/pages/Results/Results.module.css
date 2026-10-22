@@ -35,28 +35,28 @@
 .breadcrumb {
   display: flex; align-items: center; gap: 9px;
   font-size: 12.5px; font-weight: 600; letter-spacing: 0.2px;
-  color: rgba(255,255,255,0.9); margin-bottom: 12px;
+  color: var(--hero-ink-soft); margin-bottom: 12px;
 }
-.bcSep { color: rgba(255,255,255,0.65); }
-.bcActive { color: #fff; }
+.bcSep { color: var(--hero-ink-faint); }
+.bcActive { color: var(--hero-ink); }
 .heroTitle {
   font-family: 'Sora', sans-serif;
   font-size: clamp(28px, 3.6vw, 42px);
-  font-weight: 800; color: #fff;
+  font-weight: 800; color: var(--hero-ink);
   letter-spacing: -0.5px; line-height: 1.15;
   margin-bottom: 18px;
 }
-.heroTitle em { font-style: normal; color: var(--sun-gold); }
+.heroTitle em { font-style: normal; color: var(--hero-accent); }
 .heroChips { display: flex; flex-wrap: wrap; gap: 8px; }
 .heroChip {
   display: inline-flex; align-items: center; gap: 7px;
   padding: 7px 14px; border-radius: var(--r-full);
-  background: rgba(255,255,255,0.12);
-  border: 1px solid rgba(255,255,255,0.3);
-  color: #fff;
+  background: rgba(255,255,255,0.75);
+  border: 1px solid rgba(22,36,61,0.12);
+  color: var(--hero-ink);
   font-size: 13px; font-weight: 600; white-space: nowrap;
 }
-.heroChip svg { color: rgba(255,255,255,0.85); }
+.heroChip svg { color: var(--hero-ink-soft); }
 
 /* ════════ Toolbar ════════
    A plain white bar that stays pinned under the header: how many stays were found, the trip
