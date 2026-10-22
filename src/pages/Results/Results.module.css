@@ -1,4 +1,23 @@
-.page { background: var(--blue-bg); min-height: 100vh; }
+.page {
+  background: var(--blue-bg);
+  min-height: 100vh;
+
+  /* The side gutter for every full-width band on this page: the hero, the toolbar and the
+     main column all read it, so they stay in one vertical line instead of drifting apart the
+     next time one of them is touched.
+
+     Past 1680px the gutter grows and holds the contents to 1600px centred. On a 2560 monitor
+     the list was running about 2000px wide: the cards stretched until the photo, the text and
+     the price rail had whole fields of white between them, and the eye had to travel the full
+     width of the screen to get from a hotel's name to its price.
+
+     1600 to match the navbar, which already does exactly this (see Navbar.module.css, which
+     explains why 1600 and not the 1280 the home sections use). Lining the page up with the bar
+     above it is the point; a different number here would just trade one misalignment for
+     another. max() means nothing at or below 1680px changes at all, so every laptop keeps
+     today's layout and only screens with room to spare give any of it up. */
+  --results-gutter: max(40px, calc((100% - 1600px) / 2));
+}
 
 /* ════════ Hero header ════════
    The brand-blue band that names the search: breadcrumb, title and the trip as three chips.
@@ -10,7 +29,7 @@
   background: var(--hero-sky);
   /* The header is opaque, so the band starts BELOW it rather than sliding underneath. */
   margin-top: var(--nav-h);
-  padding: 34px 40px 42px;
+  padding: 34px var(--results-gutter) 42px;
 }
 .heroInner { position: relative; }
 .breadcrumb {
@@ -43,7 +62,7 @@
    A plain white bar that stays pinned under the header: how many stays were found, the trip
    they are for, and the sort order. */
 .toolbar {
-  padding: 0 40px; margin-top: -22px;
+  padding: 0 var(--results-gutter); margin-top: -22px;
   position: sticky; top: calc(var(--nav-h) + 10px); z-index: 5;
 }
 .toolbarInner {
@@ -129,7 +148,7 @@
 
 /* ════════ Main layout ════════ */
 .main {
-  padding: 24px 40px 80px;
+  padding: 24px var(--results-gutter) 80px;
   display: flex; gap: 26px;
 }
 
