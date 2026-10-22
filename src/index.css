@@ -27,15 +27,17 @@
    * The page-header sky. Every full-width hero uses this one definition, so the client's
    * "same treatment everywhere" is a single line rather than six copies that drift.
    *
-   * Deepest at 0% and open sky at 100% on purpose, because the copy sits over the opening
-   * stop. #2563E0 is as light as that stop can go and still hold body copy at 4.77:1; the next
-   * step up drops it to 4.34 and fails. The extra lightness is therefore spent on the far end,
-   * which carries no text, so the band reads as sky without costing legibility.
+   * Low chroma and nearly flat, on purpose. A wide, saturated sky gradient was tried and read
+   * as a brochure rather than a travel agency; it also put the gold breadcrumb at 1.18:1
+   * against its light end, which is illegible. This holds every element with room to spare:
+   * white 8.0:1, the lede 7.1:1, the gold accent 5.5:1.
    *
-   * The white fade each hero ends in is what separates it from the photo cards below, so a
-   * brighter sky does not blend into them.
+   * The gentle top-to-bottom shift is the only movement. It is there so the band is not dead
+   * flat, not to be noticed.
+   *
+   * The white fade each hero ends in is what separates it from the photo cards below.
    */
-  --hero-sky: linear-gradient(135deg, #2563E0 0%, #4A86EF 44%, #8FCDFF 100%);
+  --hero-sky: linear-gradient(180deg, #27508F 0%, #336099 100%);
 
   --dark: #070E1F;
   --dark2: #0D1A33;
