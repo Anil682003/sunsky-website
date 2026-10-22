@@ -421,7 +421,10 @@
 /* minmax(0,1fr), never a bare 1fr: a 1fr track's automatic minimum is min-content, so
    the widest thing inside (the fare strip, which is 7 fixed-width columns) pushed the
    track — and the whole page — past the viewport instead of scrolling inside itself. */
-.sd .grid { display:grid; grid-template-columns:minmax(0,1fr) 360px; gap:32px; align-items:start; margin-top:calc(var(--overhang) + 28px); }
+/* One centred column. The booking sidebar was removed, so a 1fr + 360px split would have
+   left the content hanging to the left with dead space where the card used to be. The column
+   is capped rather than fluid because the fare strip and room tables read badly past ~1120px. */
+.sd .grid { display:grid; grid-template-columns:minmax(0,1120px); justify-content:center; gap:32px; align-items:start; margin-top:calc(var(--overhang) + 28px); }
 .sd .grid > * { min-width:0; }
 
 /* BOOKING CARD */

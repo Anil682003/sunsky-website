@@ -292,7 +292,9 @@ describe('the live check asks about the package the card priced', () => {
     renderPage();
     await runCheck(user);
     await waitFor(() => expect(screen.getAllByText(/€1,500/).length).toBeGreaterThan(0));
-    const book = screen.getAllByRole('button').find((b) => /nu boeken|boek nu|book now/i.test(b.textContent) && !b.disabled);
+    // The sticky sidebar card (and its 'Book now') is gone; the overview block's
+    // 'Continue to checkout' is the one desktop CTA now.
+    const book = screen.getAllByRole('button').find((b) => /doorgaan naar afrekenen|continue to checkout|nu boeken|boek nu|book now/i.test(b.textContent) && !b.disabled);
     await user.click(book);
     await screen.findByTestId('checkout');
     handedOver = seen.mock.calls.at(-1)[0];

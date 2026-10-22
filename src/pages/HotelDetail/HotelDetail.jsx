@@ -5855,51 +5855,6 @@ export default function HotelDetail() {
             */}
           </div>
 
-          {/* Booking sidebar */}
-          <aside>
-            <div className="bk">
-              {/* bkr review score removed — no real review data yet */}
-              <div className="bkp">
-                <div className="bkpl">{liveTotal != null ? t('sidebar.livePriceOn', { day: pd?.day, date: pd?.date, defaultValue: `live price · ${pd?.day} ${pd?.date}` }) : fromPP != null ? t('sidebar.perPersonFrom', 'per person from') : t('sidebar.noPriceYet', 'no price yet')}</div>
-                <div className="bkpr hd">{liveTotal != null
-                  ? <>{ccy}{liveTotal.toLocaleString('en-GB')}</>
-                  : fromPP != null ? <>{ccy}{fromPP} <span>p.p.</span></> : <span className="bkpr-none">{t('sidebar.pickADate', 'Pick a date')}</span>}</div>
-                <div className="bkp-total">
-                  {liveTotal != null
-                    ? t('sidebar.roomFlightAdults', { room: liveRoom ? t('sidebar.room', 'Room') : '', plusFlight: liveRoom && liveFlight ? ` ${t('sidebar.plusFlight', '+ flight')}` : liveFlight ? t('sidebar.flight', 'Flight') : '', adults: t('chips.adults', { count: Number(sAdults), defaultValue: `${sAdults} ${Number(sAdults) === 1 ? 'adult' : 'adults'}` }), defaultValue: `${liveRoom ? 'Room' : ''}${liveRoom && liveFlight ? ' + flight' : liveFlight ? 'Flight' : ''} · ${sAdults} ${Number(sAdults) === 1 ? 'adult' : 'adults'}` })
-                    : displayTotal != null
-                      ? t('sidebar.totalTravellers', { amount: `${ccy}${displayTotal.toLocaleString('en-GB')}`, count: ovPax, defaultValue: `${ccy}${displayTotal.toLocaleString('en-GB')} total · ${ovPax} traveller${ovPax > 1 ? 's' : ''}` })
-                      : t('sidebar.pickDayToPrice', { count: ovPax, defaultValue: `Pick a day in the calendar to price ${ovPax} traveller${ovPax > 1 ? 's' : ''}` })}
-                </div>
-              </div>
-              <div className="bkd">
-                <div className="bkdi"><span className="bkdk">{ICON.cal}</span>{(() => {
-                  const ci = pd?.iso || baseCheckIn;
-                  const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
-                  const short = (iso) => { const d = new Date(`${iso}T00:00:00`); return Number.isNaN(d.getTime()) ? null : d.toLocaleDateString(i18n.language === 'nl' ? 'nl-BE' : 'en-GB', { weekday: 'short', day: 'numeric', month: 'short', year: 'numeric' }); };
-                  return short(ci) && short(co) ? `${short(ci)} — ${short(co)}` : t('sidebar.selectDatesAbove', 'Select your dates above');
-                })()}</div>
-                <div className="bkdi"><span className="bkdk">{ICON.users}</span>{t('chips.adults', { count: Number(sAdults) || 2, defaultValue: `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}` })}{Number(sChildren) > 0 ? t('chips.childrenSuffix', { count: Number(sChildren), defaultValue: `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` }) : ''}</div>
-                {/* The route the traveller actually chose — this printed "Brussels (BRU)"
-                    no matter which airport the fares were searched from. */}
-                <div className="bkdi"><span className="bkdk">{transport === 'hotel_only' ? ICON.bed : ICON.plane}</span>{transport === 'hotel_only'
-                  ? t('chips.hotelOnly', 'Hotel only')
-                  : destination ? `${airportName(origin)} (${origin}) → ${destination}` : `${airportName(origin)} (${origin})`}</div>
-                {shownBoard && <div className="bkdi"><span className="bkdk">{ICON.board}</span>{shownBoard}</div>}
-                <div className="bkdi"><span className="bkdk">{ICON.moon}</span>{dayLabel(nights)}</div>
-              </div>
-              <div className="bkcw">
-                <button className="bkc" onClick={goCheckout} disabled={flightsChecking || dayUnavailable}>
-                  {flightsChecking ? t('sidebar.checkingFlights', 'Checking flights…')
-                    : dayUnavailable ? <>{t('overview.notAvailableDate', 'Not available for this date')}</>
-                    : flightNeedsChoice ? <>{t('flights.choice.chooseFlight', 'Choose a flight')} {ICON.arrow}</>
-                    : liveTotal == null ? <>{t('actions.checkAvailability', 'Check availability')} {ICON.arrow}</>
-                    : <>{t('sidebar.bookNow', 'Book Now')} {ICON.arrow}</>}
-                </button>
-                <div className="bkc-note">{ICON.check} {t('sidebar.securePayment', 'Secure payment')} · {ICON.check} {t('trust.instantConfirmation', 'Instant confirmation')}</div>
-              </div>
-            </div>
-          </aside>
         </div>
       </div>
 
