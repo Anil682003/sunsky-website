@@ -3413,7 +3413,12 @@ export default function Results() {
                 const hotelDest = info?.destinationCode || attrMap[String(h.hotelCode)]?.destinationCode || priceScope?.destinations?.[0] || '';
                 const gallery   = info ? allImgs(info.images) : [];
                 const imgIdx    = gallery.length ? Math.min(cardIdx[h.hotelCode] || 0, gallery.length - 1) : 0;
-                const curImg    = gallery.length ? gallery[imgIdx] : dispImg;
+                // A photo that failed in every size (Hotelbeds deleted the file — 22 Oct 2026, ~11 % of
+                // hotels) is skipped: the card shows the next working photo of the gallery instead of
+                // "no images". Only when every photo failed does the no-photo tile appear.
+                const curImg    = gallery.length
+                  ? ([...gallery.slice(imgIdx), ...gallery.slice(0, imgIdx)].find((u) => !failedPhotos.has(u)) ?? gallery[imgIdx])
+                  : dispImg;
                 // Headline price is PER PERSON — that's the figure a traveller compares and the
                 // one that stays meaningful on a package (the total here excludes the live flight).
                 // Whole euros (rule 10): the stay rounds up per room, per person is derived from
