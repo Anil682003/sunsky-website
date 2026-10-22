@@ -17,7 +17,9 @@
 
 .panel {
   display: grid;
-  grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+  /* The form column was the narrower of the two while holding the only thing on this panel
+     anyone has to interact with. Reversed, so the field gets the room and the copy gives it up. */
+  grid-template-columns: minmax(0, 0.95fr) minmax(0, 1.05fr);
   align-items: center;
   gap: 32px 56px;
   padding: clamp(28px, 4vw, 52px);
@@ -70,8 +72,14 @@
   color: var(--text-sec);
 }
 
+/* Wraps on purpose. The button cannot shrink and its Dutch label is long ("Schrijf je in voor
+   onze nieuwsbrief", about 300px), so on one fixed row it took the width and left the input a
+   sliver too narrow to read your own address back in. Now the button drops onto its own line
+   whenever it would squeeze the input below a usable size, which costs a little height and
+   never costs the field. */
 .form {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 8px;
   padding: 6px;
@@ -84,23 +92,33 @@
   border-color: var(--blue-mid);
   box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.12);
 }
+/* 260px is the floor, not a preference: an email address is long and people check what they
+   typed before pressing a button they cannot undo. Below that the button wraps instead
+   (see .form). Taller and a step up in type for the same reason, since this is the one field
+   on the page someone types into rather than picks from. */
 .input {
-  flex: 1;
+  /* The lopsided grow factor is deliberate. Paired with `flex-grow: 1` on the button it makes
+     the button fill the line it wrapped onto, while on a shared row the input takes 100 parts
+     of the spare width to the button's 1, so the button stays effectively its natural size.
+     flex-grow cannot distinguish a wrapped line from a shared one; this is how you get both. */
+  flex: 100 1 260px;
   min-width: 0;
-  height: 46px;
-  padding: 0 12px;
+  height: 54px;
+  padding: 0 16px;
   border: none;
   outline: none;
   background: transparent;
   font-family: inherit;
-  font-size: 0.95rem;
+  font-size: 1rem;
   color: var(--text);
 }
 .input::placeholder { color: var(--text-light); }
 
+/* Grows only in practice when it is alone on a wrapped line — see the note on .input for why
+   the 100:1 split keeps it at its natural size whenever it shares a row with the field. */
 .btn {
-  flex-shrink: 0;
-  height: 46px;
+  flex: 1 0 auto;
+  height: 54px;
   padding: 0 24px;
   border-radius: 9px;
   border: none;
@@ -129,5 +147,9 @@
 @media (max-width: 480px) {
   .copy { flex-direction: column; gap: 14px; }
   .form { flex-direction: column; align-items: stretch; padding: 8px; }
-  .btn { width: 100%; }
+  /* The flex shorthand above is sized for a ROW, where its 260px basis is a width. Turning the
+     container into a column turns that basis into a HEIGHT, which rendered the field as a
+     260x260 square. Back to auto here so `height: 54px` is what decides. */
+  .input { flex: 0 0 auto; }
+  .btn { flex: 0 0 auto; width: 100%; }
 }
