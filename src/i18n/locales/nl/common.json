@@ -86,7 +86,12 @@
     "holidayTypes_other": "{{count}} vakantietypes",
     "exploreHolidays": "Ontdek vakanties",
     "searchPlaceholder": "Zoek bestemming, hotel of regio",
-    "searchLabel": "Zoek hotels en bestemmingen"
+    "searchLabel": "Zoek hotels en bestemmingen",
+    "seeAll": "Alles bekijken",
+    "links_one": "{{count}} link",
+    "links_other": "{{count}} links",
+    "announcement": "Mededeling",
+    "dismissAnnouncement": "Mededeling sluiten"
   },
   "destSearch": {
     "clear": "Wissen",

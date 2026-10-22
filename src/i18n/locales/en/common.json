@@ -86,7 +86,12 @@
     "holidayTypes_other": "{{count}} holiday types",
     "exploreHolidays": "Explore holidays",
     "searchPlaceholder": "Search destination, hotel or region",
-    "searchLabel": "Search hotels and destinations"
+    "searchLabel": "Search hotels and destinations",
+    "seeAll": "See all",
+    "links_one": "{{count}} link",
+    "links_other": "{{count}} links",
+    "announcement": "Announcement",
+    "dismissAnnouncement": "Close announcement"
   },
   "destSearch": {
     "clear": "Clear",

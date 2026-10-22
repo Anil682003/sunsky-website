@@ -64,7 +64,9 @@
 }
 .content {
   position:relative; z-index:2;
-  text-align:center; padding:80px 24px 0; width:100%;
+  /* Plus the announcement strip's height when one shows above the header (0px otherwise), so
+     the badge is not pushed up under the bar that the strip moved down. */
+  text-align:center; padding:calc(80px + var(--announce-h, 0px)) 24px 0; width:100%;
 }
 .badge {
   display:inline-flex; align-items:center; gap:10px;

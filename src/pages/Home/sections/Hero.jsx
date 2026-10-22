@@ -29,6 +29,7 @@ import { isoAddDays } from '../../Results/packageResults';
 import { earliestCheckInISO } from '../../../utils/leadTime';
 import { loadPax, savePax } from '../../../utils/paxStore';
 import { loadSearch, saveSearch } from '../../../utils/searchStore';
+import { navHeightPx } from '../../../utils/navHeight';
 
 // Duration bands shown in the search box. Each band is a day-range with a representative stay
 // length in nights — the concrete duration the search prices for that band. Picking a band + a
@@ -498,7 +499,8 @@ export default function Hero() {
     place();
     // Nor does a sheet need the page scrolled under it: it is already against the viewport.
     if (!isSheet() && stacked.matches && panel.getBoundingClientRect().bottom > window.innerHeight) {
-      const navH = parseFloat(getComputedStyle(document.documentElement).getPropertyValue('--nav-h')) || 0;
+      // The bar plus the announcement strip, when one shows (--nav-h is a calc, see navHeight.js).
+      const navH = navHeightPx(0);
       const reduce = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
       window.scrollTo({
         top: window.scrollY + field.getBoundingClientRect().top - navH - 8,

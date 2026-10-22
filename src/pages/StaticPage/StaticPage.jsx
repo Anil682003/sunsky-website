@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './StaticPage.module.css';
 import { useStaticPages } from '../../api';
 import { parseBlocks } from '../../utils/richText';
+import { navHeightPx } from '../../utils/navHeight';
 import { slugifyHeading, resolveStaticPage, resolveAnchor } from './staticPageRouting';
 import RichText from '../../components/RichText/RichText';
 import DocumentCard from '../../components/DocumentCard/DocumentCard';
@@ -174,10 +175,9 @@ export default function StaticPage() {
 
     // The bar's own height plus 60px of lead-in, so a section counts as "current" a little
     // before its heading reaches the bar. Read from the stylesheet rather than retyped:
-    // --nav-h is the one place the navbar's height is stated.
-    const navH = parseFloat(
-      getComputedStyle(document.documentElement).getPropertyValue('--nav-h'),
-    ) || 78;
+    // --nav-h is the one place the navbar's height is stated. It is a calc of the bar and the
+    // announcement strip now, which parseFloat cannot read, so navHeightPx adds the two parts.
+    const navH = navHeightPx(78);
     const NAV_OFFSET = navH + 60;
     const pick = () => {
       let current = sectionIndex[0]?.id ?? null;

@@ -95,8 +95,18 @@
      stylesheet carries three separate comments warning not to change it.
      Navbar.module.css sets the bar to exactly this; nothing else should
      hardcode it. Currently 16px of breathing room above and below a 56px
-     logo, which is the tallest thing in the bar. */
-  --nav-h: 88px;
+     logo, which is the tallest thing in the bar.
+
+     It is now two parts. --nav-bar-h is the bar itself. --announce-h is the
+     announcement strip above it (CMS -> Header -> Announcement), 0px unless
+     one is showing; Layout/Navbar/AnnouncementBar.jsx sets it on <html> while
+     it is. --nav-h is their sum, so every page that clears the header keeps
+     clearing all of it without knowing the strip exists. JS that needs the
+     number reads utils/navHeight.js: the sum is a calc(), which parseFloat
+     cannot read. */
+  --nav-bar-h: 88px;
+  --announce-h: 0px;
+  --nav-h: calc(var(--nav-bar-h) + var(--announce-h, 0px));
   /* The header bar wears the hero search bar's glass, so the two read as one surface:
      the same near-white, the same blur and saturate on .nav (and on the mobile drawer that
      drops out of it). Over the hero photo it lets the image through the way the search bar

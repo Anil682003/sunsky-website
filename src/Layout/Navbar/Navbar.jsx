@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef, useMemo } from 'react';
+import { useState, useEffect, useRef, useMemo, useId } from 'react';
 import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
@@ -7,10 +7,14 @@ import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig, useHolidayTypes } from '../../api';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
 import { hotelDetailHref } from '../../utils/searchDefaults';
+import { normalizeSiteHeader, pick, langOf, headerLink, newTabProps, showOnClass, inDrawer, MAX_MENU_ITEMS } from '../../utils/siteHeader';
+import { isEmoji, isGlyph } from '../../utils/travelIcons';
+import { TravelEmoji, TravelGlyph } from '../../components/TravelIcon/TravelIcon';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
 import Trustpilot from '../../components/Trustpilot/Trustpilot';
 import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
 import HeaderMenu from './HeaderMenu';
+import AnnouncementBar from './AnnouncementBar';
 import LanguageSwitch from '../../components/LanguageSwitch/LanguageSwitch';
 import { useTranslation } from 'react-i18next';
 
@@ -24,6 +28,15 @@ const MenuPin = () => (
 );
 const MenuGlobe = () => (
   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10" /><path d="M2 12h20M12 2a15.3 15.3 0 014 10 15.3 15.3 0 01-4 10 15.3 15.3 0 01-4-10 15.3 15.3 0 014-10z" /></svg>
+);
+// A dashboard menu with no glyph chosen: four tiles, which says "a set of things" without
+// claiming to be about any one subject the way a globe or a sun would.
+const MenuGrid = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="3" width="7" height="7" rx="1.5" /><rect x="14" y="3" width="7" height="7" rx="1.5" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><rect x="14" y="14" width="7" height="7" rx="1.5" /></svg>
+);
+// A row in a dashboard menu with no emoji chosen: an arrow out of a box, i.e. "a link".
+const MenuLinkIcon = () => (
+  <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M10 13a5 5 0 007.07 0l3-3a5 5 0 00-7.07-7.07l-1.5 1.5" /><path d="M14 11a5 5 0 00-7.07 0l-3 3a5 5 0 007.07 7.07l1.5-1.5" /></svg>
 );
 const TypeSun = () => (
   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round"><circle cx="12" cy="12" r="4" /><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66l-1.41 1.41M19.07 4.93l-1.41 1.41" /></svg>
@@ -53,6 +66,15 @@ const typeIconFor = (name) => {
   return <TypeCompass />;
 };
 
+// The support button's four looks (CMS -> Header -> Support -> Icon). Same 18px stroke set as
+// the handset it started with, so changing the icon never changes the button's weight.
+const SUPPORT_ICONS = {
+  phone: <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>,
+  help: <><circle cx="12" cy="12" r="10" /><path d="M9.09 9a3 3 0 015.83 1c0 2-3 3-3 3" /><path d="M12 17h.01" /></>,
+  chat: <path d="M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h14a2 2 0 012 2z" />,
+  mail: <><rect x="2" y="4" width="20" height="16" rx="2" /><path d="M22 6l-10 7L2 6" /></>,
+};
+
 const SERVICES = [
   {
     key: 'holidays', label: 'Holidays', path: '/', match: ['/', '/results'],
@@ -71,10 +93,15 @@ const SERVICES = [
     icon: <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M5 17H4a2 2 0 01-2-2V5a2 2 0 012-2h16a2 2 0 012 2v10a2 2 0 01-2 2h-1"/><path d="M12 15l5 6H7l5-6z"/></svg>,
   },
 ];
+const SERVICE_BY_KEY = new Map(SERVICES.map((s) => [s.key, s]));
 
-// A CMS link can point anywhere: an internal route goes through the router, anything with a
-// scheme (https:, tel:, mailto:) is a plain anchor.
-const isExternalHref = (href) => /^(https?:|tel:|mailto:)/i.test(String(href || ''));
+// The signed-in menu's three entries (CMS -> Header -> Account -> Menu items decides which
+// show, in what order, and what they are called).
+const ACCOUNT_ITEMS = {
+  bookings: { path: '/account/bookings', i18n: ['nav.myBookings', 'My Bookings'], icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2' },
+  profile: { path: '/account/profile', i18n: ['nav.profile', 'Profile'], icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z' },
+  favourites: { path: '/account/favourites', i18n: ['nav.favourites', 'Favourites'], icon: 'M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z' },
+};
 
 function getInitials(user) {
   if (!user) return 'U';
@@ -82,10 +109,64 @@ function getInitials(user) {
   return name.slice(0, 2).toUpperCase() || 'U';
 }
 
+// A dropdown menu in the phone menu: its name as a row that opens to the menu's own entries.
+// Closed by default, so the drawer still leads with the four services and the browse menus
+// cost one row each until someone asks for them.
+function MobileMenuGroup({ menu, onClose }) {
+  const [open, setOpen] = useState(false);
+  const listId = useId();
+  const row = (it, className, content) => (it.href ? (
+    <a key={it.key} className={className} href={it.href} {...newTabProps(it.newTab)} onClick={onClose}>{content}</a>
+  ) : (
+    <button key={it.key} type="button" className={className} onClick={it.onPick}>{content}</button>
+  ));
+  return (
+    <div className={styles.mobileGroup}>
+      <button
+        type="button"
+        className={`${styles.mobileLink} ${styles.mobileGroupBtn}`}
+        aria-expanded={open}
+        aria-controls={listId}
+        onClick={() => setOpen((o) => !o)}
+      >
+        {menu.buttonIcon}
+        <span className={styles.mobileGroupLabel}>{menu.label}</span>
+        <svg
+          className={`${styles.mobileGroupChevron} ${open ? styles.mobileGroupChevronUp : ''}`}
+          width="14" height="14" viewBox="0 0 24 24" fill="none"
+          stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"
+        >
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+      {open && (
+        <div id={listId} className={styles.mobileGroupList}>
+          {menu.items.map((it) => row(it, styles.mobileSubLink, (
+            <>
+              <span className={styles.mobileSubIcon}>{it.icon}</span>
+              <span className={styles.mobileSubText}>
+                <span className={styles.mobileSubMain}>{it.label}</span>
+                {it.sub && <span className={styles.mobileSubSub}>{it.sub}</span>}
+              </span>
+            </>
+          )))}
+          {menu.footer && row({ ...menu.footer, key: '__footer' }, styles.mobileSubFooter, (
+            <>
+              {menu.footer.label}
+              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12h14M13 6l6 6-6 6" /></svg>
+            </>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function Navbar() {
   // Every call carries the English as its default, so a key with no translation
   // yet renders readable text rather than a raw `nav.signIn`.
-  const { t }      = useTranslation('common');
+  const { t, i18n }  = useTranslation('common');
+  const lang       = i18n.resolvedLanguage || i18n.language;
   const navigate   = useNavigate();
   const location   = useLocation();
   const dispatch   = useDispatch();
@@ -115,44 +196,16 @@ export default function Navbar() {
   const logoAlt = headerConfig?.logoAltText?.trim() || 'SunSky';
   const logoHref = headerConfig?.logoLinkTarget?.trim() || '/';
 
-  // The word beside the handset. The dashboard owns it (Header settings → Support label), and
-  // the translated default stands in until it is set. CMS copy has no language column, so a
-  // value typed there shows as typed in both languages — the same trade every other CMS string
-  // on this site makes, and the reason the default is a translation rather than a hardcoded
-  // Dutch word.
-  // CMS → Layout → Header → Header Blocks. `siteHeader` is the backend's complete, normalised
-  // layout; until it loads (or against a backend that predates it) every block shows, which is
-  // exactly what the bar did before it was configurable. The two older flags below are gated on
-  // it too: they were stored long before the website read them, so their values only mean
-  // something once the migration that introduced siteHeader has reset them.
-  const site = headerConfig?.siteHeader;
-  const blockOn = (key) => site?.[key]?.enabled !== false;
-  const showLanguage = !site || headerConfig?.enableLanguageSelector !== false;
-  const showAccountEntry = !site || headerConfig?.enableAccountMenu !== false;
-  const loginHref = (site && headerConfig?.loginUrl?.trim()) || '/login';
-  const accountLabel = (site && headerConfig?.accountDisplayLabel?.trim()) || t('nav.myAccount', 'My Account');
-
-  const supportLabel =
-    site?.support?.label?.trim() || headerConfig?.supportLabel?.trim() || t('nav.customerService', 'Klantendienst');
-  const supportHref = site?.support?.link?.trim() || '/faq';
-  const destinationsLabel = site?.popularDestinations?.label?.trim() || t('nav.popularDestinations', 'Popular destinations');
-  const holidayTypesLabel = site?.holidayTypes?.label?.trim() || t('nav.holidayTypes', 'Holiday types');
-  const maxDests = site?.popularDestinations?.maxItems || 7;
-
-  // The phone menu: the CMS Navigation Menu items when the dashboard asks for them, otherwise
-  // the four services. Rows with no name or no target are drafts, not links.
-  const customMobileLinks = site?.mobileMenu?.useCustomLinks
-    ? (headerConfig?.navigationMenuItems ?? [])
-        .filter((i) => i && i.isActive !== false && i.itemName?.trim() && i.linkTarget?.trim())
-        .sort((a, b) => (a.order ?? 0) - (b.order ?? 0))
-    : [];
-  const openCmsLink = (item) => {
-    const href = item.linkTarget.trim();
-    setMobileOpen(false);
-    if (item.type === 'ANCHOR') { window.location.hash = href.replace(/^#?/, '#'); return; }
-    if (item.type === 'EXTERNAL_LINK' || isExternalHref(href)) { window.location.assign(href); return; }
-    navigate(href);
-  };
+  // CMS → Layout → Header. Everything below the logo reads from this one object, which is
+  // ALWAYS complete: utils/siteHeader.js turns the version 2 payload, a version 1 payload, a
+  // backend that predates both, or a config call that failed, into the same shape. With no
+  // settings at all it describes exactly the bar this was before it was configurable.
+  //
+  // Copy is bilingual ({ nl, en }); `pick` shows the visitor's language and, where the field
+  // has one, falls back to the site's own translated default rather than to the other
+  // language, so an empty field never shows Dutch to an English reader or the reverse.
+  const header = useMemo(() => normalizeSiteHeader(headerConfig), [headerConfig]);
+  const { announcement, menus, search, support, trustpilot, language, account, mobileMenu } = header;
 
   // Whether the logo is a wide wordmark or a square icon decides how it is sized AND whether
   // the "SunSky" text sits beside it: a wordmark already carries the name, a square icon does
@@ -174,10 +227,17 @@ export default function Navbar() {
   // auth screens. Login/register render without this layout anyway, but they are
   // excluded explicitly so the intent is clear if that ever changes.
   const showHeaderSearch =
-    blockOn('search') &&
+    search.enabled &&
     !location.pathname.startsWith('/hotel/') &&
     location.pathname !== '/login' &&
     location.pathname !== '/register';
+  // The phone menu's copy of it: also needs the drawer to want a search box, and the search
+  // not to be a desktop-only block.
+  const showDrawerSearch = showHeaderSearch && mobileMenu.showSearch && inDrawer(search.showOn);
+  // The dashboard's placeholder in the visitor's language, or DestinationSearch's own
+  // translated default (undefined hands the choice back to it). The same rule as `pick` with
+  // that default as the fallback, without restating the default here.
+  const searchPlaceholder = search.placeholder[langOf(lang)] || undefined;
 
   useEffect(() => {
     const onScroll = () => setScrolled(window.scrollY > 40);
@@ -210,8 +270,9 @@ export default function Navbar() {
   // Popular destinations, drawn from the CMS popular-destination groups the homepage already
   // fetches — zero extra API calls. groupLinkUrl builds the right params per entry (whole
   // countries → ?countries=, cities → ?destinations=); unlinked legacy strings drop out.
-  // De-duped by label. The group each entry came from becomes its menu sublabel. Top 7 fill
-  // the header menu; the first 6 double as the search's idle chips and typewriter names.
+  // De-duped by label. The group each entry came from becomes its menu sublabel. The first
+  // `maxItems` fill the header menu when its source is the homepage; the first 6 double as the
+  // search's idle chips and typewriter names whatever the menu's source is.
   const popularDests = useMemo(() => {
     const seen = new Set();
     const out = [];
@@ -222,41 +283,54 @@ export default function Navbar() {
         if (!url || !label || seen.has(label)) continue;
         seen.add(label);
         out.push({ label, url, sub: g?.title || '' });
-        if (out.length >= maxDests) return out;
+        if (out.length >= MAX_MENU_ITEMS) return out;
       }
     }
     return out;
-  }, [cmsConfig, allTypes, maxDests]);
-  const searchSuggestions = useMemo(() => popularDests.slice(0, 6), [popularDests]);
+  }, [cmsConfig, allTypes]);
+  const searchSuggestions = useMemo(
+    () => (search.showSuggestions ? popularDests.slice(0, 6) : []),
+    [popularDests, search.showSuggestions],
+  );
 
-  // Top holiday types for the right-hand menu: the CMS featured list leads (dashboard order),
-  // topped up from the full admin list to 5. Each opens its /holidays/:slug page.
+  // Top holiday types for the right-hand menu, as { title, slug, sub, icon }.
   //
   // When the backend serves siteHeader, its `resolved` list IS the menu: the dashboard's
   // choice (CMS → Header → Holiday Types Menu), already filtered server side to ACTIVE types
-  // and capped. The derivation below is only the fallback for an older backend.
+  // and capped. The derivation below is only the fallback for a backend that sends none: the
+  // CMS featured list leads (dashboard order), topped up from the full admin list.
+  const holidayTypesMenu = menus.holidayTypes;
   const topHolidayTypes = useMemo(() => {
-    const resolved = site?.holidayTypes?.resolved;
-    if (Array.isArray(resolved)) {
-      return resolved
-        .filter((r) => r && r.slug)
-        .map((r) => ({ title: r.label || r.name, slug: r.slug }));
+    if (!holidayTypesMenu.enabled) return [];
+    if (Array.isArray(holidayTypesMenu.resolved)) {
+      return holidayTypesMenu.resolved.map((r) => ({
+        title: pick(r.label, lang, r.name),
+        slug: r.slug,
+        sub: pick(r.sub, lang),
+        icon: r.icon,
+      }));
     }
+    const cap = holidayTypesMenu.maxItems;
     const seen = new Set();
     const out = [];
+    // De-duped by name AND by the page it opens: a featured card titled "Hotel only" and the
+    // type it resolves to ("Alleen hotelverblijf", slug hotel-only) are one entry, not two rows
+    // to the same page.
     const push = (title, slug) => {
       const key = slugify(title);
-      if (!title || !key || seen.has(key)) return;
+      const to = slug || key;
+      if (!title || !key || seen.has(key) || seen.has(`/${to}`)) return;
       seen.add(key);
-      out.push({ title, slug: slug || key });
+      seen.add(`/${to}`);
+      out.push({ title, slug: to, sub: '', icon: '' });
     };
     // A featured entry is resolved against the LIVE type list before it is linked, exactly as
     // the homepage Categories cards do it. Its `title` is dashboard copy and is often not the
     // type's name — "Sun Holidays" is the type whose slug is `zonvakanties`, "City Trip" is
     // `stedentrips` — so the slug this used to invent from the title led to a page that does
     // not exist. Two of the four live entries were landing nowhere.
-    const liveById = new Map((allTypes ?? []).map((t) => [String(t.id), t]));
-    const liveByName = new Map((allTypes ?? []).map((t) => [slugify(t.name), t]));
+    const liveById = new Map((allTypes ?? []).map((ty) => [String(ty.id), ty]));
+    const liveByName = new Map((allTypes ?? []).map((ty) => [slugify(ty.name), ty]));
     for (const f of cmsConfig?.featuredHolidayTypes ?? []) {
       if (f && f.active !== false && f.title) {
         const live = liveById.get(String(f.holidayTypeId)) || liveByName.get(slugify(f.title));
@@ -266,14 +340,14 @@ export default function Navbar() {
         // so the menu simply waits rather than offering dead links.
         if (live) push(f.title, live.slug);
       }
-      if (out.length >= 5) return out;
+      if (out.length >= cap) return out;
     }
-    for (const t of allTypes ?? []) {
-      push(t.name, t.slug);
-      if (out.length >= 5) break;
+    for (const ty of allTypes ?? []) {
+      push(ty.name, ty.slug);
+      if (out.length >= cap) break;
     }
     return out;
-  }, [cmsConfig, allTypes, site]);
+  }, [cmsConfig, allTypes, holidayTypesMenu, lang]);
 
   // Header search.
   //
@@ -330,7 +404,177 @@ export default function Navbar() {
     setMobileOpen(false);
   };
 
+  // A menu row's link in HeaderMenu's terms: a path on this site becomes a router pick, and
+  // anything else (another site, mailto:, tel:, an #anchor, a new tab) a real href. null when
+  // the dashboard's link is not one the site will open, which drops the row.
+  const menuLink = (url, newTab = false) => {
+    const link = headerLink(url, newTab);
+    if (!link) return null;
+    return link.router ? { onPick: () => goToSuggestion(link.href) } : { href: link.href, newTab: link.newTab };
+  };
+  const withLink = (row) => {
+    const link = menuLink(row.url, row.newTab);
+    return link ? { key: row.key, label: row.label, sub: row.sub, icon: row.icon, ...link } : null;
+  };
+  // The emoji the dashboard picked for a row, or the built-in icon it had before it could.
+  // A name the catalogue does not know is treated as unset rather than drawn as an empty tile.
+  const rowIcon = (name, fallback) =>
+    (name && isEmoji(name) ? <TravelEmoji name={name} className={styles.hmItemEmoji} /> : fallback);
+  const footerOf = (menu) => {
+    const f = menu.footerLink;
+    if (!f?.enabled) return null;
+    const link = menuLink(f.url);
+    return link ? { label: pick(f.label, lang, t('nav.seeAll', 'See all')), ...link } : null;
+  };
+
+  // Every dropdown menu, in the dashboard's order (menuOrder), as the desktop bar and the phone
+  // menu both draw it: { key, label, buttonIcon, tally, items, footer, showOn }. A menu that is
+  // off, or ends up with no rows, is not in the list at all, so neither surface draws an empty
+  // button.
+  const destinationsMenu = menus.destinations;
+  const menuList = header.menuOrder.map((key) => {
+    if (key === 'destinations') {
+      const m = destinationsMenu;
+      if (!m.enabled) return null;
+      const rows = m.source === 'manual'
+        ? m.items.filter((it) => it.active).map((it) => {
+            // The dashboard's name for the row, in either language, before the place's own name:
+            // a typed label is always closer to what the editor meant than the catalogue's.
+            const label = pick(it.label, lang) || it.dest?.name || '';
+            const url = it.url || groupLinkUrl(
+              { label, dest: it.dest, boardCode: it.boardCode, holidayTypeId: it.holidayTypeId },
+              allTypes,
+            );
+            return { key: it.id, label, sub: pick(it.sub, lang), icon: rowIcon(it.icon, <MenuPin />), url };
+          })
+        : popularDests.map((d) => ({
+            key: d.label,
+            label: d.label,
+            sub: m.showGroupAsSub ? d.sub : '',
+            icon: <MenuPin />,
+            url: d.url,
+          }));
+      const items = rows.filter((r) => r.label).map(withLink).filter(Boolean).slice(0, m.maxItems);
+      return {
+        key,
+        label: pick(m.label, lang, t('nav.popularDestinations', 'Popular destinations')),
+        buttonIcon: <MenuGlobe />,
+        tally: t('nav.destinations', {
+          count: items.length,
+          defaultValue_one: '{{count}} destination',
+          defaultValue_other: '{{count}} destinations',
+        }),
+        items,
+        footer: footerOf(m),
+        showOn: m.showOn,
+      };
+    }
+    if (key === 'holidayTypes') {
+      const m = holidayTypesMenu;
+      if (!m.enabled) return null;
+      // The row's own sub-label, then the menu's, then the site's "Explore holidays".
+      const defaultSub = pick(m.sub, lang) || t('nav.exploreHolidays', 'Explore holidays');
+      // `type`, not `t`: the parameter was called `t` and shadowed the
+      // translation function, so `t(...)` inside it called a holiday-type
+      // object. It only crashed where the CMS actually returns types.
+      const items = topHolidayTypes.map((type) => withLink({
+        key: type.slug,
+        label: type.title,
+        sub: type.sub || defaultSub,
+        icon: rowIcon(type.icon, typeIconFor(type.title)),
+        url: `/holidays/${type.slug}`,
+      })).filter(Boolean);
+      return {
+        key,
+        label: pick(m.label, lang, t('nav.holidayTypes', 'Holiday types')),
+        buttonIcon: <TypeSun />,
+        tally: t('nav.holidayTypes', {
+          count: items.length,
+          defaultValue_one: '{{count}} holiday type',
+          defaultValue_other: '{{count}} holiday types',
+        }),
+        items,
+        footer: footerOf(m),
+        showOn: m.showOn,
+      };
+    }
+    const m = menus.custom.find((c) => `custom:${c.id}` === key);
+    if (!m || !m.enabled) return null;
+    const items = m.items.filter((it) => it.active).map((it) => withLink({
+      key: it.id,
+      label: pick(it.label, lang),
+      sub: pick(it.sub, lang),
+      icon: rowIcon(it.icon, <MenuLinkIcon />),
+      url: it.url,
+      newTab: it.newTab,
+    })).filter((it) => it && it.label);
+    return {
+      key,
+      label: pick(m.label, lang),
+      buttonIcon: m.glyph && isGlyph(m.glyph) ? <TravelGlyph name={m.glyph} className={styles.hmGlyph} /> : <MenuGrid />,
+      // Not "destinations" or "holiday types": a dashboard menu can hold anything.
+      tally: t('nav.links', {
+        count: items.length,
+        defaultValue_one: '{{count}} link',
+        defaultValue_other: '{{count}} links',
+      }),
+      items,
+      footer: footerOf(m),
+      showOn: m.showOn,
+    };
+  }).filter((m) => m && m.label && m.items.length > 0);
+  const drawerMenus = mobileMenu.showMenus ? menuList.filter((m) => inDrawer(m.showOn)) : [];
+
+  // The phone menu's own rows (CMS → Header → Mobile menu). A built-in row keeps its icon,
+  // its translated name and the pages it lights up on, unless the dashboard overrides them; a
+  // row the dashboard added has what the dashboard gave it.
+  const mobileRows = mobileMenu.items.filter((it) => it.active).map((it) => {
+    const service = it.key ? SERVICE_BY_KEY.get(it.key) : null;
+    const label = service
+      ? pick(it.label, lang, t(`nav.services.${service.key}`, service.label))
+      : pick(it.label, lang);
+    const link = headerLink(it.url, it.newTab);
+    if (!label || !link) return null;
+    const icon = it.icon && isEmoji(it.icon)
+      ? <TravelEmoji name={it.icon} className={styles.mobileEmoji} />
+      : service?.icon ?? null;
+    // A service on its own page keeps the pages it always matched (Holidays is also /results).
+    const matches = service && link.href === service.path ? service.match : [link.href];
+    return { key: it.id, label, icon, link, active: link.router && matches.includes(location.pathname) };
+  }).filter(Boolean);
+
+  // Account (CMS → Header → Account). The way IN is the dashboard's to switch off or relabel;
+  // a signed-in visitor always keeps the avatar menu, because that is where signing out is.
+  const signInLink = headerLink(account.signInUrl) || { href: '/login', router: true, newTab: false };
+  const registerLink = account.register.enabled ? headerLink(account.register.url) : null;
+  const signInLabel = pick(account.signInLabel, lang, t('nav.signIn', 'Sign In'));
+  const accountName = user?.firstName || pick(account.fallbackName, lang, t('nav.myAccount', 'My Account'));
+  const accountItems = account.menuItems
+    .filter((m) => m.enabled && ACCOUNT_ITEMS[m.key])
+    .map((m) => {
+      const item = ACCOUNT_ITEMS[m.key];
+      return { key: m.key, path: item.path, icon: item.icon, label: pick(m.label, lang, t(...item.i18n)) };
+    });
+  const showGuestEntry = account.enabled;
+  const showDrawerGuestEntry = account.enabled && inDrawer(account.showOn);
+
+  // A link that may be a router path or a real anchor, in the bar's own markup.
+  const barLink = (link, props, children) => (link.router
+    ? <Link to={link.href} {...props}>{children}</Link>
+    : <a href={link.href} {...newTabProps(link.newTab)} {...props}>{children}</a>);
+  // The same for the drawer's buttons: a path goes through the router and closes the drawer,
+  // anything else is an anchor that closes it on the way out.
+  // `key` travels on its own: React does not read it out of a spread.
+  const drawerLink = (link, props, children, key) => (link.router
+    ? <button key={key} type="button" {...props} onClick={() => goToSuggestion(link.href)}>{children}</button>
+    : <a key={key} href={link.href} {...newTabProps(link.newTab)} {...props} onClick={() => setMobileOpen(false)}>{children}</a>);
+
+  const supportLink = support.enabled ? headerLink(support.link, support.newTab) : null;
+  const supportLabel = pick(support.label, lang, t('nav.customerService', 'Klantendienst'));
+
   return (
+    <>
+    <AnnouncementBar announcement={announcement} />
     <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
 
       {/* The bar is three parts: this flank, the cluster, and the flank below. The two
@@ -361,48 +605,21 @@ export default function Navbar() {
           </span>
         )}
       </Link>
-      {blockOn('popularDestinations') && (
-      <HeaderMenu
-            label={destinationsLabel}
-            buttonIcon={<MenuGlobe />}
-            tally={t('nav.destinations', {
-              count: popularDests.length,
-              defaultValue_one: '{{count}} destination',
-              defaultValue_other: '{{count}} destinations',
-            })}
-            align="left"
-            items={popularDests.map((d) => ({
-              key: d.label,
-              label: d.label,
-              sub: d.sub,
-              icon: <MenuPin />,
-              onPick: () => goToSuggestion(d.url),
-            }))}
-          />
-      )}
-          <HeaderMenu
-            label={holidayTypesLabel}
-            buttonIcon={<TypeSun />}
-            tally={t('nav.holidayTypes', {
-              count: topHolidayTypes.length,
-              defaultValue_one: '{{count}} holiday type',
-              defaultValue_other: '{{count}} holiday types',
-            })}
-            // Both panels now drop from the left of the pair, so both draw their golden
-            // thread the same way; "right" belonged to the menu that used to sit at the
-            // cluster's right edge.
-            align="left"
-            // `type`, not `t`: the parameter was called `t` and shadowed the
-            // translation function, so `t(...)` inside it called a holiday-type
-            // object. It only crashed where the CMS actually returns types.
-            items={topHolidayTypes.map((type) => ({
-              key: type.slug,
-              label: type.title,
-              sub: t('nav.exploreHolidays', 'Explore holidays'),
-              icon: typeIconFor(type.title),
-              onPick: () => { navigate(`/holidays/${type.slug}`); },
-            }))}
-          />
+      {/* The browse menus, in the dashboard's order. Every panel drops from the left of its
+          button, so all of them draw their golden thread the same way; "right" belonged to the
+          menu that used to sit at the cluster's right edge. */}
+      {menuList.map((m) => (
+        <HeaderMenu
+          key={m.key}
+          label={m.label}
+          buttonIcon={m.buttonIcon}
+          tally={m.tally}
+          align="left"
+          items={m.items}
+          footer={m.footer}
+          className={showOnClass(m.showOn, styles)}
+        />
+      ))}
       </div>
 
       {/* Centered search — home page only. A REAL flex child between the logo and the auth
@@ -410,9 +627,9 @@ export default function Navbar() {
           them — it can never overlap either side, on any resize, with no JS measurement. Hidden
           on mobile, where it moves into the drawer. */}
       {showHeaderSearch && (
-        <div className={styles.headerSearch}>
+        <div className={`${styles.headerSearch} ${showOnClass(search.showOn, styles)}`}>
           <div className={styles.searchGrow}>
-            <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
+            <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} placeholder={searchPlaceholder} />
           </div>
         </div>
       )}
@@ -425,42 +642,41 @@ export default function Navbar() {
           control for a screen reader and on hover, and this one stays down to phone width,
           where it sits beside the burger.
 
-          It opens the help centre (/faq), not /contact: the questions there answer most of
-          what people ring about, and the FAQ page carries the ways to reach a human anyway.
-          The accessible name says "Help" to match where it goes — a control announced as
-          "Contact us" that lands on a list of questions is a small lie to anyone who cannot
-          see the page. */}
-      {blockOn('support') && (() => {
-        const inner = (
-          <>
-        <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z"/>
-        </svg>
-        {/* aria-hidden: the label repeats the accessible name the Link already carries, so
-            without this a screen reader announces it twice. */}
-        <span className={styles.contactLabel} aria-hidden="true">{supportLabel}</span>
-          </>
-        );
-        const common = { className: styles.contactBtn, 'aria-label': supportLabel, title: supportLabel };
-        return isExternalHref(supportHref)
-          ? <a href={supportHref} {...common}>{inner}</a>
-          : <Link to={supportHref} {...common}>{inner}</Link>;
-      })()}
+          It opens the help centre (/faq) by default, not /contact: the questions there answer
+          most of what people ring about, and the FAQ page carries the ways to reach a human
+          anyway. The dashboard can point it anywhere (a tel: link, a chat page) and change the
+          icon to match. */}
+      {supportLink && barLink(
+        supportLink,
+        {
+          className: `${styles.contactBtn} ${showOnClass(support.showOn, styles)}`,
+          'aria-label': supportLabel,
+          title: supportLabel,
+        },
+        <>
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+            {SUPPORT_ICONS[support.icon] || SUPPORT_ICONS.phone}
+          </svg>
+          {/* aria-hidden: the label repeats the accessible name the link already carries, so
+              without this a screen reader announces it twice. */}
+          {support.showLabel && <span className={styles.contactLabel} aria-hidden="true">{supportLabel}</span>}
+        </>,
+      )}
 
       {/* Trustpilot's star rating. The header has room for a score and nothing else, so it
           stays empty until the agency's plan actually includes a score widget — a logo with
           no rating on it would take the slot and tell a traveller nothing. The slot collapses
           to zero width when empty (see .trustpilotSlot:empty). */}
-      {blockOn('trustpilot') && (
-      <div className={styles.trustpilotSlot}>
+      {trustpilot.enabled && (
+      <div className={`${styles.trustpilotSlot} ${showOnClass(trustpilot.showOn, styles)}`}>
         <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} />
       </div>
       )}
 
       {/* Language, then the auth buttons. Before them on purpose: somebody who
           cannot read the page needs to fix that before they can sign in. */}
-      {showLanguage && (
-      <div className={styles.langSlot}>
+      {language.enabled && (
+      <div className={`${styles.langSlot} ${showOnClass(language.showOn, styles)}`}>
         <LanguageSwitch />
       </div>
       )}
@@ -472,10 +688,11 @@ export default function Navbar() {
             <button
               className={`${styles.avatarBtn} ${dark ? styles.avatarBtnDark : styles.avatarBtnLight}`}
               onClick={() => setDropOpen((o) => !o)}
+              aria-expanded={dropOpen}
             >
               <div className={styles.avatarCircle}>{getInitials(user)}</div>
               <span className={`${styles.avatarName} ${dark ? styles.avatarNameDark : styles.avatarNameLight}`}>
-                {user?.firstName || accountLabel}
+                {accountName}
               </span>
               <svg
                 className={`${styles.chevron} ${dropOpen ? styles.chevronUp : ''}`}
@@ -496,45 +713,46 @@ export default function Navbar() {
                   </div>
                 </div>
                 <div className={styles.dropDivider} />
-                {[
-                  { icon: 'M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2', label: t('nav.myBookings', 'My Bookings'), path: '/account/bookings' },
-                  { icon: 'M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2 M12 11a4 4 0 100-8 4 4 0 000 8z', label: t('nav.profile', 'Profile'), path: '/account/profile' },
-                  { icon: 'M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z', label: t('nav.favourites', 'Favourites'), path: '/account/favourites' },
-                ].map((item) => (
-                  <button key={item.path} className={styles.dropItem} onClick={() => { navigate(item.path); setDropOpen(false); }}>
+                {accountItems.map((item) => (
+                  <button key={item.key} className={styles.dropItem} onClick={() => { navigate(item.path); setDropOpen(false); }}>
                     <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                       <path d={item.icon}/>
                     </svg>
                     {item.label}
                   </button>
                 ))}
-                <div className={styles.dropDivider} />
+                {accountItems.length > 0 && <div className={styles.dropDivider} />}
                 <button className={styles.dropLogout} onClick={handleLogout}>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round">
                     <path d="M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9"/>
                   </svg>
-                  Sign Out
+                  {t('nav.signOut', 'Sign Out')}
                 </button>
               </div>
             )}
           </div>
-        ) : showAccountEntry && (
-          <div className={styles.authBtns}>
+        ) : showGuestEntry && (
+          <div className={`${styles.authBtns} ${showOnClass(account.showOn, styles)}`}>
             {/* One pill carrying both ways in, split by a slash, rather than a quiet text
                 link beside a loud orange button. Still TWO links inside it: sign in and
                 register are different destinations, and collapsing them into a single
                 control would make the traveller pick again on the next screen. The slash
-                is aria-hidden so a screen reader reads two plain links, not "slash". */}
-            <Link to={loginHref} className={styles.authPillLink}>
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
-              {t('nav.signIn', 'Sign In')}
-            </Link>
-            <span className={styles.authPillSlash} aria-hidden="true">/</span>
-            <Link to="/register" className={styles.authPillLink}>
-              {t('nav.register', 'Register')}
-            </Link>
+                is aria-hidden so a screen reader reads two plain links, not "slash". With
+                registration switched off it is the sign-in link alone, and no slash. */}
+            {barLink(signInLink, { className: styles.authPillLink }, (
+              <>
+                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                  <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
+                </svg>
+                {signInLabel}
+              </>
+            ))}
+            {registerLink && (
+              <>
+                <span className={styles.authPillSlash} aria-hidden="true">/</span>
+                {barLink(registerLink, { className: styles.authPillLink }, pick(account.register.label, lang, t('nav.register', 'Register')))}
+              </>
+            )}
           </div>
         )}
       </div>
@@ -544,6 +762,7 @@ export default function Navbar() {
         className={`${styles.hamburger} ${dark ? styles.hamburgerDark : styles.hamburgerLight}`}
         onClick={() => setMobileOpen((o) => !o)}
         aria-label={t('nav.menu', 'Menu')}
+        aria-expanded={mobileOpen}
       >
         {mobileOpen ? (
           <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
@@ -560,32 +779,26 @@ export default function Navbar() {
       {/* Mobile drawer */}
       {mobileOpen && (
         <div className={styles.mobile}>
-          {showHeaderSearch && (
+          {showDrawerSearch && (
             <div className={styles.mobileSearch}>
-              <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} />
+              <DestinationSearch onSelect={goToSearchResult} onGo={goToSuggestion} suggestions={searchSuggestions} placeholder={searchPlaceholder} />
             </div>
           )}
           <div className={styles.mobileLinks}>
-            {customMobileLinks.length > 0 ? customMobileLinks.map((item) => (
-              <button
-                key={item.id ?? item.itemName}
-                className={`${styles.mobileLink} ${item.linkTarget === location.pathname ? styles.mobileLinkActive : ''}`}
-                onClick={() => openCmsLink(item)}
-              >
-                {item.itemName}
-              </button>
-            )) : SERVICES.map((l) => (
-              <button
-                key={l.path}
-                className={`${styles.mobileLink} ${l.match.includes(location.pathname) ? styles.mobileLinkActive : ''}`}
-                onClick={() => { navigate(l.path); setMobileOpen(false); }}
-              >
-                {l.icon}
-                {t(`nav.services.${l.key}`, l.label)}
-              </button>
+            {mobileRows.map((row) => drawerLink(
+              row.link,
+              { className: `${styles.mobileLink} ${row.active ? styles.mobileLinkActive : ''}` },
+              <>
+                {row.icon}
+                {row.label}
+              </>,
+              row.key,
+            ))}
+            {drawerMenus.map((m) => (
+              <MobileMenuGroup key={m.key} menu={m} onClose={() => setMobileOpen(false)} />
             ))}
           </div>
-          {showLanguage && (
+          {language.enabled && inDrawer(language.showOn) && (
           <div className={styles.mobileLang}>
             <LanguageSwitch compact />
           </div>
@@ -601,20 +814,24 @@ export default function Navbar() {
                   <div className={styles.mobileUserEmail}>{user?.email}</div>
                 </div>
               </div>
-              <button className={styles.mobileLink} onClick={() => { navigate('/account/bookings'); setMobileOpen(false); }}>{t('nav.myBookings', 'My Bookings')}</button>
-              <button className={styles.mobileLink} onClick={() => { navigate('/account/profile'); setMobileOpen(false); }}>{t('nav.profile', 'Profile')}</button>
+              {accountItems.map((item) => (
+                <button key={item.key} className={styles.mobileLink} onClick={() => { navigate(item.path); setMobileOpen(false); }}>{item.label}</button>
+              ))}
               <button className={styles.mobileLogout} onClick={handleLogout}>{t('nav.signOut', 'Sign Out')}</button>
             </div>
-          ) : showAccountEntry && (
+          ) : showDrawerGuestEntry && (
             <div className={styles.mobileAuth}>
-              <button className={styles.mobileSignIn} onClick={() => { navigate(loginHref); setMobileOpen(false); }}>{t('nav.signIn', 'Sign In')}</button>
-              <button className={styles.mobileRegister} onClick={() => { navigate('/register'); setMobileOpen(false); }}>
-                {t('nav.registerQuick', "Register — it's quick!")}
-              </button>
+              {drawerLink(signInLink, { className: styles.mobileSignIn }, signInLabel)}
+              {registerLink && drawerLink(
+                registerLink,
+                { className: styles.mobileRegister },
+                pick(account.register.label, lang, t('nav.registerQuick', "Register, it's quick!")),
+              )}
             </div>
           )}
         </div>
       )}
     </header>
+    </>
   );
 }

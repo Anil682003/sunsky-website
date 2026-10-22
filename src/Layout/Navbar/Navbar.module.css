@@ -5,10 +5,13 @@
    as the same material. The contents stay dark in every state: 0.9 alpha over a blur
    is near-white on any backdrop, photo included. */
 .nav {
-  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  /* Below the announcement strip when one is showing (AnnouncementBar publishes its height as
+     --announce-h on <html>; 0px otherwise, so the bar sits at the top exactly as before). */
+  position: fixed; top: var(--announce-h, 0px); left: 0; right: 0; z-index: 1000;
   /* Explicit, not padding-driven. The height is the contract every other stylesheet
-     depends on, so it is stated once here and read from --nav-h everywhere else. */
-  height: var(--nav-h);
+     depends on, so it is stated once in index.css and read from there. The BAR is
+     --nav-bar-h; --nav-h, which the pages clear, is the bar plus the strip above it. */
+  height: var(--nav-bar-h);
   box-sizing: border-box;
   /* 48, up from 36: the logo and the auth pill sat close to the window edge once the
      bar grew taller, and the extra air is what makes the taller bar read as deliberate
@@ -297,6 +300,26 @@
 }
 .hmItemArrow { color: var(--text-light); opacity: 0; transform: translateX(-3px); transition: opacity 0.15s, transform 0.15s; flex-shrink: 0; }
 .hmItem:hover .hmItemArrow { opacity: 1; transform: translateX(0); color: var(--blue-deep); }
+/* An emoji the dashboard picked for a row, in place of the built-in line icon. Sized as a
+   block so the placeholder span holds the tile's shape while the emoji file loads. */
+.hmItemEmoji { display: block; width: 22px; height: 22px; }
+/* A dashboard menu's own glyph on its button, at the built-in icons' size. */
+.hmGlyph { display: block; width: 15px; height: 15px; }
+
+/* "See all" under a menu's list: a way out of the shortlist, so it reads as a footer (hairline
+   above, the menus' blue, no tile) rather than as one more entry. */
+.hmFooter {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; margin-top: 4px; padding: 11px 12px 5px;
+  border-top: 1px solid var(--line);
+  font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 700;
+  color: var(--blue-deep); text-align: left; text-decoration: none;
+  cursor: pointer;
+  transition: color 0.15s;
+}
+.hmFooter svg { flex-shrink: 0; transition: transform 0.15s var(--ease); }
+.hmFooter:hover { color: var(--blue-mid); }
+.hmFooter:hover svg { transform: translateX(2px); }
 
 @media (prefers-reduced-motion: reduce) {
   .hmPanel, .hmItem { animation: none; }
@@ -521,6 +544,49 @@
 .mobileLink:hover { background: var(--blue-bg); }
 .mobileLinkActive { background: var(--blue-light); color: var(--blue-deep); }
 .mobileLinkActive svg { color: var(--blue-deep); }
+/* A row's emoji when the dashboard picked one, at the built-in icons' size. */
+.mobileEmoji { display: block; width: 16px; height: 16px; flex-shrink: 0; }
+
+/* ── The browse menus in the drawer ──
+   Each dropdown menu is one row that opens in place to its entries, indented under it, so
+   the drawer keeps leading with the services and the menus cost a row each until opened. */
+.mobileGroup { display: flex; flex-direction: column; }
+.mobileGroupBtn { width: 100%; }
+.mobileGroupLabel { flex: 1; min-width: 0; }
+.mobileLink .mobileGroupChevron { color: var(--text-light); flex-shrink: 0; transition: transform 0.25s var(--ease); }
+.mobileLink .mobileGroupChevronUp { transform: rotate(180deg); }
+.mobileGroupList {
+  display: flex; flex-direction: column;
+  padding: 0 0 6px 26px;
+  animation: slideDown 0.2s var(--ease) both;
+}
+.mobileSubLink {
+  display: flex; align-items: center; gap: 10px; width: 100%;
+  padding: 8px 12px; border-radius: var(--r-sm);
+  font-size: 14px; font-weight: 600; color: var(--text);
+  text-align: left; text-decoration: none;
+  transition: background 0.2s;
+}
+.mobileSubLink:hover { background: var(--blue-bg); }
+.mobileSubIcon {
+  width: 28px; height: 28px; border-radius: 9px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: rgba(31, 79, 216, 0.10); color: var(--blue-deep);
+}
+.mobileSubIcon svg { width: 15px; height: 15px; }
+.mobileSubIcon .hmItemEmoji { width: 18px; height: 18px; }
+.mobileSubText { display: flex; flex-direction: column; min-width: 0; }
+.mobileSubMain, .mobileSubSub { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.mobileSubSub { font-size: 12px; font-weight: 500; color: var(--text-sec); }
+.mobileSubFooter {
+  display: flex; align-items: center; gap: 6px;
+  padding: 9px 12px;
+  font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 700;
+  color: var(--blue-deep); text-align: left; text-decoration: none;
+}
+@media (prefers-reduced-motion: reduce) {
+  .mobileGroupList { animation: none; }
+}
 .mobileLang { display: flex; justify-content: center; padding: 10px 0 4px; }
 .mobileDivider { height: 1px; background: rgba(0,0,0,0.06); margin: 8px 0; }
 .mobileAuth { display: flex; flex-direction: column; gap: 8px; padding-top: 4px; }
@@ -566,3 +632,10 @@
   .hamburger { display: flex; }
   .nav { padding: 0 20px; }
 }
+
+/* ── Where the dashboard wants a block (showOn) ──
+   utils/siteHeader.js showOnClass. 'desktop' goes at the burger's breakpoint and 'mobile'
+   comes back there. Last in the file on purpose: these are single classes like the rules they
+   override (.contactBtn, .langSlot, .authBtns...), so it is source order that lets them win. */
+@media (max-width: 900px) { .onlyDesktop { display: none; } }
+@media (min-width: 901px) { .onlyMobile { display: none; } }
