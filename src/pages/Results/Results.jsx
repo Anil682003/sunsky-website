@@ -6,10 +6,11 @@ import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { ENDPOINTS } from '../../api/endpoints';
 import { BASE_URL } from '../../utils/ip';
+import { holidayThemesForCities } from '../../utils/holidayThemesForCities';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
 import {
   packageBody, chunkDestinations, chunkSizeFor, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, mergeDestinationCounts, PACKAGE_CONCURRENCY, isoAddDays,
-  packageTotal, cheapestPackage, noFlightPlaces,
+  packageTotal, cheapestPackage,
 } from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
 import { rememberDestCode } from '../../utils/favDest';
@@ -1066,13 +1067,13 @@ export default function Results() {
   const seenCodesRef   = useRef(new Set());
 
   // Debounce the UI filters into the committed set that actually drives fetching.
-  // `origins` is deliberately excluded from the comparison: the departure airport never
-  // reaches the cache (flights are priced on the hotel page), so committing a copy that
-  // differs only by origin would re-fire an IDENTICAL search — the page-1 effect keys on
-  // this object — and reset the grid and scroll position for nothing.
+  // Hotel Only: `origins` is left out of the comparison, the departure airport never reaches
+  // the cache, so a change of origin alone would re-fire an IDENTICAL search. Flight + Hotel
+  // prices from the chosen airports, so there it is a real change (Levent 23 Oct: ticking
+  // Charleroi left Düsseldorf packages on the page).
   useEffect(() => {
     const timer = setTimeout(() => setApplied((prev) => {
-      const key = (f) => JSON.stringify(f, (k, v) => (k === 'origins' ? undefined : v));
+      const key = (f) => JSON.stringify(f, (k, v) => (k === 'origins' && f.transport !== 'package' ? undefined : v));
       return key(prev) === key(filters) ? prev : filters;
     }), 300);
     return () => clearTimeout(timer);
@@ -1116,6 +1117,17 @@ export default function Results() {
   }, [scopeCityKey, scopeZoneKey]);
   const scopeCities = cityList.key === scopeCountryKey ? cityList.list : NO_GEO.list;
   const scopeZones  = zoneList.key === scopeCityKey    ? zoneList.list : NO_GEO.list;
+  // WHAT IS SEARCHED: a city picked inside a country NARROWS that country (Turkey + Istanbul =
+  // Istanbul), as the heading already reads it (utils/scopeLeaves). The admin adds countries and
+  // cities together, so sent as they are, "Istanbul" priced all of Turkey (Levent 23 Oct: Fethiye
+  // and Izmir hotels under Istanbul, five Turkish arrival airports). Waits for the country's city
+  // list, which says which country a city is in.
+  const narrowReady = !(scope.countries.length && scope.destinations.length) || cityList.key === scopeCountryKey;
+  const searchScope = useMemo(() => {
+    if (!scope.countries.length || !scope.destinations.length) return scope;
+    return { ...scope, countries: scopeLeaves(scope, scopeCities).countries };
+  }, [scope, scopeCities]);
+  const searchScopeKey = `${searchScope.countries.join(',')}|${searchScope.destinations.join(',')}|${searchScope.zones.join(',')}`;
 
   // "Flying to" options, fetched ONCE on mount and scoped afterwards in `arrivalOptions`.
   //
@@ -1250,6 +1262,54 @@ export default function Results() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrivalAirports, scopeDestSet, pkgAirports.arrivals, pkgProven.arrivals, pricedAirports, filters.arrivals]);
 
+  // HOLIDAY TYPE FOLLOWS THE CITIES (Levent 23 Oct): with a holiday-type theme ticked, picking
+  // Athens under Zonvakanties switches it to Stedentrips (utils/holidayThemesForCities). The
+  // types' places are loaded once, and only when some theme is ticked.
+  const [placesByType, setPlacesByType] = useState(null);
+  const themesTicked = filters.themes.length > 0;
+  useEffect(() => {
+    if (!themesTicked || placesByType) return;
+    let live = true;
+    (async () => {
+      const list = (await (await fetch(`${BASE_URL}${ENDPOINTS.holidayTypes}`)).json())?.data ?? [];
+      const typed = list.filter((x) => x.category === 'Holiday' && x.slug);
+      const scopes = await Promise.all(typed.map((x) => fetch(`${BASE_URL}${ENDPOINTS.holidayTypeScope(x.slug)}`).then((r) => r.json()).catch(() => null)));
+      const m = new Map();
+      typed.forEach((x, i) => {
+        const s = scopes[i]?.data;
+        const places = new Set([...(s?.destinations ?? []), ...(s?.zones ?? []).map((z) => z.destination)].map((c) => String(c).toUpperCase()));
+        if (places.size) m.set(String(x.id), places);
+      });
+      if (live) setPlacesByType(m);
+    })().catch(() => { /* no type data: the themes simply stay as ticked */ });
+    return () => { live = false; };
+  }, [themesTicked, placesByType]);
+  const pickedCityKey = [...pickedScope.destinations, ...pickedScope.zones].join(',');
+  useEffect(() => {
+    const next = holidayThemesForCities(pickedScope, filters.themes, placesByType);
+    if (!next) return;
+    const ids = next.map(Number);
+    if (ids.join(',') !== filters.themes.join(',')) setFilters((f) => ({ ...f, themes: ids }));
+    // Only when the picked cities (or the type data) change: a theme the traveller ticks
+    // afterwards is theirs.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pickedCityKey, placesByType]);
+
+  // Arrival airports are a choice within ONE city (Levent 23 Oct): a whole country, or two
+  // cities, shows no Arrival airport block. Read from what the traveller picked, not from the
+  // search's own places (a holiday type searches many).
+  const oneCityPicked = useMemo(() => {
+    const l = scopeLeaves(pickedScope, scopeCities);
+    const cities = new Set([...l.destinations, ...l.zones.map((z) => String(z).split(':')[0])]);
+    return l.countries.length === 0 && cities.size === 1;
+  }, [pickedScope, scopeCities]);
+  const showArrivals = filters.transport === 'package' && oneCityPicked && arrivalOptions.length > 1;
+  // A choice made for a city that is no longer the only one picked would narrow the search
+  // from a block nobody can see: dropped.
+  useEffect(() => {
+    if (!oneCityPicked && filters.arrivals.length) setFilters((f) => ({ ...f, arrivals: [] }));
+  }, [oneCityPicked, filters.arrivals.length]);
+
   const arrivalRows = useMemo(
     () => arrivalOptions.map((a) => ({
       code: a.code,
@@ -1336,7 +1396,7 @@ export default function Results() {
   // does not re-run when a box is ticked.
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
-    if (scopeLoading) return;   // the empty search's (or holiday type's) places are still loading
+    if (scopeLoading || !narrowReady) return;   // places still loading (see searchScope)
     let live = true;
     const ctrl = new AbortController();
     const selected = {
@@ -1346,7 +1406,7 @@ export default function Results() {
       maxBeach: applied.maxBeach, maxCentre: applied.maxCentre,
       adultsOnly: applied.adultsOnly, minRating: applied.minRating,
     };
-    fetchFacets(scope, selected, { codes: needCodes, attrs: needAttrs, counts: false, signal: ctrl.signal })
+    fetchFacets(searchScope, selected, { codes: needCodes, attrs: needAttrs, counts: false, signal: ctrl.signal })
       .then((r) => {
         if (!live) return;
         // An admin that predates counts=0 still sends the counts: use them rather than wait for (B).
@@ -1382,17 +1442,17 @@ export default function Results() {
       });
     return () => { live = false; ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeKey, contentKey, urlHotelCode, needCodes, needAttrs]);
+  }, [searchScopeKey, narrowReady, scopeLoading, contentKey, urlHotelCode, needCodes, needAttrs]);
 
   // (B) The sidebar's facet counts. Scope-level ("what is in the searched area"), so they do not
   // depend on the ticked boxes and are fetched once per scope, in parallel with pricing.
   useEffect(() => {
     if (!hasScope) return;
-    if (scopeLoading) return;   // the empty search's (or holiday type's) places are still loading
+    if (scopeLoading || !narrowReady) return;   // places still loading (see searchScope)
     let live = true;
     const ctrl = new AbortController();
     setFacetsStatus('loading');
-    fetchFacets(scope, {}, { codes: false, attrs: false, signal: ctrl.signal })
+    fetchFacets(searchScope, {}, { codes: false, attrs: false, signal: ctrl.signal })
       .then((r) => {
         if (!live) return;
         setFacets(r.facets || EMPTY_FACETS);
@@ -1405,7 +1465,7 @@ export default function Results() {
       });
     return () => { live = false; ctrl.abort(); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scopeKey]);
+  }, [searchScopeKey, narrowReady, scopeLoading]);
 
   // Refs so loadMore always sees latest values
   const fetchParamsRef = useRef(fetchParams);
@@ -2004,19 +2064,6 @@ export default function Results() {
   // has answered; Hotel only from a random-order answer's exact total; otherwise the hotels loaded
   // (with "+").
   const shownTotal = applied.transport === 'package' ? pkgTotal : cacheTotal;
-
-  // "No flight + hotel packages to Albania and Bulgaria for these dates": named once every group
-  // has answered, only for a certain "no flight" (never for a destination still loading/failed).
-  const noFlightLabel = useMemo(() => {
-    const places = noFlightPlaces(pkgStatusGroups, scopeCities);
-    const cityName = (d) => scopeCities.find((c) => c.code === d)?.name || d;
-    const names = [
-      ...places.countries.map((c) => countryName(c, i18nInstance.language, countryOptions.find((o) => o.code === c)?.name || c)),
-      ...places.destinations.map(cityName),
-    ];
-    if (!names.length) return '';
-    try { return new Intl.ListFormat(i18nInstance.language, { type: 'conjunction' }).format(names); } catch { return names.join(', '); }
-  }, [pkgStatusGroups, scopeCities, countryOptions, i18nInstance.language]);
 
   // Client-side sorts (name / stars / distance) over the loaded results. Price sorts are done by
   // the cache; these reorder what's loaded, using the info/attribute data as it arrives.
@@ -2700,9 +2747,8 @@ export default function Results() {
           "Rhodes or Kos" is a real answer. Nothing ticked means any airport, so the list needs
           no row for that. Rendered only when the scope HAS linked airports, so it never appears
           as an empty control promising a narrowing that cannot happen. */}
-      {/* One possible arrival airport is no choice: the block only shows with two or more,
-          or while the traveller still has a pick to see or clear. */}
-      {filters.transport === 'package' && (arrivalOptions.length > 1 || filters.arrivals.length > 0) && (
+      {/* Only for one picked city with two or more arrival airports (Levent 23 Oct). */}
+      {showArrivals && (
         <FilterSection title={t('filters.arrivalAirport', 'Arrival airport')} defaultOpen>
           <p className={styles.apHint}>{t('filters.pickAirports', 'Choose one or more airports')}</p>
           {filters.arrivals.length > 0 && (
@@ -3341,16 +3387,7 @@ export default function Results() {
                 })}
               </div>
             )}
-            {/* A destination with certainly no package because there is no flight on these dates
-                (e.g. Albania in January): named, so the list is not read as "only Spain exists". */}
-            {!loading && applied.transport === 'package' && noFlightLabel && allHotels.length > 0 && (
-              <div className={styles.pkgNotice} role="status">
-                {t('pkg.noFlightDestinations', {
-                  places: noFlightLabel,
-                  defaultValue: 'No flight + hotel packages to {{places}} for these dates: there are no flights. Showing the other destinations.',
-                })}
-              </div>
-            )}
+            {/* No notice for destinations without flights on these dates (Levent 23 Oct: not wanted). */}
             {/* Some destinations could not be loaded (timeout, outage). Said, with a retry: the
                 list is not "every package there is" while they are missing. */}
             {!loading && applied.transport === 'package' && pkgFailed.length > 0 && allHotels.length > 0 && (
