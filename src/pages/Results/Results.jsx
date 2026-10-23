@@ -1311,6 +1311,23 @@ export default function Results() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickedCityKey, placesByType]);
 
+  // THE WHERE FILTER'S NUMBERS. The search's own counts cover only what it searched, so once a city
+  // is picked every other city would read 0. The country's numbers from before a city was picked
+  // are kept for the others; a city covered by neither shows no number (ScopePicker).
+  const countryCountsRef = useRef(new Map());
+  const pickedCountryKey = pickedScope.countries.join(',');
+  const pickedNoCity = !pickedScope.destinations.length && !pickedScope.zones.length;
+  useEffect(() => {
+    if (destCounts && pickedCountryKey && pickedNoCity) countryCountsRef.current.set(pickedCountryKey, destCounts);
+  }, [destCounts, pickedCountryKey, pickedNoCity]);
+  const pickerCounts = useMemo(() => {
+    if (!destCounts) return null;
+    const out = { ...(pickedNoCity ? {} : countryCountsRef.current.get(pickedCountryKey) || {}) };
+    for (const d of priceScope?.destinations ?? []) out[d] = destCounts[d] ?? 0;
+    for (const [d, n] of Object.entries(destCounts)) out[d] = n;
+    return out;
+  }, [destCounts, priceScope, pickedCountryKey, pickedNoCity]);
+
   // Arrival airports are a choice within ONE city (Levent 23 Oct): a whole country, or two
   // cities, shows no Arrival airport block. Read from what the traveller picked, not from the
   // search's own places (a holiday type searches many).
@@ -2814,7 +2831,7 @@ export default function Results() {
           status={countriesStatus}
           value={pickedScope}
           popular={POPULAR_SCOPE}
-          counts={destCounts}
+          counts={pickerCounts}
           onApply={applyScope}
         />
       </FilterSection>
