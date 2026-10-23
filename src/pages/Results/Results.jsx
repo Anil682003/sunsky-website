@@ -1267,13 +1267,29 @@ export default function Results() {
   // types' places are loaded once, and only when some theme is ticked.
   const [placesByType, setPlacesByType] = useState(null);
   const themesTicked = filters.themes.length > 0;
+  // Tried again on every city pick until it succeeds, and up to 3 times right away with a pause:
+  // one failed call (the admin busy after a restart, 23 Oct) left Zonvakanties ticked on Athens
+  // and the page empty.
+  const pickedCities = [...pickedScope.destinations, ...pickedScope.zones].join(',');
   useEffect(() => {
     if (!themesTicked || placesByType) return;
     let live = true;
+    const getJson = async (url) => {
+      for (let attempt = 0; ; attempt += 1) {
+        try {
+          const r = await fetch(url);
+          if (!r.ok) throw new Error(`API ${r.status}`);
+          return await r.json();
+        } catch (e) {
+          if (attempt >= 2 || !live) throw e;
+          await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
+        }
+      }
+    };
     (async () => {
-      const list = (await (await fetch(`${BASE_URL}${ENDPOINTS.holidayTypes}`)).json())?.data ?? [];
+      const list = (await getJson(`${BASE_URL}${ENDPOINTS.holidayTypes}`))?.data ?? [];
       const typed = list.filter((x) => x.category === 'Holiday' && x.slug);
-      const scopes = await Promise.all(typed.map((x) => fetch(`${BASE_URL}${ENDPOINTS.holidayTypeScope(x.slug)}`).then((r) => r.json()).catch(() => null)));
+      const scopes = await Promise.all(typed.map((x) => getJson(`${BASE_URL}${ENDPOINTS.holidayTypeScope(x.slug)}`)));
       const m = new Map();
       typed.forEach((x, i) => {
         const s = scopes[i]?.data;
@@ -1281,9 +1297,9 @@ export default function Results() {
         if (places.size) m.set(String(x.id), places);
       });
       if (live) setPlacesByType(m);
-    })().catch(() => { /* no type data: the themes simply stay as ticked */ });
+    })().catch(() => { /* not now: tried again on the next city pick */ });
     return () => { live = false; };
-  }, [themesTicked, placesByType]);
+  }, [themesTicked, placesByType, pickedCities]);
   const pickedCityKey = [...pickedScope.destinations, ...pickedScope.zones].join(',');
   useEffect(() => {
     const next = holidayThemesForCities(pickedScope, filters.themes, placesByType);
