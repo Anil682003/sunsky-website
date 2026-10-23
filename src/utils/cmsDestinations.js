@@ -193,10 +193,15 @@ export const sectionSearchUrl = ({ dests = [], label = '', entry = null } = {}) 
  * not fit in a URL. They are hotels outside the listed destinations, so leaving them out
  * narrows the search slightly rather than widening it, which is the safe direction.
  *
+ * With `slug`, the type travels BY NAME (`holidayType=zonvakanties`) and the results page looks
+ * its places up itself, so the Where filter opens empty instead of with every city ticked
+ * (Levent 23 Oct) and the URL stays short. The places are still needed here to know that the
+ * type resolves to somewhere.
+ *
  * @returns a /results URL, or null when the type resolves to nowhere (the caller then keeps
  *          whatever link it had, rather than offering one that searches everything).
  */
-export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '', range = null } = {}) => {
+export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '', range = null, slug = '' } = {}) => {
   const codes = [...new Set((Array.isArray(destinations) ? destinations : [])
     .map((d) => String(d ?? '').trim().toUpperCase()).filter(Boolean))];
   // The scope reports a zone as { destination, zone }; the results page wants the zone codes.
@@ -207,8 +212,15 @@ export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '
   if (!codes.length && !zoneCodes.length) return null;
 
   const qs = new URLSearchParams();
-  if (codes.length) qs.set('destinations', codes.join(','));
-  if (zoneCodes.length) qs.set('zones', zoneCodes.join(','));
+  if (slug) {
+    qs.set('holidayType', String(slug));
+    // Last Minute / All Inclusive keep their door's default (UI-20), as sectionSearchUrl does.
+    const door = entryOf(slug);
+    if (door) qs.set('entry', door);
+  } else {
+    if (codes.length) qs.set('destinations', codes.join(','));
+    if (zoneCodes.length) qs.set('zones', zoneCodes.join(','));
+  }
   if (label) qs.set('destinationLabel', label);
   applyRange(qs, range);
   qs.set('transport', PACKAGE_TRANSPORT);
