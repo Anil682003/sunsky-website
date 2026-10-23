@@ -12,7 +12,9 @@ import { isEmoji, isGlyph } from '../../utils/travelIcons';
 import { TravelEmoji, TravelGlyph } from '../../components/TravelIcon/TravelIcon';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
 import Trustpilot from '../../components/Trustpilot/Trustpilot';
-import { SCORE_TEMPLATE } from '../../components/Trustpilot/trustpilotConfig';
+import TrustpilotBadge from '../../components/Trustpilot/TrustpilotBadge';
+import { SCORE_TEMPLATE, TRUSTPILOT_ENABLED } from '../../components/Trustpilot/trustpilotConfig';
+import { useConsent } from '../../context/ConsentContext';
 import HeaderMenu from './HeaderMenu';
 import AnnouncementBar from './AnnouncementBar';
 import LanguageSwitch from '../../components/LanguageSwitch/LanguageSwitch';
@@ -206,6 +208,10 @@ export default function Navbar() {
   // language, so an empty field never shows Dutch to an English reader or the reverse.
   const header = useMemo(() => normalizeSiteHeader(headerConfig), [headerConfig]);
   const { announcement, menus, search, support, trustpilot, language, account, mobileMenu } = header;
+  // The live star score needs all three: an account id, a score widget the plan allows, and the
+  // visitor's consent to the widget's iframe. Anything less shows TrustpilotBadge instead.
+  const { has: hasConsent } = useConsent();
+  const liveTrustScore = TRUSTPILOT_ENABLED && Boolean(SCORE_TEMPLATE) && hasConsent('external_media');
 
   // Whether the logo is a wide wordmark or a square icon decides how it is sized AND whether
   // the "SunSky" text sits beside it: a wordmark already carries the name, a square icon does
@@ -663,13 +669,17 @@ export default function Navbar() {
         </>,
       )}
 
-      {/* Trustpilot's star rating. The header has room for a score and nothing else, so it
-          stays empty until the agency's plan actually includes a score widget — a logo with
-          no rating on it would take the slot and tell a traveller nothing. The slot collapses
-          to zero width when empty (see .trustpilotSlot:empty). */}
+      {/* Reviews, switched on in CMS -> Layout -> Header. The live star score when it can be
+          drawn: a score widget is configured (a paid Trustpilot plan) and the visitor allowed
+          the external-media cookies its iframe needs. Otherwise the plain badge that links to
+          the review profile, so the switch always shows something and never an invented
+          rating. It used to render nothing in that case, which on the free plan meant the
+          dashboard's switch did nothing at all. */}
       {trustpilot.enabled && (
       <div className={`${styles.trustpilotSlot} ${showOnClass(trustpilot.showOn, styles)}`}>
-        <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} />
+        {liveTrustScore
+          ? <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} />
+          : <TrustpilotBadge />}
       </div>
       )}
 

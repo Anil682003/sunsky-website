@@ -378,6 +378,26 @@ describe('search, support and the rest of the bar', () => {
     expect(document.querySelector(`.${styles.langSlot}`)).toBeNull();
   });
 
+  // On the free plan (no score widget configured, as in production and in this test run) the
+  // switch used to draw nothing at all. It now always draws the link to the review profile,
+  // and never a rating of its own.
+  it('reviews on: a Trustpilot badge linking to the review profile, with no invented score', () => {
+    headerConfig = { siteHeader: v2({ trustpilot: { enabled: true, showOn: 'all' } }) };
+    renderNavbar();
+    const badge = screen.getByRole('link', { name: /Trustpilot/ });
+    expect(badge).toHaveAttribute('href', expect.stringMatching(/^https:\/\/[a-z-]+\.trustpilot\.com\/review\//));
+    expect(badge).toHaveAttribute('target', '_blank');
+    expect(badge).toHaveAttribute('rel', 'noopener noreferrer');
+    expect(badge.textContent).not.toMatch(/\d/);
+  });
+
+  it('reviews off: no Trustpilot at all', () => {
+    headerConfig = { siteHeader: v2({ trustpilot: { enabled: false, showOn: 'all' } }) };
+    renderNavbar();
+    expect(screen.queryByRole('link', { name: /Trustpilot/ })).toBeNull();
+    expect(document.querySelector(`.${styles.trustpilotSlot}`)).toBeNull();
+  });
+
   it('a menu can be kept to one side of the breakpoint', () => {
     headerConfig = { siteHeader: v2({ menus: withMenus({ custom: [{ ...DEALS, showOn: 'mobile' }] }) }) };
     renderNavbar();

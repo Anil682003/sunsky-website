@@ -172,15 +172,18 @@
    so the MENU WORDS are the last to go, and the ticket pays for them by narrowing — which is
    what it has the room to do, down to the 260px floor where its placeholder starts clipping.
 
-   The support word yields first, at 1500: it is a single word beside a handset that already
-   carries its name in aria-label and title, so losing it costs the least. */
-@media (max-width: 1500px) {
+   The support word yields first, at 1540: it is a single word beside a handset that already
+   carries its name in aria-label and title, so losing it costs the least. (1500 until the
+   Trustpilot badge joined the bar; between 1500 and 1540 the two no longer fit together.) */
+@media (max-width: 1540px) {
   .contactLabel { display: none; }
   .contactBtn { padding: 0; }
 }
-/* The menu words hold on to 1280. Below that the two menus disappear entirely anyway (1180),
-   and between 1180 and 1280 the bar is too tight to carry words and a usable ticket both. */
-@media (max-width: 1280px) {
+/* The menu words hold on to 1420. Below that the two menus disappear entirely anyway (1180),
+   and under 1420 the bar is too tight to carry words and a usable ticket both. This was 1280,
+   but measured (Oct 2026) the ticket already ran ~20px under the support button at 1290 with
+   nothing else in the bar, and the Trustpilot badge now takes a little room too. */
+@media (max-width: 1420px) {
   .hmBtnLabel { display: none; }
 }
 @media (max-width: 1180px) {
@@ -337,6 +340,11 @@
    children at all. Width collapses on its own; the margin does not, and 14px of dead air
    beside the account controls is exactly the kind of thing nobody can later explain. */
 .trustpilotSlot:empty { display: none; }
+/* Where the Trustpilot badge folds to its star (TrustpilotBadge.module.css, 1700) the flank's own
+   gap is spacing enough; the slot's 14px margin would cost the ticket room it does not have. */
+@media (max-width: 1700px) {
+  .trustpilotSlot { margin-right: 0; }
+}
 
 /* The language control sits left of the auth buttons. It is the first thing a
    visitor who cannot read the page needs, so it comes before "Sign In" in both

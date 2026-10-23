@@ -1,0 +1,65 @@
+/* The header's Trustpilot link (TrustpilotBadge.jsx). Sized to sit beside the support button and
+   the language switch in the 88px bar: one 34px pill, the brand's green star tile, two short
+   lines. Trustpilot's own green (#00b67a) is used only for the star, which is how the brand asks
+   to be shown; everything else stays in the site's palette. */
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  height: 34px;
+  padding: 0 11px 0 6px;
+  border: 1px solid var(--blue-light, #DFE7F3);
+  border-radius: 10px;
+  background: var(--white, #fff);
+  color: var(--text, #0B1B3A);
+  text-decoration: none;
+  white-space: nowrap;
+  transition: border-color 0.25s var(--ease, ease), box-shadow 0.25s var(--ease, ease);
+}
+.badge:hover {
+  border-color: #00b67a;
+  box-shadow: 0 4px 14px rgba(0, 182, 122, 0.16);
+}
+.badge:focus-visible {
+  outline: 2px solid var(--blue-deep, #1F4FD8);
+  outline-offset: 2px;
+}
+
+.star {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 22px;
+  border-radius: 5px;
+  background: #00b67a;
+  color: #fff;
+  flex-shrink: 0;
+}
+
+.text {
+  display: flex;
+  flex-direction: column;
+  line-height: 1.1;
+}
+.brand {
+  font-family: 'Sora', sans-serif;
+  font-size: 12.5px;
+  font-weight: 700;
+  letter-spacing: -0.2px;
+}
+.sub {
+  margin-top: 1px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text-sec, #5E7291);
+}
+
+/* The header bar has ~150px to spare for this only on wide screens (measured Oct 2026: about 279px
+   at 1920, 145px at 1600, 79px at 1440). Below 1700 the badge folds to the star alone: still a
+   34px link to the reviews, named by its aria-label and title, the same way the support button
+   drops its word at 1500. The bar hides the whole slot below 1180. */
+@media (max-width: 1700px) {
+  .badge { width: 34px; padding: 0; justify-content: center; }
+  .text { display: none; }
+}
