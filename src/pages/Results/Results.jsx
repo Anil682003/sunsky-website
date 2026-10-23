@@ -593,19 +593,17 @@ export default function Results() {
   // rather than leaving the page empty.
   const typePlaces = useMemo(() => {
     if (!urlHolidayType) return null;
-    if (typeScopeError) return { destinations: allDestinations ?? [], zones: [], countryOf: {} };
+    if (typeScopeError) return { everywhere: true };
     if (!typeScope) return null;
     // A type with no places of its own (Last Minute, All Inclusive: a date and a board, not a
     // place) searches every destination; its door applies the rest.
-    if (!typeScope.destinations?.length && !typeScope.zones?.length) {
-      return allDestinations ? { destinations: allDestinations, zones: [], countryOf: {} } : null;
-    }
+    if (!typeScope.destinations?.length && !typeScope.zones?.length) return { everywhere: true };
     return {
       destinations: typeScope.destinations ?? [],
       zones: (typeScope.zones ?? []).map((z) => ({ d: z.destination, z: z.zone })),
       countryOf: typeScope.destinationCountries ?? {},
     };
-  }, [urlHolidayType, typeScope, typeScopeError, allDestinations]);
+  }, [urlHolidayType, typeScope, typeScopeError]);
 
   const { scope, usingDefaultScope, pickedScope } = useMemo(() => {
     // destinations = explicit `destinations` ∪ home-picker `cities`; fall back to the legacy
@@ -621,7 +619,9 @@ export default function Results() {
     // HOLIDAY TYPE: its places are the search; the Where filter shows only what was picked.
     // Countries picked on top keep the type's places inside them (Zonvakanties in Spain); a
     // destination picked is the traveller's own choice and wins.
-    if (urlHolidayType && !explicit.length && !zones.length) {
+    // Everywhere (Last Minute, All Inclusive): exactly the empty search below, including its
+    // fall-back to the popular destinations when every destination takes too long.
+    if (urlHolidayType && !explicit.length && !zones.length && !typePlaces?.everywhere) {
       const tp = typePlaces || { destinations: [], zones: [], countryOf: {} };
       const inCountry = (d) => !countries.length || countries.includes(tp.countryOf[d]);
       const dests = tp.destinations.filter(inCountry);
