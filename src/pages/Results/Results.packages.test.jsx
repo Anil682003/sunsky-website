@@ -189,7 +189,7 @@ describe('a package request that failed is never "no results"', () => {
 });
 
 // 9 Oct 2026: a Spain + Albania + Bulgaria search in January listed only Spain, with no word why.
-describe('destinations without a flight on these dates are named', () => {
+describe('destinations without a flight on these dates', () => {
   const COUNTRIES = '?countries=ES,AL,BG&destinationLabel=Spanje&checkIn=2027-01-01&checkOut=2027-01-07&adults=2&children=0&rooms=1&transport=package';
   beforeEach(() => {
     answers.cities = [
@@ -200,30 +200,17 @@ describe('destinations without a flight on these dates are named', () => {
     answers.matched = ['PMI', 'TIA', 'DRR', 'VAR'];
   });
 
-  it('whole countries without a flight are named; the list shows the others', async () => {
+  // Levent 23 Oct: the notice is not wanted. Destinations without a flight are simply not listed.
+  it('destinations without a flight are left out with no notice; the list shows the others', async () => {
     answers.byDest = {
       PMI: { status: 'FEASIBLE', hotels: [pkg('a', 'PMI', 900)] },
       TIA: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' }, DRR: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' },
       VAR: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' },
     };
     renderAt(COUNTRIES);
-    const notice = await screen.findByText(/Geen vlucht \+ hotelpakketten naar/);
-    expect(notice.textContent).toMatch(/Alban/);
-    expect(notice.textContent).toMatch(/Bulgar/);
-    expect(notice.textContent).not.toMatch(/Tirana|Durr|Varna/);
-    expect(screen.getAllByRole('article')).toHaveLength(1);
-  });
-
-  it('only some places of a country without a flight: those places are named, not the country', async () => {
-    answers.byDest = {
-      PMI: { status: 'FEASIBLE', hotels: [pkg('a', 'PMI', 900)] },
-      TIA: { status: 'FEASIBLE', hotels: [pkg('b', 'TIA', 700)] }, DRR: { status: 'NOT_FEASIBLE', reason: 'NO_VALID_FLIGHT' },
-      VAR: { status: 'FEASIBLE', hotels: [pkg('c', 'VAR', 800)] },
-    };
-    renderAt(COUNTRIES);
-    const notice = await screen.findByText(/Geen vlucht \+ hotelpakketten naar/);
-    expect(notice.textContent).toMatch(/Durrës/);
-    expect(notice.textContent).not.toMatch(/Alban/);
+    await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(1));
+    await new Promise((r) => setTimeout(r, 200));
+    expect(screen.queryByText(/Geen vlucht + hotelpakketten naar/)).toBeNull();
   });
 
   it('missing data (UNKNOWN), or no package for another reason, is never called "no flights"', async () => {

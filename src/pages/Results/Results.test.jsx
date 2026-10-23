@@ -40,6 +40,9 @@ const ARRIVAL_AIRPORTS = [
     destinations: ['AYT'], cityNames: ['Antalya'], zoneCodes: [] },
   { code: 'DLM', name: 'Dalaman, Dalaman Airport', countryCode: 'TR', flag: '🇹🇷',
     destinations: ['DLM', 'FET'], cityNames: ['Marmaris', 'Fethiye'], zoneCodes: [] },
+  // Antalya's second airport: one city with two arrival airports, the only case the block is for.
+  { code: 'GZP', name: 'Gazipasa, Gazipasa Airport', countryCode: 'TR', flag: '🇹🇷',
+    destinations: ['AYT'], cityNames: ['Alanya'], zoneCodes: [] },
 ];
 vi.mock('../../api/filters', () => ({
   fetchFacets: vi.fn((scope, filters, opts = {}) => {
@@ -437,124 +440,74 @@ describe('cancellation', () => {
 // destination codes it serves, and picking it narrows what the cache is asked to price.
 // The scope is a COUNTRY search so there is more than one destination to narrow away.
 describe('arrival airport ("Flying to")', () => {
+  // Levent 23 Oct: the block is a choice within ONE picked city that has two or more arrival
+  // airports. A country, or two cities, shows none.
+  const oneCity = '?destinations=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1';
   const countryScope = '?countries=TR&destinationLabel=Turkey&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1';
   // The picker lives under the departure airport, which only shows with flights included.
   const openTransport = (user) => user.click(sidebarRadio('Incl. vlucht'));
-
-  // Several, not one: each airport carries the cities it serves, and "Marmaris or Antalya" is
-  // a real answer to where a traveller will fly. Nothing ticked means any airport, which is why
-  // the list carries no row for that.
   const arrivalBox = (name) => screen.getByRole('checkbox', { name });
 
-  it('names each airport by the CITY it serves, not its official name', async () => {
+  it('one city with two airports: each named by the CITY it serves', async () => {
     const user = userEvent.setup();
-    renderResults(countryScope);
+    renderResults(oneCity);
     await settled();
     await openTransport(user);
-
-    // Dalaman serves two cities; "Marmaris, Fethiye" tells a traveller where they land.
-    expect(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ })).toBeInTheDocument();
+    expect(await screen.findByRole('checkbox', { name: /Alanya/ })).toBeInTheDocument();
+    expect(arrivalBox(/Antalya/)).toBeInTheDocument();
     expect(screen.getByText('Kies één of meerdere luchthavens')).toBeInTheDocument();
-  });
-
-  it('narrows the priced destinations to the ones that airport serves', async () => {
-    const user = userEvent.setup();
-    renderResults(countryScope);
-    await settled();
-    await openTransport(user);
-
-    await user.click(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ }));
-    // With flights included the page asks the package search for exactly those destinations.
-    await waitFor(() => expect(lastPackageDests()).toEqual(['DLM', 'FET']));
-  });
-
-  // Two airports mean EITHER, never both: intersecting them would return nothing the moment
-  // they serve different cities, which is the normal case.
-  it('prices the union when two airports are picked', async () => {
-    const user = userEvent.setup();
-    renderResults(countryScope);
-    await settled();
-    await openTransport(user);
-
-    await user.click(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ }));
-    await waitFor(() => expect(lastPackageDests()).toContain('DLM'));
-    await user.click(arrivalBox(/Antalya/));
-    await waitFor(() => expect(lastPackageDests()).toEqual(['AYT', 'DLM', 'FET']));
-  });
-
-  it('restores the full scope when the airport is un-ticked again', async () => {
-    const user = userEvent.setup();
-    renderResults(countryScope);
-    await settled();
-    await openTransport(user);
-
-    const dalaman = await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ });
-    await user.click(dalaman);
-    await waitFor(() => expect(lastPackageDests()).toContain('DLM'));
-
-    await user.click(dalaman);
-    await waitFor(() => expect(lastPackageDests()).not.toEqual(['DLM', 'FET']));
-  });
-
-  // REGRESSION: most searches arrive scoped by DESTINATION only ("?destination=AYT" from the
-  // hero) and carry no `countries`. A country-keyed fetch never fired for them, so the filter
-  // was invisible on the most common path while working fine on a country search.
-  it('is not shown when the scope has only ONE arrival airport (nothing to choose)', async () => {
-    const user = userEvent.setup();
-    renderResults();   // default fixture: ?destination=AYT, no countries= — only Antalya airport serves it
-    await settled();
-    await openTransport(user);
-    // One airport is no choice (Levent 15 Oct): no block, and certainly not Dalaman, which serves
-    // nothing in an Antalya-only scope.
-    await waitFor(() => expect(screen.queryByText('Aankomstluchthaven')).not.toBeInTheDocument());
-    expect(screen.queryByRole('checkbox', { name: /Antalya/ })).not.toBeInTheDocument();
+    // Dalaman serves nothing in an Antalya search.
     expect(screen.queryByRole('checkbox', { name: /Marmaris/ })).not.toBeInTheDocument();
   });
 
-  it('is absent when the scope has no linked airports', async () => {
-    const { fetchArrivalAirports } = await import('../../api/filters');
-    fetchArrivalAirports.mockResolvedValueOnce([]);
+  it('is not shown for a whole country', async () => {
     const user = userEvent.setup();
     renderResults(countryScope);
     await settled();
     await openTransport(user);
-    // An empty control is worse than none: it implies the search can be narrowed when it can't.
     await waitFor(() => expect(screen.queryByText('Aankomstluchthaven')).not.toBeInTheDocument());
   });
 
-  /* UI-22 (Ch1 §12B.4): an arrival airport is a FLIGHT choice, so Hotel only must not be
-     narrowed by it.
-
-     This was wrong, and invisibly so. The Arrival airport block only renders for a package,
-     so after switching to Hotel only the control was gone while the narrowing was still
-     running: hotels vanished from an unrelated search with nothing on screen to explain it
-     and no way to undo it. */
-  it('stops narrowing by arrival airport when the traveller switches to Hotel only', async () => {
-    /* The airport list is only fetched for a package, so it has to be loaded the way a
-       traveller loads it: in Flight + Hotel. Switching afterwards leaves the list and the
-       choice in state while the control disappears with the flight, and that is exactly when
-       the narrowing used to keep running with nothing on screen to explain it. */
+  it('is not shown for two cities', async () => {
     const user = userEvent.setup();
-    renderResults(countryScope + '&transport=package&arrival=AYT');
-    await settled();
-    await waitFor(() => expect(arrivalBox(/Antalya/)).toBeChecked());
-
-    await user.click(sidebarRadio('Alleen hotel'));
-
-    // The whole country is priced again, not just the city that airport serves.
-    await waitFor(() => {
-      const asked = lastCall().get('destinations').split(',');
-      expect(asked.length).toBeGreaterThan(1);
-    });
-  });
-  // A link somebody shared can carry more than one.
-  it('ticks every airport a shared link arrives with', async () => {
-    const user = userEvent.setup();
-    renderResults(countryScope + '&arrival=DLM,AYT');
+    renderResults('?destinations=AYT,FET&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1');
     await settled();
     await openTransport(user);
-    expect(await screen.findByRole('checkbox', { name: /Marmaris, Fethiye/ })).toBeChecked();
+    await waitFor(() => expect(screen.queryByText('Aankomstluchthaven')).not.toBeInTheDocument());
+  });
+
+  it('is not shown when the city has only ONE arrival airport (nothing to choose)', async () => {
+    const user = userEvent.setup();
+    renderResults('?destinations=FET&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1');
+    await settled();
+    await openTransport(user);
+    await waitFor(() => expect(screen.queryByText('Aankomstluchthaven')).not.toBeInTheDocument());
+  });
+
+  it('is absent when the city has no linked airports', async () => {
+    const { fetchArrivalAirports } = await import('../../api/filters');
+    fetchArrivalAirports.mockResolvedValueOnce([]);
+    const user = userEvent.setup();
+    renderResults(oneCity);
+    await settled();
+    await openTransport(user);
+    await waitFor(() => expect(screen.queryByText('Aankomstluchthaven')).not.toBeInTheDocument());
+  });
+
+  it('ticks every airport a shared link arrives with', async () => {
+    const user = userEvent.setup();
+    renderResults(oneCity + '&arrival=AYT,GZP');
+    await settled();
+    await openTransport(user);
+    expect(await screen.findByRole('checkbox', { name: /Alanya/ })).toBeChecked();
     expect(arrivalBox(/Antalya/)).toBeChecked();
+  });
+
+  it('a shared link with an arrival airport on a whole country does not narrow it', async () => {
+    renderResults(countryScope + '&transport=package&arrival=DLM');
+    await settled();
+    // The block is not shown for a country, so its choice is dropped rather than kept hidden.
+    await waitFor(() => expect(lastPackageDests().length).toBeGreaterThan(2));
   });
 });
 
