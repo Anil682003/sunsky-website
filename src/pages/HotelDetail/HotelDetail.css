@@ -2352,7 +2352,17 @@
   box-shadow:0 3px 10px rgba(255,159,28,.28);
 }
 .sd .bp-delta-best svg { width:11px; height:11px; }
+/* The main column beside the filters: the held flight on top, then the list. A column of its
+   own so the held flight cannot become a third flex item of .modal-body's row (it did, and took
+   most of the width). The COLUMN scrolls, not the list inside it: with the list as the scroller,
+   a phone gave the held card ~580px and left the options a ~77px window. On desktop the held
+   flight is pinned to the top (sticky, ~245px tall) so it stays in view while the options scroll
+   under it; on phones (below) it scrolls away with them. The background matches .modal-body so
+   cards passing under the pinned card do not show through it. */
+.sd .modal-main { flex:1; min-width:0; min-height:0; overflow-y:auto; padding:0 4px 4px 0; }
+.sd .modal-main > .modal-held { position:sticky; top:0; z-index:2; background:#F4F8FD; }
 .sd .modal-flights { flex:1; min-width:0; overflow-y:auto; padding:0 4px 4px 0; }
+.sd .modal-main > .modal-flights { overflow:visible; padding:0; }
 .sd .modal-flights .flight-card { margin-bottom:14px; }
 /* Inside the list this is a quiet way to ask for more, not a call to action — the calls to
    action are the Select buttons on the cards above it. */
@@ -2825,6 +2835,8 @@
      reached from the header's Filters button and dismissed by its own "Show N flights".
      It used to be display:none here — every filter simply gone below 1024px. */
   .sd .modal-body{position:relative;padding:14px;gap:0}
+  /* Too tall to pin on a phone: it would cover most of the screen. */
+  .sd .modal-main > .modal-held{position:static}
   .sd .modal-sidebar{
     display:none; position:absolute; inset:0; z-index:6; width:auto;
     border:none; border-radius:0; background:var(--white); padding:18px 20px 20px;

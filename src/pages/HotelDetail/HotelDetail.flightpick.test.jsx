@@ -187,6 +187,26 @@ describe('the change-flight modal lists flights, not fare classes', () => {
   });
 });
 
+// The held flight sat as a direct child of .modal-body, a horizontal flex row, so it became a
+// third column and squeezed every option into a narrow strip (production, Oct 2026). It must
+// share one column with the list, above it.
+describe('the held flight sits above the list, in the same column', () => {
+  it('nests the held flight and the list together, neither directly in the modal body', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(heldCard(container)).not.toBeNull());
+
+    const held = container.querySelector('.modal-held');
+    const list = container.querySelector('.modal-flights');
+    expect(held.parentElement).toBe(list.parentElement);
+    expect(held.parentElement.classList.contains('modal-main')).toBe(true);
+    expect(held.parentElement.parentElement.classList.contains('modal-body')).toBe(true);
+    // Held first, then the list.
+    expect(held.compareDocumentPosition(list) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+});
+
 describe('green marks the flight you chose, and only that one', () => {
   it('starts with the selected flight in green and nothing else', async () => {
     const user = userEvent.setup();

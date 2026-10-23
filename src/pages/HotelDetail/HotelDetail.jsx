@@ -6224,103 +6224,110 @@ export default function HotelDetail() {
               </div>
             </div>
 
-            {/* The flight the traveller is holding, on its own ABOVE the list and outside it
-                (§12B.9, UI-24). It is not one of the choices, it is the thing the choices are
-                measured against, so it stays on screen while they compare without sitting
-                among them. Absent when the pick was lost or the filters now exclude it, which
-                the notice inside the list explains instead. */}
-            {heldFlight && (
-              <div className="modal-held">
-                <div className="modal-held-label">
-                  {t('flightModal.yourFlight', 'The flight you have now')}
+            {/* The main column: the held flight on top, the list under it. Both MUST sit in this
+                column. .modal-body is a horizontal flex row (rail tab | filters | this), so when the
+                held flight was a direct child of it, it became a third column of its own: its wide
+                card took most of the modal and squeezed every option into a narrow strip at the
+                right edge. */}
+            <div className="modal-main">
+              {/* The flight the traveller is holding, on its own ABOVE the list and outside it
+                  (§12B.9, UI-24). It is not one of the choices, it is the thing the choices are
+                  measured against, so it stays on screen while they compare without sitting
+                  among them. Absent when the pick was lost or the filters now exclude it, which
+                  the notice inside the list explains instead. */}
+              {heldFlight && (
+                <div className="modal-held">
+                  <div className="modal-held-label">
+                    {t('flightModal.yourFlight', 'The flight you have now')}
+                  </div>
+                  <FlightCard
+                    f={{ ...heldFlight, price: Math.round(heldFlight.totalPrice), delta: cheapestFare == null ? null : heldFlight.totalPrice - cheapestFare }}
+                    selected
+                    cheapest={heldFlight.idx === 0}
+                    option={{ impact: 0, perPerson: 0 }}
+                    onSelect={() => setDraftIdx(null)}
+                  />
                 </div>
-                <FlightCard
-                  f={{ ...heldFlight, price: Math.round(heldFlight.totalPrice), delta: cheapestFare == null ? null : heldFlight.totalPrice - cheapestFare }}
-                  selected
-                  cheapest={heldFlight.idx === 0}
-                  option={{ impact: 0, perPerson: 0 }}
-                  onSelect={() => setDraftIdx(null)}
-                />
-              </div>
-            )}
-            <div className="modal-flights">
-              {/* What the figures on these cards are, said once at the top rather than
-                  guessed at per card. The headline on each card is per person, because that
-                  is the figure a traveller carries; the fare itself is the whole party's. */}
-              <div className="modal-price-note">
-                {ICON.info}
-                <span>
-                  <Trans i18nKey="hotelDetail:flightModal.priceNote" t={t}>
-                    Price differences are shown <b>per person</b>, compared with your selected
-                    flight. The fare on each card is for <b>all travellers</b>, taxes and fees included.
-                  </Trans>
-                </span>
-              </div>
-              {/* The traveller's own pick is not in the list below: the filters they have just
-                  set exclude it, or the latest answer no longer has it. Said here, where the
-                  choosing happens, because nothing is swapped in for it. */}
-              {pick && (pickLost || flightOffFilters) && (
-                <div className="modal-price-note" role="status">
-                  {ICON.warn}
+              )}
+              <div className="modal-flights">
+                {/* What the figures on these cards are, said once at the top rather than
+                    guessed at per card. The headline on each card is per person, because that
+                    is the figure a traveller carries; the fare itself is the whole party's. */}
+                <div className="modal-price-note">
+                  {ICON.info}
                   <span>
-                    {pickLost
-                      ? t('flights.choice.gone', 'The selected flight option is no longer available. Choose another flight.')
-                      : t('flights.choice.offFilters', 'Your chosen flight no longer matches your filters. Choose another flight or change the filters.')}
+                    <Trans i18nKey="hotelDetail:flightModal.priceNote" t={t}>
+                      Price differences are shown <b>per person</b>, compared with your selected
+                      flight. The fare on each card is for <b>all travellers</b>, taxes and fees included.
+                    </Trans>
                   </span>
                 </div>
-              )}
-              {modalFlights.length ? (
-                <>
-                  {/* The flight they are holding is shown apart, above, and left out here
-                      (§12B.9, UI-24). Listing it again asks the traveller to find their own
-                      choice among the alternatives and work out which row is already theirs;
-                      every card below is something they could switch TO. The counts above
-                      still describe the whole matching set, because the held flight matches
-                      the filters too and has not disappeared, it has moved. */}
-                  {listedFlights.slice(0, shownFlights).map((f) => (
-                    <FlightCard
-                      key={f.idx}
-                      f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
-                      selected={draftIdx != null ? draftIdx === f.idx : selectedFlight === f.idx}
-                      // `flights` is sorted cheapest-first and `idx` is the position in THAT
-                      // array, so it survives the modal's own sorting and filtering — the green
-                      // frame stays on the genuinely cheapest fare, not on whatever is top.
-                      cheapest={f.idx === 0}
-                      option={{
-                        impact: selectedFare == null || f.totalPrice == null
-                          ? null : Math.round(f.totalPrice - selectedFare),
-                        perPerson: selectedFare == null || f.totalPrice == null
-                          ? null : (f.totalPrice - selectedFare) / paxCount,
-                      }}
-                      // Arms the choice; Save commits it. What gets stored on Save is an
-                      // EXPLICIT pick, by identity and trip, so no later filter or re-fetch of
-                      // the list can quietly put another flight in its place.
-                      onSelect={() => setDraftIdx(f.idx)}
-                    />
-                  ))}
-                  {/* A charter weekend can come back with forty fares. The first handful is
-                      what gets compared; the rest are there for whoever asks.
+                {/* The traveller's own pick is not in the list below: the filters they have just
+                    set exclude it, or the latest answer no longer has it. Said here, where the
+                    choosing happens, because nothing is swapped in for it. */}
+                {pick && (pickLost || flightOffFilters) && (
+                  <div className="modal-price-note" role="status">
+                    {ICON.warn}
+                    <span>
+                      {pickLost
+                        ? t('flights.choice.gone', 'The selected flight option is no longer available. Choose another flight.')
+                        : t('flights.choice.offFilters', 'Your chosen flight no longer matches your filters. Choose another flight or change the filters.')}
+                    </span>
+                  </div>
+                )}
+                {modalFlights.length ? (
+                  <>
+                    {/* The flight they are holding is shown apart, above, and left out here
+                        (§12B.9, UI-24). Listing it again asks the traveller to find their own
+                        choice among the alternatives and work out which row is already theirs;
+                        every card below is something they could switch TO. The counts above
+                        still describe the whole matching set, because the held flight matches
+                        the filters too and has not disappeared, it has moved. */}
+                    {listedFlights.slice(0, shownFlights).map((f) => (
+                      <FlightCard
+                        key={f.idx}
+                        f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
+                        selected={draftIdx != null ? draftIdx === f.idx : selectedFlight === f.idx}
+                        // `flights` is sorted cheapest-first and `idx` is the position in THAT
+                        // array, so it survives the modal's own sorting and filtering — the green
+                        // frame stays on the genuinely cheapest fare, not on whatever is top.
+                        cheapest={f.idx === 0}
+                        option={{
+                          impact: selectedFare == null || f.totalPrice == null
+                            ? null : Math.round(f.totalPrice - selectedFare),
+                          perPerson: selectedFare == null || f.totalPrice == null
+                            ? null : (f.totalPrice - selectedFare) / paxCount,
+                        }}
+                        // Arms the choice; Save commits it. What gets stored on Save is an
+                        // EXPLICIT pick, by identity and trip, so no later filter or re-fetch of
+                        // the list can quietly put another flight in its place.
+                        onSelect={() => setDraftIdx(f.idx)}
+                      />
+                    ))}
+                    {/* A charter weekend can come back with forty fares. The first handful is
+                        what gets compared; the rest are there for whoever asks.
 
-                      Counted over the LISTED flights, not the matching ones: the held flight
-                      is above the list, so counting it would promise one more card than a
-                      press can produce and leave the button there with nothing left to add.
-                      The pager still keys off `modalFlights`, which is what resets the page
-                      when the filters change. */}
-                  {listedFlights.length > shownFlights && (
-                    <button type="button" className="show-more-flights"
-                      onClick={() => setPager({ list: modalFlights, n: shownFlights + MODAL_PAGE })}>
-                      <S size={15} sw={2.4}><path d="M6 9l6 6 6-6" /></S>
-                      {t('flightModal.showMoreFlights', 'Show more flights')}
-                      <em>{t('flightModal.nMore', { count: listedFlights.length - shownFlights, defaultValue: `${listedFlights.length - shownFlights} more` })}</em>
-                    </button>
-                  )}
-                </>
-              ) : (
-                <div className="live-empty">
-                  {ICON.plane} {t('flightModal.noFlightsMatch', 'No flights match these filters.')}
-                  <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>{t('flightModal.clearAllFilters', 'Clear all filters')}</button>
-                </div>
-              )}
+                        Counted over the LISTED flights, not the matching ones: the held flight
+                        is above the list, so counting it would promise one more card than a
+                        press can produce and leave the button there with nothing left to add.
+                        The pager still keys off `modalFlights`, which is what resets the page
+                        when the filters change. */}
+                    {listedFlights.length > shownFlights && (
+                      <button type="button" className="show-more-flights"
+                        onClick={() => setPager({ list: modalFlights, n: shownFlights + MODAL_PAGE })}>
+                        <S size={15} sw={2.4}><path d="M6 9l6 6 6-6" /></S>
+                        {t('flightModal.showMoreFlights', 'Show more flights')}
+                        <em>{t('flightModal.nMore', { count: listedFlights.length - shownFlights, defaultValue: `${listedFlights.length - shownFlights} more` })}</em>
+                      </button>
+                    )}
+                  </>
+                ) : (
+                  <div className="live-empty">
+                    {ICON.plane} {t('flightModal.noFlightsMatch', 'No flights match these filters.')}
+                    <button type="button" className="modal-filter-clear" onClick={clearFlightFilters}>{t('flightModal.clearAllFilters', 'Clear all filters')}</button>
+                  </div>
+                )}
+              </div>
             </div>
           </div>
           {/* Choosing a card arms it; this bar commits it. Applying on click gave a mis-click
