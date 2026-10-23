@@ -1464,7 +1464,7 @@
    to this design will carry it — so the separation is DEPTH, not contrast: a soft lift that
    reads at a glance without putting a hard line around every option. */
 .sd .flight-card.option {
-  overflow:visible; border:1px solid #DBE6F6;
+  overflow:visible; border:1px solid #DBE6F6; container-type:inline-size; container-name:fcard;
   box-shadow:0 1px 2px rgba(15,40,100,.05), 0 4px 12px rgba(15,40,100,.045);
   transition:border-color .25s var(--ease), box-shadow .25s var(--ease);
 }
@@ -1539,6 +1539,29 @@
 .sd .flight-card.option .fc-leg .bp-mid { min-width:88px; }
 .sd .flight-card.option .fc-leg .bp-track { min-width:72px; }
 .sd .flight-card.option .fc-leg .bp-dur { font-size:11px; }
+
+/* The two directions sit side by side only while the CARD is wide enough for them.
+
+   This cannot be a viewport query, which is why it was broken: the card lives in the list
+   beside the filter rail, so its width depends on whether that rail is open, not on the
+   size of the screen. At a 1040px window with the filters showing, each leg came out at
+   ~190px against a ~270px minimum — a 23px departure time, an 88px route track and a 23px
+   arrival time cannot share 190px — and the times printed on top of each other.
+
+   So the card asks about itself. Past the point where two columns stop fitting the legs
+   stack, and on a genuinely narrow card the route itself steps down a size. */
+@container fcard (max-width: 620px) {
+  .sd .flight-card.option .fc-legs { grid-template-columns:1fr; }
+  .sd .flight-card.option .fc-leg + .fc-leg { border-left:none; border-top:1px solid var(--border-light); }
+  .sd .flight-card.option .fc-leg { padding:14px 18px 13px; }
+  .sd .flight-card.option .fc-leg .bp-jhead { margin-bottom:12px; }
+}
+@container fcard (max-width: 360px) {
+  .sd .flight-card.option .fc-leg .bp-route { gap:8px; }
+  .sd .flight-card.option .fc-leg .bp-time { font-size:19px; }
+  .sd .flight-card.option .fc-leg .bp-mid { min-width:58px; }
+  .sd .flight-card.option .fc-leg .bp-track { min-width:40px; }
+}
 .sd .flight-card.option .fc-leg .bp-stops { font-size:10px; }
 .sd .flight-card.option .fc-leg .bp-via { margin-top:9px; font-size:10.5px; }
 /* A one-way has no second column to fill, and the column keeps the full width so the
