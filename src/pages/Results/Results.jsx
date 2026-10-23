@@ -5,7 +5,9 @@ import i18n from '../../i18n';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { ENDPOINTS } from '../../api/endpoints';
-import { BASE_URL } from '../../utils/ip';
+// The admin through the site's own client (VITE_API_URL): utils/ip's BASE_URL is localhost in the
+// committed copy, so a fetch on it failed on the live site (23 Oct).
+import axiosInstance from '../../services/axiosInstance';
 import { holidayThemesForCities } from '../../utils/holidayThemesForCities';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
 import {
@@ -584,8 +586,8 @@ export default function Results() {
     setTypeScope(null); setTypeScopeError(false);
     if (!urlHolidayType) return;
     let live = true;
-    fetch(`${BASE_URL}${ENDPOINTS.holidayTypeScope(urlHolidayType)}`)
-      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
+    axiosInstance.get(ENDPOINTS.holidayTypeScope(urlHolidayType))
+      .then((r) => r.data)
       .then((d) => { if (live) setTypeScope(d?.data ?? { destinations: [], zones: [] }); })
       .catch(() => { if (live) setTypeScopeError(true); });
     return () => { live = false; };
@@ -1274,12 +1276,10 @@ export default function Results() {
   useEffect(() => {
     if (!themesTicked || placesByType) return;
     let live = true;
-    const getJson = async (url) => {
+    const getJson = async (path) => {
       for (let attempt = 0; ; attempt += 1) {
         try {
-          const r = await fetch(url);
-          if (!r.ok) throw new Error(`API ${r.status}`);
-          return await r.json();
+          return (await axiosInstance.get(path)).data;
         } catch (e) {
           if (attempt >= 2 || !live) throw e;
           await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
@@ -1287,9 +1287,9 @@ export default function Results() {
       }
     };
     (async () => {
-      const list = (await getJson(`${BASE_URL}${ENDPOINTS.holidayTypes}`))?.data ?? [];
+      const list = (await getJson(ENDPOINTS.holidayTypes))?.data ?? [];
       const typed = list.filter((x) => x.category === 'Holiday' && x.slug);
-      const scopes = await Promise.all(typed.map((x) => getJson(`${BASE_URL}${ENDPOINTS.holidayTypeScope(x.slug)}`)));
+      const scopes = await Promise.all(typed.map((x) => getJson(ENDPOINTS.holidayTypeScope(x.slug))));
       const m = new Map();
       typed.forEach((x, i) => {
         const s = scopes[i]?.data;
