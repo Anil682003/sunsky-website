@@ -184,6 +184,8 @@ export default function HolidayType() {
     label: typeName,
     range: cardRange,
     slug,
+    // A door (Last Minute, All Inclusive) has no places of its own and searches everywhere.
+    resolvedEmpty: !door && !!scope && !(scope.destinations?.length || scope.zones?.length || scope.hotelCodes?.length),
   });
   const showAllHref = scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug });
 

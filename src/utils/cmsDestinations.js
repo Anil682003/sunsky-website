@@ -201,7 +201,7 @@ export const sectionSearchUrl = ({ dests = [], label = '', entry = null } = {}) 
  * @returns a /results URL, or null when the type resolves to nowhere (the caller then keeps
  *          whatever link it had, rather than offering one that searches everything).
  */
-export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '', range = null, slug = '' } = {}) => {
+export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '', range = null, slug = '', resolvedEmpty = false } = {}) => {
   const codes = [...new Set((Array.isArray(destinations) ? destinations : [])
     .map((d) => String(d ?? '').trim().toUpperCase()).filter(Boolean))];
   // The scope reports a zone as { destination, zone }; the results page wants the zone codes.
@@ -209,7 +209,12 @@ export const holidayScopeSearchUrl = ({ destinations = [], zones = [], label = '
     .map((z) => String((z && typeof z === 'object' ? z.zone : z) ?? '').trim().toUpperCase())
     .filter(Boolean))];
 
-  if (!codes.length && !zoneCodes.length) return null;
+  // By name, the link needs no places: the results page looks them up. Only a scope that has
+  // ANSWERED with nowhere returns null (`resolvedEmpty`), so "Show all" never waits for the
+  // lookup and never falls back to the country list (Levent 23 Oct: countries came preselected
+  // when the scope call was slow).
+  if (slug && resolvedEmpty) return null;
+  if (!slug && !codes.length && !zoneCodes.length) return null;
 
   const qs = new URLSearchParams();
   if (slug) {

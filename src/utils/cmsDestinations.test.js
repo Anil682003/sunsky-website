@@ -128,7 +128,10 @@ describe('holidayScopeSearchUrl', () => {
     expect(p.get('destinationLabel')).toBe('Zonvakanties');
     expect(p.get('transport')).toBe('package');
     expect(p.get('entry')).toBeNull();
-    expect(holidayScopeSearchUrl({ destinations: [], slug: 'zonvakanties' })).toBeNull();
+    // Not loaded yet: still the link by name, never the country list.
+    expect(qs(holidayScopeSearchUrl({ destinations: [], slug: 'zonvakanties' })).get('holidayType')).toBe('zonvakanties');
+    // Answered with nowhere: no link, the caller keeps its own.
+    expect(holidayScopeSearchUrl({ destinations: [], slug: 'zonvakanties', resolvedEmpty: true })).toBeNull();
   });
 
   it('a door type keeps its default entry', () => {

@@ -93,7 +93,8 @@ describe('HolidayType city cards', () => {
 });
 
 describe('HolidayType "Show all"', () => {
-  it('searches every linked country, by its Hotelbeds code', () => {
+  it('falls back to every linked country, by its Hotelbeds code, when the type resolves to nowhere', () => {
+    scopeData = { destinations: [], zones: [], hotelCodes: [] };
     renderPage();
     const link = showAll();
     expect(link).toBeInTheDocument();
@@ -114,6 +115,7 @@ describe('HolidayType "Show all"', () => {
         ],
       }],
     };
+    scopeData = { destinations: [], zones: [], hotelCodes: [] };
     renderPage();
     expect(query(showAll()).get('destinations')).toBe('TFS');
     expect(query(showAll()).get('countries')).toBe('GR');
@@ -161,14 +163,12 @@ describe('HolidayType "Show all" uses the type scope', () => {
     expect(query(showAll()).get('zones')).toBeNull();
   });
 
-  it('falls back to the countries link when the scope has not answered', () => {
-    // The scope is a second request. Until it lands, or if it fails, the button keeps working
-    // as it always did rather than vanishing or searching the whole site.
+  it('links by type before the scope has answered, never with countries preselected (Levent 23 Oct)', () => {
     scopeData = null;
     renderPage();
     const p = query(showAll());
-    expect(p.get('countries')).toBe('TR,NY');
-    expect(p.get('destinations')).toBeNull();
+    expect(p.get('holidayType')).toBeTruthy();
+    expect(p.get('countries')).toBeNull();
   });
 
   it('falls back when the type resolves to nowhere', () => {
@@ -246,7 +246,9 @@ describe('HolidayType cards: a place, with the category still applied', () => {
     allCountries = [{ id: 1, code: 'ES', isoCode: 'ES', name: 'Spanje' }];
     renderPage('last-minute');
     const p = query(showAll());
-    expect(p.get('countries')).toBe('ES');
+    // By type, never a preselected country list; the results page searches everywhere.
+    expect(p.get('holidayType')).toBe('last-minute');
+    expect(p.get('countries')).toBeNull();
     expect(p.get('entry')).toBe('last_minute');
     expect(p.get('themes')).toBeNull();
   });
@@ -280,6 +282,8 @@ describe('HolidayType prices and dates', () => {
     expect(p.get('checkIn')).toBeNull();
     expect(p.get('checkOut')).toBeNull();
     expect([...p.keys()].some((k) => /date|month|year/i.test(k))).toBe(false);
-    expect(showAll().getAttribute('href')).not.toMatch(/2027/);
+    // The title travels as the label, which may say 2027; nothing else in the link does.
+    p.delete('destinationLabel');
+    expect(p.toString()).not.toMatch(/2027/);
   });
 });
