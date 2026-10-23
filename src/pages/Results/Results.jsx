@@ -907,7 +907,13 @@ export default function Results() {
   // ── FACETS (from the admin content API over the scope) ──────────────────────────
   // holiday / stars / facilities / activities, each with a hotel count. `facetsStatus`:
   // 'loading' | 'ok' | 'error'. attrMap = hotelCode → attributes (stars, distances).
-  const [facets, setFacets]           = useState({ holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [], review: [] });
+  // The catalogue counts for the searched area (GET /facets); `facets` below is what the sidebar
+  // shows, which for Flight + Hotel are the counts over the results only.
+  const [scopeFacetsRaw, setFacets]   = useState({ holiday: [], stars: [], facilities: [], activities: [], accommodation: [], kids: [], beachDistance: [], centreDistance: [], review: [] });
+  // Flight + Hotel: the sidebar counts over only the hotels with a package in this search
+  // (Unified Results §9.3; Levent 23 Oct: "5 stars (859)" above 319 results). { key, facets }.
+  const [offerFacets, setOfferFacets] = useState(null);
+  const [offerCodes, setOfferCodes]   = useState(null);   // { key, codes } once every group answered
   const [facetsStatus, setFacetsStatus] = useState('loading');
   const [attrMap, setAttrMap]         = useState({});
 
@@ -1054,6 +1060,8 @@ export default function Results() {
   // Upper bound of the price sliders, in the currently-selected price basis. null = not
   // discovered yet. Reset to null (never merely lowered) when the search or basis changes.
   const [priceCeiling, setPriceCeiling] = useState(null);
+  // Flight + Hotel: the complete totals' range over the whole answer (server, page 1 per group).
+  const [pkgPriceRange, setPkgPriceRange] = useState(null);
 
   // Lazy hotel-info loading
   const [infoMap, setInfoMap]         = useState({});
@@ -1310,6 +1318,23 @@ export default function Results() {
     // afterwards is theirs.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [pickedCityKey, placesByType]);
+
+  // THE WHERE FILTER'S NUMBERS. The search's own counts cover only what it searched, so once a city
+  // is picked every other city would read 0. The country's numbers from before a city was picked
+  // are kept for the others; a city covered by neither shows no number (ScopePicker).
+  const countryCountsRef = useRef(new Map());
+  const pickedCountryKey = pickedScope.countries.join(',');
+  const pickedNoCity = !pickedScope.destinations.length && !pickedScope.zones.length;
+  useEffect(() => {
+    if (destCounts && pickedCountryKey && pickedNoCity) countryCountsRef.current.set(pickedCountryKey, destCounts);
+  }, [destCounts, pickedCountryKey, pickedNoCity]);
+  const pickerCounts = useMemo(() => {
+    if (!destCounts) return null;
+    const out = { ...(pickedNoCity ? {} : countryCountsRef.current.get(pickedCountryKey) || {}) };
+    for (const d of priceScope?.destinations ?? []) out[d] = destCounts[d] ?? 0;
+    for (const [d, n] of Object.entries(destCounts)) out[d] = n;
+    return out;
+  }, [destCounts, priceScope, pickedCountryKey, pickedNoCity]);
 
   // Arrival airports are a choice within ONE city (Levent 23 Oct): a whole country, or two
   // cities, shows no Arrival airport block. Read from what the traveller picked, not from the
@@ -1750,6 +1775,37 @@ export default function Results() {
     ? `${priceScope.destinations.join(',')}|${priceScope.hotelCodes ? priceScope.hotelCodes.length + ':' + priceScope.hotelCodes.slice(0, 3).join(',') : 'all'}`
     : null;
 
+  // ── The sidebar counts over the results (Flight + Hotel) ─────────────────────────────────
+  // The search the counts belong to, without the content boxes: a box ticked in an "either"
+  // group (themes, stars, accommodation type, rating, distance) keeps that group's numbers from
+  // before, so 4★ still shows its count after 5★ is ticked.
+  const offerBaseKey = `${searchKey}|${applied.transport}|${(applied.origins || []).join(',')}|${(applied.boards || []).join(',')}|${(applied.arrivals || []).join(',')}`;
+  useEffect(() => {
+    if (applied.transport !== 'package' || !offerCodes) return;
+    let live = true;
+    axiosInstance.post('/hotel-filters/facets/offers', { ...searchScope, hotelCodes: offerCodes.codes })
+      .then((r) => {
+        const next = r?.data?.data?.facets;
+        if (!live || !next) return;
+        setOfferFacets((prev) => {
+          const keep = prev?.key === offerBaseKey ? prev.facets : null;
+          const sticky = {
+            holiday: applied.themes, stars: applied.stars, accommodation: applied.accommodation,
+            review: applied.minRating ? [applied.minRating] : [], beachDistance: applied.maxBeach ? [1] : [], centreDistance: applied.maxCentre ? [1] : [],
+          };
+          const out = { ...next };
+          if (keep) for (const [group, ticked] of Object.entries(sticky)) if (ticked?.length && keep[group]) out[group] = keep[group];
+          return { key: offerBaseKey, facets: out };
+        });
+      })
+      .catch(() => { /* the catalogue counts stay */ });
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [offerCodes]);
+  // A new search (place, dates, party, product): counts from an earlier one are never shown.
+  useEffect(() => { setOfferFacets((prev) => (prev && prev.key !== offerBaseKey && !offerCodes ? null : prev)); }, [offerBaseKey, offerCodes]);
+  const facets = applied.transport === 'package' && offerFacets ? offerFacets.facets : scopeFacetsRaw;
+
   // ── "Incl. flight": show the package groups that have answered ──────────────────────────
   // Every group is asked at once (PACKAGE_CONCURRENCY at a time) and the list fills in as each
   // answers, so a country is not as slow as its slowest destination. Sorted as one list.
@@ -1764,14 +1820,29 @@ export default function Results() {
     setHasMore(more || pending);
     // The price slider's range, on the same basis as the filter (package total or p.p.).
     const f = appliedRef.current;
+    // The whole answer's range (page 1 of each group), not just the packages loaded so far:
+    // the slider ran to €10,300 while the results went to €1,439 (Levent 23 Oct).
+    const ranges = pk.groups.map((g) => g.priceRange).filter(Boolean);
+    const whole = !pending && ranges.length === pk.groups.length && f.priceBasis !== 'perPerson'
+      ? { min: Math.min(...ranges.map((r) => r.min)), max: Math.max(...ranges.map((r) => r.max)) } : null;
     if (f.minPrice === '' && f.maxPrice === '') {
-      growCeiling(merged.map((p) => (f.priceBasis === 'perPerson' ? p.pricePerPerson : p.sunskyPayableTotalRounded)).filter((n) => Number.isFinite(n)));
+      if (whole) {
+        setPkgPriceRange(whole);
+        setPriceCeiling(Math.max(PRICE_STEP, Math.ceil(whole.max / PRICE_STEP) * PRICE_STEP));
+      } else {
+        growCeiling(merged.map((p) => (f.priceBasis === 'perPerson' ? p.pricePerPerson : p.sunskyPayableTotalRounded)).filter((n) => Number.isFinite(n)));
+      }
     }
     setBoardFacets(mergeBoardFacets(pk.groups));
     // Every group was asked the same question, so the first that answered speaks for all.
     setEntryApplied(pk.groups.find((g) => g.entryApplied)?.entryApplied ?? null);
     setDestCounts(mergeDestinationCounts(pk.groups));
     setPkgProven(mergeAirportFacets(pk.groups, pk.body || {}));
+    // Every group answered with its hotel list: the sidebar can now count over the results.
+    if (pk.groups.length && pk.groups.every((g) => g.done && !g.error && Array.isArray(g.resultCodes))) {
+      const codes = [...new Set(pk.groups.flatMap((g) => g.resultCodes))];
+      setOfferCodes((prev) => (prev?.reqId === reqId ? prev : { reqId, codes }));
+    }
     setPkgUnknown(unknownDestinations(pk.groups));
     setPkgFailed(pk.groups.filter((g) => g.done && g.error).flatMap((g) => g.dests));
     setPkgLoadingGroups(pk.groups.filter((g) => !g.done).length);
@@ -1805,7 +1876,7 @@ export default function Results() {
           // `entryApplied` is the server's answer to "did the door's default survive the
           // traveller's own choices" (§12B.2, UI-20). Every group is asked the same question, so
           // the first page of any of them carries it.
-          if (g.page === 1) { g.boardFacets = r?.boardFacets || {}; g.airportFacets = r?.airportFacets || null; g.destinationFacets = r?.destinationFacets || null; g.entryApplied = r?.entryApplied ?? null; }
+          if (g.page === 1) { g.resultCodes = Array.isArray(r?.resultHotelCodes) ? r.resultHotelCodes : null; g.priceRange = r?.priceRange ?? null; g.boardFacets = r?.boardFacets || {}; g.airportFacets = r?.airportFacets || null; g.destinationFacets = r?.destinationFacets || null; g.entryApplied = r?.entryApplied ?? null; }
           g.error = null;
         } catch (err) {
           if (signal?.aborted || err?.name === 'CanceledError') return;
@@ -1858,6 +1929,7 @@ export default function Results() {
       setInfoMap({});
       setInfoFailed(new Set());
       setPriceCeiling(null);
+      setPkgPriceRange(null);
       infoLoadingRef.current = new Set();
       infoGenRef.current += 1;
     } else {
@@ -1906,6 +1978,7 @@ export default function Results() {
       const groups = chunkDestinations(dests, chunkSizeFor(body)).map((d) => ({ dests: d, hotels: [], hasMore: false, page: 0, done: false, error: null }));
       pkgRef.current = { reqId, groups, shown: PAGE_SIZE, body };
       setPkgUnknown([]);
+      setOfferCodes(null);
       setPkgProven({ origins: null, arrivals: null });
       setPkgFailed([]);
       setPkgTotal(null);
@@ -2486,12 +2559,13 @@ export default function Results() {
   // Stated separately, nobody has to drag a handle to find out there is nothing down there.
   const shownBasis = filters.priceBasis;
   const availablePrices = useMemo(() => {
+    if (applied.transport === 'package' && pkgPriceRange && shownBasis !== 'perPerson') return pkgPriceRange;
     const amounts = allHotels
       .map((h) => (shownBasis === 'perPerson' ? h.perPerson : h.totalAmount))
       .filter((n) => Number.isFinite(n) && n > 0);
     if (!amounts.length) return null;
     return { min: Math.min(...amounts), max: Math.max(...amounts) };
-  }, [allHotels, shownBasis]);
+  }, [allHotels, shownBasis, applied.transport, pkgPriceRange]);
 
   const priceBounded = filters.minPrice !== '' || filters.maxPrice !== '';
   const clearPrice = () => setFilters((f) => ({ ...f, minPrice: '', maxPrice: '' }));
@@ -2814,7 +2888,7 @@ export default function Results() {
           status={countriesStatus}
           value={pickedScope}
           popular={POPULAR_SCOPE}
-          counts={destCounts}
+          counts={pickerCounts}
           onApply={applyScope}
         />
       </FilterSection>

@@ -309,8 +309,9 @@ export default function ScopePicker({
   const countryCount = (code) => {
     if (!counts) return null;
     const mine = cities.filter((c) => c.countryCode === code || c.country === code);
-    if (!mine.length) return null;
-    return mine.reduce((sum, c) => sum + (Number(counts[c.code]) || 0), 0);
+    const known = mine.filter((c) => counts[c.code] != null);
+    if (!known.length) return null;
+    return known.reduce((sum, c) => sum + (Number(counts[c.code]) || 0), 0);
   };
 
   const countryItems = useMemo(() => countries.map((c) => ({
@@ -320,8 +321,10 @@ export default function ScopePicker({
 
   const cityItems = useMemo(() => cities.map((c) => ({
     key: c.code, label: c.name, flag: '', flagUrl: '', hint: '',
-    // Straight from the backend: already unique hotels under every other filter.
-    count: counts ? (Number(counts[c.code]) || 0) : null,
+    // Straight from the backend: already unique hotels under every other filter. A city the
+    // count does not cover gets no number, never a 0 it has not earned (Levent 23 Oct: every
+    // other Turkish city read 0 once Turkse Riviera was picked).
+    count: counts && counts[c.code] != null ? Number(counts[c.code]) || 0 : null,
   })), [cities, counts]);
 
   const zoneItems = useMemo(() => zones.map((z) => ({
