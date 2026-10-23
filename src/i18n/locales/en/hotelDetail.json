@@ -1,5 +1,6 @@
 {
   "actions": {
+    "cancel": "Cancel",
     "checkAvailability": "Check availability",
     "checkPriceAvailability": "Check price & availability",
     "close": "Close",
@@ -12,6 +13,7 @@
     "cabinBag": "Cabin bag",
     "cabinIncluded": "Cabin bag included",
     "cabinKg": "Cabin bag {{kg}} kg",
+    "cabinNotStated": "Cabin bag not stated",
     "canBeAdded": "Can be added at booking",
     "checkedBaggage": "Checked baggage",
     "checkedKg": "Checked baggage {{kg}} kg",
@@ -171,12 +173,16 @@
     "nOfMMatch": "{{n}} of {{m}} flights match",
     "nOfMOptions": "{{n}} of {{m}} flight options",
     "noFlightsMatch": "No flights match these filters.",
+    "nonstopBothWays": "Direct outbound and return only",
     "nothingToFilter": "All {{count}} flights share the same times, stops, airline and baggage, so there is nothing to filter on.",
     "outboundTimeHint": "The time your outbound flight leaves, local to the departure airport.",
+    "pickArmed": "New flight selected. Save to apply it.",
+    "pickToChange": "Select a flight to change your choice.",
     "priceNote": "Price differences are shown <1>per person</1>, compared with your selected flight. The fare on each card is for <3>all travellers</3>, taxes and fees included.",
     "reset": "Reset",
     "resetAllFilters": "Reset all filters",
     "returnTimeHint": "The time your return flight leaves the destination.",
+    "saveFlight": "Save flight",
     "selectAll": "Select all",
     "showMoreFlights": "Show more flights",
     "showMoreN": "Show more ({{count}})",
@@ -185,7 +191,6 @@
     "sort": "Sort:",
     "titleEarliest": "{{title}} — earliest",
     "titleLatest": "{{title}} — latest",
-    "nonstopBothWays": "Direct outbound and return only",
     "yourFlight": "The flight you have now"
   },
   "flights": {

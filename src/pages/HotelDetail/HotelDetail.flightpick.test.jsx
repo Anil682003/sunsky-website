@@ -145,6 +145,10 @@ const modalCards = (container) => [
 const listedCards = (container) => [...container.querySelectorAll('.modal-flights .flight-card')];
 /** The flight being held, shown apart above the list (UI-24). */
 const heldCard = (container) => container.querySelector('.modal-held .flight-card');
+// Picking a card arms the choice; the dialog's Save is what applies it and closes it.
+// Queried by class, not by role: these tests never open the dialog, and with CSS loaded
+// (test.css) everything inside the unopened overlay is display:none and out of the a11y tree.
+const saveFlight = async (user, container) => user.click(container.querySelector('.modal-foot-save'));
 /* For "is this flight on screen at all". It has to span both places, or a flight would read
    as filtered away merely because it is the one being held. */
 const cardsText = (container) => modalCards(container).map((c) => c.textContent).join(' ');
@@ -205,6 +209,7 @@ describe('green marks the flight you chose, and only that one', () => {
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
     await user.click(listedCards(container)[0].querySelector('.fc-pick'));
+    await saveFlight(user, container);
 
     // The two trade places: the chosen flight is now held above the list and the one it
     // replaced is an alternative. Different nodes, so they have to be re-read.
@@ -247,6 +252,7 @@ describe('a card says what switching to it costs, and offers the switch', () => 
     await waitFor(() => expect(modalCards(container).length).toBe(2));
 
     await user.click(listedCards(container)[0].querySelector('.fc-pick'));
+    await saveFlight(user, container);
 
     await waitFor(() => {
       const [cheaper] = listedCards(container);
@@ -282,6 +288,7 @@ describe('a card says what switching to it costs, and offers the switch', () => 
 
     // Take the dearer one; the cheapest is now an alternative and earns the chip.
     await user.click(listedCards(container)[0].querySelector('.fc-pick'));
+    await saveFlight(user, container);
     await waitFor(() => {
       expect(listedCards(container)[0].querySelector('.fc-best').textContent).toMatch(/laagste tarief/i);
     });
@@ -445,7 +452,11 @@ describe('the filter rail acts on the live results', () => {
     await openFilters(user);
 
     const body = () => container.querySelector('.modal-body');
-    expect(body().className).toContain('rail-open');
+    // Folded on open now: the list is what the dialog is for, and the rail is a step the
+    // traveller takes when the list is too long rather than one it starts with.
+    expect(body().className).not.toContain('rail-open');
+    await user.click(container.querySelector('.modal-rail-tab'));
+    await waitFor(() => expect(body().className).toContain('rail-open'));
 
     await user.click(screen.getByRole('checkbox', { name: /rechtstreeks heen en terug/i }));
     // Queried by class, not by role: both controls are `display:none` until the media query
@@ -580,8 +591,6 @@ describe('the cheapest-flight card the page leads with', () => {
     const foot = pageCard(container).querySelector('.flight-bottom');
     expect(foot.textContent).not.toContain('1,112');
     expect(foot.textContent).not.toMatch(/totaal voor alle reizigers/i);
-    expect(foot.querySelector('.fc-allin').textContent)
-      .toMatch(/prijzen zijn inclusief belastingen en kosten/i);
     expect(foot.querySelector('.flight-details-btn')).not.toBeNull();
   });
 

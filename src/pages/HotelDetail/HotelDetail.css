@@ -1395,11 +1395,23 @@
 .sd .bp-code { font-size:11px; font-weight:800; color:var(--text-light); letter-spacing:.1em; margin-top:2px; }
 .sd .bp-mid { display:flex; flex-direction:column; align-items:center; gap:6px; min-width:132px; }
 .sd .bp-dur { font-size:11px; font-weight:700; color:var(--text-light); font-variant-numeric:tabular-nums; }
-.sd .bp-track { position:relative; width:100%; min-width:104px; height:2px; background:repeating-linear-gradient(90deg,var(--blue-soft) 0 5px,transparent 5px 11px); }
-.sd .bp-track::before { content:''; position:absolute; left:0; top:50%; transform:translateY(-50%); width:7px; height:7px; border-radius:50%; background:var(--blue); }
-.sd .bp-track::after { content:''; position:absolute; right:-1px; top:50%; transform:translate(0,-50%) rotate(45deg); width:7px; height:7px; border-right:2.5px solid var(--blue); border-top:2.5px solid var(--blue); }
-.sd .bp-plane { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); width:23px; height:23px; border-radius:50%; background:var(--white); border:1.5px solid #dce9fc; box-shadow:0 2px 8px rgba(31,79,216,.18); display:flex; align-items:center; justify-content:center; color:var(--blue); }
-.sd .bp-plane svg { width:12px; height:12px; }
+/* The route line: a plain rule with a dot at each end and the plane riding the middle. It
+   was dashed with an arrowhead on the right — three kinds of graphic on a line whose job is
+   to say "from here to there", and at this size the dashes read as a smudge. The dialog
+   already drew it this way; now the card and the dialog draw one route the same way. */
+.sd .bp-track {
+  position:relative; box-sizing:border-box;
+  width:100%; min-width:104px; height:12px; padding:0 4px;
+  background-image:linear-gradient(90deg,#AFCDF4,#AFCDF4);
+  background-repeat:no-repeat; background-size:100% 2px; background-position:center;
+  background-origin:content-box; background-clip:content-box;
+}
+.sd .bp-track::before,
+.sd .bp-track::after { content:''; position:absolute; top:50%; width:7px; height:7px; border-radius:50%; background:var(--blue); transform:translateY(-50%); }
+.sd .bp-track::before { left:0; }
+.sd .bp-track::after { right:0; }
+.sd .bp-plane { position:absolute; left:50%; top:50%; transform:translate(-50%,-50%); display:inline-flex; align-items:center; justify-content:center; padding:0 6px; background:var(--white); color:var(--blue); }
+.sd .bp-plane svg { width:14px; height:14px; }
 .sd .bp-stops { font-size:10.5px; font-weight:800; color:var(--green); text-transform:uppercase; letter-spacing:.04em; }
 .sd .bp-stops.has { color:#b45309; }
 .sd .bp-via { margin-top:9px; display:flex; align-items:center; gap:6px; font-size:11px; font-weight:600; color:#b45309; }
@@ -1655,7 +1667,7 @@
 .sd .alt-chip-code { font-size:10.5px; font-weight:700; letter-spacing:.08em; color:var(--text-light); }
 .sd .alt-chip.act .alt-chip-code { color:var(--blue); opacity:.75; }
 /* an alternative WITH a live price found by the fallback probe */
-.sd .alt-chip-priced { border-color:var(--blue-soft); background:var(--blue-pale); }
+.sd .alt-chip-priced { border-color:var(--blue-soft); background:var(--white); }
 .sd .alt-chip-price { font-size:11px; font-weight:800; color:var(--blue); margin-top:2px; }
 /* The difference, not the price. Grey by default because "+€35" is a cost, and green only
    when the alternative is genuinely cheaper — a saving is the one case worth colouring. */
@@ -2048,7 +2060,7 @@
    itineraries against each other, and every pixel taken off its width is width taken off
    the columns doing the comparing. So it runs as wide as the viewport allows, up to a cap
    that keeps a card's route from stretching into a line nobody's eye can follow. */
-.sd .modal { width:100%; max-width:1460px; max-height:94vh; background:var(--white); border-radius:var(--r-xl); overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); animation:sdSlideUp .35s var(--ease); }
+.sd .modal { width:100%; max-width:1600px; max-height:94vh; background:var(--white); border-radius:var(--r-xl); overflow:hidden; display:flex; flex-direction:column; box-shadow:var(--shadow-lg); animation:sdSlideUp .35s var(--ease); }
 /* White, not the blue band it used to wear: the band read as a second page header stacked
    on the site's own, and the cards below are already carrying the blue. */
 .sd .modal-head { display:flex; align-items:center; gap:16px; padding:20px 26px; border-bottom:1px solid var(--border-light); background:var(--white); }
@@ -2062,6 +2074,21 @@
 /* What there is to choose from — and, the moment the rail narrows the list, how much of it
    is left. Without it the rail's effect is only visible by scrolling down and counting. */
 .sd .modal-subtitle { margin-top:3px; font-size:13px; font-weight:500; color:var(--text-sec); }
+/* Commit bar. The dialog used to apply a flight the instant a card was clicked; the click
+   now arms it and this bar commits it, so the list stays put while the traveller decides. */
+.sd .modal-foot { display:flex; align-items:center; gap:14px; padding:15px 26px; border-top:1px solid var(--border-light); background:var(--white); }
+.sd .modal-foot-note { margin-right:auto; font-size:13px; font-weight:600; color:var(--text-sec); }
+.sd .modal-foot-cancel { padding:11px 20px; border-radius:var(--r-full); border:1.5px solid var(--border); background:var(--white); font-family:inherit; font-size:13.5px; font-weight:700; color:var(--text); cursor:pointer; transition:all .25s var(--ease); }
+.sd .modal-foot-cancel:hover { border-color:var(--blue-soft); background:var(--blue-pale); }
+.sd .modal-foot-save { display:inline-flex; align-items:center; gap:8px; padding:12px 24px; border-radius:var(--r-full); border:none; background:linear-gradient(135deg,var(--sun),var(--gold)); color:#fff; font-family:"Sora",sans-serif; font-size:14px; font-weight:800; cursor:pointer; box-shadow:0 8px 22px rgba(255,159,28,.32); transition:all .3s var(--ease); }
+.sd .modal-foot-save:disabled { opacity:.45; cursor:not-allowed; box-shadow:none; }
+.sd .modal-foot-save:not(:disabled):hover { transform:translateY(-2px); box-shadow:0 14px 30px rgba(255,159,28,.42); }
+.sd .modal-foot-save svg { width:16px; height:16px; }
+@media (max-width:640px) {
+  .sd .modal-foot { flex-wrap:wrap; padding:13px 16px; gap:10px; }
+  .sd .modal-foot-note { flex-basis:100%; margin-right:0; }
+  .sd .modal-foot-cancel, .sd .modal-foot-save { flex:1 1 0; justify-content:center; }
+}
 .sd .modal-sort { font-size:12.5px; font-weight:600; color:var(--text-sec); display:flex; align-items:center; gap:9px; flex-shrink:0; }
 /* A bordered field rather than blue text pretending not to be a control: a select with no
    box around it does not look like something you can open. */
@@ -2354,7 +2381,7 @@
    200 lines above and was pure dead weight — edits to it changed nothing on screen. */
 .fdm-overlay { padding:20px; }
 .fdm {
-  width:100%; max-width:1080px; max-height:90vh;
+  width:100%; max-width:1180px; max-height:90vh;
   display:flex; flex-direction:column;
   background:var(--white); border-radius:20px; overflow:hidden;
   box-shadow:var(--shadow-lg); animation:sdSlideUp .3s var(--ease);
@@ -2619,7 +2646,11 @@
   text-align:left; padding:14px 18px; background:#F7FAFF;
   border-bottom:1px solid var(--border-light);
   font-size:10.5px; font-weight:800; letter-spacing:.10em; text-transform:uppercase;
-  color:var(--text-sec); white-space:nowrap; vertical-align:top;
+  color:var(--text-sec); vertical-align:top;
+  /* NOT nowrap. The table is table-layout:fixed, so a label too long for its column does
+     not widen it — it runs straight over the next one. "Personal item" fits in English;
+     its Dutch equivalent does not, and printed itself across the cabin-bag heading. */
+  white-space:normal; overflow-wrap:anywhere;
 }
 .fdm-th { display:inline-flex; align-items:center; gap:7px; flex-wrap:wrap; }
 .fdm-th svg { width:15px; height:15px; color:var(--text-sec); }

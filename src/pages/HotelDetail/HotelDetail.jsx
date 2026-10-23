@@ -757,7 +757,7 @@ function Journey({ dir, legs }) {
         </div>
         <div className="bp-mid">
           <div className="bp-dur">{fmtDur(durMin)}</div>
-          <div className="bp-track"><span className="bp-plane">{ICON.plane}</span></div>
+          <div className="bp-track"><span className="bp-plane">{ICON.planeGo}</span></div>
           <div className={`bp-stops${stops ? ' has' : ''}`}>{stopsLabel(stops)}</div>
         </div>
         <div className="bp-end bp-end-r">
@@ -919,7 +919,7 @@ function JourneyColumn({ dir, legs, compact }) {
         </div>
         <div className="bp-mid">
           <div className="bp-dur">{fmtDur(durMin)}</div>
-          <div className="bp-track"><span className="bp-plane">{ICON.plane}</span></div>
+          <div className="bp-track"><span className="bp-plane">{ICON.planeGo}</span></div>
           <div className={`bp-stops${stops ? ' has' : ''}`}>{stopsLabel(stops)}</div>
         </div>
         <div className="bp-end bp-end-r">
@@ -1426,7 +1426,6 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
               <span>{changeLabel}</span>
             </button>
           )}
-          <div className="fc-allin">{ICON.info}<span>{i18n.t('hotelDetail:flightCard.allInclTaxes', 'All prices include taxes, fees and charges.')}</span></div>
         </div>
 
         {f.warning && <div className="flight-warning">{ICON.warn} {f.warning}</div>}
@@ -2008,6 +2007,14 @@ export default function HotelDetail() {
   // on the page behind it.
   const [flightPick, setFlightPick] = useState(null);   // { sig, flight, trip }
   const [modalOpen, setModalOpen] = useState(false);
+  // The flight picked INSIDE the dialog but not yet applied. Choosing a card used to apply it
+  // and shut the dialog in one move, so a mis-click changed the booking with no way back but
+  // reopening the list. Now a card arms this, and Save is what commits it.
+  const [draftIdx, setDraftIdx] = useState(null);
+  // Every way into the dialog goes through here, so the draft always starts from "nothing
+  // picked yet" rather than from whatever the last visit left behind. Not an effect on
+  // modalOpen: that is a setState during commit, which cascades a second render.
+  const openFlightModal = () => { setDraftIdx(null); setModalOpen(true); };
   // Lightbox now carries its OWN photo list, so it can show either the full set
   // (mosaic tiles) or one category from the explorer: { imgs, i, label|null }.
   const [lightbox, setLightbox] = useState(null);
@@ -2924,7 +2931,7 @@ export default function HotelDetail() {
   const [filterSheet, setFilterSheet] = useState(false);
   // Desktop only: the rail folds away to a tab down the left edge, giving the cards the
   // width back. Open to begin with — a filter nobody can see is a filter nobody uses.
-  const [railOpen, setRailOpen] = useState(true);
+  const [railOpen, setRailOpen] = useState(false);   // folded until asked for: the list is what the dialog is for
   // Departure-time sliders. `null` means untouched: the range is whatever the results span,
   // so a slider dropped back to its ends filters nothing.
   const [fOutRange, setFOutRange] = useState(null);
@@ -3592,7 +3599,7 @@ export default function HotelDetail() {
     // opens so they can choose again or change the filters, which is the only way on.
     if (flightNeedsChoice) {
       setActiveTab('Prices');
-      if (allFlights.length) { setModalOpen(true); return; }
+      if (allFlights.length) { openFlightModal(); return; }
       // The fresh answer has no flights at all from this airport: there is no list to open,
       // and the way on is another airport or other dates, which the flight section offers.
       showToast(t('flights.choice.gone', 'The selected flight option is no longer available. Choose another flight.'), 'info');
@@ -3835,7 +3842,7 @@ export default function HotelDetail() {
         }}
         onSelect={() => {}}
         {...(canChange && count > 0 ? {
-          onChange: () => setModalOpen(true),
+          onChange: () => openFlightModal(),
           changeLabel: t('flights.chooseAnother', { count, defaultValue: `Choose another flight · ${count} options` }),
         } : {})}
       />
@@ -4543,6 +4550,26 @@ export default function HotelDetail() {
                                     || t('overview.boardChosenWithRoom', 'Board chosen with your room')}
                                 </span>
                               </div>
+                              {/* Baggage, only when the supplier actually stated it. The fare
+                                  carries its own allowance, and a traveller reading this total
+                                  needs to know whether a hold bag is inside it or another forty
+                                  euro at the airport. No allowance object means the supplier
+                                  said nothing, and the tile stays away rather than guess. */}
+                              {transport === 'package' && liveFlight?.baggage && (() => {
+                                const checked = checkedAllowance(liveFlight.baggage);
+                                const cabin = cabinAllowance(liveFlight.baggage);
+                                return (
+                                  <div className="fcu-item">
+                                    <span className="fcu-ico">{ICON.checkedBag}</span>
+                                    <span className="fcu-k">{t('baggage.checkedBaggage', 'Checked baggage')}</span>
+                                    <span className="fcu-v">{checked.main}</span>
+                                    <span className="fcu-sub">
+                                      {cabin.ok ? t('baggage.cabinIncluded', 'Cabin bag included')
+                                        : t('baggage.cabinNotStated', 'Cabin bag not stated')}
+                                    </span>
+                                  </div>
+                                );
+                              })()}
                               {transport === 'package' && (
                                 <div className="fcu-item">
                                   <span className="fcu-ico">{ICON.noTransfer}</span>
@@ -4857,7 +4884,6 @@ export default function HotelDetail() {
                           board that came back without a rate follows the priced ones, and a room
                           with no priced board at all follows every room that has one. */}
                       {visibleGroups.map((g) => {
-                        const gInfo = rateInfo.get((g.cheapest || g.boards[0]).index);
                         return (
                         <div className="room-group" key={g.key}>
                           <div className="room-group-head">
@@ -4867,23 +4893,6 @@ export default function HotelDetail() {
                                 hand-off; it is just not shown. */}
                             <div className="room-group-id">
                               <div className="room-group-name">{g.name}</div>
-                              {/* Who the room sleeps and for how long — the two facts that apply
-                                  to every board below, so they belong to the room's own title
-                                  block rather than to a strip above the first option, where they
-                                  read as qualifying that option alone. Per-night and per-guest
-                                  arithmetic deliberately left out: the traveller is choosing a
-                                  board here, and a second price beside every real price is
-                                  noise, not help. */}
-                              <div className="room-group-meta">
-                                {gInfo?.guests != null && (
-                                  <span className="rgm">{ICON.users}
-                                    {t('chips.adults', { count: gInfo.adults, defaultValue: `${gInfo.adults} adult${gInfo.adults === 1 ? '' : 's'}` })}
-                                    {gInfo.children > 0 ? t('rooms.childrenSuffixDot', { count: gInfo.children, defaultValue: ` · ${gInfo.children} child${gInfo.children === 1 ? '' : 'ren'}` }) : ''}
-                                    {gInfo.rooms > 1 ? t('stayBar.roomsSuffix', { count: gInfo.rooms, defaultValue: ` · ${gInfo.rooms} rooms` }) : ''}
-                                  </span>
-                                )}
-                                <span className="rgm">{ICON.moon}{dayLabel(nights)}</span>
-                              </div>
                             </div>
                             {/* Options count + "From X" summary lived here, dropped to match the
                                 mockup: the room's occupancy on the left of the header (already
@@ -5015,15 +5024,6 @@ export default function HotelDetail() {
                             );
                           })}
 
-                          {/* Micro-note about the pricing on the "+€X p.p." pills above, in the
-                              card's footer where it explains those numbers without competing
-                              with them. A room with no priced board has no such figures. */}
-                          {g.cheapest && (
-                            <div className="room-group-foot">
-                              {ICON.info}
-                              <span>{t('rooms.pricesPerPerson', 'Prices are per person.')}</span>
-                            </div>
-                          )}
                         </div>
                         );
                       })}
@@ -5036,7 +5036,6 @@ export default function HotelDetail() {
                             : t('rooms.showMoreRooms', { count: listGroups.length - ROOMS_COLLAPSED, defaultValue: `Show more rooms · ${listGroups.length - ROOMS_COLLAPSED} more` })}
                         </button>
                       )}
-                      <div className="all-in-note">{ICON.shield} {t('rooms.allTaxesIncluded', 'All prices include taxes, fees and charges.')}</div>
                     </div>
                     </>
                   ) : (
@@ -5122,6 +5121,44 @@ export default function HotelDetail() {
                         </span>
                       </span>
                     )}
+                    {/* The flight itself, not just that one is included. A traveller reading the amount
+                        below is reading the price OF these two journeys, and the hold-bag line is the
+                        one cost that is not in it when the fare excludes it. Both come from the fare
+                        the live check returned, so nothing here is stated without data behind it. */}
+                    {liveFlight && (() => {
+                      const out = liveFlight.outLegs || [];
+                      const ret = liveFlight.retLegs || [];
+                      if (!out.length) return null;
+                      const checked = checkedAllowance(liveFlight.baggage);
+                      const cabin = cabinAllowance(liveFlight.baggage);
+                      const hop = (legs, icon) => {
+                        const a = legs[0]; const z = legs[legs.length - 1];
+                        return (
+                          <span className="overview-fact">
+                            {icon}
+                            <span>
+                              <b>{a.from} → {z.to} · {fmtTime(a.departure)}</b>
+                              <em>{fmtDateLong(a.departure)} · {flightNumber(a)}</em>
+                            </span>
+                          </span>
+                        );
+                      };
+                      return (
+                        <>
+                          {hop(out, ICON.plane)}
+                          {ret.length ? hop(ret, ICON.arrowBack) : null}
+                          {liveFlight.baggage && (
+                            <span className="overview-fact">
+                              {ICON.checkedBag}
+                              <span>
+                                <b>{checked.main}</b>
+                                <em>{cabin.ok ? t('baggage.cabinIncluded', 'Cabin bag included') : t('baggage.cabinNotStated', 'Cabin bag not stated')}</em>
+                              </span>
+                            </span>
+                          )}
+                        </>
+                      );
+                    })()}
                   </div>
 
                   <div className="overview-body">
@@ -5147,17 +5184,6 @@ export default function HotelDetail() {
                         <span className="overview-row-val" style={{ color: 'var(--text-light)' }}>{t('overview.notPricedYet', 'not priced yet')}</span>
                       </div>
                     )}
-                    <div className="overview-row">
-                      <span className="overview-row-label">
-                        {t('overview.sgrFund', 'SGR Guarantee Fund')}
-                        <FilterHint text={t('overview.sgrFundHint', 'A Belgian travel-guarantee contribution charged per booking. It protects the money you pay us if the trip cannot go ahead.')} />
-                      </span>
-                      <span className="overview-leader" />
-                      <span className="overview-row-val">
-                        {ccy} 20
-                        {ovPax > 1 && <em>({ccy} {(20 / ovPax).toFixed(2)} p.p.)</em>}
-                      </span>
-                    </div>
                     {/* Not "not included" — that reads as unavailable. It is available, on the
                         next page, priced against the flight being booked. */}
                     {transport === 'package' && (
@@ -5187,7 +5213,7 @@ export default function HotelDetail() {
                     <span className="overview-total-label">{t('overview.toPaySunsky', 'To pay to SUNSKY')}</span>
                     <span className="overview-total-val">
                       {ovBase != null
-                        ? `${ccy}${(ovBase + 20).toLocaleString('en-GB')}`
+                        ? `${ccy}${ovBase.toLocaleString('en-GB')}`
                         : '—'}
                     </span>
                   </div>
@@ -6180,7 +6206,7 @@ export default function HotelDetail() {
                   selected
                   cheapest={heldFlight.idx === 0}
                   option={{ impact: 0, perPerson: 0 }}
-                  onSelect={() => {}}
+                  onSelect={() => setDraftIdx(null)}
                 />
               </div>
             )}
@@ -6222,7 +6248,7 @@ export default function HotelDetail() {
                     <FlightCard
                       key={f.idx}
                       f={{ ...f, price: Math.round(f.totalPrice), delta: cheapestFare == null ? null : f.totalPrice - cheapestFare }}
-                      selected={selectedFlight === f.idx}
+                      selected={draftIdx != null ? draftIdx === f.idx : selectedFlight === f.idx}
                       // `flights` is sorted cheapest-first and `idx` is the position in THAT
                       // array, so it survives the modal's own sorting and filtering — the green
                       // frame stays on the genuinely cheapest fare, not on whatever is top.
@@ -6233,15 +6259,10 @@ export default function HotelDetail() {
                         perPerson: selectedFare == null || f.totalPrice == null
                           ? null : (f.totalPrice - selectedFare) / paxCount,
                       }}
-                      // Choosing is the terminal act of this dialog: it applies the flight and
-                      // gets out of the way, rather than leaving the traveller looking at a list
-                      // they have finished with, hunting for a separate Save. What is stored is
-                      // an EXPLICIT pick, by identity and trip, so no later filter or re-fetch of
+                      // Arms the choice; Save commits it. What gets stored on Save is an
+                      // EXPLICIT pick, by identity and trip, so no later filter or re-fetch of
                       // the list can quietly put another flight in its place.
-                      onSelect={() => {
-                        setFlightPick({ sig: flightSig(allFlights[f.idx]), flight: allFlights[f.idx], trip: liveTrip });
-                        setModalOpen(false);
-                      }}
+                      onSelect={() => setDraftIdx(f.idx)}
                     />
                   ))}
                   {/* A charter weekend can come back with forty fares. The first handful is
@@ -6268,6 +6289,26 @@ export default function HotelDetail() {
                 </div>
               )}
             </div>
+          </div>
+          {/* Choosing a card arms it; this bar commits it. Applying on click gave a mis-click
+              the weight of a booking change, with the list already gone when it registered. */}
+          <div className="modal-foot">
+            <div className="modal-foot-note">
+              {draftIdx == null
+                ? t('flightModal.pickToChange', 'Select a flight to change your choice.')
+                : t('flightModal.pickArmed', 'New flight selected. Save to apply it.')}
+            </div>
+            <button type="button" className="modal-foot-cancel" onClick={() => setModalOpen(false)}>
+              {t('actions.cancel', 'Cancel')}
+            </button>
+            <button type="button" className="modal-foot-save" disabled={draftIdx == null}
+              onClick={() => {
+                if (draftIdx == null) return;
+                setFlightPick({ sig: flightSig(allFlights[draftIdx]), flight: allFlights[draftIdx], trip: liveTrip });
+                setModalOpen(false);
+              }}>
+              {ICON.check} {t('flightModal.saveFlight', 'Save flight')}
+            </button>
           </div>
         </div>
       </div>

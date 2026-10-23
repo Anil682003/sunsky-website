@@ -115,9 +115,9 @@ const DEALS = {
   showOn: 'all',
 };
 
-const renderNavbar = () =>
+const renderNavbar = (path = '/') =>
   render(
-    <MemoryRouter initialEntries={['/']}>
+    <MemoryRouter initialEntries={[path]}>
       <ConsentProvider><Navbar /></ConsentProvider>
     </MemoryRouter>,
   );
@@ -604,6 +604,13 @@ describe('a version 1 payload (production today)', () => {
   it('shows sign-in and search by default', () => {
     renderNavbar();
     expect(screen.getByRole('link', { name: /sign in|inloggen/i })).toBeInTheDocument();
+    expect(screen.getAllByLabelText('Zoek hotels en bestemmingen').length).toBeGreaterThan(0);
+  });
+
+  // The hotel page used to be the one screen without it: its own form prices the stay that
+  // is already open, which is no help to someone who wants a different destination.
+  it('keeps the search in the header on the hotel detail page', () => {
+    renderNavbar('/hotel/300984');
     expect(screen.getAllByLabelText('Zoek hotels en bestemmingen').length).toBeGreaterThan(0);
   });
 

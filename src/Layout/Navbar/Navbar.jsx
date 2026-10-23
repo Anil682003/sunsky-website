@@ -228,13 +228,13 @@ export default function Navbar() {
   // Pages with a dark hero band — navbar starts transparent and blends in
   const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
 
-  // The header search (cluster on desktop, in-drawer on mobile) rides on every
-  // screen EXCEPT the hotel detail page (which has its own booking form) and the
-  // auth screens. Login/register render without this layout anyway, but they are
-  // excluded explicitly so the intent is clear if that ever changes.
+  // The header search (cluster on desktop, in-drawer on mobile) rides on every screen, the
+  // hotel detail page included. That page's own form only prices the stay already open, so
+  // a traveller who wanted a different destination used to have to go back to find one.
+  // Login/register render without this layout anyway, but they stay excluded explicitly so
+  // the intent is clear if that ever changes.
   const showHeaderSearch =
     search.enabled &&
-    !location.pathname.startsWith('/hotel/') &&
     location.pathname !== '/login' &&
     location.pathname !== '/register';
   // The phone menu's copy of it: also needs the drawer to want a search box, and the search
@@ -628,7 +628,7 @@ export default function Navbar() {
       ))}
       </div>
 
-      {/* Centered search — home page only. A REAL flex child between the logo and the auth
+      {/* Centered search. A REAL flex child between the logo and the auth
           block (not absolutely positioned) so the browser's own layout fills the gap between
           them — it can never overlap either side, on any resize, with no JS measurement. Hidden
           on mobile, where it moves into the drawer. */}

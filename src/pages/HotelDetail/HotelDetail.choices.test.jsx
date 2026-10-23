@@ -186,6 +186,8 @@ const pickViaIstanbul = async (user, c) => {
     return found;
   });
   await user.click(card.querySelector('.fc-pick'));
+  // Picking arms the choice; the dialog's Save is what applies it.
+  await user.click(await screen.findByRole('button', { name: /vlucht opslaan/i }));
   await waitFor(() => expect(pageCard(c)?.textContent).toContain('TK 1940'));
 };
 
