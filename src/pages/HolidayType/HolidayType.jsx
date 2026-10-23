@@ -183,6 +183,7 @@ export default function HolidayType() {
     zones: scope?.zones,
     label: typeName,
     range: cardRange,
+    slug,
   });
   const showAllHref = scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug });
 

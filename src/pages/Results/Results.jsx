@@ -4,6 +4,8 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
+import { ENDPOINTS } from '../../api/endpoints';
+import { BASE_URL } from '../../utils/ip';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
 import {
   packageBody, chunkDestinations, chunkSizeFor, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, mergeDestinationCounts, PACKAGE_CONCURRENCY, isoAddDays,
@@ -551,6 +553,10 @@ export default function Results() {
   const urlZones        = params.get('zones')        || '';
   const legacyDest      = params.get('destination')  || '';
   const urlLabel        = params.get('destinationLabel') || params.get('label') || '';
+  // A holiday type's "Show all" (Zonvakanties, Stedentrips…): the type travels by name and its
+  // places are looked up here, so nothing appears ticked in the Where filter (Levent 23 Oct:
+  // "Show all" opened with 96 cities preselected). A place the traveller picks narrows it.
+  const urlHolidayType  = params.get('holidayType') || '';
   // A specific hotel picked from the home typeahead → restrict results to just that hotel.
   const urlHotelCode    = params.get('hotelCode') || '';
 
@@ -571,7 +577,32 @@ export default function Results() {
     return () => { live = false; };
   }, [emptySearch, allDestinations]);
 
-  const { scope, usingDefaultScope } = useMemo(() => {
+  const [typeScope, setTypeScope] = useState(null);
+  const [typeScopeError, setTypeScopeError] = useState(false);
+  useEffect(() => {
+    setTypeScope(null); setTypeScopeError(false);
+    if (!urlHolidayType) return;
+    let live = true;
+    fetch(`${BASE_URL}${ENDPOINTS.holidayTypeScope(urlHolidayType)}`)
+      .then((r) => { if (!r.ok) throw new Error(`API ${r.status}`); return r.json(); })
+      .then((d) => { if (live) setTypeScope(d?.data ?? { destinations: [], zones: [] }); })
+      .catch(() => { if (live) setTypeScopeError(true); });
+    return () => { live = false; };
+  }, [urlHolidayType]);
+  // The type's places, or null while they load. A failed lookup searches every destination
+  // rather than leaving the page empty.
+  const typePlaces = useMemo(() => {
+    if (!urlHolidayType) return null;
+    if (typeScopeError) return { destinations: allDestinations ?? [], zones: [], countryOf: {} };
+    if (!typeScope) return null;
+    return {
+      destinations: typeScope.destinations ?? [],
+      zones: (typeScope.zones ?? []).map((z) => ({ d: z.destination, z: z.zone })),
+      countryOf: typeScope.destinationCountries ?? {},
+    };
+  }, [urlHolidayType, typeScope, typeScopeError, allDestinations]);
+
+  const { scope, usingDefaultScope, pickedScope } = useMemo(() => {
     // destinations = explicit `destinations` ∪ home-picker `cities`; fall back to the legacy
     // single `destination` only when neither is present (old links still work).
     const dests = [...new Set([...csv(urlDestinations), ...csv(urlCities)])];
@@ -581,15 +612,35 @@ export default function Results() {
     // EMPTY SEARCH → no country and no destination chosen (e.g. the traveller clicked Search on
     // the home page without picking a place): every destination with inventory, cheapest first.
     // While that list loads the scope is empty, and the price-scope step waits for it.
-    if (!countries.length && !explicit.length) {
-      return { scope: { countries: [], destinations: allDestinations ?? [], zones: [] }, usingDefaultScope: true };
+    const picked = { countries, destinations: explicit, zones };
+    // HOLIDAY TYPE: its places are the search; the Where filter shows only what was picked.
+    // Countries picked on top keep the type's places inside them (Zonvakanties in Spain); a
+    // destination picked is the traveller's own choice and wins.
+    if (urlHolidayType && !explicit.length && !zones.length) {
+      const tp = typePlaces || { destinations: [], zones: [], countryOf: {} };
+      const inCountry = (d) => !countries.length || countries.includes(tp.countryOf[d]);
+      const dests = tp.destinations.filter(inCountry);
+      const typeZones = tp.zones.filter((z) => inCountry(z.d));
+      // A country with none of the type's places: search the country, never an empty page.
+      if (countries.length && !dests.length && !typeZones.length) {
+        return { scope: picked, usingDefaultScope: false, pickedScope: picked };
+      }
+      return {
+        scope: { countries: [], destinations: dests, zones: [...new Set(typeZones.map((z) => z.z))] },
+        usingDefaultScope: false, pickedScope: picked,
+      };
     }
-    return { scope: { countries, destinations: explicit, zones }, usingDefaultScope: false };
-  }, [urlCountries, urlDestinations, urlCities, urlZones, legacyDest, allDestinations]);
+    if (!countries.length && !explicit.length) {
+      return { scope: { countries: [], destinations: allDestinations ?? [], zones: [] }, usingDefaultScope: true, pickedScope: picked };
+    }
+    return { scope: picked, usingDefaultScope: false, pickedScope: picked };
+  }, [urlCountries, urlDestinations, urlCities, urlZones, legacyDest, allDestinations, urlHolidayType, typePlaces]);
+  // Places still being looked up (every destination, or a holiday type's): searches wait.
+  const scopeLoading = (usingDefaultScope && !allDestinations) || (!!urlHolidayType && !typePlaces);
   const scopeKey  = `${scope.countries.join(',')}|${scope.destinations.join(',')}|${scope.zones.join(',')}`;
   // Always have a scope now (the default fills it), so the results page is never blank.
   // The empty search always has a scope (every destination), even while its list is loading.
-  const hasScope  = usingDefaultScope || scope.countries.length > 0 || scope.destinations.length > 0;
+  const hasScope  = usingDefaultScope || !!urlHolidayType || scope.countries.length > 0 || scope.destinations.length > 0 || scope.zones.length > 0;
 
   // 30 days out, 7 nights, in UTC (utils/searchDefaults) — the same stay the hotel page and the
   // "Show all" warmer use. Adding local days and printing UTC landed a day off around DST.
@@ -1280,7 +1331,7 @@ export default function Results() {
   // does not re-run when a box is ticked.
   useEffect(() => {
     if (!hasScope) return;   // nothing to resolve; the page-1 effect handles the empty state
-    if (usingDefaultScope && !allDestinations) return;   // the empty search's list is still loading
+    if (scopeLoading) return;   // the empty search's (or holiday type's) places are still loading
     let live = true;
     const ctrl = new AbortController();
     const selected = {
@@ -1332,7 +1383,7 @@ export default function Results() {
   // depend on the ticked boxes and are fetched once per scope, in parallel with pricing.
   useEffect(() => {
     if (!hasScope) return;
-    if (usingDefaultScope && !allDestinations) return;   // the empty search's list is still loading
+    if (scopeLoading) return;   // the empty search's (or holiday type's) places are still loading
     let live = true;
     const ctrl = new AbortController();
     setFacetsStatus('loading');
@@ -1530,11 +1581,12 @@ export default function Results() {
    */
   const scopeOnePlace = useMemo(() => {
     if (usingDefaultScope) return '';
+    if (urlHolidayType && !pickedScope.countries.length && !pickedScope.destinations.length) return '';
     if (urlLabel) return urlLabel;
     const leaves = scopeLeaves(scope, scopeCities);
     const n = leaves.countries.length + leaves.destinations.length + leaves.zones.length;
     return n === 1 ? scopeLabel : '';
-  }, [usingDefaultScope, urlLabel, scope, scopeCities, scopeLabel]);
+  }, [usingDefaultScope, urlLabel, scope, scopeCities, scopeLabel, urlHolidayType, pickedScope]);
 
   /**
    * What the marketing layer is told about this search (Tracking Master §9).
@@ -2501,8 +2553,18 @@ export default function Results() {
     if (countries.length)    qp.set('countries', countries.join(','));
     if (destinations.length) qp.set('destinations', destinations.join(','));
     if (zones.length)        qp.set('zones', zones.join(','));
-    qp.set('checkIn', fetchParams.checkIn);
-    qp.set('checkOut', fetchParams.checkOut);
+    // The search context travels with the new place: the holiday type, its door, its card
+    // window and the product. Dates only when the traveller chose some: an undated search stays
+    // undated (Levent 23 Oct: picking Spain filled in a date, a duration and an exact length).
+    ['holidayType', 'entry', 'startFrom', 'startTo', 'transport', 'origin', 'origins', 'duration', 'flex'].forEach((k) => {
+      const v = params.get(k);
+      if (v) qp.set(k, v);
+    });
+    if (urlHolidayType && !countries.length && !destinations.length && !zones.length && urlLabel) qp.set('destinationLabel', urlLabel);
+    if (!undatedSearch) {
+      qp.set('checkIn', fetchParams.checkIn);
+      qp.set('checkOut', fetchParams.checkOut);
+    }
     qp.set('adults', fetchParams.adults);
     qp.set('children', fetchParams.children);
     qp.set('rooms', fetchParams.rooms);
@@ -2683,7 +2745,7 @@ export default function Results() {
         <ScopePicker
           countries={countryOptions}
           status={countriesStatus}
-          value={scope}
+          value={pickedScope}
           popular={POPULAR_SCOPE}
           counts={destCounts}
           onApply={applyScope}

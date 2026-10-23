@@ -133,11 +133,13 @@ describe('HolidayType "Show all"', () => {
  * type. So the old link searched Turkey entire for a category that might be two Turkish resorts.
  */
 describe('HolidayType "Show all" uses the type scope', () => {
-  it('searches the destinations the type resolves to, not the countries on the page', () => {
+  it('searches the type by name (the results page looks its places up), not the countries on the page', () => {
     scopeData = { destinations: ['AYT', 'BJV'], zones: [], hotelCodes: [] };
     renderPage();
     const p = query(showAll());
-    expect(p.get('destinations')).toBe('AYT,BJV');
+    expect(p.get('holidayType')).toBeTruthy();
+    // No places in the link, so nothing opens ticked in the Where filter (Levent 23 Oct).
+    expect(p.get('destinations')).toBeNull();
     // Turkey and Cyprus are the country cards. Searching those is the wider question.
     expect(p.get('countries')).toBeNull();
   });
@@ -152,10 +154,11 @@ describe('HolidayType "Show all" uses the type scope', () => {
     expect(p.get('transport')).toBe('package');
   });
 
-  it('narrows to a zone when the type is linked at zone level', () => {
-    scopeData = { destinations: ['AYT'], zones: [{ destination: 'AYT', zone: 'BEL' }], hotelCodes: [] };
+  it('a type linked only at zone level still gets a Show all by name', () => {
+    scopeData = { destinations: [], zones: [{ destination: 'AYT', zone: 'BEL' }], hotelCodes: [] };
     renderPage();
-    expect(query(showAll()).get('zones')).toBe('BEL');
+    expect(query(showAll()).get('holidayType')).toBeTruthy();
+    expect(query(showAll()).get('zones')).toBeNull();
   });
 
   it('falls back to the countries link when the scope has not answered', () => {

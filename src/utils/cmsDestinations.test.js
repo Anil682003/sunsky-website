@@ -119,6 +119,21 @@ describe('holidayScopeSearchUrl', () => {
     expect(url).not.toMatch(/hotelCode/i);
     expect(url).not.toMatch(/111/);
   });
+
+  it('with a slug, sends the type by name and no places, so the Where filter opens empty (Levent 23 Oct)', () => {
+    const p = qs(holidayScopeSearchUrl({ destinations: ['BCN', 'AYT'], zones: [{ destination: 'AYT', zone: 'BEL' }], label: 'Zonvakanties', slug: 'zonvakanties' }));
+    expect(p.get('holidayType')).toBe('zonvakanties');
+    expect(p.get('destinations')).toBeNull();
+    expect(p.get('zones')).toBeNull();
+    expect(p.get('destinationLabel')).toBe('Zonvakanties');
+    expect(p.get('transport')).toBe('package');
+    expect(p.get('entry')).toBeNull();
+    expect(holidayScopeSearchUrl({ destinations: [], slug: 'zonvakanties' })).toBeNull();
+  });
+
+  it('a door type keeps its default entry', () => {
+    expect(qs(holidayScopeSearchUrl({ destinations: ['AYT'], slug: 'last-minute' })).get('entry')).toBe('last_minute');
+  });
 });
 
 /**
