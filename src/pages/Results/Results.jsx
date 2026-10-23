@@ -595,6 +595,11 @@ export default function Results() {
     if (!urlHolidayType) return null;
     if (typeScopeError) return { destinations: allDestinations ?? [], zones: [], countryOf: {} };
     if (!typeScope) return null;
+    // A type with no places of its own (Last Minute, All Inclusive: a date and a board, not a
+    // place) searches every destination; its door applies the rest.
+    if (!typeScope.destinations?.length && !typeScope.zones?.length) {
+      return allDestinations ? { destinations: allDestinations, zones: [], countryOf: {} } : null;
+    }
     return {
       destinations: typeScope.destinations ?? [],
       zones: (typeScope.zones ?? []).map((z) => ({ d: z.destination, z: z.zone })),
