@@ -1999,6 +1999,12 @@ export default function HotelDetail() {
   // itself survives paging, and it stays selected even when it scrolls out of view.
   const [selectedISO, setSelectedISO] = useState(null);
   const [liveChecked, setLiveChecked] = useState(false);
+  // Whether Hotelbeds actually sells a transfer between this airport and this hotel. The
+  // overview used to promise one unconditionally ("added at checkout"), which is a promise
+  // the next page cannot always keep: plenty of hotel/airport pairs have no service at all.
+  // null while unknown, so the row appears only on a yes, never on a timeout or a failure.
+  const [transferOffered, setTransferOffered] = useState(null);
+  const transferAskedRef = useRef('');
   // The flight the traveller EXPLICITLY picked in the change-flight list, or null while the
   // page's own default applies. Held by what the flight is (flightSig) and the trip it was
   // picked for, never by its position: see `selectedFlight` further down, which is derived from
@@ -3114,6 +3120,33 @@ export default function HotelDetail() {
     ? roundStayTotal(liveRoom.price || 0, liveFlight?.totalPrice || 0, roomsCount)
     : null;
   const displayTotal = liveTotal != null ? liveTotal : stayFrom;
+
+  /* Does Hotelbeds sell a transfer between this airport and this hotel? Asked once per
+     airport+hotel+date, only for a package (hotel-only has no arrival to meet), and only
+     after a day has been checked — before that there is no date to quote against.
+
+     The same call checkout makes on its add-ons step, so a yes here is the same yes the
+     traveller meets there. Anything other than a service list leaves the row off: a
+     promise of "added at checkout" that checkout cannot keep is worse than silence. */
+  useEffect(() => {
+    if (transport !== 'package' || !liveChecked || !destination || !hotelCode) return;
+    const day = pd?.iso || baseCheckIn;
+    if (!day) return;
+    const key = `${destination}|${hotelCode}|${day}`;
+    if (transferAskedRef.current === key) return;
+    transferAskedRef.current = key;
+    const arr = liveFlight?.outLegs?.[liveFlight.outLegs.length - 1]?.arrival;
+    const arrOk = /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(arr || ''));
+    const outbound = arrOk ? `${String(arr).slice(0, 16)}:00` : `${day}T12:00:00`;
+    axiosInstance.post('/transfer-availability/search', {
+      fromType: 'IATA', fromCode: destination,
+      toType: 'ATLAS', toCode: String(hotelCode),
+      outbound,
+      adults: Number(sAdults) || 2, children: Number(sChildren) || 0, infants: 0,
+    })
+      .then(({ data }) => setTransferOffered((data?.results?.hotelbeds?.services || []).length > 0))
+      .catch(() => setTransferOffered(false));
+  }, [transport, liveChecked, destination, hotelCode, pd?.iso, baseCheckIn, liveFlight, sAdults, sChildren]);
 
   const cacheWas = pdEstimate ? Number(pd.price) : null;
   // The live price is rounded by the SAME whole-euro rule as the cache figure it is compared
@@ -4570,7 +4603,7 @@ export default function HotelDetail() {
                                   </div>
                                 );
                               })()}
-                              {transport === 'package' && (
+                              {transport === 'package' && transferOffered === true && (
                                 <div className="fcu-item">
                                   <span className="fcu-ico">{ICON.noTransfer}</span>
                                   <span className="fcu-k">{t('prices.transfer', 'Transfer')}</span>
@@ -5186,7 +5219,7 @@ export default function HotelDetail() {
                     )}
                     {/* Not "not included" — that reads as unavailable. It is available, on the
                         next page, priced against the flight being booked. */}
-                    {transport === 'package' && (
+                    {transport === 'package' && transferOffered === true && (
                       <div className="overview-row">
                         <span className="overview-row-label">{t('overview.airportTransfer', 'Airport transfer')}</span>
                         <span className="overview-leader" />

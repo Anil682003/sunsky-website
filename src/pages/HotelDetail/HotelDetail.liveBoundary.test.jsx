@@ -47,6 +47,9 @@ const LIVE_ENDPOINTS = [
   '/hotel-availability/search',
   '/flight-availability/search',
   '/flight-availability/cached-search/confirm',
+  // Asked once a day has been checked, to find out whether a transfer between that airport
+  // and this hotel exists at all — the overview only offers one when it does.
+  '/transfer-availability/search',
 ];
 
 const livePosts = () =>
