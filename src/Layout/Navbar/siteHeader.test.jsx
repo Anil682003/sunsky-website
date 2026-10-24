@@ -662,3 +662,19 @@ describe('the wordmark beside the logo (CMS → Layout → Header)', () => {
     expect(screen.getByText('Sky')).toBeInTheDocument();
   });
 });
+
+describe('the wordmark size', () => {
+  it('uses the CMS height, clamped to 20–64px, 46px by default', () => {
+    headerConfig = { siteHeader: { ...v2(), wordmark: { url: '/uploads/header/w.png', alt: 'WM', height: 52 } } };
+    const { unmount } = renderNavbar();
+    expect(screen.getByAltText('WM').style.getPropertyValue('--wordmark-h')).toBe('52px');
+    unmount();
+    headerConfig = { siteHeader: { ...v2(), wordmark: { url: '/uploads/header/w.png', alt: 'WM', height: 500 } } };
+    const r2 = renderNavbar();
+    expect(screen.getByAltText('WM').style.getPropertyValue('--wordmark-h')).toBe('64px');
+    r2.unmount();
+    headerConfig = { siteHeader: { ...v2(), wordmark: { url: '/uploads/header/w.png', alt: 'WM' } } };
+    renderNavbar();
+    expect(screen.getByAltText('WM').style.getPropertyValue('--wordmark-h')).toBe('46px');
+  });
+});

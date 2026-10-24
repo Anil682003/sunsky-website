@@ -109,7 +109,9 @@
   transition: color 0.4s;
 }
 /* The CMS wordmark image in place of the text: the text's height, free width. */
-.wordmarkImg { height: 26px; width: auto; max-width: 160px; object-fit: contain; display: block; }
+/* Height from the CMS (siteHeader.wordmark.height, default 46px, phone 36px; Levent 24 Oct: "make it good
+   big visible"); the phone bar caps it so the burger still fits. */
+.wordmarkImg { height: var(--wordmark-h, 46px); width: auto; max-width: 280px; object-fit: contain; display: block; }
 .logoLight { color: #fff; }
 .logoDark  { color: var(--dark); }
 .logoAccent { color: var(--sun-orange); }
@@ -638,6 +640,7 @@
 
 /* ── Responsive ── */
 @media (max-width: 900px) {
+  .wordmarkImg { height: min(var(--wordmark-h, 46px), 36px); max-width: 180px; }
   .authArea { display: none; }
   .hamburger { display: flex; }
   .nav { padding: 0 20px; }

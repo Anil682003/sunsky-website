@@ -615,6 +615,7 @@ export default function Navbar() {
             src={wordmarkSrc}
             alt={header.wordmark?.alt || logoAlt}
             className={styles.wordmarkImg}
+            style={{ '--wordmark-h': `${header.wordmark.height}px` }}
             onError={() => setWordmarkFailed(true)}
           />
         ) : (

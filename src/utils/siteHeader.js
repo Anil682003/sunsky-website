@@ -397,9 +397,12 @@ function normalizeMobileMenu(v) {
  */
 // The wordmark beside the logo icon: an uploaded image replaces the "SunSky" text (admin
 // siteHeader.js normalizeWordmark). No url = the text, as before.
+export const WORDMARK_HEIGHT = { min: 20, max: 64, fallback: 46 };
 function normalizeWordmark(v) {
   const o = v && typeof v === 'object' ? v : {};
-  return { url: safeUrl(o.url), alt: str(o.alt, 255) };
+  const n = Number(o.height);
+  const height = Number.isFinite(n) ? Math.min(WORDMARK_HEIGHT.max, Math.max(WORDMARK_HEIGHT.min, Math.round(n))) : WORDMARK_HEIGHT.fallback;
+  return { url: safeUrl(o.url), alt: str(o.alt, 255), height };
 }
 
 export function normalizeSiteHeader(headerConfig) {
