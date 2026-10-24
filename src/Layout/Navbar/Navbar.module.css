@@ -108,6 +108,8 @@
   font-weight: 800; letter-spacing: -0.7px;
   transition: color 0.4s;
 }
+/* The CMS wordmark image in place of the text: the text's height, free width. */
+.wordmarkImg { height: 26px; width: auto; max-width: 160px; object-fit: contain; display: block; }
 .logoLight { color: #fff; }
 .logoDark  { color: var(--dark); }
 .logoAccent { color: var(--sun-orange); }
