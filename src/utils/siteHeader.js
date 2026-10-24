@@ -397,9 +397,19 @@ function normalizeMobileMenu(v) {
  */
 // The wordmark beside the logo icon: an uploaded image replaces the "SunSky" text (admin
 // siteHeader.js normalizeWordmark). No url = the text, as before.
+export const WORDMARK_HEIGHT = { min: 20, max: 64, fallback: 46 };
+// The logo's height (CMS, px). null = automatic, as before: 40px square icon, wide logo up to 64.
+export const LOGO_HEIGHT = { min: 20, max: 80 };
+function normalizeLogoBlock(v) {
+  const o = v && typeof v === 'object' ? v : {};
+  const n = o.height === '' || o.height == null ? NaN : Number(o.height);
+  return { height: Number.isFinite(n) ? Math.min(LOGO_HEIGHT.max, Math.max(LOGO_HEIGHT.min, Math.round(n))) : null };
+}
 function normalizeWordmark(v) {
   const o = v && typeof v === 'object' ? v : {};
-  return { url: safeUrl(o.url), alt: str(o.alt, 255) };
+  const n = Number(o.height);
+  const height = Number.isFinite(n) ? Math.min(WORDMARK_HEIGHT.max, Math.max(WORDMARK_HEIGHT.min, Math.round(n))) : WORDMARK_HEIGHT.fallback;
+  return { url: safeUrl(o.url), alt: str(o.alt, 255), height };
 }
 
 export function normalizeSiteHeader(headerConfig) {
@@ -417,6 +427,7 @@ export function normalizeSiteHeader(headerConfig) {
     version: SITE_HEADER_VERSION,
     announcement: normalizeAnnouncement(v.announcement),
     wordmark: normalizeWordmark(v.wordmark),
+    logo: normalizeLogoBlock(v.logo),
     menus,
     menuOrder: normalizeMenuOrder(v.menuOrder, menus),
     search: normalizeSearch(v.search),

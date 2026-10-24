@@ -597,7 +597,8 @@ export default function Navbar() {
         <img
           src={mainLogo}
           alt={logoAlt}
-          className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''}`}
+          className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''} ${header.logo?.height ? styles.logoSized : ''}`}
+          style={header.logo?.height ? { '--logo-h': `${header.logo.height}px` } : undefined}
           onLoad={(e) => {
             const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
             if (w && h) setLogoAspect(w / h);
@@ -615,6 +616,7 @@ export default function Navbar() {
             src={wordmarkSrc}
             alt={header.wordmark?.alt || logoAlt}
             className={styles.wordmarkImg}
+            style={{ '--wordmark-h': `${header.wordmark.height}px` }}
             onError={() => setWordmarkFailed(true)}
           />
         ) : (
