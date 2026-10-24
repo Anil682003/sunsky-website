@@ -165,6 +165,16 @@ function MobileMenuGroup({ menu, onClose }) {
   );
 }
 
+// The last header config this browser saw (see "NO FLASH" in Navbar). Wrapped: storage can be
+// unavailable (private mode, blocked), and then the bar simply waits for the live config.
+const HEADER_STORE_KEY = 'sunsky.headerConfig.v1';
+function readStoredHeaderConfig() {
+  try { return JSON.parse(localStorage.getItem(HEADER_STORE_KEY) || 'null'); } catch { return null; }
+}
+function storeHeaderConfig(cfg) {
+  try { localStorage.setItem(HEADER_STORE_KEY, JSON.stringify(cfg)); } catch { /* not stored: next visit waits */ }
+}
+
 export default function Navbar() {
   // Every call carries the English as its default, so a key with no translation
   // yet renders readable text rather than a raw `nav.signIn`.
@@ -183,7 +193,15 @@ export default function Navbar() {
   // The header CMS (CMS → Layout → Header) owns the logo; the homepage CMS
   // `logo.mainUrl` remains a fallback for anyone who set it there first.
   // Only one logo is needed now that the bar is white in every state.
-  const { data: headerConfig } = useHeaderConfig();
+  // NO FLASH OF THE OLD LOGO (Levent 24 Oct): on refresh the bar drew the bundled logo and the
+  // "SunSky" text until the header config arrived, then swapped to the CMS images. The last
+  // config is kept in the browser and used at once; on a first visit the logo and wordmark wait
+  // (invisible) for it. The bundled logo only shows if the config cannot be loaded at all.
+  const { data: liveHeaderConfig, error: headerError } = useHeaderConfig();
+  const [storedHeaderConfig] = useState(readStoredHeaderConfig);
+  useEffect(() => { if (liveHeaderConfig) storeHeaderConfig(liveHeaderConfig); }, [liveHeaderConfig]);
+  const headerConfig = liveHeaderConfig ?? storedHeaderConfig;
+  const brandKnown = !!headerConfig || !!headerError;
   const { data: cmsConfig } = useHomepageConfig();
 
   // The dashboard decides again, with the bundled file as the safety net rather than the
@@ -595,10 +613,14 @@ export default function Navbar() {
       {/* Logo */}
       <Link to={logoHref} className={styles.logo}>
         <img
-          src={mainLogo}
-          alt={logoAlt}
+          src={brandKnown ? mainLogo : undefined}
+          alt={brandKnown ? logoAlt : ''}
+          aria-hidden={brandKnown ? undefined : true}
           className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''} ${header.logo?.height ? styles.logoSized : ''}`}
-          style={header.logo?.height ? { '--logo-h': `${header.logo.height}px` } : undefined}
+          style={{
+            ...(header.logo?.height ? { '--logo-h': `${header.logo.height}px` } : {}),
+            ...(brandKnown ? {} : { visibility: 'hidden' }),
+          }}
           onLoad={(e) => {
             const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
             if (w && h) setLogoAspect(w / h);
@@ -611,7 +633,7 @@ export default function Navbar() {
           }}
         />
         {/* Hidden only for a wordmark logo, which already prints the name. */}
-        {!isWordmark && (wordmarkSrc && !wordmarkFailed ? (
+        {brandKnown && !isWordmark && (wordmarkSrc && !wordmarkFailed ? (
           <img
             src={wordmarkSrc}
             alt={header.wordmark?.alt || logoAlt}
