@@ -25,10 +25,11 @@ vi.mock('react-redux', () => ({
 }));
 
 let headerConfig = null;
+let headerError = null;
 let homepageConfig = null;
 vi.mock('../../api', () => ({
   useHomepageConfig: () => ({ data: homepageConfig }),
-  useHeaderConfig: () => ({ data: headerConfig }),
+  useHeaderConfig: () => ({ data: headerConfig, error: headerError }),
   useHolidayTypes: () => ({
     data: [
       { id: 9, name: 'Alleen hotelverblijf', slug: 'hotel-only' },
@@ -139,6 +140,7 @@ beforeEach(() => {
   auth = { isAuthenticated: false, user: null };
   homepageConfig = HOMEPAGE;
   headerConfig = { siteHeader: v2() };
+  headerError = null;
 });
 
 describe('with no settings the bar is the bar it always was', () => {
@@ -690,5 +692,39 @@ describe('the logo size', () => {
     const sized = screen.getAllByRole('img').find((i) => i.className.includes(styles.logoImg));
     expect(sized.style.getPropertyValue('--logo-h')).toBe('56px');
     expect(sized.className).toContain(styles.logoSized);
+  });
+});
+
+describe('no flash of the old logo on refresh (Levent 24 Oct)', () => {
+  const logoImg = () => document.querySelector(`.${styles.logo} img`);
+
+  it('first visit, settings not loaded yet: logo kept invisible, no "SunSky" text', () => {
+    headerConfig = null;
+    renderNavbar();
+    expect(logoImg().getAttribute('src')).toBeNull();
+    expect(logoImg().style.visibility).toBe('hidden');
+    expect(screen.queryByText('Sky')).toBeNull();
+  });
+
+  it('refresh: the settings this browser saw last are used at once', () => {
+    localStorage.setItem('sunsky.headerConfig.v1', JSON.stringify({ logoUrl: '/uploads/header/new-logo.png', siteHeader: { ...v2(), wordmark: { url: '/uploads/header/wm.png', alt: 'WM' } } }));
+    headerConfig = null;   // the live answer has not arrived
+    renderNavbar();
+    expect(logoImg().getAttribute('src')).toMatch(/new-logo.png$/);
+    expect(screen.getByAltText('WM')).toBeInTheDocument();
+  });
+
+  it('settings cannot be loaded at all: the bundled logo, never an empty bar', () => {
+    headerConfig = null;
+    headerError = new Error('down');
+    renderNavbar();
+    expect(logoImg().getAttribute('src')).toBeTruthy();
+    expect(logoImg().style.visibility).toBe('');
+  });
+
+  it('the live settings are remembered for the next visit', () => {
+    headerConfig = { logoUrl: '/uploads/header/live.png', siteHeader: v2() };
+    renderNavbar();
+    expect(JSON.parse(localStorage.getItem('sunsky.headerConfig.v1')).logoUrl).toBe('/uploads/header/live.png');
   });
 });
