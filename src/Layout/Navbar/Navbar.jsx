@@ -3,6 +3,7 @@ import { useNavigate, useLocation, Link } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import { logout } from '../../store/slices/authSlice';
 import { resolveBrandLogo, BUNDLED_LOGO } from '../../hooks/useBrandLogo';
+import { resolveCmsImageUrl } from '../../utils/cmsImage';
 import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig, useHolidayTypes } from '../../api';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
@@ -208,6 +209,10 @@ export default function Navbar() {
   // language, so an empty field never shows Dutch to an English reader or the reverse.
   const header = useMemo(() => normalizeSiteHeader(headerConfig), [headerConfig]);
   const { announcement, menus, search, support, trustpilot, language, account, mobileMenu } = header;
+  // CMS wordmark image (the brand name beside the icon). A broken image falls back to the text.
+  const wordmarkSrc = resolveCmsImageUrl(header.wordmark?.url);
+  const [wordmarkFailed, setWordmarkFailed] = useState(false);
+  useEffect(() => { setWordmarkFailed(false); }, [wordmarkSrc]);
   // The live star score needs all three: an account id, a score widget the plan allows, and the
   // visitor's consent to the widget's iframe. Anything less shows TrustpilotBadge instead.
   const { has: hasConsent } = useConsent();
@@ -605,11 +610,18 @@ export default function Navbar() {
           }}
         />
         {/* Hidden only for a wordmark logo, which already prints the name. */}
-        {!isWordmark && (
+        {!isWordmark && (wordmarkSrc && !wordmarkFailed ? (
+          <img
+            src={wordmarkSrc}
+            alt={header.wordmark?.alt || logoAlt}
+            className={styles.wordmarkImg}
+            onError={() => setWordmarkFailed(true)}
+          />
+        ) : (
           <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
             Sun<span className={styles.logoAccent}>Sky</span>
           </span>
-        )}
+        ))}
       </Link>
       {/* The browse menus, in the dashboard's order. Every panel drops from the left of its
           button, so all of them draw their golden thread the same way; "right" belonged to the

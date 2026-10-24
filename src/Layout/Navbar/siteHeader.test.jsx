@@ -643,3 +643,22 @@ describe('a version 1 payload (production today)', () => {
     expect(screen.getByRole('link', { name: 'Inloggen' })).toHaveAttribute('href', '/aanmelden');
   });
 });
+
+describe('the wordmark beside the logo (CMS → Layout → Header)', () => {
+  it('without an uploaded wordmark the bar keeps the "SunSky" text', () => {
+    renderNavbar();
+    expect(screen.getAllByText(/Sky/).length).toBeGreaterThan(0);
+    expect(screen.queryByAltText('SunSky wordmark')).toBeNull();
+  });
+
+  it('an uploaded wordmark replaces the text; a broken one falls back to it', async () => {
+    headerConfig = { siteHeader: { ...v2(), wordmark: { url: '/uploads/header/wordmark.png', alt: 'SunSky wordmark' } } };
+    renderNavbar();
+    const img = screen.getByAltText('SunSky wordmark');
+    expect(img.getAttribute('src')).toMatch(/\/uploads\/header\/wordmark\.png$/);
+    expect(screen.queryByText('Sky')).toBeNull();
+    act(() => { img.dispatchEvent(new Event('error')); });
+    await waitFor(() => expect(screen.queryByAltText('SunSky wordmark')).toBeNull());
+    expect(screen.getByText('Sky')).toBeInTheDocument();
+  });
+});

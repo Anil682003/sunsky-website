@@ -395,6 +395,13 @@ function normalizeMobileMenu(v) {
  *
  * @param headerConfig the header row as served (with or without `siteHeader`), or null
  */
+// The wordmark beside the logo icon: an uploaded image replaces the "SunSky" text (admin
+// siteHeader.js normalizeWordmark). No url = the text, as before.
+function normalizeWordmark(v) {
+  const o = v && typeof v === 'object' ? v : {};
+  return { url: safeUrl(o.url), alt: str(o.alt, 255) };
+}
+
 export function normalizeSiteHeader(headerConfig) {
   const cfg = headerConfig && typeof headerConfig === 'object' ? headerConfig : {};
   const stored = cfg.siteHeader && typeof cfg.siteHeader === 'object' ? cfg.siteHeader : null;
@@ -409,6 +416,7 @@ export function normalizeSiteHeader(headerConfig) {
   return {
     version: SITE_HEADER_VERSION,
     announcement: normalizeAnnouncement(v.announcement),
+    wordmark: normalizeWordmark(v.wordmark),
     menus,
     menuOrder: normalizeMenuOrder(v.menuOrder, menus),
     search: normalizeSearch(v.search),
