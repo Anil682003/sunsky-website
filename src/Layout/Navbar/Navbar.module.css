@@ -102,6 +102,10 @@
   object-fit: contain;
 }
 .logo:hover .logoImgCms { transform: scale(1.04); }
+/* A height set in the CMS (siteHeader.logo.height): a square icon becomes that size, a wide
+   logo that height with its own width. Phones cap it at 44px so the bar still fits. */
+.logoImg.logoSized { height: var(--logo-h); width: auto; max-height: none; }
+.logoImg.logoSized:not(.logoImgCms) { width: var(--logo-h); }
 
 .logoText {
   font-family: 'Sora', sans-serif; font-size: 22px;
@@ -641,6 +645,8 @@
 /* ── Responsive ── */
 @media (max-width: 900px) {
   .wordmarkImg { height: min(var(--wordmark-h, 46px), 36px); max-width: 180px; }
+  .logoImg.logoSized { height: min(var(--logo-h), 44px); }
+  .logoImg.logoSized:not(.logoImgCms) { width: min(var(--logo-h), 44px); }
   .authArea { display: none; }
   .hamburger { display: flex; }
   .nav { padding: 0 20px; }

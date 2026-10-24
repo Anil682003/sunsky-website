@@ -597,7 +597,8 @@ export default function Navbar() {
         <img
           src={mainLogo}
           alt={logoAlt}
-          className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''}`}
+          className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''} ${header.logo?.height ? styles.logoSized : ''}`}
+          style={header.logo?.height ? { '--logo-h': `${header.logo.height}px` } : undefined}
           onLoad={(e) => {
             const { naturalWidth: w, naturalHeight: h } = e.currentTarget;
             if (w && h) setLogoAspect(w / h);

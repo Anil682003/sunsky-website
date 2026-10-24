@@ -678,3 +678,17 @@ describe('the wordmark size', () => {
     expect(screen.getByAltText('WM').style.getPropertyValue('--wordmark-h')).toBe('46px');
   });
 });
+
+describe('the logo size', () => {
+  it('automatic without a CMS height; the CMS height (20–80px) when set', () => {
+    const { unmount } = renderNavbar();
+    const auto = screen.getAllByRole('img').find((i) => i.className.includes(styles.logoImg));
+    expect(auto.style.getPropertyValue('--logo-h')).toBe('');
+    unmount();
+    headerConfig = { siteHeader: { ...v2(), logo: { height: 56 } } };
+    renderNavbar();
+    const sized = screen.getAllByRole('img').find((i) => i.className.includes(styles.logoImg));
+    expect(sized.style.getPropertyValue('--logo-h')).toBe('56px');
+    expect(sized.className).toContain(styles.logoSized);
+  });
+});
