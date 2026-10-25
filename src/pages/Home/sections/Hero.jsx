@@ -337,7 +337,10 @@ export default function Hero() {
   const [flexDays, setFlexDays] = useState(() => remembered?.flexDays ?? 0);
   // Only a band this build still offers is restored — the list can change between visits.
   const [duration, setDuration] = useState(
-    () => (remembered?.duration && bandByLabel(remembered.duration) ? remembered.duration : '6-10 days')
+    // '' = Any length (Levent, 25 Oct 2026): an undated search with no length chosen is answered
+    // from the nightly 12-month search (cheapest package over every date and length). A pre-filled
+    // band made every homepage search a 30-day 7-night one.
+    () => (remembered?.duration && bandByLabel(remembered.duration) ? remembered.duration : '')
   );
   // How the traveller gets there + from which airport. Defaults to FLIGHT INCLUDED: a package
   // is the product being sold, so an untouched search should price the trip the way most
@@ -701,7 +704,8 @@ export default function Hero() {
 
   // Params common to every search (dates, occupancy, duration band).
   const buildBaseParams = () => {
-    const band = findBand(duration);
+    // Any length with a date still needs a stay to price: the week band, as before.
+    const band = findBand(duration) || findBand('6-10 days');
     // Day counting is per product (spec 3.4). Hotel Only: the band counts STAY days, so 8 days
     // from 25 Oct checks out on 1 Nov. Package: it counts TRAVEL days, outbound to return
     // departure inclusive, so the same 8 days fly home on 1 Nov, while the hotel nights come
@@ -724,13 +728,17 @@ export default function Hero() {
       children: String(totalChildren),
       rooms:    String(roomsList.length),
     });
-    qs.set('duration', band.label);
+    // Any length and no date: no duration at all, so the 12-month answer is used.
+    const sendBand = !!duration || !!date;
+    if (sendBand) qs.set('duration', band.label);
     // "± 2 days" travels with the search rather than being forgotten at the calendar: the
     // results page reads the dates it is given, and this says how firm those dates are.
     if (flexDays > 0) qs.set('flex', String(flexDays));
     // The results "Travel time" filter reads these as NIGHTS, so convert the band's day range.
-    qs.set('minNights', String(stayDaysToNights(band.minDays)));
-    qs.set('maxNights', String(stayDaysToNights(band.maxDays)));
+    if (sendBand) {
+      qs.set('minNights', String(stayDaysToNights(band.minDays)));
+      qs.set('maxNights', String(stayDaysToNights(band.maxDays)));
+    }
     if (childAges.length) qs.set('childAges', childAges.join(','));
     if (childDobs.length) qs.set('childDobs', childDobs.join(','));
     // The traveller has just pressed search, so this party is their answer, not a draft:
@@ -860,6 +868,7 @@ export default function Hero() {
   };
 
   const durationLabel = (label) => {
+    if (!label) return t('hero.anyLength', 'Any length');
     const band = DURATIONS.find((d) => d.label === label);
     return band ? t(`hero.durations.${band.key}`, band.label) : label;
   };
@@ -1586,7 +1595,7 @@ export default function Hero() {
       {openField === 'duration' && (
         <div data-panel className={`${styles.dropdown} ${styles.durDropdown}`}>
           <div className={styles.durList}>
-            {DURATIONS.map((d) => (
+            {[{ label: '' }, ...DURATIONS].map((d) => (
               <div key={d.label} className={`${styles.durOpt} ${duration === d.label ? styles.durOptActive : ''}`} onClick={() => { setDuration(d.label); setOpenField(null); }}>
                 <span>{durationLabel(d.label)}</span>
                 {duration === d.label && (

@@ -202,6 +202,7 @@
     "flexibleDays_other": "Flexibel ± {{count}} dagen",
     "duration": "Duur",
     "durationHint": "Kies de lengte van je verblijf",
+    "anyLength": "Geen voorkeur",
     "durations": {
       "d2_5": "2-5 dagen",
       "d6_10": "6-10 dagen",

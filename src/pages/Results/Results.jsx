@@ -3885,8 +3885,10 @@ export default function Results() {
                             count: stayNightCount,
                             from: fmtDate(stayIn),
                             to: fmtDate(stayOut),
-                            defaultValue_one: '{{from}} → {{to}} · {{count}} night',
-                            defaultValue_other: '{{from}} → {{to}} · {{count}} nights',
+                            // Dates only (Levent, 25 Oct 2026): the length is the "N days" line
+                            // right below, so a nights count beside it said the trip twice.
+                            defaultValue_one: '{{from}} → {{to}}',
+                            defaultValue_other: '{{from}} → {{to}}',
                           })}
                         </span>
                       )}
