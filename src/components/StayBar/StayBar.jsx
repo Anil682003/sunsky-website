@@ -114,7 +114,7 @@ export default function StayBar({
   checkIn, formatDate,
   adults, children: childCount, childAges = '', childDobs = '', rooms: roomCount = 1,
   board = '', boardOptions = [], boardHint = '',
-  origin, originOptions = [], originLabel = (c) => c, destination = '', originNotes = {},
+  origin, originAny = false, originOptions = [], originLabel = (c) => c, destination = '', originNotes = {},
   transport = 'package',
   nights,
   // (iso) => boolean for a departure day this search cannot fly, or null to grey nothing.
@@ -331,7 +331,9 @@ export default function StayBar({
         <Field id="origin" icon={ICONS.plane} label={t('chips.transport', 'Transport')} open={openField === 'origin'} onToggle={toggle}
           value={transport === 'hotel_only'
             ? t('home:hero.hotelOnly', 'Hotel only')
-            : `${originLabel(origin)} (${origin})${destination ? ` → ${destination}` : ''}${originNotes[origin] ? ` · ${originNotes[origin]}` : ''}`} wide>
+            : originAny
+              ? `${t('home:hero.transport.noPreference', 'No preference')}${destination ? ` → ${destination}` : ''}`
+              : `${originLabel(origin)} (${origin})${destination ? ` → ${destination}` : ''}${originNotes[origin] ? ` · ${originNotes[origin]}` : ''}`} wide>
           <div className={styles.modeRow} role="radiogroup" aria-label={t('home:hero.transport.mode', 'Transport mode')}>
             <button type="button"
               className={`${styles.modeBtn}${transport !== 'hotel_only' ? ` ${styles.modeBtnOn}` : ''}`}
@@ -349,11 +351,11 @@ export default function StayBar({
           {transport !== 'hotel_only' && (
             <>
               <div className={styles.popTitle}>{t('home:hero.flyingFrom', 'Flying from')}</div>
-              <OptionList scroll current={origin}
-                options={originOptions.map((o) => ({
+              <OptionList scroll current={originAny ? '' : origin}
+                options={[{ id: '', label: t('home:hero.transport.noPreference', 'No preference'), note: null }, ...originOptions.map((o) => ({
                   // A note on an airport (the chosen one that no longer makes a package) wins.
                   id: o, label: `${originLabel(o)} (${o})`, note: originNotes[o] || (destination ? `→ ${destination}` : null),
-                }))}
+                }))]}
                 onPick={(o) => { onChange({ origin: o }); close(); }} />
             </>
           )}

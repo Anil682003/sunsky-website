@@ -395,6 +395,7 @@
     "tripAmountHint_other": "The holiday itself for all {{count}} travellers — the room on the board shown above, and the flights when you are booking a package. Taxes and airline fees are already in it."
   },
   "prices": {
+    "noFlightThisDay": "No flight on this day — pick another date or airport",
     "addInNextStep": "Add in the next step",
     "airport": "Airport",
     "askingHotelForRate": "Asking the hotel for today’s rate",

@@ -2267,6 +2267,9 @@ export default function HotelDetail() {
    * it and move the prices the traveller was comparing.
    */
   const matrixOrigins = ovr.originPicked && ovr.origin ? [ovr.origin] : qp('origins');
+  // "No preference" in the bar: no airport named here and none ticked on Results — every active
+  // airport competes (the default for a hotel opened from an all-airports search).
+  const originAny = !(ovr.originPicked && ovr.origin) && !String(qp('origins') || '').trim();
   const matrix = usePackageMatrix({
     enabled: pkgMode && !!matrixDate, hotelCode, destination, date: matrixDate, travelDays: matrixTravelDays,
     origins: matrixOrigins, adults: sAdults, children: sChildren, childAges: sChildAges, rooms: sRooms,
@@ -3116,7 +3119,10 @@ export default function HotelDetail() {
   // A package has no live total while its flight is still being checked: the room alone, shown
   // for a moment as "flight + hotel" (€105 p.p. before €341, 7 Oct 2026), is not that price.
   // Hotel only is priced the moment the room is in, as before.
-  const liveTotal = liveRoom && !flightBlocked && !(transport === 'package' && flightsChecking)
+  // And no flight at all is no package: the room alone was shown as "flight + hotel" on a day
+  // with no flight (€213 p.p. against €450, Eftalia Ocean 24 Nov, 25 Oct 2026).
+  const packageNoFlight = transport === 'package' && liveChecked && !flightsChecking && !flightBlocked && !liveFlight;
+  const liveTotal = liveRoom && !flightBlocked && !packageNoFlight && !(transport === 'package' && flightsChecking)
     ? roundStayTotal(liveRoom.price || 0, liveFlight?.totalPrice || 0, roomsCount)
     : null;
   const displayTotal = liveTotal != null ? liveTotal : stayFrom;
@@ -3179,13 +3185,21 @@ export default function HotelDetail() {
   // Editing any field re-prices the stay, so every live result gathered under the OLD
   // parameters is dropped: keeping them would show a price for a search the traveller
   // has just changed. The calendar re-fetches on its own (these values are its deps).
-  const applyFilter = (patch) => {
+  const applyFilter = (rawPatch) => {
+    // An airport picked in the bar is the traveller's own choice and narrows the strip to it;
+    // "No preference" ('') lets every airport compete again (the airport shown keeps following
+    // the picked day's winner).
+    let patch = rawPatch;
+    if ('origin' in rawPatch) {
+      const { origin: o, ...rest } = rawPatch;
+      patch = o ? { ...rest, origin: o, originPicked: true } : { ...rest, originPicked: false };
+    }
     const keys = Object.keys(patch);
     // HOW the traveller gets there (transport mode, departure airport) is not WHEN or WHO:
     // the live ROOM rates were priced for dates and occupancy that these edits don't touch,
     // so they stay on screen — clearing them forced a pointless second availability check.
     // Only the flight is re-resolved (and the transfer, when flights are toggled).
-    if (keys.length && keys.every((k) => k === 'origin' || k === 'transport')) {
+    if (keys.length && keys.every((k) => k === 'origin' || k === 'originPicked' || k === 'transport')) {
       setOvr((p) => ({ ...p, ...patch }));
       invalidateFlights();          // orphan any in-flight flight response
       // A new airport (or flights switched off) is the traveller's own new choice, and a flight
@@ -4032,7 +4046,7 @@ export default function HotelDetail() {
               </div>
 
               <StayBar
-                checkIn={baseCheckIn} formatDate={niceDate}
+                checkIn={pickedIso} formatDate={niceDate}
                 adults={Number(sAdults) || 1} children={Number(sChildren) || 0} childAges={sChildAges}
                 childDobs={sChildDobs}
                 rooms={Number(sRooms) || 1}
@@ -4044,7 +4058,7 @@ export default function HotelDetail() {
                     : boardsFailed
                       ? t('prices.boardHintUnavailable', 'We couldn’t check this hotel’s meal plans just now. Run the check below to see what is really on offer.')
                       : t('prices.boardHintUnknown', 'Check a date to see which meal plans this hotel actually offers.')}
-                origin={origin} originOptions={originCodes} originLabel={airportName} destination={destination}
+                origin={origin} originAny={originAny && !originGone} originOptions={originCodes} originLabel={airportName} destination={destination}
                 originNotes={originGone ? { [origin]: t('flights.originGoneShort', 'Not available') } : undefined}
                 transport={transport}
                 nights={nights}
@@ -4447,7 +4461,7 @@ export default function HotelDetail() {
                                   rooms have actually come back. */}
                               {liveBusy ? (
                                 <span className="fc-res-mark fc-res-mark-busy" aria-hidden="true" />
-                              ) : roomsUnsettled ? (
+                              ) : (roomsUnsettled || packageNoFlight) ? (
                                 <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f59e0b" /><path d="M12 7.4v5.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="16.4" r="1.35" fill="#fff" /></svg>
                               ) : (
                                 <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
@@ -4455,6 +4469,7 @@ export default function HotelDetail() {
                               <div className="av-head">
                                 <div className="avail-text">
                                   {liveBusy ? t('prices.checkingLiveAvailability', 'Checking live availability…')
+                                    : packageNoFlight ? t('prices.noFlightThisDay', 'No flight on this day — pick another date or airport')
                                     : roomsPriceUnknown ? t('prices.priceStillToCheck', 'Price still to be checked')
                                     : roomsFailed ? (pdEstimate ? t('prices.showingEstimatedPrice', 'Showing estimated price') : t('prices.livePriceUnavailable', 'Live price unavailable'))
                                     : t('prices.holidayAvailable', 'Your holiday is available!')}

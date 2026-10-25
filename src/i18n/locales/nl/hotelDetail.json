@@ -395,6 +395,7 @@
     "tripAmountHint_other": "De vakantie zelf voor alle {{count}} reizigers — de kamer met de hierboven getoonde verzorging, en de vluchten als je een pakket boekt. Belastingen en luchtvaartkosten zijn al inbegrepen."
   },
   "prices": {
+    "noFlightThisDay": "Geen vlucht op deze dag — kies een andere datum of luchthaven",
     "addInNextStep": "Toevoegen in de volgende stap",
     "airport": "Luchthaven",
     "askingHotelForRate": "Het hotel wordt gevraagd naar het tarief van vandaag",
