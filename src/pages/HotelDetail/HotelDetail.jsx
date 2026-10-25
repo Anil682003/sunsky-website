@@ -3668,10 +3668,11 @@ export default function HotelDetail() {
     // this day on the strip (every airport competing), not the one in the link: Eftalia Ocean
     // 24 Nov priced from DUS/CGN, the live check asked only BRU, which flies no direct (25 Oct).
     if (transport === 'package') {
-      // The card's own package (or the one picked on the strip) keeps its airport: its flight is
-      // confirmed as it is.
-      const ownPkg = packageApplies(pkgOffer, checkin, checkout);
-      const dayFrom = !ovr.originPicked && !ownPkg ? (matrixByDate[checkin]?.from || null) : null;
+      // The package this day stands for (the card's own, or the strip's winner) is searched from
+      // ITS airport, so its flight is confirmed as it is; with no package, the strip's winner.
+      // Selva Arenal 13 Nov: package from CGN (21 flights live), searched from BRU (none, 25 Oct).
+      const ownPkg = packageApplies(pkgOffer, checkin, checkout) ? pkgOffer : null;
+      const dayFrom = ovr.originPicked ? null : (ownPkg?.from || matrixByDate[checkin]?.from || null);
       if (dayFrom && dayFrom !== origin) setOvr((p) => ({ ...p, origin: dayFrom }));
       autoAirportRef.current = !ovr.originPicked && !ownPkg;
       fetchFlights(checkin, checkout, dayFrom);
