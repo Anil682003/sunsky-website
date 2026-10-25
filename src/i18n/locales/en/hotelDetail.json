@@ -395,6 +395,10 @@
     "tripAmountHint_other": "The holiday itself for all {{count}} travellers — the room on the board shown above, and the flights when you are booking a package. Taxes and airline fees are already in it."
   },
   "prices": {
+    "noPackageDatesHere": "No holiday with flights around these dates.",
+    "noPackageAtAll": "We found no package with flights for this hotel. You can still book the hotel only.",
+    "tryCheapestPackage": "Jump to this hotel’s cheapest holiday with flights, or choose other dates.",
+    "showCheapestPackage": "Show cheapest holiday with flights",
     "noFlightThisDay": "No flight on this day — pick another date or airport",
     "addInNextStep": "Add in the next step",
     "airport": "Airport",

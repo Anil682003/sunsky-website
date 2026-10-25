@@ -395,6 +395,10 @@
     "tripAmountHint_other": "De vakantie zelf voor alle {{count}} reizigers — de kamer met de hierboven getoonde verzorging, en de vluchten als je een pakket boekt. Belastingen en luchtvaartkosten zijn al inbegrepen."
   },
   "prices": {
+    "noPackageDatesHere": "Geen vakantie met vlucht rond deze data.",
+    "noPackageAtAll": "We vonden geen pakketreis met vlucht voor dit hotel. Je kunt wel enkel het hotel boeken.",
+    "tryCheapestPackage": "Ga naar de goedkoopste vakantie met vlucht in dit hotel, of kies andere data.",
+    "showCheapestPackage": "Toon goedkoopste vakantie met vlucht",
     "noFlightThisDay": "Geen vlucht op deze dag — kies een andere datum of luchthaven",
     "addInNextStep": "Toevoegen in de volgende stap",
     "airport": "Luchthaven",

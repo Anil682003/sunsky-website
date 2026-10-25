@@ -2253,23 +2253,30 @@ export default function HotelDetail() {
   // never on a default day that may have no flight (Levent, 25 Oct 2026). Once, and only while
   // the traveller has not set a date or length here; no package found keeps the default.
   const autoLandRef = useRef(false);
-  useEffect(() => {
-    if (autoLandRef.current || qp('auto') !== '1' || transport !== 'package' || !hotelCode || !destination) return;
-    if (ovr.checkIn || ovr.nights != null) return;
-    autoLandRef.current = true;
-    fetchPackages({
+  const [cheapestPkg, setCheapestPkg] = useState({ state: 'idle' }); // idle | asking | none
+  // `force`: the traveller asked (button), so it moves the date even over one they set.
+  const landOnCheapestPackage = (force = false) => {
+    setCheapestPkg({ state: 'asking' });
+    return fetchPackages({
       adults: String(sAdults || '2'), children: String(sChildren || '0'), rooms: String(sRooms || '1'),
       ...(sChildAges ? { childAges: sChildAges } : {}),
       destinations: [destination], hotelCodes: [String(hotelCode)], pageSize: 1,
     }).then((data) => {
       const h = (data?.hotels || []).find((x) => String(x.hotelCode) === String(hotelCode));
       const ci = h?.stay?.checkin;
-      if (!ci || !h?.stay?.nights) return;
-      setOvr((p) => (p.checkIn || p.nights != null ? p : {
+      if (!ci || !h?.stay?.nights) { setCheapestPkg({ state: 'none' }); return; }
+      setCheapestPkg({ state: 'idle' });
+      setOvr((p) => (!force && (p.checkIn || p.nights != null) ? p : {
         ...p, checkIn: ci, nights: h.stay.nights,
         ...(h.flight?.travelDays ? { travelDays: h.flight.travelDays } : {}),
       }));
-    }).catch(() => {});
+    }).catch(() => setCheapestPkg({ state: 'none' }));
+  };
+  useEffect(() => {
+    if (autoLandRef.current || qp('auto') !== '1' || transport !== 'package' || !hotelCode || !destination) return;
+    if (ovr.checkIn || ovr.nights != null) return;
+    autoLandRef.current = true;
+    landOnCheapestPackage(false);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hotelCode, destination, transport]);
   const matrixBase = urlPkg && urlPkg.checkin === baseCheckIn ? urlPkg.depdate : baseCheckIn;
@@ -2500,7 +2507,11 @@ export default function HotelDetail() {
 
   const byDate = useMatrix ? matrixByDate : (cal.scope === calScope ? cal.byDate : {});
   const winDates = winStart ? Array.from({ length: CAL_DAYS }, (_, i) => addDaysISO(winStart, i)) : [];
-  const usingLive = useMatrix ? matrix.days.length > 0 : winDates.some((iso) => byDate[iso]);
+  // Incl. flight with no package dates here: no strip at all. A hotel-price strip offered days
+  // with no flight as if they were holidays (Levent, 25 Oct 2026); the panel below says so and
+  // offers the hotel's cheapest package instead.
+  const pkgNoDates = pkgMode && !matrix.loading && !matrix.error && matrix.days.length === 0 && !!matrix.scope;
+  const usingLive = useMatrix ? matrix.days.length > 0 : (!pkgNoDates && winDates.some((iso) => byDate[iso]));
   const priceDays = useMatrix
     // The bar names the DEPARTURE date (the matrix is of flight dates); `iso` is the stay's
     // check-in, the day the rest of the page prices.
@@ -3244,6 +3255,13 @@ export default function HotelDetail() {
       // re-resolving it here would be a supplier hit nobody sees. The check itself fetches
       // under whatever transport/origin is set by then.
       if (!liveChecked) { setLiveFlights(null); return; }
+      // Hotel only → Incl. flight is a different holiday: the page goes back to "Check price &
+      // availability" and asks the suppliers only when the traveller clicks (no hidden live
+      // call — Lowest Price by Entry §4, Levent 25 Oct 2026).
+      if (patch.transport === 'package' && transport !== 'package') {
+        setLiveChecked(false); invalidateRooms(); setLiveRooms(null); setLiveFlights(null);
+        return;
+      }
       const checkout = pd?.iso ? addDaysISO(pd.iso, nights) : baseCheckOut;
       fetchFlights(checkin, checkout, nextOrigin);
       return;
@@ -4163,6 +4181,31 @@ export default function HotelDetail() {
               {/* Flight + Hotel without package dates in the cache: the bars are the hotel's own
                   prices, and the flight is priced by the live check. Said, so a hotel price is
                   never read as a holiday price. */}
+              {pkgNoDates && (
+                <div className="fc-unavail" role="status">
+                  <div className="fc-unavail-head">
+                    <span className="fc-unavail-dot" aria-hidden="true" />
+                    <div className="fc-unavail-msg">
+                      <div className="fc-unavail-title">{t('prices.noPackageDatesHere', 'No holiday with flights around these dates.')}</div>
+                      <div className="fc-unavail-sub">
+                        {cheapestPkg.state === 'none'
+                          ? t('prices.noPackageAtAll', 'We found no package with flights for this hotel. You can still book the hotel only.')
+                          : t('prices.tryCheapestPackage', 'Jump to this hotel’s cheapest holiday with flights, or choose other dates.')}
+                      </div>
+                    </div>
+                  </div>
+                  <div className="fc-act">
+                    {cheapestPkg.state !== 'none' && (
+                      <button type="button" className="fc-cta" disabled={cheapestPkg.state === 'asking'} onClick={() => landOnCheapestPackage(true)}>
+                        {t('prices.showCheapestPackage', 'Show cheapest holiday with flights')}
+                      </button>
+                    )}
+                    <button type="button" className="fc-cta fc-cta-ghost" onClick={() => applyFilter({ transport: 'hotel_only' })}>
+                      {t('chips.hotelOnly', 'Hotel only')}
+                    </button>
+                  </div>
+                </div>
+              )}
               {usingLive && pkgMode && !useMatrix && (
                 <div className="fc-estimate fc-estimate-hotel" role="note">
                   <span className="fc-estimate-ico" aria-hidden="true">{ICON.info}</span>

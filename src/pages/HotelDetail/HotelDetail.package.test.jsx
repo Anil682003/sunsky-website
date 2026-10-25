@@ -157,11 +157,13 @@ describe('the strip of a Flight + Hotel package is the package matrix', () => {
     expect(screen.getByText(/dit zijn hotelprijzen/i)).toBeInTheDocument();
   });
 
-  it('a matrix with no package date around this one: the hotel calendar too', async () => {
+  it('a matrix with no package date around this one: no hotel-price strip, the cheapest holiday offered', async () => {
+    // Incl. flight never offers days with no flight as holidays (Levent, 25 Oct 2026).
     MATRIX = { success: true, status: 'NO_FLIGHT_DATE', cells: [], prev: null, next: null };
     renderPage();
-    await priceDays();
-    expect(screen.getByText(/dit zijn hotelprijzen/i)).toBeInTheDocument();
+    expect(await screen.findByText(/geen vakantie met vlucht rond deze data/i)).toBeInTheDocument();
+    expect(screen.queryByText(/dit zijn hotelprijzen/i)).toBeNull();
+    expect(screen.getByRole('button', { name: /toon goedkoopste vakantie met vlucht/i })).toBeInTheDocument();
   });
 
   it('a date with flights and no room is not pickable', async () => {
@@ -276,7 +278,8 @@ describe('the live check asks about the package the card priced', () => {
 
   it('a link without a package (a bookmark, a share) asks the stay dates as before', async () => {
     const user = userEvent.setup();
-    MATRIX = { success: true, status: 'NO_FLIGHT_DATE', cells: [], prev: null, next: null };
+    // The matrix could not answer (an outage, not "no packages"): the hotel calendar stays.
+    MATRIX = { success: false };
     renderPage('');
     await priceDays();
     await user.click(screen.getAllByRole('button', { name: /vanaf €\d+/i }).find((b) => b.getAttribute('aria-pressed') === 'true')
