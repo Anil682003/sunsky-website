@@ -3121,7 +3121,7 @@ export default function HotelDetail() {
   // Hotel only is priced the moment the room is in, as before.
   // And no flight at all is no package: the room alone was shown as "flight + hotel" on a day
   // with no flight (€213 p.p. against €450, Eftalia Ocean 24 Nov, 25 Oct 2026).
-  const packageNoFlight = transport === 'package' && liveChecked && !flightsChecking && !flightBlocked && !liveFlight;
+  const packageNoFlight = transport === 'package' && liveChecked && !flightsChecking && !liveFlights?.probing && !flightBlocked && !liveFlight;
   const liveTotal = liveRoom && !flightBlocked && !packageNoFlight && !(transport === 'package' && flightsChecking)
     ? roundStayTotal(liveRoom.price || 0, liveFlight?.totalPrice || 0, roomsCount)
     : null;
@@ -3303,6 +3303,8 @@ export default function HotelDetail() {
     });
   };
 
+  // Set by a live check started without an airport named by the traveller (see probeAlternatives).
+  const autoAirportRef = useRef(false);
   const fetchFlights = (checkin, checkout, fromOverride = null) => {
     if (!destination) { invalidateFlights(); setLiveFlights(null); return; }
     // `fromOverride` exists because `origin` is read from this render's closure — the
@@ -3440,6 +3442,14 @@ export default function HotelDetail() {
       const unprobed = getDepartureAirports().map((a) => a.code).filter((c) => !ruledOut.has(c));
       // Lands on the result set it was started for, whether that set was empty or full — the
       // `from` and seq checks are what stop a probe for abandoned dates from painting.
+      // No airport named by the traveller: "No preference" means any airport that flies, so the
+      // cheapest one that does is taken at once instead of a "no flight" dead end.
+      if (autoAirportRef.current && alternatives.length) {
+        autoAirportRef.current = false;
+        setOvr((p) => ({ ...p, origin: alternatives[0].code }));
+        fetchFlights(checkin, checkout, alternatives[0].code);
+        return;
+      }
       setLiveFlights((prev) => (
         prev && prev.from === from && seq === flightSeqRef.current
           ? { ...prev, probing: false, alternatives, unprobed, probeUnknown: unknown }
@@ -3628,7 +3638,18 @@ export default function HotelDetail() {
     // Live flights for the newly picked dates — but only for a traveller who asked to fly.
     // Own transport prices the room alone. (The airport transfer is sold at the checkout,
     // where the flight is already fixed, so no transfer call is made from this page.)
-    if (transport === 'package') fetchFlights(checkin, checkout);
+    // With no airport named by the traveller, the flight is searched from the airport that won
+    // this day on the strip (every airport competing), not the one in the link: Eftalia Ocean
+    // 24 Nov priced from DUS/CGN, the live check asked only BRU, which flies no direct (25 Oct).
+    if (transport === 'package') {
+      // The card's own package (or the one picked on the strip) keeps its airport: its flight is
+      // confirmed as it is.
+      const ownPkg = packageApplies(pkgOffer, checkin, checkout);
+      const dayFrom = !ovr.originPicked && !ownPkg ? (matrixByDate[checkin]?.from || null) : null;
+      if (dayFrom && dayFrom !== origin) setOvr((p) => ({ ...p, origin: dayFrom }));
+      autoAirportRef.current = !ovr.originPicked && !ownPkg;
+      fetchFlights(checkin, checkout, dayFrom);
+    }
   };
   const checkAvailability = () => checkAvailabilityForDay(pickedISO);
 
@@ -4366,7 +4387,7 @@ export default function HotelDetail() {
 
               {(usingLive || liveOnly) && (pd ? (
                     <div className={`fc-pop${dayUnavailable ? ' fc-pop-unavail' : ''}`}>
-                      {dayUnavailable ? (
+                      {(dayUnavailable || packageNoFlight) ? (
                         /* The honest counterpart of the green card: the supplier was asked and
                            said no. Restates the exact criteria that produced the "no" so the
                            traveller can see WHAT to adjust — and the strip above stays live for
