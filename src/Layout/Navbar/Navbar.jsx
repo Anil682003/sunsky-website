@@ -399,7 +399,8 @@ export default function Navbar() {
         img: item.image,
         loc: [item.destinationName, item.country].filter(Boolean).join(', '),
       });
-      if (href) { navigate(href); setMobileOpen(false); return; }
+      // auto=1: the dates are the default, so the hotel page may land on its cheapest package.
+      if (href) { navigate(`${href}&auto=1`); setMobileOpen(false); return; }
     }
     // An AREA (zone) is a narrower destination: the results page needs the parent city as the
     // scope AND the zone to narrow it to, because `zones` alone would leave the scope empty and

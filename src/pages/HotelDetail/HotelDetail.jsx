@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
+import { fetchPackages } from '../../api/filters';
 import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
@@ -2246,6 +2247,31 @@ export default function HotelDetail() {
   // package's own (an overnight flight makes a 6-night stay of an 8-day trip), and it stays put
   // when a date is picked, so picking never re-asks the matrix; editing the nights does.
   const matrixTravelDays = ovr.travelDays ?? (ovr.nights == null && urlPkg?.travelDays ? urlPkg.travelDays : nights + 1);
+
+  // Opened from the search bar by name (`auto=1`: the dates are a default, not chosen): an
+  // Incl. flight page lands on this hotel's cheapest complete package from the 12-month search,
+  // never on a default day that may have no flight (Levent, 25 Oct 2026). Once, and only while
+  // the traveller has not set a date or length here; no package found keeps the default.
+  const autoLandRef = useRef(false);
+  useEffect(() => {
+    if (autoLandRef.current || qp('auto') !== '1' || transport !== 'package' || !hotelCode || !destination) return;
+    if (ovr.checkIn || ovr.nights != null) return;
+    autoLandRef.current = true;
+    fetchPackages({
+      adults: String(sAdults || '2'), children: String(sChildren || '0'), rooms: String(sRooms || '1'),
+      ...(sChildAges ? { childAges: sChildAges } : {}),
+      destinations: [destination], hotelCodes: [String(hotelCode)], pageSize: 1,
+    }).then((data) => {
+      const h = (data?.hotels || []).find((x) => String(x.hotelCode) === String(hotelCode));
+      const ci = h?.stay?.checkin;
+      if (!ci || !h?.stay?.nights) return;
+      setOvr((p) => (p.checkIn || p.nights != null ? p : {
+        ...p, checkIn: ci, nights: h.stay.nights,
+        ...(h.flight?.travelDays ? { travelDays: h.flight.travelDays } : {}),
+      }));
+    }).catch(() => {});
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hotelCode, destination, transport]);
   const matrixBase = urlPkg && urlPkg.checkin === baseCheckIn ? urlPkg.depdate : baseCheckIn;
   const [mAnchor, setMAnchor] = useState({ base: null, date: null });
   const matrixDate = (mAnchor.base === matrixBase && mAnchor.date) || matrixBase;
