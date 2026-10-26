@@ -210,8 +210,9 @@ describe('the support package step', () => {
     for (const tick of document.querySelectorAll('.ck-modal .ck-check')) await user.click(tick);
     await user.click(document.querySelector('.ck-rv-confirm'));
     await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/extra's/i));
-    // The add-ons CTA leads straight to payment, and the stepper never offers the step.
-    expect(screen.getByRole('button', { name: /doorgaan naar betaling/i })).toBeTruthy();
+    // The add-ons CTA leads to the overview rather than through the support step, and the
+    // stepper never offers that step at all.
+    expect(screen.getByRole('button', { name: /verder naar overzicht/i })).toBeTruthy();
     expect([...document.querySelectorAll('.ck-step')].some((s) => /supportpakket/i.test(s.textContent))).toBe(false);
   });
 
@@ -221,8 +222,8 @@ describe('the support package step', () => {
         ? Promise.resolve({ data: { data: { items: [] } } })
         : Promise.resolve({ data: {} })));
     renderCheckout(booking(true));
-    await waitFor(() => expect(document.querySelectorAll('.ck-step').length).toBe(3));
+    await waitFor(() => expect(document.querySelectorAll('.ck-step').length).toBe(4));
     const names = [...document.querySelectorAll('.ck-step-name')].map((n) => n.textContent.trim());
-    expect(names.map((n) => n[0])).toEqual(['1', '2', '3']);
+    expect(names.map((n) => n[0])).toEqual(['1', '2', '3', '4']);
   });
 });

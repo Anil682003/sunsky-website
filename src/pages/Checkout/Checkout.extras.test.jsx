@@ -197,6 +197,10 @@ describe('the two insurance decisions', () => {
     await waitFor(() => expect(sumRow('travel insurance')).toBeTruthy());
     expect(sumRow('travel insurance')).toHaveTextContent('€28');
 
+    // "Controleer je boeking" sits between the extras and the payment sheet, so the
+    // way out of the extras leads there first.
+    await user.click(screen.getByRole('button', { name: /verder naar overzicht/i }));
+    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/overzicht/i));
     await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
     await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
     await user.click(screen.getByRole('button', { name: /bancontact/i }));

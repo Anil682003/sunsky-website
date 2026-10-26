@@ -51,7 +51,9 @@ const ICON = {
   users:  <S><path d="M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2" /><circle cx="9" cy="7" r="4" /><path d="M23 21v-2a4 4 0 00-3-3.87" /><path d="M16 3.13a4 4 0 010 7.75" /></S>,
   shield: <S><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></S>,
   shieldCheck: <S><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /><path d="M9 12l2 2 4-4" /></S>,
+  chat:   <S><path d="M21 11.5a8.4 8.4 0 01-9 8.4 9.2 9.2 0 01-3.8-.8L3 21l1.9-5A8.3 8.3 0 013.6 11.5 8.4 8.4 0 0112 3.1a8.4 8.4 0 019 8.4z" /></S>,
   lifebuoy: <S><circle cx="12" cy="12" r="9" /><circle cx="12" cy="12" r="3.6" /><line x1="5.6" y1="5.6" x2="9.4" y2="9.4" /><line x1="14.6" y1="14.6" x2="18.4" y2="18.4" /><line x1="18.4" y1="5.6" x2="14.6" y2="9.4" /><line x1="9.4" y1="14.6" x2="5.6" y2="18.4" /></S>,
+  clipboard: <S><rect x="5" y="4" width="14" height="17" rx="2.5" /><path d="M9 4.5A1.5 1.5 0 0110.5 3h3A1.5 1.5 0 0115 4.5V6H9V4.5z" /><line x1="9" y1="11" x2="15" y2="11" /><line x1="9" y1="15" x2="13" y2="15" /></S>,
   card:   <S><rect x="1" y="4" width="22" height="16" rx="2" /><line x1="1" y1="10" x2="23" y2="10" /></S>,
   lock:   <S><rect x="3" y="11" width="18" height="11" rx="2" /><path d="M7 11V7a5 5 0 0110 0v4" /></S>,
   check:  <S sw={2.5}><path d="M20 6L9 17l-5-5" /></S>,
@@ -93,6 +95,7 @@ const STEPS = [
   { id: 'info',    name: () => i18n.t('checkout:steps.info.name', 'Your details'), sub: () => i18n.t('checkout:steps.info.sub', 'Customer & travellers'), icon: ICON.user },
   { id: 'addons',  name: () => i18n.t('checkout:steps.addons.name', 'Add-ons'),    sub: () => i18n.t('checkout:steps.addons.sub', 'Insurance & extras'),  icon: ICON.shield },
   { id: 'support', name: () => i18n.t('checkout:steps.support.name', 'Support package'), sub: () => i18n.t('checkout:steps.support.sub', 'Choose your cover'), icon: ICON.lifebuoy },
+  { id: 'review',  name: () => i18n.t('checkout:steps.review.name', 'Check your booking'), sub: () => i18n.t('checkout:steps.review.sub', 'Everything at a glance'), icon: ICON.clipboard },
   { id: 'payment', name: () => i18n.t('checkout:steps.payment.name', 'Payment'),   sub: () => i18n.t('checkout:steps.payment.sub', 'Secure checkout'),    icon: ICON.card },
 ];
 
@@ -316,6 +319,21 @@ const phoneOk = (v) => /^\+[1-9]\d{6,14}$/.test((v || '').replace(/[\s\-.()]/g, 
  * are one number to a person and two strings to everything else. Applied in the writers
  * rather than on submit, so what the traveller sees in the box is what the booking carries.
  */
+/**
+ * The two free-text fields, and the limits the client set on them.
+ *
+ * They are deliberately different things and are kept apart everywhere they travel: the
+ * stay request is for the ACCOMMODATION and goes to the supplier with the reservation; the
+ * message is for SUNSKY and must never reach a hotel, because a hotel can neither arrange
+ * wheelchair assistance at an airport nor confirm one.
+ */
+const WISH_MAX = 500;
+const NOTE_MAX = 1000;
+const NOTE_KINDS = [
+  { id: 'general', name: 'General question or remark', example: 'For example: extra service, a practical question or any other remark.' },
+  { id: 'assistance', name: 'Help or assistance during the trip', example: 'For example: wheelchair assistance, support at the airport or other special needs.' },
+];
+
 const PHONE_KEYS = ['phone', 'emergencyPhone'];
 const stripPhone = (v) => (typeof v === 'string' ? v.replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '') : v);
 
@@ -979,6 +997,11 @@ function CheckoutContent({ stripe, elements }) {
      at this step, and never for a traveller who said they are making their own way there. */
   const [transfers, setTransfers] = useState(null);      // {loading|error|services[]|pickupISO}
   const [transferPick, setTransferPick] = useState(-1);  // -1 = no transfer (opt-in, always)
+  // Free text, free of charge: neither of these touches the price or the availability.
+  const [hotelWish, setHotelWish] = useState('');
+  const [noteKind, setNoteKind] = useState('general');
+  const [noteFor, setNoteFor] = useState([]);
+  const [noteText, setNoteText] = useState('');
   /* ── one product, two legs ───────────────────────────────────────────────────
      The supplier answers a return search with a service PER DIRECTION, so a single
      shuttle came back as two rows that read as two identical products — which is exactly
@@ -1181,6 +1204,63 @@ function CheckoutContent({ stripe, elements }) {
       ret: booking.flight?.retAirlineCode || legs[half]?.airline || null,
     };
   }, [booking.api?.flight, booking.flight?.outAirlineCode, booking.flight?.retAirlineCode]);
+  /* ── what the final read needs that nothing else assembles ──────────────────
+     The summary card shows a running total; the review page shows the BOOKING, and those
+     need different shapes. Days, never nights: a traveller counts the days they are away,
+     and the two numbers differ by one, which is exactly the kind of difference that turns
+     into a complaint.
+
+     Everything here is derived from what the booking already carries. Where a fact is not
+     in the data — travel class, for one, which no supplier on this page sends — the line
+     is left out rather than filled with a plausible guess. */
+  const travelDays = Number(booking.nights) > 0 ? Number(booking.nights) + 1 : null;
+  const tripPeriod = (() => {
+    const a = dmy(srch.checkin || booking.api?.hotel?.checkin);
+    const b = dmy(srch.checkout || booking.api?.hotel?.checkout);
+    return a && b ? `${a} – ${b}` : (a || booking.dateLabel || '—');
+  })();
+  const reviewFlights = useMemo(() => {
+    const f = booking.flight;
+    if (!f) return [];
+    const legs = booking.api?.flight?.legs || [];
+    const half = booking.api?.flight?.tripType === 'roundtrip' ? Math.ceil(legs.length / 2) : legs.length;
+    const halves = { out: legs.slice(0, half), ret: legs.slice(half) };
+    // Calendar days between take-off and landing, so an overnight says "+1" beside the time.
+    const dayGap = (ls) => {
+      const dep = ls[0]?.departure; const arr = ls[ls.length - 1]?.arrival;
+      if (!dep || !arr) return 0;
+      const d1 = new Date(String(dep).slice(0, 10)); const d2 = new Date(String(arr).slice(0, 10));
+      const n = Math.round((d2 - d1) / 86400000);
+      return Number.isFinite(n) && n > 0 ? n : 0;
+    };
+    const one = (key, label) => {
+      const ls = halves[key] || [];
+      const dep = key === 'out' ? f.outDep : f.retDep;
+      if (!dep) return null;
+      const stops = Math.max(ls.length - 1, 0);
+      return {
+        key,
+        label,
+        date: key === 'out' ? f.outDate : f.retDate,
+        dep,
+        arr: key === 'out' ? f.outArr : f.retArr,
+        fromLabel: key === 'out' ? f.outFrom : f.retFrom,
+        toLabel: key === 'out' ? f.outTo : f.retTo,
+        dur: key === 'out' ? f.outDur : f.retDur,
+        airline: key === 'out' ? f.outAirline : f.retAirline,
+        airlineCode: airlineCodes[key],
+        flightNumber: ls.map((l) => l.flightNumber).filter(Boolean).join(' · ') || null,
+        plusDays: dayGap(ls),
+        stopsLabel: stops === 0
+          ? t('checkout:review.directFlight', 'Direct flight')
+          : t('checkout:review.stops', { count: stops, defaultValue_one: '{{count}} stop', defaultValue_other: '{{count}} stops' }),
+      };
+    };
+    return [
+      one('out', t('checkout:flight.outbound', 'Outbound')),
+      one('ret', t('checkout:flight.return', 'Return')),
+    ].filter(Boolean);
+  }, [booking.flight, booking.api?.flight, airlineCodes, t]);
   const directions = booking.api?.flight?.tripType === 'roundtrip'
     ? [{ key: 'out', label: t('checkout:flight.outbound', 'Outbound'), icon: ICON.planeOut }, { key: 'ret', label: t('checkout:flight.return', 'Return'), icon: ICON.planeIn }]
     : [{ key: 'out', label: t('checkout:flight.outbound', 'Outbound'), icon: ICON.planeOut }];
@@ -1807,6 +1887,29 @@ function CheckoutContent({ stripe, elements }) {
         // second is the whole point of asking for it, so it travels with the booking rather
         // than living only in a form the traveller closed.
         contact: { phone: contactPhone, emergencyPhone: priv.emergencyPhone || undefined },
+        /* The two free-text fields, sent apart and kept apart.
+
+           `specialRequests` belongs to the STAY and is meant for the accommodation, so it
+           travels to the supplier with the reservation. `sunskyMessage` is addressed to
+           SUNSKY and must never reach a hotel: a hotel can neither arrange wheelchair
+           assistance at an airport nor confirm one, and a request sent to the wrong party
+           reads as handled when nobody has it.
+
+           Assistance names the travellers it is for, by the name on the ticket rather than
+           by an index, because the index means nothing to whoever reads it next. */
+        specialRequests: hotelWish.trim() || undefined,
+        sunskyMessage: noteText.trim()
+          ? {
+            type: noteKind,
+            travellers: noteKind === 'assistance'
+              ? noteFor.map((i) => ({
+                index: i + 1,
+                name: travellerName(travellers[i]) || t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' }),
+              }))
+              : [],
+            message: noteText.trim(),
+          }
+          : undefined,
         consents,
       });
 
@@ -1963,8 +2066,9 @@ function CheckoutContent({ stripe, elements }) {
   /* primary CTA per step (shared by bottom bar + mobile bar) */
   const ctaLabel = repriceBlocks && reprice.status === 'checking' ? t('checkout:cta.rechecking', 'Re-checking your price…')
     : step === STEP.INFO ? t('checkout:cta.continueToAddons', 'Continue to add-ons')
-    : step === STEP.ADDONS ? (showSupportStep ? t('checkout:cta.continueToSupport', 'Continue to support package') : t('checkout:cta.continueToPayment', 'Continue to payment'))
-    : step === STEP.SUPPORT ? t('checkout:cta.continueToPayment', 'Continue to payment')
+    : step === STEP.ADDONS ? (showSupportStep ? t('checkout:cta.continueToSupport', 'Continue to support package') : t('checkout:cta.continueToReview', 'Continue to overview'))
+    : step === STEP.SUPPORT ? t('checkout:cta.continueToReview', 'Continue to overview')
+    : step === STEP.REVIEW ? t('checkout:cta.continueToPayment', 'Continue to payment')
     : t('checkout:cta.pay', { amount: money(total), defaultValue: 'Pay {{amount}}' });
   const ctaAction = step === STEP.PAYMENT ? pay : next;
   // One rule for every way forward (button, mobile bar): an outstanding re-check, an
@@ -2858,6 +2962,119 @@ function CheckoutContent({ stripe, elements }) {
               )}
 
 
+              {/* ──────── SPECIAL REQUESTS FOR THE STAY ────────
+                  A wish, not a purchase: free of charge, never priced, and never a promise.
+                  It travels to the accommodation with the reservation, but whether the hotel
+                  can honour it is theirs to answer on the day — which is why availability is
+                  named twice here rather than once. */}
+              {step === STEP.ADDONS && !isFlight && (
+                <section className="ck-card ck-reveal ck-wish">
+                  <div className="ck-bagkind">
+                    <span className="ck-bagkind-ico">{ICON.chat}</span>
+                    <div className="ck-bagkind-text">
+                      <b>
+                        {t('checkout:wishes.title', 'Special requests for your stay')}
+                        <span className="ck-opt">{t('checkout:wishes.optional', 'Optional')}</span>
+                      </b>
+                      <span>{t('checkout:wishes.intro', 'Do you have special requests for your stay? Let us know and we will pass them on to the accommodation.')}</span>
+                      <em className="ck-bagkind-hint">{t('checkout:wishes.notGuaranteed', 'Requests depend on availability and cannot be guaranteed.')}</em>
+                    </div>
+                  </div>
+                  <textarea className="ck-area" rows={3} maxLength={WISH_MAX}
+                    placeholder={t('checkout:wishes.placeholder', 'For example: a quiet room, rooms next to each other, or a high floor.')}
+                    value={hotelWish}
+                    onChange={(e) => setHotelWish(e.target.value.slice(0, WISH_MAX))} />
+                  <div className="ck-area-foot">
+                    <span>{t('checkout:wishes.maxChars', { count: WISH_MAX, defaultValue: 'Maximum {{count}} characters' })}</span>
+                    <span>{hotelWish.length}/{WISH_MAX}</span>
+                  </div>
+                  <div className="ck-ins-legal ck-wish-note">
+                    {ICON.infoCircle}
+                    <p>{t('checkout:wishes.passedOn', 'We pass your requests on to the accommodation. Whether they can be carried out depends on availability and cannot be guaranteed.')}</p>
+                  </div>
+                </section>
+              )}
+
+              {/* ──────── MESSAGE TO SUNSKY ────────
+                  Addressed to us, never to the hotel — the two are kept apart on purpose, so
+                  a request for wheelchair assistance does not travel to an accommodation that
+                  can neither act on it nor confirm it. Assistance names the traveller it is
+                  for, because "someone in the party needs help boarding" is not something an
+                  airline can act on. */}
+              {step === STEP.ADDONS && (
+                <section className="ck-card ck-reveal">
+                  <div className="ck-bagkind">
+                    <span className="ck-bagkind-ico">{ICON.lifebuoy}</span>
+                    <div className="ck-bagkind-text">
+                      <b>
+                        {t('checkout:note.title', 'Message to SUNSKY')}
+                        <span className="ck-opt">{t('checkout:wishes.optional', 'Optional')}</span>
+                      </b>
+                      <span>{t('checkout:note.intro', 'Do you have a question, a particular wish or do you need extra help during your trip? Let us know and our team will help you further.')}</span>
+                    </div>
+                  </div>
+
+                  <div className="ck-sub-label">{t('checkout:note.whatAbout', 'What is your message about?')}</div>
+                  <div className="ck-tr-list ck-note-kinds">
+                    {NOTE_KINDS.map((k) => (
+                      <button type="button" key={k.id}
+                        className={`ck-tr${noteKind === k.id ? ' act' : ''}`}
+                        onClick={() => setNoteKind(k.id)}>
+                        <span className="ck-tr-radio">{noteKind === k.id && <i />}</span>
+                        <span className="ck-tr-main">
+                          <span className="ck-tr-name hd">{t(`checkout:note.kind.${k.id}.name`, k.name)}</span>
+                          <span className="ck-tr-sub">{t(`checkout:note.kind.${k.id}.example`, k.example)}</span>
+                        </span>
+                      </button>
+                    ))}
+                  </div>
+
+                  {/* Only assistance asks WHO. A general question is about the booking. */}
+                  {noteKind === 'assistance' && (
+                    <div className="ck-note-who">
+                      <div>
+                        <div className="ck-sub-label">{t('checkout:note.forWhichTraveller', 'For which traveller?')}</div>
+                        <div className="ck-note-picks">
+                          {travellers.map((trav, i) => (
+                            <label key={i} className={`ck-biz ck-note-pick${noteFor.includes(i) ? ' on' : ''}`}>
+                              <input type="checkbox" checked={noteFor.includes(i)}
+                                onChange={(e) => setNoteFor((cur) => (e.target.checked
+                                  ? [...cur, i].sort((a, b) => a - b)
+                                  : cur.filter((n) => n !== i)))} />
+                              <span className="ck-biz-box">{noteFor.includes(i) && ICON.check}</span>
+                              <span className="ck-biz-text">
+                                <b>{travellerName(trav) || t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' })}</b>
+                              </span>
+                            </label>
+                          ))}
+                        </div>
+                      </div>
+                      <div className="ck-ins-legal ck-note-hint">
+                        {ICON.infoCircle}
+                        <p>{t('checkout:note.assistanceHint', 'For example wheelchair assistance at the airport or support with boarding. SUNSKY will contact you when more information is needed.')}</p>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="ck-sub-label">{t('checkout:note.yourMessage', 'Your message')}</div>
+                  <textarea className="ck-area" rows={4} maxLength={NOTE_MAX}
+                    placeholder={t('checkout:note.placeholder', 'Write your question, remark or request to SUNSKY here.')}
+                    value={noteText}
+                    onChange={(e) => setNoteText(e.target.value.slice(0, NOTE_MAX))} />
+                  <div className="ck-area-foot">
+                    <span />
+                    <span>{noteText.length}/{NOTE_MAX} {t('checkout:note.chars', 'characters')}</span>
+                  </div>
+                  <div className="ck-ins-legal ck-wish-note">
+                    {ICON.infoCircle}
+                    <p>
+                      {t('checkout:note.weRead', 'We read your message and contact you if anything needs arranging.')}{' '}
+                      {t('checkout:note.onlyConfirmed', 'Requested services are only confirmed once SUNSKY or the service provider responsible has confirmed them.')}
+                    </p>
+                  </div>
+                </section>
+              )}
+
               {/* ──────── STEP : SUPPORT PACKAGE ────────
                   Support spec v1.0 §3 and §5. Every word on these cards is configuration: the
                   title, badge, description, the service lines and their statuses all come from
@@ -2967,122 +3184,257 @@ function CheckoutContent({ stripe, elements }) {
                 </section>
               )}
 
-              {/* ──────── STEP 3 : OVERVIEW ────────
-                  Everything about to be bought, in one place, before the card comes out. The
-                  sidebar summary is a running total; this is the record — the same facts a
-                  traveller will look for on the confirmation, in the same order. Nothing here
-                  is decorative: every line is something they could still go back and change. */}
-              {step === STEP.PAYMENT && (
-                <section className="ck-card ck-reveal">
+              {/* ──────── STEP : CHECK YOUR BOOKING ────────
+                  The last read before the card comes out, and the only screen that holds the
+                  whole booking at once. Deliberately plain: no photographs, no prices, no
+                  edit buttons. Prices live in the summary beside it, and a change is made
+                  where it was made the first time — a second way to edit the same field is a
+                  second way for the two to disagree.
+
+                  Every section is built from the booking itself, and the optional ones are
+                  absent rather than empty: a heading over "—" reads as something missing. */}
+              {step === STEP.REVIEW && (
+                <section className="ck-card ck-reveal ck-rv">
                   <div className="ck-card-head">
-                    <div className="ck-ico">{ICON.check}</div>
                     <div className="ck-card-titles">
-                      <h2 className="ck-card-title hd">{t('checkout:overview.yourTrip', 'Your trip')}</h2>
-                      <p className="ck-card-sub">{t('checkout:overview.checkBeforePay', 'Please check these details before you pay')}</p>
+                      <h2 className="ck-card-title hd">{t('checkout:review.title', 'Check your booking')}</h2>
+                      <p className="ck-card-sub">{t('checkout:review.sub', 'Check all the details of your trip below before you pay.')}</p>
                     </div>
                   </div>
 
-                  <div className="ck-ov-grid">
-                    <div className="ck-ov-item">
-                      <span className="ck-ov-k">{t('checkout:overview.accommodation', 'Accommodation')}</span>
-                      <span className="ck-ov-v">{booking.hotelName}</span>
-                    </div>
-                    <div className="ck-ov-item">
-                      <span className="ck-ov-k">{t('checkout:overview.destination', 'Destination')}</span>
-                      <span className="ck-ov-v">{booking.loc || '—'}</span>
-                    </div>
-                    <div className="ck-ov-item">
-                      <span className="ck-ov-k">{t('checkout:overview.travelStartDate', 'Travel start date')}</span>
-                      <span className="ck-ov-v">{dmy(srch.checkin || booking.api?.hotel?.checkin) || booking.dateLabel}</span>
-                    </div>
-                    <div className="ck-ov-item">
-                      <span className="ck-ov-k">{t('checkout:overview.travelEndDate', 'Travel end date')}</span>
-                      <span className="ck-ov-v">{dmy(srch.checkout || booking.api?.hotel?.checkout) || '—'}</span>
-                    </div>
-                    <div className="ck-ov-item">
-                      <span className="ck-ov-k">{t('checkout:overview.board', 'Board')}</span>
-                      {/* Still normalised through boardInfo so the WORDING is ours and
-                          consistent ("All inclusive", never a supplier's stray spelling); the
-                          capitals are applied in CSS on top. Uppercasing here instead would
-                          put shouted text into `booking.board`, which is carried into the
-                          reservation payload — the display is the only thing that changes. */}
-                      <span className="ck-ov-v ck-caps">
-                        {boardInfo(booking.api?.hotel?.boardCode, booking.board || booking.meal).label}
-                      </span>
-                    </div>
-                    <div className="ck-ov-item">
-                      <span className="ck-ov-k">{t('checkout:overview.transport', 'Transport')}</span>
-                      <span className="ck-ov-v">{booking.api?.flight ? t('checkout:overview.flight', 'Flight') : t('checkout:overview.ownTransport', 'Own transport')}</span>
+                  {/* 1 — the trip itself */}
+                  <div className="ck-rv-sec">
+                    <div className="ck-rv-head"><span className="ck-rv-n">1</span>{ICON.bed}
+                      <h3 className="ck-rv-t hd">{t('checkout:review.tripOverview', 'Travel overview')}</h3></div>
+                    <div className="ck-rv-rows">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:overview.accommodation', 'Accommodation')}</span>
+                        <span className="ck-rv-v">{booking.hotelName}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:overview.destination', 'Destination')}</span>
+                        <span className="ck-rv-v">{booking.loc || '—'}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.travelPeriod', 'Travel period')}</span>
+                        <span className="ck-rv-v">{tripPeriod}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.travelDuration', 'Travel duration')}</span>
+                        <span className="ck-rv-v">{t('checkout:duration.days', { count: travelDays, defaultValue_one: '{{count}} day', defaultValue_other: '{{count}} days' })}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.party', 'Travel party')}</span>
+                        <span className="ck-rv-v">{t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:overview.rooms', 'Rooms')}</span>
+                        <span className="ck-rv-v">{t('checkout:review.roomsCount', { count: Number(srch.rooms) || 1, defaultValue_one: '{{count}} room', defaultValue_other: '{{count}} rooms' })}</span>
+                      </div>
                     </div>
                   </div>
 
-                  {booking.room && (
-                    <div className="ck-ov-block">
-                      <div className="ck-ov-title hd">{t('checkout:overview.rooms', 'Rooms')}</div>
-                      <p className="ck-ov-line">
-                        {Number(srch.rooms) > 1 ? `${srch.rooms} × ` : '1 × '}
-                        <span className="ck-caps">{booking.room}</span>
-                        {booking.board ? <> — <span className="ck-caps">{booking.board}</span></> : ''}
-                      </p>
+                  {/* 2 — flights, one block per direction */}
+                  {booking.flight && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">2</span>{ICON.plane}
+                        <h3 className="ck-rv-t hd">{t('checkout:summary.flights', 'Flights')}</h3></div>
+                      {reviewFlights.map((f) => (
+                        <div className="ck-rv-leg" key={f.key}>
+                          <div className="ck-rv-leg-head">
+                            <span className={`ck-rv-dir${f.key === 'ret' ? ' ret' : ''}`}>{f.label}</span>
+                            <span className="ck-rv-date">{f.date}</span>
+                          </div>
+                          <div className="ck-rv-leg-body">
+                            <div className="ck-rv-end">
+                              <span className="ck-rv-time">{f.dep}</span>
+                              <span className="ck-rv-place">{f.fromLabel}</span>
+                            </div>
+                            <div className="ck-rv-mid">
+                              <span className="ck-rv-rule" />
+                              <span className="ck-rv-stops">{f.stopsLabel}{f.dur ? ` · ${f.dur}` : null}</span>
+                            </div>
+                            <div className="ck-rv-end ck-rv-end-r">
+                              {/* A flight that lands the next day says so here, where the
+                                  time is read, rather than in a footnote under it. */}
+                              <span className="ck-rv-time">{f.arr}{f.plusDays ? <sup className="ck-rv-plus">+{f.plusDays}</sup> : null}</span>
+                              <span className="ck-rv-place">{f.toLabel}</span>
+                            </div>
+                            <div className="ck-rv-facts">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.airline', 'Airline')}</span>
+                        <span className="ck-rv-v">{f.airlineCode ? <AirlineMark code={f.airlineCode} className="ck-air-mark" nameClassName="ck-air-name" /> : (f.airline || '—')}</span>
+                      </div>
+                              {f.flightNumber && (
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.flightNumber', 'Flight number')}</span>
+                        <span className="ck-rv-v">{f.flightNumber}</span>
+                      </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
                     </div>
                   )}
 
-                  {booking.flight && (
-                    <div className="ck-ov-block">
-                      <div className="ck-ov-title hd">{t('checkout:overview.transport', 'Transport')}</div>
-                      <div className="ck-ov-flights">
-                        <div className="ck-ov-flight">
-                          <span className="ck-ov-dir">{t('checkout:flight.outbound', 'Outbound')}</span>
-                          <span className="ck-ov-line">
-                            {booking.flight.outDate ? `${booking.flight.outDate} · ` : ''}
-                            {booking.flight.outDep} {booking.flight.outFrom} → {booking.flight.outArr} {booking.flight.outTo}
-                          </span>
-                          {/* The carrier, with its mark. This is the last screen before payment,
-                              and who is flying the traveller is part of what they are agreeing
-                              to; a name alone was easy to skim past. */}
-                          {(airlineCodes.out || booking.flight.outAirline) && (
-                            <span className="ck-ov-sub ck-ov-air">
-                              {airlineCodes.out
-                                ? <AirlineMark code={airlineCodes.out} className="ck-air-mark" nameClassName="ck-air-name" />
-                                : booking.flight.outAirline}
-                            </span>
-                          )}
-                        </div>
-                        {booking.flight.retDep && (
-                          <div className="ck-ov-flight">
-                            <span className="ck-ov-dir">{t('checkout:flight.return', 'Return')}</span>
-                            <span className="ck-ov-line">
-                              {booking.flight.retDate ? `${booking.flight.retDate} · ` : ''}
-                              {booking.flight.retDep} {booking.flight.retFrom} → {booking.flight.retArr} {booking.flight.retTo}
-                            </span>
-                            {(airlineCodes.ret || booking.flight.retAirline) && (
-                              <span className="ck-ov-sub ck-ov-air">
-                                {airlineCodes.ret
-                                  ? <AirlineMark code={airlineCodes.ret} className="ck-air-mark" nameClassName="ck-air-name" />
-                                  : booking.flight.retAirline}
-                              </span>
-                            )}
-                          </div>
+                  {/* 3 — room and board */}
+                  {booking.room && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">3</span>{ICON.bed}
+                        <h3 className="ck-rv-t hd">{t('checkout:review.roomAndBoard', 'Room & board')}</h3></div>
+                      <div className="ck-rv-rows">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.roomType', 'Room type')}</span>
+                        <span className="ck-rv-v">{<span className="ck-caps">{booking.room}</span>}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.occupancy', 'Occupancy')}</span>
+                        <span className="ck-rv-v">{`${t('checkout:review.roomsCount', { count: Number(srch.rooms) || 1, defaultValue_one: '{{count}} room', defaultValue_other: '{{count}} rooms' })} · ${t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}`}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:overview.board', 'Board')}</span>
+                        <span className="ck-rv-v">{<span className="ck-caps">{boardInfo(booking.api?.hotel?.boardCode, booking.board || booking.meal).label}</span>}</span>
+                      </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 4 — transfer, only when one was taken */}
+                  {pickedOption && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">4</span>{ICON.van}
+                        <h3 className="ck-rv-t hd">{t('checkout:summary.transfer', 'Transfer')}</h3></div>
+                      <div className="ck-rv-rows">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.transferType', 'Transfer type')}</span>
+                        <span className="ck-rv-v">{[pickedOption.lead.vehicle, pickedOption.lead.category].filter(Boolean).join(' · ') || t('checkout:transfer.transfer', 'Transfer')}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.route', 'Route')}</span>
+                        <span className="ck-rv-v">{`${pickedOption.lead.pickup?.from || srch.destination} → ${pickedOption.lead.pickup?.to || booking.hotelName}`}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.direction', 'Direction')}</span>
+                        <span className="ck-rv-v">{pickedOption.roundTrip ? t('checkout:review.bothWays', 'Arrival and return') : t('checkout:review.arrivalOnly', 'Arrival only')}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.passengers', 'Passengers')}</span>
+                        <span className="ck-rv-v">{t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}</span>
+                      </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 5 — insurance: a status per traveller, and one line for the booking */}
+                  {(travelOption || cancelOption) && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">5</span>{ICON.shield}
+                        <h3 className="ck-rv-t hd">{t('checkout:review.insurance', 'Insurance')}</h3></div>
+                      <div className="ck-rv-rows">
+                        {travelOption && (
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:insurance.travelTitle', 'Travel insurance')}</span>
+                        <span className="ck-rv-v">{travelCount ? `${travelOption.label} (${t('checkout:duration.travellers', { count: travelCount, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })})` : t('checkout:insurance.noTravel', 'Not selected')}</span>
+                      </div>
+                        )}
+                        {cancelOption && (
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:insurance.cancellationTitle', 'Cancellation insurance')}</span>
+                        <span className="ck-rv-v">{cancelIns ? cancelOption.label : t('checkout:insurance.noTravel', 'Not selected')}</span>
+                      </div>
                         )}
                       </div>
                     </div>
                   )}
 
-                  <div className="ck-ov-block">
-                    <div className="ck-ov-title hd">{t('checkout:overview.yourDetails', 'Your details')}</div>
-                    <p className="ck-ov-line">
-                      {[travellers[0]?.title, travellers[0]?.firstName, travellers[0]?.lastName].filter(Boolean).join(' ')}
-                      {travellers[0]?.dateOfBirth ? ` (${dmy(travellers[0].dateOfBirth)})` : ''}
-                    </p>
-                    <p className="ck-ov-sub">{customerEmail}{contactPhoneShown ? ` · ${contactPhoneShown}` : ''}</p>
-                    {travellers.length > 1 && (
-                      <p className="ck-ov-sub">
-                        {t('checkout:overview.travellingWith', 'Travelling with')} {travellers.slice(1).map((trav) => [trav.firstName, trav.lastName].filter(Boolean).join(' ') || t('checkout:travellers.travellerFallback', 'traveller')).join(', ')}
-                      </p>
-                    )}
+                  {/* 6 — extra baggage, only what was actually bought */}
+                  {baggageRows.length > 0 && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">6</span>{ICON.checkedBag}
+                        <h3 className="ck-rv-t hd">{t('checkout:review.extraBaggage', 'Extra baggage')}</h3></div>
+                      <div className="ck-rv-rows">
+                        {baggageRows.map((b) => (
+                          <div className="ck-rv-row" key={b.label}>
+                            <span className="ck-rv-k">{b.label}</span>
+                            <span className="ck-rv-v">{t('checkout:baggage.pieces', { count: b.count, defaultValue_one: '{{count}} piece', defaultValue_other: '{{count}} pieces' })}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* 7 — who is travelling, as the ticket will read */}
+                  <div className="ck-rv-sec">
+                    <div className="ck-rv-head"><span className="ck-rv-n">7</span>{ICON.users}
+                      <h3 className="ck-rv-t hd">{t('checkout:review.travellers', 'Travellers')}</h3></div>
+                    <div className="ck-rv-pax">
+                      {travellers.map((trav, i) => (
+                        <div className="ck-rv-person" key={i}>
+                          <span className="ck-rv-pn">{i + 1}</span>
+                          <span className="ck-rv-pbody">
+                            <b>
+                              {[trav.firstName, trav.lastName].filter(Boolean).join(' ') || t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' })}
+                              {i === 0 && <em>({t('checkout:travellers.lead', 'Lead traveller')})</em>}
+                            </b>
+                            <span>{trav.dateOfBirth ? dmy(trav.dateOfBirth) : '—'}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
+
+                  {/* 8 — who we contact about it */}
+                  <div className="ck-rv-sec">
+                    <div className="ck-rv-head"><span className="ck-rv-n">8</span>{ICON.mail}
+                      <h3 className="ck-rv-t hd">{t('checkout:review.bookingContact', 'Booking contact')}</h3></div>
+                    <div className="ck-rv-rows">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:fields.emailAddress', 'Email address')}</span>
+                        <span className="ck-rv-v">{customerEmail || '—'}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:fields.phoneNumber', 'Phone number')}</span>
+                        <span className="ck-rv-v">{contactPhoneShown || '—'}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* 9 — the stay request, only when there is one */}
+                  {hotelWish.trim() && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">9</span>{ICON.chat}
+                        <h3 className="ck-rv-t hd">{t('checkout:wishes.title', 'Special requests for your stay')}</h3>
+                        <span className="ck-rv-tag">{t('checkout:wishes.forwarded', 'Forwarded to the accommodation')}</span></div>
+                      <p className="ck-rv-quote">{hotelWish.trim()}</p>
+                      <p className="ck-rv-foot">{ICON.infoCircle} {t('checkout:wishes.notGuaranteed', 'Requests depend on availability and cannot be guaranteed.')}</p>
+                    </div>
+                  )}
+
+                  {/* 10 — the message to us, kept apart from the hotel request above */}
+                  {noteText.trim() && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">10</span>{ICON.lifebuoy}
+                        <h3 className="ck-rv-t hd">{t('checkout:note.title', 'Message to SUNSKY')}</h3></div>
+                      <div className="ck-rv-rows">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:note.type', 'Message type')}</span>
+                        <span className="ck-rv-v">{t(`checkout:note.kind.${noteKind}.name`, NOTE_KINDS.find((k) => k.id === noteKind)?.name || noteKind)}</span>
+                      </div>
+                        {noteKind === 'assistance' && noteFor.length > 0 && (
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:note.forTravellers', 'For which traveller(s)')}</span>
+                        <span className="ck-rv-v">{noteFor.map((i) => travellerName(travellers[i]) || t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' })).join(', ')}</span>
+                      </div>
+                        )}
+                      </div>
+                      <p className="ck-rv-quote">{noteText.trim()}</p>
+                      <p className="ck-rv-foot">{ICON.infoCircle} {t('checkout:note.onlyConfirmed', 'Requested services are only confirmed once SUNSKY or the service provider responsible has confirmed them.')}</p>
+                    </div>
+                  )}
                 </section>
               )}
+
 
               {/* ──────── STEP 3 : PAYMENT ──────── */}
               {step === STEP.PAYMENT && (
@@ -3305,7 +3657,7 @@ function CheckoutContent({ stripe, elements }) {
               {/* ──────── NAV BUTTONS ──────── */}
               <div className="ck-navbtns">
                 {step > 0
-                  ? <button className="ck-back-btn" onClick={back}>{ICON.arrowL} {t('checkout:nav.back', 'Back')}</button>
+                  ? <button className="ck-back-btn" onClick={back}>{ICON.arrowL} {step === STEP.REVIEW && !showSupportStep ? t('checkout:nav.backToExtras', "Back to extras") : t('checkout:nav.back', 'Back')}</button>
                   : <button className="ck-back-btn" onClick={() => navigate(-1)}>{ICON.arrowL} {isFlight ? t('checkout:nav.backToFlight', 'Back to flight') : isTransfer ? t('checkout:nav.backToTransfers', 'Back to transfers') : t('checkout:nav.backToHotel', 'Back to hotel')}</button>}
                 <button className={`ck-next-btn${paying ? ' busy' : ''}${repriceBlocks ? ' held' : ''}`}
                   onClick={ctaAction} disabled={ctaBlocked}>

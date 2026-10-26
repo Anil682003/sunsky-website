@@ -15,6 +15,10 @@
     "support": {
       "name": "Support package",
       "sub": "Choose your cover"
+    },
+    "review": {
+      "name": "Check your booking",
+      "sub": "Everything at a glance"
     }
   },
   "gender": {
@@ -54,7 +58,7 @@
     "intermediaryNoticeCancel": "SUNSKY offers this cancellation insurance as an exempt ancillary insurance intermediary, in cooperation with {{provider}}. For information about the cover, exclusions and conditions, please consult the insurance documents of {{provider}}.",
     "intermediaryNoticeTravel": "SUNSKY offers this travel insurance as an exempt ancillary insurance intermediary, in cooperation with {{provider}}. For information about the cover, exclusions and conditions, please consult the insurance documents of {{provider}}.",
     "noCancellation": "No cancellation insurance",
-    "noTravel": "No travel insurance",
+    "noTravel": "Not selected",
     "none": {
       "name": "No insurance",
       "desc": "I accept the risk and travel without extra protection."
@@ -206,7 +210,8 @@
     "continueToAddons": "Continue to add-ons",
     "continueToPayment": "Continue to payment",
     "pay": "Pay {{amount}}",
-    "continueToSupport": "Continue to support package"
+    "continueToSupport": "Continue to support package",
+    "continueToReview": "Continue to overview"
   },
   "gone": {
     "title": "There’s no booking to pay for",
@@ -362,7 +367,8 @@
     "backToFlight": "Back to flight",
     "backToTransfers": "Back to transfers",
     "backToHotel": "Back to hotel",
-    "processingPayment": "Processing payment…"
+    "processingPayment": "Processing payment…",
+    "backToExtras": "Back to extras"
   },
   "confirmation": {
     "transfer": "transfer",
@@ -462,14 +468,39 @@
     "transferPerVehicle": "Transfer (per vehicle)"
   },
   "review": {
-    "title": "Review your details",
+    "title": "Check your booking",
     "lede": "It is important to review your details before you continue. Names and dates of birth cannot be changed free of charge once the booking is made — please check them against each traveller's passport or identity card.",
     "confirmMatch": "Yes, this is my first name, last name and date of birth exactly as they appear on my passport or identity card.",
     "editDetails": "Edit details",
     "checkedAndConfirmed": "Yes, I have checked and confirmed",
     "tickEveryTraveller": "Tick every traveller to continue",
     "tipNames": "Enter only the <1>first (given) name</1> and the <3>last name</3> as shown on the travel document. No nicknames, no initials, no middle names.",
-    "tipDob": "Check the <1>date of birth</1> too — it sets the fare type for each traveller, so a wrong year can change the price of the trip."
+    "tipDob": "Check the <1>date of birth</1> too — it sets the fare type for each traveller, so a wrong year can change the price of the trip.",
+    "sub": "Check all the details of your trip below before you pay.",
+    "tripOverview": "Travel overview",
+    "travelPeriod": "Travel period",
+    "travelDuration": "Travel duration",
+    "party": "Travel party",
+    "roomsCount_one": "{{count}} room",
+    "roomsCount_other": "{{count}} rooms",
+    "roomAndBoard": "Room & board",
+    "roomType": "Room type",
+    "occupancy": "Rooms",
+    "transferType": "Transfer type",
+    "route": "Route",
+    "direction": "Direction",
+    "bothWays": "Arrival and return",
+    "arrivalOnly": "Arrival only",
+    "passengers": "Passengers",
+    "insurance": "Insurance",
+    "extraBaggage": "Extra baggage",
+    "travellers": "Travellers",
+    "bookingContact": "Booking contact",
+    "airline": "Airline",
+    "flightNumber": "Flight number",
+    "directFlight": "Direct flight",
+    "stops_one": "{{count}} stop",
+    "stops_other": "{{count}} stops"
   },
   "return": {
     "finalising": "Finalising your payment…",
@@ -532,5 +563,41 @@
     "select": "Select",
     "selected": "Selected",
     "disclaimer": "Support packages cover SUNSKY service and handling fees only. Airline, hotel and other supplier charges, including fare differences, remain payable separately. Changes and cancellations stay subject to airline, hotel and supplier rules and availability."
+  },
+  "wishes": {
+    "title": "Special requests for your stay",
+    "optional": "Optional",
+    "intro": "Do you have special requests for your stay? Let us know and we will pass them on to the accommodation.",
+    "notGuaranteed": "Requests depend on availability and cannot be guaranteed.",
+    "placeholder": "For example: a quiet room, rooms next to each other, or a high floor.",
+    "maxChars": "Maximum {{count}} characters",
+    "passedOn": "We pass your requests on to the accommodation. Whether they can be carried out depends on availability and cannot be guaranteed.",
+    "none": "No special requests given",
+    "forwarded": "Forwarded to the accommodation"
+  },
+  "note": {
+    "title": "Message to SUNSKY",
+    "intro": "Do you have a question, a particular wish or do you need extra help during your trip? Let us know and our team will help you further.",
+    "whatAbout": "What is your message about?",
+    "forWhichTraveller": "For which traveller?",
+    "yourMessage": "Your message",
+    "placeholder": "Write your question, remark or request to SUNSKY here. For example: wheelchair assistance at the airport, extra support, dietary wishes, or any other question.",
+    "chars": "characters",
+    "assistanceHint": "For example wheelchair assistance at the airport or support with boarding. SUNSKY will contact you when more information is needed.",
+    "weRead": "We read your message and contact you if anything needs arranging.",
+    "onlyConfirmed": "Requested services are only confirmed once SUNSKY or the service provider responsible has confirmed them.",
+    "kind": {
+      "general": {
+        "name": "General question or remark",
+        "example": "For example: extra service, a practical question or any other remark."
+      },
+      "assistance": {
+        "name": "Help or assistance during the trip",
+        "example": "For example: wheelchair assistance, support at the airport or other special needs."
+      }
+    },
+    "type": "Message type",
+    "forTravellers": "For which traveller(s)",
+    "message": "Message"
   }
 }

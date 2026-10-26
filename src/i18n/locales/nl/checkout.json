@@ -15,6 +15,10 @@
     "support": {
       "name": "Supportpakket",
       "sub": "Kies je dekking"
+    },
+    "review": {
+      "name": "Controleer je boeking",
+      "sub": "Alles in één overzicht"
     }
   },
   "gender": {
@@ -54,7 +58,7 @@
     "intermediaryNoticeCancel": "SUNSKY biedt deze annuleringsverzekering aan als vrijgestelde nevenverzekeringstussenpersoon, in samenwerking met {{provider}}. Voor informatie over de dekking, uitsluitingen en voorwaarden kun je de verzekeringsdocumenten van {{provider}} raadplegen.",
     "intermediaryNoticeTravel": "SUNSKY biedt deze reisverzekering aan als vrijgestelde nevenverzekeringstussenpersoon, in samenwerking met {{provider}}. Voor informatie over de dekking, uitsluitingen en voorwaarden kun je de verzekeringsdocumenten van {{provider}} raadplegen.",
     "noCancellation": "Geen annuleringsverzekering",
-    "noTravel": "Geen reisverzekering",
+    "noTravel": "Niet geselecteerd",
     "none": {
       "name": "Geen verzekering",
       "desc": "Ik accepteer het risico en reis zonder extra bescherming."
@@ -206,7 +210,8 @@
     "continueToAddons": "Doorgaan naar extra's",
     "continueToPayment": "Doorgaan naar betaling",
     "pay": "Betaal {{amount}}",
-    "continueToSupport": "Doorgaan naar supportpakket"
+    "continueToSupport": "Doorgaan naar supportpakket",
+    "continueToReview": "Verder naar overzicht"
   },
   "gone": {
     "title": "Er is geen boeking om te betalen",
@@ -362,7 +367,8 @@
     "backToFlight": "Terug naar vlucht",
     "backToTransfers": "Terug naar transfers",
     "backToHotel": "Terug naar hotel",
-    "processingPayment": "Betaling wordt verwerkt…"
+    "processingPayment": "Betaling wordt verwerkt…",
+    "backToExtras": "Terug naar extra's"
   },
   "confirmation": {
     "transfer": "transfer",
@@ -462,14 +468,39 @@
     "transferPerVehicle": "Transfer (per voertuig)"
   },
   "review": {
-    "title": "Controleer je gegevens",
+    "title": "Controleer je boeking",
     "lede": "Het is belangrijk om je gegevens te controleren voordat je verdergaat. Namen en geboortedata kunnen niet meer kosteloos worden gewijzigd zodra de boeking is gemaakt — controleer ze aan de hand van het paspoort of de identiteitskaart van elke reiziger.",
     "confirmMatch": "Ja, dit zijn mijn voornaam, achternaam en geboortedatum exact zoals ze op mijn paspoort of identiteitskaart staan.",
     "editDetails": "Gegevens wijzigen",
     "checkedAndConfirmed": "Ja, ik heb gecontroleerd en bevestigd",
     "tickEveryTraveller": "Vink elke reiziger aan om door te gaan",
     "tipNames": "Voer alleen de <1>voornaam</1> en de <3>achternaam</3> in zoals vermeld op het reisdocument. Geen bijnamen, geen initialen, geen tussenvoegsels.",
-    "tipDob": "Controleer ook de <1>geboortedatum</1> — deze bepaalt het tarieftype per reiziger, dus een verkeerd jaar kan de prijs van de reis veranderen."
+    "tipDob": "Controleer ook de <1>geboortedatum</1> — deze bepaalt het tarieftype per reiziger, dus een verkeerd jaar kan de prijs van de reis veranderen.",
+    "sub": "Controleer hieronder alle gegevens van je reis voordat je betaalt.",
+    "tripOverview": "Reisoverzicht",
+    "travelPeriod": "Reisperiode",
+    "travelDuration": "Reisduur",
+    "party": "Reisgezelschap",
+    "roomsCount_one": "{{count}} kamer",
+    "roomsCount_other": "{{count}} kamers",
+    "roomAndBoard": "Kamer & verzorging",
+    "roomType": "Kamertype",
+    "occupancy": "Aantal kamers",
+    "transferType": "Type transfer",
+    "route": "Route",
+    "direction": "Richting",
+    "bothWays": "Heen- en terugrit",
+    "arrivalOnly": "Alleen heenrit",
+    "passengers": "Aantal reizigers",
+    "insurance": "Verzekeringen",
+    "extraBaggage": "Extra bagage",
+    "travellers": "Reizigers",
+    "bookingContact": "Contactgegevens boeking",
+    "airline": "Luchtvaartmaatschappij",
+    "flightNumber": "Vluchtnummer",
+    "directFlight": "Directe vlucht",
+    "stops_one": "{{count}} tussenstop",
+    "stops_other": "{{count}} tussenstops"
   },
   "return": {
     "finalising": "Je betaling wordt afgerond…",
@@ -532,5 +563,41 @@
     "select": "Kiezen",
     "selected": "Gekozen",
     "disclaimer": "Supportpakketten dekken alleen de service- en behandelingskosten van SUNSKY. Kosten van luchtvaartmaatschappij, hotel en andere leveranciers, waaronder tariefverschillen, blijven apart verschuldigd. Wijzigingen en annuleringen blijven onderworpen aan de regels en beschikbaarheid van de luchtvaartmaatschappij, het hotel en de leverancier."
+  },
+  "wishes": {
+    "title": "Speciale wensen voor je verblijf",
+    "optional": "Optioneel",
+    "intro": "Heb je speciale wensen voor je verblijf? Laat het ons weten, dan geven we ze door aan de accommodatie.",
+    "notGuaranteed": "De wensen zijn afhankelijk van beschikbaarheid en kunnen niet worden gegarandeerd.",
+    "placeholder": "Bijvoorbeeld: graag een rustige kamer, kamers naast elkaar of een hoge verdieping.",
+    "maxChars": "Maximaal {{count}} tekens",
+    "passedOn": "We geven je wensen door aan de accommodatie. De uitvoering is afhankelijk van beschikbaarheid en kan niet worden gegarandeerd.",
+    "none": "Geen speciale wensen opgegeven",
+    "forwarded": "Doorgestuurd naar de accommodatie"
+  },
+  "note": {
+    "title": "Bericht aan SUNSKY",
+    "intro": "Heb je een vraag, bijzondere wens of extra hulp nodig tijdens je reis? Laat het ons weten. Ons team helpt je graag verder.",
+    "whatAbout": "Waarover gaat je bericht?",
+    "forWhichTraveller": "Voor welke reiziger?",
+    "yourMessage": "Jouw bericht",
+    "placeholder": "Schrijf hier je vraag, opmerking of verzoek aan SUNSKY. Bijvoorbeeld: rolstoelassistentie nodig op de luchthaven, extra begeleiding, dieetwensen, of andere vragen.",
+    "chars": "tekens",
+    "assistanceHint": "Bijvoorbeeld rolstoelassistentie op de luchthaven of ondersteuning bij het instappen. SUNSKY neemt contact met je op wanneer extra informatie nodig is.",
+    "weRead": "We bekijken je bericht en nemen contact met je op als verdere afstemming nodig is.",
+    "onlyConfirmed": "Aangevraagde diensten zijn pas bevestigd na bevestiging door SUNSKY of de betrokken dienstverlener.",
+    "kind": {
+      "general": {
+        "name": "Algemene vraag of opmerking",
+        "example": "Bijvoorbeeld: extra service, praktische vraag en andere opmerkingen."
+      },
+      "assistance": {
+        "name": "Hulp of assistentie tijdens de reis",
+        "example": "Bijvoorbeeld: rolstoelassistentie, begeleiding op de luchthaven of andere speciale behoeften."
+      }
+    },
+    "type": "Type bericht",
+    "forTravellers": "Voor welke reiziger(s)",
+    "message": "Bericht"
   }
 }

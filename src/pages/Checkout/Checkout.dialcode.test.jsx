@@ -58,6 +58,10 @@ const reachPayment = async (user) => {
   for (const t of document.querySelectorAll('.ck-modal .ck-check')) await user.click(t);
   await user.click(document.querySelector('.ck-rv-confirm'));
   await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/extra's/i));
+  // "Controleer je boeking" sits between the extras and the payment sheet, so the
+  // way out of the extras leads there first.
+  await user.click(screen.getByRole('button', { name: /verder naar overzicht/i }));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/overzicht/i));
   await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
   await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
 };

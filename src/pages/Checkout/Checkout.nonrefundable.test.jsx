@@ -64,6 +64,10 @@ const reachPayment = async (user) => {
   await user.click(document.querySelector('.ck-modal .ck-check'));
   await user.click(document.querySelector('.ck-rv-confirm'));
   await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/extra's/i));
+  // "Controleer je boeking" sits between the extras and the payment sheet, so the
+  // way out of the extras leads there first.
+  await user.click(screen.getByRole('button', { name: /verder naar overzicht/i }));
+  await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/overzicht/i));
   await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
   await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
   // Bancontact rather than card: this is a test about the cancellation consent, and the card

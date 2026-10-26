@@ -1083,3 +1083,103 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   .ck-sup-grid { grid-template-columns:1fr; }
   .ck-sup-price strong { font-size:23px; }
 }
+
+/* ─────────── Special requests & message to SUNSKY ───────────
+   Two free-text cards on the add-ons step. Neither costs anything, so neither looks like
+   a product: no price column, no radio next to the heading, and a soft amber ground that
+   separates "tell us something" from the rows above that charge for a choice. */
+.ck-wish { background:linear-gradient(180deg,#FFFCF5,#FFF9EE); border-color:#F6E3C3; }
+.ck-opt { display:inline-block; margin-left:9px; padding:2px 9px; border-radius:var(--r-full);
+  background:var(--sun-warm,#FFF1DC); border:1px solid #FFDFAC; color:#B45309;
+  font-family:"DM Sans",sans-serif; font-size:11px; font-weight:800; letter-spacing:.02em; vertical-align:middle; }
+
+.ck-area { width:100%; margin-top:14px; padding:13px 15px; border-radius:var(--r-md);
+  border:1.5px solid var(--border); background:var(--white); font-family:inherit;
+  font-size:14px; line-height:1.6; color:var(--text); resize:vertical; transition:border-color .2s var(--ease), box-shadow .2s var(--ease); }
+.ck-area::placeholder { color:var(--text-light); }
+.ck-area:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
+.ck-area-foot { display:flex; align-items:center; justify-content:space-between; gap:12px;
+  margin-top:7px; font-size:11.5px; font-weight:600; color:var(--text-light); }
+
+.ck-sub-label { margin-top:18px; margin-bottom:9px; font-family:"Sora",sans-serif;
+  font-size:13.5px; font-weight:800; color:var(--text); letter-spacing:-.1px; }
+/* The two kinds sit side by side on a desktop — they are a pair of alternatives, and
+   stacking them read as a list of two unrelated options. */
+.ck-note-kinds { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
+.ck-note-who { display:grid; grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:14px; align-items:start; }
+.ck-note-picks { display:flex; flex-wrap:wrap; gap:8px; }
+.ck-note-pick { flex:0 1 auto; padding:9px 13px; }
+.ck-note-hint { margin-top:34px; }
+.ck-wish-note { margin-top:14px; }
+@media (max-width:760px) {
+  .ck-note-kinds, .ck-note-who { grid-template-columns:1fr; }
+  .ck-note-hint { margin-top:0; }
+}
+
+/* ─────────── Check your booking ───────────
+   A record, not a brochure: text, rules and alignment, no photographs and no prices. The
+   numbered sections follow the order a traveller checks them in, and every row is a
+   label/value pair on one baseline so a column of them can be scanned rather than read. */
+.ck-rv-sec { padding:18px 0; border-top:1px solid var(--border-light); }
+.ck-rv-sec:first-of-type { border-top:none; padding-top:6px; }
+.ck-rv-head { display:flex; align-items:center; gap:10px; margin-bottom:12px; flex-wrap:wrap; }
+.ck-rv-head svg { width:18px; height:18px; color:var(--blue); flex:none; }
+.ck-rv-n { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px;
+  border-radius:50%; background:var(--blue); color:#fff; font-family:"Sora",sans-serif;
+  font-size:12px; font-weight:800; flex:none; }
+.ck-rv-t { margin:0; font-size:16px; font-weight:800; color:var(--text); letter-spacing:-.2px; }
+.ck-rv-tag { margin-left:auto; padding:4px 11px; border-radius:var(--r-full); background:#E9F8F0;
+  border:1px solid #C3EBD7; color:#0B7A57; font-size:11.5px; font-weight:700; }
+
+.ck-rv-rows { display:flex; flex-direction:column; gap:7px; }
+.ck-rv-row { display:grid; grid-template-columns:minmax(140px,210px) minmax(0,1fr); gap:14px; align-items:baseline; }
+.ck-rv-k { font-size:13px; font-weight:600; color:var(--text-sec); }
+.ck-rv-v { font-size:13.5px; font-weight:700; color:var(--text); min-width:0; overflow-wrap:anywhere; }
+.ck-rv-v .ck-air-mark { width:20px; height:20px; }
+
+/* One flight: the two times at the ends, what happened between them in the middle, and the
+   carrier and number beside it rather than under it. */
+.ck-rv-leg + .ck-rv-leg { margin-top:16px; padding-top:16px; border-top:1px dashed var(--border-light); }
+.ck-rv-leg-head { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
+.ck-rv-dir { padding:3px 11px; border-radius:var(--r-full); background:var(--blue-pale);
+  border:1px solid var(--blue-bg); color:var(--blue); font-size:11px; font-weight:800;
+  text-transform:uppercase; letter-spacing:.07em; }
+.ck-rv-dir.ret { background:var(--sun-warm,#FFF1DC); border-color:#FFDFAC; color:#B45309; }
+.ck-rv-date { font-size:13px; font-weight:700; color:var(--text); }
+.ck-rv-leg-body { display:grid; grid-template-columns:minmax(0,1fr) minmax(90px,1.1fr) minmax(0,1fr) minmax(0,1.2fr);
+  gap:14px; align-items:center; }
+.ck-rv-end { display:flex; flex-direction:column; gap:2px; min-width:0; }
+.ck-rv-end-r { text-align:right; align-items:flex-end; }
+.ck-rv-time { font-family:"Sora",sans-serif; font-size:19px; font-weight:800; color:var(--text);
+  letter-spacing:-.4px; font-variant-numeric:tabular-nums; }
+.ck-rv-plus { margin-left:5px; padding:1px 6px; border-radius:var(--r-full); background:#FFE8E8;
+  color:#B42318; font-family:"DM Sans",sans-serif; font-size:10.5px; font-weight:800; top:-2px; }
+.ck-rv-place { font-size:12px; font-weight:600; color:var(--text-sec); overflow-wrap:anywhere; }
+.ck-rv-mid { display:flex; flex-direction:column; align-items:center; gap:5px; }
+.ck-rv-rule { width:100%; height:2px; border-radius:2px; background:#DCE8FA; }
+.ck-rv-stops { font-size:11.5px; font-weight:700; color:var(--text-light); text-align:center; }
+.ck-rv-facts { display:flex; flex-direction:column; gap:5px; }
+.ck-rv-facts .ck-rv-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }
+
+.ck-rv-pax { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px 18px; }
+.ck-rv-person { display:flex; align-items:flex-start; gap:10px; }
+.ck-rv-pn { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px;
+  border-radius:50%; background:var(--blue-pale); color:var(--blue); font-size:12px; font-weight:800; flex:none; }
+.ck-rv-pbody { display:flex; flex-direction:column; gap:1px; min-width:0; }
+.ck-rv-pbody b { font-size:13.5px; font-weight:800; color:var(--text); overflow-wrap:anywhere; }
+.ck-rv-pbody b em { margin-left:6px; font-style:normal; font-size:12px; font-weight:600; color:var(--text-sec); }
+.ck-rv-pbody span { font-size:12.5px; color:var(--text-sec); }
+
+/* The customer's own words, shown as theirs. */
+.ck-rv-quote { margin-top:4px; padding:12px 14px; border-radius:var(--r-md); background:var(--blue-pale);
+  border:1px solid var(--blue-bg); font-size:13.5px; line-height:1.6; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; }
+.ck-rv-foot { display:flex; align-items:flex-start; gap:7px; margin-top:8px; font-size:12px; line-height:1.55; color:var(--text-light); }
+.ck-rv-foot svg { width:14px; height:14px; flex:none; margin-top:2px; }
+
+@media (max-width:760px) {
+  .ck-rv-row { grid-template-columns:1fr; gap:2px; }
+  .ck-rv-leg-body { grid-template-columns:1fr 1fr; gap:10px 14px; }
+  .ck-rv-mid { grid-column:1 / -1; order:3; }
+  .ck-rv-facts { grid-column:1 / -1; order:4; }
+  .ck-rv-end-r { text-align:right; }
+}

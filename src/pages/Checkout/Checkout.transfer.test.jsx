@@ -144,6 +144,10 @@ describe('the airport transfer, bought at the extras step', () => {
     await waitFor(() => expect(transferRows()).toHaveLength(3));
     await user.click(screen.getByRole('button', { name: /sedan/i }));
 
+    // "Controleer je boeking" sits between the extras and the payment sheet, so the
+    // way out of the extras leads there first.
+    await user.click(screen.getByRole('button', { name: /verder naar overzicht/i }));
+    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/overzicht/i));
     await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
     await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
     await user.click(screen.getByRole('button', { name: /bancontact/i }));
