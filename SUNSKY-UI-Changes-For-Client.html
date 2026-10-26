@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>SUNSKY Website Updates</title>
+<style>
+  @page { size: A4; margin: 16mm 14mm 14mm 14mm; }
+
+  :root {
+    --ink: #1c2430;
+    --muted: #5d6b7d;
+    --line: #dde4ec;
+    --blue: #1d5fa8;
+    --blue-bg: #eef4fb;
+    --green: #1f7a4d;
+    --amber-bg: #fdf6e7;
+    --amber-line: #e8d5a8;
+  }
+
+  * { box-sizing: border-box; }
+
+  body {
+    margin: 0;
+    font: 10.5pt/1.5 "Segoe UI", system-ui, sans-serif;
+    color: var(--ink);
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  h1 { font-size: 20pt; margin: 0 0 4px; letter-spacing: -0.2px; }
+  .sub { color: var(--muted); font-size: 10pt; margin: 0 0 18px; }
+
+  .intro {
+    background: var(--blue-bg);
+    border-radius: 6px;
+    padding: 12px 16px;
+    margin-bottom: 20px;
+    font-size: 10pt;
+  }
+  .intro p { margin: 0 0 7px; }
+  .intro p:last-child { margin-bottom: 0; }
+
+  h2 {
+    font-size: 12.5pt;
+    margin: 0 0 10px;
+    padding-bottom: 5px;
+    border-bottom: 2px solid var(--blue);
+    color: var(--blue);
+  }
+
+  .count {
+    display: inline-block;
+    background: var(--green);
+    color: #fff;
+    border-radius: 20px;
+    padding: 1px 9px;
+    font-size: 9pt;
+    font-weight: 600;
+    margin-left: 6px;
+    vertical-align: 2px;
+  }
+
+  .item {
+    border: 1px solid var(--line);
+    border-radius: 5px;
+    padding: 9px 12px;
+    margin-bottom: 8px;
+    page-break-inside: avoid;
+    break-inside: avoid;
+  }
+
+  .item h3 {
+    font-size: 10.5pt;
+    margin: 0 0 4px;
+    color: var(--ink);
+  }
+  .item h3 .n {
+    display: inline-block;
+    width: 20px;
+    color: var(--blue);
+    font-weight: 700;
+  }
+
+  .item p { margin: 0 0 4px; padding-left: 20px; }
+  .item p:last-child { margin-bottom: 0; }
+
+  .check {
+    color: var(--muted);
+    font-size: 9.5pt;
+  }
+  .check b { color: var(--ink); font-weight: 600; }
+
+  .pending { background: var(--amber-bg); border-color: var(--amber-line); }
+  .pending .why { color: #8a6a1f; font-size: 9.5pt; }
+
+  table.open { width: 100%; border-collapse: collapse; font-size: 10pt; }
+  table.open th {
+    text-align: left;
+    background: #f5f7fa;
+    padding: 7px 10px;
+    border: 1px solid var(--line);
+    font-size: 9pt;
+    text-transform: uppercase;
+    letter-spacing: 0.4px;
+    color: var(--muted);
+  }
+  table.open td { padding: 7px 10px; border: 1px solid var(--line); vertical-align: top; }
+
+  footer {
+    margin-top: 22px;
+    padding-top: 10px;
+    border-top: 1px solid var(--line);
+    color: var(--muted);
+    font-size: 9pt;
+  }
+
+  .page-break { page-break-before: always; break-before: page; }
+</style>
+</head>
+<body>
+
+<h1>SUNSKY website: what has been updated</h1>
+<p class="sub">Prepared 20 October 2026 &nbsp;·&nbsp; All items below are live on the website now</p>
+
+<div class="intro">
+  <p><b>What this document is.</b> A list of the 21 improvements to the website that are finished and online, written so you can check each one yourself. Under every item there is a short line telling you where to look.</p>
+  <p>At the end there is a short list of the 5 items that are <b>not</b> finished, and the reason for each. None of those are waiting on us.</p>
+</div>
+
+<h2>Finished and live <span class="count">21</span></h2>
+
+<div class="item">
+  <h3><span class="n">1.</span> Dates you cannot fly are now greyed out</h3>
+  <p>When you search for a flight and hotel together, the calendar greys out any day that has no possible return flight, so you cannot pick a holiday that cannot be flown. If we are not certain about a day, it stays available rather than being hidden.</p>
+  <p class="check"><b>How to check:</b> Search a flight and hotel to any destination and open the calendar. Some days are grey and cannot be clicked.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">2.</span> The calendar opens on the first month that has a flight</h3>
+  <p>If you have not chosen a date yet, the calendar jumps straight to the first month where flying is possible and tells you the earliest date. It never picks a date for you.</p>
+  <p class="check"><b>How to check:</b> Search a destination that has only a few flights. The calendar opens on that month instead of on today.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">3.</span> Hotel prices use the cheapest of the airports you chose</h3>
+  <p>The departure airports you tick on the results page now carry over to the hotel page. Each date shows the cheapest complete package from any of those airports, and tells you which airport that price is from. Before, the hotel page used only one airport for every date.</p>
+  <p class="check"><b>How to check:</b> Tick Brussels and Amsterdam, then open a hotel. One date can be from Brussels and the next from Amsterdam, whichever is cheaper.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">4.</span> Room prices compare against the room you picked</h3>
+  <p>The room you have chosen says "Selected". Every other room shows how much more or less it costs per person compared with your choice. Before, everything was compared with the cheapest room and a cheaper option never showed a minus.</p>
+  <p class="check"><b>How to check:</b> On a hotel page, pick a more expensive room. The cheaper rooms now show a minus amount.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">5.</span> Destinations you cannot reach are greyed out</h3>
+  <p>If you choose Charleroi as your departure airport, destinations with no flight from Charleroi are greyed out and say so. It also works the other way round. A country stays available if at least one place in it can be reached.</p>
+  <p class="check"><b>How to check:</b> Choose Charleroi, then open the destination list.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">6.</span> Only trip lengths that really exist can be chosen</h3>
+  <p>The trip length buttons can only be clicked when a real, complete package exists for that number of days. A length you chose earlier stays visible and marked as not available rather than disappearing.</p>
+  <p class="check"><b>How to check:</b> Pick a date on a hotel page. Some of the length buttons cannot be clicked.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">7.</span> The result count says "holidays" and shows when it is still counting</h3>
+  <p>The page now says "3,842 holidays found", or "624 holidays in Turkey" when one destination is chosen. While the total is still being worked out it says so, instead of showing a number that is only a guess.</p>
+  <p class="check"><b>How to check:</b> Change a filter on the results page and watch the number above the list.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">8.</span> Short trips offer their dates instead of a misleading price</h3>
+  <p>A "from" price is only shown for trips of at least 3 days for a city trip, or 5 days otherwise. A hotel that only has shorter trips stays in the list and offers "View available dates" instead of a price that cannot be compared with the others.</p>
+  <p class="check"><b>How to check:</b> Look for a hotel showing "View available dates" rather than a price.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">9.</span> The same wording everywhere</h3>
+  <p>The site now uses one fixed set of words: "Check price", "Not available", "Price temporarily unavailable". Before, different pages used different words for the same situation, and a slow supplier could be shown as "sold out" when it had simply not answered yet.</p>
+  <p class="check"><b>How to check:</b> Compare the wording on the results page and the hotel page. They match.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">10.</span> One flight routing switch instead of three options</h3>
+  <p>There is now a single setting with two positions: all permitted flights, or direct outbound and return only. Turning it off goes back to all permitted routes and can never offer a route the destination does not allow.</p>
+  <p class="check"><b>How to check:</b> On the results page, switch it on and off. The count and the prices update.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">11.</span> Number of hotels shown next to each destination</h3>
+  <p>The destination filter shows how many hotels each place has, for example "Turkey 624, Spain 811". A hotel is counted once even if you have selected both the country and the city.</p>
+  <p class="check"><b>How to check:</b> Open the destination filter on the results page.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">12.</span> Flight-only search is now instant</h3>
+  <p>Flight results come from our own stored data in a fraction of a second, and we only contact the airline once, at the moment the customer presses Select. The customer is told before booking if the price has changed or the flight has gone.</p>
+  <p class="check"><b>How to check:</b> Use the Flights search. Results appear almost immediately.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">13.</span> Sorting no longer puts unrated hotels first</h3>
+  <p>Sorting by stars from 1 to 5 used to begin with every hotel that has no star rating, which made the list look like it was full of bad hotels. Hotels without a rating now come last whichever direction you sort in. The order also stays the same every time you reload instead of shuffling.</p>
+  <p class="check"><b>How to check:</b> Sort by "Stars: 1 to 5". Rated hotels come first, unrated ones at the end.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">14.</span> Popular departure airports appear first</h3>
+  <p>The airports you mark as Popular in the dashboard now appear at the top of every departure airport list. This changes the order only. It never changes a price, and the cheapest package can still depart from an airport that is not marked popular.</p>
+  <p class="check"><b>How to check:</b> Mark an airport Popular in the dashboard, then open a departure airport list on the website.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">15.</span> Category pages are for navigation, not prices</h3>
+  <p>Zonvakanties, Stedentrips, All Inclusive and Last Minute now open a page listing the places they cover, with no prices on it. Choosing a place keeps the category and adds that place. "Toon alles" keeps the category and shows everything in it.</p>
+  <p class="check"><b>How to check:</b> Click Stedentrips on the homepage, then Barcelona. The results stay within Stedentrips.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">16.</span> Last Minute and All Inclusive now behave correctly</h3>
+  <p>Last Minute starts with a travel period of today up to 42 days ahead, shown in the search summary, which the customer can change. All Inclusive now keeps only offers whose actual room rate is all inclusive, rather than hotels that merely carry the label.</p>
+  <p class="check"><b>How to check:</b> Click Last Minute on the homepage. The dates are already filled in and can be changed.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">17.</span> A homepage card can carry its own travel period</h3>
+  <p>If you set a start and end date on a card in the dashboard, that period is applied to the start of the trip. As soon as the customer changes the dates themselves, their choice replaces it.</p>
+  <p class="check"><b>How to check:</b> Set a date range on a card in the dashboard and click that card on the website.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">18.</span> A customer's own choice is never replaced silently</h3>
+  <p>What the customer chose always takes priority over anything the site filled in automatically. Changing one thing changes only that thing. Switching between hotel only and flight plus hotel keeps the destination, travellers, dates and meal plan.</p>
+  <p class="check"><b>How to check:</b> Search a flight and hotel, then switch to hotel only. Your destination, dates and travellers stay.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">19.</span> The filter list has been cleaned up</h3>
+  <p>"Soort vakantie" and "Soort kamer" have been removed. Themes now include Adults Only and Family. The star filter now includes hotels with no official star classification as their own option, instead of treating them as missing data.</p>
+  <p class="check"><b>How to check:</b> Open the filters on the results page.</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">20.</span> The alternative flights panel is simpler</h3>
+  <p>The flight you already have is shown separately and is no longer repeated in the list below. Flights load 20 at a time. Each one shows how much more or less it costs per person against your complete package including the hotel, not just against the flight on its own.</p>
+  <p class="check"><b>How to check:</b> On a hotel page, click "Kies andere vlucht".</p>
+</div>
+
+<div class="item">
+  <h3><span class="n">21.</span> "Calculating" instead of a price for the wrong party</h3>
+  <p>Prices are prepared in advance only for 2 adults in 1 room. For any other party, for example 3 adults or a family with children, the price is worked out on request and the page says it is calculating. It will never show a 2 adult price to someone searching for 3.</p>
+  <p class="check"><b>How to check:</b> Search for 3 adults. The cards say they are calculating before the prices appear.</p>
+</div>
+
+<div class="page-break"></div>
+
+<h2>Not finished yet <span class="count" style="background:#b26a00">5</span></h2>
+
+<p style="margin-top:0;color:#5d6b7d;font-size:10pt">
+  None of these are waiting on website work. Four need something from the supplier side first, and one belongs in the dashboard rather than the website.
+</p>
+
+<table class="open">
+  <thead>
+    <tr><th style="width:38%">Item</th><th>Why it is not done</th></tr>
+  </thead>
+  <tbody>
+    <tr>
+      <td>Ask before removing an airport that does not fit a new destination</td>
+      <td>Needs a change on the supplier data side before the website can show the warning.</td>
+    </tr>
+    <tr>
+      <td>Compulsory local costs shown next to the price, for example a tourist tax</td>
+      <td>The tax amounts are not yet included in the hotel rates we receive. Once they are supplied, the website can print them.</td>
+    </tr>
+    <tr>
+      <td>Filter counts calculated on complete offers only</td>
+      <td>Needs new counting on the supplier data side, which has to be designed first.</td>
+    </tr>
+    <tr>
+      <td>Hotels only available at World2Meet shown as a separate group</td>
+      <td>Waiting for the World2Meet availability list.</td>
+    </tr>
+    <tr>
+      <td>System monitoring page</td>
+      <td>This is a dashboard screen, not part of the public website. It can be built whenever you want it.</td>
+    </tr>
+  </tbody>
+</table>
+
+<footer>
+  If anything in this list does not behave as described when you check it, please tell us which number it is and what you saw, and we will look at that one directly.
+</footer>
+
+</body>
+</html>
