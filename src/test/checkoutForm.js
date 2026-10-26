@@ -79,7 +79,7 @@ export const fillContact = ({
   fill('land', country);
   fill('telefoonnummer', phone);
   fill('e-mailadres', email);
-  fill('noodnummer', emergencyPhone);
+  fill('telefoonnummer contactpersoon', emergencyPhone);
 };
 
 /** Company details, once "I am a business customer" is ticked. */

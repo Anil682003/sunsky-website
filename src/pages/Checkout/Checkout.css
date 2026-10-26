@@ -569,6 +569,9 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
 .ck-bagkind-text { display:flex; flex-direction:column; gap:3px; min-width:0; }
 .ck-bagkind-text b { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--text); letter-spacing:-.2px; }
 .ck-bagkind-text > span { font-size:12.5px; color:var(--text-sec); line-height:1.55; }
+/* The airline's own rules, set a step quieter than the description above it: it qualifies
+   that line rather than competing with it. */
+.ck-bagkind-hint { font-style:normal; font-size:11.5px; line-height:1.5; color:var(--text-light); }
 .ck-kind-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
 .ck-kind-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:var(--r-full);
   background:var(--blue-pale); border:1px solid var(--blue-bg); font-size:11.5px; font-weight:700; color:var(--blue); }
@@ -775,6 +778,10 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   background:var(--blue-pale); border:1px solid var(--border-light); }
 .ck-ins-legal svg { width:16px; height:16px; flex:none; color:var(--blue); margin-top:1px; }
 .ck-ins-legal p { font-size:12.5px; line-height:1.6; color:var(--text-sec); }
+/* The conditions link sits inside that paragraph, so it is underlined rather than made
+   into a button: it is a reference inside a sentence, not an action on the booking. */
+.ck-ins-terms { color:var(--blue); font-weight:700; text-decoration:underline; text-underline-offset:2px; }
+.ck-ins-terms:hover { color:var(--blue-dark, var(--blue)); }
 
 /* ════ AIRPORT TRANSFER (extras step) ════
    A radio list, not cards: one choice for the whole booking, read top to bottom against one
@@ -796,6 +803,15 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 .ck-tr-name em { font-style:normal; padding:2px 8px; border-radius:var(--r-full); background:var(--border-light);
   font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--text-sec); }
 .ck-tr-sub { font-size:12px; color:var(--text-sec); overflow-wrap:anywhere; }
+/* The product category ("Premium"), which is the only thing separating two otherwise
+   identical shuttle rows, and the legs the price actually covers. */
+.ck-tr-cat { display:inline-block; margin-left:8px; padding:2px 8px; border-radius:var(--r-full);
+  background:var(--blue-pale); border:1px solid var(--blue-bg); font-family:inherit;
+  font-size:11px; font-weight:800; color:var(--blue); letter-spacing:.01em; vertical-align:middle; }
+.ck-tr-legs { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:6px; }
+.ck-tr-leg { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; color:var(--green, #0B7A57); }
+.ck-tr-leg svg { width:13px; height:13px; }
+.ck-tr-leg.off { color:var(--text-light); font-weight:600; }
 .ck-tr-price { flex:none; display:flex; flex-direction:column; align-items:flex-end; line-height:1.15;
   font-family:'Sora',sans-serif; font-size:17px; font-weight:800; color:var(--text);
   font-variant-numeric:tabular-nums lining-nums; }

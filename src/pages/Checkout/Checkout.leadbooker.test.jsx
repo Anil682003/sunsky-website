@@ -106,13 +106,13 @@ describe('traveller 1 is also the lead booker', () => {
 
     fill('telefoonnummer', '+32475123456');
     fill('e-mailadres', 'ali@example.com');
-    fill('noodnummer', '+32476987654');
+    fill('telefoonnummer contactpersoon', '+32476987654');
     await user.type(trav('voornaam'), 'Ali');
 
     // A traveller edit does not disturb them, and the traveller card never asked for them.
     expect(fieldByLabel('telefoonnummer').querySelector('input')).toHaveValue('+32475123456');
     expect(fieldByLabel('e-mailadres').querySelector('input')).toHaveValue('ali@example.com');
-    expect(fieldByLabel('noodnummer').querySelector('input')).toHaveValue('+32476987654');
+    expect(fieldByLabel('telefoonnummer contactpersoon').querySelector('input')).toHaveValue('+32476987654');
     expect(fieldByLabel('e-mailadres', travCard())).toBeUndefined();
   });
 
@@ -150,6 +150,6 @@ describe('traveller 1 is also the lead booker', () => {
     expect(document.querySelectorAll('.ck-leadbook')).toHaveLength(1);
     expect(travCard(0).querySelector('.ck-leadbook')).toBeTruthy();
     expect(travCard(1).querySelector('.ck-leadbook')).toBeFalsy();
-    expect(screen.getByText(/deze reiziger is ook de hoofdboeker/i)).toBeInTheDocument();
+    expect(screen.getByText(/deze reiziger is ook de boeker en contactpersoon/i)).toBeInTheDocument();
   });
 });

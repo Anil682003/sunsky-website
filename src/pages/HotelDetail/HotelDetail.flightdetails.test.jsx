@@ -128,7 +128,7 @@ describe('the flight-details dialog', () => {
     expect(document.querySelectorAll('.fdm-table')).toHaveLength(2);
     const heads = [...document.querySelectorAll('.fdm-table thead th')]
       .slice(0, 6).map((th) => th.textContent);
-    expect(heads.join('|')).toMatch(/Persoonlijk item/);
+    expect(heads.join('|')).toMatch(/Kleine handbagage/);
     expect(heads.join('|')).toMatch(/Handbagage/);
     expect(heads.join('|')).toMatch(/Ruimbagage/);
 

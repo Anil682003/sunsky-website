@@ -309,6 +309,16 @@ const friendlyReprice = (err) => {
 };
 const phoneOk = (v) => /^\+[1-9]\d{6,14}$/.test((v || '').replace(/[\s\-.()]/g, ''));
 
+/**
+ * A phone number is stored the way it is dialled: a leading +, digits, nothing else.
+ *
+ * The backend matches and dials on this value, and "+32 475 12 34 56" and "+32475123456"
+ * are one number to a person and two strings to everything else. Applied in the writers
+ * rather than on submit, so what the traveller sees in the box is what the booking carries.
+ */
+const PHONE_KEYS = ['phone', 'emergencyPhone'];
+const stripPhone = (v) => (typeof v === 'string' ? v.replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '') : v);
+
 const ageFromDob = (dob) => {
   const b = new Date(dob); const now = new Date();
   let a = now.getFullYear() - b.getFullYear();
@@ -410,7 +420,7 @@ const Field = ({ label, req, err, hint, ok, children, span }) => (
  * The prices to ADD are SunSky's, from the dashboard: no supplier sells us an ancillary yet,
  * so anything bought here is arranged by hand with the airline afterwards.
  */
-const BaggageCard = ({ icon, title, note, legend, children }) => {
+const BaggageCard = ({ icon, title, note, hint, legend, children }) => {
   const { t } = useTranslation('checkout');
   return (
     <section className="ck-card ck-reveal">
@@ -425,6 +435,10 @@ const BaggageCard = ({ icon, title, note, legend, children }) => {
         <div className="ck-bagkind-text">
           <b>{title}</b>
           <span>{note}</span>
+          {/* Whose rules these are. The allowance printed above is the one on the fare, but
+              the box it has to fit in belongs to the airline, and those differ — so the
+              traveller is sent to the only authority on it rather than left to assume. */}
+          {hint && <em className="ck-bagkind-hint">{hint}</em>}
         </div>
       </div>
       {children}
@@ -615,6 +629,54 @@ function CheckoutContent({ stripe, elements }) {
     primaryContactRole: '', preferredLanguage: 'en',
   });
   const [travellers, setTravellers] = useState(() => seedTravellers(booking, user));
+
+  /* ── what the account already knows ──────────────────────────────────────────
+     A signed-in customer has told us their name, address and date of birth once already,
+     when they registered or on an earlier booking. The sign-in panel above says we have
+     pre-filled their details, but only the name, email and phone travelled on the token —
+     everything else was still an empty form under a message saying it was filled in.
+
+     So the full customer record is fetched once per visit and folded in. Only EMPTY fields
+     are written: anything already typed in this session is the newer answer and stays. The
+     emergency contact is deliberately left alone — it is not on the customer record (there
+     is no column for it yet), and it is the one field this form genuinely has to ask for.
+
+     A professional booker is mapped through their primary-contact fields, which is where
+     that record keeps the person as opposed to the company. */
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    let gone = false;
+    axiosInstance.get(ENDPOINTS.me)
+      .then(({ data }) => {
+        if (gone) return;
+        const cp = (data?.data || data)?.customerProfile;
+        if (!cp) return;
+        const pro = cp.type === 'professional';
+        const from = {
+          firstName: pro ? cp.primaryContactFirstName : cp.firstName,
+          lastName: (pro ? cp.primaryContactLastName : cp.lastName || "").toUpperCase(),
+          dateOfBirth: cp.dateOfBirth ? String(cp.dateOfBirth).slice(0, 10) : "",
+          gender: cp.gender || "",
+          nationality: cp.nationality || "",
+          email: pro ? cp.primaryContactEmail : cp.email,
+          phone: pro ? cp.primaryContactPhone : cp.phone,
+          street: cp.street, houseNumber: cp.houseNumber, boxNumber: cp.boxNumber,
+          postalCode: cp.postalCode, city: cp.city, country: cp.country,
+        };
+        setPriv((cur) => {
+          const next = { ...cur };
+          let touched = false;
+          for (const [k, v] of Object.entries(from)) {
+            const raw = typeof v === 'string' ? v.trim() : v;
+            const val = PHONE_KEYS.includes(k) ? stripPhone(raw) : raw;
+            if (val && !String(cur[k] || "").trim()) { next[k] = val; touched = true; }
+          }
+          return touched ? next : cur;
+        });
+      })
+      .catch(() => {});   // an account we cannot read is simply an empty form, as before
+    return () => { gone = true; };
+  }, [isAuthenticated]);
 
   /* ── the name check, between step 1 and the extras ──
      A misspelled name is the one checkout mistake the traveller pays for later: airlines
@@ -843,8 +905,10 @@ function CheckoutContent({ stripe, elements }) {
        trip, the trip is cancelled), so it is a single yes/no;
      — travel cover is per traveller, because it insures a person: a family can cover the
        children and not the adult who is already covered by a card.
-     `null` on either means "not answered yet" — different from "no", so the step can ask. */
-  const [cancelIns, setCancelIns] = useState(null);
+     Both start at NO, and nothing on this step is gated on answering: cover is opted INTO.
+     An unanswered question that defaults to a charge is how people end up insured without
+     meaning to be, so the traveller has to click the policy to buy it. */
+  const [cancelIns, setCancelIns] = useState(false);
   const [travelIns, setTravelIns] = useState({});
   // The policy holder is the lead traveller. It stopped being a question when travel cover
   // became per-traveller: each policy already names the person it covers.
@@ -915,8 +979,45 @@ function CheckoutContent({ stripe, elements }) {
      at this step, and never for a traveller who said they are making their own way there. */
   const [transfers, setTransfers] = useState(null);      // {loading|error|services[]|pickupISO}
   const [transferPick, setTransferPick] = useState(-1);  // -1 = no transfer (opt-in, always)
-  const pickedTransfer = (transferPick >= 0 && transfers?.services?.length)
-    ? transfers.services[transferPick] : null;
+  /* ── one product, two legs ───────────────────────────────────────────────────
+     The supplier answers a return search with a service PER DIRECTION, so a single
+     shuttle came back as two rows that read as two identical products — which is exactly
+     what they looked like on screen. They are folded back into the product they belong to:
+     one row per vehicle-and-category, carrying its arrival leg, its departure leg and the
+     sum of the two, so the price shown is the price of getting there AND back.
+
+     The category is part of the identity, not decoration: "Shuttle" and "Shuttle Premium"
+     are different products at different prices, and without it they were one row twice. */
+  const transferOptions = useMemo(() => {
+    const svcs = transfers?.services || [];
+    if (!svcs.length) return [];
+    const dirOf = (s) => String(s.direction || '').toUpperCase();
+    const idOf = (s) => [s.transferType, s.vehicleCode || s.vehicle, s.categoryCode || s.category].join('|');
+    const byId = new Map();
+    for (const svc of svcs) {
+      const id = idOf(svc);
+      const slot = byId.get(id) || { id, arrival: null, departure: null };
+      if (dirOf(svc) === 'DEPARTURE') slot.departure = slot.departure || svc;
+      else slot.arrival = slot.arrival || svc;
+      byId.set(id, slot);
+    }
+    return [...byId.values()]
+      .map((o) => {
+        const legs = [o.arrival, o.departure].filter(Boolean);
+        const lead = o.arrival || o.departure;
+        return {
+          ...o,
+          legs,
+          lead,
+          roundTrip: legs.length > 1,
+          price: legs.reduce((n, l) => n + (Number(l.price) || 0), 0),
+        };
+      })
+      .filter((o) => o.lead)
+      .sort((a, b) => a.price - b.price);
+  }, [transfers]);
+  const pickedOption = transferPick >= 0 ? transferOptions[transferPick] || null : null;
+  const pickedTransfer = pickedOption?.lead || null;
 
   /* ── step 3 : payment ── */
   const [payMethod, setPayMethod] = useState('card');
@@ -975,8 +1076,8 @@ function CheckoutContent({ stripe, elements }) {
   // so it is never multiplied by the traveller count. A transfer-only booking has it in
   // `base` already. `booking.api.transfer` is the legacy path — hand-offs from before the
   // transfer moved to this page can still carry one.
-  const transferTotal = !isTransfer && pickedTransfer
-    ? Math.round(Number(pickedTransfer.price) || 0)
+  const transferTotal = !isTransfer && pickedOption
+    ? Math.round(Number(pickedOption.price) || 0)
     : (!isTransfer && booking.api?.transfer ? Math.round(Number(booking.api.transfer.price) || 0) : 0);
   const serviceFee = Number(pricing?.fees?.serviceFee);
   const SGR = Number.isFinite(serviceFee) ? serviceFee : SGR_FEE;
@@ -1245,6 +1346,18 @@ function CheckoutContent({ stripe, elements }) {
     const arr = outLegs.length ? outLegs[outLegs.length - 1]?.arrival : null;
     return arr && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(arr)) ? `${String(arr).slice(0, 16)}:00` : null;
   })();
+  /* The ride BACK. A transfer is sold as a return by default — a traveller dropped at a
+     hotel has to get to the airport again, and quoting only the arrival leg gave a price
+     for half the journey. The pickup is timed off the return flight when there is one;
+     without it, the morning of check-out is the honest guess, and the supplier returns a
+     window rather than a promise either way. */
+  const returnISO = (() => {
+    const legs = booking.api?.flight?.legs || [];
+    if (booking.api?.flight?.tripType !== 'roundtrip' || legs.length < 2) return null;
+    const back = legs.slice(Math.ceil(legs.length / 2));
+    const dep = back[0]?.departure;
+    return dep && /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}/.test(String(dep)) ? `${String(dep).slice(0, 16)}:00` : null;
+  })();
   const wantsTransfer = !isTransfer && !isFlight && srch.transport !== 'hotel_only'
     && !!srch.destination && !!(booking.api?.hotel?.hotelCode || booking.hotelCode);
   useEffect(() => {
@@ -1252,14 +1365,17 @@ function CheckoutContent({ stripe, elements }) {
     const checkin = srch.checkin || booking.api?.hotel?.checkin;
     if (!checkin) return;
     const outbound = arrivalISO || `${checkin}T12:00:00`;
+    const checkout = srch.checkout || booking.api?.hotel?.checkout;
+    const inbound = returnISO || (checkout ? `${checkout}T09:00:00` : null);
     setTransfers({ loading: true });
     axiosInstance.post('/transfer-availability/search', {
       fromType: 'IATA', fromCode: srch.destination,
       toType: 'ATLAS', toCode: String(booking.api?.hotel?.hotelCode || booking.hotelCode),
       outbound,
+      ...(inbound ? { inbound } : {}),
       adults: Number(srch.adults) || pax, children: Number(srch.children) || 0, infants: 0,
     })
-      .then(({ data }) => setTransfers({ services: data?.results?.hotelbeds?.services || [], pickupISO: outbound }))
+      .then(({ data }) => setTransfers({ services: data?.results?.hotelbeds?.services || [], pickupISO: outbound, returnISO: inbound }))
       .catch((e) => setTransfers({ error: friendlyReprice(e), pickupISO: outbound }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, wantsTransfer]);
@@ -1293,6 +1409,8 @@ function CheckoutContent({ stripe, elements }) {
    */
   const capsIf = (k, v) => (k === 'lastName' && typeof v === 'string' ? v.toUpperCase() : v);
 
+  const dialIf = (k, v) => (PHONE_KEYS.includes(k) ? stripPhone(v) : v);
+
   /**
    * Choosing the address country starts the phone number off with that country's dialling
    * code — the country is asked for immediately above the phone, so by the time someone
@@ -1312,7 +1430,7 @@ function CheckoutContent({ stripe, elements }) {
       return next;
     });
   };
-  const setP = (k) => (v) => { const nv = capsIf(k, v); setPriv((p) => ({ ...p, [k]: nv })); setErrors((e) => ({ ...e, [`priv.${k}`]: undefined })); };
+  const setP = (k) => (v) => { const nv = dialIf(k, capsIf(k, v)); setPriv((p) => ({ ...p, [k]: nv })); setErrors((e) => ({ ...e, [`priv.${k}`]: undefined })); };
   const setB = (k) => (v) => { setPro((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [`pro.${k}`]: undefined })); };
   // The five facts traveller 1 and the lead booker share while they are the same person.
   const SHARED_WITH_LEAD = ['firstName', 'lastName', 'gender', 'dateOfBirth', 'nationality'];
@@ -1602,7 +1720,30 @@ function CheckoutContent({ stripe, elements }) {
             // The EXACT datetime the shown price was fetched with — the rateKey encodes it
             // as the booked pickup time.
             outbound: transfers?.pickupISO || `${srch.checkin}T12:00:00`,
-            price: pickedTransfer.price, currency: 'EUR',
+            // Both directions when the supplier offered both. `roundTrip` is the flag the
+            // booking controller reads to reserve one leg per direction; the flat fields
+            // below stay as they were, so a one-way transfer books exactly as before.
+            ...(pickedOption?.roundTrip ? {
+              roundTrip: true,
+              transferMoment: 'RoundTrip',
+              inbound: transfers?.returnISO || undefined,
+              arrivalLeg: {
+              rateKey: pickedOption.arrival.rateKey,
+              direction: pickedOption.arrival.direction,
+              vehicle: pickedOption.arrival.vehicle, vehicleCode: pickedOption.arrival.vehicleCode,
+              from: pickedOption.arrival.pickup?.from, to: pickedOption.arrival.pickup?.to,
+                outbound: transfers?.pickupISO || undefined,
+                flightFlightNumber: (arrivalLeg?.flightNumber || '').slice(0, 7) || undefined,
+              },
+              departureLeg: {
+              rateKey: pickedOption.departure.rateKey,
+              direction: pickedOption.departure.direction,
+              vehicle: pickedOption.departure.vehicle, vehicleCode: pickedOption.departure.vehicleCode,
+              from: pickedOption.departure.pickup?.from, to: pickedOption.departure.pickup?.to,
+                outbound: transfers?.returnISO || undefined,
+              },
+            } : {}),
+            price: pickedOption.price, currency: 'EUR',
             rateKey: pickedTransfer.rateKey,
             transferType: pickedTransfer.transferType, vehicleCode: pickedTransfer.vehicleCode,
             vehicle: pickedTransfer.vehicle, direction: pickedTransfer.direction,
@@ -2091,7 +2232,7 @@ function CheckoutContent({ stripe, elements }) {
                       <div className="ck-row">
                         <Field label={t('checkout:fields.phoneNumber', 'Phone number')} req err={errors['priv.phone']} ok={phoneOk(priv.phone)}
                           hint={t('checkout:fields.phoneFormatHint', 'International format, e.g. +32 475 12 34 56')}>
-                          <input className="ck-input" type="tel" value={priv.phone} onChange={(e) => setP('phone')(e.target.value)} placeholder="+32 475 12 34 56" maxLength={30} />
+                          <input className="ck-input" type="tel" value={priv.phone} onChange={(e) => setP('phone')(e.target.value)} placeholder="+32475123456" maxLength={30} />
                         </Field>
                         <Field label={t('checkout:fields.emailAddress', 'Email address')} req err={errors['priv.email']} ok={emailOk(priv.email) && emailTaken === false}>
                           <input className="ck-input" type="email" value={priv.email}
@@ -2130,7 +2271,7 @@ function CheckoutContent({ stripe, elements }) {
                         hint={t('checkout:fields.emergencyPhoneHint', 'Someone we can reach who is not travelling with you')}>
                         <input className="ck-input" type="tel" value={priv.emergencyPhone}
                           onChange={(e) => setP('emergencyPhone')(e.target.value)}
-                          placeholder="+32 476 98 76 54" maxLength={30} />
+                          placeholder="+32476987654" maxLength={30} />
                       </Field>
                     </div>
                   </section>
@@ -2154,7 +2295,6 @@ function CheckoutContent({ stripe, elements }) {
                               four identical blocks of fields. The courtesy title comes from the
                               gender rather than from a fourth dropdown nobody wants to fill. */}
                           <div className="ck-trav-head">
-                            <div className="ck-trav-av">{i + 1}</div>
                             <div className="ck-trav-name hd">
                               {t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' })}
                               {(trav.firstName || trav.lastName) && (
@@ -2360,6 +2500,7 @@ function CheckoutContent({ stripe, elements }) {
                       icon={ICON.bag}
                       title={bagRates?.personalItem?.label || t('checkout:baggage.personalItem', 'Personal item')}
                       note={bagRates?.personalItem?.note || t('checkout:baggage.personalItemNote', 'A small personal item that fits under the seat in front of you.')}
+                      hint={t('checkout:baggage.airlineVaries', 'Permitted dimensions and weight vary by airline. Check the website of the airline you are flying with for the correct information.')}
                       legend={<><span className="ck-lg ok">{ICON.check} {t('checkout:baggage.includedInTicket', 'Included in your ticket')}</span></>}>
                       {travellers.map((trav, i) => (
                         <BagTraveller key={i} index={i} name={travellerName(trav)}>
@@ -2385,6 +2526,7 @@ function CheckoutContent({ stripe, elements }) {
                       icon={ICON.cabinBag}
                       title={bagRates?.cabin?.label || t('checkout:baggage.cabinBaggage', 'Cabin baggage')}
                       note={bagRates?.cabin?.note || t('checkout:baggage.cabinBaggageNote', 'A cabin bag that is stored in the overhead compartment.')}
+                      hint={t('checkout:baggage.airlineVaries', 'Permitted dimensions and weight vary by airline. Check the website of the airline you are flying with for the correct information.')}
                       legend={<><span className="ck-lg ok">{ICON.check} {t('checkout:baggage.includedInTicket', 'Included in your ticket')}</span><span className="ck-lg add">{ICON.plusCircle} {t('checkout:baggage.availableToAdd', 'Available to add')}</span></>}>
                       {travellers.map((trav, i) => (
                         <BagTraveller key={i} index={i} name={travellerName(trav)}>
@@ -2512,23 +2654,35 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   ) : transfers?.services?.length ? (
                     <div className="ck-tr-list">
-                      {transfers.services.slice(0, 5).map((svc, ti) => (
-                        <button type="button" key={ti}
+                      {transferOptions.slice(0, 5).map((opt, ti) => (
+                        <button type="button" key={opt.id}
                           className={`ck-tr${transferPick === ti ? ' act' : ''}`}
                           onClick={() => setTransferPick(ti)}>
                           <span className="ck-tr-radio">{transferPick === ti && <i />}</span>
                           <span className="ck-tr-main">
                             <span className="ck-tr-name hd">
-                              {svc.vehicle || t('checkout:transfer.transfer', 'Transfer')}
-                              <em>{svc.transferType === 'SHARED' ? t('checkout:transfer.shared', 'Shared') : t('checkout:transfer.private', 'Private')}</em>
+                              {opt.lead.vehicle || t('checkout:transfer.transfer', 'Transfer')}
+                              {/* Two shuttles at two prices are two products, and the category
+                                  is the only thing that says which is which. Without it the
+                                  rows read as the same transfer listed twice. */}
+                              {opt.lead.category && <span className="ck-tr-cat">{opt.lead.category}</span>}
+                              <em>{opt.lead.transferType === 'SHARED' ? t('checkout:transfer.shared', 'Shared') : t('checkout:transfer.private', 'Private')}</em>
                             </span>
                             <span className="ck-tr-sub">
-                              {svc.pickup?.from || t('checkout:transfer.destinationAirport', { destination: srch.destination, defaultValue: '{{destination}} Airport' })} → {svc.pickup?.to || booking.hotelName}
-                              {svc.maxPax ? ` · ${t('checkout:transfer.upToPassengers', { count: svc.maxPax, defaultValue: 'up to {{count}} passengers' })}` : ''}
+                              {opt.lead.pickup?.from || t('checkout:transfer.destinationAirport', { destination: srch.destination, defaultValue: '{{destination}} Airport' })} → {opt.lead.pickup?.to || booking.hotelName}
+                              {opt.lead.maxPax ? ` · ${t('checkout:transfer.upToPassengers', { count: opt.lead.maxPax, defaultValue: 'up to {{count}} passengers' })}` : ''}
+                            </span>
+                            {/* What the price buys, named leg by leg. A return that is not
+                                offered says so here rather than being discovered later. */}
+                            <span className="ck-tr-legs">
+                              {opt.arrival && <span className="ck-tr-leg">{ICON.check} {t('checkout:transfer.legArrival', 'Airport → hotel')}</span>}
+                              {opt.departure
+                                ? <span className="ck-tr-leg">{ICON.check} {t('checkout:transfer.legReturn', 'Hotel → airport')}</span>
+                                : <span className="ck-tr-leg off">{t('checkout:transfer.arrivalOnly', 'Arrival only — no return offered')}</span>}
                             </span>
                           </span>
                           <span className="ck-tr-price">
-                            <small>{t('checkout:transfer.total', 'total')}</small>{money(svc.price)}
+                            <small>{opt.roundTrip ? t('checkout:transfer.returnTotal', 'return, total') : t('checkout:transfer.total', 'total')}</small>{money(opt.price)}
                           </span>
                         </button>
                       ))}
@@ -2541,7 +2695,9 @@ function CheckoutContent({ stripe, elements }) {
                         </span>
                         <span className="ck-tr-price"><small>{t('checkout:transfer.total', 'total')}</small>{money(0)}</span>
                       </button>
-                      <p className="ck-tr-note">{ICON.check} {t('checkout:transfer.pricesForWholeParty', 'Prices are for the whole party and cover the airport pickup on arrival day.')}</p>
+                      <p className="ck-tr-note">{ICON.check} {transferOptions.some((o) => o.roundTrip)
+                        ? t('checkout:transfer.pricesReturnWholeParty', 'Prices are for the whole party and cover both the airport pickup on arrival and the return to the airport.')
+                        : t('checkout:transfer.pricesForWholeParty', 'Prices are for the whole party and cover the airport pickup on arrival day.')}</p>
                     </div>
                   ) : transfers ? (
                     <div className="ck-tr-err">{ICON.ban} <span>{t('checkout:transfer.noneOffered', 'No transfers are offered for this hotel on your arrival date.')}</span></div>
@@ -2595,13 +2751,23 @@ function CheckoutContent({ stripe, elements }) {
                       <span className="ck-tr-price"><small>{t('checkout:transfer.total', 'total')}</small>{money(0)}</span>
                     </button>
                   </div>
-                  {cancelIns === null && <p className="ck-pick-note">{t('checkout:insurance.selectOneToContinue', 'Please select one option to continue.')}</p>}
 
                   {cancelOption.provider && (
                     <div className="ck-ins-legal">
                       {ICON.shield}
                       <p>
-                        {t('checkout:insurance.intermediaryNotice', 'SUNSKY acts solely as an insurance intermediary. For complete information about the insurance, its coverage, exclusions and policy terms, please refer to the insurer\'s own documents.')}
+                        {t('checkout:insurance.intermediaryNoticeCancel', { provider: cancelOption.provider, defaultValue: "SUNSKY offers this cancellation insurance as an exempt ancillary insurance intermediary, in cooperation with {{provider}}. For information about the cover, exclusions and conditions, please consult the insurance documents of {{provider}}." })}
+                        {/* The conditions themselves. A notice that points at documents and
+                            then does not hand them over is the half that matters missing — so
+                            the link shows when one is configured, and never as dead text. */}
+                        {cancelOption.termsUrl && (
+                          <>
+                            {' '}
+                            <a className="ck-ins-terms" href={cancelOption.termsUrl} target="_blank" rel="noopener noreferrer">
+                              {t('checkout:insurance.viewCover', 'View the cover and policy conditions')}
+                            </a>
+                          </>
+                        )}
                       </p>
                     </div>
                   )}
@@ -2655,9 +2821,9 @@ function CheckoutContent({ stripe, elements }) {
                             </span>
                             <span className="ck-tr-price"><small>{t('checkout:transfer.total', 'total')}</small>{money(each)}</span>
                           </button>
-                          <button type="button" className={`ck-tr${travelIns[i] === false ? ' act' : ''}`}
+                          <button type="button" className={`ck-tr${travelIns[i] !== true ? ' act' : ''}`}
                             onClick={() => setTravelIns((v) => ({ ...v, [i]: false }))}>
-                            <span className="ck-tr-radio">{travelIns[i] === false && <i />}</span>
+                            <span className="ck-tr-radio">{travelIns[i] !== true && <i />}</span>
                             <span className="ck-tr-main">
                               <span className="ck-tr-name hd">{t('checkout:insurance.noTravel', 'No travel insurance')}</span>
                               <span className="ck-tr-sub">{t('checkout:insurance.continueWithoutTravel', 'Continue without travel insurance')}</span>
@@ -2668,15 +2834,23 @@ function CheckoutContent({ stripe, elements }) {
                       </div>
                     );
                   })}
-                  {travellers.some((_, i) => travelIns[i] === undefined) && (
-                    <p className="ck-pick-note">{t('checkout:insurance.selectOneEachToContinue', 'Please select one option for each traveller to continue.')}</p>
-                  )}
 
                   {travelOption.provider && (
                     <div className="ck-ins-legal">
                       {ICON.shield}
                       <p>
-                        {t('checkout:insurance.intermediaryNotice', 'SUNSKY acts solely as an insurance intermediary. For complete information about the insurance, its coverage, exclusions and policy terms, please refer to the insurer\'s own documents.')}
+                        {t('checkout:insurance.intermediaryNoticeTravel', { provider: travelOption.provider, defaultValue: "SUNSKY offers this travel insurance as an exempt ancillary insurance intermediary, in cooperation with {{provider}}. For information about the cover, exclusions and conditions, please consult the insurance documents of {{provider}}." })}
+                        {/* The conditions themselves. A notice that points at documents and
+                            then does not hand them over is the half that matters missing — so
+                            the link shows when one is configured, and never as dead text. */}
+                        {travelOption.termsUrl && (
+                          <>
+                            {' '}
+                            <a className="ck-ins-terms" href={travelOption.termsUrl} target="_blank" rel="noopener noreferrer">
+                              {t('checkout:insurance.viewCover', 'View the cover and policy conditions')}
+                            </a>
+                          </>
+                        )}
                       </p>
                     </div>
                   )}

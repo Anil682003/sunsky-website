@@ -160,7 +160,9 @@ describe('the phone number starts from the address country', () => {
     await user.type(phone(), '+44 7700 900123');      // a UK mobile on a Belgian address
 
     fill('land', 'Netherlands', contactFields());
-    expect(phone()).toHaveValue('+44 7700 900123');
+    // Stored as dialled: the field strips spaces as they are typed, because the backend
+    // matches on this string.
+    expect(phone()).toHaveValue('+447700900123');
   });
 
   it('leaves the field alone for a country it cannot place', async () => {
@@ -178,6 +180,6 @@ describe('the phone number starts from the address country', () => {
     expect(phone()).toBeEnabled();
 
     await user.type(phone(), '475 12 34 56');
-    expect(phone()).toHaveValue('+32 475 12 34 56');
+    expect(phone()).toHaveValue('+32475123456');
   });
 });

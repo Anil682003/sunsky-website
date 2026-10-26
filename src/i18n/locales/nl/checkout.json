@@ -27,22 +27,6 @@
     "other": "Overig"
   },
   "insurance": {
-    "cancellation": {
-      "desc": "Krijg je geld terug als je onverwacht niet kunt reizen.",
-      "covers": {
-        "0": "Ziekte, ongeval of letsel",
-        "1": "Ontslag of nieuwe baan",
-        "2": "Schade aan je woning"
-      }
-    },
-    "travel": {
-      "desc": "Wereldwijde dekking voor jou en je bagage tijdens de reis.",
-      "covers": {
-        "0": "Medische kosten in het buitenland",
-        "1": "Verlies & diefstal van bagage",
-        "2": "Vertraging & gemiste aansluiting"
-      }
-    },
     "allin": {
       "desc": "Annulerings- en reisverzekering gecombineerd. Nul zorgen.",
       "covers": {
@@ -51,29 +35,45 @@
         "2": "Voortijdige terugkeer & repatriëring"
       }
     },
+    "cancellation": {
+      "desc": "Krijg je geld terug als je onverwacht niet kunt reizen.",
+      "covers": {
+        "0": "Ziekte, ongeval of letsel",
+        "1": "Ontslag of nieuwe baan",
+        "2": "Schade aan je woning"
+      }
+    },
+    "cancellationFallback": "Annuleringsverzekering",
+    "cancellationForAll": "Annuleringsverzekering voor alle reizigers",
+    "cancellationSub": "Kies of je een annuleringsverzekering wilt voor alle reizigers.",
+    "cancellationTitle": "Annuleringsverzekering",
+    "continueWithoutCancellation": "Doorgaan zonder annuleringsdekking",
+    "continueWithoutTravel": "Doorgaan zonder reisverzekering",
+    "coverWhileTravelling": "Dekking voor jou en je bagage tijdens de reis.",
+    "eachTravellerDifferentChoice": "Elke reiziger kan een andere keuze maken.",
+    "intermediaryNoticeCancel": "SUNSKY biedt deze annuleringsverzekering aan als vrijgestelde nevenverzekeringstussenpersoon, in samenwerking met {{provider}}. Voor informatie over de dekking, uitsluitingen en voorwaarden kun je de verzekeringsdocumenten van {{provider}} raadplegen.",
+    "intermediaryNoticeTravel": "SUNSKY biedt deze reisverzekering aan als vrijgestelde nevenverzekeringstussenpersoon, in samenwerking met {{provider}}. Voor informatie over de dekking, uitsluitingen en voorwaarden kun je de verzekeringsdocumenten van {{provider}} raadplegen.",
+    "noCancellation": "Geen annuleringsverzekering",
+    "noTravel": "Geen reisverzekering",
     "none": {
       "name": "Geen verzekering",
       "desc": "Ik accepteer het risico en reis zonder extra bescherming."
     },
-    "cancellationFallback": "Annuleringsverzekering",
-    "travelFallback": "Reisverzekering",
-    "cancellationTitle": "Annuleringsverzekering",
-    "cancellationSub": "Kies of je een annuleringsverzekering wilt voor alle reizigers.",
-    "protectYourTrip": "Bescherm je reis",
     "oneSelectionForAll": "Eén keuze geldt voor alle reizigers in deze boeking.",
-    "cancellationForAll": "Annuleringsverzekering voor alle reizigers",
+    "protectYourTrip": "Bescherm je reis",
     "providedBy": "Aangeboden door {{provider}}",
-    "noCancellation": "Geen annuleringsverzekering",
-    "continueWithoutCancellation": "Doorgaan zonder annuleringsdekking",
-    "selectOneToContinue": "Kies een optie om door te gaan.",
-    "intermediaryNotice": "SUNSKY treedt uitsluitend op als verzekeringstussenpersoon. Voor volledige informatie over de verzekering, de dekking, uitsluitingen en polisvoorwaarden verwijzen we je naar de documenten van de verzekeraar zelf.",
-    "travelTitle": "Reisverzekering",
+    "travel": {
+      "desc": "Wereldwijde dekking voor jou en je bagage tijdens de reis.",
+      "covers": {
+        "0": "Medische kosten in het buitenland",
+        "1": "Verlies & diefstal van bagage",
+        "2": "Vertraging & gemiste aansluiting"
+      }
+    },
+    "travelFallback": "Reisverzekering",
     "travelSub": "Kies per reiziger apart een reisverzekering.",
-    "coverWhileTravelling": "Dekking voor jou en je bagage tijdens de reis.",
-    "eachTravellerDifferentChoice": "Elke reiziger kan een andere keuze maken.",
-    "noTravel": "Geen reisverzekering",
-    "continueWithoutTravel": "Doorgaan zonder reisverzekering",
-    "selectOneEachToContinue": "Kies voor elke reiziger een optie om door te gaan."
+    "travelTitle": "Reisverzekering",
+    "viewCover": "Bekijk de dekking en verzekeringsvoorwaarden"
   },
   "consent": {
     "nonRefundableNotice": "Deze accommodatie heeft een niet-terugbetaalbaar tarief. Als je de boeking annuleert, geldt vanaf het moment van bevestiging 100% annuleringskosten voor deze accommodatie.",
@@ -94,39 +94,40 @@
     "paymentFailed": "Betaling mislukt. Probeer het opnieuw."
   },
   "baggage": {
+    "add": "Toevoegen",
+    "addCheckedAria": "Ruimbagage toevoegen voor reiziger {{number}}, {{direction}}",
+    "addCheckedBaggage": "Ruimbagage toevoegen",
+    "addMoreBaggage": "Meer bagage toevoegen",
+    "added": "Toegevoegd",
+    "airlineVaries": "De toegestane afmetingen en het gewicht kunnen per luchtvaartmaatschappij verschillen. Kijk daarom voor de juiste informatie op de website van de luchtvaartmaatschappij waarmee je vliegt.",
+    "anotherCabinBag": "nog een handbagagestuk",
+    "availableToAdd": "Toe te voegen",
+    "cabinBaggage": "Handbagage",
+    "cabinBaggageKg": "Handbagage {{kg}} kg",
+    "cabinBaggageLower": "handbagage",
+    "cabinBaggageNote": "Een handbagagekoffer of reistas die je meeneemt in de cabine en in het bagagevak boven je stoel plaatst.",
+    "checkedBaggage": "Ruimbagage",
+    "checkedBaggageKg": "Ruimbagage {{kg}} kg",
+    "checkedBaggageNote": "Bagage vervoerd in het ruim van het vliegtuig.",
     "chooseExtras": "Kies extra's per reiziger",
     "chooseExtrasSub": "Bekijk welke bagage inbegrepen is voor elke reiziger op de heen- en terugreis.",
-    "cabinBaggageKg": "Handbagage {{kg}} kg",
-    "cabinBaggage": "Handbagage",
-    "checkedBaggageKg": "Ruimbagage {{kg}} kg",
-    "personalItem": "Persoonlijk item",
-    "personalItemNote": "Een klein persoonlijk item dat onder de stoel voor je past.",
-    "includedInTicket": "Inbegrepen in je ticket",
     "included": "Inbegrepen",
-    "cabinBaggageNote": "Een handbagagestuk dat in het bagagerek boven je stoel wordt opgeborgen.",
-    "availableToAdd": "Toe te voegen",
-    "added": "Toegevoegd",
-    "notIncluded": "Niet inbegrepen",
+    "includedInTicket": "Inbegrepen in je ticket",
     "notConfirmed": "Niet bevestigd",
-    "remove": "Verwijderen",
-    "add": "Toevoegen",
-    "anotherCabinBag": "nog een handbagagestuk",
-    "cabinBaggageLower": "handbagage",
-    "checkedBaggage": "Ruimbagage",
-    "checkedBaggageNote": "Bagage vervoerd in het ruim van het vliegtuig.",
+    "notIncluded": "Niet inbegrepen",
+    "personalItem": "Kleine handbagage",
+    "personalItemNote": "Een kleine tas of rugzak die onder de stoel voor je past.",
     "pieces_one": "{{count}} stuk",
     "pieces_other": "{{count}} stuks",
-    "addCheckedAria": "Ruimbagage toevoegen voor reiziger {{number}}, {{direction}}",
-    "addMoreBaggage": "Meer bagage toevoegen",
-    "addCheckedBaggage": "Ruimbagage toevoegen"
+    "remove": "Verwijderen"
   },
   "travellers": {
     "traveller": "Reiziger {{number}}",
     "title": "Reizigers",
     "sub": "Voer namen exact in zoals ze in het paspoort staan",
-    "lead": "Hoofdboeker",
-    "alsoLeadBooker": "Deze reiziger is ook de hoofdboeker",
-    "alsoLeadBookerHint": "Naam, geslacht, geboortedatum en nationaliteit worden gedeeld met het gedeelte van de hoofdboeker — vul één van beide in.",
+    "lead": "Hoofdreiziger",
+    "alsoLeadBooker": "Deze reiziger is ook de Boeker en Contactpersoon.",
+    "alsoLeadBookerHint": "De persoonsgegevens van de Boeker en Contactpersoon worden overgenomen en automatisch ingevuld bij reiziger 1.",
     "dobFromSearch": "Uit je zoekopdracht — dit bepaalde de prijs",
     "dobRecheckHint": "Als je dit wijzigt, controleren we prijs en beschikbaarheid opnieuw",
     "pricedAsAge": "Geprijsd als {{age}}-jarige — een andere leeftijd controleert de prijs opnieuw",
@@ -158,7 +159,7 @@
     "emailRequired": "Een geldig e-mailadres is verplicht",
     "emailTaken": "Dit e-mailadres heeft al een account — log in om door te gaan",
     "phoneFormat": "Gebruik internationale notatie, bijv. +32475123456",
-    "emergencyPhoneFormat": "Gebruik internationale notatie, bijv. +32476987654",
+    "emergencyPhoneFormat": "Gebruik internationale notatie zonder spaties, bijv. +32476987654",
     "streetRequired": "Straat is verplicht",
     "houseNumberRequired": "Huisnummer is verplicht",
     "postalCodeRequired": "Postcode is verplicht",
@@ -235,7 +236,7 @@
     "signIn": "Inloggen"
   },
   "contact": {
-    "title": "Gegevens contactpersoon",
+    "title": "Gegevens van de Boeker en contactpersoon",
     "sub": "De persoon die we over deze boeking contacteren",
     "businessCustomer": "Ik ben een zakelijke klant",
     "businessCustomerHint": "Boeken namens een bedrijf. Jij blijft de contactpersoon op de boeking."
@@ -258,10 +259,10 @@
     "city": "Stad",
     "country": "Land",
     "phoneNumber": "Telefoonnummer",
-    "phoneFormatHint": "Internationale notatie, bijv. +32 475 12 34 56",
+    "phoneFormatHint": "Internationale notatie zonder spaties, bijv. +32475123456",
     "emailAddress": "E-mailadres",
-    "emergencyPhone": "Noodnummer",
-    "emergencyPhoneHint": "Iemand die we kunnen bereiken en die niet met je meereist",
+    "emergencyPhone": "Telefoonnummer contactpersoon bij noodgevallen",
+    "emergencyPhoneHint": "Vul het telefoonnummer in van iemand die niet meereist en die we in geval van nood kunnen contacteren.",
     "asInPassport": "Zoals in het paspoort",
     "cardholderName": "Naam kaarthouder",
     "cardNumber": "Kaartnummer",
@@ -282,24 +283,29 @@
     "forgotPassword": "Wachtwoord vergeten?"
   },
   "transfer": {
-    "chooseYourTransfer": "Kies je transfer",
-    "selectOneOption": "Kies één transferoptie voor alle reizigers.",
     "airportTransfer": "Luchthaventransfer",
-    "fromAirportTo": "Van luchthaven {{destination}} naar {{hotel}}",
-    "pickupTimed": "ophaling ~{{time}}, afgestemd op je aankomst",
+    "arrivalOnly": "Alleen heenrit — geen terugrit aangeboden",
     "arrivalTransfer": "Aankomsttransfer",
     "checkingPrices": "Transferprijzen worden gecontroleerd…",
-    "stillBookLater": "Je kunt nog steeds boeken — voeg later een transfer toe door contact met ons op te nemen.",
-    "transfer": "Transfer",
-    "shared": "Gedeeld",
-    "private": "Privé",
+    "chooseYourTransfer": "Kies je transfer",
     "destinationAirport": "Luchthaven {{destination}}",
-    "upToPassengers": "tot {{count}} passagiers",
-    "total": "totaal",
+    "fromAirportTo": "Van luchthaven {{destination}} naar {{hotel}}",
+    "legArrival": "Luchthaven → hotel",
+    "legReturn": "Hotel → luchthaven",
     "noTransfer": "Geen transfer",
+    "noneOffered": "Er worden geen transfers aangeboden voor dit hotel op je aankomstdatum.",
     "ownWayToHotel": "Ik regel zelf mijn vervoer naar het hotel",
+    "pickupTimed": "ophaling ~{{time}}, afgestemd op je aankomst",
     "pricesForWholeParty": "Prijzen gelden voor het hele gezelschap en dekken de ophaling op de luchthaven op de aankomstdag.",
-    "noneOffered": "Er worden geen transfers aangeboden voor dit hotel op je aankomstdatum."
+    "pricesReturnWholeParty": "Prijzen gelden voor het hele gezelschap en dekken zowel de rit vanaf de luchthaven als de terugrit.",
+    "private": "Privé",
+    "returnTotal": "heen en terug, totaal",
+    "selectOneOption": "Kies één transferoptie voor alle reizigers.",
+    "shared": "Gedeeld",
+    "stillBookLater": "Je kunt nog steeds boeken — voeg later een transfer toe door contact met ons op te nemen.",
+    "total": "totaal",
+    "transfer": "Transfer",
+    "upToPassengers": "tot {{count}} passagiers"
   },
   "duration": {
     "travellers_one": "{{count}} reiziger",
