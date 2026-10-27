@@ -1090,8 +1090,7 @@ describe('content-facet payload opt-ins', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(screen.getAllByText('Alleen volwassenen')[0]);   // section ships collapsed
-    await user.click(sidebarCheck('Hotels alleen voor volwassenen'));
+    await user.click(sidebarCheck('Alleen volwassenen'));   // under Thema's, which ships open
     await waitFor(() => expect(lastFacetCall().opts.codes).toBe(true));
     expect(lastFacetCall().filters.adultsOnly).toBe(true);
   });
