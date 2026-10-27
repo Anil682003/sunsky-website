@@ -1775,13 +1775,13 @@ export default function Results() {
     ? `${priceScope.destinations.join(',')}|${priceScope.hotelCodes ? priceScope.hotelCodes.length + ':' + priceScope.hotelCodes.slice(0, 3).join(',') : 'all'}`
     : null;
 
-  // ── The sidebar counts over the results (Flight + Hotel) ─────────────────────────────────
+  // ── The sidebar counts over the results (Flight + Hotel and Hotel Only) ─────────────────
   // The search the counts belong to, without the content boxes: a box ticked in an "either"
   // group (themes, stars, accommodation type, rating, distance) keeps that group's numbers from
   // before, so 4★ still shows its count after 5★ is ticked.
   const offerBaseKey = `${searchKey}|${applied.transport}|${(applied.origins || []).join(',')}|${(applied.boards || []).join(',')}|${(applied.arrivals || []).join(',')}`;
   useEffect(() => {
-    if (applied.transport !== 'package' || !offerCodes) return;
+    if (!offerCodes) return;
     let live = true;
     axiosInstance.post('/hotel-filters/facets/offers', { ...searchScope, hotelCodes: offerCodes.codes })
       .then((r) => {
@@ -1804,7 +1804,7 @@ export default function Results() {
   }, [offerCodes]);
   // A new search (place, dates, party, product): counts from an earlier one are never shown.
   useEffect(() => { setOfferFacets((prev) => (prev && prev.key !== offerBaseKey && !offerCodes ? null : prev)); }, [offerBaseKey, offerCodes]);
-  const facets = applied.transport === 'package' && offerFacets ? offerFacets.facets : scopeFacetsRaw;
+  const facets = offerFacets && offerFacets.key === offerBaseKey ? offerFacets.facets : scopeFacetsRaw;
 
   // ── "Incl. flight": show the package groups that have answered ──────────────────────────
   // Every group is asked at once (PACKAGE_CONCURRENCY at a time) and the list fills in as each
@@ -1996,6 +1996,8 @@ export default function Results() {
     }
 
     const ctrl = new AbortController();
+    // Hotel Only counts over its own results too (UR §9.3, T12/T25): none until page 1 answers.
+    setOfferCodes(null);
     // The every-destination empty search may fall back to the popular destinations (see
     // EMPTY_SEARCH_FALLBACK_MS): on a failure, or when it has not answered in time.
     const canFallBack = usingDefaultScope && allDestinations !== DEFAULT_DESTINATIONS;
@@ -2013,6 +2015,9 @@ export default function Results() {
         setBoardFacets(data.boardFacets || {});
         // Hotel Only: the cache answers destinationCounts directly.
         setDestCounts(data.destinationCounts || null);
+        // Every priced hotel of this search (page 1): the sidebar counts over the results, as for
+        // Flight + Hotel — not over the catalogue (UR §9.3, T12/T25).
+        if (Array.isArray(data.resultHotelCodes)) setOfferCodes({ reqId, codes: data.resultHotelCodes });
         setCheapestCode(applied.sortBy === 'price_asc' || applied.sortBy === 'recommended' ? (data.cheapest?.hotelCode ?? null) : null);
 
         const seen   = seenCodesRef.current;
