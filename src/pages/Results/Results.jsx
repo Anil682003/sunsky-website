@@ -427,7 +427,7 @@ function Segmented({ options, value, onChange, ariaLabel }) {
  * that one is a set — with nothing ticked meaning "any airport", which is why it needs no row
  * of its own for that.
  */
-function AirportList({ rows, selected, onPick, multiple, name, language, unavailableNote }) {
+function AirportList({ rows, selected, onPick, multiple, name, language, unavailableNote, showCode = true }) {
   const { t } = useTranslation('results');
   const [query, setQuery] = useState('');
   const [expanded, setExpanded] = useState(false);
@@ -435,7 +435,7 @@ function AirportList({ rows, selected, onPick, multiple, name, language, unavail
 
   const q = query.trim().toLowerCase();
   const matches = q
-    ? rows.filter((a) => `${a.code} ${a.city} ${a.label}`.toLowerCase().includes(q))
+    ? rows.filter((a) => `${a.code} ${a.city} ${a.label} ${a.places || ''}`.toLowerCase().includes(q))
     : rows;
   // A picked airport is never hidden by the cap — a filter that conceals itself cannot be undone.
   const shown = (!q && !expanded && matches.length > LIMIT)
@@ -496,7 +496,7 @@ function AirportList({ rows, selected, onPick, multiple, name, language, unavail
                   {a.label && a.label !== a.city && <span className={styles.apName}>{a.label}</span>}
                   {a.unavailable && (a.reason || unavailableNote) && <span className={styles.apReason}>{a.reason || unavailableNote}</span>}
                 </span>
-                <span className={styles.apCode}>{a.code}</span>
+                {showCode && <span className={styles.apCode}>{a.code}</span>}
               </label>
             );
           })}
@@ -1354,10 +1354,12 @@ export default function Results() {
   const arrivalRows = useMemo(
     () => arrivalOptions.map((a) => ({
       code: a.code,
-      // The CITY it serves, not the airport's official name: "Marmaris, Fethiye" tells a
-      // traveller what they get; "Dalaman Airport" doesn't.
-      city: a.cityNames?.length ? a.cityNames.join(', ') : a.name,
-      label: a.name,
+      // One line: the airport's own name with its code — "Alanya, Gazipasa Airport (GZP)". The
+      // destination names it serves ("Turkse Riviera", "Kalkan, Kas, Turkse Riviera") are not
+      // shown (Levent, 27 Oct 2026).
+      city: a.name ? `${a.name} (${a.code})` : a.code,
+      label: '',
+      places: a.cityNames?.length ? a.cityNames.join(', ') : '',
       countryIso: a.countryCode || '',
       ...(filters.transport === 'package' && filters.arrivals.includes(a.code) && !packageArrival(a.code)
         ? { unavailable: true, reason: choiceGoneNote } : {}),
@@ -2864,6 +2866,7 @@ export default function Results() {
             multiple
             name="arrivalAirport"
             language={i18nInstance.language}
+            showCode={false}
           />
         </FilterSection>
       )}

@@ -448,13 +448,15 @@ describe('arrival airport ("Flying to")', () => {
   const openTransport = (user) => user.click(sidebarRadio('Incl. vlucht'));
   const arrivalBox = (name) => screen.getByRole('checkbox', { name });
 
-  it('one city with two airports: each named by the CITY it serves', async () => {
+  it('one city with two airports: each as its airport name and code, not the places it serves', async () => {
+    // Levent, 27 Oct 2026: "Alanya, Gazipasa Airport (GZP)", never "Turkse Riviera".
     const user = userEvent.setup();
     renderResults(oneCity);
     await settled();
     await openTransport(user);
-    expect(await screen.findByRole('checkbox', { name: /Alanya/ })).toBeInTheDocument();
-    expect(arrivalBox(/Antalya/)).toBeInTheDocument();
+    expect(await screen.findByRole('checkbox', { name: /Gazipasa Airport \(GZP\)/ })).toBeInTheDocument();
+    expect(arrivalBox(/\(AYT\)/)).toBeInTheDocument();
+    expect(screen.queryByRole('checkbox', { name: /^Alanya$/ })).not.toBeInTheDocument();
     expect(screen.getByText('Kies één of meerdere luchthavens')).toBeInTheDocument();
     // Dalaman serves nothing in an Antalya search.
     expect(screen.queryByRole('checkbox', { name: /Marmaris/ })).not.toBeInTheDocument();
@@ -499,8 +501,8 @@ describe('arrival airport ("Flying to")', () => {
     renderResults(oneCity + '&arrival=AYT,GZP');
     await settled();
     await openTransport(user);
-    expect(await screen.findByRole('checkbox', { name: /Alanya/ })).toBeChecked();
-    expect(arrivalBox(/Antalya/)).toBeChecked();
+    expect(await screen.findByRole('checkbox', { name: /Gazipasa Airport \(GZP\)/ })).toBeChecked();
+    expect(arrivalBox(/\(AYT\)/)).toBeChecked();
   });
 
   it('a shared link with an arrival airport on a whole country does not narrow it', async () => {
