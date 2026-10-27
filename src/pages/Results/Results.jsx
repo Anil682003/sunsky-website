@@ -3251,12 +3251,11 @@ export default function Results() {
             )}
           />
         )}
-      </FilterSection>
-
-      {/* Adults only — boolean content facet (the "Adults Only" vacation-type card seeds ?adultsOnly=1). */}
-      <FilterSection title={t('filters.adultsOnly', 'Adults only')} defaultOpen={false}>
+        {/* Adults Only lives under Thema's (§12B.5). It is the hotel's own "Only Adults" facility
+            (the admin has no Adults Only holiday type), so it narrows the list rather than adding
+            to the themes ticked above; the homepage card seeds it as ?adultsOnly=1. */}
         <FilterCheck
-          label={t('filters.adultsOnlyHotels', 'Adults-only hotels')}
+          label={t('filters.adultsOnly', 'Adults only')}
           checked={filters.adultsOnly}
           onChange={() => setFilter('adultsOnly', !filters.adultsOnly)}
         />

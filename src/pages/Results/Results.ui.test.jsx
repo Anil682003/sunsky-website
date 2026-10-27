@@ -127,7 +127,7 @@ describe('sidebar layout', () => {
       'Vervoer', 'Waarheen', 'Datum & reizigers',
       'Resultaten verfijnen',
       'Prijsklasse', 'Verzorging', 'Sterren', 'Soort accommodatie', "Thema's",
-      'Alleen volwassenen', 'Faciliteiten', 'Activiteiten',
+      'Faciliteiten', 'Activiteiten',
     ]);
   });
 
