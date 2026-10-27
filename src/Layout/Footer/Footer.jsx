@@ -14,7 +14,7 @@ import { useTranslation } from 'react-i18next';
 // footer never renders blank.
 const FALLBACK_COLS = [
   { title: 'Destinations', links: ['Spain','Turkey','Greece','Egypt','Canary Islands','Italy'] },
-  { title: 'Travel Types', links: ['All Inclusive','City Trips','Last Minute','Family Holidays','Adults Only','Car Holidays'] },
+  { title: 'Travel Types', links: ['All Inclusive','City Trips','Last Minute','Family Holidays','Adults Only'] },   // Car Holidays: hidden until it works (Levent, 27 Oct 2026)
 ];
 
 const FALLBACK_PAYS = ['VISA', 'MC', 'AMEX', 'PayPal'];

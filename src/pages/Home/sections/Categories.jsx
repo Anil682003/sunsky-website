@@ -14,12 +14,13 @@ import { useTranslation } from 'react-i18next';
 const FALLBACK_CATS = [
   { key: 'sunVacations', title: 'Sun Vacations', img: 'https://images.unsplash.com/photo-1506929562872-bb421503ef21?w=600&q=80' },
   { key: 'cityTrips', title: 'City Trips',    img: 'https://images.unsplash.com/photo-1480714378408-67cf0d13bc1b?w=600&q=80' },
-  { key: 'carHolidays', title: 'Car Holidays',  img: 'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&q=80' },
+  // Car Holidays is hidden until it works (Levent, 27 Oct 2026): no card leads to a page that is not there.
   { key: 'lastMinute', title: 'Last Minute',   img: 'https://images.unsplash.com/photo-1488085061387-422e29b40080?w=600&q=80' },
 ];
 
 const IMAGE_POOL = [
   ...FALLBACK_CATS.map((c) => c.img),
+  'https://images.unsplash.com/photo-1469854523086-cc02fe5d8800?w=600&q=80',
   'https://images.unsplash.com/photo-1476514525535-07fb3b4ae5f1?w=600&q=80',
   'https://images.unsplash.com/photo-1507525428034-b723cf961d3e?w=600&q=80',
 ];
