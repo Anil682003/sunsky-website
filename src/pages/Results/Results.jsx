@@ -1354,11 +1354,12 @@ export default function Results() {
   const arrivalRows = useMemo(
     () => arrivalOptions.map((a) => ({
       code: a.code,
-      // One line: the airport's own name with its code — "Alanya, Gazipasa Airport (GZP)". The
-      // destination names it serves ("Turkse Riviera", "Kalkan, Kas, Turkse Riviera") are not
-      // shown (Levent, 27 Oct 2026).
-      city: a.name ? `${a.name} (${a.code})` : a.code,
-      label: '',
+      // The same layout as the departure list: the airport's city in bold (the part of its own
+      // name before the comma), its full name under it, the code on the right — "Alanya /
+      // Alanya, Gazipasa Airport / GZP". Not the destinations it serves ("Turkse Riviera",
+      // "Kalkan, Kas, Turkse Riviera"), Levent 27 Oct 2026.
+      city: String(a.name || a.code).split(',')[0].trim(),
+      label: a.name || '',
       places: a.cityNames?.length ? a.cityNames.join(', ') : '',
       countryIso: a.countryCode || '',
       ...(filters.transport === 'package' && filters.arrivals.includes(a.code) && !packageArrival(a.code)
@@ -2866,7 +2867,6 @@ export default function Results() {
             multiple
             name="arrivalAirport"
             language={i18nInstance.language}
-            showCode={false}
           />
         </FilterSection>
       )}

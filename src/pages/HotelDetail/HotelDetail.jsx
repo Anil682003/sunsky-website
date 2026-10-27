@@ -1999,6 +1999,9 @@ export default function HotelDetail() {
   // week at a time now, so position 3 means a different date after every page — only the date
   // itself survives paging, and it stays selected even when it scrolls out of view.
   const [selectedISO, setSelectedISO] = useState(null);
+  // The picked strip day's DEPARTURE date: two departures can share one check-in (an evening flight
+  // landing after midnight), so the check-in alone cannot say which bar was picked.
+  const [selectedDep, setSelectedDep] = useState(null);
   const [liveChecked, setLiveChecked] = useState(false);
   // Whether Hotelbeds actually sells a transfer between this airport and this hotel. The
   // overview used to promise one unconditionally ("added at checkout"), which is a promise
@@ -2312,7 +2315,15 @@ export default function HotelDetail() {
     origins: matrixOrigins, adults: sAdults, children: sChildren, childAges: sChildAges, rooms: sRooms,
     routing: qp('routing').toLowerCase() === 'nonstop' ? 'nonstop' : '', reload: matrixReload,
   });
-  const matrixByDate = useMemo(() => Object.fromEntries(matrix.days.map((d) => [d.iso, d])), [matrix.days]);
+  // By check-in (what the rest of the page prices); two departures with one check-in: the cheaper.
+  const matrixByDate = useMemo(() => {
+    const m = {};
+    for (const d of matrix.days) {
+      const had = m[d.iso];
+      if (!had || (d.price > 0 && (!(had.price > 0) || d.price < had.price))) m[d.iso] = d;
+    }
+    return m;
+  }, [matrix.days]);
   // The strip is the matrix while it loads and whenever it has dates. When it cannot answer (it
   // failed, or has no package date around this one in the cache) the hotel calendar stands in,
   // marked as hotel prices, so the traveller can still check a date live: flights are then
@@ -2622,10 +2633,13 @@ export default function HotelDetail() {
   const pickedISO = selectedISO ?? notBeforeToday(baseCheckIn);
   // Position of the picked day IN THE VISIBLE WEEK, for the highlight alone. -1 once the
   // traveller has paged away from it, which correctly leaves no bar selected on screen.
-  const pickedIdx = priceDays.findIndex((p) => p.iso === pickedISO);
+  const pickedIdx = (selectedISO && selectedDep && useMatrix)
+    ? priceDays.findIndex((p) => p.departure === selectedDep)
+    : priceDays.findIndex((p) => p.iso === pickedISO);
   // The picked day itself is read from the whole cache, NOT the visible week, so paging never
   // silently drops the traveller's chosen date out of the action card and the checkout hand-off.
-  const pickedEntry = pickedISO ? byDate[pickedISO] : null;
+  const pickedEntry = (selectedISO && selectedDep && useMatrix && matrix.days.find((d) => d.departure === selectedDep && d.iso === selectedISO))
+    || (pickedISO ? byDate[pickedISO] : null);
   // The package the live check asks about: a date picked in the matrix, else the results card's
   // package on its own day, else the matrix's package for the day on screen (a date typed in the
   // search bar). It answers only its own stay (packageApplies); any other stay asks its dates.
@@ -3294,9 +3308,9 @@ export default function HotelDetail() {
     // `childDobs` rides with `childAges` here: it prices nothing on this page, so a date
     // arriving alongside an age the traveller just saved must not drop the picked day.
     const keepsTheDay = keys.every((k) => k === 'childAges' || k === 'childDobs' || k === 'nights');
-    if (!keepsTheDay) setSelectedISO(null);
+    if (!keepsTheDay) { setSelectedISO(null); setSelectedDep(null); }
   };
-  const resetFilters = () => { setOvr({}); setPkgPick(null); setMAnchor({ base: null, date: null }); setMCentre({ base: null, date: null }); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); invalidateRooms(); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); };
+  const resetFilters = () => { setOvr({}); setPkgPick(null); setMAnchor({ base: null, date: null }); setMCentre({ base: null, date: null }); setSelectedISO(null); setSelectedDep(null); setWin({ base: null, start: null }); setLiveChecked(false); invalidateRooms(); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); };
 
   // The same figure as `liveTotal`, so the overview can never quote a package the rest of the
   // page refuses to book (a failed or unpriced flight check, or a flight still to be chosen).
@@ -3582,6 +3596,7 @@ export default function HotelDetail() {
       setWin({ base: baseCheckIn, start: notBeforeToday(addDaysISO(iso, -CAL_CENTRE)) });
     }
     setSelectedISO(iso);
+    setSelectedDep(entry?.departure || null);
     setLiveChecked(false);
     invalidateRooms();
     setLiveRooms(null);
@@ -3729,7 +3744,7 @@ export default function HotelDetail() {
       // ITS airport, so its flight is confirmed as it is; with no package, the strip's winner.
       // Selva Arenal 13 Nov: package from CGN (21 flights live), searched from BRU (none, 25 Oct).
       const ownPkg = packageApplies(pkgOffer, checkin, checkout) ? pkgOffer : null;
-      const dayFrom = ovr.originPicked ? null : (ownPkg?.from || matrixByDate[checkin]?.from || null);
+      const dayFrom = ovr.originPicked ? null : (ownPkg?.from || pickedEntry?.from || matrixByDate[checkin]?.from || null);
       if (dayFrom && dayFrom !== origin) setOvr((p) => ({ ...p, origin: dayFrom }));
       autoAirportRef.current = !ovr.originPicked && !ownPkg;
       fetchFlights(checkin, checkout, dayFrom);

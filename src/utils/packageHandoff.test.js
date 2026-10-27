@@ -179,14 +179,25 @@ describe('the package matrix as the price strip', () => {
     ]);
   });
 
-  it('two flight dates with one stay keep the cheaper', () => {
+  it('two flight dates with one stay are two bars (one per departure date, Levent 27 Oct 2026)', () => {
     const days = matrixDays([cell('2026-12-11', 700, { checkin: '2026-12-12' }), cell('2026-12-12', 650)]);
-    expect(days).toHaveLength(1);
-    expect(days[0]).toMatchObject({ iso: '2026-12-12', departure: '2026-12-12', price: 650 });
+    expect(days).toHaveLength(2);
+    expect(days[0]).toMatchObject({ iso: '2026-12-12', departure: '2026-12-11', price: 700 });
+    expect(days[1]).toMatchObject({ iso: '2026-12-12', departure: '2026-12-12', price: 650 });
   });
 
   it('nothing to read is nothing to show', () => {
     expect(matrixDays(null)).toEqual([]);
     expect(matrixDays([{ state: 'AVAILABLE' }])).toEqual([]);
+  });
+});
+
+describe('matrixDays: one bar per departure date', () => {
+  it('two departures with the same check-in (an evening flight landing after midnight) stay two days', async () => {
+    const { matrixDays } = await import('./packageHandoff');
+    const cell = (date, checkin, total) => ({ date, state: 'AVAILABLE', sunskyPayableTotal: total, pricePerPerson: total / 2, travelDays: 5, departureAirport: 'BRU', stay: { checkin, checkout: '2027-06-12', nights: 4 } });
+    const days = matrixDays([cell('2027-06-06', '2027-06-07', 500), cell('2027-06-07', '2027-06-07', 520), cell('2027-06-08', '2027-06-08', 510)]);
+    expect(days.map((d) => d.departure)).toEqual(['2027-06-06', '2027-06-07', '2027-06-08']);
+    expect(days.map((d) => d.iso)).toEqual(['2027-06-07', '2027-06-07', '2027-06-08']);
   });
 });

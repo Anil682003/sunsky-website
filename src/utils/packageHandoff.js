@@ -225,8 +225,12 @@ export function matrixDays(cells) {
       from: up(c.departureAirport) || pkg?.from || null,
       pkg,
     };
-    const had = byIso.get(iso);
-    if (!had || (day.price > 0 && (!(had.price > 0) || day.price < had.price))) byIso.set(iso, day);
+    // One bar per DEPARTURE date (the matrix is of flight dates). Keyed by check-in, an evening
+    // flight landing after midnight shared its check-in with the next day's departure and one of
+    // the two days vanished from the strip (Levent, 27 Oct 2026: "sometimes a day is missing").
+    const k = day.departure || iso;
+    const had = byIso.get(k);
+    if (!had || (day.price > 0 && (!(had.price > 0) || day.price < had.price))) byIso.set(k, day);
   }
-  return [...byIso.values()].sort((a, b) => (a.iso < b.iso ? -1 : a.iso > b.iso ? 1 : 0));
+  return [...byIso.values()].sort((a, b) => ((a.departure || a.iso) < (b.departure || b.iso) ? -1 : (a.departure || a.iso) > (b.departure || b.iso) ? 1 : 0));
 }
