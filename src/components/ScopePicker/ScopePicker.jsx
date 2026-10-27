@@ -133,7 +133,17 @@ function PickerField({
 
   return (
     <div className={styles.field} ref={rootRef}>
-      <div className={`${styles.control} ${open ? styles.controlOpen : ''}`}>
+      {/* The whole field opens it, the icon and the arrow too — not only the text in the middle
+          (Levent, 27 Oct 2026). A press outside the input focuses it, so typing works at once. */}
+      <div
+        className={`${styles.control} ${open ? styles.controlOpen : ''}`}
+        onMouseDown={(e) => {
+          if (e.target === inputRef.current) return;
+          e.preventDefault();
+          openPanel();
+          inputRef.current?.focus();
+        }}
+      >
         <span className={styles.controlIcon}>{icon}</span>
         {/* One element in both states: closed it reads as the current value, open it
             is the search box. Swapping elements would lose the cursor on open. */}

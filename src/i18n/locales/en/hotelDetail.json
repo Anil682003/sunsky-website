@@ -150,6 +150,8 @@
     "viewFlightDetails": "View flight details"
   },
   "flightModal": {
+    "arrivalAirport": "Arrival airport",
+    "arrivalAirportHint": "The airport your outbound flight lands at.",
     "airlines": "Airlines",
     "airlinesHint": "A flight is kept when any of its legs is flown by a ticked airline.",
     "baggage": "Baggage",

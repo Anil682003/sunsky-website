@@ -83,6 +83,8 @@ const numAt = (r, i) => {
 };
 
 const outDeparture = (f) => f?.outLegs?.[0]?.departure ?? null;
+/** Where the outbound lands: the last outbound leg's airport (a city with two airports, e.g. IST / SAW). */
+export const arrivalOf = (f) => String(f?.outLegs?.[f.outLegs.length - 1]?.to || '').toUpperCase() || null;
 const retDeparture = (f) => f?.retLegs?.[0]?.departure ?? null;
 
 /** Shortest ground stop we will call a turnaround. Long connections top out around 5h. */
@@ -291,7 +293,18 @@ export function flightFacets(flights) {
     return max > min ? { min, max } : null;
   };
 
+  // ── Arrival airport: only where the flights land at two or more (Istanbul IST / SAW) ──
+  const arrivalCounts = new Map();
+  for (const f of list) {
+    const a = arrivalOf(f);
+    if (a) arrivalCounts.set(a, (arrivalCounts.get(a) || 0) + 1);
+  }
+  const arrivals = arrivalCounts.size >= 2
+    ? [...arrivalCounts].map(([code, count]) => ({ code, count })).sort((a, b) => b.count - a.count || (a.code < b.code ? -1 : 1))
+    : [];
+
   return {
+    arrivals,
     outbound: bandFacet(outDeparture),
     // A return-time filter on a one-way search can only ever empty the list.
     return: hasReturn ? bandFacet(retDeparture) : [],
@@ -330,6 +343,7 @@ export function applyFlightFilters(flights, sel = {}) {
   const out = toSet(sel.outbound);
   const ret = toSet(sel.return);
   const airlines = new Set((sel.airlines || []).map((c) => String(c).toUpperCase()));
+  const arrivals = new Set((sel.arrivals || []).map((c) => String(c).toUpperCase()));
   const outRange = isWholeDay(sel.outboundRange) ? null : sel.outboundRange;
   const retRange = isWholeDay(sel.returnRange) ? null : sel.returnRange;
 
@@ -348,6 +362,7 @@ export function applyFlightFilters(flights, sel = {}) {
     if (sel.baggage && sel.baggage !== 'any' && baggageOf(f) !== sel.baggage) return false;
 
     if (airlines.size && !airlinesOf(f).some((c) => airlines.has(c))) return false;
+    if (arrivals.size && !arrivals.has(arrivalOf(f))) return false;
 
     if (outRange && !inRange(outDeparture(f), outRange)) return false;
     if (retRange && !inRange(retDeparture(f), retRange)) return false;

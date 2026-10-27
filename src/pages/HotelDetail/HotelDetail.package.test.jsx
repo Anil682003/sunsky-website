@@ -260,8 +260,11 @@ describe('the live check asks about the package the card priced', () => {
     // Its stay is 6 nights, not the 7 on screen before: the room is priced for that stay.
     const roomCheck = post.mock.calls.find(([u]) => String(u).includes('hotel-availability'));
     expect(roomCheck[1]).toMatchObject({ checkin: iso(31), checkout: CHECK_OUT });
-    // Picking a date never asks the matrix again (its trip length stays).
-    expect(get.mock.calls.filter(([u]) => String(u).includes('package-matrix'))).toHaveLength(1);
+    // Picking a date re-centres the strip on it (Levent, 27 Oct 2026): one matrix request around
+    // that departure date, with the same trip length.
+    const mx = get.mock.calls.filter(([u]) => String(u).includes('package-matrix'));
+    expect(mx).toHaveLength(2);
+    expect(mx[1][1].params).toMatchObject({ date: iso(31), travelDays: mx[0][1].params.travelDays });
   });
 
   it('the arrows page the matrix by its own flight dates', async () => {

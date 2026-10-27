@@ -150,6 +150,8 @@
     "viewFlightDetails": "Vluchtdetails bekijken"
   },
   "flightModal": {
+    "arrivalAirport": "Luchthaven van aankomst",
+    "arrivalAirportHint": "De luchthaven waar je heenvlucht landt.",
     "airlines": "Maatschappijen",
     "airlinesHint": "Een vlucht blijft in de lijst zodra een van de trajecten door een aangevinkte maatschappij wordt gevlogen.",
     "baggage": "Bagage",

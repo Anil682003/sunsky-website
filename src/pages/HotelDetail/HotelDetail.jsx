@@ -2973,6 +2973,8 @@ export default function HotelDetail() {
   const [fType, setFType] = useState('all');
   const [fBaggage, setFBaggage] = useState('any');
   const [fAirlines, setFAirlines] = useState([]);
+  // Arrival airports ticked (only offered where the flights land at two or more, e.g. IST / SAW).
+  const [fArrivals, setFArrivals] = useState([]);
   // Phone only: the filter rail is a sheet over the list rather than a column beside it.
   const [filterSheet, setFilterSheet] = useState(false);
   // Desktop only: the rail folds away to a tab down the left edge, giving the cards the
@@ -3009,17 +3011,18 @@ export default function HotelDetail() {
       type: fType,
       baggage: fBaggage,
       airlines: fAirlines,
+      arrivals: fArrivals,
       outboundRange: outConstrained ? outRange : null,
       returnRange: retConstrained ? retRange : null,
     }), fSort);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [allFlights, fType, fBaggage, fAirlines, outRange[0], outRange[1], retRange[0], retRange[1],
+  }, [allFlights, fType, fBaggage, fAirlines, fArrivals, outRange[0], outRange[1], retRange[0], retRange[1],
     outConstrained, retConstrained, fSort]);
 
   const activeFilterCount = (fType !== 'all' ? 1 : 0) + (fBaggage !== 'any' ? 1 : 0)
-    + (fAirlines.length ? 1 : 0) + (outConstrained ? 1 : 0) + (retConstrained ? 1 : 0);
+    + (fAirlines.length ? 1 : 0) + (fArrivals.length ? 1 : 0) + (outConstrained ? 1 : 0) + (retConstrained ? 1 : 0);
   const clearFlightFilters = () => {
-    setFType('all'); setFBaggage('any'); setFAirlines([]);
+    setFType('all'); setFBaggage('any'); setFAirlines([]); setFArrivals([]);
     setFOutRange(null); setFRetRange(null); setShowAllAirlines(false);
   };
   const toggleAirline = (code) =>
@@ -3535,6 +3538,10 @@ export default function HotelDetail() {
       // the date they chose.
       const dayFrom = own ? urlPkg.from : entry?.from;
       if (dayFrom && dayFrom !== origin) setOvr((p) => ({ ...p, origin: dayFrom }));
+      // The strip re-centres on the picked day — three dates before it, three after — as the
+      // hotel calendar does (Levent, 27 Oct 2026): the day chosen is the one everything follows.
+      const dep = entry?.departure || iso;
+      if (dep !== matrixDate) setMAnchor({ base: matrixBase, date: dep });
     } else {
       // Re-centre on the chosen day, so the three days either side are on screen to compare
       // against — which is the whole reason for picking a date here rather than in the date
@@ -6272,6 +6279,28 @@ export default function HotelDetail() {
                 />
               )}
 
+              {/* Arrival airport: only for a destination whose flights land at two or more airports
+                  (Istanbul IST / SAW) — the same rule as the results page's arrival filter. */}
+              {facets.arrivals.length > 1 && (
+                <div className="modal-filter-group">
+                  <div className="modal-filter-title">
+                    {t('flightModal.arrivalAirport', 'Arrival airport')}
+                    <FilterHint text={t('flightModal.arrivalAirportHint', 'The airport your outbound flight lands at.')} />
+                  </div>
+                  {facets.arrivals.map((a) => (
+                    <label key={a.code} className={`modal-filter-opt${fArrivals.includes(a.code) ? ' checked' : ''}`}>
+                      <input type="checkbox" className="mf-input" checked={fArrivals.includes(a.code)}
+                        onChange={() => setFArrivals((prev) => (prev.includes(a.code) ? prev.filter((c) => c !== a.code) : [...prev, a.code]))} />
+                      <span className="modal-filter-cb" aria-hidden="true">
+                        {fArrivals.includes(a.code) && <S size={11} sw={3}><path d="M20 6L9 17l-5-5" /></S>}
+                      </span>
+                      <span className="mfo-airline">{airportName(a.code)} ({a.code})</span>
+                      <span className="mfo-count">{a.count}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+
               {facets.airlines.length > 0 && (
                 <div className="modal-filter-group">
                   <div className="modal-filter-title">
@@ -6348,7 +6377,9 @@ export default function HotelDetail() {
                   </div>
                   <FlightCard
                     f={{ ...heldFlight, price: Math.round(heldFlight.totalPrice), delta: cheapestFare == null ? null : heldFlight.totalPrice - cheapestFare }}
-                    selected
+                    // Selected only while nothing else is picked in this dialog: a new pick (not
+                    // yet saved) is the one marked, never both (Levent, 27 Oct 2026).
+                    selected={draftIdx == null || draftIdx === heldFlight.idx}
                     cheapest={heldFlight.idx === 0}
                     option={{ impact: 0, perPerson: 0 }}
                     onSelect={() => setDraftIdx(null)}

@@ -456,3 +456,15 @@ describe('dedupeFares', () => {
     expect(() => dedupeFares([null, undefined])).not.toThrow();
   });
 });
+
+describe('arrival airport (a city with two airports)', () => {
+  it('is offered only when the flights land at two or more airports, and filters by it', async () => {
+    const { flightFacets, applyFlightFilters } = await import('./flightFilters');
+    const f = (to, i) => ({ idx: i, totalPrice: 100 + i, outLegs: [{ from: 'DUS', to, departure: '2027-06-06T08:30', arrival: '2027-06-06T12:40', airline: 'PC' }], retLegs: [{ from: to, to: 'DUS', departure: '2027-06-08T07:05', arrival: '2027-06-08T09:25', airline: 'PC' }] });
+    const two = [f('SAW', 0), f('IST', 1), f('SAW', 2)];
+    expect(flightFacets(two).arrivals).toEqual([{ code: 'SAW', count: 2 }, { code: 'IST', count: 1 }]);
+    expect(applyFlightFilters(two, { arrivals: ['IST'] }).map((x) => x.idx)).toEqual([1]);
+    expect(applyFlightFilters(two, {}).length).toBe(3);
+    expect(flightFacets([f('AYT', 0), f('AYT', 1)]).arrivals).toEqual([]);
+  });
+});
