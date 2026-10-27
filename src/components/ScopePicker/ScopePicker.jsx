@@ -77,7 +77,10 @@ function PickerField({
   // moves to the panel's own scrollbar, which would shut the list mid-scroll.
   useEffect(() => {
     if (!open) return undefined;
-    const onDown = (e) => { if (!rootRef.current?.contains(e.target)) closePanel(); };
+    // A target no longer in the page is not "outside": opening swaps the arrow for the search
+    // icon during the very press that opened it, and that removed arrow then read as an outside
+    // click and shut the list again at once (Levent, 27 Oct 2026 — only the middle worked).
+    const onDown = (e) => { if (e.target?.isConnected && !rootRef.current?.contains(e.target)) closePanel(); };
     const onKey = (e) => { if (e.key === 'Escape') closePanel(); };
     document.addEventListener('mousedown', onDown);
     document.addEventListener('keydown', onKey);

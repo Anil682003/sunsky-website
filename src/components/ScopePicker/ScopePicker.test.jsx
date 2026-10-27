@@ -241,3 +241,23 @@ describe('ScopePicker — hotels per place', () => {
     expect((await screen.findByRole('option', { name: /^Antalya/ })).textContent).toMatch(/0/);
   });
 });
+
+describe('ScopePicker — the whole field opens the list', () => {
+  it('a press on the arrow opens it and keeps it open (the arrow is swapped for the search icon on open)', async () => {
+    const { user } = setup();
+    const control = field('scope-country').parentElement;
+    const arrow = control.querySelectorAll('svg')[1];
+    await user.click(arrow);
+    expect(field('scope-country')).toHaveAttribute('aria-expanded', 'true');
+    expect(panel()).not.toBeNull();
+  });
+
+  it('a press on the icon opens it too, and a press outside still closes it', async () => {
+    const { user } = setup();
+    const control = field('scope-country').parentElement;
+    await user.click(control.querySelectorAll('svg')[0]);
+    expect(field('scope-country')).toHaveAttribute('aria-expanded', 'true');
+    await user.click(document.body);
+    expect(field('scope-country')).toHaveAttribute('aria-expanded', 'false');
+  });
+});
