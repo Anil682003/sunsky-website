@@ -2281,7 +2281,11 @@ export default function HotelDetail() {
   }, [hotelCode, destination, transport]);
   const matrixBase = urlPkg && urlPkg.checkin === baseCheckIn ? urlPkg.depdate : baseCheckIn;
   const [mAnchor, setMAnchor] = useState({ base: null, date: null });
-  const matrixDate = (mAnchor.base === matrixBase && mAnchor.date) || matrixBase;
+  // The departure date of the day the traveller picked on the strip: the strip stays centred on it
+  // (three dates either side) — also when a filter changes afterwards (airport, length, meals),
+  // Levent 27 Oct 2026. The arrows page away from it (they set mAnchor and clear this).
+  const [mCentre, setMCentre] = useState({ base: null, date: null });
+  const matrixDate = (mCentre.base === matrixBase && mCentre.date) || (mAnchor.base === matrixBase && mAnchor.date) || matrixBase;
   const [matrixReload, setMatrixReload] = useState(0);
   /**
    * The departure airports the strip prices each date from (UI-03).
@@ -2502,7 +2506,7 @@ export default function HotelDetail() {
   const stripStep = (delta) => {
     if (!useMatrix) { pageDay(delta); return; }
     const d = delta < 0 ? matrix.prev : matrix.next;
-    if (d) setMAnchor({ base: matrixBase, date: d });
+    if (d) { setMCentre({ base: null, date: null }); setMAnchor({ base: matrixBase, date: d }); }
   };
 
   const byDate = useMatrix ? matrixByDate : (cal.scope === calScope ? cal.byDate : {});
@@ -3292,7 +3296,7 @@ export default function HotelDetail() {
     const keepsTheDay = keys.every((k) => k === 'childAges' || k === 'childDobs' || k === 'nights');
     if (!keepsTheDay) setSelectedISO(null);
   };
-  const resetFilters = () => { setOvr({}); setPkgPick(null); setMAnchor({ base: null, date: null }); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); invalidateRooms(); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); };
+  const resetFilters = () => { setOvr({}); setPkgPick(null); setMAnchor({ base: null, date: null }); setMCentre({ base: null, date: null }); setSelectedISO(null); setWin({ base: null, start: null }); setLiveChecked(false); invalidateRooms(); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); };
 
   // The same figure as `liveTotal`, so the overview can never quote a package the rest of the
   // page refuses to book (a failed or unpriced flight check, or a flight still to be chosen).
@@ -3332,13 +3336,41 @@ export default function HotelDetail() {
   };
   // The package's stay asks the package's flight dates and arrival airport (an overnight flight
   // leaves the day before check-in); every other stay asks its own dates (utils/packageHandoff).
+  // Every approved arrival airport with a package to this hotel, when there are two or more
+  // (Istanbul IST / SAW): the live search asks each, so the flight dialog can offer them all and
+  // its Arrival airport filter has something to filter (Levent, 27 Oct 2026). The supplier search
+  // is per airport — asking the destination code alone only ever returned IST.
+  const arrivalCodes = useMemo(() => {
+    const a = pkgAirportsAround.arrivals;
+    if (!a) return null;
+    const codes = Object.entries(a).filter(([, st]) => (st?.trips || 0) > 0).map(([c]) => String(c).toUpperCase()).sort();
+    return codes.length >= 2 ? codes : null;
+  }, [pkgAirportsAround.arrivals]);
   const searchFlightsRaw = (from, checkin, checkout) => {
     const fq = flightQuestion(pkgOffer, checkin, checkout, destination);
-    const key = `${flightSearchKey(from, fq.depdate, fq.retdate)}|${fq.to}`;
+    // Every arrival airport, on the package's own dates when there is one; the package's own
+    // airport is always among them, so its flight is still found and confirmed as it is.
+    const tos = arrivalCodes ? [...new Set([String(fq.to).toUpperCase(), ...arrivalCodes])] : [fq.to];
+    if (tos.length === 1) return searchFlightsTo(from, fq, tos[0]);
+    return Promise.allSettled(tos.map((to) => searchFlightsTo(from, fq, to))).then((settled) => {
+      const ok = settled.filter((r) => r.status === 'fulfilled' && !flightAnswerFailed(r.value)).map((r) => r.value);
+      if (!ok.length) {
+        const first = settled.find((r) => r.status === 'fulfilled');
+        if (first) return first.value;
+        throw settled[0].reason;
+      }
+      // One answer with every airport's flights: the first answer's frame, the flights joined.
+      const flights = ok.flatMap((d) => d?.results?.airtuerk?.flights || []);
+      const base = ok[0];
+      return { ...base, results: { ...base.results, airtuerk: { ...(base.results?.airtuerk || {}), available: flights.length > 0, flights } } };
+    });
+  };
+  const searchFlightsTo = (from, fq, to) => {
+    const key = `${flightSearchKey(from, fq.depdate, fq.retdate)}|${to}`;
     const cached = readFlightCache(key);
     if (cached) return Promise.resolve(cached);
     return axiosInstance.post('/flight-availability/search', {
-      from, to: fq.to, depdate: fq.depdate, retdate: fq.retdate,
+      from, to, depdate: fq.depdate, retdate: fq.retdate,
       adults: flightParty.adults, children: flightParty.children, infants: flightParty.infants,
       // A package holiday: the backend returns only what the airport's connection policy allows.
       package: true,
@@ -3540,8 +3572,8 @@ export default function HotelDetail() {
       if (dayFrom && dayFrom !== origin) setOvr((p) => ({ ...p, origin: dayFrom }));
       // The strip re-centres on the picked day — three dates before it, three after — as the
       // hotel calendar does (Levent, 27 Oct 2026): the day chosen is the one everything follows.
-      const dep = entry?.departure || iso;
-      if (dep !== matrixDate) setMAnchor({ base: matrixBase, date: dep });
+      // Its DEPARTURE date: an evening flight's check-in is the next day.
+      setMCentre({ base: matrixBase, date: entry?.departure || iso });
     } else {
       // Re-centre on the chosen day, so the three days either side are on screen to compare
       // against — which is the whole reason for picking a date here rather than in the date
