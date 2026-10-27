@@ -1969,7 +1969,7 @@ export default function Results() {
         hotelCodes: Array.isArray(priceScope.hotelCodes) ? priceScope.hotelCodes : null,
         // No dates and no duration chosen (the band then only mirrors the default dates): no
         // length either, so the admin answers from its 12-month search (Phase C, Ch 1 §8A).
-        dated: !undated, flex: urlFlex, bandNights: undated && !urlDuration ? null : dayOptions, seed: resultSeed(),
+        dated: !undated, flex: urlFlex, bandNights: undated && !urlDuration ? null : dayOptions, band: urlDuration || null, seed: resultSeed(),
         entry: entryOf(params.get('entry')),
         // UI-21: the window a homepage card brought with it. Ignored the moment the traveller
         // picks a date of their own, which packageBody enforces by preferring fp.checkIn.

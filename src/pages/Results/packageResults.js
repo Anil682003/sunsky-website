@@ -67,7 +67,14 @@ export function chunkDestinations(destinations, size = DEST_CHUNK) {
  *   seed      the session's result_random_seed: the default order ('recommended') is the stable
  *             random order (Ch 1 §2); without a seed it falls back to price order
  */
-export function packageBody({ fp, childAges = '', filters = {}, origins = [], hotelCodes = null, dated = true, flex = 0, bandNights = null, seed = null, entry = null, startWindow = null }) {
+/** PURE. "6-10 days" (the URL's duration label) → "6-10"; the old "25+ days" is "25-29". */
+export function bandKey(label) {
+  const m = /^(\d+)\s*(?:-\s*(\d+)|\+)/.exec(String(label || '').trim());
+  if (!m) return null;
+  return m[2] ? `${m[1]}-${m[2]}` : (m[1] === '25' ? '25-29' : null);
+}
+
+export function packageBody({ fp, childAges = '', filters = {}, origins = [], hotelCodes = null, dated = true, flex = 0, bandNights = null, band = null, seed = null, entry = null, startWindow = null }) {
   const body = {
     adults: String(fp.adults ?? '2'),
     children: String(fp.children ?? '0'),
@@ -95,6 +102,11 @@ export function packageBody({ fp, childAges = '', filters = {}, origins = [], ho
     if (n) body.travelDays = String(n + 1);
   } else if (Array.isArray(bandNights) && bandNights.length) {
     body.nights = bandNights.includes(Number(PRECALC_NIGHTS)) ? PRECALC_NIGHTS : bandNights.join(',');
+    // The duration category itself ("6-10"): the admin answers it from the nightly 12-month search,
+    // that category's cheapest package per hotel over every date (Ch 3). `nights` is what it
+    // searches when no stored answer can serve it.
+    const key = bandKey(band);
+    if (key) body.band = key;
   }
   // No date and no length: no `nights` at all. The admin then answers from its nightly 12-month
   // search — every departure date through 12 months and every trip length, cheapest complete

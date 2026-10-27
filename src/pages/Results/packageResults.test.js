@@ -245,3 +245,16 @@ describe('packageBody with a card window', () => {
     expect(packageBody({ fp, dated: true, startWindow: { to: '2027-06-20' } }).from).toBeUndefined();
   });
 });
+
+describe('duration category without a date', () => {
+  it('sends the category so the admin answers it from the 12-month search', async () => {
+    const { packageBody, bandKey } = await import('./packageResults');
+    const fp = { adults: '2', children: '0', rooms: '1' };
+    expect(packageBody({ fp, dated: false, bandNights: [5, 6, 7, 8, 9], band: '6-10 days' })).toMatchObject({ nights: '7', band: '6-10' });
+    expect(packageBody({ fp, dated: false, bandNights: [10, 11, 12, 13, 14, 15], band: '11-16 days' }).band).toBe('11-16');
+    expect(packageBody({ fp, dated: false }).band).toBeUndefined();
+    expect(packageBody({ fp: { ...fp, checkIn: '2026-12-01', checkOut: '2026-12-08' }, band: '6-10 days' }).band).toBeUndefined();
+    expect(bandKey('25+ days')).toBe('25-29');
+    expect(bandKey('')).toBeNull();
+  });
+});
