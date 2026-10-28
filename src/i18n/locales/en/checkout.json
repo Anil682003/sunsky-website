@@ -457,8 +457,6 @@
     "paxTimesPrice": "{{count}} × {{price}} p.p.",
     "roomUpgrade": "Room upgrade",
     "airportTransfer": "Airport transfer (per vehicle)",
-    "bookingServiceFee": "Booking & service fee",
-    "sgrFee": "SGR Guarantee Fund",
     "total": "Total",
     "inclVatTaxes": "incl. VAT & taxes",
     "pricesLive": "Prices are live and are only final once your payment completes",

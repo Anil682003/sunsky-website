@@ -144,8 +144,8 @@ describe('a child date of birth from the search', () => {
 
     // Nothing can move forward until the new price is accepted.
     expect(cta()).toBeDisabled();
-    expect(panel()).toHaveTextContent('€620');     // 600 + 20 SGR, before
-    expect(panel()).toHaveTextContent('€760');     // 740 + 20 SGR, after
+    expect(panel()).toHaveTextContent('€600');     // before (no booking fee)
+    expect(panel()).toHaveTextContent('€740');     // after
 
     await user.click(screen.getByRole('button', { name: /nieuwe prijs accepteren/i }));
     await waitFor(() => expect(panel()).toHaveTextContent(/nieuwe prijs geaccepteerd/i));
@@ -154,7 +154,7 @@ describe('a child date of birth from the search', () => {
     // the stay line in the summary is now the re-priced room.
     const stayLine = [...document.querySelectorAll('.ck-sum-row')][0];
     expect(stayLine).toHaveTextContent('€740');
-    expect(panel()).toHaveTextContent('€760 totaal');
+    expect(panel()).toHaveTextContent('€740 totaal');
   });
 
   it('says so plainly when the corrected party has no room, and stays in the checkout', async () => {

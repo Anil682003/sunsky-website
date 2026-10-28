@@ -306,7 +306,7 @@ describe('the live check asks about the package the card priced', () => {
     handedOver = seen.mock.calls.at(-1)[0];
     expect(handedOver.api.flight).toMatchObject({ from: 'FRA', to: 'AYT', depdate: DEP, retdate: CHECK_OUT, price: 1000, flightKeys: ['k-pkg'] });
     expect(handedOver.search).toMatchObject({ checkin: CHECK_IN, checkout: CHECK_OUT, flightTo: 'AYT', flightDepdate: DEP, flightRetdate: CHECK_OUT });
-    // €1,500 for two: €750 p.p. (checkout adds the SGR fee itself).
+    // €1,500 for two: €750 p.p.
     expect(handedOver.ppPrice).toBe(750);
     expect(handedOver.board).toBe('ROOM ONLY');
   });

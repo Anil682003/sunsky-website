@@ -24,7 +24,6 @@ export const DEFAULT_PRICING = {
     cabin: { enabled: true, label: 'Cabin baggage', note: 'A cabin bag stored in the overhead compartment', price: 25 },
     checked: [{ kg: 15, price: 25 }, { kg: 20, price: 35 }, { kg: 25, price: 45 }, { kg: 30, price: 55 }],
   },
-  fees: { serviceFee: 20 },
 };
 
 /**

@@ -439,7 +439,6 @@ export default function Confirmation({
                 : <div className="ckc-kv-row"><span>{t('checkout:summary.paxTimesPrice', { count: pricing.pax, price: money(booking.ppPrice), defaultValue: '{{count}} × {{price}} p.p.' })}</span><b>{money(pricing.base)}</b></div>}
               {pricing.roomExtraTotal > 0 && <div className="ckc-kv-row"><span>{t('checkout:summary.roomUpgrade', 'Room upgrade')}</span><b>{money(pricing.roomExtraTotal)}</b></div>}
               {pricing.transferTotal > 0 && <div className="ckc-kv-row"><span>{t('checkout:summary.airportTransfer', 'Airport transfer (per vehicle)')}</span><b>{money(pricing.transferTotal)}</b></div>}
-              <div className="ckc-kv-row"><span>{t('checkout:summary.sgrFee', 'SGR Guarantee Fund')}</span><b>{money(pricing.sgr)}</b></div>
               {insAmount > 0 && <div className="ckc-kv-row"><span>{insurance?.name}</span><b>{money(insAmount)}</b></div>}
               <div className="ckc-kv-row total"><span>{t('checkout:confirmation.paidWith', { method: payLabel, defaultValue: 'Paid with {{method}}' })}</span><b>{money(pricing.total)}</b></div>
             </div>

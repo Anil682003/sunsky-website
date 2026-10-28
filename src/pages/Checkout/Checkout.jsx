@@ -255,8 +255,6 @@ const EMPTY_BOOKING = {
   ppPrice: 0, dateLabel: '', flight: null, room: '', roomExtra: 0, meal: '',
 };
 
-const SGR_FEE = 20;
-
 /* ── the non-refundable accommodation consent ──────────────────────────────────
    Stored VERBATIM with the booking alongside the timestamp, because "the customer accepted
    the terms" is worth nothing in a dispute without the words they were shown. Bump the
@@ -1102,8 +1100,6 @@ function CheckoutContent({ stripe, elements }) {
   const transferTotal = !isTransfer && pickedOption
     ? Math.round(Number(pickedOption.price) || 0)
     : (!isTransfer && booking.api?.transfer ? Math.round(Number(booking.api.transfer.price) || 0) : 0);
-  const serviceFee = Number(pricing?.fees?.serviceFee);
-  const SGR = Number.isFinite(serviceFee) ? serviceFee : SGR_FEE;
   /* ── baggage the traveller added ──
      Every line is priced from the dashboard table and re-priced by the server from the same
      row; an amount that appears here and not there would be money we display but never take. */
@@ -1314,7 +1310,7 @@ function CheckoutContent({ stripe, elements }) {
     return [...by.values()].sort((a, b) => a.label.localeCompare(b.label));
   }, [extraLines]);
 
-  const subtotal = base + roomExtraTotal + transferTotal + extrasTotal + SGR;
+  const subtotal = base + roomExtraTotal + transferTotal + extrasTotal;
   // Priced from the dashboard's rate card, by the same arithmetic the server will re-run.
   // Cancellation covers the party; travel cover is charged per traveller who took it.
   const cancelOption = insurances.find((i) => i.id === 'cancel')?.option || null;
@@ -1874,9 +1870,6 @@ function CheckoutContent({ stripe, elements }) {
         // looks every line up in its own table and charges that.
         extras: extraLines.length ? extraLines.map(({ code, travellerIndex, direction, kg }) => ({ code, travellerIndex, direction, kg })) : undefined,
         extrasTotal: extrasTotal || undefined,
-        // Booking & service fee (SGR) shown to the customer — recorded on the booking
-        // so the stored grand total matches what was charged.
-        serviceFee: SGR,
         // The chosen Support Package. Only the CODE and the product travel: the server prices
         // it from its own configuration and writes the snapshot (Support spec §8), so a browser
         // cannot name its own price, and the historical record is what SUNSKY sold rather than
@@ -2093,7 +2086,7 @@ function CheckoutContent({ stripe, elements }) {
         payMethod={payMethod}
         card={card}
         idealBank={idealBank}
-        pricing={{ base, roomExtraTotal, transferTotal, sgr: SGR, total, pax }}
+        pricing={{ base, roomExtraTotal, transferTotal, total, pax }}
         ccy={ccy}
         reservationPending={reservationPending}
         nonRefundable={nonRefundable}
@@ -2538,9 +2531,9 @@ function CheckoutContent({ stripe, elements }) {
                               </div>
                             </div>
                             <div className="ck-rp-prices">
-                              <span className="ck-rp-was">{money(reprice.was + roomExtraTotal + transferTotal + SGR + insAmount)}</span>
+                              <span className="ck-rp-was">{money(reprice.was + roomExtraTotal + transferTotal + insAmount)}</span>
                               <span className="ck-rp-arrow">{ICON.arrow}</span>
-                              <span className="ck-rp-now">{money(reprice.now + roomExtraTotal + transferTotal + SGR + insAmount)}</span>
+                              <span className="ck-rp-now">{money(reprice.now + roomExtraTotal + transferTotal + insAmount)}</span>
                               <span className={`ck-rp-diff${reprice.now > reprice.was ? ' up' : ' down'}`}>
                                 {reprice.now > reprice.was ? '+' : '−'}{money(Math.abs(reprice.now - reprice.was))}
                               </span>
@@ -3767,7 +3760,6 @@ function CheckoutContent({ stripe, elements }) {
                     : <div className="ck-sum-row"><span>{t('checkout:summary.paxTimesPrice', { count: pax, price: money(booking.ppPrice), defaultValue: '{{count}} × {{price}} p.p.' })}</span><b>{money(base)}</b></div>}
                   {roomExtraTotal > 0 && <div className="ck-sum-row"><span>{t('checkout:summary.roomUpgrade', 'Room upgrade')}</span><b>{money(roomExtraTotal)}</b></div>}
                   {transferTotal > 0 && <div className="ck-sum-row"><span>{t('checkout:summary.airportTransfer', 'Airport transfer (per vehicle)')}</span><b>{money(transferTotal)}</b></div>}
-                  <div className="ck-sum-row"><span>{isFlight ? t('checkout:summary.bookingServiceFee', 'Booking & service fee') : t('checkout:summary.sgrFee', 'SGR Guarantee Fund')}</span><b>{money(SGR)}</b></div>
                   {baggageRows.map((g) => (
                     <div className="ck-sum-row" key={g.label}>
                       <span>{g.label}{g.count > 1 ? ` × ${g.count}` : ''}</span><b>{money(g.total)}</b>

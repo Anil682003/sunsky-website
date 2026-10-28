@@ -3230,7 +3230,7 @@ export default function HotelDetail() {
   const wasPP = ppOf(cacheWas);
   const nowPP = ppOf(liveNow);
   const ppMoved = (wasPP != null && nowPP != null && nowPP !== wasPP) ? nowPP - wasPP : null;
-  // live-aware overview card numbers (hotel+flight base; transfer & SGR listed separately)
+  // live-aware overview card numbers (hotel+flight base; transfer listed separately)
   const ovPax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
 
   // The "Compare the lowest prices" filter bar shows the REAL search context when
