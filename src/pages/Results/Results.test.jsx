@@ -64,6 +64,7 @@ vi.mock('../../api/filters', () => ({
   // The Where filter's ScopePicker resolves zones on mount; a factory that omits an export the
   // tree imports throws at render, not at import, so every test in the file fails at once.
   fetchZones: vi.fn(() => Promise.resolve([])),
+  fetchDestinationCountries: vi.fn(() => Promise.resolve([])),
   // "Flying to" options, shaped exactly like the admin endpoint's rows. AYT serves one
   // destination, DLM serves two — the many-to-many case is the one worth guarding.
   fetchArrivalAirports: vi.fn(() => Promise.resolve(ARRIVAL_AIRPORTS)),

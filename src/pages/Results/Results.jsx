@@ -10,7 +10,7 @@ import { ENDPOINTS } from '../../api/endpoints';
 // committed copy, so a fetch on it failed on the live site (23 Oct).
 import axiosInstance from '../../services/axiosInstance';
 import { holidayThemesForCities } from '../../utils/holidayThemesForCities';
-import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages } from '../../api/filters';
+import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages, fetchDestinationCountries } from '../../api/filters';
 import {
   packageBody, chunkDestinations, chunkSizeFor, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, mergeDestinationCounts, PACKAGE_CONCURRENCY, isoAddDays,
   packageTotal, cheapestPackage,
@@ -1146,6 +1146,24 @@ export default function Results() {
     if (!scope.countries.length || !scope.destinations.length) return scope;
     return { ...scope, countries: scopeLeaves(scope, scopeCities).countries };
   }, [scope, scopeCities]);
+  // A city picked from a menu arrives without its country (?destinations=BCN). The Where filter
+  // shows that country ticked too, as a country picked from a menu already does (Levent 28 Oct).
+  // Display only: the search stays the city, so no second search runs.
+  const [cityCountries, setCityCountries] = useState({ key: '', list: [] });
+  const cityOnlyKey = !pickedScope.countries.length ? pickedScope.destinations.join(',') : '';
+  useEffect(() => {
+    if (!cityOnlyKey) return;
+    let live = true;
+    fetchDestinationCountries(cityOnlyKey.split(','))
+      .then((d) => { if (live) setCityCountries({ key: cityOnlyKey, list: d }); })
+      .catch(() => { /* the filter keeps showing just the city */ });
+    return () => { live = false; };
+  }, [cityOnlyKey]);
+  const pickerValue = useMemo(() => {
+    if (!cityOnlyKey || cityCountries.key !== cityOnlyKey) return pickedScope;
+    const countries = [...new Set(cityCountries.list.map((d) => d.countryCode).filter(Boolean))];
+    return countries.length ? { ...pickedScope, countries } : pickedScope;
+  }, [pickedScope, cityOnlyKey, cityCountries]);
   const searchScopeKey = `${searchScope.countries.join(',')}|${searchScope.destinations.join(',')}|${searchScope.zones.join(',')}`;
 
   // "Flying to" options, fetched ONCE on mount and scoped afterwards in `arrivalOptions`.
@@ -2903,7 +2921,7 @@ export default function Results() {
         <ScopePicker
           countries={countryOptions}
           status={countriesStatus}
-          value={pickedScope}
+          value={pickerValue}
           popular={POPULAR_SCOPE}
           counts={pickerCounts}
           onApply={applyScope}

@@ -36,6 +36,7 @@ vi.mock('../../api/filters', () => ({
   fetchCountries: vi.fn(() => Promise.resolve([{ code: 'TR', name: 'Turkey' }])),
   fetchDestinations: vi.fn(() => Promise.resolve([])),
   fetchZones: vi.fn(() => Promise.resolve([])),
+  fetchDestinationCountries: vi.fn(() => Promise.resolve([])),
   fetchArrivalAirports: vi.fn(() => Promise.resolve([
     { code: 'AYT', name: 'Antalya Airport', countryCode: 'TR', destinations: ['AYT'], cityNames: ['Antalya'], zoneCodes: [] },
   ])),

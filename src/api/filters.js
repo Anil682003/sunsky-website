@@ -72,6 +72,14 @@ export async function fetchDestinations(countryCode) {
   return data?.data ?? [];
 }
 
+/** Cities by code, each with its country → [{ code, name, countryCode, countryName }]. */
+export async function fetchDestinationCountries(destinationCodes) {
+  const codes = (Array.isArray(destinationCodes) ? destinationCodes : [destinationCodes]).filter(Boolean);
+  if (!codes.length) return [];
+  const data = await sharedGet('/hotel-filters/destinations', { params: { destinationCode: [...codes].sort().join(',') } });
+  return data?.data ?? [];
+}
+
 /**
  * Zones inside the given destinations that have hotels. Cascade level 3.
  * @returns {Promise<{zoneCode,name,destinationCode,destinationName}[]>}

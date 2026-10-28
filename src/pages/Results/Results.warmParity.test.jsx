@@ -35,6 +35,7 @@ vi.mock('../../api/filters', () => ({
   fetchCountries: vi.fn(() => Promise.resolve([])),
   fetchDestinations: vi.fn(() => Promise.resolve([])),
   fetchZones: vi.fn(() => Promise.resolve([])),
+  fetchDestinationCountries: vi.fn(() => Promise.resolve([])),
   fetchArrivalAirports: vi.fn(() => Promise.resolve([])),
   fetchThemes: vi.fn(() => Promise.resolve([])),
   fetchPackages: vi.fn(() => Promise.resolve({ hotels: [], hasMore: false, destinationStatus: {}, boardFacets: {} })),

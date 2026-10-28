@@ -39,6 +39,7 @@ vi.mock('../../api/filters', () => ({
   ])),
   fetchDestinations: vi.fn(() => Promise.resolve(CITIES)),
   fetchZones: vi.fn(() => Promise.resolve(ZONES)),
+  fetchDestinationCountries: vi.fn(() => Promise.resolve([])),
   // "Flying to" options. Empty = this scope has no linked arrival airports, so the filter
   // doesn't render — the state every test here except the arrival ones expects.
   fetchArrivalAirports: vi.fn(() => Promise.resolve([])),
