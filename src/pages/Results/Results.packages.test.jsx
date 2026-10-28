@@ -316,7 +316,8 @@ describe('a party other than 2 adults / 1 room (UI-25)', () => {
     await screen.findByRole('article');
     await waitFor(() => expect(screen.getByText(/berekenen/i)).toBeInTheDocument());
     // Never a count beside it while one destination is outstanding.
-    expect(screen.queryByText(/vakanties gevonden|vakanties in/i)).toBeNull();
+    // The h1 reads "Ontdek onze vakanties in …" (the heading, not a count).
+    expect(screen.queryByText(/vakanties gevonden|vakanties in/i, { ignore: 'h1, script, style' })).toBeNull();
   });
 
   it('says the search is still running rather than letting the page look finished', async () => {

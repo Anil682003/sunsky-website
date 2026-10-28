@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
+import useApi from '../../hooks/useApi';
 import { ENDPOINTS } from '../../api/endpoints';
 // The admin through the site's own client (VITE_API_URL): utils/ip's BASE_URL is localhost in the
 // committed copy, so a fetch on it failed on the live site (23 Oct).
@@ -58,6 +59,7 @@ import { packageParams } from '../../utils/packageHandoff';
 import { EMPTY_SEARCH_FALLBACK_MS } from './emptySearchFallback';
 import { countState, CALCULATING } from './resultCount';
 import { entryOf, appliedSummary, LAST_MINUTE, ALL_INCLUSIVE } from '../../utils/entryRules';
+import { resultsHeading, customHeading } from '../../utils/resultsHeading';
 import { resultSeed } from '../../utils/resultSeed';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
@@ -516,6 +518,13 @@ function AirportList({ rows, selected, onPick, multiple, name, language, unavail
 
 export default function Results() {
   const { t, i18n: i18nInstance } = useTranslation('results');
+  // Admin overrides for the results heading (Homepage Settings → Results page headings).
+  // Same shared call as useHomepageConfig (api/index), made through useApi directly.
+  const { data: cmsConfig } = useApi(ENDPOINTS.homepageConfig, {
+    immediate: true,
+    shared: true,
+    transformResponse: (res) => (res?.success ? res.data.homepageConfig : null),
+  });
   // Thousands separators follow the reader: 12,456 in English is 12.456 in Dutch,
   // and a comma there reads as a decimal point.
   const numberLocale = i18nInstance.language === 'nl' ? 'nl-BE' : 'en-GB';
@@ -3345,6 +3354,46 @@ export default function Results() {
 
   const bestValueId = cheapestCode ?? null;
 
+  /* The heading (Levent 28 Oct): what the search is about, read from the live filters, so it
+     follows every change. ONE type or theme and/or ONE place; more than one of either reads as
+     the general "Ontdek onze vakanties" (utils/resultsHeading). A holiday type's own places are
+     not "a place": only what the traveller picked counts there. */
+  const headingType = (() => {
+    const found = new Set();
+    if (urlHolidayType) found.add(urlLabel || urlHolidayType.replace(/-/g, ' '));
+    filters.themes.forEach((id) => { const n = facets.holiday.find((h) => h.id === id)?.name; if (n) found.add(n); });
+    const door = entryOf(params.get('entry'));
+    if (!urlHolidayType && door === LAST_MINUTE) found.add('Last Minutes');
+    if (!urlHolidayType && door === ALL_INCLUSIVE) found.add('All Inclusive');
+    if (filters.adultsOnly) found.add('Adults Only');
+    return found.size === 1 ? [...found][0] : '';
+  })();
+  const headingPlace = (() => {
+    if (usingDefaultScope) return { name: '', keys: [] };
+    const leaves = scopeLeaves(urlHolidayType ? pickedScope : scope, scopeCities);
+    const n = leaves.countries.length + leaves.destinations.length + leaves.zones.length;
+    if (n !== 1) return { name: '', keys: [] };
+    if (leaves.countries.length) {
+      const c = leaves.countries[0];
+      const opt = countryOptions.find((o) => o.code === c);
+      return { name: (!urlHolidayType && urlLabel) || countryName(c, i18nInstance.language, opt?.name || c), keys: [`country:${c}`] };
+    }
+    if (leaves.destinations.length) {
+      const d = leaves.destinations[0];
+      return { name: (!urlHolidayType && urlLabel) || scopeCities.find((x) => x.code === d)?.name || d, keys: [`destination:${d}`] };
+    }
+    const z = leaves.zones[0];
+    const zn = scopeZones.find((x) => zoneKey(x) === z)?.name;
+    return { name: (!urlHolidayType && urlLabel) || zn || z, keys: [`zone:${z}`] };
+  })();
+  const headingLang = String(i18nInstance.language || 'nl').startsWith('en') ? 'en' : 'nl';
+  const heading = resultsHeading({
+    type: headingType,
+    place: headingPlace.name,
+    lang: headingLang,
+    custom: customHeading(cmsConfig?.sectionHeaders?.resultsHeadings, { type: headingType, placeKeys: headingPlace.keys, lang: headingLang }),
+  });
+
   return (
     <div className={styles.page}>
       {/* Hero header */}
@@ -3358,9 +3407,7 @@ export default function Results() {
             <span className={styles.bcActive}>{scopeLabel || t('hero.results', 'Results')}</span>
           </div>
           <h1 className={styles.heroTitle}>
-            {scopeLabel
-              ? (<>{t('hero.staysIn', 'Stays in')} <em>{scopeLabel}</em></>)
-              : t('hero.findStay', 'Find your perfect stay')}
+            {heading.before}<em>{heading.em}</em>{heading.after}
           </h1>
           <div className={styles.heroChips}>
             {heroChips.map((c) => (
