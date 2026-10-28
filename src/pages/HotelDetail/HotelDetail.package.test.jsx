@@ -293,6 +293,20 @@ describe('the live check asks about the package the card priced', () => {
     expect(confirms()).toHaveLength(0);
   });
 
+  it('an overnight flight: the action card and overview show the trip from its departure day', async () => {
+    // The package flies out on DEP and checks in a day later (Bali: out Wed 6 Jan, hotel Thu
+    // 7 Jan). The strip selects the departure, so every date on the page starts there too
+    // (Levent, 28 Oct 2026), and the trip ends on the return flight's day.
+    renderPage();
+    const dayOf = (isoDate) => String(Number(isoDate.slice(8, 10)));
+    const act = await waitFor(() => { const el = document.querySelector('.fc-act-date'); expect(el).toBeTruthy(); return el; });
+    const [from, to] = act.textContent.split('–').map((x) => x.trim());
+    expect(from.split(' ')[1]).toBe(dayOf(DEP));
+    expect(to.split(' ')[1]).toBe(dayOf(CHECK_OUT));
+    const overview = document.querySelector('.overview-dates').textContent.split('–')[0];
+    expect(overview.match(/\d+/)[0]).toBe(dayOf(DEP));          // not the check-in day after it
+  });
+
   it('checkout gets the flight\'s own dates and arrival airport, and the base price without SGR', async () => {
     const user = userEvent.setup();
     renderPage();

@@ -2657,6 +2657,23 @@ export default function HotelDetail() {
     }
     : null;
 
+  // The dates the page SHOWS. With a flight that is the trip: outbound flight date → return
+  // flight date, the day the strip is keyed by and the results card shows. The hotel stay can
+  // start a day later after an overnight flight (Bali: out Wed 6 Jan, check-in Thu 7 Jan), and
+  // showing the check-in in the date field, action card and overview while the strip selected
+  // the departure read as two different trips (Levent, 28 Oct 2026). Hotel only: the stay.
+  const stayCi = pd?.iso || baseCheckIn;
+  const stayCo = stayCi ? addDaysISO(stayCi, nights) : baseCheckOut;
+  const ownPkg = pkgMode && packageApplies(pkgOffer, stayCi, stayCo);
+  const tripFrom = pkgMode ? ((ownPkg && pkgOffer.depdate) || pickedEntry?.departure || stayCi) : stayCi;
+  const tripTo = pkgMode ? ((ownPkg && pkgOffer.retdate) || pickedEntry?.pkg?.retdate || stayCo) : stayCo;
+  const tripDays = pkgMode && tripFrom && tripTo
+    ? Math.round((Date.parse(`${tripTo}T00:00:00Z`) - Date.parse(`${tripFrom}T00:00:00Z`)) / 86400000) + 1
+    : null;
+  const tripDayLabel = tripDays > 0
+    ? t('stayBar.daysChip', { count: tripDays, defaultValue: `${tripDays} ${tripDays === 1 ? 'day' : 'days'}` })
+    : dayLabel(nights);
+
   // The picked day was live-checked and came back with NO bookable rooms. It stays selected
   // on screen (pickDay refuses re-picks, not the original selection), so the action card must
   // say so — not quote the stale cache estimate under a green "available" tick.
@@ -2787,7 +2804,7 @@ export default function HotelDetail() {
     ? `${calDate(shareCheckIn)}${shareCheckOut ? ` – ${calDate(shareCheckOut)}` : ''}`
     : '';
   const sharePax = `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}${Number(sChildren) > 0 ? `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` : ''}`;
-  const shareMeta = [shareDates, dayLabel(nights), sharePax].filter(Boolean).join(' · ');
+  const shareMeta = [shareDates, tripDayLabel, sharePax].filter(Boolean).join(' · ');
   const shareText = [
     `${hotelName} — ${locLabel}`,
     shareMeta,
@@ -3243,7 +3260,15 @@ export default function HotelDetail() {
   // Editing any field re-prices the stay, so every live result gathered under the OLD
   // parameters is dropped: keeping them would show a price for a search the traveller
   // has just changed. The calendar re-fetches on its own (these values are its deps).
-  const applyFilter = (rawPatch) => {
+  const applyFilter = (rawPatchIn) => {
+    // With a flight the date field is the DEPARTURE date (it shows tripFrom). The page's own
+    // state is the hotel check-in, so a departure whose flight lands the next day maps to that
+    // day's check-in, and the strip selects the departure that was typed rather than the one
+    // before it (Levent, 28 Oct 2026).
+    let rawPatch = rawPatchIn;
+    const typedDep = pkgMode && rawPatchIn?.checkIn
+      ? matrix.days.find((d) => d.departure === rawPatchIn.checkIn) : null;
+    if (typedDep) rawPatch = { ...rawPatchIn, checkIn: typedDep.iso };
     // An airport picked in the bar is the traveller's own choice and narrows the strip to it;
     // "No preference" ('') lets every airport compete again (the airport shown keeps following
     // the picked day's winner).
@@ -3308,7 +3333,8 @@ export default function HotelDetail() {
     // `childDobs` rides with `childAges` here: it prices nothing on this page, so a date
     // arriving alongside an age the traveller just saved must not drop the picked day.
     const keepsTheDay = keys.every((k) => k === 'childAges' || k === 'childDobs' || k === 'nights');
-    if (!keepsTheDay) { setSelectedISO(null); setSelectedDep(null); }
+    if (typedDep) { setSelectedISO(typedDep.iso); setSelectedDep(typedDep.departure); }
+    else if (!keepsTheDay) { setSelectedISO(null); setSelectedDep(null); }
   };
   const resetFilters = () => { setOvr({}); setPkgPick(null); setMAnchor({ base: null, date: null }); setMCentre({ base: null, date: null }); setSelectedISO(null); setSelectedDep(null); setWin({ base: null, start: null }); setLiveChecked(false); invalidateRooms(); setLiveRooms(null); invalidateFlights(); setLiveFlights(null); };
 
@@ -4092,7 +4118,7 @@ export default function HotelDetail() {
               <span className="sd-hero-rule" />
               <div className="sd-hero-chips">
                 {shownBoard && <span className="sd-chip">{ICON.board} {shownBoard}</span>}
-                <span className="sd-chip">{ICON.moon} {dayLabel(nights)}</span>
+                <span className="sd-chip">{ICON.moon} {tripDayLabel}</span>
                 <span className="sd-chip">{ICON.users} {t('chips.adults', { count: Number(sAdults) || 2, defaultValue: `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}` })}{Number(sChildren) > 0 ? t('chips.childrenSuffix', { count: Number(sChildren), defaultValue: `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` }) : ''}</span>
                 {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} {t('chips.fromPP', { currency: ccy, amount: fromPP, defaultValue: `from ${ccy}${fromPP} p.p.` })}</span>}
               </div>
@@ -4166,7 +4192,7 @@ export default function HotelDetail() {
               </div>
 
               <StayBar
-                checkIn={pickedIso} formatDate={niceDate}
+                checkIn={pkgMode ? tripFrom : pickedIso} formatDate={niceDate}
                 adults={Number(sAdults) || 1} children={Number(sChildren) || 0} childAges={sChildAges}
                 childDobs={sChildDobs}
                 rooms={Number(sRooms) || 1}
@@ -4537,7 +4563,7 @@ export default function HotelDetail() {
                               </div>
                               <div className="fcu-item">
                                 <span className="fcu-k">{ICON.moon} {t('prices.duration', 'Duration')}</span>
-                                <span className="fcu-v">{dayLabel(nights)}</span>
+                                <span className="fcu-v">{tripDayLabel}</span>
                               </div>
                               <div className="fcu-item">
                                 <span className="fcu-k">{transport === 'hotel_only' ? ICON.bed : ICON.plane} {transport === 'hotel_only' ? t('chips.transport', 'Transport') : t('prices.airport', 'Airport')}</span>
@@ -4561,10 +4587,10 @@ export default function HotelDetail() {
                           <div className="fc-act fc-act-off">
                             <div className="fc-act-info">
                               <span className="fc-act-date">
-                                {`${calDay(pd.iso)} ${calDate(pd.iso)} – ${calDay(addDaysISO(pd.iso, nights))} ${calDate(addDaysISO(pd.iso, nights))}`}
+                                {`${calDay(tripFrom)} ${calDate(tripFrom)} – ${calDay(tripTo)} ${calDate(tripTo)}`}
                               </span>
                               <span className="fc-act-meta">
-                                {dayLabel(nights)} · {hotelName}
+                                {tripDayLabel} · {hotelName}
                               </span>
                             </div>
                             <button type="button" className="fc-cta fc-cta-off" disabled>
@@ -4577,7 +4603,7 @@ export default function HotelDetail() {
                           <div className="fc-act-info">
                             <span className="fc-act-date">
                               {pd.iso
-                                ? `${calDay(pd.iso)} ${calDate(pd.iso)} – ${calDay(addDaysISO(pd.iso, nights))} ${calDate(addDaysISO(pd.iso, nights))}`
+                                ? `${calDay(tripFrom)} ${calDate(tripFrom)} – ${calDay(tripTo)} ${calDate(tripTo)}`
                                 : `${pd.day} ${pd.date}`}
                             </span>
                             {/* The hotel's name, not an "estimated from" price: the selected
@@ -4585,7 +4611,7 @@ export default function HotelDetail() {
                                 here said nothing new — while the name anchors WHAT is being
                                 checked right next to the button that checks it. */}
                             <span className="fc-act-meta">
-                              {dayLabel(nights)} · {hotelName}
+                              {tripDayLabel} · {hotelName}
                             </span>
                           </div>
                           <button type="button" className="fc-cta" onClick={checkAvailability}>
@@ -4683,9 +4709,9 @@ export default function HotelDetail() {
                                     number. On an own-transport stay the room IS the holiday. */}
                                 {liveBusy ? t('prices.checkingTodaysPrice', 'Checking today’s price…')
                                   : liveRoom ? (transport === 'hotel_only'
-                                  ? t('prices.totalHolidayPrice', { nights: dayLabel(nights), defaultValue: `Total holiday price · ${dayLabel(nights)}` })
+                                  ? t('prices.totalHolidayPrice', { nights: tripDayLabel, defaultValue: `Total holiday price · ${tripDayLabel}` })
                                   : useMatrix && liveNow != null
-                                    ? t('prices.livePackagePrice', { nights: dayLabel(nights), defaultValue: `Live price, flight + hotel · ${dayLabel(nights)}` })
+                                    ? t('prices.livePackagePrice', { nights: tripDayLabel, defaultValue: `Live price, flight + hotel · ${tripDayLabel}` })
                                     : t('prices.liveRoomPrice', { nights: dayLabel(nights), defaultValue: `Live room price · ${dayLabel(nights)}` }))
                                   : roomsPriceUnknown ? t('prices.priceUnknownRetry', 'No price came back for these dates, try the check again')
                                   : roomsFailed ? (pdEstimate ? t('prices.livePriceUnavailableEstimate', 'Live price unavailable — estimate shown') : t('prices.noEstimateTryAgain', 'No estimate for this day — try again'))
@@ -5271,12 +5297,12 @@ export default function HotelDetail() {
                     <div className="overview-loc">{ICON.pin} {locLabel}</div>
                     <div className="overview-dates">{ICON.cal} <span>
                       {(() => {
-                        const ci = pd?.iso || baseCheckIn;
-                        const co = ci ? addDaysISO(ci, nights) : baseCheckOut;
+                        const ci = tripFrom;
+                        const co = tripTo;
                         // No invented April dates when the search carries none.
                         return (niceDate(ci) && niceDate(co)) ? `${niceDate(ci)} – ${niceDate(co)}` : t('overview.datesNotSelected', 'Dates not selected yet');
                       })()}
-                      <em>({dayLabel(nights)})</em>
+                      <em>({tripDayLabel})</em>
                     </span></div>
                     </div>
                   </div>
