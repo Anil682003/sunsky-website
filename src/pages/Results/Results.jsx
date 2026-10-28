@@ -3653,8 +3653,15 @@ export default function Results() {
                 // them, else the searched dates. Shown on Hotel Only cards while the search asked
                 // for flexible dates, so "±3 days" never reads as a range of prices.
                 const stayNightsList = Array.isArray(h.nightlyBreakdown) ? h.nightlyBreakdown : [];
-                const stayIn = pkg ? pkg.stay?.checkin : (stayNightsList[0]?.date || fetchParams.checkIn);
-                const stayOut = pkg ? pkg.stay?.checkout : (stayNightsList.length
+                // A package card shows the TRIP: outbound flight date → return flight date, the
+                // same two days its "N days" line counts (travelDays). The hotel dates can start a
+                // day later after an overnight arrival, and showing those beside the travel days
+                // read as a wrong count (Levent 29 Oct: "24/04-28/04 is not 6 days").
+                const flightDate = (local) => (typeof local === 'string' && local.length >= 10 ? local.slice(0, 10) : null);
+                const tripOutDate = pkg ? flightDate(pkg.flight?.outbound?.departureLocal) : null;
+                const tripBackDate = pkg ? flightDate(pkg.flight?.inbound?.departureLocal) : null;
+                const stayIn = pkg ? (tripOutDate || pkg.stay?.checkin) : (stayNightsList[0]?.date || fetchParams.checkIn);
+                const stayOut = pkg ? (tripBackDate || pkg.stay?.checkout) : (stayNightsList.length
                   ? new Date(Date.parse(`${stayNightsList[stayNightsList.length - 1].date}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)
                   : fetchParams.checkOut);
                 const stayNightCount = pkg ? (pkg.stay?.nights || 0) : (stayNightsList.length || nightsBetween(stayIn, stayOut) || 0);

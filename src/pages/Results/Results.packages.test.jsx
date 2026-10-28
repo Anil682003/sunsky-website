@@ -93,6 +93,10 @@ describe('"Incl. flight" lists complete packages (Levent, 6 Oct 2026)', () => {
     expect(card.textContent).toMatch(/10:30/);
     expect(card.textContent).not.toMatch(/nacht/);   // dates only: the length is the 'N dagen' line (Levent, 25 Oct 2026)
     expect(card.textContent).toMatch(/8 dagen/);                  // the package's own stay (overnight arrival)
+    // The dates are the trip's (flight out 3 Nov → back 10 Nov), the same days '8 dagen' counts,
+    // never the hotel's 4 Nov check-in beside them (Levent 29 Oct: '24/04-28/04 is not 6 days').
+    expect(card.textContent).toMatch(/3 nov\.? → 10 nov/);
+    expect(card.textContent).not.toMatch(/4 nov\.? → 10 nov/);
     expect(card.textContent).not.toMatch(/34585/);                // never the hotel code
     expect(sentToCache).toHaveLength(0);                          // no hotel-only cache search
     const [body] = await calls();
