@@ -324,6 +324,21 @@
   padding:24px 6px 22px;
 }
 
+/* UI-06 clash question (components/AirportClashPanel). Hangs under the bar like a field's
+   panel, over the photo rather than in the flow, so the hero's centred title does not jump
+   when it appears. Centred with a margin for the same reason as .calDropdown: scaleIn owns
+   transform. */
+.clashPanel {
+  position:absolute;
+  top:calc(100% + 10px);
+  left:50%;
+  margin-left:-280px;
+  width:560px;
+  max-width:calc(100vw - 32px);
+  z-index:11;
+  animation:scaleIn 0.2s var(--ease) both;
+}
+
 /* Destination dropdown */
 .destGrid {
   display:grid;
@@ -1609,6 +1624,9 @@
   /* Once the search bar stacks, the wide 960px transport panel would overflow the
      stacked bar's width — stretch it to fill instead, same as the calendar above. */
   .tspPanel { left:0; right:0; margin-left:0; width:auto; }
+  /* Stacked, the bar is a tall column and its bottom edge is under the Search button, so the
+     question joins the flow beneath it at the bar's width instead of floating over the page. */
+  .clashPanel { position:relative; top:auto; left:auto; margin:12px 0 0; width:auto; max-width:none; }
 }
 
 /* Between the stacked layout and the bar's full 1256px (windows of 1025-1279px) the row is

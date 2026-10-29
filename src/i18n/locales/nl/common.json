@@ -307,6 +307,16 @@
     "possibleDates_one": "{{count}} mogelijke vertrekdatum gevonden",
     "possibleDates_other": "{{count}} mogelijke vertrekdata gevonden"
   },
+  "airportClash": {
+    "notServed_one": "{{airports}} vliegt niet naar {{destination}}",
+    "notServed_other": "{{airports}} vliegen niet naar {{destination}}",
+    "continueFrom": "Vanaf {{airports}} kan het wel.",
+    "changeFirst": "Kies eerst een andere vertrekluchthaven en kies daarna opnieuw {{destination}}.",
+    "remove": "{{codes}} verwijderen en doorgaan",
+    "keep": "Mijn luchthavens behouden",
+    "checking": "We kijken welke van je luchthavens naar {{destination}} vliegen…",
+    "thisDestination": "deze bestemming"
+  },
   "flightDetails": {
     "details": "Vluchtdetails",
     "baggage": "Bagage",

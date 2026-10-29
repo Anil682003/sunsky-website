@@ -307,6 +307,16 @@
     "possibleDates_one": "{{count}} possible departure date found",
     "possibleDates_other": "{{count}} possible departure dates found"
   },
+  "airportClash": {
+    "notServed_one": "{{airports}} does not fly to {{destination}}",
+    "notServed_other": "{{airports}} do not fly to {{destination}}",
+    "continueFrom": "You can still go from {{airports}}.",
+    "changeFirst": "Choose a different departure airport first, then pick {{destination}} again.",
+    "remove": "Remove {{codes}} and continue",
+    "keep": "Keep my airports",
+    "checking": "Checking which of your airports fly to {{destination}}…",
+    "thisDestination": "this destination"
+  },
   "flightDetails": {
     "details": "Flight details",
     "baggage": "Baggage",

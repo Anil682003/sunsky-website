@@ -1,5 +1,9 @@
 import { describe, it, expect } from 'vitest';
-import { unreachableDestinations, isCountryUnreachable, isAirportUnreachable, visibleAirportGroups } from './useDestinationFeasibility';
+import {
+  unreachableDestinations, isCountryUnreachable, isAirportUnreachable, visibleAirportGroups,
+  clashingAirports, pickedDestinationCodes, scopeDestinationCodes,
+} from './useDestinationFeasibility';
+import { mergeFeasibility } from './usePackageAirports';
 
 /**
  * UI-05 / Ch1 §9A. A destination is greyed only when the cache can PROVE no round trip reaches
@@ -171,5 +175,129 @@ describe('visibleAirportGroups', () => {
   it('survives a malformed group', () => {
     expect(visibleAirportGroups(null, reachable)).toEqual({ groups: [], hiddenCount: 0 });
     expect(visibleAirportGroups([{ iso: 'BE' }], reachable)).toEqual({ groups: [], hiddenCount: 0 });
+  });
+});
+
+/**
+ * UI-06 / Ch1 §9A, Ch3 §4A. Brussels and Antwerp are ticked and the traveller picks a
+ * destination only Brussels flies to. The pick is held and they are asked before Antwerp goes;
+ * these are the rules for when there is anything to ask.
+ */
+describe('clashingAirports', () => {
+  it('nothing to ask when every ticked airport serves the pick', () => {
+    expect(clashingAirports({ selected: ['BRU', 'ANR'], serving: new Set(['BRU', 'ANR', 'CRL']) }))
+      .toEqual({ state: 'none', clashing: [], keep: ['BRU', 'ANR'] });
+  });
+
+  it('names the airports that do not fit, and the ones that do', () => {
+    // The backlog's own case: BRU + ANR, the destination works from BRU only.
+    expect(clashingAirports({ selected: ['BRU', 'ANR'], serving: new Set(['BRU']) }))
+      .toEqual({ state: 'some', clashing: ['ANR'], keep: ['BRU'] });
+  });
+
+  it('every ticked airport stranded is its own state, so removal of all is never offered', () => {
+    // Unticking both would quietly turn the search into No preference. They change airports.
+    expect(clashingAirports({ selected: ['BRU', 'ANR'], serving: new Set(['CRL']) }))
+      .toEqual({ state: 'all', clashing: ['BRU', 'ANR'], keep: [] });
+  });
+
+  it('one ticked airport that does not fit is the same "all": the pick waits for the airport', () => {
+    expect(clashingAirports({ selected: ['ANR'], serving: new Set(['BRU']) }).state).toBe('all');
+  });
+
+  it('with no trustworthy answer, nothing is asked', () => {
+    // Loading or failed: usePackageAirports hands back null. Unknown is not impossible.
+    for (const serving of [null, undefined, ['BRU']]) {
+      const out = clashingAirports({ selected: ['BRU', 'ANR'], serving });
+      expect(out.state).toBe('unknown');
+      expect(out.clashing).toEqual([]);
+    }
+  });
+
+  it('an empty answer is an answer: nothing serves it, so everything ticked clashes', () => {
+    expect(clashingAirports({ selected: ['BRU', 'ANR'], serving: new Set() }).state).toBe('all');
+  });
+
+  it('No preference has nothing to clash, whatever the answer says', () => {
+    expect(clashingAirports({ selected: [], serving: new Set(['BRU']) }).state).toBe('none');
+    expect(clashingAirports({ selected: [], serving: null }).state).toBe('none');
+    expect(clashingAirports().state).toBe('none');
+  });
+
+  it('a country pick keeps an airport that serves ANY destination in it (case 20)', () => {
+    // Turkey asked as its destinations at once: BRU flies to Antalya only, ANR to Dalaman only.
+    // The answers arrive as one union, so neither is stranded by Turkey. LGG reaches neither.
+    const serving = mergeFeasibility([
+      { origins: ['BRU'] },   // AYT
+      { origins: ['ANR'] },   // DLM
+    ]).origins;
+    expect(clashingAirports({ selected: ['BRU', 'ANR'], serving }).state).toBe('none');
+    expect(clashingAirports({ selected: ['BRU', 'ANR', 'LGG'], serving }))
+      .toEqual({ state: 'some', clashing: ['LGG'], keep: ['BRU', 'ANR'] });
+  });
+
+  it('codes are matched without caring about case, and a code ticked twice counts once', () => {
+    expect(clashingAirports({ selected: ['bru', 'ANR', 'anr'], serving: new Set(['BRU']) }))
+      .toEqual({ state: 'some', clashing: ['ANR'], keep: ['BRU'] });
+  });
+});
+
+describe('pickedDestinationCodes (homepage DestinationModal picks)', () => {
+  const TR = { id: 1, code: 'TR' };
+  const ES = { id: 2, code: 'SP' };
+  const city = (code, countryId) => ({ type: 'city', code, countryId, name: code });
+
+  it('cities are checked by their hotel destination codes', () => {
+    expect(pickedDestinationCodes({ countries: [TR], places: [city('AYT', 1), city('dlm', 1)] })).toEqual(['AYT', 'DLM']);
+  });
+
+  it('a whole country cannot be checked here, so nothing is asked (case 20)', () => {
+    expect(pickedDestinationCodes({ countries: [TR], places: [] })).toBeNull();
+  });
+
+  it('a whole country beside a city makes the whole pick "cannot say"', () => {
+    // Spain + Antalya must not strand an airport that flies only to Spain.
+    expect(pickedDestinationCodes({ countries: [TR, ES], places: [city('AYT', 1)] })).toBeNull();
+  });
+
+  it('a region carries no destination code, so it cannot be checked either', () => {
+    expect(pickedDestinationCodes({ countries: [TR], places: [{ type: 'region', code: 'R1', countryId: 1 }] })).toBeNull();
+  });
+
+  it('nothing picked is nothing to check', () => {
+    expect(pickedDestinationCodes({ countries: [], places: [] })).toBeNull();
+    expect(pickedDestinationCodes(undefined)).toBeNull();
+  });
+});
+
+describe('scopeDestinationCodes (results-page Where scopes)', () => {
+  const cities = [
+    { code: 'AYT', countryCode: 'TR' },
+    { code: 'SID', countryCode: 'TR' },
+    { code: 'PMI', countryCode: 'SP' },
+  ];
+
+  it('a city narrows its country: Turkey + Side is checked as Side', () => {
+    expect(scopeDestinationCodes({ countries: ['TR'], destinations: ['SID'], zones: [] }, cities)).toEqual(['SID']);
+  });
+
+  it('a country left whole is "cannot say" (case 20)', () => {
+    expect(scopeDestinationCodes({ countries: ['TR'], destinations: [], zones: [] }, cities)).toBeNull();
+    expect(scopeDestinationCodes({ countries: ['TR', 'SP'], destinations: ['SID'], zones: [] }, cities)).toBeNull();
+  });
+
+  it('a city we cannot place keeps its country whole, so nothing is asked', () => {
+    // Without the lookup scopeLeaves cannot narrow Turkey, and Turkey whole is unknown.
+    expect(scopeDestinationCodes({ countries: ['TR'], destinations: ['SID'], zones: [] }, [])).toBeNull();
+  });
+
+  it('cities on their own, and areas through their city', () => {
+    expect(scopeDestinationCodes({ countries: [], destinations: ['AYT'], zones: [] })).toEqual(['AYT']);
+    expect(scopeDestinationCodes({ countries: [], destinations: ['AYT'], zones: ['AYT:16'] })).toEqual(['AYT']);
+  });
+
+  it('an empty scope is nothing to check', () => {
+    expect(scopeDestinationCodes({ countries: [], destinations: [], zones: [] })).toBeNull();
+    expect(scopeDestinationCodes(undefined)).toBeNull();
   });
 });

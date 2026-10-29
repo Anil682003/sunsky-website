@@ -578,6 +578,9 @@
   margin: 8px 0 0; font-size: 11.5px; line-height: 1.45;
   color: var(--text-light);
 }
+/* UI-06 clash question under the Where picker (components/AirportClashPanel). In the flow:
+   the sidebar scrolls, so nothing hangs over the filters below it. */
+.clashPanel { margin-top: 12px; }
 /* "Flying to" sits under the departure picker, separated so the two airport lists
    can't read as one long list of interchangeable options. */
 .arrivalPicker {

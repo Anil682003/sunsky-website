@@ -43,6 +43,8 @@ import { earliestCheckInISO } from '../../utils/leadTime';
 import { normaliseOrigin, parseOrigins, airportCity } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
 import { usePackageAirports } from '../../hooks/usePackageAirports';
+import { useAirportClash, scopeDestinationCodes } from '../../hooks/useDestinationFeasibility';
+import AirportClashPanel from '../../components/AirportClashPanel/AirportClashPanel';
 import { usePackageDepartureDates, makeIsUnavailable, departureSummary } from '../../hooks/usePackageDepartureDates';
 
 // How far ahead the calendar asks about flyable departure dates. The endpoint takes 31 days per
@@ -1288,6 +1290,27 @@ export default function Results() {
   const toggleOriginFilter = (code) => setFilter('origins', activeOrigins.includes(code)
     ? activeOrigins.filter((c) => c !== code)
     : [...activeOrigins, code]);
+
+  /**
+   * UI-06 (Ch1 §9A, Ch3 §4A): a Where pick held back while we check it against the ticked
+   * departure airports, asked with exactly the inputs `pkgAirports` above uses, so the panel's
+   * answer is the one the airport list would give once the pick lands.
+   *
+   * Asked with ONE airport ticked as well as several, unlike the homepage. There, UI-05 greys a
+   * destination the single airport cannot reach before it can be picked; this picker has no
+   * such greying, so without the question a lone Antwerp would take Antalya and then sit in
+   * the list as "Not available for this search". With one airport the verdict is 'all', which
+   * offers no removal: the destination is not taken until the airport changes.
+   */
+  const scopeClash = useAirportClash({
+    selected: filters.transport === 'package' ? activeOrigins : [],
+    query: {
+      from: pkgDated ? isoAddDays(fetchParams.checkIn, -urlFlex) : null,
+      to: pkgDated ? isoAddDays(fetchParams.checkIn, urlFlex) : null,
+      travelDays: pkgDated && pkgNights ? pkgNights + 1 : null,
+      adults: fetchParams.adults, children: fetchParams.children, childAges: fetchParams.childAges ?? childAges,
+    },
+  });
 
   const arrivalOptions = useMemo(() => {
     if (!arrivalAirports.length || !scopeDestSet.size) return [];
@@ -2732,7 +2755,9 @@ export default function Results() {
   // real instruction ("I took my last country off") rather than a half-finished draft to
   // ignore: it navigates with no place params, which lands back on the default sun
   // destinations. Refusing it here would leave the last chip un-removable.
-  const applyScope = ({ countries, destinations, zones }) => {
+  // `origins`, when given, replaces the airports the URL carried: UI-06's "Remove ANR and
+  // continue" changes both at once, and a shared link must not bring ANR back.
+  const applyScope = ({ countries, destinations, zones }, { origins } = {}) => {
     const qp = new URLSearchParams();
     if (countries.length)    qp.set('countries', countries.join(','));
     if (destinations.length) qp.set('destinations', destinations.join(','));
@@ -2744,6 +2769,13 @@ export default function Results() {
       const v = params.get(k);
       if (v) qp.set(k, v);
     });
+    if (origins) {
+      qp.delete('origin');
+      qp.delete('origins');
+      // The home search bar's shape: the first as `origin`, all of them as `origins`.
+      if (origins.length) qp.set('origin', origins[0]);
+      if (origins.length > 1) qp.set('origins', origins.join(','));
+    }
     if (urlHolidayType && !countries.length && !destinations.length && !zones.length && urlLabel) qp.set('destinationLabel', urlLabel);
     if (!undatedSearch) {
       qp.set('checkIn', fetchParams.checkIn);
@@ -2757,6 +2789,50 @@ export default function Results() {
       qp.set('childDobs', childDobs);
     }
     navigate({ search: qp.toString() });
+  };
+
+  /**
+   * What the Where picker calls on every pick (UI-06). With Flight + Hotel and airports ticked,
+   * a pick we can check is HELD (useAirportClash) rather than navigated to; everything else
+   * goes straight through as before. The picker is controlled by the URL, so while a pick is
+   * held it simply keeps showing the scope that is still being searched.
+   *
+   * `cities` is the picker's own city list: what places a new city in its country, so Turkey +
+   * Side is checked as Side and Spain + Side as "cannot say" (case 20, scopeDestinationCodes).
+   * Our lists for the current scope fill in for a picker that has not loaded one.
+   */
+  const pickScope = (next, { cities = [] } = {}) => {
+    const selected = filters.transport === 'package' ? activeOrigins : [];
+    const codes = selected.length
+      ? scopeDestinationCodes(next, [...cities, ...scopeCities, ...cityCountries.list])
+      : null;
+    if (!codes) {
+      scopeClash.settle();
+      applyScope(next);
+      return;
+    }
+    const nameOf = new Map([...cityCountries.list, ...scopeCities, ...cities].map((c) => [String(c.code).toUpperCase(), c.name]));
+    scopeClash.hold({ value: next, destinations: codes, names: codes.map((c) => nameOf.get(c) || c) });
+  };
+
+  // Nothing clashes, or the check could not say: the held pick goes through as it was made.
+  // An effect because going through is a navigation, which must not happen during render.
+  useEffect(() => {
+    if (!scopeClash.clear) return;
+    applyScope(scopeClash.pending.value);
+    scopeClash.settle();
+    // `clear` only turns true once per held pick; applyScope reads this render's URL.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scopeClash.clear]);
+
+  // "Remove ANR and continue": exactly the airports that cannot fly there come off, in the
+  // sidebar (this page keeps its own copy of the ticks) and in the URL, and the pick lands.
+  const removeClashingAirports = () => {
+    const drop = new Set(scopeClash.verdict.clashing);
+    const kept = activeOrigins.filter((c) => !drop.has(String(c).toUpperCase()));
+    setFilter('origins', kept);
+    applyScope(scopeClash.pending.value, { origins: kept });
+    scopeClash.settle();
   };
 
   const guestSummary = [
@@ -2931,7 +3007,17 @@ export default function Results() {
           value={pickerValue}
           popular={POPULAR_SCOPE}
           counts={pickerCounts}
-          onApply={applyScope}
+          onApply={pickScope}
+        />
+        {/* UI-06: right under the picker that raised it. The departure airports it names are in
+            the section above, and changing them there answers it too. */}
+        <AirportClashPanel
+          className={styles.clashPanel}
+          verdict={scopeClash.verdict}
+          checking={scopeClash.checking}
+          destinations={scopeClash.pending?.names || []}
+          onRemove={removeClashingAirports}
+          onKeep={scopeClash.settle}
         />
       </FilterSection>
 

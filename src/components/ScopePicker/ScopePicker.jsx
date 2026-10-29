@@ -23,7 +23,7 @@ import { countryName } from '../../utils/countryName';
  * for the chosen cities, and dropping a country drops the cities it owned.
  *
  * The parent owns the committed scope and receives { countries, destinations, zones }
- * on every change.
+ * on every change, with { cities } (the loaded city rows) as a second argument.
  */
 
 /* Only a country row wears its flag. City rows used to repeat their country's flag so three
@@ -270,11 +270,15 @@ export default function ScopePicker({
       .finally(() => { if (seq === zoneReq.current) setZonesBusy(false); });
   }, [cityKey]);
 
+  // The cities this picker has loaded ride along as a second argument. The scope itself stays
+  // codes only, but a caller that has to know which country a newly picked city is in, or what
+  // it is called (UI-06's clash question on Results), would otherwise ask the API again for a
+  // list that is already here.
   const commit = (next) => onApply?.({
     countries: [...next.countries],
     destinations: [...next.cities],
     zones: [...next.zones],
-  });
+  }, { cities });
 
   /* Dropping a country drops the cities it owned and their areas, so the scope can
      never keep a city the country list no longer covers. */

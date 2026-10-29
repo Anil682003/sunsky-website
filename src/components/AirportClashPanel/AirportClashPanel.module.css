@@ -1,0 +1,88 @@
+/* UI-06: the "these airports do not fly there" question. A card rather than a banner: it asks
+   something and waits for the answer, so it reads as a decision to make, not a notice to skim.
+   Placement is the page's (a className): under the hero's search bar on Home, under the Where
+   picker on Results. */
+.panel {
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  border-left: 4px solid var(--sun-orange);
+  border-radius: var(--r-card);
+  padding: 16px 18px;
+  box-shadow: var(--shadow-md);
+  color: var(--text);
+  outline: none;
+}
+/* Focus lands on the card itself when it appears, so it needs a ring that says so. */
+.panel:focus-visible {
+  box-shadow: var(--shadow-md), 0 0 0 3px rgba(31, 79, 216, 0.28);
+}
+
+.title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+  line-height: 1.35;
+}
+
+.body {
+  margin: 6px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text-sec);
+}
+
+/* Side by side while they fit, stacked in a narrow sidebar or on a phone. */
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.remove,
+.keep {
+  flex: 1 1 auto;
+  min-height: 40px;
+  padding: 9px 16px;
+  border-radius: var(--r-full);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
+}
+
+.remove {
+  background: var(--blue-deep);
+  border: 1px solid var(--blue-deep);
+  color: #fff;
+}
+.remove:hover { background: var(--blue-mid); border-color: var(--blue-mid); }
+
+.keep {
+  background: #fff;
+  border: 1px solid var(--line-strong);
+  color: var(--text);
+}
+.keep:hover { border-color: var(--blue-deep); color: var(--blue-deep); }
+
+.remove:focus-visible,
+.keep:focus-visible {
+  outline: 3px solid rgba(31, 79, 216, 0.35);
+  outline-offset: 2px;
+}
+
+/* On a card of its own too: on Home it floats over the hero photo, where bare grey text
+   would not read. */
+.checking {
+  margin: 0;
+  padding: 10px 14px;
+  font-size: 13px;
+  color: var(--text-sec);
+  text-align: left;
+  background: #fff;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  box-shadow: var(--shadow-sm);
+}

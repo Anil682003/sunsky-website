@@ -47,7 +47,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-03 | Matrix: each date from the cheapest of the chosen airports | High | Ready | **DONE** (`1fe3278`) |
 | UI-04 | Room and board price differences against the current selection | High | Ready | **DONE** |
 | UI-05 | Disable impossible destinations and airports on the homepage | Medium | Ready | **DONE** |
-| UI-06 | Ask before dropping airports that clash with a new destination | Medium | **Needs API** | BLOCKED |
+| UI-06 | Ask before dropping airports that clash with a new destination | Medium | Ready | **DONE** |
 | UI-07 | Only offer trip lengths that have a package | Medium | Ready |**DONE** (`911f151`) |
 | UI-08 | Count wording and the counting state | Medium | Ready | **DONE** (`24ed197`) |
 | UI-09 | Mandatory local costs next to the price | Medium | **Needs API** | BLOCKED |
@@ -232,18 +232,59 @@ destination in it works.
 FEASIBLE / NOT_FEASIBLE / UNKNOWN from that airport.
 **Where:** `Hero.jsx`, `DestinationModal`, `AirportSearch`. String `feasibility.notAvailableFrom`.
 
-### UI-06 — Ask before dropping airports that clash with a new destination · BLOCKED
+### UI-06 — Ask before dropping airports that clash with a new destination · DONE
 **Pages:** Home, Results · **Spec:** Ch1 §9A · Ch3 §4A
 
 BRU + ANR selected, new destination only works from BRU: show which airports do not fit and ask
 before removing ANR. Build the confirmation into the page (browser confirm dialogs are not allowed).
 
+Done on both pages, with no new endpoint. A pick that could strand a ticked airport is HELD
+instead of applied, the same `/feasibility?destinations=` question `usePackageAirports` already
+asks is put about it, and only a positive answer (a ticked airport missing from `origins`) raises
+the question. `src/hooks/useDestinationFeasibility.js` holds it next to the UI-05 rules:
+`clashingAirports()` decides none / unknown / some / all (9 unit tests), `pickedDestinationCodes()`
+and `scopeDestinationCodes()` say what a homepage pick and a results scope can be checked by
+(10 tests), and `useAirportClash` holds the pick. `components/AirportClashPanel` draws the
+question in the page: `role="alertdialog"`, focus moves to it, Escape is "keep" (7 component
+tests). `Hero.airportClash.test.jsx` (10) and `Results.airportClash.test.jsx` (7) drive both pages.
+
+- **Home:** under the search bar once the destination picker closes, with two or more airports
+  ticked. "Antwerpen (ANR) vliegt niet naar Antalya. Vanaf Brussel (BRU) kan het wel." with
+  **ANR verwijderen en doorgaan** (unticks exactly the clashing airports and applies the
+  destination) and **Mijn luchthavens behouden** (nothing changes). Search pressed with the
+  question open sends focus back to it instead of answering it; pressed while the check is still
+  running, it searches the pick (unknown is not impossible). The panel steps aside while another
+  field's panel is open; the pick stays held and is judged again on whatever changed in there.
+- **Results:** under the Where picker, with one or more airports ticked under Flight + Hotel.
+  Remove also rewrites `origin`/`origins` in the URL as well as the sidebar's own ticks.
+
+Decisions worth keeping:
+- **Every ticked airport clashes** (one airport that does not fit included): it says so ("Kies
+  eerst een andere vertrekluchthaven...") and offers no removal. Unticking all of them would turn
+  the search into No preference behind the traveller's back.
+- **One airport on Home is UI-05's job.** The modal already greys what that airport provably
+  cannot reach, through the per-origin answer that tells NOT_FEASIBLE from UNKNOWN. `origins`
+  cannot make that distinction, so asking again off it would overrule UI-05; the hero only asks
+  with two or more. **On Results** the Where picker has no such greying, so the question covers
+  one airport too: the pick is refused with the reason until the airport changes.
+- **Case 20:** an airport fits if it serves ANY destination in the pick, and `origins` is already
+  that union. A whole country or a region has no destination codes in hand, so a pick containing
+  one is "cannot say" and goes through unasked, rather than being judged on its cities alone
+  (Spain + Antalya must not strand an airport that flies only to Spain).
+- Changing airports answers it too: untick ANR while the question is open and the pick goes
+  through.
+- `ScopePicker`'s `onApply` now passes its loaded city list as a second argument, so Results can
+  place a new city in its country and name it without asking the API again.
+
 **Done when**
 - Without confirmation the selection is unchanged
 - Only one clashing airport selected: the destination is not selectable until the airport changes
+  (Home: UI-05's greying; Results: the question, with no removal on offer)
 
-**API:** same as UI-05, marked **Needs API**.
-**Where:** `Hero.jsx`, `Results.jsx`.
+**API:** nothing new. `GET /flight-availability/feasibility?destinations=` through
+`usePackageAirports`, the answer UI-05 already reads.
+**Where:** `useDestinationFeasibility.js`, `AirportClashPanel`, `Hero.jsx`, `Results.jsx`,
+`ScopePicker.jsx`. Strings `airportClash.*` (EN and NL).
 
 ### UI-07 — Only offer trip lengths that have a package
 **Pages:** Home, Hotel page · **Spec:** Ch1 §9A · Ch3 §6

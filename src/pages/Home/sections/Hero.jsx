@@ -15,7 +15,11 @@ import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { heroCopy } from './heroCopy';
 import { countryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
-import { useDestinationFeasibility, isAirportUnreachable, visibleAirportGroups } from '../../../hooks/useDestinationFeasibility';
+import {
+  useDestinationFeasibility, isAirportUnreachable, visibleAirportGroups,
+  useAirportClash, pickedDestinationCodes,
+} from '../../../hooks/useDestinationFeasibility';
+import AirportClashPanel from '../../../components/AirportClashPanel/AirportClashPanel';
 import { usePackageDepartureDates, makeIsUnavailable, departureSummary } from '../../../hooks/usePackageDepartureDates';
 import { usePackageAirports } from '../../../hooks/usePackageAirports';
 
@@ -420,12 +424,36 @@ export default function Hero() {
 
   const openDestModal = () => {
     setOpenField(null);   // close any other dropdown first
+    // Reopening the picker while a clash question is open is answering it with "keep": the
+    // modal opens on the committed selection, so the held pick would otherwise linger
+    // underneath, unseen, waiting to be applied.
+    destClash.settle();
     setDestModalOpen(true);
   };
 
+  /**
+   * UI-06: a pick that may strand some of the ticked airports is HELD, not applied, until we
+   * know (see useAirportClash). Only with two or more airports ticked. With exactly one, UI-05
+   * has already greyed every destination that airport provably cannot reach, through the
+   * per-origin answer that tells "no route" from "cannot judge", and asking again here off a
+   * different answer would overrule it. No preference has nothing to clash.
+   *
+   * A pick we cannot check (a whole country, a region: pickedDestinationCodes) and one that
+   * names the same destinations as before go straight through.
+   */
   const handleDestinationApply = (selection) => {
-    setDestSelection(selection);
     setDestModalOpen(false);
+    const codes = transport === 'package' && !noPreference && chosenOrigins.length >= 2
+      ? pickedDestinationCodes(selection)
+      : null;
+    const sameAsNow = (pickedDestinationCodes(destSelection) || []).slice().sort().join(',')
+      === (codes || []).slice().sort().join(',');
+    if (codes && !sameAsNow) {
+      destClash.hold({ value: selection, destinations: codes, names: selection.places.map((p) => p.name) });
+      return;
+    }
+    destClash.settle();
+    setDestSelection(selection);
   };
 
   /**
@@ -661,6 +689,44 @@ export default function Hero() {
     children: totalChildren,
   });
 
+  /**
+   * UI-06 (Ch1 §9A, Ch3 §4A): a destination pick held back while we check it against the
+   * airports already ticked. The SAME question as `reachableOrigins` just above, asked about the
+   * pick before it is applied instead of after, so the answer the panel gives is the one the
+   * airport list would give a moment later.
+   *
+   * `selected` is read live, so the traveller can also answer by changing airports: untick
+   * Antwerp, and nothing clashes any more.
+   */
+  // Bumped to send focus back to the question (Search pressed while it is still open).
+  const [clashFocus, setClashFocus] = useState(0);
+  const destClash = useAirportClash({
+    selected: transport === 'package' && !noPreference ? chosenOrigins : [],
+    query: {
+      from: date || undefined,
+      to: date ? isoAddDays(date, Math.max(0, Number(flexDays) || 0)) : undefined,
+      adults: totalAdults,
+      children: totalChildren,
+    },
+  });
+  // Nothing clashes, or the check could not say: the pick goes through as it was made. Done
+  // while rendering (React's "adjust state when a value changes" pattern), so the field never
+  // paints the old destination for a frame after the answer arrived.
+  if (destClash.clear) {
+    setDestSelection(destClash.pending.value);
+    destClash.settle();
+  }
+
+  // "Remove ANR and continue": untick exactly the airports that cannot fly there, apply the
+  // pick, and nothing else. `verdict.keep` is never empty here ('some'), so this can never
+  // turn the search into No preference behind the traveller's back.
+  const removeClashingAirports = () => {
+    const drop = new Set(destClash.verdict.clashing);
+    setOrigins((prev) => prev.filter((c) => !drop.has(String(c).toUpperCase())));
+    setDestSelection(destClash.pending.value);
+    destClash.settle();
+  };
+
   const setRoomAdults = (roomIdx, next) =>
     setRoomsList((prev) =>
       prev.map((r, i) => (i === roomIdx ? { ...r, adults: Math.max(1, Math.min(9, next)) } : r))
@@ -702,8 +768,9 @@ export default function Hero() {
     return a >= 0 ? a : 0;
   };
 
-  // Params common to every search (dates, occupancy, duration band).
-  const buildBaseParams = () => {
+  // Params common to every search (dates, occupancy, duration band). `sel` is the destination
+  // being searched, which is the committed one unless a held UI-06 pick goes through with it.
+  const buildBaseParams = (sel = destSelection) => {
     // Any length with a date still needs a stay to price: the week band, as before.
     const band = findBand(duration) || findBand('6-10 days');
     // Day counting is per product (spec 3.4). Hotel Only: the band counts STAY days, so 8 days
@@ -774,8 +841,8 @@ export default function Hero() {
     // of birth, and folding it in here would stretch that window without anyone deciding to.
     saveSearch({
       mode: 'package',
-      countries: destSelection.countries,
-      places: destSelection.places,
+      countries: sel.countries,
+      places: sel.places,
       date,
       flexDays,
       duration,
@@ -788,19 +855,33 @@ export default function Hero() {
 
   // PACKAGE search — destination chosen via the country → destination modal (unchanged behaviour).
   const handleSearch = () => {
-    const selCities    = destSelection.places.filter((p) => p.type === 'city');
-    const selRegions   = destSelection.places.filter((p) => p.type === 'region');
+    // UI-06: a clash question still open has not been answered, and searching would answer it
+    // for the traveller (either way). Take them back to it instead.
+    if (destClash.asking) {
+      setClashFocus((n) => n + 1);
+      return;
+    }
+    // A pick still being checked is not a no: unknown is not impossible, so it is searched as
+    // picked rather than the search quietly running on the destination it replaced.
+    let sel = destSelection;
+    if (destClash.pending) {
+      sel = destClash.pending.value;
+      setDestSelection(sel);
+      destClash.settle();
+    }
+    const selCities    = sel.places.filter((p) => p.type === 'city');
+    const selRegions   = sel.places.filter((p) => p.type === 'region');
     // A country is searched WHOLE only when no specific place inside it was picked; if the
     // traveller ticked cities/regions in a country, those represent it instead (this mirrors the
     // DestinationModal's own "Entire country vs N places" semantics).
-    const pickedCountryIds = new Set(destSelection.places.map((p) => p.countryId));
-    const wholeCountries   = destSelection.countries.filter((c) => !pickedCountryIds.has(c.id));
+    const pickedCountryIds = new Set(sel.places.map((p) => p.countryId));
+    const wholeCountries   = sel.countries.filter((c) => !pickedCountryIds.has(c.id));
     // countries match hotels.countryCode (== Country.code — NOT the ISO code; e.g. Cyprus is 'NY'
     // not 'CY', UK is 'UK' not 'GB'); cities match hotels.destinationCode. Send the exact codes.
-    const destParam = selCities[0]?.code || wholeCountries[0]?.code || destSelection.countries[0]?.code || '';
-    const qs = buildBaseParams();
+    const destParam = selCities[0]?.code || wholeCountries[0]?.code || sel.countries[0]?.code || '';
+    const qs = buildBaseParams(sel);
     qs.set('destination', destParam);
-    qs.set('destinationLabel', destinationLabel);
+    qs.set('destinationLabel', sel === destSelection ? destinationLabel : selectionLabel(sel, i18n.language, t));
     if (wholeCountries.length) qs.set('countries', wholeCountries.map((c) => c.code).join(','));
     if (selCities.length)      qs.set('cities',    selCities.map((p) => p.code).join(','));
     if (selRegions.length)     qs.set('regions',   selRegions.map((p) => p.code).join(','));
@@ -1790,6 +1871,21 @@ export default function Hero() {
               {cmsSearchBtn || t('hero.search', 'Search')}
             </button>
           </div>
+          {/* UI-06: "Antwerpen (ANR) vliegt niet naar Antalya". Under the bar, where a field's
+              panel would hang, and stepped aside while one of those panels is open so the two
+              never stack. The held pick stays held meanwhile and is judged again on whatever
+              the traveller changed in there: untick ANR and it simply goes through. */}
+          {!openField && (
+            <AirportClashPanel
+              className={styles.clashPanel}
+              verdict={destClash.verdict}
+              checking={destClash.checking}
+              destinations={destClash.pending?.names || []}
+              focusKey={clashFocus}
+              onRemove={removeClashingAirports}
+              onKeep={destClash.settle}
+            />
+          )}
           {stayDropdowns}
         </div>
         )}
