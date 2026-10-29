@@ -17,6 +17,10 @@ export const ENDPOINTS = {
   // Bookings
   myBookings:      '/website/bookings',
   bookingByRef:    (ref) => `/website/bookings/${encodeURIComponent(ref)}`,
+  // The booking's documents SUNSKY released to the customer, and one of them as a PDF.
+  bookingDocuments: (ref) => `/website/bookings/${encodeURIComponent(ref)}/documents`,
+  bookingDocumentPdf: (ref, id) =>
+    `/website/bookings/${encodeURIComponent(ref)}/documents/${encodeURIComponent(id)}/pdf`,
 
   // Favourites
   favourites:      '/website/favourites',

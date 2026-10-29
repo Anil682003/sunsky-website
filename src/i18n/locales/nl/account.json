@@ -91,6 +91,34 @@
     "ref": "Ref: {{ref}}",
     "lead": "Hoofdboeker",
     "nights_one": "{{count}} nacht",
-    "nights_other": "{{count}} nachten"
+    "nights_other": "{{count}} nachten",
+    "documents": {
+      "title": "Documenten",
+      "loading": "Documenten worden geladen…",
+      "loadFailed": "Je documenten konden niet worden geladen. Probeer het later opnieuw.",
+      "empty": "Je documenten verschijnen hier zodra ze zijn uitgegeven.",
+      "issued": "Uitgegeven op {{date}}",
+      "download": "Downloaden",
+      "downloading": "Bezig met downloaden…",
+      "downloadAria": "{{title}} {{number}} downloaden",
+      "downloaded": "Document gedownload",
+      "downloadFailed": "Het downloaden is mislukt. Probeer het opnieuw.",
+      "notAvailable": "Dit document is nog niet beschikbaar.",
+      "fallbackTitle": "Document",
+      "types": {
+        "booking_confirmation": "Boekingsbevestiging",
+        "flight_voucher": "Vluchtvoucher",
+        "hotel_voucher": "Hotelvoucher",
+        "transfer_voucher": "Transfervoucher",
+        "car_rental_voucher": "Autohuurvoucher",
+        "cruise_voucher": "Cruisevoucher",
+        "visa_voucher": "Visumdocument",
+        "insurance_confirmation": "Verzekeringsbevestiging",
+        "ssr_confirmation": "Diensten en voorkeuren",
+        "sales_invoice": "Factuur",
+        "credit_invoice": "Creditnota",
+        "debit_notes": "Debetnota"
+      }
+    }
   }
 }

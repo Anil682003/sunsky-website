@@ -91,6 +91,34 @@
     "ref": "Ref: {{ref}}",
     "lead": "Lead",
     "nights_one": "{{count}} night",
-    "nights_other": "{{count}} nights"
+    "nights_other": "{{count}} nights",
+    "documents": {
+      "title": "Documents",
+      "loading": "Loading documents…",
+      "loadFailed": "Your documents could not be loaded. Please try again later.",
+      "empty": "Your documents will appear here once they are issued.",
+      "issued": "Issued {{date}}",
+      "download": "Download",
+      "downloading": "Downloading…",
+      "downloadAria": "Download {{title}} {{number}}",
+      "downloaded": "Document downloaded",
+      "downloadFailed": "The download failed. Please try again.",
+      "notAvailable": "This document is not available yet.",
+      "fallbackTitle": "Document",
+      "types": {
+        "booking_confirmation": "Booking confirmation",
+        "flight_voucher": "Flight voucher",
+        "hotel_voucher": "Hotel voucher",
+        "transfer_voucher": "Transfer voucher",
+        "car_rental_voucher": "Car rental voucher",
+        "cruise_voucher": "Cruise voucher",
+        "visa_voucher": "Visa document",
+        "insurance_confirmation": "Insurance confirmation",
+        "ssr_confirmation": "Services and preferences",
+        "sales_invoice": "Invoice",
+        "credit_invoice": "Credit note",
+        "debit_notes": "Debit note"
+      }
+    }
   }
 }

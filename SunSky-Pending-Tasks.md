@@ -57,12 +57,14 @@ The website can already create a complete test booking (hotel + flight package) 
 | # | Issue | Notes | Status |
 |---|-------|-------|--------|
 | 7 | No individual booking detail view from My Bookings | Needs an `/account/bookings/:id` route + page | ✅ Fixed (`/account/bookings/:ref`) |
-| 8 | Voucher PDF download from My Bookings | Currently a placeholder only | ⬜ Open |
+| 8 | Voucher PDF download from My Bookings | Documents card on the booking detail page: released vouchers, invoices and confirmations, each downloadable as a PDF | ✅ Fixed |
 | 9 | Flights-only end-to-end test via Airtuerk | Booking flow built but not verified end-to-end | ⬜ Open |
 | 10 | Live Stripe payment end-to-end test | Test mode works; live card not yet run | ⬜ Open |
 | 11 | Results infinite-scroll | Server-side page-based pagination with IntersectionObserver auto-load, dedup, and end-of-results message | ✅ Fixed |
 
 ### Fix notes (P2)
+
+- **#8** ✅ My Bookings → a booking → **Documents** lists the customer documents SUNSKY issued for that booking (admin `GET /api/website/bookings/:ref/documents`, PDF via `.../documents/:id/pdf`), behind the same customer login and ownership check as the booking itself. What is listed is decided by the admin Documents centre's own release check: travel documents only appear once released, and internal review copies are never handed out. Empty until documents are issued.
 
 - **#11** ✅ — true server-side infinite scroll (`page=1,2,3…`) via IntersectionObserver. Fixed the root-cause bug where new pages didn't render: the dedup `seen.add()` ran inside the `setAllHotels` updater, which React StrictMode double-invokes — the 2nd invocation saw codes already added and appended nothing. Dedup now runs once outside the updater, so the setter stays pure. Added a clear "you've reached the end" message when `hasMore` is false.
 

@@ -1,6 +1,9 @@
+import { useState } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
-import { useBooking } from '../../api';
+import { Download, FileText } from 'lucide-react';
+import { useBooking, useBookingDocuments, fetchBookingDocumentPdf } from '../../api';
+import { useToast } from '../../context/ToastContext';
 import i18n from '../../i18n';
 import styles from './BookingDetail.module.css';
 
@@ -26,6 +29,97 @@ const productIcon = (t = '') => {
   if (s.includes('insurance')) return '🛡️';
   return '🎫';
 };
+
+// dd/mm/yyyy, read from the YYYY-MM-DD text so no time zone can move the day.
+const fmtDmy = (ymd) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+};
+
+// Hands the PDF to the browser as a file download.
+const savePdf = (blob, filename) => {
+  const file = blob instanceof Blob ? blob : new Blob([blob], { type: 'application/pdf' });
+  const url = URL.createObjectURL(file);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  // Released a moment later: some browsers only start the download after click() returns.
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
+};
+
+function BookingDocuments({ bookingRef }) {
+  const { t } = useTranslation('account');
+  const { showToast } = useToast();
+  const { data: documents, loading, error } = useBookingDocuments(bookingRef);
+  const [busy, setBusy] = useState({});
+  const [failed, setFailed] = useState({});
+
+  const download = async (doc) => {
+    setBusy((s) => ({ ...s, [doc.id]: true }));
+    setFailed((s) => ({ ...s, [doc.id]: null }));
+    try {
+      const blob = await fetchBookingDocumentPdf(bookingRef, doc.id);
+      savePdf(blob, doc.filename || `${doc.number || `document-${doc.id}`}.pdf`);
+      showToast(t('account:bookingDetail.documents.downloaded', 'Document downloaded'), 'success');
+    } catch (err) {
+      const message = err?.response?.status === 403
+        ? t('account:bookingDetail.documents.notAvailable', 'This document is not available yet.')
+        : t('account:bookingDetail.documents.downloadFailed', 'The download failed. Please try again.');
+      setFailed((s) => ({ ...s, [doc.id]: message }));
+      showToast(message, 'error');
+    } finally {
+      setBusy((s) => ({ ...s, [doc.id]: false }));
+    }
+  };
+
+  const list = documents || [];
+
+  return (
+    <section className={styles.card}>
+      <h2 className={styles.cardTitle}>{t('account:bookingDetail.documents.title', 'Documents')}</h2>
+      {loading ? (
+        <p className={styles.docNote}>{t('account:bookingDetail.documents.loading', 'Loading documents…')}</p>
+      ) : error ? (
+        <p className={`${styles.docNote} ${styles.docError}`}>{t('account:bookingDetail.documents.loadFailed', 'Your documents could not be loaded. Please try again later.')}</p>
+      ) : list.length === 0 ? (
+        <p className={styles.docNote}>{t('account:bookingDetail.documents.empty', 'Your documents will appear here once they are issued.')}</p>
+      ) : (
+        <ul className={styles.docs}>
+          {list.map((doc) => {
+            const title = t(`account:bookingDetail.documents.types.${doc.type}`, doc.title || t('account:bookingDetail.documents.fallbackTitle', 'Document'));
+            const meta = [doc.number, doc.issueDate && t('account:bookingDetail.documents.issued', { date: fmtDmy(doc.issueDate), defaultValue: 'Issued {{date}}' })].filter(Boolean).join(' · ');
+            const isBusy = !!busy[doc.id];
+            return (
+              <li key={doc.id} className={styles.doc}>
+                <div className={styles.docIcon} aria-hidden="true"><FileText size={20} /></div>
+                <div className={styles.docBody}>
+                  <div className={styles.docTitle}>{title}</div>
+                  {doc.detail && <div className={styles.docDetail}>{doc.detail}</div>}
+                  {meta && <div className={styles.docMeta}>{meta}</div>}
+                  {failed[doc.id] && <div className={styles.docError} role="alert">{failed[doc.id]}</div>}
+                </div>
+                <button
+                  type="button"
+                  className={styles.docBtn}
+                  onClick={() => download(doc)}
+                  disabled={isBusy}
+                  aria-busy={isBusy}
+                  aria-label={t('account:bookingDetail.documents.downloadAria', { title, number: doc.number || '', defaultValue: 'Download {{title}} {{number}}' }).trim()}
+                >
+                  <Download size={15} aria-hidden="true" />
+                  {isBusy ? t('account:bookingDetail.documents.downloading', 'Downloading…') : t('account:bookingDetail.documents.download', 'Download')}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
 
 export default function BookingDetail() {
   const { t } = useTranslation('account');
@@ -68,6 +162,9 @@ export default function BookingDetail() {
           {b.bookingType && <span>{t('account:bookingDetail.source', 'Source:')} <b>{b.bookingType}</b></span>}
         </div>
       </section>
+
+      {/* Documents */}
+      <BookingDocuments bookingRef={b.bookingReference || ref} />
 
       {/* Products */}
       {products.length > 0 && (

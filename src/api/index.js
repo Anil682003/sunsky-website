@@ -77,6 +77,29 @@ export const useBooking = (ref) =>
     transformResponse: (res) => res?.data ?? null,
   });
 
+// The booking's documents (vouchers, invoices, confirmations) the customer may download:
+// [{ id, type, title, detail, number, issueDate, filename }]. The server decides what is
+// released, so a voucher only appears once SUNSKY releases it. Empty until documents are issued.
+export const useBookingDocuments = (ref) =>
+  useApi(ENDPOINTS.bookingDocuments(ref || '_'), {
+    immediate: !!ref,
+    transformResponse: (res) => res?.data ?? [],
+  });
+
+// A PDF can be rendered on the spot when no stored copy exists, which takes longer than the
+// shared 15s budget allows on a cold server.
+export const DOCUMENT_TIMEOUT = 60000;
+
+// One document as a PDF Blob, through the shared client so the login travels with it.
+// Imperative like the favourite toggles: every row on the page has its own loading state.
+export const fetchBookingDocumentPdf = async (ref, id) => {
+  const res = await axiosInstance.get(ENDPOINTS.bookingDocumentPdf(ref, id), {
+    responseType: 'blob',
+    timeout: DOCUMENT_TIMEOUT,
+  });
+  return res.data;
+};
+
 // Favourites — list (immediate) for the Favourites page
 export const useFavourites = () =>
   useApi(ENDPOINTS.favourites, {
