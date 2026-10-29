@@ -150,10 +150,12 @@
 
 /* Search bar */
 /* Wider than it was: each field now carries a third line, and 960px squeezed the answers
-   ("Brussels (BRU)", "Change travellers & rooms") down to ellipses. */
+   ("Brussels (BRU)", "Change travellers & rooms") down to ellipses. 1256 from 1180 (29 Oct
+   2026), the room the date field needed to stop cutting "Kies een datum"; the homepage header
+   card stays 1cm wider than this on each side (Navbar.module.css .floating). */
 .searchBarWrap {
   position:relative;
-  max-width:1180px;
+  max-width:1256px;
   width:100%;
   margin:0 auto;
 }
@@ -189,6 +191,10 @@
    own hint just prints an ellipsis. */
 .sfDest      { flex:1.45; }
 .sfTravelers { flex:1.45; }
+/* The date field's empty prompt ("Kies een datum") is longer than the date it shows once one is
+   picked ("1 apr. 2027"), and at 1.12 it was cut off on every laptop width (client, 29 Oct
+   2026). A bigger share, and a floor at the width the prompt needs, so it never ellipses. */
+.sfDate      { flex:1.4; min-width:172px; }
 /* "Where do you want to go?" is the longest placeholder on the flights row. */
 .sfTo        { flex:1.32; }
 .sf:hover { background:rgba(31,79,216,0.06); }
@@ -1603,6 +1609,15 @@
   /* Once the search bar stacks, the wide 960px transport panel would overflow the
      stacked bar's width — stretch it to fill instead, same as the calendar above. */
   .tspPanel { left:0; right:0; margin-left:0; width:auto; }
+}
+
+/* Between the stacked layout and the bar's full 1256px (windows of 1025-1279px) the row is
+   tight: the date field's wider share would otherwise cost "Geen voorkeur" and "2 volwassenen ·
+   1 kamer" their last letters. A little less side padding in each field and on the button gives
+   every field enough room again (measured at 1226, 1240 and 1279px, Oct 2026). */
+@media (min-width: 1025px) and (max-width: 1279px) {
+  .sf { padding-left:10px; padding-right:10px; }
+  .searchBtn { padding-left:20px; padding-right:20px; }
 }
 
 /* Five three-line fields plus a button need about 1000px to stay legible. Below that the bar

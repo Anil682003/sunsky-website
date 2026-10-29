@@ -654,9 +654,9 @@
 
 /* ── Homepage: the floating header card (the client's design, Oct 2026) ──
    Navbar.jsx adds .floating on the homepage only, with HomeTopStrip above it. The bar becomes a
-   white card 12px under the strip. It started as the hero search card's width (1180px); the
-   client asked for it 1cm (38px) wider on each side (29 Oct 2026), so it is 1256px and keeps
-   at least 12px from the window edge when that does not fit. Desktop only: below 901px the
+   white card 12px under the strip, 1cm (38px) wider on each side than the hero's search card
+   (client, 29 Oct 2026): the search card is 1256px, so the card is 1332px, and it keeps at least
+   12px from the window edge when that does not fit. Desktop only: below 901px the
    phone bar is the same on every page.
 
    Centred with left/right 0 and auto margins, not translateX(-50%): a transform would make the
@@ -665,7 +665,7 @@
   .floating {
     top: calc(var(--announce-h, 0px) + 12px);
     left: 0; right: 0; margin: 0 auto;
-    width: min(1256px, calc(100% - 24px));
+    width: min(1332px, calc(100% - 24px));
     height: 72px;
     padding: 0 16px;
     gap: 24px;

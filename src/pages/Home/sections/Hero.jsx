@@ -1296,7 +1296,7 @@ export default function Hero() {
       <div className={styles.sfDivider} />
       {/* Departure — opens the site's own two-month calendar (components/DateCalendar), not
           the browser's date picker, so the ± flexible-days choice can sit beside the dates. */}
-      <div data-field="date" className={`${styles.sf} ${openField === 'date' ? styles.sfActive : ''}`} onClick={() => toggleField('date')}>
+      <div data-field="date" className={`${styles.sf} ${styles.sfDate} ${openField === 'date' ? styles.sfActive : ''}`} onClick={() => toggleField('date')}>
         <div className={styles.sfHead}>
           <span className={styles.sfIcon}>
             <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>
