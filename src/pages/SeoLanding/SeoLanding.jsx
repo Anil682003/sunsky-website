@@ -308,12 +308,13 @@ export default function SeoLanding() {
         </section>
       )}
 
-      {/* §13 and §15: structured data for the breadcrumb trail. Safe to inline: every value
-          comes from our own API and JSON.stringify escapes it. */}
+      {/* §13 and §15: structured data for the breadcrumb trail. JSON.stringify does not escape
+          `<`, so a CMS text containing "</script>" would end this tag and run as script: every
+          `<` is written as its unicode escape (jsonLd below), as the server's own JSON-LD does (seo.js). */}
       {page.breadcrumbs?.length > 1 && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd(page)) }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(breadcrumbJsonLd(page)) }}
         />
       )}
 
@@ -323,12 +324,15 @@ export default function SeoLanding() {
       {isGuide && page.content && (
         <script
           type="application/ld+json"
-          dangerouslySetInnerHTML={{ __html: JSON.stringify(articleJsonLd(page)) }}
+          dangerouslySetInnerHTML={{ __html: jsonLd(articleJsonLd(page)) }}
         />
       )}
     </div>
   );
 }
+
+/** JSON for a <script type="application/ld+json">: `<` escaped, so no value can close the tag. */
+export const jsonLd = (data) => JSON.stringify(data).replace(/</g, '\\u003c');
 
 const lastCrumbLabel = (page) => page?.breadcrumbs?.[page.breadcrumbs.length - 1]?.label || null;
 
