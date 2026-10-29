@@ -5418,7 +5418,7 @@ export default function HotelDetail() {
                       </div>
                     )}
                     <div className="overview-extras">
-                      {liveFlight != null && (
+                      {liveFlight != null && ovBase != null && (
                         <div className="overview-extra">
                           {ICON.check}
                           <span>
@@ -5428,9 +5428,13 @@ export default function HotelDetail() {
                           <b>{t('baggage.included', 'Included')}</b>
                         </div>
                       )}
-                      <div className="overview-extra">
-                        {ICON.check}<span>{t('trust.noBookingFees', 'No booking fees')}</span><b>{t('baggage.included', 'Included')}</b>
-                      </div>
+                      {/* Only once there is a live price (Levent, 28 Oct 2026): before the
+                          check there is no amount for "included" to belong to. */}
+                      {ovBase != null && (
+                        <div className="overview-extra">
+                          {ICON.check}<span>{t('trust.noBookingFees', 'No booking fees')}</span><b>{t('baggage.included', 'Included')}</b>
+                        </div>
+                      )}
                     </div>
                   </div>
                   <div className="overview-total">
@@ -5453,15 +5457,17 @@ export default function HotelDetail() {
                   {/* What is NOT in the figure above. A tourist tax collected at the desk is
                       the one cost a traveller meets that this page did not quote, so it is
                       named here rather than discovered on arrival. */}
-                  <div className="overview-urgency">
-                    {ICON.info}
-                    <div className="overview-urgency-text">
-                      <b>{t('overview.localTaxesTitle', 'Local taxes and charges')}</b>
-                      <span>
-                        {t('overview.localTaxesText', { currency: ccy, defaultValue: `Any local tourist tax is payable at the property, where one applies. Prices are in ${ccy} and may change until your booking is completed.` })}
-                      </span>
+                  {ovBase != null && (
+                    <div className="overview-urgency">
+                      {ICON.info}
+                      <div className="overview-urgency-text">
+                        <b>{t('overview.localTaxesTitle', 'Local taxes and charges')}</b>
+                        <span>
+                          {t('overview.localTaxesText', { currency: ccy, defaultValue: `Any local tourist tax is payable at the property, where one applies. Prices are in ${ccy} and may change until your booking is completed.` })}
+                        </span>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
               </div>
             </div>

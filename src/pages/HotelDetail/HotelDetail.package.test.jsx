@@ -197,6 +197,18 @@ describe('the live check asks about the package the card priced', () => {
     });
   });
 
+  it('"No booking fees", "Hand luggage" and "Local taxes" appear only once the live check has priced it (Levent, 28 Oct 2026)', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await priceDays();
+    expect(container.textContent).not.toMatch(/lokale belastingen en kosten/i);
+    expect(container.querySelector('.overview-extras')?.textContent || '').not.toMatch(/geen boekingskosten|handbagage inbegrepen/i);
+    await runCheck(user);
+    await waitFor(() => expect(container.textContent).toMatch(/lokale belastingen en kosten/i));
+    expect(container.querySelector('.overview-extras').textContent).toMatch(/geen boekingskosten/i);
+    expect(container.querySelector('.overview-extras').textContent).toMatch(/handbagage inbegrepen/i);
+  });
+
   it('holds the package flight, not the cheaper other one: room €500 + flight €1,000', async () => {
     const user = userEvent.setup();
     renderPage();
