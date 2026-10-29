@@ -35,10 +35,10 @@ The website can already create a complete test booking (hotel + flight package) 
 | # | Issue | File | Line | Priority | Status |
 |---|-------|------|------|----------|--------|
 | 1 | One-way flight crash — `retDate.replace()` called on undefined for one-way flights | `src/pages/HotelDetail/HotelDetail.jsx` | ~513 | **P0** | ✅ Fixed |
-| 2 | Departure airport hardcoded to `BRU` (Brussels) — not taken from the search | `src/pages/HotelDetail/HotelDetail.jsx` | 7 (`DEFAULT_ORIGIN`) | **P0** | ⬜ Open |
-| 3 | Supplier reference hardcoded as `'77-4446011'` on confirmation + voucher | `Confirmation.jsx:167`, `HotelVoucher.jsx:39` | — | **P1** | ⬜ Open |
-| 4 | Hotel contact details hardcoded (phone / fax / email / website) | `Confirmation.jsx` | 190–194 | **P1** | ⬜ Open |
-| 5 | Flights "From" dropdown limited to hardcoded UK airports only | `src/pages/Home/sections/Hero.jsx` | 19–28 | **P1** | ⬜ Open |
+| 2 | Departure airport hardcoded to `BRU` (Brussels) — not taken from the search | `src/pages/HotelDetail/HotelDetail.jsx` | 7 (`DEFAULT_ORIGIN`) | **P0** | ✅ Fixed (the hotel page takes `origin` from the search; `BRU` is only the fallback in `utils/airports.js`) |
+| 3 | Supplier reference hardcoded as `'77-4446011'` on confirmation + voucher | `Confirmation.jsx:167`, `HotelVoucher.jsx:39` | — | **P1** | ✅ Fixed (confirmation shows "—" until the supplier ref reaches the browser; the voucher's demo booking, which carried it and showed at /voucher, is removed) |
+| 4 | Hotel contact details hardcoded (phone / fax / email / website) | `Confirmation.jsx` | 190–194 | **P1** | ✅ Fixed (only data we have; and SUNSKY's own placeholder phone/email replaced by Company Settings via `/website/company-contact`) |
+| 5 | Flights "From" dropdown limited to hardcoded UK airports only | `src/pages/Home/sections/Hero.jsx` | 19–28 | **P1** | ✅ Fixed (dynamic airport search) |
 | 6 | Rooms count not updated in Results sidebar re-search | `src/pages/Results/Results.jsx` | — | **P1** | ✅ Fixed |
 
 ### Fix notes
@@ -56,7 +56,7 @@ The website can already create a complete test booking (hotel + flight package) 
 
 | # | Issue | Notes | Status |
 |---|-------|-------|--------|
-| 7 | No individual booking detail view from My Bookings | Needs an `/account/bookings/:id` route + page | ⬜ Open |
+| 7 | No individual booking detail view from My Bookings | Needs an `/account/bookings/:id` route + page | ✅ Fixed (`/account/bookings/:ref`) |
 | 8 | Voucher PDF download from My Bookings | Currently a placeholder only | ⬜ Open |
 | 9 | Flights-only end-to-end test via Airtuerk | Booking flow built but not verified end-to-end | ⬜ Open |
 | 10 | Live Stripe payment end-to-end test | Test mode works; live card not yet run | ⬜ Open |

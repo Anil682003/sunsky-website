@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import { useToast } from '../../context/ToastContext';
+import { useCompanyContact } from '../../api';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import i18n from '../../i18n';
 import './Confirmation.css';
@@ -85,6 +86,7 @@ export default function Confirmation({
   const { t } = useTranslation('checkout');
   const navigate = useNavigate();
   const { showToast } = useToast();
+  const { data: company } = useCompanyContact();
   const [copied, setCopied] = useState(false);
   const rootRef = useRef(null);
 
@@ -153,7 +155,8 @@ export default function Confirmation({
     const endNext = (() => { const d = new Date(`${end}T00:00:00`); d.setDate(d.getDate() + 1); return d.toISOString().slice(0, 10); })();
     const ics = [
       'BEGIN:VCALENDAR', 'VERSION:2.0', 'PRODID:-//SunSky//Booking//EN', 'BEGIN:VEVENT',
-      `UID:${bookingRef}@sunskytravel.com`,
+      // The site's own host, not a placeholder domain: the UID only has to be unique to us.
+      `UID:${bookingRef}@${window.location.host || 'holidaybooking.be'}`,
       `DTSTAMP:${new Date().toISOString().replace(/[-:]/g, '').slice(0, 15)}Z`,
       `DTSTART;VALUE=DATE:${d8(start)}`,
       `DTEND;VALUE=DATE:${d8(endNext)}`,
@@ -214,7 +217,9 @@ export default function Confirmation({
             'Please note: if cancelled, modified or in case of no-show, the hotel price of the reservation will be charged.',
           ],
           remarks: [],
-          emergency: { phone: '+32 2 808 60 68', email: 'support@sunskytravel.com', website: 'www.sunskytravel.com' },
+          // The agency's real contact (Company Settings) and the site the booking was made on.
+          // The voucher leaves out any line that is empty rather than print a guess.
+          emergency: { phone: company?.phone || '', email: company?.email || '', website: window.location.host || '' },
           generated: `${new Date().toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: 'numeric' })} ${new Date().toLocaleTimeString('en-GB', { hour: '2-digit', minute: '2-digit' })} CET`,
         },
       },
@@ -481,10 +486,14 @@ export default function Confirmation({
             <b>{t('checkout:confirmation.helpQuestion', 'Questions about your booking?')}</b>
             <span>{t('checkout:confirmation.helpText', 'Our travel experts are here 7 days a week.')}</span>
           </div>
-          <div className="ckc-help-links">
-            <span className="ckc-help-item">{ICON.phone} +32 2 808 60 68</span>
-            <span className="ckc-help-item">{ICON.mail} help@sunsky.travel</span>
-          </div>
+          {/* The agency's real phone and email from Company Settings. These were placeholders
+              (+32 2 808 60 68, help@sunsky.travel) that reached nobody. */}
+          {(company?.phone || company?.email) && (
+            <div className="ckc-help-links">
+              {company.phone && <a className="ckc-help-item" href={`tel:${company.phone.replace(/[^+\d]/g, '')}`}>{ICON.phone} {company.phone}</a>}
+              {company.email && <a className="ckc-help-item" href={`mailto:${company.email}`}>{ICON.mail} {company.email}</a>}
+            </div>
+          )}
         </div>
       </div>
     </div>

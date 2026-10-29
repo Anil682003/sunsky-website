@@ -69,5 +69,11 @@
     "phone": "Phone",
     "email": "Email",
     "website": "Website"
+  },
+  "empty": {
+    "title": "No voucher to show",
+    "text": "Open your voucher from your booking confirmation, or from My Bookings once you are signed in.",
+    "myBookings": "My Bookings",
+    "home": "Home"
   }
 }

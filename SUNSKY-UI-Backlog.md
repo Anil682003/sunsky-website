@@ -66,7 +66,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-23 | Results filters per §12B.5 | Medium | Ready | **DONE** (`6b86b86`) — Adults Only merge still a decision |
 | UI-24 | Compact alternative-flight panel | Medium | Ready | **DONE** (`5bcfbd1`) |
 | UI-25 | "Calculating…" for a party other than 2 adults / 1 room | Medium | Ready | **DONE** (`3e07d2c`, verified) |
-| UI-26 | Admin: Monitoring page | Later | Ready | n/a — **sunsky-admin**, not this repo |
+| UI-26 | Admin: Monitoring page | Later | Ready | **DONE** in sunsky-admin (`d7edb754`) |
 | UI-27 | Facet counts on complete offers (stars, facilities) | Later | **Needs API** | BLOCKED |
 
 \* See **Findings** below: the label is only half right for UI-01 and UI-02.
@@ -582,7 +582,7 @@ its own range replaces the 42-day default. A customer date change replaces it.
 month by month.
 **Where:** homepage cards, `utils/searchStore.js`.
 
-### UI-26 — Admin: Monitoring page · not this repo
+### UI-26 — Admin: Monitoring page · DONE in sunsky-admin (`d7edb754`)
 **Pages:** Admin panel → System · **Spec:** Ch1 §12A
 
 Belongs to **sunsky-admin**, listed here only because it came in the same backlog. One admin page

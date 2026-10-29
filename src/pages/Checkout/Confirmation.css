@@ -280,6 +280,9 @@
 .ckc-help-item { display:inline-flex; align-items:center; gap:8px; padding:9px 16px; border-radius:var(--r-full);
   background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.18); font-size:12.5px; font-weight:600; }
 .ckc-help-item svg { width:14px; height:14px; color:var(--gold); }
+/* Real tel: / mailto: links now: same look as before, plus a hover. */
+a.ckc-help-item { color:inherit; text-decoration:none; transition:background .2s; }
+a.ckc-help-item:hover { background:rgba(255,255,255,.18); }
 
 /* ════ RESPONSIVE ════ */
 @media (max-width: 920px) {

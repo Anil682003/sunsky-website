@@ -69,5 +69,11 @@
     "phone": "Telefoon",
     "email": "E-mail",
     "website": "Website"
+  },
+  "empty": {
+    "title": "Geen voucher om te tonen",
+    "text": "Open je voucher via je boekingsbevestiging, of via Mijn boekingen zodra je bent ingelogd.",
+    "myBookings": "Mijn boekingen",
+    "home": "Home"
   }
 }

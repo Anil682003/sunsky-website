@@ -34,56 +34,10 @@ const ICON = {
   back:   <S sw={2.2}><path d="M19 12H5" /><path d="M12 19l-7-7 7-7" /></S>,
 };
 
-/* ════ demo voucher — exact data from the approved design ════ */
-const DEMO = {
-  reference: 'SUN-258741',
-  supplierRef: '77-4446011',
-  bookingDate: '02 June 2026',
-  status: 'Confirmed',
-  hotel: {
-    name: 'Miracle İstanbul Asia Airport Hotel & Spa',
-    stars: 5,
-    location: 'Pendik, Istanbul, Türkiye',
-  },
-  checkIn: { date: '06 Apr 2026', time: '14:00' },
-  checkOut: { date: '07 Apr 2026', time: '12:00' },
-  nights: 1, roomCount: 1, guests: 2,
-  board: 'Room Only',
-  travelers: [
-    { n: 1, title: 'Mr', type: 'ADT', gender: 'Male', name: 'Levent Yardimci', dob: '12 Apr 1985' },
-  ],
-  rooms: [
-    {
-      label: 'ROOM 1', type: 'Double Superior Room', occupancy: '1 Adult',
-      board: 'Room Only', status: 'Confirmed',
-      confirmation: 'R305760544', assigned: ['Levent Yardimci'],
-    },
-  ],
-  contact: {
-    address: ['Harmandere Mah. Dedepasa Cad.', 'Site Sok 8 - Pendik', 'Istanbul, Türkiye'],
-    telephone: '+90 216 510 04 04',
-    fax: '+90 216 510 04 08',
-    email: 'sales@miracleistanbulasia.com',
-    website: 'www.miracleistanbulasia.com',
-  },
-  stay: {
-    checkInTime: '14:00', checkOutTime: '12:00',
-    earlyCheckIn: 'Subject to availability', lateCheckOut: 'Subject to availability',
-  },
-  important: [
-    'Car park: Yes (without additional debit notes).',
-    'Check-in hour: 14:00 - 00:00.',
-    'Check-out hour: 11:30 - 12:00.',
-    'Deposit on arrival.',
-    'Please note: if cancelled, modified or in case of no-show, the hotel price of the reservation will be charged.',
-  ],
-  remarks: [
-    { t: 'Luxury Collection – Exclusive privileges: 24/7 concierge service to support travel advisors and enhance their clients’ stays.' },
-    { t: 'A gourmet welcome amenity arranged on demand, and complimentary early check-in (from 12 PM) and late check-out (until 2 PM) – subject to availability, peak-period restrictions, and at least 48 hours’ notice. To unlock these privileges and benefit from our dedicated concierge service, please email ', link: 'luxury@hbxgroup.com', href: 'mailto:luxury@hbxgroup.com', t2: ' with your booking number. Perks are eligible on a minimum of two-night stay and are subject to availability. Terms & Conditions: ', link2: 'https://www.privilege-terms.com/', href2: 'https://www.privilege-terms.com/' },
-  ],
-  emergency: { phone: '+32 2 808 60 68', email: 'support@sunskytravel.com', website: 'www.sunskytravel.com' },
-  generated: '02 Jun 2026 14:35 CET',
-};
+/* A voucher is a legal travel document, so this page only ever shows a real booking's data,
+   handed over by the confirmation page. It used to fall back to a sample booking from the design
+   (a named traveller, a supplier reference and a real hotel's contact details), which meant
+   anyone opening /voucher directly saw a confirmed voucher for a booking that does not exist. */
 
 const Cell = ({ icon, label, children }) => (
   <div className="hv-cell">
@@ -102,7 +56,32 @@ export default function HotelVoucher() {
   const { t } = useTranslation('voucher');
   const { state } = useLocation();
   const navigate = useNavigate();
-  const v = state?.voucher || DEMO;
+  const v = state?.voucher;
+
+  // Opened directly (a bookmark, a shared link, a reload after the confirmation state is gone):
+  // there is no booking here to show, so say where the real one lives instead of drawing a
+  // voucher for nothing.
+  if (!v) {
+    return (
+      <div className="hv">
+        <div className="hv-empty" role="status">
+          <h1 className="hv-empty-title">{t('voucher:empty.title', 'No voucher to show')}</h1>
+          <p className="hv-empty-text">
+            {t('voucher:empty.text', 'Open your voucher from your booking confirmation, or from My Bookings once you are signed in.')}
+          </p>
+          <div className="hv-empty-actions">
+            <button type="button" className="hv-tb-print" onClick={() => navigate('/account/bookings')}>
+              {t('voucher:empty.myBookings', 'My Bookings')}
+            </button>
+            <button type="button" className="hv-tb-back" onClick={() => navigate('/')}>
+              {t('voucher:empty.home', 'Home')}
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   const statusClass = (v.status || '').toLowerCase();
 
   return (
@@ -360,6 +339,9 @@ export default function HotelVoucher() {
         )}
 
         {/* ═══ EMERGENCY ASSISTANCE ═══ */}
+        {/* Only the contact lines we actually have: an empty one is left out, and with none at all
+            the block goes, rather than print a number that reaches nobody. */}
+        {(v.emergency?.phone || v.emergency?.email || v.emergency?.website) && (
         <section className="hv-emergency">
           <div className="hv-em-head">
             <span className="hv-em-ico">{ICON.phone}</span>
@@ -369,11 +351,12 @@ export default function HotelVoucher() {
             </div>
           </div>
           <div className="hv-em-row">
-            <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.phone}</i><b>{t('voucher:emergency.phone', 'Phone')}</b>{v.emergency.phone}</span>
-            <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.mail}</i><b>{t('voucher:emergency.email', 'Email')}</b>{v.emergency.email}</span>
-            <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.globe}</i><b>{t('voucher:emergency.website', 'Website')}</b>{v.emergency.website}</span>
+            {v.emergency.phone && <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.phone}</i><b>{t('voucher:emergency.phone', 'Phone')}</b>{v.emergency.phone}</span>}
+            {v.emergency.email && <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.mail}</i><b>{t('voucher:emergency.email', 'Email')}</b>{v.emergency.email}</span>}
+            {v.emergency.website && <span className="hv-em-item"><i className="hv-em-item-ico">{ICON.globe}</i><b>{t('voucher:emergency.website', 'Website')}</b>{v.emergency.website}</span>}
           </div>
         </section>
+        )}
 
         {/* ═══ NOTE BAR + FOOTER ═══ */}
         <div className="hv-note">{ICON.info} {t('voucher:note', 'Please have your booking reference and hotel confirmation number ready when contacting us.')}</div>

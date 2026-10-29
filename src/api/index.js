@@ -119,6 +119,17 @@ export const useCheckoutConfig = () =>
     transformResponse: (res) => (res?.success ? res.data : null),
   });
 
+// The agency's contact details from the dashboard's Company Settings: { name, legalName,
+// email, phone }. Printed on the confirmation page and the voucher, which used to carry a
+// placeholder number and email. null until it answers or when it fails: callers leave the line
+// out rather than print a guess.
+export const useCompanyContact = () =>
+  useApi(ENDPOINTS.companyContact, {
+    immediate: true,
+    shared: true,
+    transformResponse: (res) => (res?.success ? res.data : null),
+  });
+
 // Header content managed in the dashboard (CMS → Layout → Header Settings):
 // the logo, its alt text and where it links.
 export const useHeaderConfig = () =>
