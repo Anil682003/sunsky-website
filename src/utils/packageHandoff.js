@@ -206,7 +206,9 @@ export function matrixDays(cells) {
   for (const c of Array.isArray(cells) ? cells : []) {
     if (!c?.date) continue;
     const priced = c.state === 'AVAILABLE' && Number(c.sunskyPayableTotal) > 0;
-    const pkg = priced ? packageFromOffer(c) : null;
+    // PRICE_UNKNOWN (29 Oct 2026 addendum §4): valid flights, no cached hotel price. No amount,
+    // but its flight travels with the date, so picking it live-checks that exact trip.
+    const pkg = priced || c.state === 'PRICE_UNKNOWN' ? packageFromOffer(c) : null;
     const iso = pkg?.checkin || c.stay?.checkin || c.date;
     const day = {
       iso,

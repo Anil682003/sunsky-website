@@ -480,6 +480,37 @@ describe('the strip says which kind of "no price" this is', () => {
     expect(failed.textContent).toMatch(/prijs niet beschikbaar/i);
   });
 
+  it('flights valid, no cached hotel price (Numa Bay, addendum 29 Oct §4): "Check price & availability", pickable, live-checks that trip', async () => {
+    const user = userEvent.setup();
+    const d = iso(31);
+    MATRIX = { success: true, status: 'AVAILABLE', prev: null, next: null, cells: [
+      priced(),
+      { date: d, state: 'PRICE_UNKNOWN', flights: 2, currency: 'EUR', travelDays: 7,
+        stay: { checkin: d, checkout: CHECK_OUT, nights: 6 }, departureAirport: 'FRA', arrivalAirport: 'AYT',
+        flight: { price: 450, outbound: { departureDate: d, legs: [{ ...TK_OUT, departure: `${d}T06:00:00` }] }, inbound: { departureDate: CHECK_OUT, legs: [TK_BACK] } } },
+    ] };
+    const { container } = renderPage();
+    await priceDays();
+
+    const bar = [...container.querySelectorAll('.fc-col')].find((b) => /prijs & beschikbaarheid controleren/i.test(b.textContent));
+    expect(bar).toBeTruthy();
+    expect(bar.disabled).toBe(false);
+    expect(bar.className).not.toMatch(/fc-empty/);
+    expect(bar.textContent).not.toMatch(/niet beschikbaar/i);
+    expect(bar.getAttribute('aria-label')).toMatch(/prijs & beschikbaarheid controleren/i);
+    // No amount of any kind on it.
+    expect(bar.textContent).not.toMatch(/€/);
+
+    // Picking it, then the card's button: no live request before the explicit click.
+    await user.click(bar);
+    expect(flightSearches()).toHaveLength(0);
+    const cardButton = (await screen.findAllByRole('button', { name: /prijs & beschikbaarheid controleren/i }))
+      .find((b) => !b.classList.contains('fc-col'));
+    await user.click(cardButton);
+    await waitFor(() => expect(flightSearches().length).toBeGreaterThan(0));
+    expect(flightSearches()[0][1]).toMatchObject({ from: 'FRA', to: 'AYT', depdate: d, retdate: CHECK_OUT, package: true });
+  });
+
   it('flights exist but nothing pairs with them: not available FOR YOUR SELECTION', async () => {
     MATRIX = { success: true, status: 'AVAILABLE', prev: null, next: null, cells: [
       priced(),

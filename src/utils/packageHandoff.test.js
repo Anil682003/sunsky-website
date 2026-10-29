@@ -179,6 +179,16 @@ describe('the package matrix as the price strip', () => {
     ]);
   });
 
+  it('PRICE_UNKNOWN (addendum 29 Oct §4): no amount, but its flight rides along for the live check', () => {
+    const c = cell('2026-12-16', 0, { checkin: '2026-12-16', nights: 2 });
+    delete c.sunskyPayableTotal; delete c.pricePerPerson;
+    const days = matrixDays([{ ...c, state: 'PRICE_UNKNOWN' }]);
+    expect(days.map((d) => [d.iso, d.price, d.perPerson, d.state])).toEqual([['2026-12-16', 0, null, 'PRICE_UNKNOWN']]);
+    expect(days[0].pkg).toMatchObject({ depdate: '2026-12-16', retdate: '2026-12-18', checkin: '2026-12-16', from: 'FRA', to: 'AYT', flightPrice: 400 });
+    expect(days[0].pkg.outLegs).toHaveLength(1);
+    expect(days[0].pkg.backLegs).toHaveLength(1);
+  });
+
   it('two flight dates with one stay are two bars (one per departure date, Levent 27 Oct 2026)', () => {
     const days = matrixDays([cell('2026-12-11', 700, { checkin: '2026-12-12' }), cell('2026-12-12', 650)]);
     expect(days).toHaveLength(2);

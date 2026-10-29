@@ -876,7 +876,7 @@
 .sd .fc-arrow:disabled { opacity:.35; cursor:not-allowed; box-shadow:none; }
 
 /* zero-price: "check live price" text */
-.sd .fc-check { font-size:10px; font-weight:700; color:rgba(255,255,255,.9); text-align:center; line-height:1.35; letter-spacing:.02em; }
+.sd .fc-check { font-size:10px; font-weight:700; color:rgba(255,255,255,.9); text-align:center; line-height:1.35; letter-spacing:.02em; max-width:100%; hyphens:auto; -webkit-hyphens:auto; overflow-wrap:break-word; }
 /* ── Three states, three appearances ──────────────────────────────────────────
    The strip says three different things and only two of them were drawn:
      PRICED   solid #2456c8 — we have a cached fare, the bar's height means something

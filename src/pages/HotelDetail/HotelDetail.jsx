@@ -4447,6 +4447,7 @@ export default function HotelDetail() {
                             : liveHere ? t('prices.dayLivePriceLabel', { day: p.day, date: p.date, currency: ccy, amount: nowPP, moveNote: ppMoved != null ? t('prices.dayMoveNote', { currency: ccy, delta: Math.abs(ppMoved), direction: ppMoved < 0 ? t('prices.lower', 'lower') : t('prices.higher', 'higher'), wasAmount: wasPP, defaultValue: `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` }) : '', nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${dayLabel(p.nights)}` })
                             : hasPrice ? t('prices.dayFromPriceLabel', { day: p.day, date: p.date, currency: ccy, amount: pp, nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, from ${ccy}${pp} per person, ${dayLabel(p.nights)}` })
                             : priceFailed ? t('prices.dayPriceUnavailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, price temporarily unavailable` })
+                            : p.state === 'PRICE_UNKNOWN' ? `${p.day} ${p.date}, ${t('actions.checkPriceAvailability', 'Check price & availability')}`
                             : t('prices.dayCheckLivePrice', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, check live price` }))
                             // The departure airport is rendered as a bare code in the column;
                             // aria-label replaces the button's inner text, so without this a
@@ -4506,7 +4507,11 @@ export default function HotelDetail() {
                                      and the source did not answer. */
                                   <span className="fc-check">{priceFailed
                                     ? t('prices.priceUnavailableShort', 'Price unavailable')
-                                    : t('prices.checkLivePrice', 'Check live price')}</span>
+                                    : p.state === 'PRICE_UNKNOWN'
+                                      // Valid flights, no cached hotel price (addendum 29 Oct
+                                      // §4): Levent's words, not "Not available".
+                                      ? t('actions.checkPriceAvailability', 'Check price & availability')
+                                      : t('prices.checkLivePrice', 'Check live price')}</span>
                                 )}
                               </span>
                             </span>
