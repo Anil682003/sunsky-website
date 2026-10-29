@@ -163,8 +163,9 @@ describe('with no settings the bar is the bar it always was', () => {
     expect(within(screen.getByRole('menu')).getByText('Hotel only')).toBeInTheDocument();
   });
 
+  // On a page other than home: the homepage has its own floating header (below).
   it('keeps support, sign-in and register, and no announcement', () => {
-    renderNavbar();
+    renderNavbar('/faq');
     expect(screen.getByRole('link', { name: 'Klantendienst' })).toHaveAttribute('href', '/faq');
     expect(screen.getByRole('link', { name: 'Inloggen' })).toHaveAttribute('href', '/login');
     expect(screen.getByRole('link', { name: 'Registreren' })).toHaveAttribute('href', '/register');
@@ -374,7 +375,8 @@ describe('search, support and the rest of the bar', () => {
         language: { enabled: false, showOn: 'all' },
       }),
     };
-    renderNavbar();
+    // The full bar's slots: on the homepage the rating and the switch live in the top strip.
+    renderNavbar('/faq');
     expect(screen.queryByRole('link', { name: 'Klantendienst' })).toBeNull();
     expect(document.querySelector(`.${styles.trustpilotSlot}`)).toHaveClass(styles.onlyDesktop);
     expect(document.querySelector(`.${styles.langSlot}`)).toBeNull();
@@ -726,5 +728,54 @@ describe('no flash of the old logo on refresh (Levent 24 Oct)', () => {
     headerConfig = { logoUrl: '/uploads/header/live.png', siteHeader: v2() };
     renderNavbar();
     expect(JSON.parse(localStorage.getItem('sunsky.headerConfig.v1')).logoUrl).toBe('/uploads/header/live.png');
+  });
+});
+
+// The homepage's floating header (the client's design, Oct 2026): a brand-blue top strip with the
+// Trustpilot rating, the announcement and the language switch, and the bar as a card under it.
+describe('homepage floating header', () => {
+  const liveAnnouncement = {
+    enabled: true, text: t2('Zomervakantie 2027? Ontdek jouw volgende zonbestemming!', 'Summer 2027?'),
+    linkLabel: t2('Boek nu!', 'Book now!'), link: '/holidays/zonvakanties', newTab: false, tone: 'blue',
+    dismissible: false, startDate: '', endDate: '', showOn: 'all', live: true,
+  };
+
+  it('is a floating card on the homepage only', () => {
+    headerConfig = { siteHeader: v2() };
+    const { unmount } = renderNavbar('/');
+    expect(document.querySelector('header')).toHaveClass(styles.floating);
+    unmount();
+    renderNavbar('/faq');
+    expect(document.querySelector('header')).not.toHaveClass(styles.floating);
+  });
+
+  it('puts the rating, the announcement and the language switch in the strip, not the card', () => {
+    headerConfig = { siteHeader: v2({ announcement: liveAnnouncement, trustpilot: { enabled: true, showOn: 'all', score: 4.9 } }) };
+    renderNavbar('/');
+    const strip = screen.getByRole('region', { name: 'Mededeling' });
+    const rating = within(strip).getByRole('link', { name: /Uitstekend, 4,9 van 5 op Trustpilot/ });
+    expect(rating).toHaveAttribute('href', expect.stringMatching(/trustpilot\.com\/review\//));
+    expect(rating).toHaveAttribute('target', '_blank');
+    expect(within(strip).getByText('Zomervakantie 2027? Ontdek jouw volgende zonbestemming!')).toBeInTheDocument();
+    expect(within(strip).getByRole('link', { name: /Boek nu!/ })).toHaveAttribute('href', '/holidays/zonvakanties');
+    expect(within(strip).getByRole('group', { name: /Taal/ })).toBeInTheDocument();
+    const card = document.querySelector('header');
+    expect(card.querySelector(`.${styles.langSlot}`)).toBeNull();
+    expect(card.querySelector(`.${styles.trustpilotSlot}`)).toBeNull();
+    expect(document.documentElement.style.getPropertyValue('--announce-h')).toBe('54px');
+  });
+
+  it('never shows a score that was not entered: no score means the plain review link', () => {
+    headerConfig = { siteHeader: v2({ trustpilot: { enabled: true, showOn: 'all' } }) };
+    renderNavbar('/');
+    const strip = screen.getByRole('region', { name: 'Beoordelingen en taal' });
+    expect(within(strip).getByRole('link', { name: /Trustpilot/ }).textContent).not.toMatch(/\d/);
+  });
+
+  it('draws no strip when it has nothing to carry', () => {
+    headerConfig = { siteHeader: v2({ trustpilot: { enabled: false, showOn: 'all' }, language: { enabled: false, showOn: 'all' } }) };
+    renderNavbar('/');
+    expect(screen.queryByRole('region', { name: /Mededeling|Beoordelingen/ })).toBeNull();
+    expect(document.documentElement.style.getPropertyValue('--announce-h')).toBe('0px');
   });
 });

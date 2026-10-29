@@ -237,3 +237,15 @@ describe('announcementKey', () => {
     expect(announcementKey(a)).not.toBe(announcementKey({ ...a, endDate: '2026-12-31' }));
   });
 });
+
+describe('trustpilot score (same rule as the backend normaliser)', () => {
+  const score = (v) => normalizeSiteHeader({ siteHeader: { trustpilot: { score: v } } }).trustpilot.score;
+  it('keeps a real 1.0 to 5.0 score, one decimal, and nothing else', () => {
+    expect(score(4.9)).toBe(4.9);
+    expect(score('4,9')).toBe(4.9);
+    expect(score('4.86')).toBe(4.9);
+    expect(score(8.8)).toBeNull();
+    expect(score('')).toBeNull();
+    expect(score(undefined)).toBeNull();
+  });
+});

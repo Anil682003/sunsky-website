@@ -10,6 +10,13 @@ const FlagBE = () => (
     <rect width="3" height="6" x="6" fill="#ED2939" />
   </svg>
 );
+const FlagNL = () => (
+  <svg viewBox="0 0 9 6" className={styles.flag} aria-hidden="true" focusable="false">
+    <rect width="9" height="2" y="0" fill="#AE1C28" />
+    <rect width="9" height="2" y="2" fill="#FFF" />
+    <rect width="9" height="2" y="4" fill="#21468B" />
+  </svg>
+);
 const FlagGB = () => (
   <svg viewBox="0 0 60 40" className={styles.flag} aria-hidden="true" focusable="false">
     <rect width="60" height="40" fill="#012169" />
@@ -19,8 +26,13 @@ const FlagGB = () => (
     <path d="M30 0v40M0 20h60" stroke="#C8102E" strokeWidth="8" />
   </svg>
 );
-/* Closed list, like entryOf: a language with no flag here simply shows its code. */
-const FLAGS = { nl: FlagBE, en: FlagGB };
+/* Closed list, like entryOf: a language with no flag here simply shows its code. Dutch flies
+   both Belgium's and the Netherlands' flags, as in the client's header design (Oct 2026): the
+   agency trades in Belgium, and the same Dutch serves travellers from the Netherlands too. */
+const FLAGS = {
+  nl: () => (<span className={styles.flagPair}><FlagBE /><FlagNL /></span>),
+  en: FlagGB,
+};
 
 /**
  * The language control in the header.
@@ -33,9 +45,9 @@ const FLAGS = { nl: FlagBE, en: FlagGB };
  *
  * A flag beside each code, at the client's request. Flags are countries rather than
  * languages, which is why this used to carry codes alone, so the pairing is chosen to be
- * the least wrong one available: Dutch here is the Dutch of BELGIUM, the country the
- * agency trades in, so it flies the Belgian flag and never the Netherlands'. English gets
- * the Union Jack, the convention every Belgian travel site uses for it.
+ * the least wrong one available. Dutch flies Belgium's flag first, the country the agency
+ * trades in, with the Netherlands' beside it (the client's header design, Oct 2026). English
+ * gets the Union Jack, the convention every Belgian travel site uses for it.
  *
  * The flag is decorative only (aria-hidden): the accessible name stays the full language
  * name, so a screen reader still hears "Nederlands", not "flag of Belgium". Drawn inline
@@ -45,13 +57,14 @@ const FLAGS = { nl: FlagBE, en: FlagGB };
  * Switching does not reload. i18next re-renders whatever is on screen, so the
  * reader keeps their place, their scroll position and anything they had typed.
  */
-export default function LanguageSwitch({ className = '', compact = false }) {
+// `tone="onDark"`: white labels for a dark or brand-blue band (the homepage's top strip).
+export default function LanguageSwitch({ className = '', compact = false, tone = '' }) {
   const { t, i18n } = useTranslation('common');
   const current = i18n.resolvedLanguage || i18n.language;
 
   return (
     <div
-      className={`${styles.wrap} ${compact ? styles.compact : ''} ${className}`}
+      className={`${styles.wrap} ${compact ? styles.compact : ''} ${tone === 'onDark' ? styles.onDark : ''} ${className}`}
       role="group"
       aria-label={t('language.label', 'Language')}
     >

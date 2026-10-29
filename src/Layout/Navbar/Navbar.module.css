@@ -652,6 +652,62 @@
   .nav { padding: 0 20px; }
 }
 
+/* ── Homepage: the floating header card (the client's design, Oct 2026) ──
+   Navbar.jsx adds .floating on the homepage only, with HomeTopStrip above it. The bar becomes a
+   white card 12px under the strip, the same width as the hero's search card (both are
+   min(1180px, 100% - 48px)), so the two line up on both edges over the photo. Desktop only:
+   below 901px the phone bar is the same on every page.
+
+   Centred with left/right 0 and auto margins, not translateX(-50%): a transform would make the
+   card the containing block for every fixed-position thing inside it (dropdowns, sheets). */
+@media (min-width: 901px) {
+  .floating {
+    top: calc(var(--announce-h, 0px) + 12px);
+    left: 0; right: 0; margin: 0 auto;
+    width: min(1180px, calc(100% - 48px));
+    height: 72px;
+    padding: 0 16px;
+    gap: 24px;
+    border-radius: 16px;
+    background: #fff;
+    backdrop-filter: none; -webkit-backdrop-filter: none;
+    box-shadow: 0 14px 40px rgba(7, 20, 60, 0.16);
+  }
+  .floating.scrolled { box-shadow: 0 16px 44px rgba(7, 20, 60, 0.22); }
+  .floating::after { display: none; }
+  .floating .navSide { gap: 26px; }
+  /* The search follows the menu on the left, as in the design, rather than centring in the
+     card; whatever room is left sits between it and Klantendienst. */
+  .floating .headerSearch { justify-content: flex-start; }
+  .floating .searchGrow { flex: 1 1 380px; max-width: 380px; min-width: 200px; }
+  /* The design's search box is as tall as the sign-in pill beside it (46px). */
+  .floating .searchGrow > div { min-height: 46px; box-sizing: border-box; }
+  /* The card is 72px, the CMS wordmark is sized for the 88px bar; cap it so it keeps air. */
+  .floating .wordmarkImg { height: min(var(--wordmark-h, 46px), 44px); }
+  .floating .logoImg:not(.logoSized):not(.logoImgCms) { width: 44px; height: 44px; }
+  /* 14px, not the design's apparent 15-16: the site's Sora runs wider than the mock's face, and
+     at 14px the words take the mock's widths, which is what leaves the search its 377px. */
+  .floating .hmBtnLabel { font-size: 14px; }
+  .floating .contactLabel { font-size: 14px; }
+  .floating .authBtns { height: 46px; }
+  .floating .authPillLink { font-size: 14px; }
+}
+/* The card carries less than the full bar (the rating and the language switch moved to the
+   strip), so it keeps more than the bar's breakpoints allow. Measured (Oct 2026, nothing
+   overlapping, search box never under its 260px floor): the menu button fits at every desktop
+   width, its label from 1024px, the Klantendienst word from 1181px. :not(.onlyMobile) so a menu
+   the dashboard keeps to phones stays hidden here. */
+@media (min-width: 901px) {
+  .floating .hmWrap:not(.onlyMobile) { display: block; }
+}
+@media (min-width: 1024px) {
+  .floating .hmBtnLabel { display: inline; }
+}
+@media (min-width: 1181px) {
+  .floating .contactLabel { display: inline; }
+  .floating .contactBtn { padding: 0 4px; }
+}
+
 /* ── Where the dashboard wants a block (showOn) ──
    utils/siteHeader.js showOnClass. 'desktop' goes at the burger's breakpoint and 'mobile'
    comes back there. Last in the file on purpose: these are single classes like the rules they

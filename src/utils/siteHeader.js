@@ -324,6 +324,20 @@ function normalizeSupport(v) {
   };
 }
 
+// Reviews. `score` is the TrustScore the dashboard copies from the agency's own Trustpilot
+// profile (1.0 to 5.0, one decimal); null shows the plain "read our reviews" link instead. Never
+// a default: a review score is a real company's reputation, so it is only ever what the editor
+// typed from the real profile.
+function normalizeTrustpilot(v) {
+  const o = v && typeof v === 'object' ? v : {};
+  const n = o.score === '' || o.score == null ? NaN : Number(String(o.score).replace(',', '.'));
+  return {
+    enabled: bool(o.enabled, true),
+    showOn: oneOf(o.showOn, SHOW_ON, 'all'),
+    score: Number.isFinite(n) && n >= 1 && n <= 5 ? Math.round(n * 10) / 10 : null,
+  };
+}
+
 function normalizeSimpleBlock(v, enabledFallback) {
   const o = v && typeof v === 'object' ? v : {};
   return {
@@ -432,7 +446,7 @@ export function normalizeSiteHeader(headerConfig) {
     menuOrder: normalizeMenuOrder(v.menuOrder, menus),
     search: normalizeSearch(v.search),
     support: normalizeSupport(v.support),
-    trustpilot: normalizeSimpleBlock(v.trustpilot, true),
+    trustpilot: normalizeTrustpilot(v.trustpilot),
     language: normalizeSimpleBlock(v.language, columns.enableLanguageSelector !== false),
     account: normalizeAccount(v.account, columns),
     // With no settings at all (config down, or a backend that predates them) the phone menu

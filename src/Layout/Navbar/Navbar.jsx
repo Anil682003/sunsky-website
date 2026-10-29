@@ -18,6 +18,7 @@ import { SCORE_TEMPLATE, TRUSTPILOT_ENABLED } from '../../components/Trustpilot/
 import { useConsent } from '../../context/ConsentContext';
 import HeaderMenu from './HeaderMenu';
 import AnnouncementBar from './AnnouncementBar';
+import HomeTopStrip from './HomeTopStrip';
 import LanguageSwitch from '../../components/LanguageSwitch/LanguageSwitch';
 import { useTranslation } from 'react-i18next';
 
@@ -248,6 +249,8 @@ export default function Navbar() {
   const isWordmark = logoAspect !== null && logoAspect > 1.6;
 
   const isHome = location.pathname === '/';
+  // The homepage's floating header (HomeTopStrip + the bar as a card over the hero photo).
+  const floating = isHome;
   // Pages with a dark hero band — navbar starts transparent and blends in
   const overHero = isHome || location.pathname === '/results' || location.pathname.startsWith('/hotel/') || location.pathname === '/checkout' || location.pathname.startsWith('/flights') || location.pathname.startsWith('/holidays/');
 
@@ -604,8 +607,13 @@ export default function Navbar() {
 
   return (
     <>
-    <AnnouncementBar announcement={announcement} />
-    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''}`}>
+    {/* The homepage wears the client's floating header (Oct 2026): a brand-blue strip carrying
+        the rating, the announcement and the language switch, and the bar as a white card under
+        it, the width of the hero's search card. Every other page keeps the full-width bar. */}
+    {floating
+      ? <HomeTopStrip announcement={announcement} trustpilot={trustpilot} language={language} />
+      : <AnnouncementBar announcement={announcement} />}
+    <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''} ${floating ? styles.floating : ''}`}>
 
       {/* The bar is three parts: this flank, the cluster, and the flank below. The two
           flanks carry equal flex weight, which is what puts the cluster on the window's
@@ -712,7 +720,8 @@ export default function Navbar() {
           the review profile, so the switch always shows something and never an invented
           rating. It used to render nothing in that case, which on the free plan meant the
           dashboard's switch did nothing at all. */}
-      {trustpilot.enabled && (
+      {/* On the homepage the rating lives in the top strip instead. */}
+      {!floating && trustpilot.enabled && (
       <div className={`${styles.trustpilotSlot} ${showOnClass(trustpilot.showOn, styles)}`}>
         {liveTrustScore
           ? <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} />
@@ -722,7 +731,8 @@ export default function Navbar() {
 
       {/* Language, then the auth buttons. Before them on purpose: somebody who
           cannot read the page needs to fix that before they can sign in. */}
-      {language.enabled && (
+      {/* On the homepage the switch lives in the top strip instead (and in the phone menu). */}
+      {!floating && language.enabled && (
       <div className={`${styles.langSlot} ${showOnClass(language.showOn, styles)}`}>
         <LanguageSwitch />
       </div>

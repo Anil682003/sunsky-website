@@ -93,7 +93,16 @@
     "links_one": "{{count}} link",
     "links_other": "{{count}} links",
     "announcement": "Announcement",
-    "dismissAnnouncement": "Close announcement"
+    "dismissAnnouncement": "Close announcement",
+    "trustBand": {
+      "excellent": "Excellent",
+      "great": "Great",
+      "average": "Average",
+      "poor": "Poor",
+      "bad": "Bad"
+    },
+    "trustRatingAria": "{{band}}, {{score}} out of 5 on Trustpilot. Read our reviews (opens in a new tab)",
+    "topStrip": "Reviews and language"
   },
   "destSearch": {
     "clear": "Clear",

@@ -1,0 +1,32 @@
+/* TrustpilotRating.jsx. Five square star tiles, then the band word and the score. Sized for the
+   homepage's top strip (the client's design, Oct 2026) and reused, label-less, in the bar. */
+.rating {
+  display: inline-flex;
+  align-items: center;
+  gap: 12px;
+  text-decoration: none;
+  color: var(--text, #0B1B3A);
+  white-space: nowrap;
+}
+.rating:focus-visible { outline: 2px solid currentColor; outline-offset: 3px; border-radius: 4px; }
+
+.stars { display: inline-flex; gap: 2px; }
+.tile {
+  width: 24px;
+  height: 24px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+.tile svg { width: 19px; height: 19px; display: block; }
+
+.text { display: inline-flex; align-items: baseline; gap: 6px; }
+.band, .score {
+  font-family: 'Sora', sans-serif;
+  font-size: 15px;
+  font-weight: 700;
+  letter-spacing: -0.1px;
+}
+.rating:hover .band { text-decoration: underline; text-underline-offset: 3px; }
+
+.onDark { color: #fff; }

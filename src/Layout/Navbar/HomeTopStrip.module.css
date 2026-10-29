@@ -1,0 +1,75 @@
+/* ── Homepage top strip (HomeTopStrip.jsx) ──
+   Fixed above the floating header card. Its height is --announce-h, published by the component;
+   the card sits 12px under it and every page clears --nav-h, which includes it. Same z-index as
+   the bar: the two are one header. */
+.strip {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 1000;
+  height: var(--announce-h, 0px);
+  box-sizing: border-box;
+  display: flex; align-items: center;
+  overflow: hidden;
+  font-family: 'Sora', sans-serif;
+  color: #fff;
+}
+
+/* Tones (the CMS announcement's). Blue is the client design's brand blue; the others match the
+   announcement strip on every other page. */
+.blue   { background: #0046F2; }
+.orange { background: var(--cta-grad); color: var(--cta-ink); text-shadow: var(--cta-ink-shadow); }
+.dark   { background: var(--dark2); }
+.green  { background: #137A4B; }
+
+/* The same width as the header card and the hero's search card below it, so the three line up
+   on both edges (the client design's guides). */
+.inner {
+  width: min(1180px, calc(100% - 48px));
+  height: 100%;
+  margin: 0 auto;
+  padding: 0 22px;
+  box-sizing: border-box;
+  display: flex; align-items: center; gap: 28px;
+}
+
+.left { display: flex; align-items: center; gap: 48px; flex-shrink: 0; }
+.divider { width: 1px; height: 22px; background: rgba(255, 255, 255, 0.32); }
+
+/* The announcement sits on the centre of the room left between the rating and the language
+   switch, one line, ellipsed if the window is too narrow for it. */
+.center {
+  flex: 1; min-width: 0;
+  margin: 0;
+  display: flex; align-items: center; justify-content: center; gap: 14px;
+  white-space: nowrap;
+}
+.text {
+  min-width: 0; overflow: hidden; text-overflow: ellipsis;
+  /* Cap height matched to the design (~10.4px at the site's scale). */
+  font-size: 14px; font-weight: 600; letter-spacing: -0.1px;
+}
+.textLink { color: inherit; text-decoration: none; min-width: 0; display: flex; }
+.textLink:hover .text { text-decoration: underline; text-underline-offset: 3px; }
+
+/* "Boek nu!": a lighter band of the strip's own colour, so it reads as the thing to press
+   without competing with the orange sign-in pill below. */
+.pill {
+  display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
+  height: 32px; padding: 0 12px 0 15px;
+  border-radius: var(--r-full, 999px);
+  background: rgba(255, 255, 255, 0.11);
+  color: inherit; text-decoration: none;
+  font-size: 13.5px; font-weight: 700;
+  transition: background 0.2s var(--ease);
+}
+.pill:hover { background: rgba(255, 255, 255, 0.2); }
+.pill:focus-visible, .textLink:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
+.right { display: flex; align-items: center; flex-shrink: 0; }
+
+
+/* Phone: only the announcement, left-aligned, the strip at 36px (the component sets it). */
+@media (max-width: 900px) {
+  .inner { width: 100%; padding: 0 16px; gap: 8px; }
+  .center { justify-content: flex-start; gap: 8px; }
+  .text { font-size: 12.5px; }
+  .pill { height: 24px; padding: 0 9px; font-size: 12px; }
+}

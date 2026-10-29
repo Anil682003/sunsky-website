@@ -93,7 +93,16 @@
     "links_one": "{{count}} link",
     "links_other": "{{count}} links",
     "announcement": "Mededeling",
-    "dismissAnnouncement": "Mededeling sluiten"
+    "dismissAnnouncement": "Mededeling sluiten",
+    "trustBand": {
+      "excellent": "Uitstekend",
+      "great": "Goed",
+      "average": "Gemiddeld",
+      "poor": "Slecht",
+      "bad": "Zeer slecht"
+    },
+    "trustRatingAria": "{{band}}, {{score}} van 5 op Trustpilot. Lees onze reviews (opent in een nieuw tabblad)",
+    "topStrip": "Beoordelingen en taal"
   },
   "destSearch": {
     "clear": "Wissen",
