@@ -1880,8 +1880,10 @@ export default function Results() {
     setPkgStatusGroups(pk.groups.map((g) => ({ dests: g.dests, done: g.done, error: g.error, destinationStatus: g.destinationStatus })));
     if (merged.length || !pending) { setLoading(false); setFiltering(false); setPendingSearch(false); }
     if (!pending) {
-      setCheapestCode(sortBy === 'price_asc' ? (merged[0]?.hotelCode ?? null)
-        : sortBy === 'recommended' ? (cheapestPackage(merged)?.hotelCode ?? null) : null);
+      // The badge claims a known cheapest price, so it comes from `cheapestPackage` in either
+      // order. Under "low to high" that is the first card, unless no hotel has a from-price at
+      // all: then `merged[0]` is a "View available dates" card, which this used to badge.
+      setCheapestCode(sortBy === 'price_asc' || sortBy === 'recommended' ? (cheapestPackage(merged)?.hotelCode ?? null) : null);
       const failed = pk.groups.filter((g) => g.error);
       if (failed.length && failed.length === pk.groups.length) setSearchError(fromFailure(failed[0].error));
       paginationRef.current = { page: 2, hasMore: more, fetching: false };
@@ -2403,6 +2405,11 @@ export default function Results() {
     if (h.loc)      qs.set('loc', h.loc);
     if (starsVal)   qs.set('stars', String(starsVal));
     if (h.currency) qs.set('currency', h.currency);
+    // The ± days the search was made with (Unified Results T21, Ch1 §7). The hotel page prices
+    // one departure date and has no control of its own for them, but they are still part of
+    // the SearchContext it carries: left off here they were simply gone, from the hotel page's
+    // address bar and from anything opened from it, so the flexibility could not stay.
+    if (urlFlex > 0) qs.set('flex', String(urlFlex));
     if (Number.isFinite(Number(h.totalAmount))) qs.set('total', String(h.totalAmount));
     // No cached price behind this card: the hotel page must skip the price strip (every day of
     // which would be a guess) and go straight to the live check.

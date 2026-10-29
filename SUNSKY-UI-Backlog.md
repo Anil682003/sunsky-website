@@ -612,14 +612,74 @@ these counts come from hotel content only.
 
 Code exists but was not confirmed end to end. Test, then move to done or open a task.
 
-| Check | Spec |
-|---|---|
-| Clicking a matrix cell moves the ± window and keeps the flexibility mode | Ch1 §7 |
-| An active price filter leaves out "Check price" hotels | Ch1 §2 |
-| "Check price" sorts after priced hotels in both price sorts | Ch2 §4 |
-| Two rooms always get one common board | Ch2 §5 |
-| Matrix: an alternative date outside the flexibility window leaves the SearchContext unchanged until clicked | Unified Results T29 |
-| Results card → hotel page keeps the exact SearchContext, winner, dates, rooms and airports | Unified Results T21 |
+**Verified 30 Oct 2026.** Every row is now pinned
+by a test that drives the real page, not a helper standing in for it. Three rows failed; each fix
+has a test that failed before it and passes after.
+
+| Check | Spec | Result | Pinned by |
+|---|---|---|---|
+| Clicking a matrix cell moves the ± window and keeps the flexibility mode | Ch1 §7 | **FAIL → FIXED** (1) | `HotelDetail.matrixwindow.test.jsx` |
+| An active price filter leaves out "Check price" hotels | Ch1 §2 | **PASS** | `Results.checkPrice.test.jsx` |
+| "Check price" sorts after priced hotels in both price sorts | Ch2 §4 | **PASS**; "View available dates" **FAIL → FIXED** (2) | `Results.checkPrice.test.jsx`, `packageResults.test.js`, `Results.packages.test.jsx` |
+| Two rooms always get one common board | Ch2 §5 | **PASS** | `HotelDetail.tworooms.test.jsx` |
+| Matrix: an alternative date outside the flexibility window leaves the SearchContext unchanged until clicked | Unified Results T29 | **PASS** | `HotelDetail.matrixwindow.test.jsx` |
+| Results card → hotel page keeps the exact SearchContext, winner, dates, rooms and airports | Unified Results T21 | **FAIL → FIXED** (3) | `HotelDetail.handoff.test.jsx` |
+
+How each one holds, and what was wrong where it did not:
+
+- **Price filter (PASS).** On Results the "Check price" hotels are the World2Meet ones the cache
+  never priced, Hotel only. The cache cannot filter them, because it never saw them, so they stay
+  out only because `onRequestKey` refuses to ask while a min or max is set. The test checks the
+  card is gone AND that the sweep did not run, and that the hotels come back once the bound is
+  cleared. Flight + Hotel has no "Check price" card on Results (complete packages only).
+- **Price sorts (PASS, plus a FAIL).** The cache sorts the priced list; the unpriced list is
+  appended after it (`displayHotels`), so it is last in both directions. Asserted both ways.
+- **(2) "View available dates" in the price sorts.** Not "Check price" by the contract's own words
+  (2.6), but just as unpriced on the card. `mergePackages` sorted these short-trip hotels on their
+  hidden total, so the cheap weekend headed "low to high" with no price on it, and took the
+  "Cheapest" badge, which Results gave to `merged[0]`. Now: unpriced last in both directions,
+  "Show more" asks every group once the last card shown is unpriced, and the badge comes from
+  `cheapestPackage` under "low to high" as it already did under the default order.
+- **Two rooms (PASS).** Holds by construction: one live question for the whole party
+  (`rooms: 2`), one selected rate (`selectedRoom.live` is a single index), and one rate handed to
+  the checkout (one rateKey, one boardCode, `rooms: 2`, no per-room list). The meal filter
+  replaces the board for the booking. The test pins all three, so a per-room picker would have to
+  break it to exist.
+- **Alternative dates (PASS).** Seven dates on screen, four outside ±2: nothing selected, one
+  matrix question (about the searched date), no live call, the address bar untouched. A click
+  then selects the date.
+- **(1) Matrix click.** The window did move: a pick re-centres the strip and asks the matrix
+  around it with the same trip length, airports, routing and party. Three things around it were
+  wrong:
+  - the ± days never reached the hotel page (see 3), so there was no flexibility to keep;
+  - a pick did not take its date's airport. `priceDays` in `HotelDetail.jsx` copies each matrix
+    day field by field and left out `from`, so neither half of UI-03's hotel-page behaviour ever
+    ran in the page: no airport code under a column, and picking a DUS date kept FRA, so the live
+    check searched FRA flights on the DUS date and confirmed nothing. UI-03's tests covered
+    `matrixDays`, which has the field, not the page that drops it;
+  - after a pick the address bar kept the OLD date beside the new date's stay length (and,
+    with the airport fixed, its airport), so a refresh opened a trip that was neither. The
+    write-back now writes the picked stay, and drops the card's package and total once the stay
+    is not the card's. Nothing is written before a click, so T29 still holds.
+- **(3) Card → hotel page.** Followed for real: the test renders the card, opens its link and
+  judges the hotel page by what it asks (matrix, live stay, flight confirm). Party, child ages,
+  rooms, product, both ticked airports, the winner's airport, routing, stay, flights and price all
+  arrive and are used. The one thing missing was `flex`: the card's link left it out. Now carried.
+
+Not fixed, open a task if wanted:
+
+- **Room split.** The link carries `rooms` but not the split per room (`occupancy`), and the hotel
+  page's live search sends totals only, so a two-room Hotel only search split 3 + 1 is priced as
+  2 + 2 there. Needs a per-room model on the hotel page and in `/hotel-availability/search`.
+- **Results filters the hotel page cannot apply.** Board (`boards`), arrival airports (`arrivals`)
+  and the duration band are not carried, and carrying them would change nothing yet: the matrix
+  request takes neither a board nor arrivals. Under a Results board filter the strip and the
+  "Included" room can therefore quote a cheaper board than the card did.
+- **Short trips under a price filter.** Whether a "View available dates" hotel survives a min or
+  max is decided by `/packages` on the server; not verifiable from this repo.
+- **Test noise.** Results test files that do not mock `axiosInstance` raise unhandled "Network
+  Error" rejections for `/cms/layout/homepage-config` (the heading, `69c3032`), and vitest then
+  reports the file as failed although every test in it passes. The new files mock it.
 
 ---
 

@@ -2530,10 +2530,14 @@ export default function HotelDetail() {
   const priceDays = useMatrix
     // The bar names the DEPARTURE date (the matrix is of flight dates); `iso` is the stay's
     // check-in, the day the rest of the page prices.
+    // `from` is the airport the date's winner leaves from (UI-03). It has to be copied across
+    // like every other field here: without it the column never named its airport, and picking
+    // the date never adopted it, so the live check asked the card's airport about a date whose
+    // package left from another one, and confirmed nothing.
     ? matrix.days.map((d) => ({
       iso: d.iso, day: calDay(d.departure), date: calDate(d.departure), departure: d.departure,
       price: d.price, pp: d.perPerson, currency: d.currency || 'EUR', nights: d.nights || nights,
-      state: d.state, cheapest: d.cheapest, pkg: d.pkg,
+      state: d.state, cheapest: d.cheapest, pkg: d.pkg, from: d.from,
     }))
     : usingLive
     ? winDates.map((iso) => {
@@ -2776,11 +2780,21 @@ export default function HotelDetail() {
   // a refresh threw the edits away and Back left the page instead of undoing them. Push the
   // edited context into the URL (replace, so one Back still leaves the hotel) — the page already
   // reads these params as its cold-start fallback, which is what makes a refresh survive.
+  //
+  // A date picked in the strip is part of that context too (Ch1 §7: clicking a date makes it
+  // the selected date and moves the window with it). Its stay is written, not the one the page
+  // opened on. The pick used to land here only through what it changes besides the date (its
+  // airport, a stay a night shorter), so the bar kept the OLD date beside the NEW date's stay
+  // length and airport, and a refresh re-opened a trip that was neither. Nothing is written
+  // before a click (Unified Results T29), and every key this does not set is left as it came,
+  // the search's ± days among them.
+  const urlCheckIn = selectedISO || baseCheckIn;
+  const urlCheckOut = selectedISO ? addDaysISO(selectedISO, nights) : baseCheckOut;
   useEffect(() => {
-    if (!filtersTouched || typeof window === 'undefined') return;
+    if ((!filtersTouched && !selectedISO) || typeof window === 'undefined') return;
     const url = new URL(window.location.href);
     const set = (k, v) => { if (v != null && String(v).trim() !== '') url.searchParams.set(k, String(v)); };
-    set('checkIn', baseCheckIn);  set('checkOut', baseCheckOut);
+    set('checkIn', urlCheckIn);   set('checkOut', urlCheckOut);
     set('adults', sAdults);       set('children', sChildren);
     set('rooms', sRooms);         set('childAges', sChildAges);
     set('nights', nights);
@@ -2791,11 +2805,15 @@ export default function HotelDetail() {
     else url.searchParams.delete('childDobs');
     // The card's package belongs to its own stay: a stay edited away from it leaves the link, so a
     // refresh never asks that package's flights for another stay.
-    if (urlPkg && (baseCheckIn !== urlPkg.checkin || baseCheckOut !== urlPkg.checkout)) {
+    if (urlPkg && (urlCheckIn !== urlPkg.checkin || urlCheckOut !== urlPkg.checkout)) {
       for (const k of ['pkgOut', 'pkgBack', 'pkgDep', 'pkgRet', 'pkgFrom', 'pkgTo', 'pkgFlight', 'pkgDays']) url.searchParams.delete(k);
     }
+    // The card's total goes with it, for the same reason: refreshed onto another stay, the page
+    // falls back to that figure (`stayFrom`) until the strip answers, and would quote the card's
+    // price for a date the card never priced.
+    if (urlCheckIn !== paramCheckIn || urlCheckOut !== paramCheckOut) url.searchParams.delete('total');
     if (url.toString() !== window.location.href) window.history.replaceState(window.history.state, '', url);
-  }, [filtersTouched, baseCheckIn, baseCheckOut, sAdults, sChildren, sRooms, sChildAges, sChildDobs, nights, transport, origin, urlPkg]);
+  }, [filtersTouched, selectedISO, urlCheckIn, urlCheckOut, paramCheckIn, paramCheckOut, sAdults, sChildren, sRooms, sChildAges, sChildDobs, nights, transport, origin, urlPkg]);
 
   // Only a REAL "from" figure goes in the message; `stayFrom` already refuses the €0 the price
   // cache returns for an uncosted day and the total of a search that has since been edited.

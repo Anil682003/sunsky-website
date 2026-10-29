@@ -184,7 +184,15 @@ export function mergePackages(groups, sortBy = 'price_asc') {
     all.push(p);
   }
   if (isRandom(sortBy, all)) return all.sort(randomOrder);
-  return all.sort((a, b) => dir * (a.sunskyPayableTotal - b.sunskyPayableTotal) || (String(a.hotelCode) < String(b.hotelCode) ? -1 : 1));
+  // A hotel without an automatic from-price goes after every priced one, in BOTH price
+  // directions (Ch2 §4; UI-17's "unknown last"). Its total is real but belongs to a trip
+  // shorter than the commercial minimum, so the card withholds it (UI-10). Sorting on it anyway
+  // put a card with no price at the head of "low to high", where Results also hands the first
+  // package the "Cheapest" badge. The direction applies to two prices only, never to this
+  // branch: reversing it is what would move these hotels to the top of "high to low".
+  return all.sort((a, b) => unpricedOf(a) - unpricedOf(b)
+    || dir * (a.sunskyPayableTotal - b.sunskyPayableTotal)
+    || (String(a.hotelCode) < String(b.hotelCode) ? -1 : 1));
 }
 
 /**
@@ -200,6 +208,10 @@ export function groupsToExtend(groups, merged, shown, sortBy = 'price_asc') {
     const last = g.hotels?.[g.hotels.length - 1];
     if (!last || !cutoff) return true;
     if (random && ranked(last)) return randomOrder(last, cutoff) <= 0;
+    // The last one shown has no from-price, so every priced hotel loaded is already on screen,
+    // and any priced package a group has still to send sorts before it, whatever its total.
+    // Comparing totals here would weigh a real price against the hidden one of a short trip.
+    if (unpricedOf(cutoff)) return true;
     return sortBy === 'price_desc' ? last.sunskyPayableTotal >= cutoff.sunskyPayableTotal : last.sunskyPayableTotal <= cutoff.sunskyPayableTotal;
   });
 }

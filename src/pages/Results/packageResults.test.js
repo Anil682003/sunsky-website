@@ -64,6 +64,29 @@ describe('groups', () => {
     expect(mergePackages(groups, 'price_desc').map((h) => h.hotelCode)).toEqual(['c', 'b', 'a']);
   });
 
+  // "Please verify", Ch2 §4: a hotel with no price on its card sorts after every priced one, in
+  // BOTH price directions. With Flight + Hotel that is the hotel with only short trips (UI-10):
+  // it has a real total, but the card withholds it and says "View available dates", because the
+  // total is for a weekend, not the holiday asked for. Sorted on that hidden total, the cheap
+  // weekend headed "low to high" as a card with no price at all, and took the "Cheapest" badge
+  // with it (Results sets the badge on the first package under price_asc).
+  const short = (code, total) => ({ ...p(code, total), fromPriceEligible: false });
+  it('price sorts: a hotel without a from-price goes after every priced hotel, both ways', () => {
+    const groups = [{ hotels: [short('s', 150), p('a', 500)] }, { hotels: [p('b', 900), short('t', 2000)] }];
+    expect(mergePackages(groups, 'price_asc').map((h) => h.hotelCode)).toEqual(['a', 'b', 's', 't']);
+    expect(mergePackages(groups, 'price_desc').map((h) => h.hotelCode)).toEqual(['b', 'a', 't', 's']);
+  });
+
+  it('"Show more" past the priced hotels asks every group that has more, which may still hold priced ones', () => {
+    // Shown: a b s. The cutoff `s` has no from-price, so ANY priced package still to come sorts
+    // before it, however its total compares with the weekend's hidden one.
+    const g1 = { hotels: [p('a', 500), short('s', 150)], hasMore: true };
+    const g2 = { hotels: [p('b', 900)], hasMore: true };
+    const merged = mergePackages([g1, g2]);
+    expect(groupsToExtend([g1, g2], merged, 3)).toEqual([g1, g2]);
+    expect(groupsToExtend([g1, g2], mergePackages([g1, g2], 'price_desc'), 3, 'price_desc')).toEqual([g1, g2]);
+  });
+
   it('"Show more" asks the next page only of groups that could hold a cheaper package', () => {
     const g1 = { hotels: [p('a', 100), p('b', 200)], hasMore: true };     // its next page is ≥ 200
     const g2 = { hotels: [p('c', 150), p('d', 900)], hasMore: true };     // next page ≥ 900: not needed

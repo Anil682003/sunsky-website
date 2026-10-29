@@ -275,6 +275,52 @@ describe('a hotel with only short trips keeps its place, without a price', () =>
     expect(priced.textContent).not.toMatch(/Bekijk beschikbare data/);
   });
 
+  // "Please verify", Ch2 §4: no price on the card means after every priced card, in both price
+  // directions. The weekend's real total is cheaper than any holiday, so sorted on it the card
+  // with no price opened "low to high" and wore the "Cheapest" badge.
+  it('sorts after every priced hotel in both price sorts, and never wears the "Cheapest" badge', async () => {
+    // Two destination groups (Turkey: AYT…DLM, then BJV), each answering on one page, so the
+    // merge across groups is what decides the order, as on a real country search.
+    answers.byDest.AYT = {
+      status: 'FEASIBLE',
+      hotels: [pkg('34585', 'AYT', 1100.4), pkg('99001', 'AYT', 300, { fromPriceEligible: false, commercialMinDays: 5 })],
+    };
+    answers.byDest.BJV = { status: 'FEASIBLE', hotels: [pkg('34586', 'BJV', 1500)] };
+    const user = userEvent.setup();
+    renderAt('?countries=TR&destinationLabel=Turkije&checkIn=2026-11-03&checkOut=2026-11-10&adults=2&children=0&rooms=1&transport=package');
+    await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(3));
+    const order = () => screen.getAllByRole('article').map((c) => (
+      /Bekijk beschikbare data/.test(c.textContent) ? 'short'
+        : within(c).getAllByRole('link').find((a) => a.getAttribute('href').startsWith('/hotel/')).getAttribute('href').split('?')[0].slice(7)
+    ));
+    const sort = screen.getAllByRole('combobox', { name: 'Resultaten sorteren' })[0];
+
+    await user.selectOptions(sort, 'price_asc');
+    await waitFor(() => expect(order()).toEqual(['34585', '34586', 'short']));
+    const badged = () => screen.getAllByRole('article').filter((c) => /Beste prijs/.test(c.textContent));
+    await waitFor(() => expect(badged()).toHaveLength(1));
+    expect(badged()[0].textContent).not.toMatch(/Bekijk beschikbare data/);
+
+    await user.selectOptions(sort, 'price_desc');
+    await waitFor(() => expect(order()).toEqual(['34586', '34585', 'short']));
+  });
+
+  it('a list of nothing but short trips gives nobody the "Cheapest" badge', async () => {
+    answers.byDest.AYT = {
+      status: 'FEASIBLE',
+      hotels: [
+        pkg('99001', 'AYT', 300, { fromPriceEligible: false, commercialMinDays: 5 }),
+        pkg('99002', 'AYT', 400, { fromPriceEligible: false, commercialMinDays: 5 }),
+      ],
+    };
+    const user = userEvent.setup();
+    renderAt(DATED);
+    await waitFor(() => expect(screen.getAllByRole('article')).toHaveLength(2));
+    await user.selectOptions(screen.getAllByRole('combobox', { name: 'Resultaten sorteren' })[0], 'price_asc');
+    await new Promise((r) => setTimeout(r, 500));
+    expect(screen.getAllByRole('article').every((c) => !/Beste prijs/.test(c.textContent))).toBe(true);
+  });
+
   it('is not called sold out, and still opens its hotel page', async () => {
     answers.byDest.AYT = {
       status: 'FEASIBLE',
