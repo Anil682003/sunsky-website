@@ -19,10 +19,10 @@
 .dark   { background: var(--dark2); }
 .green  { background: #137A4B; }
 
-/* The same width as the header card and the hero's search card below it, so the three line up
-   on both edges (the client design's guides). */
+/* The same width as the header card below it (1256px, see .floating in Navbar.module.css), so
+   the rating and the language switch line up with the card's edges. */
 .inner {
-  width: min(1180px, calc(100% - 48px));
+  width: min(1256px, calc(100% - 24px));
   height: 100%;
   margin: 0 auto;
   padding: 0 22px;

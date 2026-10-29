@@ -343,6 +343,16 @@ describe('search, support and the rest of the bar', () => {
     expect(screen.getByLabelText('Zoek hotels en bestemmingen')).toHaveAttribute('placeholder', '');
   });
 
+  // The dashboard's sentence is meant to be read, so the typing animation steps aside for it
+  // (client request, 29 Oct 2026: "Zoek een bestemming of hotel").
+  it('a placeholder from the dashboard is shown as written, never typed over', () => {
+    headerConfig = {
+      siteHeader: v2({ search: { ...v2().search, placeholder: t2('Zoek een bestemming of hotel', 'Search for a destination or hotel') } }),
+    };
+    renderNavbar('/faq');
+    expect(screen.getByLabelText('Zoek hotels en bestemmingen')).toHaveAttribute('placeholder', 'Zoek een bestemming of hotel');
+  });
+
   it('a desktop-only search stays out of the phone menu', async () => {
     headerConfig = { siteHeader: v2({ search: { ...v2().search, showOn: 'desktop' } }) };
     renderNavbar();

@@ -223,7 +223,14 @@ export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggest
 
   // The resting pill types real destination names (the same ones the suggestion
   // chips offer). Paused the moment the field is focused or holds text.
-  const typeNames = useMemo(() => suggestions.map((s) => s.label).filter(Boolean).slice(0, 6), [suggestions]);
+  //
+  // A placeholder the caller passes (the dashboard's, CMS -> Header -> Search) wins over the
+  // typing: the editor wrote that sentence to be read, and an animation typing over it would hide
+  // it. The suggestion chips in the dropdown stay either way.
+  const typeNames = useMemo(
+    () => (placeholder ? [] : suggestions.map((s) => s.label).filter(Boolean).slice(0, 6)),
+    [suggestions, placeholder],
+  );
   const typed = useTypewriter(typeNames, !focused && query === '');
   const showTyped = typed !== null && !focused && query === '';
 
