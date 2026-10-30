@@ -16,8 +16,8 @@ vi.mock('../../api/filters', () => ({
       { code: 'PMI', name: 'Mallorca', countryCode: 'ES', countryName: 'Spain' },
     ] : []),
   ])),
-  fetchZones: vi.fn((cityCodes) => Promise.resolve(
   fetchDestinationCountries: vi.fn(() => Promise.resolve([])),
+  fetchZones: vi.fn((cityCodes) => Promise.resolve(
     cityCodes.includes('AYT')
       ? [
           { destinationCode: 'AYT', destinationName: 'Antalya', zoneCode: '16', name: 'Lara' },
