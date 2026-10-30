@@ -123,7 +123,7 @@ footer { color: var(--muted); font-size: .85rem; border-top: 1px solid var(--lin
 
 <script>
 const REPO = 'https://github.com/Anil682003/sunsky-website/commit/';
-const UPDATED = '17 October 2026';
+const UPDATED = '30 October 2026';
 
 /* Status and the commits that carry it. The ONLY part of this page we maintain:
    when a task lands, add its entry here and republish. `note` is for anything the
@@ -134,7 +134,7 @@ const STATUS = {
   'UI-03': { s: 'done', c: ['1fe3278'], note: 'Results now sends every ticked airport, not only two or more: one ticked and none ticked used to arrive identically.' },
   'UI-04': { s: 'done', c: ['37be2e0'] },
   'UI-05': { s: 'done', c: ['f5d985c', '26c5f3c'] },
-  'UI-06': { s: 'blocked', c: [], note: 'Needs backend data.' },
+  'UI-06': { s: 'done', c: ['7d80a64'], note: 'Built from the feasibility answer usePackageAirports already gets, so no backend change was needed after all. Only a positive answer raises the question: while the check loads, when it fails, or for a whole country or region, the pick goes through as before.' },
   'UI-07': { s: 'done', c: ['911f151'] },
   'UI-08': { s: 'done', c: ['24ed197'], note: 'The rule lives in src/pages/Results/resultCount.js: a number is shown only when it answers the question being asked.' },
   'UI-09': { s: 'blocked', c: [], note: 'Needs the tax data from the hotel rates.' },
@@ -153,7 +153,7 @@ const STATUS = {
   'UI-23': { s: 'done', c: ['6b86b86'], note: "Three of its four parts. \"Soort kamer\" is gone from the panel, the filter state, both request bodies and the URL: a room is chosen on the hotel page against that hotel’s real rates, and filtering the list by it hid hotels that DO sell the room whenever the cheapest rate priced happened to be a different one. \"Soort vakantie\" is now \"Thema’s\", which is what that section always was. Stars say \"Zonder officiële classificatie\" for 0 rather than \"0-star\", which read as the worst hotel on the list rather than an unrated one. NOT done: folding Adults Only into Thema’s. adultsOnly is a backend content facet with its own homepage card while Adults Only is separately one of the 14 themes; they may not select the same hotels, so that is a decision rather than a refactor." },
   'UI-24': { s: 'done', c: ['5bcfbd1'], note: 'The held flight moved out of the list and above it. Counts and facets still describe the whole matching set, because it matches the filters too.' },
   'UI-25': { s: 'done', c: ['3e07d2c'], note: 'No production code needed: all three criteria already held. Tests added so they keep holding.' },
-  'UI-26': { s: 'other', c: [], note: 'Belongs to sunsky-admin, not this repo.' },
+  'UI-26': { s: 'other', c: [], note: 'Belongs to sunsky-admin, not this repo. Done there in d7edb754.' },
   'UI-27': { s: 'blocked', c: [], note: 'Needs offer-eligible facet counts from the backend.' },
 };
 
@@ -273,13 +273,14 @@ const TASKS = [
    api: 'Needs offer-eligible counts from /contracts/cheapest and /packages.', files: '<code>Results.jsx</code> facet panel.' },
 ];
 
+/* Verified 30 Oct 2026 in 54d30ee: each row is pinned by a test that drives the real page. */
 const VERIFY = [
-  ['Clicking a matrix cell moves the ± window and keeps the flexibility mode', 'Ch1 §7'],
-  ['An active price filter leaves out "Check price" hotels', 'Ch1 §2'],
-  ['"Check price" sorts after priced hotels in both price sorts', 'Ch2 §4'],
-  ['Two rooms always get one common board', 'Ch2 §5'],
-  ['Matrix: an alternative date outside the flexibility window leaves the SearchContext unchanged until clicked', 'Unified Results T29'],
-  ['Results card → hotel page keeps the exact SearchContext, winner, dates, rooms and airports', 'Unified Results T21'],
+  ['Clicking a matrix cell moves the ± window and keeps the flexibility mode', 'Ch1 §7', 'Was broken, fixed: a picked date now takes the airport it flies from, and the address bar writes the picked stay'],
+  ['An active price filter leaves out "Check price" hotels', 'Ch1 §2', 'Holds'],
+  ['"Check price" sorts after priced hotels in both price sorts', 'Ch2 §4', 'Holds. "View available dates" hotels did not, fixed'],
+  ['Two rooms always get one common board', 'Ch2 §5', 'Holds'],
+  ['Matrix: an alternative date outside the flexibility window leaves the SearchContext unchanged until clicked', 'Unified Results T29', 'Holds'],
+  ['Results card → hotel page keeps the exact SearchContext, winner, dates, rooms and airports', 'Unified Results T21', 'Was broken, fixed: the card link dropped the ± days'],
 ];
 
 const DONE = [
@@ -319,6 +320,7 @@ document.getElementById('stats').innerHTML = [
 document.getElementById('bar').innerHTML = ['done', 'wip', 'todo', 'blocked']
   .map((s) => `<i class="s-${s}" style="width:${(n[s] / tracked) * 100}%" title="${GROUPS[s][0]}: ${n[s]}"></i>`).join('');
 
+const shaLink = (h) => `<a class="sha" href="${REPO}${h}" target="_blank" rel="noopener noreferrer">${h}</a>`;
 const shas = (c) => c.length
   ? `<div class="shipped"><span class="label">Commit${c.length > 1 ? 's' : ''}</span>${
       c.map((h) => `<a class="sha" href="${REPO}${h}" target="_blank" rel="noopener noreferrer">${h}</a>`).join('')}</div>`
@@ -342,9 +344,9 @@ document.getElementById('groups').innerHTML = Object.keys(GROUPS).map((key) => {
     ${shas(s.c)}
   </article>`;
   }).join('')}</section>`;
-}).join('') + `<section class="group"><div class="group-head"><h2>Please verify</h2><p>Code exists but was not confirmed end to end.</p></div>
-  <div class="done-list"><table><thead><tr><th>Check</th><th>Spec</th></tr></thead><tbody>${
-    VERIFY.map((v) => `<tr><td>${v[0]}</td><td class="ref">${v[1]}</td></tr>`).join('')}</tbody></table></div></section>`;
+}).join('') + `<section class="group"><div class="group-head"><h2>Verified</h2><p>Checked end to end on 30 Oct 2026 (${shaLink('54d30ee')}).</p></div>
+  <div class="done-list"><table><thead><tr><th>Check</th><th>Spec</th><th>Result</th></tr></thead><tbody>${
+    VERIFY.map((v) => `<tr><td>${v[0]}</td><td class="ref">${v[1]}</td><td>${v[2]}</td></tr>`).join('')}</tbody></table></div></section>`;
 
 document.getElementById('done').innerHTML = DONE.map((d) =>
   `<tr><td class="ok">✓ Done</td><td>${d[0]}</td><td class="ref">${d[1]}</td><td class="ref">${d[2]}</td></tr>`).join('');
