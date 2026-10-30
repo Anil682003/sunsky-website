@@ -355,7 +355,24 @@ async function staticFile(pathname) {
   } catch { return null; }
 }
 
+/**
+ * Security headers on every response (security review, 29 Oct 2026). Set before anything else,
+ * so the shell, assets, robots/sitemap, redirects and errors all carry them.
+ *   HSTS: HTTPS only, a year; no includeSubDomains, so no other subdomain is forced onto HTTPS.
+ *   Frames: the site is never framed (no admin preview does), so checkout cannot be clickjacked.
+ *   Permissions: no camera, microphone or location; payment stays allowed for Stripe.
+ * A Content-Security-Policy needs Stripe, GTM and Trustpilot tested first and comes separately.
+ */
+export const SECURITY_HEADERS = Object.freeze({
+  'Strict-Transport-Security': 'max-age=31536000',
+  'X-Frame-Options': 'DENY',
+  'X-Content-Type-Options': 'nosniff',
+  'Referrer-Policy': 'strict-origin-when-cross-origin',
+  'Permissions-Policy': 'camera=(), microphone=(), geolocation=(), usb=(), interest-cohort=()',
+});
+
 const server = http.createServer(async (req, res) => {
+  for (const [k, v] of Object.entries(SECURITY_HEADERS)) res.setHeader(k, v);
   try {
     if (req.method !== 'GET' && req.method !== 'HEAD') {
       res.writeHead(405, { Allow: 'GET, HEAD' }).end();
