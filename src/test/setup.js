@@ -48,4 +48,7 @@ afterEach(() => {
   cleanup();
   MockIntersectionObserver.instances = [];
   vi.clearAllMocks();
+  // The hotel page writes its search into the address bar (replaceState). jsdom keeps one window
+  // per file, so without this every test after a date pick starts on the previous one's URL.
+  if (typeof window !== 'undefined') window.history.replaceState(null, '', '/');
 });
