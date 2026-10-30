@@ -75,7 +75,10 @@ const useApi = (url, options = {}) => {
 
   useEffect(() => {
     if (immediate && method === 'GET') {
-      execute();
+      // The failure is already in `error` (and onError has run). execute() re-throws it for callers
+      // that await it; nobody awaits this automatic load, so without the catch every failed
+      // request also surfaced as an unhandled rejection in the browser.
+      execute().catch(() => {});
     }
   }, [immediate, method, execute]);
 
