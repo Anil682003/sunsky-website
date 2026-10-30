@@ -19,6 +19,8 @@ import AirlineMark from '../../components/AirlineMark/AirlineMark';
 // Both, and they do different jobs: roundStayTotal rounds a whole package once (rule 10),
 // sellingEuros is the display rounding every SUNSKY price on screen goes through.
 import { sellingEuros } from '../../utils/tripPrice';
+import { localCostOfRate } from '../../utils/localCosts';
+import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import { roundStayTotal } from '../../utils/priceRounding';
 import { splitFareTypes } from '../../utils/fareTypes';
 import {
@@ -737,6 +739,9 @@ function CheckoutContent({ stripe, elements }) {
     // non-refundable where the first one wasn't, and the warning has to follow it.
     cancellation: booking.api?.hotel?.cancellation || [],
     flightKeys: booking.api?.flight?.flightKeys || null,
+    // The rate's mandatory local costs (UI-09), shown under the total and never part of it. A
+    // property of the RATE as well, so a re-priced room brings its own.
+    localCost: booking.localCost || null,
   }));
   // null → nothing to settle. Otherwise: checking | same | changed | unavailable | error
   const [reprice, setReprice] = useState(null);
@@ -801,6 +806,7 @@ function CheckoutContent({ stripe, elements }) {
           rateKey: r.rateKey || null, name: r.roomName || 'Room',
           board: r.boardName || r.boardCode || '',
           cancellation: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies : [],
+          localCost: localCostOfRate(r),
         }))
         .filter((r) => r.price != null)
         .sort((a, b) => a.price - b.price);
@@ -850,6 +856,7 @@ function CheckoutContent({ stripe, elements }) {
         rateKey: match.rateKey, roomCode: match.roomCode, boardCode: match.boardCode,
         cancellation: match.cancellation,
         flightKeys: flight.keys,
+        localCost: match.localCost,
       };
       const was = quote.hotel + quote.flight;
       const now = nextQuote.hotel + nextQuote.flight;
@@ -3797,6 +3804,9 @@ function CheckoutContent({ stripe, elements }) {
                   </div>
                   <span className="ck-sum-total-val hd">{ccy}{animTotal.toLocaleString('en-US')}</span>
                 </div>
+                {/* What the hotel collects on arrival (UI-09): under the total, before the
+                    payment, to the cent and never in the total, the deposit or the Stripe amount. */}
+                {!isFlight && !isTransfer && <LocalCosts cost={quote.localCost} className="ck-sum-local" />}
 
                 <div className="ck-countdown">
                   {ICON.clock}

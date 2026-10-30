@@ -50,7 +50,7 @@ commit. A task is only `DONE` when every one of its "Done when" lines is true.
 | UI-06 | Ask before dropping airports that clash with a new destination | Medium | Ready | **DONE** |
 | UI-07 | Only offer trip lengths that have a package | Medium | Ready |**DONE** (`911f151`) |
 | UI-08 | Count wording and the counting state | Medium | Ready | **DONE** (`24ed197`) |
-| UI-09 | Mandatory local costs next to the price | Medium | **Needs API** | BLOCKED |
+| UI-09 | Mandatory local costs next to the price | Medium | Ready | **DONE** (no source sends an amount yet) |
 | UI-10 | "View available dates" when only short trips exist | Medium | Ready | **DONE** (`093ac29`) |
 | UI-11 | Same state wording everywhere | Medium | Ready | **DONE** (`c56368f`) |
 | UI-12 | Route control: two states | Medium | Ready | **DONE** (`fa977e5`) |
@@ -312,7 +312,7 @@ still being worked out, show a counting state, not a guessed number. Today it sa
 
 **Where:** `Results.jsx` (`toolbar.found`) → `listing.count` / `listing.countIn`.
 
-### UI-09 — Mandatory local costs next to the price · BLOCKED
+### UI-09 — Mandatory local costs next to the price · DONE
 **Pages:** Results card, Hotel page, Checkout · **Spec:** Ch1 §10 · Ch2 §5 · Ch3 §4
 
 Under the main price: "Payable to SUNSKY € X", then "Mandatory payment locally: € 5 p.p. per night"
@@ -326,6 +326,50 @@ Never only in a tooltip or Overview.
 **API:** needs the tax data from the hotel rates in the cache and live responses. **Needs API.**
 **Where:** strings `localCosts.mandatoryLocal`, `localCosts.uncertainRange`. Remove the general
 note in Overview once this is live.
+
+**Done.** The API arrived on 19 Oct (admin #330, SunSkyCache #44). One pure helper,
+`src/utils/localCosts.js`, turns every source into one decision: `known` (the exact amount for the
+stay and party, to the cent), `range` (the kind of cost and the local rate p.p. per night, never a
+total) or `null`. `null` shows nothing at all: never "no local costs", never € 0. The component
+`src/components/LocalCosts/LocalCosts.jsx` formats with `formatEuros(…, PRICE_KIND.LOCAL)`, so
+€ 12,40 keeps its cents in Dutch while every SUNSKY price stays in whole euros. Nothing adds the
+amount to a price, a total, a deposit or the Stripe amount; at the checkout hand-off it travels as
+`booking.localCost`, outside `api`, so it cannot reach the amount charged.
+
+What shows where (Dutch, a €12.40 tax on a €1,101 package for two):
+
+| Page | What the traveller reads | Data |
+|---|---|---|
+| Results card, Flight + Hotel | under "€ 551 per persoon", before the button: "Te betalen aan SUNSKY € 1.101" / "Verplicht ter plaatse te betalen: € 12,40" | the package's `localCosts { known, currency }` from `/flight-availability/packages` |
+| Results card, Hotel only | the same two lines | the `/contracts/cheapest` row's `taxExcluded` (internal contracts only; the Hotelbeds cache has no tax data). `mapContract` used to drop it |
+| Hotel page, only after "Check price & availability" | "Verplicht ter plaatse te betalen: € 12,40" under the live price, and again in the Overview between "Te betalen aan SUNSKY" and "Doorgaan naar afrekenen" | the selected live rate's Hotelbeds `taxes`, only `included: false` (a flat array for a multi-room combination); it follows the room choice |
+| Checkout | the same line under the summary total | the rate handed over by the hotel page; a re-priced room (a corrected child age) brings its own, or drops the line |
+
+The card names the SUNSKY total because its headline is per person while the local amount is for
+the whole party. No card shows it on "Bekijk beschikbare data" or "Prijs op aanvraag". Results and
+the hotel page before the check read cache data only; no supplier call was added.
+
+The general Overview note from `bac32a3` ("Lokale belastingen en kosten / Eventuele lokale
+toeristenbelasting …") is gone, as this task asked, and its two `overview.localTaxes*` strings
+with it: a rate without a known amount now says nothing rather than hinting at a cost nobody
+quoted. New strings `localCosts.cost.touristTax` / `.other` (EN and NL) name the kind of cost in
+the range form.
+
+**Data on 30/10/2026:** nothing shows anywhere yet. `/contracts/cheapest` for 20 destinations: no
+row with `taxExcluded` above 0. `/packages` for 8 destinations: no `localCosts`. 19 live Hotelbeds
+checks (Antalya, Palma, Barcelona, Rome, Paris, Milan, Lisbon, Prague, Venice, Budapest): every
+rate came back with `taxes: null`. The lines appear the day a source sends an amount.
+
+Checked in the browser on a local build, with a tax injected into the answers since no source has
+one: Results card at desktop, 700px and 375px (the amount never splits from its euro sign; on a
+phone the lines sit above the full-width button), the hotel page's live card and Overview, and the
+checkout summary, each with the SUNSKY figure unchanged.
+
+No source sends a range. The helper accepts `{ min, max, cost, currency }` on a package's
+`localCosts` for when one does; that shape is ours and has to be agreed with the backend first.
+Tests: `localCosts.test.js` (16), `LocalCosts.test.jsx` (5), `Results.localCosts.test.jsx` (5,
+both products), `HotelDetail.package.test.jsx` (3 new, 1 changed), `Checkout.localcosts.test.jsx`
+(4), `packageResults.test.js` (1).
 
 ### UI-10 — "View available dates" when only short trips exist
 **Pages:** Results card, Hotel page · **Spec:** Ch1 §10 · Ch2 case 19 · Ch3 case 13

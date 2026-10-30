@@ -379,8 +379,6 @@
     "handLuggageHint": "Elk tarief dat we verkopen heeft handbagage inbegrepen. Of ruimbagage inbegrepen is, hangt af van het tarief en staat bij de vluchtdetails.",
     "handLuggageIncluded": "Handbagage inbegrepen",
     "lead": "Controleer je reisgegevens en totaalprijs",
-    "localTaxesText": "Eventuele lokale toeristenbelasting wordt ter plaatse betaald, indien van toepassing. Prijzen zijn in {{currency}} en kunnen wijzigen totdat je boeking is voltooid.",
-    "localTaxesTitle": "Lokale belastingen en kosten",
     "notAvailableDate": "Niet beschikbaar voor deze datum",
     "notPricedYet": "nog niet geprijsd",
     "priceDetails": "Prijsdetails",

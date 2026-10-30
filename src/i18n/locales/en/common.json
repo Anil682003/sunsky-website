@@ -299,7 +299,11 @@
     "payableToSunsky": "Payable to SUNSKY € {{amount}}",
     "mandatoryLocal": "Mandatory payment locally",
     "totalKnown": "Total known cost of the trip € {{amount}}",
-    "uncertainRange": "{{cost}}, local rate approx. € {{min}}-€ {{max}} p.p. per night; exact amount determined locally"
+    "uncertainRange": "{{cost}}, local rate approx. € {{min}}-€ {{max}} p.p. per night; exact amount determined locally",
+    "cost": {
+      "touristTax": "tourist tax",
+      "other": "local tax"
+    }
   },
   "feasibility": {
     "notAvailableFrom": "Not available from {{airport}}",

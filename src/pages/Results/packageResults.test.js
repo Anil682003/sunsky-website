@@ -112,6 +112,15 @@ describe('a package as a card', () => {
     const c = mapPackage(pkg, 'Antalya');
     expect(c).toMatchObject({ hotelCode: '7', name: null, totalAmount: 1101, totalAmountUnrounded: 1100.4, perPerson: 551, boardCode: 'AI', roomType: 'DBL', loc: 'Antalya', destinationCode: 'AYT', pkg });
   });
+
+  it('carries the known local tax beside the price, never in it (UI-09)', () => {
+    const pkg = { hotelCode: '7', sunskyPayableTotal: 1100.4, sunskyPayableTotalRounded: 1101, pricePerPerson: 551, localCosts: { known: 12.4, currency: 'EUR' } };
+    const c = mapPackage(pkg, 'Antalya');
+    expect(c.localCost).toEqual({ kind: 'known', amount: 12.4, currency: 'EUR' });
+    expect(c.totalAmount).toBe(1101);
+    expect(c.perPerson).toBe(551);
+    expect(mapPackage({ ...pkg, localCosts: undefined }, 'Antalya').localCost).toBeNull();
+  });
 });
 
 describe('the airports the package answers prove (Ch 1 §9A)', () => {

@@ -299,7 +299,11 @@
     "payableToSunsky": "Te betalen aan SUNSKY € {{amount}}",
     "mandatoryLocal": "Verplicht ter plaatse te betalen",
     "totalKnown": "Totale bekende reiskosten € {{amount}}",
-    "uncertainRange": "{{cost}}, lokaal tarief ca. € {{min}}-€ {{max}} p.p. per nacht; het exacte bedrag wordt ter plaatse bepaald"
+    "uncertainRange": "{{cost}}, lokaal tarief ca. € {{min}}-€ {{max}} p.p. per nacht; het exacte bedrag wordt ter plaatse bepaald",
+    "cost": {
+      "touristTax": "toeristenbelasting",
+      "other": "lokale belasting"
+    }
   },
   "feasibility": {
     "notAvailableFrom": "Niet beschikbaar vanaf {{airport}}",

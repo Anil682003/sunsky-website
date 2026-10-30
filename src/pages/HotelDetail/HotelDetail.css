@@ -1039,6 +1039,8 @@
 /* The last known (cached) price while the live check runs: shown, but quiet — it is not live yet. */
 .sd .av-price-total.av-price-known { opacity:.55; }
 .sd .av-price-total .avail-price-old { color:var(--text-light); font-weight:600; margin-right:7px; text-decoration:line-through; }
+/* The mandatory local costs of the live rate (UI-09), straight under the party total. */
+.sd .av-local-costs { margin-top:6px; text-align:center; }
 .sd .avail-move {
   display:inline-flex; align-items:center; gap:8px; margin-top:12px;
   padding:9px 14px; border-radius:12px;
@@ -2060,17 +2062,9 @@
 .sd .overview-spot-costs-label svg { color:var(--text-light); width:13px; height:13px; }
 .sd .overview-spot-list { display:flex; gap:8px; flex-wrap:wrap; }
 .sd .overview-spot-cost { font-family:'Sora',sans-serif; font-size:12px; font-weight:800; color:var(--dark); padding:6px 14px; border-radius:var(--r-full); background:var(--blue-pale); border:1px solid #dce9fc; }
-/* What is NOT in the total, in the panel the card uses for "here is something to know".
-   Still not amber: on this page amber means money at stake, and the last thing under the
-   book button should not read as a warning about the booking. */
-.sd .overview-urgency {
-  display:flex; align-items:flex-start; gap:12px; text-align:left;
-  margin:0 24px 24px; padding:15px 18px;
-  border-radius:12px; background:var(--blue-pale);
-}
-.sd .overview-urgency > svg { width:19px; height:19px; color:var(--blue); flex-shrink:0; margin-top:1px; }
-.sd .overview-urgency-text { display:block; font-size:13px; line-height:1.55; color:var(--text-sec); }
-.sd .overview-urgency-text b { display:block; font-weight:700; color:var(--blue); margin-bottom:2px; }
+/* What is NOT in the total (UI-09): the local tax of the rate, right under the figure it is not
+   part of and before the button. Quiet, not amber: on this page amber means money at stake. */
+.sd .overview-local-costs { padding:2px 26px 0; text-align:right; font-size:13px; }
 
 /* FLIGHT MODAL */
 .sd .modal-overlay { display:none; position:fixed; inset:0; background:rgba(7,14,31,.5); z-index:1100; align-items:center; justify-content:center; backdrop-filter:blur(4px); padding:22px; }

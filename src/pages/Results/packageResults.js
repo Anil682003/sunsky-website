@@ -12,6 +12,7 @@
 //   - a dated search is sent per group of destinations, all at once, and the list fills in as
 //     each group answers, instead of waiting for the slowest destination of a country.
 // Pure helpers; Results.jsx does the requests.
+import { localCostOfPackage } from '../../utils/localCosts';
 
 /** Destinations per request: small enough that the first hotels show quickly. */
 export const DEST_CHUNK = 4;
@@ -156,6 +157,9 @@ export function mapPackage(p, label) {
     // belongs in the list; the card offers its available dates instead of a figure.
     noFromPrice: p?.fromPriceEligible === false,
     minTravelDays: Number(p?.commercialMinDays) || null,
+    // The known local tax of this package's stay and party (UI-09): shown under the price,
+    // never part of it. null = none known.
+    localCost: localCostOfPackage(p),
     pkg: p,
   };
 }

@@ -1,0 +1,17 @@
+/* The mandatory local costs under a price (UI-09). Quiet on purpose: it is not a price to compare
+   and not part of one, but it sits with the price so it is read before the button. Each page sets
+   its own alignment and spacing through `className`. */
+.block {
+  display: flex; flex-direction: column; gap: 2px;
+  font-size: 12px; line-height: 1.4;
+  color: var(--text-sec);
+}
+.payable { font-weight: 600; color: var(--text); }
+.local { font-weight: 500; }
+.label { font-weight: 500; }
+.value {
+  font-weight: 700; color: var(--text);
+  font-variant-numeric: tabular-nums;
+}
+/* "€ 12,40" never splits across lines in a narrow price column. The range sentence may wrap. */
+.amount { white-space: nowrap; }

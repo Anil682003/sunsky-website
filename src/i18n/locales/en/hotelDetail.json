@@ -379,8 +379,6 @@
     "handLuggageHint": "Every fare we sell carries a cabin bag. Hold baggage depends on the fare and is listed under the flight's details.",
     "handLuggageIncluded": "Hand luggage included",
     "lead": "Check your travel details and total price",
-    "localTaxesText": "Any local tourist tax is payable at the property, where one applies. Prices are in {{currency}} and may change until your booking is completed.",
-    "localTaxesTitle": "Local taxes and charges",
     "notAvailableDate": "Not available for this date",
     "notPricedYet": "not priced yet",
     "priceDetails": "Price details",

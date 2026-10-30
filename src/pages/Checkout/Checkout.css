@@ -520,6 +520,8 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
 .ck-sum-total-sub { display:block; font-size:10.5px; color:rgba(255,255,255,.55); }
 .ck-sum-total-val { font-size:26px; font-weight:800; letter-spacing:-.8px; line-height:1;
   background:linear-gradient(135deg,var(--gold),var(--sun)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
+/* Mandatory local costs (UI-09), right under the total they are not part of. */
+.ck-sum-local { margin-top:8px; padding:0 4px; text-align:right; }
 .ck-countdown { display:flex; align-items:center; gap:8px; margin-top:12px; padding:10px 13px; border-radius:var(--r-sm);
   background:var(--sun-warm); border:1px solid rgba(255,159,28,.3); font-size:12px; font-weight:600; color:#9a5b00; }
 .ck-countdown svg { width:14px; height:14px; flex-shrink:0; animation:ckPulse 2s ease-in-out infinite; }

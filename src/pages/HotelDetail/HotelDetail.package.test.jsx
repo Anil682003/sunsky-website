@@ -54,6 +54,7 @@ const cell = (date, checkin, total, legsOut, legsBack) => ({
   cheapest: false,
 });
 let MATRIX;
+let LIVE_ROOMS;       // the live check's rates
 let SEARCH;           // the live search's flights
 let CONFIRM;          // { status, data } of the confirm endpoint
 let CAL;              // the hotel calendar's days (null: a priced week)
@@ -72,6 +73,7 @@ beforeEach(() => {
     cell(iso(31), iso(31), 1600, [{ ...TK_OUT, departure: `${iso(31)}T06:00:00` }], [TK_BACK]),
   ] };
   SEARCH = [TK_FARE, PKG_FARE];
+  LIVE_ROOMS = ROOMS;
   CONFIRM = { status: 200, data: { success: true, status: 'CONFIRMED', flight: PKG_FARE } };
   CAL = null;
   get.mockImplementation((url) => (String(url).includes('package-matrix')
@@ -79,7 +81,7 @@ beforeEach(() => {
     : Promise.resolve({ data: {} })));
   post.mockImplementation((url) => {
     const u = String(url);
-    if (u.includes('hotel-availability')) return Promise.resolve({ data: { results: { hotelbeds: { rooms: ROOMS } } } });
+    if (u.includes('hotel-availability')) return Promise.resolve({ data: { results: { hotelbeds: { rooms: LIVE_ROOMS } } } });
     if (u.includes('cached-search/confirm')) {
       return CONFIRM.status === 200
         ? Promise.resolve({ data: CONFIRM.data })
@@ -197,16 +199,18 @@ describe('the live check asks about the package the card priced', () => {
     });
   });
 
-  it('"No booking fees", "Hand luggage" and "Local taxes" appear only once the live check has priced it (Levent, 28 Oct 2026)', async () => {
+  it('"No booking fees" and "Hand luggage" appear only once the live check has priced it (Levent, 28 Oct 2026)', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await priceDays();
-    expect(container.textContent).not.toMatch(/lokale belastingen en kosten/i);
     expect(container.querySelector('.overview-extras')?.textContent || '').not.toMatch(/geen boekingskosten|handbagage inbegrepen/i);
     await runCheck(user);
-    await waitFor(() => expect(container.textContent).toMatch(/lokale belastingen en kosten/i));
-    expect(container.querySelector('.overview-extras').textContent).toMatch(/geen boekingskosten/i);
+    await waitFor(() => expect(container.querySelector('.overview-extras').textContent).toMatch(/geen boekingskosten/i));
     expect(container.querySelector('.overview-extras').textContent).toMatch(/handbagage inbegrepen/i);
+    // The general "any local tourist tax" note is gone (UI-09): a rate without a known local
+    // amount says nothing about one, before the check or after it.
+    expect(container.textContent).not.toMatch(/lokale belastingen en kosten|verplicht ter plaatse/i);
+    expect(container.querySelector('[data-local-costs]')).toBeNull();
   });
 
   it('holds the package flight, not the cheaper other one: room €500 + flight €1,000', async () => {
@@ -335,6 +339,74 @@ describe('the live check asks about the package the card priced', () => {
     // €1,500 for two: €750 p.p.
     expect(handedOver.ppPrice).toBe(750);
     expect(handedOver.board).toBe('ROOM ONLY');
+  });
+});
+
+describe('mandatory local costs after the live check (UI-09)', () => {
+  // Hotelbeds' own shape: one tax payable at the hotel, one already in the rate.
+  const TAXED = [{ ...ROOMS[0], taxes: { allIncluded: false, taxes: [
+    { included: false, amount: '12.40', currency: 'EUR', clientAmount: '12.40', clientCurrency: 'EUR', type: 'TAXESANDFEES' },
+    { included: true, amount: '30.00', currency: 'EUR', clientAmount: '30.00', clientCurrency: 'EUR', type: 'TAX' },
+  ] } }];
+  const hotelChecks = () => post.mock.calls.filter(([u]) => String(u).includes('hotel-availability'));
+
+  it('a known €12.40 shows as € 12,40 under the live price and above the button; the total stays €1,500', async () => {
+    LIVE_ROOMS = TAXED;
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await priceDays();
+    // Before the click: cache data only, so nothing about local costs and no live call.
+    expect(hotelChecks()).toHaveLength(0);
+    expect(container.querySelector('[data-local-costs]')).toBeNull();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.av-local-costs')).not.toBeNull());
+    expect(container.querySelector('.av-local-costs').textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    const ov = container.querySelector('.overview-local-costs');
+    expect(ov.textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    // Under the figure, before the button.
+    expect(container.querySelector('.overview-total').compareDocumentPosition(ov) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(ov.compareDocumentPosition(container.querySelector('.overview-book-btn')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    // Not added: room €500 + flight €1,000.
+    expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500');
+    expect(container.textContent).not.toMatch(/1,512|1\.512|€1,513/);
+    // The general note is not back beside the real amount.
+    expect(container.textContent).not.toMatch(/lokale belastingen en kosten/i);
+
+    const book = screen.getAllByRole('button').find((b) => /doorgaan naar afrekenen/i.test(b.textContent) && !b.disabled);
+    await user.click(book);
+    await screen.findByTestId('checkout');
+    const handed = seen.mock.calls.at(-1)[0];
+    expect(handed.localCost).toEqual({ kind: 'known', amount: 12.4, currency: 'EUR' });
+    // The price the checkout charges from is untouched, and the local cost never enters `api`.
+    expect(handed.ppPrice).toBe(750);
+    expect(handed.api.hotel.price).toBe(500);
+    expect(JSON.stringify(handed.api)).not.toMatch(/localCost|12\.4/);
+  });
+
+  // A rate with no `taxes` at all (Diana, W2M, most Hotelbeds rates) is the "No booking fees" test
+  // above: nothing shown.
+  it('a Hotelbeds rate whose taxes are all included: nothing, never € 0', async () => {
+    LIVE_ROOMS = [{ ...ROOMS[0], taxes: { allIncluded: true, taxes: [{ included: true, amount: '12.40', currency: 'EUR' }] } }];
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
+    expect(container.querySelector('[data-local-costs]')).toBeNull();
+    expect(container.textContent).not.toMatch(/verplicht ter plaatse|€ 0,00/i);
+  });
+
+  it('Hotel only: the live rate\'s local tax shows the same way', async () => {
+    LIVE_ROOMS = TAXED;
+    const user = userEvent.setup();
+    const { container } = renderPage(`&${PKG_QS}`, 'hotel_only');
+    await priceDays();
+    expect(container.querySelector('[data-local-costs]')).toBeNull();
+    await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
+    await waitFor(() => expect(container.querySelector('.overview-local-costs')).not.toBeNull());
+    expect(hotelChecks()).toHaveLength(1);
+    expect(container.querySelector('.overview-local-costs').textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    expect(container.querySelector('.av-local-costs').textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    expect(container.querySelector('.overview-total-val').textContent).toBe('€500');
   });
 });
 

@@ -10,6 +10,8 @@ import axiosInstance, { SUPPLIER_TIMEOUT } from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { rememberDestCode } from '../../utils/favDest';
 import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/priceRounding';
+import { localCostOfRate } from '../../utils/localCosts';
+import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount, NO_BOARD_LABEL } from '../../utils/roomBoards';
@@ -2915,6 +2917,9 @@ export default function HotelDetail() {
 
   // live selection → live price shown in the Book Now card / mobile bar / checkout
   const liveRoom = (liveRooms?.rooms?.length && liveIndex != null) ? liveRooms.rooms[liveIndex] : null;
+  // The mandatory local costs of THAT rate (UI-09). Live data only, so nothing before the check;
+  // they move with the traveller's room choice and travel to the checkout with it.
+  const liveLocalCost = liveRoom?.localCost || null;
   // The board of THAT rate, named exactly as the room rows name it — the availability recap
   // has to move with the traveller's choice, so picking half board over the cheapest all-in
   // rate changes the price and the board type together. Derived straight from the selected
@@ -3712,6 +3717,9 @@ export default function HotelDetail() {
         net: r.net ?? null, dianaHotelId: r.dianaHotelId || null,
         // World2Meet bookable identity — carried into the checkout hand-off.
         bookingCode: r.bookingCode || null, w2mHotelCode: r.w2mHotelCode || null,
+        // Taxes payable at the hotel, from the supplier's own `taxes` on THIS rate (UI-09): only
+        // Hotelbeds sends them, and only those not included are local. Never added to `price`.
+        localCost: localCostOfRate(r),
       }));
       /* THE BUG THIS REPLACES. This list used to end `.filter((r) => r.price != null)`, which
          silently threw away every room the supplier returned without a rate. A hotel that HAS
@@ -3933,6 +3941,9 @@ export default function HotelDetail() {
           // The board the supplier actually quoted, never a demo meal plan at a made-up price.
           meal: useLive ? (liveRoom.board || 'Room only') : '',
           mealPrice: 0,
+          // The rate's mandatory local costs, for the checkout to show under its total (UI-09).
+          // Display only: outside `api`, so it can never reach the amount charged.
+          localCost: useLive ? liveLocalCost : null,
           // No transfer travels from this page any more — it is chosen in the checkout's
           // extras step, which fetches it against the flight arrival being booked.
           transfer: null,
@@ -4725,6 +4736,10 @@ export default function HotelDetail() {
                                   </span>
                                 </div>
                               )}
+                              {/* Under the live price, not only in the Overview (UI-09): what the
+                                  hotel collects on arrival for this rate, never part of the figure
+                                  above. Not while a check runs: the rate it belongs to is not in. */}
+                              {liveRoom && !liveBusy && <LocalCosts cost={liveLocalCost} className="av-local-costs" />}
                               <div className="avail-you-low">
                                 {/* Named for what it actually covers. On a package the flight is
                                     NOT in this figure, so calling it the total holiday price would
@@ -5463,6 +5478,11 @@ export default function HotelDetail() {
                         : '—'}
                     </span>
                   </div>
+                  {/* What is NOT in the figure above (UI-09): the local tax this rate leaves to
+                      be paid at the hotel, to the cent, between the price and the button. It
+                      replaces the general "any local tourist tax" note, so a rate without a
+                      known amount says nothing rather than hinting at a cost nobody quoted. */}
+                  {ovBase != null && <LocalCosts cost={liveLocalCost} className="overview-local-costs" />}
                   <div className="overview-book-wrap">
                     <button className="overview-book-btn" onClick={goCheckout} disabled={flightsChecking || dayUnavailable}>
                       {flightsChecking ? <>{t('overview.checkingFlightPrices', 'Checking flight prices…')}</>
@@ -5472,20 +5492,6 @@ export default function HotelDetail() {
                         : <>{t('overview.continueToCheckout', 'Continue to checkout')} {ICON.arrow}</>}
                     </button>
                   </div>
-                  {/* What is NOT in the figure above. A tourist tax collected at the desk is
-                      the one cost a traveller meets that this page did not quote, so it is
-                      named here rather than discovered on arrival. */}
-                  {ovBase != null && (
-                    <div className="overview-urgency">
-                      {ICON.info}
-                      <div className="overview-urgency-text">
-                        <b>{t('overview.localTaxesTitle', 'Local taxes and charges')}</b>
-                        <span>
-                          {t('overview.localTaxesText', { currency: ccy, defaultValue: `Any local tourist tax is payable at the property, where one applies. Prices are in ${ccy} and may change until your booking is completed.` })}
-                        </span>
-                      </div>
-                    </div>
-                  )}
                 </div>
               </div>
             </div>

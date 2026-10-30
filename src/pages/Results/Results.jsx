@@ -34,6 +34,8 @@ import {
 } from '../../utils/durations';
 import { trackSearch, searchSignature } from '../../analytics';
 import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { localCostOfCacheRow } from '../../utils/localCosts';
+import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import { fromFailure, isRetryable, messageKey } from '../../utils/availability';
 import { dobsMatchAges, ageAtCheckIn, allDobsValid } from '../../utils/childDob';
 import DateCalendar from '../../components/DateCalendar/DateCalendar';
@@ -1692,6 +1694,8 @@ export default function Results() {
       perPerson:    c.perPerson,
       currency:     c.currency,
       nightlyBreakdown: c.nightlyBreakdown || [],
+      // Taxes payable at the hotel, not in totalAmount (internal contracts only, UI-09).
+      localCost:    localCostOfCacheRow(c),
       badge:        null,
       img:          null,
       loc:          label,
@@ -3807,6 +3811,12 @@ export default function Results() {
                   // and this line arrived from a parallel branch that still referenced the old
                   // name. Same guard the per-person figure above already uses.
                   : Number.isFinite(exactStay) && exactStay > 0;
+                // The SUNSKY total behind the per-person headline, named beside a mandatory local
+                // cost (UI-09) so both amounts read as the whole party's. The same figure the
+                // headline is divided from: the package's rounded total, or the rounded stay.
+                const payableTotal = isPackage
+                  ? (Number.isFinite(Number(h.totalAmount)) ? Number(h.totalAmount) : null)
+                  : (Number.isFinite(exactStay) && exactStay > 0 ? roundHotelStay(exactStay, roomsN) : null);
                 // The stay this card's price belongs to: the contract's own nights when it sent
                 // them, else the searched dates. Shown on Hotel Only cards while the search asked
                 // for flexible dates, so "±3 days" never reads as a range of prices.
@@ -4138,6 +4148,13 @@ export default function Results() {
                           </div>
                           <div className={styles.rcPricePer}>{t('card.perPerson', 'per person')}</div>
                         </>
+                      )}
+                      {/* Mandatory local costs (UI-09, Ch 1 §10): under the price and before the
+                          button, never in a tooltip and never in the price. Cache data only, as
+                          the rest of the card: the package's localCosts or the cache row's
+                          taxExcluded. Nothing known, nothing shown. */}
+                      {!h.noFromPrice && !h.onRequest && priceKnown && (
+                        <LocalCosts cost={h.localCost} payable={payableTotal} className={styles.rcLocalCosts} />
                       )}
                       {/* Opens in a NEW TAB, so the search results survive: comparing hotels is
                           the whole job of this page, and going back used to mean re-running the
