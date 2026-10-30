@@ -1,16 +1,16 @@
 # SunSky Website — Pending Tasks
 
 **Project:** SunSky / HolidayBooking.be B2C travel booking website
-**Prepared:** 2026-06-25
-**Status:** Test booking works end-to-end; the items below remain before a full production release.
+**Prepared:** 25/06/2026 · **Updated:** 30/10/2026
+**Status:** Every build item is done and live. What remains are two live tests that need a person present: a real Airtürk flights-only booking and a real Stripe card payment.
 
 ---
 
 ## 1. Summary
 
-The website can already create a complete test booking (hotel + flight package) from search through Stripe payment to confirmation. What remains is a set of bug fixes, hardcoded-value replacements, and a few unfinished features (flights-only verification, My Bookings detail, voucher download), plus production server housekeeping.
+The website books a complete holiday (hotel + flight package) from search through Stripe payment to confirmation. The bug fixes, hardcoded values and unfinished features listed below are all done and live, including the My Bookings detail page and document downloads.
 
-**Estimated time to a fully working release: ~8–13 working days.**
+**What remains:** the two supervised live tests (#9 and #10), about one working day together once a go-live date is set.
 
 ---
 
@@ -21,12 +21,12 @@ The website can already create a complete test booking (hotel + flight package) 
 | Hotel search (Results page) | ✅ Working | Infinite scroll + page-based pagination; Load More button added |
 | Hotel detail / room selection | ✅ Working | Room pricing via live availability API |
 | Hotel + flight package booking | ✅ Working | End-to-end with Stripe payment (test mode) |
-| Flights-only booking (Airtuerk) | ⚠️ Partial | Search works; end-to-end booking not yet verified |
+| Flights-only booking (Airtuerk) | ⚠️ Built, not live-verified | Search and the real reservation (PNR) are built; one supervised live booking is still needed (#9) |
 | User registration / login | ✅ Working | JWT auth, Redux store |
-| My Bookings page | ⚠️ Partial | List loads; no detail click-through |
-| Voucher download | ❌ Not done | UI placeholder only |
+| My Bookings page | ✅ Working | List, a detail page per booking (`/account/bookings/:ref`) and document downloads |
+| Voucher download | ✅ Working | Released vouchers, invoices and confirmations download as PDF from the booking page |
 | Live Stripe payment | ⚠️ Untested | Test mode works; live card not yet verified |
-| Admin panel (sunsky-admin) | ⚠️ Partial | Tracked in the separate admin repo |
+| Admin panel (sunsky-admin) | ✅ Working | Tracked in the separate admin repo |
 
 ---
 
@@ -97,7 +97,7 @@ The website can already create a complete test booking (hotel + flight package) 
 | A | Live Airtuerk reservation (real PNR) | Implemented `reserveLive()`: `basket/create` → `booking/create` → PNR, using verified request/response contracts from real saved Airtuerk samples | 🟡 Implemented — **not yet live-verified** |
 | B | Confirm/reservation failures were swallowed after payment | Now surfaced: a failed reservation flags the booking as "pending finalisation" instead of silently showing full confirmation | ✅ Fixed |
 | C | Airtuerk credentials hardcoded in source | Moved to env vars with the existing values as fallback (`AIRTUERK_USERNAME/PASSWORD/BASIC_AUTH/BASE_URL`) | ✅ Fixed |
-| D | `rejectUnauthorized: false` (TLS) | Left as-is (mirrors working search service); review before go-live | ⬜ Open |
+| D | `rejectUnauthorized: false` (TLS) | Certificates are now checked: the Airtuerk API serves a valid Let's Encrypt certificate (checked from the production server on 30/10/2026) | ✅ Fixed |
 
 ### Fix notes (Flights)
 
@@ -145,23 +145,23 @@ The website can already create a complete test booking (hotel + flight package) 
 
 ## 5. Estimated Timeline
 
-| Phase | Tasks | Estimate |
-|-------|-------|----------|
-| P0 bug fixes | Items 1–2 | 1–2 days |
-| P1 bug fixes | Items 3–6 | 2–3 days |
-| Flights-only end-to-end | Item 9 | 1–2 days |
-| My Bookings detail + voucher | Items 7–8 | 2–3 days |
-| QA + live payment test | Items 10–11 | 1–2 days |
-| **Total** | | **~7–12 days** |
+| Phase | Tasks | Status |
+|-------|-------|--------|
+| P0 bug fixes | Items 1–2 | ✅ Done |
+| P1 bug fixes | Items 3–6 | ✅ Done |
+| My Bookings detail + voucher | Items 7–8 | ✅ Done |
+| Results infinite scroll | Item 11 | ✅ Done |
+| Flights-only live test | Item 9 | ⬜ Needs a supervised live booking (about half a day) |
+| Live payment test | Item 10 | ⬜ Needs a supervised live card payment (about half a day) |
 
 ---
 
 ## 6. Open Decisions for Client
 
-- Confirm the real **supplier reference** source/format for vouchers.
-- Confirm which **departure airports** should be selectable (currently UK-only list).
-- Confirm **hotel contact details** source — API field vs. a fixed support contact.
-- Confirm go-live date so the **live Stripe** test can be scheduled.
+- Confirm the real **supplier reference** source/format for vouchers. Until it reaches the website, the confirmation shows a dash instead of a made-up reference.
+- ✅ Resolved: **departure airports** come from GeoData → Airports (popular airports first), no fixed list.
+- ✅ Resolved: **hotel contact details** show only what the supplier data holds; SUNSKY's own phone and email come from System Settings → Company Settings.
+- Confirm go-live date so the **live Airtürk** and **live Stripe** tests can be scheduled.
 
 ---
 
