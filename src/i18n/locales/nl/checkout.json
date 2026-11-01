@@ -115,6 +115,7 @@
     "checkedBaggageNote": "Bagage vervoerd in het ruim van het vliegtuig.",
     "chooseExtras": "Kies extra's per reiziger",
     "chooseExtrasSub": "Bekijk welke bagage inbegrepen is voor elke reiziger op de heen- en terugreis.",
+    "extraCabinBag": "extra handbagagestuk",
     "included": "Inbegrepen",
     "includedInTicket": "Inbegrepen in je ticket",
     "notConfirmed": "Niet bevestigd",
@@ -123,7 +124,8 @@
     "personalItemNote": "Een kleine tas of rugzak die onder de stoel voor je past.",
     "pieces_one": "{{count}} stuk",
     "pieces_other": "{{count}} stuks",
-    "remove": "Verwijderen"
+    "remove": "Verwijderen",
+    "removeExtraBag": "Extra handbagage verwijderen"
   },
   "travellers": {
     "traveller": "Reiziger {{number}}",

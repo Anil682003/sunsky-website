@@ -2655,8 +2655,15 @@ function CheckoutContent({ stripe, elements }) {
                                   ) : (
                                     <span className="ck-chip-not">{bagKnown ? t('checkout:baggage.notIncluded', 'Not included') : t('checkout:baggage.notConfirmed', 'Not confirmed')}</span>
                                   )}
+                                  {/* A second bag on top of the included one is its own line item:
+                                      without this chip the row read "Included" either way. */}
+                                  {cabinIncluded && added ? (
+                                    <span className="ck-chip-added">+1 {t('checkout:baggage.extraCabinBag', 'extra cabin bag')} · {money(price)}</span>
+                                  ) : null}
                                   {added ? (
-                                    <button type="button" className="ck-bag-remove" onClick={() => setBag(i, d.key, { cabin: false })}>{t('checkout:baggage.remove', 'Remove')}</button>
+                                    <button type="button" className="ck-bag-remove" onClick={() => setBag(i, d.key, { cabin: false })}>
+                                      {cabinIncluded ? t('checkout:baggage.removeExtraBag', 'Remove extra bag') : t('checkout:baggage.remove', 'Remove')}
+                                    </button>
                                   ) : cabinAddOns.length > 0 ? (
                                     <button type="button" className="ck-bag-add" onClick={() => setBag(i, d.key, { cabin: true })}>
                                       + {t('checkout:baggage.add', 'Add')} {cabinIncluded ? t('checkout:baggage.anotherCabinBag', 'another cabin bag') : t('checkout:baggage.cabinBaggageLower', 'cabin baggage')} · {money(price)}

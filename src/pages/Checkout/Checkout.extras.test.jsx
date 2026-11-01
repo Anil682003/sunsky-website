@@ -110,6 +110,27 @@ describe('baggage on the extras step', () => {
       .toEqual(expect.arrayContaining([expect.stringMatching(/nog een handbagagestuk/i)]));
   });
 
+  it('shows a second cabin bag on a leg that already includes one', async () => {
+    const user = userEvent.setup();
+    renderCheckout(bookingWith({ checkedKg: 20, checkedPieces: 0, handKg: 8, infantKg: 0 }));
+    await toExtras(user);
+
+    const cabin = card('Cabin baggage');
+    const [first, ...others] = [...cabin.querySelectorAll('.ck-bagrow')];
+    await user.click(first.querySelector('.ck-bag-add'));
+
+    // "Included" alone would hide the bag that was just bought: the row names it.
+    expect(first).toHaveTextContent(/inbegrepen/i);
+    expect(first.querySelector('.ck-chip-added')).toHaveTextContent(/\+1 extra handbagagestuk · €/i);
+    expect(first.querySelector('.ck-bag-remove')).toHaveTextContent(/extra handbagage verwijderen/i);
+    others.forEach((r) => expect(r.querySelector('.ck-chip-added')).toBeNull());
+
+    // Removing it takes the chip away again.
+    await user.click(first.querySelector('.ck-bag-remove'));
+    expect(first.querySelector('.ck-chip-added')).toBeNull();
+    expect(first.querySelector('.ck-bag-add')).toBeTruthy();
+  });
+
   it('follows the checked allowance for the cabin bag, even when the airline reports none', async () => {
     const user = userEvent.setup();
     // 20 kg in the hold, handLuggage 0 — exactly what Airtuerk sends on a fare that does

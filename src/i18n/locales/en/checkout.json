@@ -115,6 +115,7 @@
     "checkedBaggageNote": "Baggage transported in the aircraft hold.",
     "chooseExtras": "Choose extras per traveller",
     "chooseExtrasSub": "See which baggage is included for each traveller on the outbound and return journey.",
+    "extraCabinBag": "extra cabin bag",
     "included": "Included",
     "includedInTicket": "Included in your ticket",
     "notConfirmed": "Not confirmed",
@@ -123,7 +124,8 @@
     "personalItemNote": "A small bag or backpack that fits under the seat in front of you.",
     "pieces_one": "{{count}} piece",
     "pieces_other": "{{count}} pieces",
-    "remove": "Remove"
+    "remove": "Remove",
+    "removeExtraBag": "Remove extra bag"
   },
   "travellers": {
     "traveller": "Traveller {{number}}",
