@@ -111,41 +111,42 @@ const runCheck = async (user) => {
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
-describe('a sold-out day disables the check button', () => {
-  // The supplier was asked and returned nothing. The button the traveller pressed must stay
-  // where it is and go dead — a control that vanishes reads as a glitch — and it must come
-  // back the moment they choose a different day in the strip.
+describe('a sold-out day replaces the check button with the grey card', () => {
+  // The supplier was asked and returned nothing. The card under the strip says so in the
+  // client's grey design (Nov 2026), the check button is not offered for a day that has
+  // nothing, and it comes back the moment they choose a different day in the strip.
   const emptyAvailability = () => post.mockImplementation((url) => (
     String(url).includes('hotel-availability')
       ? Promise.resolve({ data: { results: { hotelbeds: { rooms: [] } } } })
       : Promise.resolve({ data: {} })
   ));
 
-  it('greys the button and renames it "Not Available"', async () => {
+  it('shows "This trip is not available" and withdraws the check button', async () => {
     const user = userEvent.setup();
     emptyAvailability();
     const { container } = renderPage();
     await runCheck(user);
 
-    const btn = await screen.findByRole('button', { name: /^niet beschikbaar$/i });
-    expect(btn).toBeDisabled();
+    await screen.findByText(/deze reis is niet beschikbaar/i);
+    expect(container.querySelector('.fc-pop-unavail')).toBeTruthy();
     // The live "check" affordance must not still be offered for a day that has nothing.
     expect(screen.queryByRole('button', { name: /prijs & beschikbaarheid controleren/i })).not.toBeInTheDocument();
   });
 
-  it('re-enables the button when another day is picked', async () => {
+  it('offers the check button again when another day is picked', async () => {
     const user = userEvent.setup();
     emptyAvailability();
     const { container } = renderPage();
     await runCheck(user);
-    await screen.findByRole('button', { name: /^niet beschikbaar$/i });
+    await screen.findByText(/deze reis is niet beschikbaar/i);
 
     // A different day in the matrix is a different question, so the button is live again.
     const days = screen.getAllByRole('button', { name: /vanaf €\d+/i });
     await user.click(days[1]);
 
     expect(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i })).toBeEnabled();
-    expect(screen.queryByRole('button', { name: /^niet beschikbaar$/i })).not.toBeInTheDocument();
+    expect(screen.queryByText(/deze reis is niet beschikbaar/i)).not.toBeInTheDocument();
+    expect(container.querySelector('.fc-pop-unavail')).toBeNull();
   });
 });
 

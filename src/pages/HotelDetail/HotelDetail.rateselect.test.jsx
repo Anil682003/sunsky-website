@@ -63,10 +63,10 @@ const checkFirstDay = async (user) => {
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
-/** The board the card claims, off the labelled row in the recap — it sits with the room it
- * belongs to now, under "Accommodation". */
-const cardBoard = (container) => [...container.querySelectorAll('.fcu-item')]
-  .find((el) => el.querySelector('.fcu-k')?.textContent.trim().toLowerCase() === 'accommodatie')
+/** The board the page claims, off the labelled "Rooms" row of the overview's trip summary,
+ * where it sits with the room it belongs to (client design, Nov 2026). */
+const cardBoard = (container) => [...container.querySelectorAll('.overview-trip-row')]
+  .find((el) => el.querySelector('.overview-trip-k')?.textContent.trim().toLowerCase() === 'kamers')
   ?.textContent;
 
 // The card leads with the per-person figure and states the party total under it. These

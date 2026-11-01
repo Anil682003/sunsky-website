@@ -623,6 +623,59 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
   .ck-bagrow-state { justify-content:flex-start; }
 }
 
+/* ════ BAGGAGE ROWS: counts, totals and the add-more menu ════
+   The client's approved screenshots (2 Nov 2026). A row no longer says "Included" and leaves
+   the traveller to add it up: it states what they will carry ("2 stuks handbagage", "35 kg
+   ruimbagage") with the sum underneath, the green chip stays, a bag bought here is a bold
+   "+ €25" with a Remove link beside it, and the hold-baggage menu is drawn by us instead of
+   by the browser's <select>. These rules sit on top of the row styles above. */
+/* The leg column only ever holds one word ("Heenreis"), so it gives up width to the
+   description, whose second line ("20 kg inbegrepen + 15 kg extra") must not wrap next to
+   a price and a Remove link. */
+.ck-bagrow { grid-template-columns:minmax(96px,.55fr) minmax(0,1.45fr) auto; }
+.ck-bag-desc { display:flex; flex-direction:column; gap:2px; min-width:0; line-height:1.3; text-align:left; }
+.ck-bag-desc > b { font-size:14px; font-weight:700; color:var(--text); }
+.ck-bag-desc > span { font-size:12px; font-weight:600; color:var(--text-light); }
+/* The price of the bag that was added: plain bold text, not a pill. The pill was the "Added"
+   chip this replaces, and two pills in one row read as two statuses. */
+.ck-bagrow .ck-chip-added { padding:0; border:0; background:none; font-family:'Sora',sans-serif;
+  font-size:14px; font-weight:800; color:var(--text); }
+.ck-bag-sep { flex:none; width:1px; height:22px; background:var(--border); }
+.ck-bagrow .ck-bag-remove { display:inline-flex; align-items:center; gap:7px; padding:0; border:0; background:none;
+  font-size:13px; font-weight:700; color:var(--blue); cursor:pointer; }
+.ck-bagrow .ck-bag-remove svg { width:16px; height:16px; flex:none; }
+.ck-bagrow .ck-bag-remove:hover { color:var(--blue-mid); text-decoration:underline; }
+.ck-bagrow .ck-bag-add { display:inline-flex; align-items:center; gap:8px; white-space:nowrap; }
+.ck-bagrow .ck-bag-add svg { width:16px; height:16px; flex:none; }
+/* The menu: anchored to its button, opening straight under it and never over the row's own
+   controls. A fixed width is avoided on purpose: the list is as wide as the button that
+   opened it, so the prices line up with the button's right edge. */
+.ck-bagmenu { position:relative; display:inline-block; }
+.ck-bagmenu-btn[aria-expanded="true"] { border-color:var(--blue); background:var(--blue-pale); }
+.ck-bagmenu-chev { display:inline-flex; transition:transform .2s var(--ease); }
+.ck-bagmenu-btn[aria-expanded="true"] .ck-bagmenu-chev { transform:rotate(180deg); }
+.ck-bagmenu-list { position:absolute; top:calc(100% + 6px); right:0; min-width:100%; z-index:20;
+  display:flex; flex-direction:column; gap:2px; padding:6px; box-sizing:border-box;
+  background:var(--white); border:1px solid var(--border); border-radius:14px; box-shadow:var(--shadow-md);
+  animation:ckFadeIn .15s var(--ease); }
+.ck-bagmenu-opt { display:flex; align-items:center; justify-content:space-between; gap:18px; width:100%;
+  padding:9px 12px; border:0; border-radius:10px; background:none; cursor:pointer; text-align:left;
+  font-family:inherit; font-size:13.5px; font-weight:600; color:var(--text); white-space:nowrap; }
+.ck-bagmenu-opt > span:last-child { font-weight:700; }
+.ck-bagmenu-opt:hover, .ck-bagmenu-opt.act, .ck-bagmenu-opt:focus-visible { background:var(--blue-bg); outline:none; }
+/* The card holding an open menu rises above its neighbours. Every card is its own stacking
+   context (the reveal transform), so a menu on the last row of the card would otherwise
+   slide under the card below it. */
+.ck-card:has(.ck-bagmenu-list) { z-index:5; }
+@media (max-width: 720px) {
+  /* Restated here because the desktop column split above would otherwise outrank the
+     one-column rule in the media query further up. */
+  .ck-bagrow { grid-template-columns:1fr; }
+  .ck-bagmenu { width:100%; }
+  .ck-bagmenu-btn { width:100%; justify-content:center; }
+  .ck-bagmenu-list { left:0; right:0; }
+}
+
 /* ════ BOXED FIELDS (step 1) ════
    The label lives INSIDE the frame, small and blue, with the value under it. Step 1 is the
    densest form on the site — customer, address, then a card per traveller — and label-above

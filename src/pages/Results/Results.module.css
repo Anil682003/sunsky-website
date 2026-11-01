@@ -896,10 +896,12 @@
   font-variant-numeric: tabular-nums;
 }
 
-/* Amenities: icon and label, no pill. Five at most, then "+N more". */
+/* Amenities: icon and label, no pill. Five at most, then "+N more". At the foot of the
+   column under a hairline, level with the fare across the rail. */
 .rcFacts {
   display: flex; flex-wrap: wrap; align-items: center;
-  gap: 8px 16px; margin-top: 16px;
+  gap: 8px 16px; margin-top: auto; padding-top: 14px;
+  border-top: 1px solid var(--line);
 }
 .rcFact {
   display: inline-flex; align-items: center; gap: 6px;
@@ -913,71 +915,101 @@
   cursor: default; white-space: nowrap;
 }
 
-/* What the deal includes: the board basis and the room type, each with a green tick. It
-   sits at the foot of the column, level with the CTA it qualifies. */
-.rcIncluded {
-  display: flex; flex-wrap: wrap; align-items: center; gap: 6px 18px;
-  margin-top: auto; padding-top: 14px;
+/* What the deal is: the board basis (green, the cutlery) and the kind of property (grey, the
+   house), as two chips under the place line. The green is the one the included-baggage lines
+   and the "Direct" pill in the rail share, so "included" reads the same everywhere on the card. */
+.rcChips {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 8px;
+  margin-top: 16px; padding-bottom: 14px;
 }
-.rcIncludedPill {
-  display: inline-flex; align-items: center; gap: 6px;
-  color: #047857; font-size: 13px; font-weight: 600;
+.rcChip {
+  display: inline-flex; align-items: center; gap: 8px;
+  padding: 7px 13px; border-radius: var(--r-full);
+  font-size: 13.5px; font-weight: 700; line-height: 1.2;
   white-space: nowrap;
 }
-.rcIncludedPill svg { flex-shrink: 0; }
+.rcChip svg { flex-shrink: 0; }
+.rcChipBoard { background: #E6F7EE; color: #047857; }
+.rcChipType  { background: #EEF2F7; color: var(--text-sec); }
 
-/* ── Price column: the guest score at the top, the fare and its CTA at the foot. ── */
+/* ── Price column: the guest score at the top, the trip under it, the fare and its CTA at
+   the foot. Each block draws its own hairline, so a card without a score simply starts at
+   the trip: no gap is reserved for a block that is not there. ── */
 .rcPriceRail {
-  width: clamp(210px, 17vw, 276px); flex-shrink: 0;
+  width: clamp(236px, 19vw, 300px); flex-shrink: 0;
   padding: 18px 22px 20px;
-  display: flex; flex-direction: column; gap: 14px;
+  display: flex; flex-direction: column;
   border-left: 1px solid var(--line);
 }
 
 /* Guest score. The client asked for it top-right and large; in the price column it stays
-   there without taking width from the name. The word and the count, then the score. */
+   there without taking width from the name. The word over the count, then the blue score. */
 .rcReviewBox {
   display: flex; align-items: center; justify-content: flex-end;
-  gap: 10px; text-align: right;
+  gap: 12px; text-align: right;
+  padding-bottom: 12px; margin-bottom: 14px;
+  border-bottom: 1px solid var(--line);
 }
 .rcReviewText { display: flex; flex-direction: column; line-height: 1.25; min-width: 0; }
 .rcReviewScore {
   display: inline-flex; align-items: baseline; justify-content: center;
-  flex-shrink: 0; min-width: 46px; padding: 7px 9px; border-radius: 10px;
+  flex-shrink: 0; min-width: 52px; padding: 8px 10px; border-radius: 10px;
   background: var(--blue-deep);
-  color: #fff; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 17px; line-height: 1;
+  color: #fff; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 20px; line-height: 1;
   font-variant-numeric: tabular-nums;
 }
-.rcReviewOutOf { font-size: 10px; font-weight: 700; opacity: 0.75; margin-left: 2px; }
-.rcReviewWord { font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 700; color: var(--text); }
-.rcReviewCount { font-size: 12px; font-weight: 500; color: var(--text-sec); }
+.rcReviewOutOf { font-size: 11px; font-weight: 700; opacity: 0.8; margin-left: 2px; }
+.rcReviewWord { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
+.rcReviewCount { font-size: 12.5px; font-weight: 500; color: var(--text-sec); }
 
-.rcPriceInfo {
-  margin-top: auto;
-  display: flex; flex-direction: column; align-items: flex-end;
-  text-align: right; gap: 2px;
+/* The trip: one row per fact, a blue glyph in a fixed gutter so the text lines up down the
+   column whatever the glyph's width. */
+.rcTrip { display: flex; flex-direction: column; gap: 10px; }
+.rcTripRow { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
+.rcTripIco {
+  display: inline-flex; justify-content: center; flex-shrink: 0;
+  width: 22px; margin-top: 1px; color: var(--blue-deep);
 }
-/* What the fare covers: "8 days · 2 adults". */
-.rcPriceContext {
-  font-size: 12px; font-weight: 500; color: var(--text-sec);
+.rcTripMain { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
+.rcTripDate { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.2; }
+.rcTripSub { font-size: 12.5px; font-weight: 500; color: var(--text-sec); }
+.rcTripFrom { font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 1.3; }
+/* "Direct": only when both directions are. Same green as the board chip. */
+.rcDirectPill {
+  display: inline-flex; padding: 3px 9px; border-radius: var(--r-full);
+  background: #E6F7EE; color: #047857;
+  font-size: 11.5px; font-weight: 700; line-height: 1.3;
 }
-/* The concrete stay behind the price, "12 Oct → 19 Oct · 7 nights": shown while the search
-   allowed flexible dates, when "±3 days" alone would read as a range of prices. */
-.rcStayWindow {
-  font-size: 12px; font-weight: 700; color: var(--text);
+/* The fares' baggage, indented to the text column of the rows above. */
+.rcBags { display: flex; flex-direction: column; gap: 6px; padding-left: 34px; }
+.rcBag {
+  display: inline-flex; align-items: center; gap: 8px;
+  font-size: 12.5px; font-weight: 500; color: var(--text-sec); line-height: 1.3;
 }
-/* "Incl. flight" reminder on every card: the fare above is hotel-only */
+.rcBag svg { color: var(--blue-deep); flex-shrink: 0; }
+/* "included", in green (the client's rule), inside the baggage line. */
+.rcIncludedWord { color: #047857; font-weight: 600; }
+/* A package card still priced on the hotel alone: the flight is priced on the hotel page. */
 .rcFlightNote {
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 10.5px; font-weight: 700; color: var(--blue-deep);
   background: var(--blue-light);
   padding: 3px 8px; border-radius: var(--r-full);
 }
-/* A package card's flight times (out / back), under the "incl. flight" note */
-.rcFlightTimes {
-  font-size: 11px; font-weight: 600; color: var(--text-muted, #5b6678);
-  font-variant-numeric: tabular-nums;
+
+.rcPriceInfo {
+  margin-top: auto; padding-top: 14px;
+  border-top: 1px solid var(--line);
+  display: flex; flex-direction: column; align-items: center;
+  text-align: center; gap: 2px;
 }
+/* What the figure is a from-price FOR: "Flight + hotel from" with its two glyphs, or
+   "Hotel from" with one. */
+.rcPriceLabel {
+  display: inline-flex; align-items: center; gap: 5px;
+  font-size: 13px; font-weight: 600; color: var(--text-sec);
+}
+.rcPriceLabel svg { color: var(--blue-deep); }
 /* Destinations whose packages cannot be calculated yet (missing flight data — not "no flights") */
 .pkgNotice {
   margin: 0 0 12px; padding: 10px 14px; border-radius: 10px;
@@ -985,21 +1017,17 @@
   font-size: 13px; line-height: 1.45;
 }
 .pkgLoading { font-size: 12.5px; color: var(--text-muted, #5b6678); margin: 0 0 10px; }
+/* The from-price: large, bold, brand blue, centred, with "p.p." small at its baseline. */
 .rcPriceAmount {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(28px, 2.4vw, 34px); font-weight: 800;
-  color: var(--text); line-height: 1.05;
-  letter-spacing: -0.8px;
+  font-size: clamp(32px, 2.8vw, 40px); font-weight: 800;
+  color: var(--blue-deep); line-height: 1.05;
+  letter-spacing: -1px;
   font-variant-numeric: tabular-nums;
-  display: flex; align-items: baseline; gap: 4px;
-  margin-top: 4px;
+  display: flex; align-items: baseline; justify-content: center; gap: 6px;
+  margin-top: 6px;
 }
-.rcPriceCcy { font-size: 17px; font-weight: 700; color: var(--text-sec); letter-spacing: 0; }
-/* Superscript decimals */
-.rcPriceDec {
-  font-size: 14px; font-weight: 700; color: var(--text-sec);
-  align-self: flex-start; margin-top: 4px; letter-spacing: 0;
-}
+.rcPriceCcy { font-size: 0.72em; font-weight: 800; letter-spacing: 0; }
 /* No cached price: the hotel came from the live supplier check, which is asked WITHOUT prices.
    Deliberately quieter than .rcPriceAmount — it is a prompt, not a figure to compare. */
 .rcPriceAsk {
@@ -1010,28 +1038,28 @@
   margin-top: 6px;
 }
 
-/* Caption under the fare: the amount shown IS the per-person price. */
+/* "p.p." beside the fare: the amount shown IS the per-person price. */
 .rcPricePer {
-  font-size: 12px; font-weight: 500; color: var(--text-sec);
-  margin-top: 2px;
+  font-size: 14px; font-weight: 600; color: var(--text-sec);
+  letter-spacing: 0; margin-left: 2px;
 }
 /* Mandatory local costs under the price (UI-09): the SUNSKY total, then what is paid locally.
    Scoped under the rail so it wins over the component's own defaults whatever the CSS order. */
 .rcPriceInfo .rcLocalCosts {
-  margin-top: 6px; padding-top: 6px; width: 100%;
+  margin-top: 8px; padding-top: 6px; width: 100%;
   border-top: 1px dashed var(--line);
-  text-align: right; font-size: 11.5px;
+  text-align: center; font-size: 11.5px;
 }
 
 /* The card's one CTA: the site's orange with a white label, no sheen or glow. A real <Link>. */
 .rcCta {
   margin-top: 14px; width: 100%; align-self: stretch;
   text-decoration: none; box-sizing: border-box;
-  padding: 12px 20px; border-radius: var(--r-full);
+  padding: 13px 20px; border-radius: var(--r-full);
   background: var(--cta-grad);
   color: var(--cta-ink); text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif;
-  font-size: 14px; font-weight: 700; letter-spacing: 0.1px;
+  font-size: 15px; font-weight: 700; letter-spacing: 0.1px;
   white-space: nowrap;
   display: inline-flex; align-items: center; justify-content: center; gap: 8px;
   border: none; cursor: pointer;
@@ -1189,7 +1217,7 @@
 /* ════════ Responsive ════════ */
 @media (max-width: 1280px) {
   .rcPriceRail, .skRail { padding: 16px 18px; }
-  .rcReviewScore { font-size: 15px; min-width: 42px; }
+  .rcReviewScore { font-size: 17px; min-width: 46px; padding: 7px 9px; }
 }
 @media (max-width: 1180px) {
   .tripStrip { display: none; }
@@ -1200,7 +1228,7 @@
   .sidebar { display: none; }
   .mobileFilterBtn { display: inline-flex; }
   .rcImg, .skImg { width: 260px; }
-  .rcPriceRail, .skRail { width: 220px; }
+  .rcPriceRail, .skRail { width: 236px; }
 }
 @media (max-width: 1024px) {
   .main { padding: 24px 20px 70px; }
@@ -1211,23 +1239,20 @@
   .resultCard { flex-wrap: wrap; }
   .rcImg { width: 100%; height: 220px; min-height: 0; }
   .rcContent { width: 100%; padding: 16px 18px 0; }
-  /* The price column becomes a band under the details: the score, then the fare on the
-     left and the CTA on the right. */
+  /* The price column becomes a band under the details: the score across the top, then the
+     trip on the left and the fare with its CTA on the right. */
   .rcPriceRail {
     width: 100%; padding: 14px 18px 16px; margin-top: 14px;
     border-left: 0; border-top: 1px solid var(--line);
+    flex-direction: row; flex-wrap: wrap; align-items: flex-start; column-gap: 20px;
   }
-  .rcReviewBox { flex-direction: row-reverse; justify-content: flex-end; text-align: left; }
+  .rcReviewBox { width: 100%; flex-direction: row-reverse; justify-content: flex-end; text-align: left; }
+  .rcTrip { flex: 1 1 200px; }
   .rcPriceInfo {
-    flex-direction: row; flex-wrap: wrap; align-items: center;
-    column-gap: 10px; text-align: left; width: 100%;
+    flex: 0 1 230px; margin-top: 0; margin-left: auto;
+    padding-top: 0; border-top: 0;
   }
-  .rcPriceContext { width: 100%; }
-  .rcPriceAmount { font-size: 30px; }
-  .rcPricePer { margin-right: auto; }
-  /* Its own line under the fare, the CTA staying beside the fare (the DOM keeps it first). */
-  .rcPriceInfo .rcLocalCosts { order: 1; text-align: left; }
-  .rcCta { margin-top: 0; width: auto; align-self: center; flex-shrink: 0; }
+  .rcPriceAmount { font-size: 32px; }
   .skeletonCard { flex-direction: column; }
   .skImg { width: 100%; height: 190px; min-height: 0; }
   .skRail { display: none; }
@@ -1247,8 +1272,8 @@
   .rcContent { padding: 14px 16px 0; }
   .rcName { font-size: 17px; }
   .rcRating { font-size: 16px; }
-  .rcReviewScore { font-size: 14px; min-width: 40px; padding: 6px 8px; }
-  .rcReviewWord { font-size: 13px; }
+  .rcReviewScore { font-size: 16px; min-width: 44px; padding: 6px 8px; }
+  .rcReviewWord { font-size: 14px; }
   /* One-line swipe rail for the facilities; the masked fade hints at the overflow. */
   .rcFacts {
     flex-wrap: nowrap; overflow-x: auto;
@@ -1259,10 +1284,14 @@
   }
   .rcFacts::-webkit-scrollbar { display: none; }
   .rcPriceRail { padding: 12px 16px 14px; }
-  .rcPriceAmount { font-size: 28px; }
+  /* One column again: the trip, then the fare and its button, each full width. */
+  .rcTrip { flex-basis: 100%; }
+  .rcPriceInfo {
+    flex-basis: 100%; margin-top: 12px; padding-top: 12px;
+    border-top: 1px solid var(--line);
+  }
+  .rcPriceAmount { font-size: 30px; }
   .rcCta { width: 100%; margin-top: 10px; }
-  /* The button takes the full width here, so the local costs go back above it. */
-  .rcPriceInfo .rcLocalCosts { order: 0; }
 }
 
 /* Motion off: after every card breakpoint so it wins the cascade against the hover

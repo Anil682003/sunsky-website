@@ -85,19 +85,20 @@ const renderAt = (q) => render(<MemoryRouter initialEntries={[`/results${q}`]}><
 const DATED = '?destination=AYT&destinationLabel=Antalya&checkIn=2026-11-03&checkOut=2026-11-10&adults=2&children=0&rooms=1&transport=package';
 
 describe('"Incl. flight" lists complete packages (Levent, 6 Oct 2026)', () => {
-  it('a card is the package: its p.p. price, its own stay, departure airport and flight times', async () => {
+  it('a card is the package: its p.p. price, its own trip date and length, and its departure airport', async () => {
     answers.byDest.AYT = { status: 'FEASIBLE', hotels: [pkg('34585', 'AYT', 1100.4)] };
     renderAt(DATED);
     const card = await screen.findByRole('article');
     expect(card.textContent).toMatch(/551/);                       // ceil(1101 / 2)
-    expect(card.textContent).toMatch(/19:00/);
-    expect(card.textContent).toMatch(/10:30/);
-    expect(card.textContent).not.toMatch(/nacht/);   // dates only: the length is the 'N dagen' line (Levent, 25 Oct 2026)
-    expect(card.textContent).toMatch(/8 dagen/);                  // the package's own stay (overnight arrival)
-    // The dates are the trip's (flight out 3 Nov → back 10 Nov), the same days '8 dagen' counts,
-    // never the hotel's 4 Nov check-in beside them (Levent 29 Oct: '24/04-28/04 is not 6 days').
-    expect(card.textContent).toMatch(/3 nov\.? → 10 nov/);
-    expect(card.textContent).not.toMatch(/4 nov\.? → 10 nov/);
+    expect(card.textContent).not.toMatch(/nacht/);   // the length is the '(N dagen)' line (Levent, 25 Oct 2026)
+    expect(card.textContent).toMatch(/\(8 dagen\)/);              // the package's own trip (overnight arrival)
+    // The date is the trip's (flight out 3 Nov), the day '8 dagen' counts from, with its year;
+    // never the hotel's 4 Nov check-in (Levent 29 Oct: '24/04-28/04 is not 6 days').
+    expect(card.textContent).toMatch(/3 nov\.? 2026/);
+    expect(card.textContent).not.toMatch(/4 nov/);
+    expect(card.textContent).toMatch(/Vanaf Brussels \(BRU\)/);   // the airport that priced it
+    // Flight times are not part of the approved card (UI changes, Nov 2026).
+    expect(card.textContent).not.toMatch(/19:00|10:30/);
     expect(card.textContent).not.toMatch(/34585/);                // never the hotel code
     expect(sentToCache).toHaveLength(0);                          // no hotel-only cache search
     const [body] = await calls();

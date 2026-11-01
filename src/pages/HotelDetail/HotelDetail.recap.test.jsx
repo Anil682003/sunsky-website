@@ -6,14 +6,17 @@ import { Provider } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import HotelDetail from './HotelDetail';
 
-// The green "your holiday is available" card spells the trip out: departure, return, airport,
-// board and transfer, each labelled, the way the confirmation the traveller gets later does.
+// The green "your holiday is available" card spells the trip out (client design, Nov 2026):
+// the travel period, its length in days, and on a package the airport and the fare's
+// baggage, each labelled, the way the confirmation the traveller gets later does. The room
+// and its board sit on the overview card's own trip summary, with the price they belong to,
+// and the transfer is named there too, as something added at the checkout.
 // It used to be one dot-separated line ("Selected Mon 7 Sep · 6 days · 2 adults"), which left
-// the three facts people actually re-read before paying — which airport, which meal plan,
-// whether a transfer is in the price — either buried further down the page or nowhere at all.
+// the facts people actually re-read before paying (which airport, which meal plan, whether a
+// transfer is in the price) either buried further down the page or nowhere at all.
 //
-// Every value is DERIVED. The board is the one on the live rate that produced the price in
-// the same card, never the six-item preference list; the transfer says it has to be added
+// Every value is DERIVED. The board is the one on the live rate that produced the price on
+// the card, never the six-item preference list; the transfer says it is added at the checkout
 // rather than implying an airport pickup nobody has chosen.
 
 // The cheapest rate is All Inclusive — so that, and not the traveller's (unset) board
@@ -68,13 +71,17 @@ beforeEach(() => {
 const auth = createSlice({ name: 'auth', initialState: { isAuthenticated: false }, reducers: {} });
 const makeStore = () => configureStore({ reducer: { auth: auth.reducer } });
 
-const renderPage = () => render(
+const renderPage = (transport = 'package') => render(
   <Provider store={makeStore()}>
-    <MemoryRouter initialEntries={[`/hotel/300984?checkIn=${CHECK_IN}&checkOut=${RETURN_ON}&adults=2&children=0&rooms=1&nights=${NIGHTS}&destination=AYT&name=Test+Hotel&origin=BRU`]}>
+    <MemoryRouter initialEntries={[`/hotel/300984?checkIn=${CHECK_IN}&checkOut=${RETURN_ON}&adults=2&children=0&rooms=1&nights=${NIGHTS}&destination=AYT&name=Test+Hotel&origin=BRU&transport=${transport}`]}>
       <Routes><Route path="/hotel/:hotelCode" element={<HotelDetail />} /></Routes>
     </MemoryRouter>
   </Provider>
 );
+
+/** The labelled "Rooms" row of the overview's trip summary: the room and the board it was priced on. */
+const roomsRow = (container) => [...container.querySelectorAll('.overview-trip-row')]
+  .find((el) => el.querySelector('.overview-trip-k')?.textContent.trim().toLowerCase() === 'kamers');
 
 // Pick the first priced day in the strip and run the live check.
 const checkFirstDay = async (user) => {
@@ -89,7 +96,7 @@ const checkFirstDay = async (user) => {
 };
 
 describe('the availability card spells the trip out', () => {
-  it('names the departure, return, airport, board and transfer', async () => {
+  it('names the period, the length, the airport, and the room, board and transfer on the overview', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await checkFirstDay(user);
@@ -110,23 +117,50 @@ describe('the availability card spells the trip out', () => {
       return found;
     };
 
-    // Both ends of the stay on one line, plus how long it runs.
+    // Both ends of the stay, with their year, and how long it runs on its own tile, in days.
     const period = row('reisperiode');
     expect(period).toHaveTextContent(String(new Date(`${CHECK_IN}T00:00:00`).getDate()));
     expect(period).toHaveTextContent(String(new Date(`${RETURN_ON}T00:00:00`).getDate()));
-    expect(period).toHaveTextContent(`${NIGHTS} nachten`);
+    expect(period).toHaveTextContent(String(new Date(`${RETURN_ON}T00:00:00`).getFullYear()));
+    expect(row('aantal dagen')).toHaveTextContent(`${NIGHTS + 1} dagen`);
+    expect(facts.textContent).not.toMatch(/nachten/);
 
     // The searched departure airport, resolved from the code.
-    expect(row('vertrekluchthaven')).toHaveTextContent('Brussels (BRU)');
+    expect(row('luchthaven')).toHaveTextContent('Brussels (BRU)');
 
-    // The room AND the board on the rate that priced the card — the traveller set no
-    // preference, so neither may come from the six-item board list.
-    expect(row('accommodatie')).toHaveTextContent('Double Room Sea View');
-    expect(row('accommodatie')).toHaveTextContent('All inclusive');
+    // The room AND the board on the rate that priced the card, on the overview's trip
+    // summary; the traveller set no preference, so neither may come from the six-item
+    // board list.
+    expect(roomsRow(container)).toHaveTextContent('Kamer 1');
+    expect(roomsRow(container)).toHaveTextContent('Double Room Sea View');
+    expect(roomsRow(container)).toHaveTextContent('All inclusive');
 
     // Added on the checkout page, not here — and never implied to be in the price.
-    expect(row('transfer')).toHaveTextContent(/niet inbegrepen/i);
-    expect(row('transfer')).toHaveTextContent(/optionele extra/i);
+    const transfer = [...container.querySelectorAll('.overview-row')]
+      .find((el) => /luchthaventransfer/i.test(el.textContent));
+    expect(transfer).toBeTruthy();
+    expect(transfer).toHaveTextContent(/toegevoegd bij het afrekenen/i);
+  });
+
+  it('on a stay alone names check-in and check-out, the length, and no airport', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage('hotel_only');
+    await checkFirstDay(user);
+
+    await screen.findByText(/je vakantie is beschikbaar/i);
+    const facts = await waitFor(() => {
+      const el = container.querySelector('.fc-facts');
+      expect(el).toBeTruthy();
+      return el;
+    });
+    const labels = [...facts.querySelectorAll('.fcu-k')].map((el) => el.textContent.trim().toLowerCase());
+    expect(labels).toEqual(['reisperiode', 'aantal dagen']);
+    expect(facts).toHaveTextContent(/vertrek/i);
+    expect(facts).toHaveTextContent(/terug/i);
+    expect(facts).toHaveTextContent(`${NIGHTS + 1} dagen`);
+    // And the total is captioned as the live price of the stay, not as a package.
+    expect(container.querySelector('.av-price-total')).toHaveTextContent(/totale live prijs voor 2 volwassenen/i);
+    expect(container.textContent).not.toMatch(/pakketprijs/i);
   });
 
   it('follows the room the traveller picks, not the cheapest one', async () => {
@@ -134,13 +168,8 @@ describe('the availability card spells the trip out', () => {
     const { container } = renderPage();
     await checkFirstDay(user);
 
-    const facts = await waitFor(() => {
-      const el = container.querySelector('.fc-facts');
-      expect(el).toBeTruthy();
-      return el;
-    });
-    const stayRow = () => [...facts.querySelectorAll('.fcu-item')]
-      .find((el) => el.querySelector('.fcu-k')?.textContent.trim().toLowerCase() === 'accommodatie');
+    await waitFor(() => expect(roomsRow(container)).toBeTruthy());
+    const stayRow = () => roomsRow(container);
 
     const quoted = () => container.querySelector('.avail-price-val')?.textContent;
 
@@ -177,12 +206,12 @@ describe('the availability card spells the trip out', () => {
     const { container } = renderPage();
     await checkFirstDay(user);
 
-    const facts = await waitFor(() => {
-      const el = container.querySelector('.fc-facts');
+    const rooms = await waitFor(() => {
+      const el = roomsRow(container);
       expect(el).toBeTruthy();
       return el;
     });
-    await waitFor(() => expect(within(facts).getByText('Halfpension')).toBeInTheDocument());
-    expect(within(facts).queryByText('All inclusive')).toBeNull();
+    await waitFor(() => expect(within(rooms).getByText('Halfpension')).toBeInTheDocument());
+    expect(within(rooms).queryByText('All inclusive')).toBeNull();
   });
 });

@@ -13,9 +13,9 @@ import HotelDetail from './HotelDetail';
 //
 //   1. A room the supplier returned with no rate. The live list ended
 //      `.filter((r) => r.price != null)`, so a hotel that HAS rooms on these dates but quoted
-//      no price for them arrived as a hotel with NO rooms — and the page drew that as the red
-//      "This trip is not available" card, a dead "Not Available" button and a greyed-out bar.
-//      The customer was told their holiday was sold out because our side had no number.
+//      no price for them arrived as a hotel with NO rooms, and the page drew that as the
+//      "This trip is not available" card and a greyed-out bar. The customer was told their
+//      holiday was sold out because our side had no number.
 //   2. A supplier that timed out. The availability backend races its suppliers and answers 200
 //      with a block per supplier shaped like a real answer whether or not one came:
 //      {available:false, rooms:[], error:'Hotelbeds did not respond in time'}. An empty `rooms`
@@ -128,8 +128,8 @@ const runCheck = async (user, dayIndex = 0) => {
 };
 
 const hotelCalls = () => post.mock.calls.filter((c) => String(c[0]).includes('hotel-availability')).length;
-/** The dead CTA that only a CONFIRMED empty answer is allowed to produce. */
-const soldOutButton = () => screen.queryByRole('button', { name: /^niet beschikbaar$/i });
+/** The grey "not available" card that only a CONFIRMED empty answer is allowed to produce. */
+const soldOutCard = () => document.querySelector('.fc-pop-unavail');
 
 describe('rooms the supplier could not price', () => {
   it('asks to check the price instead of saying the hotel is sold out', async () => {
@@ -140,7 +140,7 @@ describe('rooms the supplier could not price', () => {
 
     // The whole point: rooms exist, so nothing here may read as unavailability.
     await waitFor(() => expect(container.querySelector('.room-section .live-error')).toBeTruthy());
-    expect(soldOutButton()).not.toBeInTheDocument();
+    expect(soldOutCard()).not.toBeInTheDocument();
     expect(screen.queryByText(/deze reis is niet beschikbaar/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/geen live kamers gevonden/i)).not.toBeInTheDocument();
 
@@ -190,6 +190,8 @@ describe('rooms the supplier could not price', () => {
       expect(rooms.some((r) => /sea view double/i.test(r.textContent))).toBe(true);
     });
     expect(screen.getByText(/je vakantie is beschikbaar/i)).toBeInTheDocument();
+    // A stay alone is captioned as the live price of the stay, never as a package.
+    expect(container.querySelector('.av-price-total')).toHaveTextContent(/totale live prijs voor 2 volwassenen/i);
   });
 });
 
@@ -207,8 +209,56 @@ describe('a supplier that could not answer', () => {
     await runCheck(user);
 
     await waitFor(() => expect(container.querySelector('.room-section .live-error')).toBeTruthy());
-    expect(soldOutButton()).not.toBeInTheDocument();
+    expect(soldOutCard()).not.toBeInTheDocument();
     expect(screen.queryByText(/deze reis is niet beschikbaar/i)).not.toBeInTheDocument();
+  });
+
+  it('shows the amber "cannot check" card, whose retry really asks again (client design, Nov 2026)', async () => {
+    const user = userEvent.setup();
+    let attempt = 0;
+    serve({
+      hotel: () => {
+        attempt += 1;
+        // The first attempt times out; the second answers with a room.
+        return Promise.resolve(attempt === 1 ? timedOut : { data: { results: { hotelbeds: { rooms: [PRICED_ROOM] } } } });
+      },
+    });
+    const { container } = renderPage();
+    await runCheck(user);
+
+    // Neither verdict is drawn: not the green card, not the grey one.
+    const card = await waitFor(() => {
+      const el = container.querySelector('.av-card-error');
+      expect(el).toBeTruthy();
+      return el;
+    });
+    expect(card).toHaveTextContent(/beschikbaarheid tijdelijk niet te controleren/i);
+    expect(screen.queryByText(/je vakantie is beschikbaar/i)).not.toBeInTheDocument();
+    expect(soldOutCard()).not.toBeInTheDocument();
+
+    // "Check again" is the same check: one more supplier call, and its answer takes the card's place.
+    const asked = hotelCalls();
+    await user.click(within(card).getByRole('button', { name: /opnieuw controleren/i }));
+    await waitFor(() => expect(hotelCalls()).toBe(asked + 1));
+    await screen.findByText(/je vakantie is beschikbaar/i);
+    expect(container.querySelector('.av-card-error')).toBeNull();
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.stringMatching(/opnieuw gecontroleerd/i), 'success'));
+  });
+
+  it('says so in a toast when the retry fails again, and keeps the card', async () => {
+    const user = userEvent.setup();
+    serve({ hotel: timedOut });
+    const { container } = renderPage();
+    await runCheck(user);
+
+    const card = await waitFor(() => {
+      const el = container.querySelector('.av-card-error');
+      expect(el).toBeTruthy();
+      return el;
+    });
+    await user.click(within(card).getByRole('button', { name: /opnieuw controleren/i }));
+    await waitFor(() => expect(showToast).toHaveBeenCalledWith(expect.any(String), 'error'));
+    expect(container.querySelector('.av-card-error')).toBeTruthy();
   });
 
   it('is reported as a timeout, in words, with a retry', async () => {
@@ -242,7 +292,7 @@ describe('a supplier that could not answer', () => {
     await runCheck(user);
 
     await waitFor(() => expect(container.querySelector('.room-section .live-error')).toBeTruthy());
-    expect(soldOutButton()).not.toBeInTheDocument();
+    expect(soldOutCard()).not.toBeInTheDocument();
   });
 
   it('is not counted as a voice at all when it was never called', async () => {
@@ -259,11 +309,22 @@ describe('a supplier that could not answer', () => {
         },
       },
     });
-    renderPage();
+    const { container } = renderPage();
     await runCheck(user);
 
-    // One supplier answered "none" and nothing contradicted it: the honest negative stands.
-    expect(await screen.findByRole('button', { name: /^niet beschikbaar$/i })).toBeDisabled();
+    // One supplier answered "none" and nothing contradicted it: the honest negative stands,
+    // as the grey card under the strip (client design, Nov 2026) with its two lines.
+    await screen.findByText(/deze reis is niet beschikbaar/i);
+    const card = soldOutCard();
+    expect(card).toBeTruthy();
+    expect(card).toHaveTextContent(/voor de gekozen reisperiode momenteel niet beschikbaar/i);
+    expect(card).toHaveTextContent(/andere vertrekdatums of reisperiodes kunnen wel beschikbaar zijn/i);
+    expect(card.querySelector('.fc-unavail-mark svg')).toBeTruthy();
+    // The overview says the same in its own frame, and offers no button to a date that is full.
+    expect(container.querySelector('.overview-unavail')).toHaveTextContent(/deze selectie is momenteel niet beschikbaar/i);
+    expect(container.querySelector('.overview-unavail')).toHaveTextContent(/kalender of datummatrix/i);
+    expect(container.querySelector('.overview-book-btn')).toBeNull();
+    expect(container.querySelector('.overview-trip')).toBeNull();
   });
 
   it('never re-checks a day a supplier has already confirmed as empty', async () => {
@@ -274,11 +335,10 @@ describe('a supplier that could not answer', () => {
     const { container } = renderPage();
     await runCheck(user);
 
-    const dead = await screen.findByRole('button', { name: /^niet beschikbaar$/i });
-    expect(dead).toBeDisabled();
+    await screen.findByText(/deze reis is niet beschikbaar/i);
     const asked = hotelCalls();
-    // Both controls for that day are inert: the CTA it replaced, and the bar itself.
-    await user.click(dead);
+    // The check button is gone with the grey card, and the bar itself is inert.
+    expect(screen.queryByRole('button', { name: /prijs & beschikbaarheid controleren/i })).not.toBeInTheDocument();
     const bar = container.querySelector('.fc-col.sel');
     expect(bar).toBeDisabled();
     await user.click(bar);
@@ -379,5 +439,9 @@ describe('flights nobody could price', () => {
     // priced one. The page card deliberately prints no fare of its own, so the total is where
     // this shows: 1,180 would mean the free phantom had been chosen.
     await waitFor(() => expect(screen.getAllByText(/1,800/).length).toBeGreaterThan(0));
+    // The card's own figure on this (non-matrix) strip is the room alone, and it is captioned
+    // as such: never as a package price, which is the bigger number the Book card quotes.
+    expect(screen.getByText(/totale live kamerprijs voor 2 volwassenen/i)).toBeInTheDocument();
+    expect(screen.queryByText(/totale live pakketprijs/i)).not.toBeInTheDocument();
   });
 });

@@ -316,26 +316,29 @@ describe('result card', () => {
 
     expect(within(card).getByRole('heading')).toHaveTextContent('Hotel 0');
     expect(within(card).getByText('Antalya')).toBeInTheDocument();
-    expect(within(card).getByText('All inclusive')).toBeInTheDocument();   // board tag
-    expect(within(card).getByText('Tweepersoons')).toBeInTheDocument();    // room label, not "DBL"
+    expect(within(card).getByText('All inclusive')).toBeInTheDocument();   // board chip
+    // The room type is not part of the approved card (UI changes, Nov 2026): neither its
+    // label nor its code.
+    expect(within(card).queryByText('Tweepersoons')).not.toBeInTheDocument();
     expect(within(card).getByRole('button', { name: /bewaren bij favorieten/i })).toBeInTheDocument();
-    // "View Deal" is a real link (it opens the detail page in a new tab, so it must be
+    // "View holiday" is a real link (it opens the detail page in a new tab, so it must be
     // middle-clickable and copyable), not a button.
-    const deal = within(card).getByRole('link', { name: /bekijk deal/i });
+    const deal = within(card).getByRole('link', { name: /bekijk vakantie/i });
     expect(deal).toHaveAttribute('href', expect.stringContaining('/hotel/200'));
     expect(within(card).getByText('Beste prijs')).toBeInTheDocument();     // cheapest card
-    // Headline and the per-person line both use the display symbol now (€, not the ISO code)
-    // — mixing "€100.00" with "EUR 33.33" on one stub read as two currencies.
+    // The headline uses the display symbol (€, not the ISO code) — mixing "€100.00" with
+    // "EUR 33.33" on one stub read as two currencies.
     expect(card.textContent).toMatch(/€/);
-    // The secondary figure is the traveller's own share, not a nightly rate nobody books.
-    expect(card.textContent).toMatch(/per persoon/);
-    expect(card.textContent).not.toMatch(/\/ night/);
+    // The figure is the traveller's own share, "p.p." at its side: never a nightly rate nobody
+    // books, never the party's total or its head-count (the sidebar states the party).
+    expect(card.textContent).toMatch(/p\.p\./);
+    expect(card.textContent).not.toMatch(/\/ night|volwassen/);
     // …and the stay is stated in DAYS, matching the Travel-time filter beside it.
-    expect(card.textContent).toMatch(/\d+ dagen/);
+    expect(card.textContent).toMatch(/\(\d+ dagen\)/);
     expect(card.textContent).not.toMatch(/\d+ nachten/);
   });
 
-  it('shows a human room name rather than the raw inventory code', async () => {
+  it('never shows the raw inventory room code', async () => {
     renderResults();
     await settled();
     const card = screen.getAllByRole('article')[0];

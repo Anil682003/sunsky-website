@@ -6,7 +6,8 @@
     "close": "Sluiten",
     "readMore": "Meer lezen",
     "showLess": "Minder tonen",
-    "tryAgain": "Opnieuw proberen"
+    "tryAgain": "Opnieuw proberen",
+    "checkAgain": "Opnieuw controleren"
   },
   "baggage": {
     "airlineRulesApply": "Regels van de luchtvaartmaatschappij zijn van toepassing",
@@ -27,7 +28,8 @@
     "personalItem": "Kleine handbagage",
     "pieces_one": "{{count}} stuk",
     "pieces_other": "{{count}} stuks",
-    "underSeat": "onder de stoel"
+    "underSeat": "onder de stoel",
+    "personalItemRow": "Persoonlijk item"
   },
   "breadcrumb": {
     "results": "Resultaten"
@@ -390,7 +392,34 @@
     "travellers_other": "{{count}} reizigers",
     "tripAmount": "Reisbedrag",
     "tripAmountHint_one": "De vakantie zelf voor alle {{count}} reiziger — de kamer met de hierboven getoonde verzorging, en de vluchten als je een pakket boekt. Belastingen en luchtvaartkosten zijn al inbegrepen.",
-    "tripAmountHint_other": "De vakantie zelf voor alle {{count}} reizigers — de kamer met de hierboven getoonde verzorging, en de vluchten als je een pakket boekt. Belastingen en luchtvaartkosten zijn al inbegrepen."
+    "tripAmountHint_other": "De vakantie zelf voor alle {{count}} reizigers — de kamer met de hierboven getoonde verzorging, en de vluchten als je een pakket boekt. Belastingen en luchtvaartkosten zijn al inbegrepen.",
+    "tripSummary": "Reisoverzicht",
+    "flights": "Vluchten",
+    "rooms": "Kamers",
+    "baggage": "Bagage",
+    "roundTrip": "Heen- en terugvlucht",
+    "oneWay": "Enkele vlucht",
+    "roomN": "Kamer {{n}}",
+    "pricePerPerson": "Reisprijs per persoon",
+    "pricePerPersonHint": "De prijs van deze vakantie per reiziger, inclusief belastingen en luchtvaartkosten.",
+    "travellersCount": "Aantal reizigers",
+    "tripPrice": "Reisprijs",
+    "totalToPay": "Totale reissom te betalen aan SUNSKY",
+    "totalToPayHint": "Het volledige bedrag van deze vakantie voor alle reizigers, inclusief belastingen. Kosten die je ter plaatse betaalt zijn niet inbegrepen.",
+    "forParty": "Voor {{party}}",
+    "deposit": "Aanbetaling",
+    "depositSub": "Bij het afronden van je boeking",
+    "depositHint": "{{percent}}% van de reissom, te betalen bij het boeken.",
+    "balance": "Resterend saldo aan SUNSKY",
+    "balanceSub": "Te betalen volgens de betalingsvoorwaarden",
+    "balanceHint": "Het resterende bedrag na de aanbetaling, te betalen vóór je vertrek volgens de betalingsvoorwaarden.",
+    "localTaxes": "Lokaal te betalen taksen en belastingen",
+    "localTaxesHint": "Sommige bestemmingen rekenen een toeristenbelasting die je ter plaatse aan het hotel betaalt. Die zit niet in de reissom.",
+    "ifApplicableLocally": "Indien van toepassing, ter plaatse",
+    "localNoteTitle": "Lokale belastingen en kosten",
+    "localNoteText": "Eventuele lokale toeristenbelasting wordt ter plaatse betaald, indien van toepassing. Prijzen zijn in € en kunnen wijzigen totdat je boeking is voltooid.",
+    "selectionNotAvailable": "Deze selectie is momenteel niet beschikbaar",
+    "selectionNotAvailableHint": "Andere reisperiodes kunnen wel beschikbaar zijn. Gebruik de kalender of datummatrix op deze pagina om een andere periode te bekijken."
   },
   "prices": {
     "noPackageDatesHere": "Geen vakantie met vlucht rond deze data.",
@@ -422,7 +451,7 @@
     "departureAirport": "Vertrekluchthaven",
     "duration": "Duur",
     "earliestDatesBookable": "Dit zijn de vroegste data die je nog kunt boeken",
-    "estimateNote": "<0>Prijzen vanaf, per persoon.</0> De prijzen in de grafiek zijn schattingen en kunnen wijzigen. Kies een datum en controleer hem: de live prijs die terugkomt is de prijs waartegen je vakantie wordt geboekt.",
+    "estimateNote": "<0>Vanafprijzen per persoon.</0> De getoonde prijzen zijn indicatief en kunnen wijzigen. Kies een reisdatum om de actuele prijs en beschikbaarheid te controleren. Na de livecontrole zie je de bevestigde prijs van jouw vakantie.",
     "estimatedNotConfirmed": "Geschatte prijs — niet bevestigd",
     "estimatedPrice": "Geschatte prijs",
     "from": "vanaf",
@@ -434,7 +463,10 @@
       "cheapest": "Goedkoopst",
       "notAvailable": "Niet beschikbaar",
       "priceNotCached": "Prijs niet in cache — controleren",
-      "yourSelectedDay": "Je gekozen dag"
+      "yourSelectedDay": "Je gekozen dag",
+      "priceCheck": "Prijs controleren",
+      "lowestPrice": "Laagste prijs",
+      "selectedDate": "Geselecteerde datum"
     },
     "liveAvailabilityConfirmed": "Live beschikbaarheid en prijs bevestigd",
     "liveCheckedNote": "Prijzen en beschikbaarheid worden live gecontroleerd voor jouw data.",
@@ -476,7 +508,7 @@
     "totalHolidayPrice": "Totale vakantieprijs · {{nights}}",
     "transfer": "Transfer",
     "travelPeriod": "Reisperiode",
-    "tripNotAvailable": "Deze reis is niet beschikbaar.",
+    "tripNotAvailable": "Deze reis is niet beschikbaar",
     "tryDifferentDate": "Probeer een andere vertrekdatum of pas je zoekcriteria aan.",
     "yourCurrentSelection": "Jouw huidige selectie",
     "yourDates": "jouw data",
@@ -493,7 +525,18 @@
     "dayFromAirport": ", vertrek vanaf {{code}}",
     "dayNotForSelection": "{{day}} {{date}}, niet beschikbaar voor jouw selectie",
     "dayPriceUnavailable": "{{day}} {{date}}, prijs tijdelijk niet beschikbaar",
-    "priceUnavailableShort": "Prijs niet beschikbaar"
+    "priceUnavailableShort": "Prijs niet beschikbaar",
+    "checkAvailabilityCell": "Controleer beschikbaarheid",
+    "totalLivePackagePriceFor": "Totale live pakketprijs voor {{party}}",
+    "totalLivePriceFor": "Totale live prijs voor {{party}}",
+    "totalLiveRoomPriceFor": "Totale live kamerprijs voor {{party}}",
+    "numberOfDays": "Aantal dagen",
+    "returnShort": "Terug",
+    "liveCheckFailedTitle": "Beschikbaarheid tijdelijk niet te controleren",
+    "liveCheckFailedText": "We kunnen de prijs en beschikbaarheid van deze vakantie momenteel niet controleren. Probeer het over enkele ogenblikken opnieuw.",
+    "checkedAgain": "Beschikbaarheid en prijs opnieuw gecontroleerd",
+    "notAvailableForPeriod": "Deze vakantie is voor de gekozen reisperiode momenteel niet beschikbaar.",
+    "otherDatesMayBeAvailable": "Andere vertrekdatums of reisperiodes kunnen wel beschikbaar zijn. Bekijk de kalender en probeer een andere datum of reisduur."
   },
   "rooms": {
     "allTaxesIncluded": "Alle prijzen zijn inclusief belastingen en kosten.",

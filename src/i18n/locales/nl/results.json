@@ -40,6 +40,14 @@
     "VIL": "Villa",
     "ROO": "Kamer"
   },
+  "accommodation": {
+    "H": "Hotel",
+    "A": "Appartement",
+    "T": "Aparthotel",
+    "V": "Villa",
+    "R": "Resort",
+    "C": "Camping"
+  },
   "sort": {
     "label": "Sorteren",
     "aria": "Resultaten sorteren",
@@ -241,7 +249,16 @@
     "hotelNameUnavailable": "Hotel",
     "flightTimes": "Heen {{out}} · terug {{back}}",
     "withStop": "met tussenstop",
-    "direct": "rechtstreeks"
+    "direct": "rechtstreeks",
+    "fromAirport": "Vanaf {{airport}} ({{code}})",
+    "directFlight": "Rechtstreeks",
+    "cabinBag": "Handbagage",
+    "checkedBag": "Ruimbagage",
+    "included": "inbegrepen",
+    "packageFrom": "Vlucht + hotel vanaf",
+    "hotelFrom": "Hotel vanaf",
+    "pp": "p.p.",
+    "viewHoliday": "Bekijk vakantie"
   },
   "lightbox": {
     "photosOf": "Foto’s van {{name}}",

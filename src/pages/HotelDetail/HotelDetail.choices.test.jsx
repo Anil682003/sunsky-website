@@ -390,7 +390,9 @@ describe('a check that failed claims no bookable price', () => {
     hotelReply = () => Promise.resolve(hotelAnswer([]));
     const { container } = renderPage({ transport: 'hotel_only' });
     await runCheck(user);
-    expect(await screen.findByRole('button', { name: /^niet beschikbaar$/i })).toBeDisabled();
+    // The grey "not available" card (client design, Nov 2026) replaces the check button.
+    await screen.findByText(/deze reis is niet beschikbaar/i);
+    expect(screen.queryByRole('button', { name: /prijs & beschikbaarheid controleren/i })).not.toBeInTheDocument();
     const asked = hotelCalls();
 
     // Another length of stay on the same day is another question, and may be asked...
@@ -399,7 +401,7 @@ describe('a check that failed claims no bookable price', () => {
 
     // ...but going back to the one already answered brings the answer back, not a new check.
     await user.click(screen.getByRole('button', { name: /^8 dagen$/i }));
-    expect(await screen.findByRole('button', { name: /^niet beschikbaar$/i })).toBeDisabled();
+    await screen.findByText(/deze reis is niet beschikbaar/i);
     expect(screen.queryByRole('button', { name: /prijs & beschikbaarheid controleren/i })).not.toBeInTheDocument();
     expect(hotelCalls()).toBe(asked);
     expect(container.querySelector('.fc-col.sel')).toBeDisabled();

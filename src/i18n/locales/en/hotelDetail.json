@@ -6,7 +6,8 @@
     "close": "Close",
     "readMore": "Read more",
     "showLess": "Show less",
-    "tryAgain": "Try again"
+    "tryAgain": "Try again",
+    "checkAgain": "Check again"
   },
   "baggage": {
     "airlineRulesApply": "Airline rules apply",
@@ -27,7 +28,8 @@
     "personalItem": "Personal item",
     "pieces_one": "{{count}} piece",
     "pieces_other": "{{count}} pieces",
-    "underSeat": "under seat"
+    "underSeat": "under seat",
+    "personalItemRow": "Personal item"
   },
   "breadcrumb": {
     "results": "Results"
@@ -390,7 +392,34 @@
     "travellers_other": "{{count}} travellers",
     "tripAmount": "Trip amount",
     "tripAmountHint_one": "The holiday itself for all {{count}} traveller — the room on the board shown above, and the flights when you are booking a package. Taxes and airline fees are already in it.",
-    "tripAmountHint_other": "The holiday itself for all {{count}} travellers — the room on the board shown above, and the flights when you are booking a package. Taxes and airline fees are already in it."
+    "tripAmountHint_other": "The holiday itself for all {{count}} travellers — the room on the board shown above, and the flights when you are booking a package. Taxes and airline fees are already in it.",
+    "tripSummary": "Trip summary",
+    "flights": "Flights",
+    "rooms": "Rooms",
+    "baggage": "Baggage",
+    "roundTrip": "Outbound and return flight",
+    "oneWay": "One-way flight",
+    "roomN": "Room {{n}}",
+    "pricePerPerson": "Trip price per person",
+    "pricePerPersonHint": "The price of this holiday per traveller, including taxes and airline fees.",
+    "travellersCount": "Number of travellers",
+    "tripPrice": "Trip price",
+    "totalToPay": "Total trip price to pay to SUNSKY",
+    "totalToPayHint": "The full amount of this holiday for all travellers, including taxes. Costs you pay locally are not included.",
+    "forParty": "For {{party}}",
+    "deposit": "Deposit",
+    "depositSub": "When completing your booking",
+    "depositHint": "{{percent}}% of the trip price, payable when you book.",
+    "balance": "Remaining balance to SUNSKY",
+    "balanceSub": "Payable under the payment terms",
+    "balanceHint": "The amount left after the deposit, payable before departure under the payment terms.",
+    "localTaxes": "Taxes and charges payable locally",
+    "localTaxesHint": "Some destinations charge a tourist tax that you pay to the hotel on the spot. It is not part of the trip price.",
+    "ifApplicableLocally": "If applicable, paid locally",
+    "localNoteTitle": "Local taxes and charges",
+    "localNoteText": "Any local tourist tax is paid on the spot, if applicable. Prices are in € and may change until your booking is complete.",
+    "selectionNotAvailable": "This selection is currently not available",
+    "selectionNotAvailableHint": "Other travel periods may be available. Use the calendar or the date matrix on this page to look at another period."
   },
   "prices": {
     "noPackageDatesHere": "No holiday with flights around these dates.",
@@ -422,7 +451,7 @@
     "departureAirport": "Departure airport",
     "duration": "Duration",
     "earliestDatesBookable": "These are the earliest dates you can still book",
-    "estimateNote": "<0>Prices from, per person.</0> The prices on the chart are estimates and may change. Pick a date and check it: the live price that comes back is the one your holiday is booked at.",
+    "estimateNote": "<0>Prices from, per person.</0> The prices shown are indicative and may change. Choose a travel date to check the current price and availability. After the live check you will see the confirmed price of your holiday.",
     "estimatedNotConfirmed": "Estimated price — not confirmed",
     "estimatedPrice": "Estimated price",
     "from": "from",
@@ -434,7 +463,10 @@
       "cheapest": "Cheapest",
       "notAvailable": "Not available",
       "priceNotCached": "Price not cached — check it",
-      "yourSelectedDay": "Your selected day"
+      "yourSelectedDay": "Your selected day",
+      "priceCheck": "Check price",
+      "lowestPrice": "Lowest price",
+      "selectedDate": "Selected date"
     },
     "liveAvailabilityConfirmed": "Live availability and price confirmed",
     "liveCheckedNote": "Prices and availability are live checked for your dates.",
@@ -476,7 +508,7 @@
     "totalHolidayPrice": "Total holiday price · {{nights}}",
     "transfer": "Transfer",
     "travelPeriod": "Travel period",
-    "tripNotAvailable": "This trip is not available.",
+    "tripNotAvailable": "This trip is not available",
     "tryDifferentDate": "Please try a different departure date or adjust your search criteria.",
     "yourCurrentSelection": "Your current selection",
     "yourDates": "your dates",
@@ -493,7 +525,18 @@
     "dayFromAirport": ", departing from {{code}}",
     "dayNotForSelection": "{{day}} {{date}}, not available for your selection",
     "dayPriceUnavailable": "{{day}} {{date}}, price temporarily unavailable",
-    "priceUnavailableShort": "Price unavailable"
+    "priceUnavailableShort": "Price unavailable",
+    "checkAvailabilityCell": "Check availability",
+    "totalLivePackagePriceFor": "Total live package price for {{party}}",
+    "totalLivePriceFor": "Total live price for {{party}}",
+    "totalLiveRoomPriceFor": "Total live room price for {{party}}",
+    "numberOfDays": "Number of days",
+    "returnShort": "Return",
+    "liveCheckFailedTitle": "Availability cannot be checked right now",
+    "liveCheckFailedText": "We cannot check the price and availability of this holiday at the moment. Please try again in a few moments.",
+    "checkedAgain": "Availability and price checked again",
+    "notAvailableForPeriod": "This holiday is currently not available for the chosen travel period.",
+    "otherDatesMayBeAvailable": "Other departure dates or travel periods may be available. Check the calendar and try another date or trip length."
   },
   "rooms": {
     "allTaxesIncluded": "All prices include taxes, fees and charges.",

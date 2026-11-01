@@ -107,7 +107,33 @@ describe('the matrix is priced per person', () => {
   it('states the basis above the chart', async () => {
     renderPage();
     await screen.findAllByRole('button', { name: /vanaf €\d+/i });
-    expect(screen.getByText(/prijzen vanaf, per persoon/i)).toBeInTheDocument();
+    // The client's wording (Nov 2026): indicative prices, checked live on the chosen date.
+    const note = screen.getByText(/vanafprijzen per persoon/i).closest('.fc-estimate');
+    expect(note).toHaveTextContent(/de getoonde prijzen zijn indicatief en kunnen wijzigen/i);
+    expect(note).toHaveTextContent(/na de livecontrole zie je de bevestigde prijs van jouw vakantie/i);
+  });
+
+  it('names the four colours of the strip, and nothing else (client design, Nov 2026)', async () => {
+    const { container } = renderPage();
+    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
+    const labels = [...container.querySelectorAll('.fc-legend-item')].map((el) => el.textContent.trim());
+    expect(labels).toEqual(['Prijs controleren', 'Laagste prijs', 'Geselecteerde datum', 'Niet beschikbaar']);
+    expect(container.querySelector('.fc-legend-title')).toBeNull();
+  });
+
+  it('a day with no cached price asks for the check instead of quoting one (client design, Nov 2026)', async () => {
+    calendar = calendarStartingAt(0);
+    const { container } = renderPage();
+    const bar = await waitFor(() => {
+      const el = container.querySelector('.fc-col.fc-nopr');
+      expect(el).toBeTruthy();
+      return el;
+    });
+    // The mark, the words and the trip length; no figure and no "from" on it.
+    expect(bar.querySelector('.fc-nopr-ico svg')).toBeTruthy();
+    expect(bar).toHaveTextContent(/controleer beschikbaarheid/i);
+    expect(bar).toHaveTextContent('8 dagen');
+    expect(bar.textContent).not.toMatch(/€|vanaf/i);
   });
 });
 

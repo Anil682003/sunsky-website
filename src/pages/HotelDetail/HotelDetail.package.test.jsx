@@ -204,13 +204,79 @@ describe('the live check asks about the package the card priced', () => {
     const { container } = renderPage();
     await priceDays();
     expect(container.querySelector('.overview-extras')?.textContent || '').not.toMatch(/geen boekingskosten|handbagage inbegrepen/i);
+    expect(container.textContent).not.toMatch(/lokale belastingen en kosten/i);
     await runCheck(user);
     await waitFor(() => expect(container.querySelector('.overview-extras').textContent).toMatch(/geen boekingskosten/i));
     expect(container.querySelector('.overview-extras').textContent).toMatch(/handbagage inbegrepen/i);
-    // The general "any local tourist tax" note is gone (UI-09): a rate without a known local
-    // amount says nothing about one, before the check or after it.
-    expect(container.textContent).not.toMatch(/lokale belastingen en kosten|verplicht ter plaatse/i);
+    // A rate without a known local amount gets the general line once it is priced (client
+    // design, Nov 2026): the charge is named as possible, never as a figure and never as
+    // "mandatory", which only a real amount from the rate may say.
+    expect(container.textContent).toMatch(/lokale belastingen en kosten/i);
+    expect(container.textContent).not.toMatch(/verplicht ter plaatse/i);
     expect(container.querySelector('[data-local-costs]')).toBeNull();
+  });
+
+  it('spells the package out on the overview: flights, rooms and baggage, then the price per head and in total (client design, Nov 2026)', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
+
+    const row = (label) => [...container.querySelectorAll('.overview-trip-row')]
+      .find((el) => el.querySelector('.overview-trip-k')?.textContent.trim().toLowerCase() === label);
+    expect(row('vluchten')).toHaveTextContent('Frankfurt (FRA) ↔ Antalya (AYT)');
+    expect(row('vluchten')).toHaveTextContent(/heen- en terugvlucht/i);
+    expect(row('kamers')).toHaveTextContent('Kamer 1');
+    expect(row('kamers')).toHaveTextContent('Double Room');
+    // Every line is the fare's own allowance: 20 kg in the hold, an 8 kg cabin bag, and the
+    // personal item on the same baseline the flight-details table prints it on.
+    expect(row('bagage')).toHaveTextContent(/persoonlijk item: inbegrepen/i);
+    expect(row('bagage')).toHaveTextContent(/handbagage: 8 kg/i);
+    expect(row('bagage')).toHaveTextContent(/ruimbagage: 20 kg/i);
+
+    // Price details: per head, the party, the total, and the total band naming the party.
+    const body = container.querySelector('.overview-body:not(.overview-trip)');
+    expect(body).toHaveTextContent(/reisprijs per persoon/i);
+    expect(body).toHaveTextContent('€ 750 p.p.');
+    expect(body).toHaveTextContent(/aantal reizigers\s*2/i);
+    expect(container.querySelector('.overview-total')).toHaveTextContent(/voor 2 volwassenen/i);
+    // No deposit rule in the config: no split is invented.
+    expect(container.textContent).not.toMatch(/aanbetaling|resterend saldo/i);
+
+    // The baggage tile under the green card says the same three things, each "Inbegrepen".
+    const bags = container.querySelector('.fc-facts .fcu-bags');
+    expect(bags).toHaveTextContent(/ruimbagage: 20 kg/i);
+    expect(bags).toHaveTextContent(/handbagage: 8 kg/i);
+    expect(bags).toHaveTextContent(/persoonlijk item/i);
+    expect(bags.querySelectorAll('.fcu-bag-ok')).toHaveLength(3);
+    // And the green card captions the total for what it is: flight and hotel, live.
+    expect(container.querySelector('.av-price-total')).toHaveTextContent(/totale live pakketprijs voor 2 volwassenen/i);
+  });
+
+  it('previews the deposit and the balance when the dashboard splits the payment', async () => {
+    get.mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('package-matrix')) return Promise.resolve({ data: MATRIX });
+      if (u.includes('checkout-config')) {
+        return Promise.resolve({ data: { success: true, data: { deposit: { enabled: true, percent: 40, balanceDueDaysBeforeDeparture: 10, minAmount: 0 } } } });
+      }
+      return Promise.resolve({ data: {} });
+    });
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
+
+    // 40% of €1,500 under the checkout's own arithmetic; what is left is the balance.
+    const pay = await waitFor(() => {
+      const el = container.querySelector('.overview-pay');
+      expect(el).toBeTruthy();
+      return el;
+    });
+    expect(pay).toHaveTextContent(/aanbetaling/i);
+    expect(pay).toHaveTextContent('€ 600');
+    expect(pay).toHaveTextContent(/resterend saldo aan sunsky/i);
+    expect(pay).toHaveTextContent('€ 900');
   });
 
   it('holds the package flight, not the cheaper other one: room €500 + flight €1,000', async () => {
@@ -564,7 +630,7 @@ describe('the strip says which kind of "no price" this is', () => {
     expect(failed.textContent).toMatch(/prijs niet beschikbaar/i);
   });
 
-  it('flights valid, no cached hotel price (Numa Bay, addendum 29 Oct §4): "Check price & availability", pickable, live-checks that trip', async () => {
+  it('flights valid, no cached hotel price (Numa Bay, addendum 29 Oct §4): "Check availability", pickable, live-checks that trip', async () => {
     const user = userEvent.setup();
     const d = iso(31);
     MATRIX = { success: true, status: 'AVAILABLE', prev: null, next: null, cells: [
@@ -576,14 +642,19 @@ describe('the strip says which kind of "no price" this is', () => {
     const { container } = renderPage();
     await priceDays();
 
-    const bar = [...container.querySelectorAll('.fc-col')].find((b) => /prijs & beschikbaarheid controleren/i.test(b.textContent));
+    // The amber cell (client design, Nov 2026): the mark, "Check availability" and the trip
+    // length, and the full sentence on the button's label for a screen reader.
+    const bar = [...container.querySelectorAll('.fc-col')].find((b) => /controleer beschikbaarheid/i.test(b.textContent));
     expect(bar).toBeTruthy();
     expect(bar.disabled).toBe(false);
+    expect(bar.className).toMatch(/fc-nopr/);
     expect(bar.className).not.toMatch(/fc-empty/);
     expect(bar.textContent).not.toMatch(/niet beschikbaar/i);
+    expect(bar.textContent).toMatch(/7 dagen/);
+    expect(bar.querySelector('.fc-nopr-ico svg')).toBeTruthy();
     expect(bar.getAttribute('aria-label')).toMatch(/prijs & beschikbaarheid controleren/i);
-    // No amount of any kind on it.
-    expect(bar.textContent).not.toMatch(/€/);
+    // No amount of any kind on it, and no "from".
+    expect(bar.textContent).not.toMatch(/€|vanaf/i);
 
     // Picking it, then the card's button: no live request before the explicit click.
     await user.click(bar);

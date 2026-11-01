@@ -40,6 +40,14 @@
     "VIL": "Villa",
     "ROO": "Room"
   },
+  "accommodation": {
+    "H": "Hotel",
+    "A": "Apartment",
+    "T": "Aparthotel",
+    "V": "Villa",
+    "R": "Resort",
+    "C": "Campsite"
+  },
   "sort": {
     "label": "Sort",
     "aria": "Sort results",
@@ -241,7 +249,16 @@
     "hotelNameUnavailable": "Hotel",
     "flightTimes": "Out {{out}} · back {{back}}",
     "withStop": "with stop",
-    "direct": "direct"
+    "direct": "direct",
+    "fromAirport": "From {{airport}} ({{code}})",
+    "directFlight": "Direct",
+    "cabinBag": "Cabin bag",
+    "checkedBag": "Checked baggage",
+    "included": "included",
+    "packageFrom": "Flight + hotel from",
+    "hotelFrom": "Hotel from",
+    "pp": "p.p.",
+    "viewHoliday": "View holiday"
   },
   "lightbox": {
     "photosOf": "{{name}} photos",

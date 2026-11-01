@@ -156,15 +156,6 @@ const BOARD_LABELS = {
   AI: 'All Inclusive',        AS: 'All Inclusive Premium', TL: 'All Inclusive Soft',
   UAI: 'Ultra All Inclusive', TI: 'All Inclusive+',       DO: 'Dinner & B&B',
 };   // the English above is the FALLBACK; results:board.<code> is what shows
-const ROOM_LABELS = {
-  DBL: 'Double',       DBT: 'Double / Twin', TWN: 'Twin',      SGL: 'Single',
-  TPL: 'Triple',       QUA: 'Quad',          FAM: 'Family',    SUI: 'Suite',
-  JSU: 'Junior Suite', STU: 'Studio',        APT: 'Apartment', BUN: 'Bungalow',
-  VIL: 'Villa',        ROO: 'Room',
-};
-
-// Room codes the cache ACTUALLY holds (verified against live inventory). Offering a code the
-// data never contains gives the user a filter that always returns nothing.
 
 const SORT_OPTIONS = [
   // The default (final contract, Ch 1 §2). Flight + Hotel: the stable random order of this
@@ -197,10 +188,6 @@ const TRANSPORT_OPTIONS = [
   { value: 'hotel_only', label: 'Hotel only' },
   { value: 'package',    label: 'Incl. flight' },
 ];
-// Short label for a flight's Sunsky priority class (§23) on the package card.
-const FLIGHT_CLASS_LABEL = { direct: 'direct', one_stop: '1 stop', two_stop: '2 stops' };
-const flightClassLabel = (c) =>
-  (c && FLIGHT_CLASS_LABEL[c] ? i18n.t(`results:flightClass.${c}`, FLIGHT_CLASS_LABEL[c]) : '');
 const PRICE_STEP = 50;
 const PRICE_CEILING_FALLBACK = 1000;
 
@@ -248,8 +235,6 @@ const CCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', TRY: '₺' };
    leaking a missing-key string. */
 const getBoardLabel = (code) =>
   (code && BOARD_LABELS[code] ? i18n.t(`results:board.${code}`, BOARD_LABELS[code]) : code || '');
-const getRoomLabel = (code) =>
-  (code && ROOM_LABELS[code] ? i18n.t(`results:room.${code}`, ROOM_LABELS[code]) : code || '');
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
 const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
 
@@ -281,6 +266,13 @@ const fmtDate = (iso) => {
   const [, m, d] = iso.split('-');
   return `${parseInt(d)} ${months()[parseInt(m) - 1]}`;
 };
+// The card's travel date carries its year ("6 okt 2027"): a from-price can sit a year out, and
+// the day and month alone read as this year's.
+const fmtDateYear = (iso) => {
+  if (!iso) return '';
+  const [y, m, d] = iso.split('-');
+  return `${parseInt(d)} ${months()[parseInt(m) - 1]} ${y}`;
+};
 
 const csv = (s) => (s ? String(s).split(',').map((x) => x.trim()).filter(Boolean) : []);
 
@@ -290,13 +282,104 @@ const Icon = ({ d, size = 14, sw = 1.8 }) => (
   </svg>
 );
 
-const CheckIcon = () => (
-  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-    <path d="M20 6L9 17l-5-5" />
+// The card's own glyphs (the approved design draws these solid, not as the stroked chip icons).
+const PlaneIcon = ({ size = 18 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M21 16v-2l-8-5V3.5c0-.83-.67-1.5-1.5-1.5S10 2.67 10 3.5V9l-8 5v2l8-2.5V19l-2 1.5V22l3.5-1 3.5 1v-1.5L13 19v-5.5l8 2.5z" />
+  </svg>
+);
+const CalendarIcon = ({ size = 20 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" />
+    <path d="M8 14h.01M12 14h.01M16 14h.01M8 17.5h.01M12 17.5h.01" strokeWidth="2.6" />
+  </svg>
+);
+const HotelIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+    <path d="M4 21V4a1 1 0 011-1h14a1 1 0 011 1v17M2 21h20M9 7h2M13 7h2M9 11h2M13 11h2M9 15h2M13 15h2M10 21v-3.5h4V21" />
+  </svg>
+);
+const HouseIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+    <path d="M12 3.2l9.5 8.1-1.3 1.5L19 11.8V20a1 1 0 01-1 1h-4v-5h-4v5H6a1 1 0 01-1-1v-8.2l-1.2 1-1.3-1.5z" />
+  </svg>
+);
+const CabinBagIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd" aria-hidden="true">
+    <path d="M8 7V6a4 4 0 018 0v1h1a3 3 0 013 3v8a3 3 0 01-3 3H7a3 3 0 01-3-3v-8a3 3 0 013-3zm2 0h4V6a2 2 0 00-4 0zm-1 5h6v2H9z" />
+  </svg>
+);
+const CheckedBagIcon = ({ size = 16 }) => (
+  <svg width={size} height={size} viewBox="0 0 24 24" fill="currentColor" fillRule="evenodd" aria-hidden="true">
+    <path d="M9 6V4a1 1 0 011-1h4a1 1 0 011 1v2h2a3 3 0 013 3v10a3 3 0 01-3 3H7a3 3 0 01-3-3V9a3 3 0 013-3zm2 0h2V5h-2zM8 10v8h2v-8zm6 0v8h2v-8z" />
   </svg>
 );
 
 // ── Result-card helpers ──────────────────────────────────────────────────────
+
+// Hotelbeds accommodation types (content API /types/accommodations) the card can name. The card
+// view of /hotels/bulk does not carry the code yet; until it does, the chip falls back to the
+// classification the rating already draws (stars = hotel, keys = apartment), which is the same
+// Hotelbeds datum read the other way. An unlisted code shows nothing rather than a bare letter.
+const ACCOMMODATION_LABELS = { H: 'Hotel', A: 'Apartment', T: 'Aparthotel', V: 'Villa', R: 'Resort', C: 'Campsite' };
+const ACCOMMODATION_WORDS = { HOTEL: 'H', APARTMENT: 'A', APARTMENTS: 'A', APARTHOTEL: 'T', VILLA: 'V', RESORT: 'R', CAMPING: 'C', CAMPSITE: 'C' };
+const accommodationTypeKey = (info, rating) => {
+  const raw = String(info?.accommodationTypeCode || info?.accommodationType || '').trim().toUpperCase();
+  const code = ACCOMMODATION_WORDS[raw] || raw;
+  if (ACCOMMODATION_LABELS[code]) return code;
+  if (rating?.kind === 'key' && ratingValue(rating) > 0) return 'A';
+  if (rating?.kind === 'star' && ratingValue(rating) > 0) return 'H';
+  return null;
+};
+const accommodationLabel = (code) => i18n.t(`results:accommodation.${code}`, ACCOMMODATION_LABELS[code]);
+
+/**
+ * PURE. Stops in one direction of a cached package flight: the direction's own count when it
+ * carries one, else counted from its legs. null when it states neither: an unknown routing is
+ * not a direct one.
+ */
+const directionStops = (dir) => {
+  if (dir?.stops != null && Number.isFinite(Number(dir.stops))) return Number(dir.stops);
+  if (Array.isArray(dir?.legs) && dir.legs.length) return dir.legs.length - 1;
+  return null;
+};
+/**
+ * PURE. Is the package direct out AND back? true / false, or null when the cached offer does not
+ * say (the card then claims nothing). The combined `stops` the engine sends is the two directions
+ * added up, so a 0 there is both directions direct even when neither direction is spelled out.
+ */
+const packageIsDirect = (flight) => {
+  if (!flight) return null;
+  const out = directionStops(flight.outbound);
+  const back = directionStops(flight.inbound);
+  if (out != null && back != null) return out === 0 && back === 0;
+  if (flight.stops != null && Number.isFinite(Number(flight.stops))) return Number(flight.stops) === 0;
+  return null;
+};
+/**
+ * PURE. Hold baggage in one direction, from the fare's allowance ({ checkedKg, checkedPieces }):
+ * true when kilos or pieces are stated above zero, false when the feed said "0", null when it
+ * said nothing (unknown is not "none", and not "included" either).
+ */
+const directionChecked = (dir) => {
+  const b = dir?.baggage;
+  if (!b) return null;
+  if (b.checkedKg > 0 || b.checkedPieces > 0) return true;
+  if (b.checkedKg === 0 || b.checkedPieces === 0) return false;
+  return null;
+};
+/**
+ * PURE. What the package's fares include for the WHOLE journey: a line is earned only when both
+ * directions include it. The cabin bag follows the hotel page's rule (fareInclusions there): a
+ * stated cabin allowance counts, and so does a fare with hold baggage, since no airline sells a
+ * hold allowance and refuses the cabin bag. A fare that states nothing earns neither line.
+ */
+const packageBaggage = (flight) => {
+  const dirs = [flight?.outbound, flight?.inbound];
+  const checked = dirs.every((d) => directionChecked(d) === true);
+  const cabin = dirs.every((d) => (d?.baggage?.handKg > 0) || directionChecked(d) === true);
+  return { cabin, checked };
+};
 
 // 12px line icons for the curated facility chips — one 24×24 stroke path per topFacilities()
 // icon key, rendered through the existing <Icon>. `fallback` covers any future ladder key.
@@ -3457,8 +3540,9 @@ export default function Results() {
           A room is chosen on the hotel page, against that hotel's real rates and what each one
           costs, which is where the choice means something. Filtering the LIST by it hid hotels
           that DO sell the room, because the cheapest rate the search happened to price was a
-          different one. `getRoomLabel` stays: the cards still name the room a price belongs
-          to, which is the honest use of that vocabulary. */}
+          different one. The card does not name the room either (the approved card, Nov 2026,
+          carries the board and the kind of property); the room vocabulary lives on the hotel
+          page, where the choice is made. */}
 
       {/* No Cancellation filter. We don't state a rate's cancellation terms anywhere in the
           journey any more, so offering to filter by them promised a distinction the rest of
@@ -3826,19 +3910,27 @@ export default function Results() {
                 // day later after an overnight arrival, and showing those beside the travel days
                 // read as a wrong count (Levent 29 Oct: "24/04-28/04 is not 6 days").
                 const flightDate = (local) => (typeof local === 'string' && local.length >= 10 ? local.slice(0, 10) : null);
-                const tripOutDate = pkg ? flightDate(pkg.flight?.outbound?.departureLocal) : null;
-                const tripBackDate = pkg ? flightDate(pkg.flight?.inbound?.departureLocal) : null;
-                const stayIn = pkg ? (tripOutDate || pkg.stay?.checkin) : (stayNightsList[0]?.date || fetchParams.checkIn);
-                const stayOut = pkg ? (tripBackDate || pkg.stay?.checkout) : (stayNightsList.length
-                  ? new Date(Date.parse(`${stayNightsList[stayNightsList.length - 1].date}T00:00:00Z`) + 86400000).toISOString().slice(0, 10)
-                  : fetchParams.checkOut);
-                const stayNightCount = pkg ? (pkg.stay?.nights || 0) : (stayNightsList.length || nightsBetween(stayIn, stayOut) || 0);
-                // A package always names its stay: the flights decide it (an overnight arrival
-                // starts the stay a day later), so it is not simply the searched dates.
-                const showStayWindow = (pkg || (!isPackage && urlFlex > 0)) && !!stayIn && !!stayOut && stayNightCount > 0;
-                const pkgTime = (local) => (typeof local === 'string' && local.length >= 16 ? local.slice(11, 16) : null);
-                const pkgOut = pkg ? pkgTime(pkg.flight?.outbound?.departureLocal) : null;
-                const pkgBack = pkg ? pkgTime(pkg.flight?.inbound?.departureLocal) : null;
+                // The date the card names and the days it counts come from the SAME cached offer
+                // as the price. A package is the TRIP: the outbound flight's date and travelDays
+                // (the hotel can start a day later after an overnight arrival, and those dates
+                // beside the travel days read as a wrong count: Levent 29 Oct, "24/04-28/04 is
+                // not 6 days"). Hotel only is the stay the cache priced: its check-in and its
+                // nights, which with flexible dates is the one concrete stay the price belongs
+                // to, so "±3 days" never reads as a range of prices.
+                const tripDate = pkg
+                  ? (flightDate(pkg.flight?.outbound?.departureLocal) || pkg.stay?.checkin || null)
+                  : (stayNightsList[0]?.date || fetchParams.checkIn || null);
+                const stayNightCount = pkg
+                  ? (pkg.stay?.nights || 0)
+                  : (stayNightsList.length || nights || nightsBetween(fetchParams.checkIn, fetchParams.checkOut) || 0);
+                const tripDays = pkg?.flight?.travelDays > 0
+                  ? pkg.flight.travelDays
+                  : (stayNightCount > 0 ? nightsToDays(stayNightCount) : 0);
+                // What the cached fares say about the journey. null (routing not stated) and
+                // false (a stop, or no baggage stated) both show nothing: the card never claims
+                // a direct flight or an included bag the offer does not carry.
+                const pkgDirect = pkg ? packageIsDirect(pkg.flight) : null;
+                const pkgBags = pkg ? packageBaggage(pkg.flight) : { cabin: false, checked: false };
                 // Split into whole + decimals (toFixed FIRST, so 99.999 → 100.00, not 99.00).
                 // Whole euros, rounded UP (spec 2.3): a SUNSKY price never shows cents, and never
                 // shows less than the fare it stands for.
@@ -3847,6 +3939,9 @@ export default function Results() {
                   : '—';
                 // TripAdvisor rating (/10), from the harvested store on the bulk info record.
                 const rev = formatReview(info?.review);
+                // The kind of property, for the grey chip: the bulk record's code, else the
+                // classification its rating already draws.
+                const accomType = accommodationTypeKey(info, dispRating);
                 // Curated top-5 amenities + overflow count for the chip row.
                 const fac = topFacilities(info?.facilities);
                 // Location line: clean geo name first, title-cased raw supplier city as
@@ -3997,7 +4092,28 @@ export default function Results() {
                       </div>
                     </div>
 
-                    {/* Amenities: borderless icon+label items — text, not chip soup. */}
+                    {/* What the deal is: the board basis (green, the cutlery) and the kind of
+                        property (grey, the house), as chips under the place line. Each only
+                        when its data is there. The room type is not part of the approved card. */}
+                    {(h.boardCode || accomType) && (
+                      <div className={styles.rcChips}>
+                        {h.boardCode && (
+                          <span className={`${styles.rcChip} ${styles.rcChipBoard}`}>
+                            <Icon d={FAC_ICON_D.restaurant} size={15} sw={2} />
+                            {getBoardLabel(h.boardCode)}
+                          </span>
+                        )}
+                        {accomType && (
+                          <span className={`${styles.rcChip} ${styles.rcChipType}`}>
+                            <HouseIcon size={15} />
+                            {accommodationLabel(accomType)}
+                          </span>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Amenities: borderless icon+label items at the foot of the column, under a
+                        hairline, as the approved card draws them. */}
                     {fac.top.length > 0 && (
                       <div className={styles.rcFacts} aria-label={t('card.facilities', 'Hotel facilities')}>
                         {fac.top.map((f) => (
@@ -4018,94 +4134,84 @@ export default function Results() {
                         )}
                       </div>
                     )}
-
-                    {/* What the deal includes: the board basis and the room type, each with
-                        a green tick. */}
-                    {(h.boardCode || h.roomType) && (
-                      <div className={styles.rcIncluded}>
-                        {h.boardCode && (
-                          <span className={styles.rcIncludedPill}><CheckIcon />{getBoardLabel(h.boardCode)}</span>
-                        )}
-                        {h.roomType && (
-                          <span className={styles.rcIncludedPill}><CheckIcon />{getRoomLabel(h.roomType)}</span>
-                        )}
-                      </div>
-                    )}
                   </div>
 
                   <div className={styles.rcPriceRail}>
-                    {/* Guest score (TripAdvisor, out of 10), at the top of the price column. The
-                        client asked for it top-right and large; here it takes no width from the
-                        hotel's name. */}
-                    {rev && (
+                    {/* Guest score (TripAdvisor, out of 10) at the top of the price column: the
+                        word and the count, then the blue score. Only with BOTH a score and a
+                        count ("Prima | 6.8/10 | 588 beoordelingen"): without either there is no
+                        block at all, and the travel date takes the top. Never a placeholder. */}
+                    {rev && rev.count > 0 && (
                       <div className={styles.rcReviewBox} title={rev.title}>
                         <span className={styles.rcReviewText}>
                           <span className={styles.rcReviewWord}>{scoreWord(rev.score)}</span>
-                          {rev.count > 0 && (
-                            <span className={styles.rcReviewCount}>
-                              {t('common:review.reviews', {
-                                count: rev.count,
-                                countFormatted: rev.count.toLocaleString(numberLocale),
-                                defaultValue_one: '{{countFormatted}} review',
-                                defaultValue_other: '{{countFormatted}} reviews',
-                              })}
-                            </span>
-                          )}
+                          <span className={styles.rcReviewCount}>
+                            {t('common:review.reviews', {
+                              count: rev.count,
+                              countFormatted: rev.count.toLocaleString(numberLocale),
+                              defaultValue_one: '{{countFormatted}} review',
+                              defaultValue_other: '{{countFormatted}} reviews',
+                            })}
+                          </span>
                         </span>
                         <span className={styles.rcReviewScore}>{rev.score}<span className={styles.rcReviewOutOf}>/{rev.outOf}</span></span>
                       </div>
                     )}
-                    <div className={styles.rcPriceInfo}>
-                      {/* No "Free cancellation" line. It advertised on the card a term the
-                          hotel page no longer states and the sidebar no longer filters by, so
-                          the promise was made exactly where it could not be checked. */}
-                      {/* What the total covers — the stay context that used to be two pills
-                          in the body, now one quiet qualifying line above the fare. */}
-                      {showStayWindow && (
-                        <span className={styles.rcStayWindow}>
-                          {t('card.stayWindow', {
-                            count: stayNightCount,
-                            from: fmtDate(stayIn),
-                            to: fmtDate(stayOut),
-                            // Dates only (Levent, 25 Oct 2026): the length is the "N days" line
-                            // right below, so a nights count beside it said the trip twice.
-                            defaultValue_one: '{{from}} → {{to}}',
-                            defaultValue_other: '{{from}} → {{to}}',
-                          })}
-                        </span>
+
+                    {/* The trip, from the same cached offer as the price: the date and its
+                        length, then (a package) where it flies from and what the fares include.
+                        Nothing about travellers or the party's total: per person is the
+                        comparable figure, and the sidebar already states the party. */}
+                    <div className={styles.rcTrip}>
+                      {tripDate && (
+                        <div className={styles.rcTripRow}>
+                          <span className={styles.rcTripIco}><CalendarIcon /></span>
+                          <span className={styles.rcTripMain}>
+                            <span className={styles.rcTripDate}>{fmtDateYear(tripDate)}</span>
+                            {tripDays > 0 && <span className={styles.rcTripSub}>({daysLabel(tripDays)})</span>}
+                          </span>
+                        </div>
                       )}
-                      <span className={styles.rcPriceContext}>
-                        {pkg?.flight?.travelDays > 0 ? daysLabel(pkg.flight.travelDays) : nights > 0 ? daysLabel(nightsToDays(nights)) : t('card.total', 'Total')}
-                        {Number(fetchParams.adults) > 0 && ` · ${t('card.adults', {
-                          count: Number(fetchParams.adults),
-                          defaultValue_one: '{{count}} adult',
-                          defaultValue_other: '{{count}} adults',
-                        })}`}
-                        {Number(fetchParams.children) > 0 && ` · ${t('card.children', {
-                          count: Number(fetchParams.children),
-                          defaultValue_one: '{{count}} child',
-                          defaultValue_other: '{{count}} children',
-                        })}`}
-                      </span>
-                      {/* §33: when a cached flight fare is in, the headline IS the package total
-                          (hotel + flight) and the note says so, with the flight's §23 class. When
-                          no flight is cached for the route yet, we keep the honest hotel-only figure
-                          and say the flight is priced live on the hotel page — never a hotel-only
-                          number dressed up as a package total. */}
-                      {isPackage && packagePerPerson != null && (
-                        <span className={styles.rcFlightNote}>
-                          {t('card.inclFlightFrom', {
-                            city: airportCity(flightFare?.origin || activeOrigins[0]),
-                            defaultValue: 'incl. flight from {{city}}',
-                          })}
-                          {flightFare?.priorityClass ? ` · ${flightClassLabel(flightFare.priorityClass)}` : ''}
-                          {pkg ? ` · ${flightFare.stops > 0 ? t('card.withStop', 'with stop') : t('card.direct', 'direct')}` : ''}
-                        </span>
+                      {pkg && flightFare?.origin && (
+                        <div className={styles.rcTripRow}>
+                          <span className={styles.rcTripIco}><PlaneIcon /></span>
+                          <span className={styles.rcTripMain}>
+                            <span className={styles.rcTripFrom}>
+                              {t('card.fromAirport', {
+                                airport: airportCity(flightFare.origin),
+                                code: flightFare.origin,
+                                defaultValue: 'From {{airport}} ({{code}})',
+                              })}
+                            </span>
+                            {/* Only when out AND back are direct; a routing the offer does not
+                                state earns no pill either way. */}
+                            {pkgDirect === true && (
+                              <span className={styles.rcDirectPill}>{t('card.directFlight', 'Direct')}</span>
+                            )}
+                          </span>
+                        </div>
                       )}
-                      {pkg && pkgOut && pkgBack && (
-                        <span className={styles.rcFlightTimes}>
-                          {t('card.flightTimes', { out: pkgOut, back: pkgBack, defaultValue: 'Out {{out}} · back {{back}}' })}
-                        </span>
+                      {pkg && (pkgBags.cabin || pkgBags.checked) && (
+                        <div className={styles.rcBags}>
+                          {pkgBags.cabin && (
+                            <span className={styles.rcBag}>
+                              <CabinBagIcon />
+                              <span>
+                                {t('card.cabinBag', 'Cabin bag')}{' '}
+                                <span className={styles.rcIncludedWord}>{t('card.included', 'included')}</span>
+                              </span>
+                            </span>
+                          )}
+                          {pkgBags.checked && (
+                            <span className={styles.rcBag}>
+                              <CheckedBagIcon />
+                              <span>
+                                {t('card.checkedBag', 'Checked baggage')}{' '}
+                                <span className={styles.rcIncludedWord}>{t('card.included', 'included')}</span>
+                              </span>
+                            </span>
+                          )}
+                        </div>
                       )}
                       {isPackage && !pkg && packagePerPerson == null && (
                         <span className={styles.rcFlightNote}>
@@ -4119,6 +4225,12 @@ export default function Results() {
                             : t('card.flightPricedLaterAny', '+ flight · priced on hotel page')}
                         </span>
                       )}
+                    </div>
+
+                    <div className={styles.rcPriceInfo}>
+                      {/* No "Free cancellation" line. It advertised on the card a term the
+                          hotel page no longer states and the sidebar no longer filters by, so
+                          the promise was made exactly where it could not be checked. */}
                       {/* The headline is the PER-PERSON fare — the figure a traveller compares.
                           Hotel-only: the per-person hotel price. Package (flight fare cached): the
                           per-person hotel + flight total (§33). The whole-party total is not shown;
@@ -4142,11 +4254,28 @@ export default function Results() {
                         </div>
                       ) : (
                         <>
+                          {/* What the figure is a from-price FOR. "Flight + hotel" only once a
+                              cached flight fare completes the package (§33); a package card still
+                              priced on the hotel alone says so, never a hotel-only number dressed
+                              up as a package total. */}
+                          <span className={styles.rcPriceLabel}>
+                            {isPackage && packagePerPerson != null ? (
+                              <>
+                                <PlaneIcon size={15} /><span aria-hidden="true">+</span><HotelIcon size={15} />
+                                {t('card.packageFrom', 'Flight + hotel from')}
+                              </>
+                            ) : (
+                              <>
+                                <HotelIcon size={15} />
+                                {t('card.hotelFrom', 'Hotel from')}
+                              </>
+                            )}
+                          </span>
                           <div className={styles.rcPriceAmount}>
                             <span className={styles.rcPriceCcy}>{CCY_SYMBOLS[h.currency] || h.currency}</span>
                             {ppMajor}
+                            <span className={styles.rcPricePer}>{t('card.pp', 'p.p.')}</span>
                           </div>
-                          <div className={styles.rcPricePer}>{t('card.perPerson', 'per person')}</div>
                         </>
                       )}
                       {/* Mandatory local costs (UI-09, Ch 1 §10): under the price and before the
@@ -4172,7 +4301,7 @@ export default function Results() {
                       >
                         {h.onRequest
                           ? t('card.viewLivePrices', 'Click to view live prices')
-                          : t('card.viewDeal', 'View Deal')}
+                          : t('card.viewHoliday', 'View holiday')}
                         <Icon d="M5 12h14M12 5l7 7-7 7" size={14} sw={2.2} />
                       </Link>
                     </div>

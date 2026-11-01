@@ -487,6 +487,109 @@ const BagTraveller = ({ index, name, children }) => {
   );
 };
 
+/* Two icons only the baggage rows use, drawn with the same helper as ICON above: the bin on
+   the "Remove" link and the arrow on the add-more menu. */
+const BAG_ICON = {
+  trash: <S><path d="M4 7h16" /><path d="M9.5 7V4.5A1 1 0 0110.5 3.5h3a1 1 0 011 1V7" /><path d="M6.5 7l.8 12a1.5 1.5 0 001.5 1.4h6.4a1.5 1.5 0 001.5-1.4l.8-12" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></S>,
+  chevron: <S sw={2.5}><path d="M6 9l6 6 6-6" /></S>,
+};
+
+/**
+ * What a baggage row says about itself: the icon, what the traveller will carry in bold
+ * ("2 stuks handbagage", "35 kg ruimbagage"), and underneath how that adds up ("1 inbegrepen
+ * + 1 extra"). The old row stated "Included" and left the count to the traveller, who then
+ * could not tell from the page how many bags they had just paid for.
+ *
+ * `muted` is for the row that carries nothing: its second line is a status ("Niet
+ * inbegrepen"), not a sum, and is set in the quieter grey the status chip used.
+ */
+const BagDesc = ({ icon, main, sub, muted }) => (
+  <span className="ck-bagrow-item">
+    {icon}
+    <span className="ck-bag-desc">
+      <b>{main}</b>
+      {sub ? <span className={muted ? 'ck-chip-not' : undefined}>{sub}</span> : null}
+    </span>
+  </span>
+);
+
+/**
+ * The "add more baggage" menu on a hold-baggage row.
+ *
+ * A native <select> drew the browser's own list, grey and square, in the middle of a card that
+ * is otherwise ours. This one is ours too: the weights down the left and the prices down the
+ * right, opening straight under its button and shutting the moment a weight is picked, on an
+ * outside click, or on Escape. It is a listbox to the keyboard as well (arrows move, Enter
+ * picks, focus returns to the button on Escape), which the native control gave for free and
+ * a styled one has to earn.
+ *
+ * `options` are the rows the airline, or our own table, actually sells; nothing else is ever
+ * listed, because the server re-prices a choice from that same row and would refuse one it
+ * cannot find.
+ */
+const BagMenu = ({ label, ariaLabel, options, onPick, money }) => {
+  const [open, setOpen] = useState(false);
+  const [active, setActive] = useState(0);
+  const rootRef = useRef(null);
+  const btnRef = useRef(null);
+  const listRef = useRef(null);
+
+  // Outside click rather than blur: blur fires when the pointer lands on the list itself.
+  useEffect(() => {
+    if (!open) return undefined;
+    const onDown = (e) => { if (e.target?.isConnected && !rootRef.current?.contains(e.target)) setOpen(false); };
+    document.addEventListener('mousedown', onDown);
+    return () => document.removeEventListener('mousedown', onDown);
+  }, [open]);
+
+  // Focus follows the active option, so the screen reader and the highlight agree.
+  useEffect(() => {
+    if (open) listRef.current?.querySelectorAll('[role="option"]')[active]?.focus();
+  }, [open, active]);
+
+  const last = options.length - 1;
+  const show = (at) => { setActive(Math.max(0, Math.min(last, at))); setOpen(true); };
+  const close = () => { setOpen(false); btnRef.current?.focus(); };
+  const pick = (row) => { setOpen(false); onPick(Number(row.kg)); };
+
+  const onKey = (e) => {
+    if (e.key === 'Escape') { if (open) { e.preventDefault(); close(); } return; }
+    if (e.key === 'Tab') { if (open) setOpen(false); return; }
+    if (e.key === 'ArrowDown' || e.key === 'ArrowUp') {
+      e.preventDefault();
+      const step = e.key === 'ArrowDown' ? 1 : -1;
+      if (!open) show(step > 0 ? 0 : last); else show(active + step);
+      return;
+    }
+    if (open && e.key === 'Home') { e.preventDefault(); show(0); }
+    if (open && e.key === 'End') { e.preventDefault(); show(last); }
+  };
+
+  return (
+    <span className="ck-bagmenu" ref={rootRef} onKeyDown={onKey}>
+      <button type="button" ref={btnRef} className="ck-bag-add ck-bagmenu-btn"
+        aria-haspopup="listbox" aria-expanded={open} aria-label={ariaLabel}
+        onClick={() => (open ? close() : show(0))}>
+        {ICON.plusCircle}
+        <span>{label}</span>
+        <span className="ck-bagmenu-chev" aria-hidden="true">{BAG_ICON.chevron}</span>
+      </button>
+      {open && (
+        <span className="ck-bagmenu-list" role="listbox" aria-label={ariaLabel} ref={listRef}>
+          {options.map((row, idx) => (
+            <button type="button" role="option" key={row.kg} tabIndex={idx === active ? 0 : -1}
+              aria-selected={idx === active} className={`ck-bagmenu-opt${idx === active ? ' act' : ''}`}
+              onMouseEnter={() => setActive(idx)} onClick={() => pick(row)}>
+              <span>{row.kg} kg</span>
+              <span>{money(row.price)}</span>
+            </button>
+          ))}
+        </span>
+      )}
+    </span>
+  );
+};
+
 /**
  * A traveller field: label above, control, and the "done" tick in its own column beside it.
  *
@@ -2941,32 +3044,44 @@ function CheckoutContent({ stripe, elements }) {
                           {directions.map((d) => {
                             const added = !!bags[bagKey(i, d.key)]?.cabin;
                             const price = Number(cabinAddOns[0]?.price) || 0;
+                            /* The row counts bags rather than stating a status: "2 stuks
+                               handbagage" over "1 inbegrepen + 1 extra" says what the
+                               traveller will carry AND what they paid for, which "Included"
+                               plus a chip never managed to. Only the row with nothing at all
+                               keeps a status line, because there is nothing to count. */
+                            const count = (cabinIncluded ? 1 : 0) + (added ? 1 : 0);
+                            const main = count > 0
+                              ? t('checkout:baggage.cabinPieces', { count, defaultValue_one: '{{count}} cabin bag', defaultValue_other: '{{count}} cabin bags' })
+                              : (bagRates?.cabin?.label || t('checkout:baggage.cabinBaggage', 'Cabin baggage'));
+                            const sub = cabinIncluded && added
+                              ? t('checkout:baggage.includedPlusExtraBags', { included: 1, extra: 1, defaultValue: '{{included}} included + {{extra}} extra' })
+                              : cabinIncluded ? t('checkout:baggage.included', 'Included')
+                              : added ? t('checkout:baggage.extra', 'Extra')
+                              : bagKnown ? t('checkout:baggage.notIncluded', 'Not included') : t('checkout:baggage.notConfirmed', 'Not confirmed');
                             return (
                               <div className="ck-bagrow" key={d.key}>
                                 <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
-                                <span className="ck-bagrow-item">{ICON.cabinBag} {bagRates?.cabin?.label || t('checkout:baggage.cabinBaggage', 'Cabin baggage')}</span>
+                                <BagDesc icon={ICON.cabinBag} main={main} sub={sub} muted={count === 0} />
                                 <span className="ck-bagrow-state">
-                                  {/* The state, then — separately — whether more can be bought.
+                                  {/* The state, then (separately) whether more can be bought.
                                       An included bag and a second bag are different questions. */}
-                                  {cabinIncluded ? (
-                                    <><span className="ck-chip-inc">{t('checkout:baggage.included', 'Included')}{cabinIncludedKg ? ` · ${cabinIncludedKg} kg` : ''}</span>{ICON.checkCircle}</>
-                                  ) : added ? (
-                                    <span className="ck-chip-added">{t('checkout:baggage.added', 'Added')} · {money(price)}</span>
-                                  ) : (
-                                    <span className="ck-chip-not">{bagKnown ? t('checkout:baggage.notIncluded', 'Not included') : t('checkout:baggage.notConfirmed', 'Not confirmed')}</span>
-                                  )}
-                                  {/* A second bag on top of the included one is its own line item:
-                                      without this chip the row read "Included" either way. */}
-                                  {cabinIncluded && added ? (
-                                    <span className="ck-chip-added">+1 {t('checkout:baggage.extraCabinBag', 'extra cabin bag')} · {money(price)}</span>
-                                  ) : null}
+                                  {cabinIncluded && <span className="ck-chip-inc">{t('checkout:baggage.included', 'Included')}</span>}
                                   {added ? (
-                                    <button type="button" className="ck-bag-remove" onClick={() => setBag(i, d.key, { cabin: false })}>
-                                      {cabinIncluded ? t('checkout:baggage.removeExtraBag', 'Remove extra bag') : t('checkout:baggage.remove', 'Remove')}
-                                    </button>
+                                    <>
+                                      {/* `ck-chip-added` is the marker the tests read for "a bag was bought here". */}
+                                      <span className="ck-chip-added">+ {money(price)}</span>
+                                      <span className="ck-bag-sep" aria-hidden="true" />
+                                      <button type="button" className="ck-bag-remove"
+                                        aria-label={cabinIncluded ? t('checkout:baggage.removeExtraBag', 'Remove extra bag') : t('checkout:baggage.remove', 'Remove')}
+                                        onClick={() => setBag(i, d.key, { cabin: false })}>
+                                        {BAG_ICON.trash}
+                                        <span>{t('checkout:baggage.remove', 'Remove')}</span>
+                                      </button>
+                                    </>
                                   ) : cabinAddOns.length > 0 ? (
                                     <button type="button" className="ck-bag-add" onClick={() => setBag(i, d.key, { cabin: true })}>
-                                      + {t('checkout:baggage.add', 'Add')} {cabinIncluded ? t('checkout:baggage.anotherCabinBag', 'another cabin bag') : t('checkout:baggage.cabinBaggageLower', 'cabin baggage')} · {money(price)}
+                                      {ICON.plusCircle}
+                                      <span>{cabinIncluded ? t('checkout:baggage.extraCabinBaggage', 'Extra cabin bag') : t('checkout:baggage.addCabinBaggage', 'Add cabin baggage')} · {money(price)}</span>
                                     </button>
                                   ) : null}
                                 </span>
@@ -2993,36 +3108,70 @@ function CheckoutContent({ stripe, elements }) {
                             const kg = checkedIncludedKg;
                             const pieces = checkedIncludedPieces;
                             const included = checkedIncluded;
-                            const chosen = bags[bagKey(i, d.key)]?.checked;
+                            /* A choice only counts while the airline still sells it: the
+                               pricing (extraLines) drops a draft's stale weight the same way,
+                               and a row that printed "+ 20 kg" for a bag nobody is charged
+                               for would be a lie. The dropped weight stays in `bags` until
+                               the next pick overwrites it, which is harmless. */
+                            const chosenRow = checkedAddOns.find((r) => Number(r.kg) === Number(bags[bagKey(i, d.key)]?.checked)) || null;
+                            const extra = chosenRow ? Number(chosenRow.kg) : 0;
+                            /* The row totals the hold allowance: "35 kg ruimbagage" over
+                               "20 kg inbegrepen + 15 kg extra", so the traveller reads what
+                               they can pack without adding it up. An airline that counts
+                               pieces instead of kilos keeps its pieces in the included part
+                               ("1 stuk + 15 kg"), because 1 piece + 15 kg is not 16 of
+                               anything. */
+                            const piecesLabel = t('checkout:baggage.pieces', { count: pieces, defaultValue_one: '{{count}} piece', defaultValue_other: '{{count}} pieces' });
+                            let main;
+                            let sub;
+                            if (included && kg > 0) {
+                              main = t('checkout:baggage.checkedTotalKg', { kg: kg + extra, defaultValue: '{{kg}} kg checked baggage' });
+                              sub = extra
+                                ? t('checkout:baggage.includedPlusExtraKg', { included: kg, extra, defaultValue: '{{included}} kg included + {{extra}} kg extra' })
+                                : t('checkout:baggage.included', 'Included');
+                            } else if (included) {
+                              main = extra
+                                ? t('checkout:baggage.checkedPiecesPlusKg', { pieces: piecesLabel, kg: extra, defaultValue: '{{pieces}} + {{kg}} kg checked baggage' })
+                                : t('checkout:baggage.checkedPiecesTotal', { pieces: piecesLabel, defaultValue: '{{pieces}} checked baggage' });
+                              sub = extra
+                                ? t('checkout:baggage.includedPlusExtraPieces', { pieces: piecesLabel, kg: extra, defaultValue: '{{pieces}} included + {{kg}} kg extra' })
+                                : t('checkout:baggage.included', 'Included');
+                            } else if (extra) {
+                              main = t('checkout:baggage.checkedTotalKg', { kg: extra, defaultValue: '{{kg}} kg checked baggage' });
+                              sub = t('checkout:baggage.extra', 'Extra');
+                            } else {
+                              main = t('checkout:baggage.checkedBaggage', 'Checked baggage');
+                              sub = bagKnown ? t('checkout:baggage.notIncluded', 'Not included') : t('checkout:baggage.notConfirmed', 'Not confirmed');
+                            }
                             return (
                               <div className="ck-bagrow" key={d.key}>
                                 <span className="ck-bagrow-dir">{d.icon} {d.label}</span>
-                                <span className="ck-bagrow-item">{ICON.checkedBag} {t('checkout:baggage.checkedBaggage', 'Checked baggage')}</span>
+                                <BagDesc icon={ICON.checkedBag} main={main} sub={sub} muted={!included && !extra} />
                                 <span className="ck-bagrow-state">
-                                  {/* What the ticket carries, then — separately — what can be
+                                  {/* What the ticket carries, then (separately) what can be
                                       added. An included allowance does not end the question:
                                       a traveller with 20 kg may still want a second bag, and
                                       the airline (or our table) may sell one. */}
-                                  {included ? (
-                                    <><span className="ck-chip-inc">{t('checkout:baggage.included', 'Included')} · {kg > 0 ? `${kg} kg` : t('checkout:baggage.pieces', { count: pieces, defaultValue_one: '{{count}} piece', defaultValue_other: '{{count}} pieces' })}</span>{ICON.checkCircle}</>
-                                  ) : (
-                                    <span className={chosen ? 'ck-chip-added' : 'ck-chip-not'}>
-                                      {chosen ? `${t('checkout:baggage.added', 'Added')} · ${chosen} kg` : (bagKnown ? t('checkout:baggage.notIncluded', 'Not included') : t('checkout:baggage.notConfirmed', 'Not confirmed'))}
-                                    </span>
-                                  )}
-                                  {included && chosen ? (
-                                    <span className="ck-chip-added">+ {chosen} kg</span>
+                                  {included && <span className="ck-chip-inc">{t('checkout:baggage.included', 'Included')}</span>}
+                                  {chosenRow ? (
+                                    <>
+                                      <span className="ck-chip-added">+ {money(chosenRow.price)}</span>
+                                      <span className="ck-bag-sep" aria-hidden="true" />
+                                      <button type="button" className="ck-bag-remove"
+                                        aria-label={included ? t('checkout:baggage.removeExtraChecked', 'Remove extra checked baggage') : t('checkout:baggage.remove', 'Remove')}
+                                        onClick={() => setBag(i, d.key, { checked: null })}>
+                                        {BAG_ICON.trash}
+                                        <span>{t('checkout:baggage.remove', 'Remove')}</span>
+                                      </button>
+                                    </>
+                                  ) : checkedAddOns.length > 0 ? (
+                                    <BagMenu
+                                      label={included ? t('checkout:baggage.addMoreBaggage', 'Add more baggage') : t('checkout:baggage.addCheckedBaggage', 'Add checked baggage')}
+                                      ariaLabel={t('checkout:baggage.addCheckedAria', { number: i + 1, direction: d.label.toLowerCase(), defaultValue: 'Add checked baggage for traveller {{number}}, {{direction}}' })}
+                                      options={checkedAddOns}
+                                      money={money}
+                                      onPick={(weight) => setBag(i, d.key, { checked: weight })} />
                                   ) : null}
-                                  {checkedAddOns.length > 0 && (
-                                    <select className="ck-bag-select" value={chosen || ''}
-                                      aria-label={t('checkout:baggage.addCheckedAria', { number: i + 1, direction: d.label.toLowerCase(), defaultValue: 'Add checked baggage for traveller {{number}}, {{direction}}' })}
-                                      onChange={(e) => setBag(i, d.key, { checked: e.target.value ? Number(e.target.value) : null })}>
-                                      <option value="">+ {included ? t('checkout:baggage.addMoreBaggage', 'Add more baggage') : t('checkout:baggage.addCheckedBaggage', 'Add checked baggage')}</option>
-                                      {checkedAddOns.map((r) => (
-                                        <option key={r.kg} value={r.kg}>{r.kg} kg — {money(r.price)}</option>
-                                      ))}
-                                    </select>
-                                  )}
                                 </span>
                               </div>
                             );

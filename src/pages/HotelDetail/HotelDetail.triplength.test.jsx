@@ -108,20 +108,26 @@ describe('trip length is stated in days, never in nights', () => {
     await waitFor(() => expect(container.querySelector('.fc-act-meta')?.textContent).toContain(DAYS_LABEL));
   });
 
-  it('keeps it in days on the availability card and the price basis', async () => {
+  it('keeps it in days on the availability card', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await checkFirstDay(user);
 
-    await waitFor(() => expect(container.querySelector('.av-facts')?.textContent).toContain(DAYS_LABEL));
-    await waitFor(() => expect(container.querySelector('.avail-you-low')?.textContent).toContain(DAYS_LABEL));
+    // The "Number of days" tile under the green card (client design, Nov 2026).
+    const tile = await waitFor(() => {
+      const el = [...container.querySelectorAll('.fc-facts .fcu-item')]
+        .find((it) => /aantal dagen/i.test(it.querySelector('.fcu-k')?.textContent || ''));
+      expect(el).toBeTruthy();
+      return el;
+    });
+    expect(tile.textContent).toContain(DAYS_LABEL);
   });
 
   it('never prints the nights figure under the word "days" anywhere on the page', async () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await checkFirstDay(user);
-    await waitFor(() => expect(container.querySelector('.av-facts')).toBeTruthy());
+    await waitFor(() => expect(container.querySelector('.fc-facts')).toBeTruthy());
 
     expect(container.textContent).not.toMatch(new RegExp(`\\b${NIGHTS} dagen\\b`));
   });
