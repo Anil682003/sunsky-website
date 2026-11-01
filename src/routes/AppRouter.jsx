@@ -4,6 +4,7 @@ import Layout from '../Layout/Layout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
 import ScrollToTop from '../components/ScrollToTop';
+import ErrorBoundary from '../components/ErrorBoundary/ErrorBoundary';
 import { routes, publicRoutes, notFoundRoute } from './routes.config';
 
 function PageLoader() {
@@ -16,7 +17,8 @@ function PageLoader() {
 }
 
 function renderRoute({ path, component: Component, layout, footer, protected: isProtected }) {
-  let element = <Component />;
+  // Each page in its own boundary: a crash is reported and the header and footer stay.
+  let element = <ErrorBoundary key={path}><Component /></ErrorBoundary>;
 
   if (isProtected) {
     element = <ProtectedRoute>{element}</ProtectedRoute>;

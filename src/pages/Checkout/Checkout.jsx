@@ -1,3 +1,4 @@
+import { setErrorContext } from '../../utils/errorReporter';
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useSelector } from 'react-redux';
@@ -614,6 +615,8 @@ function CheckoutContent({ stripe, elements }) {
 
   /* ── steps ── */
   const [step, setStep] = useState(0);
+  // Which checkout step an error report comes from (errorReporter).
+  useEffect(() => { setErrorContext({ step: `checkout/${step}` }); }, [step]);
   const [furthest, setFurthest] = useState(0);
   const [dir, setDir] = useState(1);
 
@@ -1916,6 +1919,7 @@ function CheckoutContent({ stripe, elements }) {
       const created = createRes.data?.data || createRes.data || {};
       const bookingId = created.bookingId;
       const ref = created.bookingReference;
+      setErrorContext({ ref });
       if (!bookingId) throw new Error(t('checkout:errors.bookingNotCreated', 'Booking could not be created'));
 
       let paidViaStripe = false;
