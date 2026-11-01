@@ -413,6 +413,11 @@ const dayLabel = (nights) => {
   const d = nightsToDays(nights);
   return i18n.t('hotelDetail:stayBar.daysChip', { count: d, defaultValue: `${d} ${d === 1 ? 'day' : 'days'}` });
 };
+// A matrix date's length is its TRIP (travelDays), not hotel nights + 1: a flight landing after
+// midnight starts the hotel a day later, so a 6-day trip can have 4 hotel nights (1046866, 1 Nov 2026).
+const cellDayLabel = (p) => (p.travelDays
+  ? i18n.t('hotelDetail:stayBar.daysChip', { count: p.travelDays, defaultValue: `${p.travelDays} ${p.travelDays === 1 ? 'day' : 'days'}` })
+  : dayLabel(p.nights));
 // The floor for the fare strip and every date field on this page: 24 hours from now, in
 // BELGIAN time (see utils/leadTime.js). The strip pages backwards to that day and no further,
 // because a departure inside a day cannot be confirmed with the supplier and turned into
@@ -2538,7 +2543,7 @@ export default function HotelDetail() {
     // package left from another one, and confirmed nothing.
     ? matrix.days.map((d) => ({
       iso: d.iso, day: calDay(d.departure), date: calDate(d.departure), departure: d.departure,
-      price: d.price, pp: d.perPerson, currency: d.currency || 'EUR', nights: d.nights || nights,
+      price: d.price, pp: d.perPerson, currency: d.currency || 'EUR', nights: d.nights || nights, travelDays: d.travelDays || null,
       state: d.state, cheapest: d.cheapest, pkg: d.pkg, from: d.from,
     }))
     : usingLive
@@ -4473,8 +4478,8 @@ export default function HotelDetail() {
                           aria-label={(isEmpty ? (notForSelection
                               ? t('prices.dayNotForSelection', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available for your selection` })
                               : t('prices.dayNotAvailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available` }))
-                            : liveHere ? t('prices.dayLivePriceLabel', { day: p.day, date: p.date, currency: ccy, amount: nowPP, moveNote: ppMoved != null ? t('prices.dayMoveNote', { currency: ccy, delta: Math.abs(ppMoved), direction: ppMoved < 0 ? t('prices.lower', 'lower') : t('prices.higher', 'higher'), wasAmount: wasPP, defaultValue: `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` }) : '', nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${dayLabel(p.nights)}` })
-                            : hasPrice ? t('prices.dayFromPriceLabel', { day: p.day, date: p.date, currency: ccy, amount: pp, nights: dayLabel(p.nights), defaultValue: `${p.day} ${p.date}, from ${ccy}${pp} per person, ${dayLabel(p.nights)}` })
+                            : liveHere ? t('prices.dayLivePriceLabel', { day: p.day, date: p.date, currency: ccy, amount: nowPP, moveNote: ppMoved != null ? t('prices.dayMoveNote', { currency: ccy, delta: Math.abs(ppMoved), direction: ppMoved < 0 ? t('prices.lower', 'lower') : t('prices.higher', 'higher'), wasAmount: wasPP, defaultValue: `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` }) : '', nights: cellDayLabel(p), defaultValue: `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${cellDayLabel(p)}` })
+                            : hasPrice ? t('prices.dayFromPriceLabel', { day: p.day, date: p.date, currency: ccy, amount: pp, nights: cellDayLabel(p), defaultValue: `${p.day} ${p.date}, from ${ccy}${pp} per person, ${cellDayLabel(p)}` })
                             : priceFailed ? t('prices.dayPriceUnavailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, price temporarily unavailable` })
                             : p.state === 'PRICE_UNKNOWN' ? `${p.day} ${p.date}, ${t('actions.checkPriceAvailability', 'Check price & availability')}`
                             : t('prices.dayCheckLivePrice', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, check live price` }))
@@ -4520,14 +4525,14 @@ export default function HotelDetail() {
                                     {ppMoved != null && <span className="fc-was">{ccy}{wasPP}</span>}
                                     <span className="fc-amt fc-amt-live">{ccy}{nowPP}</span>
                                     <span className="fc-livetag">{t('prices.livePrice', 'Live price')}</span>
-                                    <span className="fc-nts">{dayLabel(p.nights)}</span>
+                                    <span className="fc-nts">{cellDayLabel(p)}</span>
                                   </>
                                 ) : hasPrice ? (
                                   <>
                                     <span className="fc-from">{t('prices.from', 'from')}</span>
                                     <span className="fc-amt">{ccy}{pp}</span>
                                     <span className="fc-pp">p.p.</span>
-                                    <span className="fc-nts">{dayLabel(p.nights)}</span>
+                                    <span className="fc-nts">{cellDayLabel(p)}</span>
                                   </>
                                 ) : (
                                   /* A column is 78px wide on a phone, so the bar carries the
