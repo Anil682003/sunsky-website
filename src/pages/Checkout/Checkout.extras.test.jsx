@@ -238,3 +238,42 @@ describe('the two insurance decisions', () => {
     expect(cancelLine.price).toBeGreaterThan(0);
   });
 });
+
+describe('cancellation cover and the bags added on top', () => {
+  // Production, 1 Nov 2026: every booking with an added bag AND cancellation cover was refused
+  // with "Prices have changed or could not be verified". The checkout took 6% of the subtotal
+  // WITH the bags, the server 6% of the trip without them (flight + hotel + transfer), and the
+  // difference was over the server's tolerance. The premium is a percentage of the trip.
+  it('prices cancellation cover on the trip, not on the bags, exactly as the server does', async () => {
+    const user = userEvent.setup();
+    renderCheckout(bookingWith({ checkedKg: 0, checkedPieces: 0, handKg: 8, infantKg: 0 }));
+    await toExtras(user);
+
+    // A 20 kg bag for traveller 1 on the way out: €35 on top of the €600 stay.
+    const selects = [...card('Ruimbagage').querySelectorAll('.ck-bag-select')];
+    await user.selectOptions(selects[0], '20');
+    await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€35'));
+
+    // Cancellation cover for the party; nobody takes travel cover.
+    await user.click([...card('Bescherm je reis').querySelectorAll('.ck-tr')][0]);
+    for (const block of card('travel insurance').querySelectorAll('.ck-bagtrav')) {
+      await user.click(block.querySelectorAll('.ck-tr')[1]);
+    }
+
+    await user.click(screen.getByRole('button', { name: /verder naar overzicht/i }));
+    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/overzicht/i));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
+    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
+    await user.click(screen.getByRole('button', { name: /bancontact/i }));
+    acceptConditions();
+    await user.click(screen.getByRole('button', { name: /^betaal /i }));
+
+    await waitFor(() => expect(post.mock.calls.some(([url]) => String(url).includes('online-bookings'))).toBe(true));
+    const [, body] = post.mock.calls.find(([url]) => String(url).includes('online-bookings'));
+    const cancelLine = body.insurances.find((i) => i.type === 'cancel');
+    // 6% of €600 = €36. With the bag in the base it was 6% of €635 = €38, which the server
+    // (6% of €600) refused.
+    expect(cancelLine.price).toBe(36);
+    expect(body.extrasTotal).toBe(35);
+  });
+});

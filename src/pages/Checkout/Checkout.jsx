@@ -1321,15 +1321,21 @@ function CheckoutContent({ stripe, elements }) {
   }, [extraLines]);
 
   const subtotal = base + roomExtraTotal + transferTotal + extrasTotal;
+  // What a percentage insurance is a percentage OF: the trip (package or hotel, room choice and
+  // transfer), never the bags added on top. The server re-prices on exactly these parts
+  // (flight + hotel + transfer in priceValidation.service.js); pricing on `subtotal`, which
+  // includes the baggage, quoted a higher premium than the server would accept, so every booking
+  // with an added bag and cancellation cover was refused as "Prices have changed".
+  const insuranceBase = base + roomExtraTotal + transferTotal;
   // Priced from the dashboard's rate card, by the same arithmetic the server will re-run.
   // Cancellation covers the party; travel cover is charged per traveller who took it.
   const cancelOption = insurances.find((i) => i.id === 'cancel')?.option || null;
   const travelOption = insurances.find((i) => i.id === 'travel')?.option || null;
   const travelCount = travellers.filter((_, i) => travelIns[i]).length;
   const cancelAmount = (cancelIns && cancelOption)
-    ? priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: subtotal }) : 0;
+    ? priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: insuranceBase }) : 0;
   const travelAmount = (travelCount && travelOption)
-    ? priceInsurance(travelOption, { pax: travelCount, nights: booking.nights, baseSubtotal: subtotal }) : 0;
+    ? priceInsurance(travelOption, { pax: travelCount, nights: booking.nights, baseSubtotal: insuranceBase }) : 0;
   const insAmount = cancelAmount + travelAmount;
 
   /* The conditions of THIS booking, each with its own tick. The insurance line appears only
@@ -2853,7 +2859,7 @@ function CheckoutContent({ stripe, elements }) {
                       </span>
                       <span className="ck-tr-price">
                         <small>{t('checkout:transfer.total', 'total')}</small>
-                        {money(priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: subtotal }))}
+                        {money(priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: insuranceBase }))}
                       </span>
                     </button>
                     <button type="button" className={`ck-tr${cancelIns === false ? ' act' : ''}`}
@@ -2916,7 +2922,7 @@ function CheckoutContent({ stripe, elements }) {
                   </div>
 
                   {travellers.map((trav, i) => {
-                    const each = priceInsurance(travelOption, { pax: 1, nights: booking.nights, baseSubtotal: subtotal });
+                    const each = priceInsurance(travelOption, { pax: 1, nights: booking.nights, baseSubtotal: insuranceBase });
                     return (
                       <div className="ck-bagtrav" key={i}>
                         <div className="ck-bagtrav-head">
