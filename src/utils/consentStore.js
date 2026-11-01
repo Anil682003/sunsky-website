@@ -277,6 +277,18 @@ export const COOKIE_INVENTORY = Object.freeze([
     purpose: 'Onthoudt je laatste zoekopdracht en bestemmingen, zodat je niet opnieuw hoeft te typen.',
     duration: 'Tot je je browseropslag wist',
   }),
+  // The checkout draft (utils/checkoutDraft.js). Written out rather than imported: that module
+  // touches sessionStorage as it loads, and this file has to stay importable without a DOM.
+  // consentStore.test.js holds the two together: renaming the key in one place and not the
+  // other fails that test.
+  Object.freeze({
+    category: 'necessary',
+    name: 'sunsky.checkoutDraft.v1',
+    party: 'SUNSKY',
+    type: 'Session storage',
+    purpose: 'Bewaart wat je bij het afrekenen al hebt ingevuld, zodat je niets kwijtraakt als je inlogt of een account aanmaakt.',
+    duration: '30 minuten, of tot je het tabblad sluit',
+  }),
   Object.freeze({
     category: 'necessary',
     name: '__stripe_mid, __stripe_sid',

@@ -1,0 +1,127 @@
+/* ════════════════════════════════════════════════════════
+   Checkout sign-in dialog (CheckoutSignIn.jsx).
+   The same light language as the "Review your details" modal: white card, blue heading,
+   soft ink wash so the checkout stays visible behind it. Rendered into <body>, outside
+   .ck, so the palette it needs is declared on its own root (values copied from .ck).
+   Every class is ck-si-*: never .ck-modal or .ck-check, which the checkout's own tests
+   and styles treat as the passport-name review.
+   ════════════════════════════════════════════════════════ */
+.ck-si-overlay {
+  --blue:#1f4fd8; --blue-mid:#3a6fe8; --blue-soft:#a3ccff; --blue-bg:#e8f1ff; --blue-pale:#f0f5ff;
+  --coral:#ff6b6b; --green:#10b981; --green-light:#d1fae5;
+  --text:#1a2744; --text-sec:#5e7291; --text-light:#94a3bf;
+  --white:#fff; --border:#e2eaf5; --border-light:#eef3fb;
+  --r-sm:12px; --r-md:16px; --r-xl:28px; --r-full:9999px;
+  --ease:cubic-bezier(.22,1,.36,1); --ease-spring:cubic-bezier(.175,.885,.32,1.275);
+  /* Above the fixed site header (1000) so it cannot be clicked through the wash; below the
+     toasts (10000), which have to be readable on top of it. */
+  position:fixed; inset:0; z-index:1100; display:flex; align-items:center; justify-content:center;
+  padding:24px; background:rgba(13,26,51,.42); backdrop-filter:blur(4px); -webkit-backdrop-filter:blur(4px);
+  font-family:'DM Sans',sans-serif; color:var(--text); line-height:1.55;
+  animation:ckSiFadeIn .22s var(--ease) both;
+}
+.ck-si-modal { width:100%; max-width:460px; max-height:calc(100vh - 48px); max-height:calc(100dvh - 48px);
+  display:flex; flex-direction:column; overflow-y:auto; overscroll-behavior:contain;
+  background:var(--white); border-radius:var(--r-xl); box-shadow:0 30px 80px rgba(7,14,31,.32);
+  animation:ckSiUp .3s var(--ease-spring) both; }
+
+/* ── head ── */
+.ck-si-head { display:flex; align-items:center; gap:12px; padding:20px 22px 6px; }
+.ck-si-badge { flex:none; width:40px; height:40px; border-radius:13px; display:flex; align-items:center; justify-content:center;
+  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; box-shadow:0 5px 14px rgba(31,79,216,.3); }
+.ck-si-badge svg { width:18px; height:18px; }
+.ck-si-title { flex:1; min-width:0; font-family:'Sora',sans-serif; font-size:19px; font-weight:800; line-height:1.25;
+  color:var(--blue); letter-spacing:-.3px; }
+.ck-si-x { flex:none; width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--border-light); color:var(--text-sec); transition:background .25s var(--ease), color .25s var(--ease); }
+.ck-si-x:hover:not(:disabled) { background:var(--blue-bg); color:var(--blue); }
+.ck-si-x:disabled { opacity:.5; cursor:not-allowed; }
+.ck-si-x svg { width:15px; height:15px; }
+
+/* ── body ── */
+.ck-si-body { padding:12px 22px 22px; display:flex; flex-direction:column; gap:14px; }
+.ck-si-reassure { display:flex; align-items:flex-start; gap:10px; padding:11px 14px; border-radius:var(--r-md);
+  background:var(--blue-pale); border:1px solid var(--blue-bg); font-size:13px; color:var(--text-sec); line-height:1.55; }
+.ck-si-tick { flex:none; width:20px; height:20px; margin-top:1px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  background:var(--green-light); color:#047857; }
+.ck-si-tick svg { width:11px; height:11px; }
+.ck-si-lede { font-size:13.5px; color:var(--text-sec); line-height:1.6; }
+.ck-si-lede strong { color:var(--text); word-break:break-all; }
+.ck-si-hint { font-size:12px; color:var(--text-light); line-height:1.5; }
+.ck-si-alert { padding:11px 14px; border-radius:var(--r-sm); background:#fff5f5; border:1px solid #ffd0d0;
+  color:#b42318; font-size:13px; font-weight:600; line-height:1.5; animation:ckSiUp .28s var(--ease) both; }
+
+/* ── form ── */
+.ck-si-form { display:flex; flex-direction:column; gap:14px; }
+.ck-si-field { display:flex; flex-direction:column; min-width:0; }
+.ck-si-label { font-size:11.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--text-sec); margin-bottom:6px; }
+.ck-si-input { width:100%; padding:12px 14px; border-radius:var(--r-sm); border:1.5px solid var(--border);
+  background:#fbfcff; font-family:inherit; font-size:15px; color:var(--text); outline:none;
+  transition:border-color .25s var(--ease), box-shadow .25s var(--ease), background .25s; }
+.ck-si-input::placeholder { color:var(--text-light); }
+.ck-si-input:hover { border-color:var(--blue-soft); }
+.ck-si-input:focus { border-color:var(--blue); background:#fff; box-shadow:0 0 0 4px rgba(31,79,216,.1); }
+.ck-si-pw { position:relative; }
+.ck-si-pw .ck-si-input { padding-right:48px; }
+.ck-si-eye { position:absolute; right:6px; top:50%; transform:translateY(-50%); width:36px; height:36px; border-radius:10px;
+  display:flex; align-items:center; justify-content:center; color:var(--text-light); transition:color .2s, background .2s; }
+.ck-si-eye:hover { color:var(--blue); background:var(--blue-pale); }
+.ck-si-eye svg { width:18px; height:18px; }
+.ck-si-fielderr { font-size:11.5px; font-weight:600; color:var(--coral); margin-top:5px; }
+
+.ck-si-row { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.ck-si-remember { display:inline-flex; align-items:center; gap:9px; cursor:pointer; user-select:none;
+  font-size:13px; font-weight:600; color:var(--text); }
+.ck-si-remember input { width:18px; height:18px; margin:0; accent-color:var(--blue); cursor:pointer; }
+
+.ck-si-link { display:inline-flex; align-items:center; gap:6px; font-size:13px; font-weight:700; color:var(--blue);
+  text-underline-offset:2px; }
+.ck-si-link:hover:not(:disabled) { text-decoration:underline; }
+.ck-si-link:disabled { color:var(--text-light); cursor:not-allowed; }
+.ck-si-link svg { width:14px; height:14px; }
+.ck-si-back { align-self:center; }
+
+.ck-si-submit { display:inline-flex; align-items:center; justify-content:center; gap:9px; width:100%; padding:14px 22px;
+  border-radius:var(--r-full); background:var(--cta-grad, linear-gradient(135deg,#C2540A,#EE8A12)); color:var(--cta-ink, #fff);
+  text-shadow:var(--cta-ink-shadow, 0 1px 1px rgba(90,38,0,.35)); font-family:'Sora',sans-serif; font-size:14.5px; font-weight:800;
+  box-shadow:0 6px 24px rgba(255,159,28,.35); transition:transform .3s var(--ease), box-shadow .3s var(--ease); }
+.ck-si-submit:hover:not(:disabled) { transform:translateY(-2px); }
+.ck-si-submit:disabled { opacity:.85; cursor:wait; }
+.ck-si-submit svg { width:15px; height:15px; }
+.ck-si-spin { width:16px; height:16px; border-radius:50%; border:2.5px solid rgba(255,255,255,.4); border-top-color:#fff;
+  animation:ckSiSpin .7s linear infinite; display:inline-block; }
+
+.ck-si-foot { padding-top:14px; border-top:1px solid var(--border-light); text-align:center; font-size:13px; color:var(--text-sec); }
+
+/* ── password reset ── */
+.ck-si-rules { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; margin-top:-4px; }
+.ck-si-rules li { display:flex; align-items:center; gap:7px; font-size:12px; color:var(--text-sec); }
+.ck-si-rules li.ok { color:#047857; }
+.ck-si-rule-dot { flex:none; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center;
+  border:1.5px solid var(--border); background:#fff; }
+.ck-si-rules li.ok .ck-si-rule-dot { border-color:transparent; background:var(--green); color:#fff; }
+.ck-si-rule-dot svg { width:9px; height:9px; }
+.ck-si-resend { display:flex; align-items:center; justify-content:space-between; gap:10px; flex-wrap:wrap; }
+.ck-si-muted { font-size:12.5px; color:var(--text-light); font-variant-numeric:tabular-nums; }
+
+@keyframes ckSiFadeIn { from{opacity:0} to{opacity:1} }
+@keyframes ckSiUp { from{opacity:0;transform:translateY(18px)} to{opacity:1;transform:translateY(0)} }
+@keyframes ckSiSpin { to{transform:rotate(360deg)} }
+
+/* A phone gets a sheet from the bottom, full width, within thumb reach. */
+@media (max-width: 560px) {
+  .ck-si-overlay { padding:0; align-items:flex-end; }
+  .ck-si-modal { max-width:none; max-height:calc(100vh - 24px); max-height:calc(100dvh - 24px);
+    border-radius:22px 22px 0 0; padding-bottom:env(safe-area-inset-bottom); }
+  .ck-si-head { padding:18px 16px 4px; }
+  .ck-si-body { padding:10px 16px 18px; }
+  .ck-si-rules { grid-template-columns:1fr; }
+  /* 16px stops iOS zooming the page in when a field takes focus. */
+  .ck-si-input { font-size:16px; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .ck-si-overlay, .ck-si-modal, .ck-si-alert { animation:none; }
+  .ck-si-submit, .ck-si-x, .ck-si-input { transition:none; }
+  .ck-si-submit:hover:not(:disabled) { transform:none; }
+}

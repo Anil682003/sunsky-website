@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import { useBrandLogo } from '../../hooks/useBrandLogo';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
@@ -8,7 +8,7 @@ import logoIcon from '../../assets/logo-icon.png';
 import styles from './Login.module.css';   // shared auth shell (brand column, card, fields)
 import fp from './ForgotPassword.module.css';
 import CodeInput, { CODE_LENGTH } from './CodeInput';
-import { requestPasswordReset, verifyPasswordResetCode, submitNewPassword } from '../../api';
+import { requestPasswordReset, verifyPasswordResetCode, submitNewPassword, prefillEmail } from '../../api';
 import { useToast } from '../../context/ToastContext';
 import i18n from '../../i18n';
 
@@ -30,10 +30,13 @@ export default function ForgotPassword() {
   const brandLogo = useBrandLogo();
   const { t } = useTranslation('auth');
   const navigate = useNavigate();
+  // Whatever sent them here ({ from, resume }) goes back to sign in with them, so a reset
+  // started from the checkout still ends on the checkout with the booking.
+  const { state: routeState } = useLocation();
   const { showToast } = useToast();
 
   const [step, setStep] = useState(1);           // 1 email · 2 code · 3 password · 4 done
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => prefillEmail(routeState));
   const [code, setCode] = useState('');
   const [password, setPassword] = useState('');
   const [confirm, setConfirm] = useState('');
@@ -187,7 +190,7 @@ export default function ForgotPassword() {
                     reading of this screen except "the email is broken". */}
                 <p className={fp.hint}>
                   {t('auth:forgot.noAccountHint', 'Never booked with us before?')}{' '}
-                  <Link to="/register" className={fp.linkBtn}>{t('auth:forgot.createAccount', 'Create one')}</Link>
+                  <Link to="/register" state={routeState} className={fp.linkBtn}>{t('auth:forgot.createAccount', 'Create one')}</Link>
                 </p>
               </>}
               {step === 3 && <>
@@ -243,7 +246,7 @@ export default function ForgotPassword() {
                   </svg>
                 </button>
 
-                <Link to="/login" className={fp.backLink}>
+                <Link to="/login" state={routeState} className={fp.backLink}>
                   <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round"><path d="M19 12H5M12 19l-7-7 7-7" /></svg>
                   {t('auth:backToSignIn', 'Back to sign in')}
                 </Link>
@@ -386,7 +389,8 @@ export default function ForgotPassword() {
                 <p className={fp.doneNote}>
                   {t('auth:forgot.signedOutEverywhere', 'For your security we signed you out everywhere else.')}
                 </p>
-                <button className={styles.submitBtn} type="button" onClick={() => navigate('/login')}>
+                {/* The address just reset goes along, so sign in opens with it filled in. */}
+                <button className={styles.submitBtn} type="button" onClick={() => navigate('/login', { state: { ...routeState, email: email.trim().toLowerCase() } })}>
                   <span>{t('auth:forgot.goToSignIn', 'Go to sign in')}</span>
                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
                     <path d="M5 12h14M12 5l7 7-7 7" />

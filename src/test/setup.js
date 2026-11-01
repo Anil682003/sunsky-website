@@ -51,4 +51,8 @@ afterEach(() => {
   // The hotel page writes its search into the address bar (replaceState). jsdom keeps one window
   // per file, so without this every test after a date pick starts on the previous one's URL.
   if (typeof window !== 'undefined') window.history.replaceState(null, '', '/');
+  // The checkout keeps a draft of what was typed in sessionStorage (utils/checkoutDraft), and
+  // most checkout tests share one trip: without this a test would start on the previous
+  // test's names, bags and insurance.
+  try { window.sessionStorage.clear(); } catch { /* storage unavailable: nothing to clear */ }
 });

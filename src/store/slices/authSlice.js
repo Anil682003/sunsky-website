@@ -23,6 +23,9 @@ const authSlice = createSlice({
       state.isAuthenticated = false;
       localStorage.removeItem('accessToken');
       localStorage.removeItem('user');
+      // Without this a signed-out browser kept a working refresh token, and the next page that
+      // refreshed a session (the checkout does, for an expired one) quietly signed it back in.
+      localStorage.removeItem('refreshToken');
     },
     updateUser(state, action) {
       state.user = { ...state.user, ...action.payload };

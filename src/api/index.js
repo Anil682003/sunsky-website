@@ -6,21 +6,84 @@ import { loginSuccess, updateUser } from '../store/slices/authSlice';
 import { ENDPOINTS } from './endpoints';
 import i18n from '../i18n';
 
+// ── Sending a visitor back where they came from ─────────────────────────────
+// A page that sends someone to /login, /register or /forgot-password mid-task leaves router
+// state behind: { from, resume }. `from` is where they were, as a path ('/checkout') or a whole
+// Location (ProtectedRoute hands over the latter). `resume` is whatever that page needs to pick
+// up again: the checkout's booking lives in router state and nowhere else, so a hop that drops
+// it brings the customer back to an empty "nothing to check out" screen.
+
+// Where a sign-in with nowhere to go back to ends up.
+export const AFTER_SIGN_IN_PATH = '/account/bookings';
+
+/**
+ * The page to hand the visitor back to, or null when nobody sent them.
+ *
+ * In-app paths only. Router state is written by our own pages, but whatever is in it goes
+ * straight to navigate(), so a value that is not a path on this site is ignored rather than
+ * followed.
+ *
+ * @returns {{ path: string, state: any } | null}
+ */
+export const resumeTarget = (routerState) => {
+  const from = routerState?.from;
+  const path = typeof from === 'string'
+    ? from
+    : from?.pathname ? `${from.pathname}${from.search || ''}${from.hash || ''}` : '';
+  if (!path.startsWith('/') || path.startsWith('//')) return null;
+  return { path, state: routerState.resume };
+};
+
+/**
+ * Where "Continue as guest" goes from a sign-in page: back to the sending page when it handed
+ * over something to carry on with (the checkout's booking), home otherwise. The sender with
+ * nothing to resume is ProtectedRoute, and its pages need an account: a guest sent back there
+ * would only bounce straight back to the sign-in.
+ */
+export const guestTarget = (routerState) => {
+  const target = resumeTarget(routerState);
+  return target && target.state != null ? target : { path: '/', state: undefined };
+};
+
+/**
+ * The address to start an auth form with, so nobody types it twice. `email` is set by the
+ * password reset when it hands over to sign-in (the address just reset); `resume.email` is
+ * the one the checkout already had.
+ */
+export const prefillEmail = (routerState) =>
+  String(routerState?.email || routerState?.resume?.email || '').trim();
+
+/**
+ * Keeps a fresh session: the refresh token on its own, the user and access token in the store
+ * (which writes them to localStorage). Shared by the sign-in pages and the checkout's in-page
+ * sign-in, which must not leave the page and so cannot use useLogin's navigation.
+ */
+export const persistSession = (dispatch, { accessToken, refreshToken, user }) => {
+  if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
+  dispatch(loginSuccess({ user, accessToken }));
+};
+
+/**
+ * POST the sign-in itself, without any of useLogin's navigation. Resolves to the axios
+ * response, so the tokens are at `res.data.data`. The server lowercases the address but does
+ * not trim it, and a pasted address often carries a space, so it is trimmed here.
+ */
+export const loginRequest = ({ email, password, rememberMe = false }) =>
+  axiosInstance.post(ENDPOINTS.login, { email: String(email || '').trim(), password, rememberMe });
+
 // Shared post-login side-effects used by both login and register
 const useAuthSuccess = () => {
   const navigate = useNavigate();
   const location = useLocation();
   const dispatch = useDispatch();
   return (res) => {
-    const { accessToken, refreshToken, user } = res.data;
-    if (refreshToken) localStorage.setItem('refreshToken', refreshToken);
-    dispatch(loginSuccess({ user, accessToken }));
-    // Somebody sent here MID-TASK goes back to it, with whatever that page needs to resume —
-    // the checkout hands over its booking, which lives in router state and would otherwise be
-    // gone by the time they came back to an empty "nothing to check out" screen.
-    const { from, resume } = location.state || {};
-    if (from) navigate(from, { state: resume, replace: true });
-    else navigate('/account/bookings');
+    persistSession(dispatch, res.data);
+    // Somebody sent here MID-TASK goes back to it, with what that page needs to resume.
+    // PublicRoute makes the same choice and, firing last, is the one that actually lands
+    // (see there); this one covers a sign-in page mounted without it.
+    const target = resumeTarget(location.state);
+    if (target) navigate(target.path, { state: target.state, replace: true });
+    else navigate(AFTER_SIGN_IN_PATH);
   };
 };
 

@@ -240,7 +240,10 @@
     "prefilled": "We hebben je klantgegevens al ingevuld op basis van je account — controleer ze en vul aan wat ontbreekt.",
     "haveAccount": "Heb je een SunSky-account?",
     "signInFillDetails": "Log in en we vullen je klantgegevens automatisch in.",
-    "signIn": "Inloggen"
+    "signIn": "Inloggen",
+    "signInKeepBooking": "Log hier in: je boeking blijft precies zoals ze is en wij vullen je gegevens in.",
+    "signedInAs": "Je bent ingelogd als {{email}}. Deze boeking komt in je account terecht.",
+    "emailSwitched": "Deze boeking gebruikt nu het e-mailadres van je account ({{email}}), zodat ze in je account verschijnt."
   },
   "contact": {
     "title": "Gegevens van de Boeker en contactpersoon",
@@ -276,7 +279,8 @@
     "expiryDate": "Vervaldatum",
     "cvc": "CVC",
     "chooseYourBank": "Kies je bank",
-    "selectYourBank": "Selecteer je bank…"
+    "selectYourBank": "Selecteer je bank…",
+    "emailFromAccount": "Het e-mailadres van je account, zodat deze boeking daar verschijnt."
   },
   "address": {
     "title": "Adres",
@@ -312,7 +316,8 @@
     "stillBookLater": "Je kunt nog steeds boeken — voeg later een transfer toe door contact met ons op te nemen.",
     "total": "totaal",
     "transfer": "Transfer",
-    "upToPassengers": "tot {{count}} passagiers"
+    "upToPassengers": "tot {{count}} passagiers",
+    "pickGone": "De transfer die je eerder koos is niet meer beschikbaar. Kies opnieuw."
   },
   "duration": {
     "travellers_one": "{{count}} reiziger",
@@ -599,5 +604,57 @@
     "type": "Type bericht",
     "forTravellers": "Voor welke reiziger(s)",
     "message": "Bericht"
+  },
+  "signin": {
+    "title": "Inloggen en verder boeken",
+    "reassure": "Je reis blijft bewaard en wat je al invulde nemen we mee.",
+    "email": "E-mailadres",
+    "password": "Wachtwoord",
+    "passwordPlaceholder": "Je wachtwoord",
+    "showPassword": "Wachtwoord tonen",
+    "hidePassword": "Wachtwoord verbergen",
+    "remember": "Blijf ingelogd",
+    "forgotLink": "Wachtwoord vergeten?",
+    "submit": "Inloggen en verder",
+    "submitting": "Bezig met inloggen…",
+    "noAccount": "Nog geen account?",
+    "createAccount": "Account aanmaken",
+    "close": "Sluiten",
+    "success": "Je bent ingelogd. Je boeking loopt gewoon verder.",
+    "errors": {
+      "emailInvalid": "Vul een geldig e-mailadres in.",
+      "passwordRequired": "Vul je wachtwoord in.",
+      "failed": "Inloggen is niet gelukt. Probeer het opnieuw.",
+      "codeSendFailed": "We konden de code niet versturen. Probeer het opnieuw.",
+      "codeRequired": "Vul de 6-cijferige code uit de e-mail in.",
+      "passwordRules": "Je nieuwe wachtwoord voldoet nog niet aan alle eisen.",
+      "passwordsDontMatch": "De twee wachtwoorden zijn niet gelijk.",
+      "resetFailed": "We konden je wachtwoord niet wijzigen. Probeer het opnieuw.",
+      "autoSignInFailed": "Je wachtwoord is gewijzigd, maar automatisch inloggen lukte niet. Log in met je nieuwe wachtwoord om verder te boeken."
+    },
+    "forgot": {
+      "title": "Wachtwoord vergeten",
+      "intro": "Vul je e-mailadres in en we sturen je een 6-cijferige code. Je boeking blijft ondertussen gewoon openstaan.",
+      "send": "Code versturen",
+      "sending": "Code wordt verstuurd…",
+      "sent": "Als we dit e-mailadres kennen, is de code onderweg.",
+      "resent": "Er is een nieuwe code onderweg.",
+      "codeIntro": "Als we dit e-mailadres kennen, is er een 6-cijferige code onderweg naar",
+      "spam": "Niet binnen een minuut ontvangen? Kijk ook in je map met spam of ongewenste e-mail.",
+      "codeLabel": "Code uit de e-mail",
+      "expires_one": "Deze code verloopt over {{count}} minuut",
+      "expires_other": "Deze code verloopt over {{count}} minuten",
+      "newPassword": "Nieuw wachtwoord",
+      "confirmPassword": "Bevestig nieuw wachtwoord",
+      "rulesLabel": "Eisen voor je wachtwoord",
+      "submit": "Opslaan en inloggen",
+      "submitting": "Bezig met opslaan…",
+      "resend": "Nieuwe code versturen",
+      "resendIn": "Nieuwe code over {{seconds}}s",
+      "changeEmail": "Ander e-mailadres gebruiken",
+      "signedOutElsewhere": "Voor je veiligheid word je daarbij op je andere apparaten uitgelogd.",
+      "back": "Terug naar inloggen",
+      "success": "Je wachtwoord is gewijzigd en je bent ingelogd. Je boeking loopt gewoon verder."
+    }
   }
 }

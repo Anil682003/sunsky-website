@@ -1,7 +1,11 @@
 import { setErrorContext } from '../../utils/errorReporter';
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
-import { useSelector } from 'react-redux';
+import { useSelector, useDispatch } from 'react-redux';
+import { logout } from '../../store/slices/authSlice';
+import { loadDraft, saveDraft, clearDraft } from '../../utils/checkoutDraft';
+import { registerCheckoutSignIn } from '../../utils/checkoutSignIn';
+import { useToast } from '../../context/ToastContext';
 import { useTranslation, Trans } from 'react-i18next';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
@@ -15,6 +19,7 @@ import { checkoutLegalLinks } from '../../utils/legalLinks';
 import { countryName } from '../../utils/countryName';
 import i18n from '../../i18n';
 import Confirmation from './Confirmation';
+import CheckoutSignIn from './CheckoutSignIn';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 // Both, and they do different jobs: roundStayTotal rounds a whole package once (rule 10),
@@ -336,6 +341,8 @@ const NOTE_KINDS = [
 ];
 
 const PHONE_KEYS = ['phone', 'emergencyPhone'];
+// The five facts traveller 1 and the lead booker share while they are the same person.
+const SHARED_WITH_LEAD = ['firstName', 'lastName', 'gender', 'dateOfBirth', 'nationality'];
 const stripPhone = (v) => (typeof v === 'string' ? v.replace(/[^\d+]/g, '').replace(/(?!^)\+/g, '') : v);
 
 const ageFromDob = (dob) => {
@@ -610,14 +617,31 @@ function CheckoutContent({ stripe, elements }) {
   const isFlight = booking.kind === 'flight';
   const isTransfer = booking.kind === 'transfer';
   const { isAuthenticated, user } = useSelector((s) => s.auth);
+  const dispatch = useDispatch();
+  const { showToast } = useToast();
   const ccy = booking.currency || '€';
   const paneRef = useRef(null);
 
-  /* ── steps ── */
+  /* ── what this tab already typed for THIS trip ──
+     Leaving the page to create an account or reset a password used to come back to an empty
+     form. The draft (utils/checkoutDraft) holds what was typed, for this trip only and for 30
+     minutes, and it is read ONCE, here, before any state exists: the initialisers below take
+     it as their starting value, so the account prefill that runs afterwards sees a field as
+     filled and leaves it alone, exactly as if the traveller had just typed it. */
+  // Whose draft this would be: a signed-in customer's is only ever theirs (utils/checkoutDraft).
+  const draftOwner = isAuthenticated ? (user?.id ?? user?.email ?? null) : null;
+  const [draft] = useState(() => (hasBooking ? loadDraft(booking, { owner: draftOwner }) : null));
+  const fromDraft = (v) => (typeof v === 'string' ? v.trim() !== '' : v !== null && v !== undefined);
+
+  /* ── steps ──
+     A restored draft starts on step 1 again, whatever step it was saved on: the passport-name
+     ticks are not kept (a tick for a name typed in another visit confirms nothing), and every
+     step after this one is reached through them. `furthest` is kept so the stepper still shows
+     how far the traveller had got. */
   const [step, setStep] = useState(0);
   // Which checkout step an error report comes from (errorReporter).
   useEffect(() => { setErrorContext({ step: `checkout/${step}` }); }, [step]);
-  const [furthest, setFurthest] = useState(0);
+  const [furthest, setFurthest] = useState(() => draft?.furthest || 0);
   const [dir, setDir] = useState(1);
 
   /* ── step 1 : customer + travellers ──
@@ -625,14 +649,24 @@ function CheckoutContent({ stripe, elements }) {
      checkout thinks of themselves as choosing a customer type; they think "this is for work"
      — so it is a checkbox on the same form, exactly as the sign-up page asks it, and ticking
      it registers a professional customer with this person as the primary contact. */
-  const [isCompany, setIsCompany] = useState(false);
+  const [isCompany, setIsCompany] = useState(() => !!draft?.isCompany);
+  // Set the moment the traveller answers the company question themselves; after that a
+  // professional account signing in does not tick it for them.
+  const companyTouched = useRef(!!draft?.isCompany);
   const customerType = isCompany ? 'professional' : 'private';
-  const [priv, setPriv] = useState({
-    firstName: user?.firstName || '', lastName: (user?.lastName || '').toUpperCase(),
-    dateOfBirth: '', gender: '', nationality: '', preferredLanguage: 'en',
-    hasEmail: true, email: user?.email || '', phone: user?.phone || '',
-    street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
-    emergencyPhone: '',
+  const [priv, setPriv] = useState(() => {
+    const base = {
+      firstName: user?.firstName || '', lastName: (user?.lastName || '').toUpperCase(),
+      dateOfBirth: '', gender: '', nationality: '', preferredLanguage: 'en',
+      hasEmail: true, email: user?.email || '', phone: user?.phone || '',
+      street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
+      emergencyPhone: '',
+    };
+    if (!draft?.priv) return base;
+    const typed = Object.fromEntries(Object.entries(draft.priv).filter(([k, v]) => k in base && fromDraft(v)));
+    // A signed-in booking belongs to the account's address (see enforceAccountEmail below).
+    if (isAuthenticated && user?.email) delete typed.email;
+    return { ...base, ...typed };
   });
   /* Traveller 1 is OFTEN — but not always — the person booking, so this starts UNTICKED:
      the traveller and the lead booker are separate people until the traveller says otherwise.
@@ -640,64 +674,39 @@ function CheckoutContent({ stripe, elements }) {
      and keeps the shared name, gender, date of birth and nationality in step. What the traveller
      form does not hold (company, address, phone, email, emergency contact) is filled in here
      either way. Unticking makes all of it independent again. */
-  const [leadIsBooker, setLeadIsBooker] = useState(false);
-  const [pro, setPro] = useState({
-    tradingName: '', legalName: '', vatNumber: '', industry: '', website: '',
+  const [leadIsBooker, setLeadIsBooker] = useState(() => !!draft?.leadIsBooker);
+  const [pro, setPro] = useState(() => ({
+    tradingName: '', legalName: draft?.pro?.legalName || '', vatNumber: draft?.pro?.vatNumber || '', industry: '', website: '',
     street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
     hasInvoiceEmail: true, invoiceEmail: '', paymentTerms: '', invoicingAddress: '',
     primaryContactFirstName: user?.firstName || '', primaryContactLastName: (user?.lastName || '').toUpperCase(),
     hasContactEmail: true, primaryContactEmail: user?.email || '', primaryContactPhone: '',
     primaryContactRole: '', preferredLanguage: 'en',
+  }));
+  const [travellers, setTravellers] = useState(() => {
+    const seeded = seedTravellers(booking, user);
+    // A draft with a different number of travellers belongs to a different party; the search
+    // fixes the party, so it is not this trip's typing and is ignored as a whole.
+    if (!Array.isArray(draft?.travellers) || draft.travellers.length !== seeded.length) return seeded;
+    return seeded.map((row, i) => {
+      const saved = draft.travellers[i] || {};
+      const next = { ...row };
+      ['gender', 'firstName', 'lastName', 'nationality'].forEach((k) => { if (fromDraft(saved[k])) next[k] = saved[k]; });
+      // A child's date from the search stays locked unless the traveller had unlocked it, and
+      // then their corrected date comes back with it (the re-price check runs on it again).
+      if (row.dobLocked) {
+        if (saved.dobLocked === false && fromDraft(saved.dateOfBirth)) {
+          next.dobLocked = false;
+          next.dateOfBirth = saved.dateOfBirth;
+        }
+      } else if (fromDraft(saved.dateOfBirth)) {
+        next.dateOfBirth = saved.dateOfBirth;
+      }
+      return next;
+    });
   });
-  const [travellers, setTravellers] = useState(() => seedTravellers(booking, user));
 
-  /* ── what the account already knows ──────────────────────────────────────────
-     A signed-in customer has told us their name, address and date of birth once already,
-     when they registered or on an earlier booking. The sign-in panel above says we have
-     pre-filled their details, but only the name, email and phone travelled on the token —
-     everything else was still an empty form under a message saying it was filled in.
-
-     So the full customer record is fetched once per visit and folded in. Only EMPTY fields
-     are written: anything already typed in this session is the newer answer and stays. The
-     emergency contact is deliberately left alone — it is not on the customer record (there
-     is no column for it yet), and it is the one field this form genuinely has to ask for.
-
-     A professional booker is mapped through their primary-contact fields, which is where
-     that record keeps the person as opposed to the company. */
-  useEffect(() => {
-    if (!isAuthenticated) return undefined;
-    let gone = false;
-    axiosInstance.get(ENDPOINTS.me)
-      .then(({ data }) => {
-        if (gone) return;
-        const cp = (data?.data || data)?.customerProfile;
-        if (!cp) return;
-        const pro = cp.type === 'professional';
-        const from = {
-          firstName: pro ? cp.primaryContactFirstName : cp.firstName,
-          lastName: (pro ? cp.primaryContactLastName : cp.lastName || "").toUpperCase(),
-          dateOfBirth: cp.dateOfBirth ? String(cp.dateOfBirth).slice(0, 10) : "",
-          gender: cp.gender || "",
-          nationality: cp.nationality || "",
-          email: pro ? cp.primaryContactEmail : cp.email,
-          phone: pro ? cp.primaryContactPhone : cp.phone,
-          street: cp.street, houseNumber: cp.houseNumber, boxNumber: cp.boxNumber,
-          postalCode: cp.postalCode, city: cp.city, country: cp.country,
-        };
-        setPriv((cur) => {
-          const next = { ...cur };
-          let touched = false;
-          for (const [k, v] of Object.entries(from)) {
-            const raw = typeof v === 'string' ? v.trim() : v;
-            const val = PHONE_KEYS.includes(k) ? stripPhone(raw) : raw;
-            if (val && !String(cur[k] || "").trim()) { next[k] = val; touched = true; }
-          }
-          return touched ? next : cur;
-        });
-      })
-      .catch(() => {});   // an account we cannot read is simply an empty form, as before
-    return () => { gone = true; };
-  }, [isAuthenticated]);
+  const [errors, setErrors] = useState({});
 
   /* ── the name check, between step 1 and the extras ──
      A misspelled name is the one checkout mistake the traveller pays for later: airlines
@@ -708,6 +717,146 @@ function CheckoutContent({ stripe, elements }) {
   const [reviewOpen, setReviewOpen] = useState(false);
   const [reviewOk, setReviewOk] = useState({});
   const allReviewed = travellers.every((_, i) => reviewOk[i]);
+
+  /* ── what the account already knows ──────────────────────────────────────────
+     A signed-in customer has told us their name, address and date of birth once already,
+     when they registered or on an earlier booking. The sign-in panel above says we have
+     pre-filled their details, but only the name, email and phone travelled on the token —
+     everything else was still an empty form under a message saying it was filled in.
+
+     So the full customer record is fetched once per visit and folded in, and again the moment
+     somebody signs in on this page. Only EMPTY fields are written: anything already typed in
+     this session is the newer answer and stays. A phone box holding nothing but the dial code
+     the country select put there counts as empty, or picking a country first would have kept
+     the account's number out for good.
+
+     A professional booker is mapped through their primary-contact fields, which is where
+     that record keeps the person as opposed to the company, and the company question is
+     answered for them unless they already answered it themselves: booked as private, a
+     company account would have left a second, private customer behind under the same email.
+
+     While traveller 1 is ticked as the booker, the shared facts land in both records, as they
+     would have had the traveller typed them. */
+  // What the prefill found, for the banner, filed under the account it was found for so no other
+  // (or no) account ever reads it: `fill` is 'filled' | 'empty' (nothing left to fill, or a
+  // login with no customer record) | 'failed', and `person` is who to greet (a company
+  // account's login name is the company; the profile's contact person is the one to greet).
+  const [accountInfo, setAccountInfo] = useState(null);
+  const accountKey = isAuthenticated ? String(user?.id ?? user?.email ?? 'account') : null;
+  const accountNow = accountInfo && accountInfo.owner === accountKey ? accountInfo : null;
+  const accountFill = accountNow?.fill ?? null;
+  const accountPerson = accountNow?.person ?? '';
+  // The ticked lead-booker box and the form as rendered, read by the prefill when it lands.
+  const leadRef = useRef(leadIsBooker);
+  const privRef = useRef(priv);
+  useEffect(() => { leadRef.current = leadIsBooker; privRef.current = priv; });
+  useEffect(() => {
+    if (!isAuthenticated) return undefined;
+    const owner = accountKey;
+    let gone = false;
+    const fetchMe = () => axiosInstance.get(ENDPOINTS.me);
+    /* An access token lives 24 hours while "keep me signed in" lasts weeks, so a returning
+       visitor can look signed in to this page while the server reads them as a guest, and
+       nothing gets filled in. /me is exempt from the interceptor's refresh, so it is refreshed
+       here, once. If that fails the dead session is dropped: the sign-in invite comes back,
+       rather than a "welcome back" over an empty form. */
+    const withRefresh = () => fetchMe().catch(async (err) => {
+      if (err?.response?.status !== 401) throw err;
+      const refreshToken = localStorage.getItem('refreshToken');
+      // The token this attempt is about. If it changed meanwhile (signed out, or signed in again
+      // in the dialog), the new session is not this effect's to touch.
+      const staleToken = localStorage.getItem('accessToken');
+      try {
+        if (!refreshToken) throw err;
+        const { data } = await axiosInstance.post(ENDPOINTS.refresh, { refreshToken });
+        const accessToken = data?.data?.accessToken || data?.accessToken;
+        if (!accessToken) throw err;
+        if (gone || localStorage.getItem('accessToken') !== staleToken) throw err;
+        localStorage.setItem('accessToken', accessToken);
+      } catch {
+        if (!gone && localStorage.getItem('accessToken') === staleToken) dispatch(logout());
+        throw err;
+      }
+      return fetchMe();
+    });
+
+    /** Fills the empty fields; true when at least one field was actually filled. */
+    const fillFromAccount = (from) => {
+      const isEmpty = (k, cur) => (PHONE_KEYS.includes(k) ? isUntouchedPhone(cur[k]) : !String(cur[k] || '').trim());
+      const valueOf = (k, v) => {
+        const raw = typeof v === 'string' ? v.trim() : v;
+        return PHONE_KEYS.includes(k) ? stripPhone(raw) : raw;
+      };
+      // Decided against the form as rendered; the updater below re-checks against the latest.
+      const fillsSomething = Object.entries(from).some(([k, v]) => valueOf(k, v) && isEmpty(k, privRef.current));
+      setPriv((cur) => {
+        const next = { ...cur };
+        let touched = false;
+        for (const [k, v] of Object.entries(from)) {
+          const val = valueOf(k, v);
+          if (val && isEmpty(k, cur)) { next[k] = val; touched = true; }
+        }
+        return touched ? next : cur;
+      });
+      if (!leadRef.current) return fillsSomething;
+      setTravellers((ts) => ts.map((row, i) => {
+        if (i !== 0) return row;
+        const next = { ...row };
+        SHARED_WITH_LEAD.forEach((k) => {
+          const v = from[k];
+          if (!v || String(row[k] || '').trim()) return;
+          if (k === 'gender' && v !== 'MALE' && v !== 'FEMALE') return;
+          if (k === 'dateOfBirth' && row.dobLocked) return;
+          next[k] = k === 'lastName' ? String(v).toUpperCase() : v;
+        });
+        return next;
+      }));
+      // A name that changed under the traveller's tick is not the name they confirmed.
+      setReviewOk((r) => (r[0] ? { ...r, 0: false } : r));
+      return fillsSomething;
+    };
+
+    withRefresh()
+      .then(({ data }) => {
+        if (gone) return;
+        const body = data?.data || data || {};
+        const cp = body.customerProfile;
+        if (!cp) {
+          // A login with no customer record yet: the name on the login is all there is.
+          const [first, ...rest] = String(body.name || user?.name || '').trim().split(/\s+/);
+          fillFromAccount({ firstName: first || '', lastName: rest.join(' ').toUpperCase() });
+          setAccountInfo({ owner, fill: 'empty', person: first || '' });
+          return;
+        }
+        const isPro = cp.type === 'professional';
+        const person = String((isPro ? cp.primaryContactFirstName : cp.firstName) || '').trim();
+        const filledAny = fillFromAccount({
+          firstName: isPro ? cp.primaryContactFirstName : cp.firstName,
+          lastName: ((isPro ? cp.primaryContactLastName : cp.lastName) || '').toUpperCase(),
+          dateOfBirth: cp.dateOfBirth ? String(cp.dateOfBirth).slice(0, 10) : '',
+          gender: cp.gender || '',
+          nationality: cp.nationality || '',
+          email: isPro ? cp.primaryContactEmail : cp.email,
+          phone: isPro ? cp.primaryContactPhone : cp.phone,
+          emergencyPhone: isPro ? '' : cp.emergencyPhone,
+          street: cp.street, houseNumber: cp.houseNumber, boxNumber: cp.boxNumber,
+          postalCode: cp.postalCode, city: cp.city, country: cp.country,
+        });
+        if (isPro && !companyTouched.current) {
+          setIsCompany(true);
+          setPro((p) => ({
+            ...p,
+            legalName: p.legalName || cp.legalName || cp.tradingName || '',
+            vatNumber: p.vatNumber || cp.vatNumber || '',
+          }));
+        }
+        // "We filled in your details" only when we did; otherwise the plain signed-in line.
+        setAccountInfo({ owner, fill: filledAny ? 'filled' : 'empty', person });
+      })
+      // An unreadable account is an empty form, as before.
+      .catch(() => { if (!gone) setAccountInfo({ owner, fill: 'failed', person: '' }); });
+    return () => { gone = true; };
+  }, [isAuthenticated]);   // eslint-disable-line react-hooks/exhaustive-deps -- once per sign-in; user and dispatch are read as they are then
 
   /* ── unlocking a child's date of birth ──
      `dobPrompt` is the traveller whose warning is on screen; `dobUnlocked` is the last one
@@ -934,8 +1083,10 @@ function CheckoutContent({ stripe, elements }) {
      Both start at NO, and nothing on this step is gated on answering: cover is opted INTO.
      An unanswered question that defaults to a charge is how people end up insured without
      meaning to be, so the traveller has to click the policy to buy it. */
-  const [cancelIns, setCancelIns] = useState(false);
-  const [travelIns, setTravelIns] = useState({});
+  const [cancelIns, setCancelIns] = useState(() => !!draft?.cancelIns);
+  const [travelIns, setTravelIns] = useState(() => (
+    Object.fromEntries(Object.entries(draft?.travelIns || {}).filter(([i, on]) => on && Number(i) < travellers.length))
+  ));
   // The policy holder is the lead traveller. It stopped being a question when travel cover
   // became per-traveller: each policy already names the person it covers.
   const holderIsLead = true;
@@ -944,7 +1095,11 @@ function CheckoutContent({ stripe, elements }) {
   /* Baggage the traveller ADDED, keyed `travellerIndex:direction`. What the fare already
      includes is never in here — that comes from the supplier's own allowance and cannot be
      bought twice. `cabin: true` or `checked: <kg>`. */
-  const [bags, setBags] = useState({});
+  const [bags, setBags] = useState(() => (
+    // Only bags for travellers on this booking; a price that no longer exists is dropped by
+    // the pricing below (extraLines), which only charges what is still on offer.
+    Object.fromEntries(Object.entries(draft?.bags || {}).filter(([k]) => Number(k.split(':')[0]) < travellers.length))
+  ));
   const bagKey = (i, dir) => `${i}:${dir}`;
   const setBag = (i, dir, patch) => setBags((b) => {
     const key = bagKey(i, dir);
@@ -972,6 +1127,9 @@ function CheckoutContent({ stripe, elements }) {
      by a check that failed to answer. */
   const [emailTaken, setEmailTaken] = useState(null);
   const emailAskedFor = useRef('');
+  // Read inside async callbacks, which would otherwise see the value from when they started.
+  const authRef = useRef(isAuthenticated);
+  useEffect(() => { authRef.current = isAuthenticated; }, [isAuthenticated]);
   const checkEmail = async (raw) => {
     // Nothing to warn a signed-in customer about — this IS their address.
     if (isAuthenticated) return false;
@@ -981,6 +1139,8 @@ function CheckoutContent({ stripe, elements }) {
     emailAskedFor.current = email;
     try {
       const { data } = await axiosInstance.post(ENDPOINTS.emailCheck, { email });
+      // Signed in while the question was on its way: the answer is about a guest who is gone.
+      if (authRef.current) return false;
       const taken = data?.data?.exists === true;
       setEmailTaken(taken);
       return taken;
@@ -995,9 +1155,74 @@ function CheckoutContent({ stripe, elements }) {
     if (emailAskedFor.current && email !== emailAskedFor.current) setEmailTaken(null);
   }, [priv.email]);
 
-  // Where to come back to. The booking lives in router state, so it has to travel with them
-  // or they return to an empty "nothing to check out" screen.
-  const goSignIn = (path) => navigate(path, { state: { from: '/checkout', resume: { booking } } });
+  /* ── signed in: the booking belongs to the account's address ──
+     The server finds a signed-in visitor's booking by the account's email, and a booking only
+     shows in "my bookings" under that email. A contact address that differs (typed as a guest
+     before signing in, say) would create the booking and then fail to find it at payment. So
+     once signed in, the contact email IS the account email, and the field is read-only. The
+     "this address has an account" answer belongs to the guest who is gone, and goes with them.
+     Done when the dialog signs in (handleSignedIn); a checkout that opens signed in already
+     starts from the account's email (the `priv` initialiser). */
+  const adoptAccount = (account) => {
+    setEmailTaken(null);
+    emailAskedFor.current = '';
+    setErrors((e) => (e['priv.email'] ? { ...e, 'priv.email': undefined } : e));
+    const accountEmail = String(account?.email || '').trim();
+    if (accountEmail) setPriv((p) => (p.email === accountEmail ? p : { ...p, email: accountEmail }));
+  };
+
+  /* ── signing in without leaving the page ──
+     Sign-in used to be a trip to /login and back, and everything typed so far (the travellers,
+     the extras, the step) stayed behind. The dialog signs in right here instead, so nothing
+     unmounts: the form keeps every answer, the account fills what is still empty, and the
+     traveller carries on from where they were. The header's sign-in link opens the same dialog
+     while this page is up (utils/checkoutSignIn). */
+  const [signIn, setSignIn] = useState(null);        // { mode, email } while the dialog is open
+  const openSignIn = (opts = {}) => setSignIn({
+    mode: opts.mode === 'forgot' ? 'forgot' : 'signin',
+    email: String(opts.email ?? priv.email ?? '').trim(),
+  });
+  const openSignInRef = useRef(openSignIn);
+  useEffect(() => { openSignInRef.current = openSignIn; });
+
+  // The greeting uses the person behind the account (the profile's first name once /me is in).
+  // The login's own `name` is a company's name for a business account, so until then only the
+  // initials come from it, and the greeting simply says "welcome back".
+  const accountFirstName = accountPerson;
+  const accountInitials = (accountPerson || String(user?.name || '').trim() || 'U').slice(0, 1).toUpperCase();
+
+  // Every way into the dialog disappears once signed in (the invite becomes the banner, the
+  // "account exists" panel and the header link go), so focus would fall to the top of the page.
+  // It lands on the signed-in banner instead, right where the form continues.
+  const authBannerRef = useRef(null);
+  const focusBannerNext = useRef(false);
+  useEffect(() => {
+    if (!isAuthenticated || !focusBannerNext.current) return;
+    focusBannerNext.current = false;
+    authBannerRef.current?.focus();
+  }, [isAuthenticated]);
+
+  /** After the dialog signed in: say so when the booking's email changes under the traveller. */
+  const handleSignedIn = (account) => {
+    focusBannerNext.current = true;
+    const typed = String(priv.email || '').trim().toLowerCase();
+    const accountEmail = String(account?.email || '').trim();
+    if (typed && accountEmail && typed !== accountEmail.toLowerCase()) {
+      showToast(t('checkout:auth.emailSwitched', {
+        email: accountEmail,
+        defaultValue: 'This booking now uses your account email address ({{email}}), so it shows up in your account.',
+      }), 'info');
+    }
+    adoptAccount(account);
+  };
+
+  // Creating an account still happens on its own page. The booking travels in router state and
+  // the typed details wait in the draft, so the traveller comes back to this form as they left it.
+  const goSignIn = (path, extra = {}) => navigate(path, { state: { from: '/checkout', resume: { booking }, ...extra } });
+  const createAccount = (email) => {
+    setSignIn(null);
+    goSignIn('/register', { email: String(email || '').trim() });
+  };
 
   /* ── the airport transfer, bought here rather than on the hotel page ──
      The flight is already chosen by now, so the pickup can be timed to the arrival that will
@@ -1005,11 +1230,15 @@ function CheckoutContent({ stripe, elements }) {
      at this step, and never for a traveller who said they are making their own way there. */
   const [transfers, setTransfers] = useState(null);      // {loading|error|services[]|pickupISO}
   const [transferPick, setTransferPick] = useState(-1);  // -1 = no transfer (opt-in, always)
+  // A transfer chosen before leaving the page comes back by its product id, never by its
+  // place in the list: the list is fetched again and re-sorted by price, so position 2 can be
+  // a different vehicle the second time. It is matched once the options are in (below).
+  const pendingTransferId = useRef(draft?.transferId || null);
   // Free text, free of charge: neither of these touches the price or the availability.
-  const [hotelWish, setHotelWish] = useState('');
-  const [noteKind, setNoteKind] = useState('general');
-  const [noteFor, setNoteFor] = useState([]);
-  const [noteText, setNoteText] = useState('');
+  const [hotelWish, setHotelWish] = useState(() => draft?.hotelWish || '');
+  const [noteKind, setNoteKind] = useState(() => draft?.noteKind || 'general');
+  const [noteFor, setNoteFor] = useState(() => (draft?.noteFor || []).filter((i) => i < travellers.length));
+  const [noteText, setNoteText] = useState(() => draft?.noteText || '');
   /* ── one product, two legs ───────────────────────────────────────────────────
      The supplier answers a return search with a service PER DIRECTION, so a single
      shuttle came back as two rows that read as two identical products — which is exactly
@@ -1049,14 +1278,24 @@ function CheckoutContent({ stripe, elements }) {
   }, [transfers]);
   const pickedOption = transferPick >= 0 ? transferOptions[transferPick] || null : null;
   const pickedTransfer = pickedOption?.lead || null;
+  useEffect(() => {
+    if (!pendingTransferId.current || !transferOptions.length) return;
+    const idx = transferOptions.findIndex((o) => o.id === pendingTransferId.current);
+    pendingTransferId.current = null;
+    if (idx >= 0) setTransferPick(idx);
+    else showToast(t('checkout:transfer.pickGone', 'The transfer you chose earlier is no longer available. Please choose again.'), 'info');
+  }, [transferOptions]);   // eslint-disable-line react-hooks/exhaustive-deps
 
-  /* ── step 3 : payment ── */
-  const [payMethod, setPayMethod] = useState('card');
+  /* ── step 3 : payment ──
+     Only the CHOICE of method comes back from a draft. Card details never do (the draft
+     cannot hold them, see utils/checkoutDraft), and neither do the ticked conditions: consent
+     is given on the screen in front of the traveller, not carried over from another visit. */
+  const [payMethod, setPayMethod] = useState(() => draft?.payMethod || 'card');
   const [card, setCard] = useState({ name: '', number: '', expiry: '', cvc: '' });
   const [cvcFocus, setCvcFocus] = useState(false);
   const [stripeBrand, setStripeBrand] = useState('');
   const [stripeReady, setStripeReady] = useState({ number: false, expiry: false, cvc: false });
-  const [idealBank, setIdealBank] = useState('');
+  const [idealBank, setIdealBank] = useState(() => draft?.idealBank || '');
   const [billingSame, setBillingSame] = useState(true);
   /* Conditions are accepted ONE BY ONE. A single "I agree to the above" is technically the
      same consent and practically a different one — it lets someone accept a cancellation
@@ -1078,7 +1317,6 @@ function CheckoutContent({ stripe, elements }) {
   // the booking needs manual finalisation rather than being shown as fully confirmed.
   const [reservationPending, setReservationPending] = useState(false);
 
-  const [errors, setErrors] = useState({});
 
   /* No fake "price hold" countdown — nothing is actually locked server-side.
      The sidebar shows an honest live-pricing note instead. */
@@ -1160,7 +1398,7 @@ function CheckoutContent({ stripe, elements }) {
   // Starts settled when there is nothing to fetch, so the step never flashes a spinner for a
   // booking that has no support product at all.
   const [supportLoaded, setSupportLoaded] = useState(() => !supportProduct);
-  const [supportCode, setSupportCode] = useState(null);
+  const [supportCode, setSupportCode] = useState(() => draft?.supportCode || null);
 
   useEffect(() => {
     if (!supportProduct) return undefined;
@@ -1171,8 +1409,12 @@ function CheckoutContent({ stripe, elements }) {
         const items = r.data?.data?.items || [];
         setSupportLevels(items);
         // §3.1's default is a preselection, not a lock: the traveller may pick any level. It is
-        // only applied once, so coming back to the step does not undo their choice.
-        setSupportCode((prev) => prev ?? (items.find((i) => i.isDefault)?.code ?? items[0]?.code ?? null));
+        // only applied once, so coming back to the step does not undo their choice. A choice
+        // restored from a draft that the dashboard has since withdrawn falls back to the default
+        // rather than to no package at all.
+        setSupportCode((prev) => (prev && items.some((i) => i.code === prev)
+          ? prev
+          : (items.find((i) => i.isDefault)?.code ?? items[0]?.code ?? null)));
       })
       .catch(() => {
         // A package the traveller cannot see is a package they have not agreed to buy. Failing
@@ -1183,6 +1425,44 @@ function CheckoutContent({ stripe, elements }) {
       .finally(() => { if (!cancelled) setSupportLoaded(true); });
     return () => { cancelled = true; };
   }, [supportProduct]);
+
+  /* ── keep the draft current ──
+     Written on every change rather than on the way out: the way out is often a navigation,
+     and an unmount is too late to rely on. Never once the booking is paid, and cleared then,
+     so the next trip in this tab starts from a clean form. */
+  // Once a signed-in account's details have been in this form, the form is theirs for the rest
+  // of this visit: signing out (or the session expiring) must not re-file it as a guest's draft
+  // for whoever uses this tab next. The draft is dropped and nothing more is saved.
+  const draftAccount = useRef(draftOwner);
+  const draftClosed = useRef(false);
+  useEffect(() => {
+    if (!hasBooking) return;
+    if (paid) { clearDraft(); return; }
+    if (draftAccount.current !== null && draftOwner !== draftAccount.current) draftClosed.current = true;
+    if (draftOwner !== null && draftAccount.current === null) draftAccount.current = draftOwner;
+    if (draftClosed.current) { clearDraft(); return; }
+    saveDraft(booking, {
+      step, furthest, isCompany, priv,
+      pro: { legalName: pro.legalName, vatNumber: pro.vatNumber },
+      leadIsBooker, travellers, cancelIns, travelIns, bags,
+      transferId: pickedOption?.id || pendingTransferId.current || null,
+      hotelWish, noteKind, noteFor, noteText, supportCode, payMethod, idealBank,
+    }, { owner: draftOwner });
+  }, [hasBooking, paid, booking, draftOwner, step, furthest, isCompany, priv, pro.legalName, pro.vatNumber,
+    leadIsBooker, travellers, cancelIns, travelIns, bags, pickedOption, hotelWish, noteKind, noteFor, noteText,
+    supportCode, payMethod, idealBank]);
+
+  // The header opens the sign-in dialog only while there is a booking still to pay. On the
+  // confirmation after payment, or on the "nothing to check out" page, nothing is registered and
+  // the header's sign-in and register behave as on any other page: coming back here would offer
+  // a trip already paid for.
+  const resumable = hasBooking && !paid;
+  useEffect(() => {
+    if (!resumable) return undefined;
+    return registerCheckoutSignIn((opts) => {
+      if (!authRef.current) openSignInRef.current(opts);
+    });
+  }, [resumable]);
 
   const supportLevel = supportLevels.find((l) => l.code === supportCode) || null;
   /** §3.1 pricing unit: per person multiplies by the party, per booking is charged once. */
@@ -1425,7 +1705,7 @@ function CheckoutContent({ stripe, elements }) {
     }, { threshold: 0.08 });
     els.forEach((el) => obs.observe(el));
     return () => obs.disconnect();
-  }, [step]);
+  }, [step, isAuthenticated]);
 
   /* ── fetch the airport transfer options, once, when the extras step opens ──
      Not on mount: a traveller who never reaches step 2 costs the supplier nothing. The pickup
@@ -1524,8 +1804,6 @@ function CheckoutContent({ stripe, elements }) {
   };
   const setP = (k) => (v) => { const nv = dialIf(k, capsIf(k, v)); setPriv((p) => ({ ...p, [k]: nv })); setErrors((e) => ({ ...e, [`priv.${k}`]: undefined })); };
   const setB = (k) => (v) => { setPro((p) => ({ ...p, [k]: v })); setErrors((e) => ({ ...e, [`pro.${k}`]: undefined })); };
-  // The five facts traveller 1 and the lead booker share while they are the same person.
-  const SHARED_WITH_LEAD = ['firstName', 'lastName', 'gender', 'dateOfBirth', 'nationality'];
   const setT = (i, k) => (v0) => {
     const v = capsIf(k, v0);
     setTravellers((ts) => ts.map((t, ti) => (ti === i ? { ...t, [k]: v } : t)));
@@ -1981,6 +2259,12 @@ function CheckoutContent({ stripe, elements }) {
             // booking it reads back cannot supply the destination, board or duration that
             // the GA4 purchase event needs. Stays in the tab, never in the URL.
             stashPurchaseContext(bookingId, contextFromBooking(booking, { value: sellingEuros(total) }));
+            // From here the money may move, and the bank app often opens the return page in
+            // ANOTHER tab, which cannot clear this tab's draft. So it goes now: a filled-in
+            // form for this trip must not wait one click from paying twice. (Mid-redirect, the
+            // save effect does not run again: nothing it watches changes.)
+            draftClosed.current = true;
+            clearDraft();
 
             let res;
             if (payMethod === 'bancontact') {
@@ -2189,23 +2473,30 @@ function CheckoutContent({ stripe, elements }) {
               {/* ──────── STEP 1 : INFO ──────── */}
               {step === STEP.INFO && (
                 <>
+                  {/* Keyed apart so signing in on this page swaps the element rather than
+                      reusing it: a reused node would lose the `vis` class the reveal observer
+                      added and sit at opacity 0 (the observer re-runs on auth change too). */}
                   {isAuthenticated ? (
-                    <div className="ck-auth-banner ck-reveal">
-                      <div className="ck-auth-avatar">{(user?.firstName || 'U').slice(0, 1).toUpperCase()}{(user?.lastName || '').slice(0, 1).toUpperCase()}</div>
+                    <div key="signed-in" className="ck-auth-banner ck-reveal" ref={authBannerRef} tabIndex={-1}>
+                      <div className="ck-auth-avatar">{accountInitials}</div>
                       <div className="ck-auth-text">
-                        <b>{t('checkout:auth.welcomeBack', { name: user?.firstName ? `, ${user.firstName}` : '', defaultValue: 'Welcome back{{name}}!' })}</b>
-                        <span>{t('checkout:auth.prefilled', 'We\'ve pre-filled your customer details from your account — just review and complete what\'s missing.')}</span>
+                        <b>{t('checkout:auth.welcomeBack', { name: accountFirstName ? `, ${accountFirstName}` : '', defaultValue: 'Welcome back{{name}}!' })}</b>
+                        <span>
+                          {accountFill === 'filled'
+                            ? t('checkout:auth.prefilled', 'We\'ve pre-filled your customer details from your account — just review and complete what\'s missing.')
+                            : t('checkout:auth.signedInAs', { email: user?.email || '', defaultValue: 'You are signed in as {{email}}. This booking will be saved to your account.' })}
+                        </span>
                       </div>
                       <span className="ck-auth-check">{ICON.check}</span>
                     </div>
                   ) : (
-                    <div className="ck-signin-invite ck-reveal">
+                    <div key="guest" className="ck-signin-invite ck-reveal">
                       <div className="ck-si-ico">{ICON.sparkle}</div>
                       <div className="ck-auth-text">
                         <b>{t('checkout:auth.haveAccount', 'Have a SunSky account?')}</b>
-                        <span>{t('checkout:auth.signInFillDetails', 'Sign in and we\'ll fill in your customer details automatically.')}</span>
+                        <span>{t('checkout:auth.signInKeepBooking', 'Sign in here: your booking stays exactly as it is and we fill in your details.')}</span>
                       </div>
-                      <button className="ck-si-btn" onClick={() => navigate('/login')}>{ICON.user} {t('checkout:auth.signIn', 'Sign in')}</button>
+                      <button type="button" className="ck-si-btn" onClick={() => openSignIn()}>{ICON.user} {t('checkout:auth.signIn', 'Sign in')}</button>
                     </div>
                   )}
 
@@ -2231,7 +2522,7 @@ function CheckoutContent({ stripe, elements }) {
 
                     <label className={`ck-biz${isCompany ? ' on' : ''}`}>
                       <input type="checkbox" checked={isCompany}
-                        onChange={(e) => { setIsCompany(e.target.checked); setErrors({}); }} />
+                        onChange={(e) => { companyTouched.current = true; setIsCompany(e.target.checked); setErrors({}); }} />
                       <span className="ck-biz-box">{isCompany && ICON.check}</span>
                       <span className="ck-biz-text">
                         <b>{t('checkout:contact.businessCustomer', 'I am a business customer')}</b>
@@ -2348,10 +2639,13 @@ function CheckoutContent({ stripe, elements }) {
                           hint={t('checkout:fields.phoneFormatHint', 'International format, e.g. +32 475 12 34 56')}>
                           <input className="ck-input" type="tel" value={priv.phone} onChange={(e) => setP('phone')(e.target.value)} placeholder="+32475123456" maxLength={30} />
                         </Field>
-                        <Field label={t('checkout:fields.emailAddress', 'Email address')} req err={errors['priv.email']} ok={emailOk(priv.email) && emailTaken === false}>
+                        <Field label={t('checkout:fields.emailAddress', 'Email address')} req err={errors['priv.email']}
+                          ok={emailOk(priv.email) && (isAuthenticated || emailTaken === false)}
+                          hint={isAuthenticated ? t('checkout:fields.emailFromAccount', 'The email address of your account, so this booking shows up there.') : undefined}>
                           <input className="ck-input" type="email" value={priv.email}
                             onChange={(e) => setP('email')(e.target.value)}
                             onBlur={(e) => checkEmail(e.target.value)}
+                            readOnly={isAuthenticated} aria-readonly={isAuthenticated || undefined}
                             placeholder="john@example.com" />
                         </Field>
                       </div>
@@ -2360,7 +2654,7 @@ function CheckoutContent({ stripe, elements }) {
                           things that actually help — and nothing about the account itself:
                           not the name on it, not when it was made. Whoever typed the address
                           learns only what they would learn by trying to sign in. */}
-                      {emailTaken === true && (
+                      {emailTaken === true && !isAuthenticated && (
                         <div className="ck-email-known" role="status">
                           <span className="ck-email-known-ico">{ICON.user}</span>
                           <div className="ck-email-known-text">
@@ -2368,10 +2662,10 @@ function CheckoutContent({ stripe, elements }) {
                             <span>{t('checkout:email.logInToContinue', 'Please log in to continue — we\'ll bring your details into this booking.')}</span>
                           </div>
                           <div className="ck-email-known-btns">
-                            <button type="button" className="ck-email-login" onClick={() => goSignIn('/login')}>
+                            <button type="button" className="ck-email-login" onClick={() => openSignIn({ email: priv.email })}>
                               {t('checkout:email.logIn', 'Log in')}
                             </button>
-                            <button type="button" className="ck-email-forgot" onClick={() => goSignIn('/forgot-password')}>
+                            <button type="button" className="ck-email-forgot" onClick={() => openSignIn({ mode: 'forgot', email: priv.email })}>
                               {t('checkout:email.forgotPassword', 'Forgot your password?')}
                             </button>
                           </div>
@@ -3850,6 +4144,16 @@ function CheckoutContent({ stripe, elements }) {
             : <>{ctaLabel} {ICON.arrow}</>}
         </button>
       </div>
+
+      {/* Signing in without leaving the checkout (see "signing in without leaving the page"). */}
+      <CheckoutSignIn
+        open={!!signIn && !isAuthenticated}
+        initialMode={signIn?.mode || 'signin'}
+        initialEmail={signIn?.email || ''}
+        onClose={() => setSignIn(null)}
+        onSignedIn={handleSignedIn}
+        onCreateAccount={createAccount}
+      />
 
       {/* ═══ REVIEW YOUR DETAILS — the gate out of step 1 ═══
           Deliberately a modal and not another card: the traveller has just spent five

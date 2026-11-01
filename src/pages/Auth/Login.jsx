@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import { useBrandLogo } from '../../hooks/useBrandLogo';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
@@ -7,7 +7,7 @@ import { useBrandLogo } from '../../hooks/useBrandLogo';
 import logoIcon from '../../assets/logo-icon.png';
 import styles from './Login.module.css';
 import LanguageMenu from './LanguageMenu';
-import { useLogin } from '../../api';
+import { useLogin, resumeTarget, guestTarget, prefillEmail } from '../../api';
 import { useToast } from '../../context/ToastContext';
 
 const Icon = ({ children, size = 18 }) => (
@@ -27,21 +27,35 @@ export default function Login() {
   const brandLogo = useBrandLogo();
   const { t } = useTranslation('auth');
   const navigate = useNavigate();
+  // Whatever sent them here ({ from, resume }) is handed on through every hop to register or
+  // forgot password and back, so that signing in at the end of it still returns them to the
+  // checkout with their booking (see resumeTarget in api/index.js).
+  const { state: routeState } = useLocation();
   const { showToast } = useToast();
   const { execute: login, loading } = useLogin();
-  const [email, setEmail] = useState('');
+  const [email, setEmail] = useState(() => prefillEmail(routeState));
   const [password, setPassword] = useState('');
   const [showPw, setShowPw] = useState(false);
   const [remember, setRemember] = useState(false);
   const [focused, setFocused] = useState('');
 
+  const fromCheckout = resumeTarget(routeState)?.path.split(/[?#]/)[0] === '/checkout';
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     try {
-      await login({ email, password, rememberMe: remember });
+      // The server lowercases the address but does not trim it, and a pasted one often ends
+      // in a space.
+      await login({ email: email.trim(), password, rememberMe: remember });
     } catch (err) {
       showToast(err.response?.data?.message || t('auth:errors.loginFailed', 'Login failed. Please try again.'), 'error');
     }
+  };
+
+  // A guest from the checkout goes back to it, booking and all, rather than to the home page.
+  const continueAsGuest = () => {
+    const back = guestTarget(routeState);
+    navigate(back.path, { state: back.state });
   };
 
   return (
@@ -121,7 +135,13 @@ export default function Login() {
                 <img src={logoIcon} alt="" className={styles.avatarLogo} />
               </div>
               <h1 className={styles.cardTitle}>{t('auth:login.title', 'Sign in to SunSky')}</h1>
-              <p className={styles.cardSub}>{t('auth:login.subtitle', 'Continue to explore amazing destinations')}</p>
+              {/* Sent here by the checkout: say that signing in carries on with the booking,
+                  so it does not read as starting over somewhere else. */}
+              <p className={styles.cardSub}>
+                {fromCheckout
+                  ? t('auth:login.resumeBooking', 'Sign in to carry on with your booking.')
+                  : t('auth:login.subtitle', 'Continue to explore amazing destinations')}
+              </p>
             </div>
 
             <form className={styles.form} onSubmit={handleSubmit}>
@@ -192,7 +212,7 @@ export default function Login() {
                   </span>
                   <span className={styles.rememberLabel}>{t('auth:login.keepSignedIn', 'Keep me signed in for 30 days')}</span>
                 </label>
-                <Link to="/forgot-password" className={styles.forgotLink}>{t('auth:login.forgotPassword', 'Forgot password?')}</Link>
+                <Link to="/forgot-password" state={routeState} className={styles.forgotLink}>{t('auth:login.forgotPassword', 'Forgot password?')}</Link>
               </div>
 
               <button className={styles.submitBtn} type="submit" disabled={loading}>
@@ -205,7 +225,7 @@ export default function Login() {
 
             <div className={styles.orRow}>{t('auth:login.orContinueWith', 'Or continue with')}</div>
             <div className={styles.guestRow}>
-              <button type="button" className={styles.guestBtn} onClick={() => navigate('/')}>
+              <button type="button" className={styles.guestBtn} onClick={continueAsGuest}>
                 <GlobeIcon size={20} />
                 {t('auth:continueAsGuest', 'Continue as Guest')}
               </button>
@@ -214,7 +234,7 @@ export default function Login() {
             {/* Not in the design, but without it a new customer has no way from here to an
                 account: this page has no header. Kept small, under everything else. */}
             <p className={styles.registerLine}>
-              <Trans i18nKey="auth:login.noAccount" t={t}>Don't have an account? <Link to="/register">Create one free</Link></Trans>
+              <Trans i18nKey="auth:login.noAccount" t={t}>Don't have an account? <Link to="/register" state={routeState}>Create one free</Link></Trans>
             </p>
           </div>
         </div>

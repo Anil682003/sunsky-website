@@ -110,17 +110,20 @@ describe('an email address that already has an account', () => {
     expect(document.querySelector('.ck-modal')).toBeFalsy();
     expect(document.querySelector('.ck-step.act')).toHaveTextContent(/jouw gegevens/i);
 
-    // Log in — carrying the booking, so they come back to it instead of an empty checkout.
+    // Log in, right here: a dialog on the checkout with the typed address filled in, so the
+    // booking and everything typed stays where it is. Nothing navigates away.
     await user.click(within(panel()).getByRole('button', { name: /^inloggen$/i }));
-    expect(navigateSpy).toHaveBeenCalledWith('/login', expect.objectContaining({
-      state: expect.objectContaining({ from: '/checkout', resume: { booking: BOOKING } }),
-    }));
+    const signIn = await screen.findByRole('dialog', { name: /inloggen en verder boeken/i });
+    expect(within(signIn).getByLabelText(/e-mailadres/i)).toHaveValue('ali@example.com');
+    expect(navigateSpy).not.toHaveBeenCalledWith('/login', expect.anything());
+    await user.click(within(signIn).getByRole('button', { name: /sluiten/i }));
+    await waitFor(() => expect(screen.queryByRole('dialog', { name: /inloggen en verder boeken/i })).toBeNull());
 
-    // …or the reset flow, the same way.
+    // …or the reset flow, in the same dialog.
     await user.click(within(panel()).getByRole('button', { name: /wachtwoord vergeten/i }));
-    expect(navigateSpy).toHaveBeenCalledWith('/forgot-password', expect.objectContaining({
-      state: expect.objectContaining({ from: '/checkout' }),
-    }));
+    const reset = await screen.findByRole('dialog', { name: /wachtwoord vergeten/i });
+    expect(within(reset).getByLabelText(/e-mailadres/i)).toHaveValue('ali@example.com');
+    expect(navigateSpy).not.toHaveBeenCalledWith('/forgot-password', expect.anything());
   });
 
   it('asks before handing over, for someone who never leaves the field', async () => {

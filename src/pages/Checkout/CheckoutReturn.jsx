@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/axiosInstance';
 import { trackPurchase, readPurchaseContext, clearPurchaseContext } from '../../analytics';
+import { clearDraft } from '../../utils/checkoutDraft';
 
 /**
  * Redirect-payment return page  (route: /checkout/return)
@@ -30,6 +31,11 @@ export default function CheckoutReturn() {
     const mode = params.get('mode') || 'test';
     const paymentIntentId = params.get('payment_intent');
     const redirectStatus = params.get('redirect_status');
+
+    // Anything but a definite failure means the money may have moved: the typed checkout for
+    // this trip goes at once, before any request that could be cut short by the visitor leaving.
+    // A failed payment keeps it, so trying again does not mean typing everything again.
+    if (redirectStatus !== 'failed') clearDraft();
 
     (async () => {
       if (!bookingId) {

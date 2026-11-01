@@ -8,6 +8,8 @@ import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig, useHolidayTypes } from '../../api';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
 import { hotelDetailHref } from '../../utils/searchDefaults';
+import { openCheckoutSignIn, checkoutCanResume } from '../../utils/checkoutSignIn';
+import { clearDraft } from '../../utils/checkoutDraft';
 import { normalizeSiteHeader, pick, langOf, headerLink, newTabProps, showOnClass, inDrawer, MAX_MENU_ITEMS } from '../../utils/siteHeader';
 import { isEmoji, isGlyph } from '../../utils/travelIcons';
 import { TravelEmoji, TravelGlyph } from '../../components/TravelIcon/TravelIcon';
@@ -289,6 +291,9 @@ export default function Navbar() {
 
   const handleLogout = () => {
     dispatch(logout());
+    // What the account filled into a checkout in this tab (address, date of birth, phone) goes
+    // with the account: the next person at this computer must not find it (utils/checkoutDraft).
+    clearDraft();
     setDropOpen(false);
     setMobileOpen(false);
     navigate('/');
@@ -591,15 +596,47 @@ export default function Navbar() {
   const showGuestEntry = account.enabled;
   const showDrawerGuestEntry = account.enabled && inDrawer(account.showOn);
 
+  // ON THE CHECKOUT (Nov 2026) the trip being booked exists only in the page's router state, so
+  // the way in must not simply leave the page. Sign in opens the checkout's own dialog: nothing
+  // unmounts and nothing typed is lost. Register carries the booking to /register so signing up
+  // can hand it back. Both only while the checkout still has a booking to pay
+  // (checkoutCanResume): on the confirmation after payment, or the "nothing to check out" page,
+  // the links behave as on any other page, because coming back would offer a trip already paid
+  // for. Decided at click time: the checkout registers after this header has rendered. A link
+  // the dashboard pointed anywhere but the site's own sign-in or /register is left alone.
+  const onCheckout = location.pathname === '/checkout';
+  const checkoutReturn = { from: '/checkout', resume: location.state };
+  const routePath = (link) => (link?.router ? link.href.split(/[?#]/)[0] : null);
+  const signInFromCheckout = onCheckout && Boolean(signInLink.router);
+  const registerFromCheckout = onCheckout && routePath(registerLink) === '/register';
+  // True when the checkout's dialog took over, and the click must then go nowhere.
+  const signInOnPage = (e) => {
+    if (!openCheckoutSignIn()) return false;
+    e?.preventDefault();
+    setMobileOpen(false);
+    return true;
+  };
+  const goWithState = (href, state) => { navigate(href, { state }); setMobileOpen(false); };
+  // True when the click was turned into a register that brings the booking back.
+  const registerWithBooking = (e) => {
+    if (!checkoutCanResume()) return false;
+    e?.preventDefault();
+    goWithState(registerLink.href, checkoutReturn);
+    return true;
+  };
+  const signInBarProps = signInFromCheckout ? { onClick: signInOnPage } : {};
+  const registerBarProps = registerFromCheckout ? { onClick: registerWithBooking } : {};
+
   // A link that may be a router path or a real anchor, in the bar's own markup.
   const barLink = (link, props, children) => (link.router
     ? <Link to={link.href} {...props}>{children}</Link>
     : <a href={link.href} {...newTabProps(link.newTab)} {...props}>{children}</a>);
   // The same for the drawer's buttons: a path goes through the router and closes the drawer,
-  // anything else is an anchor that closes it on the way out.
+  // anything else is an anchor that closes it on the way out. `onPick` replaces the plain
+  // router hop for an entry with a job of its own (the checkout's way in, above).
   // `key` travels on its own: React does not read it out of a spread.
-  const drawerLink = (link, props, children, key) => (link.router
-    ? <button key={key} type="button" {...props} onClick={() => goToSuggestion(link.href)}>{children}</button>
+  const drawerLink = (link, props, children, key, onPick) => (link.router
+    ? <button key={key} type="button" {...props} onClick={onPick || (() => goToSuggestion(link.href))}>{children}</button>
     : <a key={key} href={link.href} {...newTabProps(link.newTab)} {...props} onClick={() => setMobileOpen(false)}>{children}</a>);
 
   const supportLink = support.enabled ? headerLink(support.link, support.newTab) : null;
@@ -796,7 +833,7 @@ export default function Navbar() {
                 control would make the traveller pick again on the next screen. The slash
                 is aria-hidden so a screen reader reads two plain links, not "slash". With
                 registration switched off it is the sign-in link alone, and no slash. */}
-            {barLink(signInLink, { className: styles.authPillLink }, (
+            {barLink(signInLink, { className: styles.authPillLink, ...signInBarProps }, (
               <>
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                   <path d="M20 21v-2a4 4 0 00-4-4H8a4 4 0 00-4 4v2"/><circle cx="12" cy="7" r="4"/>
@@ -807,7 +844,7 @@ export default function Navbar() {
             {registerLink && (
               <>
                 <span className={styles.authPillSlash} aria-hidden="true">/</span>
-                {barLink(registerLink, { className: styles.authPillLink }, pick(account.register.label, lang, t('nav.register', 'Register')))}
+                {barLink(registerLink, { className: styles.authPillLink, ...registerBarProps }, pick(account.register.label, lang, t('nav.register', 'Register')))}
               </>
             )}
           </div>
@@ -878,11 +915,15 @@ export default function Navbar() {
             </div>
           ) : showDrawerGuestEntry && (
             <div className={styles.mobileAuth}>
-              {drawerLink(signInLink, { className: styles.mobileSignIn }, signInLabel)}
+              {drawerLink(signInLink, { className: styles.mobileSignIn }, signInLabel, undefined, signInFromCheckout
+                ? (e) => { if (!signInOnPage(e)) goToSuggestion(signInLink.href); }
+                : undefined)}
               {registerLink && drawerLink(
                 registerLink,
                 { className: styles.mobileRegister },
                 pick(account.register.label, lang, t('nav.registerQuick', "Register, it's quick!")),
+                undefined,
+                registerFromCheckout ? (e) => { if (!registerWithBooking(e)) goToSuggestion(registerLink.href); } : undefined,
               )}
             </div>
           )}

@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect, useId } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import {
   ArrowLeft, ArrowRight, Box, BriefcaseBusiness, Building2, Calendar, ChevronDown, Eye, EyeOff,
@@ -8,7 +8,7 @@ import {
 import { useBrandLogo } from '../../hooks/useBrandLogo';
 import styles from './Register.module.css';
 import LanguageMenu from './LanguageMenu';
-import { useRegister, sendRegistrationCode } from '../../api';
+import { useRegister, sendRegistrationCode, guestTarget, prefillEmail } from '../../api';
 import { useToast } from '../../context/ToastContext';
 import { countryName } from '../../utils/countryName';
 import { flagUrl } from '../../utils/countryFlag';
@@ -494,10 +494,14 @@ export default function Register() {
   const brandLogo = useBrandLogo();
   const { t } = useTranslation('auth');
   const navigate = useNavigate();
+  // Whatever sent them here ({ from, resume }) goes with them to sign in and back, and comes
+  // back out of useRegister once the account exists: from the checkout, that is the booking.
+  const { state: routeState } = useLocation();
   const { showToast } = useToast();
   const { execute: register, loading } = useRegister();
 
-  const [form, setForm] = useState(EMPTY_FORM);
+  // Same normalising as typing it in (see `set`), so a prefilled address is one the form accepts.
+  const [form, setForm] = useState(() => ({ ...EMPTY_FORM, email: prefillEmail(routeState).toLowerCase() }));
   const [errors, setErrors] = useState({});
   const [isCompany, setCompany] = useState(false);
   const [agreed, setAgreed] = useState(false);
@@ -643,6 +647,12 @@ export default function Register() {
     );
   }
 
+  // A guest from the checkout goes back to it, booking and all, rather than to the home page.
+  const continueAsGuest = () => {
+    const back = guestTarget(routeState);
+    navigate(back.path, { state: back.state });
+  };
+
   const submitLabel = sending
     ? t('auth:register.sendingCode', 'Sending code…')
     : isCompany
@@ -708,7 +718,7 @@ export default function Register() {
             <h1 className={styles.cardTitle}>{t('auth:register.title', 'Create your account')}</h1>
             <p className={styles.cardSub}>
               {step === 1
-                ? <Trans i18nKey="auth:register.confirmEmailSignIn" t={t}>Confirm your email and you're in. Already have an account? <Link to="/login">Sign in</Link></Trans>
+                ? <Trans i18nKey="auth:register.confirmEmailSignIn" t={t}>Confirm your email and you're in. Already have an account? <Link to="/login" state={routeState}>Sign in</Link></Trans>
                 : t('auth:register.lastStep', 'Last step: choose a password to protect your account.')}
             </p>
           </div>
@@ -833,7 +843,7 @@ export default function Register() {
 
           <div className={styles.cardFoot}>
             {step === 1 ? (
-              <button type="button" className={styles.guestBtn} onClick={() => navigate('/')}>
+              <button type="button" className={styles.guestBtn} onClick={continueAsGuest}>
                 <Globe aria-hidden="true" />
                 {t('auth:continueAsGuest', 'Continue as Guest')}
               </button>

@@ -240,7 +240,10 @@
     "prefilled": "We've pre-filled your customer details from your account — just review and complete what's missing.",
     "haveAccount": "Have a SunSky account?",
     "signInFillDetails": "Sign in and we'll fill in your customer details automatically.",
-    "signIn": "Sign in"
+    "signIn": "Sign in",
+    "signInKeepBooking": "Sign in here: your booking stays exactly as it is and we fill in your details.",
+    "signedInAs": "You are signed in as {{email}}. This booking will be saved to your account.",
+    "emailSwitched": "This booking now uses your account email address ({{email}}), so it shows up in your account."
   },
   "contact": {
     "title": "Booker and contact person details",
@@ -276,7 +279,8 @@
     "expiryDate": "Expiry date",
     "cvc": "CVC",
     "chooseYourBank": "Choose your bank",
-    "selectYourBank": "Select your bank…"
+    "selectYourBank": "Select your bank…",
+    "emailFromAccount": "The email address of your account, so this booking shows up there."
   },
   "address": {
     "title": "Address",
@@ -312,7 +316,8 @@
     "stillBookLater": "You can still book — add a transfer later by contacting us.",
     "total": "total",
     "transfer": "Transfer",
-    "upToPassengers": "up to {{count}} passengers"
+    "upToPassengers": "up to {{count}} passengers",
+    "pickGone": "The transfer you chose earlier is no longer available. Please choose again."
   },
   "duration": {
     "travellers_one": "{{count}} traveller",
@@ -599,5 +604,57 @@
     "type": "Message type",
     "forTravellers": "For which traveller(s)",
     "message": "Message"
+  },
+  "signin": {
+    "title": "Sign in and carry on booking",
+    "reassure": "Your trip stays saved and we keep what you already filled in.",
+    "email": "Email address",
+    "password": "Password",
+    "passwordPlaceholder": "Your password",
+    "showPassword": "Show password",
+    "hidePassword": "Hide password",
+    "remember": "Keep me signed in",
+    "forgotLink": "Forgot your password?",
+    "submit": "Sign in and continue",
+    "submitting": "Signing in…",
+    "noAccount": "No account yet?",
+    "createAccount": "Create an account",
+    "close": "Close",
+    "success": "You are signed in. Your booking carries on where you left it.",
+    "errors": {
+      "emailInvalid": "Please enter a valid email address.",
+      "passwordRequired": "Please enter your password.",
+      "failed": "Signing in did not work. Please try again.",
+      "codeSendFailed": "We could not send the code. Please try again.",
+      "codeRequired": "Enter the 6-digit code from the email.",
+      "passwordRules": "Your new password does not meet all the requirements yet.",
+      "passwordsDontMatch": "The two passwords do not match.",
+      "resetFailed": "We could not change your password. Please try again.",
+      "autoSignInFailed": "Your password has been changed, but we could not sign you in automatically. Sign in with your new password to carry on."
+    },
+    "forgot": {
+      "title": "Forgot your password",
+      "intro": "Enter your email address and we will send you a 6-digit code. Your booking stays open in the meantime.",
+      "send": "Send code",
+      "sending": "Sending code…",
+      "sent": "If we have that email address on file, the code is on its way.",
+      "resent": "A new code is on its way.",
+      "codeIntro": "If we have that email address on file, a 6-digit code is on its way to",
+      "spam": "Not there within a minute? Check your spam or junk folder.",
+      "codeLabel": "Code from the email",
+      "expires_one": "This code expires in {{count}} minute",
+      "expires_other": "This code expires in {{count}} minutes",
+      "newPassword": "New password",
+      "confirmPassword": "Confirm new password",
+      "rulesLabel": "Password requirements",
+      "submit": "Save and sign in",
+      "submitting": "Saving…",
+      "resend": "Send a new code",
+      "resendIn": "New code in {{seconds}}s",
+      "changeEmail": "Use another email address",
+      "signedOutElsewhere": "For your security, this signs you out on your other devices.",
+      "back": "Back to sign in",
+      "success": "Your password has been changed and you are signed in. Your booking carries on where you left it."
+    }
   }
 }

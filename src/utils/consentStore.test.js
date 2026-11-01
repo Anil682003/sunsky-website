@@ -15,7 +15,10 @@ import {
   clearedConsentCookie,
   emptyCategories,
   allCategories,
+  COOKIE_INVENTORY,
+  inventoryFor,
 } from './consentStore';
+import { DRAFT_KEY, DRAFT_TTL_MS } from './checkoutDraft';
 
 // The consent record is the evidence that a visitor agreed to something. Every test here is
 // about one of two failure modes: acting on consent nobody gave, or treating a refusal as
@@ -179,5 +182,24 @@ describe('the purpose registry', () => {
       'necessary', 'functional', 'analytics', 'marketing', 'external_media',
     ]);
     expect(OPTIONAL_PURPOSES.length).toBeGreaterThan(OPTIONAL_IN_USE.length);
+  });
+});
+
+// The inventory is what the settings screen and the Cookiebeleid promise the browser holds. A
+// row that names a key the code no longer writes is as wrong as a key with no row at all.
+describe('the storage inventory', () => {
+  it('lists the checkout draft as strictly necessary, first-party session storage', () => {
+    const row = COOKIE_INVENTORY.find((c) => c.name === DRAFT_KEY);
+    expect(row).toBeDefined();
+    expect(row).toMatchObject({ category: 'necessary', party: 'SUNSKY', type: 'Session storage' });
+    expect(inventoryFor('necessary')).toContain(row);
+    // The duration shown must be the one the code enforces.
+    expect(row.duration).toContain(`${DRAFT_TTL_MS / 60000} minuten`);
+  });
+
+  // The settings screen keys each row by its name.
+  it('names every row once', () => {
+    const names = COOKIE_INVENTORY.map((c) => c.name);
+    expect(new Set(names).size).toBe(names.length);
   });
 });
