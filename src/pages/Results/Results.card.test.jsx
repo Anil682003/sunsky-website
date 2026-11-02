@@ -191,6 +191,20 @@ describe('the hotel: board and accommodation chips, the facilities row', () => {
     expect(card.textContent).not.toMatch(/Tweepersoons|DBL/);
   });
 
+  it('names the country in full, never its code, and shows no "+N more" after the facilities', async () => {
+    // Seven guest-facing amenities: five fill the row, the two over are simply not there.
+    const seven = ['Swimming pool', 'Wi-fi', 'Sauna', 'Gym', 'Restaurant', 'Bar', 'Car park']
+      .map((facilityName, i) => ({ facilityCode: i + 1, facilityGroupCode: 70, facilityName }));
+    info.byCode['301'] = { countryCode: 'ID', cityName: 'Bali', zoneName: 'Terunyan', facilities: seven };
+    answers.packages = [pkg('301', 1100.4)];
+    renderAt(PACKAGE);
+    const card = await cardOf('301');
+    const place = card.querySelector('[class*="rcPlace"]');
+    expect(place.textContent).toBe('Terunyan·Bali·Indonesië');   // the dots are their own spans
+    expect(card.querySelectorAll('[class*="rcFacts"] > span')).toHaveLength(5);
+    expect(card.textContent).not.toMatch(/\+2 meer|\+\d+ more/);
+  });
+
   it('keeps the facilities with their icons', async () => {
     info.byCode['301'] = { facilities: [{ facilityCode: 1, facilityGroupCode: 70, name: 'Swimming pool', facilityName: 'Swimming pool' }] };
     answers.packages = [pkg('301', 1100.4)];

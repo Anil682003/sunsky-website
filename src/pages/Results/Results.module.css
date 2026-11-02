@@ -863,11 +863,13 @@
   background-size: 200% 100%; animation: shimmer 1.5s infinite;
 }
 
-/* Location: flag · city · country code */
+/* Location: flag · zone · city · country, one weight and one colour down the line, as the
+   approved card draws it ("Punta Prima · Menorca · Spanje"). The country is its NAME in the
+   reader's language, never the ISO code. */
 .rcPlace {
-  display: flex; align-items: center; gap: 7px;
-  margin-top: 5px; min-width: 0;
-  font-size: 13px; font-weight: 500; color: var(--text-sec);
+  display: flex; align-items: center; gap: 8px;
+  margin-top: 6px; min-width: 0;
+  font-size: 14px; font-weight: 500; color: var(--text-sec);
 }
 .rcFlag {
   width: 18px; height: 14px; flex-shrink: 0;
@@ -880,27 +882,23 @@
   background: var(--blue-light); color: var(--blue-deep);
   box-shadow: inset 0 0 0 1px rgba(31,79,216,0.12);
 }
-/* Zone (district) leads the line and carries the emphasis: it's the part that
-   differentiates hotels within one search. City may shrink first. */
-.rcPlaceZone {
-  color: var(--text); font-weight: 600;
-  overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  flex-shrink: 0; max-width: 55%;
-}
-.rcPlaceCity { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* Zone (district) leads, then the city, then the country. The city gives way first when the
+   line is short of room; zone and country are capped so neither can push the other out. */
+.rcPlaceZone, .rcPlaceCity, .rcPlaceCountry { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.rcPlaceZone { flex-shrink: 0; max-width: 45%; }
+.rcPlaceCountry { flex-shrink: 0; max-width: 40%; }
 .rcPlaceDot { color: var(--text-light); flex-shrink: 0; }
-.rcPlaceCode {
-  flex-shrink: 0;
-  font-size: 10.5px; font-weight: 700; letter-spacing: 1px;
-  color: var(--text-sec);
-  font-variant-numeric: tabular-nums;
-}
 
-/* Amenities: icon and label, no pill. Five at most, then "+N more". At the foot of the
-   column under a hairline, level with the fare across the rail. */
+/* Amenities: icon and label, no pill, ONE line at the foot of the column under a hairline.
+   Five at most, and only the whole items that fit: anything over wraps onto a second row that
+   the clipped height hides (row-gap wider than the box), so no label is ever cut mid-word and
+   there is no "+N more" (the approved card has none; the hotel page lists them all). */
 .rcFacts {
   display: flex; flex-wrap: wrap; align-items: center;
-  gap: 8px 16px; margin-top: auto; padding-top: 14px;
+  column-gap: 18px; row-gap: 40px;
+  margin-top: auto; padding-top: 14px;
+  /* border-box: the hairline's clearance plus one 20px row; a second row starts 40px lower. */
+  box-sizing: border-box; max-height: calc(14px + 20px); overflow: hidden;
   border-top: 1px solid var(--line);
 }
 .rcFact {
@@ -909,11 +907,6 @@
   line-height: 1.5; white-space: nowrap;
 }
 .rcFactIco { display: inline-flex; color: var(--text-light); flex-shrink: 0; }
-.rcFactMore {
-  display: inline-flex; align-items: center;
-  color: var(--text-sec); font-size: 12.5px; font-weight: 600;
-  cursor: default; white-space: nowrap;
-}
 
 /* What the deal is: the board basis (green, the cutlery) and the kind of property (grey, the
    house), as two chips under the place line. The green is the one the included-baggage lines
@@ -962,35 +955,46 @@
 .rcReviewWord { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); }
 .rcReviewCount { font-size: 12.5px; font-weight: 500; color: var(--text-sec); }
 
-/* The trip: one row per fact, a blue glyph in a fixed gutter so the text lines up down the
-   column whatever the glyph's width. */
-.rcTrip { display: flex; flex-direction: column; gap: 10px; }
-.rcTripRow { display: flex; align-items: flex-start; gap: 12px; min-width: 0; }
-.rcTripIco {
-  display: inline-flex; justify-content: center; flex-shrink: 0;
-  width: 22px; margin-top: 1px; color: var(--blue-deep);
+/* The trip: a two-column grid, a 24px glyph gutter and the text, so every glyph is centred on
+   one axis and every line starts at one x whatever the glyph's shape. Each row's glyph is
+   18px tall and its first line 18px high, so the glyph sits centred on that line. The
+   baggage lines belong to the flight row and sit in its text column, under the airport, with
+   their own smaller glyphs. The bottom margin keeps the hairline below clear of the last line
+   even when this column is the tallest thing on the card. */
+.rcTrip {
+  display: grid; grid-template-columns: 24px minmax(0, 1fr);
+  column-gap: 12px; row-gap: 10px; align-items: start;
+  margin-bottom: 14px;
 }
-.rcTripMain { display: flex; flex-direction: column; align-items: flex-start; gap: 3px; min-width: 0; }
-.rcTripDate { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); line-height: 1.2; }
-.rcTripSub { font-size: 12.5px; font-weight: 500; color: var(--text-sec); }
-.rcTripFrom { font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 1.3; }
+.rcTripRow { display: contents; }
+.rcTripIco {
+  display: inline-flex; align-items: center; justify-content: center;
+  height: 18px; color: var(--blue-deep);
+}
+.rcTripIco svg { width: 18px; height: 18px; }
+.rcTripMain { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; min-width: 0; }
+.rcTripDate { font-family: 'Sora', sans-serif; font-size: 15px; font-weight: 700; color: var(--text); line-height: 18px; }
+.rcTripSub { font-size: 12.5px; font-weight: 500; color: var(--text-sec); line-height: 1.3; }
+.rcTripFrom { font-size: 13.5px; font-weight: 700; color: var(--text); line-height: 18px; }
 /* "Direct": only when both directions are. Same green as the board chip. */
 .rcDirectPill {
   display: inline-flex; padding: 3px 9px; border-radius: var(--r-full);
   background: #E6F7EE; color: #047857;
   font-size: 11.5px; font-weight: 700; line-height: 1.3;
+  margin-top: 2px;
 }
-/* The fares' baggage, indented to the text column of the rows above. */
-.rcBags { display: flex; flex-direction: column; gap: 6px; padding-left: 34px; }
+/* The fares' baggage, in the text column of the rows above (never in the glyph gutter). */
+.rcBags { grid-column: 2; display: flex; flex-direction: column; gap: 5px; margin-top: -2px; }
 .rcBag {
   display: inline-flex; align-items: center; gap: 8px;
-  font-size: 12.5px; font-weight: 500; color: var(--text-sec); line-height: 1.3;
+  font-size: 12.5px; font-weight: 500; color: var(--text-sec); line-height: 16px;
 }
-.rcBag svg { color: var(--blue-deep); flex-shrink: 0; }
+.rcBag svg { width: 15px; height: 15px; color: var(--blue-deep); flex-shrink: 0; }
 /* "included", in green (the client's rule), inside the baggage line. */
 .rcIncludedWord { color: #047857; font-weight: 600; }
 /* A package card still priced on the hotel alone: the flight is priced on the hotel page. */
 .rcFlightNote {
+  grid-column: 2; justify-self: start;
   display: inline-flex; align-items: center; gap: 4px;
   font-size: 10.5px; font-weight: 700; color: var(--blue-deep);
   background: var(--blue-light);
@@ -1247,7 +1251,7 @@
     flex-direction: row; flex-wrap: wrap; align-items: flex-start; column-gap: 20px;
   }
   .rcReviewBox { width: 100%; flex-direction: row-reverse; justify-content: flex-end; text-align: left; }
-  .rcTrip { flex: 1 1 200px; }
+  .rcTrip { flex: 1 1 200px; margin-bottom: 0; }
   .rcPriceInfo {
     flex: 0 1 230px; margin-top: 0; margin-left: auto;
     padding-top: 0; border-top: 0;
@@ -1276,7 +1280,7 @@
   .rcReviewWord { font-size: 14px; }
   /* One-line swipe rail for the facilities; the masked fade hints at the overflow. */
   .rcFacts {
-    flex-wrap: nowrap; overflow-x: auto;
+    flex-wrap: nowrap; overflow-x: auto; overflow-y: hidden; max-height: none;
     margin-right: -16px; padding-right: 24px;
     scrollbar-width: none;
     -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent);

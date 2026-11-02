@@ -223,8 +223,6 @@
     "nextPhoto": "Next photo",
     "saveFavourite": "Save to favourites",
     "facilities": "Hotel facilities",
-    "moreFacilities": "{{count}} more facilities",
-    "more": "+{{count}} more",
     "total": "Total",
     "adults_one": "{{count}} adult",
     "adults_other": "{{count}} adults",

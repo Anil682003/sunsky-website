@@ -3949,6 +3949,10 @@ export default function Results() {
                 // keeps the loading state and tests stable). Country code uppercased for
                 // display + flag lookup.
                 const cc = (info?.countryCode || '').toUpperCase();
+                // The country by its name in the reader's language ("Spanje", "Indonesië"):
+                // the approved card never shows the ISO code. The code stays the fallback for
+                // the odd record whose code the browser cannot name.
+                const countryDisp = countryName(cc, i18n.language, cc);
                 const cityDisp = info?.cityName || (info?.city ? toTitleCase(info.city) : '') || h.loc;
                 return (
                 <article key={h.id} className={styles.resultCard} style={{ animationDelay: `${Math.min(i % PAGE_SIZE, 8) * 0.06}s` }}>
@@ -4071,7 +4075,7 @@ export default function Results() {
                           : <div className={`${styles.rcNameSkel} ${styles.skeletonLine}`} />}
 
                         {/* The hotel's OWN place, small → large: flag · zone (district) ·
-                            geo city · country code — not the search label. */}
+                            geo city · country name — not the search label. */}
                         <div className={styles.rcPlace}>
                           <CountryFlag code={cc} />
                           {/* Skip the zone when it just repeats the city ("Bodrum · Bodrum"). */}
@@ -4082,10 +4086,10 @@ export default function Results() {
                             </>
                           )}
                           <span className={styles.rcPlaceCity}>{cityDisp}</span>
-                          {cc && (
+                          {countryDisp && (
                             <>
                               <span className={styles.rcPlaceDot} aria-hidden="true">·</span>
-                              <span className={styles.rcPlaceCode}>{cc}</span>
+                              <span className={styles.rcPlaceCountry}>{countryDisp}</span>
                             </>
                           )}
                         </div>
@@ -4112,8 +4116,9 @@ export default function Results() {
                       </div>
                     )}
 
-                    {/* Amenities: borderless icon+label items at the foot of the column, under a
-                        hairline, as the approved card draws them. */}
+                    {/* Amenities: borderless icon+label items on ONE line at the foot of the
+                        column, under a hairline, as the approved card draws them. No "+N more":
+                        the card shows the five that matter and the hotel page lists the rest. */}
                     {fac.top.length > 0 && (
                       <div className={styles.rcFacts} aria-label={t('card.facilities', 'Hotel facilities')}>
                         {fac.top.map((f) => (
@@ -4124,14 +4129,6 @@ export default function Results() {
                             {f.label}
                           </span>
                         ))}
-                        {fac.more > 0 && (
-                          <span
-                            className={styles.rcFactMore}
-                            title={t('card.moreFacilities', { count: fac.more, defaultValue: '{{count}} more facilities' })}
-                          >
-                            {t('card.more', { count: fac.more, defaultValue: '+{{count}} more' })}
-                          </span>
-                        )}
                       </div>
                     )}
                   </div>
@@ -4165,7 +4162,7 @@ export default function Results() {
                     <div className={styles.rcTrip}>
                       {tripDate && (
                         <div className={styles.rcTripRow}>
-                          <span className={styles.rcTripIco}><CalendarIcon /></span>
+                          <span className={styles.rcTripIco}><CalendarIcon size={18} /></span>
                           <span className={styles.rcTripMain}>
                             <span className={styles.rcTripDate}>{fmtDateYear(tripDate)}</span>
                             {tripDays > 0 && <span className={styles.rcTripSub}>({daysLabel(tripDays)})</span>}
