@@ -99,7 +99,8 @@ describe('Hero: ask before dropping airports that clash with a new destination',
     expect(screen.queryByRole('alertdialog')).toBeNull();
     expect(destinationField()).toHaveTextContent('Antalya');
     expect(flyingFromField()).toHaveTextContent('Brussels (BRU)');
-    fireEvent.click(searchButton());
+    // The new combination is checked first ("Controleren…"), then Search is enabled.
+    fireEvent.click(await screen.findByRole('button', { name: /^Zoeken$/ }));
     const qs = lastSearch();
     expect(qs.get('destination')).toBe('AYT');
     expect(qs.get('origin')).toBe('BRU');

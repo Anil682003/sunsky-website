@@ -322,7 +322,9 @@
       "Thailand": "Thailand",
       "Morocco": "Marokko",
       "Portugal": "Portugal"
-    }
+    },
+    "noPackage": "Geen pakketreis beschikbaar voor deze combinatie. Pas je luchthaven, bestemming of reisgegevens aan.",
+    "searchChecking": "Controleren…"
   },
   "sections": {
     "showAll": "Toon alles"

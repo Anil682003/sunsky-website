@@ -322,7 +322,9 @@
       "Thailand": "Thailand",
       "Morocco": "Morocco",
       "Portugal": "Portugal"
-    }
+    },
+    "noPackage": "No package holiday available for this combination. Change your airport, destination or travel details.",
+    "searchChecking": "Checking…"
   },
   "sections": {
     "showAll": "Show all"

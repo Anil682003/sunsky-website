@@ -22,6 +22,10 @@ import {
 import AirportClashPanel from '../../../components/AirportClashPanel/AirportClashPanel';
 import { usePackageDepartureDates, makeIsUnavailable, departureSummary } from '../../../hooks/usePackageDepartureDates';
 import { usePackageAirports } from '../../../hooks/usePackageAirports';
+import { searchGate } from '../../../utils/searchGate';
+
+// Ticked airports checked one by one for destination greying; more than this greys nothing.
+const MAX_FEASIBILITY_ORIGINS = 6;
 
 // How far ahead the homepage calendar asks about flyable departure days. The endpoint answers
 // 31 days per request, so a quarter costs three and the full twelve-month horizon would cost
@@ -614,12 +618,16 @@ export default function Hero() {
    * answers, and the failure that costs us money is greying a destination the traveller could
    * in fact have flown, not leaving one selectable that a later search rules out.
    */
-  const feasibilityOrigin = (transport === 'package' && chosenOrigins.length === 1)
-    ? chosenOrigins[0]
-    : '';
+  // Several ticked airports (4 Nov 2026): one check per airport, and a destination is greyed only
+  // when none of them reaches it. Capped, so a long list cannot fire a burst of requests; above
+  // the cap nothing is greyed (unknown is not impossible).
+  const feasibilityOrigins = (transport === 'package' && chosenOrigins.length >= 1 && chosenOrigins.length <= MAX_FEASIBILITY_ORIGINS)
+    ? chosenOrigins
+    : [];
+  const feasibilityOrigin = feasibilityOrigins.length === 1 ? feasibilityOrigins[0] : '';
   const { unreachable: unreachableDests } = useDestinationFeasibility({
-    enabled: !!feasibilityOrigin,
-    origin: feasibilityOrigin,
+    enabled: feasibilityOrigins.length > 0,
+    origins: feasibilityOrigins,
     // Only a date the traveller actually chose narrows the window; otherwise the endpoint's
     // own default (the next 31 days) stands.
     from: date || undefined,
@@ -680,7 +688,7 @@ export default function Hero() {
     [heroDates.dates, heroDates.range, flexDays]
   );
 
-  const { origins: reachableOrigins } = usePackageAirports({
+  const { origins: reachableOrigins, state: reachableState } = usePackageAirports({
     enabled: transport === 'package' && destinationCodes.length > 0,
     destinations: destinationCodes,
     from: date || undefined,
@@ -853,8 +861,20 @@ export default function Hero() {
     return qs;
   };
 
+  // Search only for a combination that can fly (Levent, 4 Nov 2026): proven "no package" disables
+  // it with the reason, the check still running holds it briefly, a failed check never blocks.
+  // Choices are left exactly as they are.
+  const gate = searchGate({
+    transport,
+    chosenOrigins: noPreference ? [] : chosenOrigins,
+    destinationCodes,
+    reachable: reachableOrigins,
+    state: reachableState,
+  });
+
   // PACKAGE search — destination chosen via the country → destination modal (unchanged behaviour).
   const handleSearch = () => {
+    if (gate !== 'ok') return;
     // UI-06: a clash question still open has not been answered, and searching would answer it
     // for the traveller (either way). Take them back to it instead.
     if (destClash.asking) {
@@ -1866,11 +1886,18 @@ export default function Hero() {
               <span className={styles.sfHint}>{t('hero.destinationHint', 'Search city, region or hotel')}</span>
             </div>
             {stayFields}
-            <button className={styles.searchBtn} onClick={handleSearch}>
+            <button className={styles.searchBtn} onClick={handleSearch}
+              disabled={gate !== 'ok'} aria-disabled={gate !== 'ok' || undefined} aria-busy={gate === 'checking' || undefined}
+              aria-describedby={gate === 'none' ? 'hero-no-package' : undefined}>
               <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"><circle cx="11" cy="11" r="8"/><path d="M21 21l-4.35-4.35"/></svg>
-              {cmsSearchBtn || t('hero.search', 'Search')}
+              {gate === 'checking' ? t('hero.searchChecking', 'Checking…') : (cmsSearchBtn || t('hero.search', 'Search'))}
             </button>
           </div>
+          {gate === 'none' && !openField && (
+            <p id="hero-no-package" className={styles.noPackage} role="status">
+              {t('hero.noPackage', 'No package holiday available for this combination. Change your airport, destination or travel details.')}
+            </p>
+          )}
           {/* UI-06: "Antwerpen (ANR) vliegt niet naar Antalya". Under the bar, where a field's
               panel would hang, and stepped aside while one of those panels is open so the two
               never stack. The held pick stays held meanwhile and is judged again on whatever
