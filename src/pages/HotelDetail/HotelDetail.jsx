@@ -63,7 +63,7 @@ import { roomDelta } from './roomDelta';
 import {
   packageFromParams, packageApplies, flightQuestion, confirmBody, mergePackageFlight, PACKAGE_FLIGHT,
 } from '../../utils/packageHandoff';
-import { usePackageMatrix } from './usePackageMatrix';
+import { usePackageMatrix, sevenColumns } from './usePackageMatrix';
 import { usePackageAirports } from '../../hooks/usePackageAirports';
 import { usePackageDepartureDates, makeIsUnavailable, makeDurationUnavailable, departureSummary } from '../../hooks/usePackageDepartureDates';
 import './HotelDetail.css';
@@ -2367,6 +2367,13 @@ export default function HotelDetail() {
     }
     return m;
   }, [matrix.days]);
+  // Always seven columns (Levent, 4 Nov 2026): the package dates, the selected one in the middle,
+  // short sides filled with neighbouring calendar days marked "Not available"; never a day before
+  // tomorrow. The arrows page to the dates just out of view.
+  const matrixColumns = useMemo(
+    () => sevenColumns(matrix.days, matrixDate, addDaysISO(today, 1), { prev: matrix.prev, next: matrix.next }),
+    [matrix.days, matrix.prev, matrix.next, matrixDate, today]
+  );
   // The strip is the matrix while it loads and whenever it has dates. When it cannot answer (it
   // failed, or has no package date around this one in the cache) the hotel calendar stands in,
   // marked as hotel prices, so the traveller can still check a date live: flights are then
@@ -2555,11 +2562,11 @@ export default function HotelDetail() {
   const stripLoading = useMatrix ? matrix.loading : calLoading;
   const stripReload = () => (useMatrix ? setMatrixReload((n) => n + 1) : setCalReload((n) => n + 1));
   // The arrows: one day for the hotel calendar, the next flight dates for the matrix.
-  const stripCanBack = useMatrix ? !!matrix.prev : canPageBack;
-  const stripCanForward = useMatrix ? !!matrix.next : true;
+  const stripCanBack = useMatrix ? !!matrixColumns.prev : canPageBack;
+  const stripCanForward = useMatrix ? !!matrixColumns.next : true;
   const stripStep = (delta) => {
     if (!useMatrix) { pageDay(delta); return; }
-    const d = delta < 0 ? matrix.prev : matrix.next;
+    const d = delta < 0 ? matrixColumns.prev : matrixColumns.next;
     if (d) { setMCentre({ base: null, date: null }); setMAnchor({ base: matrixBase, date: d }); }
   };
 
@@ -2577,10 +2584,10 @@ export default function HotelDetail() {
     // like every other field here: without it the column never named its airport, and picking
     // the date never adopted it, so the live check asked the card's airport about a date whose
     // package left from another one, and confirmed nothing.
-    ? matrix.days.map((d) => ({
+    ? matrixColumns.days.map((d) => ({
       iso: d.iso, day: calDay(d.departure), date: calDate(d.departure), departure: d.departure,
       price: d.price, pp: d.perPerson, currency: d.currency || 'EUR', nights: d.nights || nights, travelDays: d.travelDays || null,
-      state: d.state, cheapest: d.cheapest, pkg: d.pkg, from: d.from,
+      state: d.state, cheapest: d.cheapest, pkg: d.pkg, from: d.from, filler: !!d.filler,
     }))
     : usingLive
     ? winDates.map((iso) => {
@@ -4481,7 +4488,9 @@ export default function HotelDetail() {
                                                             holiday is gone when nobody ever
                                                             looked, which is the one mistake this
                                                             vocabulary exists to stop.             */
-                      const notForSelection = !checkedEmpty.has(emptyKey(p.iso)) && p.state === 'NO_VALID_COMBINATION';
+                      // A filler column (no package that day, only there to keep seven columns) is plainly
+                      // "Not available", not "for your selection".
+                      const notForSelection = !checkedEmpty.has(emptyKey(p.iso)) && p.state === 'NO_VALID_COMBINATION' && !p.filler;
                       const priceFailed = p.state === 'SOURCE_ERROR';
                       // Is THIS the day the traveller has picked. Referenced by isLoading, the
                       // `sel` class and aria-pressed below; losing it throws a ReferenceError on

@@ -30,6 +30,54 @@ export function originsParam(origins) {
   return [...seen].sort().join(',');
 }
 
+const addDaysISO = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
+
+/**
+ * PURE. The seven strip columns (Levent, 4 Nov 2026): the package dates as the matrix sends them
+ * (dates without a valid package stay skipped: 12 Mar → 26 Mar is right), but ALWAYS seven
+ * columns, the selected date in the middle with three either side whenever possible. A side with
+ * fewer than three package dates is filled with the neighbouring calendar days, marked
+ * "Not available" (state NO_VALID_COMBINATION, `filler: true`). Never a day before `floor`
+ * (tomorrow): there the missing columns go to the other side, real dates first.
+ *
+ * Marseille, 4 days, 12 Mar asked (no flight before it): 9–11 Mar not available, 12 Mar,
+ * 26 Mar, 14 May, 21 May; the arrow reaches 4 Jun, then 5–7 Jun are not available.
+ *
+ * @param days      matrix days (matrixDays), any order
+ * @param selected  the departure date the strip is centred on
+ * @param floor     earliest calendar day a filler may have (YYYY-MM-DD)
+ * @param edges     the API's own prev/next, used when no fetched date is left hidden
+ * @returns {{ days: object[], prev: string|null, next: string|null }}
+ */
+export function sevenColumns(days, selected, floor, edges = {}) {
+  const sorted = [...(days || [])].sort((a, b) => (a.departure < b.departure ? -1 : a.departure > b.departure ? 1 : 0));
+  if (!sorted.length) return { days: [], prev: edges.prev ?? null, next: edges.next ?? null };
+  let at = sorted.findIndex((d) => d.departure >= selected);
+  if (at < 0) at = sorted.length - 1;
+  const filler = (iso) => ({ iso, departure: iso, price: 0, perPerson: null, nights: null, travelDays: null, state: 'NO_VALID_COMBINATION', filler: true, cheapest: false, pkg: null, from: null });
+
+  // Before: up to three package dates, then calendar days down to the floor.
+  const realBefore = sorted.slice(Math.max(0, at - 3), at);
+  const fillBefore = [];
+  let d = addDaysISO((realBefore[0] || sorted[at]).departure, -1);
+  while (realBefore.length + fillBefore.length < 3 && d >= floor) { fillBefore.unshift(filler(d)); d = addDaysISO(d, -1); }
+  const short = 3 - realBefore.length - fillBefore.length;   // the floor stopped us: the other side takes these
+
+  // After: package dates first, then calendar days after the last one shown.
+  const realAfter = sorted.slice(at + 1, at + 1 + 3 + short);
+  const fillAfter = [];
+  d = addDaysISO((realAfter[realAfter.length - 1] || sorted[at]).departure, 1);
+  while (realAfter.length + fillAfter.length < 3 + short) { fillAfter.push(filler(d)); d = addDaysISO(d, 1); }
+
+  const firstShown = at - realBefore.length;
+  const lastShown = at + realAfter.length;
+  return {
+    days: [...fillBefore, ...realBefore, sorted[at], ...realAfter, ...fillAfter],
+    prev: firstShown > 0 ? sorted[firstShown - 1].departure : (edges.prev ?? null),
+    next: lastShown < sorted.length - 1 ? sorted[lastShown + 1].departure : (edges.next ?? null),
+  };
+}
+
 /**
  * @param {object} q  enabled, hotelCode, destination, date (departure, YYYY-MM-DD), travelDays,
  *                    origins (array or csv; empty = every airport), adults, children,
