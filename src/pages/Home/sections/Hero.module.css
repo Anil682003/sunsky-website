@@ -288,6 +288,16 @@
   border:none; cursor:pointer;
 }
 .searchBtn:hover { filter:brightness(1.06); box-shadow:0 6px 18px rgba(194,84,10,0.34); }
+.searchBtn:disabled { filter:grayscale(0.6) opacity(0.6); box-shadow:none; cursor:not-allowed; }
+.searchBtn[aria-busy="true"] { cursor:progress; }
+
+/* No valid package for this airport × destination: said under the bar, choices left as they are. */
+.noPackage {
+  margin:10px auto 0; max-width:640px; padding:10px 16px;
+  background:#fff; color:#9a3412; border-radius:var(--r-lg);
+  font-size:14px; font-weight:600; text-align:center;
+  box-shadow:0 4px 14px rgba(0,0,0,0.12);
+}
 
 /* Dropdown panel */
 .dropdown {

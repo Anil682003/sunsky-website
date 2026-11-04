@@ -21,6 +21,7 @@ import { useEffect, useState } from 'react';
 import axiosInstance from '../services/axiosInstance';
 import { usePackageAirports } from './usePackageAirports';
 import { scopeLeaves, zoneCity } from '../utils/scopeLeaves';
+import { unreachableFromAll } from '../utils/searchGate';
 
 /**
  * PURE. The destination codes we can prove are unreachable, or null for "we cannot say".
@@ -122,7 +123,12 @@ export function visibleAirportGroups(groups, reachable, isChosen = () => false) 
  *          `unreachable` is null in every state except a trustworthy 'ok'.
  */
 export function useDestinationFeasibility(q = {}) {
-  const origin = q.enabled && q.origin ? String(q.origin).toUpperCase() : '';
+  // One airport (`origin`) or several (`origins`): with several, a destination is greyed only when
+  // EVERY ticked airport is proven unable to reach it (OR within the airport group, 4 Nov 2026).
+  const originList = q.enabled
+    ? [...new Set((q.origins || [q.origin]).filter(Boolean).map((o) => String(o).toUpperCase()))].sort()
+    : [];
+  const origin = originList.join(',');
   // One string naming every input, so a changed question cannot be answered by a stale reply.
   const key = origin
     ? [origin, q.from || '', q.to || '', q.travelDays || '', q.adults ?? '', q.children ?? '', q.childAges || ''].join('|')
@@ -134,7 +140,7 @@ export function useDestinationFeasibility(q = {}) {
     if (!key) return undefined;
     const ctrl = new AbortController();
 
-    const params = { origin };
+    const params = {};
     if (q.from) params.from = q.from;
     if (q.to) params.to = q.to;
     if (q.travelDays) params.travelDays = String(q.travelDays);
@@ -142,10 +148,12 @@ export function useDestinationFeasibility(q = {}) {
     if (q.children != null) params.children = q.children;
     if (q.childAges) params.childAges = q.childAges;
 
-    axiosInstance
-      .get('/flight-availability/feasibility/destinations', { params, signal: ctrl.signal })
-      .then(({ data }) => {
-        const unreachable = unreachableDestinations(data);
+    // The endpoint takes one origin: one request per ticked airport, in parallel.
+    Promise.all(originList.map((o) => axiosInstance
+      .get('/flight-availability/feasibility/destinations', { params: { ...params, origin: o }, signal: ctrl.signal })
+      .then(({ data }) => unreachableDestinations(data))))
+      .then((perOrigin) => {
+        const unreachable = unreachableFromAll(perOrigin);
         // A reply we cannot read is an error, not an empty answer: falling through with null
         // keeps every destination selectable instead of quietly greying none of them while
         // claiming to have checked.
