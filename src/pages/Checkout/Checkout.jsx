@@ -20,6 +20,7 @@ import { countryName } from '../../utils/countryName';
 import i18n from '../../i18n';
 import Confirmation from './Confirmation';
 import CheckoutSignIn from './CheckoutSignIn';
+import { bookingErrorMessage } from './bookingError';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 // Both, and they do different jobs: roundStayTotal rounds a whole package once (rule 10),
@@ -2438,7 +2439,8 @@ function CheckoutContent({ stripe, elements }) {
         }));
       }
     } catch (err) {
-      const msg = err?.response?.data?.message || err?.message || t('checkout:errors.paymentFailed', 'Payment failed. Please try again.');
+      // A refused booking says why with an errorCode; the server's English text is the fallback.
+      const msg = bookingErrorMessage(err, t);
       flashErrors({ submit: msg });
     } finally {
       setPaying(false);

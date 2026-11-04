@@ -95,7 +95,10 @@
     "unsupportedPaymentMethod": "Niet-ondersteunde betaalmethode",
     "methodTemporarilyUnavailable": "Deze betaalmethode is tijdelijk niet beschikbaar. Betaal met kaart.",
     "paymentCouldNotBeProcessed": "De betaling kon niet worden verwerkt. Probeer het opnieuw.",
-    "paymentFailed": "Betaling mislukt. Probeer het opnieuw."
+    "paymentFailed": "Betaling mislukt. Probeer het opnieuw.",
+    "flightPriceUnverified": "De luchtvaartmaatschappij kan de prijs van deze vlucht op dit moment niet bevestigen. Er is niets afgeschreven. Probeer het over een paar minuten opnieuw.",
+    "priceUnverified": "De leverancier kan de prijs op dit moment niet bevestigen. Er is niets afgeschreven. Probeer het over een paar minuten opnieuw.",
+    "priceChanged": "De prijs van deze reis is gewijzigd. Er is niets afgeschreven. Vernieuw de pagina om de actuele prijs te zien."
   },
   "baggage": {
     "add": "Toevoegen",

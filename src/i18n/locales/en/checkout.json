@@ -95,7 +95,10 @@
     "unsupportedPaymentMethod": "Unsupported payment method",
     "methodTemporarilyUnavailable": "This payment method is temporarily unavailable. Please pay by card.",
     "paymentCouldNotBeProcessed": "Payment could not be processed. Please try again.",
-    "paymentFailed": "Payment failed. Please try again."
+    "paymentFailed": "Payment failed. Please try again.",
+    "flightPriceUnverified": "The airline can't confirm this flight's price right now. You have not been charged. Please try again in a few minutes.",
+    "priceUnverified": "The supplier can't confirm the price right now. You have not been charged. Please try again in a few minutes.",
+    "priceChanged": "The price of this trip has changed. You have not been charged. Refresh the page to see the current price."
   },
   "baggage": {
     "add": "Add",
