@@ -76,6 +76,8 @@ const toExtras = async (user) => {
 /** The card whose title matches, so sections that share row styling stay apart. */
 const card = (title) => [...document.querySelectorAll('.ck-card')]
   .find((c) => new RegExp(title, 'i').test(c.querySelector('.ck-bagkind-text b')?.textContent || ''));
+/** How often a row says "inbegrepen": once, in the green chip (client, 4 Nov 2026). */
+const timesIncluded = (row) => (row.textContent.match(/inbegrepen/gi) || []).length;
 const sumRow = (label) => [...document.querySelectorAll('.ck-sum-row')]
   .find((r) => new RegExp(label, 'i').test(r.textContent));
 
@@ -109,6 +111,7 @@ describe('baggage on the extras step', () => {
     rows.forEach((r) => {
       expect(r).toHaveTextContent('20 kg ruimbagage');
       expect(r.querySelector('.ck-chip-inc')).toHaveTextContent(/^inbegrepen$/i);
+      expect(timesIncluded(r)).toBe(1);
       expect(r.querySelector('.ck-chip-added')).toBeNull();
     });
     expect(checked.querySelectorAll('.ck-bagmenu-btn')).toHaveLength(4);
@@ -122,6 +125,7 @@ describe('baggage on the extras step', () => {
     [...cabin.querySelectorAll('.ck-bagrow')].forEach((r) => {
       expect(r).toHaveTextContent('1 stuk handbagage');
       expect(r.querySelector('.ck-chip-inc')).toHaveTextContent(/^inbegrepen$/i);
+      expect(timesIncluded(r)).toBe(1);
     });
     expect([...cabin.querySelectorAll('.ck-bag-add')].map((b) => b.textContent))
       .toEqual(expect.arrayContaining([expect.stringMatching(/extra handbagage · €25/i)]));
@@ -136,11 +140,11 @@ describe('baggage on the extras step', () => {
     const [first, ...others] = [...cabin.querySelectorAll('.ck-bagrow')];
     await user.click(first.querySelector('.ck-bag-add'));
 
-    // "Included" alone would hide the bag that was just bought: the row counts both and
-    // says how they add up, and the price sits beside the chip.
+    // "Included" alone would hide the bag that was just bought: the row counts both, and the
+    // green chip says once what is included and what was added, with the price beside it.
     expect(first).toHaveTextContent('2 stuks handbagage');
-    expect(first).toHaveTextContent('1 inbegrepen + 1 extra');
-    expect(first.querySelector('.ck-chip-inc')).toHaveTextContent(/^inbegrepen$/i);
+    expect(first.querySelector('.ck-chip-inc')).toHaveTextContent(/^inbegrepen \+ 1 extra$/i);
+    expect(timesIncluded(first)).toBe(1);
     expect(first.querySelector('.ck-chip-added')).toHaveTextContent('+ €25');
     expect(first.querySelector('.ck-bag-remove')).toHaveTextContent(/verwijderen/i);
     expect(first.querySelector('.ck-bag-add')).toBeNull();
@@ -195,8 +199,8 @@ describe('baggage on the extras step', () => {
     expect(row.querySelector('[role="listbox"]')).toBeNull();
     expect(row.querySelector('.ck-bagmenu-btn')).toBeNull();
     expect(row).toHaveTextContent('40 kg ruimbagage');
-    expect(row).toHaveTextContent('20 kg inbegrepen + 20 kg extra');
-    expect(row.querySelector('.ck-chip-inc')).toHaveTextContent(/^inbegrepen$/i);
+    expect(row.querySelector('.ck-chip-inc')).toHaveTextContent(/^inbegrepen \+ 20 kg extra$/i);
+    expect(timesIncluded(row)).toBe(1);
     expect(row.querySelector('.ck-chip-added')).toHaveTextContent('+ €35');
     expect(row.querySelector('.ck-bag-remove')).toHaveTextContent(/verwijderen/i);
     await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€35'));
@@ -240,7 +244,8 @@ describe('baggage on the extras step', () => {
     await pickBag(user, row, 15);
     // 1 piece + 15 kg is not 16 of anything, so neither line adds them up.
     expect(row).toHaveTextContent('1 stuk + 15 kg ruimbagage');
-    expect(row).toHaveTextContent('1 stuk inbegrepen + 15 kg extra');
+    expect(row.querySelector('.ck-chip-inc')).toHaveTextContent(/^inbegrepen \+ 15 kg extra$/i);
+    expect(timesIncluded(row)).toBe(1);
   });
 
   it('shuts the menu on an outside click and on Escape, and is a listbox to the keyboard', async () => {

@@ -3046,18 +3046,16 @@ function CheckoutContent({ stripe, elements }) {
                           {directions.map((d) => {
                             const added = !!bags[bagKey(i, d.key)]?.cabin;
                             const price = Number(cabinAddOns[0]?.price) || 0;
-                            /* The row counts bags rather than stating a status: "2 stuks
-                               handbagage" over "1 inbegrepen + 1 extra" says what the
-                               traveller will carry AND what they paid for, which "Included"
-                               plus a chip never managed to. Only the row with nothing at all
-                               keeps a status line, because there is nothing to count. */
+                            /* The row counts bags ("2 stuks handbagage") and says "Inbegrepen"
+                               ONCE, in the green chip, which also carries what was added:
+                               "Inbegrepen + 1 extra". A grey line repeating it under the count
+                               said the same thing twice (client, 4 Nov 2026). Only a row with
+                               no allowance keeps a grey line, because it has no chip. */
                             const count = (cabinIncluded ? 1 : 0) + (added ? 1 : 0);
                             const main = count > 0
                               ? t('checkout:baggage.cabinPieces', { count, defaultValue_one: '{{count}} cabin bag', defaultValue_other: '{{count}} cabin bags' })
                               : (bagRates?.cabin?.label || t('checkout:baggage.cabinBaggage', 'Cabin baggage'));
-                            const sub = cabinIncluded && added
-                              ? t('checkout:baggage.includedPlusExtraBags', { included: 1, extra: 1, defaultValue: '{{included}} included + {{extra}} extra' })
-                              : cabinIncluded ? t('checkout:baggage.included', 'Included')
+                            const sub = cabinIncluded ? null
                               : added ? t('checkout:baggage.extra', 'Extra')
                               : bagKnown ? t('checkout:baggage.notIncluded', 'Not included') : t('checkout:baggage.notConfirmed', 'Not confirmed');
                             return (
@@ -3067,7 +3065,13 @@ function CheckoutContent({ stripe, elements }) {
                                 <span className="ck-bagrow-state">
                                   {/* The state, then (separately) whether more can be bought.
                                       An included bag and a second bag are different questions. */}
-                                  {cabinIncluded && <span className="ck-chip-inc">{t('checkout:baggage.included', 'Included')}</span>}
+                                  {cabinIncluded && (
+                                    <span className="ck-chip-inc">
+                                      {added
+                                        ? t('checkout:baggage.includedPlusOneExtra', 'Included + 1 extra')
+                                        : t('checkout:baggage.included', 'Included')}
+                                    </span>
+                                  )}
                                   {added ? (
                                     <>
                                       {/* `ck-chip-added` is the marker the tests read for "a bag was bought here". */}
@@ -3117,27 +3121,23 @@ function CheckoutContent({ stripe, elements }) {
                                the next pick overwrites it, which is harmless. */
                             const chosenRow = checkedAddOns.find((r) => Number(r.kg) === Number(bags[bagKey(i, d.key)]?.checked)) || null;
                             const extra = chosenRow ? Number(chosenRow.kg) : 0;
-                            /* The row totals the hold allowance: "35 kg ruimbagage" over
-                               "20 kg inbegrepen + 15 kg extra", so the traveller reads what
-                               they can pack without adding it up. An airline that counts
-                               pieces instead of kilos keeps its pieces in the included part
-                               ("1 stuk + 15 kg"), because 1 piece + 15 kg is not 16 of
-                               anything. */
+                            /* The row totals the hold allowance ("35 kg ruimbagage"), so the
+                               traveller reads what they can pack without adding it up, and the
+                               green chip says once what the ticket includes and what was added:
+                               "Inbegrepen + 15 kg extra". An airline that counts pieces instead
+                               of kilos keeps its pieces in the total ("1 stuk + 15 kg"),
+                               because 1 piece + 15 kg is not 16 of anything. */
                             const piecesLabel = t('checkout:baggage.pieces', { count: pieces, defaultValue_one: '{{count}} piece', defaultValue_other: '{{count}} pieces' });
                             let main;
                             let sub;
                             if (included && kg > 0) {
                               main = t('checkout:baggage.checkedTotalKg', { kg: kg + extra, defaultValue: '{{kg}} kg checked baggage' });
-                              sub = extra
-                                ? t('checkout:baggage.includedPlusExtraKg', { included: kg, extra, defaultValue: '{{included}} kg included + {{extra}} kg extra' })
-                                : t('checkout:baggage.included', 'Included');
+                              sub = null;
                             } else if (included) {
                               main = extra
                                 ? t('checkout:baggage.checkedPiecesPlusKg', { pieces: piecesLabel, kg: extra, defaultValue: '{{pieces}} + {{kg}} kg checked baggage' })
                                 : t('checkout:baggage.checkedPiecesTotal', { pieces: piecesLabel, defaultValue: '{{pieces}} checked baggage' });
-                              sub = extra
-                                ? t('checkout:baggage.includedPlusExtraPieces', { pieces: piecesLabel, kg: extra, defaultValue: '{{pieces}} included + {{kg}} kg extra' })
-                                : t('checkout:baggage.included', 'Included');
+                              sub = null;
                             } else if (extra) {
                               main = t('checkout:baggage.checkedTotalKg', { kg: extra, defaultValue: '{{kg}} kg checked baggage' });
                               sub = t('checkout:baggage.extra', 'Extra');
@@ -3154,7 +3154,13 @@ function CheckoutContent({ stripe, elements }) {
                                       added. An included allowance does not end the question:
                                       a traveller with 20 kg may still want a second bag, and
                                       the airline (or our table) may sell one. */}
-                                  {included && <span className="ck-chip-inc">{t('checkout:baggage.included', 'Included')}</span>}
+                                  {included && (
+                                    <span className="ck-chip-inc">
+                                      {extra
+                                        ? t('checkout:baggage.includedPlusExtraKgChip', { kg: extra, defaultValue: 'Included + {{kg}} kg extra' })
+                                        : t('checkout:baggage.included', 'Included')}
+                                    </span>
+                                  )}
                                   {chosenRow ? (
                                     <>
                                       <span className="ck-chip-added">+ {money(chosenRow.price)}</span>
