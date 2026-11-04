@@ -94,9 +94,10 @@ export default function Confirmation({
   const isTransfer = booking.kind === 'transfer';
   // This is a record of what was CHARGED, so it shows the exact amount: cents only when the
   // charge had any. Rounding here (as it used to, to the nearest euro) misstated the payment.
+  // Written the house way whatever the browser: dot for thousands, comma for cents (€1.012,60).
   const money = (n) => {
     const v = Math.round((Number(n) || 0) * 100) / 100;
-    return `${ccy}${v.toLocaleString('en-US', Number.isInteger(v) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+    return `${ccy}${v.toLocaleString('nl-BE', Number.isInteger(v) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
   const animPaid = useCountUp(pricing.total);
 
@@ -354,7 +355,7 @@ export default function Confirmation({
           <div className="ckc-ticket-stub">
             <div className="ckc-stub-paid">
               <span className="ckc-stub-label">{t('checkout:confirmation.totalPaid', 'Total paid')}</span>
-              <span className="ckc-stub-amount hd">{ccy}{animPaid.toLocaleString('en-US')}</span>
+              <span className="ckc-stub-amount hd">{money(animPaid)}</span>
               <span className="ckc-stub-method">{ICON.card} {payLabel}</span>
               <span className="ckc-stub-date">{paidOn}</span>
             </div>

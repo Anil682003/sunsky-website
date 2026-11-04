@@ -2703,7 +2703,8 @@ export default function Results() {
 
   const activeCount = countActiveFilters(filters);
   const currency    = allHotels[0]?.currency || 'EUR';
-  const priceLabel  = (n) => `${currency} ${Math.round(n).toLocaleString()}`;
+  // House format, not the browser's: an English-language browser wrote "€ 1,200".
+  const priceLabel  = (n) => `${currency} ${Math.round(n).toLocaleString('nl-BE')}`;
 
   // The prices this search actually returned, in the basis being shown. It is read off the
   // loaded results rather than the slider's bounds, which are a round-numbered ceiling that

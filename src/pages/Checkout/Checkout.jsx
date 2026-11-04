@@ -24,8 +24,10 @@ import { bookingErrorMessage } from './bookingError';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 // Both, and they do different jobs: roundStayTotal rounds a whole package once (rule 10),
-// sellingEuros is the display rounding every SUNSKY price on screen goes through.
-import { sellingEuros } from '../../utils/tripPrice';
+// sellingEuros is the display rounding every SUNSKY price on screen goes through; formatEuros
+// writes it the house way (€1.013, never the US €1,013).
+import { sellingEuros, formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { transferAirport } from './transferAirport';
 import { localCostOfRate } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import { roundStayTotal } from '../../utils/priceRounding';
@@ -1796,7 +1798,7 @@ function CheckoutContent({ stripe, elements }) {
   // SUNSKY prices are whole euros, rounded UP (spec 2.3). Rounding to the NEAREST euro, as this
   // did, could show less than the amount then charged (€501.40 read as €501); rounding up never
   // does. The exact whole-euro charge itself comes with the API's own rounding.
-  const money = (n) => `${ccy}${(sellingEuros(n) ?? 0).toLocaleString('en-US')}`;
+  const money = (n) => `${ccy}${formatEuros(n ?? 0, PRICE_KIND.SELLING) ?? '0'}`;
 
   /* ── scroll to top on step change + reveal anims ── */
   useEffect(() => {
@@ -1836,6 +1838,13 @@ function CheckoutContent({ stripe, elements }) {
   })();
   const wantsTransfer = !isTransfer && !isFlight && srch.transport !== 'hotel_only'
     && !!srch.destination && !!(booking.api?.hotel?.hotelCode || booking.hotelCode);
+  // Where the plane lands (SAW), not the destination's code (IST): see transferAirport.
+  const transferFrom = transferAirport({
+    outTo: booking.flight?.outTo,
+    legs: booking.api?.flight?.legs,
+    tripType: booking.api?.flight?.tripType,
+    destination: srch.destination,
+  });
   useEffect(() => {
     if (step !== STEP.ADDONS || !wantsTransfer || transfers) return;
     const checkin = srch.checkin || booking.api?.hotel?.checkin;
@@ -1843,16 +1852,19 @@ function CheckoutContent({ stripe, elements }) {
     const outbound = arrivalISO || `${checkin}T12:00:00`;
     const checkout = srch.checkout || booking.api?.hotel?.checkout;
     const inbound = returnISO || (checkout ? `${checkout}T09:00:00` : null);
+    // Kept with the answer, like the pickup time: the booking must ask the server for the
+    // transfer from the same airport the shown prices came from.
+    const fromCode = transferFrom;
     setTransfers({ loading: true });
     axiosInstance.post('/transfer-availability/search', {
-      fromType: 'IATA', fromCode: srch.destination,
+      fromType: 'IATA', fromCode,
       toType: 'ATLAS', toCode: String(booking.api?.hotel?.hotelCode || booking.hotelCode),
       outbound,
       ...(inbound ? { inbound } : {}),
       adults: Number(srch.adults) || pax, children: Number(srch.children) || 0, infants: 0,
     })
-      .then(({ data }) => setTransfers({ services: data?.results?.hotelbeds?.services || [], pickupISO: outbound, returnISO: inbound }))
-      .catch((e) => setTransfers({ error: friendlyReprice(e), pickupISO: outbound }));
+      .then(({ data }) => setTransfers({ services: data?.results?.hotelbeds?.services || [], pickupISO: outbound, returnISO: inbound, fromCode }))
+      .catch((e) => setTransfers({ error: friendlyReprice(e), pickupISO: outbound, fromCode }));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [step, wantsTransfer]);
 
@@ -2189,7 +2201,7 @@ function CheckoutContent({ stripe, elements }) {
         : null;
       const transferPayload = pickedTransfer
         ? {
-            fromType: 'IATA', fromCode: srch.destination,
+            fromType: 'IATA', fromCode: transfers?.fromCode || transferFrom,
             toType: 'ATLAS', toCode: String(api.hotel?.hotelCode || booking.hotelCode),
             // The EXACT datetime the shown price was fetched with — the rateKey encodes it
             // as the booked pickup time.
@@ -3208,7 +3220,7 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-bagkind-text">
                       <b>{t('checkout:transfer.airportTransfer', 'Airport transfer')}</b>
                       <span>
-                        {t('checkout:transfer.fromAirportTo', { destination: srch.destination, hotel: booking.hotelName, defaultValue: 'From {{destination}} airport to {{hotel}}' })}
+                        {t('checkout:transfer.fromAirportTo', { destination: transferFrom, hotel: booking.hotelName, defaultValue: 'From {{destination}} airport to {{hotel}}' })}
                         {transfers?.pickupISO && arrivalISO ? ` — ${t('checkout:transfer.pickupTimed', { time: transfers.pickupISO.slice(11, 16), defaultValue: 'pickup ~{{time}}, timed to your arrival' })}` : ''}
                       </span>
                       <span className="ck-kind-chips">
@@ -3241,7 +3253,7 @@ function CheckoutContent({ stripe, elements }) {
                               <em>{opt.lead.transferType === 'SHARED' ? t('checkout:transfer.shared', 'Shared') : t('checkout:transfer.private', 'Private')}</em>
                             </span>
                             <span className="ck-tr-sub">
-                              {opt.lead.pickup?.from || t('checkout:transfer.destinationAirport', { destination: srch.destination, defaultValue: '{{destination}} Airport' })} → {opt.lead.pickup?.to || booking.hotelName}
+                              {opt.lead.pickup?.from || t('checkout:transfer.destinationAirport', { destination: transferFrom, defaultValue: '{{destination}} Airport' })} → {opt.lead.pickup?.to || booking.hotelName}
                               {opt.lead.maxPax ? ` · ${t('checkout:transfer.upToPassengers', { count: opt.lead.maxPax, defaultValue: 'up to {{count}} passengers' })}` : ''}
                             </span>
                             {/* What the price buys, named leg by leg. A return that is not
@@ -3780,7 +3792,7 @@ function CheckoutContent({ stripe, elements }) {
                       </div>
                       <div className="ck-rv-row">
                         <span className="ck-rv-k">{t('checkout:review.route', 'Route')}</span>
-                        <span className="ck-rv-v">{`${pickedOption.lead.pickup?.from || srch.destination} → ${pickedOption.lead.pickup?.to || booking.hotelName}`}</span>
+                        <span className="ck-rv-v">{`${pickedOption.lead.pickup?.from || transferFrom} → ${pickedOption.lead.pickup?.to || booking.hotelName}`}</span>
                       </div>
                       <div className="ck-rv-row">
                         <span className="ck-rv-k">{t('checkout:review.direction', 'Direction')}</span>
@@ -4270,7 +4282,7 @@ function CheckoutContent({ stripe, elements }) {
                     <span className="ck-sum-total-label">{t('checkout:summary.total', 'Total')}</span>
                     <span className="ck-sum-total-sub">{t('checkout:summary.inclVatTaxes', 'incl. VAT & taxes')}</span>
                   </div>
-                  <span className="ck-sum-total-val hd">{ccy}{animTotal.toLocaleString('en-US')}</span>
+                  <span className="ck-sum-total-val hd">{ccy}{formatEuros(animTotal, PRICE_KIND.SELLING)}</span>
                 </div>
                 {/* What the hotel collects on arrival (UI-09): under the total, before the
                     payment, to the cent and never in the total, the deposit or the Stripe amount. */}
@@ -4294,7 +4306,7 @@ function CheckoutContent({ stripe, elements }) {
 
       {/* ═══ MOBILE STICKY BAR ═══ */}
       <div className="ck-mbar">
-        <div className="ck-mbar-price"><small>{t('checkout:transfer.total', 'total')}</small>{ccy}{animTotal.toLocaleString('en-US')}</div>
+        <div className="ck-mbar-price"><small>{t('checkout:transfer.total', 'total')}</small>{ccy}{formatEuros(animTotal, PRICE_KIND.SELLING)}</div>
         <button className="ck-mbar-btn" onClick={ctaAction} disabled={ctaBlocked}>
           {paying || (repriceBlocks && reprice.status === 'checking')
             ? <span className="ck-spin" />

@@ -4,7 +4,8 @@ import { useMyBookings } from '../../api';
 import i18n from '../../i18n';
 import styles from './MyBookings.module.css';
 
-const fmt = (n) => `€${Number(n || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// House format whatever the browser: €1.012,60.
+const fmt = (n) => `€${Number(n || 0).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 // Dates are read by the browser, so they need the reader's locale rather than a hard-coded en-GB.
 const dateLocale = () => (i18n.language === 'nl' ? 'nl-BE' : 'en-GB');
 const fmtShort = (d) => new Date(d).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' });

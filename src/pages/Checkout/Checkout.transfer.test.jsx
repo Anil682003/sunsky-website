@@ -51,10 +51,30 @@ const SERVICES = [
   { vehicle: 'Sedan', transferType: 'PRIVATE', price: 115, rateKey: 'TR-PRIVATE', vehicleCode: 'SD', maxPax: 3, pickup: { from: 'Antalya Airport', to: 'Test Hotel' } },
 ];
 
+// Istanbul: the destination's code is IST (Istanbul Airport), but AJet lands at Sabiha Gökçen
+// (SAW), 80 km away. 4 Nov 2026 a live booking was offered and sold a shuttle from IST. Over
+// €1.000 as well, so the totals show the thousands separator.
+const ISTANBUL = {
+  ...BOOKING,
+  hotelCode: '86556', hotelName: 'Ramada Old City', loc: 'Istanbul', ppPrice: 692,
+  flight: { outFrom: 'DUS', outTo: 'SAW', outDep: '13:10', outArr: '17:25', retFrom: 'SAW', retTo: 'DUS', retDep: '09:25', retArr: '11:55', airline: 'Ajet' },
+  search: { ...BOOKING.search, destination: 'IST', origin: 'DUS', checkin: '2027-06-06', checkout: '2027-06-12' },
+  api: {
+    hotel: { hotelCode: '86556', checkin: '2027-06-06', checkout: '2027-06-12', nights: 6, rateKey: 'R1', price: 1384, currency: '€' },
+    flight: {
+      from: 'DUS', to: 'SAW', depdate: '2027-06-06', retdate: '2027-06-12', price: 0, tripType: 'roundtrip',
+      legs: [
+        { from: 'DUS', to: 'SAW', departure: '2027-06-06T13:10:00', arrival: '2027-06-06T17:25:00', airline: 'VF', flightNumber: '26' },
+        { from: 'SAW', to: 'DUS', departure: '2027-06-12T09:25:00', arrival: '2027-06-12T11:55:00', airline: 'VF', flightNumber: '25' },
+      ],
+    },
+  },
+};
+
 const auth = createSlice({ name: 'auth', initialState: { isAuthenticated: false, user: null }, reducers: {} });
-const renderCheckout = () => render(
+const renderCheckout = (booking = BOOKING) => render(
   <Provider store={configureStore({ reducer: { auth: auth.reducer } })}>
-    <MemoryRouter initialEntries={[{ pathname: '/checkout', state: { booking: BOOKING } }]}>
+    <MemoryRouter initialEntries={[{ pathname: '/checkout', state: { booking } }]}>
       <Routes><Route path="/checkout" element={<Checkout />} /></Routes>
     </MemoryRouter>
   </Provider>
@@ -163,5 +183,36 @@ describe('the airport transfer, bought at the extras step', () => {
       // The driver has to know which plane to meet.
       flightNumber: '4521', companyName: 'TB',
     });
+  });
+});
+
+describe('a transfer from the airport the plane lands at', () => {
+  it('is searched and booked from SAW, not from the destination code IST', async () => {
+    const user = userEvent.setup();
+    renderCheckout(ISTANBUL);
+    await toExtras(user);
+    await waitFor(() => expect(transferCall()).toBeTruthy());
+    expect(transferCall()[1]).toMatchObject({ fromType: 'IATA', fromCode: 'SAW', toCode: '86556', outbound: '2027-06-06T17:25:00' });
+
+    await waitFor(() => expect(transferRows()).toHaveLength(3));
+    await user.click(screen.getByRole('button', { name: /sedan/i }));
+    await user.click(screen.getByRole('button', { name: /verder naar overzicht/i }));
+    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/overzicht/i));
+    await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
+    await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
+    await user.click(screen.getByRole('button', { name: /bancontact/i }));
+    acceptConditions();
+    await user.click(screen.getByRole('button', { name: /^betaal /i }));
+
+    await waitFor(() => expect(post.mock.calls.some(([url]) => String(url).includes('online-bookings'))).toBe(true));
+    const [, body] = post.mock.calls.find(([url]) => String(url).includes('online-bookings'));
+    // The server re-prices the transfer with these same params, so it must be SAW here too.
+    expect(body.transfer).toMatchObject({ fromType: 'IATA', fromCode: 'SAW', toCode: '86556', flightNumber: '26', companyName: 'VF' });
+  });
+
+  it('writes amounts the house way: €1.384, never the US €1,384', async () => {
+    renderCheckout(ISTANBUL);
+    await waitFor(() => expect(document.body.textContent).toMatch(/€1\.384/));
+    expect(document.body.textContent).not.toMatch(/€1,384/);
   });
 });
