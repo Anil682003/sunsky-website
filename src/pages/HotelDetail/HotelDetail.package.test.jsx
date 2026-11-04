@@ -172,9 +172,13 @@ describe('the strip of a Flight + Hotel package is the package matrix', () => {
     MATRIX.cells.push({ date: iso(33), state: 'NO_VALID_COMBINATION', flights: 2 });
     const { container } = renderPage();
     await priceDays();
+    // Seven columns always (Levent, 4 Nov 2026): a short list is topped up with "Not available"
+    // calendar days, so several columns are empty; every one is unpickable.
     const empty = container.querySelectorAll('.fc-col.fc-empty');
-    expect(empty).toHaveLength(1);
-    expect(empty[0].disabled).toBe(true);
+    expect(container.querySelectorAll('.fc-col')).toHaveLength(7);
+    expect(empty.length).toBeGreaterThanOrEqual(1);
+    for (const b of empty) expect(b.disabled).toBe(true);
+    expect(screen.getByRole('button', { name: /niet beschikbaar voor jouw selectie/i }).disabled).toBe(true);
   });
 
   it('Hotel only keeps the hotel calendar and never asks the matrix', async () => {
