@@ -3562,7 +3562,7 @@ export default function HotelDetail() {
           return;
         }
         setLiveFlights({ av, flights: [], from, checkin, checkout, probing: true, alternatives: null, unprobed: [], ...pkgInfo });
-        probeAlternatives(from, checkin, checkout, seq);
+        probeAlternatives(from, checkin, checkout, seq, { noFlightHere: true });
         return;
       }
       // Found flights — and the traveller still deserves to know what the airport an hour up
@@ -3599,7 +3599,7 @@ export default function HotelDetail() {
   // ── the smart fallback: price the popular alternatives in parallel ──
   // Bounded (3-4 calls), allSettled so one dead airport can't sink the rest, seq-guarded so
   // a probe for abandoned dates can never paint, and cached so applying a result is free.
-  const probeAlternatives = (from, checkin, checkout, seq) => {
+  const probeAlternatives = (from, checkin, checkout, seq, { noFlightHere = false } = {}) => {
     // The live registry, read at the moment of probing: once the dashboard's master list has
     // loaded, an airport the team deactivated is not asked about at all.
     // Only airports with a package to this hotel, when that is known (usePackageAirports).
@@ -3646,10 +3646,16 @@ export default function HotelDetail() {
       // `from` and seq checks are what stop a probe for abandoned dates from painting.
       // No airport named by the traveller: "No preference" means any airport that flies, so the
       // cheapest one that does is taken at once instead of a "no flight" dead end.
-      if (autoAirportRef.current && alternatives.length) {
+      // Airports the traveller ticked on Results (if any) still bound the choice: the cheapest
+      // of THOSE, never one they excluded.
+      const ticked = new Set(String(qp('origins') || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean));
+      const autoPick = alternatives.find((a) => !ticked.size || ticked.has(a.code));
+      // Only when THIS airport has no flight: an airport that flies (the package's own above all)
+      // is kept, and the probe only shows what the others would cost.
+      if (autoAirportRef.current && noFlightHere && autoPick) {
         autoAirportRef.current = false;
-        setOvr((p) => ({ ...p, origin: alternatives[0].code }));
-        fetchFlights(checkin, checkout, alternatives[0].code);
+        setOvr((p) => ({ ...p, origin: autoPick.code }));
+        fetchFlights(checkin, checkout, autoPick.code);
         return;
       }
       setLiveFlights((prev) => (
@@ -3858,7 +3864,11 @@ export default function HotelDetail() {
       const ownPkg = packageApplies(pkgOffer, checkin, checkout) ? pkgOffer : null;
       const dayFrom = ovr.originPicked ? null : (ownPkg?.from || pickedEntry?.from || matrixByDate[checkin]?.from || null);
       if (dayFrom && dayFrom !== origin) setOvr((p) => ({ ...p, origin: dayFrom }));
-      autoAirportRef.current = !ovr.originPicked && !ownPkg;
+      // No airport named by the traveller: whatever airport this day started from (its package's
+      // own included), if it has no flight live, the cheapest airport that does is taken. Levent,
+      // 5 Nov 2026: Best Nobel 23 Nov, package from CRL, CRL had no flight live and the page
+      // stopped at "no flights from Charleroi" while DUS flew at €112.
+      autoAirportRef.current = !ovr.originPicked;
       fetchFlights(checkin, checkout, dayFrom);
     }
   };
