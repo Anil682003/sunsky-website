@@ -3263,7 +3263,11 @@ export default function HotelDetail() {
   // no available rooms isn't a bookable holiday at all. So both sections hold on the loading
   // skeleton until BOTH results are in. Flights are only awaited for a package search; on
   // own-transport there is no flight leg to wait for.
-  const liveBusy = (transport === 'package' && flightsChecking) || roomsChecking;
+  // A package whose airport had no flight while the other airports are still being asked: there
+  // is no package price yet. The room alone was shown meanwhile as the live price (€43 p.p.
+  // "€172 lower", Best Nobel 25 Nov, CRL → CGN, Levent 5 Nov 2026), until CGN came in at €149.
+  const probingNoFlight = transport === 'package' && !!liveFlights?.probing && !(liveFlights?.flights || []).length;
+  const liveBusy = (transport === 'package' && (flightsChecking || probingNoFlight)) || roomsChecking;
 
   // Hotel + flight only. The airport transfer is priced and added at the checkout now, so
   // this page never quotes a total that includes something it does not sell.
@@ -3276,7 +3280,7 @@ export default function HotelDetail() {
   // And no flight at all is no package: the room alone was shown as "flight + hotel" on a day
   // with no flight (€213 p.p. against €450, Eftalia Ocean 24 Nov, 25 Oct 2026).
   const packageNoFlight = transport === 'package' && liveChecked && !flightsChecking && !liveFlights?.probing && !flightBlocked && !liveFlight;
-  const liveTotal = liveRoom && !flightBlocked && !packageNoFlight && !(transport === 'package' && flightsChecking)
+  const liveTotal = liveRoom && !flightBlocked && !packageNoFlight && !(transport === 'package' && (flightsChecking || probingNoFlight))
     ? roundStayTotal(liveRoom.price || 0, liveFlight?.totalPrice || 0, roomsCount)
     : null;
   const displayTotal = liveTotal != null ? liveTotal : stayFrom;
@@ -4552,6 +4556,11 @@ export default function HotelDetail() {
                       // own per-person basis — never the party total, which would look like a
                       // sudden jump the size of the party rather than a price change.
                       const liveHere = isLiveOk && nowPP != null;
+                      // The checked day names the airport its live flight is FROM (the cache's
+                      // airport can have no flight and be replaced: CRL on the tile, CGN flown,
+                      // Levent 5 Nov 2026). Shown whenever it differs from the cache's.
+                      const cellFrom = liveHere && liveFlights?.from && (liveFlights.flights || []).length ? liveFlights.from : p.from;
+                      const showCellFrom = !!cellFrom && (showFrom || cellFrom !== p.from);
                       return (
                         // Keyed by POSITION, not by date. Reusing the same node for slot i is what
                         // makes a one-day step read as motion: each bar animates to its
@@ -4574,7 +4583,7 @@ export default function HotelDetail() {
                             // The departure airport is rendered as a bare code in the column;
                             // aria-label replaces the button's inner text, so without this a
                             // screen reader would never learn that this date leaves elsewhere.
-                            + (showFrom ? t('prices.dayFromAirport', { code: p.from, defaultValue: `, departing from ${p.from}` }) : '')}>
+                            + (showCellFrom ? t('prices.dayFromAirport', { code: cellFrom, defaultValue: `, departing from ${cellFrom}` }) : '')}>
                           <span className="fc-barzone">
                             {/* Only one flag fits above a bar. Once a day has been checked, how
                                 its price MOVED is newer and more useful than whether it was the
@@ -4644,7 +4653,7 @@ export default function HotelDetail() {
                           <span className="fc-under" key={p.iso}>
                             <span className="fc-wk">{(p.day || '').substring(0, 3)}</span>
                             <span className="fc-date">{p.date}</span>
-                            {showFrom && <span className="fc-from">{p.from}</span>}
+                            {showCellFrom && <span className="fc-from">{cellFrom}</span>}
                             <span className="fc-dot" aria-hidden="true" />
                           </span>
                           <span className="fc-tail" aria-hidden="true" />
