@@ -169,18 +169,23 @@ function transformFlights(data, originCode) {
     })
     .filter(Boolean);
 
-  // Fallback for a supplier that returns separate one-way flights (no per-flight
-  // outbound/inbound): pair each outbound with each inbound by origin airport.
-  if (!flights.some((f) => f.retLegs.length)) {
+  // Separate one-way flights (no per-flight outbound/inbound): pair each outbound with each
+  // inbound by origin airport. Always, not only when NO fare is a round trip: Airtuerk mixes
+  // round-trip fares with one-way ones (AJet) in one answer, and the lone AJet outbound stayed
+  // in the list as a "flight" without a return. It was sold and booked one-way: booking 334,
+  // DUS→SAW on 1 Sep 2027, stay to 4 Sep, no return flight (5 Nov 2026). This page sells
+  // packages, so a flight with no return is never offered.
+  if (flights.some((f) => !f.retLegs.length)) {
     const outs = [], ins = [];
     raw.forEach((f) => {
+      if (f.outbound?.legs?.length && f.inbound?.legs?.length) return; // already a round trip
       const legs = f.legs || [];
       if (!legs.length) return;
-      if ((legs[0].from || '').toUpperCase() === home) outs.push(f);
+      if ((legs[0].from || '').toUpperCase() === home && (legs[legs.length - 1].to || '').toUpperCase() !== home) outs.push(f);
       else if ((legs[legs.length - 1].to || '').toUpperCase() === home) ins.push(f);
     });
+    flights = flights.filter((f) => f.retLegs.length);
     if (outs.length && ins.length) {
-      flights = [];
       for (const ob of outs) for (const ib of ins) {
         // Same rule as above, applied to the pairing: two halves that do not add up to a real
         // fare are not a round trip anybody can buy. NaN (one half unpriced) fails this too.
@@ -192,6 +197,9 @@ function transformFlights(data, originCode) {
           stops: Math.max((ob.legs || []).length - 1, (ib.legs || []).length - 1, 0),
           fareBreakdown: [...(ob.fareBreakdown || []), ...(ib.fareBreakdown || [])],
           flightKeys: [...keysOf(ob), ...keysOf(ib)],
+          // Two one-way tickets: priced and booked key by key (TripType 1), shown as a round trip.
+          oneWayPair: true,
+          baggage: ob.baggage && ib.baggage && JSON.stringify(ob.baggage) === JSON.stringify(ib.baggage) ? ob.baggage : null,
         });
       }
     }
@@ -4074,6 +4082,9 @@ export default function HotelDetail() {
                   // survives both legs.
                   baggage: liveFlight.baggage || null,
                   tripType: retLg.length ? 'roundtrip' : 'oneway', supplier: 'airtuerk',
+                  // Two one-way tickets paired into a round trip (transformFlights): the server
+                  // prices and books them key by key.
+                  oneWayPair: !!liveFlight.oneWayPair,
                 }
               : null,
             // The airport transfer is added by the checkout's extras step (it fetches

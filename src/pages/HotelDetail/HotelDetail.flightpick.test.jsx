@@ -573,16 +573,16 @@ describe('the cheapest-flight card the page leads with', () => {
       .toMatch(/vluchtdetails bekijken/i);
   });
 
-  // Half a card of white space is not a design, it is a missing column.
-  it('gives a one-way the whole width instead of an empty second column', async () => {
+  // A package needs a way back. A lone outbound was offered, sold and booked one-way
+  // (booking 334: DUS→SAW 1 Sep 2027, stay to 4 Sep, no return flight, 5 Nov 2026).
+  it('never offers a flight without a return on a package', async () => {
     FLIGHTS = [{ ...fare(1112, OUT_1740, 'one-way'), inbound: { legs: [] } }];
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
-    await waitFor(() => expect(pageCard(container)).not.toBeNull());
+    await new Promise((r) => setTimeout(r, 300));
 
-    expect(pageCard(container).querySelectorAll('.fc-leg')).toHaveLength(1);
-    expect(pageCard(container).querySelector('.fc-legs').className).toContain('fc-legs-one');
+    expect(pageCard(container)).toBeNull();
   });
 
   // An allowance the supplier never stated earns no chip — an empty pill would be a claim.
