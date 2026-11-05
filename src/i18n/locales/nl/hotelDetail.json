@@ -563,6 +563,7 @@
     "noBoardRate": "Geen tarief met {{board}} in dit hotel voor deze data.",
     "noLiveRooms": "Geen live kamers gevonden voor deze data.",
     "nonRefundable": "Niet-terugbetaalbaar",
+    "cancellationFee": "Annuleringskosten van toepassing",
     "packageRate": "Pakkettarief",
     "pickDatePrompt": "Kies hierboven een vertrekdatum en controleer de beschikbaarheid om de echte kamers en verzorgingsopties van dit hotel te zien.",
     "priceUnknown": "Dit hotel heeft kamers voor je data, maar er kwam geen prijs terug. Probeer de controle opnieuw.",

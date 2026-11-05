@@ -4052,6 +4052,10 @@ export default function HotelDetail() {
               refundable: useLive ? (liveRoom.refundable ?? null) : null,
               cancellation: useLive ? (liveRoom.cancellation || []) : [],
               room: roomName, supplier: useLive ? (liveRoom.supplier || 'hotelbeds') : 'hotelbeds',
+              // For the admin's booking screens (Itinerary): the board booked and where the hotel is.
+              board: board || null,
+              city: info?.cityName || info?.city || null,
+              location: hotel?.loc || null,
               // identifiers the supplier reservation needs (from the live availability response)
               rateKey: useLive ? (liveRoom.rateKey || null) : null,
               roomCode: useLive ? (liveRoom.roomCode || null) : null,
@@ -5252,9 +5256,11 @@ export default function HotelDetail() {
 
                           {g.boards.map((b) => {
                             const d = rateInfo.get(b.index);
-                            const nonRefundable =
-                              d?.cancel.kind === 'none'
-                              || (d?.cancel.kind === 'unknown' && d?.nonRefundable === true);
+                            // Non-refundable: the supplier says so (W2M NonRefundable, Hotelbeds NRF),
+                            // or the full charge already applies today. rateDetails decides it.
+                            const nonRefundable = d?.cancel.kind === 'none' || d?.nonRefundable === true;
+                            // Not non-refundable, but cancelling already costs part of the price today.
+                            const feeNow = !nonRefundable && d?.cancel.kind === 'partial';
                             // A rate the supplier returned WITHOUT a price (PRICE_UNKNOWN). It is
                             // there, so it is listed, but it is not an offer: no radio to tick, no
                             // click, no figure of any kind, just "Check price" where the price
@@ -5271,6 +5277,9 @@ export default function HotelDetail() {
                                   <div className="room-terms">
                                     {nonRefundable && (
                                       <span className="rchip rchip-nr">{ICON.lock} {t('rooms.nonRefundable', 'Non-refundable')}</span>
+                                    )}
+                                    {feeNow && (
+                                      <span className="rchip rchip-nr">{ICON.lock} {t('rooms.cancellationFee', 'Cancellation fee applies')}</span>
                                     )}
                                     {d?.packageRate && <span className="rchip rchip-mute">{t('rooms.packageRate', 'Package rate')}</span>}
                                   </div>
@@ -5314,6 +5323,9 @@ export default function HotelDetail() {
                                 <div className="room-terms">
                                   {nonRefundable && (
                                     <span className="rchip rchip-nr">{ICON.lock} {t('rooms.nonRefundable', 'Non-refundable')}</span>
+                                  )}
+                                  {feeNow && (
+                                    <span className="rchip rchip-nr">{ICON.lock} {t('rooms.cancellationFee', 'Cancellation fee applies')}</span>
                                   )}
                                   {d?.packageRate && <span className="rchip rchip-mute">{t('rooms.packageRate', 'Package rate')}</span>}
                                 </div>
