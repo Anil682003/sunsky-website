@@ -218,7 +218,11 @@ export function rateDetails(rate, ctx = {}) {
   const cancel = cancellationState(rate?.cancellation, price, ctx.now);
   // The rateKey's NRF flag and the policy dates should agree; when they don't, believe the
   // dates — they are what the supplier will actually enforce.
-  const nonRefundable = cancel.kind === 'none' ? true
+  // The supplier's OWN flag beats both: W2M sends NonRefundable="true" (carried as
+  // refundable:false) on rates whose policy dates can still read as free, and booking 334's W2M
+  // rate was offered with no label at all and then refused at booking (5 Nov 2026).
+  const nonRefundable = rate?.refundable === false ? true
+    : cancel.kind === 'none' ? true
     : cancel.kind === 'free' ? false
     : key.nonRefundable;
 

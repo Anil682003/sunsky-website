@@ -296,6 +296,8 @@ const TERMS_CONSENT = {
  */
 const isNonRefundableStay = (hotel) => {
   if (!hotel) return false;
+  // The supplier's own flag (W2M NonRefundable="true", carried as refundable:false) decides first.
+  if (hotel.refundable === false) return true;
   const price = Number(hotel.price) || null;
   const state = cancellationState(hotel.cancellation || [], price);
   if (state.kind === 'none') return true;
@@ -1166,6 +1168,7 @@ function CheckoutContent({ stripe, elements }) {
     ...booking.api.hotel,
     rateKey: quote.rateKey ?? booking.api.hotel.rateKey,
     cancellation: quote.cancellation ?? booking.api.hotel.cancellation,
+    refundable: quote.refundable ?? booking.api.hotel.refundable,
     price: quote.hotel || booking.api.hotel.price,
   });
 

@@ -563,6 +563,7 @@
     "noBoardRate": "No {{board}} rate at this hotel for these dates.",
     "noLiveRooms": "No live rooms found for these dates.",
     "nonRefundable": "Non-refundable",
+    "cancellationFee": "Cancellation fee applies",
     "packageRate": "Package rate",
     "pickDatePrompt": "Pick a departure date above and check availability to see this hotel’s real rooms and board options.",
     "priceUnknown": "This hotel has rooms for your dates, but no price came back. Try the check again.",

@@ -174,3 +174,14 @@ describe('rateDetails', () => {
     expect(Number.isFinite(d.perNight)).toBe(true);
   });
 });
+
+describe("the supplier's own non-refundable flag", () => {
+  // W2M sends NonRefundable="true" (refundable:false) while its policy dates can still read as
+  // free: booking 334's rate was offered without a label and refused at booking (5 Nov 2026).
+  it('labels a rate the supplier calls non-refundable, whatever the policy dates say', () => {
+    const later = [{ amount: '50', from: '2099-01-01T00:00:00' }];
+    expect(rateDetails({ price: 400, refundable: false, cancellation: later }, {}).nonRefundable).toBe(true);
+    expect(rateDetails({ price: 400, refundable: false, cancellation: [] }, {}).nonRefundable).toBe(true);
+    expect(rateDetails({ price: 400, refundable: true, cancellation: later }, {}).nonRefundable).toBe(false);
+  });
+});
