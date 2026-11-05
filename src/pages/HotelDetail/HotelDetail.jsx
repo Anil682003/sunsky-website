@@ -12,7 +12,7 @@ import { ENDPOINTS } from '../../api/endpoints';
 import { DEFAULT_PRICING, computeDeposit } from '../../utils/checkoutPricing';
 import { rememberDestCode } from '../../utils/favDest';
 import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/priceRounding';
-import { localCostOfRate } from '../../utils/localCosts';
+import { localCostOfRate, localCost } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
@@ -2975,7 +2975,22 @@ export default function HotelDetail() {
   const liveRoom = (liveRooms?.rooms?.length && liveIndex != null) ? liveRooms.rooms[liveIndex] : null;
   // The mandatory local costs of THAT rate (UI-09). Live data only, so nothing before the check;
   // they move with the traveller's room choice and travel to the checkout with it.
-  const liveLocalCost = liveRoom?.localCost || null;
+  // Hotelbeds states the tax payable at the hotel only in its rate check (CheckRate), not in
+  // availability: the selected Hotelbeds room is checked once (by rateKey) and its amount shown
+  // (Rome 17813: €42 payable on arrival, 5 Nov 2026). Never added to any price.
+  const [checkedLocalCosts, setCheckedLocalCosts] = useState({});
+  const selRateKey = liveRoom && String(liveRoom.supplier || 'hotelbeds').toLowerCase() === 'hotelbeds' ? liveRoom.rateKey : null;
+  useEffect(() => {
+    if (!selRateKey || liveRoom?.localCost || selRateKey in checkedLocalCosts) return;
+    let alive = true;
+    setCheckedLocalCosts((m) => ({ ...m, [selRateKey]: null }));
+    axiosInstance.post('/hotel-availability/checkrate', { rateKey: selRateKey }, { timeout: SUPPLIER_TIMEOUT })
+      .then(({ data }) => { if (alive) setCheckedLocalCosts((m) => ({ ...m, [selRateKey]: localCost(data?.localCosts) })); })
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selRateKey]);
+  const liveLocalCost = liveRoom?.localCost || (selRateKey ? checkedLocalCosts[selRateKey] : null) || null;
   // The board of THAT rate, named exactly as the room rows name it — the availability recap
   // has to move with the traveller's choice, so picking half board over the cheapest all-in
   // rate changes the price and the board type together. Derived straight from the selected

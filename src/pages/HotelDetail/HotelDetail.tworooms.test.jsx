@@ -103,7 +103,7 @@ describe('two rooms always share one board (Ch2 §5)', () => {
     const user = userEvent.setup();
     renderPage();
     await checkFirstDay(user);
-    const asked = post.mock.calls.filter(([u]) => String(u).includes('hotel-availability'));
+    const asked = post.mock.calls.filter(([u]) => String(u).includes('hotel-availability/search'));
     expect(asked).toHaveLength(1);
     expect(asked[0][1]).toMatchObject({ adults: 4, rooms: 2 });
   });

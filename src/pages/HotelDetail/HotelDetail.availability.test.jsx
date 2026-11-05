@@ -127,7 +127,7 @@ const runCheck = async (user, dayIndex = 0) => {
   await waitFor(() => expect(post).toHaveBeenCalled());
 };
 
-const hotelCalls = () => post.mock.calls.filter((c) => String(c[0]).includes('hotel-availability')).length;
+const hotelCalls = () => post.mock.calls.filter((c) => String(c[0]).includes('hotel-availability/search')).length;
 /** The grey "not available" card that only a CONFIRMED empty answer is allowed to produce. */
 const soldOutCard = () => document.querySelector('.fc-pop-unavail');
 
