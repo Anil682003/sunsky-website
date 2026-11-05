@@ -4056,6 +4056,7 @@ export default function HotelDetail() {
               board: board || null,
               city: info?.cityName || info?.city || null,
               location: hotel?.loc || null,
+              stars: Number(stars) > 0 ? Math.min(Number(stars), 5) : null,
               // identifiers the supplier reservation needs (from the live availability response)
               rateKey: useLive ? (liveRoom.rateKey || null) : null,
               roomCode: useLive ? (liveRoom.roomCode || null) : null,
