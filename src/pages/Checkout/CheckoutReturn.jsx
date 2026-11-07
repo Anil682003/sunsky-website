@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/axiosInstance';
+import { bookingTokenFor } from '../../services/bookingAccess';
 import { trackPurchase, readPurchaseContext, clearPurchaseContext } from '../../analytics';
 import { clearDraft } from '../../utils/checkoutDraft';
 
@@ -44,6 +45,18 @@ export default function CheckoutReturn() {
       }
       if (redirectStatus === 'failed') {
         setState({ status: 'error', message: t('checkout:return.notCompleted', 'The payment was not completed. You have not been charged.'), booking: null });
+        return;
+      }
+
+      // The booking opens only for its signed-in owner or with its access token, which the
+      // checkout kept in this browser (services/bookingAccess). Without either (the bank sent
+      // the customer back into a different browser), we cannot finalise from here, but the
+      // payment is not lost: the Stripe webhook records it and the confirmation follows by
+      // email. Say that, rather than show an error for a payment that went through.
+      let signedIn = false;
+      try { signedIn = Boolean(window.localStorage.getItem('accessToken')); } catch { /* blocked storage */ }
+      if (!bookingTokenFor(bookingId) && !signedIn) {
+        setState({ status: 'pending', message: t('checkout:return.processing', 'Your payment is being processed. We will email your confirmation as soon as it clears.'), booking: null });
         return;
       }
 

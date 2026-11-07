@@ -1,5 +1,6 @@
 import axios from 'axios';
 import { BASE_URL } from '../utils/ip';
+import { bookingTokenHeaders } from './bookingAccess';
 
 const axiosInstance = axios.create({
   baseURL: import.meta.env.VITE_API_URL || BASE_URL,
@@ -23,6 +24,8 @@ export const SUPPLIER_TIMEOUT = 25000;
 axiosInstance.interceptors.request.use((config) => {
   const token = localStorage.getItem('accessToken');
   if (token) config.headers.Authorization = `Bearer ${token}`;
+  // A guest's online booking: its access token (services/bookingAccess.js).
+  for (const [k, v] of Object.entries(bookingTokenHeaders(config.url))) config.headers[k] = v;
   return config;
 });
 

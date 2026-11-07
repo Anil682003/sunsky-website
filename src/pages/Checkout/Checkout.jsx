@@ -10,6 +10,7 @@ import { useTranslation, Trans } from 'react-i18next';
 import { loadStripe } from '@stripe/stripe-js';
 import { Elements, CardNumberElement, CardExpiryElement, CardCvcElement, useStripe, useElements } from '@stripe/react-stripe-js';
 import axiosInstance from '../../services/axiosInstance';
+import { rememberBookingToken } from '../../services/bookingAccess';
 import { ENDPOINTS } from '../../api/endpoints';
 import { ageAtCheckIn } from '../../utils/childDob';
 import { cancellationState, parseRateKey, boardInfo } from '../../utils/rateDetails';
@@ -2322,6 +2323,8 @@ function CheckoutContent({ stripe, elements }) {
       const created = createRes.data?.data || createRes.data || {};
       const bookingId = created.bookingId;
       const ref = created.bookingReference;
+      // This booking's key: every later call for it carries the token (services/bookingAccess).
+      rememberBookingToken(bookingId, created.accessToken);
       setErrorContext({ ref });
       if (!bookingId) throw new Error(t('checkout:errors.bookingNotCreated', 'Booking could not be created'));
 
