@@ -29,6 +29,37 @@ const AIRPORTS = {
   // Italy / Portugal / Croatia
   NAP: 'Naples', CTA: 'Catania', PMO: 'Palermo', OLB: 'Olbia', CAG: 'Cagliari',
   LIS: 'Lisbon', OPO: 'Porto', DBV: 'Dubrovnik', SPU: 'Split',
+  // Every other airport in the Airtuerk fare feed (route-coverage, Nov 2026), plus the hubs
+  // connections run through, so no city on a flight card shows as a bare code.
+  // Spain / Portugal + islands
+  MAD: 'Madrid', SVQ: 'Seville', BIO: 'Bilbao', XRY: 'Jerez', LEI: 'Almería',
+  FNC: 'Madeira', PDL: 'Ponta Delgada', TER: 'Terceira',
+  // Italy / Malta
+  FCO: 'Rome', MXP: 'Milan Malpensa', LIN: 'Milan Linate', VCE: 'Venice', VRN: 'Verona',
+  BLQ: 'Bologna', FLR: 'Florence', PSA: 'Pisa', BRI: 'Bari', BDS: 'Brindisi',
+  SUF: 'Lamezia Terme', QSR: 'Salerno', MLA: 'Malta',
+  // Greece / Cyprus
+  JSI: 'Skiathos', KLX: 'Kalamata', MJT: 'Lesbos', SMI: 'Samos', AOK: 'Karpathos', PAS: 'Paros',
+  ECN: 'Ercan · North Cyprus',
+  // Balkans / Bulgaria
+  ZAG: 'Zagreb', ZAD: 'Zadar', PUY: 'Pula', RJK: 'Rijeka', TGD: 'Podgorica', TIV: 'Tivat',
+  BOJ: 'Burgas', VAR: 'Varna',
+  // France / Corsica
+  CDG: 'Paris', ORY: 'Paris Orly', LIL: 'Lille', MRS: 'Marseille', NCE: 'Nice', BIA: 'Bastia',
+  // Rest of Europe
+  OST: 'Ostend', DTM: 'Dortmund', PAD: 'Paderborn', FMO: 'Münster', BRE: 'Bremen', MUC: 'Munich',
+  ZRH: 'Zurich', GVA: 'Geneva', VIE: 'Vienna', PRG: 'Prague', BUD: 'Budapest', KRK: 'Kraków',
+  WAW: 'Warsaw', CPH: 'Copenhagen', ARN: 'Stockholm', HEL: 'Helsinki', TLL: 'Tallinn',
+  DUB: 'Dublin', LHR: 'London Heathrow', LGW: 'London Gatwick',
+  // Middle East / Africa / Indian Ocean
+  DXB: 'Dubai', DWC: 'Dubai World Central', AUH: 'Abu Dhabi', SHJ: 'Sharjah', DOH: 'Doha',
+  CMN: 'Casablanca', BVC: 'Boa Vista', SID: 'Sal', ZNZ: 'Zanzibar', MRU: 'Mauritius',
+  SEZ: 'Seychelles', MLE: 'Maldives',
+  // Asia
+  BKK: 'Bangkok', HKT: 'Phuket', USM: 'Koh Samui', DPS: 'Bali',
+  // Caribbean / Mexico
+  SDQ: 'Santo Domingo', PUJ: 'Punta Cana', POP: 'Puerto Plata', CUN: 'Cancún', HAV: 'Havana',
+  MBJ: 'Montego Bay', CUR: 'Curaçao', AUA: 'Aruba', BGI: 'Barbados', SXM: 'Sint Maarten',
 };
 
 const AIRLINES = {
