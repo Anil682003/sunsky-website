@@ -112,6 +112,12 @@ export default function HolidayType() {
      the category is `entry`, which the server applies where the traveller has not chosen; the
      type's own id would be a `themes=` filter, and for these two that matches no hotel. */
   const door = entryOf(slug);
+  /* A theme with a feature rule and no places of its own (Family, Aquapark, Adults Only…): the
+     rule IS the theme, so like a door it lists every country and searches everywhere by the rule.
+     Its `themes=` id is left off: with no places linked it matches no hotel. */
+  const scopeEmpty = !!scope && !(scope.destinations?.length || scope.zones?.length || scope.hotelCodes?.length);
+  const ruleOnly = !door && !!rule?.criteria?.length && !!data && !countries.length && scopeEmpty;
+  const typeFilterId = ruleOnly ? null : holidayTypeId;
 
   // One shape for both sources so the grid below renders them identically.
   const items = useMemo(() => {
@@ -135,7 +141,7 @@ export default function HolidayType() {
           imageUrl: d.type === 'country'
             ? parent?.imageUrl || null
             : cityImages.get(String(d.code).trim().toUpperCase()) || null,
-          href: withThemeRule(destUrl(d, holidayTypeId, slug, cardRange), rule),
+          href: withThemeRule(destUrl(d, typeFilterId, slug, cardRange), rule),
           title: destLabel(d),
           dest: d,
         };
@@ -143,7 +149,7 @@ export default function HolidayType() {
     }
     // No CMS selection — fall back to the countries linked in the dashboard, or, for a door
     // that has none by design, to every active country.
-    const grid = countries.length ? countries : (door ? (allCountries ?? []) : []);
+    const grid = countries.length ? countries : ((door || ruleOnly) ? (allCountries ?? []) : []);
     return grid.map((c) => {
       const cName = countryName(c.isoCode, i18n.language, c.name);
       // The results page matches Country.code (the Hotelbeds code), NOT the ISO
@@ -158,18 +164,18 @@ export default function HolidayType() {
         // Built by the same rule as every other card on the site, rather than a second copy of
         // it here: that is what carries the type as a filter where the catalogue can answer one
         // and as a door where it cannot, and opens Flight + Hotel like the homepage.
-        href: withThemeRule(destUrl(dest, holidayTypeId, slug, cardRange), rule),
+        href: withThemeRule(destUrl(dest, typeFilterId, slug, cardRange), rule),
         title: cName,
         dest,
       };
     });
     // `cardRange` belongs here: the homepage config is a second request, so without it the
     // links would be built before the card's window is known and never rebuilt once it lands.
-  }, [cmsDests, countries, door, allCountries, countryLookup, cityImages, t, i18n.language, holidayTypeId, slug, cardRange, rule]);
+  }, [cmsDests, countries, door, allCountries, countryLookup, cityImages, t, i18n.language, typeFilterId, ruleOnly, slug, cardRange, rule]);
 
   /* A door's grid is the active countries, which is a second request. Until it lands the page is
      still loading: without this the empty state shows first and then swaps to a full grid. */
-  const gridPending = !countries.length && door != null && !Array.isArray(allCountries);
+  const gridPending = !countries.length && (door != null || ruleOnly) && !Array.isArray(allCountries);
   const busy = loading || gridPending;
 
   // "Show all": every stay of this category in one search (UI-19, Ch1 §12B.1, §12B.4).
@@ -191,7 +197,10 @@ export default function HolidayType() {
     // A door (Last Minute, All Inclusive) has no places of its own and searches everywhere.
     resolvedEmpty: !door && !!scope && !(scope.destinations?.length || scope.zones?.length || scope.hotelCodes?.length),
   });
-  const showAllHref = withThemeRule(scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug }), rule);
+  // A rule-only theme searches everywhere by its rule (no place, no `holidayType=` scope).
+  const showAllHref = ruleOnly
+    ? withThemeRule(`/results?${new URLSearchParams({ destinationLabel: typeName, transport: 'package' })}`, rule)
+    : withThemeRule(scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug }), rule);
 
   return (
     <div className={styles.page}>

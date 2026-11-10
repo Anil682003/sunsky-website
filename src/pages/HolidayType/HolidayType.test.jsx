@@ -230,6 +230,34 @@ describe('HolidayType cards: a place, with the category still applied', () => {
     expect(screen.getByText('Nog geen bestemmingen')).toBeInTheDocument();
   });
 
+  it('a theme with a feature rule and no places lists every country, searched by the rule', () => {
+    // Family (Levent 10 Nov): no countries linked; the rule set in GeoData → Holiday Types is the theme.
+    const search = { criteria: [{ filterKey: 'kids', value: 340 }, { filterKey: 'kids', value: 385 }], match: 'any', excludeAdultsOnly: true };
+    typeData = { holidayType: { id: 11, name: 'Familievakanties', slug: 'familievakanties', search }, countries: [] };
+    scopeData = { destinations: [], zones: [], hotelCodes: [] };
+    allCountries = [{ id: 1, code: 'ES', isoCode: 'ES', name: 'Spanje' }, { id: 2, code: 'TR', isoCode: 'TR', name: 'Turkije' }];
+    renderPage('familievakanties');
+    expect(cards().map((b) => b.querySelector('h3').textContent)).toEqual(['Spanje', 'Turkije']);
+    fireEvent.click(cardNamed('Turkije'));
+    expect(went().get('countries')).toBe('TR');
+    expect(went().get('any')).toBe('kids:340;kids:385');
+    expect(went().get('excludeAdultsOnly')).toBe('1');
+    expect(went().get('themes')).toBeNull();
+    const all = query(showAll());
+    expect(all.get('any')).toBe('kids:340;kids:385');
+    expect(all.get('holidayType')).toBeNull();
+    expect(all.get('countries')).toBeNull();
+  });
+
+  it('a type with places and a rule keeps its places and adds the rule', () => {
+    typeData.holidayType.search = { criteria: [{ filterKey: 'segments', value: 81 }], match: 'all' };
+    renderPage();
+    fireEvent.click(cardNamed('Turkije'));
+    expect(went().get('countries')).toBe('TR');
+    expect(went().get('themes')).toBe('1');
+    expect(went().get('segments')).toBe('81');
+  });
+
   it("a door's card carries the door, never a themes filter that matches no hotel", () => {
     typeData = { holidayType: { id: 13, name: 'All Inclusive', slug: 'all-inclusive' }, countries: [] };
     allCountries = [{ id: 1, code: 'ES', isoCode: 'ES', name: 'Spanje' }];
