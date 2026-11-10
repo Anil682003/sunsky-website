@@ -2,6 +2,8 @@ import { Link } from 'react-router-dom';
 import styles from './VacationTypes.module.css';
 import SectionHead from './SectionHead';
 import { useTranslation } from 'react-i18next';
+import { useHolidayTypes } from '../../../api';
+import { ruleParams } from '../../../utils/themeRule';
 import {
   Sun, Flower2,
   Star, Moon, Umbrella, Waves, Droplets, Wifi, Utensils, UtensilsCrossed,
@@ -56,24 +58,16 @@ const uniqueCriteria = (criteria) => {
   });
 };
 
-const criteriaUrl = (criteria, cardTitle) => {
-  const byKey = new Map();
-  for (const c of criteria) {
-    const key = String(c?.filterKey || '').trim();
-    if (!key) continue;
-    // adultsOnly is the one boolean dimension; the results page reads it as `?adultsOnly=1`.
-    if (key === 'adultsOnly') { if (c.value) byKey.set(key, new Set(['1'])); continue; }
-    const value = String(c?.value ?? '').trim();
-    if (!value) continue;
-    if (!byKey.has(key)) byKey.set(key, new Set());
-    byKey.get(key).add(value);
-  }
+// `match: 'any'` (set on the card in the dashboard): the hotel needs only ONE of the content
+// criteria, sent as `any=key:value;key:value`. Board stays a normal AND filter — it is matched on
+// the priced rate, not the hotel record. `excludeAdultsOnly` drops Adults Only hotels.
+export const criteriaUrl = (criteria, cardTitle, { match, excludeAdultsOnly } = {}) => {
+  const params = ruleParams(criteria, { match, excludeAdultsOnly });
   // Nothing usable in the list — leave the card non-clickable rather than ship a button that
   // lands on an unfiltered search while claiming to be a vacation type.
-  if (!byKey.size) return null;
+  if (!params.length) return null;
 
-  const qs = new URLSearchParams();
-  for (const [key, values] of byKey) qs.set(key, [...values].join(','));
+  const qs = new URLSearchParams(params);
   // Results names what was applied from these two; without them it can only fall back to the
   // facet catalogue, which is not loaded yet on first paint.
   if (cardTitle) qs.set('cardLabel', cardTitle);
@@ -138,8 +132,20 @@ const chipMark = (chip) => {
 // its badge when it says something the title does not.
 const sameWords = (a, b) => String(a ?? '').trim().toLowerCase() === String(b ?? '').trim().toLowerCase();
 
+// A card linked to a Holiday Type searches with that type's features (set in the dashboard under
+// GeoData → Holiday Types), so the theme matches the same hotels here and on the Holiday Types
+// page. A type without features, or a card without a type, keeps the card's own search.
+export const cardSearch = (card, holidayTypes) => {
+  if (card?.holidayTypeId != null && Array.isArray(holidayTypes)) {
+    const type = holidayTypes.find((t) => String(t?.id) === String(card.holidayTypeId));
+    if (type?.search?.criteria?.length) return { ...type.search, showFacts: card.search?.showFacts };
+  }
+  return card?.search;
+};
+
 export default function VacationTypes({ cms }) {
   const { t } = useTranslation('home');
+  const { data: holidayTypes } = useHolidayTypes();
   const sh = cms?.sectionHeaders?.vacationTypes;
   const tag      = sh?.tag      || t('vacationTypes.tag', 'Curated');
   const title    = sh?.title    || t('vacationTypes.title', 'Your favorite type of vacation');
@@ -147,10 +153,11 @@ export default function VacationTypes({ cms }) {
 
   const types = (cms?.vacationTypes?.length > 0)
     ? cms.vacationTypes.map((v) => {
-        const criteria = uniqueCriteria(Array.isArray(v.search?.criteria) ? v.search.criteria : []);
+        const search = cardSearch(v, holidayTypes);
+        const criteria = uniqueCriteria(Array.isArray(search?.criteria) ? search.criteria : []);
         // Criteria win over boardCode, which the dashboard keeps mirrored so a stale bundle that
         // predates criteria still links somewhere sane. With neither the card stays non-clickable.
-        const href = criteria.length ? criteriaUrl(criteria, v.title)
+        const href = criteria.length ? criteriaUrl(criteria, v.title, { match: search?.match, excludeAdultsOnly: search?.excludeAdultsOnly })
                    : v.boardCode    ? boardUrl(v.boardCode, v.title)
                    : null;
         return {
@@ -162,7 +169,7 @@ export default function VacationTypes({ cms }) {
           href,
           // The chips name what the link applies, so a criteria list that produced no usable
           // filter prints none of them rather than promising a search the button cannot run.
-          chips: (href && criteria.length && v.search?.showFacts !== false)
+          chips: (href && criteria.length && search?.showFacts !== false)
             ? criteria.map((c) => ({ text: chipText(c), star: c?.filterKey === 'stars' }))
                       .filter((c) => c.text)
             : [],

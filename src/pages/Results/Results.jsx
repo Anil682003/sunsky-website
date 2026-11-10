@@ -204,6 +204,9 @@ const EMPTY_FILTERS = {
   // would only ever mean the lower one.
   minRating: '',
   adultsOnly: false,                     // "Only Adults" hotels (facility 203/group 85)
+  // Set only by a homepage Theme Holiday card (no sidebar control): hotel segments, the card's
+  // "Match any" group as the raw `any` param, and "exclude Adults Only".
+  segments: [], any: '', excludeAdultsOnly: false,
   // Transport type. 'hotel_only' → cache searchType=HOTEL_ONLY; 'package' → PACKAGE.
   transport: 'hotel_only',
   // Departure airports, carried to the hotel page's flight search. Only meaningful while
@@ -246,6 +249,7 @@ const countActiveFilters = (f) =>
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
   (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
   (f.adultsOnly ? 1 : 0) + (f.minRating !== '' ? 1 : 0) +
+  (f.segments?.length || 0) + (f.any ? 1 : 0) + (f.excludeAdultsOnly ? 1 : 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0) +
@@ -259,7 +263,8 @@ const hasContentFacet = (f) =>
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
   (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
-  (f.adultsOnly ? 1 : 0) + (f.minRating !== '' ? 1 : 0) > 0;
+  (f.adultsOnly ? 1 : 0) + (f.minRating !== '' ? 1 : 0) +
+  (f.segments?.length || 0) + (f.any ? 1 : 0) + (f.excludeAdultsOnly ? 1 : 0) > 0;
 
 const fmtDate = (iso) => {
   if (!iso) return '';
@@ -952,6 +957,10 @@ export default function Results() {
       .filter(Boolean)
       .map((m) => (m[1] ? `${m[1]}:${m[2]}` : Number(m[2])));
     const adultsOnly = ['1', 'true', 'yes'].includes((params.get('adultsOnly') || '').toLowerCase());
+    const segments = nums('segments');
+    // Passed to the content API as written; it parses and validates the tokens itself.
+    const any = (params.get('any') || '').trim();
+    const excludeAdultsOnly = ['1', 'true', 'yes'].includes((params.get('excludeAdultsOnly') || '').toLowerCase());
     const maxBeach  = metres('maxBeach');
     const maxCentre = metres('maxCentre');
     // A rating outside (0, 10] is not a bound the backend would honour, so it is dropped here
@@ -979,6 +988,9 @@ export default function Results() {
       ...(accommodation.length ? { accommodation } : {}),
       ...(activities.length    ? { activities } : {}),
       ...(adultsOnly           ? { adultsOnly: true } : {}),
+      ...(segments.length      ? { segments } : {}),
+      ...(any                  ? { any } : {}),
+      ...(excludeAdultsOnly    ? { excludeAdultsOnly: true } : {}),
       ...(maxBeach  != null    ? { maxBeach } : {}),
       ...(maxCentre != null    ? { maxCentre } : {}),
       ...(minRating != null    ? { minRating } : {}),
@@ -1558,6 +1570,7 @@ export default function Results() {
     applied.themes.join(','), applied.stars.join(','), applied.facilities.join(','), applied.activities.join(','),
     applied.accommodation.join(','), applied.kids.join(','), applied.maxBeach, applied.maxCentre,
     applied.adultsOnly ? '1' : '', applied.minRating,
+    applied.segments.join(','), applied.any, applied.excludeAdultsOnly ? '1' : '',
   ].join('|');
   // What this request actually needs back (the response is ~1 MB with both for a country
   // search, ~7 KB with neither):
@@ -1584,6 +1597,7 @@ export default function Results() {
       accommodation: applied.accommodation, kids: applied.kids,
       maxBeach: applied.maxBeach, maxCentre: applied.maxCentre,
       adultsOnly: applied.adultsOnly, minRating: applied.minRating,
+      segments: applied.segments, any: applied.any, excludeAdultsOnly: applied.excludeAdultsOnly,
     };
     fetchFacets(searchScope, selected, { codes: needCodes, attrs: needAttrs, counts: false, signal: ctrl.signal })
       .then((r) => {
@@ -1883,6 +1897,7 @@ export default function Results() {
         applied.accommodation, applied.kids, applied.arrivals, applied.origins,
         applied.minPrice, applied.maxPrice, applied.priceBasis, applied.refundable,
         applied.maxBeach, applied.maxCentre, applied.minRating, applied.adultsOnly,
+        applied.segments, applied.any, applied.excludeAdultsOnly,
       ]),
     };
   }, [scope, scopeCities, applied, fetchParams]);

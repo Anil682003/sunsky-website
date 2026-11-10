@@ -7,6 +7,7 @@ import { destsForHolidayType, destUrl, destLabel, sectionSearchUrl, holidayScope
 import { entryOf } from '../../utils/entryRules';
 import { countryName } from '../../utils/countryName';
 import ShowAllLink from '../../components/ShowAllLink/ShowAllLink';
+import { withThemeRule } from '../../utils/themeRule';
 
 const titleFor = (t, name) => t('holidayType:titleFor', { name: String(name || t('holidayType:fallbackName', 'holidays')).toLowerCase(), defaultValue: 'Our best {{name}}' });
 // `name`/`title`/`paragraph1` below all come from the dashboard's own holiday-type CMS
@@ -43,6 +44,9 @@ export default function HolidayType() {
 
   const holidayType = data?.holidayType ?? null;
   const holidayTypeId = holidayType?.id ?? null;
+  // The type's feature rule (dashboard → GeoData → Holiday Types): every search link on this page
+  // narrows its places by it, the same rule a homepage card linked to this type applies.
+  const rule = holidayType?.search ?? scope?.holidayType?.search ?? null;
   /* Memoised because it is a dependency of the grid below: `?? []` hands back a new empty
      array on every render while the request is in flight, which would rebuild the grid each
      time for no reason. */
@@ -131,7 +135,7 @@ export default function HolidayType() {
           imageUrl: d.type === 'country'
             ? parent?.imageUrl || null
             : cityImages.get(String(d.code).trim().toUpperCase()) || null,
-          href: destUrl(d, holidayTypeId, slug, cardRange),
+          href: withThemeRule(destUrl(d, holidayTypeId, slug, cardRange), rule),
           title: destLabel(d),
           dest: d,
         };
@@ -154,14 +158,14 @@ export default function HolidayType() {
         // Built by the same rule as every other card on the site, rather than a second copy of
         // it here: that is what carries the type as a filter where the catalogue can answer one
         // and as a door where it cannot, and opens Flight + Hotel like the homepage.
-        href: destUrl(dest, holidayTypeId, slug, cardRange),
+        href: withThemeRule(destUrl(dest, holidayTypeId, slug, cardRange), rule),
         title: cName,
         dest,
       };
     });
     // `cardRange` belongs here: the homepage config is a second request, so without it the
     // links would be built before the card's window is known and never rebuilt once it lands.
-  }, [cmsDests, countries, door, allCountries, countryLookup, cityImages, t, i18n.language, holidayTypeId, slug, cardRange]);
+  }, [cmsDests, countries, door, allCountries, countryLookup, cityImages, t, i18n.language, holidayTypeId, slug, cardRange, rule]);
 
   /* A door's grid is the active countries, which is a second request. Until it lands the page is
      still loading: without this the empty state shows first and then swaps to a full grid. */
@@ -187,7 +191,7 @@ export default function HolidayType() {
     // A door (Last Minute, All Inclusive) has no places of its own and searches everywhere.
     resolvedEmpty: !door && !!scope && !(scope.destinations?.length || scope.zones?.length || scope.hotelCodes?.length),
   });
-  const showAllHref = scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug });
+  const showAllHref = withThemeRule(scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug }), rule);
 
   return (
     <div className={styles.page}>

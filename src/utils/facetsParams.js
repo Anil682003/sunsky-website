@@ -26,6 +26,11 @@ export function facetsParams({ countries = [], destinations = [], zones = [] } =
   // Minimum guest rating on the 10-point scale. Sent only when there IS a bound: '' and 0 both
   // mean "no preference", and either would otherwise travel as a filter the traveller never set.
   if (filters.minRating)           params.minRating     = String(filters.minRating);
+  // From a homepage Theme Holiday card: hotel segments (OR within), the card's "Match any" group
+  // ("segments:81;activities:73:620", passed through as written) and the Adults Only exclusion.
+  if (join(filters.segments))      params.segments      = join(filters.segments);
+  if (filters.any)                 params.any           = String(filters.any);
+  if (filters.excludeAdultsOnly)   params.excludeAdultsOnly = '1';
   if (!codes) params.codes = '0';
   if (!attrs) params.attrs = '0';
   if (!counts) params.counts = '0';
