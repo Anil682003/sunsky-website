@@ -103,6 +103,12 @@
   transition: gap .15s;
 }
 .card:hover .view { gap: 10px; }
+/* A deposit booking with its balance still to pay */
+.payLater {
+  color: #fff; padding: 6px 14px; border-radius: 999px;
+  background: linear-gradient(135deg, #c2540a, #ee8a12);
+  box-shadow: 0 4px 12px rgba(238, 138, 18, .28);
+}
 
 @media (max-width: 560px) {
   .page { padding-top: calc(var(--nav-h) + 40px); }

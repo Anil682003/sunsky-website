@@ -74,10 +74,19 @@ function useCountUp(target, dur = 1100, delay = 600) {
   return v;
 }
 
+// "2027-01-27" → "27/01/2027", the one date format SUNSKY prints.
+const dmyDate = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+};
+
 export default function Confirmation({
   booking, bookingRef, travellers, customerType, priv, pro,
   insurance, insAmount, holderIsLead, holder,
   payMethod, card, idealBank, pricing, ccy,
+  // What the server charged now, as it answered when the booking was created:
+  // { plan: 'full', amount } or { plan: 'deposit', amount, balance, balanceDueDate }.
+  payment = null,
   reservationPending = false,
   // Decided at the checkout (it owns the live rate) and passed in, so this page never has to
   // re-derive refundability from a rateKey and risk disagreeing with what was accepted.
@@ -99,7 +108,12 @@ export default function Confirmation({
     const v = Math.round((Number(n) || 0) * 100) / 100;
     return `${ccy}${v.toLocaleString('nl-BE', Number.isInteger(v) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
   };
-  const animPaid = useCountUp(pricing.total);
+  // A deposit booking has paid its deposit; the balance follows from My Bookings.
+  const isDeposit = payment?.plan === 'deposit' && Number(payment.amount) > 0;
+  const paidNow = isDeposit ? Number(payment.amount) : pricing.total;
+  const balanceDue = isDeposit ? Number(payment.balance) || 0 : 0;
+  const dueDate = isDeposit && payment.balanceDueDate ? dmyDate(payment.balanceDueDate) : '';
+  const animPaid = useCountUp(paidNow);
 
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'auto' }); }, []);
 
@@ -354,10 +368,19 @@ export default function Confirmation({
 
           <div className="ckc-ticket-stub">
             <div className="ckc-stub-paid">
-              <span className="ckc-stub-label">{t('checkout:confirmation.totalPaid', 'Total paid')}</span>
+              <span className="ckc-stub-label">
+                {isDeposit ? t('checkout:confirmation.depositPaid', 'Deposit paid') : t('checkout:confirmation.totalPaid', 'Total paid')}
+              </span>
               <span className="ckc-stub-amount hd">{money(animPaid)}</span>
               <span className="ckc-stub-method">{ICON.card} {payLabel}</span>
               <span className="ckc-stub-date">{paidOn}</span>
+              {isDeposit && balanceDue > 0 && (
+                <span className="ckc-stub-balance">
+                  {dueDate
+                    ? t('checkout:confirmation.balanceByShort', { amount: money(balanceDue), date: dueDate, defaultValue: 'Balance {{amount}} by {{date}}' })
+                    : t('checkout:confirmation.balanceLaterShort', { amount: money(balanceDue), defaultValue: 'Balance {{amount}} before departure' })}
+                </span>
+              )}
             </div>
             {/* no decorative QR — it wasn't scannable and invited confusion */}
             <span className="ckc-stub-ref hd">{bookingRef}</span>
@@ -446,8 +469,29 @@ export default function Confirmation({
               {pricing.roomExtraTotal > 0 && <div className="ckc-kv-row"><span>{t('checkout:summary.roomUpgrade', 'Room upgrade')}</span><b>{money(pricing.roomExtraTotal)}</b></div>}
               {pricing.transferTotal > 0 && <div className="ckc-kv-row"><span>{t('checkout:summary.airportTransfer', 'Airport transfer (per vehicle)')}</span><b>{money(pricing.transferTotal)}</b></div>}
               {insAmount > 0 && <div className="ckc-kv-row"><span>{insurance?.name}</span><b>{money(insAmount)}</b></div>}
-              <div className="ckc-kv-row total"><span>{t('checkout:confirmation.paidWith', { method: payLabel, defaultValue: 'Paid with {{method}}' })}</span><b>{money(pricing.total)}</b></div>
+              {isDeposit ? (
+                <>
+                  <div className="ckc-kv-row"><span>{t('checkout:confirmation.tripTotal', 'Trip total')}</span><b>{money(pricing.total)}</b></div>
+                  <div className="ckc-kv-row total"><span>{t('checkout:confirmation.depositPaidWith', { method: payLabel, defaultValue: 'Deposit paid with {{method}}' })}</span><b>{money(paidNow)}</b></div>
+                  {balanceDue > 0 && (
+                    <div className="ckc-kv-row balance">
+                      <span>{dueDate
+                        ? t('checkout:confirmation.balanceBy', { date: dueDate, defaultValue: 'Balance to pay by {{date}}' })
+                        : t('checkout:confirmation.balanceLater', 'Balance to pay before departure')}</span>
+                      <b>{money(balanceDue)}</b>
+                    </div>
+                  )}
+                </>
+              ) : (
+                <div className="ckc-kv-row total"><span>{t('checkout:confirmation.paidWith', { method: payLabel, defaultValue: 'Paid with {{method}}' })}</span><b>{money(pricing.total)}</b></div>
+              )}
             </div>
+            {isDeposit && balanceDue > 0 && (
+              <p className="ckc-balance-note">
+                {ICON.cal}
+                <span>{t('checkout:confirmation.balanceNote', 'Pay the balance by card from My Bookings at any time, signed in with the email address of this booking.')}</span>
+              </p>
+            )}
           </section>
 
           {/* The non-refundable condition, repeated on the confirmation — the one document the

@@ -85,6 +85,7 @@ const DRAFT = {
   noteText: 'Wheelchair at the gate',
   supportCode: 'PLUS',
   payMethod: 'bancontact',
+  payPlan: 'deposit',
   idealBank: '',
 };
 
@@ -107,6 +108,7 @@ const DEFAULTS = {
   noteText: '',
   supportCode: null,
   payMethod: 'card',
+  payPlan: 'full',
   idealBank: '',
 };
 
@@ -147,7 +149,7 @@ describe('saveDraft / loadDraft', () => {
       step: 9, furthest: 'far', isCompany: 'yes', leadIsBooker: 1, cancelIns: 'true',
       priv: { firstName: 42, lastName: ['PEETERS'] }, pro: 'Peeters BV', travellers: 'Anna',
       travelIns: [true], bags: 'two', transferId: '', hotelWish: 7, noteKind: 'shout',
-      noteFor: 'all', noteText: null, supportCode: 3, payMethod: 'crypto', idealBank: { bank: 'ING' },
+      noteFor: 'all', noteText: null, supportCode: 3, payMethod: 'crypto', payPlan: 'half', idealBank: { bank: 'ING' },
     });
     expect(loadDraft(HOTEL)).toEqual(DEFAULTS);
   });

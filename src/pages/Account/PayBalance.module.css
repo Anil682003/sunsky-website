@@ -1,0 +1,107 @@
+/* My Bookings → booking → "Pay balance" (deposit bookings) */
+
+.box {
+  margin-top: 16px;
+  border: 1px solid #fde3b0;
+  border-radius: 16px;
+  background: linear-gradient(165deg, #fffaf1, #fff);
+  padding: 16px 18px;
+  animation: payUp 0.35s cubic-bezier(.22, 1, .36, 1) both;
+}
+.overdue { border-color: #fecaca; background: linear-gradient(165deg, #fff5f5, #fff); }
+
+.head { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; }
+.icon {
+  width: 42px; height: 42px; border-radius: 12px; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  background: #fff1dc; color: #c2780a;
+}
+.overdue .icon { background: #fee2e2; color: #dc2626; }
+.headText { flex: 1; min-width: 180px; display: flex; flex-direction: column; gap: 2px; }
+.headText b { font-size: 14.5px; font-weight: 800; color: #0f172a; }
+.headText span { font-size: 12.5px; color: #64748b; line-height: 1.45; }
+.amount { font-family: 'Sora', sans-serif; font-size: 20px; font-weight: 800; color: #b45309; white-space: nowrap; }
+.overdue .amount { color: #dc2626; }
+
+.openBtn,
+.payBtn {
+  display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  padding: 11px 20px; border: none; border-radius: 999px; cursor: pointer;
+  background: linear-gradient(135deg, #c2540a, #ee8a12); color: #fff;
+  font: inherit; font-size: 13.5px; font-weight: 800; white-space: nowrap;
+  box-shadow: 0 6px 18px rgba(238, 138, 18, .3);
+  transition: transform .15s ease, box-shadow .2s ease, opacity .2s ease;
+}
+.openBtn:hover:not(:disabled),
+.payBtn:hover:not(:disabled) { transform: translateY(-1px); box-shadow: 0 10px 24px rgba(238, 138, 18, .38); }
+.openBtn:focus-visible,
+.payBtn:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+.payBtn:disabled { opacity: .7; cursor: progress; }
+
+.form {
+  margin-top: 16px; padding-top: 16px; border-top: 1px dashed #f3d9a8;
+  display: flex; flex-direction: column; gap: 14px;
+  animation: payUp 0.3s cubic-bezier(.22, 1, .36, 1) both;
+}
+
+.methods { display: grid; grid-template-columns: repeat(4, 1fr); gap: 9px; }
+.method {
+  display: flex; flex-direction: column; align-items: center; gap: 6px; padding: 12px 6px 10px;
+  border: 1.5px solid #e2eaf5; border-radius: 14px; background: #fbfdff; cursor: pointer;
+  font: inherit; transition: all .25s cubic-bezier(.22, 1, .36, 1);
+}
+.method:hover { border-color: #a3ccff; transform: translateY(-1px); }
+.methodOn { border-color: #1f4fd8; background: linear-gradient(165deg, #f4f8ff, #fff); box-shadow: 0 6px 18px rgba(31, 79, 216, .12); }
+.method:focus-visible { outline: 2px solid #1d4ed8; outline-offset: 2px; }
+.methodLabel { font-size: 12px; font-weight: 700; color: #5e7291; }
+.methodOn .methodLabel { color: #1f4fd8; }
+.cards { display: flex; align-items: center; gap: 5px; height: 22px; }
+.visa { font-style: italic; font-weight: 900; font-size: 13px; letter-spacing: -.5px; color: #1434cb; font-family: 'Sora', sans-serif; }
+.mc { display: flex; }
+.mc b { width: 14px; height: 14px; border-radius: 50%; background: #eb001b; }
+.mc b + b { background: #f79e1b; margin-left: -6px; mix-blend-mode: multiply; }
+.bc { height: 22px; display: flex; align-items: center; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 14px; color: #004e91; }
+.bc i { font-style: normal; color: #ffbe00; }
+.ideal { height: 22px; display: flex; align-items: center; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 14px; color: #cc0066; font-style: italic; }
+.pp { height: 22px; display: flex; align-items: center; font-family: 'Sora', sans-serif; font-weight: 800; font-size: 14px; color: #003087; }
+.pp i { font-style: normal; color: #009cde; }
+
+.cardFields { display: flex; flex-direction: column; gap: 10px; }
+.fieldRow { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.field { display: flex; flex-direction: column; gap: 5px; }
+.field > span { font-size: 11.5px; font-weight: 700; color: #5e7291; text-transform: uppercase; letter-spacing: .4px; }
+.stripeBox {
+  padding: 10px 12px; border: 1.5px solid #e2eaf5; border-radius: 12px; background: #fff;
+  transition: border-color .2s ease, box-shadow .2s ease;
+}
+.stripeBox:focus-within { border-color: #1f4fd8; box-shadow: 0 0 0 3px rgba(31, 79, 216, .12); }
+
+.redirectNote { margin: 0; font-size: 13px; color: #5e7291; background: #f5f8ff; border: 1px solid #e8f1ff; border-radius: 12px; padding: 10px 13px; }
+.error { font-size: 13px; font-weight: 600; color: #dc2626; background: #fef2f2; border: 1px solid #fecaca; border-radius: 12px; padding: 10px 13px; }
+
+.actions { display: flex; justify-content: flex-end; align-items: center; gap: 10px; flex-wrap: wrap; }
+.cancel {
+  padding: 11px 18px; border-radius: 999px; border: 1px solid #e2eaf5; background: #fff; color: #334155;
+  font: inherit; font-size: 13.5px; font-weight: 700; cursor: pointer;
+}
+.cancel:hover:not(:disabled) { background: #f8fafc; }
+.cancel:disabled { opacity: .6; cursor: not-allowed; }
+
+.spin {
+  width: 14px; height: 14px; border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, .45); border-top-color: #fff;
+  animation: paySpin .7s linear infinite;
+}
+
+@keyframes payUp { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+@keyframes paySpin { to { transform: rotate(360deg); } }
+
+@media (max-width: 560px) {
+  .methods { grid-template-columns: repeat(2, 1fr); }
+  .head .openBtn { width: 100%; }
+  .actions { flex-direction: column-reverse; align-items: stretch; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .box, .form { animation: none; }
+}

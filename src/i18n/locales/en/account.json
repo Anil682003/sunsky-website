@@ -2,7 +2,8 @@
   "price": {
     "total": "Total",
     "paid": "Paid",
-    "balanceDue": "Balance due"
+    "balanceDue": "Balance due",
+    "balanceDueBy": "Balance due by {{date}}"
   },
   "status": {
     "confirmed": "Confirmed",
@@ -76,8 +77,10 @@
     "payment": {
       "paid": "Paid",
       "partPaid": "Part-paid",
-      "unpaid": "Unpaid"
-    }
+      "unpaid": "Unpaid",
+      "depositPaid": "Deposit paid"
+    },
+    "payBalance": "Pay balance"
   },
   "bookingDetail": {
     "loading": "Loading booking…",
@@ -119,6 +122,32 @@
         "credit_invoice": "Credit note",
         "debit_notes": "Debit note"
       }
-    }
+    },
+    "deposit": "Deposit:"
+  },
+  "payBalance": {
+    "title": "Balance to pay",
+    "dueTitle": "Balance due by {{date}}",
+    "overdueTitle": "Your balance was due on {{date}}",
+    "sub": "Your deposit is in. Pay the rest securely online at any time before then.",
+    "subNoDate": "Your deposit is in. Pay the rest securely online before you travel.",
+    "subOverdue": "Your deposit is in. Please pay the rest as soon as possible.",
+    "open": "Pay balance",
+    "methodTitle": "Payment method",
+    "method": {
+      "card": "Card"
+    },
+    "cardNumber": "Card number",
+    "expiry": "Expiry date",
+    "cvc": "CVC",
+    "redirectNote": "You will be taken to {{method}} to approve the payment, then brought back here.",
+    "cancel": "Cancel",
+    "paying": "Paying…",
+    "payAmount": "Pay {{amount}}",
+    "paid": "Thank you! Your balance is paid.",
+    "failed": "The payment failed. Please try again.",
+    "notCompleted": "The payment was not completed. You have not been charged.",
+    "unavailable": "Online payment is not available right now. Please try again later.",
+    "methodUnavailable": "This payment method is not available right now. Please pay by card."
   }
 }

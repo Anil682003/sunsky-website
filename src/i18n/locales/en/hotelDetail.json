@@ -419,7 +419,10 @@
     "localNoteTitle": "Local taxes and charges",
     "localNoteText": "Any local tourist tax is paid on the spot, if applicable. Prices are in € and may change until your booking is complete.",
     "selectionNotAvailable": "This selection is currently not available",
-    "selectionNotAvailableHint": "Other travel periods may be available. Use the calendar or the date matrix on this page to look at another period."
+    "selectionNotAvailableHint": "Other travel periods may be available. Use the calendar or the date matrix on this page to look at another period.",
+    "depositHintFixed": "A fixed deposit for the whole booking, payable when you book. You can also pay everything at once.",
+    "depositHintPerPerson": "A deposit per traveller, payable when you book. You can also pay everything at once.",
+    "balanceDueBy": "Payable by {{date}}"
   },
   "prices": {
     "noPackageDatesHere": "No holiday with flights around these dates.",
@@ -601,7 +604,8 @@
     "securePayment": "Secure payment",
     "selectDatesAbove": "Select your dates above",
     "totalTravellers_one": "{{amount}} total · {{count}} traveller",
-    "totalTravellers_other": "{{amount}} total · {{count}} travellers"
+    "totalTravellers_other": "{{amount}} total · {{count}} travellers",
+    "orDeposit": "or {{amount}} deposit"
   },
   "stayBar": {
     "careMeals": "Care (meals)",

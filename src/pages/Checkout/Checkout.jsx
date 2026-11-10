@@ -14,7 +14,7 @@ import { rememberBookingToken } from '../../services/bookingAccess';
 import { ENDPOINTS } from '../../api/endpoints';
 import { ageAtCheckIn } from '../../utils/childDob';
 import { cancellationState, parseRateKey, boardInfo } from '../../utils/rateDetails';
-import { DEFAULT_PRICING, priceInsurance, priceBasisLabel, insuredDays } from '../../utils/checkoutPricing';
+import { DEFAULT_PRICING, priceInsurance, priceBasisLabel, insuredDays, computeDeposit, depositKind, tripStartDate } from '../../utils/checkoutPricing';
 import { useCheckoutConfig, useFooterConfig } from '../../api';
 import { checkoutLegalLinks } from '../../utils/legalLinks';
 import { countryName } from '../../utils/countryName';
@@ -1401,6 +1401,8 @@ function CheckoutContent({ stripe, elements }) {
      cannot hold them, see utils/checkoutDraft), and neither do the ticked conditions: consent
      is given on the screen in front of the traveller, not carried over from another visit. */
   const [payMethod, setPayMethod] = useState(() => draft?.payMethod || 'card');
+  // 'full' or 'deposit'. Only means anything while a deposit is offered (`depositOffer` below).
+  const [payPlan, setPayPlan] = useState(() => draft?.payPlan || 'full');
   const [card, setCard] = useState({ name: '', number: '', expiry: '', cvc: '' });
   const [cvcFocus, setCvcFocus] = useState(false);
   const [stripeBrand, setStripeBrand] = useState('');
@@ -1556,11 +1558,11 @@ function CheckoutContent({ stripe, elements }) {
       pro: { legalName: pro.legalName, vatNumber: pro.vatNumber },
       leadIsBooker, travellers, cancelIns, travelIns, bags,
       transferId: pickedOption?.id || pendingTransferId.current || null,
-      hotelWish, noteKind, noteFor, noteText, supportCode, payMethod, idealBank,
+      hotelWish, noteKind, noteFor, noteText, supportCode, payMethod, payPlan, idealBank,
     }, { owner: draftOwner });
   }, [hasBooking, paid, booking, draftOwner, step, furthest, isCompany, priv, pro.legalName, pro.vatNumber,
     leadIsBooker, travellers, cancelIns, travelIns, bags, pickedOption, hotelWish, noteKind, noteFor, noteText,
-    supportCode, payMethod, idealBank]);
+    supportCode, payMethod, payPlan, idealBank]);
 
   // The header opens the sign-in dialog only while there is a booking still to pay. On the
   // confirmation after payment, or on the "nothing to check out" page, nothing is registered and
@@ -1775,6 +1777,27 @@ function CheckoutContent({ stripe, elements }) {
   // above), and folding the package in would quietly inflate those premiums.
   const total = subtotal + insAmount + supportCharge.amount;
   const animTotal = useCountUp(total);
+
+  /* ── deposit ──
+     When SUNSKY offers one (admin: Pricing & Rules → Deposit & Payment → Website Deposit), the
+     payment step lets the traveller pay the deposit now and the balance before departure. Same
+     rule and arithmetic as the server (utils/checkoutPricing mirrors it): the server works the
+     deposit out again from the booking it creates and charges THAT, so the two must agree.
+     Only travellers aged two or more pay a share (the server's own INF cut-off). */
+  const tripKind = depositKind({ flight: !!booking.api?.flight, hotel: !!booking.api?.hotel });
+  const tripStart = tripStartDate(
+    booking.api?.flight?.depdate,
+    booking.api?.hotel?.checkin,
+    pickedTransfer ? (transfers?.pickupISO || srch.checkin) : null,
+  );
+  const payingPax = travellers.filter((tr) => ageFromDob(tr.dateOfBirth) >= 2).length;
+  const depositOffer = tripKind && total > 0
+    ? computeDeposit(pricing, total, tripStart, { kind: tripKind, pax: payingPax })
+    : null;
+  const usingDeposit = payPlan === 'deposit' && !!depositOffer;
+  // What the server answered when the booking was created: the plan it holds and what it will
+  // charge now. The confirmation prints this, not the estimate above.
+  const [paidPlan, setPaidPlan] = useState(null);
 
   /**
    * GA4 `begin_checkout` (Tracking Master §11): the traveller arrived at checkout with a
@@ -2318,11 +2341,23 @@ function CheckoutContent({ stripe, elements }) {
           }
           : undefined,
         consents,
+        // Pay the deposit now and the balance later, or everything now. The server checks the
+        // deposit is still on offer for this trip (409 DEPOSIT_UNAVAILABLE when it is not) and
+        // charges its own figure.
+        paymentPlan: usingDeposit ? 'deposit' : 'full',
       });
 
       const created = createRes.data?.data || createRes.data || {};
       const bookingId = created.bookingId;
       const ref = created.bookingReference;
+      setPaidPlan(created.paymentPlan === 'deposit' && created.deposit
+        ? {
+          plan: 'deposit',
+          amount: Number(created.amountDue) || Number(created.deposit.amount) || 0,
+          balance: Number(created.deposit.balance) || 0,
+          balanceDueDate: created.deposit.balanceDueDate || null,
+        }
+        : { plan: 'full', amount: Number(created.amountDue) || Number(created.grandTotal) || total });
       // This booking's key: every later call for it carries the token (services/bookingAccess).
       rememberBookingToken(bookingId, created.accessToken);
       setErrorContext({ ref });
@@ -2459,6 +2494,10 @@ function CheckoutContent({ stripe, elements }) {
     } catch (err) {
       // A refused booking says why with an errorCode; the server's English text is the fallback.
       const msg = bookingErrorMessage(err, t);
+      // The deposit was withdrawn between this page and the server (the rule changed, or the
+      // balance date passed): nothing was booked or charged. Put the choice on "Pay in full"
+      // so the next click is a deliberate full payment, not a second refusal.
+      if (err?.response?.data?.errorCode === 'DEPOSIT_UNAVAILABLE') setPayPlan('full');
       flashErrors({ submit: msg });
     } finally {
       setPaying(false);
@@ -2486,6 +2525,7 @@ function CheckoutContent({ stripe, elements }) {
     : step === STEP.ADDONS ? (showSupportStep ? t('checkout:cta.continueToSupport', 'Continue to support package') : t('checkout:cta.continueToReview', 'Continue to overview'))
     : step === STEP.SUPPORT ? t('checkout:cta.continueToReview', 'Continue to overview')
     : step === STEP.REVIEW ? t('checkout:cta.continueToPayment', 'Continue to payment')
+    : usingDeposit ? t('checkout:cta.payDeposit', { amount: money(depositOffer.amount), defaultValue: 'Pay {{amount}} deposit' })
     : t('checkout:cta.pay', { amount: money(total), defaultValue: 'Pay {{amount}}' });
   const ctaAction = step === STEP.PAYMENT ? pay : next;
   // One rule for every way forward (button, mobile bar): an outstanding re-check, an
@@ -2511,6 +2551,7 @@ function CheckoutContent({ stripe, elements }) {
         card={card}
         idealBank={idealBank}
         pricing={{ base, roomExtraTotal, transferTotal, total, pax }}
+        payment={paidPlan}
         ccy={ccy}
         reservationPending={reservationPending}
         nonRefundable={nonRefundable}
@@ -3934,6 +3975,49 @@ function CheckoutContent({ stripe, elements }) {
                     <div className="ck-secure-pill">{ICON.lock} {t('checkout:payment.secure', 'Secure')}</div>
                   </div>
 
+                  {/* How much to pay now: shown only when SUNSKY offers a deposit on this trip. */}
+                  {depositOffer && (
+                    <div className="ck-plan-wrap">
+                      <div className="ck-plan-lbl">{t('checkout:deposit.howToPay', 'How would you like to pay?')}</div>
+                      <div className="ck-plan" role="radiogroup" aria-label={t('checkout:deposit.howToPay', 'How would you like to pay?')}>
+                        <button type="button" role="radio" aria-checked={!usingDeposit}
+                          className={`ck-plan-opt${!usingDeposit ? ' act' : ''}`}
+                          onClick={() => { setPayPlan('full'); setErrors({}); }}>
+                          <span className="ck-plan-radio">{!usingDeposit && <i />}</span>
+                          <span className="ck-plan-text">
+                            <b>{t('checkout:deposit.payFull', 'Pay in full')}</b>
+                            <small>{t('checkout:deposit.payFullSub', 'Nothing left to pay later')}</small>
+                          </span>
+                          <span className="ck-plan-amt">{money(total)}</span>
+                        </button>
+                        <button type="button" role="radio" aria-checked={usingDeposit}
+                          className={`ck-plan-opt${usingDeposit ? ' act' : ''}`}
+                          onClick={() => { setPayPlan('deposit'); setErrors({}); }}>
+                          <span className="ck-plan-radio">{usingDeposit && <i />}</span>
+                          <span className="ck-plan-text">
+                            <b>{t('checkout:deposit.payDeposit', 'Pay a deposit')}</b>
+                            <small>
+                              {depositOffer.balanceDueDate
+                                ? t('checkout:deposit.payDepositSub', { amount: money(depositOffer.balance), date: dmy(depositOffer.balanceDueDate), defaultValue: '{{amount}} later, by {{date}}' })
+                                : t('checkout:deposit.payDepositSubNoDate', { amount: money(depositOffer.balance), defaultValue: '{{amount}} later, before departure' })}
+                            </small>
+                          </span>
+                          <span className="ck-plan-amt">{money(depositOffer.amount)}<small>{t('checkout:deposit.now', 'now')}</small></span>
+                        </button>
+                      </div>
+                      {usingDeposit && (
+                        <p className="ck-plan-note">
+                          {ICON.cal}
+                          <span>
+                            {depositOffer.balanceDueDate
+                              ? t('checkout:deposit.note', { amount: money(depositOffer.balance), date: dmy(depositOffer.balanceDueDate), defaultValue: 'The deposit secures your booking. Pay the remaining {{amount}} by {{date}} from My Bookings, signed in with the email address of this booking.' })
+                              : t('checkout:deposit.noteNoDate', { amount: money(depositOffer.balance), defaultValue: 'The deposit secures your booking. Pay the remaining {{amount}} before departure from My Bookings, signed in with the email address of this booking.' })}
+                          </span>
+                        </p>
+                      )}
+                    </div>
+                  )}
+
                   <div className="ck-pm-row">
                     {[
                       { id: 'card', label: t('checkout:payment.card', 'Card'), logo: <span className="ck-pm-cards"><i className="v">VISA</i><i className="m"><b /><b /></i></span> },
@@ -4290,6 +4374,25 @@ function CheckoutContent({ stripe, elements }) {
                   </div>
                   <span className="ck-sum-total-val hd">{ccy}{formatEuros(animTotal, PRICE_KIND.SELLING)}</span>
                 </div>
+                {/* The deposit split, once the traveller has chosen it: what is charged now and
+                    what is left for later. Both add up to the total above as it is printed. */}
+                {usingDeposit && (
+                  <div className="ck-sum-split" aria-live="polite">
+                    <div className="ck-sum-split-row now">
+                      <span>{ICON.card} {t('checkout:deposit.dueNow', 'Deposit, paid now')}</span>
+                      <b>{money(depositOffer.amount)}</b>
+                    </div>
+                    <div className="ck-sum-split-row">
+                      <span>
+                        {ICON.clock}{' '}
+                        {depositOffer.balanceDueDate
+                          ? t('checkout:deposit.balanceBy', { date: dmy(depositOffer.balanceDueDate), defaultValue: 'Balance, by {{date}}' })
+                          : t('checkout:deposit.balanceLater', 'Balance, before departure')}
+                      </span>
+                      <b>{money(depositOffer.balance)}</b>
+                    </div>
+                  </div>
+                )}
                 {/* What the hotel collects on arrival (UI-09): under the total, before the
                     payment, to the cent and never in the total, the deposit or the Stripe amount. */}
                 {!isFlight && !isTransfer && <LocalCosts cost={quote.localCost} className="ck-sum-local" />}
@@ -4312,7 +4415,11 @@ function CheckoutContent({ stripe, elements }) {
 
       {/* ═══ MOBILE STICKY BAR ═══ */}
       <div className="ck-mbar">
-        <div className="ck-mbar-price"><small>{t('checkout:transfer.total', 'total')}</small>{ccy}{formatEuros(animTotal, PRICE_KIND.SELLING)}</div>
+        <div className="ck-mbar-price">
+          {usingDeposit
+            ? <><small>{t('checkout:deposit.nowShort', 'deposit now')}</small>{money(depositOffer.amount)}</>
+            : <><small>{t('checkout:transfer.total', 'total')}</small>{ccy}{formatEuros(animTotal, PRICE_KIND.SELLING)}</>}
+        </div>
         <button className="ck-mbar-btn" onClick={ctaAction} disabled={ctaBlocked}>
           {paying || (repriceBlocks && reprice.status === 'checking')
             ? <span className="ck-spin" />

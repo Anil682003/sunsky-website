@@ -179,6 +179,9 @@
 .ckc-stub-method { display:flex; align-items:center; gap:6px; font-size:11.5px; font-weight:700; color:var(--text-sec); margin-top:4px; }
 .ckc-stub-method svg { width:13px; height:13px; color:var(--blue); }
 .ckc-stub-date { font-size:11px; color:var(--text-light); }
+/* deposit bookings: what is left, under the deposit paid */
+.ckc-stub-balance { margin-top:6px; padding:4px 10px; border-radius:var(--r-full); background:#fff3e0;
+  border:1px solid rgba(255,159,28,.35); font-size:11px; font-weight:700; color:#8a5300; text-align:center; }
 .ckc-qr { width:104px; height:104px; padding:9px; border-radius:14px; background:#fff; color:var(--dark2);
   border:1px solid var(--border); box-shadow:var(--shadow-sm); }
 .ckc-stub-ref { font-size:12.5px; font-weight:800; letter-spacing:1.5px; color:var(--text); margin-top:2px; }
@@ -243,6 +246,11 @@
 .ckc-kv-row b { font-weight:700; color:var(--text); text-align:right; overflow-wrap:anywhere; }
 .ckc-kv-row.total { margin-top:4px; padding-top:11px; border-top:1.5px solid var(--border); border-bottom:none; }
 .ckc-kv-row.total b { font-family:'Sora',sans-serif; font-size:17px; color:var(--blue); }
+.ckc-kv-row.balance span { color:#8a5300; font-weight:600; }
+.ckc-kv-row.balance b { font-family:'Sora',sans-serif; color:#8a5300; }
+.ckc-balance-note { display:flex; align-items:flex-start; gap:8px; margin:12px 0 0; padding:10px 13px; border-radius:12px;
+  background:#fff3e0; border:1px solid rgba(255,159,28,.3); font-size:12px; color:#8a5300; line-height:1.5; }
+.ckc-balance-note svg { width:14px; height:14px; flex-shrink:0; margin-top:2px; }
 .ckc-covers { display:flex; flex-direction:column; gap:7px; }
 .ckc-cover { display:flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--text-sec); }
 .ckc-cover svg { width:13px; height:13px; color:var(--green); flex-shrink:0; }
