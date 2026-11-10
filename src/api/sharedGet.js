@@ -25,16 +25,46 @@ const keyOf = (url, params) => {
   return `${url}?${sorted}`;
 };
 
+const retryable = (err) => !err?.response || err.response.status >= 500;
+
+// The last good answer per key, kept in the browser between visits (public reference data only).
+const COPY_PREFIX = 'sunsky.shared.v1:';
+function saveCopy(key, data) {
+  try {
+    const text = JSON.stringify(data);
+    if (text.length < 300_000) localStorage.setItem(COPY_PREFIX + key, text);
+  } catch { /* storage full or blocked: the copy is a nicety */ }
+}
+function readCopy(key) {
+  try {
+    const text = localStorage.getItem(COPY_PREFIX + key);
+    return text == null ? undefined : JSON.parse(text);
+  } catch { return undefined; }
+}
+
 /** GET `url` (with `params`) once, shared. Resolves to the response body (`response.data`). */
 export function sharedGet(url, { params = null, ttlMs = DEFAULT_TTL_MS, force = false } = {}) {
   const key = keyOf(url, params);
   const hit = answers.get(key);
   if (!force && hit && Date.now() - hit.at < ttlMs) return Promise.resolve(hit.data);
   if (!force && inflight.has(key)) return inflight.get(key);
-  const p = (params ? axiosInstance.get(url, { params }) : axiosInstance.get(url))
-    .then((res) => {
-      answers.set(key, { at: Date.now(), data: res.data });
-      return res.data;
+  const once = () => (params ? axiosInstance.get(url, { params }) : axiosInstance.get(url));
+  const remember = (res) => {
+    answers.set(key, { at: Date.now(), data: res.data });
+    saveCopy(key, res.data);
+    return res.data;
+  };
+  // A timeout, a dropped connection or a 5xx is worth one more try; a 4xx is an answer.
+  // With a copy saved from an earlier visit the page uses it at once (the real cards, never the
+  // built-in demo ones) while the retry refreshes it in the background.
+  const p = once()
+    .then(remember)
+    .catch((err) => {
+      if (!retryable(err)) throw err;
+      const retry = once().then(remember);
+      const saved = readCopy(key);
+      if (saved !== undefined) { retry.catch(() => {}); return saved; }
+      return retry;
     })
     .finally(() => { inflight.delete(key); });
   inflight.set(key, p);

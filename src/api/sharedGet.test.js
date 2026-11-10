@@ -5,7 +5,7 @@ vi.mock('../services/axiosInstance', () => ({ default: { get: (...a) => get(...a
 
 const { sharedGet, clearSharedGet } = await import('./sharedGet');
 
-beforeEach(() => { get.mockReset(); clearSharedGet(); });
+beforeEach(() => { get.mockReset(); clearSharedGet(); localStorage.clear(); });
 const later = (data, ms = 20) => new Promise((r) => setTimeout(() => r({ data }), ms));
 
 describe('sharedGet', () => {
@@ -42,9 +42,32 @@ describe('sharedGet', () => {
   });
 
   it('a failure is not kept: the next call asks again', async () => {
-    get.mockRejectedValueOnce(new Error('down')).mockImplementation(() => later({ ok: 1 }, 1));
-    await expect(sharedGet('/f', { ttlMs: 1000 })).rejects.toThrow('down');
+    const notFound = Object.assign(new Error('missing'), { response: { status: 404 } });
+    get.mockRejectedValueOnce(notFound).mockImplementation(() => later({ ok: 1 }, 1));
+    await expect(sharedGet('/f', { ttlMs: 1000 })).rejects.toThrow('missing');
     expect(await sharedGet('/f', { ttlMs: 1000 })).toEqual({ ok: 1 });
     expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('a timeout or a 5xx is retried once; a 4xx is not', async () => {
+    get.mockRejectedValueOnce(new Error('timeout of 15000ms exceeded')).mockImplementation(() => later({ ok: 2 }, 1));
+    expect(await sharedGet('/r')).toEqual({ ok: 2 });
+    expect(get).toHaveBeenCalledTimes(2);
+
+    get.mockReset();
+    const bad = Object.assign(new Error('500'), { response: { status: 500 } });
+    get.mockRejectedValue(bad);
+    await expect(sharedGet('/r5')).rejects.toThrow('500');
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('with a copy from an earlier visit, a failed call answers with it at once', async () => {
+    get.mockImplementation(() => later({ cards: ['Family'] }, 1));
+    await sharedGet('/cms/home', { ttlMs: 0 });
+    clearSharedGet();                       // a new page load: memory gone, browser copy kept
+    get.mockReset();
+    get.mockRejectedValueOnce(new Error('timeout')).mockImplementation(() => new Promise(() => {}));
+    expect(await sharedGet('/cms/home')).toEqual({ cards: ['Family'] });
+    expect(get).toHaveBeenCalledTimes(2);   // the retry still runs, in the background
   });
 });

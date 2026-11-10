@@ -18,6 +18,15 @@ describe('reportError', () => {
     expect(init.body).not.toContain('a@b.c');
   });
 
+  it('a failed API call names its method and path, never the query string', async () => {
+    const { reportError } = await import('./errorReporter');
+    const err = Object.assign(new Error('Request failed with status code 500'), { config: { method: 'get', url: '/website/holiday-types/last-minute/scope?email=a@b.c' } });
+    reportError(err, { kind: 'promise' });
+    const body = JSON.parse(fetch.mock.calls[0][1].body);
+    expect(body.message).toBe('Request failed with status code 500 [GET /website/holiday-types/last-minute/scope]');
+    expect(fetch.mock.calls[0][1].body).not.toContain('a@b.c');
+  });
+
   it('at most 10 reports per page load; a failing fetch is swallowed', async () => {
     globalThis.fetch = vi.fn(() => Promise.reject(new Error('offline')));
     const { reportError } = await import('./errorReporter');

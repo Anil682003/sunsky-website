@@ -23,7 +23,12 @@ export function setErrorContext(next) {
 
 export function reportError(error, extra = {}) {
   try {
-    const message = String(error?.message || error || '').slice(0, 300);
+    // A failed API call names its request (method + path, never the query string, which can
+    // carry search details), so "Request failed with status code 500" can be traced.
+    const req = error?.config?.url
+      ? ` [${String(error.config.method || 'get').toUpperCase()} ${String(error.config.url).split('?')[0]}]`
+      : '';
+    const message = `${String(error?.message || error || '')}${req}`.slice(0, 300);
     if (!message || count >= MAX_PER_LOAD) return;
     const key = `${extra.kind || ''}|${message}`;
     if (sent.has(key)) return;
