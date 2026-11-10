@@ -2,7 +2,8 @@
   "price": {
     "total": "Totaal",
     "paid": "Betaald",
-    "balanceDue": "Nog te betalen"
+    "balanceDue": "Nog te betalen",
+    "balanceDueBy": "Te betalen uiterlijk {{date}}"
   },
   "status": {
     "confirmed": "Bevestigd",
@@ -76,8 +77,10 @@
     "payment": {
       "paid": "Betaald",
       "partPaid": "Deels betaald",
-      "unpaid": "Niet betaald"
-    }
+      "unpaid": "Niet betaald",
+      "depositPaid": "Aanbetaald"
+    },
+    "payBalance": "Saldo betalen"
   },
   "bookingDetail": {
     "loading": "Boeking wordt geladen…",
@@ -119,6 +122,32 @@
         "credit_invoice": "Creditnota",
         "debit_notes": "Debetnota"
       }
-    }
+    },
+    "deposit": "Aanbetaling:"
+  },
+  "payBalance": {
+    "title": "Saldo te betalen",
+    "dueTitle": "Saldo te betalen uiterlijk {{date}}",
+    "overdueTitle": "Je saldo moest betaald zijn op {{date}}",
+    "sub": "Je aanbetaling is ontvangen. Betaal de rest veilig online, op elk moment vóór die datum.",
+    "subNoDate": "Je aanbetaling is ontvangen. Betaal de rest veilig online vóór je vertrekt.",
+    "subOverdue": "Je aanbetaling is ontvangen. Betaal de rest zo snel mogelijk.",
+    "open": "Saldo betalen",
+    "methodTitle": "Betaalmethode",
+    "method": {
+      "card": "Kaart"
+    },
+    "cardNumber": "Kaartnummer",
+    "expiry": "Vervaldatum",
+    "cvc": "CVC",
+    "redirectNote": "Je gaat naar {{method}} om de betaling goed te keuren en komt daarna hier terug.",
+    "cancel": "Annuleren",
+    "paying": "Bezig met betalen…",
+    "payAmount": "Betaal {{amount}}",
+    "paid": "Bedankt! Je saldo is betaald.",
+    "failed": "De betaling is mislukt. Probeer het opnieuw.",
+    "notCompleted": "De betaling is niet voltooid. Er is niets afgeschreven.",
+    "unavailable": "Online betalen is nu niet mogelijk. Probeer het later opnieuw.",
+    "methodUnavailable": "Deze betaalmethode is nu niet beschikbaar. Betaal met je kaart."
   }
 }

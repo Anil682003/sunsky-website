@@ -89,7 +89,10 @@
     "perAdult": "Fare per adult",
     "instantDiscount": "Instant discount",
     "totalAmount": "Total amount",
-    "note": "All fares in EUR, per booking, incl. applicable taxes. Final price is confirmed at checkout."
+    "note": "All fares in EUR, per booking, incl. applicable taxes. Final price is confirmed at checkout.",
+    "depositNow": "Or pay a deposit when you book",
+    "balanceBy": "and the balance by {{date}}",
+    "balanceLater": "and the balance before departure"
   },
   "book": {
     "totalFor": "Total for {{count}}",
@@ -102,6 +105,10 @@
     "secureSsl": "Secure SSL payment",
     "fareConditions": "Fare conditions shown before payment",
     "instantETicket": "Instant e-ticket by email",
-    "total": "total"
+    "total": "total",
+    "orDeposit": "or book now with a {{amount}} deposit",
+    "depositRest": "{{amount}} later, by {{date}}",
+    "depositRestNoDate": "{{amount}} later, before departure",
+    "orDepositShort": "or {{amount}} deposit"
   }
 }

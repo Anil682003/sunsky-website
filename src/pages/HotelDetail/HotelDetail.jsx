@@ -3443,7 +3443,13 @@ export default function HotelDetail() {
   // The deposit the checkout will ask for on this total, under the same rule and the same
   // arithmetic (utils/checkoutPricing mirrors the server). Null when deposits are off or the
   // rule yields none, and then the overview says nothing about a split rather than guess one.
-  const ovDeposit = ovBase != null ? computeDeposit(checkoutCfg || DEFAULT_PRICING, ovBase, tripFrom) : null;
+  // The trip kind (a package, or a stay) and the travellers who pay a share (not lap infants) are
+  // what the server reads off the booking it creates, so they are what this preview uses too.
+  const ovDeposit = ovBase != null
+    ? computeDeposit(checkoutCfg || DEFAULT_PRICING, ovBase, tripFrom, { kind: pkgMode ? 'package' : 'hotel', pax: roomDeltaPax })
+    : null;
+  // "2027-01-27" → "27/01/2027": the balance date as SUNSKY prints every date.
+  const ovDueDate = ovDeposit?.balanceDueDate ? ovDeposit.balanceDueDate.split('-').reverse().join('/') : '';
 
   // ── shared flight fetch (used on mount + day-click + airport/transport switches) ──
   //
@@ -5649,7 +5655,11 @@ export default function HotelDetail() {
                         <span className="overview-row-label overview-row-label-stack">
                           <b>
                             {t('overview.deposit', 'Deposit')}
-                            <FilterHint text={t('overview.depositHint', { percent: ovDeposit.percent, defaultValue: `${ovDeposit.percent}% of the trip price, payable when you book.` })} />
+                            <FilterHint text={ovDeposit.type === 'fixed'
+                              ? t('overview.depositHintFixed', 'A fixed deposit for the whole booking, payable when you book. You can also pay everything at once.')
+                              : ovDeposit.type === 'perPerson'
+                                ? t('overview.depositHintPerPerson', 'A deposit per traveller, payable when you book. You can also pay everything at once.')
+                                : t('overview.depositHint', { percent: ovDeposit.percent, defaultValue: `${ovDeposit.percent}% of the trip price, payable when you book.` })} />
                           </b>
                           <em>{t('overview.depositSub', 'When completing your booking')}</em>
                         </span>
@@ -5661,7 +5671,9 @@ export default function HotelDetail() {
                             {t('overview.balance', 'Remaining balance to SUNSKY')}
                             <FilterHint text={t('overview.balanceHint', 'The amount left after the deposit, payable before departure under the payment terms.')} />
                           </b>
-                          <em>{t('overview.balanceSub', 'Payable under the payment terms')}</em>
+                          <em>{ovDueDate
+                            ? t('overview.balanceDueBy', { date: ovDueDate, defaultValue: 'Payable by {{date}}' })
+                            : t('overview.balanceSub', 'Payable under the payment terms')}</em>
                         </span>
                         <span className="overview-row-val overview-row-val-plain">{ccy} {ovDeposit.balance.toLocaleString('en-GB')}</span>
                       </div>
@@ -6358,7 +6370,13 @@ export default function HotelDetail() {
       <div className="mbar">
         <div className="mbi">
           <div className="mbp"><small>{liveTotal != null ? t('sidebar.liveTotal', 'live total') : fromPP != null ? t('sidebar.perPersonFrom', 'per person from') : t('sidebar.noPriceYet', 'no price yet')}</small>{liveTotal != null
-            ? `${ccy}${liveTotal.toLocaleString('en-GB')}` : fromPP != null ? `${ccy}${fromPP}` : '—'}</div>
+            ? `${ccy}${liveTotal.toLocaleString('en-GB')}` : fromPP != null ? `${ccy}${fromPP}` : '—'}
+            {/* The deposit, when the live total can be paid with one: the smaller number a
+                traveller weighing the trip on a phone most wants to see. */}
+            {liveTotal != null && ovDeposit && (
+              <span className="mbp-dep">{t('sidebar.orDeposit', { amount: `${ccy}${ovDeposit.amount.toLocaleString('en-GB')}`, defaultValue: 'or {{amount}} deposit' })}</span>
+            )}
+          </div>
           <button className="mbc" onClick={goCheckout} disabled={flightsChecking || dayUnavailable}>
             {flightsChecking ? t('sidebar.checkingShort', 'Checking…') : dayUnavailable ? t('sidebar.notAvailableShort', 'Not available') : `${flightNeedsChoice ? t('flights.choice.chooseFlight', 'Choose a flight') : liveTotal != null ? t('sidebar.bookNow', 'Book now') : t('sidebar.checkPrice', 'Check price')} →`}
           </button>

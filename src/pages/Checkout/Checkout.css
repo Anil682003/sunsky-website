@@ -348,6 +348,43 @@
 .ck-chip-check svg { width:12px; height:12px; color:var(--green); }
 
 /* ════ PAYMENT ════ */
+/* Pay in full / pay a deposit (only when SUNSKY offers a deposit on the trip) */
+.ck-plan-wrap { margin-bottom:22px; animation:ckFadeUp .45s var(--ease) both; }
+.ck-plan-lbl { font-size:12px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
+.ck-plan { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
+.ck-plan-opt { position:relative; display:flex; align-items:center; gap:12px; padding:15px 16px; text-align:left;
+  border:1.5px solid var(--border); border-radius:var(--r-md); background:#fbfdff; cursor:pointer; transition:all .3s var(--ease); }
+.ck-plan-opt:hover { border-color:var(--blue-soft); transform:translateY(-2px); box-shadow:var(--shadow-sm); }
+.ck-plan-opt.act { border-color:var(--blue); background:linear-gradient(165deg,#f4f8ff,#fff); box-shadow:0 8px 24px rgba(31,79,216,.13); }
+.ck-plan-opt:focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
+.ck-plan-radio { width:20px; height:20px; border-radius:50%; border:2px solid var(--border); flex-shrink:0;
+  display:flex; align-items:center; justify-content:center; transition:border-color .3s; }
+.ck-plan-opt.act .ck-plan-radio { border-color:var(--blue); }
+.ck-plan-radio i { width:10px; height:10px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); animation:ckPop .3s var(--ease-spring) both; }
+.ck-plan-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
+.ck-plan-text b { font-size:14px; font-weight:700; color:var(--text); letter-spacing:-.2px; }
+.ck-plan-text small { font-size:12px; color:var(--text-sec); line-height:1.4; }
+.ck-plan-amt { display:flex; flex-direction:column; align-items:flex-end; font-family:'Sora',sans-serif; font-size:17px; font-weight:800;
+  color:var(--text); white-space:nowrap; line-height:1.1; }
+.ck-plan-opt.act .ck-plan-amt { color:var(--blue); }
+.ck-plan-amt small { font-family:'DM Sans',sans-serif; font-size:10.5px; font-weight:700; color:var(--text-light); text-transform:uppercase; letter-spacing:.4px; }
+.ck-plan-note { display:flex; align-items:flex-start; gap:8px; margin:11px 0 0; padding:10px 13px; border-radius:var(--r-sm);
+  background:var(--sun-warm); border:1px solid rgba(255,159,28,.3); font-size:12.5px; font-weight:500; color:#8a5300; line-height:1.5;
+  animation:ckFadeUp .35s var(--ease) both; }
+.ck-plan-note svg { width:14px; height:14px; flex-shrink:0; margin-top:2px; }
+
+/* the deposit split under the summary total */
+.ck-sum-split { margin-top:8px; border:1px solid var(--border); border-radius:var(--r-sm); background:#fff; overflow:hidden;
+  animation:ckFadeUp .35s var(--ease) both; }
+.ck-sum-split-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 13px; font-size:12.5px; color:var(--text-sec); }
+.ck-sum-split-row + .ck-sum-split-row { border-top:1px dashed var(--border); }
+.ck-sum-split-row span { display:flex; align-items:center; gap:7px; }
+.ck-sum-split-row span svg { width:13px; height:13px; color:var(--text-light); flex-shrink:0; }
+.ck-sum-split-row b { font-family:'Sora',sans-serif; font-weight:800; color:var(--text); }
+.ck-sum-split-row.now { background:linear-gradient(165deg,#f4f8ff,#fff); color:var(--text); font-weight:600; }
+.ck-sum-split-row.now span svg { color:var(--blue); }
+.ck-sum-split-row.now b { color:var(--blue); font-size:14.5px; }
+
 .ck-pm-row { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; margin-bottom:22px; }
 .ck-pm { position:relative; display:flex; flex-direction:column; align-items:center; gap:7px; padding:15px 8px 13px;
   border:1.5px solid var(--border); border-radius:var(--r-md); background:#fbfdff; cursor:pointer; transition:all .3s var(--ease); }
@@ -1013,6 +1050,7 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   .ck-cc-wrap { max-width:380px; margin:0 auto; width:100%; }
   .ck-ins-grid { grid-template-columns:1fr; }
   .ck-pm-row { grid-template-columns:repeat(2,1fr); }
+  .ck-plan { grid-template-columns:1fr; }
 }
 @media (max-width: 760px) {
   .ck-hero { padding:calc(var(--nav-h) + 40px) 0 64px; border-radius:0 0 30px 30px; }

@@ -98,7 +98,8 @@
     "paymentFailed": "Payment failed. Please try again.",
     "flightPriceUnverified": "The airline can't confirm this flight's price right now. You have not been charged. Please try again in a few minutes.",
     "priceUnverified": "The supplier can't confirm the price right now. You have not been charged. Please try again in a few minutes.",
-    "priceChanged": "The price of this trip has changed. You have not been charged. Refresh the page to see the current price."
+    "priceChanged": "The price of this trip has changed. You have not been charged. Refresh the page to see the current price.",
+    "depositUnavailable": "A deposit is no longer possible for this trip. You have not been charged. Please pay the full amount to book it."
   },
   "baggage": {
     "add": "Add",
@@ -227,7 +228,8 @@
     "continueToPayment": "Continue to payment",
     "pay": "Pay {{amount}}",
     "continueToSupport": "Continue to support package",
-    "continueToReview": "Continue to overview"
+    "continueToReview": "Continue to overview",
+    "payDeposit": "Pay {{amount}} deposit"
   },
   "gone": {
     "title": "There’s no booking to pay for",
@@ -467,7 +469,15 @@
     "acceptedThisCondition": "You accepted this condition when you paid.",
     "whatHappensNext": "What happens next?",
     "helpQuestion": "Questions about your booking?",
-    "helpText": "Our travel experts are here 7 days a week."
+    "helpText": "Our travel experts are here 7 days a week.",
+    "depositPaid": "Deposit paid",
+    "balanceByShort": "Balance {{amount}} by {{date}}",
+    "balanceLaterShort": "Balance {{amount}} before departure",
+    "tripTotal": "Trip total",
+    "depositPaidWith": "Deposit paid with {{method}}",
+    "balanceBy": "Balance to pay by {{date}}",
+    "balanceLater": "Balance to pay before departure",
+    "balanceNote": "Pay the balance by card from My Bookings at any time, signed in with the email address of this booking."
   },
   "summary": {
     "transfer": "Transfer",
@@ -534,7 +544,14 @@
     "titleNotCompleted": "Payment not completed",
     "bookingReference": "Booking reference",
     "viewMyBookings": "View my bookings",
-    "backToHome": "Back to home"
+    "backToHome": "Back to home",
+    "titleBalancePaid": "Payment received",
+    "balancePartly": "Thank you. {{amount}} is still to pay on this booking.",
+    "balancePaid": "Thank you. Your trip is now paid in full.",
+    "depositSuccess": "Deposit received and your booking is confirmed.",
+    "depositPendingFinalisation": "Deposit received. Your booking is being finalised: you will receive your confirmation by email shortly.",
+    "depositBalance": "Pay the remaining {{amount}} by {{date}} from My Bookings.",
+    "depositBalanceNoDate": "Pay the remaining {{amount}} before departure from My Bookings."
   },
   "ageType": {
     "infant": "Infant",
@@ -670,5 +687,20 @@
       "back": "Back to sign in",
       "success": "Your password has been changed and you are signed in. Your booking carries on where you left it."
     }
+  },
+  "deposit": {
+    "howToPay": "How would you like to pay?",
+    "payFull": "Pay in full",
+    "payFullSub": "Nothing left to pay later",
+    "payDeposit": "Pay a deposit",
+    "payDepositSub": "{{amount}} later, by {{date}}",
+    "payDepositSubNoDate": "{{amount}} later, before departure",
+    "now": "now",
+    "nowShort": "deposit now",
+    "note": "The deposit secures your booking. Pay the remaining {{amount}} by {{date}} from My Bookings, signed in with the email address of this booking.",
+    "noteNoDate": "The deposit secures your booking. Pay the remaining {{amount}} before departure from My Bookings, signed in with the email address of this booking.",
+    "dueNow": "Deposit, paid now",
+    "balanceBy": "Balance, by {{date}}",
+    "balanceLater": "Balance, before departure"
   }
 }

@@ -5,12 +5,22 @@ import axiosInstance from '../../services/axiosInstance';
 import { bookingTokenFor } from '../../services/bookingAccess';
 import { trackPurchase, readPurchaseContext, clearPurchaseContext } from '../../analytics';
 import { clearDraft } from '../../utils/checkoutDraft';
+import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+
+// "2027-01-27" → "27/01/2027".
+const dmy = (iso) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+};
+const euros = (n) => `€${formatEuros(Number(n) || 0, PRICE_KIND.SELLING) ?? '0'}`;
 
 /**
  * Redirect-payment return page  (route: /checkout/return)
  *
  * Redirect-based methods (Bancontact / iDEAL / PayPal) send the customer away to
- * their bank / PayPal and back here. Stripe appends `payment_intent` and
+ * their bank / PayPal and back here. The same page finishes the BALANCE of a deposit booking
+ * paid from My Bookings (`purpose=balance`): that payment only settles the money, the trip was
+ * reserved when the deposit was paid, so it is not confirmed with the suppliers again. Stripe appends `payment_intent` and
  * `redirect_status` to the URL; we added `bookingId` and `mode`. This page:
  *   1. records the payment on the backend (which re-verifies the PaymentIntent),
  *   2. reserves with suppliers + confirms the booking,
@@ -32,6 +42,7 @@ export default function CheckoutReturn() {
     const mode = params.get('mode') || 'test';
     const paymentIntentId = params.get('payment_intent');
     const redirectStatus = params.get('redirect_status');
+    const balanceRun = params.get('purpose') === 'balance';
 
     // Anything but a definite failure means the money may have moved: the typed checkout for
     // this trip goes at once, before any request that could be cut short by the visitor leaving.
@@ -61,8 +72,10 @@ export default function CheckoutReturn() {
       }
 
       // 1) Record the payment — the backend re-verifies the PaymentIntent with Stripe.
+      let paid = null;
       try {
-        await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, { paymentIntentId });
+        const res = await axiosInstance.post(`/website/online-bookings/${bookingId}/payment`, { paymentIntentId });
+        paid = res?.data?.data || null;
       } catch (err) {
         const code = err?.response?.data?.errorCode;
         if (code === 'PAYMENT_NOT_SUCCEEDED') {
@@ -71,6 +84,28 @@ export default function CheckoutReturn() {
           return;
         }
         throw err;
+      }
+
+      const purpose = paid?.purpose || (balanceRun ? 'balance' : 'full');
+      const left = Number(paid?.balanceAmount) || 0;
+
+      // A balance payment settles the money on a trip already reserved: read the booking back
+      // for its reference and say what is left, if anything. No supplier call, no conversion.
+      if (purpose === 'balance') {
+        let booking = null;
+        try {
+          const { data } = await axiosInstance.get(`/website/online-bookings/${bookingId}`);
+          booking = data?.data || null;
+        } catch { /* non-fatal: payment already recorded */ }
+        setState({
+          status: 'success',
+          title: t('checkout:return.titleBalancePaid', 'Payment received'),
+          message: left > 0
+            ? t('checkout:return.balancePartly', { amount: euros(left), defaultValue: 'Thank you. {{amount}} is still to pay on this booking.' })
+            : t('checkout:return.balancePaid', 'Thank you. Your trip is now paid in full.'),
+          booking,
+        });
+        return;
       }
 
       // 2) Reserve with suppliers + confirm. Payment already succeeded, so a confirm
@@ -87,7 +122,7 @@ export default function CheckoutReturn() {
       try {
         const { data } = await axiosInstance.get(`/website/online-bookings/${bookingId}`);
         booking = data?.data || null;
-      } catch { /* non-fatal — payment already recorded */ }
+      } catch { /* non-fatal: payment already recorded */ }
 
       /**
        * GA4 `purchase` for the redirect payment methods (Tracking Master §12).
@@ -118,11 +153,22 @@ export default function CheckoutReturn() {
       // picked up by a later payment in the same tab.
       if (!reservationPending) clearPurchaseContext();
 
+      // A deposit: what is left and by when, so the customer leaves knowing the next step.
+      const due = dmy(paid?.balanceDueDate || booking?.balanceDueDate);
+      const depositLine = purpose === 'deposit' && left > 0
+        ? ` ${due
+          ? t('checkout:return.depositBalance', { amount: euros(left), date: due, defaultValue: 'Pay the remaining {{amount}} by {{date}} from My Bookings.' })
+          : t('checkout:return.depositBalanceNoDate', { amount: euros(left), defaultValue: 'Pay the remaining {{amount}} before departure from My Bookings.' })}`
+        : '';
       setState({
         status: reservationPending ? 'pending' : 'success',
-        message: reservationPending
-          ? t('checkout:return.pendingFinalisation', 'Payment received. Your booking is being finalised — you will receive your confirmation by email shortly.')
-          : t('checkout:return.success', 'Payment received and your booking is confirmed.'),
+        message: (reservationPending
+          ? (purpose === 'deposit'
+            ? t('checkout:return.depositPendingFinalisation', 'Deposit received. Your booking is being finalised: you will receive your confirmation by email shortly.')
+            : t('checkout:return.pendingFinalisation', 'Payment received. Your booking is being finalised — you will receive your confirmation by email shortly.'))
+          : (purpose === 'deposit'
+            ? t('checkout:return.depositSuccess', 'Deposit received and your booking is confirmed.')
+            : t('checkout:return.success', 'Payment received and your booking is confirmed.'))) + depositLine,
         booking,
       });
     })().catch((err) => {
@@ -155,6 +201,7 @@ export default function CheckoutReturn() {
 
       <h1 style={{ fontSize: 24, margin: '0 0 10px' }}>
         {working ? t('checkout:return.finalising', 'Finalising your payment…')
+          : ok && state.title ? state.title
           : ok ? t('checkout:return.titleConfirmed', 'Booking confirmed')
           : pending ? t('checkout:return.titleProcessing', 'Payment processing')
           : t('checkout:return.titleNotCompleted', 'Payment not completed')}

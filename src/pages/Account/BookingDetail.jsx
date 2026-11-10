@@ -5,6 +5,7 @@ import { Download, FileText } from 'lucide-react';
 import { useBooking, useBookingDocuments, fetchBookingDocumentPdf } from '../../api';
 import { useToast } from '../../context/ToastContext';
 import i18n from '../../i18n';
+import PayBalance from './PayBalance';
 import styles from './BookingDetail.module.css';
 
 // House format whatever the browser: €1.012,60.
@@ -22,6 +23,19 @@ const STATUS = {
 };
 
 const statusLabel = (status) => i18n.t(`account:status.${String(status || 'draft').toLowerCase()}`, status || 'Draft');
+
+// The payment status in words: a deposit booking that has paid its deposit says so.
+const paymentStatusLabel = (b) => {
+  const s = String(b?.paymentStatus || '');
+  if (s === 'Paid') return i18n.t('account:myBookings.payment.paid', 'Paid');
+  if (s === 'Partial') {
+    return b.paymentPlan === 'deposit'
+      ? i18n.t('account:myBookings.payment.depositPaid', 'Deposit paid')
+      : i18n.t('account:myBookings.payment.partPaid', 'Part-paid');
+  }
+  if (s === 'Unpaid') return i18n.t('account:myBookings.payment.unpaid', 'Unpaid');
+  return s || '—';
+};
 
 const productIcon = (t = '') => {
   const s = String(t).toLowerCase();
@@ -125,9 +139,11 @@ function BookingDocuments({ bookingRef }) {
 export default function BookingDetail() {
   const { t } = useTranslation('account');
   const { ref } = useParams();
-  const { data: b, loading, error } = useBooking(ref);
+  const { data: b, loading, error, refetch } = useBooking(ref);
 
-  if (loading) return <div className={styles.page}><div className={styles.center}>{t('account:bookingDetail.loading', 'Loading booking…')}</div></div>;
+  // Only the first load replaces the page: reading the booking again after a balance payment
+  // keeps it on screen while the new figures arrive.
+  if (loading && !b) return <div className={styles.page}><div className={styles.center}>{t('account:bookingDetail.loading', 'Loading booking…')}</div></div>;
   if (error)   return <div className={styles.page}><div className={styles.center} style={{ color: '#dc2626' }}>{error}</div></div>;
   if (!b)      return <div className={styles.page}><div className={styles.center}>{t('account:bookingDetail.notFound', 'Booking not found.')}</div></div>;
 
@@ -156,12 +172,23 @@ export default function BookingDetail() {
         <div className={styles.priceStrip}>
           <div className={styles.priceCell}><span className={styles.priceLabel}>{t('account:price.total', 'Total')}</span><span className={styles.priceValue}>{fmt(total)}</span></div>
           <div className={styles.priceCell}><span className={styles.priceLabel}>{t('account:price.paid', 'Paid')}</span><span className={`${styles.priceValue} ${styles.paid}`}>{fmt(paid)}</span></div>
-          <div className={styles.priceCell}><span className={styles.priceLabel}>{t('account:price.balanceDue', 'Balance due')}</span><span className={`${styles.priceValue} ${balance > 0 ? styles.owed : styles.paid}`}>{fmt(balance)}</span></div>
+          <div className={styles.priceCell}>
+            <span className={styles.priceLabel}>
+              {balance > 0 && b.balanceDueDate
+                ? t('account:price.balanceDueBy', { date: fmtDmy(b.balanceDueDate), defaultValue: 'Balance due by {{date}}' })
+                : t('account:price.balanceDue', 'Balance due')}
+            </span>
+            <span className={`${styles.priceValue} ${balance > 0 ? styles.owed : styles.paid}`}>{fmt(balance)}</span>
+          </div>
         </div>
         <div className={styles.metaRow}>
-          <span>{t('account:bookingDetail.paymentStatus', 'Payment status:')} <b>{b.paymentStatus || '—'}</b></span>
+          <span>{t('account:bookingDetail.paymentStatus', 'Payment status:')} <b>{paymentStatusLabel(b)}</b></span>
+          {b.paymentPlan === 'deposit' && Number(b.depositAmount) > 0 && (
+            <span>{t('account:bookingDetail.deposit', 'Deposit:')} <b>{fmt(b.depositAmount)}</b></span>
+          )}
           {b.bookingType && <span>{t('account:bookingDetail.source', 'Source:')} <b>{b.bookingType}</b></span>}
         </div>
+        <PayBalance booking={b} onPaid={() => refetch().catch(() => {})} />
       </section>
 
       {/* Documents */}

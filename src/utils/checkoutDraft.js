@@ -64,6 +64,8 @@ const PRIV_KEYS = [
 const PRO_KEYS = ['legalName', 'vatNumber'];
 const TRAVELLER_KEYS = ['gender', 'firstName', 'lastName', 'nationality', 'dateOfBirth'];
 const PAY_METHODS = ['card', 'ideal', 'bancontact', 'paypal'];
+// Pay the whole trip now, or the deposit now and the balance later (when a deposit is offered).
+const PAY_PLANS = ['full', 'deposit'];
 const NOTE_KINDS = ['general', 'assistance'];
 
 /** A bag selection is keyed `travellerIndex:direction`, as Checkout.jsx's bagKey builds it. */
@@ -176,6 +178,7 @@ const normalise = (raw) => {
     noteText: str(d.noteText, MAX_NOTE),
     supportCode: str(d.supportCode) || null,
     payMethod: PAY_METHODS.includes(d.payMethod) ? d.payMethod : 'card',
+    payPlan: PAY_PLANS.includes(d.payPlan) ? d.payPlan : 'full',
     idealBank: str(d.idealBank),
   };
 };

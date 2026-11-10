@@ -89,7 +89,10 @@
     "perAdult": "Tarief per volwassene",
     "instantDiscount": "Directe korting",
     "totalAmount": "Totaalbedrag",
-    "note": "Alle tarieven in EUR, per boeking, incl. toepasselijke belastingen. De definitieve prijs wordt bevestigd bij het afrekenen."
+    "note": "Alle tarieven in EUR, per boeking, incl. toepasselijke belastingen. De definitieve prijs wordt bevestigd bij het afrekenen.",
+    "depositNow": "Of betaal een aanbetaling bij het boeken",
+    "balanceBy": "en het saldo uiterlijk {{date}}",
+    "balanceLater": "en het saldo vóór vertrek"
   },
   "book": {
     "totalFor": "Totaal voor {{count}}",
@@ -102,6 +105,10 @@
     "secureSsl": "Beveiligde SSL-betaling",
     "fareConditions": "Tariefvoorwaarden getoond voor betaling",
     "instantETicket": "Directe e-ticket per e-mail",
-    "total": "totaal"
+    "total": "totaal",
+    "orDeposit": "of boek nu met {{amount}} aanbetaling",
+    "depositRest": "{{amount}} later, uiterlijk {{date}}",
+    "depositRestNoDate": "{{amount}} later, vóór vertrek",
+    "orDepositShort": "of {{amount}} aanbetaling"
   }
 }

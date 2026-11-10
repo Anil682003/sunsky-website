@@ -98,7 +98,8 @@
     "paymentFailed": "Betaling mislukt. Probeer het opnieuw.",
     "flightPriceUnverified": "De luchtvaartmaatschappij kan de prijs van deze vlucht op dit moment niet bevestigen. Er is niets afgeschreven. Probeer het over een paar minuten opnieuw.",
     "priceUnverified": "De leverancier kan de prijs op dit moment niet bevestigen. Er is niets afgeschreven. Probeer het over een paar minuten opnieuw.",
-    "priceChanged": "De prijs van deze reis is gewijzigd. Er is niets afgeschreven. Vernieuw de pagina om de actuele prijs te zien."
+    "priceChanged": "De prijs van deze reis is gewijzigd. Er is niets afgeschreven. Vernieuw de pagina om de actuele prijs te zien.",
+    "depositUnavailable": "Een aanbetaling is voor deze reis niet meer mogelijk. Er is niets afgeschreven. Betaal het volledige bedrag om te boeken."
   },
   "baggage": {
     "add": "Toevoegen",
@@ -227,7 +228,8 @@
     "continueToPayment": "Doorgaan naar betaling",
     "pay": "Betaal {{amount}}",
     "continueToSupport": "Doorgaan naar supportpakket",
-    "continueToReview": "Verder naar overzicht"
+    "continueToReview": "Verder naar overzicht",
+    "payDeposit": "Betaal {{amount}} aanbetaling"
   },
   "gone": {
     "title": "Er is geen boeking om te betalen",
@@ -467,7 +469,15 @@
     "acceptedThisCondition": "Je hebt deze voorwaarde geaccepteerd toen je betaalde.",
     "whatHappensNext": "Wat gebeurt er nu?",
     "helpQuestion": "Vragen over je boeking?",
-    "helpText": "Onze reisexperts staan 7 dagen per week voor je klaar."
+    "helpText": "Onze reisexperts staan 7 dagen per week voor je klaar.",
+    "depositPaid": "Aanbetaling betaald",
+    "balanceByShort": "Saldo {{amount}} uiterlijk {{date}}",
+    "balanceLaterShort": "Saldo {{amount}} vóór vertrek",
+    "tripTotal": "Totale reissom",
+    "depositPaidWith": "Aanbetaling betaald met {{method}}",
+    "balanceBy": "Saldo te betalen uiterlijk {{date}}",
+    "balanceLater": "Saldo te betalen vóór vertrek",
+    "balanceNote": "Betaal het saldo wanneer je wilt met je kaart via Mijn boekingen, aangemeld met het e-mailadres van deze boeking."
   },
   "summary": {
     "transfer": "Transfer",
@@ -534,7 +544,14 @@
     "titleNotCompleted": "Betaling niet voltooid",
     "bookingReference": "Boekingsreferentie",
     "viewMyBookings": "Bekijk mijn boekingen",
-    "backToHome": "Terug naar home"
+    "backToHome": "Terug naar home",
+    "titleBalancePaid": "Betaling ontvangen",
+    "balancePartly": "Bedankt. Er is nog {{amount}} te betalen op deze boeking.",
+    "balancePaid": "Bedankt. Je reis is nu volledig betaald.",
+    "depositSuccess": "Aanbetaling ontvangen en je boeking is bevestigd.",
+    "depositPendingFinalisation": "Aanbetaling ontvangen. Je boeking wordt afgerond: je ontvangt binnenkort je bevestiging per e-mail.",
+    "depositBalance": "Betaal het resterende bedrag van {{amount}} uiterlijk {{date}} via Mijn boekingen.",
+    "depositBalanceNoDate": "Betaal het resterende bedrag van {{amount}} vóór vertrek via Mijn boekingen."
   },
   "ageType": {
     "infant": "Baby",
@@ -670,5 +687,20 @@
       "back": "Terug naar inloggen",
       "success": "Je wachtwoord is gewijzigd en je bent ingelogd. Je boeking loopt gewoon verder."
     }
+  },
+  "deposit": {
+    "howToPay": "Hoe wil je betalen?",
+    "payFull": "Alles in één keer",
+    "payFullSub": "Later niets meer te betalen",
+    "payDeposit": "Aanbetaling",
+    "payDepositSub": "{{amount}} later, uiterlijk {{date}}",
+    "payDepositSubNoDate": "{{amount}} later, vóór vertrek",
+    "now": "nu",
+    "nowShort": "aanbetaling nu",
+    "note": "Met de aanbetaling is je boeking vastgelegd. Betaal het resterende bedrag van {{amount}} uiterlijk {{date}} via Mijn boekingen, aangemeld met het e-mailadres van deze boeking.",
+    "noteNoDate": "Met de aanbetaling is je boeking vastgelegd. Betaal het resterende bedrag van {{amount}} vóór vertrek via Mijn boekingen, aangemeld met het e-mailadres van deze boeking.",
+    "dueNow": "Aanbetaling, nu",
+    "balanceBy": "Saldo, uiterlijk {{date}}",
+    "balanceLater": "Saldo, vóór vertrek"
   }
 }

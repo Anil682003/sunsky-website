@@ -5,6 +5,11 @@ import i18n from '../../i18n';
 import './FlightDetail.css';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import { buildContext, fmtDate, fmtDateShort, fareBreakdown, paxLabel, cabinLabel } from '../Flights/flightData';
+import { useCheckoutConfig } from '../../api';
+import { DEFAULT_PRICING, computeDeposit } from '../../utils/checkoutPricing';
+
+// "2027-01-27" → "27/01/2027".
+const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
 
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
   <svg width={size} height={size} viewBox="0 0 24 24" fill={fill} stroke="currentColor"
@@ -135,6 +140,9 @@ export default function FlightDetail() {
 
   const [tab, setTab] = useState('details');
   const [openRule, setOpenRule] = useState('cancel');
+  // The deposit rule (admin: Pricing & Rules → Deposit & Payment → Website Deposit), so the page
+  // can say what booking with a deposit would cost now. Defaults while it loads: deposits off.
+  const { data: pricingCfg } = useCheckoutConfig();
 
   const fb = useMemo(() => (flight ? fareBreakdown(flight) : null), [flight]);
   const money = (n) => `€${Math.round(n).toLocaleString('en-GB')}`;
@@ -179,6 +187,12 @@ export default function FlightDetail() {
   const lastLeg = legs[legs.length - 1] || flight.out;
   const destLeg = isMulti ? lastLeg : flight.out;
   const nights = isRound ? Math.max(1, dayDiff(flight.out.depDateISO, flight.ret.depDateISO)) : 0;
+  // A flight on its own may be paid with a deposit only when SUNSKY switched that on for flights.
+  // The travellers who pay a share are the adults and children: a lap infant pays no share.
+  const deposit = computeDeposit(pricingCfg || DEFAULT_PRICING, fb.total, flight.out?.depDateISO, {
+    kind: 'flight',
+    pax: (Number(ctx.adults) || 0) + (Number(ctx.children) || 0) || pax,
+  });
   const totalMin = flight.totalMin;
   const totalLabel = `${Math.floor(totalMin / 60)}h ${String(totalMin % 60).padStart(2, '0')}m`;
 
@@ -521,6 +535,17 @@ export default function FlightDetail() {
                   )}
                   {fb.discount > 0 && <div className="fd-fare-row disc"><span>{ICON.check} {t('flightDetail:fare.instantDiscount', 'Instant discount')}</span><b>− {money(fb.discount)}</b></div>}
                   <div className="fd-fare-row total"><span>{t('flightDetail:fare.totalAmount', 'Total amount')}</span><b>{money(fb.total)}</b></div>
+                  {deposit && (
+                    <div className="fd-fare-dep">
+                      <div className="fd-fare-row dep"><span>{ICON.cal} {t('flightDetail:fare.depositNow', 'Or pay a deposit when you book')}</span><b>{money(deposit.amount)}</b></div>
+                      <div className="fd-fare-row dep">
+                        <span>{ICON.clock} {deposit.balanceDueDate
+                          ? t('flightDetail:fare.balanceBy', { date: dmy(deposit.balanceDueDate), defaultValue: 'and the balance by {{date}}' })
+                          : t('flightDetail:fare.balanceLater', 'and the balance before departure')}</span>
+                        <b>{money(deposit.balance)}</b>
+                      </div>
+                    </div>
+                  )}
                 </div>
                 <div className="fd-note">{ICON.info} {t('flightDetail:fare.note', 'All fares in EUR, per booking, incl. applicable taxes. Final price is confirmed at checkout.')}</div>
               </div>
@@ -536,6 +561,14 @@ export default function FlightDetail() {
               <div className="fd-book-amt">{money(fb.total)}</div>
               {flight.origPrice > flight.price && (
                 <div className="fd-book-sub"><s>{money(flight.origPrice * pax)}</s><span className="fd-save">{t('flightDetail:book.save', { amount: money((flight.origPrice - flight.price) * pax), defaultValue: 'Save {{amount}}' })}</span></div>
+              )}
+              {deposit && (
+                <div className="fd-book-dep">
+                  <b>{t('flightDetail:book.orDeposit', { amount: money(deposit.amount), defaultValue: 'or book now with a {{amount}} deposit' })}</b>
+                  <span>{deposit.balanceDueDate
+                    ? t('flightDetail:book.depositRest', { amount: money(deposit.balance), date: dmy(deposit.balanceDueDate), defaultValue: '{{amount}} later, by {{date}}' })
+                    : t('flightDetail:book.depositRestNoDate', { amount: money(deposit.balance), defaultValue: '{{amount}} later, before departure' })}</span>
+                </div>
               )}
             </div>
             <button className="fd-book-cta" onClick={goCheckout}>{t('flightDetail:book.bookNow', 'Book now')} {ICON.arrow}</button>
@@ -569,7 +602,10 @@ export default function FlightDetail() {
 
       {/* mobile sticky bar */}
       <div className="fd-mbar">
-        <div className="fd-mbar-price"><small>{t('flightDetail:book.total', 'total')}</small>{money(fb.total)}</div>
+        <div className="fd-mbar-price">
+          <small>{t('flightDetail:book.total', 'total')}</small>{money(fb.total)}
+          {deposit && <span className="fd-mbar-dep">{t('flightDetail:book.orDepositShort', { amount: money(deposit.amount), defaultValue: 'or {{amount}} deposit' })}</span>}
+        </div>
         <button className="fd-mbar-btn" onClick={goCheckout}>{t('flightDetail:book.bookNow', 'Book now')} {ICON.arrow}</button>
       </div>
     </div>

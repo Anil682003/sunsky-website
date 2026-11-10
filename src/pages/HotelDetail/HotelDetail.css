@@ -2850,6 +2850,7 @@
 .sd .mbi { display:flex; align-items:center; justify-content:space-between; gap:12px; max-width:600px; margin:0 auto; }
 .sd .mbp { font-family:'Sora',sans-serif; font-size:18px; font-weight:800; color:var(--dark); }
 .sd .mbp small { display:block; font-size:11px; font-weight:400; color:var(--text-sec); }
+.sd .mbp .mbp-dep { display:block; font-family:'DM Sans',sans-serif; font-size:11.5px; font-weight:700; color:#b4761a; }
 .sd .mbc { padding:12px 24px; border-radius:var(--r-full); background:linear-gradient(135deg,var(--sun),var(--gold)); color:#fff; font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; box-shadow:var(--shadow-glow); white-space:nowrap; }
 
 /* RESPONSIVE */

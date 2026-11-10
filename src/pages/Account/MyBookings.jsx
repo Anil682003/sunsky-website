@@ -21,11 +21,18 @@ const statusLabel = (status) => i18n.t(`account:status.${String(status || 'draft
 
 // Payment chip derived from amounts — always available, even if the list API
 // doesn't return a booking status.
-function paymentChip(paid, balance, total) {
+function paymentChip(paid, balance, total, deposit = false) {
   if (total > 0 && balance <= 0) return { label: i18n.t('account:myBookings.payment.paid', 'Paid'), bg: '#d1fae5', color: '#065f46' };
+  if (paid > 0 && deposit)       return { label: i18n.t('account:myBookings.payment.depositPaid', 'Deposit paid'), bg: '#fff1dc', color: '#9a5b00' };
   if (paid > 0)                  return { label: i18n.t('account:myBookings.payment.partPaid', 'Part-paid'), bg: '#dbeafe', color: '#1e40af' };
   return { label: i18n.t('account:myBookings.payment.unpaid', 'Unpaid'), bg: '#fee2e2', color: '#991b1b' };
 }
+
+// dd/mm/yyyy from the YYYY-MM-DD text, so no time zone can move the day.
+const fmtDmy = (ymd) => {
+  const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || ''));
+  return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
+};
 
 // Pick an icon from the product summary.
 function productIcon(summary) {
@@ -73,7 +80,11 @@ export default function MyBookings() {
             const paid    = parseFloat(b.paidAmount || 0);
             const balance = parseFloat(b.balanceAmount != null ? b.balanceAmount : total - paid);
             const st      = STATUS_COLORS[b.bookingStatus] || STATUS_COLORS.Draft;
-            const pay     = paymentChip(paid, balance, total);
+            const deposit = b.paymentPlan === 'deposit';
+            const pay     = paymentChip(paid, balance, total, deposit);
+            // A deposit booking with its balance still to pay: the card says so and leads there.
+            const payLater = deposit && b.paymentStatus === 'Partial' && balance > 0
+              && ['Pending', 'Confirmed'].includes(b.status || b.bookingStatus);
 
             return (
               <Link key={b.id} to={`/account/bookings/${b.bookingReference}`} className={styles.card}>
@@ -115,7 +126,11 @@ export default function MyBookings() {
                     <span className={`${styles.priceValue} ${styles.paid}`}>{fmt(paid)}</span>
                   </div>
                   <div className={styles.priceCell}>
-                    <span className={styles.priceLabel}>{t('account:price.balanceDue', 'Balance due')}</span>
+                    <span className={styles.priceLabel}>
+                      {balance > 0 && b.balanceDueDate
+                        ? t('account:price.balanceDueBy', { date: fmtDmy(b.balanceDueDate), defaultValue: 'Balance due by {{date}}' })
+                        : t('account:price.balanceDue', 'Balance due')}
+                    </span>
                     <span className={`${styles.priceValue} ${balance > 0 ? styles.dueOwed : styles.dueOk}`}>
                       {fmt(balance)}
                     </span>
@@ -126,7 +141,9 @@ export default function MyBookings() {
                   <span className={styles.booked}>
                     {t('account:myBookings.booked', { date: fmtShort(b.createdAt), defaultValue: 'Booked {{date}}' })}
                   </span>
-                  <span className={styles.view}>{t('account:myBookings.viewDetails', 'View details')} →</span>
+                  {payLater
+                    ? <span className={`${styles.view} ${styles.payLater}`}>{t('account:myBookings.payBalance', 'Pay balance')} →</span>
+                    : <span className={styles.view}>{t('account:myBookings.viewDetails', 'View details')} →</span>}
                 </div>
               </Link>
             );

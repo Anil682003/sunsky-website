@@ -419,7 +419,10 @@
     "localNoteTitle": "Lokale belastingen en kosten",
     "localNoteText": "Eventuele lokale toeristenbelasting wordt ter plaatse betaald, indien van toepassing. Prijzen zijn in € en kunnen wijzigen totdat je boeking is voltooid.",
     "selectionNotAvailable": "Deze selectie is momenteel niet beschikbaar",
-    "selectionNotAvailableHint": "Andere reisperiodes kunnen wel beschikbaar zijn. Gebruik de kalender of datummatrix op deze pagina om een andere periode te bekijken."
+    "selectionNotAvailableHint": "Andere reisperiodes kunnen wel beschikbaar zijn. Gebruik de kalender of datummatrix op deze pagina om een andere periode te bekijken.",
+    "depositHintFixed": "Een vaste aanbetaling voor de hele boeking, te betalen bij het boeken. Je kunt ook alles in één keer betalen.",
+    "depositHintPerPerson": "Een aanbetaling per reiziger, te betalen bij het boeken. Je kunt ook alles in één keer betalen.",
+    "balanceDueBy": "Te betalen uiterlijk {{date}}"
   },
   "prices": {
     "noPackageDatesHere": "Geen vakantie met vlucht rond deze data.",
@@ -601,7 +604,8 @@
     "securePayment": "Veilig betalen",
     "selectDatesAbove": "Kies je data hierboven",
     "totalTravellers_one": "{{amount}} totaal · {{count}} reiziger",
-    "totalTravellers_other": "{{amount}} totaal · {{count}} reizigers"
+    "totalTravellers_other": "{{amount}} totaal · {{count}} reizigers",
+    "orDeposit": "of {{amount}} aanbetaling"
   },
   "stayBar": {
     "careMeals": "Verzorging (maaltijden)",
