@@ -1,11 +1,24 @@
 import { Routes, Route } from 'react-router-dom';
-import { Suspense } from 'react';
+import { Suspense, useEffect } from 'react';
 import Layout from '../Layout/Layout';
 import ProtectedRoute from '../components/ProtectedRoute';
 import PublicRoute from '../components/PublicRoute';
 import ScrollToTop from '../components/ScrollToTop';
 import ErrorBoundary from '../components/ErrorBoundary/ErrorBoundary';
-import { routes, publicRoutes, notFoundRoute } from './routes.config';
+import { routes, publicRoutes, notFoundRoute, prefetchLikelyPages } from './routes.config';
+
+// A visitor with a tab open across a deploy asks for a page file that no longer exists: reload
+// once to pick up the new build instead of showing an error (Vite's preload error event).
+if (typeof window !== 'undefined') {
+  window.addEventListener('vite:preloadError', (e) => {
+    try {
+      if (sessionStorage.getItem('sunsky.reloadedForBuild')) return;
+      sessionStorage.setItem('sunsky.reloadedForBuild', '1');
+    } catch { /* no storage: still reload once per event */ }
+    e.preventDefault();
+    window.location.reload();
+  });
+}
 
 function PageLoader() {
   return (
@@ -18,7 +31,8 @@ function PageLoader() {
 
 function renderRoute({ path, component: Component, layout, footer, protected: isProtected }) {
   // Each page in its own boundary: a crash is reported and the header and footer stay.
-  let element = <ErrorBoundary key={path}><Component /></ErrorBoundary>;
+  // The loader sits inside the layout, so the header and footer stay while a page file loads.
+  let element = <ErrorBoundary key={path}><Suspense fallback={<PageLoader />}><Component /></Suspense></ErrorBoundary>;
 
   if (isProtected) {
     element = <ProtectedRoute>{element}</ProtectedRoute>;
@@ -33,6 +47,7 @@ function renderRoute({ path, component: Component, layout, footer, protected: is
 
 export default function AppRouter() {
   const NotFound = notFoundRoute.component;
+  useEffect(() => { prefetchLikelyPages(); }, []);
 
   return (
     <Suspense fallback={<PageLoader />}>

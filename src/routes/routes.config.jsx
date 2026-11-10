@@ -1,33 +1,37 @@
+import { lazy } from 'react';
+// The homepage and the not-found page ship in the main file; every other page is its own file,
+// loaded on first visit. The homepage used to download all of them (1.77 MB, checkout and
+// Stripe included) before it could start.
 import Home from '../pages/Home/Home';
-import Results from '../pages/Results/Results';
-import HotelDetail from '../pages/HotelDetail/HotelDetail';
-import Packages from '../pages/Packages/Packages';
-import Flights from '../pages/Flights/Flights';
-import FlightDetail from '../pages/FlightDetail/FlightDetail';
-import Hotels from '../pages/Hotels/Hotels';
-import HolidayType from '../pages/HolidayType/HolidayType';
-import Transfers from '../pages/Transfers/Transfers';
-import About from '../pages/About/About';
-import Contact from '../pages/Contact/Contact';
-import Faq from '../pages/Faq/Faq';
-import StaticPage from '../pages/StaticPage/StaticPage';
-import SeoLanding from '../pages/SeoLanding/SeoLanding';
-import Login from '../pages/Auth/Login';
-import Register from '../pages/Auth/Register';
-import ForgotPassword from '../pages/Auth/ForgotPassword';
-import Account from '../pages/Account/Account';
-import MyBookings from '../pages/Account/MyBookings';
-import AccountBookingDetail from '../pages/Account/BookingDetail';
-import Favourites from '../pages/Account/Favourites';
-import Profile from '../pages/Account/Profile';
-import AccountSettings from '../pages/Account/AccountSettings';
-import Checkout from '../pages/Checkout/Checkout';
-import CheckoutReturn from '../pages/Checkout/CheckoutReturn';
-import HotelVoucher from '../pages/Voucher/HotelVoucher';
-import BookingFlow from '../pages/Booking/BookingFlow';
-import BookingDetail from '../pages/Booking/BookingDetail';
-import BookingConfirmation from '../pages/Booking/BookingConfirmation';
 import NotFound from '../pages/NotFound/NotFound';
+const Results = lazy(() => import('../pages/Results/Results'));
+const HotelDetail = lazy(() => import('../pages/HotelDetail/HotelDetail'));
+const Packages = lazy(() => import('../pages/Packages/Packages'));
+const Flights = lazy(() => import('../pages/Flights/Flights'));
+const FlightDetail = lazy(() => import('../pages/FlightDetail/FlightDetail'));
+const Hotels = lazy(() => import('../pages/Hotels/Hotels'));
+const HolidayType = lazy(() => import('../pages/HolidayType/HolidayType'));
+const Transfers = lazy(() => import('../pages/Transfers/Transfers'));
+const About = lazy(() => import('../pages/About/About'));
+const Contact = lazy(() => import('../pages/Contact/Contact'));
+const Faq = lazy(() => import('../pages/Faq/Faq'));
+const StaticPage = lazy(() => import('../pages/StaticPage/StaticPage'));
+const SeoLanding = lazy(() => import('../pages/SeoLanding/SeoLanding'));
+const Login = lazy(() => import('../pages/Auth/Login'));
+const Register = lazy(() => import('../pages/Auth/Register'));
+const ForgotPassword = lazy(() => import('../pages/Auth/ForgotPassword'));
+const Account = lazy(() => import('../pages/Account/Account'));
+const MyBookings = lazy(() => import('../pages/Account/MyBookings'));
+const AccountBookingDetail = lazy(() => import('../pages/Account/BookingDetail'));
+const Favourites = lazy(() => import('../pages/Account/Favourites'));
+const Profile = lazy(() => import('../pages/Account/Profile'));
+const AccountSettings = lazy(() => import('../pages/Account/AccountSettings'));
+const Checkout = lazy(() => import('../pages/Checkout/Checkout'));
+const CheckoutReturn = lazy(() => import('../pages/Checkout/CheckoutReturn'));
+const HotelVoucher = lazy(() => import('../pages/Voucher/HotelVoucher'));
+const BookingFlow = lazy(() => import('../pages/Booking/BookingFlow'));
+const BookingDetail = lazy(() => import('../pages/Booking/BookingDetail'));
+const BookingConfirmation = lazy(() => import('../pages/Booking/BookingConfirmation'));
 
 // layout: true  → wrapped in Navbar + Footer
 // footer: false → keeps the navbar but drops the footer (see Layout)
@@ -100,3 +104,11 @@ const seoLandingRoutes = ['/:a', '/:a/:b', '/:a/:b/:c', '/:a/:b/:c/:d'].map((pat
 routes.push(...seoLandingRoutes);
 
 export const notFoundRoute = { path: '*', component: NotFound, layout: true };
+
+
+/** Warm the pages a visitor most often opens next, once the current page is idle. */
+export function prefetchLikelyPages() {
+  const go = () => { import('../pages/Results/Results'); import('../pages/HotelDetail/HotelDetail'); };
+  if (typeof window === 'undefined') return;
+  if ('requestIdleCallback' in window) window.requestIdleCallback(go, { timeout: 4000 }); else setTimeout(go, 2500);
+}
