@@ -179,7 +179,8 @@
     "originNoteAny": "Bij elk hotel zie je de vertrekluchthaven met de laagste prijs. Vink luchthavens aan om alleen die te vergelijken.",
     "airportNoFlight": "Geen vlucht naar {{place}} op deze data",
     "airportChoiceGone": "Niet beschikbaar voor deze zoekopdracht. Vink hem uit of kies een andere luchthaven.",
-    "nonstopBothWays": "Alleen rechtstreeks heen en terug"
+    "nonstopBothWays": "Alleen rechtstreeks heen en terug",
+    "promos": "Aanbiedingen"
   },
   "hero": {
     "home": "Home",
@@ -286,5 +287,9 @@
     "tryAgain": "Opnieuw proberen",
     "failedTitle": "We konden niet alle vlucht + hotelprijzen laden",
     "failedText": "Sommige bestemmingen antwoordden niet op tijd. Probeer het zo meteen opnieuw."
+  },
+  "promo": {
+    "EARLY_BOOKING": "Vroegboekkorting",
+    "CHILD_DISCOUNT": "Kinderkorting"
   }
 }

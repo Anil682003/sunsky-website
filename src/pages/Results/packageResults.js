@@ -117,6 +117,9 @@ export function packageBody({ fp, childAges = '', filters = {}, origins = [], ho
   if (filters.nonstop) body.routing = 'nonstop';
   if (Array.isArray(hotelCodes)) body.hotelCodes = hotelCodes;
   if (filters.boards?.length) body.boards = filters.boards;
+  // Offers inside the hotel price (Early Booking, Child Discount): the admin asks SunSkyCache
+  // for hotels whose shown price carries them. The API calls them `offers`.
+  if (filters.promos?.length) body.offers = filters.promos.join(',');
   if (filters.refundable && filters.refundable !== 'any') body.refundable = filters.refundable;
   const min = filters.minPrice === '' || filters.minPrice == null ? null : Number(filters.minPrice);
   const max = filters.maxPrice === '' || filters.maxPrice == null ? null : Number(filters.maxPrice);
@@ -160,6 +163,8 @@ export function mapPackage(p, label) {
     // The known local tax of this package's stay and party (UI-09): shown under the price,
     // never part of it. null = none known.
     localCost: localCostOfPackage(p),
+    // Offers inside this package's hotel price (EARLY_BOOKING, CHILD_DISCOUNT): the card's labels.
+    promos: Array.isArray(p?.offers) ? p.offers : [],
     pkg: p,
   };
 }
@@ -291,6 +296,13 @@ export function mergeBoardFacets(groups) {
   return out;
 }
 
+/** PURE. Offer counts (`offerFacets`, kept as `promoFacets`) summed over the groups, like the boards. */
+export function mergePromoFacets(groups) {
+  const out = {};
+  for (const g of groups) for (const [o, n] of Object.entries(g.promoFacets || {})) out[o] = (out[o] || 0) + (Number(n) || 0);
+  return out;
+}
+
 /**
  * PURE. The airports the package answers PROVE (Ch 1 §9A, ResultFacetFeasibility): the departure
  * and arrival airports through which at least one hotel left after every other filter has a
@@ -312,7 +324,7 @@ export function mergeAirportFacets(groups, body = {}) {
   };
 }
 
-export default { PACKAGE_CONCURRENCY, chunkDestinations, packageBody, mapPackage, mergePackages, groupsToExtend, randomOrder, packageTotal, cheapestPackage, noFlightPlaces, unknownDestinations, mergeBoardFacets, mergeAirportFacets, DEST_CHUNK, PACKAGE_PAGE, PRECALC_NIGHTS };
+export default { PACKAGE_CONCURRENCY, chunkDestinations, packageBody, mapPackage, mergePackages, groupsToExtend, randomOrder, packageTotal, cheapestPackage, noFlightPlaces, unknownDestinations, mergeBoardFacets, mergePromoFacets, mergeAirportFacets, DEST_CHUNK, PACKAGE_PAGE, PRECALC_NIGHTS };
 
 /**
  * PURE. Hotels per destination across the package groups (UI-13, Ch 1 §5).

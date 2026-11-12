@@ -179,7 +179,8 @@
     "originNoteAny": "Each hotel shows the departure airport that prices it cheapest. Tick airports to compare only those.",
     "airportNoFlight": "No flight to {{place}} for these dates",
     "airportChoiceGone": "Not available for this search. Untick it or choose another airport.",
-    "nonstopBothWays": "Direct outbound and return only"
+    "nonstopBothWays": "Direct outbound and return only",
+    "promos": "Offers"
   },
   "hero": {
     "home": "Home",
@@ -286,5 +287,9 @@
     "tryAgain": "Try again",
     "failedTitle": "We could not load all flight + hotel prices",
     "failedText": "Some destinations did not answer in time. Try again in a moment."
+  },
+  "promo": {
+    "EARLY_BOOKING": "Early Booking",
+    "CHILD_DISCOUNT": "Child discount"
   }
 }

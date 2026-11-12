@@ -12,7 +12,7 @@ import axiosInstance from '../../services/axiosInstance';
 import { holidayThemesForCities } from '../../utils/holidayThemesForCities';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages, fetchDestinationCountries } from '../../api/filters';
 import {
-  packageBody, chunkDestinations, chunkSizeFor, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergeAirportFacets, mergeDestinationCounts, PACKAGE_CONCURRENCY, isoAddDays,
+  packageBody, chunkDestinations, chunkSizeFor, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergePromoFacets, mergeAirportFacets, mergeDestinationCounts, PACKAGE_CONCURRENCY, isoAddDays,
   packageTotal, cheapestPackage,
 } from './packageResults';
 import { zoneKey, scopeLeaves } from '../../utils/scopeLeaves';
@@ -194,6 +194,10 @@ const PRICE_CEILING_FALLBACK = 1000;
 // Content facets narrow the hotelCodes via the admin API; price facets go straight to the cache.
 const EMPTY_FILTERS = {
   boards: [], minPrice: '', maxPrice: '',
+  // Offers inside the shown price (Levent, 12 Nov 2026): EARLY_BOOKING / CHILD_DISCOUNT. Sent to
+  // the cache and the admin as `offers`; called promos here because `offer*` already names the
+  // priced results this page counts over.
+  promos: [],
   priceBasis: 'total', refundable: 'any', sortBy: 'recommended',
   // Content facets (resolved against the admin content API into a hotelCode set for the cache).
   themes: [], stars: [], facilities: [], activities: [],
@@ -238,12 +242,16 @@ const CCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', TRY: '₺' };
    leaking a missing-key string. */
 const getBoardLabel = (code) =>
   (code && BOARD_LABELS[code] ? i18n.t(`results:board.${code}`, BOARD_LABELS[code]) : code || '');
+// The offers a price can carry and the site names (SunSkyCache offersOf); Last Minute is internal.
+const PROMO_CODES = ['EARLY_BOOKING', 'CHILD_DISCOUNT'];
+const PROMO_LABELS = { EARLY_BOOKING: 'Early Booking', CHILD_DISCOUNT: 'Child discount' };
+const promoLabel = (code) => i18n.t(`results:promo.${code}`, PROMO_LABELS[code] || code);
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
 const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
 
 // How many filters the user has actively changed — drives the sidebar count pill.
 const countActiveFilters = (f) =>
-  f.boards.length +
+  f.boards.length + (f.promos?.length || 0) +
   (f.themes?.length || 0) + (f.stars?.length || 0) +
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
@@ -942,6 +950,10 @@ export default function Results() {
     const boards = csv(params.get('boards') || '')
       .map((c) => c.trim().toUpperCase())
       .filter(Boolean);
+    // ?promos=EARLY_BOOKING — only the offers the site labels (Last Minute stays internal).
+    const promos = csv(params.get('promos') || '')
+      .map((c) => c.trim().toUpperCase())
+      .filter((c) => PROMO_CODES.includes(c));
     const themes        = nums('themes');
     const kids          = nums('kids');
     const facilities    = nums('facilities');
@@ -981,6 +993,7 @@ export default function Results() {
     const nonstop   = csv(params.get('routing') || '').some((r) => ['nonstop', 'non-stop', 'direct'].includes(r.toLowerCase()));
     const seed = {
       ...(boards.length        ? { boards } : {}),
+      ...(promos.length        ? { promos } : {}),
       ...(themes.length        ? { themes } : {}),
       ...(kids.length          ? { kids } : {}),
       ...(stars.length         ? { stars } : {}),
@@ -1102,6 +1115,8 @@ export default function Results() {
   const [cheapestCode, setCheapestCode] = useState(null);
   // Dynamic board facets from the cache: { boardCode: hotelCount } for THIS search.
   const [boardFacets, setBoardFacets] = useState({});
+  // { EARLY_BOOKING: hotels, CHILD_DISCOUNT: hotels } for this search (the cache's offerFacets).
+  const [promoFacets, setPromoFacets] = useState({});
   // UI-20: what the homepage door's default actually turned into, as the server reports it.
   // null whenever nothing was applied, which is the normal case once the traveller has chosen.
   const [entryApplied, setEntryApplied] = useState(null);
@@ -1724,6 +1739,7 @@ export default function Results() {
     if (ages) body.childAges = ages;
 
     if (f.boards.length)    body.boards    = f.boards;
+    if (f.promos?.length)   body.offers    = f.promos;
 
     const min = f.minPrice === '' ? null : Number(f.minPrice);
     const max = f.maxPrice === '' ? null : Number(f.maxPrice);
@@ -1793,6 +1809,8 @@ export default function Results() {
       nightlyBreakdown: c.nightlyBreakdown || [],
       // Taxes payable at the hotel, not in totalAmount (internal contracts only, UI-09).
       localCost:    localCostOfCacheRow(c),
+      // Offers inside THIS price for this party (internal contracts): the card's labels.
+      promos:       Array.isArray(c.offers) ? c.offers : [],
       badge:        null,
       img:          null,
       loc:          label,
@@ -1897,7 +1915,7 @@ export default function Results() {
         applied.accommodation, applied.kids, applied.arrivals, applied.origins,
         applied.minPrice, applied.maxPrice, applied.priceBasis, applied.refundable,
         applied.maxBeach, applied.maxCentre, applied.minRating, applied.adultsOnly,
-        applied.segments, applied.any, applied.excludeAdultsOnly,
+        applied.segments, applied.any, applied.excludeAdultsOnly, applied.promos,
       ]),
     };
   }, [scope, scopeCities, applied, fetchParams]);
@@ -1989,6 +2007,7 @@ export default function Results() {
       }
     }
     setBoardFacets(mergeBoardFacets(pk.groups));
+    setPromoFacets(mergePromoFacets(pk.groups));
     // Every group was asked the same question, so the first that answered speaks for all.
     setEntryApplied(pk.groups.find((g) => g.entryApplied)?.entryApplied ?? null);
     setDestCounts(mergeDestinationCounts(pk.groups));
@@ -2033,7 +2052,7 @@ export default function Results() {
           // `entryApplied` is the server's answer to "did the door's default survive the
           // traveller's own choices" (§12B.2, UI-20). Every group is asked the same question, so
           // the first page of any of them carries it.
-          if (g.page === 1) { g.resultCodes = Array.isArray(r?.resultHotelCodes) ? r.resultHotelCodes : null; g.priceRange = r?.priceRange ?? null; g.boardFacets = r?.boardFacets || {}; g.airportFacets = r?.airportFacets || null; g.destinationFacets = r?.destinationFacets || null; g.entryApplied = r?.entryApplied ?? null; }
+          if (g.page === 1) { g.resultCodes = Array.isArray(r?.resultHotelCodes) ? r.resultHotelCodes : null; g.priceRange = r?.priceRange ?? null; g.boardFacets = r?.boardFacets || {}; g.promoFacets = r?.offerFacets || {}; g.airportFacets = r?.airportFacets || null; g.destinationFacets = r?.destinationFacets || null; g.entryApplied = r?.entryApplied ?? null; }
           g.error = null;
         } catch (err) {
           if (signal?.aborted || err?.name === 'CanceledError') return;
@@ -2071,7 +2090,7 @@ export default function Results() {
     }
     if (!priceScope) return;                       // wait for facets resolution
     if (!priceScope.destinations.length) {         // scope resolved to nothing to price
-      setAllHotels([]); setBoardFacets({}); setDestCounts(null); setHasMore(false); setLoading(false); setFiltering(false);
+      setAllHotels([]); setBoardFacets({}); setPromoFacets({}); setDestCounts(null); setHasMore(false); setLoading(false); setFiltering(false);
       return;
     }
 
@@ -2143,6 +2162,7 @@ export default function Results() {
       setNights(nightsBetween(fetchParams.checkIn, fetchParams.checkOut) || 0);
       setCheapestCode(null);
       setBoardFacets({});
+      setPromoFacets({});
       if (!groups.length) {
         setAllHotels([]); setHasMore(false); setLoading(false); setFiltering(false); setPendingSearch(false);
         return undefined;
@@ -2170,6 +2190,7 @@ export default function Results() {
         const results = data.results || [];
         setNights(data.nights || 0);
         setBoardFacets(data.boardFacets || {});
+        setPromoFacets(data.offerFacets || {});
         // Hotel Only: the cache answers destinationCounts directly.
         setDestCounts(data.destinationCounts || null);
         // Every priced hotel of this search (page 1): the sidebar counts over the results, as for
@@ -2398,10 +2419,10 @@ export default function Results() {
     // meal plan or room type the traveller filtered for. So under any of them the extra hotels
     // are not offered at all, rather than offered in contradiction of the filter.
     if (applied.minPrice !== '' || applied.maxPrice !== ''
-      || applied.boards.length) return null;
+      || applied.boards.length || applied.promos.length) return null;
     return JSON.stringify([dests, codes, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults,
       fetchParams.children, fetchParams.rooms, fetchParams.childAges ?? null, allHotels.length]);
-  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.transport, applied.minPrice, applied.maxPrice, applied.boards]);
+  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.transport, applied.minPrice, applied.maxPrice, applied.boards, applied.promos]);
 
   const onRequest = useMemo(
     () => (onRequestData.key === onRequestKey ? onRequestData.list : EMPTY_ON_REQUEST),
@@ -2655,6 +2676,7 @@ export default function Results() {
       const v = seeded[k];
       switch (k) {
         case 'boards':        return v.map(getBoardLabel);
+        case 'promos':        return v.map(promoLabel);
         case 'stars':         return v.map((n) => `${'★'.repeat(n)} ${starLabel(n)}`);
         case 'themes':        return v.map((id) => facets.holiday.find((h) => h.id === id)?.name);
         case 'facilities':    return v.map((c) => named(facets.facilities, c));
@@ -3384,6 +3406,16 @@ export default function Results() {
           ))
         )}
       </FilterSection>
+
+      {/* Offers — only those inside a shown price for this search, with counts (Levent, 12 Nov
+          2026). Hidden when the search has none; a ticked one stays so it can be unticked. */}
+      {PROMO_CODES.some((c) => promoFacets[c] > 0 || filters.promos.includes(c)) && (
+        <FilterSection title={t('filters.promos', 'Offers')} defaultOpen>
+          {PROMO_CODES.filter((c) => promoFacets[c] > 0 || filters.promos.includes(c)).map((c) => (
+            <FilterCheck key={c} label={`${promoLabel(c)} (${promoFacets[c] || 0})`} checked={filters.promos.includes(c)} onChange={() => toggleCode('promos', c)} />
+          ))}
+        </FilterSection>
+      )}
 
       {/* Star Rating — DYNAMIC from the admin facets, with counts. */}
       <FilterSection title={t('filters.starRating', 'Star Rating')} defaultOpen>
@@ -4295,6 +4327,14 @@ export default function Results() {
                           button, never in a tooltip and never in the price. Cache data only, as
                           the rest of the card: the package's localCosts or the cache row's
                           taxExcluded. Nothing known, nothing shown. */}
+                      {/* Offers inside this very price (cache: the room shown, this party). */}
+                      {!h.noFromPrice && !h.onRequest && priceKnown && h.promos?.length > 0 && (
+                        <div className={styles.rcPromos}>
+                          {h.promos.filter((c) => PROMO_CODES.includes(c)).map((c) => (
+                            <span key={c} className={styles.rcPromo}>{promoLabel(c)}</span>
+                          ))}
+                        </div>
+                      )}
                       {!h.noFromPrice && !h.onRequest && priceKnown && (
                         <LocalCosts cost={h.localCost} payable={payableTotal} className={styles.rcLocalCosts} />
                       )}
