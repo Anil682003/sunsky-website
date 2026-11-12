@@ -5,6 +5,7 @@ import SectionHead from './SectionHead';
 import { useHolidayTypes } from '../../../api';
 import { resolveCmsImageUrl } from '../../../utils/cmsImage';
 import { destUrl } from '../../../utils/cmsDestinations';
+import { useFreshDests } from '../../../utils/freshDests';
 import { categoryCards, categoriesShowAllUrl } from '../../../utils/showAllSearches';
 import ShowAllLink from '../../../components/ShowAllLink/ShowAllLink';
 import { useTranslation } from 'react-i18next';
@@ -106,6 +107,10 @@ export default function Categories({ cms }) {
     };
   });
 
+  // The stored places with their current GeoData names (utils/freshDests): the chips and their
+  // links say "Mallorca", not the "Majorca" copied when the card was set up.
+  const fresh = useFreshDests(cards.flatMap((c) => c.destinations || []));
+
   // "Show all" searches every place the cards feature, in one search. Places only: see
   // sectionSearchUrl for why the holiday types do not travel as a filter.
   const showAllHref = categoriesShowAllUrl(cms, types);
@@ -170,7 +175,7 @@ export default function Categories({ cms }) {
                   <div className={`${styles.destWrap} ${open ? styles.destWrapOpen : ''}`}>
                     <div className={styles.destInner}>
                       <div className={styles.destPanel} id={panelId}>
-                        {dests.map((d) => (
+                        {dests.map(fresh).map((d) => (
                           <Link
                             key={`${d.type}:${d.code}`}
                             to={destUrl(d, c.typeId, c.slug)}

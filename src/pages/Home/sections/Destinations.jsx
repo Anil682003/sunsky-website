@@ -5,6 +5,7 @@ import SectionHead from './SectionHead';
 import ShowAllLink from '../../../components/ShowAllLink/ShowAllLink';
 import { destUrl, sectionSearchUrl } from '../../../utils/cmsDestinations';
 import { destinationTabs } from '../../../utils/showAllSearches';
+import { useFreshDests } from '../../../utils/freshDests';
 import { useTranslation } from 'react-i18next';
 import { MapPin } from 'lucide-react';
 
@@ -39,7 +40,8 @@ const localiseTabs = (t) =>
 
 // The dashboard's tabs, cards and each tab's "Show all", from utils/showAllSearches — shared with
 // the "Show all" warmer, so the warmed search is the one behind the button.
-function buildTabsFromCms(cms) {
+// `fresh`: the place's current GeoData names (utils/freshDests) — the stored copy can be stale.
+function buildTabsFromCms(cms, fresh = (d) => d) {
   const tabs = destinationTabs(cms);
   if (!tabs) return null;
   const result = {};
@@ -52,7 +54,7 @@ function buildTabsFromCms(cms) {
         count: c.holidays,
         badge: c.badge,
         img: c.imageUrl,
-        href: dest ? destUrl(dest) : null,
+        href: dest ? destUrl(fresh(dest)) : null,
         dest,
       })),
     };
@@ -89,7 +91,8 @@ export default function Destinations({ cms }) {
   const title    = sh?.title    || t('destinations.title', 'Our best sun destinations');
   const subtitle = sh?.subtitle || t('destinations.subtitle', 'Handpicked destinations with guaranteed sunshine and incredible value.');
 
-  const cmsTabs = buildTabsFromCms(cms);
+  const fresh = useFreshDests((destinationTabs(cms) ?? []).flatMap((tab) => tab.cards.map((c) => c.dest)));
+  const cmsTabs = buildTabsFromCms(cms, fresh);
   const TABS = cmsTabs || localiseTabs(t);
 
   const [active, setActive] = useState(Object.keys(TABS)[0]);
