@@ -4,9 +4,13 @@
 // and reaches the results page the same way from a homepage card and from the Holiday Types page.
 //
 //   Match all → one parameter per filter (values of one filter OR together, like the sidebar)
-//   Match any → content criteria in one `any=key:value;key:value` group; board stays a normal
-//               filter, because it is matched on the priced rate, not the hotel record
+//   Match any → content criteria in one `any=key:value;key:value` group; board and offers stay
+//               normal filters, because they are matched on the priced rate, not the hotel record
+//   Offers    → `promos=EARLY_BOOKING` (the results page's offers filter, sent on as `offers`)
 //   excludeAdultsOnly → `excludeAdultsOnly=1`
+
+/** Matched on the priced rate, so always required — never part of a Match any group. */
+const ON_PRICE = new Set(['boards', 'promos']);
 
 /** [[name, value], …] for the rule, or [] when nothing in it is usable. */
 export function ruleParams(criteria, { match, excludeAdultsOnly } = {}) {
@@ -23,7 +27,7 @@ export function ruleParams(criteria, { match, excludeAdultsOnly } = {}) {
     }
     const value = String(c?.value ?? '').trim();
     if (!value) continue;
-    if (match === 'any' && key !== 'boards') { anyTokens.push(`${key}:${value}`); continue; }
+    if (match === 'any' && !ON_PRICE.has(key)) { anyTokens.push(`${key}:${value}`); continue; }
     if (!byKey.has(key)) byKey.set(key, new Set());
     byKey.get(key).add(value);
   }

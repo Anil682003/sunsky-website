@@ -36,6 +36,22 @@ describe('withThemeRule', () => {
   });
 });
 
+describe('offers in a theme rule (doc §7-8)', () => {
+  const deals = {
+    criteria: [
+      { filterKey: 'kids', value: 340, label: 'Kids club' },
+      { filterKey: 'promos', value: 'EARLY_BOOKING', label: 'Early Booking' },
+    ],
+  };
+  it('always a filter of its own, never in the Match any group: matched on the priced rate', () => {
+    const any = new URLSearchParams(withThemeRule('/results?countries=TR', { ...deals, match: 'any' }).split('?')[1]);
+    expect(any.get('any')).toBe('kids:340');
+    expect(any.get('promos')).toBe('EARLY_BOOKING');
+    const all = new URLSearchParams(withThemeRule('/results?countries=TR', { ...deals, match: 'all' }).split('?')[1]);
+    expect([all.get('kids'), all.get('promos')]).toEqual(['340', 'EARLY_BOOKING']);
+  });
+});
+
 describe('cardSearch', () => {
   const types = [{ id: 7, search: family }, { id: 8, search: null }];
   it('a card linked to a type with features uses the type rule, keeping its own tag setting', () => {
