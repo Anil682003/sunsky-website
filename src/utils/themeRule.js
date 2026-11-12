@@ -12,9 +12,30 @@
 /** Matched on the priced rate, so always required — never part of a Match any group. */
 const ON_PRICE = new Set(['boards', 'promos']);
 
-/** [[name, value], …] for the rule, or [] when nothing in it is usable. */
-export function ruleParams(criteria, { match, excludeAdultsOnly } = {}) {
+/**
+ * [[name, value], …] for the rule, or [] when nothing in it is usable.
+ *
+ * `groups` (mixed rules, doc §2 / §8): further groups the hotel must ALSO meet. A Match all group
+ * adds its filters like the first; each Match any group becomes one more `any` group, separated
+ * by "|" (the admin ANDs the groups, ORs inside each).
+ */
+export function ruleParams(criteria, { match, excludeAdultsOnly, groups } = {}) {
   const byKey = new Map();
+  const anyGroups = [];
+  const all = [{ criteria, match }, ...(Array.isArray(groups) ? groups : [])];
+  for (const g of all) {
+    const anyTokens = collect(g?.criteria, g?.match, byKey);
+    if (anyTokens.length) anyGroups.push(anyTokens.join(';'));
+  }
+  if (!byKey.size && !anyGroups.length) return [];
+  const out = [...byKey].map(([key, values]) => [key, [...values].join(',')]);
+  if (anyGroups.length) out.push(['any', anyGroups.join('|')]);
+  if (excludeAdultsOnly) out.push(['excludeAdultsOnly', '1']);
+  return out;
+}
+
+/** One group: its AND filters into `byKey`; returns its Match any tokens. */
+function collect(criteria, match, byKey) {
   const anyTokens = [];
   for (const c of Array.isArray(criteria) ? criteria : []) {
     const key = String(c?.filterKey || '').trim();
@@ -31,11 +52,7 @@ export function ruleParams(criteria, { match, excludeAdultsOnly } = {}) {
     if (!byKey.has(key)) byKey.set(key, new Set());
     byKey.get(key).add(value);
   }
-  if (!byKey.size && !anyTokens.length) return [];
-  const out = [...byKey].map(([key, values]) => [key, [...values].join(',')]);
-  if (anyTokens.length) out.push(['any', anyTokens.join(';')]);
-  if (excludeAdultsOnly) out.push(['excludeAdultsOnly', '1']);
-  return out;
+  return anyTokens;
 }
 
 /**

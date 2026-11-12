@@ -52,6 +52,31 @@ describe('offers in a theme rule (doc §7-8)', () => {
   });
 });
 
+describe('mixed rules: groups (doc §2 / §8)', () => {
+  // (Family segment OR Kids' club OR Children's pool) AND (Waterpark OR Water slides) AND All Inclusive AND Child discount
+  const rule = {
+    criteria: [
+      { filterKey: 'segments', value: 81 }, { filterKey: 'kids', value: 340 }, { filterKey: 'kids', value: 385 },
+    ],
+    match: 'any',
+    groups: [
+      { match: 'any', criteria: [{ filterKey: 'activities', value: '73:620' }, { filterKey: 'activities', value: '73:610' }] },
+      { match: 'all', criteria: [{ filterKey: 'boards', value: 'AI' }, { filterKey: 'promos', value: 'CHILD_DISCOUNT' }] },
+    ],
+    excludeAdultsOnly: true,
+  };
+  it('each Match any group its own any group, "|"-separated; Match all groups add plain filters', () => {
+    const qs = new URLSearchParams(withThemeRule('/results?countries=TR', rule).split('?')[1]);
+    expect(qs.get('any')).toBe('segments:81;kids:340;kids:385|activities:73:620;activities:73:610');
+    expect([qs.get('boards'), qs.get('promos'), qs.get('excludeAdultsOnly')]).toEqual(['AI', 'CHILD_DISCOUNT', '1']);
+  });
+  it('a rule without groups gives exactly the link it always gave', () => {
+    const { groups, ...plain } = rule;
+    expect(ruleParams(plain.criteria, plain)).toEqual(ruleParams(plain.criteria, { ...plain, groups: [] }));
+    expect(new URLSearchParams(withThemeRule('/results?x=1', plain).split('?')[1]).get('any')).toBe('segments:81;kids:340;kids:385');
+  });
+});
+
 describe('cardSearch', () => {
   const types = [{ id: 7, search: family }, { id: 8, search: null }];
   it('a card linked to a type with features uses the type rule, keeping its own tag setting', () => {
