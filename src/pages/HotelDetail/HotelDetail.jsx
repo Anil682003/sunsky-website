@@ -3345,6 +3345,15 @@ export default function HotelDetail() {
   const wasPP = ppOf(cacheWas);
   const nowPP = ppOf(liveNow);
   const ppMoved = (wasPP != null && nowPP != null && nowPP !== wasPP) ? nowPP - wasPP : null;
+  // The green availability box on a Flight + Hotel page whose strip fell back to hotel prices
+  // (the package matrix did not answer). Once the flight is priced the box quotes the HOLIDAY,
+  // room + flight, as the price block below it does: it showed €66 p.p. (the room) beside a
+  // €379 / €190 p.p. holiday total (Levent, 11 Nov 2026). No "moved" note there: the estimate
+  // it would be measured against is a room-only price. The strip keeps its room comparison.
+  const pkgBoxTotal = transport === 'package' && !useMatrix && liveTotal != null ? liveTotal : null;
+  const boxNow = pkgBoxTotal ?? liveNow;
+  const boxMoved = pkgBoxTotal != null ? null : priceMoved;
+  const boxPPMoved = pkgBoxTotal != null ? null : ppMoved;
   // live-aware overview card numbers (hotel+flight base; transfer listed separately)
   const ovPax = (Number(sAdults) || 2) + (Number(sChildren) || 0);
 
@@ -4792,7 +4801,7 @@ export default function HotelDetail() {
                               </div>
                             </div>
 
-                            <div className={`av-price${priceMoved != null ? (priceMoved < 0 ? ' avail-moved-down' : ' avail-moved-up') : ''}`}>
+                            <div className={`av-price${boxMoved != null ? (boxMoved < 0 ? ' avail-moved-down' : ' avail-moved-up') : ''}`}>
                               {/* A lavender day has no estimate — €0 is not a price and must
                                   never be printed as one. A quiet dash says "nothing to quote". */}
                               {/* While the live check runs, the figure under it is the last known (cached,
@@ -4800,7 +4809,7 @@ export default function HotelDetail() {
                                   A confirmed price carries no label at all (client design, Nov 2026):
                                   the pill above already says it is live, and the figure is the news. */}
                               {(liveBusy || !liveRoom) && (
-                                <div className="av-price-label">{liveBusy ? (pdEstimate || liveNow != null ? t('prices.lastKnownPrice', 'Last known price') : '') : pdEstimate ? t('prices.estimatedPrice', 'Estimated price') : ''}</div>
+                                <div className="av-price-label">{liveBusy ? (pdEstimate || boxNow != null ? t('prices.lastKnownPrice', 'Last known price') : '') : pdEstimate ? t('prices.estimatedPrice', 'Estimated price') : ''}</div>
                               )}
                               {/* PER PERSON is the headline, because that is the figure the fare
                                   strip beside it quotes and the one travellers compare on. The
@@ -4810,8 +4819,8 @@ export default function HotelDetail() {
                                 <span className="avail-price-val">
                                   {liveBusy
                                     ? <span className="avail-spin" />
-                                    : (liveNow != null || pdEstimate)
-                                      ? <><small>€</small>{ppOf(liveNow != null ? liveNow : Number(pd.price))}<em>p.p.</em></>
+                                    : (boxNow != null || pdEstimate)
+                                      ? <><small>€</small>{ppOf(boxNow != null ? boxNow : Number(pd.price))}<em>p.p.</em></>
                                       : <span className="avail-price-none">—</span>}
                                 </span>
                               </div>
@@ -4819,10 +4828,10 @@ export default function HotelDetail() {
                               {/* Amber, not red, when it rises. The holiday IS available — that is
                                   what the tick says — and the only thing that changed is the price.
                                   Stated per person, to match the figure above it. */}
-                              {ppMoved != null && (
-                                <div className={`avail-move${ppMoved < 0 ? ' down' : ' up'}`}>
-                                  {ppMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
-                                  <span><b>€{Math.abs(ppMoved)} p.p.</b> {ppMoved < 0 ? t('prices.lowerAfterCheck', 'lower after live check') : t('prices.higherAfterCheck', 'higher after live check')}</span>
+                              {boxPPMoved != null && (
+                                <div className={`avail-move${boxPPMoved < 0 ? ' down' : ' up'}`}>
+                                  {boxPPMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
+                                  <span><b>€{Math.abs(boxPPMoved)} p.p.</b> {boxPPMoved < 0 ? t('prices.lowerAfterCheck', 'lower after live check') : t('prices.higherAfterCheck', 'higher after live check')}</span>
                                 </div>
                               )}
                               {(liveRoom || pdEstimate) && (() => {
@@ -4838,13 +4847,13 @@ export default function HotelDetail() {
                                 // bigger number. Anything not yet confirmed keeps the plain
                                 // "total for 2 adults", because "live" is a claim that only a
                                 // supplier answer may make.
-                                const confirmed = liveRoom && !liveBusy && liveNow != null;
+                                const confirmed = liveRoom && !liveBusy && boxNow != null;
                                 const caption = !confirmed
                                   ? t('prices.totalForAdults', { count: availAdults, defaultValue: `total for ${availAdults} adult${availAdults === 1 ? '' : 's'}` })
                                     + (availChildren > 0 ? t('rooms.childrenSuffixDot', { count: availChildren, defaultValue: ` · ${availChildren} child${availChildren === 1 ? '' : 'ren'}` }) : '')
                                   : transport === 'hotel_only'
                                     ? t('prices.totalLivePriceFor', { party, defaultValue: `Total live price for ${party}` })
-                                    : useMatrix && liveTotal != null
+                                    : (useMatrix || pkgBoxTotal != null) && liveTotal != null
                                       ? t('prices.totalLivePackagePriceFor', { party, defaultValue: `Total live package price for ${party}` })
                                       : t('prices.totalLiveRoomPriceFor', { party, defaultValue: `Total live room price for ${party}` });
                                 return (
@@ -4854,8 +4863,8 @@ export default function HotelDetail() {
                                       {/* The estimate stays on screen struck through: the traveller
                                           chose this day off that number and is owed an account of
                                           where it went. */}
-                                      {priceMoved != null && <span className="avail-price-old">€{cacheWas}</span>}
-                                      <b>€{(liveNow != null ? liveNow : Number(pd.price)).toLocaleString('en-GB')}</b>
+                                      {boxMoved != null && <span className="avail-price-old">€{cacheWas}</span>}
+                                      <b>€{(boxNow != null ? boxNow : Number(pd.price)).toLocaleString('en-GB')}</b>
                                     </span>
                                   </div>
                                 );

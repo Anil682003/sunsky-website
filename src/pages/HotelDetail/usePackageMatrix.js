@@ -30,6 +30,9 @@ export function originsParam(origins) {
   return [...seen].sort().join(',');
 }
 
+export const MATRIX_TIMEOUT_MS = 30_000;
+const retryable = (e) => !e?.response || e.response.status >= 500;
+
 const addDaysISO = (iso, n) => new Date(Date.parse(`${iso}T00:00:00Z`) + n * 86_400_000).toISOString().slice(0, 10);
 
 /**
@@ -102,7 +105,16 @@ export function usePackageMatrix(q) {
     };
     if (q.childAges) params.childAges = q.childAges;
     if (q.routing) params.routing = q.routing;
-    axiosInstance.get('/flight-availability/package-matrix', { params, signal: ctrl.signal })
+    // The first ask for a hotel and date computes its packages on the server and can take well
+    // over the site's usual 15 s (Levent, 11 Nov: cut off, so the strip fell back to hotel-only
+    // prices). This call gets 30 s and, after a timeout, a dropped connection or a 5xx, one more
+    // try: by then the server has usually finished and answers from its own cache at once.
+    const ask = () => axiosInstance.get('/flight-availability/package-matrix', { params, signal: ctrl.signal, timeout: MATRIX_TIMEOUT_MS });
+    ask()
+      .catch((e) => {
+        if (ctrl.signal.aborted || !retryable(e)) throw e;
+        return ask();
+      })
       .then(({ data }) => {
         if (!data?.success || !Array.isArray(data.cells)) throw new SyntaxError('package matrix answered without cells');
         setAnswer({ scope, days: matrixDays(data.cells), prev: data.prev || null, next: data.next || null, status: data.status || null, error: null });

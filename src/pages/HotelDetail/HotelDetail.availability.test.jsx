@@ -439,9 +439,10 @@ describe('flights nobody could price', () => {
     // priced one. The page card deliberately prints no fare of its own, so the total is where
     // this shows: 1,180 would mean the free phantom had been chosen.
     await waitFor(() => expect(screen.getAllByText(/1,800/).length).toBeGreaterThan(0));
-    // The card's own figure on this (non-matrix) strip is the room alone, and it is captioned
-    // as such: never as a package price, which is the bigger number the Book card quotes.
-    expect(screen.getByText(/totale live kamerprijs voor 2 volwassenen/i)).toBeInTheDocument();
-    expect(screen.queryByText(/totale live pakketprijs/i)).not.toBeInTheDocument();
+    // On this (non-matrix, hotel-price) strip the green box quotes the HOLIDAY once the flight is
+    // priced, the same total as the Book card, captioned as the package price (Levent, 11 Nov
+    // 2026: the room alone in that box read as the holiday price, €66 p.p. against €190 p.p.).
+    expect(screen.getByText(/totale live pakketprijs voor 2 volwassenen/i)).toBeInTheDocument();
+    expect(screen.queryByText(/totale live kamerprijs/i)).not.toBeInTheDocument();
   });
 });
