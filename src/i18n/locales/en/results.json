@@ -290,6 +290,8 @@
   },
   "promo": {
     "EARLY_BOOKING": "Early Booking",
-    "CHILD_DISCOUNT": "Child discount"
+    "CHILD_DISCOUNT": "Child discount",
+    "FIRST_CHILD_FREE": "First child free",
+    "SECOND_CHILD_FREE": "Second child free"
   }
 }

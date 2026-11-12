@@ -290,6 +290,8 @@
   },
   "promo": {
     "EARLY_BOOKING": "Vroegboekkorting",
-    "CHILD_DISCOUNT": "Kinderkorting"
+    "CHILD_DISCOUNT": "Kinderkorting",
+    "FIRST_CHILD_FREE": "Eerste kind gratis",
+    "SECOND_CHILD_FREE": "Tweede kind gratis"
   }
 }
