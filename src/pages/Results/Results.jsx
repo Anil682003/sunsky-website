@@ -243,8 +243,8 @@ const CCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', TRY: '₺' };
 const getBoardLabel = (code) =>
   (code && BOARD_LABELS[code] ? i18n.t(`results:board.${code}`, BOARD_LABELS[code]) : code || '');
 // The offers a price can carry and the site names (SunSkyCache offersOf); Last Minute is internal.
-const PROMO_CODES = ['EARLY_BOOKING', 'CHILD_DISCOUNT', 'FIRST_CHILD_FREE', 'SECOND_CHILD_FREE'];
-const PROMO_LABELS = { EARLY_BOOKING: 'Early Booking', CHILD_DISCOUNT: 'Child discount', FIRST_CHILD_FREE: 'First child free', SECOND_CHILD_FREE: 'Second child free' };
+const PROMO_CODES = ['EARLY_BOOKING', 'CHILD_DISCOUNT', 'FIRST_CHILD_FREE', 'SECOND_CHILD_FREE', 'FREE_NIGHTS'];
+const PROMO_LABELS = { EARLY_BOOKING: 'Early Booking', CHILD_DISCOUNT: 'Child discount', FIRST_CHILD_FREE: 'First child free', SECOND_CHILD_FREE: 'Second child free', FREE_NIGHTS: 'Free nights' };
 const promoLabel = (code) => i18n.t(`results:promo.${code}`, PROMO_LABELS[code] || code);
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
 const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
