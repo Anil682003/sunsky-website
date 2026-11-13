@@ -100,6 +100,20 @@ describe('labels: only on a card whose price carries the offer', () => {
     expect((await cardOf('301')).textContent).toMatch(/Kinderkorting/);
     expect((await cardOf('302')).textContent).not.toMatch(/Kinderkorting|Vroegboekkorting/);
   });
+
+  it('Extra inbegrepen with the extra itself, both products; no text without the offer', async () => {
+    const name = 'Return Speedboat transfer included in the room rate';
+    ROWS = [row('211', 900, { offers: ['VALUE_ADDED'], extras: [name] }), row('212', 950, { extras: [name] })];
+    const { unmount } = renderAt(HOTEL_ONLY);
+    const card = await cardOf('211');
+    expect(card.textContent).toMatch(/Extra inbegrepen/);
+    expect(card.textContent).toContain(name);
+    expect((await cardOf('212')).textContent).not.toContain(name);    // no VALUE_ADDED: never shown
+    unmount();
+    answers.packages = [pkg('311', 1500, { offers: ['VALUE_ADDED'], extras: ['Free Wifi'] })];
+    renderAt(PACKAGE);
+    expect((await cardOf('311')).textContent).toMatch(/Extra inbegrepen.*Free Wifi/);
+  });
 });
 
 describe('the Aanbiedingen filter', () => {

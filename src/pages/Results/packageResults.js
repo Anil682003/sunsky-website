@@ -13,6 +13,7 @@
 //     each group answers, instead of waiting for the slowest destination of a country.
 // Pure helpers; Results.jsx does the requests.
 import { localCostOfPackage } from '../../utils/localCosts';
+import { extrasOf } from '../../utils/promoExtras';
 
 /** Destinations per request: small enough that the first hotels show quickly. */
 export const DEST_CHUNK = 4;
@@ -165,6 +166,8 @@ export function mapPackage(p, label) {
     localCost: localCostOfPackage(p),
     // Offers inside this package's hotel price (EARLY_BOOKING, CHILD_DISCOUNT): the card's labels.
     promos: Array.isArray(p?.offers) ? p.offers : [],
+    // What the value-added extra is (VALUE_ADDED), by name.
+    extras: extrasOf(p?.extras),
     pkg: p,
   };
 }

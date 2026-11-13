@@ -35,6 +35,7 @@ import {
 import { trackSearch, searchSignature } from '../../analytics';
 import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
 import { localCostOfCacheRow } from '../../utils/localCosts';
+import { extrasOf } from '../../utils/promoExtras';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import { fromFailure, isRetryable, messageKey } from '../../utils/availability';
 import { dobsMatchAges, ageAtCheckIn, allDobsValid } from '../../utils/childDob';
@@ -243,8 +244,8 @@ const CCY_SYMBOLS = { EUR: '€', USD: '$', GBP: '£', TRY: '₺' };
 const getBoardLabel = (code) =>
   (code && BOARD_LABELS[code] ? i18n.t(`results:board.${code}`, BOARD_LABELS[code]) : code || '');
 // The offers a price can carry and the site names (SunSkyCache offersOf); Last Minute is internal.
-const PROMO_CODES = ['EARLY_BOOKING', 'CHILD_DISCOUNT', 'FIRST_CHILD_FREE', 'SECOND_CHILD_FREE', 'FREE_NIGHTS'];
-const PROMO_LABELS = { EARLY_BOOKING: 'Early Booking', CHILD_DISCOUNT: 'Child discount', FIRST_CHILD_FREE: 'First child free', SECOND_CHILD_FREE: 'Second child free', FREE_NIGHTS: 'Free nights' };
+const PROMO_CODES = ['EARLY_BOOKING', 'CHILD_DISCOUNT', 'FIRST_CHILD_FREE', 'SECOND_CHILD_FREE', 'FREE_NIGHTS', 'VALUE_ADDED'];
+const PROMO_LABELS = { EARLY_BOOKING: 'Early Booking', CHILD_DISCOUNT: 'Child discount', FIRST_CHILD_FREE: 'First child free', SECOND_CHILD_FREE: 'Second child free', FREE_NIGHTS: 'Free nights', VALUE_ADDED: 'Extra included' };
 const promoLabel = (code) => i18n.t(`results:promo.${code}`, PROMO_LABELS[code] || code);
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
 const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
@@ -1811,6 +1812,8 @@ export default function Results() {
       localCost:    localCostOfCacheRow(c),
       // Offers inside THIS price for this party (internal contracts): the card's labels.
       promos:       Array.isArray(c.offers) ? c.offers : [],
+      // What the value-added extra is (VALUE_ADDED), by name: shown under the labels.
+      extras:       extrasOf(c.extras),
       badge:        null,
       img:          null,
       loc:          label,
@@ -4333,6 +4336,9 @@ export default function Results() {
                           {h.promos.filter((c) => PROMO_CODES.includes(c)).map((c) => (
                             <span key={c} className={styles.rcPromo}>{promoLabel(c)}</span>
                           ))}
+                          {h.promos.includes('VALUE_ADDED') && h.extras?.length > 0 && (
+                            <span className={styles.rcExtras}>{h.extras.join(' · ')}</span>
+                          )}
                         </div>
                       )}
                       {!h.noFromPrice && !h.onRequest && priceKnown && (

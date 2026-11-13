@@ -1066,6 +1066,11 @@
   background: var(--blue-light); color: var(--blue-deep);
   font-size: 11px; font-weight: 700; letter-spacing: 0.2px; white-space: nowrap;
 }
+/* The value-added extra's own text ("Return Speedboat transfer included…"), under the labels. */
+.rcExtras {
+  flex-basis: 100%; min-width: 0;
+  color: var(--blue-deep); font-size: 12px; line-height: 1.35;
+}
 
 /* The card's one CTA: the site's orange with a white label, no sheen or glow. A real <Link>. */
 .rcCta {
