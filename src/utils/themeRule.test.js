@@ -132,3 +132,35 @@ describe('MIN N — match N or more (doc §2 / §3, Family Holidays)', () => {
     expect(qs.get('any')).toBe('min2!activities:73:340;activities:73:385;kids:350');
   });
 });
+
+describe('OR between groups (doc §3 / §6: Family segment OR at least 2 core child facilities)', () => {
+  const kids = [
+    { filterKey: 'kids', value: 340, label: "Kids' club" },
+    { filterKey: 'kids', value: 350, label: 'Playground' },
+    { filterKey: 'kids', value: 385, label: "Children's pool" },
+  ];
+  const family = {
+    criteria: [{ filterKey: 'segments', value: 81, label: 'Family hotels' }], match: 'all', excludeAdultsOnly: true,
+    groups: [{ criteria: kids, match: 'min', min: 2, join: 'or' }],
+  };
+  it('one any part with ~ between the groups; the Match all group becomes "all of"', () => {
+    const qs = new URLSearchParams(withThemeRule('/results?countries=TR', family).split('?')[1]);
+    expect(qs.get('any')).toBe('min1!segments:81~min2!kids:340;kids:350;kids:385');
+    expect(qs.get('segments')).toBeNull();          // not a plain AND filter any more
+    expect(qs.get('excludeAdultsOnly')).toBe('1');  // the exclusion still covers the whole rule
+  });
+  it('an AND group after the chain stays ANDed; board stays required', () => {
+    const p = Object.fromEntries(ruleParams(family.criteria, {
+      match: 'all',
+      groups: [...family.groups, { criteria: [{ filterKey: 'boards', value: 'AI' }, { filterKey: 'activities', value: '73:620' }], match: 'all' }],
+    }));
+    expect(p.any).toBe('min1!segments:81~min2!kids:340;kids:350;kids:385');
+    expect(p.activities).toBe('73:620');
+    expect(p.boards).toBe('AI');
+  });
+  it('without join the groups are ANDed exactly as before', () => {
+    const p = Object.fromEntries(ruleParams(family.criteria, { match: 'all', groups: [{ criteria: kids, match: 'min', min: 2 }] }));
+    expect(p.segments).toBe('81');
+    expect(p.any).toBe('min2!kids:340;kids:350;kids:385');
+  });
+});
