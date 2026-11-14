@@ -18,3 +18,11 @@ describe('package offers', () => {
       .toEqual({ EARLY_BOOKING: 3, CHILD_DISCOUNT: 4 });
   });
 });
+
+describe('package room facilities', () => {
+  const fp = { adults: '2', children: '0', rooms: '1', checkIn: '2027-06-01', checkOut: '2027-06-08' };
+  it('sent as roomFeatures, and only when set', () => {
+    expect(packageBody({ fp, filters: { roomFeatures: ['PRIVATE_POOL'] } }).roomFeatures).toBe('PRIVATE_POOL');
+    expect('roomFeatures' in packageBody({ fp, filters: {} })).toBe(false);
+  });
+});

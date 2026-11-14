@@ -121,6 +121,8 @@ export function packageBody({ fp, childAges = '', filters = {}, origins = [], ho
   // Offers inside the hotel price (Early Booking, Child Discount): the admin asks SunSkyCache
   // for hotels whose shown price carries them. The API calls them `offers`.
   if (filters.promos?.length) body.offers = filters.promos.join(',');
+  // Room facilities (private pool, hot tub): the package's hotel part is priced on such a room.
+  if (filters.roomFeatures?.length) body.roomFeatures = filters.roomFeatures.join(',');
   if (filters.refundable && filters.refundable !== 'any') body.refundable = filters.refundable;
   const min = filters.minPrice === '' || filters.minPrice == null ? null : Number(filters.minPrice);
   const max = filters.maxPrice === '' || filters.maxPrice == null ? null : Number(filters.maxPrice);

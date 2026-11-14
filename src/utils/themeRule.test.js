@@ -90,3 +90,15 @@ describe('cardSearch', () => {
     expect(cardSearch({ holidayTypeId: 7, search: own }, undefined)).toBe(own);
   });
 });
+
+describe('room facilities in a theme rule (doc §1 / §7)', () => {
+  const pool = { criteria: [
+    { filterKey: 'facilities', value: 574, label: 'Spa' },
+    { filterKey: 'roomFeatures', value: 'PRIVATE_POOL', label: 'Private pool (room)' },
+  ] };
+  it('always a filter of its own, never in the Match any group: matched on the priced room', () => {
+    const any = new URLSearchParams(withThemeRule('/results?countries=TR', { ...pool, match: 'any' }).split('?')[1]);
+    expect(any.get('any')).toBe('facilities:574');
+    expect(any.get('roomFeatures')).toBe('PRIVATE_POOL');
+  });
+});

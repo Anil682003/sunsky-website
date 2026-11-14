@@ -7,10 +7,11 @@
 //   Match any → content criteria in one `any=key:value;key:value` group; board and offers stay
 //               normal filters, because they are matched on the priced rate, not the hotel record
 //   Offers    → `promos=EARLY_BOOKING` (the results page's offers filter, sent on as `offers`)
+//   Room facilities → `roomFeatures=PRIVATE_POOL` (the priced room must have it; always required)
 //   excludeAdultsOnly → `excludeAdultsOnly=1`
 
 /** Matched on the priced rate, so always required — never part of a Match any group. */
-const ON_PRICE = new Set(['boards', 'promos']);
+const ON_PRICE = new Set(['boards', 'promos', 'roomFeatures']);
 
 /**
  * [[name, value], …] for the rule, or [] when nothing in it is usable.

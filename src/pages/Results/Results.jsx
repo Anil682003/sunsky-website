@@ -199,6 +199,9 @@ const EMPTY_FILTERS = {
   // the cache and the admin as `offers`; called promos here because `offer*` already names the
   // priced results this page counts over.
   promos: [],
+  // Room facilities (Theme Holiday: PRIVATE_POOL, HOT_TUB): the priced room must have it, so the
+  // cache prices each hotel at such a room. Sent to the cache and the admin as `roomFeatures`.
+  roomFeatures: [],
   priceBasis: 'total', refundable: 'any', sortBy: 'recommended',
   // Content facets (resolved against the admin content API into a hotelCode set for the cache).
   themes: [], stars: [], facilities: [], activities: [],
@@ -247,12 +250,16 @@ const getBoardLabel = (code) =>
 const PROMO_CODES = ['EARLY_BOOKING', 'CHILD_DISCOUNT', 'FIRST_CHILD_FREE', 'SECOND_CHILD_FREE', 'FREE_NIGHTS', 'VALUE_ADDED'];
 const PROMO_LABELS = { EARLY_BOOKING: 'Early Booking', CHILD_DISCOUNT: 'Child discount', FIRST_CHILD_FREE: 'First child free', SECOND_CHILD_FREE: 'Second child free', FREE_NIGHTS: 'Free nights', VALUE_ADDED: 'Extra included' };
 const promoLabel = (code) => i18n.t(`results:promo.${code}`, PROMO_LABELS[code] || code);
+// Room facilities the cache can price on (SunSkyCache room-features.service.js).
+const ROOM_FEATURE_CODES = ['PRIVATE_POOL', 'HOT_TUB'];
+const ROOM_FEATURE_LABELS = { PRIVATE_POOL: 'Private pool', HOT_TUB: 'In-room hot tub' };
+const roomFeatureLabel = (code) => i18n.t(`results:roomFeature.${code}`, ROOM_FEATURE_LABELS[code] || code);
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
 const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
 
 // How many filters the user has actively changed — drives the sidebar count pill.
 const countActiveFilters = (f) =>
-  f.boards.length + (f.promos?.length || 0) +
+  f.boards.length + (f.promos?.length || 0) + (f.roomFeatures?.length || 0) +
   (f.themes?.length || 0) + (f.stars?.length || 0) +
   (f.facilities?.length || 0) + (f.activities?.length || 0) +
   (f.accommodation?.length || 0) + (f.kids?.length || 0) +
@@ -955,6 +962,10 @@ export default function Results() {
     const promos = csv(params.get('promos') || '')
       .map((c) => c.trim().toUpperCase())
       .filter((c) => PROMO_CODES.includes(c));
+    // ?roomFeatures=PRIVATE_POOL — a theme's room facility (the room priced must have it).
+    const roomFeatures = csv(params.get('roomFeatures') || '')
+      .map((c) => c.trim().toUpperCase())
+      .filter((c) => ROOM_FEATURE_CODES.includes(c));
     const themes        = nums('themes');
     const kids          = nums('kids');
     const facilities    = nums('facilities');
@@ -995,6 +1006,7 @@ export default function Results() {
     const seed = {
       ...(boards.length        ? { boards } : {}),
       ...(promos.length        ? { promos } : {}),
+      ...(roomFeatures.length  ? { roomFeatures } : {}),
       ...(themes.length        ? { themes } : {}),
       ...(kids.length          ? { kids } : {}),
       ...(stars.length         ? { stars } : {}),
@@ -1741,6 +1753,7 @@ export default function Results() {
 
     if (f.boards.length)    body.boards    = f.boards;
     if (f.promos?.length)   body.offers    = f.promos;
+    if (f.roomFeatures?.length) body.roomFeatures = f.roomFeatures;
 
     const min = f.minPrice === '' ? null : Number(f.minPrice);
     const max = f.maxPrice === '' ? null : Number(f.maxPrice);
@@ -1919,6 +1932,7 @@ export default function Results() {
         applied.minPrice, applied.maxPrice, applied.priceBasis, applied.refundable,
         applied.maxBeach, applied.maxCentre, applied.minRating, applied.adultsOnly,
         applied.segments, applied.any, applied.excludeAdultsOnly, applied.promos,
+        ...(applied.roomFeatures?.length ? [applied.roomFeatures] : []),
       ]),
     };
   }, [scope, scopeCities, applied, fetchParams]);
@@ -2422,10 +2436,10 @@ export default function Results() {
     // meal plan or room type the traveller filtered for. So under any of them the extra hotels
     // are not offered at all, rather than offered in contradiction of the filter.
     if (applied.minPrice !== '' || applied.maxPrice !== ''
-      || applied.boards.length || applied.promos.length) return null;
+      || applied.boards.length || applied.promos.length || applied.roomFeatures?.length) return null;
     return JSON.stringify([dests, codes, fetchParams.checkIn, fetchParams.checkOut, fetchParams.adults,
       fetchParams.children, fetchParams.rooms, fetchParams.childAges ?? null, allHotels.length]);
-  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.transport, applied.minPrice, applied.maxPrice, applied.boards, applied.promos]);
+  }, [loading, hasMore, priceScope, fetchParams, allHotels.length, applied.transport, applied.minPrice, applied.maxPrice, applied.boards, applied.promos, applied.roomFeatures]);
 
   const onRequest = useMemo(
     () => (onRequestData.key === onRequestKey ? onRequestData.list : EMPTY_ON_REQUEST),
@@ -2680,6 +2694,7 @@ export default function Results() {
       switch (k) {
         case 'boards':        return v.map(getBoardLabel);
         case 'promos':        return v.map(promoLabel);
+        case 'roomFeatures':  return v.map(roomFeatureLabel);
         case 'stars':         return v.map((n) => `${'★'.repeat(n)} ${starLabel(n)}`);
         case 'themes':        return v.map((id) => facets.holiday.find((h) => h.id === id)?.name);
         case 'facilities':    return v.map((c) => named(facets.facilities, c));
@@ -3416,6 +3431,15 @@ export default function Results() {
         <FilterSection title={t('filters.promos', 'Offers')} defaultOpen>
           {PROMO_CODES.filter((c) => promoFacets[c] > 0 || filters.promos.includes(c)).map((c) => (
             <FilterCheck key={c} label={`${promoLabel(c)} (${promoFacets[c] || 0})`} checked={filters.promos.includes(c)} onChange={() => toggleCode('promos', c)} />
+          ))}
+        </FilterSection>
+      )}
+
+      {/* Room facilities — set by a theme link (no count yet), kept visible so they can be unticked. */}
+      {filters.roomFeatures?.length > 0 && (
+        <FilterSection title={t('filters.roomFeatures', 'Room')} defaultOpen>
+          {ROOM_FEATURE_CODES.filter((c) => filters.roomFeatures.includes(c)).map((c) => (
+            <FilterCheck key={c} label={roomFeatureLabel(c)} checked onChange={() => toggleCode('roomFeatures', c)} />
           ))}
         </FilterSection>
       )}
@@ -4331,9 +4355,14 @@ export default function Results() {
                           the rest of the card: the package's localCosts or the cache row's
                           taxExcluded. Nothing known, nothing shown. */}
                       {/* Offers inside this very price (cache: the room shown, this party). */}
-                      {!h.noFromPrice && !h.onRequest && priceKnown && h.promos?.length > 0 && (
+                      {/* A room facility asked: the price shown IS that room's (the cache priced
+                          only such rooms), so the card can say so. */}
+                      {!h.noFromPrice && !h.onRequest && priceKnown && (h.promos?.length > 0 || applied.roomFeatures?.length > 0) && (
                         <div className={styles.rcPromos}>
-                          {h.promos.filter((c) => PROMO_CODES.includes(c)).map((c) => (
+                          {(applied.roomFeatures || []).map((c) => (
+                            <span key={c} className={styles.rcPromo}>{roomFeatureLabel(c)}</span>
+                          ))}
+                          {(h.promos || []).filter((c) => PROMO_CODES.includes(c)).map((c) => (
                             <span key={c} className={styles.rcPromo}>{promoLabel(c)}</span>
                           ))}
                           {h.promos.includes('VALUE_ADDED') && h.extras?.length > 0 && (

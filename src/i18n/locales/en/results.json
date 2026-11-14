@@ -180,7 +180,8 @@
     "airportNoFlight": "No flight to {{place}} for these dates",
     "airportChoiceGone": "Not available for this search. Untick it or choose another airport.",
     "nonstopBothWays": "Direct outbound and return only",
-    "promos": "Offers"
+    "promos": "Offers",
+    "roomFeatures": "Room"
   },
   "hero": {
     "home": "Home",
@@ -295,5 +296,9 @@
     "SECOND_CHILD_FREE": "Second child free",
     "FREE_NIGHTS": "Free nights",
     "VALUE_ADDED": "Extra included"
+  },
+  "roomFeature": {
+    "PRIVATE_POOL": "Private pool",
+    "HOT_TUB": "In-room hot tub"
   }
 }

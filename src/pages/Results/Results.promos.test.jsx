@@ -144,3 +144,29 @@ describe('the Aanbiedingen filter', () => {
     expect((await screen.findByLabelText('Kinderkorting (1)')).checked).toBe(true);
   });
 });
+
+describe('room facilities from a theme link (?roomFeatures=)', () => {
+  it('Hotel only: the cache is asked for the pool room, every card says so, and it can be unticked', async () => {
+    ROWS = [row('221', 1400, { roomType: 'VIL', characteristic: 'PP' })];
+    renderAt(`${HOTEL_ONLY}&roomFeatures=PRIVATE_POOL,SWIM_UP`);
+    expect((await cardOf('221')).textContent).toMatch(/Privézwembad/);
+    const posts = globalThis.fetch.mock.calls.filter(([u]) => String(u).includes('/contracts/cheapest'));
+    const bodies = posts.map(([, o]) => (o?.body ? JSON.parse(o.body) : null)).filter(Boolean);
+    const sent = bodies.some((b) => JSON.stringify(b.roomFeatures) === '["PRIVATE_POOL"]')
+      || cacheUrls().some((u) => /[?&]roomFeatures=PRIVATE_POOL(&|$)/.test(u));
+    expect(sent).toBe(true);
+    const box = await screen.findByLabelText('Privézwembad');
+    expect(box.checked).toBe(true);
+  });
+
+  it('Flight + Hotel: the admin is asked with roomFeatures; no label without it', async () => {
+    const { fetchPackages } = await import('../../api/filters');
+    answers.packages = [pkg('321', 1900)];
+    const { unmount } = renderAt(`${PACKAGE}&roomFeatures=HOT_TUB`);
+    expect((await cardOf('321')).textContent).toMatch(/Hot tub op de kamer/);
+    expect(fetchPackages.mock.calls.at(-1)[0].roomFeatures).toBe('HOT_TUB');
+    unmount();
+    renderAt(PACKAGE);
+    expect((await cardOf('321')).textContent).not.toMatch(/Hot tub op de kamer|Privézwembad/);
+  });
+});

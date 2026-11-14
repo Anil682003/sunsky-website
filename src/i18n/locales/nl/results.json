@@ -180,7 +180,8 @@
     "airportNoFlight": "Geen vlucht naar {{place}} op deze data",
     "airportChoiceGone": "Niet beschikbaar voor deze zoekopdracht. Vink hem uit of kies een andere luchthaven.",
     "nonstopBothWays": "Alleen rechtstreeks heen en terug",
-    "promos": "Aanbiedingen"
+    "promos": "Aanbiedingen",
+    "roomFeatures": "Kamer"
   },
   "hero": {
     "home": "Home",
@@ -295,5 +296,9 @@
     "SECOND_CHILD_FREE": "Tweede kind gratis",
     "FREE_NIGHTS": "Gratis nachten",
     "VALUE_ADDED": "Extra inbegrepen"
+  },
+  "roomFeature": {
+    "PRIVATE_POOL": "Privézwembad",
+    "HOT_TUB": "Hot tub op de kamer"
   }
 }
