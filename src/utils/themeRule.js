@@ -4,6 +4,8 @@
 // and reaches the results page the same way from a homepage card and from the Holiday Types page.
 //
 //   Match all → one parameter per filter (values of one filter OR together, like the sidebar)
+//   Match N or more (`match: 'min', min: N`, doc §2) → the same `any` group, marked `minN!`:
+//               `any=min2!kids:340;kids:385;activities:73:350` — at least N of its criteria
 //   Match any → content criteria in one `any=key:value;key:value` group; board and offers stay
 //               normal filters, because they are matched on the priced rate, not the hotel record
 //   Offers    → `promos=EARLY_BOOKING` (the results page's offers filter, sent on as `offers`)
@@ -20,13 +22,17 @@ const ON_PRICE = new Set(['boards', 'promos', 'roomFeatures']);
  * adds its filters like the first; each Match any group becomes one more `any` group, separated
  * by "|" (the admin ANDs the groups, ORs inside each).
  */
-export function ruleParams(criteria, { match, excludeAdultsOnly, groups } = {}) {
+export function ruleParams(criteria, { match, min, excludeAdultsOnly, groups } = {}) {
   const byKey = new Map();
   const anyGroups = [];
-  const all = [{ criteria, match }, ...(Array.isArray(groups) ? groups : [])];
+  const all = [{ criteria, match, min }, ...(Array.isArray(groups) ? groups : [])];
   for (const g of all) {
     const anyTokens = collect(g?.criteria, g?.match, byKey);
-    if (anyTokens.length) anyGroups.push(anyTokens.join(';'));
+    if (!anyTokens.length) continue;
+    // MIN N: at least N of the group's content criteria (the admin caps N at their number).
+    const n = Math.round(Number(g?.min));
+    const mark = g?.match === 'min' ? `min${Number.isFinite(n) && n >= 1 ? n : 1}!` : '';
+    anyGroups.push(mark + anyTokens.join(';'));
   }
   if (!byKey.size && !anyGroups.length) return [];
   const out = [...byKey].map(([key, values]) => [key, [...values].join(',')]);
@@ -35,21 +41,22 @@ export function ruleParams(criteria, { match, excludeAdultsOnly, groups } = {}) 
   return out;
 }
 
-/** One group: its AND filters into `byKey`; returns its Match any tokens. */
+/** One group: its AND filters into `byKey`; returns its Match any / MIN N tokens. */
 function collect(criteria, match, byKey) {
   const anyTokens = [];
+  const grouped = match === 'any' || match === 'min';
   for (const c of Array.isArray(criteria) ? criteria : []) {
     const key = String(c?.filterKey || '').trim();
     if (!key) continue;
     // adultsOnly is the one boolean dimension; the results page reads it as `?adultsOnly=1`.
     if (key === 'adultsOnly') {
       if (!c.value) continue;
-      if (match === 'any') anyTokens.push('adultsOnly:1'); else byKey.set(key, new Set(['1']));
+      if (grouped) anyTokens.push('adultsOnly:1'); else byKey.set(key, new Set(['1']));
       continue;
     }
     const value = String(c?.value ?? '').trim();
     if (!value) continue;
-    if (match === 'any' && !ON_PRICE.has(key)) { anyTokens.push(`${key}:${value}`); continue; }
+    if (grouped && !ON_PRICE.has(key)) { anyTokens.push(`${key}:${value}`); continue; }
     if (!byKey.has(key)) byKey.set(key, new Set());
     byKey.get(key).add(value);
   }

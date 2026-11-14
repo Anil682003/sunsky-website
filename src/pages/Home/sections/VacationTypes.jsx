@@ -61,8 +61,8 @@ const uniqueCriteria = (criteria) => {
 // `match: 'any'` (set on the card in the dashboard): the hotel needs only ONE of the content
 // criteria, sent as `any=key:value;key:value`. Board stays a normal AND filter — it is matched on
 // the priced rate, not the hotel record. `excludeAdultsOnly` drops Adults Only hotels.
-export const criteriaUrl = (criteria, cardTitle, { match, excludeAdultsOnly, groups } = {}) => {
-  const params = ruleParams(criteria, { match, excludeAdultsOnly, groups });
+export const criteriaUrl = (criteria, cardTitle, { match, min, excludeAdultsOnly, groups } = {}) => {
+  const params = ruleParams(criteria, { match, min, excludeAdultsOnly, groups });
   // Nothing usable in the list — leave the card non-clickable rather than ship a button that
   // lands on an unfiltered search while claiming to be a vacation type.
   if (!params.length) return null;
@@ -157,7 +157,7 @@ export default function VacationTypes({ cms }) {
         const criteria = uniqueCriteria(Array.isArray(search?.criteria) ? search.criteria : []);
         // Criteria win over boardCode, which the dashboard keeps mirrored so a stale bundle that
         // predates criteria still links somewhere sane. With neither the card stays non-clickable.
-        const href = criteria.length ? criteriaUrl(criteria, v.title, { match: search?.match, excludeAdultsOnly: search?.excludeAdultsOnly, groups: search?.groups })
+        const href = criteria.length ? criteriaUrl(criteria, v.title, { match: search?.match, min: search?.min, excludeAdultsOnly: search?.excludeAdultsOnly, groups: search?.groups })
                    : v.boardCode    ? boardUrl(v.boardCode, v.title)
                    : null;
         return {

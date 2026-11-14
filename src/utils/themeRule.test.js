@@ -102,3 +102,33 @@ describe('room facilities in a theme rule (doc §1 / §7)', () => {
     expect(any.get('roomFeatures')).toBe('PRIVATE_POOL');
   });
 });
+
+describe('MIN N — match N or more (doc §2 / §3, Family Holidays)', () => {
+  const family = {
+    criteria: [
+      { filterKey: 'activities', value: '73:340', label: "Kids' club" },
+      { filterKey: 'activities', value: '73:385', label: "Children's pool" },
+      { filterKey: 'kids', value: 350, label: 'Playground' },
+      { filterKey: 'boards', value: 'AI', label: 'All Inclusive' },
+    ],
+    match: 'min', min: 2, excludeAdultsOnly: true,
+  };
+  it('one min-marked any group; board stays a required filter of its own', () => {
+    const qs = new URLSearchParams(withThemeRule('/results?countries=TR', family).split('?')[1]);
+    expect(qs.get('any')).toBe('min2!activities:73:340;activities:73:385;kids:350');
+    expect(qs.get('boards')).toBe('AI');
+    expect(qs.get('excludeAdultsOnly')).toBe('1');
+  });
+  it('as a further group next to a Match any group', () => {
+    const p = Object.fromEntries(ruleParams([{ filterKey: 'segments', value: 81 }], {
+      match: 'any', groups: [{ match: 'min', min: 2, criteria: family.criteria.slice(0, 3) }],
+    }));
+    expect(p.any).toBe('segments:81|min2!activities:73:340;activities:73:385;kids:350');
+  });
+  it('a homepage card link carries min too', async () => {
+    const { criteriaUrl } = await import('../pages/Home/sections/VacationTypes');
+    const href = criteriaUrl(family.criteria, 'Familievakanties', { match: 'min', min: 2, excludeAdultsOnly: true });
+    const qs = new URLSearchParams(href.split('?')[1]);
+    expect(qs.get('any')).toBe('min2!activities:73:340;activities:73:385;kids:350');
+  });
+});
