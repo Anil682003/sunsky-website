@@ -908,6 +908,9 @@
 }
 .rcFactIco { display: inline-flex; color: var(--text-light); flex-shrink: 0; }
 
+/* A theme's informational amenities ("Ook aanwezig: Sauna · Heated pool"), above the amenity row. */
+.rcThemeInfo { margin-top: 10px; min-width: 0; color: var(--text-sec); font-size: 12.5px; line-height: 1.4; }
+
 /* What the deal is: the board basis (green, the cutlery) and the kind of property (grey, the
    house), as two chips under the place line. The green is the one the included-baggage lines
    and the "Direct" pill in the rail share, so "included" reads the same everywhere on the card. */

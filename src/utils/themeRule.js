@@ -24,7 +24,7 @@ const ON_PRICE = new Set(['boards', 'promos', 'roomFeatures']);
  * adds its filters like the first; each Match any group becomes one more `any` group, separated
  * by "|" (the admin ANDs the groups, ORs inside each).
  */
-export function ruleParams(criteria, { match, min, excludeAdultsOnly, groups } = {}) {
+export function ruleParams(criteria, { match, min, excludeAdultsOnly, groups, info } = {}) {
   const byKey = new Map();
   const anyGroups = [];
   const all = [{ criteria, match, min }, ...(Array.isArray(groups) ? groups : [])];
@@ -44,6 +44,9 @@ export function ruleParams(criteria, { match, min, excludeAdultsOnly, groups } =
   const out = [...byKey].map(([key, values]) => [key, [...values].join(',')]);
   if (anyGroups.length) out.push(['any', anyGroups.join('|')]);
   if (excludeAdultsOnly) out.push(['excludeAdultsOnly', '1']);
+  // Informational amenities (doc §3 / §9): named on the card, never searched on (`show`, not a filter).
+  const show = (Array.isArray(info) ? info : []).map((i) => String(i?.pair ?? '')).filter((p) => /^\d{1,4}:\d{1,6}$/.test(p));
+  if (show.length) out.push(['show', [...new Set(show)].join(',')]);
   return out;
 }
 
@@ -99,7 +102,7 @@ export function withThemeRule(href, rule) {
   const path = i < 0 ? href : href.slice(0, i);
   const qs = new URLSearchParams(i < 0 ? '' : href.slice(i + 1));
   for (const [k, v] of params) {
-    const have = k === 'any' || k === 'excludeAdultsOnly' ? '' : qs.get(k);
+    const have = k === 'any' || k === 'excludeAdultsOnly' || k === 'show' ? '' : qs.get(k);
     qs.set(k, have ? [...new Set([...have.split(','), ...v.split(',')])].join(',') : v);
   }
   return `${path}?${qs.toString()}`;

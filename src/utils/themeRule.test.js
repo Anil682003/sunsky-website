@@ -164,3 +164,24 @@ describe('OR between groups (doc §3 / §6: Family segment OR at least 2 core ch
     expect(p.any).toBe('min2!kids:340;kids:350;kids:385');
   });
 });
+
+describe('informational amenities (doc §3 / §9): shown, never searched on', () => {
+  const rule = {
+    criteria: [{ filterKey: 'activities', value: '73:620', label: 'Waterpark' }], match: 'any',
+    info: [{ pair: '70:574', label: 'Sauna' }, { pair: '73:365', label: 'Outdoor heated pool' }, { pair: 'x', label: 'bad' }],
+  };
+  it('travel as show=, separate from every filter', () => {
+    const qs = new URLSearchParams(withThemeRule('/results?countries=TR', rule).split('?')[1]);
+    expect(qs.get('show')).toBe('70:574,73:365');
+  });
+  it('§9: attaching them changes no search parameter', () => {
+    const withInfo = Object.fromEntries(ruleParams(rule.criteria, rule));
+    const without = Object.fromEntries(ruleParams(rule.criteria, { ...rule, info: undefined }));
+    const { show, ...rest } = withInfo;
+    expect(show).toBe('70:574,73:365');
+    expect(rest).toEqual(without);
+  });
+  it('no criteria: no link, even with amenities', () => {
+    expect(ruleParams([], { info: rule.info })).toEqual([]);
+  });
+});

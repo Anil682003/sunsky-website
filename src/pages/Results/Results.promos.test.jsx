@@ -170,3 +170,40 @@ describe('room facilities from a theme link (?roomFeatures=)', () => {
     expect((await cardOf('321')).textContent).not.toMatch(/Hot tub op de kamer|Privézwembad/);
   });
 });
+
+describe('informational amenities from a theme link (?show=, doc §3 / §9)', () => {
+  const withFacilities = () => {
+    const base = globalThis.fetch;
+    globalThis.fetch = vi.fn((url, opts) => {
+      if (String(url).includes('/hotels/bulk')) {
+        const codes = JSON.parse(opts?.body || '{}').hotelCodes || [];
+        return Promise.resolve({ ok: true, json: () => Promise.resolve({ data: codes.map((c) => ({
+          hotelCode: c, name: `Hotel ${c}`, images: [],
+          facilities: c === '231' ? [{ facilityGroupCode: 70, facilityCode: 574, facilityName: 'Sauna' }] : [],
+        })) }) });
+      }
+      return base(url, opts);
+    });
+  };
+  it('names the amenity on a hotel that has it; the other hotel is still shown, without the line', async () => {
+    ROWS = [row('231', 900), row('232', 950)];
+    withFacilities();
+    renderAt(`${HOTEL_ONLY}&show=70:574`);
+    await waitFor(async () => expect((await cardOf('231')).textContent).toMatch(/Ook aanwezig: Sauna/));
+    expect((await cardOf('232')).textContent).not.toMatch(/Ook aanwezig/);
+  });
+  it('§9: the price search is the same with and without the amenity', async () => {
+    ROWS = [row('231', 900)];
+    withFacilities();
+    const { unmount } = renderAt(HOTEL_ONLY);
+    await cardOf('231');
+    const plain = cacheUrls().concat(globalThis.fetch.mock.calls.filter(([u]) => String(u).includes('/contracts/cheapest')).map(([, o]) => o?.body ?? ''));
+    unmount();
+    withFacilities();
+    renderAt(`${HOTEL_ONLY}&show=70:574`);
+    await cardOf('231');
+    const shown = cacheUrls().concat(globalThis.fetch.mock.calls.filter(([u]) => String(u).includes('/contracts/cheapest')).map(([, o]) => o?.body ?? ''));
+    expect(shown).toEqual(plain);
+    expect(shown.join(' ')).not.toMatch(/574|show/);
+  });
+});

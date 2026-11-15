@@ -25,6 +25,7 @@ import { formatReview, scoreWord } from '../../utils/reviewBadge';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import { ratingLabel, ratingValue } from '../../utils/rating';
 import { topFacilities } from '../../utils/topFacilities';
+import { showPairs, themeAmenities } from '../../utils/themeInfo';
 import { flagUrl } from '../../utils/countryFlag';
 import { countryName } from '../../utils/countryName';
 import { toTitleCase } from '../../utils/textCase';
@@ -659,6 +660,10 @@ export default function Results() {
   // The option lists are module constants, so their labels resolve here.
   const transportOptions = TRANSPORT_OPTIONS.map((o) => ({ ...o, label: t(`transport.${o.value}`, o.label) }));
   const [params] = useSearchParams();
+  // A theme's informational amenities (`?show=70:574,…`, doc §3 / §9): named on the cards of
+  // hotels that have them. Deliberately NOT a filter: kept out of `filters`, so no search, count
+  // or cache request ever reads it.
+  const [themeShow] = useState(() => showPairs(params.get('show')));
   const navigate = useNavigate();
 
   // ── SCOPE (multi-country / multi-destination) ──────────────────────────────────
@@ -4019,6 +4024,8 @@ export default function Results() {
                 const accomType = accommodationTypeKey(info, dispRating);
                 // Curated top-5 amenities + overflow count for the chip row.
                 const fac = topFacilities(info?.facilities);
+                // The theme's informational amenities this hotel has (none → no line).
+                const shownInfo = themeAmenities(info?.facilities, themeShow);
                 // Location line: clean geo name first, title-cased raw supplier city as
                 // fallback, the scope label as last resort (also what shows pre-info, which
                 // keeps the loading state and tests stable). Country code uppercased for
@@ -4194,6 +4201,11 @@ export default function Results() {
                     {/* Amenities: borderless icon+label items on ONE line at the foot of the
                         column, under a hairline, as the approved card draws them. No "+N more":
                         the card shows the five that matter and the hotel page lists the rest. */}
+                    {shownInfo.length > 0 && (
+                      <div className={styles.rcThemeInfo}>
+                        {t('card.themeInfo', 'Also here')}: {shownInfo.join(' · ')}
+                      </div>
+                    )}
                     {fac.top.length > 0 && (
                       <div className={styles.rcFacts} aria-label={t('card.facilities', 'Hotel facilities')}>
                         {fac.top.map((f) => (
