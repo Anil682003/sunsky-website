@@ -1774,6 +1774,9 @@ export default function Results() {
     // Pages 2+ of a random-order search: cut from page 1's result snapshot.
     if (over.searchQueryId) body.searchQueryId = over.searchQueryId;
     if (f.transport === 'package') body.searchType = 'PACKAGE';
+    // Hotel only: priced as SUNSKY sells a hotel alone — with the Margin Menu's Hotel Only margin
+    // (the cache adds it only on this request; a package takes its margin in the admin).
+    else body.sell = 'hotel';
 
     // Content-filter hand-off. An empty resolved set means "facets selected but nothing matched"
     // → send a sentinel so the cache returns nothing (rather than the whole scope). null = no

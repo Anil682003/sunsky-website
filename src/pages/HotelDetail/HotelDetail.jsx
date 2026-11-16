@@ -2494,7 +2494,7 @@ export default function HotelDetail() {
 
   // Prices only compare within one search, so this is the identity the cached days belong to.
   // `calReload` is part of it, which is what makes the "Try again" button re-fetch.
-  const calScope = [hotelCode, destination, nights, sAdults, sChildren, sRooms, calReload].join('|');
+  const calScope = [hotelCode, destination, nights, sAdults, sChildren, sRooms, transport, calReload].join('|');
 
   // Every day already asked for, so stepping never re-requests one. A ref rather than state
   // because writing it must not itself re-run the effect that reads it.
@@ -2522,6 +2522,8 @@ export default function HotelDetail() {
         maxAdultsPerRoom: String(Math.ceil((parseInt(sAdults, 10) || 1) / roomsN)),
         maxChildrenPerRoom: String(Math.ceil((parseInt(sChildren, 10) || 0) / roomsN)),
       });
+      // Hotel only: each day at the price SUNSKY sells the hotel alone for (Hotel Only margin).
+      if (transport === 'hotel_only') qs.set('sell', 'hotel');
       if (visible) { setCalLoading(true); setCalError(false); }
       fetch(`${CONTRACTS_API}/contracts/hotel-price-calendar?${qs.toString()}`)
         // A 4xx/5xx that returns an HTML error page used to land in .catch() looking exactly

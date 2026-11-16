@@ -207,3 +207,19 @@ describe('informational amenities from a theme link (?show=, doc §3 / §9)', ()
     expect(shown.join(' ')).not.toMatch(/574|show/);
   });
 });
+
+describe('Hotel only asks the cache for the selling price (Margin Menu, 16 Nov 2026)', () => {
+  it('hotel only: sell=hotel on the cache request; Flight + Hotel never (its margin is the admin\'s)', async () => {
+    ROWS = [row('241', 600)];
+    const { unmount } = renderAt(HOTEL_ONLY);
+    await cardOf('241');
+    expect(cacheUrls().length).toBeGreaterThan(0);
+    expect(cacheUrls().every((u) => /[?&]sell=hotel(&|$)/.test(u))).toBe(true);
+    unmount();
+    globalThis.fetch.mockClear();
+    answers.packages = [pkg('341', 1100)];
+    renderAt(PACKAGE);
+    await cardOf('341');
+    expect(cacheUrls().some((u) => /sell=hotel/.test(u))).toBe(false);
+  });
+});

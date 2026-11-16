@@ -86,6 +86,8 @@ export function cheapestRequest(baseUrl, stay, destinations, { checkOut = stay.c
   body.sortBy = 'random';
   body.resultRandomSeed = WARM_SEED;
   if (stay.packageSearch) body.searchType = 'PACKAGE';
+  // As Results.jsx: a Hotel only search asks for the selling price (sell=hotel).
+  else body.sell = 'hotel';
   if (body.destinations.length > MANY_DESTINATIONS) {
     return { url: `${baseUrl}/contracts/cheapest`, opts: { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) } };
   }
