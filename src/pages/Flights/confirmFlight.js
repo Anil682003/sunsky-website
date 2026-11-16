@@ -44,6 +44,9 @@ export function confirmBody(flight, s) {
     children: s?.children,
     infants: s?.infants,
     totalPrice: flight?.totalPrice,
+    // The fare was quoted with its Flight Only margin (sell: 'flight' on the search): the server
+    // compares fare with fare and confirms the same price.
+    sell: 'flight',
   };
   if (s?.tripType === 'roundtrip' && s?.retISO) body.retdate = s.retISO;
 

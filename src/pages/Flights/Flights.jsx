@@ -18,6 +18,9 @@ const searchBody = (s) => ({
   adults: s.adults,
   children: s.children,
   infants: s.infants,
+  // A flight sold ALONE: priced with the Margin Menu's Flight Only margin (sunsky-admin adds it only
+  // on this request; a package's flight stays at its fare).
+  sell: 'flight',
 });
 
 /**
