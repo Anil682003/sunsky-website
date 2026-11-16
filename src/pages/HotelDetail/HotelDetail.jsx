@@ -2707,6 +2707,20 @@ export default function HotelDetail() {
   // search bar). It answers only its own stay (packageApplies); any other stay asks its dates.
   const pkgOffer = !pkgMode ? null
     : (pkgPick || (urlPkg && urlPkg.checkin === pickedISO ? urlPkg : null) || pickedEntry?.pkg || null);
+  // The date on screen is the matrix's package for it — also when it was never clicked: the
+  // page opens on the check-in of its link, and a trip-length chip only changes the nights. A
+  // 7-day package of an overnight flight has 5 nights; kept at the link's 6, the live check asked
+  // (and the checkout would have booked) 2 → 8 Jul, an 8-day trip, under "7 days" (Levent,
+  // 16 Nov 2026, Delphin Diva). So adopt the package's nights as a click on the date does
+  // (pickDay), keeping the trip length the matrix was asked for so it is not asked again.
+  const adoptNights = pkgMode && useMatrix && !pkgPick && !(urlPkg && urlPkg.checkin === pickedISO)
+    && pickedEntry?.pkg?.checkin === pickedISO && Number(pickedEntry.pkg.nights) > 0
+    ? Number(pickedEntry.pkg.nights) : null;
+  useEffect(() => {
+    if (adoptNights == null || adoptNights === nights) return;
+    setOvr((p) => ({ ...p, nights: adoptNights, travelDays: matrixTravelDays }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [adoptNights, nights]);
   // In `liveOnly` there is no cache to read a day out of, but the traveller still has a date —
   // the one they searched — and the action card is the whole point of the page.
   const pd = (pickedISO && (liveOnly || Object.keys(byDate).length))

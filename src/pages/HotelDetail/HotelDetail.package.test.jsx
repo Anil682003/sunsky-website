@@ -690,3 +690,43 @@ describe('the strip says which kind of "no price" this is', () => {
     ).toBeInTheDocument());
   });
 });
+
+// Levent, 16 Nov 2026 (Delphin Diva, 1 Jul 2027): the strip said "7 days", the live check came
+// back with 8. The page opened with 6 nights from the check-in in its link; the date's 7-day
+// package is an overnight flight with 5 nights. The selected date was never picked by a click,
+// so the page kept its own 6 nights and live-checked (and would have booked) an 8-day trip.
+describe('the date on screen is checked as ITS package, also when it was never clicked', () => {
+  const OUT5 = iso(35);   // the 7-day package's hotel check-out and return flight date
+  const overnight7 = () => ({
+    date: DEP, state: 'AVAILABLE', offerValidation: 'INDICATIVE', sunskyPayableTotal: 1300, pricePerPerson: 650, currency: 'EUR',
+    travelDays: 7, stay: { checkin: CHECK_IN, checkout: OUT5, nights: 5 }, departureAirport: 'FRA', arrivalAirport: 'AYT', room: 'DBL', board: 'RO',
+    flight: { price: 800, outbound: { departureDate: DEP, legs: [PKG_OUT] }, inbound: { departureDate: OUT5, legs: [{ ...PKG_BACK, departure: `${OUT5}T09:15:00`, arrival: `${OUT5}T12:05:00` }] } },
+    cheapest: true,
+  });
+  const renderSixNights = () => render(
+    <Provider store={configureStore({ reducer: { auth: auth.reducer } })}>
+      <MemoryRouter initialEntries={[`/hotel/592205?checkIn=${CHECK_IN}&checkOut=${iso(36)}&adults=2&children=0&rooms=1&nights=6&destination=TRAYT&name=Royal+Test&origin=FRA&transport=package`]}>
+        <Routes><Route path="/hotel/:hotelCode" element={<HotelDetail />} /></Routes>
+      </MemoryRouter>
+    </Provider>
+  );
+
+  it('live-checks the 5-night stay and the return flight of the 7-day package, and says 7 days', async () => {
+    MATRIX = { success: true, status: 'AVAILABLE', prev: null, next: null, cells: [overnight7()] };
+    const user = userEvent.setup();
+    const { container } = renderSixNights();
+    await runCheck(user);
+    const roomCheck = post.mock.calls.find(([u]) => String(u).includes('hotel-availability'));
+    expect(roomCheck[1]).toMatchObject({ checkin: CHECK_IN, checkout: OUT5 });
+    expect(flightSearches()[0][1]).toMatchObject({ depdate: DEP, retdate: OUT5 });
+    const tile = await waitFor(() => {
+      const el = [...container.querySelectorAll('.fc-facts .fcu-item')].find((it) => /aantal dagen/i.test(it.querySelector('.fcu-k')?.textContent || ''));
+      expect(el).toBeTruthy();
+      return el;
+    });
+    expect(tile.textContent).toContain('7 dagen');
+    // and the matrix is not asked again for another length
+    const mx = get.mock.calls.filter(([u]) => String(u).includes('package-matrix'));
+    expect(new Set(mx.map(([, c]) => c.params.travelDays))).toEqual(new Set(['7']));
+  });
+});
