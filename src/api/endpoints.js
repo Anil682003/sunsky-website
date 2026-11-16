@@ -52,6 +52,8 @@ export const ENDPOINTS = {
   // the booking fee, the deposit rule. The SAME record the server re-prices bookings with,
   // so the checkout can never show a number the server will reject.
   checkoutConfig:  '/website/checkout-config',
+  // The Margin Menu as live prices are built from it (sunsky-admin MARGINS_APPLY).
+  margins:         '/website/margins',
   // The agency's own name, email and phone (admin System Settings -> Company Settings).
   companyContact:  '/website/company-contact',
 

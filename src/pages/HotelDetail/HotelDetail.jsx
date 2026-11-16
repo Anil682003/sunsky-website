@@ -12,6 +12,7 @@ import { ENDPOINTS } from '../../api/endpoints';
 import { DEFAULT_PRICING, computeDeposit } from '../../utils/checkoutPricing';
 import { rememberDestCode } from '../../utils/favDest';
 import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/priceRounding';
+import { NO_MARGINS, fetchMargins, withRoomMargins } from '../../utils/margins';
 import { localCostOfRate, localCost } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import HotelImg from '../../components/HotelImg/HotelImg';
@@ -2179,7 +2180,24 @@ export default function HotelDetail() {
   // claims about a day. `rooms` are the rates behind an AVAILABLE, `unpriced` the rates the
   // supplier sent with no rate at all (kept, not dropped: see checkAvailabilityForDay), and
   // `serverMsg` our own API's message when it wrote one for people. null = never asked.
-  const [liveRooms, setLiveRooms]   = useState(null);   // {av, rooms[]?, unpriced[]?, cheapest?, serverMsg?}
+  const [liveRoomsRaw, setLiveRooms] = useState(null);   // {av, rooms[]?, unpriced[]?, cheapest?, serverMsg?}
+  // The Margin Menu on live prices (Levent, 16 Nov 2026: rooms and packages were sold at purchase
+  // price). The supplier's answer is kept as it came; `liveRooms` is the same answer as this page
+  // SELLS it — each room's price with its margin (a package's on flight + room together) — so
+  // every row, total and the checkout hand-off quote one number, the one the server re-checks.
+  // Nothing switched on (sunsky-admin MARGINS_APPLY) → exactly the supplier's prices, as before.
+  const [margins, setMargins] = useState(NO_MARGINS);
+  useEffect(() => {
+    let on = true;
+    fetchMargins().then((m) => { if (on) setMargins(m); });
+    return () => { on = false; };
+  }, []);
+  // The selected flight's price, for the package margin (the flight is chosen further down).
+  const [marginFlight, setMarginFlight] = useState(null);
+  const liveRooms = useMemo(
+    () => withRoomMargins(liveRoomsRaw, margins, { isPackage: transport === 'package', flightNet: marginFlight }),
+    [liveRoomsRaw, margins, transport, marginFlight]
+  );
   // Every question a supplier has CONFIRMED as empty, keyed by `emptyKey` (day, length of stay
   // and party). Kept across edits of the search on purpose: each entry is a fact about its own
   // criteria only, and it is what stops a confirmed "no" from ever being checked live again.
@@ -3254,6 +3272,9 @@ export default function HotelDetail() {
   // made, leaves no bookable total: never the room alone, quietly booked as a hotel-only stay.
   const flightBlocked = transport === 'package' && (flightsFailed || flightsPriceUnknown || flightNeedsChoice);
   const liveFlight = !flightBlocked && selectedFlight >= 0 ? (allFlights[selectedFlight] || null) : null;
+  // The rooms' package margin follows the flight actually selected (see `liveRooms`).
+  const liveFlightPrice = Number(liveFlight?.totalPrice) || null;
+  useEffect(() => { setMarginFlight(liveFlightPrice); }, [liveFlightPrice]);
 
   // Escape closes the dialog, like the photo explorer and the flight-details dialog on this
   // same page — but the filter SHEET first when one is up, because on a phone that sheet is

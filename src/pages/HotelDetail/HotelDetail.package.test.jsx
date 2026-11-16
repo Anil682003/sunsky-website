@@ -1,4 +1,4 @@
-import { describe, it, expect, beforeEach, vi } from 'vitest';
+import { describe, it, expect, beforeEach, afterEach, vi } from 'vitest';
 import { useEffect } from 'react';
 import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
@@ -728,5 +728,37 @@ describe('the date on screen is checked as ITS package, also when it was never c
     // and the matrix is not asked again for another length
     const mx = get.mock.calls.filter(([u]) => String(u).includes('package-matrix'));
     expect(new Set(mx.map(([, c]) => c.params.travelDays))).toEqual(new Set(['7']));
+  });
+});
+
+// The Margin Menu on live prices (Levent, 16 Nov 2026). Room €500 + flight €1,000 at purchase
+// price; the package margin is €50 + 6% of €1,500 = €140 (above the €100 minimum).
+describe('package margin on the live check (Margin Menu → Dynamic Package)', () => {
+  const MARGINS = { apply: true, dynamicPackage: { enabled: true, baseMargin: 50, variablePercent: 6, minMargin: 100 } };
+  beforeEach(async () => {
+    const { _resetMarginsCache } = await import('../../utils/margins');
+    _resetMarginsCache();
+    get.mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('package-matrix')) return Promise.resolve({ data: MATRIX });
+      if (u.includes('/website/margins')) return Promise.resolve({ data: { success: true, data: MARGINS } });
+      return Promise.resolve({ data: {} });
+    });
+  });
+  afterEach(async () => { (await import('../../utils/margins'))._resetMarginsCache(); });
+
+  it('quotes €1,640 (€820 p.p.) and hands the checkout the hotel line WITH the margin, the flight at its fare', async () => {
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,640'));
+    const book = screen.getAllByRole('button').find((b) => /doorgaan naar afrekenen/i.test(b.textContent) && !b.disabled);
+    await user.click(book);
+    await screen.findByTestId('checkout');
+    const handed = seen.mock.calls.at(-1)[0];
+    // The server re-checks: flight €1,000 (its fare), hotel €500 net + €140 = €640.
+    expect(handed.api.flight.price).toBe(1000);
+    expect(handed.api.hotel.price).toBe(640);
+    expect(handed.ppPrice).toBe(820);
   });
 });
