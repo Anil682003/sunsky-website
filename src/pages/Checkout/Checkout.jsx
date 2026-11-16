@@ -37,6 +37,7 @@ import {
   trackBeginCheckout, trackPurchase, contextFromBooking, stashPurchaseContext,
 } from '../../analytics';
 import './Checkout.css';
+import { fetchMargins, packageMarginOf, hotelOnlyMarginOf } from '../../utils/margins';
 
 const STRIPE_PK = import.meta.env.VITE_STRIPE_PUBLIC_KEY;
 const stripePromise = (STRIPE_PK && !STRIPE_PK.includes('REPLACE')) ? loadStripe(STRIPE_PK) : null;
@@ -1111,8 +1112,16 @@ function CheckoutContent({ stripe, elements }) {
         };
       }
 
+      // The Margin Menu (Levent, 16 Nov 2026): the re-priced room arrives at the supplier's price;
+      // the hotel line carries the margin exactly as the hotel page quoted it (a package: on flight
+      // + room together; a hotel alone: its tier), or the server's check refuses the booking.
+      const margins = await fetchMargins();
+      const roomNet = Number(match.price) || 0;
+      const roomMargin = booking.api?.flight
+        ? packageMarginOf(margins, { flightNet: flight.price, hotelNet: roomNet })
+        : hotelOnlyMarginOf(margins, roomNet);
       const nextQuote = {
-        hotel: Number(match.price) || 0,
+        hotel: roomMargin > 0 ? Math.round((roomNet + roomMargin) * 100) / 100 : roomNet,
         flight: flight.price,
         rateKey: match.rateKey, roomCode: match.roomCode, boardCode: match.boardCode,
         cancellation: match.cancellation,
