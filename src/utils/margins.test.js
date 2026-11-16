@@ -19,7 +19,7 @@ describe('the Margin Menu on live prices — the same euros as the admin', () =>
     const pk = withRoomMargins(live, CFG, { isPackage: true, flightNet: 1000 });
     expect(pk.rooms.map((r) => [r.price, r.supplierPrice, r.margin])).toEqual([[640, 500, 140], [1064, 900, 164]]);
     const ho = withRoomMargins(live, CFG, { isPackage: false });
-    expect(ho.rooms.map((r) => r.price)).toEqual([575, 1017]);
+    expect(ho.rooms.map((r) => r.price)).toEqual([565, 1017]);   // €500 is in the 500–999.99 tier: 13%
   });
   it('nothing switched on: the very same object, supplier prices untouched', () => {
     const live = { rooms: [{ price: 500 }] };
