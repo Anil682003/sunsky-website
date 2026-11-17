@@ -151,8 +151,12 @@ export default function VacationTypes({ cms }) {
   const title    = sh?.title    || t('vacationTypes.title', 'Your favorite type of vacation');
   const subtitle = sh?.subtitle || t('vacationTypes.subtitle', 'Curated experiences designed around how you love to travel.');
 
-  const types = (cms?.vacationTypes?.length > 0)
-    ? cms.vacationTypes.map((v) => {
+  // "Display on Sunsky website" (CMS → Homepage → Theme Holidays, 18 Nov 2026): an unticked card
+  // stays in the CMS but is not shown. A card saved before the box existed is shown.
+  const hasCmsCards = cms?.vacationTypes?.length > 0;
+  const shownCards = hasCmsCards ? cms.vacationTypes.filter((v) => v && v.showOnWebsite !== false) : [];
+  const types = hasCmsCards
+    ? shownCards.map((v) => {
         const search = cardSearch(v, holidayTypes);
         const criteria = uniqueCriteria(Array.isArray(search?.criteria) ? search.criteria : []);
         // Criteria win over boardCode, which the dashboard keeps mirrored so a stale bundle that
@@ -182,6 +186,9 @@ export default function VacationTypes({ cms }) {
         desc: t(`vacationTypes.types.${v.key}.desc`, v.desc),
         buttonText: t('vacationTypes.explore', 'Explore'),
       }));
+
+  // Every CMS card switched off: no section at all (never the built-in sample cards).
+  if (types.length === 0) return null;
 
   return (
     <section className={styles.section}>
