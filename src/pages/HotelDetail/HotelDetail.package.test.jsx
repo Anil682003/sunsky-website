@@ -127,8 +127,11 @@ const priceDays = async () => waitFor(() => {
   expect(found.length).toBeGreaterThan(0);
   return found;
 });
+// A traveller must PICK a departure date on the strip before the check (Levent, 17 Nov 2026):
+// the first priced date is the package's own.
 const runCheck = async (user) => {
-  await priceDays();
+  const days = await priceDays();
+  await user.click(days[0]);
   await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
   await waitFor(() => expect(flightSearches().length).toBeGreaterThan(0));
 };
@@ -383,7 +386,9 @@ describe('the live check asks about the package the card priced', () => {
     // The package flies out on DEP and checks in a day later (Bali: out Wed 6 Jan, hotel Thu
     // 7 Jan). The strip selects the departure, so every date on the page starts there too
     // (Levent, 28 Oct 2026), and the trip ends on the return flight's day.
+    const user = userEvent.setup();
     renderPage();
+    await user.click((await priceDays())[0]);                    // the traveller picks the date
     const dayOf = (isoDate) => String(Number(isoDate.slice(8, 10)));
     const act = await waitFor(() => { const el = document.querySelector('.fc-act-date'); expect(el).toBeTruthy(); return el; });
     const [from, to] = act.textContent.split('–').map((x) => x.trim());
@@ -728,6 +733,22 @@ describe('the date on screen is checked as ITS package, also when it was never c
     // and the matrix is not asked again for another length
     const mx = get.mock.calls.filter(([u]) => String(u).includes('package-matrix'));
     expect(new Set(mx.map(([, c]) => c.params.travelDays))).toEqual(new Set(['7']));
+    // The length chip lit is the TRIP's, 7 days — not nights + 1 = 6 (Levent, 17 Nov 2026).
+    const lit = screen.getAllByRole('button', { pressed: true }).filter((b) => /^\d+ dagen$/.test(b.textContent.trim()));
+    expect(lit.map((b) => b.textContent)).toEqual(['7 dagen']);
+  });
+
+  it('no date picked on the strip: the check cannot run; after picking one it does (Levent, 17 Nov 2026)', async () => {
+    MATRIX = { success: true, status: 'AVAILABLE', prev: null, next: null, cells: [overnight7()] };
+    const user = userEvent.setup();
+    const { container } = renderSixNights();
+    const days = await priceDays();
+    const btn = await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i });
+    expect(btn).toBeDisabled();
+    expect(container.querySelector('.fc-act-date').textContent).toMatch(/kies eerst een vertrekdatum/i);
+    expect(post.mock.calls.some(([u]) => String(u).includes('hotel-availability'))).toBe(false);
+    await user.click(days[0]);
+    expect(screen.getByRole('button', { name: /prijs & beschikbaarheid controleren/i })).not.toBeDisabled();
   });
 });
 

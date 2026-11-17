@@ -3,7 +3,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './StayBar.module.css';
 import DateCalendar from '../DateCalendar/DateCalendar';
 import { earliestCheckInISO } from '../../utils/leadTime';
-import { DURATION_BANDS, bandByLabel, bandForNights, daysInBand, stayDaysToNights } from '../../utils/durations';
+import { DURATION_BANDS, bandByLabel, bandForNights, bandForTravelDays, daysInBand, stayDaysToNights } from '../../utils/durations';
 
 // The "edit my search" bar on the hotel page: departure date, who's travelling, board,
 // departure airport and length of stay.
@@ -117,6 +117,10 @@ export default function StayBar({
   origin, originAny = false, originOptions = [], originLabel = (c) => c, destination = '', originNotes = {},
   transport = 'package',
   nights,
+  // The TRIP length in days the page is showing (Flight + Hotel: the package's own). An overnight
+  // flight makes a 7-day trip of 5 nights, so nights + 1 would light the 6-day chip under 7-day
+  // prices (Levent, 17 Nov 2026). Absent (Hotel only): nights + 1, as before.
+  travelDays = null,
   // (iso) => boolean for a departure day this search cannot fly, or null to grey nothing.
   // Built by the page from the feasibility answer; the bar itself knows nothing about flights.
   isUnavailable = null,
@@ -234,7 +238,8 @@ export default function StayBar({
   // Duration speaks in the home page's day-bands. The field names the band the current stay
   // falls in, and the row underneath narrows it to one exact length WITHIN that band — so the
   // two controls are coarse-then-fine rather than two competing lists.
-  const band = bandForNights(nights);
+  const tripDays = Number(travelDays) > 0 ? Number(travelDays) : null;
+  const band = tripDays ? bandForTravelDays(tripDays) : bandForNights(nights);
   const exactDays = daysInBand(band);   // selectable lengths, in DAYS
 
   return (
@@ -377,7 +382,7 @@ export default function StayBar({
         <div className={styles.chips}>
           {exactDays.map((d) => {
             const n = stayDaysToNights(d);   // "7 days" chip → 6 nights
-            const picked = nights === n;
+            const picked = tripDays ? d === tripDays : nights === n;
             // UI-07: a length with no complete package is refused. An unknown answer refuses
             // nothing — `durationUnavailable` is null until we can actually say.
             const gone = typeof durationUnavailable === 'function' && durationUnavailable(d);

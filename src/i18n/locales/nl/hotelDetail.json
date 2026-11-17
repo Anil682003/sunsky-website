@@ -425,6 +425,7 @@
     "balanceDueBy": "Te betalen uiterlijk {{date}}"
   },
   "prices": {
+    "pickDateFirst": "Kies eerst een vertrekdatum in de kalender.",
     "noPackageDatesHere": "Geen vakantie met vlucht rond deze data.",
     "noPackageAtAll": "We vonden geen pakketreis met vlucht voor dit hotel. Je kunt wel enkel het hotel boeken.",
     "tryCheapestPackage": "Ga naar de goedkoopste vakantie met vlucht in dit hotel, of kies andere data.",

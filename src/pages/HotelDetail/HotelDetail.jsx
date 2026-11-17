@@ -2713,6 +2713,11 @@ export default function HotelDetail() {
   // pick, editing the search falls back to whatever the new departure date is — no effect, no
   // extra render pass, nothing to keep in sync.
   const pickedISO = selectedISO ?? notBeforeToday(baseCheckIn);
+  // Flight + Hotel with the date strip: nothing is checked until the traveller PICKS a departure
+  // date there (Levent, 17 Nov 2026). Arriving from a hotel search or the results page, the link's
+  // date is only where the strip opens — checking it unpicked showed a holiday "available" with no
+  // day selected on the strip.
+  const mustPickDay = pkgMode && useMatrix && !selectedISO;
   // Position of the picked day IN THE VISIBLE WEEK, for the highlight alone. -1 once the
   // traveller has paged away from it, which correctly leaves no bar selected on screen.
   const pickedIdx = (selectedISO && selectedDep && useMatrix)
@@ -3943,7 +3948,14 @@ export default function HotelDetail() {
       fetchFlights(checkin, checkout, dayFrom);
     }
   };
-  const checkAvailability = () => checkAvailabilityForDay(pickedISO);
+  const checkAvailability = () => {
+    if (mustPickDay) {
+      showToast(t('prices.pickDateFirst', 'Choose a departure date in the calendar first.'), 'info');
+      document.querySelector('.fc-strip')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
+    checkAvailabilityForDay(pickedISO);
+  };
 
   // "Check again" on the amber card: the very same check as the button above the strip, plus
   // one line of toast once it settles. The card that carried the button is replaced by
@@ -4399,6 +4411,8 @@ export default function HotelDetail() {
                 originNotes={originGone ? { [origin]: t('flights.originGoneShort', 'Not available') } : undefined}
                 transport={transport}
                 nights={nights}
+                // Flight + Hotel: the length the strip prices (an overnight flight has a night less).
+                travelDays={pkgMode && useMatrix ? matrixTravelDays : null}
                 isUnavailable={departureUnavailable}
                 durationUnavailable={durationUnavailable}
                 earliestAvailable={staySummary?.earliest ?? null}
@@ -4761,7 +4775,9 @@ export default function HotelDetail() {
                         <div className="fc-act">
                           <div className="fc-act-info">
                             <span className="fc-act-date">
-                              {pd.iso
+                              {mustPickDay
+                                ? t('prices.pickDateFirst', 'Choose a departure date in the calendar first.')
+                                : pd.iso
                                 ? `${calDay(tripFrom)} ${calDate(tripFrom)} – ${calDay(tripTo)} ${calDate(tripTo)}`
                                 : `${pd.day} ${pd.date}`}
                             </span>
@@ -4773,7 +4789,7 @@ export default function HotelDetail() {
                               {tripDayLabel} · {hotelName}
                             </span>
                           </div>
-                          <button type="button" className="fc-cta" onClick={checkAvailability}>
+                          <button type="button" className="fc-cta" onClick={checkAvailability} disabled={mustPickDay}>
                             {t('actions.checkPriceAvailability', 'Check price & availability')}
                           </button>
                         </div>

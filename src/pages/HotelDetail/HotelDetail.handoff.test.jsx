@@ -149,8 +149,11 @@ const openHotel = (href) => {
 };
 const matrixAsked = () => get.mock.calls.filter(([u]) => String(u).includes('package-matrix')).map(([, o]) => o.params);
 const postsTo = (part) => post.mock.calls.filter(([u]) => String(u).includes(part)).map(([, b]) => b);
-const checkLive = async (user) => {
+// `pick`: Flight + Hotel needs the traveller to PICK the date on the strip first (Levent, 17 Nov
+// 2026); the card's own package is the first priced date.
+const checkLive = async (user, { pick = false } = {}) => {
   await waitFor(() => expect(screen.getAllByRole('button', { name: /vanaf €\d+/i }).length).toBeGreaterThan(0));
+  if (pick) await user.click(screen.getAllByRole('button', { name: /vanaf €\d+/i })[0]);
   await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
   await waitFor(() => expect(postsTo('hotel-availability').length).toBeGreaterThan(0));
 };
@@ -193,7 +196,7 @@ describe('Flight + Hotel: the card opens the hotel page on its own package and t
   it('the live check asks about exactly the card\'s package: its stay, its party, its flights', async () => {
     const user = userEvent.setup();
     openHotel(await cardLink(SEARCH));
-    await checkLive(user);
+    await checkLive(user, { pick: true });
     expect(postsTo('hotel-availability')[0]).toMatchObject({ hotelCode: '592205', checkin: CHECK_IN, checkout: RET, adults: 2, children: 1, childAges: [8], rooms: 1 });
     await waitFor(() => expect(postsTo('flight-availability/search').length).toBeGreaterThan(0));
     expect(postsTo('flight-availability/search')[0]).toMatchObject({ from: 'DUS', to: 'AYT', depdate: DEP, retdate: RET });
