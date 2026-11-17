@@ -2717,12 +2717,20 @@ export default function HotelDetail() {
   // date there (Levent, 17 Nov 2026). Arriving from a hotel search or the results page, the link's
   // date is only where the strip opens — checking it unpicked showed a holiday "available" with no
   // day selected on the strip.
-  const mustPickDay = pkgMode && useMatrix && !selectedISO;
+  // A day IS selected (Levent, 18 Nov 2026) when the traveller clicked one, or when they came from
+  // a results card: its link carries that card's package for exactly this day (urlPkg), so the
+  // day is shown selected and the button works at once. A hotel-name search carries no package:
+  // nothing is selected and the button waits for a pick. The strip's tick and the button follow
+  // this ONE rule — before, the tick showed the link's date while the button still said "pick a
+  // date", and only picking another day and back made it work.
+  const urlDayChosen = !!(urlPkg && pickedISO && urlPkg.checkin === pickedISO);
+  const mustPickDay = pkgMode && useMatrix && !selectedISO && !urlDayChosen;
   // Position of the picked day IN THE VISIBLE WEEK, for the highlight alone. -1 once the
-  // traveller has paged away from it, which correctly leaves no bar selected on screen.
+  // traveller has paged away from it, which correctly leaves no bar selected on screen — and -1
+  // while no day is selected (mustPickDay), so the strip never ticks a day the button ignores.
   const pickedIdx = (selectedISO && selectedDep && useMatrix)
     ? priceDays.findIndex((p) => p.departure === selectedDep)
-    : priceDays.findIndex((p) => p.iso === pickedISO);
+    : mustPickDay ? -1 : priceDays.findIndex((p) => p.iso === pickedISO);
   // The picked day itself is read from the whole cache, NOT the visible week, so paging never
   // silently drops the traveller's chosen date out of the action card and the checkout hand-off.
   const pickedEntry = (selectedISO && selectedDep && useMatrix && matrix.days.find((d) => d.departure === selectedDep && d.iso === selectedISO))
