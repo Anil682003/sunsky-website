@@ -80,6 +80,9 @@ export function cheapestRequest(baseUrl, stay, destinations, { checkOut = stay.c
     maxChildrenPerRoom: String(Math.ceil((parseInt(stay.children, 10) || 0) / rooms)),
   };
   if (stay.childAges) body.childAges = stay.childAges;
+  // As Results.jsx: page 1 (not a travel-time count) also asks the hotels per board / offer
+  // (Holiday Themes). Not part of the cached search, but the requests stay identical.
+  if (page === 1 && checkOut === stay.checkOut && pageSize === PAGE_SIZE) body.facetHotels = '1';
   // The page's default order is "Recommended" = the random order (Ch 1 §2). The seed decides only
   // the order the cache serves, not the priced search it caches, so any seed warms the entry every
   // visitor reads.

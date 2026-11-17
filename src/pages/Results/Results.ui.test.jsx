@@ -127,7 +127,7 @@ describe('sidebar layout', () => {
     expect(headings).toEqual([
       'Vervoer', 'Waarheen', 'Datum & reizigers',
       'Resultaten verfijnen',
-      'Prijsklasse', 'Verzorging', 'Sterren', 'Soort accommodatie', "Thema's",
+      'Prijsklasse', 'Verzorging', 'Sterren', 'Soort accommodatie', 'Vakantietypes', "Vakantiethema's",
       'Faciliteiten', 'Activiteiten',
     ]);
   });
@@ -274,7 +274,7 @@ describe('mobile drawer', () => {
     const panel = document.querySelector('div[class*="drawer"] [class*="drawerBody"]')
       ?? screen.getAllByRole('heading', { name: 'Filters', level: 2 })[1].closest('div').parentElement;
 
-    for (const section of ['Prijsklasse', 'Verzorging', "Thema's"]) {
+    for (const section of ['Prijsklasse', 'Verzorging', 'Vakantietypes', "Vakantiethema's"]) {
       expect(within(panel).getByText(section)).toBeInTheDocument();
     }
     // The drawer mirrors the sidebar, so the removed filter must be absent from BOTH — a

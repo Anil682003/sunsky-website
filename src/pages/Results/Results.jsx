@@ -9,6 +9,7 @@ import { ENDPOINTS } from '../../api/endpoints';
 // The admin through the site's own client (VITE_API_URL): utils/ip's BASE_URL is localhost in the
 // committed copy, so a fetch on it failed on the live site (23 Oct).
 import axiosInstance from '../../services/axiosInstance';
+import { withHolidayThemes, themeRulesOf } from '../../utils/holidayThemes';
 import { holidayThemesForCities } from '../../utils/holidayThemesForCities';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages, fetchDestinationCountries } from '../../api/filters';
 import {
@@ -216,6 +217,9 @@ const EMPTY_FILTERS = {
   // Set only by a homepage Theme Holiday card (no sidebar control): hotel segments, the card's
   // "Match any" group as the raw `any` param, and "exclude Adults Only".
   segments: [], any: '', excludeAdultsOnly: false,
+  // Holiday Themes ticked (ids, category Theme; Levent 17-18 Nov 2026): each theme's rule is
+  // merged into what is SEARCHED (utils/holidayThemes.js), never into these boxes.
+  hthemes: [],
   // Transport type. 'hotel_only' → cache searchType=HOTEL_ONLY; 'package' → PACKAGE.
   transport: 'hotel_only',
   // Departure airports, carried to the hotel page's flight search. Only meaningful while
@@ -267,6 +271,7 @@ const countActiveFilters = (f) =>
   (f.maxBeach !== '' ? 1 : 0) + (f.maxCentre !== '' ? 1 : 0) +
   (f.adultsOnly ? 1 : 0) + (f.minRating !== '' ? 1 : 0) +
   (f.segments?.length || 0) + (f.any ? 1 : 0) + (f.excludeAdultsOnly ? 1 : 0) +
+  (f.hthemes?.length || 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
   (f.transport && f.transport !== 'hotel_only' ? 1 : 0) +
@@ -987,6 +992,7 @@ export default function Results() {
       .map((m) => (m[1] ? `${m[1]}:${m[2]}` : Number(m[2])));
     const adultsOnly = ['1', 'true', 'yes'].includes((params.get('adultsOnly') || '').toLowerCase());
     const segments = nums('segments');
+    const hthemes = nums('hthemes');
     // Passed to the content API as written; it parses and validates the tokens itself.
     const any = (params.get('any') || '').trim();
     const excludeAdultsOnly = ['1', 'true', 'yes'].includes((params.get('excludeAdultsOnly') || '').toLowerCase());
@@ -1020,6 +1026,7 @@ export default function Results() {
       ...(activities.length    ? { activities } : {}),
       ...(adultsOnly           ? { adultsOnly: true } : {}),
       ...(segments.length      ? { segments } : {}),
+      ...(hthemes.length       ? { hthemes } : {}),
       ...(any                  ? { any } : {}),
       ...(excludeAdultsOnly    ? { excludeAdultsOnly: true } : {}),
       ...(maxBeach  != null    ? { maxBeach } : {}),
@@ -1042,6 +1049,18 @@ export default function Results() {
   const seeded = useMemo(() => seedFilters(), []);
   const [filters, setFilters] = useState(seeded);
   const [applied, setApplied] = useState(seeded);
+  // The active Holiday Themes with their rules (GET /website/holiday-types?category=Theme), loaded
+  // once: a ticked theme searches its rule (withHolidayThemes). null until loaded — a theme ticked
+  // from a link then adds nothing until its rule is known, and the commit below re-runs then.
+  const [themeList, setThemeList] = useState(null);
+  useEffect(() => {
+    let live = true;
+    axiosInstance.get(ENDPOINTS.holidayTypes, { params: { category: 'Theme' } })
+      .then((r) => { if (live) setThemeList(Array.isArray(r?.data?.data) ? r.data.data : []); })
+      .catch(() => { if (live) setThemeList([]); });
+    return () => { live = false; };
+  }, []);
+  const themeRules = useMemo(() => themeRulesOf(themeList), [themeList]);
 
   // ── FACETS (from the admin content API over the scope) ──────────────────────────
   // holiday / stars / facilities / activities, each with a hotel count. `facetsStatus`:
@@ -1225,10 +1244,12 @@ export default function Results() {
   useEffect(() => {
     const timer = setTimeout(() => setApplied((prev) => {
       const key = (f) => JSON.stringify(f, (k, v) => (k === 'origins' && f.transport !== 'package' ? undefined : v));
-      return key(prev) === key(filters) ? prev : filters;
+      // What is searched: the ticked Holiday Themes' rules on top of the boxes (utils/holidayThemes.js).
+      const next = withHolidayThemes(filters, themeRules);
+      return key(prev) === key(next) ? prev : next;
     }), 300);
     return () => clearTimeout(timer);
-  }, [filters]);
+  }, [filters, themeRules]);
 
   // Load the country list once (only countries that actually have hotels).
   useEffect(() => {
@@ -1765,6 +1786,9 @@ export default function Results() {
     if (Number.isFinite(min) && min > 0)  body.minPrice = String(min);
     if (Number.isFinite(max) && max > 0 && !(min != null && max < min)) body.maxPrice = String(max);
     if (f.priceBasis !== 'total') body.priceBasis = f.priceBasis;
+    // Page 1: also the hotels per board / offer, for the Holiday Themes counts (not for the
+    // travel-time counts, which only need a number).
+    if (page === 1 && !over.checkOut) body.facetHotels = '1';
     if (f.refundable !== 'any')   body.refundable = f.refundable;
     if (f.sortBy === 'price_desc') body.sortBy = 'price_desc';
     // "Recommended": the stable random order of this session (Ch 1 §2). The cache applies it only
@@ -1961,7 +1985,7 @@ export default function Results() {
     if (filters.minPrice !== '' || filters.maxPrice !== '') {
       const cleared = { ...filters, minPrice: '', maxPrice: '' };
       setFilters(cleared);
-      setApplied(cleared);
+      setApplied(withHolidayThemes(cleared, themeRules));
     }
   }
 
@@ -1981,14 +2005,27 @@ export default function Results() {
   useEffect(() => {
     if (!offerCodes) return;
     let live = true;
-    axiosInstance.post('/hotel-filters/facets/offers', { ...searchScope, hotelCodes: offerCodes.codes })
+    axiosInstance.post('/hotel-filters/facets/offers', {
+      ...searchScope, hotelCodes: offerCodes.codes,
+      // Holiday Themes: the active themes with holidays among these hotels, and Adults only's count.
+      withThemes: true,
+      ...(offerCodes.boardHotels ? { boardHotels: offerCodes.boardHotels } : {}),
+      ...(offerCodes.offerHotels ? { offerHotels: offerCodes.offerHotels } : {}),
+    })
       .then((r) => {
-        const next = r?.data?.data?.facets;
+        const data = r?.data?.data;
+        const next = data?.facets && {
+          ...data.facets,
+          hthemes: Array.isArray(data.themes) ? data.themes : [],
+          adultsOnlyCount: Number.isFinite(data.adultsOnly) ? data.adultsOnly : null,
+        };
         if (!live || !next) return;
         setOfferFacets((prev) => {
           const keep = prev?.key === offerBaseKey ? prev.facets : null;
           const sticky = {
             holiday: applied.themes, stars: applied.stars, accommodation: applied.accommodation,
+            // A ticked theme keeps the group's numbers from before, like the other "either" groups.
+            hthemes: filters.hthemes,
             review: applied.minRating ? [applied.minRating] : [], beachDistance: applied.maxBeach ? [1] : [], centreDistance: applied.maxCentre ? [1] : [],
           };
           const out = { ...next };
@@ -2007,6 +2044,15 @@ export default function Results() {
   // Autovakanties…) is not a theme. One still shows while it is ticked — a holiday-type menu link
   // or homepage card ticks it, and the traveller must be able to untick it. An entry without a
   // category (an admin from before this) counts as a theme, as before.
+  // Holiday Themes: the counted list, plus any ticked theme it no longer names (name from the theme
+  // list, no count) so the traveller can always untick it.
+  const hthemeItems = (() => {
+    const list = Array.isArray(facets.hthemes) ? facets.hthemes : [];
+    const missing = (filters.hthemes || []).filter((id) => !list.some((x) => x.id === id))
+      .map((id) => ({ id, name: (themeList || []).find((x) => Number(x.id) === id)?.name, hotels: null }))
+      .filter((x) => x.name);
+    return [...list, ...missing];
+  })();
   const themeFacets = (facets.holiday || []).filter(
     (h) => h.category !== 'Holiday' || filters.themes.includes(h.id),
   );
@@ -2047,7 +2093,12 @@ export default function Results() {
     // Every group answered with its hotel list: the sidebar can now count over the results.
     if (pk.groups.length && pk.groups.every((g) => g.done && !g.error && Array.isArray(g.resultCodes))) {
       const codes = [...new Set(pk.groups.flatMap((g) => g.resultCodes))];
-      setOfferCodes((prev) => (prev?.reqId === reqId ? prev : { reqId, codes }));
+      // Hotels per board / offer of every group (Holiday Themes); null when a group sent none.
+      const mergeLists = (key) => (pk.groups.every((g) => g[key]) ? pk.groups.reduce((acc, g) => {
+        for (const [k, list] of Object.entries(g[key])) acc[k] = [...(acc[k] || []), ...list];
+        return acc;
+      }, {}) : null);
+      setOfferCodes((prev) => (prev?.reqId === reqId ? prev : { reqId, codes, boardHotels: mergeLists('boardHotels'), offerHotels: mergeLists('offerHotels') }));
     }
     setPkgUnknown(unknownDestinations(pk.groups));
     setPkgFailed(pk.groups.filter((g) => g.done && g.error).flatMap((g) => g.dests));
@@ -2084,7 +2135,7 @@ export default function Results() {
           // `entryApplied` is the server's answer to "did the door's default survive the
           // traveller's own choices" (§12B.2, UI-20). Every group is asked the same question, so
           // the first page of any of them carries it.
-          if (g.page === 1) { g.resultCodes = Array.isArray(r?.resultHotelCodes) ? r.resultHotelCodes : null; g.priceRange = r?.priceRange ?? null; g.boardFacets = r?.boardFacets || {}; g.promoFacets = r?.offerFacets || {}; g.airportFacets = r?.airportFacets || null; g.destinationFacets = r?.destinationFacets || null; g.entryApplied = r?.entryApplied ?? null; }
+          if (g.page === 1) { g.resultCodes = Array.isArray(r?.resultHotelCodes) ? r.resultHotelCodes : null; g.priceRange = r?.priceRange ?? null; g.boardFacets = r?.boardFacets || {}; g.promoFacets = r?.offerFacets || {}; g.airportFacets = r?.airportFacets || null; g.destinationFacets = r?.destinationFacets || null; g.entryApplied = r?.entryApplied ?? null; g.boardHotels = r?.boardHotels ?? null; g.offerHotels = r?.offerHotels ?? null; }
           g.error = null;
         } catch (err) {
           if (signal?.aborted || err?.name === 'CanceledError') return;
@@ -2227,7 +2278,7 @@ export default function Results() {
         setDestCounts(data.destinationCounts || null);
         // Every priced hotel of this search (page 1): the sidebar counts over the results, as for
         // Flight + Hotel — not over the catalogue (UR §9.3, T12/T25).
-        if (Array.isArray(data.resultHotelCodes)) setOfferCodes({ reqId, codes: data.resultHotelCodes });
+        if (Array.isArray(data.resultHotelCodes)) setOfferCodes({ reqId, codes: data.resultHotelCodes, boardHotels: data.boardHotels ?? null, offerHotels: data.offerHotels ?? null });
         setCheapestCode(applied.sortBy === 'price_asc' || applied.sortBy === 'recommended' ? (data.cheapest?.hotelCode ?? null) : null);
 
         const seen   = seenCodesRef.current;
@@ -2712,6 +2763,7 @@ export default function Results() {
         case 'roomFeatures':  return v.map(roomFeatureLabel);
         case 'stars':         return v.map((n) => `${'★'.repeat(n)} ${starLabel(n)}`);
         case 'themes':        return v.map((id) => facets.holiday.find((h) => h.id === id)?.name);
+        case 'hthemes':       return v.map((id) => (themeList || []).find((x) => Number(x.id) === id)?.name);
         case 'facilities':    return v.map((c) => named(facets.facilities, c));
         case 'accommodation': return v.map((c) => cap(named(facets.accommodation, c)));
         case 'kids':          return v.map((c) => named(facets.kids, c));
@@ -3527,7 +3579,8 @@ export default function Results() {
       </FilterSection>
 
       {/* Holiday Type — DYNAMIC from the admin facets (only themes that apply to the scope, with counts). */}
-      <FilterSection title={t('filters.holidayType', 'Themes')} defaultOpen>
+      {/* Holiday Types (Levent, 17-18 Nov 2026): Zonvakanties, Stedentrips, … — category Holiday. */}
+      <FilterSection title={t('filters.holidayType', 'Holiday Types')} defaultOpen>
         {facetsStatus === 'error' ? (
           <p className={styles.filterEmpty}>{t('filters.holidayTypesUnavailable', 'Holiday types unavailable (content service unreachable).')}</p>
         ) : facetsStatus === 'loading' && facets.holiday.length === 0 ? (
@@ -3548,14 +3601,40 @@ export default function Results() {
             )}
           />
         )}
-        {/* Adults Only lives under Thema's (§12B.5). It is the hotel's own "Only Adults" facility
-            (the admin has no Adults Only holiday type), so it narrows the list rather than adding
-            to the themes ticked above; the homepage card seeds it as ?adultsOnly=1. */}
-        <FilterCheck
-          label={t('filters.adultsOnly', 'Adults only')}
-          checked={filters.adultsOnly}
-          onChange={() => setFilter('adultsOnly', !filters.adultsOnly)}
-        />
+      </FilterSection>
+
+      {/* Holiday Themes (Levent, 17-18 Nov 2026): the active themes (All Inclusive, Honeymoon, …)
+          that have holidays in THIS search, with how many — counted by the admin over the results
+          with each theme's rule. A ticked theme searches its rule (utils/holidayThemes.js); one no
+          longer in the list stays shown so it can be unticked. */}
+      <FilterSection title={t('filters.holidayThemes', 'Holiday Themes')} defaultOpen>
+        {hthemeItems.length === 0 ? (
+          <p className={styles.filterEmpty}>
+            {facets.hthemes ? t('filters.noHolidayThemes', 'No holiday themes for this search.') : t('filters.loading', 'Loading…')}
+          </p>
+        ) : (
+          <FacetList
+            items={hthemeItems}
+            isChecked={(th) => filters.hthemes.includes(th.id)}
+            render={(th) => (
+              <FilterCheck
+                key={th.id}
+                label={th.hotels != null ? `${th.name} (${th.hotels})` : th.name}
+                checked={filters.hthemes.includes(th.id)}
+                onChange={() => toggleCode('hthemes', th.id)}
+              />
+            )}
+          />
+        )}
+        {/* Adults Only (§12B.5): the hotel's own "Only Adults" facility, narrowing the list. Shown
+            when this search has such hotels (or it is ticked, or the count is not known yet). */}
+        {(filters.adultsOnly || facets.adultsOnlyCount == null || facets.adultsOnlyCount > 0) && (
+          <FilterCheck
+            label={facets.adultsOnlyCount != null ? `${t('filters.adultsOnly', 'Adults only')} (${facets.adultsOnlyCount})` : t('filters.adultsOnly', 'Adults only')}
+            checked={filters.adultsOnly}
+            onChange={() => setFilter('adultsOnly', !filters.adultsOnly)}
+          />
+        )}
       </FilterSection>
 
       {/* Distance — filter by MAX distance to the beach / city centre (admin facets group 40).
