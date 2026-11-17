@@ -2040,10 +2040,6 @@ export default function Results() {
   // A new search (place, dates, party, product): counts from an earlier one are never shown.
   useEffect(() => { setOfferFacets((prev) => (prev && prev.key !== offerBaseKey && !offerCodes ? null : prev)); }, [offerBaseKey, offerCodes]);
   const facets = offerFacets && offerFacets.key === offerBaseKey ? offerFacets.facets : scopeFacetsRaw;
-  // "Themes" lists THEMES only (Levent, 18 Nov 2026): a holiday type (Zonvakanties, Stedentrips,
-  // Autovakanties…) is not a theme. One still shows while it is ticked — a holiday-type menu link
-  // or homepage card ticks it, and the traveller must be able to untick it. An entry without a
-  // category (an admin from before this) counts as a theme, as before.
   // Holiday Themes: the counted list, plus any ticked theme it no longer names (name from the theme
   // list, no count) so the traveller can always untick it.
   const hthemeItems = (() => {
@@ -2053,8 +2049,11 @@ export default function Results() {
       .filter((x) => x.name);
     return [...list, ...missing];
   })();
+  // "Holiday Types" lists HOLIDAY TYPES only (Zonvakanties, Stedentrips, …; Levent 17-18 Nov
+  // 2026); the themes are their own group above. One still shows while ticked, so it can be
+  // unticked. No category (an admin from before 18 Nov): a holiday type, as the facet always was.
   const themeFacets = (facets.holiday || []).filter(
-    (h) => h.category !== 'Holiday' || filters.themes.includes(h.id),
+    (h) => (h.category ?? 'Holiday') === 'Holiday' || filters.themes.includes(h.id),
   );
 
   // ── "Incl. flight": show the package groups that have answered ──────────────────────────
