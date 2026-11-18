@@ -4,6 +4,7 @@ import SectionHead from './SectionHead';
 import { useTranslation } from 'react-i18next';
 import { useHolidayTypes } from '../../../api';
 import { ruleParams } from '../../../utils/themeRule';
+import { withThemeTicked } from '../../../utils/holidayThemes';
 import {
   Sun, Flower2,
   Star, Moon, Umbrella, Waves, Droplets, Wifi, Utensils, UtensilsCrossed,
@@ -161,7 +162,17 @@ export default function VacationTypes({ cms }) {
         const criteria = uniqueCriteria(Array.isArray(search?.criteria) ? search.criteria : []);
         // Criteria win over boardCode, which the dashboard keeps mirrored so a stale bundle that
         // predates criteria still links somewhere sane. With neither the card stays non-clickable.
-        const href = criteria.length ? criteriaUrl(criteria, v.title, { match: search?.match, min: search?.min, excludeAdultsOnly: search?.excludeAdultsOnly, groups: search?.groups, info: search?.info })
+        // A card linked to a THEME with a rule (Honeymoon, …) opens the results with that theme
+        // TICKED under Holiday Themes, removable (Levent, 18 Nov 2026) — the same hotels its rule
+        // finds, but visible. Otherwise: the card's own criteria / board, as before.
+        const linked = v.holidayTypeId != null && Array.isArray(holidayTypes)
+          ? holidayTypes.find((x) => String(x?.id) === String(v.holidayTypeId)) : null;
+        const themeHref = linked?.category === 'Theme' && linked.search?.criteria?.length
+          ? withThemeTicked(`/results?${new URLSearchParams({ cardLabel: v.title || linked.name || '', transport: 'package' })}`, linked.id)
+          : null;
+        const href = themeHref
+                   ? themeHref
+                   : criteria.length ? criteriaUrl(criteria, v.title, { match: search?.match, min: search?.min, excludeAdultsOnly: search?.excludeAdultsOnly, groups: search?.groups, info: search?.info })
                    : v.boardCode    ? boardUrl(v.boardCode, v.title)
                    : null;
         return {

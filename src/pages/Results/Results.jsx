@@ -10,7 +10,6 @@ import { ENDPOINTS } from '../../api/endpoints';
 // committed copy, so a fetch on it failed on the live site (23 Oct).
 import axiosInstance from '../../services/axiosInstance';
 import { withHolidayThemes, themeRulesOf } from '../../utils/holidayThemes';
-import { holidayThemesForCities } from '../../utils/holidayThemesForCities';
 import { fetchFacets, fetchCountries, fetchDestinations, fetchZones, fetchArrivalAirports, fetchPackages, fetchDestinationCountries } from '../../api/filters';
 import {
   packageBody, chunkDestinations, chunkSizeFor, mapPackage, mergePackages, groupsToExtend, unknownDestinations, mergeBoardFacets, mergePromoFacets, mergeAirportFacets, mergeDestinationCounts, PACKAGE_CONCURRENCY, isoAddDays,
@@ -1049,13 +1048,14 @@ export default function Results() {
   const seeded = useMemo(() => seedFilters(), []);
   const [filters, setFilters] = useState(seeded);
   const [applied, setApplied] = useState(seeded);
-  // The active Holiday Themes with their rules (GET /website/holiday-types?category=Theme), loaded
-  // once: a ticked theme searches its rule (withHolidayThemes). null until loaded — a theme ticked
-  // from a link then adds nothing until its rule is known, and the commit below re-runs then.
+  // The active holiday types AND themes (GET /website/holiday-types), loaded once: a ticked theme
+  // searches its rule (withHolidayThemes, themes only), and a ticked option whose count dropped to
+  // 0 keeps its name in the sidebar. null until loaded — a theme ticked from a link then adds
+  // nothing until its rule is known, and the commit below re-runs then.
   const [themeList, setThemeList] = useState(null);
   useEffect(() => {
     let live = true;
-    axiosInstance.get(ENDPOINTS.holidayTypes, { params: { category: 'Theme' } })
+    axiosInstance.get(ENDPOINTS.holidayTypes)
       .then((r) => { if (live) setThemeList(Array.isArray(r?.data?.data) ? r.data.data : []); })
       .catch(() => { if (live) setThemeList([]); });
     return () => { live = false; };
@@ -1473,52 +1473,9 @@ export default function Results() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [arrivalAirports, scopeDestSet, pkgAirports.arrivals, pkgProven.arrivals, pricedAirports, filters.arrivals]);
 
-  // HOLIDAY TYPE FOLLOWS THE CITIES (Levent 23 Oct): with a holiday-type theme ticked, picking
-  // Athens under Zonvakanties switches it to Stedentrips (utils/holidayThemesForCities). The
-  // types' places are loaded once, and only when some theme is ticked.
-  const [placesByType, setPlacesByType] = useState(null);
-  const themesTicked = filters.themes.length > 0;
-  // Tried again on every city pick until it succeeds, and up to 3 times right away with a pause:
-  // one failed call (the admin busy after a restart, 23 Oct) left Zonvakanties ticked on Athens
-  // and the page empty.
-  const pickedCities = [...pickedScope.destinations, ...pickedScope.zones].join(',');
-  useEffect(() => {
-    if (!themesTicked || placesByType) return;
-    let live = true;
-    const getJson = async (path) => {
-      for (let attempt = 0; ; attempt += 1) {
-        try {
-          return (await axiosInstance.get(path)).data;
-        } catch (e) {
-          if (attempt >= 2 || !live) throw e;
-          await new Promise((res) => setTimeout(res, 1500 * (attempt + 1)));
-        }
-      }
-    };
-    (async () => {
-      const list = (await getJson(ENDPOINTS.holidayTypes))?.data ?? [];
-      const typed = list.filter((x) => x.category === 'Holiday' && x.slug);
-      const scopes = await Promise.all(typed.map((x) => getJson(ENDPOINTS.holidayTypeScope(x.slug))));
-      const m = new Map();
-      typed.forEach((x, i) => {
-        const s = scopes[i]?.data;
-        const places = new Set([...(s?.destinations ?? []), ...(s?.zones ?? []).map((z) => z.destination)].map((c) => String(c).toUpperCase()));
-        if (places.size) m.set(String(x.id), places);
-      });
-      if (live) setPlacesByType(m);
-    })().catch(() => { /* not now: tried again on the next city pick */ });
-    return () => { live = false; };
-  }, [themesTicked, placesByType, pickedCities]);
-  const pickedCityKey = [...pickedScope.destinations, ...pickedScope.zones].join(',');
-  useEffect(() => {
-    const next = holidayThemesForCities(pickedScope, filters.themes, placesByType);
-    if (!next) return;
-    const ids = next.map(Number);
-    if (ids.join(',') !== filters.themes.join(',')) setFilters((f) => ({ ...f, themes: ids }));
-    // Only when the picked cities (or the type data) change: a theme the traveller ticks
-    // afterwards is theirs.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [pickedCityKey, placesByType]);
+  // No more "holiday type follows the cities" (23 Oct): Levent, 18 Nov 2026 — never replace or
+  // clear a traveller's selection. A ticked Zonvakanties stays ticked on Athens; its count shows
+  // what it matches there (0 if nothing), and the traveller changes it themselves.
 
   // THE WHERE FILTER'S NUMBERS. The search's own counts cover only what it searched, so once a city
   // is picked every other city would read 0. The country's numbers from before a city was picked
@@ -1788,7 +1745,7 @@ export default function Results() {
     if (f.priceBasis !== 'total') body.priceBasis = f.priceBasis;
     // Page 1: also the hotels per board / offer, for the Holiday Themes counts (not for the
     // travel-time counts, which only need a number).
-    if (page === 1 && !over.checkOut) body.facetHotels = '1';
+    if (page === 1 && !over.checkOut && !over.noFacetHotels) body.facetHotels = '1';
     if (f.refundable !== 'any')   body.refundable = f.refundable;
     if (f.sortBy === 'price_desc') body.sortBy = 'price_desc';
     // "Recommended": the stable random order of this session (Ch 1 §2). The cache applies it only
@@ -2024,8 +1981,6 @@ export default function Results() {
           const keep = prev?.key === offerBaseKey ? prev.facets : null;
           const sticky = {
             holiday: applied.themes, stars: applied.stars, accommodation: applied.accommodation,
-            // A ticked theme keeps the group's numbers from before, like the other "either" groups.
-            hthemes: filters.hthemes,
             review: applied.minRating ? [applied.minRating] : [], beachDistance: applied.maxBeach ? [1] : [], centreDistance: applied.maxCentre ? [1] : [],
           };
           const out = { ...next };
@@ -2039,22 +1994,80 @@ export default function Results() {
   }, [offerCodes]);
   // A new search (place, dates, party, product): counts from an earlier one are never shown.
   useEffect(() => { setOfferFacets((prev) => (prev && prev.key !== offerBaseKey && !offerCodes ? null : prev)); }, [offerBaseKey, offerCodes]);
+
+  // ── Holiday Types counts while types are ticked (Levent, 18 Nov 2026) ───────────────────
+  // Holiday Types are OR: a type's count is the hotels it would ADD — this search with every other
+  // filter, but WITHOUT the types filter (Stedentrips never counts hotels that are only
+  // Zonvakanties, and does not shrink to the overlap with a ticked Zonvakanties). The results on
+  // screen are already narrowed by the ticked types, so the same search is asked once more
+  // without them, for its hotel list only, and the types are counted over that list. Same page size
+  // as the page itself: for one destination the cache prices as many hotels as the page asks.
+  const typeCountKey = applied.themes.length ? JSON.stringify([searchKey, { ...applied, themes: [] }]) : null;
+  const [typeCounts, setTypeCounts] = useState(null);   // { key, holiday }
+  useEffect(() => {
+    if (!typeCountKey || !page1Done || page1Done.reqId !== reqIdRef.current || !hasScope) return undefined;
+    let live = true;
+    const ctrl = new AbortController();
+    const sel = { ...applied, themes: [] };
+    (async () => {
+      const needCodes2 = hasContentFacet(sel) || scope.zones.length > 0;
+      const content = {
+        themes: [], stars: sel.stars, facilities: sel.facilities, activities: sel.activities,
+        accommodation: sel.accommodation, kids: sel.kids, maxBeach: sel.maxBeach, maxCentre: sel.maxCentre,
+        adultsOnly: sel.adultsOnly, minRating: sel.minRating, segments: sel.segments, any: sel.any,
+        excludeAdultsOnly: sel.excludeAdultsOnly,
+      };
+      const r = await fetchFacets(searchScope, content, { codes: needCodes2, attrs: false, counts: false, signal: ctrl.signal });
+      const hotelCodes = urlHotelCode ? [urlHotelCode] : (needCodes2 ? (r.hotelCodes || []) : null);
+      const dests = (r.matchedDestinations && r.matchedDestinations.length) ? r.matchedDestinations : scope.destinations;
+      let codes = [];
+      if (applied.transport === 'package') {
+        const pk = pkgRef.current;
+        const groups = chunkDestinations(dests, chunkSizeFor(pk.body || {}));
+        const answers = await Promise.all(groups.map((d) => fetchPackages(
+          { ...pk.body, ...(hotelCodes ? { hotelCodes } : { hotelCodes: undefined }), destinations: d, page: 1 },
+          { signal: ctrl.signal },
+        ).catch(() => null)));
+        if (answers.some((a) => !Array.isArray(a?.resultHotelCodes))) return;   // incomplete: keep what is shown
+        codes = [...new Set(answers.flatMap((a) => a.resultHotelCodes))];
+      } else {
+        const { url, opts } = buildRequest(fetchParams, { ...priceScope, destinations: dests, hotelCodes }, childAges, 1, sel, { noFacetHotels: true });
+        const res = await fetch(url, { ...opts, signal: ctrl.signal });
+        const data = await res.json();
+        if (!Array.isArray(data?.resultHotelCodes)) return;
+        codes = data.resultHotelCodes;
+      }
+      const f = await axiosInstance.post('/hotel-filters/facets/offers', { ...searchScope, hotelCodes: codes }, { signal: ctrl.signal });
+      const holiday = f?.data?.data?.facets?.holiday;
+      if (live && Array.isArray(holiday)) setTypeCounts({ key: typeCountKey, holiday });
+    })().catch(() => { /* the counts shown stay */ });
+    return () => { live = false; ctrl.abort(); };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [typeCountKey, page1Done]);
   const facets = offerFacets && offerFacets.key === offerBaseKey ? offerFacets.facets : scopeFacetsRaw;
   // Holiday Themes: the counted list, plus any ticked theme it no longer names (name from the theme
   // list, no count) so the traveller can always untick it.
   const hthemeItems = (() => {
     const list = Array.isArray(facets.hthemes) ? facets.hthemes : [];
+    // Its count is known to be 0 once the list has loaded (Levent: keep it visible and removable).
     const missing = (filters.hthemes || []).filter((id) => !list.some((x) => x.id === id))
-      .map((id) => ({ id, name: (themeList || []).find((x) => Number(x.id) === id)?.name, hotels: null }))
+      .map((id) => ({ id, name: (themeList || []).find((x) => Number(x.id) === id)?.name, hotels: Array.isArray(facets.hthemes) ? 0 : null }))
       .filter((x) => x.name);
     return [...list, ...missing];
   })();
   // "Holiday Types" lists HOLIDAY TYPES only (Zonvakanties, Stedentrips, …; Levent 17-18 Nov
   // 2026); the themes are their own group above. One still shows while ticked, so it can be
   // unticked. No category (an admin from before 18 Nov): a holiday type, as the facet always was.
-  const themeFacets = (facets.holiday || []).filter(
-    (h) => (h.category ?? 'Holiday') === 'Holiday' || filters.themes.includes(h.id),
-  );
+  // Counts: while types are ticked, those of the search without the types filter (typeCounts, OR);
+  // otherwise the results' own. A ticked type the counts no longer name stays, at 0.
+  const typeSource = typeCounts && typeCounts.key === typeCountKey ? typeCounts.holiday : (facets.holiday || []);
+  const themeFacets = (() => {
+    const list = typeSource.filter((h) => (h.category ?? 'Holiday') === 'Holiday' || filters.themes.includes(h.id));
+    const missing = filters.themes.filter((id) => !list.some((h) => h.id === id))
+      .map((id) => ({ id, name: (themeList || []).find((x) => Number(x.id) === id)?.name, hotels: 0 }))
+      .filter((x) => x.name);
+    return [...list, ...missing];
+  })();
 
   // ── "Incl. flight": show the package groups that have answered ──────────────────────────
   // Every group is asked at once (PACKAGE_CONCURRENCY at a time) and the list fills in as each

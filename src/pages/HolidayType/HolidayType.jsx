@@ -8,6 +8,7 @@ import { entryOf } from '../../utils/entryRules';
 import { countryName } from '../../utils/countryName';
 import ShowAllLink from '../../components/ShowAllLink/ShowAllLink';
 import { withThemeRule } from '../../utils/themeRule';
+import { withThemeTicked } from '../../utils/holidayThemes';
 
 const titleFor = (t, name) => t('holidayType:titleFor', { name: String(name || t('holidayType:fallbackName', 'holidays')).toLowerCase(), defaultValue: 'Our best {{name}}' });
 // `name`/`title`/`paragraph1` below all come from the dashboard's own holiday-type CMS
@@ -117,7 +118,12 @@ export default function HolidayType() {
      Its `themes=` id is left off: with no places linked it matches no hotel. */
   const scopeEmpty = !!scope && !(scope.destinations?.length || scope.zones?.length || scope.hotelCodes?.length);
   const ruleOnly = !door && !!rule?.criteria?.length && !!data && !countries.length && scopeEmpty;
-  const typeFilterId = ruleOnly ? null : holidayTypeId;
+  // A THEME (category Theme: Honeymoon, All Inclusive, …) arrives on the results page TICKED under
+  // Holiday Themes (`hthemes`), removable — not as its rule applied out of sight, nor as a holiday
+  // type (Levent, 18 Nov 2026). A holiday type (Zonvakanties) keeps `themes=` + its rule, as before.
+  const isTheme = holidayType?.category === 'Theme' && holidayTypeId != null;
+  const typeFilterId = ruleOnly || isTheme ? null : holidayTypeId;
+  const typeLink = (href) => (isTheme ? withThemeTicked(href, holidayTypeId) : withThemeRule(href, rule));
 
   // One shape for both sources so the grid below renders them identically.
   const items = useMemo(() => {
@@ -141,7 +147,7 @@ export default function HolidayType() {
           imageUrl: d.type === 'country'
             ? parent?.imageUrl || null
             : cityImages.get(String(d.code).trim().toUpperCase()) || null,
-          href: withThemeRule(destUrl(d, typeFilterId, slug, cardRange), rule),
+          href: typeLink(destUrl(d, typeFilterId, slug, cardRange)),
           title: destLabel(d),
           dest: d,
         };
@@ -164,14 +170,14 @@ export default function HolidayType() {
         // Built by the same rule as every other card on the site, rather than a second copy of
         // it here: that is what carries the type as a filter where the catalogue can answer one
         // and as a door where it cannot, and opens Flight + Hotel like the homepage.
-        href: withThemeRule(destUrl(dest, typeFilterId, slug, cardRange), rule),
+        href: typeLink(destUrl(dest, typeFilterId, slug, cardRange)),
         title: cName,
         dest,
       };
     });
     // `cardRange` belongs here: the homepage config is a second request, so without it the
     // links would be built before the card's window is known and never rebuilt once it lands.
-  }, [cmsDests, countries, door, allCountries, countryLookup, cityImages, t, i18n.language, typeFilterId, ruleOnly, slug, cardRange, rule]);
+  }, [cmsDests, countries, door, allCountries, countryLookup, cityImages, t, i18n.language, typeFilterId, ruleOnly, slug, cardRange, rule, isTheme, holidayTypeId]);
 
   /* A door's grid is the active countries, which is a second request. Until it lands the page is
      still loading: without this the empty state shows first and then swaps to a full grid. */
@@ -199,8 +205,8 @@ export default function HolidayType() {
   });
   // A rule-only theme searches everywhere by its rule (no place, no `holidayType=` scope).
   const showAllHref = ruleOnly
-    ? withThemeRule(`/results?${new URLSearchParams({ destinationLabel: typeName, transport: 'package' })}`, rule)
-    : withThemeRule(scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug }), rule);
+    ? typeLink(`/results?${new URLSearchParams({ destinationLabel: typeName, transport: 'package' })}`)
+    : typeLink(scopeUrl || sectionSearchUrl({ dests: items.map((it) => it.dest), entry: slug }));
 
   return (
     <div className={styles.page}>
