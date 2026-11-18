@@ -113,7 +113,58 @@
      does; over a white page it simply reads white. */
   --nav-bg: rgba(255,255,255,0.9);
   --nav-blur: blur(24px) saturate(160%);
+
+  /* ── Type scale (client's SUNSKY Typography Guidelines, Variant A, 15/11/2026) ──────────
+     Every font size on the site comes from these, in rem at the 16px root, so one change
+     here moves the whole site. Named --fs-* / --fw-*: --text-* are COLOUR tokens.
+       page title 32/26 700 · section heading 24/20 600 · card title 18 600 · body 16 400
+       buttons 16 600, form values 16 400 · booking number, dates, flight times 16 600
+       main price or amount due 28/24 700 · secondary labels and notes 14 400 · footer 13 400
+     --fs-micro (12px) is the one size the guideline does not list: badges, overlines and
+     codes only (client's decision 18/11/2026). Readable text never goes below 14px.
+     The mobile values switch at 768px (the @media block below). */
+  --fs-page-title: 2rem;
+  --fw-page-title: 700;
+  --fs-section: 1.5rem;
+  --fw-section: 600;
+  --fs-card-title: 1.125rem;
+  --fw-card-title: 600;
+  --fs-body: 1rem;
+  --fw-body: 400;
+  --lh-body: 1.5;
+  --fs-control: 1rem;
+  --fw-button: 600;
+  --fw-control: 400;
+  --fs-key: 1rem;
+  --fw-key: 600;
+  --fs-price: 1.75rem;
+  --fw-price: 700;
+  --fs-small: 0.875rem;
+  --fw-small: 400;
+  --fs-footer: 0.8125rem;
+  --fw-footer: 400;
+  --fs-micro: 0.75rem;
 }
+
+/* Phone sizes of the type scale (one breakpoint for the whole site). */
+@media (max-width: 768px) {
+  :root {
+    --fs-page-title: 1.625rem;
+    --fs-section: 1.25rem;
+    --fs-price: 1.5rem;
+  }
+}
+
+/* The scale as classes, for markup that has no stylesheet rule of its own. */
+.ty-page-title { font-size: var(--fs-page-title); font-weight: var(--fw-page-title); line-height: 1.15; }
+.ty-section { font-size: var(--fs-section); font-weight: var(--fw-section); line-height: 1.25; }
+.ty-card-title { font-size: var(--fs-card-title); font-weight: var(--fw-card-title); line-height: 1.3; }
+.ty-body { font-size: var(--fs-body); font-weight: var(--fw-body); line-height: var(--lh-body); }
+.ty-key { font-size: var(--fs-key); font-weight: var(--fw-key); }
+.ty-price { font-size: var(--fs-price); font-weight: var(--fw-price); line-height: 1.1; }
+.ty-small { font-size: var(--fs-small); font-weight: var(--fw-small); line-height: 1.45; }
+.ty-footer { font-size: var(--fs-footer); font-weight: var(--fw-footer); }
+.ty-micro { font-size: var(--fs-micro); }
 
 *,*::before,*::after { margin:0; padding:0; box-sizing:border-box; }
 html { scroll-behavior:smooth; -webkit-font-smoothing:antialiased; }
@@ -122,12 +173,15 @@ body {
   color:var(--text);
   background:var(--page-bg, var(--white));
   overflow-x:hidden;
-  line-height:1.65;
+  font-size:var(--fs-body);
+  line-height:var(--lh-body);
 }
 #root { min-height:100vh; display:flex; flex-direction:column; }
 img { display:block; max-width:100%; }
 a { text-decoration:none; color:inherit; }
 button { font-family:inherit; cursor:pointer; border:none; background:none; }
+/* Form values at 16px (also keeps iOS Safari from zooming the page on focus). */
+input, select, textarea { font-family:inherit; font-size:var(--fs-control); font-weight:var(--fw-control); }
 ul,ol { list-style:none; }
 ::-webkit-scrollbar { width:6px; height:4px; }
 ::-webkit-scrollbar-track { background:transparent; }
