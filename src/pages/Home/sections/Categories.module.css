@@ -146,8 +146,8 @@
 }
 .cardTitle {
   font-family: 'Sora', sans-serif;
-  font-size: 1.05rem;
-  font-weight: 600;
+  font-size: var(--fs-card-title);
+  font-weight: var(--fw-card-title);
   line-height: 1.3;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -160,7 +160,7 @@
   display: inline-flex;
   align-items: center;
   gap: 6px;
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--blue-deep);
 }
@@ -191,7 +191,7 @@
 .destToggleOpen { background: var(--surface-alt); }
 
 .destToggleLabel {
-  font-size: 0.8125rem;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--text-sec);
   white-space: nowrap;
@@ -243,7 +243,7 @@
 .destChipName {
   flex: 1;
   min-width: 0;
-  font-size: 0.78rem;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -252,7 +252,7 @@
 }
 .destChipCode {
   flex-shrink: 0;
-  font-size: 0.68rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.04em;
   color: var(--text-light);

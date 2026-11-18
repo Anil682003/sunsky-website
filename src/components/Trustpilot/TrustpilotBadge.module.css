@@ -44,13 +44,13 @@
 }
 .brand {
   font-family: 'Sora', sans-serif;
-  font-size: 12.5px;
+  font-size: var(--fs-small);
   font-weight: 700;
   letter-spacing: -0.2px;
 }
 .sub {
   margin-top: 1px;
-  font-size: 10.5px;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--text-sec, #5E7291);
 }

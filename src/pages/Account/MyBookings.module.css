@@ -10,13 +10,13 @@
 .header { margin-bottom: 26px; }
 .title {
   font-family: 'Sora', sans-serif;
-  font-size: 30px; font-weight: 800; letter-spacing: -0.5px;
+  font-size: var(--fs-page-title); font-weight: var(--fw-page-title); letter-spacing: -0.5px;
   color: #0f172a; margin: 0;
 }
-.subtitle { margin: 6px 0 0; font-size: 14.5px; color: #64748b; }
+.subtitle { margin: 6px 0 0; font-size: var(--fs-body); color: #64748b; }
 
 /* ── States ── */
-.center { text-align: center; padding: 80px 0; color: #64748b; font-size: 15px; }
+.center { text-align: center; padding: 80px 0; color: #64748b; font-size: var(--fs-body); }
 .empty {
   text-align: center; padding: 72px 24px;
   background: #fff; border: 1px solid #eef2f7; border-radius: 18px;
@@ -24,15 +24,15 @@
 .emptyIcon {
   width: 72px; height: 72px; margin: 0 auto 16px;
   display: flex; align-items: center; justify-content: center;
-  font-size: 34px; border-radius: 50%;
+  font-size: var(--fs-page-title); border-radius: 50%;
   background: linear-gradient(135deg, #eaf1ff, #f4f8ff);
 }
-.emptyTitle { font-size: 18px; font-weight: 700; color: #0f172a; margin: 0 0 6px; }
-.emptyText { color: #64748b; font-size: 14px; margin: 0 0 20px; }
+.emptyTitle { font-size: var(--fs-card-title); font-weight: var(--fw-card-title); color: #0f172a; margin: 0 0 6px; }
+.emptyText { color: #64748b; font-size: var(--fs-body); margin: 0 0 20px; }
 .emptyBtn {
   display: inline-block; padding: 12px 26px; border-radius: 999px;
   background: linear-gradient(135deg, #2563eb, #1d4ed8); color: #fff;
-  font-weight: 700; font-size: 14px; text-decoration: none;
+  font-weight: var(--fw-button); font-size: var(--fs-control); text-decoration: none;
   box-shadow: 0 8px 20px rgba(29,78,216,.25); transition: transform .15s, box-shadow .2s;
 }
 .emptyBtn:hover { transform: translateY(-2px); box-shadow: 0 12px 26px rgba(29,78,216,.34); }
@@ -63,15 +63,15 @@
 .refWrap { display: flex; align-items: center; gap: 14px; min-width: 0; }
 .icon {
   flex-shrink: 0; width: 46px; height: 46px; border-radius: 14px;
-  display: flex; align-items: center; justify-content: center; font-size: 22px;
+  display: flex; align-items: center; justify-content: center; font-size: var(--fs-section);
   background: linear-gradient(135deg, #eaf1ff, #f4f8ff);
 }
-.ref { font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 800; color: #0f172a; line-height: 1.2; }
-.summary { font-size: 13px; color: #64748b; margin-top: 3px; }
+.ref { font-family: 'Sora', sans-serif; font-size: var(--fs-key); font-weight: var(--fw-key); color: #0f172a; line-height: 1.2; }
+.summary { font-size: var(--fs-small); color: #64748b; margin-top: 3px; }
 
 .chips { display: flex; flex-direction: column; align-items: flex-end; gap: 8px; }
 .badge {
-  padding: 5px 12px; border-radius: 999px; font-size: 11px; font-weight: 800;
+  padding: 5px 12px; border-radius: 999px; font-size: var(--fs-micro); font-weight: 700;
   text-transform: uppercase; letter-spacing: .4px; white-space: nowrap;
 }
 
@@ -87,18 +87,18 @@
   content: ''; position: absolute; left: 0; top: 50%; transform: translateY(-50%);
   height: 30px; width: 1px; background: #e7edf5;
 }
-.priceLabel { display: block; font-size: 10.5px; color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
-.priceValue { font-family: 'Sora', sans-serif; font-size: 17px; font-weight: 800; color: #0f172a; }
+.priceLabel { display: block; font-size: var(--fs-micro); color: #94a3b8; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 4px; }
+.priceValue { font-family: 'Sora', sans-serif; font-size: var(--fs-price); font-weight: var(--fw-price); color: #0f172a; }
 .paid { color: #059669; }
 .dueOk { color: #059669; }
 .dueOwed { color: #dc2626; }
 
 /* ── Footer ── */
 .foot { display: flex; justify-content: space-between; align-items: center; }
-.booked { font-size: 12.5px; color: #94a3b8; }
+.booked { font-size: var(--fs-small); color: #94a3b8; }
 .view {
   display: inline-flex; align-items: center; gap: 6px;
-  font-size: 13px; font-weight: 700; color: #2563eb;
+  font-size: var(--fs-control); font-weight: var(--fw-button); color: #2563eb;
   background: none; border: none; cursor: pointer; padding: 0;
   transition: gap .15s;
 }

@@ -12,7 +12,7 @@
   background: #FFFFFF;
   color: var(--blue-deep);
   font-family: 'Sora', sans-serif;
-  font-size: 0.875rem;
+  font-size: var(--fs-small);
   font-weight: 600;
   white-space: nowrap;
   text-decoration: none;

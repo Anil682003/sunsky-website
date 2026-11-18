@@ -194,12 +194,12 @@ export default function CheckoutReturn() {
       {working ? (
         <div style={{ width: 44, height: 44, margin: '0 auto 22px', border: '4px solid #eef1f7', borderTopColor: '#f5a51e', borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
       ) : (
-        <div style={{ width: 64, height: 64, margin: '0 auto 22px', borderRadius: '50%', background: `${color}1a`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 32, fontWeight: 700 }}>
+        <div style={{ width: 64, height: 64, margin: '0 auto 22px', borderRadius: '50%', background: `${color}1a`, color, display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 'var(--fs-page-title)', fontWeight: 700 }}>
           {ok ? '✓' : pending ? '⏳' : '!'}
         </div>
       )}
 
-      <h1 style={{ fontSize: 24, margin: '0 0 10px' }}>
+      <h1 style={{ fontSize: 'var(--fs-page-title)', fontWeight: 'var(--fw-page-title)', lineHeight: 1.15, margin: '0 0 10px' }}>
         {working ? t('checkout:return.finalising', 'Finalising your payment…')
           : ok && state.title ? state.title
           : ok ? t('checkout:return.titleConfirmed', 'Booking confirmed')
@@ -210,17 +210,17 @@ export default function CheckoutReturn() {
 
       {ref && (
         <div style={{ display: 'inline-block', background: '#f6f8fc', border: '1px solid #e6ebf4', borderRadius: 10, padding: '12px 18px', marginBottom: 24 }}>
-          <span style={{ color: '#5b6b86', fontSize: 13 }}>{t('checkout:return.bookingReference', 'Booking reference')}</span>
-          <div style={{ fontSize: 18, fontWeight: 700, letterSpacing: 0.5 }}>{ref}</div>
+          <span style={{ color: '#5b6b86', fontSize: 'var(--fs-small)' }}>{t('checkout:return.bookingReference', 'Booking reference')}</span>
+          <div style={{ fontSize: 'var(--fs-key)', fontWeight: 'var(--fw-key)', letterSpacing: 0.5 }}>{ref}</div>
         </div>
       )}
 
       {!working && (
         <div style={{ display: 'flex', gap: 12, justifyContent: 'center', flexWrap: 'wrap' }}>
-          <button onClick={() => navigate('/account/bookings')} style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: '#f5a51e', color: '#fff', fontWeight: 600, cursor: 'pointer' }}>
+          <button onClick={() => navigate('/account/bookings')} style={{ padding: '11px 20px', borderRadius: 10, border: 'none', background: '#f5a51e', color: '#fff', fontSize: 'var(--fs-control)', fontWeight: 'var(--fw-button)', cursor: 'pointer' }}>
             {t('checkout:return.viewMyBookings', 'View my bookings')}
           </button>
-          <button onClick={() => navigate('/')} style={{ padding: '11px 20px', borderRadius: 10, border: '1px solid #d8dfec', background: '#fff', color: '#1a2744', fontWeight: 600, cursor: 'pointer' }}>
+          <button onClick={() => navigate('/')} style={{ padding: '11px 20px', borderRadius: 10, border: '1px solid #d8dfec', background: '#fff', color: '#1a2744', fontSize: 'var(--fs-control)', fontWeight: 'var(--fw-button)', cursor: 'pointer' }}>
             {t('checkout:return.backToHome', 'Back to home')}
           </button>
         </div>

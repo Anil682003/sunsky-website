@@ -48,8 +48,8 @@
 
 .title {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(1.4rem, 2.2vw, 1.9rem);
-  font-weight: 700;
+  font-size: var(--fs-section);
+  font-weight: var(--fw-section);
   line-height: 1.2;
   letter-spacing: -0.02em;
   color: var(--text);
@@ -67,7 +67,7 @@
   white-space: pre-line;
   margin-top: 8px;
   max-width: 48ch;
-  font-size: 0.98rem;
+  font-size: var(--fs-body);
   line-height: 1.6;
   color: var(--text-sec);
 }
@@ -109,7 +109,7 @@
   outline: none;
   background: transparent;
   font-family: inherit;
-  font-size: 1rem;
+  font-size: var(--fs-control);
   color: var(--text);
 }
 .input::placeholder { color: var(--text-light); }
@@ -126,8 +126,8 @@
   color: var(--cta-ink);
   text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif;
-  font-size: 0.9rem;
-  font-weight: 700;
+  font-size: var(--fs-control);
+  font-weight: 600;
   cursor: pointer;
   transition: filter 0.2s var(--ease);
 }
@@ -137,7 +137,7 @@
 .note {
   margin-top: 10px;
   padding-left: 4px;
-  font-size: 0.8rem;
+  font-size: var(--fs-small);
   color: var(--text-sec);
 }
 

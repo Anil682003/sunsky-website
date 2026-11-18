@@ -149,13 +149,13 @@
   background: var(--blue-deep);
   color: #FFFFFF;
   font-family: 'Sora', sans-serif;
-  font-size: 0.8rem;
+  font-size: var(--fs-micro);
   font-weight: 700;
   line-height: 1.2;
   text-align: center;
 }
 .scoreLbl {
-  font-size: 0.72rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
   color: var(--text);
   white-space: nowrap;
@@ -176,8 +176,8 @@
 }
 .name {
   font-family: 'Sora', sans-serif;
-  font-size: 1rem;
-  font-weight: 600;
+  font-size: var(--fs-card-title);
+  font-weight: var(--fw-card-title);
   line-height: 1.35;
   letter-spacing: -0.01em;
   color: var(--text);
@@ -188,7 +188,7 @@
 }
 .loc {
   margin-bottom: 14px;
-  font-size: 0.85rem;
+  font-size: var(--fs-small);
   color: var(--text-sec);
   white-space: nowrap;
   overflow: hidden;
@@ -208,13 +208,13 @@
 }
 .priceBlock { min-width: 0; }
 .from {
-  font-size: 0.75rem;
+  font-size: var(--fs-small);
   color: var(--text-sec);
 }
 .price {
   font-family: 'Sora', sans-serif;
-  font-size: 1.3rem;
-  font-weight: 700;
+  font-size: var(--fs-price);
+  font-weight: var(--fw-price);
   letter-spacing: -0.02em;
   line-height: 1.2;
   color: var(--text);
@@ -222,8 +222,8 @@
 }
 .pp {
   font-family: 'DM Sans', sans-serif;
-  font-size: 0.8rem;
-  font-weight: 500;
+  font-size: var(--fs-small);
+  font-weight: var(--fw-small);
   letter-spacing: 0;
   color: var(--text-sec);
 }
@@ -242,8 +242,8 @@
   color: var(--cta-ink);
   text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif;
-  font-size: 0.8rem;
-  font-weight: 700;
+  font-size: var(--fs-control);
+  font-weight: 600;
   white-space: nowrap;
   text-decoration: none;
   border: none;

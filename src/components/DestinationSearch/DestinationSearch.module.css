@@ -32,19 +32,19 @@
 .input {
   border: none; background: transparent; outline: none;
   padding: 0 6px 0 4px; width: 100%; min-width: 0;
-  font-size: 14px; font-weight: 600; color: var(--text, #1a2744);
+  font-size: var(--fs-control); font-weight: var(--fw-control); color: var(--text, #1a2744);
   font-family: 'Sora', sans-serif; letter-spacing: -0.1px;
   caret-color: var(--blue-deep, #1f4fd8);
 }
-.input::placeholder { color: var(--text-sec, #5e7291); font-weight: 500; }
+.input::placeholder { color: var(--text-sec, #5e7291); font-weight: 400; }
 
 .typeHint {
   position: absolute; left: 4px; top: 50%; transform: translateY(-50%);
   display: flex; align-items: center; pointer-events: none;
-  font-family: 'Sora', sans-serif; font-size: 14px; white-space: nowrap; overflow: hidden;
+  font-family: 'Sora', sans-serif; font-size: var(--fs-control); white-space: nowrap; overflow: hidden;
   max-width: calc(100% - 18px);
 }
-.typeLead { color: var(--text-sec, #5e7291); font-weight: 500; }
+.typeLead { color: var(--text-sec, #5e7291); font-weight: 400; }
 .typeName { color: var(--text, #1a2744); font-weight: 600; }
 .caret {
   width: 2px; height: 15px; margin-left: 1px; flex-shrink: 0;
@@ -56,7 +56,7 @@
 .clear {
   border: none; background: rgba(15, 40, 100, 0.06); cursor: pointer; flex-shrink: 0;
   width: 24px; height: 24px; border-radius: 50%; margin-right: 8px;
-  color: var(--text-sec, #5e7291); font-size: 16px; line-height: 1;
+  color: var(--text-sec, #5e7291); font-size: var(--fs-control); line-height: 1;
   display: flex; align-items: center; justify-content: center;
   transition: background 0.2s, color 0.2s;
 }
@@ -86,7 +86,7 @@
   border-radius: 15px 15px 0 0;
 }
 .tally {
-  font-size: 10.5px; font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
+  font-size: var(--fs-micro); font-weight: 700; letter-spacing: 1.2px; text-transform: uppercase;
   color: var(--text-sec, #5e7291); font-variant-numeric: tabular-nums;
 }
 
@@ -95,7 +95,7 @@
 
 .group {
   display: flex; align-items: center; gap: 7px;
-  font-size: 10.5px; font-weight: 800; text-transform: uppercase; letter-spacing: 1.1px;
+  font-size: var(--fs-micro); font-weight: 700; text-transform: uppercase; letter-spacing: 1.1px;
   color: var(--text-sec, #5e7291); padding: 10px 12px 7px;
 }
 .group svg { opacity: 0.8; }
@@ -154,23 +154,23 @@
   border-radius: 3px;
 }
 /* Emoji-flag fallback — sized up to read as a flag, centered in the same tile. */
-.flagEmoji { font-size: 20px; line-height: 1; }
+.flagEmoji { font-size: var(--fs-card-title); line-height: 1; }
 
 .itemText { display: flex; flex-direction: column; min-width: 0; flex: 1; gap: 2px; }
 .itemMainRow { display: flex; align-items: center; gap: 7px; min-width: 0; }
 .itemMain {
-  font-size: 14px; font-weight: 700; color: var(--text, #10203a);
+  font-size: var(--fs-body); font-weight: 600; color: var(--text, #10203a);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis; letter-spacing: -0.1px;
 }
 .itemSub {
-  font-size: 12px; font-weight: 500; color: var(--text-sec, #5e7291);
+  font-size: var(--fs-small); font-weight: var(--fw-small); color: var(--text-sec, #5e7291);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 .stars { display: inline-flex; align-items: center; gap: 1px; color: var(--sun-gold, #ffc233); flex-shrink: 0; }
 
 /* The kind of result: a small label, outlined for places, grey for hotels. */
 .tag {
-  flex-shrink: 0; font-size: 10px; font-weight: 800; letter-spacing: 0.4px; text-transform: uppercase;
+  flex-shrink: 0; font-size: var(--fs-micro); font-weight: 700; letter-spacing: 0.4px; text-transform: uppercase;
   padding: 4px 9px; border-radius: 6px;
 }
 .tagHotel { background: var(--surface-alt, #f6f8fc); border: 1px solid var(--line, #e4eaf3); color: var(--text-sec, #5e7291); }
@@ -185,7 +185,7 @@
   padding: 8px 14px; border-radius: var(--r-full, 9999px);
   background: var(--blue-bg, #f5f8ff);
   border: 1px solid rgba(31, 79, 216, 0.10);
-  color: var(--text, #1a2744); font-size: 12.5px; font-weight: 600;
+  color: var(--text, #1a2744); font-size: var(--fs-small); font-weight: 600;
   font-family: 'Sora', sans-serif; cursor: pointer;
   transition: background 0.2s, border-color 0.2s, transform 0.2s;
   animation: dsChip 0.3s var(--ease) backwards;
@@ -198,7 +198,7 @@
 @keyframes dsChip { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } }
 
 .state {
-  padding: 22px 14px; text-align: center; color: var(--text-sec, #5e7291); font-size: 13px; font-weight: 500;
+  padding: 22px 14px; text-align: center; color: var(--text-sec, #5e7291); font-size: var(--fs-small); font-weight: var(--fw-small);
   display: flex; align-items: center; justify-content: center; gap: 9px;
 }
 .spinner {
@@ -213,7 +213,7 @@
   width: 100%; display: flex; align-items: center; justify-content: center; gap: 7px;
   padding: 12px; margin-top: 4px;
   border: none; border-top: 1px solid var(--line, #e4eaf3); background: none;
-  color: var(--blue-deep, #1f4fd8); font-weight: 700; font-size: 12.5px; cursor: pointer;
+  color: var(--blue-deep, #1f4fd8); font-weight: 700; font-size: var(--fs-small); cursor: pointer;
   font-family: 'Sora', sans-serif; border-radius: 0 0 12px 12px; transition: background 0.15s;
 }
 .browse:hover { background: var(--blue-bg, #f5f8ff); }

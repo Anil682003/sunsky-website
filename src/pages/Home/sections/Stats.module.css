@@ -30,7 +30,7 @@
   position: absolute; right: -34px; bottom: -84px;
   font-family: 'Sora', sans-serif;
   font-size: clamp(7rem, 13vw, 12.5rem);
-  font-weight: 800; line-height: 1; letter-spacing: -8px;
+  font-weight: 700; line-height: 1; letter-spacing: -8px;
   color: rgba(31, 79, 216, 0.05);
   user-select: none;
 }
@@ -161,7 +161,9 @@
   mask-image: radial-gradient(ellipse 82% 100% at 50% 50%, black 38%, transparent 80%);
 }
 
-/* Ticket printed micro-details — all four corners */
+/* Ticket printed micro-details — all four corners. These, the stamp, the ghost "SSK" and the
+   handwritten note are aria-hidden drawing, not text to read, so they keep their own sizes
+   outside the type scale (at --fs-micro the codes ran into the stat labels). */
 .microCode {
   position: absolute; top: 18px; left: 24px;
   font-family: 'Sora', sans-serif;
@@ -215,7 +217,7 @@
 }
 .stamp span {
   font-family: 'Sora', sans-serif;
-  font-size: 13px; font-weight: 800; letter-spacing: 1.5px;
+  font-size: 13px; font-weight: 700; letter-spacing: 1.5px;
   line-height: 1;
 }
 .stamp i { font-style: normal; font-size: 8px; line-height: 1.2; }
@@ -285,8 +287,8 @@
 /* Numbers — orange→gold gradient, observer pop-in preserved */
 .number {
   font-family: 'Sora', sans-serif;
-  font-size: clamp(2.2rem, 4.2vw, 3.4rem);
-  font-weight: 800; letter-spacing: -1px;
+  font-size: var(--fs-section);
+  font-weight: 700; letter-spacing: -1px;
   margin-bottom: 6px;
   background: linear-gradient(135deg, var(--sun-orange), var(--sun-gold));
   -webkit-background-clip: text; background-clip: text;
@@ -301,7 +303,7 @@
 
 .label {
   font-family: 'Sora', sans-serif;
-  font-size: 11px; font-weight: 700;
+  font-size: var(--fs-micro); font-weight: 700;
   text-transform: uppercase; letter-spacing: 1.3px;
   color: var(--text-sec);
 }
@@ -356,7 +358,7 @@
 @media (max-width: 480px) {
   .item { padding: 22px 10px 18px; }
   .icon { width: 26px; height: 26px; margin-bottom: 6px; }
-  .label { font-size: 10px; letter-spacing: 1px; }
+  .label { letter-spacing: 1px; }
   .barcode { display: none; }
   .routeCode { display: none; }
   .stamp { display: none; }

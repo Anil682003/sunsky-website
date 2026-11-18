@@ -8,13 +8,13 @@
 .block { margin: 44px 0 0; }
 
 .heading {
-  font-size: 21px;
+  font-size: var(--fs-section);
   color: #1a2744;
   margin: 0 0 4px;
   letter-spacing: -0.01em;
 }
 .sub {
-  font-size: 13.5px;
+  font-size: var(--fs-small);
   color: #5b6b86;
   margin: 0 0 18px;
 }
@@ -57,11 +57,11 @@
   gap: 3px;
 }
 
-.stars { color: #f5a51e; font-size: 12px; letter-spacing: 1px; line-height: 1; }
+.stars { color: #f5a51e; font-size: var(--fs-small); letter-spacing: 1px; line-height: 1; }
 
 .name {
-  font-size: 14.5px;
-  font-weight: 600;
+  font-size: var(--fs-card-title);
+  font-weight: var(--fw-card-title);
   color: #1a2744;
   line-height: 1.3;
   /* Two lines, then clip. A hotel name is often very long and a ragged card grid is worse
@@ -72,22 +72,22 @@
   overflow: hidden;
 }
 
-.loc { font-size: 12.5px; color: #7b89a1; }
+.loc { font-size: var(--fs-small); color: #7b89a1; }
 
-.review { font-size: 12.5px; color: #1a2744; font-weight: 600; }
-.review small { font-weight: 500; color: #8a97ad; margin-left: 5px; }
+.review { font-size: var(--fs-small); color: #1a2744; font-weight: 600; }
+.review small { font-size: var(--fs-small); font-weight: var(--fw-small); color: #8a97ad; margin-left: 5px; }
 
 .price {
   margin-top: 7px;
-  font-size: 17px;
-  font-weight: 700;
+  font-size: var(--fs-price);
+  font-weight: var(--fw-price);
   color: #1a2744;
   display: flex;
   align-items: baseline;
   gap: 5px;
   flex-wrap: wrap;
 }
-.price small { font-size: 11.5px; font-weight: 500; color: #7b89a1; }
+.price small { font-size: var(--fs-small); font-weight: var(--fw-small); color: #7b89a1; }
 
 /* ── skeleton ── */
 .skelHeading {

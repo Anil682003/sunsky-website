@@ -121,7 +121,7 @@
   border-radius: var(--r-full);
   background: #FFFFFF;
   color: var(--text);
-  font-size: 0.75rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(7, 14, 31, 0.16);
 }
@@ -136,14 +136,14 @@
 }
 .vacTitle {
   font-family: 'Sora', sans-serif;
-  font-size: 1.2rem;
-  font-weight: 600;
+  font-size: var(--fs-card-title);
+  font-weight: var(--fw-card-title);
   letter-spacing: -0.01em;
   line-height: 1.3;
   color: var(--text);
 }
 .vacDesc {
-  font-size: 0.95rem;
+  font-size: var(--fs-body);
   line-height: 1.6;
   color: var(--text-sec);
 }
@@ -163,7 +163,7 @@
   background: var(--surface-alt);
   border: 1px solid var(--line);
   color: var(--text-sec);
-  font-size: 0.75rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
   line-height: 1.5;
 }
@@ -204,7 +204,7 @@
   align-items: center;
   gap: 6px;
   font-family: 'Sora', sans-serif;
-  font-size: 0.9rem;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--blue-deep);
   text-decoration: none;

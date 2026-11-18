@@ -11,27 +11,27 @@
 
 /* ── headers ── */
 .ck-sup-head1 { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
-.ck-sup-head1 h2 { font-size:24px; font-weight:800; color:var(--sup-ink); line-height:1.15; letter-spacing:-.01em; }
-.ck-sup-prod { margin-top:3px; font-size:14px; font-weight:700; color:var(--sup-muted); }
+.ck-sup-head1 h2 { font-size:var(--fs-section); font-weight:var(--fw-section); color:var(--sup-ink); line-height:1.15; letter-spacing:-.01em; }
+.ck-sup-prod { margin-top:3px; font-size:var(--fs-small); font-weight:600; color:var(--sup-muted); }
 .ck-sup-peace { display:flex; align-items:center; gap:10px; padding:9px 13px; border-radius:12px; background:var(--sup-blue-bg);
   max-width:260px; }
 .ck-sup-peace-ico { flex:none; display:flex; width:34px; height:34px; align-items:center; justify-content:center; border-radius:50%;
   background:#fff; color:var(--sup-blue); }
 .ck-sup-peace-ico svg { width:18px; height:18px; }
-.ck-sup-peace b { display:block; font-size:12px; font-weight:800; color:var(--sup-blue); line-height:1.3; }
-.ck-sup-peace small { display:block; font-size:11px; color:var(--sup-muted); line-height:1.35; }
+.ck-sup-peace b { display:block; font-size:var(--fs-small); font-weight:600; color:var(--sup-blue); line-height:1.3; }
+.ck-sup-peace small { display:block; font-size:var(--fs-small); color:var(--sup-muted); line-height:1.35; }
 
 .ck-sup-head2 { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
 .ck-sup-titlewrap { display:flex; align-items:flex-start; gap:12px; }
 .ck-sup-shield { flex:none; display:flex; color:var(--sup-ink); margin-top:2px; }
 .ck-sup-shield svg { width:30px; height:30px; fill:var(--sup-ink); stroke:var(--sup-ink); }
-.ck-sup-head2 h2 { font-size:24px; font-weight:800; color:var(--sup-ink); line-height:1.15; letter-spacing:-.01em; }
-.ck-sup-head2 p { margin-top:4px; font-size:13.5px; color:var(--sup-muted); }
-.ck-sup-prodtag { flex:none; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:11.5px;
-  font-weight:700; color:var(--sup-ink); }
+.ck-sup-head2 h2 { font-size:var(--fs-section); font-weight:var(--fw-section); color:var(--sup-ink); line-height:1.15; letter-spacing:-.01em; }
+.ck-sup-head2 p { margin-top:4px; font-size:var(--fs-small); color:var(--sup-muted); }
+.ck-sup-prodtag { flex:none; display:flex; flex-direction:column; align-items:center; gap:4px; font-size:var(--fs-small);
+  font-weight:600; color:var(--sup-ink); }
 .ck-sup-prodtag-ico { display:flex; align-items:center; gap:3px; color:var(--sup-ink); }
 .ck-sup-prodtag-ico svg { width:22px; height:22px; }
-.ck-sup-prodtag-ico i { font-style:normal; font-weight:800; font-size:13px; }
+.ck-sup-prodtag-ico i { font-style:normal; font-weight:700; font-size:var(--fs-small); }
 
 /* ── the grid of cards ── */
 .ck-sup-grid { display:grid; gap:14px; margin-top:4px; grid-template-columns:repeat(auto-fit, minmax(230px, 1fr)); }
@@ -46,7 +46,7 @@
 .v-wide .ck-sup-card { padding:20px 20px 18px; gap:12px; }
 
 /* badge: on the border, centred (Flight Only); beside the title (Flight + Hotel) */
-.ck-sup-badge { padding:3px 11px; border-radius:999px; font-size:10.5px; font-weight:800; letter-spacing:.01em; white-space:nowrap; color:#fff; }
+.ck-sup-badge { padding:3px 11px; border-radius:999px; font-size:var(--fs-micro); font-weight:700; letter-spacing:.01em; white-space:nowrap; color:#fff; }
 .ck-sup-badge.hot { background:var(--sup-orange); }
 .ck-sup-badge.best { background:var(--sup-blue); }
 .v-compact .ck-sup-badge { position:absolute; top:-11px; left:50%; transform:translateX(-50%); }
@@ -58,8 +58,8 @@
 .ck-sup-card.act .ck-sup-ico { background:#fff; }
 .ck-sup-ico svg { width:19px; height:19px; }
 .ck-sup-card.tone-3 .ck-sup-ico { color:var(--sup-orange); }
-.ck-sup-name { font-size:15.5px; font-weight:800; color:var(--sup-ink); line-height:1.2; }
-.v-wide .ck-sup-name { font-size:19px; }
+.ck-sup-name { font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--sup-ink); line-height:1.2; }
+.v-wide .ck-sup-name { font-size:var(--fs-card-title); }
 
 .ck-sup-radio { flex:none; width:20px; height:20px; border-radius:50%; border:2px solid #b8c4d8; background:#fff;
   display:flex; align-items:center; justify-content:center; }
@@ -69,63 +69,68 @@
 .v-wide .ck-sup-radio i { width:11px; height:11px; }
 
 .ck-sup-price { display:flex; align-items:baseline; gap:5px; }
-.ck-sup-price strong { font-size:27px; font-weight:800; color:var(--sup-ink); line-height:1; letter-spacing:-.01em; }
-.ck-sup-price small { font-size:12.5px; font-weight:700; color:var(--sup-muted); }
-.v-wide .ck-sup-price strong { font-size:30px; }
-.ck-sup-total { font-size:11.5px; color:var(--sup-muted); margin-top:-5px; }
-.ck-sup-desc { font-size:12.5px; line-height:1.45; color:var(--sup-muted); }
-.v-wide .ck-sup-desc { font-size:13.5px; color:#33415c; }
+.ck-sup-price strong { font-size:var(--fs-price); font-weight:var(--fw-price); color:var(--sup-ink); line-height:1; letter-spacing:-.01em; }
+.ck-sup-price small { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--sup-muted); }
+.v-wide .ck-sup-price strong { font-size:var(--fs-price); }
+.ck-sup-total { font-size:var(--fs-small); color:var(--sup-muted); margin-top:-5px; }
+.ck-sup-desc { font-size:var(--fs-small); line-height:1.45; color:var(--sup-muted); }
+.v-wide .ck-sup-desc { font-size:var(--fs-small); color:#33415c; }
 
 /* ── service lines ── */
 .ck-sup-list { display:flex; flex-direction:column; padding-top:6px; border-top:1px solid var(--sup-line); }
-.ck-sup-row { display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid #eef2f8; font-size:12px; line-height:1.35; }
+.ck-sup-row { display:flex; align-items:center; gap:9px; padding:7px 0; border-bottom:1px solid #eef2f8; font-size:var(--fs-small); line-height:1.35; }
 .ck-sup-row:last-child { border-bottom:0; }
-.v-wide .ck-sup-row { padding:6px 0; border-bottom:0; font-size:13px; }
+.v-wide .ck-sup-row { padding:6px 0; border-bottom:0; font-size:var(--fs-small); }
 .ck-sup-mark { flex:none; display:flex; width:17px; height:17px; }
 .ck-sup-mark svg { width:17px; height:17px; }
 .ck-sup-row.included .ck-sup-mark { color:var(--sup-green); }
 .ck-sup-row.paid .ck-sup-mark { color:#64748b; }
 .ck-sup-row.not_included .ck-sup-mark { color:#94a3b8; }
 .ck-sup-text { flex:1; min-width:0; color:#1e293b; overflow-wrap:anywhere; }
-.ck-sup-val { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:0; font-size:11.5px; font-weight:700;
+.ck-sup-val { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:0; font-size:var(--fs-small); font-weight:600;
   text-align:right; white-space:nowrap; }
 .ck-sup-val b { font-weight:700; color:#1e293b; }
-.ck-sup-val small { font-size:10px; font-weight:500; color:var(--sup-muted); }
-.v-wide .ck-sup-val { flex-direction:row; align-items:baseline; gap:4px; font-size:12.5px; }
-.v-wide .ck-sup-val small { font-size:11.5px; }
+.ck-sup-val small { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--sup-muted); }
+.v-wide .ck-sup-val { flex-direction:row; align-items:baseline; gap:4px; font-size:var(--fs-small); }
+.v-wide .ck-sup-val small { font-size:var(--fs-small); }
 .ck-sup-row.included .ck-sup-val { color:var(--sup-green); font-weight:600; }
-.ck-sup-row.not_included .ck-sup-val { color:var(--sup-muted); font-weight:500; }
+.ck-sup-row.not_included .ck-sup-val { color:var(--sup-muted); font-weight:400; }
+/* Three narrow cards side by side: at the guideline's 14px a one-line "Niet inbegrepen" took most of
+   the row and broke the service name inside its words. The value wraps instead, and keeps to
+   half the row. */
+.v-compact .ck-sup-val { white-space:normal; max-width:48%; }
+.v-compact .ck-sup-text { hyphens:auto; }
 
 /* ── choosing ── */
 .ck-sup-foot { margin-top:auto; display:flex; align-items:center; gap:10px; padding-top:4px; }
 .ck-sup-pick { display:flex; flex:1; align-items:center; justify-content:center; gap:7px; padding:9px 12px; border-radius:9px;
-  border:1.5px solid var(--sup-blue-line); background:#fff; color:var(--sup-blue); font-size:13.5px; font-weight:700;
+  border:1.5px solid var(--sup-blue-line); background:#fff; color:var(--sup-blue); font-size:var(--fs-control); font-weight:var(--fw-button);
   transition:background .2s ease, color .2s ease, border-color .2s ease; }
 .ck-sup-pick svg { width:15px; height:15px; }
 .ck-sup-card:hover .ck-sup-pick { border-color:var(--sup-blue); }
 .ck-sup-pick.act { background:var(--sup-blue); border-color:var(--sup-blue); color:#fff; }
-.v-wide .ck-sup-pick { margin-top:auto; flex:none; padding:12px 14px; font-size:14px; border-color:var(--sup-blue); }
+.v-wide .ck-sup-pick { margin-top:auto; flex:none; padding:12px 14px; font-size:var(--fs-control); border-color:var(--sup-blue); }
 
 /* ── under the cards ── */
 .ck-sup-compare { display:flex; align-items:center; gap:12px; width:100%; margin-top:16px; padding:11px 14px; border:0;
   border-radius:12px; background:var(--sup-blue-bg); text-align:left; cursor:pointer; font:inherit; }
 .ck-sup-compare-ico { flex:none; display:flex; color:var(--sup-ink); }
 .ck-sup-compare-ico svg { width:22px; height:22px; }
-.ck-sup-compare b { display:flex; align-items:center; gap:6px; font-size:13px; font-weight:800; color:var(--sup-blue); }
+.ck-sup-compare b { display:flex; align-items:center; gap:6px; font-size:var(--fs-body); font-weight:600; color:var(--sup-blue); }
 .ck-sup-compare b svg { width:14px; height:14px; }
-.ck-sup-compare small { display:block; font-size:11.5px; color:var(--sup-muted); }
+.ck-sup-compare small { display:block; font-size:var(--fs-small); color:var(--sup-muted); }
 .ck-sup-compare:hover b { text-decoration:underline; }
 
 .ck-sup-note { display:flex; align-items:flex-start; gap:10px; margin-top:10px; padding:11px 14px; border-radius:12px;
-  background:var(--sup-blue-bg); color:#1e293b; font-size:12px; font-weight:600; line-height:1.5; }
+  background:var(--sup-blue-bg); color:#1e293b; font-size:var(--fs-small); font-weight:var(--fw-small); line-height:1.5; }
 .ck-sup-note svg { flex:none; width:18px; height:18px; margin-top:1px; color:#fff; fill:var(--sup-blue); stroke:#fff; }
 
 .ck-sup-important { display:flex; align-items:flex-start; gap:12px; margin-top:16px; padding:14px 16px; border-radius:12px;
   background:var(--sup-blue-bg); }
 .ck-sup-important-ico { flex:none; display:flex; margin-top:1px; }
 .ck-sup-important-ico svg { width:20px; height:20px; color:#fff; fill:var(--sup-blue); stroke:#fff; }
-.ck-sup-important b { display:block; font-size:14px; font-weight:800; color:var(--sup-blue); }
-.ck-sup-important p { margin-top:3px; font-size:12.5px; line-height:1.55; color:#33415c; }
+.ck-sup-important b { display:block; font-size:var(--fs-body); font-weight:600; color:var(--sup-blue); }
+.ck-sup-important p { margin-top:3px; font-size:var(--fs-small); line-height:1.55; color:#33415c; }
 
 /* ── compare dialog ── */
 .ck-sup-cmp-overlay { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
@@ -133,24 +138,24 @@
 .ck-sup-cmp { width:min(820px, 100%); max-height:86vh; display:flex; flex-direction:column; border-radius:16px; background:#fff;
   box-shadow:0 24px 60px rgba(15,31,61,.25); overflow:hidden; }
 .ck-sup-cmp-head { display:flex; align-items:center; justify-content:space-between; padding:16px 20px; border-bottom:1px solid var(--sup-line); }
-.ck-sup-cmp-head h3 { font-size:18px; font-weight:800; color:var(--sup-ink); }
+.ck-sup-cmp-head h3 { font-size:var(--fs-section); font-weight:var(--fw-section); color:var(--sup-ink); }
 .ck-sup-cmp-close { display:flex; padding:6px; border:0; border-radius:8px; background:transparent; color:var(--sup-muted); cursor:pointer; }
 .ck-sup-cmp-close:hover { background:#f1f5f9; }
 .ck-sup-cmp-close svg { width:18px; height:18px; }
 .ck-sup-cmp-scroll { overflow:auto; padding:6px 20px 20px; }
-.ck-sup-cmp table { width:100%; border-collapse:collapse; font-size:12.5px; }
-.ck-sup-cmp th { position:sticky; top:0; background:#fff; padding:12px 10px; text-align:left; font-weight:800; color:var(--sup-ink);
+.ck-sup-cmp table { width:100%; border-collapse:collapse; font-size:var(--fs-small); }
+.ck-sup-cmp th { position:sticky; top:0; background:#fff; padding:12px 10px; text-align:left; font-weight:600; color:var(--sup-ink);
   border-bottom:2px solid var(--sup-line); vertical-align:bottom; }
-.ck-sup-cmp th span { display:block; font-size:13.5px; }
-.ck-sup-cmp th small { display:block; margin-top:2px; font-size:11.5px; font-weight:600; color:var(--sup-muted); }
+.ck-sup-cmp th span { display:block; font-size:var(--fs-body); }
+.ck-sup-cmp th small { display:block; margin-top:2px; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--sup-muted); }
 .ck-sup-cmp td { padding:10px; border-bottom:1px solid #eef2f8; color:#1e293b; vertical-align:middle; }
 .ck-sup-cmp-cell { display:inline-flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap; }
 .ck-sup-cmp-cell svg { width:16px; height:16px; flex:none; }
 .ck-sup-cmp td.included .ck-sup-cmp-cell { color:var(--sup-green); }
 .ck-sup-cmp td.paid .ck-sup-cmp-cell svg { color:#64748b; }
-.ck-sup-cmp td.not_included .ck-sup-cmp-cell { color:var(--sup-muted); font-weight:500; }
+.ck-sup-cmp td.not_included .ck-sup-cmp-cell { color:var(--sup-muted); font-weight:400; }
 .ck-sup-cmp td.none { color:#94a3b8; }
-.ck-sup-cmp-cell small { font-size:11px; font-weight:500; color:var(--sup-muted); }
+.ck-sup-cmp-cell small { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--sup-muted); }
 
 @media (max-width:880px) {
   .v-compact .ck-sup-grid.cols-3 { grid-template-columns:1fr; }
@@ -159,6 +164,9 @@
   .ck-sup-head1, .ck-sup-head2 { flex-direction:column; }
   .ck-sup-peace { max-width:none; width:100%; }
   .ck-sup-prodtag { flex-direction:row; }
-  .ck-sup-grid, .v-wide .ck-sup-grid { grid-template-columns:1fr; }
-  .ck-sup-price strong, .v-wide .ck-sup-price strong { font-size:24px; }
+  /* minmax(0,…): a long badge beside the level name no longer sets the card's minimum width
+     and pushes it past the screen edge; the badge drops under the name instead. */
+  .ck-sup-grid, .v-wide .ck-sup-grid { grid-template-columns:minmax(0,1fr); }
+  .v-wide .ck-sup-top { flex-wrap:wrap; row-gap:6px; }
+  .ck-sup-price strong, .v-wide .ck-sup-price strong { font-size:var(--fs-price); }
 }

@@ -60,11 +60,11 @@
   z-index: 3;
   display: flex; align-items: center; gap: calc(14 * var(--s));
   margin: 0;
-  font-size: max(12px, calc(15 * var(--s)));
+  font-size: var(--fs-small);
   color: #4E5B75;
 }
 .trail svg { color: #8A97AF; width: calc(14 * var(--s)); height: calc(14 * var(--s)); }
-.trailOn { position: relative; color: var(--text); font-weight: 500; }
+.trailOn { position: relative; color: var(--text); font-weight: 600; }
 .trailOn::after {
   content: '';
   position: absolute; left: 22%; right: 0; bottom: calc(-10 * var(--s));
@@ -103,7 +103,7 @@
 .eyebrow {
   margin: 0 0 calc(20 * var(--s));
   font-family: 'Sora', sans-serif;
-  font-size: max(11px, calc(14 * var(--s)));
+  font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.3em;
   text-transform: uppercase;
@@ -111,8 +111,8 @@
 }
 .brandTitle {
   font-family: 'Sora', sans-serif;
-  font-size: max(30px, calc(58 * var(--s)));
-  font-weight: 800;
+  font-size: var(--fs-page-title);
+  font-weight: var(--fw-page-title);
   line-height: 1.08;
   letter-spacing: -0.035em;
   color: #111B34;
@@ -134,7 +134,7 @@
 .brandSub {
   margin-top: calc(22 * var(--s));
   max-width: calc(540 * var(--s));
-  font-size: max(14px, calc(19 * var(--s)));
+  font-size: var(--fs-body);
   line-height: 1.5;
   color: #46526B;
 }
@@ -160,11 +160,11 @@
 .statText { display: flex; flex-direction: column; line-height: 1.2; }
 .statNum {
   font-family: 'Sora', sans-serif;
-  font-size: max(15px, calc(22 * var(--s)));
+  font-size: var(--fs-card-title);
   font-weight: 700;
   color: #111B34;
 }
-.statLabel { margin-top: 2px; font-size: max(12px, calc(15 * var(--s))); color: #4E5B75; }
+.statLabel { margin-top: 2px; font-size: var(--fs-small); color: #4E5B75; }
 .statDivider { width: 1px; height: calc(40 * var(--s)); background: rgba(17, 27, 52, 0.12); }
 
 /* The handwritten line at the foot of the column */
@@ -174,7 +174,7 @@
   bottom: calc(78 * var(--s));
   margin: 0;
   font-family: 'Caveat', cursive;
-  font-size: max(19px, calc(31 * var(--s)));
+  font-size: var(--fs-section);
   font-weight: 600;
   line-height: 1.15;
   color: #1D2A45;
@@ -223,14 +223,14 @@
 .cardTitle {
   margin-bottom: calc(4 * var(--s));
   font-family: 'Sora', sans-serif;
-  font-size: max(20px, calc(32 * var(--s)));
-  font-weight: 700;
+  font-size: var(--fs-page-title);
+  font-weight: var(--fw-page-title);
   line-height: 1.2;
   letter-spacing: -0.02em;
   color: #111B34;
 }
 .cardSub {
-  font-size: max(13px, calc(17 * var(--s)));
+  font-size: var(--fs-body);
   line-height: 1.45;
   color: #55627C;
 }
@@ -241,9 +241,9 @@
 .form { display: flex; flex-direction: column; gap: calc(24 * var(--s)); }
 .field { display: flex; flex-direction: column; gap: calc(10 * var(--s)); }
 .fieldLabel {
-  font-size: max(10.5px, calc(12.8 * var(--s)));
+  font-size: var(--fs-small);
   line-height: 1.2;
-  font-weight: 700;
+  font-weight: 600;
   letter-spacing: 0.12em;
   text-transform: uppercase;
   color: #3F4C66;
@@ -280,7 +280,7 @@
   padding: 0 calc(14 * var(--s)) 0 0;
   background: transparent; border: none; outline: none;
   font-family: 'DM Sans', sans-serif;
-  font-size: max(14px, calc(17 * var(--s)));
+  font-size: var(--fs-control);
   color: var(--text);
   caret-color: var(--blue-deep);
 }
@@ -333,10 +333,10 @@
   color: #FFFFFF;
 }
 .checkInput:focus-visible + .checkbox { box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.25); }
-.rememberLabel { font-size: max(12.5px, calc(15 * var(--s))); color: #2C3A55; }
+.rememberLabel { font-size: var(--fs-small); color: #2C3A55; }
 .forgotLink {
   margin-left: auto; flex-shrink: 0;
-  font-size: max(12.5px, calc(15 * var(--s))); font-weight: 700;
+  font-size: var(--fs-small); font-weight: 600;
   color: var(--blue-deep);
   text-decoration: none;
 }
@@ -344,7 +344,7 @@
 
 /* Sign in — the one orange action */
 .submitBtn {
-  width: 100%; height: max(42px, calc(61 * var(--s)));
+  width: 100%; min-height: max(42px, calc(61 * var(--s)));
   margin-top: calc(4 * var(--s));
   display: flex; align-items: center; justify-content: center; gap: calc(12 * var(--s));
   border-radius: var(--r-full);
@@ -352,8 +352,8 @@
   color: #FFFFFF;
   text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif;
-  font-size: max(15px, calc(19 * var(--s)));
-  font-weight: 700;
+  font-size: var(--fs-control);
+  font-weight: var(--fw-button);
   box-shadow: 0 12px 28px rgba(222, 110, 20, 0.26);
   transition: filter 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
@@ -367,7 +367,7 @@
 .orRow {
   display: flex; align-items: center; gap: calc(16 * var(--s));
   margin: calc(28 * var(--s)) 0 calc(18 * var(--s));
-  font-size: max(10.5px, calc(12.5 * var(--s)));
+  font-size: var(--fs-micro);
   font-weight: 700;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -378,14 +378,14 @@
 .guestRow { display: flex; justify-content: center; }
 .guestBtn {
   display: inline-flex; align-items: center; gap: calc(14 * var(--s));
-  height: max(40px, calc(57 * var(--s)));
+  min-height: max(40px, calc(57 * var(--s)));
   padding: 0 calc(58 * var(--s));
   border: 1.5px solid #DCE3EE;
   border-radius: var(--r-full);
   background: #FFFFFF;
   font-family: inherit;
-  font-size: max(13.5px, calc(17 * var(--s)));
-  font-weight: 600;
+  font-size: var(--fs-control);
+  font-weight: var(--fw-button);
   color: #1A2744;
   white-space: nowrap;
   transition: border-color 0.2s var(--ease), color 0.2s var(--ease), background 0.2s var(--ease);
@@ -398,7 +398,7 @@
 .registerLine {
   margin-top: calc(16 * var(--s));
   text-align: center;
-  font-size: max(12.5px, calc(14.4 * var(--s)));
+  font-size: var(--fs-small);
   color: #55627C;
 }
 .registerLine a { color: var(--blue-deep); font-weight: 700; }

@@ -4260,7 +4260,7 @@ export default function HotelDetail() {
     return (
       <div className="sd" ref={pageRef}>
         <div style={{ maxWidth: 640, margin: '120px auto 80px', padding: '0 16px', textAlign: 'center' }}>
-          <h1 style={{ fontSize: 26, marginBottom: 12 }}>{t('unavailable.title', 'This hotel is not available')}</h1>
+          <h1 style={{ fontSize: 'var(--fs-page-title)', marginBottom: 12 }}>{t('unavailable.title', 'This hotel is not available')}</h1>
           {realName && <p style={{ fontWeight: 600, marginBottom: 8 }}>{realName}</p>}
           <p style={{ opacity: 0.75, marginBottom: 24 }}>
             {t('unavailable.body', 'It cannot be booked at the moment. Please choose another hotel.')}

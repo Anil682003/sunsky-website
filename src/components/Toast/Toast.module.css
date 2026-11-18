@@ -58,7 +58,7 @@
 
 .message {
   flex: 1;
-  font-size: 14px;
+  font-size: var(--fs-small);
   line-height: 1.4;
   margin: 0;
 }

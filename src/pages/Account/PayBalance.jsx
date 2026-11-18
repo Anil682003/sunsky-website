@@ -31,11 +31,12 @@ const getStripe = () => {
 
 const STRIPE_STYLE = {
   base: {
-    fontSize: '14px',
+    // Stripe's own iframe: a px string, 16px = --fs-control.
+    fontSize: '16px',
     color: '#1a2744',
     fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     '::placeholder': { color: '#94a3bf' },
-    lineHeight: '22px',
+    lineHeight: '24px',
   },
   invalid: { color: '#ef4444', iconColor: '#ef4444' },
 };

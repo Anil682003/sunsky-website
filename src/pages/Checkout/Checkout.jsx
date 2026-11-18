@@ -45,13 +45,22 @@ const stripePromise = (STRIPE_PK && !STRIPE_PK.includes('REPLACE')) ? loadStripe
 
 const STRIPE_ELEMENT_STYLE = {
   base: {
-    fontSize: '14px',
+    // Stripe draws the card fields in its own iframe, out of reach of the CSS tokens, and takes
+    // only a px string: 16px is the guideline's --fs-control, the same size as every other input.
+    fontSize: '16px',
     color: '#1a2744',
     fontFamily: "'DM Sans', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif",
     '::placeholder': { color: '#94a3bf' },
-    lineHeight: '22px',
+    lineHeight: '24px',
   },
   invalid: { color: '#ef4444', iconColor: '#ef4444' },
+};
+
+// The language the visitor is reading the site in, as the customer's preferred language: the
+// admin writes its automatic booking emails in it. Only the two site languages; Dutch otherwise.
+const visitorLanguage = () => {
+  const lang = String(i18n.resolvedLanguage || i18n.language || '').slice(0, 2).toLowerCase();
+  return lang === 'en' ? 'en' : 'nl';
 };
 
 /* ── tiny SVG helper (same pattern as HotelDetail) ── */
@@ -768,7 +777,7 @@ function CheckoutContent({ stripe, elements }) {
   const [priv, setPriv] = useState(() => {
     const base = {
       firstName: user?.firstName || '', lastName: (user?.lastName || '').toUpperCase(),
-      dateOfBirth: '', gender: '', nationality: '', preferredLanguage: 'en',
+      dateOfBirth: '', gender: '', nationality: '', preferredLanguage: visitorLanguage(),
       hasEmail: true, email: user?.email || '', phone: user?.phone || '',
       street: '', houseNumber: '', boxNumber: '', city: '', postalCode: '', country: '',
       emergencyPhone: '',
@@ -792,7 +801,7 @@ function CheckoutContent({ stripe, elements }) {
     hasInvoiceEmail: true, invoiceEmail: '', paymentTerms: '', invoicingAddress: '',
     primaryContactFirstName: user?.firstName || '', primaryContactLastName: (user?.lastName || '').toUpperCase(),
     hasContactEmail: true, primaryContactEmail: user?.email || '', primaryContactPhone: '',
-    primaryContactRole: '', preferredLanguage: 'en',
+    primaryContactRole: '', preferredLanguage: visitorLanguage(),
   }));
   const [travellers, setTravellers] = useState(() => {
     const seeded = seedTravellers(booking, user);
@@ -2180,6 +2189,9 @@ function CheckoutContent({ stripe, elements }) {
             // Invoicing terms are agreed with an agent, never collected at a checkout — but
             // the invoice has to reach somebody, and that is the person who just paid.
             invoicing: { hasInvoiceEmail: priv.hasEmail, invoiceEmail: priv.hasEmail ? priv.email : undefined },
+            // Read now, not when the form opened: a visitor who switched language halfway through
+            // gets their emails in the one they finished in.
+            preferredLanguage: visitorLanguage(),
           }
         : {
             type: 'private',
@@ -2190,6 +2202,7 @@ function CheckoutContent({ stripe, elements }) {
             hasEmail: priv.hasEmail, email: priv.hasEmail ? priv.email : undefined,
             phone: priv.phone,
             address,
+            preferredLanguage: visitorLanguage(),
           };
 
       const passengers = travellers.map((t, i) => ({

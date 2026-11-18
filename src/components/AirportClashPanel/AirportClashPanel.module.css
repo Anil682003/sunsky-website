@@ -20,14 +20,14 @@
 
 .title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 700;
+  font-size: var(--fs-card-title);
+  font-weight: var(--fw-card-title);
   line-height: 1.35;
 }
 
 .body {
   margin: 6px 0 0;
-  font-size: 14px;
+  font-size: var(--fs-small);
   line-height: 1.45;
   color: var(--text-sec);
 }
@@ -47,8 +47,8 @@
   padding: 9px 16px;
   border-radius: var(--r-full);
   font: inherit;
-  font-size: 14px;
-  font-weight: 600;
+  font-size: var(--fs-control);
+  font-weight: var(--fw-button);
   cursor: pointer;
   transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
 }
@@ -78,7 +78,7 @@
 .checking {
   margin: 0;
   padding: 10px 14px;
-  font-size: 13px;
+  font-size: var(--fs-small);
   color: var(--text-sec);
   text-align: left;
   background: #fff;

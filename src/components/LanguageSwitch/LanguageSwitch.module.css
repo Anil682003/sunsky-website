@@ -31,7 +31,7 @@
   background: transparent;
   cursor: pointer;
   font-family: 'Sora', sans-serif;
-  font-size: 0.72rem;
+  font-size: var(--fs-small);
   font-weight: 700;
   letter-spacing: 0.4px;
   color: var(--text-sec, #5E7291);
@@ -62,7 +62,7 @@
 .btnOn {
   background: transparent;
   color: var(--blue-deep, #1F4FD8);
-  font-weight: 800;
+  font-weight: 700;
 }
 .btnOn:hover { background: transparent; color: var(--blue-deep, #1F4FD8); }
 
@@ -73,7 +73,6 @@
   min-width: 54px;
   min-height: 44px;
   padding: 9px 12px;
-  font-size: 0.78rem;
 }
 /* Thumb-sized sheet, so the flag grows with the label. */
 .compact .flag { width: 21px; height: 14px; }
@@ -84,7 +83,7 @@
 /* On the homepage's brand-blue top strip: white labels, no hairline between the two (the design spaces them instead), and
    the flags at full strength (dimming them against blue reads as disabled, not "other"). The
    active language is the heavier one. */
-.onDark .btn { color: rgba(255, 255, 255, 0.82); font-size: 0.86rem; gap: 8px; padding: 4px 12px; }
+.onDark .btn { color: rgba(255, 255, 255, 0.82); gap: 8px; padding: 4px 12px; }
 .onDark .btn + .btn { border-left: 0; }
 .onDark .btn:hover, .onDark .btnOn, .onDark .btnOn:hover { color: #fff; }
 .onDark .flag { width: 21px; height: 14px; opacity: 1; box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.35); }

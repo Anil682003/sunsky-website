@@ -44,7 +44,7 @@
 
 /* ── header ── */
 .head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:12px; }
-.headTitle { font-family:'Sora',sans-serif; font-size:14px; font-weight:800; letter-spacing:-.01em; }
+.headTitle { font-family:'Sora',sans-serif; font-size:var(--fs-card-title); font-weight:var(--fw-card-title); letter-spacing:-.01em; }
 .close {
   width:28px; height:28px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
   border:0; border-radius:50%; background:var(--blue-pale); color:var(--text-sec);
@@ -57,10 +57,10 @@
 .thumb { width:52px; height:44px; flex-shrink:0; border-radius:11px; object-fit:cover; background:var(--blue-bg); }
 .pvText { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .pvName {
-  font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; line-height:1.3; letter-spacing:-.01em;
+  font-family:'Sora',sans-serif; font-size:var(--fs-key); font-weight:var(--fw-key); line-height:1.3; letter-spacing:-.01em;
   display:-webkit-box; -webkit-line-clamp:2; line-clamp:2; -webkit-box-orient:vertical; overflow:hidden;
 }
-.pvMeta { font-size:11.5px; font-weight:500; color:var(--text-sec); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.pvMeta { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 
 /* boarding-pass style perforation between the stay and the link */
 .tear {
@@ -81,13 +81,13 @@
   border-radius:14px; background:var(--blue-pale); border:1px solid var(--border-light);
 }
 .link { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
-.linkHost { font-size:12.5px; font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.linkTail { font-size:10.5px; font-weight:500; color:var(--text-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.linkHost { font-size:var(--fs-small); font-weight:700; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.linkTail { font-size:var(--fs-micro); font-weight:400; color:var(--text-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .copy {
   display:inline-flex; align-items:center; gap:5px; flex-shrink:0;
   padding:9px 15px; border:0; border-radius:11px; cursor:pointer;
   background:var(--blue); color:#fff;
-  font-family:'Sora',sans-serif; font-size:12px; font-weight:700; letter-spacing:.01em;
+  font-family:'Sora',sans-serif; font-size:var(--fs-control); font-weight:var(--fw-button); letter-spacing:.01em;
   transition:background .25s var(--ease), transform .25s var(--ease-spring), box-shadow .25s var(--ease);
   box-shadow:0 4px 14px rgba(31,79,216,.28);
 }
@@ -97,7 +97,8 @@
 .copy.copied svg { animation:ssCheck .38s var(--ease-spring) both; }
 
 /* ── channels ── */
-.grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(56px,1fr)); gap:6px; margin-top:14px; }
+/* Three to a row: at the 14px label size "WhatsApp" and "Facebook" are wider than a 56px tile. */
+.grid { display:grid; grid-template-columns:repeat(3,minmax(0,1fr)); gap:6px; margin-top:14px; }
 .tile {
   display:flex; flex-direction:column; align-items:center; gap:7px;
   padding:11px 4px 9px; border:0; border-radius:14px; cursor:pointer;
@@ -113,7 +114,7 @@
   transition:background .22s var(--ease), color .22s var(--ease), box-shadow .22s var(--ease);
 }
 .tile:hover .tileIcon { background:var(--tint,var(--blue)); color:#fff; box-shadow:0 6px 16px color-mix(in srgb,var(--tint,#1f4fd8) 34%,transparent); }
-.tileLabel { font-size:10.5px; font-weight:600; letter-spacing:.01em; white-space:nowrap; }
+.tileLabel { font-size:var(--fs-small); font-weight:600; letter-spacing:.01em; white-space:nowrap; }
 
 .pop :focus-visible, .sheet :focus-visible { outline:2px solid var(--blue); outline-offset:2px; }
 .triggerOpen { border-color:rgba(255,255,255,.6) !important; background:rgba(255,255,255,.24) !important; }

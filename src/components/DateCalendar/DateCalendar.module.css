@@ -30,8 +30,8 @@
 }
 .monthName {
   font-family:'Sora',sans-serif;
-  font-size:16px;
-  font-weight:700;
+  font-size: var(--fs-key);
+  font-weight: var(--fw-key);
   letter-spacing:-0.01em;
   color:var(--text);
   white-space:nowrap;
@@ -58,7 +58,7 @@
 .weekRow { margin-bottom:6px; }
 .weekday {
   text-align:center;
-  font-size:10.5px;
+  font-size: var(--fs-micro);
   font-weight:700;
   letter-spacing:0.08em;
   text-transform:uppercase;
@@ -75,8 +75,8 @@
   border-radius:10px;
   background:transparent;
   font-family:inherit;
-  font-size:13.5px;
-  font-weight:500;
+  font-size: var(--fs-small);
+  font-weight: var(--fw-small);
   color:var(--text);
   cursor:pointer;
   transition:background .15s ease, color .15s ease, border-color .15s ease;
@@ -132,15 +132,15 @@
 .feasNote {
   display:flex; flex-wrap:wrap; align-items:baseline; gap:4px 12px;
   padding:10px 4px 0;
-  font-size:12px; line-height:1.4;
+  font-size: var(--fs-small); line-height:1.4;
 }
 .feasEarliest { font-weight:700; color:var(--text); }
-.feasCount { font-weight:500; color:var(--text-light); }
+.feasCount { font-weight:400; color:var(--text-light); }
 
 .legend {
   display:flex; flex-wrap:wrap; gap:14px;
   padding:10px 4px 2px;
-  font-size:11.5px; font-weight:600; color:var(--text-light);
+  font-size: var(--fs-small); font-weight: 600; color:var(--text-light);
 }
 .legendItem { display:inline-flex; align-items:center; gap:6px; }
 .legendItem i { width:9px; height:9px; border-radius:50%; flex-shrink:0; }
@@ -166,8 +166,8 @@
   border-radius:var(--r-full);
   background:#fff;
   font-family:inherit;
-  font-size:13px;
-  font-weight:600;
+  font-size: var(--fs-small);
+  font-weight: 600;
   color:var(--text-sec);
   cursor:pointer;
   transition:all .18s ease;
@@ -187,8 +187,8 @@
   color:var(--cta-ink);
   text-shadow:var(--cta-ink-shadow);
   font-family:'Sora',sans-serif;
-  font-size:13px;
-  font-weight:700;
+  font-size: var(--fs-control);
+  font-weight: 600;
   cursor:pointer;
   transition:transform .2s var(--ease), box-shadow .2s var(--ease);
 }

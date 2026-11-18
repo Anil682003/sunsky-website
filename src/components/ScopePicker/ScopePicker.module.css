@@ -21,7 +21,7 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  height: 44px;
+  min-height: 44px;
   padding: 0 12px;
   border: 1px solid var(--line);
   border-radius: 12px;
@@ -50,8 +50,8 @@
   outline: none;
   background: transparent;
   font-family: 'Sora', sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 600;
+  font-size: var(--fs-control);
+  font-weight: var(--fw-control);
   color: var(--text);
   cursor: inherit;
   /* Truncate rather than wrap: "Canarische Eilanden" must not make the field two
@@ -60,7 +60,7 @@
 }
 .controlInput::placeholder {
   color: var(--text-light);
-  font-weight: 500;
+  font-weight: 400;
 }
 .controlInput:read-only { cursor: pointer; }
 
@@ -111,7 +111,7 @@
   background: var(--blue-light, #EAF1FE);
   color: var(--blue-deep);
   font-family: 'Sora', sans-serif;
-  font-size: 0.72rem;
+  font-size: var(--fs-small);
   font-weight: 600;
   cursor: pointer;
   transition: background 0.16s var(--ease), border-color 0.16s var(--ease);
@@ -135,7 +135,7 @@
 .heading {
   padding: 8px 10px 5px;
   font-family: 'Sora', sans-serif;
-  font-size: 0.66rem;
+  font-size: var(--fs-micro);
   font-weight: 700;
   letter-spacing: 0.09em;
   text-transform: uppercase;
@@ -152,8 +152,8 @@
   border-radius: 9px;
   background: transparent;
   font-family: 'Sora', sans-serif;
-  font-size: 0.8125rem;
-  font-weight: 500;
+  font-size: var(--fs-control);
+  font-weight: var(--fw-control);
   color: var(--text);
   text-align: left;
   cursor: pointer;
@@ -184,7 +184,7 @@
 .optionFlag[data-emoji='true'] {
   width: auto;
   height: auto;
-  font-size: 14px;
+  font-size: var(--fs-small);
   line-height: 1;
   box-shadow: none;
 }
@@ -204,13 +204,13 @@
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-  font-size: 0.7rem;
+  font-size: var(--fs-small);
   color: var(--text-light);
 }
 
 .note {
   padding: 14px 12px;
-  font-size: 0.8125rem;
+  font-size: var(--fs-small);
   color: var(--text-sec);
   text-align: center;
 }
@@ -226,7 +226,7 @@
   flex-shrink: 0;
   margin-left: auto;
   padding-left: 10px;
-  font-size: 12px;
+  font-size: var(--fs-small);
   font-variant-numeric: tabular-nums;
   color: #8fa5c6;
 }

@@ -5,14 +5,14 @@
   display: inline-flex;
   align-items: center;
   gap: calc(9 * var(--s, 1px));
-  height: max(34px, calc(44 * var(--s, 1px)));
+  min-height: max(34px, calc(44 * var(--s, 1px)));
   padding: 0 calc(16 * var(--s, 1px));
   border: 1px solid #E3EAF4;
   border-radius: var(--r-full);
   background: #FFFFFF;
   font-family: inherit;
-  font-size: max(12.5px, calc(15 * var(--s, 1px)));
-  font-weight: 500;
+  font-size: var(--fs-small);
+  font-weight: 600;
   color: var(--text);
   cursor: pointer;
   box-shadow: 0 1px 3px rgba(15, 40, 100, 0.05);
@@ -49,7 +49,7 @@
   border-radius: 10px;
   background: none;
   font-family: inherit;
-  font-size: 0.92rem;
+  font-size: var(--fs-body);
   color: var(--text);
   text-align: left;
   cursor: pointer;

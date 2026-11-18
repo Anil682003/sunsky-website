@@ -8,8 +8,8 @@
 /* Above the fields, not beside them. Beside them the three selects were squeezed into
    whatever the label left over, which on a phone was not enough to hit reliably. */
 .label {
-  font-size: 12.5px;
-  font-weight: 700;
+  font-size: var(--fs-small);
+  font-weight: var(--fw-small);
   color: var(--text-sec);
   font-family: 'Sora', sans-serif;
   letter-spacing: 0.1px;
@@ -19,7 +19,7 @@
    the three whose width varies with the language. */
 .fields {
   display: grid;
-  grid-template-columns: minmax(58px, 0.8fr) minmax(0, 1.5fr) minmax(66px, 0.9fr);
+  grid-template-columns: minmax(58px, 0.8fr) minmax(0, 1.5fr) minmax(74px, 0.9fr);
   gap: 7px;
 }
 
@@ -27,14 +27,14 @@
   width: 100%;
   min-width: 0;             /* grid children default to min-content: without this "September" widens the column */
   box-sizing: border-box;
-  height: 40px;             /* the same height as the other controls in the panel */
+  min-height: 40px;         /* the same height as the other controls in the panel */
   padding: 0 9px;
   border: 1.5px solid #e2eaf5;
   border-radius: var(--r-sm);
   background: #f8fbff;
   font-family: inherit;
-  font-size: 13px;
-  font-weight: 600;
+  font-size: var(--fs-control);
+  font-weight: var(--fw-control);
   color: var(--text);
   outline: none;
   cursor: pointer;
@@ -69,7 +69,7 @@
 
 .error {
   margin: 0;
-  font-size: 12px;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: #c9372f;
   line-height: 1.35;
@@ -77,7 +77,7 @@
 
 .age {
   margin: 0;
-  font-size: 11.5px;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--text-light);
 }

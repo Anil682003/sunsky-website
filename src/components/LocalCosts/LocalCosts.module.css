@@ -3,12 +3,12 @@
    its own alignment and spacing through `className`. */
 .block {
   display: flex; flex-direction: column; gap: 2px;
-  font-size: 12px; line-height: 1.4;
+  font-size: var(--fs-small); line-height: 1.4;
   color: var(--text-sec);
 }
 .payable { font-weight: 600; color: var(--text); }
-.local { font-weight: 500; }
-.label { font-weight: 500; }
+.local { font-weight: var(--fw-small); }
+.label { font-weight: var(--fw-small); }
 .value {
   font-weight: 700; color: var(--text);
   font-variant-numeric: tabular-nums;

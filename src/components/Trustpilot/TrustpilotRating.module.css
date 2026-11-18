@@ -23,7 +23,7 @@
 .text { display: inline-flex; align-items: baseline; gap: 6px; }
 .band, .score {
   font-family: 'Sora', sans-serif;
-  font-size: 15px;
+  font-size: var(--fs-key);
   font-weight: 700;
   letter-spacing: -0.1px;
 }

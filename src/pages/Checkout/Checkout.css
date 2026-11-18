@@ -58,21 +58,21 @@
   -webkit-mask-image:radial-gradient(ellipse 85% 80% at 62% -10%,#000 30%,transparent 72%);
   mask-image:radial-gradient(ellipse 85% 80% at 62% -10%,#000 30%,transparent 72%); }
 .ck-hero-inner { position:relative; z-index:2; max-width:1280px; margin:0 auto; padding:0 clamp(20px,3.5vw,48px); }
-.ck-bc { display:flex; align-items:center; gap:7px; font-size:12.5px; color:var(--hero-ink-faint); flex-wrap:wrap; animation:ckFadeUp .5s var(--ease) both; }
+.ck-bc { display:flex; align-items:center; gap:7px; font-size:var(--fs-small); color:var(--hero-ink-faint); flex-wrap:wrap; animation:ckFadeUp .5s var(--ease) both; }
 .ck-bc a { color:var(--hero-ink-soft); cursor:pointer; transition:color .2s; }
 .ck-bc a:hover { color:var(--hero-ink); }
 .ck-bc-sep { opacity:.4; }
 .ck-bc-here { color:var(--hero-ink); font-weight:600; }
 .ck-hero-row { display:flex; justify-content:space-between; align-items:flex-end; gap:28px; margin-top:18px; flex-wrap:wrap; }
 .ck-hero-left { animation:ckFadeUp .6s var(--ease) .05s both; }
-.ck-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:11.5px; font-weight:700; letter-spacing:.7px; text-transform:uppercase; color:var(--gold); }
+.ck-eyebrow { display:inline-flex; align-items:center; gap:7px; font-size:var(--fs-micro); font-weight:700; letter-spacing:.7px; text-transform:uppercase; color:var(--gold); }
 .ck-eyebrow svg { width:14px; height:14px; }
-.ck-title { font-size:clamp(1.65rem,3.6vw,2.45rem); font-weight:800; color:#fff; letter-spacing:-.6px; line-height:1.12; margin-top:8px; }
-.ck-hero-sub { font-size:14px; color:var(--hero-ink-soft); margin-top:8px; }
+.ck-title { font-size:var(--fs-page-title); font-weight:var(--fw-page-title); color:#fff; letter-spacing:-.6px; line-height:1.12; margin-top:8px; }
+.ck-hero-sub { font-size:var(--fs-small); color:var(--hero-ink-soft); margin-top:8px; }
 .ck-hero-badges { display:flex; gap:9px; flex-wrap:wrap; animation:ckFadeUp .6s var(--ease) .14s both; }
 .ck-hbadge { display:inline-flex; align-items:center; gap:7px; padding:8px 15px; border-radius:var(--r-full);
   background:rgba(255,255,255,.78); border:1px solid rgba(22,36,61,.12); backdrop-filter:blur(10px); -webkit-backdrop-filter:blur(10px);
-  color:var(--hero-ink); font-size:12.5px; font-weight:600; }
+  color:var(--hero-ink); font-size:var(--fs-small); font-weight:600; }
 .ck-hbadge svg { color:var(--blue-deep); width:14px; height:14px; }
 
 /* ════ MAIN LAYOUT ════ */
@@ -84,7 +84,10 @@
   background:rgba(255,255,255,.92); backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px);
   border:1px solid var(--border-light); border-radius:var(--r-lg); box-shadow:var(--shadow-lg); }
 .ck-step { display:flex; align-items:center; gap:12px; padding:6px 10px; border-radius:var(--r-sm);
-  cursor:default; transition:all .3s var(--ease); text-align:left; flex-shrink:0; }
+  cursor:default; transition:all .3s var(--ease); text-align:left; flex-shrink:1; min-width:0; }
+/* At the guideline's 14px five steps (with the support package) no longer fit on one line below
+   ~1440px: a step shrinks and its name and line under it wrap, instead of the last step running
+   out of the card. Four steps, and wide screens, still sit on one line. */
 .ck-step.reach { cursor:pointer; }
 .ck-step.reach:hover { background:var(--blue-pale); }
 .ck-step-dot { width:42px; height:42px; border-radius:13px; display:flex; align-items:center; justify-content:center; flex-shrink:0;
@@ -95,12 +98,12 @@
 .ck-step.done .ck-step-dot { background:linear-gradient(135deg,var(--green),#34d399); color:#fff; border-color:transparent; }
 .ck-step.done .ck-step-dot svg { animation:ckPop .45s var(--ease-spring) both; }
 .ck-step-meta { display:flex; flex-direction:column; min-width:0; }
-.ck-step-name { font-size:13.5px; font-weight:700; color:var(--text-light); transition:color .3s; white-space:nowrap; }
-.ck-step-sub { font-size:11px; color:var(--text-light); opacity:.85; white-space:nowrap; }
+.ck-step-name { font-size:var(--fs-small); font-weight:600; color:var(--text-light); transition:color .3s; line-height:1.3; }
+.ck-step-sub { font-size:var(--fs-small); color:var(--text-light); opacity:.85; line-height:1.3; }
 .ck-step.act .ck-step-name { color:var(--text); }
 .ck-step.act .ck-step-sub { color:var(--text-sec); }
 .ck-step.done .ck-step-name { color:var(--green); }
-.ck-step-line { flex:1; height:3px; border-radius:3px; background:var(--border); position:relative; overflow:hidden; min-width:24px; }
+.ck-step-line { flex:1; height:3px; border-radius:3px; background:var(--border); position:relative; overflow:hidden; min-width:16px; }
 .ck-step-line::after { content:''; position:absolute; inset:0; border-radius:3px;
   background:linear-gradient(90deg,var(--green),#34d399); transform:scaleX(0); transform-origin:left;
   transition:transform .7s var(--ease); }
@@ -119,18 +122,18 @@
 .ck-auth-banner { background:linear-gradient(120deg,#ecfdf5,#f0fdf9); border:1px solid #bbf0dd; }
 .ck-signin-invite { background:linear-gradient(120deg,var(--blue-pale),#fff); border:1px solid var(--blue-soft); }
 .ck-auth-avatar { width:42px; height:42px; border-radius:13px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(135deg,var(--green),#34d399); color:#fff; font-family:'Sora',sans-serif; font-weight:800; font-size:14px;
+  background:linear-gradient(135deg,var(--green),#34d399); color:#fff; font-family:'Sora',sans-serif; font-weight:700; font-size:var(--fs-small);
   box-shadow:0 5px 14px rgba(16,185,129,.3); }
 .ck-si-ico { width:42px; height:42px; border-radius:13px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; box-shadow:0 5px 14px rgba(31,79,216,.3); }
 .ck-auth-text { display:flex; flex-direction:column; gap:1px; min-width:0; flex:1; }
-.ck-auth-text b { font-size:13.5px; font-weight:700; }
-.ck-auth-text span { font-size:12.5px; color:var(--text-sec); overflow-wrap:anywhere; }
+.ck-auth-text b { font-size:var(--fs-body); font-weight:600; }
+.ck-auth-text span { font-size:var(--fs-small); color:var(--text-sec); overflow-wrap:anywhere; }
 .ck-auth-check { width:26px; height:26px; border-radius:50%; flex-shrink:0; display:flex; align-items:center; justify-content:center;
   background:var(--green); color:#fff; animation:ckPop .5s var(--ease-spring) .3s both; }
 .ck-auth-check svg { width:14px; height:14px; }
 .ck-si-btn { display:inline-flex; align-items:center; gap:7px; padding:10px 18px; border-radius:var(--r-full); flex-shrink:0;
-  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-size:12.5px; font-weight:700;
+  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-size:var(--fs-control); font-weight:var(--fw-button);
   box-shadow:0 5px 16px rgba(31,79,216,.3); transition:all .3s var(--ease); }
 .ck-si-btn:hover { transform:translateY(-2px); box-shadow:0 9px 24px rgba(31,79,216,.42); }
 
@@ -142,12 +145,12 @@
   background:linear-gradient(135deg,var(--blue-bg),#fff); border:1px solid var(--blue-soft); color:var(--blue); }
 .ck-ico svg { width:20px; height:20px; }
 .ck-card-titles { flex:1; min-width:0; }
-.ck-card-title { font-size:17.5px; font-weight:800; letter-spacing:-.3px; display:flex; align-items:center; gap:9px; }
-.ck-card-sub { font-size:12.5px; color:var(--text-sec); margin-top:2px; }
+.ck-card-title { font-size:var(--fs-section); font-weight:var(--fw-section); letter-spacing:-.3px; display:flex; align-items:center; gap:9px; }
+.ck-card-sub { font-size:var(--fs-small); color:var(--text-sec); margin-top:2px; }
 .ck-count-badge { min-width:24px; height:24px; padding:0 7px; border-radius:var(--r-full); display:inline-flex; align-items:center; justify-content:center;
-  background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); font-size:12px; font-weight:800; font-family:'DM Sans',sans-serif; }
+  background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); font-size:var(--fs-micro); font-weight:700; font-family:'DM Sans',sans-serif; }
 .ck-secure-pill { display:inline-flex; align-items:center; gap:6px; padding:7px 13px; border-radius:var(--r-full);
-  background:var(--green-light); color:#067a57; font-size:11.5px; font-weight:700; }
+  background:var(--green-light); color:#067a57; font-size:var(--fs-micro); font-weight:700; }
 .ck-secure-pill svg { width:13px; height:13px; }
 
 /* ════ THIS EMAIL ALREADY HAS AN ACCOUNT ════
@@ -160,13 +163,13 @@
   background:#fff; color:var(--blue); }
 .ck-email-known-ico svg { width:14px; height:14px; }
 .ck-email-known-text { display:flex; flex-direction:column; gap:3px; min-width:180px; flex:1; }
-.ck-email-known-text b { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--text); }
-.ck-email-known-text span { font-size:12.5px; color:var(--text-sec); line-height:1.55; }
+.ck-email-known-text b { font-family:'Sora',sans-serif; font-size:var(--fs-body); font-weight:600; color:var(--text); }
+.ck-email-known-text span { font-size:var(--fs-small); color:var(--text-sec); line-height:1.55; }
 .ck-email-known-btns { display:flex; align-items:center; gap:10px; flex-wrap:wrap; }
 .ck-email-login { padding:10px 20px; border-radius:var(--r-full); background:var(--blue); color:#fff;
-  font-size:13px; font-weight:700; transition:background .25s var(--ease); }
+  font-size:var(--fs-control); font-weight:var(--fw-button); transition:background .25s var(--ease); }
 .ck-email-login:hover { background:var(--blue-mid); }
-.ck-email-forgot { font-size:12.5px; font-weight:700; color:var(--blue); }
+.ck-email-forgot { font-size:var(--fs-small); font-weight:600; color:var(--blue); }
 .ck-email-forgot:hover { text-decoration:underline; }
 
 /* ════ "I AM A BUSINESS CUSTOMER" ════
@@ -183,8 +186,8 @@
 .ck-biz-box svg { width:12px; height:12px; color:#fff; }
 .ck-biz.on .ck-biz-box { background:var(--blue); border-color:var(--blue); }
 .ck-biz-text { display:flex; flex-direction:column; gap:2px; min-width:0; flex:1; }
-.ck-biz-text b { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--text); }
-.ck-biz-text span { font-size:12px; color:var(--text-sec); line-height:1.5; }
+.ck-biz-text b { font-family:'Sora',sans-serif; font-size:var(--fs-body); font-weight:600; color:var(--text); }
+.ck-biz-text span { font-size:var(--fs-small); color:var(--text-sec); line-height:1.5; }
 .ck-biz-ico { flex:none; color:var(--text-light); }
 .ck-biz-ico svg { width:18px; height:18px; }
 .ck-biz.on .ck-biz-ico { color:var(--blue); }
@@ -195,7 +198,7 @@
    halves the card without shrinking a single hit target. */
 .ck-boxed .ck-field { position:relative; }
 .ck-boxed .ck-label { position:absolute; top:9px; left:15px; z-index:1; margin:0; pointer-events:none;
-  font-size:10px; letter-spacing:.06em; color:var(--text-light); }
+  font-size:var(--fs-small); letter-spacing:.06em; color:var(--text-light); font-weight:var(--fw-small); }
 .ck-boxed .ck-input { padding:26px 14px 10px; background:#fbfcff; }
 .ck-boxed .ck-select { padding-right:34px; }
 .ck-boxed .ck-field:focus-within .ck-label { color:var(--blue); }
@@ -209,7 +212,7 @@
   background:#fff; box-shadow:0 3px 12px rgba(15,40,100,.12); transition:transform .45s var(--ease-spring); }
 .ck-seg[data-pos="1"] .ck-seg-thumb { transform:translateX(calc(100% - 5px)); }
 .ck-seg-btn { position:relative; z-index:1; display:flex; align-items:center; justify-content:center; gap:8px;
-  padding:11px 10px; font-size:13.5px; font-weight:700; color:var(--text-sec); border-radius:12px; transition:color .3s; }
+  padding:11px 10px; font-size:var(--fs-control); font-weight:var(--fw-button); color:var(--text-sec); border-radius:12px; transition:color .3s; }
 .ck-seg-btn svg { width:15px; height:15px; transition:color .3s; }
 .ck-seg-btn.act { color:var(--blue); }
 
@@ -225,11 +228,11 @@
 .ck-row-3.ck-addr { grid-template-columns:1fr 2fr 2fr; }
 .ck-row-t1 { display:grid; grid-template-columns:90px 1fr 1fr; gap:14px; }
 .ck-field { display:flex; flex-direction:column; min-width:0; }
-.ck-label { font-size:11.5px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:var(--text-sec); margin-bottom:6px; }
+.ck-label { font-size:var(--fs-small); font-weight:var(--fw-small); letter-spacing:.4px; text-transform:uppercase; color:var(--text-sec); margin-bottom:6px; }
 .ck-req { color:var(--coral); }
 .ck-input { width:100%; padding:11.5px 14px; border-radius:var(--r-sm); border:1.5px solid var(--border);
-  background:#fbfcff; font-family:inherit; font-size:14px; color:var(--text); outline:none;
-  transition:border-color .25s var(--ease), box-shadow .25s var(--ease), background .25s; }
+  background:#fbfcff; font-family:inherit; font-size:var(--fs-control); color:var(--text); outline:none;
+  transition:border-color .25s var(--ease), box-shadow .25s var(--ease), background .25s; font-weight:var(--fw-control); }
 .ck-input::placeholder { color:var(--text-light); }
 .ck-input:hover { border-color:var(--blue-soft); }
 .ck-input:focus { border-color:var(--blue); background:#fff; box-shadow:0 0 0 4px rgba(31,79,216,.1); }
@@ -237,13 +240,13 @@
   background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%235e7291' stroke-width='2.5' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 13px center; }
 .ck-textarea { resize:vertical; min-height:58px; }
-.ck-hint { font-size:11px; color:var(--text-light); margin-top:5px; }
-.ck-errmsg { font-size:11.5px; font-weight:600; color:var(--coral); margin-top:5px; animation:ckFadeUp .3s var(--ease) both; }
+.ck-hint { font-size:var(--fs-small); color:var(--text-light); margin-top:5px; }
+.ck-errmsg { font-size:var(--fs-small); font-weight:600; color:var(--coral); margin-top:5px; animation:ckFadeUp .3s var(--ease) both; }
 .ck-field.ck-err .ck-input { border-color:var(--coral); background:#fff7f7; box-shadow:0 0 0 4px rgba(255,107,107,.1); animation:ckShake .4s var(--ease); }
-.ck-subhead { display:flex; align-items:center; gap:8px; font-family:'Sora',sans-serif; font-size:13px; font-weight:700;
+.ck-subhead { display:flex; align-items:center; gap:8px; font-family:'Sora',sans-serif; font-size:var(--fs-card-title); font-weight:var(--fw-card-title);
   color:var(--text); margin-top:12px; padding-top:16px; border-top:1px dashed var(--border); }
 .ck-subhead svg { width:15px; height:15px; color:var(--blue); }
-.ck-subhead small { font-weight:500; color:var(--text-light); font-family:'DM Sans',sans-serif; }
+.ck-subhead small { font-weight:400; color:var(--text-light); font-family:'DM Sans',sans-serif; }
 
 /* custom checkbox */
 .ck-check { display:flex; align-items:flex-start; gap:10px; cursor:pointer; user-select:none; padding:2px 0; }
@@ -254,8 +257,8 @@
 .ck-check.on .ck-check-box { background:linear-gradient(135deg,var(--blue),var(--blue-mid)); border-color:transparent;
   box-shadow:0 3px 10px rgba(31,79,216,.3); transform:scale(1.05); }
 .ck-check.on .ck-check-box svg { animation:ckPop .35s var(--ease-spring) both; }
-.ck-check-label { font-size:13px; font-weight:600; color:var(--text); line-height:1.5; }
-.ck-check-label small { color:var(--text-light); font-weight:500; }
+.ck-check-label { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text); line-height:1.5; }
+.ck-check-label small { color:var(--text-light); font-weight:400; }
 .ck-check:hover .ck-check-box { border-color:var(--blue-soft); }
 .ck-err > .ck-check .ck-check-box { border-color:var(--coral); animation:ckShake .4s var(--ease); }
 
@@ -270,21 +273,21 @@
 .ck-trav-head { display:flex; align-items:center; gap:11px; flex-wrap:wrap;
   padding:16px 0 14px; margin-bottom:18px; border-bottom:1px solid var(--border-light); }
 .ck-trav-av { width:34px; height:34px; border-radius:11px; flex-shrink:0; display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-family:'Sora',sans-serif; font-size:14px; font-weight:800;
+  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; font-family:'Sora',sans-serif; font-size:var(--fs-small); font-weight:700;
   box-shadow:0 4px 12px rgba(31,79,216,.28); }
-.ck-trav-name { font-size:14.5px; font-weight:700; letter-spacing:-.2px; }
+.ck-trav-name { font-size:var(--fs-card-title); font-weight:var(--fw-card-title); letter-spacing:-.2px; }
 .ck-lead-badge { display:inline-flex; align-items:center; gap:5px; padding:4.5px 11px; border-radius:var(--r-full);
-  background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); font-size:10.5px; font-weight:800;
+  background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow); font-size:var(--fs-micro); font-weight:700;
   text-transform:uppercase; letter-spacing:.4px; }
 .ck-lead-badge svg { width:11px; height:11px; }
 .ck-age-badge { display:inline-flex; align-items:center; padding:4.5px 11px; border-radius:var(--r-full);
-  font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px;
+  font-size:var(--fs-micro); font-weight:700; text-transform:uppercase; letter-spacing:.4px;
   animation:ckPop .4s var(--ease-spring) both; }
 .ck-age-badge.adt { background:var(--blue-bg); color:var(--blue); }
 .ck-age-badge.chd { background:var(--sun-warm); color:#c47207; }
 .ck-age-badge.inf { background:#fdeef5; color:#d6336c; }
 .ck-trav-actions { margin-left:auto; display:flex; align-items:center; gap:8px; }
-.ck-link-btn { display:inline-flex; align-items:center; gap:5px; font-size:12px; font-weight:700; color:var(--blue);
+.ck-link-btn { display:inline-flex; align-items:center; gap:5px; font-size:var(--fs-small); font-weight:600; color:var(--blue);
   padding:6px 11px; border-radius:var(--r-full); background:var(--blue-pale); transition:all .25s var(--ease); }
 .ck-link-btn:hover { background:var(--blue-bg); transform:translateY(-1px); }
 .ck-link-btn svg { width:12px; height:12px; }
@@ -293,7 +296,7 @@
 .ck-remove-btn:hover { background:#ffecec; color:var(--coral); transform:rotate(90deg); }
 .ck-remove-btn svg { width:13px; height:13px; }
 .ck-add-trav { display:flex; align-items:center; justify-content:center; gap:9px; width:100%; padding:14px;
-  border:1.5px dashed var(--blue-soft); border-radius:var(--r-md); color:var(--blue); font-size:13.5px; font-weight:700;
+  border:1.5px dashed var(--blue-soft); border-radius:var(--r-md); color:var(--blue); font-size:var(--fs-control); font-weight:var(--fw-button);
   background:var(--blue-pale); transition:all .3s var(--ease); }
 .ck-add-trav:hover { background:var(--blue-bg); border-style:solid; transform:translateY(-1px); box-shadow:var(--shadow-sm); }
 .ck-add-trav svg { width:15px; height:15px; }
@@ -309,7 +312,7 @@
 .ck-ins.feat.act { border-color:var(--sun); box-shadow:0 10px 30px rgba(255,159,28,.18); }
 .ck-ins-pop { position:absolute; top:-11px; right:14px; display:inline-flex; align-items:center; gap:5px;
   padding:4px 12px; border-radius:var(--r-full); background:linear-gradient(135deg,var(--sun),var(--gold));
-  color:var(--dark); font-size:10.5px; font-weight:800; text-transform:uppercase; letter-spacing:.4px;
+  color:var(--dark); font-size:var(--fs-micro); font-weight:700; text-transform:uppercase; letter-spacing:.4px;
   box-shadow:0 4px 12px rgba(255,159,28,.35); }
 .ck-ins-pop svg { width:11px; height:11px; }
 .ck-ins-top { display:flex; align-items:center; justify-content:space-between; }
@@ -321,15 +324,15 @@
   transition:border-color .3s; }
 .ck-ins.act .ck-ins-radio { border-color:var(--blue); }
 .ck-ins-radio i { width:11px; height:11px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); animation:ckPop .3s var(--ease-spring) both; }
-.ck-ins-name { font-size:14.5px; font-weight:700; letter-spacing:-.2px; }
-.ck-ins-desc { font-size:12px; color:var(--text-sec); line-height:1.5; }
+.ck-ins-name { font-size:var(--fs-card-title); font-weight:var(--fw-card-title); letter-spacing:-.2px; }
+.ck-ins-desc { font-size:var(--fs-small); color:var(--text-sec); line-height:1.5; }
 .ck-ins-covers { display:flex; flex-direction:column; gap:5px; margin-top:2px; }
-.ck-ins-cover { display:flex; align-items:center; gap:7px; font-size:11.5px; font-weight:600; color:var(--text-sec); }
+.ck-ins-cover { display:flex; align-items:center; gap:7px; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); }
 .ck-ins-cover svg { width:12px; height:12px; color:var(--green); flex-shrink:0; }
 .ck-ins-price { margin-top:auto; padding-top:10px; border-top:1px dashed var(--border); display:flex; align-items:baseline; gap:7px; }
-.ck-ins-price b { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--blue); }
+.ck-ins-price b { font-family:'Sora',sans-serif; font-size:var(--fs-card-title); font-weight:700; color:var(--blue); }
 .ck-ins.feat .ck-ins-price b { color:#c47207; }
-.ck-ins-price small { font-size:11px; color:var(--text-light); font-weight:600; }
+.ck-ins-price small { font-size:var(--fs-small); color:var(--text-light); font-weight:var(--fw-small); }
 
 /* insurance details slide-down */
 .ck-ins-details { display:grid; grid-template-rows:0fr; opacity:0; visibility:hidden; transition:grid-template-rows .55s var(--ease), opacity .45s var(--ease), margin-top .45s var(--ease), visibility 0s .55s; margin-top:0; }
@@ -339,18 +342,18 @@
 .ck-ins-details.open .ck-ins-details-in { padding:18px; }
 .ck-ins-details:not(.open) .ck-ins-details-in { padding:0 18px; border-width:0; }
 .ck-ins-meta { display:flex; flex-direction:column; gap:10px; }
-.ck-ins-meta-item { font-size:12.5px; color:var(--text-sec); display:flex; align-items:flex-start; gap:8px; flex-wrap:wrap; line-height:1.55; }
+.ck-ins-meta-item { font-size:var(--fs-small); color:var(--text-sec); display:flex; align-items:flex-start; gap:8px; flex-wrap:wrap; line-height:1.55; }
 .ck-ins-meta-item svg { width:14px; height:14px; color:var(--blue); flex-shrink:0; margin-top:2px; }
 .ck-ins-meta-item b { color:var(--text); }
 .ck-ins-chips { display:flex; gap:7px; flex-wrap:wrap; width:100%; margin-top:4px; }
 .ck-chip-check { display:inline-flex; align-items:center; gap:6px; padding:6px 12px; border-radius:var(--r-full);
-  background:#fff; border:1px solid var(--blue-soft); font-size:12px; font-weight:600; color:var(--text); }
+  background:#fff; border:1px solid var(--blue-soft); font-size:var(--fs-small); font-weight:600; color:var(--text); }
 .ck-chip-check svg { width:12px; height:12px; color:var(--green); }
 
 /* ════ PAYMENT ════ */
 /* Pay in full / pay a deposit (only when SUNSKY offers a deposit on the trip) */
 .ck-plan-wrap { margin-bottom:22px; animation:ckFadeUp .45s var(--ease) both; }
-.ck-plan-lbl { font-size:12px; font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
+.ck-plan-lbl { font-size:var(--fs-micro); font-weight:700; color:var(--text-sec); text-transform:uppercase; letter-spacing:.5px; margin-bottom:10px; }
 .ck-plan { display:grid; grid-template-columns:1fr 1fr; gap:11px; }
 .ck-plan-opt { position:relative; display:flex; align-items:center; gap:12px; padding:15px 16px; text-align:left;
   border:1.5px solid var(--border); border-radius:var(--r-md); background:#fbfdff; cursor:pointer; transition:all .3s var(--ease); }
@@ -362,35 +365,35 @@
 .ck-plan-opt.act .ck-plan-radio { border-color:var(--blue); }
 .ck-plan-radio i { width:10px; height:10px; border-radius:50%; background:linear-gradient(135deg,var(--blue),var(--blue-mid)); animation:ckPop .3s var(--ease-spring) both; }
 .ck-plan-text { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
-.ck-plan-text b { font-size:14px; font-weight:700; color:var(--text); letter-spacing:-.2px; }
-.ck-plan-text small { font-size:12px; color:var(--text-sec); line-height:1.4; }
-.ck-plan-amt { display:flex; flex-direction:column; align-items:flex-end; font-family:'Sora',sans-serif; font-size:17px; font-weight:800;
+.ck-plan-text b { font-size:var(--fs-body); font-weight:600; color:var(--text); letter-spacing:-.2px; }
+.ck-plan-text small { font-size:var(--fs-small); color:var(--text-sec); line-height:1.4; }
+.ck-plan-amt { display:flex; flex-direction:column; align-items:flex-end; font-family:'Sora',sans-serif; font-size:var(--fs-card-title); font-weight:700;
   color:var(--text); white-space:nowrap; line-height:1.1; }
 .ck-plan-opt.act .ck-plan-amt { color:var(--blue); }
-.ck-plan-amt small { font-family:'DM Sans',sans-serif; font-size:10.5px; font-weight:700; color:var(--text-light); text-transform:uppercase; letter-spacing:.4px; }
+.ck-plan-amt small { font-family:'DM Sans',sans-serif; font-size:var(--fs-micro); font-weight:700; color:var(--text-light); text-transform:uppercase; letter-spacing:.4px; }
 .ck-plan-note { display:flex; align-items:flex-start; gap:8px; margin:11px 0 0; padding:10px 13px; border-radius:var(--r-sm);
-  background:var(--sun-warm); border:1px solid rgba(255,159,28,.3); font-size:12.5px; font-weight:500; color:#8a5300; line-height:1.5;
+  background:var(--sun-warm); border:1px solid rgba(255,159,28,.3); font-size:var(--fs-small); font-weight:var(--fw-small); color:#8a5300; line-height:1.5;
   animation:ckFadeUp .35s var(--ease) both; }
 .ck-plan-note svg { width:14px; height:14px; flex-shrink:0; margin-top:2px; }
 
 /* the deposit split under the summary total */
 .ck-sum-split { margin-top:8px; border:1px solid var(--border); border-radius:var(--r-sm); background:#fff; overflow:hidden;
   animation:ckFadeUp .35s var(--ease) both; }
-.ck-sum-split-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 13px; font-size:12.5px; color:var(--text-sec); }
+.ck-sum-split-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:9px 13px; font-size:var(--fs-small); color:var(--text-sec); }
 .ck-sum-split-row + .ck-sum-split-row { border-top:1px dashed var(--border); }
 .ck-sum-split-row span { display:flex; align-items:center; gap:7px; }
 .ck-sum-split-row span svg { width:13px; height:13px; color:var(--text-light); flex-shrink:0; }
-.ck-sum-split-row b { font-family:'Sora',sans-serif; font-weight:800; color:var(--text); }
+.ck-sum-split-row b { font-family:'Sora',sans-serif; font-weight:700; color:var(--text); }
 .ck-sum-split-row.now { background:linear-gradient(165deg,#f4f8ff,#fff); color:var(--text); font-weight:600; }
 .ck-sum-split-row.now span svg { color:var(--blue); }
-.ck-sum-split-row.now b { color:var(--blue); font-size:14.5px; }
+.ck-sum-split-row.now b { color:var(--blue); font-size:var(--fs-body); }
 
 .ck-pm-row { display:grid; grid-template-columns:repeat(4,1fr); gap:11px; margin-bottom:22px; }
 .ck-pm { position:relative; display:flex; flex-direction:column; align-items:center; gap:7px; padding:15px 8px 13px;
   border:1.5px solid var(--border); border-radius:var(--r-md); background:#fbfdff; cursor:pointer; transition:all .3s var(--ease); }
 .ck-pm:hover { border-color:var(--blue-soft); transform:translateY(-2px); box-shadow:var(--shadow-sm); }
 .ck-pm.act { border-color:var(--blue); background:linear-gradient(165deg,#f4f8ff,#fff); box-shadow:0 8px 24px rgba(31,79,216,.13); }
-.ck-pm-label { font-size:12px; font-weight:700; color:var(--text-sec); }
+.ck-pm-label { font-size:var(--fs-small); font-weight:600; color:var(--text-sec); }
 .ck-pm.act .ck-pm-label { color:var(--blue); }
 .ck-pm-radio { position:absolute; top:8px; right:8px; width:16px; height:16px; border-radius:50%; border:2px solid var(--border);
   display:flex; align-items:center; justify-content:center; transition:border-color .3s; }
@@ -398,14 +401,14 @@
 .ck-pm-radio i { width:7px; height:7px; border-radius:50%; background:var(--blue); animation:ckPop .3s var(--ease-spring) both; }
 /* mini payment logos */
 .ck-pm-cards { display:flex; align-items:center; gap:5px; height:22px; }
-.ck-pm-cards .v { font-style:italic; font-weight:900; font-size:13px; letter-spacing:-.5px; color:#1434cb; font-family:'Sora',sans-serif; }
+.ck-pm-cards .v { font-style:italic; font-weight:700; font-size:var(--fs-small); letter-spacing:-.5px; color:#1434cb; font-family:'Sora',sans-serif; }
 .ck-pm-cards .m { display:flex; }
 .ck-pm-cards .m b { width:14px; height:14px; border-radius:50%; background:#eb001b; }
 .ck-pm-cards .m b + b { background:#f79e1b; margin-left:-6px; mix-blend-mode:multiply; }
-.ck-pm-ideal { height:22px; display:flex; align-items:center; font-family:'Sora',sans-serif; font-weight:800; font-size:14px; color:#cc0066; font-style:italic; }
-.ck-pm-bc { height:22px; display:flex; align-items:center; font-family:'Sora',sans-serif; font-weight:800; font-size:14px; color:#004e91; }
+.ck-pm-ideal { height:22px; display:flex; align-items:center; font-family:'Sora',sans-serif; font-weight:700; font-size:var(--fs-small); color:#cc0066; font-style:italic; }
+.ck-pm-bc { height:22px; display:flex; align-items:center; font-family:'Sora',sans-serif; font-weight:700; font-size:var(--fs-small); color:#004e91; }
 .ck-pm-bc i { font-style:normal; color:#ffbe00; }
-.ck-pm-pp { height:22px; display:flex; align-items:center; font-family:'Sora',sans-serif; font-weight:800; font-size:14px; color:#003087; font-style:italic; }
+.ck-pm-pp { height:22px; display:flex; align-items:center; font-family:'Sora',sans-serif; font-weight:700; font-size:var(--fs-small); color:#003087; font-style:italic; }
 .ck-pm-pp i { color:#009cde; font-style:italic; }
 
 /* credit-card preview + form */
@@ -428,12 +431,12 @@
 .ck-cc-chip { width:42px; height:32px; border-radius:7px; background:linear-gradient(135deg,var(--gold),#e2a93b 60%,var(--gold));
   position:relative; box-shadow:inset 0 0 0 1px rgba(0,0,0,.18); }
 .ck-cc-chip::after { content:''; position:absolute; inset:7px 5px; border:1px solid rgba(0,0,0,.25); border-radius:4px; }
-.ck-cc-num { font-family:'Sora',sans-serif; font-size:clamp(15px,1.6vw,19px); font-weight:600; letter-spacing:2.5px; word-spacing:4px; white-space:nowrap; }
+.ck-cc-num { font-family:'Sora',sans-serif; font-size:var(--fs-card-title); font-weight:var(--fw-card-title); letter-spacing:2.5px; word-spacing:4px; white-space:nowrap; }
 .ck-cc-bottom { display:flex; align-items:flex-end; gap:18px; }
-.ck-cc-bottom small { display:block; font-size:8.5px; letter-spacing:1px; text-transform:uppercase; opacity:.6; }
-.ck-cc-bottom span { font-size:12.5px; font-weight:600; letter-spacing:.6px; }
+.ck-cc-bottom small { display:block; font-size:var(--fs-micro); letter-spacing:1px; text-transform:uppercase; opacity:.6; }
+.ck-cc-bottom span { font-size:var(--fs-small); font-weight:600; letter-spacing:.6px; }
 .ck-cc-bottom > div:first-child { flex:1; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
-.ck-cc-brand { margin-left:auto; font-family:'Sora',sans-serif; font-weight:800; font-style:italic; font-size:15px; letter-spacing:.4px; opacity:.95; }
+.ck-cc-brand { margin-left:auto; font-family:'Sora',sans-serif; font-weight:700; font-style:italic; font-size:var(--fs-body); letter-spacing:.4px; opacity:.95; }
 .ck-mc { display:flex; }
 .ck-mc b { width:20px; height:20px; border-radius:50%; background:#eb001b; opacity:.92; }
 .ck-mc b + b { background:#f79e1b; margin-left:-8px; }
@@ -441,8 +444,8 @@
 .ck-cc-mag { height:42px; background:#070e1f; margin-top:22px; }
 .ck-cc-sig { margin:0 22px; height:34px; border-radius:6px; background:repeating-linear-gradient(0deg,#fff,#fff 3px,#eef 3px,#eef 6px);
   display:flex; align-items:center; justify-content:flex-end; padding-right:12px; }
-.ck-cc-sig span { font-family:'Sora',sans-serif; font-size:13px; font-weight:700; color:var(--dark); font-style:italic; }
-.ck-cc-back-note { font-size:10px; color:rgba(255,255,255,.55); padding:0 22px; }
+.ck-cc-sig span { font-family:'Sora',sans-serif; font-size:var(--fs-small); font-weight:700; color:var(--dark); font-style:italic; }
+.ck-cc-back-note { font-size:var(--fs-small); color:rgba(255,255,255,.55); padding:0 22px; }
 .ck-pay-form { display:flex; flex-direction:column; gap:14px; min-width:0; }
 .ck-stripe-el { display:flex; align-items:center; padding:13px 14px; }
 .ck-stripe-el .StripeElement { width:100%; }
@@ -451,31 +454,31 @@
 .ck-input-ico { position:relative; }
 .ck-input-ico .ck-input { padding-right:58px; }
 .ck-input-brand { position:absolute; right:13px; top:50%; transform:translateY(-50%); font-family:'Sora',sans-serif;
-  font-size:10.5px; font-weight:800; color:var(--blue); display:flex; align-items:center; }
+  font-size:var(--fs-micro); font-weight:700; color:var(--blue); display:flex; align-items:center; }
 .ck-input-brand svg { width:17px; height:17px; color:var(--text-light); }
 .ck-alt-pay { display:flex; flex-direction:column; gap:14px; animation:ckFadeUp .45s var(--ease) both; }
 .ck-redirect-note { display:flex; align-items:flex-start; gap:10px; padding:14px 16px; border-radius:var(--r-sm);
-  background:var(--blue-pale); border:1px solid var(--blue-soft); font-size:13px; color:var(--text-sec); line-height:1.55; }
+  background:var(--blue-pale); border:1px solid var(--blue-soft); font-size:var(--fs-small); color:var(--text-sec); line-height:1.55; }
 .ck-redirect-note svg { width:16px; height:16px; color:var(--blue); flex-shrink:0; margin-top:2px; }
 .ck-redirect-note b { color:var(--text); }
 .ck-divider { height:1px; background:var(--border-light); margin:20px 0 16px; }
 .ck-a { color:var(--blue); font-weight:700; cursor:pointer; text-decoration:underline; text-underline-offset:2px; }
 .ck-secure-row { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-top:18px; padding-top:16px; border-top:1px dashed var(--border); }
 .ck-stripe-badge { display:inline-flex; align-items:center; gap:5px; padding:7px 14px; border-radius:var(--r-full);
-  background:var(--dark2); color:rgba(255,255,255,.75); font-size:11.5px; font-weight:600; }
-.ck-stripe-badge b { font-family:'Sora',sans-serif; font-weight:800; font-size:14px; color:#a7a3ff; letter-spacing:-.4px; }
-.ck-ssl { display:inline-flex; align-items:center; gap:6px; font-size:11.5px; font-weight:600; color:var(--text-sec); }
+  background:var(--dark2); color:rgba(255,255,255,.75); font-size:var(--fs-micro); font-weight:600; }
+.ck-stripe-badge b { font-family:'Sora',sans-serif; font-weight:700; font-size:var(--fs-small); color:#a7a3ff; letter-spacing:-.4px; }
+.ck-ssl { display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); }
 .ck-ssl svg { width:13px; height:13px; color:var(--green); }
 
 /* ════ NAV BUTTONS ════ */
 .ck-navbtns { display:flex; align-items:center; justify-content:space-between; gap:14px; margin-top:4px; }
 .ck-back-btn { display:inline-flex; align-items:center; gap:8px; padding:13px 22px; border-radius:var(--r-full);
-  border:1.5px solid var(--border); background:#fff; color:var(--text-sec); font-size:13.5px; font-weight:700; transition:all .3s var(--ease); }
+  border:1.5px solid var(--border); background:#fff; color:var(--text-sec); font-size:var(--fs-control); font-weight:var(--fw-button); transition:all .3s var(--ease); }
 .ck-back-btn:hover { border-color:var(--blue-soft); color:var(--blue); transform:translateX(-2px); }
 .ck-back-btn svg { width:15px; height:15px; }
 .ck-next-btn { position:relative; overflow:hidden; display:inline-flex; align-items:center; gap:9px; padding:15px 30px;
   border-radius:var(--r-full); background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow);
-  font-size:14.5px; font-weight:800; font-family:'Sora',sans-serif; letter-spacing:-.2px;
+  font-size:var(--fs-control); font-weight:var(--fw-button); font-family:'Sora',sans-serif; letter-spacing:-.2px;
   box-shadow:var(--shadow-glow); transition:all .3s var(--ease); animation:ckGlowPulse 3.2s ease-in-out infinite; }
 .ck-next-btn::before { content:''; position:absolute; top:0; bottom:0; width:46%; left:0;
   background:linear-gradient(105deg,transparent,rgba(255,255,255,.5),transparent); transform:translateX(-130%) skewX(-18deg); }
@@ -501,28 +504,28 @@
    above the photo explicitly. */
 .ck-sum-imgov { position:absolute; inset:0; z-index:2; background:linear-gradient(180deg,rgba(7,14,31,.05) 28%,rgba(7,14,31,.86)); }
 .ck-sum-imgtxt { position:absolute; left:16px; right:16px; bottom:13px; z-index:3; }
-.ck-sum-stars { color:var(--gold); font-size:12px; letter-spacing:1.5px; text-shadow:0 2px 8px rgba(0,0,0,.4); }
+.ck-sum-stars { color:var(--gold); font-size:var(--fs-micro); letter-spacing:1.5px; text-shadow:0 2px 8px rgba(0,0,0,.4); }
 /* Two lines at most, then ellipsis — "Sunis Kumköy Beach Resort Hotel & Spa" is a real name
    and a third line would push the caption off the photo. */
-.ck-sum-name { color:#fff; font-size:17px; font-weight:800; letter-spacing:-.3px; line-height:1.25; text-shadow:0 2px 10px rgba(0,0,0,.45);
+.ck-sum-name { color:#fff; font-size:var(--fs-card-title); font-weight:var(--fw-card-title); letter-spacing:-.3px; line-height:1.25; text-shadow:0 2px 10px rgba(0,0,0,.45);
   display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
-.ck-sum-loc { display:flex; align-items:center; gap:5px; color:rgba(255,255,255,.9); font-size:11.5px; margin-top:3px; text-shadow:0 1px 6px rgba(0,0,0,.4); }
+.ck-sum-loc { display:flex; align-items:center; gap:5px; color:rgba(255,255,255,.9); font-size:var(--fs-small); margin-top:3px; text-shadow:0 1px 6px rgba(0,0,0,.4); }
 .ck-sum-loc svg { width:12px; height:12px; }
 .ck-sum-body { padding:16px 18px 18px; }
 .ck-sum-chips { display:flex; flex-wrap:wrap; gap:7px; }
 .ck-sum-chip { display:inline-flex; align-items:center; gap:6px; padding:6.5px 11px; border-radius:var(--r-full);
-  background:var(--blue-pale); border:1px solid var(--border); font-size:11.5px; font-weight:600; color:var(--text-sec); }
+  background:var(--blue-pale); border:1px solid var(--border); font-size:var(--fs-small); font-weight:600; color:var(--text-sec); }
 .ck-sum-chip svg { width:12px; height:12px; color:var(--blue); }
-.ck-sum-sec { display:flex; align-items:center; gap:7px; font-family:'Sora',sans-serif; font-size:11.5px; font-weight:700;
+.ck-sum-sec { display:flex; align-items:center; gap:7px; font-family:'Sora',sans-serif; font-size:var(--fs-micro); font-weight:700;
   text-transform:uppercase; letter-spacing:.6px; color:var(--text-light); margin:16px 0 9px; }
 .ck-sum-sec svg { width:13px; height:13px; color:var(--blue); }
 .ck-sum-flight { display:flex; flex-direction:column; gap:7px; }
-.ck-sum-leg { display:flex; align-items:center; flex-wrap:wrap; gap:6px 9px; font-size:12px; }
-.ck-sum-leg-dir { width:34px; text-align:center; padding:2.5px 0; border-radius:6px; background:var(--blue-bg); color:var(--blue);
-  font-size:9.5px; font-weight:800; letter-spacing:.5px; flex-shrink:0; }
+.ck-sum-leg { display:flex; align-items:center; flex-wrap:wrap; gap:6px 9px; font-size:var(--fs-small); }
+.ck-sum-leg-dir { min-width:34px; text-align:center; padding:2.5px 5px; border-radius:6px; background:var(--blue-bg); color:var(--blue);
+  font-size:var(--fs-micro); font-weight:700; letter-spacing:.5px; flex-shrink:0; }
 .ck-sum-leg-dir.ret { background:var(--sun-warm); color:#c47207; }
-.ck-sum-leg-time { font-weight:700; color:var(--text); white-space:nowrap; }
-.ck-sum-leg-route { color:var(--text-light); font-size:11px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+.ck-sum-leg-time { font-weight:var(--fw-key); color:var(--text); white-space:nowrap; font-size:var(--fs-key); }
+.ck-sum-leg-route { color:var(--text-light); font-size:var(--fs-small); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
 /* The carrier's mark, pushed to the end of the leg row. `margin-left:auto` rather than a column,
    so it sits flush right whatever length the route text runs to. Sized small: this is the
    at-a-glance rail beside the form, not the itinerary itself.
@@ -532,7 +535,7 @@
 .ck-sum-leg-air { flex-shrink:0; width:28px; height:28px; border-radius:50%;
   display:flex; align-items:center; justify-content:center;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff;
-  font-size:12px; font-weight:800; }
+  font-size:var(--fs-micro); font-weight:700; }
 /* Round, with the name ahead of it. A wordmark inside a 20px circle is a smudge — which is
    exactly why AirlineMark prints the carrier's name first; the circle is the glance, the
    name is the fact. White ground so marks of every colour stay legible. */
@@ -541,33 +544,33 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
 /* The carrier group ends the leg row. It wraps to its own line rather than squeezing the
    name into an ellipsis beside the route. */
 .ck-sum-leg-carrier { margin-left:auto; display:inline-flex; align-items:center; gap:6px; min-width:0; }
-.ck-sum-leg-airname { font-size:11px; font-weight:700; color:var(--text-sec); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
-.ck-sum-room { display:flex; flex-direction:column; gap:1px; font-size:13px; font-weight:700; }
-.ck-sum-room small { font-size:11.5px; font-weight:500; color:var(--text-sec); }
+.ck-sum-leg-airname { font-size:var(--fs-small); font-weight:600; color:var(--text-sec); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+.ck-sum-room { display:flex; flex-direction:column; gap:1px; font-size:var(--fs-body); font-weight:600; }
+.ck-sum-room small { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); }
 .ck-sum-rows { display:flex; flex-direction:column; }
 .ck-sum-row { display:flex; align-items:center; justify-content:space-between; gap:10px; padding:7.5px 0;
-  font-size:13px; color:var(--text-sec); border-bottom:1px dashed var(--border-light); }
+  font-size:var(--fs-small); color:var(--text-sec); border-bottom:1px dashed var(--border-light); }
 .ck-sum-row b { color:var(--text); font-weight:700; }
 .ck-sum-row span { display:flex; align-items:center; gap:7px; }
 .ck-sum-row span svg { width:13px; height:13px; color:var(--green); }
 .ck-sum-row-ins { animation:ckRowIn .6s var(--ease) both; border-radius:8px; padding-left:4px; padding-right:4px; }
 .ck-sum-total { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin-top:13px;
   padding:14px 16px; border-radius:var(--r-md); background:linear-gradient(135deg,var(--dark2),#13265c); color:#fff; }
-.ck-sum-total-label { display:block; font-family:'Sora',sans-serif; font-size:13px; font-weight:700; }
-.ck-sum-total-sub { display:block; font-size:10.5px; color:rgba(255,255,255,.55); }
-.ck-sum-total-val { font-size:26px; font-weight:800; letter-spacing:-.8px; line-height:1;
+.ck-sum-total-label { display:block; font-family:'Sora',sans-serif; font-size:var(--fs-body); font-weight:600; }
+.ck-sum-total-sub { display:block; font-size:var(--fs-small); color:rgba(255,255,255,.55); }
+.ck-sum-total-val { font-size:var(--fs-price); font-weight:var(--fw-price); letter-spacing:-.8px; line-height:1;
   background:linear-gradient(135deg,var(--gold),var(--sun)); -webkit-background-clip:text; background-clip:text; -webkit-text-fill-color:transparent; }
 /* Mandatory local costs (UI-09), right under the total they are not part of. */
 .ck-sum-local { margin-top:8px; padding:0 4px; text-align:right; }
 .ck-countdown { display:flex; align-items:center; gap:8px; margin-top:12px; padding:10px 13px; border-radius:var(--r-sm);
-  background:var(--sun-warm); border:1px solid rgba(255,159,28,.3); font-size:12px; font-weight:600; color:#9a5b00; }
+  background:var(--sun-warm); border:1px solid rgba(255,159,28,.3); font-size:var(--fs-small); font-weight:600; color:#9a5b00; }
 .ck-countdown svg { width:14px; height:14px; flex-shrink:0; animation:ckPulse 2s ease-in-out infinite; }
 .ck-countdown b { font-family:'Sora',sans-serif; font-variant-numeric:tabular-nums; }
 .ck-countdown.low { background:#fff1f1; border-color:rgba(255,107,107,.4); color:#c22; }
 .ck-countdown.over { background:var(--border-light); border-color:var(--border); color:var(--text-sec); }
 .ck-countdown.over svg { animation:none; opacity:.6; }
 .ck-trust { display:flex; flex-direction:column; gap:8px; margin-top:14px; padding-top:13px; border-top:1px dashed var(--border); }
-.ck-trust-item { display:flex; align-items:center; gap:8px; font-size:12px; font-weight:600; color:var(--text-sec); }
+.ck-trust-item { display:flex; align-items:center; gap:8px; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); }
 .ck-trust-item svg { width:13px; height:13px; color:var(--green); flex-shrink:0; }
 
 /* ════ CHILD DATE OF BIRTH — locked, and the way out of it ════
@@ -575,25 +578,25 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
    reads as broken, while this reads as "we already know this". */
 .ck-dob-lock { display:flex; align-items:center; gap:10px; padding:11px 14px; border-radius:var(--r-sm);
   background:var(--blue-pale); border:1.5px solid var(--blue-bg); min-height:47px; }
-.ck-dob-val { font-family:'Sora',sans-serif; font-size:14px; font-weight:700; color:var(--text);
+.ck-dob-val { font-family:'Sora',sans-serif; font-size:var(--fs-key); font-weight:var(--fw-key); color:var(--text);
   font-variant-numeric:tabular-nums lining-nums; }
 .ck-dob-age { padding:3px 9px; border-radius:var(--r-full); background:var(--white); border:1px solid var(--border);
-  font-size:10.5px; font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-sec); }
-.ck-dob-change { margin-left:auto; font-size:12.5px; font-weight:700; color:var(--blue); }
+  font-size:var(--fs-micro); font-weight:700; letter-spacing:.04em; text-transform:uppercase; color:var(--text-sec); }
+.ck-dob-change { margin-left:auto; font-size:var(--fs-small); font-weight:600; color:var(--blue); }
 .ck-dob-change:hover { text-decoration:underline; }
 /* Amber, the one warning voice in this codebase — not red: nothing has gone wrong yet. */
 .ck-dob-warn { margin-top:12px; padding:14px 16px; border-radius:var(--r-sm);
   background:var(--sun-warm); border:1px solid #ffe9c7; animation:ckFadeUp .28s var(--ease) both; }
 .ck-dob-warn-head { display:flex; align-items:flex-start; gap:10px; }
-.ck-dob-warn-head p { font-size:13px; font-weight:600; color:#8a5200; line-height:1.55; }
+.ck-dob-warn-head p { font-size:var(--fs-small); font-weight:600; color:#8a5200; line-height:1.55; }
 .ck-dob-warn-ico { flex:none; color:#b45309; }
 .ck-dob-warn-ico svg { width:16px; height:16px; }
 .ck-dob-warn-btns { display:flex; gap:10px; margin-top:12px; flex-wrap:wrap; }
 .ck-dob-keep { padding:9px 16px; border-radius:var(--r-full); background:var(--white); border:1.5px solid #ffe0b2;
-  font-size:12.5px; font-weight:700; color:#8a5200; }
+  font-size:var(--fs-control); font-weight:var(--fw-button); color:#8a5200; }
 .ck-dob-keep:hover { border-color:#f5b95c; }
 .ck-dob-go { padding:9px 16px; border-radius:var(--r-full); background:var(--blue); color:#fff;
-  font-size:12.5px; font-weight:700; }
+  font-size:var(--fs-control); font-weight:var(--fw-button); }
 .ck-dob-go:hover { background:var(--blue-mid); }
 
 /* ════ EXTRAS: BAGGAGE, TRANSFER, INSURANCE ════
@@ -606,22 +609,22 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
   background:var(--blue-pale); border:1px solid var(--blue-bg); color:var(--blue); }
 .ck-bagkind-ico svg { width:22px; height:22px; }
 .ck-bagkind-text { display:flex; flex-direction:column; gap:3px; min-width:0; }
-.ck-bagkind-text b { font-family:'Sora',sans-serif; font-size:16px; font-weight:800; color:var(--text); letter-spacing:-.2px; }
-.ck-bagkind-text > span { font-size:12.5px; color:var(--text-sec); line-height:1.55; }
+.ck-bagkind-text b { font-family:'Sora',sans-serif; font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--text); letter-spacing:-.2px; }
+.ck-bagkind-text > span { font-size:var(--fs-small); color:var(--text-sec); line-height:1.55; }
 /* The airline's own rules, set a step quieter than the description above it: it qualifies
    that line rather than competing with it. */
-.ck-bagkind-hint { font-style:normal; font-size:11.5px; line-height:1.5; color:var(--text-light); }
+.ck-bagkind-hint { font-style:normal; font-size:var(--fs-small); line-height:1.5; color:var(--text-light); }
 .ck-kind-chips { display:flex; flex-wrap:wrap; gap:8px; margin-top:6px; }
 .ck-kind-chip { display:inline-flex; align-items:center; gap:6px; padding:5px 11px; border-radius:var(--r-full);
-  background:var(--blue-pale); border:1px solid var(--blue-bg); font-size:11.5px; font-weight:700; color:var(--blue); }
+  background:var(--blue-pale); border:1px solid var(--blue-bg); font-size:var(--fs-small); font-weight:600; color:var(--blue); }
 .ck-kind-chip svg { width:13px; height:13px; }
-.ck-kind-note { font-size:12px; color:var(--text-light); margin-top:6px; }
+.ck-kind-note { font-size:var(--fs-small); color:var(--text-light); margin-top:6px; }
 
 .ck-bagtrav { border:1.5px solid var(--border); border-radius:var(--r-md); padding:4px 16px 8px; margin-top:14px; }
 .ck-bagtrav-head { display:flex; align-items:center; gap:10px; padding:13px 0 11px; border-bottom:1px solid var(--border-light); }
 .ck-bagtrav-n { flex:none; width:24px; height:24px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  background:var(--blue); color:#fff; font-family:'Sora',sans-serif; font-size:12px; font-weight:800; }
-.ck-bagtrav-name { font-size:14px; font-weight:800; color:var(--text); }
+  background:var(--blue); color:#fff; font-family:'Sora',sans-serif; font-size:var(--fs-micro); font-weight:700; }
+.ck-bagtrav-name { font-size:var(--fs-body); font-weight:600; color:var(--text); }
 
 /* One row: which leg, what the item is, and where it stands. Three columns on a desktop so
    the states line up down the card and can be compared at a glance. */
@@ -629,31 +632,31 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
   padding:13px 0; border-bottom:1px dashed var(--border-light); }
 .ck-bagrow:last-child { border-bottom:none; }
 .ck-bagrow-dir, .ck-bagrow-item { display:inline-flex; align-items:center; gap:10px;
-  font-size:13.5px; font-weight:700; color:var(--text); }
+  font-size:var(--fs-body); font-weight:600; color:var(--text); }
 .ck-bagrow-dir svg, .ck-bagrow-item svg { width:19px; height:19px; color:var(--blue); flex:none; }
-.ck-bagrow-item { font-weight:600; color:var(--text-sec); }
+.ck-bagrow-item { font-weight:400; color:var(--text-sec); }
 .ck-bagrow-state { display:inline-flex; align-items:center; gap:10px; justify-content:flex-end; flex-wrap:wrap; }
 .ck-bagrow-state > svg { width:19px; height:19px; color:var(--green); flex:none; }
 .ck-chip-inc { padding:5px 12px; border-radius:var(--r-full); background:var(--green-light); color:#047857;
-  font-size:12px; font-weight:700; white-space:nowrap; }
-.ck-chip-not { font-size:12.5px; font-weight:600; color:var(--text-light); white-space:nowrap; }
+  font-size:var(--fs-small); font-weight:600; white-space:nowrap; }
+.ck-chip-not { font-size:var(--fs-small); font-weight:600; color:var(--text-light); white-space:nowrap; }
 .ck-chip-added { padding:5px 12px; border-radius:var(--r-full); background:var(--blue-pale); border:1px solid var(--blue-bg);
-  color:var(--blue); font-size:12px; font-weight:700; white-space:nowrap; }
+  color:var(--blue); font-size:var(--fs-small); font-weight:600; white-space:nowrap; }
 .ck-bag-add, .ck-bag-select { padding:9px 15px; border-radius:var(--r-full); border:1.5px solid var(--blue-soft);
-  background:var(--white); color:var(--blue); font-size:12.5px; font-weight:700; cursor:pointer;
+  background:var(--white); color:var(--blue); font-size:var(--fs-control); font-weight:var(--fw-button); cursor:pointer;
   transition:all .2s var(--ease); }
 .ck-bag-add:hover, .ck-bag-select:hover { border-color:var(--blue); background:var(--blue-pale); }
 .ck-bag-select { appearance:none; -webkit-appearance:none; padding-right:32px;
   background-image:url("data:image/svg+xml;charset=utf-8,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='12' viewBox='0 0 24 24' fill='none' stroke='%231f4fd8' stroke-width='3' stroke-linecap='round'%3E%3Cpath d='M6 9l6 6 6-6'/%3E%3C/svg%3E");
   background-repeat:no-repeat; background-position:right 13px center; }
-.ck-bag-remove { font-size:12px; font-weight:700; color:var(--text-light); }
+.ck-bag-remove { font-size:var(--fs-small); font-weight:600; color:var(--text-light); }
 .ck-bag-remove:hover { color:var(--coral); text-decoration:underline; }
 .ck-bag-legend { display:flex; flex-wrap:wrap; gap:18px; margin-top:16px; padding-top:14px; border-top:1px solid var(--border-light); }
-.ck-lg { display:inline-flex; align-items:center; gap:8px; font-size:12.5px; font-weight:600; color:var(--text-sec); }
+.ck-lg { display:inline-flex; align-items:center; gap:8px; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); }
 .ck-lg svg { width:15px; height:15px; }
 .ck-lg.ok svg { color:var(--green); }
 .ck-lg.add svg { color:var(--blue); }
-.ck-pick-note { margin-top:12px; font-size:12.5px; font-weight:600; color:var(--text-sec); }
+.ck-pick-note { margin-top:12px; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); }
 
 @media (max-width: 720px) {
   .ck-bagrow { grid-template-columns:1fr; gap:8px; }
@@ -671,15 +674,15 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
    a price and a Remove link. */
 .ck-bagrow { grid-template-columns:minmax(96px,.55fr) minmax(0,1.45fr) auto; }
 .ck-bag-desc { display:flex; flex-direction:column; gap:2px; min-width:0; line-height:1.3; text-align:left; }
-.ck-bag-desc > b { font-size:14px; font-weight:700; color:var(--text); }
-.ck-bag-desc > span { font-size:12px; font-weight:600; color:var(--text-light); }
+.ck-bag-desc > b { font-size:var(--fs-body); font-weight:600; color:var(--text); }
+.ck-bag-desc > span { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-light); }
 /* The price of the bag that was added: plain bold text, not a pill. The pill was the "Added"
    chip this replaces, and two pills in one row read as two statuses. */
 .ck-bagrow .ck-chip-added { padding:0; border:0; background:none; font-family:'Sora',sans-serif;
-  font-size:14px; font-weight:800; color:var(--text); }
+  font-size:var(--fs-body); font-weight:700; color:var(--text); }
 .ck-bag-sep { flex:none; width:1px; height:22px; background:var(--border); }
 .ck-bagrow .ck-bag-remove { display:inline-flex; align-items:center; gap:7px; padding:0; border:0; background:none;
-  font-size:13px; font-weight:700; color:var(--blue); cursor:pointer; }
+  font-size:var(--fs-small); font-weight:600; color:var(--blue); cursor:pointer; }
 .ck-bagrow .ck-bag-remove svg { width:16px; height:16px; flex:none; }
 .ck-bagrow .ck-bag-remove:hover { color:var(--blue-mid); text-decoration:underline; }
 .ck-bagrow .ck-bag-add { display:inline-flex; align-items:center; gap:8px; white-space:nowrap; }
@@ -697,7 +700,7 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
   animation:ckFadeIn .15s var(--ease); }
 .ck-bagmenu-opt { display:flex; align-items:center; justify-content:space-between; gap:18px; width:100%;
   padding:9px 12px; border:0; border-radius:10px; background:none; cursor:pointer; text-align:left;
-  font-family:inherit; font-size:13.5px; font-weight:600; color:var(--text); white-space:nowrap; }
+  font-family:inherit; font-size:var(--fs-body); font-weight:var(--fw-body); color:var(--text); white-space:nowrap; }
 .ck-bagmenu-opt > span:last-child { font-weight:700; }
 .ck-bagmenu-opt:hover, .ck-bagmenu-opt.act, .ck-bagmenu-opt:focus-visible { background:var(--blue-bg); outline:none; }
 /* The card holding an open menu rises above its neighbours. Every card is its own stacking
@@ -720,11 +723,11 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
    The tick on the right says "done" for the fields where done is a fact, not an opinion. */
 .ck-boxed .ck-field { position:relative; }
 .ck-boxed .ck-label { position:absolute; top:9px; left:15px; z-index:1; margin:0; pointer-events:none;
-  font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--blue); }
-.ck-boxed .ck-input { height:auto; padding:26px 15px 10px; }
-.ck-boxed select.ck-input { padding-top:25px; background-position:right 14px center; }
+  font-size:var(--fs-small); font-weight:var(--fw-small); line-height:1.2; letter-spacing:.06em; text-transform:uppercase; color:var(--blue); }
+.ck-boxed .ck-input { height:auto; padding:30px 15px 10px; }
+.ck-boxed select.ck-input { padding-top:29px; background-position:right 14px center; }
 .ck-boxed .ck-field.ck-done .ck-input { border-color:#bfe7d5; }
-.ck-boxed .ck-tick { position:absolute; right:14px; top:26px; display:flex; color:var(--green);
+.ck-boxed .ck-tick { position:absolute; right:14px; top:31px; display:flex; color:var(--green);
   animation:ckPop .3s var(--ease-spring) both; }
 .ck-boxed .ck-tick svg { width:15px; height:15px; }
 .ck-boxed select.ck-input + .ck-tick { right:34px; }   /* clear of the chevron */
@@ -738,13 +741,13 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
 .ck-tvf-grid { display:grid; grid-template-columns:1fr 1fr; gap:18px 24px; padding-top:4px; }
 .ck-tvf-full { grid-column:1 / -1; }
 .ck-tvf { min-width:0; }
-.ck-tvf-label { display:block; margin-bottom:7px; font-size:12.5px; font-weight:700; color:var(--text); }
+.ck-tvf-label { display:block; margin-bottom:7px; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text); }
 .ck-tvf-label .ck-req { color:var(--coral); }
 .ck-tvf-row { display:flex; align-items:center; gap:11px; }
 .ck-tvf-control { flex:1; min-width:0; }
 .ck-tvf-tick { flex:none; width:18px; height:18px; display:flex; align-items:center; justify-content:center; color:var(--green); }
 .ck-tvf-tick svg { width:17px; height:17px; animation:ckPop .3s var(--ease-spring) both; }
-.ck-tvf .ck-input { height:48px; }
+.ck-tvf .ck-input { min-height:48px; }
 .ck-tvf .ck-errmsg, .ck-tvf .ck-hint { margin-top:5px; padding-right:29px; }
 .ck-tvf.ck-err .ck-input, .ck-tvf.ck-err select.ck-input { border-color:var(--coral); }
 /* The locked child date sits in the same 48px band as every other control. */
@@ -756,11 +759,11 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
 
 /* Gender — two options, so radios rather than a dropdown that hides both. */
 .ck-genderline { display:flex; align-items:center; gap:16px; flex-wrap:wrap; margin-bottom:14px; }
-.ck-genderline-label { font-size:10px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; color:var(--blue); }
+.ck-genderline-label { font-size:var(--fs-small); font-weight:var(--fw-small); letter-spacing:.06em; text-transform:uppercase; color:var(--blue); }
 .ck-genderline.ck-err .ck-radio-dot { border-color:var(--coral); }
 .ck-radio-row { display:flex; align-items:center; gap:20px; }
 .ck-radio { display:inline-flex; align-items:center; gap:8px; cursor:pointer; user-select:none;
-  font-size:13.5px; font-weight:600; color:var(--text-sec); }
+  font-size:var(--fs-control); font-weight:var(--fw-control); color:var(--text-sec); }
 .ck-radio input { position:absolute; opacity:0; pointer-events:none; }
 .ck-radio-dot { width:18px; height:18px; border-radius:50%; border:2px solid var(--border); flex:none;
   display:flex; align-items:center; justify-content:center; transition:border-color .2s var(--ease); }
@@ -779,8 +782,8 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
 .ck-biz-box svg { width:12px; height:12px; color:#fff; }
 .ck-biz.on .ck-biz-box { background:linear-gradient(135deg,var(--blue),var(--blue-mid)); border-color:transparent; }
 .ck-biz-text { display:flex; flex-direction:column; gap:2px; min-width:0; }
-.ck-biz-text b { font-size:13.5px; font-weight:700; color:var(--text); }
-.ck-biz-text span { font-size:12px; color:var(--text-sec); line-height:1.5; }
+.ck-biz-text b { font-size:var(--fs-body); font-weight:600; color:var(--text); }
+.ck-biz-text span { font-size:var(--fs-small); color:var(--text-sec); line-height:1.5; }
 .ck-biz-ico { margin-left:auto; color:var(--blue-soft); flex:none; }
 .ck-biz-ico svg { width:18px; height:18px; }
 .ck-biz.on .ck-biz-ico { color:var(--blue); }
@@ -791,7 +794,7 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
 .ck-leadbook.on { background:var(--blue-pale); }
 
 /* A legend line for a price that is ours rather than the airline's — said once, quietly. */
-.ck-lg.note { color:var(--text-light); font-weight:600; }
+.ck-lg.note { color:var(--text-light); font-weight:400; }
 
 /* Traveller heading: number, then who this row is for once we know. */
 .ck-trav-who { font-weight:600; color:var(--text-sec); }
@@ -802,37 +805,37 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
    the traveller is checking this against in their head. */
 .ck-ov-grid { display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:16px 24px; }
 .ck-ov-item { display:flex; flex-direction:column; gap:3px; min-width:0; }
-.ck-ov-k { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); }
-.ck-ov-v { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:700; color:var(--text); overflow-wrap:anywhere; }
+.ck-ov-k { font-size:var(--fs-micro); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); }
+.ck-ov-v { font-family:'Sora',sans-serif; font-size:var(--fs-key); font-weight:var(--fw-key); color:var(--text); overflow-wrap:anywhere; }
 .ck-ov-block { margin-top:22px; padding-top:18px; border-top:1px solid var(--border-light); }
-.ck-ov-title { font-size:13px; font-weight:800; color:var(--blue); margin-bottom:8px; }
-.ck-ov-line { font-size:13.5px; color:var(--text); line-height:1.6; }
+.ck-ov-title { font-size:var(--fs-body); font-weight:600; color:var(--blue); margin-bottom:8px; }
+.ck-ov-line { font-size:var(--fs-body); color:var(--text); line-height:1.6; }
 /* Room and board names are always shown in capitals. Done in CSS, never in the string: these
    values travel into the reservation payload, and a shouted room name is what the supplier
    would then be sent. Wrapping the display keeps the data exactly as quoted. */
 .ck-caps { text-transform:uppercase; }
-.ck-ov-sub { font-size:12.5px; color:var(--text-sec); line-height:1.6; }
+.ck-ov-sub { font-size:var(--fs-small); color:var(--text-sec); line-height:1.6; }
 /* Carrier line on the review step: name then mark, on one baseline. `inline-flex` rather than
    block, so it keeps sitting under the route line the way the plain name always did. */
 .ck-ov-air { display:inline-flex; align-items:center; gap:7px; }
 .ck-air-mark { flex-shrink:0; width:32px; height:32px; border-radius:50%;
   display:inline-flex; align-items:center; justify-content:center;
   background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff;
-  font-size:13px; font-weight:800; }
+  font-size:var(--fs-small); font-weight:700; }
 img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding:2px;
   object-fit:contain; object-position:center; }
-.ck-air-name { font-size:12.5px; font-weight:700; color:var(--text); }
+.ck-air-name { font-size:var(--fs-small); font-weight:600; color:var(--text); }
 .ck-ov-flights { display:flex; flex-direction:column; gap:12px; }
 .ck-ov-flight { display:flex; flex-direction:column; gap:2px; }
-.ck-ov-dir { font-size:10.5px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); }
+.ck-ov-dir { font-size:var(--fs-micro); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); }
 
 /* ════ CONDITIONS & BOOKING ════ */
 .ck-cond { margin:6px 0 14px; padding:16px 18px 14px; border-radius:var(--r-md); background:var(--blue-pale); border:1px solid var(--border-light); }
 .ck-cond-err { border-color:#f5b5bb; background:#fff7f8; }
 .ck-cond-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; }
-.ck-cond-title { font-size:14px; font-weight:800; color:var(--blue); }
+.ck-cond-title { font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--blue); }
 /* How many are still outstanding, so nobody hunts for the one box they missed. */
-.ck-cond-count { font-size:11px; font-weight:800; color:var(--blue); background:rgba(31,79,216,.09);
+.ck-cond-count { font-size:var(--fs-micro); font-weight:700; color:var(--blue); background:rgba(31,79,216,.09);
   padding:3px 9px; border-radius:999px; letter-spacing:.02em; flex-shrink:0; }
 .ck-cond-list { display:flex; flex-direction:column; list-style:none; margin:0; padding:0; }
 .ck-cond-list li { margin:0; }
@@ -853,12 +856,12 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   border-color:var(--blue-deep,#1f4fd8); box-shadow:0 3px 10px rgba(31,79,216,.28); }
 .ck-cond-item.on .ck-cond-box svg { opacity:1; }
 .ck-cond-item input:focus-visible + .ck-cond-box { outline:2px solid var(--blue-mid,#3b82f6); outline-offset:2px; }
-.ck-cond-text { font-size:12.5px; line-height:1.62; color:var(--text-sec); }
+.ck-cond-text { font-size:var(--fs-small); line-height:1.62; color:var(--text-sec); }
 .ck-cond-item.on .ck-cond-text { color:var(--text); }
 /* Links inside a condition must not break mid-phrase — "general travel conditions" reads as
    one thing, and the underline made a mid-phrase wrap look like a strikethrough. */
 .ck-cond-text .ck-a { white-space:nowrap; }
-.ck-cond-foot { font-size:11.5px; line-height:1.5; color:var(--text-light); margin-top:10px;
+.ck-cond-foot { font-size:var(--fs-small); line-height:1.5; color:var(--text-light); margin-top:10px;
   padding-top:10px; border-top:1px solid rgba(31,79,216,.08); }
 .ck-cond-errmsg { margin-top:8px; }
 
@@ -869,7 +872,7 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 .ck-ins-legal { display:flex; align-items:flex-start; gap:11px; margin-top:18px; padding:14px 16px; border-radius:var(--r-md);
   background:var(--blue-pale); border:1px solid var(--border-light); }
 .ck-ins-legal svg { width:16px; height:16px; flex:none; color:var(--blue); margin-top:1px; }
-.ck-ins-legal p { font-size:12.5px; line-height:1.6; color:var(--text-sec); }
+.ck-ins-legal p { font-size:var(--fs-small); line-height:1.6; color:var(--text-sec); }
 /* The conditions link sits inside that paragraph, so it is underlined rather than made
    into a button: it is a reference inside a sentence, not an action on the booking. */
 .ck-ins-terms { color:var(--blue); font-weight:700; text-decoration:underline; text-underline-offset:2px; }
@@ -879,7 +882,7 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
    A radio list, not cards: one choice for the whole booking, read top to bottom against one
    another. Prices sit right-aligned on a common edge so they compare at a glance. */
 .ck-optional-pill { margin-left:auto; padding:5px 12px; border-radius:var(--r-full); background:var(--blue-pale);
-  border:1px solid var(--blue-bg); font-size:11px; font-weight:700; color:var(--blue); letter-spacing:.02em; }
+  border:1px solid var(--blue-bg); font-size:var(--fs-micro); font-weight:700; color:var(--blue); letter-spacing:.02em; }
 .ck-tr-list { display:flex; flex-direction:column; gap:10px; }
 .ck-tr { display:flex; align-items:center; gap:13px; width:100%; text-align:left; padding:14px 16px;
   border-radius:var(--r-md); border:1.5px solid var(--border); background:var(--white);
@@ -891,32 +894,32 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 .ck-tr.act .ck-tr-radio { border-color:var(--blue); }
 .ck-tr-radio i { width:10px; height:10px; border-radius:50%; background:var(--blue); }
 .ck-tr-main { display:flex; flex-direction:column; gap:3px; min-width:0; flex:1; }
-.ck-tr-name { display:flex; align-items:center; gap:8px; font-size:14px; font-weight:800; color:var(--text); }
+.ck-tr-name { display:flex; align-items:center; gap:8px; font-size:var(--fs-body); font-weight:600; color:var(--text); }
 .ck-tr-name em { font-style:normal; padding:2px 8px; border-radius:var(--r-full); background:var(--border-light);
-  font-size:10.5px; font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--text-sec); }
-.ck-tr-sub { font-size:12px; color:var(--text-sec); overflow-wrap:anywhere; }
+  font-size:var(--fs-micro); font-weight:700; letter-spacing:.03em; text-transform:uppercase; color:var(--text-sec); }
+.ck-tr-sub { font-size:var(--fs-small); color:var(--text-sec); overflow-wrap:anywhere; }
 /* The product category ("Premium"), which is the only thing separating two otherwise
    identical shuttle rows, and the legs the price actually covers. */
 .ck-tr-cat { display:inline-block; margin-left:8px; padding:2px 8px; border-radius:var(--r-full);
   background:var(--blue-pale); border:1px solid var(--blue-bg); font-family:inherit;
-  font-size:11px; font-weight:800; color:var(--blue); letter-spacing:.01em; vertical-align:middle; }
+  font-size:var(--fs-micro); font-weight:700; color:var(--blue); letter-spacing:.01em; vertical-align:middle; }
 .ck-tr-legs { display:flex; flex-wrap:wrap; gap:6px 14px; margin-top:6px; }
-.ck-tr-leg { display:inline-flex; align-items:center; gap:5px; font-size:11.5px; font-weight:700; color:var(--green, #0B7A57); }
+.ck-tr-leg { display:inline-flex; align-items:center; gap:5px; font-size:var(--fs-small); font-weight:600; color:var(--green, #0B7A57); }
 .ck-tr-leg svg { width:13px; height:13px; }
-.ck-tr-leg.off { color:var(--text-light); font-weight:600; }
+.ck-tr-leg.off { color:var(--text-light); font-weight:400; }
 .ck-tr-price { flex:none; display:flex; flex-direction:column; align-items:flex-end; line-height:1.15;
-  font-family:'Sora',sans-serif; font-size:17px; font-weight:800; color:var(--text);
+  font-family:'Sora',sans-serif; font-size:var(--fs-card-title); font-weight:700; color:var(--text);
   font-variant-numeric:tabular-nums lining-nums; }
-.ck-tr-price small { font-family:'DM Sans',sans-serif; font-size:10px; font-weight:700; letter-spacing:.06em;
+.ck-tr-price small { font-family:'DM Sans',sans-serif; font-size:var(--fs-micro); font-weight:700; letter-spacing:.06em;
   text-transform:uppercase; color:var(--text-light); }
-.ck-tr-note { display:flex; align-items:center; gap:8px; margin-top:4px; font-size:12px; color:var(--text-sec); }
+.ck-tr-note { display:flex; align-items:center; gap:8px; margin-top:4px; font-size:var(--fs-small); color:var(--text-sec); }
 .ck-tr-note svg { width:13px; height:13px; color:var(--green); flex:none; }
 .ck-tr-wait, .ck-tr-err { display:flex; align-items:center; gap:10px; padding:16px; border-radius:var(--r-md);
-  font-size:13px; font-weight:600; color:var(--text-sec); background:var(--border-light); }
+  font-size:var(--fs-small); font-weight:600; color:var(--text-sec); background:var(--border-light); }
 .ck-tr-err { background:var(--sun-warm); border:1px solid #ffe9c7; color:#8a5200; }
 .ck-tr-err svg { width:15px; height:15px; flex:none; }
 .ck-ins-by { display:inline-block; margin-bottom:6px; padding:2px 9px; border-radius:var(--r-full);
-  background:var(--blue-pale); border:1px solid var(--blue-bg); font-size:10.5px; font-weight:700; color:var(--blue); }
+  background:var(--blue-pale); border:1px solid var(--blue-bg); font-size:var(--fs-micro); font-weight:700; color:var(--blue); }
 
 /* ════ NON-REFUNDABLE ACCOMMODATION ════
    Amber, the codebase's warning voice — not red. Nothing has gone wrong; the traveller is
@@ -924,8 +927,8 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 .ck-nr { margin:4px 0 14px; padding:15px 17px; border-radius:var(--r-md);
   background:var(--sun-warm); border:1px solid #ffe9c7; }
 .ck-nr-head { display:flex; align-items:flex-start; gap:11px; }
-.ck-nr-head b { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:#8a5200; }
-.ck-nr-head p { font-size:12.5px; color:#8a5200; line-height:1.6; margin-top:4px; }
+.ck-nr-head b { font-family:'Sora',sans-serif; font-size:var(--fs-body); font-weight:600; color:#8a5200; }
+.ck-nr-head p { font-size:var(--fs-small); color:#8a5200; line-height:1.6; margin-top:4px; }
 .ck-nr-ico { flex:none; width:26px; height:26px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   background:#fff; color:#b45309; }
 .ck-nr-ico svg { width:14px; height:14px; }
@@ -941,8 +944,8 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   background:var(--blue-pale); animation:ckFadeUp .3s var(--ease) both; }
 .ck-rp-row { display:flex; align-items:flex-start; gap:12px; }
 .ck-rp-row div { display:flex; flex-direction:column; gap:3px; }
-.ck-rp-row b { font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; color:var(--text); }
-.ck-rp-row span { font-size:12.5px; color:var(--text-sec); line-height:1.55; }
+.ck-rp-row b { font-family:'Sora',sans-serif; font-size:var(--fs-body); font-weight:600; color:var(--text); }
+.ck-rp-row span { font-size:var(--fs-small); color:var(--text-sec); line-height:1.55; }
 .ck-rp-spin { flex:none; margin-top:2px; border-color:rgba(31,79,216,.25); border-top-color:var(--blue); }
 .ck-rp-ok, .ck-rp-warn, .ck-rp-no { flex:none; width:24px; height:24px; border-radius:50%;
   display:flex; align-items:center; justify-content:center; }
@@ -957,19 +960,19 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
    A percentage or a bare delta makes the traveller do arithmetic before they can decide. */
 .ck-rp-prices { display:flex; align-items:center; gap:12px; flex-wrap:wrap; margin:13px 0 0 36px;
   font-family:'Sora',sans-serif; font-variant-numeric:tabular-nums lining-nums; }
-.ck-rp-was { font-size:15px; font-weight:700; color:var(--text-light); text-decoration:line-through; }
+.ck-rp-was { font-size:var(--fs-body); font-weight:700; color:var(--text-light); text-decoration:line-through; }
 .ck-rp-arrow { color:var(--text-light); display:flex; }
 .ck-rp-arrow svg { width:15px; height:15px; }
-.ck-rp-now { font-size:21px; font-weight:800; color:var(--text); letter-spacing:-.02em; }
-.ck-rp-diff { padding:3px 10px; border-radius:var(--r-full); font-size:11.5px; font-weight:800; }
+.ck-rp-now { font-size:var(--fs-price); font-weight:var(--fw-price); color:var(--text); letter-spacing:-.02em; }
+.ck-rp-diff { padding:3px 10px; border-radius:var(--r-full); font-size:var(--fs-micro); font-weight:700; }
 .ck-rp-diff.up { background:#fff1f1; color:#c22; }
 .ck-rp-diff.down { background:var(--green-light); color:#047857; }
 .ck-rp-btns { display:flex; gap:10px; flex-wrap:wrap; margin:14px 0 0 36px; }
 .ck-rp-restore { padding:10px 18px; border-radius:var(--r-full); background:var(--white); border:1.5px solid var(--border);
-  font-size:12.5px; font-weight:700; color:var(--text-sec); }
+  font-size:var(--fs-control); font-weight:var(--fw-button); color:var(--text-sec); }
 .ck-rp-restore:hover { border-color:var(--blue-soft); color:var(--blue); }
 .ck-rp-accept { padding:10px 18px; border-radius:var(--r-full); background:var(--blue); color:#fff;
-  font-size:12.5px; font-weight:700; }
+  font-size:var(--fs-control); font-weight:var(--fw-button); }
 .ck-rp-accept:hover { background:var(--blue-mid); }
 /* Held, not broken: the CTA keeps its shape and stops pulsing while an answer is outstanding. */
 .ck-next-btn.held { animation:none; opacity:.6; cursor:not-allowed; }
@@ -985,32 +988,32 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   background:var(--white); border-radius:var(--r-xl); box-shadow:0 30px 80px rgba(7,14,31,.32);
   overflow:hidden; animation:ckFadeUp .3s var(--ease-spring) both; }
 .ck-modal-head { display:flex; align-items:center; gap:12px; padding:20px 24px 16px; border-bottom:1px solid var(--border-light); }
-.ck-modal-title { flex:1; font-size:20px; font-weight:800; color:var(--blue); letter-spacing:-.3px; }
+.ck-modal-title { flex:1; font-size:var(--fs-section); font-weight:var(--fw-section); color:var(--blue); letter-spacing:-.3px; }
 .ck-modal-x { width:34px; height:34px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   background:var(--border-light); color:var(--text-sec); transition:all .25s var(--ease); }
 .ck-modal-x:hover { background:var(--blue-bg); color:var(--blue); }
 .ck-modal-x svg { width:15px; height:15px; }
 .ck-modal-body { display:grid; grid-template-columns:1fr 300px; gap:0; overflow-y:auto; }
 .ck-rv-main { padding:20px 24px 24px; }
-.ck-rv-lede { font-size:13.5px; color:var(--text-sec); line-height:1.65; margin-bottom:18px; }
+.ck-rv-lede { font-size:var(--fs-body); color:var(--text-sec); line-height:1.65; margin-bottom:18px; }
 .ck-rv-trav { padding:14px 0; border-top:1px solid var(--border-light); }
 .ck-rv-trav:first-of-type { border-top:none; padding-top:4px; }
-.ck-rv-name { font-size:15px; font-weight:800; color:var(--text); margin-bottom:8px; }
+.ck-rv-name { font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--text); margin-bottom:8px; }
 .ck-rv-dob { font-weight:600; color:var(--text-sec); font-variant-numeric:tabular-nums; }
 .ck-rv-trav.ok .ck-rv-name { color:var(--blue); }
 .ck-rv-aside { padding:20px; background:var(--blue-pale); border-left:1px solid var(--border-light); display:flex; flex-direction:column; gap:16px; }
 .ck-rv-tip { display:flex; align-items:flex-start; gap:10px; }
-.ck-rv-tip p { font-size:12.5px; line-height:1.6; color:var(--text-sec); }
+.ck-rv-tip p { font-size:var(--fs-small); line-height:1.6; color:var(--text-sec); }
 .ck-rv-tip b { color:var(--text); }
 .ck-rv-tick { flex:none; width:20px; height:20px; margin-top:1px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   background:var(--green-light); color:#047857; }
 .ck-rv-tick svg { width:12px; height:12px; }
 .ck-modal-foot { display:flex; align-items:center; gap:14px; padding:16px 24px; border-top:1px solid var(--border-light); background:var(--white); }
-.ck-rv-edit { margin-right:auto; font-size:13.5px; font-weight:700; color:var(--blue); }
+.ck-rv-edit { margin-right:auto; font-size:var(--fs-control); font-weight:var(--fw-button); color:var(--blue); }
 .ck-rv-edit:hover { text-decoration:underline; }
 .ck-rv-confirm { display:inline-flex; align-items:center; gap:9px; padding:14px 26px; border-radius:var(--r-full);
   background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow);
-  font-family:'Sora',sans-serif; font-size:14px; font-weight:800; box-shadow:var(--shadow-glow);
+  font-family:'Sora',sans-serif; font-size:var(--fs-control); font-weight:var(--fw-button); box-shadow:var(--shadow-glow);
   transition:all .3s var(--ease); }
 .ck-rv-confirm:hover:not(:disabled) { transform:translateY(-2px); }
 /* Disabled reads as "not yet", not as broken: it says what is missing and keeps a pointer. */
@@ -1022,11 +1025,11 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   padding:11px 16px calc(11px + env(safe-area-inset-bottom)); background:rgba(255,255,255,.94);
   backdrop-filter:blur(14px); -webkit-backdrop-filter:blur(14px); border-top:1px solid var(--border);
   box-shadow:0 -10px 32px rgba(15,40,100,.12); animation:ckFadeUp .45s var(--ease) both; }
-.ck-mbar-price { display:flex; flex-direction:column; line-height:1.15; font-family:'Sora',sans-serif; font-size:19px; font-weight:800; color:var(--text); }
-.ck-mbar-price small { font-family:'DM Sans',sans-serif; font-size:10px; font-weight:600; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px; }
+.ck-mbar-price { display:flex; flex-direction:column; line-height:1.15; font-family:'Sora',sans-serif; font-size:var(--fs-price); font-weight:var(--fw-price); color:var(--text); }
+.ck-mbar-price small { font-family:'DM Sans',sans-serif; font-size:var(--fs-micro); font-weight:600; color:var(--text-light); text-transform:uppercase; letter-spacing:.5px; }
 .ck-mbar-btn { flex:1; display:flex; align-items:center; justify-content:center; gap:8px; padding:13px 18px;
   border-radius:var(--r-full); background:var(--cta-grad); color:var(--cta-ink); text-shadow:var(--cta-ink-shadow);
-  font-family:'Sora',sans-serif; font-size:13.5px; font-weight:800; box-shadow:var(--shadow-glow); }
+  font-family:'Sora',sans-serif; font-size:var(--fs-control); font-weight:var(--fw-button); box-shadow:var(--shadow-glow); }
 .ck-mbar-btn svg { width:14px; height:14px; }
 
 /* ════ RESPONSIVE ════ */
@@ -1060,7 +1063,7 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   .ck-row, .ck-row-3, .ck-row-3.ck-addr, .ck-row-t1 { grid-template-columns:1fr; }
   .ck-row-3 .ck-span-2 { grid-column:auto; }
   .ck-step-name { font-size:0; }
-  .ck-step-name::first-letter { font-size:13px; }
+  .ck-step-name::first-letter { font-size:var(--fs-small); }
   .ck-step { gap:0; }
   .ck-step-meta { display:none; }
   .ck-step-line { min-width:14px; }
@@ -1073,7 +1076,7 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   display:flex; align-items:center; gap:9px;
   margin-top:14px; padding:13px 16px; border-radius:12px;
   background:#fef2f2; border:1px solid #fecaca; color:#b91c1c;
-  font-size:13px; font-weight:600;
+  font-size:var(--fs-small); font-weight:600;
 }
 .ck-submit-err svg { width:16px; height:16px; flex-shrink:0; }
 
@@ -1089,17 +1092,17 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   border-radius: 18px; background: var(--blue-bg); color: var(--blue);
 }
 .ck .ck-gone-ico svg { width: 26px; height: 26px; }
-.ck .ck-gone-title { margin: 0; font-size: clamp(1.35rem, 3vw, 1.85rem); font-weight: 800; color: var(--dark); letter-spacing: -.5px; }
-.ck .ck-gone-sub { margin: 12px 0 0; font-size: 14px; line-height: 1.65; color: var(--text-sec); max-width: 46ch; }
+.ck .ck-gone-title { margin: 0; font-size:var(--fs-page-title); font-weight:var(--fw-page-title); color: var(--dark); letter-spacing: -.5px; }
+.ck .ck-gone-sub { margin: 12px 0 0; font-size:var(--fs-body); line-height: 1.65; color: var(--text-sec); max-width: 46ch; }
 .ck .ck-gone-actions { display: flex; align-items: center; gap: 14px; margin-top: 28px; flex-wrap: wrap; justify-content: center; }
 .ck .ck-gone-btn {
-  font-family: 'Sora', sans-serif; font-size: 14px; font-weight: 800; color: #fff;
+  font-family: 'Sora', sans-serif; font-size:var(--fs-control); font-weight:var(--fw-button); color: #fff;
   background: var(--blue); border: none; border-radius: var(--r-full); padding: 14px 30px; cursor: pointer;
   transition: background .2s var(--ease), transform .2s var(--ease);
 }
 .ck .ck-gone-btn:hover { background: var(--blue-mid); transform: translateY(-1px); }
 .ck .ck-gone-link {
-  font-family: inherit; font-size: 13.5px; font-weight: 700; color: var(--text-sec);
+  font-family: inherit; font-size:var(--fs-control); font-weight:var(--fw-button); color: var(--text-sec);
   background: none; border: none; cursor: pointer; text-decoration: underline; text-underline-offset: 3px;
 }
 .ck .ck-gone-link:hover { color: var(--blue); }
@@ -1119,18 +1122,18 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 .ck-wish { background:linear-gradient(180deg,#FFFCF5,#FFF9EE); border-color:#F6E3C3; }
 .ck-opt { display:inline-block; margin-left:9px; padding:2px 9px; border-radius:var(--r-full);
   background:var(--sun-warm,#FFF1DC); border:1px solid #FFDFAC; color:#B45309;
-  font-family:"DM Sans",sans-serif; font-size:11px; font-weight:800; letter-spacing:.02em; vertical-align:middle; }
+  font-family:"DM Sans",sans-serif; font-size:var(--fs-micro); font-weight:700; letter-spacing:.02em; vertical-align:middle; }
 
 .ck-area { width:100%; margin-top:14px; padding:13px 15px; border-radius:var(--r-md);
   border:1.5px solid var(--border); background:var(--white); font-family:inherit;
-  font-size:14px; line-height:1.6; color:var(--text); resize:vertical; transition:border-color .2s var(--ease), box-shadow .2s var(--ease); }
+  font-size:var(--fs-control); line-height:1.6; color:var(--text); resize:vertical; transition:border-color .2s var(--ease), box-shadow .2s var(--ease); font-weight:var(--fw-control); }
 .ck-area::placeholder { color:var(--text-light); }
 .ck-area:focus { outline:none; border-color:var(--blue); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
 .ck-area-foot { display:flex; align-items:center; justify-content:space-between; gap:12px;
-  margin-top:7px; font-size:11.5px; font-weight:600; color:var(--text-light); }
+  margin-top:7px; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-light); }
 
 .ck-sub-label { margin-top:18px; margin-bottom:9px; font-family:"Sora",sans-serif;
-  font-size:13.5px; font-weight:800; color:var(--text); letter-spacing:-.1px; }
+  font-size:var(--fs-body); font-weight:600; color:var(--text); letter-spacing:-.1px; }
 /* The two kinds sit side by side on a desktop — they are a pair of alternatives, and
    stacking them read as a list of two unrelated options. */
 .ck-note-kinds { display:grid; grid-template-columns:1fr 1fr; gap:10px; }
@@ -1154,15 +1157,15 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 .ck-rv-head svg { width:18px; height:18px; color:var(--blue); flex:none; }
 .ck-rv-n { display:inline-flex; align-items:center; justify-content:center; width:24px; height:24px;
   border-radius:50%; background:var(--blue); color:#fff; font-family:"Sora",sans-serif;
-  font-size:12px; font-weight:800; flex:none; }
-.ck-rv-t { margin:0; font-size:16px; font-weight:800; color:var(--text); letter-spacing:-.2px; }
+  font-size:var(--fs-micro); font-weight:700; flex:none; }
+.ck-rv-t { margin:0; font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--text); letter-spacing:-.2px; }
 .ck-rv-tag { margin-left:auto; padding:4px 11px; border-radius:var(--r-full); background:#E9F8F0;
-  border:1px solid #C3EBD7; color:#0B7A57; font-size:11.5px; font-weight:700; }
+  border:1px solid #C3EBD7; color:#0B7A57; font-size:var(--fs-micro); font-weight:700; }
 
 .ck-rv-rows { display:flex; flex-direction:column; gap:7px; }
 .ck-rv-row { display:grid; grid-template-columns:minmax(140px,210px) minmax(0,1fr); gap:14px; align-items:baseline; }
-.ck-rv-k { font-size:13px; font-weight:600; color:var(--text-sec); }
-.ck-rv-v { font-size:13.5px; font-weight:700; color:var(--text); min-width:0; overflow-wrap:anywhere; }
+.ck-rv-k { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); }
+.ck-rv-v { font-size:var(--fs-body); font-weight:600; color:var(--text); min-width:0; overflow-wrap:anywhere; }
 .ck-rv-v .ck-air-mark { width:20px; height:20px; }
 
 /* One flight: the two times at the ends, what happened between them in the middle, and the
@@ -1170,38 +1173,41 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 .ck-rv-leg + .ck-rv-leg { margin-top:16px; padding-top:16px; border-top:1px dashed var(--border-light); }
 .ck-rv-leg-head { display:flex; align-items:center; gap:10px; margin-bottom:9px; }
 .ck-rv-dir { padding:3px 11px; border-radius:var(--r-full); background:var(--blue-pale);
-  border:1px solid var(--blue-bg); color:var(--blue); font-size:11px; font-weight:800;
+  border:1px solid var(--blue-bg); color:var(--blue); font-size:var(--fs-micro); font-weight:700;
   text-transform:uppercase; letter-spacing:.07em; }
 .ck-rv-dir.ret { background:var(--sun-warm,#FFF1DC); border-color:#FFDFAC; color:#B45309; }
-.ck-rv-date { font-size:13px; font-weight:700; color:var(--text); }
+.ck-rv-date { font-size:var(--fs-key); font-weight:var(--fw-key); color:var(--text); }
 .ck-rv-leg-body { display:grid; grid-template-columns:minmax(0,1fr) minmax(90px,1.1fr) minmax(0,1fr) minmax(0,1.2fr);
   gap:14px; align-items:center; }
 .ck-rv-end { display:flex; flex-direction:column; gap:2px; min-width:0; }
 .ck-rv-end-r { text-align:right; align-items:flex-end; }
-.ck-rv-time { font-family:"Sora",sans-serif; font-size:19px; font-weight:800; color:var(--text);
+.ck-rv-time { font-family:"Sora",sans-serif; font-size:var(--fs-key); font-weight:var(--fw-key); color:var(--text);
   letter-spacing:-.4px; font-variant-numeric:tabular-nums; }
 .ck-rv-plus { margin-left:5px; padding:1px 6px; border-radius:var(--r-full); background:#FFE8E8;
-  color:#B42318; font-family:"DM Sans",sans-serif; font-size:10.5px; font-weight:800; top:-2px; }
-.ck-rv-place { font-size:12px; font-weight:600; color:var(--text-sec); overflow-wrap:anywhere; }
+  color:#B42318; font-family:"DM Sans",sans-serif; font-size:var(--fs-micro); font-weight:700; top:-2px; }
+.ck-rv-place { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); overflow-wrap:anywhere; }
 .ck-rv-mid { display:flex; flex-direction:column; align-items:center; gap:5px; }
 .ck-rv-rule { width:100%; height:2px; border-radius:2px; background:#DCE8FA; }
-.ck-rv-stops { font-size:11.5px; font-weight:700; color:var(--text-light); text-align:center; }
+.ck-rv-stops { font-size:var(--fs-small); font-weight:600; color:var(--text-light); text-align:center; }
 .ck-rv-facts { display:flex; flex-direction:column; gap:5px; }
 .ck-rv-facts .ck-rv-row { grid-template-columns:minmax(0,1fr) minmax(0,1fr); gap:8px; }
+/* "Luchtvaartmaatschappij" is one word wider than its half of the column: it breaks (hyphenated
+   where the browser can) instead of running under the carrier name beside it. */
+.ck-rv-facts .ck-rv-k { overflow-wrap:anywhere; hyphens:auto; }
 
 .ck-rv-pax { display:grid; grid-template-columns:repeat(auto-fit,minmax(230px,1fr)); gap:10px 18px; }
 .ck-rv-person { display:flex; align-items:flex-start; gap:10px; }
 .ck-rv-pn { display:inline-flex; align-items:center; justify-content:center; width:26px; height:26px;
-  border-radius:50%; background:var(--blue-pale); color:var(--blue); font-size:12px; font-weight:800; flex:none; }
+  border-radius:50%; background:var(--blue-pale); color:var(--blue); font-size:var(--fs-micro); font-weight:700; flex:none; }
 .ck-rv-pbody { display:flex; flex-direction:column; gap:1px; min-width:0; }
-.ck-rv-pbody b { font-size:13.5px; font-weight:800; color:var(--text); overflow-wrap:anywhere; }
-.ck-rv-pbody b em { margin-left:6px; font-style:normal; font-size:12px; font-weight:600; color:var(--text-sec); }
-.ck-rv-pbody span { font-size:12.5px; color:var(--text-sec); }
+.ck-rv-pbody b { font-size:var(--fs-body); font-weight:600; color:var(--text); overflow-wrap:anywhere; }
+.ck-rv-pbody b em { margin-left:6px; font-style:normal; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); }
+.ck-rv-pbody span { font-size:var(--fs-small); color:var(--text-sec); }
 
 /* The customer's own words, shown as theirs. */
 .ck-rv-quote { margin-top:4px; padding:12px 14px; border-radius:var(--r-md); background:var(--blue-pale);
-  border:1px solid var(--blue-bg); font-size:13.5px; line-height:1.6; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; }
-.ck-rv-foot { display:flex; align-items:flex-start; gap:7px; margin-top:8px; font-size:12px; line-height:1.55; color:var(--text-light); }
+  border:1px solid var(--blue-bg); font-size:var(--fs-body); line-height:1.6; color:var(--text); white-space:pre-wrap; overflow-wrap:anywhere; }
+.ck-rv-foot { display:flex; align-items:flex-start; gap:7px; margin-top:8px; font-size:var(--fs-small); line-height:1.55; color:var(--text-light); }
 .ck-rv-foot svg { width:14px; height:14px; flex:none; margin-top:2px; }
 
 @media (max-width:760px) {

@@ -58,8 +58,8 @@
 }
 .name {
   font-family: 'Sora', sans-serif;
-  font-size: 0.93rem;
-  font-weight: 700;
+  font-size: var(--fs-card-title);
+  font-weight: var(--fw-card-title);
   letter-spacing: -0.2px;
   color: var(--text);
   /* A long filename must not push the buttons off the card. */
@@ -68,7 +68,7 @@
   white-space: nowrap;
 }
 .sub {
-  font-size: 0.75rem;
+  font-size: var(--fs-micro);
   font-weight: 600;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -92,8 +92,8 @@
   background: var(--white);
   cursor: pointer;
   font-family: 'Sora', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: var(--fs-control);
+  font-weight: var(--fw-button);
   color: var(--blue-deep);
   transition: background 0.2s var(--ease), border-color 0.2s var(--ease);
 }
@@ -115,8 +115,8 @@
   text-shadow: var(--cta-ink-shadow);
   text-decoration: none;
   font-family: 'Sora', sans-serif;
-  font-size: 0.82rem;
-  font-weight: 700;
+  font-size: var(--fs-control);
+  font-weight: var(--fw-button);
   box-shadow: 0 4px 16px rgba(255, 159, 28, 0.3);
   transition: transform 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
@@ -147,7 +147,7 @@
 
 .fallback {
   margin: 10px 0 0;
-  font-size: 0.8rem;
+  font-size: var(--fs-small);
   color: var(--text-light);
   text-align: center;
 }
