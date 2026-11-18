@@ -1102,7 +1102,7 @@ describe('content-facet payload opt-ins', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
-    await user.click(sidebarCheck('Alleen volwassenen'));   // under Thema's, which ships open
+    await user.click(sidebarCheck('Adults Only'));   // under Vakantiethema's (English label, Levent 18 Nov), which ships open
     await waitFor(() => expect(lastFacetCall().opts.codes).toBe(true));
     expect(lastFacetCall().filters.adultsOnly).toBe(true);
   });
