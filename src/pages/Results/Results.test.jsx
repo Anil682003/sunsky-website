@@ -122,7 +122,7 @@ const PAGE = 20;
 // Records every request the component made, so tests can assert the exact contract.
 let calls = [];
 let bulkBodies = [];   // JSON bodies sent to /hotels/bulk
-let latency = () => 0;          // per-URL delay, for race-condition tests
+let latency = () => 0;          // per-URL delay (ms), or a Promise the test resolves (a gate), for race-condition tests
 // GET /contracts/destinations: every destination with inventory (what the empty search prices).
 // More than 8, so the search goes out as a POST, as it does on the live site.
 const ALL_DESTINATIONS = ['AGP', 'ALC', 'AYT', 'BCN', 'HRG', 'IST', 'LON', 'LPA', 'PMI', 'RAK', 'ROE', 'TFS'];
@@ -231,7 +231,10 @@ beforeEach(() => {
           const e = new Error('aborted'); e.name = 'AbortError'; reject(e);
         });
       }
-      setTimeout(() => resolve({ ok: true, json: () => Promise.resolve(body) }), delay);
+      const answer = () => resolve({ ok: true, json: () => Promise.resolve(body) });
+      // A gate holds the answer until the test opens it: "still in flight" without a wall clock.
+      if (delay && typeof delay.then === 'function') delay.then(answer);
+      else setTimeout(answer, delay);
     });
   });
 });
@@ -756,13 +759,19 @@ describe('hotel info for the cards', () => {
 describe('travel-time counts wait for page 1', () => {
   const durationCounts = () => calls.filter(isDurationCount);
 
+  // Page 1 is held by a gate, not a delay: on a busy machine a 400 ms delay could land before the
+  // "still in flight" check ran, and the test then failed on the clock rather than on the code.
+  const gated = () => { let open; const gate = new Promise((r) => { open = r; }); return { gate, open }; };
+
   it('fires no count until the search the user is waiting on has landed', async () => {
-    latency = (qs) => (isDurationCount(qs) ? 0 : 400);
+    const { gate, open } = gated();
+    latency = (qs) => (isDurationCount(qs) ? 0 : gate);
     renderResults();
     await waitFor(() => expect(mainSearches()).toHaveLength(1));
-    await new Promise((r) => setTimeout(r, 200));      // page 1 still in flight
+    await new Promise((r) => setTimeout(r, 200));      // page 1 still in flight (held)
     expect(durationCounts()).toHaveLength(0);
 
+    open();
     await settled();
     await waitFor(() => expect(durationCounts().length).toBeGreaterThan(0));
   });
@@ -784,12 +793,14 @@ describe('travel-time counts wait for page 1', () => {
     await waitFor(() => expect(durationCounts().length).toBeGreaterThan(0));
     const before = calls.length;
 
-    latency = (qs) => (isDurationCount(qs) ? 0 : 300);
+    const { gate, open } = gated();
+    latency = (qs) => (isDurationCount(qs) ? 0 : gate);
     await user.click(sidebarCheck('All inclusive'));
     const aiCounts = () => calls.slice(before).filter((c) => isDurationCount(c) && c.get('boards') === 'AI');
     await waitFor(() => expect(mainSearches().some((c) => c.get('boards') === 'AI')).toBe(true));
-    await new Promise((r) => setTimeout(r, 150));      // the AI search is still in flight
+    await new Promise((r) => setTimeout(r, 150));      // the AI search is still in flight (held)
     expect(aiCounts()).toHaveLength(0);
+    open();
     await waitFor(() => expect(calls.slice(before).some((c) => isDurationCount(c) && c.get('boards') === 'AI')).toBe(true));
   });
 });
