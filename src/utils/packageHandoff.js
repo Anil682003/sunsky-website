@@ -161,6 +161,8 @@ export function confirmBody(pkg, party) {
     adults: party.adults, children: party.children, infants: party.infants,
     outbound: { legs: legs(pkg.outLegs) }, inbound: { legs: legs(pkg.backLegs) },
     ...(pkg.flightPrice != null ? { totalPrice: pkg.flightPrice } : {}),
+    // API Settings: the package's flight, checked against the Flight + Hotel supplier rules.
+    productType: 'FLIGHT_HOTEL',
   };
 }
 

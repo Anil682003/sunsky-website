@@ -47,6 +47,8 @@ export function confirmBody(flight, s) {
     // The fare was quoted with its Flight Only margin (sell: 'flight' on the search): the server
     // compares fare with fare and confirms the same price.
     sell: 'flight',
+    // API Settings: a flight sold alone; the server applies that product's supplier rules.
+    productType: 'FLIGHT_ONLY',
   };
   if (s?.tripType === 'roundtrip' && s?.retISO) body.retdate = s.retISO;
 

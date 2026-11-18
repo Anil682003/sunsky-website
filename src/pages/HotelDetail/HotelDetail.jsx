@@ -3836,6 +3836,9 @@ export default function HotelDetail() {
       // HB requires an age per child; rooms lets groups get multi-room rates
       childAges: sChildAges ? sChildAges.split(',').map(Number) : [],
       rooms: Number(sRooms) || 1,
+      // API Settings: the product this price is for, so a supplier not allowed to sell it is left
+      // out of the answer (the booking is checked again before it is made).
+      productType: transport === 'hotel_only' ? 'HOTEL_ONLY' : 'FLIGHT_HOTEL',
     }, { timeout: SUPPLIER_TIMEOUT }).then(({ data }) => {
       // An answer for a selection the traveller has since moved off is dropped, not painted.
       if (roomsSeq !== roomsSeqRef.current) return;

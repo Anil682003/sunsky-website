@@ -100,6 +100,7 @@ describe('the package between the card and the hotel page', () => {
       outbound: { legs: [{ airline: 'XQ', flightNumber: '141', departure: '2026-12-11T23:35' }] },
       inbound: { legs: [{ airline: 'XQ', flightNumber: '140', departure: '2026-12-18T09:15' }] },
       totalPrice: 402.5,
+      productType: 'FLIGHT_HOTEL',
     });
     expect(confirmBody({ ...pkg, flightPrice: null }, { adults: 1, children: 0, infants: 0 }).totalPrice).toBeUndefined();
   });

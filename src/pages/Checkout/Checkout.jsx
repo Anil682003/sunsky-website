@@ -21,6 +21,7 @@ import { countryName } from '../../utils/countryName';
 import i18n from '../../i18n';
 import Confirmation from './Confirmation';
 import CheckoutSignIn from './CheckoutSignIn';
+import SupportStep from './SupportStep';
 import { bookingErrorMessage } from './bookingError';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
@@ -1039,6 +1040,7 @@ function CheckoutContent({ stripe, elements }) {
         checkin: srch.checkin, checkout: srch.checkout,
         adults: party.adults, children: party.childAges.length,
         childAges: party.childAges, rooms: Number(srch.rooms) || 1,
+        productType: booking.api?.flight ? 'FLIGHT_HOTEL' : 'HOTEL_ONLY',
       });
       // The fare is only re-searched when the PASSENGER MIX changed — an 11-year-old
       // turning 12 is a different ticket, an 8-year-old turning 9 is not, and the flight
@@ -3612,112 +3614,20 @@ function CheckoutContent({ stripe, elements }) {
               )}
 
               {/* ──────── STEP : SUPPORT PACKAGE ────────
-                  Support spec v1.0 §3 and §5. Every word on these cards is configuration: the
-                  title, badge, description, the service lines and their statuses all come from
-                  the dashboard, because §3 is explicit that level names "must not be hardcoded".
-
-                  §5.1 is the reason the three statuses read differently rather than as a tick
-                  and a cross: Included means the SUNSKY fee is covered, Paid means the service
-                  is available at the stated fee, Not included means it is not offered. The note
-                  at the foot carries §5.1's caveat that supplier charges and fare differences
-                  are never covered by any of them. */}
+                  Support spec v1.0 §3 and §5, drawn to the client's two designs (18 Nov 2026):
+                  SupportStep.jsx. Every word on the cards is dashboard configuration; the server
+                  prices the chosen level itself. */}
               {step === STEP.SUPPORT && (
-                <section className="ck-card ck-reveal ck-sup">
-                  <div className="ck-card-head">
-                    <div className="ck-ico">{ICON.lifebuoy}</div>
-                    <div className="ck-card-titles">
-                      <h2 className="hd">{t('checkout:support.title', 'Your support package')}</h2>
-                      <p>{supportProduct === 'FLIGHT_HOTEL'
-                        ? t('checkout:support.subFlightHotel', 'Choose the level of SUNSKY support for your flight + hotel booking.')
-                        : t('checkout:support.subFlightOnly', 'Choose the level of SUNSKY support for your flight booking.')}</p>
-                    </div>
-                  </div>
-
-                  {!supportLoaded ? (
-                    <p className="ck-pick-note">{t('checkout:support.loading', 'Loading support packages…')}</p>
-                  ) : (
-                    <>
-                      <div className="ck-sup-grid">
-                        {supportLevels.map((lvl) => {
-                          const picked = lvl.code === supportCode;
-                          const people = lvl.pricingUnit === 'PER_PERSON' ? Math.max(1, pax) : 1;
-                          return (
-                            <button
-                              type="button"
-                              key={lvl.code}
-                              className={`ck-sup-card${picked ? ' act' : ''}`}
-                              aria-pressed={picked}
-                              onClick={() => setSupportCode(lvl.code)}
-                            >
-                              {lvl.badge && <span className="ck-sup-badge">{lvl.badge}</span>}
-                              <span className="ck-sup-top">
-                                <span className="ck-sup-radio">{picked && <i />}</span>
-                                <span className="ck-sup-name hd">{lvl.title}</span>
-                              </span>
-
-                              <span className="ck-sup-price">
-                                <strong>{money(lvl.price)}</strong>
-                                <small>{lvl.pricingUnit === 'PER_PERSON'
-                                  ? t('checkout:support.perPerson', 'per person')
-                                  : t('checkout:support.perBooking', 'per booking')}</small>
-                              </span>
-                              {/* What the party actually pays, so a per-person price does not
-                                  read as the whole charge for a family of four. */}
-                              {lvl.price > 0 && people > 1 && (
-                                <span className="ck-sup-total">
-                                  {t('checkout:support.totalForParty', {
-                                    count: people,
-                                    amount: money(Math.round(lvl.price * people * 100) / 100),
-                                    defaultValue: '{{amount}} for {{count}} travellers',
-                                  })}
-                                </span>
-                              )}
-
-                              {lvl.description && <span className="ck-sup-desc">{lvl.description}</span>}
-
-                              {lvl.services.length > 0 && (
-                                <span className="ck-sup-list">
-                                  {lvl.services.map((s) => (
-                                    <span key={s.code} className={`ck-sup-row ${s.status.toLowerCase()}`}>
-                                      <span className="ck-sup-mark" aria-hidden="true">
-                                        {s.status === 'INCLUDED' ? ICON.checkCircle : s.status === 'PAID' ? ICON.euro : ICON.x}
-                                      </span>
-                                      <span className="ck-sup-text">{s.text}</span>
-                                      <span className="ck-sup-val">
-                                        {s.status === 'INCLUDED' && t('checkout:support.included', 'Included')}
-                                        {s.status === 'NOT_INCLUDED' && t('checkout:support.notIncluded', 'Not included')}
-                                        {s.status === 'PAID' && (
-                                          <>
-                                            {money(s.fee)}
-                                            <small>{s.feeUnit === 'PER_REQUEST' ? t('checkout:support.perRequest', 'per request')
-                                              : s.feeUnit === 'PER_PERSON' ? t('checkout:support.perPerson', 'per person')
-                                              : t('checkout:support.perBooking', 'per booking')}</small>
-                                          </>
-                                        )}
-                                      </span>
-                                    </span>
-                                  ))}
-                                </span>
-                              )}
-
-                              <span className={`ck-sup-pick${picked ? ' act' : ''}`}>
-                                {picked
-                                  ? <>{ICON.check} {t('checkout:support.selected', 'Selected')}</>
-                                  : t('checkout:support.select', 'Select')}
-                              </span>
-                            </button>
-                          );
-                        })}
-                      </div>
-
-                      {/* §5.1: these statuses cover the SUNSKY service fee and nothing else. */}
-                      <p className="ck-sup-note">
-                        {ICON.infoCircle}
-                        <span>{t('checkout:support.disclaimer', 'Support packages cover SUNSKY service and handling fees only. Airline, hotel and other supplier charges, including fare differences, remain payable separately. Changes and cancellations stay subject to airline, hotel and supplier rules and availability.')}</span>
-                      </p>
-                    </>
-                  )}
-                </section>
+                <SupportStep
+                  product={supportProduct}
+                  levels={supportLevels}
+                  loaded={supportLoaded}
+                  pickedCode={supportCode}
+                  onPick={setSupportCode}
+                  pax={pax}
+                  money={money}
+                  t={t}
+                />
               )}
 
               {/* ──────── STEP : CHECK YOUR BOOKING ────────
@@ -4364,11 +4274,11 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   )}
                   {supportCharge.amount > 0 && supportLevel && (
-                    <div className="ck-sum-row ck-sum-row-ins">
+                    <div className="ck-sum-row ck-sum-row-ins ck-sum-row-sup">
                       <span>
                         {ICON.lifebuoy} {supportLevel.title}
                         {supportLevel.pricingUnit === 'PER_PERSON' && supportCharge.chargedPersons > 1
-                          ? ` × ${supportCharge.chargedPersons}`
+                          ? ` ${t('checkout:support.forTravellers', { count: supportCharge.chargedPersons, defaultValue: '({{count}} travellers)' })}`
                           : ''}
                       </span>
                       <b>{money(supportCharge.amount)}</b>
