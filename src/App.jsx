@@ -11,6 +11,7 @@ import ToastContainer from './components/Toast/ToastContainer';
 import { ConsentProvider } from './context/ConsentContext';
 import CookieBanner from './components/CookieBanner/CookieBanner';
 import { Analytics } from './analytics';
+import SiteTheme from './components/SiteTheme/SiteTheme';
 
 export default function App() {
   return (
@@ -24,6 +25,8 @@ export default function App() {
               Inside the provider and outside the router, for the same reason the banner is:
               consent is not a property of the current page. */}
           <Analytics />
+          {/* Renders nothing: the dashboard colours (CMS > Homepage > Colours) on <html>. */}
+          <SiteTheme />
           <BrowserRouter>
             {/* Inside the router because the notice links to the cookie policy with <Link>,
                 which throws outside router context — and BEFORE <AppRouter /> so its two

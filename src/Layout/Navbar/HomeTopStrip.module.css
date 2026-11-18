@@ -9,15 +9,15 @@
   display: flex; align-items: center;
   overflow: hidden;
   font-family: 'Sora', sans-serif;
-  color: #fff;
+  color: var(--strip-ink, #fff);
 }
 
 /* Tones (the CMS announcement's). Blue is the client design's brand blue; the others match the
    announcement strip on every other page. */
-.blue   { background: #0046F2; }
-.orange { background: var(--cta-grad); color: var(--cta-ink); text-shadow: var(--cta-ink-shadow); }
-.dark   { background: var(--dark2); }
-.green  { background: #137A4B; }
+.blue   { background: var(--strip-bg, #0046F2); }
+.orange { background: var(--strip-bg, var(--cta-grad)); color: var(--strip-ink, var(--cta-ink)); text-shadow: var(--cta-ink-shadow); }
+.dark   { background: var(--strip-bg, var(--dark2)); }
+.green  { background: var(--strip-bg, #137A4B); }
 
 /* The same width as the header card below it (1332px, see .floating in Navbar.module.css), so
    the rating and the language switch line up with the card's edges. */

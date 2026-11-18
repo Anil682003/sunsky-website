@@ -120,7 +120,7 @@ html { scroll-behavior:smooth; -webkit-font-smoothing:antialiased; }
 body {
   font-family:'DM Sans',sans-serif;
   color:var(--text);
-  background:var(--white);
+  background:var(--page-bg, var(--white));
   overflow-x:hidden;
   line-height:1.65;
 }

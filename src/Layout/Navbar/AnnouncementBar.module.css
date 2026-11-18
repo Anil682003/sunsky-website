@@ -17,16 +17,16 @@
   font-family: 'Sora', sans-serif;
   font-size: 13px; font-weight: 600;
   line-height: 1;
-  color: #fff;
+  color: var(--strip-ink, #fff);
 }
 
 /* Tones. White ink on every one of them, the same rule as every orange CTA on the site
    (--cta-grad / --cta-ink in index.css): the pale end of the brand orange cannot carry white
    text, so the orange strip uses the CTA's deeper ramp rather than --sun-orange. */
-.orange { background: var(--cta-grad); color: var(--cta-ink); text-shadow: var(--cta-ink-shadow); }
-.blue   { background: var(--blue-deep); }
-.dark   { background: var(--dark2); }
-.green  { background: #137A4B; }
+.orange { background: var(--strip-bg, var(--cta-grad)); color: var(--strip-ink, var(--cta-ink)); text-shadow: var(--cta-ink-shadow); }
+.blue   { background: var(--strip-bg, var(--blue-deep)); }
+.dark   { background: var(--strip-bg, var(--dark2)); }
+.green  { background: var(--strip-bg, #137A4B); }
 
 /* One line, ellipsed. The strip's height is fixed (it is what the pages clear), so a sentence
    too long for the window is cut rather than allowed to wrap out of the band. */

@@ -220,7 +220,7 @@
   background: transparent;
   cursor: pointer;
   font-family: 'Sora', sans-serif; font-size: 12.5px; font-weight: 700;
-  color: var(--text); white-space: nowrap;
+  color: var(--nav-ink, var(--text)); white-space: nowrap;
   transition: background 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
 .hmBtnIcon { display: flex; color: var(--blue-deep); transition: color 0.25s var(--ease), transform 0.35s var(--ease-spring); }
@@ -373,7 +373,7 @@
   min-width: 38px; height: 38px; flex-shrink: 0;
   padding: 0 4px;
   border-radius: var(--r-full);
-  color: var(--text);
+  color: var(--nav-ink, var(--text));
   text-decoration: none;
   transition: background 0.25s var(--ease), color 0.25s var(--ease);
 }
