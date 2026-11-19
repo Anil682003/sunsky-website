@@ -3638,9 +3638,11 @@ export default function Results() {
             )}
           />
         )}
-        {/* Adults Only (§12B.5): the hotel's own "Only Adults" facility, narrowing the list. Shown
-            when this search has such hotels (or it is ticked, or the count is not known yet). */}
-        {(filters.adultsOnly || facets.adultsOnlyCount == null || facets.adultsOnlyCount > 0) && (
+        {/* The old "Adults Only" checkbox (§12B.5). Since 19 Nov 2026 the Adults Only THEME (Geo data,
+            rule adultsOnly = true) is the one filter, so the checkbox showed the same option twice
+            (Levent). It now appears only while ticked, from an older link (?adultsOnly=1), so it can be
+            unticked. */}
+        {filters.adultsOnly && (
           <FilterCheck
             label={facets.adultsOnlyCount != null ? `${t('filters.adultsOnly', 'Adults only')} (${facets.adultsOnlyCount})` : t('filters.adultsOnly', 'Adults only')}
             checked={filters.adultsOnly}

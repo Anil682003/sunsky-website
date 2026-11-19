@@ -1099,12 +1099,25 @@ describe('content-facet payload opt-ins', () => {
   });
 
   it('asks for hotelCodes once a content facet is selected', async () => {
-    const user = userEvent.setup();
-    renderResults();
+    // A link carrying a content facet (here the Adults Only theme's rule, adultsOnly).
+    renderResults('?destination=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1&adultsOnly=1');
     await settled();
-    await user.click(sidebarCheck('Adults Only'));   // under Vakantiethema's (English label, Levent 18 Nov), which ships open
     await waitFor(() => expect(lastFacetCall().opts.codes).toBe(true));
     expect(lastFacetCall().filters.adultsOnly).toBe(true);
+  });
+
+  // Levent 19 Nov 2026: the Adults Only THEME is the one filter; the old checkbox only shows while
+  // an older link has it ticked, so it can be unticked.
+  it('shows the old Adults Only checkbox only while it is ticked', async () => {
+    renderResults();
+    await settled();
+    expect(screen.queryByRole('checkbox', { name: /^adults only/i })).toBeNull();
+  });
+
+  it('keeps the old Adults Only checkbox visible and ticked from an older link', async () => {
+    renderResults('?destination=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1&adultsOnly=1');
+    await settled();
+    expect(sidebarCheck('Adults Only')).toBeChecked();
   });
 
   // An AREA search carries no content facet, so without this the cache would price the whole
