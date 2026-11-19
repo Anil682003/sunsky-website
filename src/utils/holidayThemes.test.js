@@ -57,10 +57,9 @@ describe('withHolidayThemes — Holiday Themes AND (Levent, 18 Nov 2026)', () =>
     expect(withHolidayThemes({ ...BASE, hthemes: [13], any: 'stars:5' }, rules).any).toBe('stars:5|segments:81;kids:340');
   });
 
-  it('a theme without a rule: its places as a condition of its own, not ORed with the holiday types', () => {
-    const out = withHolidayThemes({ ...BASE, hthemes: [14], themes: [1] }, rules);
-    expect(out.themes).toEqual([1]);
-    expect(out.any).toBe('themes:14');
+  it('a theme without a rule adds nothing (Last Minutes: the link's own date window is the theme)', () => {
+    const f = { ...BASE, hthemes: [14], themes: [1] };
+    expect(withHolidayThemes(f, rules)).toBe(f);
   });
 
   it('a holiday type in the list is not a theme; an unknown id adds nothing', () => {

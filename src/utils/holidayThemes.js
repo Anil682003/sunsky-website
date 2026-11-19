@@ -12,8 +12,9 @@
 //                    none in common → a board nothing has, so the search is honestly empty
 //   facilities, kids, activities, offers, room features → each one is required already: added
 //   the rule's own Match any / MIN N / OR groups → `any` groups of their own (as the menu link)
-//   a theme without a rule → its places / hotel assignments as an `any` group `themes:<id>`, so it
-//                    is ANDed, not ORed with the holiday types
+//   a theme without a rule → adds nothing (19 Nov 2026). Its place/hotel assignments match no hotel
+//                    (0 in every destination), so `themes:<id>` emptied e.g. the Last Minutes card,
+//                    whose meaning is the link's own date window (entry=last_minute)
 //
 // Only what is SEARCHED changes (the committed `applied` filters); the sidebar keeps showing what
 // the traveller ticked.
@@ -60,7 +61,7 @@ export function withHolidayThemes(filters, rules) {
   for (const id of ids) {
     if (!rules.has(Number(id))) continue;
     const rule = rules.get(Number(id));
-    if (!rule?.criteria?.length) { next(); groups.push(`themes:${Number(id)}`); continue; }
+    if (!rule?.criteria?.length) continue;   // no rule: the link's own parameters are the theme
     for (const [key, value] of ruleParams(rule.criteria, rule)) {
       if (key === 'show') continue;   // information only, never a filter
       const o = next();
