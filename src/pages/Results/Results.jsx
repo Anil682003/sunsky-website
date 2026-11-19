@@ -2051,7 +2051,8 @@ export default function Results() {
     const list = Array.isArray(facets.hthemes) ? facets.hthemes : [];
     // Its count is known to be 0 once the list has loaded (Levent: keep it visible and removable).
     const missing = (filters.hthemes || []).filter((id) => !list.some((x) => x.id === id))
-      .map((id) => ({ id, name: (themeList || []).find((x) => Number(x.id) === id)?.name, hotels: Array.isArray(facets.hthemes) ? 0 : null }))
+      // A theme without a rule (Last Minutes) filters nothing itself: no count, not a false (0).
+      .map((id) => ({ id, name: (themeList || []).find((x) => Number(x.id) === id)?.name, hotels: Array.isArray(facets.hthemes) && themeRules.get(id) !== null ? 0 : null }))
       .filter((x) => x.name);
     return [...list, ...missing];
   })();
