@@ -6,7 +6,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 .section {
-  background: var(--surface-alt);
+  background: var(--hotels-bg, var(--surface-alt));
   padding: var(--section-y) 0;
 }
 
@@ -25,9 +25,9 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: #FFFFFF;
+  background: var(--rail-btn-bg, #FFFFFF);
   border: 1px solid var(--line-strong);
-  color: var(--text);
+  color: var(--rail-btn-ink, var(--text));
   cursor: pointer;
   transition: background 0.2s var(--ease), border-color 0.2s var(--ease), color 0.2s var(--ease);
 }
@@ -217,7 +217,7 @@
   font-weight: var(--fw-price);
   letter-spacing: -0.02em;
   line-height: 1.2;
-  color: var(--text);
+  color: var(--hotel-price, var(--text));
   white-space: nowrap;
 }
 .pp {

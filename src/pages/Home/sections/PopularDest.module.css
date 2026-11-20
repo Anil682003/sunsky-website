@@ -7,7 +7,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 .section {
-  background: #FFFFFF;
+  background: var(--popdest-bg, #FFFFFF);
   padding: var(--section-y) 0;
 }
 

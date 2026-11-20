@@ -17,7 +17,7 @@
 .section {
   position: relative;
   isolation: isolate;
-  background: #FFFFFF;
+  background: var(--cat-bg, #FFFFFF);
   padding: var(--section-y) 0;
   overflow: hidden;
 }
@@ -67,6 +67,13 @@
       rgba(255, 255, 255, 0.34) 50%,
       rgba(255, 255, 255, 0.62) 90%,
       #FFFFFF 100%);
+  background:
+    linear-gradient(180deg,
+      var(--cat-bg, #FFFFFF) 0%,
+      color-mix(in srgb, var(--cat-bg, #FFFFFF) 55%, transparent) 10%,
+      color-mix(in srgb, var(--cat-bg, #FFFFFF) 34%, transparent) 50%,
+      color-mix(in srgb, var(--cat-bg, #FFFFFF) 62%, transparent) 90%,
+      var(--cat-bg, #FFFFFF) 100%);
   z-index: -1;
 }
 
@@ -234,18 +241,18 @@
   min-width: 0;
   padding: 8px 10px;
   border-radius: 10px;
-  background: var(--surface-alt);
+  background: var(--cat-chip-bg, var(--surface-alt));
   text-decoration: none;
   transition: background 0.2s var(--ease);
 }
-.destChip:hover { background: var(--blue-light); }
+.destChip:hover { background: var(--cat-chip-hover, var(--blue-light)); }
 .destChipIcon { display: flex; flex-shrink: 0; color: var(--blue-deep); }
 .destChipName {
   flex: 1;
   min-width: 0;
   font-size: var(--fs-small);
   font-weight: 600;
-  color: var(--text);
+  color: var(--cat-chip-ink, var(--text));
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;

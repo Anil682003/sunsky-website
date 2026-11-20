@@ -22,7 +22,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--blue-deep);
+  color: var(--eyebrow-ink, var(--blue-deep));
   margin-bottom: 12px;
 }
 

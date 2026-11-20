@@ -71,10 +71,10 @@
 .badge {
   display:inline-flex; align-items:center; gap:10px;
   padding:9px 24px;
-  background:rgba(7,14,31,0.34); backdrop-filter:blur(10px);
+  background:var(--hero-badge-bg, rgba(7,14,31,0.34)); backdrop-filter:blur(10px);
   -webkit-backdrop-filter:blur(10px);
   border:1px solid rgba(255,255,255,0.2); border-radius:var(--r-full);
-  color:#fff; font-size: var(--fs-small); font-weight: var(--fw-small);
+  color:var(--hero-badge-ink, #fff); font-size: var(--fs-small); font-weight: var(--fw-small);
   margin-bottom:28px; letter-spacing:0.3px;
   animation:fadeUp 0.8s var(--ease) 0.2s both;
 }
@@ -120,8 +120,8 @@
   padding:12px 30px;
   font-family:'Sora',sans-serif;
   font-size: var(--fs-control); font-weight: 600;
-  color:var(--text);
-  background:rgba(255,255,255,0.94);
+  color:var(--tab-idle-ink, var(--text));
+  background:var(--tab-idle-bg, rgba(255,255,255,0.94));
   backdrop-filter:blur(16px) saturate(140%);
   -webkit-backdrop-filter:blur(16px) saturate(140%);
   border:1px solid rgba(255,255,255,0.8);
@@ -133,7 +133,7 @@
   display:flex; align-items:center; gap:9px;
   box-shadow:0 4px 14px rgba(7,20,60,0.14);
 }
-.modeTab svg { color:var(--blue-deep); transition:color 0.3s var(--ease); }
+.modeTab svg { color:var(--tab-idle-ink, var(--blue-deep)); transition:color 0.3s var(--ease); }
 .modeTab:hover {
   box-shadow:0 6px 18px rgba(7,20,60,0.18);
 }
@@ -162,7 +162,7 @@
 /* Light glass card — dark text on a near-white surface reads on ANY photo,
    which is what lets the image itself go filter-free. */
 .searchBar {
-  background:rgba(255,255,255,0.9); backdrop-filter:blur(24px) saturate(160%);
+  background:var(--searchbar-bg, rgba(255,255,255,0.9)); backdrop-filter:blur(24px) saturate(160%);
   -webkit-backdrop-filter:blur(24px) saturate(160%);
   border:1px solid rgba(255,255,255,0.65); border-radius:var(--r-xl);
   padding:10px; display:flex; align-items:center; gap:2px;
@@ -200,7 +200,7 @@
 .sf:hover { background:rgba(31,79,216,0.06); }
 .sfActive { background:rgba(31,79,216,0.09); }
 .sfHead { display:flex; align-items:center; gap:7px; min-width:0; width:100%; }
-.sfIcon { color:var(--blue-deep); flex-shrink:0; display:flex; }
+.sfIcon { color:var(--search-icon, var(--blue-deep)); flex-shrink:0; display:flex; }
 .sfBody { display:flex; align-items:center; gap:8px; min-width:0; width:100%; }
 .sfLabel { font-size: var(--fs-micro); font-weight:700; text-transform:uppercase; letter-spacing:1.1px; color:var(--text-light); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
 .sfValue { font-size: var(--fs-control); color:var(--text); font-weight: 600; font-family:'Sora',sans-serif; letter-spacing:-0.015em; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; min-width:0; flex:1; }
@@ -509,12 +509,12 @@
 }
 .tspTab:hover { background:var(--blue-bg); }
 .tspTabOn {
-  background:var(--blue-deep);
-  border-color:var(--blue-deep);
-  color:#fff;
+  background:var(--popup-btn-bg, var(--blue-deep));
+  border-color:var(--popup-btn-bg, var(--blue-deep));
+  color:var(--popup-btn-ink, #fff);
   box-shadow:0 8px 22px rgba(31,79,216,0.28);
 }
-.tspTabOn:hover { background:var(--blue-deep); }
+.tspTabOn:hover { background:var(--popup-btn-bg, var(--blue-deep)); }
 
 /* ── "No preference" ──────────────────────────────────────────────────────────
    The way out of picking airports at all, so it sits ABOVE the list as its own card
@@ -552,8 +552,8 @@
   transition:all .15s ease;
 }
 .tspAnyDotOn {
-  border-color:var(--blue-deep);
-  background:var(--blue-deep);
+  border-color:var(--popup-btn-bg, var(--blue-deep));
+  background:var(--popup-btn-bg, var(--blue-deep));
   box-shadow:inset 0 0 0 3px #fff;
 }
 .tspAnyText { flex:1; min-width:0; display:flex; flex-direction:column; gap:3px; }
@@ -1006,8 +1006,8 @@
   padding:12px;
   border:none;
   border-radius:var(--r-md, 8px);
-  background:var(--blue-deep);
-  color:#fff;
+  background:var(--popup-btn-bg, var(--blue-deep));
+  color:var(--popup-btn-ink, #fff);
   font-size: var(--fs-control);
   font-weight: 600;
   font-family:'Sora',sans-serif;
@@ -1015,7 +1015,7 @@
   transition:background 0.2s var(--ease);
 }
 .doneBtn:hover {
-  background:#1A43BB;
+  background:var(--popup-btn-hover, #1A43BB);
 }
 .stepperBtn:disabled {
   opacity:0.35;
@@ -1077,8 +1077,8 @@
   width:22px;
   height:22px;
   border-radius:50%;
-  background:var(--blue-deep);
-  color:#fff;
+  background:var(--popup-btn-bg, var(--blue-deep));
+  color:var(--popup-btn-ink, #fff);
   font-size: var(--fs-micro);
   font-weight:700;
 }
@@ -1323,7 +1323,7 @@
 
 /* Flight Search Card */
 .flightSearchCard {
-  background:rgba(255,255,255,0.9);
+  background:var(--searchbar-bg, rgba(255,255,255,0.9));
   backdrop-filter:blur(24px) saturate(160%);
   -webkit-backdrop-filter:blur(24px) saturate(160%);
   border:1px solid rgba(255,255,255,0.65);
@@ -1452,9 +1452,9 @@
   color:var(--text);
 }
 .classPillActive {
-  background:var(--blue-deep);
-  border-color:var(--blue-deep);
-  color:#fff;
+  background:var(--popup-btn-bg, var(--blue-deep));
+  border-color:var(--popup-btn-bg, var(--blue-deep));
+  color:var(--popup-btn-ink, #fff);
   font-weight:600;
 }
 

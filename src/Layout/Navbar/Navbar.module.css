@@ -223,19 +223,19 @@
   color: var(--nav-ink, var(--text)); white-space: nowrap;
   transition: background 0.25s var(--ease), border-color 0.25s var(--ease), color 0.25s var(--ease), box-shadow 0.25s var(--ease);
 }
-.hmBtnIcon { display: flex; color: var(--blue-deep); transition: color 0.25s var(--ease), transform 0.35s var(--ease-spring); }
+.hmBtnIcon { display: flex; color: var(--nav-icon, var(--blue-deep)); transition: color 0.25s var(--ease), transform 0.35s var(--ease-spring); }
 .hmBtn:hover, .hmBtnOpen {
   background: transparent;
   box-shadow: none;
 }
-.hmBtn:hover, .hmBtnOpen { color: var(--blue-deep); }
+.hmBtn:hover, .hmBtnOpen { color: var(--nav-hover, var(--blue-deep)); }
 
 /* A blue underline draws under the label on hover and stays while the menu is open. */
 .hmBtnLabel { position: relative; }
 .hmBtnLabel::after {
   content: ''; position: absolute; left: 0; right: 0; bottom: -4px;
   height: 2px; border-radius: 2px;
-  background: var(--blue-deep);
+  background: var(--nav-hover, var(--blue-deep));
   transform: scaleX(0); transform-origin: left;
   transition: transform 0.25s var(--ease);
 }
@@ -386,7 +386,7 @@
   white-space: nowrap;
   padding-right: 4px;
 }
-.contactBtn:hover { background: rgba(255,255,255,0.55); color: var(--sun-orange); }
+.contactBtn:hover { background: rgba(255,255,255,0.55); color: var(--nav-hover, var(--sun-orange)); }
 
 .langSlot { display: flex; align-items: center; flex-shrink: 0; }
 /* Hidden at the SAME width the auth buttons are (see the 900px block below), so

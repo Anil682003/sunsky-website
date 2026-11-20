@@ -9,8 +9,8 @@
   padding: 0 18px;
   border-radius: var(--r-full);
   border: 1px solid var(--line-strong);
-  background: #FFFFFF;
-  color: var(--blue-deep);
+  background: var(--showall-bg, #FFFFFF);
+  color: var(--showall-ink, var(--blue-deep));
   font-family: 'Sora', sans-serif;
   font-size: var(--fs-small);
   font-weight: 600;
@@ -24,7 +24,7 @@
 }
 .link:hover {
   border-color: var(--blue-deep);
-  background: var(--blue-light);
+  background: var(--showall-hover, var(--blue-light));
 }
 .link:hover svg { transform: translateX(3px); }
 .link:focus-visible {

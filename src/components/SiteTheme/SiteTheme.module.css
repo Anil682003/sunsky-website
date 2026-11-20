@@ -1,0 +1,16 @@
+/* "Colour preview" label while the dashboard's unsaved colours are shown in this tab. Fixed
+   colours on purpose: it must stay readable whatever colours are being previewed. */
+.badge {
+  position: fixed; left: 16px; bottom: 16px; z-index: 5000;
+  display: inline-flex; align-items: center; gap: 10px;
+  max-width: calc(100vw - 32px); padding: 8px 8px 8px 14px; border-radius: 999px;
+  background: #0F172A; color: #FFFFFF; box-shadow: 0 8px 24px rgba(15, 23, 42, 0.28);
+  font-family: 'Sora', sans-serif; font-size: 13px; font-weight: 600;
+}
+.dot { width: 8px; height: 8px; border-radius: 50%; background: #F5A51E; flex-shrink: 0; }
+.close {
+  height: 30px; padding: 0 12px; border-radius: 999px; border: 0; cursor: pointer;
+  background: #FFFFFF; color: #0F172A; font: inherit; font-weight: 700; white-space: nowrap;
+}
+.close:hover { background: #E2E8F0; }
+.close:focus-visible { outline: 2px solid #F5A51E; outline-offset: 2px; }

@@ -329,5 +329,9 @@
   },
   "supplierRemarks": {
     "title": "Belangrijke informatie van het hotel"
+  },
+  "themePreview": {
+    "label": "Kleurvoorbeeld: nog niet opgeslagen",
+    "close": "Voorbeeld sluiten"
   }
 }

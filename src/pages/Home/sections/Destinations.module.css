@@ -13,7 +13,7 @@
    a direction to travel in, and it still resolves to white where the next
    section begins. No pattern, no imagery: the cards are the colour here. */
 .section {
-  background: linear-gradient(180deg, #E7EFFA 0%, #F4F8FD 55%, #FFFFFF 100%);
+  background: var(--dest-section-bg, linear-gradient(180deg, #E7EFFA 0%, #F4F8FD 55%, #FFFFFF 100%));
   border-top: 1px solid var(--line);
   /* The same room top and bottom. The foot used to keep a full --section-y, which left a
      band of empty light under the cards before the next section began. */
@@ -41,8 +41,8 @@
   padding: 0 18px;
   border-radius: var(--r-full);
   border: 1px solid var(--line);
-  background: #FFFFFF;
-  color: var(--text-sec);
+  background: var(--dest-tab-idle-bg, #FFFFFF);
+  color: var(--dest-tab-idle-ink, var(--text-sec));
   font-family: 'Sora', sans-serif;
   font-size: var(--fs-small);
   font-weight: 600;
@@ -188,8 +188,8 @@
   gap: 6px;
   padding: 6px 13px 6px 11px;
   border-radius: var(--r-full);
-  background: #FFFFFF;
-  color: var(--text);
+  background: var(--dest-badge-bg, #FFFFFF);
+  color: var(--dest-badge-ink, var(--text));
   font-size: var(--fs-micro);
   font-weight: 600;
   box-shadow: 0 2px 8px rgba(7, 14, 31, 0.16);

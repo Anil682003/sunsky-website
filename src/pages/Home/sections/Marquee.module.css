@@ -7,7 +7,7 @@
 
 .wrap {
   position: relative;
-  background: #FFFFFF;
+  background: var(--marquee-bg, #FFFFFF);
   border-bottom: 1px solid var(--line);
 }
 
@@ -43,7 +43,7 @@
   padding: 0 32px;
   font-size: var(--fs-small);
   font-weight: 600;
-  color: var(--text);
+  color: var(--marquee-ink, var(--text));
   white-space: nowrap;
 }
 .check {
@@ -54,8 +54,8 @@
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
-  background: var(--blue-light);
-  color: var(--blue-deep);
+  background: var(--marquee-check-bg, var(--blue-light));
+  color: var(--marquee-check-ink, var(--blue-deep));
 }
 .check svg { width: 13px; height: 13px; }
 

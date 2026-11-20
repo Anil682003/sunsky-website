@@ -329,5 +329,9 @@
   },
   "supplierRemarks": {
     "title": "Important information from the hotel"
+  },
+  "themePreview": {
+    "label": "Colour preview: not saved yet",
+    "close": "Close preview"
   }
 }

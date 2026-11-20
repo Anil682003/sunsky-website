@@ -55,12 +55,12 @@
   display: inline-flex; align-items: center; gap: 6px; flex-shrink: 0;
   height: 32px; padding: 0 12px 0 15px;
   border-radius: var(--r-full, 999px);
-  background: rgba(255, 255, 255, 0.11);
-  color: inherit; text-decoration: none;
+  background: var(--strip-btn-bg, rgba(255, 255, 255, 0.11));
+  color: var(--strip-btn-ink, inherit); text-decoration: none;
   font-size: var(--fs-small); font-weight: 700;
   transition: background 0.2s var(--ease);
 }
-.pill:hover { background: rgba(255, 255, 255, 0.2); }
+.pill:hover { background: var(--strip-btn-hover, rgba(255, 255, 255, 0.2)); }
 .pill:focus-visible, .textLink:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
 .right { display: flex; align-items: center; flex-shrink: 0; }

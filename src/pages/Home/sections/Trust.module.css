@@ -16,7 +16,7 @@
 .section {
   position: relative;
   isolation: isolate;
-  background-color: #F3F7FE;
+  background-color: var(--trust-bg, #F3F7FE);
   background-image: url('../../../assets/statsbg1.jpg');
   background-size: cover;
   background-position: center;
@@ -122,8 +122,8 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  background: var(--blue-light);
-  color: var(--blue-deep);
+  background: var(--trust-icon-bg, var(--blue-light));
+  color: var(--trust-icon-ink, var(--blue-deep));
 }
 .icon svg { width: 30px; height: 30px; }
 
@@ -159,12 +159,12 @@
   align-items: center;
   justify-content: center;
   flex: none;
-  background: var(--surface-alt);
-  color: var(--blue-deep);
+  background: var(--trust-arrow-bg, var(--surface-alt));
+  color: var(--trust-arrow-ink, var(--blue-deep));
   transition: transform 0.18s ease, background 0.18s ease;
 }
 .arrow svg { width: 16px; height: 16px; }
-.item:hover a.arrow { background: var(--blue-light); transform: translateX(2px); }
+.item:hover a.arrow { background: var(--trust-arrow-hover, var(--blue-light)); transform: translateX(2px); }
 a.arrow:focus-visible {
   outline: 3px solid rgba(31, 79, 216, 0.4);
   outline-offset: 3px;
@@ -198,6 +198,7 @@ a.arrow:focus-visible {
     position: absolute;
     inset: 0;
     background: linear-gradient(180deg, rgba(255, 255, 255, 0.4) 0%, rgba(255, 255, 255, 0.72) 60%, rgba(255, 255, 255, 0.82) 100%);
+  background: linear-gradient(180deg, color-mix(in srgb, var(--trust-tint, #FFFFFF) 40%, transparent) 0%, color-mix(in srgb, var(--trust-tint, #FFFFFF) 72%, transparent) 60%, color-mix(in srgb, var(--trust-tint, #FFFFFF) 82%, transparent) 100%);
     pointer-events: none;
     z-index: -1;
   }

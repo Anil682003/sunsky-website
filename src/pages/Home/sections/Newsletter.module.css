@@ -5,7 +5,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 .wrap {
-  background: #FFFFFF;
+  background: var(--news-bg, #FFFFFF);
   padding: var(--section-y) 0;
 }
 
@@ -23,7 +23,7 @@
   align-items: center;
   gap: 32px 56px;
   padding: clamp(28px, 4vw, 52px);
-  background: var(--blue-bg);
+  background: var(--news-panel, var(--blue-bg));
   border: 1px solid var(--line);
   border-radius: 20px;
 }

@@ -25,7 +25,7 @@
 .navCol { min-width:0; }
 .navCol h4 {
   font-family:'Sora',sans-serif; font-size: var(--fs-small); font-weight: 600;
-  margin:0 0 16px; color:var(--blue-deep);
+  margin:0 0 16px; color:var(--footer-heading, var(--blue-deep));
   text-transform:uppercase; letter-spacing:1px; line-height:1.5;
 }
 .navLinks { display:flex; flex-direction:column; }
@@ -35,7 +35,7 @@
   padding:6px 0;
   transition:color 0.2s var(--ease);
 }
-.navLinks a:hover { color:var(--blue-deep); }
+.navLinks a:hover { color:var(--footer-hover, var(--blue-deep)); }
 /* The cookie settings entry is a button, because it opens the consent dialog
    rather than going anywhere. Styled to sit in the column as one of the links,
    since a reader should not have to notice the difference. */
@@ -47,7 +47,7 @@
   padding:6px 0;
   transition:color 0.2s var(--ease);
 }
-.linkBtn:hover { color:var(--blue-deep); }
+.linkBtn:hover { color:var(--footer-hover, var(--blue-deep)); }
 .linkBtn:focus-visible { outline:2px solid var(--blue-ocean); outline-offset:2px; border-radius:3px; }
 .logo { cursor:pointer; }
 .logoText { font-family:'Sora',sans-serif; font-size: var(--fs-section); font-weight: 700; letter-spacing:-1px; color:var(--dark); }
@@ -122,7 +122,7 @@
 .pay:hover { color:var(--blue-deep); }
 .col h4 {
   font-family:'Sora',sans-serif; font-size: var(--fs-small); font-weight: 600;
-  margin-bottom:24px; color:var(--blue-deep);
+  margin-bottom:24px; color:var(--footer-heading, var(--blue-deep));
   text-transform:uppercase; letter-spacing:1px;
 }
 .col a {
@@ -130,7 +130,7 @@
   font-size: var(--fs-footer); padding:7px 0;
   transition:all 0.3s var(--ease);
 }
-.col a:hover { color:var(--blue-deep); }
+.col a:hover { color:var(--footer-hover, var(--blue-deep)); }
 /* Trustpilot, above the divider. Two things can sit here: the score strip once the plan
    includes one, and the review invitation, which the free plan does include. */
 .trustRow { display:flex; flex-direction:column; align-items:center; gap:22px; margin:0 auto 34px; padding:0 24px; }
@@ -176,14 +176,14 @@
 .copy { color:var(--footer-ink, var(--text-light)); font-size: var(--fs-footer); }
 .bottomLinks { display:flex; gap:24px; }
 .bottomLinks a { color:var(--text-light); font-size: var(--fs-footer); transition:color 0.3s; }
-.bottomLinks a:hover { color:var(--blue-deep); }
+.bottomLinks a:hover { color:var(--footer-hover, var(--blue-deep)); }
 /* "Cookie settings" is a button, not a link — it opens the notice rather than going anywhere.
    It has to read as one of this row's links all the same. */
 .bottomLinks button {
   background:none; border:0; padding:0; cursor:pointer;
   font-family:inherit; color:var(--text-light); font-size: var(--fs-footer); transition:color 0.3s;
 }
-.bottomLinks button:hover { color:var(--blue-deep); }
+.bottomLinks button:hover { color:var(--footer-hover, var(--blue-deep)); }
 .bottomLinks a:focus-visible,
 .bottomLinks button:focus-visible { outline:2px solid var(--blue-deep); outline-offset:3px; border-radius:3px; }
 

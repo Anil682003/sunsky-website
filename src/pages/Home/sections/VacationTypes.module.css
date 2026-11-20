@@ -16,7 +16,7 @@
 .section {
   position: relative;
   isolation: isolate;
-  background: #FFFFFF;
+  background: var(--vac-bg, #FFFFFF);
   padding: var(--section-y) 0;
   overflow: hidden;
 }
@@ -60,6 +60,13 @@
       rgba(255, 255, 255, 0.18) 46%,
       rgba(255, 255, 255, 0.52) 90%,
       #FFFFFF 100%);
+  background:
+    linear-gradient(180deg,
+      var(--vac-bg, #FFFFFF) 0%,
+      color-mix(in srgb, var(--vac-bg, #FFFFFF) 58%, transparent) 12%,
+      color-mix(in srgb, var(--vac-bg, #FFFFFF) 18%, transparent) 46%,
+      color-mix(in srgb, var(--vac-bg, #FFFFFF) 52%, transparent) 90%,
+      var(--vac-bg, #FFFFFF) 100%);
   z-index: -1;
 }
 
@@ -160,9 +167,9 @@
   gap: 5px;
   padding: 5px 11px 5px 9px;
   border-radius: var(--r-full);
-  background: var(--surface-alt);
+  background: var(--vac-chip-bg, var(--surface-alt));
   border: 1px solid var(--line);
-  color: var(--text-sec);
+  color: var(--vac-chip-ink, var(--text-sec));
   font-size: var(--fs-micro);
   font-weight: 600;
   line-height: 1.5;

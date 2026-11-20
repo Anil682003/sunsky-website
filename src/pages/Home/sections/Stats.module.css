@@ -10,7 +10,7 @@
 .wrap {
   position: relative;
   /* flows white (Destinations bottom) → sky/cream → white (VacationTypes top) */
-  background: linear-gradient(180deg, #FFFFFF 0%, #F5F8FF 30%, #FFF9EF 72%, #FFFFFF 100%);
+  background: var(--stats-bg, linear-gradient(180deg, #FFFFFF 0%, #F5F8FF 30%, #FFF9EF 72%, #FFFFFF 100%));
   padding: 30px clamp(20px, 4vw, 60px) 56px;
 }
 

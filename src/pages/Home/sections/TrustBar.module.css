@@ -6,7 +6,7 @@
    ═══════════════════════════════════════════════════════════ */
 
 .wrap {
-  background: var(--surface-alt);
+  background: var(--trustbar-bg, var(--surface-alt));
   border-bottom: 1px solid var(--line);
   padding: 20px 0;
 }
@@ -31,7 +31,7 @@
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
-  color: var(--blue-deep);
+  color: var(--eyebrow-ink, var(--blue-deep));
 }
 .title {
   font-family: 'Sora', sans-serif;
@@ -39,7 +39,7 @@
   font-weight: var(--fw-card-title);
   letter-spacing: -0.01em;
   line-height: 1.25;
-  color: var(--text);
+  color: var(--trustbar-ink, var(--text));
 }
 
 .divider {
@@ -88,10 +88,10 @@
   padding: 0 16px;
   font-size: var(--fs-small);
   font-weight: 600;
-  color: var(--blue-deep);
+  color: var(--trustbar-btn-ink, var(--blue-deep));
   text-decoration: none;
   white-space: nowrap;
-  background: #FFFFFF;
+  background: var(--trustbar-btn-bg, #FFFFFF);
   border: 1px solid var(--line-strong);
   border-radius: var(--r-full);
   transition: border-color 0.2s var(--ease);
