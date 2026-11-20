@@ -478,10 +478,63 @@ describe('mandatory local costs after the live check (UI-09)', () => {
     expect(container.querySelector('[data-local-costs]')).toBeNull();
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
     await waitFor(() => expect(container.querySelector('.overview-local-costs')).not.toBeNull());
-    expect(hotelChecks()).toHaveLength(1);
+    // One availability search. The selected Hotelbeds rate is also rate-checked once, for its
+    // remarks (Levent, 20 Nov 2026), even though its local tax was already known.
+    expect(hotelChecks().filter(([u]) => String(u).includes('/search'))).toHaveLength(1);
+    await waitFor(() => expect(hotelChecks().filter(([u]) => String(u).includes('/checkrate'))).toHaveLength(1));
     expect(container.querySelector('.overview-local-costs').textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
     expect(container.querySelector('.av-local-costs').textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
     expect(container.querySelector('.overview-total-val').textContent).toBe('€500');
+  });
+});
+
+describe('the hotel remarks of the checked rate (Levent, 20 Nov 2026)', () => {
+  const REMARKS = 'Minimum check-in age 18.\nDeposit on arrival.\n\nCancellations follow the conditions of this rate.';
+  const withCheckrate = (answer) => {
+    const base = post.getMockImplementation();
+    post.mockImplementation((url, body) => (String(url).includes('/checkrate')
+      ? Promise.resolve({ data: { success: true, available: true, localCosts: null, ...answer(body) } })
+      : base(url, body)));
+  };
+
+  it('sit between the price details and the total, open, in full, and travel to the checkout', async () => {
+    withCheckrate(() => ({ rateComments: REMARKS }));
+    const user = userEvent.setup();
+    const { container } = renderPage(`&${PKG_QS}`, 'hotel_only');
+    await priceDays();
+    expect(container.querySelector('[data-testid="supplier-remarks"]')).toBeNull();   // no rate yet
+    await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
+    const box = await waitFor(() => {
+      const b = container.querySelector('[data-testid="supplier-remarks"]');
+      expect(b).not.toBeNull();
+      return b;
+    });
+    expect(post.mock.calls.find(([u]) => String(u).includes('/checkrate'))[1]).toEqual({ rateKey: 'r1' });
+    expect(box.querySelector('[aria-expanded]')).toHaveAttribute('aria-expanded', 'true');
+    expect([...box.querySelectorAll('p')].map((p) => p.textContent).join('\n\n')).toBe(REMARKS);
+    expect(box.textContent).not.toMatch(/punten|toon alle/i);
+    expect(box.querySelector('ul, li')).toBeNull();
+    // After the price details, before the total and the button.
+    const details = [...container.querySelectorAll('.overview-body-title')].find((el) => /prijsdetails/i.test(el.textContent));
+    expect(details.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(box.compareDocumentPosition(container.querySelector('.overview-total')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+
+    const book = screen.getAllByRole('button').find((b) => /doorgaan naar afrekenen/i.test(b.textContent) && !b.disabled);
+    await user.click(book);
+    await screen.findByTestId('checkout');
+    expect(seen.mock.calls.at(-1)[0].remarks).toEqual({ rateKey: 'r1', text: REMARKS });
+  });
+
+  it('are not there at all when the supplier sent none', async () => {
+    withCheckrate(() => ({ rateComments: null }));
+    const user = userEvent.setup();
+    const { container } = renderPage(`&${PKG_QS}`, 'hotel_only');
+    await priceDays();
+    await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
+    await waitFor(() => expect(post.mock.calls.some(([u]) => String(u).includes('/checkrate'))).toBe(true));
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€500'));
+    expect(container.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
+    expect(container.textContent).not.toMatch(/belangrijke informatie van het hotel/i);
   });
 });
 

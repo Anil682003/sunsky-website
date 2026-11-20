@@ -2089,6 +2089,8 @@
    against, and a pale blue ground is what sets it apart from the plain price rows above it
    and the payment rows under it. */
 .sd .overview-total { display:flex; align-items:center; justify-content:space-between; gap:14px; margin:4px 24px 0; padding:14px 18px; border-radius:12px; background:var(--blue-pale); position:relative; }
+/* The supplier's remarks for the checked rate, between the price details and the total. */
+.sd .overview-remarks { margin:0 24px 14px; }
 .sd .overview-total-label { display:flex; flex-direction:column; gap:2px; font-family:'Sora',sans-serif; font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--dark); letter-spacing:-.3px; min-width:0; }
 .sd .overview-total-name { display:inline-flex; align-items:center; gap:7px; }
 .sd .overview-total-label em { font-style:normal; font-family:'DM Sans',sans-serif; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text-sec); letter-spacing:0; }

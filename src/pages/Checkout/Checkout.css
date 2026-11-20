@@ -1159,6 +1159,10 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   border-radius:50%; background:var(--blue); color:#fff; font-family:"Sora",sans-serif;
   font-size:var(--fs-micro); font-weight:700; flex:none; }
 .ck-rv-t { margin:0; font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--text); letter-spacing:-.2px; }
+/* The hotel's remarks: its own bordered box, its heading on the review's title scale. */
+.ck-rv-remarks { --remarks-title-fs: var(--fs-card-title); --remarks-title-fw: var(--fw-card-title); }
+/* On the payment step, above the conditions that confirm the booking. */
+.ck-pay-remarks { margin:18px 0 4px; }
 .ck-rv-tag { margin-left:auto; padding:4px 11px; border-radius:var(--r-full); background:#E9F8F0;
   border:1px solid #C3EBD7; color:#0B7A57; font-size:var(--fs-micro); font-weight:700; }
 

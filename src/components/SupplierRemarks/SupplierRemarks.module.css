@@ -1,0 +1,44 @@
+/* The supplier's remarks for the selected rate. The house info pattern: a subtle border, the blue
+   info mark, a fold arrow. Colours fall back to the house values on pages that do not define
+   their own palette. Each page sets the outer spacing through `className`. */
+.box {
+  border: 1px solid var(--border, #e2eaf5);
+  border-radius: 14px;
+  background: var(--white, #fff);
+  overflow: hidden;
+  min-width: 0;
+}
+.heading { margin: 0; font: inherit; }
+.toggle {
+  display: flex; align-items: center; gap: 10px;
+  width: 100%; margin: 0; padding: 13px 16px;
+  border: 0; background: var(--blue-pale, #f0f5ff);
+  font-family: inherit; text-align: left; cursor: pointer;
+  color: var(--text, #1a2744);
+}
+.toggle:focus-visible { outline: 2px solid var(--blue, #1f4fd8); outline-offset: -2px; }
+.ico, .chev { display: flex; flex: none; color: var(--blue, #1f4fd8); }
+.ico svg { width: 18px; height: 18px; }
+.chev svg { width: 18px; height: 18px; transition: transform .2s ease; }
+.chevOpen svg { transform: rotate(180deg); }
+.title {
+  flex: 1; min-width: 0;
+  font-size: var(--remarks-title-fs, var(--fs-key)); font-weight: var(--remarks-title-fw, var(--fw-key)); line-height: 1.35;
+}
+.body {
+  padding: 12px 16px 14px;
+  border-top: 1px solid var(--border, #e2eaf5);
+}
+.body[hidden] { display: none; }
+/* pre-line: the supplier's own line breaks stay, runs of spaces do not push text off a phone. */
+.para {
+  margin: 0;
+  font-size: var(--fs-small); font-weight: var(--fw-small); line-height: 1.55;
+  color: var(--text-sec, #5e7291);
+  white-space: pre-line; overflow-wrap: anywhere;
+}
+.para + .para { margin-top: 10px; }
+
+@media (prefers-reduced-motion: reduce) {
+  .chev svg { transition: none; }
+}

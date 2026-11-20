@@ -326,5 +326,8 @@
     "baggage": "Baggage",
     "notIncluded": "Not included",
     "flightGone": "The selected flight option is no longer available"
+  },
+  "supplierRemarks": {
+    "title": "Important information from the hotel"
   }
 }

@@ -15,6 +15,8 @@ import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/price
 import { NO_MARGINS, fetchMargins, withRoomMargins } from '../../utils/margins';
 import { localCostOfRate, localCost } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
+import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
+import { remarksOfRate } from '../../utils/supplierRemarks';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import { groupRoomsByBoard, boardCount, NO_BOARD_LABEL } from '../../utils/roomBoards';
@@ -3025,19 +3027,27 @@ export default function HotelDetail() {
   // Hotelbeds states the tax payable at the hotel only in its rate check (CheckRate), not in
   // availability: the selected Hotelbeds room is checked once (by rateKey) and its amount shown
   // (Rome 17813: €42 payable on arrival, 5 Nov 2026). Never added to any price.
-  const [checkedLocalCosts, setCheckedLocalCosts] = useState({});
+  // The same check carries the supplier's remarks for that rate (`rateComments`, Levent 20 Nov
+  // 2026), so it now runs for every selected Hotelbeds rate, not only one whose local costs are
+  // unknown: one call per rate the traveller picks, answered once and remembered by rateKey.
+  const [checkedRates, setCheckedRates] = useState({});
   const selRateKey = liveRoom && String(liveRoom.supplier || 'hotelbeds').toLowerCase() === 'hotelbeds' ? liveRoom.rateKey : null;
   useEffect(() => {
-    if (!selRateKey || liveRoom?.localCost || selRateKey in checkedLocalCosts) return;
+    if (!selRateKey || selRateKey in checkedRates) return;
     let alive = true;
-    setCheckedLocalCosts((m) => ({ ...m, [selRateKey]: null }));
+    setCheckedRates((m) => ({ ...m, [selRateKey]: null }));
     axiosInstance.post('/hotel-availability/checkrate', { rateKey: selRateKey }, { timeout: SUPPLIER_TIMEOUT })
-      .then(({ data }) => { if (alive) setCheckedLocalCosts((m) => ({ ...m, [selRateKey]: localCost(data?.localCosts) })); })
+      .then(({ data }) => {
+        if (alive) setCheckedRates((m) => ({ ...m, [selRateKey]: { localCost: localCost(data?.localCosts), remarks: data?.rateComments ?? null } }));
+      })
       .catch(() => {});
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selRateKey]);
-  const liveLocalCost = liveRoom?.localCost || (selRateKey ? checkedLocalCosts[selRateKey] : null) || null;
+  const checkedRate = selRateKey ? checkedRates[selRateKey] : null;
+  const liveLocalCost = liveRoom?.localCost || checkedRate?.localCost || null;
+  // The supplier's remarks for THIS rate, in full; they follow the traveller's room choice.
+  const liveRemarks = remarksOfRate(liveRoom, checkedRate?.remarks);
   // The board of THAT rate, named exactly as the room rows name it — the availability recap
   // has to move with the traveller's choice, so picking half board over the cheapest all-in
   // rate changes the price and the board type together. Derived straight from the selected
@@ -4121,6 +4131,10 @@ export default function HotelDetail() {
           // The rate's mandatory local costs, for the checkout to show under its total (UI-09).
           // Display only: outside `api`, so it can never reach the amount charged.
           localCost: useLive ? liveLocalCost : null,
+          // The supplier's remarks for this rate, as verified here, with the rateKey they belong
+          // to: the checkout shows them in full and asks the supplier again only if the rate
+          // itself changes there (a re-price).
+          remarks: useLive && liveRemarks ? { rateKey: liveRoom.rateKey || null, text: liveRemarks } : null,
           // No transfer travels from this page any more — it is chosen in the checkout's
           // extras step, which fetches it against the flight arrival being booked.
           transfer: null,
@@ -5699,6 +5713,12 @@ export default function HotelDetail() {
                       )}
                     </div>
                   </div>
+                  {/* The supplier's remarks for the checked rate, in full, between the price
+                      details and the total (Levent, 20 Nov 2026). Only after a live check: before
+                      it there is no rate for them to belong to. */}
+                  {ovBase != null && liveRoom && !liveBusy && (
+                    <SupplierRemarks text={liveRemarks} className="overview-remarks" />
+                  )}
                   <div className="overview-total">
                     <span className="overview-total-label">
                       <span className="overview-total-name">

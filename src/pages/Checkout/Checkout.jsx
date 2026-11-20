@@ -32,6 +32,8 @@ import { sellingEuros, formatEuros, PRICE_KIND } from '../../utils/tripPrice';
 import { transferAirport } from './transferAirport';
 import { localCostOfRate } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
+import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
+import { remarksOfRate, hasRemarks } from '../../utils/supplierRemarks';
 import { roundStayTotal } from '../../utils/priceRounding';
 import { splitFareTypes } from '../../utils/fareTypes';
 import {
@@ -1014,6 +1016,9 @@ function CheckoutContent({ stripe, elements }) {
     // The rate's mandatory local costs (UI-09), shown under the total and never part of it. A
     // property of the RATE as well, so a re-priced room brings its own.
     localCost: booking.localCost || null,
+    // The supplier's remarks for THIS rate (Levent, 20 Nov 2026), as the hotel page verified
+    // them: { rateKey, text }. Reused as they are; a re-priced rate brings its own.
+    remarks: booking.remarks || null,
   }));
   // null → nothing to settle. Otherwise: checking | same | changed | unavailable | error
   const [reprice, setReprice] = useState(null);
@@ -1038,6 +1043,22 @@ function CheckoutContent({ stripe, elements }) {
   // asking the supplier about it would be a call whose answer we already know.
   const needsReprice = !!(srch.checkin && agesSignature && searchedSignature
     && agesSignature !== searchedSignature);
+
+  /* The remarks of the rate a re-price landed on. The same rate keeps the ones already verified
+     (no supplier call). A different rate brings its own: from the search answer when the
+     supplier sends them there, else from the Hotelbeds rate check that states them. No answer
+     means no remarks shown, never the previous rate's. */
+  const remarksForRepricedRate = async (match) => {
+    if (quote.remarks && match.rateKey && match.rateKey === quote.remarks.rateKey) return quote.remarks;
+    if (match.remarks) return { rateKey: match.rateKey, text: match.remarks };
+    if (!match.rateKey || match.supplier !== 'hotelbeds') return null;
+    try {
+      const { data } = await axiosInstance.post('/hotel-availability/checkrate', { rateKey: match.rateKey });
+      return data?.rateComments ? { rateKey: match.rateKey, text: data.rateComments } : null;
+    } catch {
+      return null;
+    }
+  };
 
   const runReprice = async (ages) => {
     const seq = ++repriceSeq.current;
@@ -1072,7 +1093,10 @@ function CheckoutContent({ stripe, elements }) {
 
       // ── the room, re-priced for the corrected party ──
       const raw = hotelRes?.data?.results;
-      const rooms = [...(raw?.hotelbeds?.rooms || []), ...(raw?.diana?.rooms || [])]
+      const rooms = [
+        ...(raw?.hotelbeds?.rooms || []).map((r) => ({ ...r, supplier: 'hotelbeds' })),
+        ...(raw?.diana?.rooms || []).map((r) => ({ ...r, supplier: 'diana' })),
+      ]
         .map((r) => ({
           price: r.sellingRate ?? r.net ?? r.price ?? null,
           roomCode: r.roomCode || null, boardCode: r.boardCode || null,
@@ -1080,6 +1104,8 @@ function CheckoutContent({ stripe, elements }) {
           board: r.boardName || r.boardCode || '',
           cancellation: Array.isArray(r.cancellationPolicies) ? r.cancellationPolicies : [],
           localCost: localCostOfRate(r),
+          supplier: r.supplier,
+          remarks: remarksOfRate(r),
         }))
         .filter((r) => r.price != null)
         .sort((a, b) => a.price - b.price);
@@ -1138,7 +1164,9 @@ function CheckoutContent({ stripe, elements }) {
         cancellation: match.cancellation,
         flightKeys: flight.keys,
         localCost: match.localCost,
+        remarks: await remarksForRepricedRate(match),
       };
+      if (seq !== repriceSeq.current) return;
       const was = quote.hotel + quote.flight;
       const now = nextQuote.hotel + nextQuote.flight;
       // Within a euro is the same price — supplier rounding is not a price change worth
@@ -2604,6 +2632,26 @@ function CheckoutContent({ stripe, elements }) {
     );
   }
 
+  // The supplier's remarks for the hotel rate being booked, in full (Levent, 20 Nov 2026).
+  const hotelRemarks = (!isFlight && !isTransfer) ? (quote.remarks?.text || null) : null;
+  // "Check your booking" numbers the sections it SHOWS, in order: an optional section that is
+  // absent leaves no gap ("6 Travellers" after insurance when no bag was bought). The list
+  // below carries the same conditions as the sections themselves, in the order they are drawn.
+  const reviewSections = [
+    'trip',
+    booking.flight && 'flights',
+    booking.room && 'room',
+    pickedOption && 'transfer',
+    (travelOption || cancelOption) && 'insurance',
+    baggageRows.length > 0 && 'baggage',
+    'travellers',
+    'contact',
+    hasRemarks(hotelRemarks) && 'remarks',
+    hotelWish.trim() && 'wish',
+    noteText.trim() && 'note',
+  ].filter(Boolean);
+  const reviewN = (id) => reviewSections.indexOf(id) + 1;
+
   return (
     <div className="ck">
       {/* ═══ HERO ═══ */}
@@ -3661,9 +3709,9 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   </div>
 
-                  {/* 1 — the trip itself */}
+                  {/* the trip itself */}
                   <div className="ck-rv-sec">
-                    <div className="ck-rv-head"><span className="ck-rv-n">1</span>{ICON.bed}
+                    <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('trip')}</span>{ICON.bed}
                       <h3 className="ck-rv-t hd">{t('checkout:review.tripOverview', 'Travel overview')}</h3></div>
                     <div className="ck-rv-rows">
                       <div className="ck-rv-row">
@@ -3693,10 +3741,10 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   </div>
 
-                  {/* 2 — flights, one block per direction */}
+                  {/* flights, one block per direction */}
                   {booking.flight && (
                     <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">2</span>{ICON.plane}
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('flights')}</span>{ICON.plane}
                         <h3 className="ck-rv-t hd">{t('checkout:summary.flights', 'Flights')}</h3></div>
                       {reviewFlights.map((f) => (
                         <div className="ck-rv-leg" key={f.key}>
@@ -3737,10 +3785,10 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   )}
 
-                  {/* 3 — room and board */}
+                  {/* room and board */}
                   {booking.room && (
                     <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">3</span>{ICON.bed}
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('room')}</span>{ICON.bed}
                         <h3 className="ck-rv-t hd">{t('checkout:review.roomAndBoard', 'Room & board')}</h3></div>
                       <div className="ck-rv-rows">
                       <div className="ck-rv-row">
@@ -3759,10 +3807,10 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   )}
 
-                  {/* 4 — transfer, only when one was taken */}
+                  {/* transfer, only when one was taken */}
                   {pickedOption && (
                     <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">4</span>{ICON.van}
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('transfer')}</span>{ICON.van}
                         <h3 className="ck-rv-t hd">{t('checkout:summary.transfer', 'Transfer')}</h3></div>
                       <div className="ck-rv-rows">
                       <div className="ck-rv-row">
@@ -3785,10 +3833,10 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   )}
 
-                  {/* 5 — insurance: a status per traveller, and one line for the booking */}
+                  {/* insurance: a status per traveller, and one line for the booking */}
                   {(travelOption || cancelOption) && (
                     <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">5</span>{ICON.shield}
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('insurance')}</span>{ICON.shield}
                         <h3 className="ck-rv-t hd">{t('checkout:review.insurance', 'Insurance')}</h3></div>
                       <div className="ck-rv-rows">
                         {travelOption && (
@@ -3807,10 +3855,10 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   )}
 
-                  {/* 6 — extra baggage, only what was actually bought */}
+                  {/* extra baggage, only what was actually bought */}
                   {baggageRows.length > 0 && (
                     <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">6</span>{ICON.checkedBag}
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('baggage')}</span>{ICON.checkedBag}
                         <h3 className="ck-rv-t hd">{t('checkout:review.extraBaggage', 'Extra baggage')}</h3></div>
                       <div className="ck-rv-rows">
                         {baggageRows.map((b) => (
@@ -3823,9 +3871,9 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   )}
 
-                  {/* 7 — who is travelling, as the ticket will read */}
+                  {/* who is travelling, as the ticket will read */}
                   <div className="ck-rv-sec">
-                    <div className="ck-rv-head"><span className="ck-rv-n">7</span>{ICON.users}
+                    <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('travellers')}</span>{ICON.users}
                       <h3 className="ck-rv-t hd">{t('checkout:review.travellers', 'Travellers')}</h3></div>
                     <div className="ck-rv-pax">
                       {travellers.map((trav, i) => (
@@ -3843,9 +3891,9 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   </div>
 
-                  {/* 8 — who we contact about it */}
+                  {/* who we contact about it */}
                   <div className="ck-rv-sec">
-                    <div className="ck-rv-head"><span className="ck-rv-n">8</span>{ICON.mail}
+                    <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('contact')}</span>{ICON.mail}
                       <h3 className="ck-rv-t hd">{t('checkout:review.bookingContact', 'Booking contact')}</h3></div>
                     <div className="ck-rv-rows">
                       <div className="ck-rv-row">
@@ -3859,10 +3907,19 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   </div>
 
-                  {/* 9 — the stay request, only when there is one */}
+                  {/* the hotel's own remarks for this rate, in full and open, before payment
+                      (Levent, 20 Nov 2026); absent when the supplier sent none */}
+                  {hasRemarks(hotelRemarks) && (
+                    <div className="ck-rv-sec ck-rv-remarks">
+                      <SupplierRemarks text={hotelRemarks}
+                        lead={<span className="ck-rv-n">{reviewN('remarks')}</span>} />
+                    </div>
+                  )}
+
+                  {/* the stay request, only when there is one */}
                   {hotelWish.trim() && (
                     <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">9</span>{ICON.chat}
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('wish')}</span>{ICON.chat}
                         <h3 className="ck-rv-t hd">{t('checkout:wishes.title', 'Special requests for your stay')}</h3>
                         <span className="ck-rv-tag">{t('checkout:wishes.forwarded', 'Forwarded to the accommodation')}</span></div>
                       <p className="ck-rv-quote">{hotelWish.trim()}</p>
@@ -3870,10 +3927,10 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   )}
 
-                  {/* 10 — the message to us, kept apart from the hotel request above */}
+                  {/* the message to us, kept apart from the hotel request above */}
                   {noteText.trim() && (
                     <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">10</span>{ICON.lifebuoy}
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('note')}</span>{ICON.lifebuoy}
                         <h3 className="ck-rv-t hd">{t('checkout:note.title', 'Message to SUNSKY')}</h3></div>
                       <div className="ck-rv-rows">
                       <div className="ck-rv-row">
@@ -4111,6 +4168,12 @@ function CheckoutContent({ stripe, elements }) {
                   <Check checked={billingSame} onChange={setBillingSame}>
                     {t('checkout:payment.billingAddressSame', 'Billing address is the same as my customer details')}
                   </Check>
+
+                  {/* The hotel's remarks once more, right above the ticks that make the booking
+                      binding ("I have read the information relating to this holiday"), so they
+                      are in reach before the final step (Levent, 20 Nov 2026). The text verified
+                      for this rate; no new supplier call. */}
+                  <SupplierRemarks text={hotelRemarks} className="ck-pay-remarks" />
 
                   {/* ── Conditions & booking ──
                       What accepting actually commits the traveller to, itemised, above the one
