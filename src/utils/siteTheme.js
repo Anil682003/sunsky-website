@@ -6,6 +6,17 @@
 const HEX = /^#[0-9a-fA-F]{6}$/;
 const STORAGE_KEY = 'sunsky.siteTheme';
 
+// Per-element colours: one token, one CSS variable, the element keeps its own colour without it.
+export const ONE_TO_ONE = {
+  searchBtnBg: '--btn-search-bg', searchBtnText: '--btn-search-ink',
+  heroTabBg: '--tab-active-bg', heroTabText: '--tab-active-ink',
+  authBtnBg: '--btn-auth-bg', authBtnText: '--btn-auth-ink',
+  dealBtnBg: '--btn-deal-bg', dealBtnText: '--btn-deal-ink',
+  newsletterBtnBg: '--btn-news-bg', newsletterBtnText: '--btn-news-ink',
+  destTabBg: '--dest-tab-bg', destTabText: '--dest-tab-ink',
+  viewAllText: '--link-viewall', vacLinkText: '--link-vac',
+};
+
 const mix = (hex, pct, other) => `color-mix(in srgb, ${hex} ${pct}%, ${other})`;
 
 // Every CSS variable a theme can set, so clearing a token takes its colour away again.
@@ -13,6 +24,7 @@ export const THEME_VARS = [
   '--cta-grad', '--cta-ink', '--blue-deep', '--blue-mid', '--sun-orange',
   '--strip-bg', '--strip-ink', '--nav-bg', '--nav-ink', '--text', '--text-sec',
   '--dark', '--dark2', '--footer-bg', '--footer-ink', '--page-bg',
+  ...Object.values(ONE_TO_ONE),
 ];
 
 /** The CSS variables a stored theme sets. Pure, so it can be tested without a DOM. */
@@ -47,6 +59,7 @@ export function themeVariables(theme) {
   if (t.footerBg) vars['--footer-bg'] = t.footerBg;
   if (t.footerText) vars['--footer-ink'] = t.footerText;
   if (t.pageBg) vars['--page-bg'] = t.pageBg;
+  for (const [key, name] of Object.entries(ONE_TO_ONE)) if (t[key]) vars[name] = t[key];
   return vars;
 }
 

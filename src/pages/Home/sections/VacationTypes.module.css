@@ -206,7 +206,7 @@
   font-family: 'Sora', sans-serif;
   font-size: var(--fs-small);
   font-weight: 600;
-  color: var(--blue-deep);
+  color: var(--link-vac, var(--blue-deep));
   text-decoration: none;
 }
 .vacBtn svg { transition: transform 0.25s var(--ease); }

@@ -144,7 +144,7 @@ a.link:focus-visible {
   font-size: var(--fs-small);
   font-weight: 600;
   line-height: 20px;
-  color: #1D3FB4;
+  color: var(--link-viewall, #1D3FB4);
   text-decoration: none;
 }
 .viewAll svg { transition: transform 0.2s var(--ease); }

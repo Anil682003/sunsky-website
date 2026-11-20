@@ -143,6 +143,11 @@ export const toSlug = (name) =>
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '');
 
+// The announcement colour: one of the preset tones, or any colour picked in the CMS ('#RRGGBB').
+// The text colour is optional and only means something with a picked colour.
+const HEX6 = /^#[0-9a-fA-F]{6}$/;
+const hexOr = (v, fallback) => (typeof v === 'string' && HEX6.test(v.trim()) ? v.trim().toUpperCase() : fallback);
+
 // ─── blocks ─────────────────────────────────────────────────────────────────
 
 function normalizeAnnouncement(v) {
@@ -153,7 +158,8 @@ function normalizeAnnouncement(v) {
     linkLabel: text(o.linkLabel),
     link: safeUrl(o.link),
     newTab: bool(o.newTab, false),
-    tone: oneOf(o.tone, ANNOUNCEMENT_TONES, 'orange'),
+    tone: hexOr(o.tone, oneOf(o.tone, ANNOUNCEMENT_TONES, 'orange')),
+    textColor: hexOr(o.textColor, ''),
     dismissible: bool(o.dismissible, true),
     startDate: isoDate(o.startDate),
     endDate: isoDate(o.endDate),

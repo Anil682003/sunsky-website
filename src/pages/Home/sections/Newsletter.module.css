@@ -122,8 +122,8 @@
   padding: 0 24px;
   border-radius: 9px;
   border: none;
-  background: var(--cta-grad);
-  color: var(--cta-ink);
+  background: var(--btn-news-bg, var(--cta-grad));
+  color: var(--btn-news-ink, var(--cta-ink));
   text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif;
   font-size: var(--fs-control);

@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './AnnouncementBar.module.css';
 import { pick, headerLink, newTabProps, showOnClass, announcementKey } from '../../utils/siteHeader';
+import { stripColourStyle } from './stripColour';
 
 // The thin strip above the header bar (CMS -> Layout -> Header -> Announcement).
 //
@@ -93,6 +94,7 @@ export default function AnnouncementBar({ announcement }) {
       role="region"
       aria-label={t('nav.announcement', 'Announcement')}
       data-tone={announcement.tone}
+      style={stripColourStyle(announcement)}
     >
       <p className={styles.inner} title={message}>
         {linkLabel && link ? (

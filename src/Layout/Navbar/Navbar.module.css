@@ -405,7 +405,7 @@
   height: 38px; box-sizing: border-box;
   padding: 0 6px;
   border-radius: var(--r-full);
-  background: var(--cta-grad);
+  background: var(--btn-auth-bg, var(--cta-grad));
   box-shadow: 0 2px 8px rgba(194,84,10,0.22);
   transition: filter 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
@@ -418,7 +418,7 @@
 .authPillLink {
   display: inline-flex; align-items: center; gap: 6px;
   padding: 0 11px; height: 30px; border-radius: var(--r-full);
-  color: var(--cta-ink); text-shadow: var(--cta-ink-shadow);
+  color: var(--btn-auth-ink, var(--cta-ink)); text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif; font-size: var(--fs-small); font-weight: 700;
   line-height: 1; white-space: nowrap; text-decoration: none;
   transition: background 0.2s var(--ease);
@@ -628,8 +628,8 @@
 .mobileSignIn:hover { background: var(--blue-bg); color: var(--dark); }
 .mobileRegister {
   padding: 14px; border-radius: var(--r-full);
-  background: var(--cta-grad);
-  color: var(--cta-ink); text-shadow: var(--cta-ink-shadow);
+  background: var(--btn-auth-bg, var(--cta-grad));
+  color: var(--btn-auth-ink, var(--cta-ink)); text-shadow: var(--cta-ink-shadow);
   font-size: var(--fs-control); font-weight: 600;
   font-family: 'Sora', sans-serif;
 }

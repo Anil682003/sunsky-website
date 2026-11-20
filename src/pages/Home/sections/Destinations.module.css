@@ -60,9 +60,9 @@
 }
 .tabActive,
 .tabActive:hover {
-  background: var(--blue-deep);
-  border-color: var(--blue-deep);
-  color: #FFFFFF;
+  background: var(--dest-tab-bg, var(--blue-deep));
+  border-color: var(--dest-tab-bg, var(--blue-deep));
+  color: var(--dest-tab-ink, #FFFFFF);
   box-shadow: none;
 }
 

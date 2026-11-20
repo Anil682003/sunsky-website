@@ -6,6 +6,7 @@ import { pick, headerLink, newTabProps } from '../../utils/siteHeader';
 import TrustpilotRating from '../../components/Trustpilot/TrustpilotRating';
 import TrustpilotBadge from '../../components/Trustpilot/TrustpilotBadge';
 import LanguageSwitch from '../../components/LanguageSwitch/LanguageSwitch';
+import { stripColourStyle } from './stripColour';
 
 // The homepage's top strip (the client's header design, Oct 2026): the Trustpilot rating on the
 // left, the CMS announcement in the middle, the language switch on the right, on brand blue, with
@@ -67,6 +68,7 @@ export default function HomeTopStrip({ announcement, trustpilot, language }) {
       role="region"
       aria-label={announceHere ? t('nav.announcement', 'Announcement') : t('nav.topStrip', 'Reviews and language')}
       data-tone={announcement?.tone || 'blue'}
+      style={stripColourStyle(announcement)}
     >
       <div className={styles.inner}>
         {trustHere && (

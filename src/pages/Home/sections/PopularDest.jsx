@@ -119,6 +119,8 @@ const resolveCard = (group, index, t, types) => {
     count: group.count,
     glyph: isGlyph(group.icon) ? group.icon : auto.glyph || 'map-marker',
     tone: TONES.includes(group.tone) ? group.tone : auto.tone || TONES[index % TONES.length],
+    // Any colour picked in the CMS ('#RRGGBB') wins over the tone.
+    colour: /^#[0-9a-fA-F]{6}$/.test(String(group.tone || '')) ? group.tone : null,
     links,
     viewAll: viewAllHref ? { href: viewAllHref, label: viewAllLabel } : null,
   };
@@ -152,7 +154,10 @@ export default function PopularDest({ cms }) {
           {cards.map((c, i) => (
             <article key={i} className={styles.card}>
               <div className={styles.cardHead}>
-                <span className={`${styles.tile} ${styles[`tone_${c.tone}`]}`}>
+                <span
+                  className={`${styles.tile} ${styles[`tone_${c.tone}`]}`}
+                  style={c.colour ? { background: `color-mix(in srgb, ${c.colour} 14%, #fff)`, color: c.colour } : undefined}
+                >
                   <TravelGlyph name={c.glyph} className={styles.tileGlyph} />
                 </span>
                 <div className={styles.cardHeadText}>
