@@ -2455,12 +2455,21 @@ export default function HotelDetail() {
   // that fly AT THE CHOSEN LENGTH, which is what the calendar needs. An answer narrowed that way
   // knows nothing about the other lengths, so asking it for the duration chips would mark every
   // length but the current one sold out. Both are cached for two minutes server side.
+  //
+  // Asked AROUND the searched date, not from today (Levent, 21 Nov 2026): a seasonal destination
+  // with no winter flights (Crete) had every length crossed out for a May stay, because the
+  // next three months fly nothing. Two weeks either side of the searched departure, one call
+  // (the feasibility endpoint takes at most 31 days). No answer refuses nothing.
+  const durFrom = (() => {
+    const around = addDaysISO(matrixBase || stayDateFrom, -15);
+    return around > stayDateFrom ? around : stayDateFrom;
+  })();
   const stayDurations = usePackageDepartureDates({
     enabled: pkgMode && !!destination,
     destinations: destination ? [destination] : [],
     hotelCode,
-    from: stayDateFrom,
-    to: addDaysISO(stayDateFrom, DEPARTURE_LOOKAHEAD_DAYS),
+    from: durFrom,
+    to: addDaysISO(durFrom, 30),
     adults: sAdults, children: sChildren, childAges: sChildAges,
   });
   const durationUnavailable = useMemo(
