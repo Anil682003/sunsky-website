@@ -107,7 +107,8 @@
   "tabs": {
     "prices": "Prijzen",
     "information": "Informatie",
-    "facilities": "Voorzieningen"
+    "facilities": "Voorzieningen",
+    "keepScrolling": "Scroll verder voor"
   },
   "errors": {
     "generic": "De {{what}}prijzen voor deze data konden niet worden geladen. Probeer het opnieuw.",

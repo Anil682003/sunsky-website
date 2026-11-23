@@ -1,4 +1,5 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
+import NextTabTeaser from './NextTabTeaser';
 import { fetchPackages } from '../../api/filters';
 import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
@@ -2008,6 +2009,31 @@ export default function HotelDetail() {
   ]);
 
   const [activeTab, setActiveTab] = useState('Prices');
+  // Scrolling past the end of Prijzen or Informatie opens the next tab (NextTabTeaser). The
+  // page then glides back so the tab bar sits where it sticks and the new tab starts at its top.
+  const tabBarRef = useRef(null);
+  const openNextTab = (tab) => {
+    setActiveTab(tab);
+    requestAnimationFrame(() => {
+      const bar = tabBarRef.current;
+      const column = bar?.parentElement;
+      if (!bar || !column) return;
+      const cs = getComputedStyle(bar);
+      const stuckAt = parseFloat(cs.top) || 0;
+      const top = column.getBoundingClientRect().top + window.scrollY + (parseFloat(cs.marginTop) || 0) - stuckAt;
+      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
+      window.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
+    });
+  };
+  const nextTabTeaser = (tab) => (
+    <NextTabTeaser
+      key={tab}
+      label={t(`tabs.${tab.toLowerCase()}`, tab)}
+      icon={TAB_ICON[tab]}
+      hint={t('tabs.keepScrolling', 'Keep scrolling for')}
+      onNext={() => openNextTab(tab)}
+    />
+  );
   const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState({});
   const isAuth = useSelector((s) => s.auth?.isAuthenticated);
@@ -4410,7 +4436,7 @@ export default function HotelDetail() {
         <div className="grid">
           <div>
             {/* Tabs */}
-            <div className="tw">
+            <div className="tw" ref={tabBarRef}>
               <div className="tabs">
                 {TABS.map((tab) => (
                   <button key={tab} className={`tb${activeTab === tab ? ' act' : ''}`} onClick={() => setActiveTab(tab)}>
@@ -5824,6 +5850,7 @@ export default function HotelDetail() {
                   )}
                 </div>
               </div>
+              {activeTab === 'Prices' && nextTabTeaser('Information')}
             </div>
 
             {/* ── INFORMATION ── */}
@@ -6288,6 +6315,7 @@ export default function HotelDetail() {
                     </section>
                   );
                 })()}
+                {nextTabTeaser('Facilities')}
               </div>
             )}
 
