@@ -3,7 +3,7 @@ import { createPortal } from 'react-dom';
 import styles from './DestinationModal.module.css';
 import { fetchGeoPlaces } from '../../api';
 import { useTranslation } from 'react-i18next';
-import { countryName } from '../../utils/countryName';
+import { geoCountryName } from '../../utils/countryName';
 import { flagSrc } from '../../utils/countryFlag';
 import { orderCountries } from '../../utils/countryOrder';
 
@@ -83,9 +83,9 @@ export default function DestinationModal({
 }) {
   const { t, i18n } = useTranslation('common');
 
-  // The rail, the open block and the recap chip all name the same country; utils/countryName
-  // holds the rule, which the departure-airport picker in the hero shares.
-  const countryLabel = (c) => countryName(c?.isoCode, i18n.language, c?.name || '');
+  // The rail, the open block and the recap chip all name the same country: in Dutch exactly as
+  // Geo Data has it, in English by its ISO code. utils/countryName (geoCountryName) holds the rule.
+  const countryLabel = (c) => geoCountryName(c?.isoCode, i18n.language, c?.name || '');
   const [draft, setDraft] = useState(value);
   const [placesByCountry, setPlacesByCountry] = useState({});   // countryId → group
   const [errorIds, setErrorIds] = useState(() => new Set());

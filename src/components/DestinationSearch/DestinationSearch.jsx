@@ -2,6 +2,7 @@ import { useState, useRef, useEffect, useMemo, useCallback } from 'react';
 import { searchDestinationsAndHotels } from '../../api/filters';
 import styles from './DestinationSearch.module.css';
 import { useTranslation } from 'react-i18next';
+import { geoCountryName } from '../../utils/countryName';
 
 // The header search, styled as a slim die-cut travel ticket: a warm magnifier "stub" separated
 // from the input by a perforation, a manifest-style dropdown (hotels first, then destinations),
@@ -173,10 +174,22 @@ const useTypewriter = (names, active) => {
 };
 
 export default function DestinationSearch({ onSelect, onGo, onBrowseAll, suggestions = [], placeholder }) {
-  const { t } = useTranslation('common');
+  const { t, i18n } = useTranslation('common');
+  const language = i18n?.language || 'nl';
   const boxPlaceholder = placeholder ?? t('nav.searchPlaceholder', 'Search hotels & destinations');
   const [query, setQuery]     = useState('');
-  const [results, setResults] = useState({ destinations: [], zones: [], hotels: [] });
+  const [found, setResults]   = useState({ destinations: [], zones: [], hotels: [] });
+  // Every row names its country the way the rest of the destination search does: in Dutch the
+  // name as entered in Geo Data (what the API sends), in English by the row's ISO code. A row
+  // from a backend that sends no countryIso keeps the API's name.
+  const results = useMemo(() => {
+    const named = (r) => ({ ...r, country: geoCountryName(r.countryIso, language, r.country) });
+    return {
+      destinations: found.destinations.map(named),
+      zones: found.zones.map(named),
+      hotels: found.hotels.map(named),
+    };
+  }, [found, language]);
   const [open, setOpen]       = useState(false);
   const [focused, setFocused] = useState(false);
   const [loading, setLoading] = useState(false);

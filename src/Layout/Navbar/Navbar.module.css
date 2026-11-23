@@ -406,12 +406,11 @@
   padding: 0 6px;
   border-radius: var(--r-full);
   background: var(--btn-auth-bg, var(--cta-grad));
-  box-shadow: 0 2px 8px rgba(194,84,10,0.22);
-  transition: filter 0.2s var(--ease), box-shadow 0.2s var(--ease);
+  /* No drop shadow: the pill sits flat in the bar (client, 23/11/2026). */
+  transition: filter 0.2s var(--ease);
 }
 .authBtns:hover {
   filter: brightness(1.06);
-  box-shadow: 0 4px 12px rgba(194,84,10,0.3);
 }
 /* Each half keeps its own hit area and its own focus ring — they are two destinations
    wearing one pill, not one button. */

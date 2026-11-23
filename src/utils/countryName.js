@@ -27,4 +27,24 @@ export function countryName(iso, language, fallback = '') {
   }
 }
 
+/**
+ * What to call a SOLD country (one from the dashboard's Geo Data) in the destination search.
+ *
+ * Dutch: the name exactly as entered in Geo Data > Countries. The agency writes those names in
+ * Dutch ("Turkije", "Spanje", "Noord-Cyprus") and the Dutch site must say what they wrote, not
+ * what the browser would call the country (23/11/2026). Only a row with no stored name at
+ * all asks the browser.
+ *
+ * Any other language: the stored names are Dutch, so the browser names the country from its
+ * ISO code, and the stored name covers a code the browser does not know.
+ *
+ * Not for checkout or register: their country lists are the site's own English list, not Geo
+ * Data, and keep countryName() above.
+ */
+export function geoCountryName(iso, language, storedName = '') {
+  const stored = String(storedName ?? '').trim();
+  if (/^nl\b/i.test(String(language || '')) && stored) return stored;
+  return countryName(iso, language, stored);
+}
+
 export default countryName;

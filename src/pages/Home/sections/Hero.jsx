@@ -13,7 +13,7 @@ import { DEFAULT_ORIGIN, airportCity, airportLabel, airportToValue, airportIso, 
 import { flagUrl, flagSrc } from '../../../utils/countryFlag';
 import { renderHeroTitle, renderHeroTitleParts } from './heroTitle';
 import { heroCopy } from './heroCopy';
-import { countryName } from '../../../utils/countryName';
+import { countryName, geoCountryName } from '../../../utils/countryName';
 import { useDepartureAirports } from '../../../hooks/useDepartureAirports';
 import {
   useDestinationFeasibility, isAirportUnreachable, visibleAirportGroups,
@@ -181,13 +181,13 @@ const ANY_AIRPORT_ART = (
 
 // Human label for the multi-destination selection shown in the search field.
 // {countries:[...], places:[...]} → "Mallorca, Spain" / "Spain · 3 places" /
-// "Spain, Greece +1 · 4 places". Country names go through countryName() — the dashboard's
-// country list is English seed data ("Spain", "Turkey"), same reason DestinationModal's own
-// countryLabel() does it — this label also becomes the results page's `destinationLabel`
-// URL param, so an untranslated country name here read as English on an otherwise Dutch page.
+// "Spain, Greece +1 · 4 places". Country names go through geoCountryName(), the same rule as
+// DestinationModal's own countryLabel(): in Dutch the name as entered in Geo Data, in English
+// the ISO code's name. This label also becomes the results page's `destinationLabel` URL param,
+// so it must read the same as the picker it came from.
 function selectionLabel({ countries = [], places = [] } = {}, language, t) {
   if (!countries.length) return '';
-  const cName = (c) => countryName(c.isoCode, language, c.name);
+  const cName = (c) => geoCountryName(c.isoCode, language, c.name);
   if (countries.length === 1) {
     const c = countries[0];
     if (places.length === 0) return cName(c);

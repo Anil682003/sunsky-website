@@ -20,8 +20,8 @@ const EMPTY_FACETS = {
   accommodation: [], kids: [], beachDistance: [], centreDistance: [],
 };
 const CITIES = [
-  { code: 'AYT', name: 'Antalya', countryCode: 'TR', countryName: 'Turkey' },
-  { code: 'BJV', name: 'Bodrum',  countryCode: 'TR', countryName: 'Turkey' },
+  { code: 'AYT', name: 'Antalya', countryCode: 'TR', countryName: 'Turkije' },
+  { code: 'BJV', name: 'Bodrum',  countryCode: 'TR', countryName: 'Turkije' },
 ];
 const ZONES = [
   { zoneCode: 16, name: 'Side',  destinationCode: 'AYT', destinationName: 'Antalya' },
@@ -35,7 +35,7 @@ vi.mock('../../api/filters', () => ({
     facets: EMPTY_FACETS,
   })),
   fetchCountries: vi.fn(() => Promise.resolve([
-    { code: 'TR', name: 'Turkey' }, { code: 'ES', name: 'Spain' },
+    { code: 'TR', name: 'Turkije' }, { code: 'ES', name: 'Spanje' },
   ])),
   fetchDestinations: vi.fn(() => Promise.resolve(CITIES)),
   fetchZones: vi.fn(() => Promise.resolve(ZONES)),

@@ -27,7 +27,7 @@ import { ratingLabel, ratingValue } from '../../utils/rating';
 import { topFacilities } from '../../utils/topFacilities';
 import { showPairs, themeAmenities } from '../../utils/themeInfo';
 import { flagUrl } from '../../utils/countryFlag';
-import { countryName } from '../../utils/countryName';
+import { countryName, geoCountryName } from '../../utils/countryName';
 import { toTitleCase } from '../../utils/textCase';
 import {
   DURATION_BANDS, bandByLabel, bandForNights, stayDaysToNights as daysToNights, stayNightsToDays as nightsToDays,
@@ -1840,7 +1840,7 @@ export default function Results() {
     }
     if (urlLabel) return urlLabel;
     const countryNames = countryOptions.reduce(
-      (m, c) => { m[c.code] = countryName(c.code, i18nInstance.language, c.name); return m; },
+      (m, c) => { m[c.code] = geoCountryName(c.code, i18nInstance.language, c.name); return m; },
       {}
     );
     const cityName = scopeCities.reduce((m, c) => { m[c.code] = c.name; return m; }, {});
@@ -3762,7 +3762,7 @@ export default function Results() {
     if (leaves.countries.length) {
       const c = leaves.countries[0];
       const opt = countryOptions.find((o) => o.code === c);
-      return { name: (!urlHolidayType && urlLabel) || countryName(c, i18nInstance.language, opt?.name || c), keys: [`country:${c}`] };
+      return { name: (!urlHolidayType && urlLabel) || geoCountryName(c, i18nInstance.language, opt?.name || c), keys: [`country:${c}`] };
     }
     if (leaves.destinations.length) {
       const d = leaves.destinations[0];

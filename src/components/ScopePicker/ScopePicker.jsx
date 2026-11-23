@@ -4,7 +4,7 @@ import styles from './ScopePicker.module.css';
 import { fetchDestinations, fetchZones } from '../../api/filters';
 import { zoneKey, zoneCity } from '../../utils/scopeLeaves';
 import { useTranslation } from 'react-i18next';
-import { countryName } from '../../utils/countryName';
+import { geoCountryName } from '../../utils/countryName';
 
 /**
  * Where-picker for the results sidebar: country → city → area.
@@ -230,9 +230,9 @@ export default function ScopePicker({
   onApply,
 }) {
   const { t, i18n } = useTranslation('common');
-  // Same rule as the destination picker: the ISO code decides the word, the dashboard
-  // decides which countries are sold. See utils/countryName.
-  const countryLabel = (c) => countryName(c?.code, i18n.language, c?.name || '');
+  // Same rule as the destination picker: in Dutch the Geo Data name as entered, in English the
+  // ISO code's name. See geoCountryName in utils/countryName.
+  const countryLabel = (c) => geoCountryName(c?.code, i18n.language, c?.name || '');
 
   const picked = {
     countries: useMemo(() => new Set(value.countries), [value.countries]),

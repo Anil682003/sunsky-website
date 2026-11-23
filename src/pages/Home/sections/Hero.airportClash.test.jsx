@@ -12,7 +12,7 @@ import Hero from './Hero';
 const navigate = vi.fn();
 vi.mock('react-router-dom', async (orig) => ({ ...(await orig()), useNavigate: () => navigate }));
 
-const TR = { id: 1, code: 'TR', isoCode: 'TR', name: 'Turkey' };
+const TR = { id: 1, code: 'TR', isoCode: 'TR', name: 'Turkije' };
 vi.mock('../../../api', () => ({
   useHomepageConfig: () => ({ data: null }),
   useCountries: () => ({ data: [TR], loading: false, error: null }),

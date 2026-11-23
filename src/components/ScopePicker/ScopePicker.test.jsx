@@ -9,11 +9,11 @@ import ScopePicker from './ScopePicker';
 vi.mock('../../api/filters', () => ({
   fetchDestinations: vi.fn((countryCodes) => Promise.resolve([
     ...(countryCodes.includes('TR') ? [
-      { code: 'AYT', name: 'Antalya',  countryCode: 'TR', countryName: 'Turkey' },
-      { code: 'IST', name: 'Istanbul', countryCode: 'TR', countryName: 'Turkey' },
+      { code: 'AYT', name: 'Antalya',  countryCode: 'TR', countryName: 'Turkije' },
+      { code: 'IST', name: 'Istanbul', countryCode: 'TR', countryName: 'Turkije' },
     ] : []),
     ...(countryCodes.includes('ES') ? [
-      { code: 'PMI', name: 'Mallorca', countryCode: 'ES', countryName: 'Spain' },
+      { code: 'PMI', name: 'Mallorca', countryCode: 'ES', countryName: 'Spanje' },
     ] : []),
   ])),
   fetchZones: vi.fn((cityCodes) => Promise.resolve(
@@ -28,9 +28,9 @@ vi.mock('../../api/filters', () => ({
 }));
 
 const COUNTRIES = [
-  { code: 'TR', name: 'Turkey' },
-  { code: 'ES', name: 'Spain' },
-  { code: 'GR', name: 'Greece' },
+  { code: 'TR', name: 'Turkije' },
+  { code: 'ES', name: 'Spanje' },
+  { code: 'GR', name: 'Griekenland' },
 ];
 
 /**

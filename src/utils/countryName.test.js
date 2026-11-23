@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { countryName } from './countryName';
+import { countryName, geoCountryName } from './countryName';
 
 // The names come from the browser's own CLDR data, so these assert the RULE — when the
 // browser is asked and when it is not — rather than a table of translations we maintain.
@@ -57,5 +57,31 @@ describe('the name a country is given on screen', () => {
   it('falls back to empty rather than undefined when nothing was passed', () => {
     expect(countryName('', 'nl')).toBe('');
     expect(countryName('ZZ', 'nl')).toBe('');
+  });
+});
+
+// geoCountryName: a country the dashboard SELLS, named in the destination search.
+describe('the name a Geo Data country is given in the destination search', () => {
+  it('is the Geo Data name exactly as entered when Dutch is being read', () => {
+    expect(geoCountryName('TR', 'nl', 'Turkije')).toBe('Turkije');
+    // Even where the browser's Dutch word differs: the agency's spelling wins.
+    expect(geoCountryName('BQ', 'nl', 'Bonaire')).toBe('Bonaire');
+    expect(geoCountryName('ES', 'nl-BE', 'Spanje (vasteland)')).toBe('Spanje (vasteland)');
+    expect(geoCountryName('UK', 'nl', ' Verenigd Koninkrijk ')).toBe('Verenigd Koninkrijk');
+  });
+
+  it('asks the browser in Dutch only when Geo Data has no name', () => {
+    expect(geoCountryName('ES', 'nl', '')).toBe('Spanje');
+    expect(geoCountryName('ES', 'nl', null)).toBe('Spanje');
+  });
+
+  it('names the country from its ISO code in English, since the stored names are Dutch', () => {
+    expect(geoCountryName('ES', 'en', 'Spanje')).toBe('Spain');
+    expect(geoCountryName('GR', 'en', 'Griekenland')).toBe('Greece');
+  });
+
+  it('keeps the stored name in English when the code means nothing to the browser', () => {
+    expect(geoCountryName('NY', 'en', 'Noord-Cyprus')).toBe('Noord-Cyprus');
+    expect(geoCountryName(null, 'en', 'Turkije')).toBe('Turkije');
   });
 });

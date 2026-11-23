@@ -1,5 +1,6 @@
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor, within, act } from '@testing-library/react';
+import i18n from '../../i18n';
 import userEvent from '@testing-library/user-event';
 import DestinationSearch from './DestinationSearch';
 
@@ -614,5 +615,53 @@ describe('idle panel', () => {
     await type('rixos');
     await waitFor(() => expect(screen.getByText('Rixos Premium Belek')).toBeInTheDocument());
     expect(screen.queryByRole('button', { name: /bekijk alle bestemmingen/i })).not.toBeInTheDocument();
+  });
+});
+
+// ── COUNTRY NAMES ────────────────────────────────────────────────────────────
+// The API sends each row's country as entered in Geo Data (the agency writes those in Dutch)
+// plus its ISO code. Dutch shows the Geo Data name verbatim; English names it from the code.
+
+describe('country names in the matching list', () => {
+  const GEO = {
+    destinations: [{ code: 'BCN', name: 'Barcelona', country: 'Spanje', countryIso: 'ES' }],
+    zones: [{ zoneCode: '7', name: 'Eixample', destinationCode: 'BCN', destinationName: 'Barcelona', country: 'Spanje', countryIso: 'ES', hotels: 40 }],
+    hotels: [{ ...HOTEL, hotelCode: '1', name: 'Hotel Arts', destinationCode: 'BCN', destinationName: 'Barcelona', zoneName: null, country: 'Spanje', countryIso: 'ES' }],
+  };
+
+  it('shows the Geo Data name exactly as entered when Dutch is selected', async () => {
+    await act(async () => { await i18n.changeLanguage('nl'); });
+    answer(GEO);
+    await type('barc');
+    await waitFor(() => expect(screen.getByText('Hotel Arts')).toBeInTheDocument());
+    expect(within(row('Hotel Arts')).getByText(/^Barcelona, Spanje/)).toBeInTheDocument();
+    expect(within(row('Eixample')).getByText(/^Barcelona, Spanje/)).toBeInTheDocument();
+    expect(screen.queryByText(/Spain/)).toBeNull();
+  });
+
+  it('names the country in English when English is selected', async () => {
+    await act(async () => { await i18n.changeLanguage('en'); });
+    try {
+      answer(GEO);
+      await type('barc');
+      await waitFor(() => expect(screen.getByText('Hotel Arts')).toBeInTheDocument());
+      expect(within(row('Hotel Arts')).getByText(/^Barcelona, Spain(?!je)/)).toBeInTheDocument();
+      expect(within(row('Eixample')).getByText(/^Barcelona, Spain(?!je)/)).toBeInTheDocument();
+      expect(screen.queryByText(/Spanje/)).toBeNull();
+    } finally {
+      await act(async () => { await i18n.changeLanguage('nl'); });
+    }
+  });
+
+  it('keeps the API name for a row that carries no ISO code', async () => {
+    await act(async () => { await i18n.changeLanguage('en'); });
+    try {
+      answer({ destinations: [{ code: 'NCY', name: 'Kyrenia', country: 'Noord-Cyprus' }], zones: [], hotels: [] });
+      await type('kyr');
+      await waitFor(() => expect(screen.getByText('Kyrenia')).toBeInTheDocument());
+      expect(within(row('Kyrenia')).getByText('Noord-Cyprus')).toBeInTheDocument();
+    } finally {
+      await act(async () => { await i18n.changeLanguage('nl'); });
+    }
   });
 });
