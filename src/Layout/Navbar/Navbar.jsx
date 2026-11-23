@@ -14,12 +14,7 @@ import { normalizeSiteHeader, pick, langOf, headerLink, newTabProps, showOnClass
 import { isEmoji, isGlyph } from '../../utils/travelIcons';
 import { TravelEmoji, TravelGlyph } from '../../components/TravelIcon/TravelIcon';
 import DestinationSearch from '../../components/DestinationSearch/DestinationSearch';
-import Trustpilot from '../../components/Trustpilot/Trustpilot';
-import TrustpilotBadge from '../../components/Trustpilot/TrustpilotBadge';
-import { SCORE_TEMPLATE, TRUSTPILOT_ENABLED } from '../../components/Trustpilot/trustpilotConfig';
-import { useConsent } from '../../context/ConsentContext';
 import HeaderMenu from './HeaderMenu';
-import AnnouncementBar from './AnnouncementBar';
 import HomeTopStrip from './HomeTopStrip';
 import LanguageSwitch from '../../components/LanguageSwitch/LanguageSwitch';
 import { useTranslation } from 'react-i18next';
@@ -234,10 +229,6 @@ export default function Navbar() {
   const wordmarkSrc = resolveCmsImageUrl(header.wordmark?.url);
   const [wordmarkFailed, setWordmarkFailed] = useState(false);
   useEffect(() => { setWordmarkFailed(false); }, [wordmarkSrc]);
-  // The live star score needs all three: an account id, a score widget the plan allows, and the
-  // visitor's consent to the widget's iframe. Anything less shows TrustpilotBadge instead.
-  const { has: hasConsent } = useConsent();
-  const liveTrustScore = TRUSTPILOT_ENABLED && Boolean(SCORE_TEMPLATE) && hasConsent('external_media');
 
   // Whether the logo is a wide wordmark or a square icon decides how it is sized AND whether
   // the "SunSky" text sits beside it: a wordmark already carries the name, a square icon does
@@ -644,12 +635,11 @@ export default function Navbar() {
 
   return (
     <>
-    {/* The homepage wears the client's floating header (Oct 2026): a brand-blue strip carrying
-        the rating, the announcement and the language switch, and the bar as a white card under
-        it, the width of the hero's search card. Every other page keeps the full-width bar. */}
-    {floating
-      ? <HomeTopStrip announcement={announcement} trustpilot={trustpilot} language={language} />
-      : <AnnouncementBar announcement={announcement} />}
+    {/* The brand-blue strip on every page (the homepage's since Oct 2026, the whole site since
+        Levent asked for the Trustpilot score everywhere, 21 Nov 2026): the rating, the
+        announcement and the language switch. The homepage alone floats the bar as a card under
+        it; every other page keeps the full-width bar. */}
+    <HomeTopStrip announcement={announcement} trustpilot={trustpilot} language={language} />
     <header className={`${styles.nav} ${scrolled ? styles.scrolled : ''} ${!overHero ? styles.solid : ''} ${floating ? styles.floating : ''}`}>
 
       {/* The bar is three parts: this flank, the cluster, and the flank below. The two
@@ -751,29 +741,8 @@ export default function Navbar() {
         </>,
       )}
 
-      {/* Reviews, switched on in CMS -> Layout -> Header. The live star score when it can be
-          drawn: a score widget is configured (a paid Trustpilot plan) and the visitor allowed
-          the external-media cookies its iframe needs. Otherwise the plain badge that links to
-          the review profile, so the switch always shows something and never an invented
-          rating. It used to render nothing in that case, which on the free plan meant the
-          dashboard's switch did nothing at all. */}
-      {/* On the homepage the rating lives in the top strip instead. */}
-      {!floating && trustpilot.enabled && (
-      <div className={`${styles.trustpilotSlot} ${showOnClass(trustpilot.showOn, styles)}`}>
-        {liveTrustScore
-          ? <Trustpilot template={SCORE_TEMPLATE} showPlaceholder={false} />
-          : <TrustpilotBadge />}
-      </div>
-      )}
-
-      {/* Language, then the auth buttons. Before them on purpose: somebody who
-          cannot read the page needs to fix that before they can sign in. */}
-      {/* On the homepage the switch lives in the top strip instead (and in the phone menu). */}
-      {!floating && language.enabled && (
-      <div className={`${styles.langSlot} ${showOnClass(language.showOn, styles)}`}>
-        <LanguageSwitch />
-      </div>
-      )}
+      {/* Reviews and the language switch are on the strip above (HomeTopStrip), on every
+          page; on a phone the language switch is in the menu. */}
 
       {/* Desktop auth buttons */}
       <div className={styles.authArea}>

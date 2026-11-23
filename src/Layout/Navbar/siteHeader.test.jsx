@@ -385,11 +385,13 @@ describe('search, support and the rest of the bar', () => {
         language: { enabled: false, showOn: 'all' },
       }),
     };
-    // The full bar's slots: on the homepage the rating and the switch live in the top strip.
+    // Every page now carries the rating in the top strip, as the homepage does (21 Nov 2026),
+    // so the bar itself has no Trustpilot or language slot any more.
     renderNavbar('/faq');
     expect(screen.queryByRole('link', { name: 'Klantendienst' })).toBeNull();
-    expect(document.querySelector(`.${styles.trustpilotSlot}`)).toHaveClass(styles.onlyDesktop);
+    expect(document.querySelector(`.${styles.trustpilotSlot}`)).toBeNull();
     expect(document.querySelector(`.${styles.langSlot}`)).toBeNull();
+    expect(screen.getByRole('link', { name: /Trustpilot/ })).toBeInTheDocument();
   });
 
   // On the free plan (no score widget configured, as in production and in this test run) the
