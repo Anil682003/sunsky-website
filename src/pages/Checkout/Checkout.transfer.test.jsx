@@ -215,4 +215,36 @@ describe('a transfer from the airport the plane lands at', () => {
     await waitFor(() => expect(document.body.textContent).toMatch(/€1\.384/));
     expect(document.body.textContent).not.toMatch(/€1,384/);
   });
+
+  it('says plainly that SUNSKY has no transfer when none is offered, and offers no choice', async () => {
+    post.mockImplementation((url) => (String(url).includes('transfer-availability')
+      ? Promise.resolve({ data: { results: { hotelbeds: { services: [] } } } })
+      : Promise.resolve({ data: {} })));
+    const user = userEvent.setup();
+    renderCheckout();
+    await toExtras(user);
+    const card = await screen.findByTestId('transfer-unavailable');
+    expect(card).toHaveTextContent('Luchthaventransfer');
+    expect(card).toHaveTextContent('Geen transfer beschikbaar via SUNSKY');
+    expect(card).toHaveTextContent(/kun je geen afzonderlijke luchthaventransfer via SUNSKY bijboeken/);
+    expect(transferCard()).toBeUndefined();
+  });
+
+  it('gives the same text when the transfer search fails, and for a hotel-only trip', async () => {
+    post.mockImplementation((url) => (String(url).includes('transfer-availability')
+      ? Promise.reject(new Error('down'))
+      : Promise.resolve({ data: {} })));
+    const user = userEvent.setup();
+    const { unmount } = renderCheckout();
+    await toExtras(user);
+    expect(await screen.findByTestId('transfer-unavailable')).toHaveTextContent('Geen transfer beschikbaar via SUNSKY');
+    unmount();
+
+    post.mockReset();
+    post.mockImplementation(() => Promise.resolve({ data: {} }));
+    renderCheckout({ ...BOOKING, search: { ...BOOKING.search, transport: 'hotel_only' }, api: { hotel: BOOKING.api.hotel } });
+    await toExtras(user);
+    expect(await screen.findByTestId('transfer-unavailable')).toHaveTextContent('Geen transfer beschikbaar via SUNSKY');
+    expect(transferCall()).toBeUndefined();
+  });
 });

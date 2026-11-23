@@ -333,7 +333,9 @@
     "total": "totaal",
     "transfer": "Transfer",
     "upToPassengers": "tot {{count}} passagiers",
-    "pickGone": "De transfer die je eerder koos is niet meer beschikbaar. Kies opnieuw."
+    "pickGone": "De transfer die je eerder koos is niet meer beschikbaar. Kies opnieuw.",
+    "notViaSunsky": "Geen transfer beschikbaar via SUNSKY",
+    "notViaSunskyText": "Voor deze reis kun je geen afzonderlijke luchthaventransfer via SUNSKY bijboeken. Indien je vervoer naar je accommodatie nodig hebt, kun je dit zelf regelen. Controleer de belangrijke hotelinformatie voor eventuele aanvullende transferverplichtingen, kosten en instructies van de accommodatie."
   },
   "duration": {
     "travellers_one": "{{count}} reiziger",

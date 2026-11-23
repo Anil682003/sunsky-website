@@ -1913,6 +1913,13 @@ function CheckoutContent({ stripe, elements }) {
   })();
   const wantsTransfer = !isTransfer && !isFlight && srch.transport !== 'hotel_only'
     && !!srch.destination && !!(booking.api?.hotel?.hotelCode || booking.hotelCode);
+  // Nothing to choose for this trip: no transfer is sold with it (hotel only, no destination),
+  // or the search came back empty or failed. The extras step then says so in one fixed text.
+  const transferUnavailable = !isTransfer && !isFlight && (
+    !wantsTransfer
+    || !(srch.checkin || booking.api?.hotel?.checkin)
+    || (!!transfers && !transfers.loading && !transfers.services?.length)
+  );
   // Where the plane lands (SAW), not the destination's code (IST): see transferAirport.
   const transferFrom = transferAirport({
     outTo: booking.flight?.outTo,
@@ -3322,7 +3329,27 @@ function CheckoutContent({ stripe, elements }) {
                 </>
               )}
 
-              {step === STEP.ADDONS && wantsTransfer && (
+              {/* No transfer through SUNSKY for this trip, whatever the reason (hotel only, no
+                  supplier offer for the hotel or the date, the search failing): one fixed
+                  explanation instead of an empty choice (Levent, 21 Nov 2026). */}
+              {step === STEP.ADDONS && transferUnavailable && (
+                <section className="ck-card ck-reveal ck-tr-none" data-testid="transfer-unavailable">
+                  <div className="ck-card-head">
+                    <div className="ck-card-titles">
+                      <h2 className="ck-card-title hd">{t('checkout:transfer.airportTransfer', 'Airport transfer')}</h2>
+                    </div>
+                  </div>
+                  <div className="ck-tr-none-box">
+                    <span className="ck-tr-none-ico">{ICON.van}</span>
+                    <div className="ck-tr-none-text">
+                      <b>{t('checkout:transfer.notViaSunsky', 'No transfer available through SUNSKY')}</b>
+                      <p>{t('checkout:transfer.notViaSunskyText', 'For this trip you cannot add a separate airport transfer through SUNSKY. If you need transport to your accommodation, you can arrange this yourself. Check the important hotel information for any additional transfer requirements, costs and instructions from the accommodation.')}</p>
+                    </div>
+                  </div>
+                </section>
+              )}
+
+              {step === STEP.ADDONS && wantsTransfer && !transferUnavailable && (
                 /* The airport transfer. One choice for everyone in the booking — the vehicle
                    carries the party, so it is priced per vehicle and never per traveller.
                    "No transfer" is the default: an opt-in extra that arrives pre-selected is
@@ -3351,10 +3378,6 @@ function CheckoutContent({ stripe, elements }) {
 
                   {transfers?.loading ? (
                     <div className="ck-tr-wait"><span className="ck-spin" /> {t('checkout:transfer.checkingPrices', 'Checking transfer prices…')}</div>
-                  ) : transfers?.error ? (
-                    <div className="ck-tr-err">
-                      {ICON.ban} <span>{transfers.error} {t('checkout:transfer.stillBookLater', 'You can still book — add a transfer later by contacting us.')}</span>
-                    </div>
                   ) : transfers?.services?.length ? (
                     <div className="ck-tr-list">
                       {transferOptions.slice(0, 5).map((opt, ti) => (
@@ -3402,8 +3425,6 @@ function CheckoutContent({ stripe, elements }) {
                         ? t('checkout:transfer.pricesReturnWholeParty', 'Prices are for the whole party and cover both the airport pickup on arrival and the return to the airport.')
                         : t('checkout:transfer.pricesForWholeParty', 'Prices are for the whole party and cover the airport pickup on arrival day.')}</p>
                     </div>
-                  ) : transfers ? (
-                    <div className="ck-tr-err">{ICON.ban} <span>{t('checkout:transfer.noneOffered', 'No transfers are offered for this hotel on your arrival date.')}</span></div>
                   ) : null}
                 </section>
               )}

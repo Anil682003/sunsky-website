@@ -918,6 +918,15 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
   font-size:var(--fs-small); font-weight:600; color:var(--text-sec); background:var(--border-light); }
 .ck-tr-err { background:var(--sun-warm); border:1px solid #ffe9c7; color:#8a5200; }
 .ck-tr-err svg { width:15px; height:15px; flex:none; }
+/* No transfer through SUNSKY for this trip: one fixed explanation (Levent, 21 Nov 2026). */
+.ck-tr-none-box { display:flex; align-items:flex-start; gap:14px; padding:16px 18px; border-radius:var(--r-md);
+  background:var(--blue-bg, #F5F8FF); border:1px solid var(--line); }
+.ck-tr-none-ico { display:flex; align-items:center; justify-content:center; width:40px; height:40px; flex:none;
+  border-radius:12px; background:#fff; border:1px solid var(--line); color:var(--text-sec); }
+.ck-tr-none-ico svg { width:20px; height:20px; }
+.ck-tr-none-text { display:flex; flex-direction:column; gap:6px; min-width:0; }
+.ck-tr-none-text b { font-family:'Sora',sans-serif; color:var(--text); font-size:var(--fs-body); }
+.ck-tr-none-text p { margin:0; color:var(--text-sec); font-size:var(--fs-small); line-height:1.6; }
 .ck-ins-by { display:inline-block; margin-bottom:6px; padding:2px 9px; border-radius:var(--r-full);
   background:var(--blue-pale); border:1px solid var(--blue-bg); font-size:var(--fs-micro); font-weight:700; color:var(--blue); }
 

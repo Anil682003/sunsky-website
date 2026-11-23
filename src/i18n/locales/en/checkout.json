@@ -333,7 +333,9 @@
     "total": "total",
     "transfer": "Transfer",
     "upToPassengers": "up to {{count}} passengers",
-    "pickGone": "The transfer you chose earlier is no longer available. Please choose again."
+    "pickGone": "The transfer you chose earlier is no longer available. Please choose again.",
+    "notViaSunsky": "No transfer available through SUNSKY",
+    "notViaSunskyText": "For this trip you cannot add a separate airport transfer through SUNSKY. If you need transport to your accommodation, you can arrange this yourself. Check the important hotel information for any additional transfer requirements, costs and instructions from the accommodation."
   },
   "duration": {
     "travellers_one": "{{count}} traveller",
