@@ -554,6 +554,25 @@ img.ck-sum-leg-air { background:#fff; border:1px solid var(--border-light); padd
 .ck-sum-row span { display:flex; align-items:center; gap:7px; }
 .ck-sum-row span svg { width:13px; height:13px; color:var(--green); }
 .ck-sum-row-ins { animation:ckRowIn .6s var(--ease) both; border-radius:8px; padding-left:4px; padding-right:4px; }
+/* Promotions & Discounts: the one discount line keeps the rows' own look; the promo code field
+   is compact, under the rows, and stays out of the way until asked for. */
+.ck-sum-row-promo { animation:ckRowIn .6s var(--ease) both; }
+.ck-promo { margin-top:10px; }
+.ck-promo-toggle { border:0; background:none; padding:0; font:inherit; font-size:var(--fs-small); font-weight:600;
+  color:var(--blue-deep); cursor:pointer; text-decoration:underline; text-underline-offset:3px; }
+.ck-promo-form { display:flex; gap:8px; }
+.ck-promo-form input { flex:1; min-width:0; height:38px; padding:0 12px; border:1px solid var(--border-light); border-radius:10px;
+  font:inherit; font-size:var(--fs-small); font-weight:600; letter-spacing:.04em; text-transform:uppercase; color:var(--text); background:#fff; }
+.ck-promo-form input:focus { outline:none; border-color:var(--blue-deep); box-shadow:0 0 0 3px rgba(31,79,216,.12); }
+.ck-promo-form button { height:38px; padding:0 14px; border:0; border-radius:10px; background:var(--dark2); color:#fff;
+  font:inherit; font-size:var(--fs-small); font-weight:700; cursor:pointer; white-space:nowrap; }
+.ck-promo-form button:disabled { opacity:.5; cursor:default; }
+.ck-promo-applied { display:flex; align-items:center; justify-content:space-between; gap:8px; font-size:var(--fs-small); color:var(--text); font-weight:600; }
+.ck-promo-applied span { display:inline-flex; align-items:center; gap:6px; }
+.ck-promo-applied svg { width:14px; height:14px; color:var(--green); }
+.ck-promo-remove { border:0; background:none; padding:0; font:inherit; font-size:var(--fs-small); color:var(--text-sec); cursor:pointer; text-decoration:underline; }
+.ck-promo-note { margin:6px 0 0; font-size:var(--fs-small); color:var(--text-sec); line-height:1.4; }
+.ck-promo-err { color:#b42318; }
 .ck-sum-total { display:flex; align-items:flex-end; justify-content:space-between; gap:10px; margin-top:13px;
   padding:14px 16px; border-radius:var(--r-md); background:linear-gradient(135deg,var(--dark2),#13265c); color:#fff; }
 .ck-sum-total-label { display:block; font-family:'Sora',sans-serif; font-size:var(--fs-body); font-weight:600; }

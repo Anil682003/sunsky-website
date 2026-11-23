@@ -99,7 +99,8 @@
     "flightPriceUnverified": "De luchtvaartmaatschappij kan de prijs van deze vlucht op dit moment niet bevestigen. Er is niets afgeschreven. Probeer het over een paar minuten opnieuw.",
     "priceUnverified": "De leverancier kan de prijs op dit moment niet bevestigen. Er is niets afgeschreven. Probeer het over een paar minuten opnieuw.",
     "priceChanged": "De prijs van deze reis is gewijzigd. Er is niets afgeschreven. Vernieuw de pagina om de actuele prijs te zien.",
-    "depositUnavailable": "Een aanbetaling is voor deze reis niet meer mogelijk. Er is niets afgeschreven. Betaal het volledige bedrag om te boeken."
+    "depositUnavailable": "Een aanbetaling is voor deze reis niet meer mogelijk. Er is niets afgeschreven. Betaal het volledige bedrag om te boeken.",
+    "promotionChanged": "De korting op deze reis is gewijzigd. Er is niets afgeschreven. Bekijk het nieuwe totaal en bevestig opnieuw."
   },
   "baggage": {
     "add": "Toevoegen",
@@ -722,5 +723,34 @@
     "dueNow": "Aanbetaling, nu",
     "balanceBy": "Saldo, uiterlijk {{date}}",
     "balanceLater": "Saldo, vóór vertrek"
+  },
+  "promo": {
+    "haveCode": "Heb je een promotiecode?",
+    "label": "Promotiecode",
+    "placeholder": "Promotiecode",
+    "apply": "Toepassen",
+    "checking": "Controleren…",
+    "applied": "Code {{code}} toegepast",
+    "remove": "Verwijderen",
+    "notBetter": "Code {{code}} is geldig, maar de huidige actie geeft je meer korting. Je houdt de beste korting.",
+    "reason": {
+      "default": "Deze code kan niet gebruikt worden voor deze boeking.",
+      "unknown_code": "Deze code bestaat niet. Controleer de code en probeer opnieuw.",
+      "not_active": "Deze code is op dit moment niet actief.",
+      "not_started": "Deze code is nog niet geldig.",
+      "expired": "Deze code is verlopen.",
+      "booking_date": "Deze code is niet geldig op de datum van vandaag.",
+      "travel_date": "Deze code geldt niet voor je reisdata.",
+      "product": "Deze code geldt niet voor dit type reis.",
+      "location": "Deze code geldt niet voor deze bestemming of dit hotel.",
+      "min_value": "Je reis bereikt het minimumbedrag voor deze code niet.",
+      "min_travellers": "Deze code geldt pas vanaf meer reizigers.",
+      "used_up": "Deze code is al het maximale aantal keren gebruikt.",
+      "customer_limit": "Je hebt deze code al het maximale aantal keren gebruikt.",
+      "invalid_discount": "Deze code kan niet gebruikt worden voor deze boeking.",
+      "exceeds_price": "Deze code kan niet gebruikt worden voor deze boeking.",
+      "margin": "Deze code kan niet gecombineerd worden met de prijs van deze reis.",
+      "no_price": "Deze code kan nog niet gecontroleerd worden voor deze reis."
+    }
   }
 }

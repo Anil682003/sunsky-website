@@ -99,7 +99,8 @@
     "flightPriceUnverified": "The airline can't confirm this flight's price right now. You have not been charged. Please try again in a few minutes.",
     "priceUnverified": "The supplier can't confirm the price right now. You have not been charged. Please try again in a few minutes.",
     "priceChanged": "The price of this trip has changed. You have not been charged. Refresh the page to see the current price.",
-    "depositUnavailable": "A deposit is no longer possible for this trip. You have not been charged. Please pay the full amount to book it."
+    "depositUnavailable": "A deposit is no longer possible for this trip. You have not been charged. Please pay the full amount to book it.",
+    "promotionChanged": "The discount on this trip has changed. You have not been charged. Check the new total and confirm again."
   },
   "baggage": {
     "add": "Add",
@@ -722,5 +723,34 @@
     "dueNow": "Deposit, paid now",
     "balanceBy": "Balance, by {{date}}",
     "balanceLater": "Balance, before departure"
+  },
+  "promo": {
+    "haveCode": "Have a promo code?",
+    "label": "Promo code",
+    "placeholder": "Promo code",
+    "apply": "Apply",
+    "checking": "Checking…",
+    "applied": "Code {{code}} applied",
+    "remove": "Remove",
+    "notBetter": "Code {{code}} is valid, but the current offer gives you more. You keep the best discount.",
+    "reason": {
+      "default": "This code cannot be used for this booking.",
+      "unknown_code": "This code does not exist. Check the code and try again.",
+      "not_active": "This code is not active at the moment.",
+      "not_started": "This code is not valid yet.",
+      "expired": "This code has expired.",
+      "booking_date": "This code is not valid today.",
+      "travel_date": "This code does not apply to your travel dates.",
+      "product": "This code does not apply to this type of trip.",
+      "location": "This code does not apply to this destination or hotel.",
+      "min_value": "Your trip does not reach the minimum amount for this code.",
+      "min_travellers": "This code applies from more travellers only.",
+      "used_up": "This code has been used the maximum number of times.",
+      "customer_limit": "You have already used this code the maximum number of times.",
+      "invalid_discount": "This code cannot be used for this booking.",
+      "exceeds_price": "This code cannot be used for this booking.",
+      "margin": "This code cannot be combined with the price of this trip.",
+      "no_price": "This code cannot be checked for this trip yet."
+    }
   }
 }

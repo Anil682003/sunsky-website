@@ -8,6 +8,9 @@
  *   PRICE_CHANGED     a supplier priced a part differently; the page has to show the new price.
  *   DEPOSIT_UNAVAILABLE  the customer chose a deposit the server no longer offers for this trip
  *                     (the rule changed, or the balance would already be due): pay in full.
+ *   PROMOTION_CHANGED SUNSKY would grant a different discount than the page showed (dates,
+ *                     travellers or price changed, a code was used up): the page now shows the
+ *                     new price, and the next click pays exactly that.
  *
  * Both refusals come from creating the booking, before any payment, so "not charged" is true.
  * Anything else keeps the old behaviour: the server's message, the error's, or a generic line.
@@ -22,6 +25,9 @@ export function bookingErrorMessage(err, t) {
   }
   if (data.errorCode === 'PRICE_CHANGED') {
     return t('checkout:errors.priceChanged', 'The price of this trip has changed. You have not been charged. Refresh the page to see the current price.');
+  }
+  if (data.errorCode === 'PROMOTION_CHANGED') {
+    return t('checkout:errors.promotionChanged', 'The discount on this trip has changed. You have not been charged. Check the new total and confirm again.');
   }
   if (data.errorCode === 'DEPOSIT_UNAVAILABLE') {
     return t('checkout:errors.depositUnavailable', 'A deposit is no longer possible for this trip. You have not been charged. Please pay the full amount to book it.');

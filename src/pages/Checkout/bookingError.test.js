@@ -36,6 +36,11 @@ describe('the message after a refused booking', () => {
     expect(bookingErrorMessage(err, tNl.t.bind(tNl))).toBe('De prijs van deze reis is gewijzigd. Er is niets afgeschreven. Vernieuw de pagina om de actuele prijs te zien.');
   });
 
+  it('a changed promotion says the total moved and nothing was charged, in Dutch', () => {
+    const err = refused({ errorCode: 'PROMOTION_CHANGED', message: 'The discount on this booking has changed.', errors: [{ product: 'Promotion', promotion: null, code: null }] });
+    expect(bookingErrorMessage(err, tNl.t.bind(tNl))).toBe('De korting op deze reis is gewijzigd. Er is niets afgeschreven. Bekijk het nieuwe totaal en bevestig opnieuw.');
+  });
+
   it('any other failure keeps the old text: the server message, then the error, then the generic line', () => {
     expect(bookingErrorMessage(refused({ message: 'Customer details are required' }), t)).toBe('Customer details are required');
     expect(bookingErrorMessage(new Error('Your card was declined.'), t)).toBe('Your card was declined.');

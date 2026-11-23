@@ -6,6 +6,7 @@ import { useCompanyContact } from '../../api';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
 import i18n from '../../i18n';
 import './Confirmation.css';
+import { formatDiscount } from '../../utils/promotions';
 
 /* ── tiny SVG helper (same pattern as Checkout) ── */
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -469,6 +470,10 @@ export default function Confirmation({
               {pricing.roomExtraTotal > 0 && <div className="ckc-kv-row"><span>{t('checkout:summary.roomUpgrade', 'Room upgrade')}</span><b>{money(pricing.roomExtraTotal)}</b></div>}
               {pricing.transferTotal > 0 && <div className="ckc-kv-row"><span>{t('checkout:summary.airportTransfer', 'Airport transfer (per vehicle)')}</span><b>{money(pricing.transferTotal)}</b></div>}
               {insAmount > 0 && <div className="ckc-kv-row"><span>{insurance?.name}</span><b>{money(insAmount)}</b></div>}
+              {/* The promotion SUNSKY accepted the booking with: one line under its name. */}
+              {pricing.promotion && Number(pricing.promotion.amount) > 0 && (
+                <div className="ckc-kv-row" data-testid="promotion-line"><span>{pricing.promotion.name}</span><b>{formatDiscount(pricing.promotion.amount)}</b></div>
+              )}
               {isDeposit ? (
                 <>
                   <div className="ckc-kv-row"><span>{t('checkout:confirmation.tripTotal', 'Trip total')}</span><b>{money(pricing.total)}</b></div>

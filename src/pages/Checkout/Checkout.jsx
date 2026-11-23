@@ -29,6 +29,7 @@ import AirlineMark from '../../components/AirlineMark/AirlineMark';
 // sellingEuros is the display rounding every SUNSKY price on screen goes through; formatEuros
 // writes it the house way (€1.013, never the US €1,013).
 import { sellingEuros, formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { usePromotionQuote, promotionInput, promotionProduct, formatDiscount, cents } from '../../utils/promotions';
 import { transferAirport } from './transferAirport';
 import { localCostOfRate } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
@@ -1508,6 +1509,76 @@ function CheckoutContent({ stripe, elements }) {
   const transferTotal = !isTransfer && pickedOption
     ? Math.round(Number(pickedOption.price) || 0)
     : (!isTransfer && booking.api?.transfer ? Math.round(Number(booking.api.transfer.price) || 0) : 0);
+
+  /* ── promotion (Promotions & Discounts, spec v1.2) ──
+     The ONE discount this booking gets, as the admin's central calculation answers it
+     (utils/promotions): the best automatic promotion, or a code typed below when it is better.
+     Its basis is the travel price only (flight + hotel); transfers, baggage, insurance and the
+     support package are never discounted. It is asked again whenever the price, the dates, the
+     travellers or the products change, and SUNSKY decides once more when it accepts the
+     booking; if that answer differs, the booking is refused with PROMOTION_CHANGED and the new
+     price is shown here before anyone pays. */
+  const [promoField, setPromoField] = useState('');
+  const [promoCode, setPromoCode] = useState('');
+  const [promoOpen, setPromoOpen] = useState(false);
+  const [promoNotice, setPromoNotice] = useState(null);
+  // What SUNSKY answered on a refused booking (PROMOTION_CHANGED), for this exact trip.
+  const [promoOverride, setPromoOverride] = useState(null);
+  const promoProduct = isTransfer ? null : promotionProduct({ hasFlight: !!booking.api?.flight, hasHotel: !!booking.api?.hotel });
+  const promoEligible = base + roomExtraTotal;
+  // What the travel costs SUNSKY (supplier prices before the margin, handed over by the hotel /
+  // flight page), followed through a re-price in proportion. Only for the display's margin check.
+  const costPart = (part, now) => {
+    if (!part) return 0;
+    const cost = Number(part.cost);
+    const then = Number(part.price);
+    if (!(cost > 0) || !(then > 0)) return null;
+    return cost * ((Number(now) || then) / then);
+  };
+  const hotelCostNow = costPart(booking.api?.hotel, quote.hotel);
+  const flightCostNow = costPart(booking.api?.flight, quote.flight);
+  const promoInputNow = promotionInput({
+    product: promoProduct,
+    hotelCode: booking.api?.hotel?.hotelCode ?? booking.hotelCode,
+    arrivalAirport: booking.api?.hotel ? null : (booking.api?.flight?.to || null),
+    travelDate: booking.api?.flight?.depdate || booking.api?.hotel?.checkin || booking.search?.checkin || null,
+    travellers: pax,
+    eligiblePrice: promoEligible,
+    eligibleCost: hotelCostNow == null || flightCostNow == null ? null : hotelCostNow + flightCostNow,
+    code: promoCode,
+    // Per-customer limits: the e-mail of the booking, once it looks like one.
+    email: /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(priv?.email || '')) ? priv.email : '',
+  });
+  const promoKey = promoInputNow ? JSON.stringify(promoInputNow) : '';
+  const promoQuote = usePromotionQuote(promoInputNow);
+  const promoApplied = promoOverride && promoOverride.key === promoKey ? promoOverride.applied : promoQuote.applied;
+  const promo = promoApplied && promoApplied.amount > 0 && promoApplied.amount < promoEligible ? promoApplied : null;
+  const promoAmount = promo ? cents(promo.amount) : 0;
+  // What became of a typed code: applied, valid but the automatic offer is better, or refused
+  // (then it is dropped again, so it is not sent with the booking; the field keeps the text).
+  useEffect(() => {
+    const c = promoQuote.code;
+    if (!promoCode || !c || c.code !== promoCode) return;
+    if (c.status === 'applied') setPromoNotice({ kind: 'ok', code: c.code });
+    else if (c.status === 'not_better') setPromoNotice({ kind: 'info', code: c.code });
+    else {
+      setPromoNotice({ kind: 'error', code: c.code, reason: c.reason });
+      setPromoCode('');
+    }
+  }, [promoQuote.code, promoCode]);
+  const applyPromoCode = (e) => {
+    e?.preventDefault?.();
+    const v = promoField.trim().toUpperCase().replace(/\s+/g, '');
+    if (!v) return;
+    setPromoNotice(null);
+    setPromoCode(v);
+  };
+  const removePromoCode = () => {
+    setPromoCode('');
+    setPromoField('');
+    setPromoNotice(null);
+    setPromoOpen(false);
+  };
   /* ── baggage the traveller added ──
      Every line is priced from the dashboard table and re-priced by the server from the same
      row; an amount that appears here and not there would be money we display but never take. */
@@ -1823,7 +1894,8 @@ function CheckoutContent({ stripe, elements }) {
   // The support package is a SUNSKY service charge, so it sits beside insurance on top of the
   // subtotal rather than inside it: insurance is priced FROM the subtotal (see priceInsurance
   // above), and folding the package in would quietly inflate those premiums.
-  const total = subtotal + insAmount + supportCharge.amount;
+  // The promotion comes off the travel price; every other line stays as it is.
+  const total = cents(subtotal + insAmount + supportCharge.amount - promoAmount);
   const animTotal = useCountUp(total);
 
   /* ── deposit ──
@@ -1874,6 +1946,12 @@ function CheckoutContent({ stripe, elements }) {
   // did, could show less than the amount then charged (€501.40 read as €501); rounding up never
   // does. The exact whole-euro charge itself comes with the API's own rounding.
   const money = (n) => `${ccy}${formatEuros(n ?? 0, PRICE_KIND.SELLING) ?? '0'}`;
+  // A total a percentage discount gave cents shows them exactly (the server charges to the cent);
+  // a whole-euro total reads as it always did.
+  const moneyTotal = (n) => (Math.abs((Number(n) || 0) - Math.round(Number(n) || 0)) < 0.005
+    ? money(Math.round(Number(n) || 0))
+    : `${ccy}${new Intl.NumberFormat('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n))}`);
+  const totalShown = Math.abs(animTotal - total) < 0.01 ? moneyTotal(total) : money(animTotal);
 
   /* ── scroll to top on step change + reveal anims ── */
   useEffect(() => {
@@ -2404,6 +2482,10 @@ function CheckoutContent({ stripe, elements }) {
         // deposit is still on offer for this trip (409 DEPOSIT_UNAVAILABLE when it is not) and
         // charges its own figure.
         paymentPlan: usingDeposit ? 'deposit' : 'full',
+        // The promotion this page showed (null: none) and the code typed, if any. SUNSKY decides
+        // again from its own prices and refuses with PROMOTION_CHANGED if it would differ.
+        promoCode: promoCode || undefined,
+        promotion: promo ? { promotionId: promo.promotionId, amount: promo.amount } : null,
       });
 
       const created = createRes.data?.data || createRes.data || {};
@@ -2415,8 +2497,10 @@ function CheckoutContent({ stripe, elements }) {
           amount: Number(created.amountDue) || Number(created.deposit.amount) || 0,
           balance: Number(created.deposit.balance) || 0,
           balanceDueDate: created.deposit.balanceDueDate || null,
+          promotion: created.promotion || null,
+          total: Number(created.grandTotal) || total,
         }
-        : { plan: 'full', amount: Number(created.amountDue) || Number(created.grandTotal) || total });
+        : { plan: 'full', amount: Number(created.amountDue) || Number(created.grandTotal) || total, promotion: created.promotion || null, total: Number(created.grandTotal) || total });
       // This booking's key: every later call for it carries the token (services/bookingAccess).
       rememberBookingToken(bookingId, created.accessToken);
       setErrorContext({ ref });
@@ -2557,6 +2641,17 @@ function CheckoutContent({ stripe, elements }) {
       // balance date passed): nothing was booked or charged. Put the choice on "Pay in full"
       // so the next click is a deliberate full payment, not a second refusal.
       if (err?.response?.data?.errorCode === 'DEPOSIT_UNAVAILABLE') setPayPlan('full');
+      // SUNSKY would grant a different discount than this page showed: show its answer (the
+      // total moves with it) so the next click pays exactly that. Nothing was booked or charged.
+      if (err?.response?.data?.errorCode === 'PROMOTION_CHANGED') {
+        const granted = err.response.data.errors?.[0]?.promotion || null;
+        setPromoOverride({ key: promoKey, applied: granted ? { ...granted, amount: Number(granted.amount) || 0 } : null });
+        const codeAnswer = err.response.data.errors?.[0]?.code;
+        if (promoCode && codeAnswer && codeAnswer.status === 'rejected') {
+          setPromoNotice({ kind: 'error', code: codeAnswer.code, reason: codeAnswer.reason });
+          setPromoCode('');
+        }
+      }
       flashErrors({ submit: msg });
     } finally {
       setPaying(false);
@@ -2585,7 +2680,7 @@ function CheckoutContent({ stripe, elements }) {
     : step === STEP.SUPPORT ? t('checkout:cta.continueToReview', 'Continue to overview')
     : step === STEP.REVIEW ? t('checkout:cta.continueToPayment', 'Continue to payment')
     : usingDeposit ? t('checkout:cta.payDeposit', { amount: money(depositOffer.amount), defaultValue: 'Pay {{amount}} deposit' })
-    : t('checkout:cta.pay', { amount: money(total), defaultValue: 'Pay {{amount}}' });
+    : t('checkout:cta.pay', { amount: moneyTotal(total), defaultValue: 'Pay {{amount}}' });
   const ctaAction = step === STEP.PAYMENT ? pay : next;
   // One rule for every way forward (button, mobile bar): an outstanding re-check, an
   // unaccepted new price or an unavailable party stops the traveller here, at the panel that
@@ -2609,7 +2704,7 @@ function CheckoutContent({ stripe, elements }) {
         payMethod={payMethod}
         card={card}
         idealBank={idealBank}
-        pricing={{ base, roomExtraTotal, transferTotal, total, pax }}
+        pricing={{ base, roomExtraTotal, transferTotal, total: paidPlan?.total ?? total, pax, promotion: paidPlan ? paidPlan.promotion : promo }}
         payment={paidPlan}
         ccy={ccy}
         reservationPending={reservationPending}
@@ -4381,14 +4476,59 @@ function CheckoutContent({ stripe, elements }) {
                       <b>{money(supportCharge.amount)}</b>
                     </div>
                   )}
+                  {/* The promotion: ONE line under its own name; every other line stays as it was. */}
+                  {promo && (
+                    <div className="ck-sum-row ck-sum-row-promo" data-testid="promotion-line">
+                      <span>{promo.name}</span><b>{formatDiscount(promo.amount)}</b>
+                    </div>
+                  )}
                 </div>
+
+                {/* A compact promo code field (spec v1.2 §5). Automatic promotions need no code. */}
+                {promoProduct && (
+                  <div className="ck-promo">
+                    {promoCode && promoNotice?.kind === 'ok' ? (
+                      <div className="ck-promo-applied">
+                        <span>{ICON.check} {t('checkout:promo.applied', { code: promoCode, defaultValue: 'Code {{code}} applied' })}</span>
+                        <button type="button" className="ck-promo-remove" onClick={removePromoCode}>{t('checkout:promo.remove', 'Remove')}</button>
+                      </div>
+                    ) : !promoOpen && !promoCode ? (
+                      <button type="button" className="ck-promo-toggle" onClick={() => setPromoOpen(true)}>
+                        {t('checkout:promo.haveCode', 'Have a promo code?')}
+                      </button>
+                    ) : (
+                      <form className="ck-promo-form" onSubmit={applyPromoCode}>
+                        <input
+                          type="text"
+                          value={promoField}
+                          onChange={(e) => setPromoField(e.target.value.toUpperCase())}
+                          placeholder={t('checkout:promo.placeholder', 'Promo code')}
+                          aria-label={t('checkout:promo.label', 'Promo code')}
+                          maxLength={40}
+                          autoComplete="off"
+                        />
+                        <button type="submit" disabled={!promoField.trim() || (promoCode && promoQuote.loading)}>
+                          {promoCode && promoQuote.loading ? t('checkout:promo.checking', 'Checking…') : t('checkout:promo.apply', 'Apply')}
+                        </button>
+                      </form>
+                    )}
+                    {promoNotice?.kind === 'info' && (
+                      <p className="ck-promo-note">{t('checkout:promo.notBetter', { code: promoNotice.code, defaultValue: 'Code {{code}} is valid, but the current offer gives you more. You keep the best discount.' })}</p>
+                    )}
+                    {promoNotice?.kind === 'error' && (
+                      <p className="ck-promo-note ck-promo-err" role="alert">
+                        {t(`checkout:promo.reason.${promoNotice.reason}`, { defaultValue: t('checkout:promo.reason.default', 'This code cannot be used for this booking.') })}
+                      </p>
+                    )}
+                  </div>
+                )}
 
                 <div className="ck-sum-total">
                   <div>
                     <span className="ck-sum-total-label">{t('checkout:summary.total', 'Total')}</span>
                     <span className="ck-sum-total-sub">{t('checkout:summary.inclVatTaxes', 'incl. VAT & taxes')}</span>
                   </div>
-                  <span className="ck-sum-total-val hd">{ccy}{formatEuros(animTotal, PRICE_KIND.SELLING)}</span>
+                  <span className="ck-sum-total-val hd">{totalShown}</span>
                 </div>
                 {/* The deposit split, once the traveller has chosen it: what is charged now and
                     what is left for later. Both add up to the total above as it is printed. */}
@@ -4405,7 +4545,7 @@ function CheckoutContent({ stripe, elements }) {
                           ? t('checkout:deposit.balanceBy', { date: dmy(depositOffer.balanceDueDate), defaultValue: 'Balance, by {{date}}' })
                           : t('checkout:deposit.balanceLater', 'Balance, before departure')}
                       </span>
-                      <b>{money(depositOffer.balance)}</b>
+                      <b>{moneyTotal(depositOffer.balance)}</b>
                     </div>
                   </div>
                 )}
@@ -4434,7 +4574,7 @@ function CheckoutContent({ stripe, elements }) {
         <div className="ck-mbar-price">
           {usingDeposit
             ? <><small>{t('checkout:deposit.nowShort', 'deposit now')}</small>{money(depositOffer.amount)}</>
-            : <><small>{t('checkout:transfer.total', 'total')}</small>{ccy}{formatEuros(animTotal, PRICE_KIND.SELLING)}</>}
+            : <><small>{t('checkout:transfer.total', 'total')}</small>{totalShown}</>}
         </div>
         <button className="ck-mbar-btn" onClick={ctaAction} disabled={ctaBlocked}>
           {paying || (repriceBlocks && reprice.status === 'checking')

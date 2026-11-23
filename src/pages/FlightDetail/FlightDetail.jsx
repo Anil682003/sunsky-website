@@ -252,6 +252,8 @@ export default function FlightDetail() {
           from: flight.out.fromCode, to: destLeg.toCode,
           depdate: flight.out.depDateISO, retdate: isRound ? flight.ret.depDateISO : undefined,
           price: fb.total, currency: 'EUR',
+          // The fare before SUNSKY's margin: only for the promotion's margin check on display.
+          cost: Number(flight.netPrice ?? fb.total) || null,
           tripType: isMulti ? 'multicity' : isRound ? 'roundtrip' : 'oneway', supplier: 'Airtuerk',
           /**
            * THE ALLOWANCE HAS TO TRAVEL WITH THE BOOKING, or the checkout contradicts this page.

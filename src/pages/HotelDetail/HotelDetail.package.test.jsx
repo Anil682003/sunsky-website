@@ -836,3 +836,43 @@ describe('package margin on the live check (Margin Menu → Dynamic Package)', (
     expect(handed.ppPrice).toBe(820);
   });
 });
+
+// Promotions & Discounts (spec v1.2 §5): an automatic promotion is ONE extra line in the
+// overview, under its own name; the trip price stays, the total (and the deposit) follow it.
+describe('an automatic promotion on the hotel page', () => {
+  const withQuote = (answer) => {
+    const prev = post.getMockImplementation();
+    post.mockImplementation((url, body) => (String(url).includes('/promotions/quote')
+      ? Promise.resolve({ data: { success: true, data: answer(body) } })
+      : prev(url, body)));
+  };
+  const quotes = () => post.mock.calls.filter(([u]) => String(u).includes('/promotions/quote'));
+
+  it('shows the line once the live price is known, and the total follows it', async () => {
+    withQuote((b) => ({ applied: { promotionId: 1, name: 'Zomeractie 2027', code: null, amount: Math.round(b.eligiblePrice * 10) / 100 }, code: null }));
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    // No live price yet: nothing is asked, nothing is shown.
+    await priceDays();
+    expect(quotes()).toHaveLength(0);
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('[data-testid="promotion-line"]')).not.toBeNull());
+    const line = container.querySelector('[data-testid="promotion-line"]');
+    expect(line.textContent).toMatch(/Zomeractie 2027/);
+    expect(line.textContent).toMatch(/−€ 150,00/);
+    expect(container.querySelector('.overview-total-val').textContent).toBe('€1,350');
+    // Asked with the package's travel price and its cost (supplier prices before any margin).
+    const [, body] = quotes().at(-1);
+    expect(body).toMatchObject({ product: 'package', hotelCode: '592205', eligiblePrice: 1500, eligibleCost: 1500, travellers: 2 });
+  });
+
+  it('shows nothing extra when no promotion applies', async () => {
+    withQuote(() => ({ applied: null, code: null }));
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
+    await waitFor(() => expect(quotes().length).toBeGreaterThan(0));
+    expect(container.querySelector('[data-testid="promotion-line"]')).toBeNull();
+  });
+});

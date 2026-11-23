@@ -11,6 +11,7 @@ import axiosInstance, { SUPPLIER_TIMEOUT } from '../../services/axiosInstance';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { ENDPOINTS } from '../../api/endpoints';
 import { DEFAULT_PRICING, computeDeposit } from '../../utils/checkoutPricing';
+import { usePromotionQuote, promotionInput, formatDiscount, cents } from '../../utils/promotions';
 import { rememberDestCode } from '../../utils/favDest';
 import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/priceRounding';
 import { NO_MARGINS, fetchMargins, withRoomMargins } from '../../utils/margins';
@@ -3534,13 +3535,35 @@ export default function HotelDetail() {
   // page refuses to book (a failed or unpriced flight check, or a flight still to be chosen).
   // Recomputing the rounding here would just be a second chance to disagree with it.
   const ovBase = liveTotal;
+  // PROMOTIONS & DISCOUNTS (spec v1.2 §5): an automatic promotion this stay qualifies for, as the
+  // ONE central calculation answers it (utils/promotions). Only once there is a reliable live
+  // price, and only automatic ones: a promo code is typed at checkout. The trip price stays as
+  // it is; the discount is one extra line and the total (and the deposit) follow it.
+  const ovPromoQuote = usePromotionQuote(ovBase != null ? promotionInput({
+    product: pkgMode ? 'package' : 'hotel',
+    hotelCode,
+    travelDate: tripFrom,
+    travellers: ovPax,
+    eligiblePrice: ovBase,
+    // What this travel costs SUNSKY (the supplier prices before the margin), for the margin check.
+    eligibleCost: liveRoom
+      ? (Number(liveRoom.supplierPrice ?? liveRoom.price) || 0)
+        + (pkgMode ? (Number(liveFlight?.netPrice ?? liveFlight?.totalPrice) || 0) : 0)
+      : null,
+  }) : null);
+  const ovPromo = ovBase != null && ovPromoQuote.applied?.amount > 0 && ovPromoQuote.applied.amount < ovBase
+    ? ovPromoQuote.applied : null;
+  const ovTotal = ovBase != null ? cents(ovBase - (ovPromo ? ovPromo.amount : 0)) : null;
+  // A total with cents (a percentage discount) shows them; whole euros stay as they always were.
+  const fmtTotal = (n) => Number(n).toLocaleString('en-GB', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
   // The deposit the checkout will ask for on this total, under the same rule and the same
   // arithmetic (utils/checkoutPricing mirrors the server). Null when deposits are off or the
   // rule yields none, and then the overview says nothing about a split rather than guess one.
   // The trip kind (a package, or a stay) and the travellers who pay a share (not lap infants) are
   // what the server reads off the booking it creates, so they are what this preview uses too.
-  const ovDeposit = ovBase != null
-    ? computeDeposit(checkoutCfg || DEFAULT_PRICING, ovBase, tripFrom, { kind: pkgMode ? 'package' : 'hotel', pax: roomDeltaPax })
+  // On the price after the promotion: deposit rules apply to the discounted travel price.
+  const ovDeposit = ovTotal != null
+    ? computeDeposit(checkoutCfg || DEFAULT_PRICING, ovTotal, tripFrom, { kind: pkgMode ? 'package' : 'hotel', pax: roomDeltaPax })
     : null;
   // "2027-01-27" → "27/01/2027": the balance date as SUNSKY prints every date.
   const ovDueDate = ovDeposit?.balanceDueDate ? ovDeposit.balanceDueDate.split('-').reverse().join('/') : '';
@@ -4210,6 +4233,9 @@ export default function HotelDetail() {
               // rounds the charge itself — the rounding is never taken from the client.
               price: useLive ? liveRoom.price : total, currency: ccy,
               rooms: roomsCount,
+              // The supplier price before the margin: only for the promotion's margin check on
+              // the checkout's display (the server checks with its own verified cost).
+              cost: useLive ? (Number(liveRoom.supplierPrice ?? liveRoom.price) || null) : null,
             },
             flight: (useLive && liveFlight)
               ? {
@@ -4217,6 +4243,7 @@ export default function HotelDetail() {
                   // Brussels, so a booking flown from Eindhoven was recorded as ex-BRU.
                   from: liveFlights?.from || origin, to: fq.to, depdate: fq.depdate, retdate: fq.retdate,
                   price: liveFlight.totalPrice, currency: ccy, legs: allLegs,
+                  cost: Number(liveFlight.netPrice ?? liveFlight.totalPrice) || null,
                   fareBreakdown: liveFlight.fareBreakdown || [],
                   // Opaque Airtuerk bookable keys — REQUIRED for live re-pricing
                   // and the basket/create reservation.
@@ -5695,6 +5722,13 @@ export default function HotelDetail() {
                           <span className="overview-leader" />
                           <span className="overview-row-val overview-row-val-plain">{ccy} {ovBase.toLocaleString('en-GB')}</span>
                         </div>
+                        {ovPromo && (
+                          <div className="overview-row overview-row-tight overview-row-promo" data-testid="promotion-line">
+                            <span className="overview-row-label">{ovPromo.name}</span>
+                            <span className="overview-leader" />
+                            <span className="overview-row-val overview-row-val-plain">{formatDiscount(ovPromo.amount)}</span>
+                          </div>
+                        )}
                       </>
                     ) : (
                       <div className="overview-row">
@@ -5753,8 +5787,8 @@ export default function HotelDetail() {
                       )}
                     </span>
                     <span className="overview-total-val">
-                      {ovBase != null
-                        ? `${ccy}${ovBase.toLocaleString('en-GB')}`
+                      {ovTotal != null
+                        ? `${ccy}${fmtTotal(ovTotal)}`
                         : '—'}
                     </span>
                   </div>
@@ -6478,7 +6512,7 @@ export default function HotelDetail() {
       <div className="mbar">
         <div className="mbi">
           <div className="mbp"><small>{liveTotal != null ? t('sidebar.liveTotal', 'live total') : fromPP != null ? t('sidebar.perPersonFrom', 'per person from') : t('sidebar.noPriceYet', 'no price yet')}</small>{liveTotal != null
-            ? `${ccy}${liveTotal.toLocaleString('en-GB')}` : fromPP != null ? `${ccy}${fromPP}` : '—'}
+            ? `${ccy}${fmtTotal(ovTotal ?? liveTotal)}` : fromPP != null ? `${ccy}${fromPP}` : '—'}
             {/* The deposit, when the live total can be paid with one: the smaller number a
                 traveller weighing the trip on a phone most wants to see. */}
             {liveTotal != null && ovDeposit && (
