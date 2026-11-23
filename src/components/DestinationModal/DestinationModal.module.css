@@ -1,7 +1,7 @@
 /* ============================================================================
-   DestinationModal — light-theme multi-destination picker.
-   White panel on a soft blue wash; blue = selection, orange-gold = commit CTA
-   (same grammar as the hero search bar in Hero.module.css).
+   DestinationModal, laid out to the client's mock (23/11/2026).
+   White sheet, blue for every selection (checkbox, radio, chip, Apply), a light
+   blue wash on whatever is picked. Type sizes come from the shared --fs-* tokens.
    ========================================================================== */
 
 .backdrop {
@@ -15,12 +15,11 @@
 }
 
 .modal {
-  width: 100%; max-width: 1080px;
+  width: 100%; max-width: 1200px;
   max-height: min(88vh, 820px);
   display: flex; flex-direction: column;
   background: #fff;
-  border: 1px solid rgba(15, 40, 100, 0.08);
-  border-radius: 28px;
+  border-radius: 24px;
   box-shadow: 0 40px 110px rgba(15, 40, 100, 0.28);
   overflow: hidden;
   animation: scaleIn 0.26s var(--ease) both;
@@ -29,9 +28,9 @@
 /* ── Header ─────────────────────────────────────────────────────────────── */
 
 .header {
-  position: relative;
   display: flex; align-items: flex-start; gap: 16px;
-  padding: 24px 28px 18px;
+  padding: 22px 24px 18px 28px;
+  border-bottom: 1px solid var(--line);
 }
 
 .headText { flex: 1; min-width: 0; }
@@ -44,123 +43,117 @@
 }
 
 .subtitle {
-  margin-top: 4px;
+  margin-top: 6px;
   font-size: var(--fs-small);
   color: var(--text-sec);
 }
 
 .closeBtn {
   flex-shrink: 0;
-  width: 36px; height: 36px;
+  width: 44px; height: 44px;
   display: flex; align-items: center; justify-content: center;
-  border: 1px solid rgba(15, 40, 100, 0.12);
+  border: 1px solid var(--line);
   border-radius: var(--r-full);
   background: #fff;
-  color: var(--text-sec);
-  cursor: pointer;
-  transition: all 0.25s var(--ease);
-}
-.closeBtn:hover {
-  border-color: rgba(15, 40, 100, 0.28);
   color: var(--text);
-  transform: rotate(90deg);
+  cursor: pointer;
+  transition: border-color 0.2s var(--ease), background 0.2s var(--ease);
 }
+.closeBtn:hover { border-color: #C9D5E8; background: var(--blue-bg); }
 
 /* ── Main: rail + panel ─────────────────────────────────────────────────── */
 
 .main {
   flex: 1; min-height: 0;
   display: grid;
-  grid-template-columns: 300px minmax(0, 1fr);
-  border-top: 1px solid rgba(15, 40, 100, 0.07);
+  /* Wide enough for "Dominicaanse Republiek" or "Egypte" beside a "2 bestemmingen" pill. */
+  grid-template-columns: 380px minmax(0, 1fr);
 }
 
 .rail {
   min-height: 0;
   overflow-y: auto;
-  padding: 14px 12px 18px;
-  border-right: 1px solid rgba(15, 40, 100, 0.07);
-  background: linear-gradient(180deg, var(--blue-bg) 0%, #fff 140px);
-  display: flex; flex-direction: column; gap: 3px;
+  padding: 18px 14px 18px 18px;
+  border-right: 1px solid var(--line);
+  display: flex; flex-direction: column; gap: 4px;
 }
 
 .railLabel {
-  display: flex; align-items: center; gap: 7px;
-  padding: 4px 10px 8px;
+  display: flex; align-items: center; gap: 10px;
+  padding: 2px 6px 10px;
   font-family: 'Sora', sans-serif;
-  font-size: var(--fs-micro); font-weight: 700;
+  font-size: var(--fs-small); font-weight: 700;
   letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--text-light);
+  color: var(--text-sec);
 }
 
 .railBadge {
-  min-width: 19px; height: 19px;
+  min-width: 22px; height: 22px;
   display: inline-flex; align-items: center; justify-content: center;
   padding: 0 6px;
   border-radius: var(--r-full);
   background: var(--blue-deep);
   color: #fff;
-  font-style: normal;
+  font-style: normal; letter-spacing: 0;
   font-size: var(--fs-micro); font-weight: 700;
 }
 
 .countryRow {
-  display: flex; align-items: center; gap: 10px;
+  display: flex; align-items: center; gap: 12px;
   width: 100%;
-  padding: 9px 10px;
-  border: 1px solid transparent;
-  border-radius: 14px;
+  min-height: 48px;
+  padding: 8px 10px 8px 12px;
+  border: none;
+  border-radius: 10px;
   background: transparent;
   text-align: left;
-  font-size: var(--fs-small); font-weight: var(--fw-small);
+  font-family: inherit;
+  font-size: var(--fs-body); font-weight: var(--fw-body, 400);
   color: var(--text);
   cursor: pointer;
-  transition: background 0.18s var(--ease), border-color 0.18s var(--ease);
+  transition: background 0.18s var(--ease);
 }
-.countryRow:hover { background: var(--blue-light); }
-.countryRowActive {
-  background: #fff;
-  border-color: rgba(31, 79, 216, 0.45);
-  box-shadow: var(--shadow-sm);
-}
+.countryRow:hover { background: var(--blue-bg); }
+.countryRowActive, .countryRowActive:hover { background: var(--blue-light); }
 
-.tick {
+/* The square checkbox, shared by the rail rows and the destination chips. */
+.box {
   flex-shrink: 0;
-  width: 19px; height: 19px;
+  width: 24px; height: 24px;
   display: flex; align-items: center; justify-content: center;
-  border: 1.5px solid #C4D4F0;
+  border: 1.5px solid #C9D3E2;
   border-radius: 6px;
   background: #fff;
   color: #fff;
-  transition: all 0.18s var(--ease);
+  transition: background 0.18s var(--ease), border-color 0.18s var(--ease);
 }
-.tickOn {
+.boxOn {
   border-color: var(--blue-deep);
   background: var(--blue-deep);
 }
 
 .rowFlag {
   flex-shrink: 0;
-  width: 24px; height: 17px;
+  width: 34px; height: 23px;
   object-fit: cover;
-  border-radius: 3px;
-  border: 1px solid rgba(15, 40, 100, 0.12);
+  border-radius: 4px;
 }
-.rowFlag[data-emoji] { border: none; width: auto; font-size: var(--fs-body); line-height: 1; }
+.rowFlag[data-emoji] { width: auto; font-size: var(--fs-card-title); line-height: 1; }
 
 .rowName {
   flex: 1; min-width: 0;
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
 
+/* "Whole country" / "2 destinations" on a ticked row. */
 .rowBadge {
   flex-shrink: 0;
-  padding: 2px 8px;
+  padding: 3px 12px;
   border-radius: var(--r-full);
-  background: var(--sun-warm);
-  color: #A96B00;
-  font-size: var(--fs-micro); font-weight: 700;
-  letter-spacing: 0.02em;
+  background: #fff;
+  color: var(--blue-deep);
+  font-size: var(--fs-small); font-weight: 600;
+  white-space: nowrap;
 }
 
 .railState {
@@ -172,29 +165,43 @@
 }
 .railError { color: var(--coral); }
 
+/* The line under the popular block, captioned "All countries", so the list does not read as
+   mis-sorted when it jumps from the agency's picks back to the start of the alphabet. */
+.railDivider {
+  display: flex; align-items: center; gap: 8px;
+  margin: 12px 6px 6px;
+  font-size: var(--fs-micro); font-weight: 700;
+  letter-spacing: 0.12em; text-transform: uppercase;
+  color: var(--text-sec);
+  white-space: nowrap;
+}
+.railDivider::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--line);
+}
+
 /* ── Right panel ────────────────────────────────────────────────────────── */
 
 .panel {
   min-height: 0;
   overflow-y: auto;
-  padding: 12px 16px 16px;
-  display: flex; flex-direction: column; gap: 2px;
+  padding: 16px 18px 18px 24px;
+  display: flex; flex-direction: column; gap: 12px;
   background: #fff;
 }
 
 .empty {
   margin: auto;
-  max-width: 340px;
+  max-width: 360px;
   text-align: center;
   padding: 40px 0;
 }
 .emptyArt {
   display: inline-flex; align-items: center; justify-content: center;
-  width: 92px; height: 92px;
+  width: 84px; height: 84px;
   border-radius: 50%;
-  border: 1.5px dashed var(--blue-soft);
-  color: var(--blue-ocean);
-  background: var(--blue-bg);
+  color: var(--blue-deep);
+  background: var(--blue-light);
   margin-bottom: 16px;
 }
 .emptyTitle {
@@ -208,258 +215,231 @@
   color: var(--text-sec);
 }
 
-/* One card per selected country */
+/* One card per picked country. */
 .block {
-  border: 1px solid transparent;
+  flex-shrink: 0;
+  border: 1px solid var(--line);
   border-radius: 14px;
-  background: transparent;
-  overflow: hidden;
-  animation: blockIn 0.28s var(--ease) both;
-  transition: all 0.22s var(--ease);
-}
-
-/* The open card is lifted and ringed, so which country you're editing reads
-   at a glance in a stack of collapsed ones. */
-/* Subtle divider between collapsed blocks */
-.block + .block:not(.blockOpen) {
-  border-top: 1px solid rgba(15, 40, 100, 0.06);
-}
-.blockOpen {
-  border-color: rgba(31, 79, 216, 0.34);
-  border-radius: 20px;
   background: #fff;
-  box-shadow: 0 10px 30px rgba(15, 40, 100, 0.1);
-  margin: 6px 0;
+  animation: blockIn 0.24s var(--ease) both;
   scroll-margin-top: 8px;
 }
+.blockOpen { border-color: #D6E2F5; }
 
 .blockHead {
-  display: flex; align-items: center; gap: 12px;
-  padding: 8px 12px;
-  background: transparent;
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 14px 12px 18px;
   cursor: pointer;
-  transition: background 0.2s var(--ease);
+  border-radius: 14px;
 }
-.blockHead:hover { background: var(--blue-bg); border-radius: 14px; }
-.blockOpen .blockHead {
-  padding: 13px 16px;
-  background: linear-gradient(120deg, var(--blue-bg) 0%, #fff 70%);
-  border-bottom: 1px solid rgba(15, 40, 100, 0.07);
-}
+.block:not(.blockOpen) .blockHead:hover { background: var(--blue-bg); }
+.blockOpen .blockHead { align-items: flex-start; padding-top: 14px; padding-bottom: 6px; }
+.blockHead:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: -2px; }
 
 .chev {
   flex-shrink: 0;
   display: flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px;
-  color: var(--text-light);
-  transition: transform 0.24s var(--ease), color 0.2s var(--ease);
+  width: 20px; height: 24px;
+  color: var(--text-sec);
+  transition: transform 0.22s var(--ease), color 0.2s var(--ease);
 }
 .chevOpen { transform: rotate(90deg); color: var(--blue-deep); }
 
-
 .blockFlag {
   flex-shrink: 0;
-  width: 26px; height: 18px;
+  width: 40px; height: 26px;
   object-fit: cover;
-  border-radius: 4px;
-  border: 1px solid rgba(15, 40, 100, 0.14);
-  transition: all 0.2s var(--ease);
-}
-.blockOpen .blockFlag {
-  width: 34px; height: 24px;
   border-radius: 5px;
-  box-shadow: 0 2px 6px rgba(15, 40, 100, 0.12);
 }
-.blockFlag[data-emoji] { border: none; box-shadow: none; width: auto; font-size: var(--fs-card-title); line-height: 1; }
-.blockOpen .blockFlag[data-emoji] { font-size: var(--fs-section); }
+.blockFlag[data-emoji] { width: auto; font-size: var(--fs-section); line-height: 1; }
 
-.blockText { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.blockText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
 
 .blockName {
   font-family: 'Sora', sans-serif;
-  font-size: var(--fs-small); font-weight: 600;
-  letter-spacing: -0.01em;
+  font-size: var(--fs-card-title); font-weight: var(--fw-card-title);
+  line-height: 26px;
   color: var(--text);
   white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
-  transition: font-size 0.2s var(--ease);
-}
-.blockOpen .blockName {
-  font-size: var(--fs-key); font-weight: var(--fw-key);
 }
 
 .blockSub {
   font-size: var(--fs-small);
   color: var(--text-sec);
 }
-/* Hide subtitle on collapsed blocks to keep them compact */
-.block:not(.blockOpen) .blockSub { display: none; }
 
-.wholeChip {
+.statusPill {
   flex-shrink: 0;
-  display: inline-flex; align-items: center; gap: 6px;
-  padding: 6px 13px;
-  border: 1px dashed rgba(31, 79, 216, 0.4);
+  padding: 5px 14px;
   border-radius: var(--r-full);
-  background: transparent;
-  font-size: var(--fs-small); font-weight: 600;
-  color: var(--blue-deep);
-  cursor: pointer;
-  transition: all 0.2s var(--ease);
-}
-.wholeChip:hover { background: var(--blue-light); }
-.wholeChipActive {
-  border-style: solid;
-  border-color: var(--blue-deep);
   background: var(--blue-light);
+  color: var(--blue-deep);
+  font-size: var(--fs-small); font-weight: 600;
+  white-space: nowrap;
 }
-/* Hide the chip on collapsed blocks for compactness */
-.block:not(.blockOpen) .wholeChip { display: none; }
 
 .blockRemove {
   flex-shrink: 0;
-  width: 24px; height: 24px;
+  width: 32px; height: 32px;
   display: flex; align-items: center; justify-content: center;
+  border: none;
   border-radius: var(--r-full);
-  border: 1px solid transparent;
   background: transparent;
-  color: var(--text-light);
+  color: var(--text);
   cursor: pointer;
-  transition: all 0.2s var(--ease);
+  transition: background 0.2s var(--ease), color 0.2s var(--ease);
 }
-.blockOpen .blockRemove { width: 30px; height: 30px; }
-.blockRemove:hover {
-  border-color: rgba(255, 107, 107, 0.4);
-  background: rgba(255, 107, 107, 0.08);
-  color: var(--coral);
-}
+.blockRemove:hover { background: rgba(255, 107, 107, 0.1); color: var(--coral); }
 
-/* Cap the open card so a 74-city country scrolls inside itself instead of
-   pushing the other selected countries out of reach. */
+/* Capped so a 74-city country scrolls inside its own card instead of pushing the other
+   picked countries out of reach. */
 .blockBody {
-  padding: 4px 0 8px;
-  max-height: 260px;
+  padding: 8px 18px 16px;
+  max-height: 340px;
   overflow-y: auto;
   overscroll-behavior: contain;
 }
-.blockBody::-webkit-scrollbar { width: 5px; }
-.blockBody::-webkit-scrollbar-track { background: transparent; }
-.blockBody::-webkit-scrollbar-thumb { background: rgba(15, 40, 100, 0.14); border-radius: 3px; }
 
-.group { padding: 8px 0 2px; }
+/* "Whole country" / "Specific destinations": two radio cards side by side. */
+.modes {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 12px;
+}
+.mode {
+  display: flex; align-items: center; gap: 14px;
+  padding: 12px 18px;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  background: #fff;
+  text-align: left;
+  font-family: inherit;
+  cursor: pointer;
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
+}
+.mode:hover { border-color: #C9D5E8; }
+.modeOn, .modeOn:hover {
+  border-color: var(--blue-deep);
+  background: var(--blue-light);
+}
+.mode:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 2px; }
+
+.radio {
+  flex-shrink: 0;
+  width: 24px; height: 24px;
+  border: 1.5px solid #C9D3E2;
+  border-radius: 50%;
+  background: #fff;
+  transition: border-color 0.18s var(--ease), box-shadow 0.18s var(--ease);
+}
+.radioOn {
+  border-color: var(--blue-deep);
+  background: var(--blue-deep);
+  box-shadow: inset 0 0 0 6px #fff;
+}
+
+.modeText { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.modeTitle {
+  font-family: 'Sora', sans-serif;
+  font-size: var(--fs-body); font-weight: 700;
+  color: var(--text);
+}
+.modeSub {
+  font-size: var(--fs-small);
+  color: var(--text-sec);
+}
+
+.group { padding-top: 18px; }
 
 .groupLabel {
-  display: flex; align-items: center; gap: 6px;
-  margin: 4px 16px 8px;
+  display: flex; align-items: center; gap: 10px;
+  margin-bottom: 12px;
   font-family: 'Sora', sans-serif;
-  font-size: var(--fs-micro); font-weight: 700;
+  font-size: var(--fs-small); font-weight: 700;
   letter-spacing: 0.12em; text-transform: uppercase;
-  color: var(--text-light);
+  color: var(--text-sec);
 }
 .groupCount {
-  font-style: normal;
-  padding: 1px 7px;
+  font-style: normal; letter-spacing: 0;
+  min-width: 24px; height: 24px;
+  display: inline-flex; align-items: center; justify-content: center;
+  padding: 0 7px;
   border-radius: var(--r-full);
-  background: rgba(15, 40, 100, 0.06);
+  background: #EEF2F8;
   color: var(--text-sec);
   font-size: var(--fs-micro);
 }
+
 .chips {
-  display: flex; flex-wrap: wrap; gap: 8px;
-  padding: 0 16px 10px;
+  display: flex; flex-wrap: wrap; gap: 12px;
 }
 
 .chip {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 13px;
-  border: 1px solid #E1EAFB;
+  display: inline-flex; align-items: center; gap: 12px;
+  padding: 8px 18px 8px 10px;
+  border: 1px solid var(--line);
   border-radius: var(--r-full);
-  background: #FBFCFF;
-  font-size: var(--fs-small); font-weight: var(--fw-small);
+  background: #fff;
   font-family: inherit;
+  font-size: var(--fs-body); font-weight: var(--fw-body, 400);
   color: var(--text);
   cursor: pointer;
-  transition: all 0.18s var(--ease);
+  transition: border-color 0.18s var(--ease), background 0.18s var(--ease);
 }
-.chip:hover {
-  border-color: rgba(31, 79, 216, 0.45);
+.chip:hover { border-color: #C9D5E8; background: var(--blue-bg); }
+.chipActive, .chipActive:hover {
+  border-color: var(--blue-light);
   background: var(--blue-light);
-  transform: translateY(-1px);
 }
-.chipActive {
-  border-color: var(--blue-deep);
-  background: var(--blue-light);
-  color: var(--blue-deep);
-  font-weight: 600;
-}
+.chip .box { width: 22px; height: 22px; }
 /* No flight reaches this destination from the departure airport the traveller chose. Kept on
-   screen rather than removed (Ch1 §9A) so they can see it is there and why it is not offered,
-   instead of hunting for a place that silently vanished. The hover lift is cancelled too: a
-   chip that rises under the cursor reads as clickable whatever its colour says. */
+   screen rather than removed (Ch1 §9A) so they can see it is there and why it is not offered. */
 .chipBlocked,
 .chipBlocked:hover {
   border-color: #E8EAEE;
   background: #F6F7F9;
   color: #9AA3B0;
   cursor: not-allowed;
-  transform: none;
   text-decoration: line-through;
   text-decoration-color: rgba(154, 163, 176, 0.55);
 }
-
-.chipFlag {
-  flex-shrink: 0;
-  width: 19px; height: 13.5px;
-  object-fit: cover;
-  border-radius: 2.5px;
-  border: 1px solid rgba(15, 40, 100, 0.12);
-}
-.chipFlag[data-emoji] { border: none; width: auto; font-size: var(--fs-small); line-height: 1; }
-
-.chipCheck {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 15px; height: 15px;
-  border-radius: 50%;
-  background: var(--blue-deep);
-  color: #fff;
-}
+.chipBlocked .box { border-color: #E1E4EA; background: #F6F7F9; }
 
 .moreChip {
   display: inline-flex; align-items: center;
-  padding: 7px 13px;
-  border: 1px dashed rgba(31, 79, 216, 0.4);
+  padding: 8px 16px;
+  border: 1px dashed #C9D5E8;
   border-radius: var(--r-full);
   background: transparent;
-  font-size: var(--fs-small); font-weight: 600;
   font-family: inherit;
+  font-size: var(--fs-small); font-weight: 600;
   color: var(--blue-deep);
   cursor: pointer;
-  transition: all 0.18s var(--ease);
 }
-.moreChip:hover { background: var(--blue-light); }
+.moreChip:hover { background: var(--blue-bg); }
 
 .blockNote {
-  padding: 2px 16px 12px;
+  padding-top: 14px;
   font-size: var(--fs-small);
   color: var(--text-sec);
 }
 
 .blockError {
   display: flex; align-items: center; gap: 12px;
-  padding: 10px 16px 14px;
+  padding-top: 14px;
   font-size: var(--fs-small);
   color: var(--coral);
 }
 .retryBtn {
   padding: 5px 14px;
-  border: 1px solid rgba(31, 79, 216, 0.4);
+  border: 1px solid #C9D5E8;
   border-radius: var(--r-full);
   background: #fff;
   color: var(--blue-deep);
   font-size: var(--fs-small); font-weight: 600;
   cursor: pointer;
-  transition: all 0.2s var(--ease);
 }
-.retryBtn:hover { background: var(--blue-light); }
+.retryBtn:hover { background: var(--blue-bg); }
 
 /* ── Skeletons ──────────────────────────────────────────────────────────── */
 
@@ -468,115 +448,76 @@
   background-size: 200% 100%;
   animation: shimmerBg 1.4s ease-in-out infinite;
 }
-.skelRow { height: 38px; border-radius: 14px; }
-.skelChip { width: 92px; height: 32px; border-radius: var(--r-full); }
+.skelRow { height: 44px; border-radius: 10px; }
+.skelChip { width: 120px; height: 40px; border-radius: var(--r-full); }
+.blockBody .chips:has(.skelChip) { padding-top: 18px; }
 
 /* ── Footer ─────────────────────────────────────────────────────────────── */
 
 .footer {
-  display: flex; align-items: center; gap: 18px;
-  padding: 13px 20px 13px 24px;
-  border-top: 1px solid rgba(15, 40, 100, 0.07);
-  background: var(--blue-bg);
+  display: flex; align-items: center; gap: 24px;
+  padding: 16px 20px 18px;
+  border-top: 1px solid var(--line);
+  background: #fff;
 }
 
 .recap {
   flex: 1; min-width: 0;
-  display: flex; align-items: center; gap: 8px;
-  overflow-x: auto;
-  padding: 3px 2px;
-  scrollbar-width: thin;
+  display: flex; align-items: center; gap: 12px;
+  min-height: 52px;
+  padding: 10px 18px;
+  border-radius: 10px;
+  background: #F2F5FA;
 }
-.recap::-webkit-scrollbar { height: 4px; }
-.recap::-webkit-scrollbar-thumb { background: rgba(15, 40, 100, 0.15); border-radius: 2px; }
-
-.recapEmpty {
-  font-size: var(--fs-small);
-  color: var(--text-light);
-  white-space: nowrap;
-}
-
-.recapChip {
-  flex-shrink: 0;
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 6px 8px 6px 11px;
-  border: 1px solid rgba(31, 79, 216, 0.22);
-  border-radius: var(--r-full);
-  background: #fff;
-  box-shadow: var(--shadow-xs);
-  font-size: var(--fs-small); font-weight: 600;
+.recapPin { flex-shrink: 0; display: flex; color: var(--text-sec); }
+.recapText {
+  min-width: 0;
+  font-size: var(--fs-body);
   color: var(--text);
-  white-space: nowrap;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
 }
-
-.recapAll {
-  font-style: normal;
-  padding: 1px 7px;
-  border-radius: var(--r-full);
-  background: var(--blue-light);
-  color: var(--blue-deep);
-  font-size: var(--fs-micro); font-weight: 700;
-  letter-spacing: 0.03em; text-transform: uppercase;
-}
-
-.recapX {
-  display: inline-flex; align-items: center; justify-content: center;
-  width: 18px; height: 18px;
-  border-radius: 50%;
-  background: rgba(15, 40, 100, 0.07);
+.recapText strong { font-weight: 700; margin-right: 6px; }
+.recapEmpty {
+  font-size: var(--fs-body);
   color: var(--text-sec);
-  cursor: pointer;
-  transition: all 0.18s var(--ease);
 }
-.recapX:hover { background: rgba(255, 107, 107, 0.15); color: var(--coral); }
 
 .footActions {
   flex-shrink: 0;
   display: flex; align-items: center; gap: 14px;
 }
 
-.clearBtn {
-  padding: 8px 4px;
-  background: none;
-  font-size: var(--fs-control); font-weight: 600;
-  color: var(--text-sec);
-  cursor: pointer;
-  transition: color 0.2s var(--ease);
-}
-.clearBtn:hover { color: var(--coral); }
-
-.applyBtn {
-  display: inline-flex; align-items: center; gap: 9px;
-  padding: 13px 26px;
-  border: none;
+.clearBtn, .applyBtn {
+  min-width: 144px; height: 52px;
+  padding: 0 28px;
   border-radius: var(--r-full);
-  /* The site's one CTA orange, white label, no glow or lift. */
-  background: var(--cta-grad);
-  color: var(--cta-ink);
-  text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif;
-  font-size: var(--fs-control); font-weight: 600;
+  font-size: var(--fs-control); font-weight: 700;
   cursor: pointer;
-  transition: filter 0.2s var(--ease);
   white-space: nowrap;
+  transition: background 0.2s var(--ease), filter 0.2s var(--ease), opacity 0.2s var(--ease);
 }
-.applyBtn:hover:not(:disabled) { filter: brightness(1.06); }
-.applyBtn:disabled {
-  opacity: 0.45;
-  cursor: not-allowed;
-  box-shadow: none;
+.clearBtn {
+  border: 1.5px solid var(--text);
+  background: #fff;
+  color: var(--text);
 }
+.clearBtn:hover:not(:disabled) { background: var(--blue-bg); }
+.applyBtn {
+  border: none;
+  background: var(--blue-deep);
+  color: #fff;
+}
+.applyBtn:hover:not(:disabled) { filter: brightness(1.08); }
+.clearBtn:disabled, .applyBtn:disabled { opacity: 0.45; cursor: not-allowed; }
 
 /* ── Scrollbars (light) ─────────────────────────────────────────────────── */
 
-.rail::-webkit-scrollbar, .panel::-webkit-scrollbar { width: 6px; }
-.rail::-webkit-scrollbar-track, .panel::-webkit-scrollbar-track { background: transparent; }
-.rail::-webkit-scrollbar-thumb, .panel::-webkit-scrollbar-thumb {
+.rail::-webkit-scrollbar, .panel::-webkit-scrollbar, .blockBody::-webkit-scrollbar { width: 6px; }
+.rail::-webkit-scrollbar-track, .panel::-webkit-scrollbar-track, .blockBody::-webkit-scrollbar-track { background: transparent; }
+.rail::-webkit-scrollbar-thumb, .panel::-webkit-scrollbar-thumb, .blockBody::-webkit-scrollbar-thumb {
   background: rgba(15, 40, 100, 0.16);
   border-radius: 3px;
-}
-.rail::-webkit-scrollbar-thumb:hover, .panel::-webkit-scrollbar-thumb:hover {
-  background: rgba(15, 40, 100, 0.28);
 }
 
 /* ── Animations ─────────────────────────────────────────────────────────── */
@@ -597,46 +538,41 @@
 
 /* ── Responsive ─────────────────────────────────────────────────────────── */
 
-@media (max-width: 860px) {
-  .main { grid-template-columns: 240px minmax(0, 1fr); }
-  .route { display: none; }
+@media (max-width: 960px) {
+  .main { grid-template-columns: 300px minmax(0, 1fr); }
+  .rowBadge { padding: 3px 9px; font-size: var(--fs-micro); }
+  .modes { grid-template-columns: 1fr; }
 }
 
 @media (max-width: 640px) {
-  .backdrop { padding: 10px; }
-  .modal { max-height: 94vh; border-radius: 22px; }
-  .header { padding: 18px 18px 14px; }
+  .backdrop { padding: 0; align-items: stretch; }
+  .modal { max-height: none; height: 100%; border-radius: 0; }
+  .header { padding: 16px 16px 14px; }
+  .closeBtn { width: 40px; height: 40px; }
 
-  .main { grid-template-columns: 1fr; grid-template-rows: 208px minmax(0, 1fr); }
+  .main { grid-template-columns: 1fr; grid-template-rows: 200px minmax(0, 1fr); }
   .rail {
+    padding: 12px 16px;
     border-right: none;
-    border-bottom: 1px solid rgba(15, 40, 100, 0.07);
+    border-bottom: 1px solid var(--line);
   }
-  .panel { padding: 14px 14px 18px; }
+  .panel { padding: 14px 16px 16px; }
 
-  .blockHead { flex-wrap: wrap; }
-  .wholeChip { order: 4; }
+  .blockHead { gap: 10px; padding: 10px 8px 10px 12px; }
+  .blockFlag { width: 32px; height: 21px; }
+  .statusPill { padding: 4px 10px; font-size: var(--fs-micro); }
+  .blockBody { padding: 6px 12px 14px; max-height: none; }
+  .mode { padding: 10px 14px; }
+  .chips { gap: 8px; }
+  .chip { padding: 6px 14px 6px 8px; font-size: var(--fs-small); gap: 9px; }
 
-  .footer { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 14px; }
-  .recap { order: 1; }
-  .footActions { order: 2; justify-content: space-between; }
-  .applyBtn { flex: 1; justify-content: center; }
+  .footer { flex-direction: column; align-items: stretch; gap: 10px; padding: 12px 16px 16px; }
+  .recap { min-height: 44px; padding: 8px 14px; }
+  .recapText { white-space: normal; font-size: var(--fs-small); }
+  .footActions { gap: 10px; }
+  .clearBtn, .applyBtn { flex: 1; min-width: 0; height: 48px; }
 }
 
-/* The line under the popular block in the countries rail.
-   Without it the list reads as mis-sorted: Turkey, Spain, Greece and then back to Albania
-   looks like a bug unless something says where the agency's picks stop and the alphabet
-   starts. A quiet rule and a small caption, not a heading — the popular rows above it need no
-   label, they are simply first. */
-.railDivider {
-  display: flex; align-items: center; gap: 8px;
-  margin: 10px 10px 6px;
-  font-size: var(--fs-micro); font-weight: 700;
-  letter-spacing: 0.6px; text-transform: uppercase;
-  color: var(--text-sec);
-  white-space: nowrap;
-}
-.railDivider::after {
-  content: ''; flex: 1; height: 1px;
-  background: var(--line);
+@media (prefers-reduced-motion: reduce) {
+  .backdrop, .modal, .block { animation: none; }
 }

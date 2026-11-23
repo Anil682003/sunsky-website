@@ -50,6 +50,8 @@ const open = async (props = {}) => {
     return el;
   });
   fireEvent.click(header);
+  // A country starts as "Whole country"; its places show once the traveller asks for specific ones.
+  fireEvent.click(screen.getByRole('radio', { name: /Specifieke bestemmingen|Specific destinations/ }));
   await waitFor(() => expect(screen.getAllByRole('button', { name: /^Bodrum/ })[0]).toBeTruthy());
   return view;
 };

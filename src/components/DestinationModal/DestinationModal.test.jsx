@@ -107,12 +107,12 @@ describe('DestinationModal: a selection restored from an older stored record', (
     expect(onApply.mock.calls[0][0].places).toHaveLength(0);
   });
 
-  it('removes it from the footer without taking anything else with it', async () => {
+  it('un-ticking one keyless place takes nothing else with it', async () => {
     const onApply = vi.fn();
     // Two keyless places: removing one used to remove BOTH, because they filtered on a stored
     // key that was undefined for each of them.
     openRestored(onApply, [BODRUM_STORED_OLD, { type: 'city', code: 'DID', name: 'Didim', countryId: 3 }]);
-    fireEvent.click(screen.getAllByRole('button', { name: /Bodrum verwijderen|Remove Bodrum/ })[0]);
+    fireEvent.click(await screen.findByRole('button', { name: /^Bodrum$/ }));
     fireEvent.keyDown(document, { key: 'Escape' });
     expect(onApply.mock.calls[0][0].places.map((x) => x.code)).toEqual(['DID']);
   });
@@ -160,5 +160,59 @@ describe('DestinationModal: the countries rail leads with the agency’s picks',
     const names = railNames();
     expect(new Set(names).size).toBe(names.length);
     expect(names).toHaveLength(3);
+  });
+});
+
+/**
+ * The client's layout (23/11/2026): each picked country asks HOW to search it, as two radio
+ * cards, and the footer says in words what will be searched.
+ */
+describe('DestinationModal: whole country or specific destinations', () => {
+  beforeEach(async () => {
+    const api = await import('../../api');
+    api.fetchGeoPlaces.mockResolvedValue([PLACES_TR]);
+  });
+
+  const radio = (name) => screen.getByRole('radio', { name });
+  const WHOLE = /^(Hele land|Whole country)/;
+  const SPECIFIC = /^(Specifieke bestemmingen|Specific destinations)/;
+
+  it('a country with places picked opens on "Specific destinations", its chips showing', async () => {
+    openRestored();
+    await screen.findByRole('button', { name: /^Bodrum$/ });
+    expect(radio(SPECIFIC)).toHaveAttribute('aria-checked', 'true');
+    expect(radio(WHOLE)).toHaveAttribute('aria-checked', 'false');
+    expect(screen.getByText(/Turkije \(Bodrum\)/)).toBeInTheDocument();
+  });
+
+  it('"Whole country" drops that country’s places, and the summary says so', async () => {
+    const onApply = vi.fn();
+    openRestored(onApply);
+    await screen.findByRole('button', { name: /^Bodrum$/ });
+    fireEvent.click(radio(WHOLE));
+    expect(screen.queryByRole('button', { name: /^Bodrum$/ })).toBeNull();
+    expect(screen.getByText(/Turkije \((hele land|whole country)\)/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^(Toepassen|Apply)$/ }));
+    expect(onApply.mock.calls[0][0]).toEqual({ countries: [TR_STORED_OLD], places: [] });
+  });
+
+  it('a country with nothing picked starts whole, and "Specific destinations" lists its places', async () => {
+    openRestored(vi.fn(), []);
+    expect(radio(WHOLE)).toHaveAttribute('aria-checked', 'true');
+    expect(screen.queryByRole('button', { name: /^Bodrum$/ })).toBeNull();
+    fireEvent.click(radio(SPECIFIC));
+    expect(await screen.findByRole('button', { name: /^Bodrum$/ })).toBeInTheDocument();
+    // Nothing ticked yet: the search still covers the whole country, and the summary says that.
+    expect(screen.getByText(/Turkije \((hele land|whole country)\)/)).toBeInTheDocument();
+  });
+
+  it('Clear empties the picker', async () => {
+    const onApply = vi.fn();
+    openRestored(onApply);
+    await screen.findByRole('button', { name: /^Bodrum$/ });
+    fireEvent.click(screen.getByRole('button', { name: /^(Wissen|Clear)$/ }));
+    expect(screen.getByText(/Je keuzes verschijnen hier|Your picks will appear here/)).toBeInTheDocument();
+    fireEvent.keyDown(document, { key: 'Escape' });
+    expect(onApply.mock.calls[0][0]).toEqual({ countries: [], places: [] });
   });
 });
