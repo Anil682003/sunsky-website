@@ -189,9 +189,9 @@ describe('a package request that failed is never "no results"', () => {
     expect(within(notice).getByRole('button', { name: /opnieuw proberen/i })).toBeInTheDocument();
   });
 
-  it('package searches wait up to 20 s, not the default 15 s', async () => {
+  it('package searches wait up to 45 s (a fresh search is computed live, 23 Nov 2026)', async () => {
     const { PACKAGE_TIMEOUT_MS } = await vi.importActual('../../api/filters');
-    expect(PACKAGE_TIMEOUT_MS).toBe(20_000);
+    expect(PACKAGE_TIMEOUT_MS).toBe(45_000);
   });
 });
 

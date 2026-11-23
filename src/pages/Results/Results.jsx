@@ -778,7 +778,10 @@ export default function Results() {
 
   // 30 days out, 7 nights, in UTC (utils/searchDefaults) — the same stay the hotel page and the
   // "Show all" warmer use. Adding local days and printing UTC landed a day off around DST.
-  const { checkIn: defaultCheckIn, checkOut: defaultCheckOut } = defaultSearchContext();
+  // Fixed for the life of the page: recomputed on every render, a tab left open past midnight (UTC)
+  // no longer matched its own search dates, and its undated search turned into a slow DATED one
+  // (four destinations per request, all computed live) the next time a filter changed (23 Nov 2026).
+  const [{ checkIn: defaultCheckIn, checkOut: defaultCheckOut }] = useState(() => defaultSearchContext());
 
   const initCheckIn  = params.get('checkIn')  || defaultCheckIn;
   // 29 travel days is the ceiling everywhere (spec 3.4), so at most 28 nights between these two

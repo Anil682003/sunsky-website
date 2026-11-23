@@ -158,14 +158,25 @@ export async function fetchPackageFares({ origin, checkIn, checkOut, adults, chi
  * with its own price, dates, departure airport and flights. POST, because the content filter's
  * hotelCodes can be a long list. See src/pages/Results/packageResults.js for the body.
  */
-// A safety net, not a waiting time: a package search answers in about a second (one SunSkyCache
-// request per stay). Cut off at the default 15 s, Istanbul's cold 22 s answer was lost and Turkey
-// showed no results (7 Oct 2026); 20 s leaves room for a cold destination on a busy server.
-export const PACKAGE_TIMEOUT_MS = 20_000;
+// A safety net, not a waiting time: a stored package search answers in about a second. A FRESH one
+// is computed live: "Show all" with a departure airport ticked took 11 s for one group of 20
+// destinations and 14-20 s with four groups at once (23 Nov 2026), so at 20 s groups were lost
+// and shown as "could not be loaded". The server finishes and stores its answer either way.
+export const PACKAGE_TIMEOUT_MS = 45_000;
+
+// A timed-out or network-failed group is asked ONCE more before it counts as failed: by then the
+// server has usually stored the answer it was computing, so the second ask takes about a second.
+// A real refusal (4xx) or an abort by the page is never repeated.
+const retryable = (err) => !err?.response && err?.name !== 'CanceledError' && err?.code !== 'ERR_CANCELED';
 
 export async function fetchPackages(body, { signal } = {}) {
-  const { data } = await axiosInstance.post('/flight-availability/packages', body, { signal, timeout: PACKAGE_TIMEOUT_MS });
-  return data;
+  const ask = () => axiosInstance.post('/flight-availability/packages', body, { signal, timeout: PACKAGE_TIMEOUT_MS });
+  try {
+    return (await ask()).data;
+  } catch (err) {
+    if (signal?.aborted || !retryable(err)) throw err;
+    return (await ask()).data;
+  }
 }
 
 /**
