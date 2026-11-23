@@ -1,4 +1,5 @@
 import { useEffect, useRef } from 'react';
+import { useTranslation } from 'react-i18next';
 import styles from './Trustpilot.module.css';
 import ReviewsPlaceholder from './ReviewsPlaceholder';
 import { useConsent } from '../../context/ConsentContext';
@@ -7,8 +8,8 @@ import {
   TRUSTPILOT_ENABLED,
   BUSINESS_UNIT_ID,
   TEMPLATES,
-  DEFAULT_LOCALE,
   REVIEW_URL,
+  trustpilotLocale,
 } from './trustpilotConfig';
 
 /**
@@ -46,7 +47,8 @@ export default function Trustpilot({
   template = 'microStar',
   height = '24px',
   width = '100%',
-  locale = DEFAULT_LOCALE,
+  // Empty: the site's own language (trustpilotLocale). Pass one to pin a widget's language.
+  locale: localeProp = '',
   className = '',
   // A host with no room for a sentence can turn the refusal note off and render nothing
   // instead. The note still has to appear SOMEWHERE — the footer carries it — because a
@@ -54,6 +56,8 @@ export default function Trustpilot({
   showPlaceholder = true,
 }) {
   const ref = useRef(null);
+  const { i18n } = useTranslation();
+  const locale = localeProp || trustpilotLocale(i18n?.resolvedLanguage || i18n?.language);
   const { has } = useConsent();
   const consented = has('external_media');
   // A named template, a raw Trustpilot id, or nothing at all. Falling back to a default here

@@ -75,6 +75,10 @@ export const SCORE_TEMPLATE = String(import.meta.env.VITE_TRUSTPILOT_SCORE_TEMPL
  */
 export const DEFAULT_LOCALE = 'en-GB';
 
+/** The widget's language follows the site's: Belgian Dutch on the Dutch site ("Beoordeel ons
+ *  op Trustpilot" in the footer instead of "Review us on Trustpilot"), English otherwise. */
+export const trustpilotLocale = (lang) => (String(lang || '').toLowerCase().startsWith('nl') ? 'nl-BE' : DEFAULT_LOCALE);
+
 /**
  * The Trustpilot profile these reviews belong to.
  *

@@ -33,6 +33,7 @@ const withConfig = async (overrides) => {
     TRUSTPILOT_ENABLED: false,
     TEMPLATES: { microStar: 'tpl-micro-star', microCombo: 'tpl-combo', horizontal: 'tpl-horizontal' },
     DEFAULT_LOCALE: 'en-GB',
+    trustpilotLocale: (lang) => (String(lang || '').toLowerCase().startsWith('nl') ? 'nl-BE' : 'en-GB'),
     REVIEW_URL: 'https://nl-be.trustpilot.com/review/holidaybooking.be',
     BOOTSTRAP_SRC: 'https://widget.trustpilot.com/bootstrap/v5/tp.widget.bootstrap.min.js',
     ...overrides,
@@ -145,7 +146,8 @@ describe('once it is configured and permitted', () => {
     expect(box).not.toBeNull();
     // Omitting data-locale makes the constructor throw a bare string with no stack, which is
     // an unpleasant thing to debug; it reads like a nicety and is not.
-    expect(box.getAttribute('data-locale')).toBe('en-GB');
+    // The site's language (Dutch in this test run), so the widget's own words match the page.
+    expect(box.getAttribute('data-locale')).toBe('nl-BE');
     expect(box.getAttribute('data-template-id')).toBe('tpl-micro-star');
     expect(box.getAttribute('data-businessunit-id')).toBe(CONFIGURED.BUSINESS_UNIT_ID);
   });
