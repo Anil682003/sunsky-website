@@ -784,6 +784,27 @@ describe('homepage floating header', () => {
     expect(within(strip).getByRole('link', { name: /Trustpilot/ }).textContent).not.toMatch(/\d/);
   });
 
+  it('a dismissible announcement can be closed; the rating and the language switch stay', async () => {
+    const announcement = { ...liveAnnouncement, dismissible: true };
+    headerConfig = { siteHeader: v2({ announcement, trustpilot: { enabled: true, showOn: 'all', score: 4.9 } }) };
+    const { unmount } = renderNavbar('/faq');
+    await userEvent.click(screen.getByRole('button', { name: 'Mededeling sluiten' }));
+    expect(screen.queryByText('Zomervakantie 2027? Ontdek jouw volgende zonbestemming!')).toBeNull();
+    const strip = screen.getByRole('region', { name: 'Beoordelingen en taal' });
+    expect(within(strip).getByRole('link', { name: /Uitstekend, 4,9 van 5 op Trustpilot/ })).toBeInTheDocument();
+    unmount();
+    // Remembered on the next page.
+    renderNavbar('/');
+    expect(screen.queryByText('Zomervakantie 2027? Ontdek jouw volgende zonbestemming!')).toBeNull();
+  });
+
+  it('an announcement the CMS keeps on has no close button', () => {
+    headerConfig = { siteHeader: v2({ announcement: liveAnnouncement }) };
+    renderNavbar('/faq');
+    expect(screen.getByText('Zomervakantie 2027? Ontdek jouw volgende zonbestemming!')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Mededeling sluiten' })).toBeNull();
+  });
+
   it('draws no strip when it has nothing to carry', () => {
     headerConfig = { siteHeader: v2({ trustpilot: { enabled: false, showOn: 'all' }, language: { enabled: false, showOn: 'all' } }) };
     renderNavbar('/');

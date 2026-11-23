@@ -4,6 +4,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './AnnouncementBar.module.css';
 import { pick, headerLink, newTabProps, showOnClass, announcementKey } from '../../utils/siteHeader';
 import { stripColourStyle } from './stripColour';
+import { readDismissed, writeDismissed } from './dismissedAnnouncement';
 
 // The thin strip above the header bar (CMS -> Layout -> Header -> Announcement).
 //
@@ -20,23 +21,6 @@ import { stripColourStyle } from './stripColour';
 // line between 'desktop' and 'mobile'.
 const PHONE_QUERY = '(max-width: 900px)';
 const STRIP_H = 36;
-
-// Remembered per announcement, not per site: dismissing the autumn sale must not also hide
-// the winter one. Storage can be missing or blocked (private mode), so every access is
-// guarded and the strip simply shows again next visit.
-const DISMISS_KEY = 'sunsky.announcementDismissed';
-const readDismissed = () => {
-  try {
-    return localStorage.getItem(DISMISS_KEY);
-  } catch {
-    return null;
-  }
-};
-const writeDismissed = (value) => {
-  try {
-    localStorage.setItem(DISMISS_KEY, value);
-  } catch { /* storage blocked: dismissed for this page view only */ }
-};
 
 export default function AnnouncementBar({ announcement }) {
   const { t, i18n } = useTranslation('common');

@@ -63,6 +63,20 @@
 .pill:hover { background: var(--strip-btn-hover, rgba(255, 255, 255, 0.2)); }
 .pill:focus-visible, .textLink:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
 
+/* Close the announcement (CMS "dismissible"): right after it, so it plainly closes the
+   announcement and not the rating or the language switch. */
+.close {
+  flex-shrink: 0;
+  width: 28px; height: 28px; padding: 0;
+  border: 0; border-radius: 50%;
+  background: transparent;
+  display: inline-flex; align-items: center; justify-content: center;
+  color: inherit; opacity: 0.85; cursor: pointer;
+  transition: background 0.2s var(--ease), opacity 0.2s var(--ease);
+}
+.close:hover { background: rgba(255, 255, 255, 0.18); opacity: 1; }
+.close:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+
 .right { display: flex; align-items: center; flex-shrink: 0; }
 
 
@@ -71,4 +85,5 @@
   .inner { width: 100%; padding: 0 16px; gap: 8px; }
   .center { justify-content: flex-start; gap: 8px; }
   .pill { height: 24px; padding: 0 9px; }
+  .close { margin-left: auto; width: 26px; height: 26px; }
 }

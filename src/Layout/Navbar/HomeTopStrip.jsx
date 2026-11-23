@@ -2,22 +2,23 @@ import { useEffect, useLayoutEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import styles from './HomeTopStrip.module.css';
-import { pick, headerLink, newTabProps } from '../../utils/siteHeader';
+import { pick, headerLink, newTabProps, announcementKey } from '../../utils/siteHeader';
 import TrustpilotRating from '../../components/Trustpilot/TrustpilotRating';
 import TrustpilotBadge from '../../components/Trustpilot/TrustpilotBadge';
 import LanguageSwitch from '../../components/LanguageSwitch/LanguageSwitch';
 import { stripColourStyle } from './stripColour';
+import { readDismissed, writeDismissed } from './dismissedAnnouncement';
 
-// The homepage's top strip (the client's header design, Oct 2026): the Trustpilot rating on the
-// left, the CMS announcement in the middle, the language switch on the right, on brand blue, with
-// the white header card floating below it over the hero photo.
+// The top strip of every page (the client's header design, Oct 2026): the Trustpilot rating on
+// the left, the CMS announcement in the middle, the language switch on the right, on brand blue.
 //
-// It stands in for AnnouncementBar on the homepage only, and keeps the same contract: its height
-// is published as --announce-h on <html>, and --nav-h (which every page clears) is the bar plus
-// that. Unlike the announcement strip it shows whenever it has anything to carry, not only while
-// an announcement is live, because the rating and the language switch live here now. It has no
-// close button: it is part of the header, not a notice. On a phone it shrinks back to the plain
-// announcement line (the rating has no room, the language switch is in the menu).
+// It keeps AnnouncementBar's contract: its height is published as --announce-h on <html>, and
+// --nav-h (which every page clears) is the bar plus that. Unlike the announcement strip it shows
+// whenever it has anything to carry, not only while an announcement is live, because the rating
+// and the language switch live here now. When the CMS lets the announcement be dismissed it has
+// a close button; closing hides the announcement only (remembered per announcement), the rating
+// and the language switch stay. On a phone it shrinks back to the plain announcement line (the
+// rating has no room, the language switch is in the menu), so there closing removes the strip.
 const PHONE_QUERY = '(max-width: 900px)';
 const STRIP_H = 54;
 const PHONE_H = 36;
@@ -28,6 +29,8 @@ export default function HomeTopStrip({ announcement, trustpilot, language }) {
   const { t, i18n } = useTranslation('common');
   const lang = i18n.resolvedLanguage || i18n.language;
   const [phone, setPhone] = useState(isPhone);
+  const [dismissedKey, setDismissedKey] = useState(readDismissed);
+  const key = announcementKey(announcement);
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return undefined;
@@ -38,7 +41,7 @@ export default function HomeTopStrip({ announcement, trustpilot, language }) {
   }, []);
 
   const shows = (showOn) => (phone ? showOn !== 'desktop' : showOn !== 'mobile');
-  const announceHere = Boolean(announcement?.live) && shows(announcement.showOn);
+  const announceHere = Boolean(announcement?.live) && shows(announcement.showOn) && dismissedKey !== key;
   const trustHere = !phone && trustpilot?.enabled && shows(trustpilot.showOn);
   const langHere = !phone && language?.enabled && shows(language.showOn);
   const height = phone ? (announceHere ? PHONE_H : 0) : (announceHere || trustHere || langHere ? STRIP_H : 0);
@@ -60,6 +63,10 @@ export default function HomeTopStrip({ announcement, trustpilot, language }) {
     return link.router
       ? <Link to={link.href} className={className}>{content}</Link>
       : <a href={link.href} className={className} {...newTabProps(link.newTab)}>{content}</a>;
+  };
+  const dismiss = () => {
+    setDismissedKey(key);
+    writeDismissed(key);
   };
 
   return (
@@ -93,6 +100,17 @@ export default function HomeTopStrip({ announcement, trustpilot, language }) {
               )}
             </>
           ) : go(<span className={styles.text}>{message}</span>, styles.textLink))}
+          {announceHere && announcement.dismissible && (
+            <button
+              type="button"
+              className={styles.close}
+              onClick={dismiss}
+              aria-label={t('nav.dismissAnnouncement', 'Close announcement')}
+              title={t('nav.dismissAnnouncement', 'Close announcement')}
+            >
+              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" aria-hidden="true"><path d="M18 6L6 18M6 6l12 12" /></svg>
+            </button>
+          )}
         </p>
 
         {langHere && (
