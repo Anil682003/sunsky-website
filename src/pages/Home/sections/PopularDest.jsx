@@ -3,6 +3,7 @@ import { useTranslation } from 'react-i18next';
 import styles from './PopularDest.module.css';
 import SectionHead from './SectionHead';
 import { groupLinkUrl, groupLinkLabel, linkEntry } from '../../../utils/cmsDestinations';
+import { popularLinkLabel, popularGroupTitle } from '../../../utils/popularLabels';
 import { ALL_INCLUSIVE } from '../../../utils/entryRules';
 import { useHolidayTypes } from '../../../api';
 import { TONES, inferGroupStyle, isGlyph } from '../../../utils/travelIcons';
@@ -33,24 +34,8 @@ const ArrowIcon = () => (
   </svg>
 );
 
-// The FALLBACK_CARDS `links` above are plain strings, this component's own copy rather
-// than dashboard content, so they are translated here. A dashboard link is shown as typed.
-const LINK_LABEL_KEYS = {
-  'Bali': 'bali', 'Thailand': 'thailand', 'Maldives': 'maldives', 'Sri Lanka': 'sriLanka',
-  'Mexico': 'mexico', 'Dominican Republic': 'dominicanRepublic',
-  'Turkey All Inclusive': 'turkeyAllInclusive', 'Egypt All Inclusive': 'egyptAllInclusive',
-  'Greece All Inclusive': 'greeceAllInclusive', 'Spain All Inclusive': 'spainAllInclusive',
-  'Cape Verde': 'capeVerde',
-  'Last Minute Spain': 'lastMinuteSpain', 'Last Minute Turkey': 'lastMinuteTurkey',
-  'Last Minute Greece': 'lastMinuteGreece', 'Last Minute Egypt': 'lastMinuteEgypt',
-  'Last Minute Canary Islands': 'lastMinuteCanaryIslands',
-  'Paris': 'paris', 'Rome': 'rome', 'Barcelona': 'barcelona', 'London': 'london',
-  'Prague': 'prague', 'Amsterdam': 'amsterdam',
-};
-const linkLabel = (t, raw) => {
-  const k = LINK_LABEL_KEYS[raw];
-  return k ? t(`popular.links.${k}`, raw) : raw;
-};
+// Link names and card titles, the fallback cards' and the dashboard's alike, go through
+// utils/popularLabels, so the known English names read in the visitor's language.
 
 /**
  * The search behind a card's "View all" when the dashboard has not set one: every place in
@@ -103,12 +88,14 @@ const combinedSearchUrl = (links, title, types) => {
  */
 const resolveCard = (group, index, t, types) => {
   const auto = inferGroupStyle(group.title) || {};
-  const links = (Array.isArray(group.links) ? group.links : []).map((l) => ({
-    label: l && typeof l === 'object' ? groupLinkLabel(l) : linkLabel(t, l),
-    href: groupLinkUrl(l, types),
-  }));
+  const links = (Array.isArray(group.links) ? group.links : []).map((l) => {
+    const isObj = l && typeof l === 'object';
+    const label = popularLinkLabel(t, isObj ? groupLinkLabel(l) : l);
+    // The results page heads with the link's label, so it gets the translated one too.
+    return { label, href: groupLinkUrl(isObj && label ? { ...l, label } : l, types) };
+  });
 
-  const title = group.title || '';
+  const title = popularGroupTitle(t, group.title || '');
   const custom = group.viewAll && typeof group.viewAll === 'object' ? group.viewAll : null;
   const viewAllHref = (custom && groupLinkUrl({ ...custom, label: title }, types)) || combinedSearchUrl(group.links || [], title, types);
   const viewAllLabel = custom?.label?.trim()

@@ -7,6 +7,7 @@ import { resolveCmsImageUrl } from '../../utils/cmsImage';
 import styles from './Navbar.module.css';
 import { useHomepageConfig, useHeaderConfig, useHolidayTypes } from '../../api';
 import { groupLinkUrl, groupLinkLabel } from '../../utils/cmsDestinations';
+import { popularLinkLabel, popularGroupTitle } from '../../utils/popularLabels';
 import { hotelDetailHref } from '../../utils/searchDefaults';
 import { openCheckoutSignIn, checkoutCanResume } from '../../utils/checkoutSignIn';
 import { clearDraft } from '../../utils/checkoutDraft';
@@ -305,17 +306,19 @@ export default function Navbar() {
     const seen = new Set();
     const out = [];
     for (const g of cmsConfig?.popularDestinationGroups ?? []) {
+      const sub = popularGroupTitle(t, g?.title || '');
       for (const link of g?.links ?? []) {
-        const url = groupLinkUrl(link, allTypes);
-        const label = groupLinkLabel(link);
+        // In the visitor's language (utils/popularLabels); the dashboard stores English.
+        const label = popularLinkLabel(t, groupLinkLabel(link));
+        const url = groupLinkUrl(link && typeof link === 'object' && label ? { ...link, label } : link, allTypes);
         if (!url || !label || seen.has(label)) continue;
         seen.add(label);
-        out.push({ label, url, sub: g?.title || '' });
+        out.push({ label, url, sub });
         if (out.length >= MAX_MENU_ITEMS) return out;
       }
     }
     return out;
-  }, [cmsConfig, allTypes]);
+  }, [cmsConfig, allTypes, t]);
   const searchSuggestions = useMemo(
     () => (search.showSuggestions ? popularDests.slice(0, 6) : []),
     [popularDests, search.showSuggestions],
