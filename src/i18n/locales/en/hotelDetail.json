@@ -107,8 +107,7 @@
   "tabs": {
     "prices": "Prices",
     "information": "Information",
-    "facilities": "Facilities",
-    "keepScrolling": "Keep scrolling for"
+    "facilities": "Facilities"
   },
   "errors": {
     "generic": "We couldn’t load {{what}} prices for these dates. Please try again.",

@@ -270,17 +270,15 @@
   display: flex; gap: 26px;
 }
 
-/* ════════ Sidebar ════════ */
+/* ════════ Sidebar ════════
+   Part of the page, not a box of its own (Levent, 23 Nov 2026): the filters and the hotels
+   scroll together as ONE page, wherever the mouse is and however many filter sections are open.
+   No sticky position, no height cap, no scrollbar of its own. */
 .sidebar {
   width: clamp(290px, 25vw, 364px); flex-shrink: 0;
-  position: sticky; top: calc(var(--nav-h) + 32px);
-  max-height: calc(100vh - 108px);
-  overflow-y: auto; overflow-x: hidden;
+  align-self: flex-start;
   padding: 2px 4px 8px 2px;
-  scrollbar-width: thin; scrollbar-color: #c7d8f2 transparent;
 }
-.sidebar::-webkit-scrollbar { width: 4px; }
-.sidebar::-webkit-scrollbar-thumb { background: #c7d8f2; border-radius: 2px; }
 .filterCard {
   background: var(--white); border-radius: var(--r-card);
   border: 1px solid var(--line);

@@ -1,9 +1,9 @@
 import { useState, useEffect, useRef, useMemo, Fragment } from 'react';
-import NextTabTeaser from './NextTabTeaser';
 import { fetchPackages } from '../../api/filters';
 import { createPortal } from 'react-dom';
 import { useParams, useLocation, useNavigate, useSearchParams, Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
+import SectionTabs from './SectionTabs';
 import i18n from '../../i18n';
 import { localizedDescription } from '../../utils/hotelContentLanguage';
 import { useSelector } from 'react-redux';
@@ -2008,32 +2008,24 @@ export default function HotelDetail() {
     hotelName, origin, boardPref, info?.countryIso, info?.cityName, info?.city,
   ]);
 
-  const [activeTab, setActiveTab] = useState('Prices');
-  // Scrolling past the end of Prijzen or Informatie opens the next tab (NextTabTeaser). The
-  // page then glides back so the tab bar sits where it sticks and the new tab starts at its top.
-  const tabBarRef = useRef(null);
-  const openNextTab = (tab) => {
-    setActiveTab(tab);
-    requestAnimationFrame(() => {
-      const bar = tabBarRef.current;
-      const column = bar?.parentElement;
-      if (!bar || !column) return;
-      const cs = getComputedStyle(bar);
-      const stuckAt = parseFloat(cs.top) || 0;
-      const top = column.getBoundingClientRect().top + window.scrollY + (parseFloat(cs.marginTop) || 0) - stuckAt;
-      const reduce = window.matchMedia?.('(prefers-reduced-motion: reduce)').matches;
-      window.scrollTo({ top: Math.max(0, top), behavior: reduce ? 'auto' : 'smooth' });
-    });
-  };
-  const nextTabTeaser = (tab) => (
-    <NextTabTeaser
-      key={tab}
-      label={t(`tabs.${tab.toLowerCase()}`, tab)}
-      icon={TAB_ICON[tab]}
-      hint={t('tabs.keepScrolling', 'Keep scrolling for')}
-      onNext={() => openNextTab(tab)}
-    />
-  );
+  // ONE page, three sections (Levent, 23 Nov 2026: "one continuous, natural scrolling
+  // experience", both directions, no jumps or repositioning): Prijzen, Informatie and
+  // Voorzieningen sit one under the other and the page simply scrolls through them. The tab bar
+  // (SectionTabs) only lights up the section being read and glides to one when clicked.
+  const sectionRefs = useRef({});
+  // The weather is fetched once the Informatie section comes near the screen, as it was when its
+  // tab opened, so a visitor who only looks at prices does not cost a weather call.
+  const [infoNear, setInfoNear] = useState(false);
+  useEffect(() => {
+    if (infoNear) return undefined;
+    const el = sectionRefs.current.Information;
+    if (!el || typeof IntersectionObserver === 'undefined') { setInfoNear(true); return undefined; }
+    const obs = new IntersectionObserver((entries) => {
+      if (entries.some((e) => e.isIntersecting)) { setInfoNear(true); obs.disconnect(); }
+    }, { rootMargin: '900px 0px' });
+    obs.observe(el);
+    return () => obs.disconnect();
+  }, [infoNear]);
   const [saved, setSaved] = useState(false);
   const [expanded, setExpanded] = useState({});
   const isAuth = useSelector((s) => s.auth?.isAuthenticated);
@@ -2123,7 +2115,6 @@ export default function HotelDetail() {
   const [openCats, setOpenCats] = useState(() => new Set());
   // Which value the copy buttons last put on the clipboard, so exactly one shows "Copied".
   const [copied, setCopied] = useState(null);
-  const [reviewsSeen, setReviewsSeen] = useState(false);
 
   // ── Facility + location derivations ──────────────────────────────────────────
   // The supplier's own grouping is far coarser than anything worth showing a guest (one group
@@ -2152,7 +2143,7 @@ export default function HotelDetail() {
   // away, and the block never appeared. The ref keeps the guard out of the dependency graph.
   const weatherAsked = useRef(null);
   useEffect(() => {
-    if (activeTab !== 'Information' || !info?.latitude || !info?.longitude) return undefined;
+    if (!infoNear || !info?.latitude || !info?.longitude) return undefined;
     const key = `${info.latitude},${info.longitude}`;
     if (weatherAsked.current === key) return undefined;
     weatherAsked.current = key;
@@ -2171,7 +2162,7 @@ export default function HotelDetail() {
       })
       .catch((e) => { if (!cancelled) setWeather({ failure: fromFailure(e, { sources: ['weather'] }) }); });
     return () => { cancelled = true; };
-  }, [activeTab, info?.latitude, info?.longitude]);
+  }, [infoNear, info?.latitude, info?.longitude]);
 
   const copyValue = async (value, key) => {
     const ok = await copyText(value);
@@ -2291,7 +2282,7 @@ export default function HotelDetail() {
     // every render, which blanks the whole page. Same failure mode as the `sel` outage. The
     // underlying state changes at exactly the same moments, so the effect still re-runs when a
     // day's availability flips.
-  }, [activeTab, liveChecked, checkedEmpty, transport, liveRooms, liveFlights]);
+  }, [liveChecked, checkedEmpty, transport, liveRooms, liveFlights]);
 
   // lock body scroll when modal open
   useEffect(() => {
@@ -2331,7 +2322,6 @@ export default function HotelDetail() {
   }, [explorer, lightbox]);
 
   // animate rating bars once Reviews tab is opened
-  useEffect(() => { if (activeTab === 'Reviews') setReviewsSeen(true); }, [activeTab]);
 
   // preload gallery images so the lightbox and tiles paint instantly
   useEffect(() => {
@@ -4039,7 +4029,6 @@ export default function HotelDetail() {
     // has it), or their filters exclude every flight. Nothing is swapped in for them: the list
     // opens so they can choose again or change the filters, which is the only way on.
     if (flightNeedsChoice) {
-      setActiveTab('Prices');
       if (allFlights.length) { openFlightModal(); return; }
       // The fresh answer has no flights at all from this airport: there is no list to open,
       // and the way on is another airport or other dates, which the flight section offers.
@@ -4064,7 +4053,6 @@ export default function HotelDetail() {
       // An outage is an error; a price that did not come back is not, it is a check to repeat.
       showToast(unsettled || t('prices.checkAvailabilityFirst', 'Check availability first so we can price your stay.'),
         roomsFailed || (transport === 'package' && flightsFailed) ? 'error' : 'info');
-      setActiveTab('Prices');
       // Master sends an unsettled check to its own panel. Otherwise the strip — plus `.fc-pop`,
       // the check card, which is all the live-only layout has: without it this button pointed at
       // elements that are not on the page and did nothing visible.
@@ -4436,18 +4424,14 @@ export default function HotelDetail() {
         <div className="grid">
           <div>
             {/* Tabs */}
-            <div className="tw" ref={tabBarRef}>
-              <div className="tabs">
-                {TABS.map((tab) => (
-                  <button key={tab} className={`tb${activeTab === tab ? ' act' : ''}`} onClick={() => setActiveTab(tab)}>
-                    {TAB_ICON[tab]} {t(`tabs.${tab.toLowerCase()}`, tab)}
-                  </button>
-                ))}
-              </div>
-            </div>
+            <SectionTabs
+              tabs={TABS}
+              sectionRefs={sectionRefs}
+              renderLabel={(tab) => <>{TAB_ICON[tab]} {t(`tabs.${tab.toLowerCase()}`, tab)}</>}
+            />
 
-            {/* ── PRICES ── */}
-            <div className={`tp${activeTab === 'Prices' ? ' act' : ''}`}>
+            {/* ── PRICES ── (the three sections follow each other on one page; see SectionTabs) */}
+            <div className="tp act" id="prijzen" ref={(el) => { sectionRefs.current.Prices = el; }}>
               <div className="section-title"><span className="st-step">1</span>{' '}
                 {liveOnly
                   ? t('prices.checkLivePriceTitle', 'Check the live price')
@@ -5850,12 +5834,10 @@ export default function HotelDetail() {
                   )}
                 </div>
               </div>
-              {activeTab === 'Prices' && nextTabTeaser('Information')}
             </div>
 
             {/* ── INFORMATION ── */}
-            {activeTab === 'Information' && (
-              <div className="tp act">
+              <div className="tp act" id="informatie" ref={(el) => { sectionRefs.current.Information = el; }}>
                 {/* ── About + photo collage ───────────────────────────────────
                     No invented prose fallback. The old one described every hotel as "a
                     stunning boutique hotel nestled on the pristine shores of…", which for
@@ -6315,13 +6297,10 @@ export default function HotelDetail() {
                     </section>
                   );
                 })()}
-                {nextTabTeaser('Facilities')}
               </div>
-            )}
 
             {/* ── FACILITIES ── */}
-            {activeTab === 'Facilities' && (
-              <div className="tp act">
+              <div className="tp act" id="voorzieningen" ref={(el) => { sectionRefs.current.Facilities = el; }}>
                 {facCategories.length > 0 ? (() => {
                   const CARDS_COLLAPSED = 6;
                   const overflow = facCategories.length > CARDS_COLLAPSED;
@@ -6421,7 +6400,6 @@ export default function HotelDetail() {
                   </div>
                 )}
               </div>
-            )}
 
             {/* ── WEATHER (commented out for now) ──
             <div className={`tp${activeTab === 'Weather' ? ' act' : ''}`}>
