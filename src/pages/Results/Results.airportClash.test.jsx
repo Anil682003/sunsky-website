@@ -64,12 +64,23 @@ beforeEach(() => {
 
 const URL_TR = '/results?countries=TR&checkIn=2027-07-04&checkOut=2027-07-10&adults=2&children=0&rooms=1&transport=package';
 const renderAt = (u) => render(<MemoryRouter initialEntries={[u]}><Results /></MemoryRouter>);
-const airportBox = (code) => [...document.querySelectorAll('label')].find((l) => l.textContent.includes(code))?.querySelector('input');
+
+// The departure airports and the destination picker live in the search bar's panels (client
+// mock, 23/11/2026), one open at a time. Opens the named field's panel unless it already is.
+const ensureOpen = (label) => {
+  const btn = screen.queryByRole('button', { name: new RegExp(`^${label}`) });
+  if (btn && btn.getAttribute('aria-expanded') !== 'true') fireEvent.click(btn);
+};
+const airportBox = (code) => {
+  ensureOpen('Vertrekluchthavens');
+  return [...document.querySelectorAll('label')].find((l) => l.textContent.includes(code))?.querySelector('input');
+};
 const scopeNavigations = () => navigate.mock.calls.map(([a]) => a?.search).filter((s) => typeof s === 'string').map((s) => new URLSearchParams(s));
 
 /** Open the Where filter's city field and pick Side, once the page knows both airports. */
 const pickSide = async (codes = ['BRU', 'ANR']) => {
   for (const c of codes) await waitFor(() => expect(airportBox(c)?.checked).toBe(true));
+  ensureOpen('Bestemming');
   fireEvent.mouseDown(screen.getByTestId('scope-city'));
   fireEvent.click(await screen.findByRole('option', { name: /Side/ }));
 };
@@ -140,7 +151,7 @@ describe('Results: ask before dropping airports that clash with a new Where pick
 
   it('No preference has nothing to clash: the pick is applied at once, unasked', async () => {
     renderAt(URL_TR);
-    await waitFor(() => expect(screen.getByTestId('scope-city')).toBeInTheDocument());
+    await waitFor(() => { ensureOpen('Bestemming'); expect(screen.getByTestId('scope-city')).toBeInTheDocument(); });
     fireEvent.mouseDown(screen.getByTestId('scope-city'));
     fireEvent.click(await screen.findByRole('option', { name: /Side/ }));
     expect(scopeNavigations().some((q) => q.get('destinations') === 'SID')).toBe(true);

@@ -3,7 +3,7 @@
 // /feasibility). Gazipasa (connections via Istanbul only) and Eindhoven (no flight to Antalya)
 // could only ever answer "No results". Unknown (failed check): every airport stays.
 import { describe, it, expect, beforeEach, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import Results from './Results';
 import { fetchPackages } from '../../api/filters';
@@ -56,7 +56,17 @@ beforeEach(() => {
 const URL_PKG = '/results?destination=AYT&destinationLabel=Antalya&checkIn=2027-07-04&checkOut=2027-07-10&adults=2&children=2&childAges=10%2C6&rooms=1&transport=package';
 const renderAt = (u) => render(<MemoryRouter initialEntries={[u]}><Results /></MemoryRouter>);
 const GONE = /Niet beschikbaar voor deze zoekopdracht|Not available for this search/;
-const codesShown = () => [...document.querySelectorAll('label')].map((l) => l.textContent).join(' ');
+
+// The departure airports and the destination picker live in the search bar's panels (client
+// mock, 23/11/2026), one open at a time. Opens the named field's panel unless it already is.
+const ensureOpen = (label) => {
+  const btn = screen.queryByRole('button', { name: new RegExp(`^${label}`) });
+  if (btn && btn.getAttribute('aria-expanded') !== 'true') fireEvent.click(btn);
+};
+const codesShown = () => {
+  ensureOpen('Vertrekluchthavens');
+  return [...document.querySelectorAll('label')].map((l) => l.textContent).join(' ');
+};
 
 describe('Flight + Hotel offers only the airports that can make a package', () => {
   it('asks the admin for these destinations, dates and party', async () => {
@@ -87,7 +97,7 @@ describe('Flight + Hotel offers only the airports that can make a package', () =
   it('a chosen airport that no longer works stays chosen and says so (never dropped silently)', async () => {
     renderAt(`${URL_PKG}&origins=EIN&arrival=GZP`);
     // (the suite renders in Dutch)
-    await waitFor(() => expect(screen.getAllByText(GONE)).toHaveLength(2));
+    await waitFor(() => { ensureOpen('Vertrekluchthavens'); expect(screen.getAllByText(GONE)).toHaveLength(2); });
     const ein = [...document.querySelectorAll('label')].find((l) => /EIN/.test(l.textContent));
     expect(ein.querySelector('input').checked).toBe(true);
     expect(ein.querySelector('input').disabled).toBe(false);   // can still be unticked

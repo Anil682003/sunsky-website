@@ -256,6 +256,11 @@ const sidebarCheck = (name) => {
 };
 const sidebarRadio = (name) => screen.getAllByRole('radio', { name })[0];
 
+// The search controls live in the search bar's panels (client mock, 23/11/2026): a field's
+// panel has to be opened before its controls exist.
+const barField = (label) => screen.getByRole('button', { name: new RegExp(`^${label}`) });
+const openBar = (user, label) => user.click(barField(label));
+
 
 // jsdom cannot drag a range thumb, and userEvent refuses to click an element with
 // pointer-events:none (which the overlaid dual-slider inputs deliberately have).
@@ -449,7 +454,10 @@ describe('arrival airport ("Flying to")', () => {
   const oneCity = '?destinations=AYT&destinationLabel=Antalya&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1';
   const countryScope = '?countries=TR&destinationLabel=Turkey&checkIn=2026-08-15&checkOut=2026-08-18&adults=2&children=0&rooms=1';
   // The picker lives under the departure airport, which only shows with flights included.
-  const openTransport = (user) => user.click(sidebarRadio('Incl. vlucht'));
+  const openTransport = async (user) => {
+    await openBar(user, 'Vervoer');
+    await user.click(sidebarRadio('Incl. vlucht'));
+  };
   const arrivalBox = (name) => screen.getByRole('checkbox', { name });
 
   it('one city with two airports: each as its own city and airport name, not the places it serves', async () => {
@@ -577,6 +585,7 @@ describe('price box', () => {
     renderResults();
     await settled();
     expect(screen.queryByRole('radio', { name: 'Totale verblijfprijs' })).not.toBeInTheDocument();
+    await openBar(user, 'Vervoer');
     await user.click(sidebarRadio('Incl. vlucht'));
     expect(screen.queryByRole('radio', { name: 'Per persoon' })).not.toBeInTheDocument();
   });
@@ -952,6 +961,7 @@ describe('search change', () => {
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('200'));
 
     // Add a guest and re-search: a price bound from the old occupancy is meaningless.
+    await openBar(user, 'Reizigers & kamers');
     await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
     await user.click(screen.getAllByRole('button', { name: /wijzigingen opslaan/i })[0]);
 
@@ -973,6 +983,7 @@ describe('search change', () => {
 
     // A guest is added first because the button only exists while the search HAS changed —
     // pressing it with nothing pending would re-run the identical search for nothing.
+    await openBar(user, 'Reizigers & kamers');
     await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
     await user.click(screen.getAllByRole('button', { name: /wijzigingen opslaan/i })[0]);
     await waitFor(() => expect(lastCall().get('adults')).toBe('3'));

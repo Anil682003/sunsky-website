@@ -47,16 +47,134 @@
   margin-bottom: 18px;
 }
 .heroTitle em { font-style: normal; color: var(--hero-accent); }
-.heroChips { display: flex; flex-wrap: wrap; gap: 8px; }
-.heroChip {
-  display: inline-flex; align-items: center; gap: 7px;
-  padding: 7px 14px; border-radius: var(--r-full);
-  background: rgba(255,255,255,0.75);
-  border: 1px solid rgba(22,36,61,0.12);
-  color: var(--hero-ink);
-  font-size: var(--fs-small); font-weight: 600; white-space: nowrap;
+
+/* ════════ Search bar (client mock, 23/11/2026) ════════
+   One line under the title: six fields, each a white rounded box with a blue icon, a small
+   label and the value in bold, then the blue "Search holidays" button. A field's panel opens
+   under it. The controls in those panels are the ones the sidebar used to carry. */
+.searchBar {
+  position: relative;
+  display: flex; align-items: stretch; gap: 10px;
+  padding: 10px;
+  background: var(--white);
+  border-radius: 22px;
+  box-shadow: 0 10px 30px rgba(15, 40, 100, 0.08);
 }
-.heroChip svg { color: var(--hero-ink-soft); }
+.barField {
+  position: relative;
+  flex: 1 1 auto; min-width: 0;
+}
+.barFieldWide { flex: 1.4 1 auto; }
+.barBtn {
+  width: 100%; height: 100%; min-height: 60px; box-sizing: border-box;
+  display: flex; align-items: center; gap: 10px;
+  padding: 8px 12px 8px 14px;
+  border: 1px solid #E6ECF5; border-radius: 16px;
+  background: var(--white);
+  font-family: inherit; text-align: left; color: var(--text);
+  cursor: pointer;
+  transition: border-color 0.18s, background 0.18s, box-shadow 0.18s;
+}
+.barBtn:hover:not(:disabled) { border-color: #C9D8EE; background: var(--blue-bg); }
+.barBtn:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 2px; }
+.barFieldOn .barBtn { border-color: var(--blue-deep); background: var(--blue-bg); }
+.barBtn:disabled { cursor: not-allowed; opacity: 0.55; }
+.barIcon { flex-shrink: 0; display: flex; color: var(--blue-deep); }
+.barText { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.barLabel {
+  font-size: var(--fs-small); font-weight: 500; line-height: 1.2;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.barValue {
+  font-family: 'Sora', sans-serif;
+  font-size: var(--fs-body); font-weight: 700; line-height: 1.25;
+  color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.barChev { flex-shrink: 0; display: flex; color: var(--text); transition: transform 0.2s; }
+.barChevOpen { transform: rotate(180deg); }
+
+.barSearch {
+  flex-shrink: 0;
+  display: inline-flex; align-items: center; justify-content: center; gap: 10px;
+  align-self: center;
+  height: 56px; padding: 0 30px;
+  border: none; border-radius: var(--r-full);
+  background: var(--blue-deep); color: #fff;
+  font-family: 'Sora', sans-serif; font-size: var(--fs-control); font-weight: 700;
+  white-space: nowrap; cursor: pointer;
+  transition: filter 0.2s;
+}
+.barSearch:hover:not(:disabled) { filter: brightness(1.08); }
+.barSearch:disabled { opacity: 0.7; cursor: progress; }
+
+/* A field's panel floats over the page rather than pushing the results down. */
+.barPop {
+  position: absolute; z-index: 60; top: calc(100% + 8px); left: 0;
+  width: max(100%, 340px); max-height: min(70vh, 620px); overflow-y: auto;
+  box-sizing: border-box;
+  padding: 16px;
+  background: var(--white);
+  border: 1px solid var(--blue-light); border-radius: 16px;
+  box-shadow: 0 18px 44px rgba(15, 40, 100, 0.16);
+  display: flex; flex-direction: column; gap: 12px;
+}
+/* The destination picker's own lists float out of their fields, so this panel must not clip. */
+.barPop_scope { width: max(100%, 420px); overflow: visible; max-height: none; }
+.barPop_date { width: auto; padding: 6px; }
+.barPop_duration { width: max(100%, 380px); }
+.barPop_travellers { width: max(100%, 360px); }
+.barPop_origins { width: max(100%, 380px); right: 0; left: auto; }
+/* Behind the panel, catching the click that closes it. */
+.barScrim {
+  position: fixed; inset: 0; z-index: 55;
+  background: transparent; border: 0; padding: 0; cursor: default;
+}
+
+/* The chevrons cost about 160px across the line; below 1,800px they go first. */
+@media (max-width: 1799px) {
+  .barChev { display: none; }
+}
+/* Laptop widths: the mock's sizes need about 1,450px even without chevrons, so the line
+   tightens (smaller type) rather than cutting the values off. */
+@media (max-width: 1599px) {
+  .searchBar { gap: 8px; }
+  .barBtn { gap: 8px; padding: 6px 10px 6px 12px; min-height: 56px; }
+  .barIcon svg { width: 18px; height: 18px; }
+  .barLabel { font-size: var(--fs-micro); }
+  .barValue { font-size: var(--fs-small); }
+  .barChev { display: none; }
+  .barSearch { height: 52px; padding: 0 22px; }
+}
+/* Narrower desktops: two rows of three, the button under them. */
+@media (max-width: 1280px) {
+  .searchBar { flex-wrap: wrap; }
+  .barField { flex: 1 1 calc(33.333% - 7px); }
+  .barFieldWide { flex: 1 1 calc(33.333% - 7px); }
+  .barSearch { flex: 1 1 100%; height: 52px; }
+}
+/* Phones: two columns, the destination and the button full width; panels become a sheet. */
+@media (max-width: 640px) {
+  .searchBar { gap: 8px; padding: 8px; border-radius: 18px; }
+  .barField { flex: 1 1 calc(50% - 4px); }
+  /* The long values get a row of their own; date, duration and transport share. */
+  .barFieldWide, .barField[data-bar='travellers'], .barField[data-bar='origins'] { flex: 1 1 100%; }
+  .barBtn { min-height: 54px; gap: 9px; padding: 7px 10px 7px 12px; border-radius: 13px; }
+  .barIcon svg { width: 18px; height: 18px; }
+  .barLabel { font-size: var(--fs-micro); }
+  .barValue { font-size: var(--fs-small); }
+  .barChev { display: none; }
+  .barSearch { height: 50px; }
+  .barPop, .barPop_scope, .barPop_date, .barPop_duration, .barPop_travellers, .barPop_origins {
+    position: fixed; z-index: 1100;
+    left: 12px; right: 12px; top: auto; bottom: 12px;
+    width: auto; max-height: 78vh;
+  }
+  .barScrim { z-index: 1050; background: rgba(26, 39, 68, 0.38); }
+  /* Docked at the top instead, so the picker's lists drop down into the screen. */
+  .barPop_scope { top: 12px; bottom: auto; max-height: none; overflow: visible; }
+}
 
 /* ════════ Toolbar ════════
    A plain white bar that stays pinned under the header: how many stays were found, the trip
@@ -409,20 +527,6 @@
   background: var(--blue-light, #eef4ff); color: var(--blue-deep, #1f4fd8);
   font-size: var(--fs-small); font-weight: 600; line-height: 1.35;
 }
-/* The heading for everything below the seam. A plain label, not a collapsible section: it
-   introduces the rest of the sidebar rather than holding anything of its own. */
-.refineHead {
-  display: flex; align-items: center; gap: 9px;
-  padding: 16px 20px 12px;
-  border-bottom: 1px solid #eef3fb;
-  color: var(--blue-deep, #1f4fd8);
-}
-.refineHead h3 {
-  margin: 0; font-family: 'Sora', sans-serif;
-  font-size: var(--fs-body); font-weight: 600; letter-spacing: 0.2px;
-  color: var(--dark);
-}
-
 /* ── Per-room occupancy (Filter 4) ── */
 .roomBlock {
   border: 1px solid var(--line); border-radius: 12px;
@@ -1431,41 +1535,7 @@
   font-size: var(--fs-small); font-weight: 600; color: var(--blue-deep);
 }
 
-/* ── Departure date ── */
-.dateField {
-  width: 100%; box-sizing: border-box;
-  display: flex; align-items: center; gap: 9px;
-  padding: 0 13px; height: 44px;
-  border: 1.5px solid #e2eaf5; border-radius: var(--r-sm);
-  background: #f8fbff;
-  font-family: inherit; font-size: var(--fs-control); font-weight: var(--fw-control); color: var(--text);
-  cursor: pointer; text-align: left;
-  transition: border-color 0.2s, box-shadow 0.2s, background 0.2s;
-}
-.dateField:hover { border-color: #c7d8f2; }
-.dateField:focus-visible {
-  outline: none; border-color: var(--blue-ocean); background: var(--white);
-  box-shadow: 0 0 0 4px rgba(95,168,255,0.13);
-}
-.dateField svg { color: var(--blue-deep); flex-shrink: 0; }
-.dateFieldValue { font-variant-numeric: tabular-nums; }
-
-/* The calendar floats over the sidebar rather than pushing 400px of filters down the page
-   every time it opens. */
-.calPop {
-  position: absolute; z-index: 60; margin-top: 7px;
-  background: var(--white);
-  border: 1px solid var(--blue-light); border-radius: 16px;
-  box-shadow: 0 18px 44px rgba(15,40,100,0.16);
-  padding: 6px;
-}
 .f1Block { position: relative; }
-/* Behind the panel, catching the click that closes it. */
-.calScrim {
-  position: fixed; inset: 0; z-index: 55;
-  background: transparent; border: 0; padding: 0; cursor: default;
-}
-
 /* ── Travel duration categories ── */
 .bandGrid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 7px; }
 .bandBtn {

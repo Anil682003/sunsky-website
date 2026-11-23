@@ -7,6 +7,11 @@ import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Results from './Results';
 
+// The search controls live in the search bar's panels (client mock, 23/11/2026): a field's
+// panel has to be opened before its controls exist.
+const barField = (label) => screen.getByRole('button', { name: new RegExp(`^${label}`) });
+const openBar = (user, label) => user.click(barField(label));
+
 vi.mock('react-router-dom', async (orig) => ({ ...(await orig()), useNavigate: () => vi.fn() }));
 vi.mock('react-redux', () => ({ useSelector: (fn) => fn({ auth: { isAuthenticated: false } }) }));
 vi.mock('../../context/ToastContext', () => ({ useToast: () => ({ showToast: vi.fn() }) }));
@@ -97,8 +102,10 @@ describe('stylesheet integrity', () => {
   });
 
   it('the new filter controls carry real styles, not undefined class names', async () => {
+    const user = userEvent.setup();
     renderResults();
     await settled();
+    await openBar(user, 'Vervoer');
     for (const el of [...screen.getAllByRole('radio'), ...screen.getAllByRole('slider')]) {
       expect(el.className).not.toMatch(/undefined/);
       expect(el.className.trim()).not.toBe('');
@@ -117,19 +124,30 @@ describe('sidebar layout', () => {
     // when the URL carries a night range, or when the scope actually has those content facets
     // (it doesn't here). Everything else is unconditional and this is the order it ships in.
     //
-    // The sidebar is in two halves, and "Resultaten verfijnen" is the line between them:
-    // everything above it re-runs the search, everything below narrows what came back. That is
-    // the client's order, and it is why Vervoer leads and Prijsklasse sits below the line.
+    // What re-runs the SEARCH (transport, destination, date, duration, travellers, departure
+    // airports) moved to the search bar above the results (client mock, 23/11/2026) and is not
+    // repeated here: the sidebar only narrows what came back.
     //
     // No 'Cancellation': the filter was removed because the site no longer states a rate's
     // cancellation terms anywhere in the journey, so offering to filter by them promised a
     // distinction nothing downstream would show.
     expect(headings).toEqual([
-      'Vervoer', 'Waarheen', 'Datum & reizigers',
-      'Resultaten verfijnen',
       'Prijsklasse', 'Verzorging', 'Sterren', 'Soort accommodatie', 'Vakantietypes', "Vakantiethema's",
       'Faciliteiten', 'Activiteiten',
     ]);
+  });
+
+  it('the search bar carries the search fields, in the mock’s order', async () => {
+    renderResults();
+    await settled();
+    const bar = screen.getByRole('search');
+    const labels = within(bar).getAllByRole('button')
+      .map((b) => b.querySelector('[class*="barLabel"]')?.textContent)
+      .filter(Boolean);
+    expect(labels).toEqual([
+      'Bestemming', 'Vertrekdatum', 'Reisduur', 'Reizigers & kamers', 'Vervoer', 'Vertrekluchthavens',
+    ]);
+    expect(within(bar).getByRole('button', { name: /Zoek vakanties/ })).toBeInTheDocument();
   });
 
   it('renders the dual-handle price slider as two labelled inputs', async () => {
@@ -140,13 +158,15 @@ describe('sidebar layout', () => {
   });
 
   it('exposes the segmented controls as accessible radio groups', async () => {
+    const user = userEvent.setup();
     renderResults();
     await settled();
-    const groups = screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label'));
-    // 'Cancellation policy' is gone with its filter. Transport leads now: it is a question
-    // about the SEARCH, so it sits above the line, and the price view sits below it.
-    // The price-view toggle is gone (Unified Results §8.1, T26: total price only).
-    expect(groups).toEqual(['Soort vervoer', 'Reisduur']);
+    // Each lives in its own search-bar panel. 'Cancellation policy' is gone with its filter, and
+    // the price-view toggle too (Unified Results §8.1, T26: total price only).
+    await openBar(user, 'Vervoer');
+    expect(screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label'))).toEqual(['Soort vervoer']);
+    await openBar(user, 'Reisduur');
+    expect(screen.getAllByRole('radiogroup').map((g) => g.getAttribute('aria-label'))).toEqual(['Reisduur']);
     // The 'Any' radio belonged to the cancellation group — it must not have survived it.
     expect(screen.queryByRole('radio', { name: 'Any' })).not.toBeInTheDocument();
   });
@@ -158,21 +178,22 @@ describe('sidebar layout', () => {
   const saveBtn = () => screen.getAllByRole('button', { name: /wijzigingen opslaan/i })[0];
 
   it('has nothing to save on arrival', async () => {
+    const user = userEvent.setup();
     renderResults();
     await settled();
-    // Present, because it belongs to the section rather than appearing and vanishing at the
-    // foot of the sidebar; disabled, because nothing has been edited.
+    await openBar(user, 'Reizigers & kamers');
+    // Present, because it belongs to the travellers rather than appearing and vanishing;
+    // disabled, because nothing has been edited.
     expect(saveBtn()).toBeDisabled();
     // The old bottom-of-sidebar notice is gone with the button it belonged to.
     expect(screen.queryByText('Je zoekopdracht is gewijzigd')).not.toBeInTheDocument();
-    // …but the line between the two halves is still drawn.
-    expect(screen.getByRole('heading', { name: 'Resultaten verfijnen', level: 3 })).toBeInTheDocument();
   });
 
   it('becomes pressable once a traveller changes', async () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
+    await openBar(user, 'Reizigers & kamers');
     await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
     await waitFor(() => expect(saveBtn()).toBeEnabled());
   });
@@ -181,9 +202,12 @@ describe('sidebar layout', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
+    await openBar(user, 'Reizigers & kamers');
     await user.click(screen.getAllByRole('button', { name: 'Meer volwassenen' })[0]);
     await waitFor(() => expect(saveBtn()).toBeEnabled());
     await user.click(saveBtn());
+    // Saving closes the panel; reopened, there is nothing left to save.
+    await openBar(user, 'Reizigers & kamers');
     await waitFor(() => expect(saveBtn()).toBeDisabled());
   });
 
@@ -194,8 +218,10 @@ describe('sidebar layout', () => {
     const user = userEvent.setup();
     renderResults();
     await settled();
+    await openBar(user, 'Reisduur');
     const lengths = screen.getAllByRole('checkbox', { name: /^\d+ dagen/ });
     await user.click(lengths[lengths.length - 1]);
+    await openBar(user, 'Reizigers & kamers');
     await waitFor(() => expect(saveBtn()).toBeDisabled());
   });
 

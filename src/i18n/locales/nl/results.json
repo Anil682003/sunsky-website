@@ -212,7 +212,7 @@
   },
   "empty": {
     "chooseTitle": "Kies waar je naartoe wilt",
-    "chooseText": "Kies een of meer landen of bestemmingen in het filter “Waarheen”.",
+    "chooseText": "Kies een of meer landen of bestemmingen bij “Bestemming” bovenaan.",
     "noneTitle": "Geen resultaten gevonden",
     "noneFiltered": "Geen verblijven passen bij je filters. Maak ze ruimer of verbreed je prijsklasse.",
     "noneWiden": "Probeer andere data of een ruimer gebied.",
@@ -303,5 +303,25 @@
   "roomFeature": {
     "PRIVATE_POOL": "Privézwembad",
     "HOT_TUB": "Hot tub op de kamer"
+  },
+  "bar": {
+    "aria": "Wijzig je zoekopdracht",
+    "destination": "Bestemming",
+    "chooseDestination": "Kies een bestemming",
+    "departureDate": "Vertrekdatum",
+    "duration": "Reisduur",
+    "anyDuration": "Geen voorkeur",
+    "travellers": "Reizigers & kamers",
+    "rooms_one": "{{count}} kamer",
+    "rooms_other": "{{count}} kamers",
+    "transport": "Vervoer",
+    "origins": "Vertrekluchthavens",
+    "noFlight": "Geen vlucht",
+    "anyAirport": "Vanaf elke luchthaven",
+    "fromCity": "Vanaf {{city}}",
+    "fromAirports_one": "Vanaf {{count}} luchthaven",
+    "fromAirports_other": "Vanaf {{count}} luchthavens",
+    "search": "Zoek vakanties",
+    "close": "Sluiten"
   }
 }

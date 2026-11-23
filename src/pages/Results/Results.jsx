@@ -261,7 +261,8 @@ const roomFeatureLabel = (code) => i18n.t(`results:roomFeature.${code}`, ROOM_FE
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
 const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
 
-// How many filters the user has actively changed — drives the sidebar count pill.
+// How many filters the user has actively changed — drives the sidebar count pill. Transport is
+// not one of them: it is chosen in the search bar, and the sidebar's count is for the sidebar.
 const countActiveFilters = (f) =>
   f.boards.length + (f.promos?.length || 0) + (f.roomFeatures?.length || 0) +
   (f.themes?.length || 0) + (f.stars?.length || 0) +
@@ -273,7 +274,6 @@ const countActiveFilters = (f) =>
   (f.hthemes?.length || 0) +
   (f.minPrice !== '' ? 1 : 0) + (f.maxPrice !== '' ? 1 : 0) +
   (f.priceBasis !== 'total' ? 1 : 0) + (f.refundable !== 'any' ? 1 : 0) +
-  (f.transport && f.transport !== 'hotel_only' ? 1 : 0) +
   // Non-stop only acts on flights, so it is not counted while the search is hotel-only (its box
   // is not shown then either): a count must never name a filter nobody can see to untick.
   (f.arrivals?.length || 0) + (f.nonstop && f.transport === 'package' ? 1 : 0);
@@ -872,7 +872,15 @@ export default function Results() {
 
   // Which panel is open, and whether Save has been pressed yet — an unfinished date of birth
   // is not an error until something has asked for it.
-  const [calOpen, setCalOpen] = useState(false);
+  // Which search-bar field has its panel open (key of barPanels), or null.
+  const [barOpen, setBarOpen] = useState(null);
+  useEffect(() => {
+    if (!barOpen) return undefined;
+    const onKey = (e) => { if (e.key === 'Escape') setBarOpen(null); };
+    document.addEventListener('keydown', onKey);
+    return () => document.removeEventListener('keydown', onKey);
+  }, [barOpen]);
+  const mainRef = useRef(null);
   const [saveAttempted, setSaveAttempted] = useState(false);
 
   // PER-ROOM occupancy. One entry per room, each with its own adults + children and a DATE OF
@@ -2753,7 +2761,9 @@ export default function Results() {
     arrivals: f.arrivals.includes(code) ? f.arrivals.filter((c) => c !== code) : [...f.arrivals, code],
   }));
 
-  const clearFilters = () => setFilters(EMPTY_FILTERS);
+  // The transport and departure airports live in the search bar now, so the sidebar's "Clear
+  // all" leaves them as they are: it clears what the sidebar shows.
+  const clearFilters = () => setFilters((f) => ({ ...EMPTY_FILTERS, transport: f.transport, origins: f.origins }));
 
   // ── "APPLIED FROM THIS CARD" ───────────────────────────────────────────────────
   // Which keys the entry URL seeded — every other key still holds its EMPTY_FILTERS value.
@@ -3100,11 +3110,13 @@ export default function Results() {
      already stood, which is what the server reports by sending no `entryApplied`. */
   if (entrySummary?.entry === ALL_INCLUSIVE) {
     heroChips.push({
+      door: true,
       icon: 'M12 2l2.4 7.4H22l-6 4.4 2.3 7.2-6.3-4.6L5.7 21 8 13.8 2 9.4h7.6z',
       text: t('hero.allInclusiveApplied', { boards: entrySummary.boards.join(', '), defaultValue: 'All Inclusive only ({{boards}})' }),
     });
   } else if (entrySummary?.entry === LAST_MINUTE) {
     heroChips.push({
+      door: true,
       icon: 'M12 6v6l4 2M12 22a10 10 0 100-20 10 10 0 000 20z',
       text: t('hero.lastMinuteApplied', { from: fmtDate(entrySummary.from), to: fmtDate(entrySummary.to), defaultValue: 'Last minute · {{from}} — {{to}}' }),
     });
@@ -3127,56 +3139,222 @@ export default function Results() {
     })
     : '';
 
+  // ═══════════ THE SEARCH BAR (client mock, 23/11/2026) ═══════════
+  // One line above the results: Destination, Departure date, Travel duration, Travellers & rooms,
+  // Transport, Departure airports, then "Search holidays". These are the controls that used to
+  // open the sidebar; they now live only here, each in a panel under its field, and the sidebar
+  // keeps what refines the results that came back.
+  //
+  // What applies when is unchanged (§15): the destination, the date, the two duration controls,
+  // the transport and the airports apply the moment they are picked; the travellers are edited
+  // as a whole and applied by their own button, which "Search holidays" also presses.
+  const barPanels = {
+    // DESTINATION — multi-country / multi-destination scope, applied on every pick.
+    scope: (
+      <>
+        <ScopePicker
+          countries={countryOptions}
+          status={countriesStatus}
+          value={pickerValue}
+          popular={POPULAR_SCOPE}
+          counts={pickerCounts}
+          onApply={pickScope}
+        />
+        {/* UI-06: right under the picker that raised it. */}
+        <AirportClashPanel
+          className={styles.clashPanel}
+          verdict={scopeClash.verdict}
+          checking={scopeClash.checking}
+          destinations={scopeClash.pending?.names || []}
+          onRemove={removeClashingAirports}
+          onKeep={scopeClash.settle}
+        />
+      </>
+    ),
+
+    // DEPARTURE DATE (§2, §7). One date; the return follows from the exact duration and is never
+    // separately selectable: a date on a calendar is not proof a flight can be built back from it.
+    date: (
+      <DateCalendar
+        value={localCheckIn}
+        onChange={(iso) => { applyDeparture(iso); setBarOpen(null); }}
+        min={earliestCheckInISO()}
+        months={1}
+        legend
+        isUnavailable={departureUnavailable}
+        earliestAvailable={pkgSummary?.earliest ?? null}
+        availableCount={pkgSummary?.count ?? null}
+      />
+    ),
+
+    // TRAVEL DURATION: the five SUNSKY categories, one active (§5), then the exact lengths inside
+    // the chosen one (§6), never an independent filter. The counts are for the current search.
+    duration: (
+      <>
+        <span className={styles.f1Label}>{t('filters.travelDuration', 'Travel duration')}</span>
+        <div className={styles.bandGrid} role="radiogroup" aria-label={t('filters.travelDuration', 'Travel duration')}>
+          {DURATION_BANDS.map((b) => {
+            const on = b.key === selectedBand.key && (!undatedSearch || !!urlDuration);
+            return (
+              <button
+                key={b.key}
+                type="button"
+                role="radio"
+                aria-checked={on}
+                className={`${styles.bandBtn} ${on ? styles.bandBtnOn : ''}`}
+                onClick={() => applyBand(b)}
+              >
+                {t(`home:hero.durations.${b.key}`, b.label)}
+              </button>
+            );
+          })}
+        </div>
+        {dayOptions.length > 0 && (
+          <div className={styles.f1Block}>
+            <span className={styles.f1Label}>
+              {t('filters.exactDuration', 'Exact travel duration')}
+              <em className={styles.f1LabelNote}>{t(`home:hero.durations.${selectedBand.key}`, selectedBand.label)}</em>
+            </span>
+            {dayOptions.map((n) => (
+              <FilterCheck
+                key={n}
+                label={`${daysLabel(nightsToDays(n))}${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString(numberLocale)})` : ''}`}
+                checked={!undatedSearch && searchedNights === n}
+                onChange={() => { applyDuration(n); setBarOpen(null); }}
+              />
+            ))}
+          </div>
+        )}
+      </>
+    ),
+
+    // TRAVELLERS & ROOMS. Each room keeps its own occupancy, and a child's date of birth stays
+    // with the room it was entered in (§8, §12). Applied together, by the button (§13).
+    travellers: (
+      <>
+        {roomsConfig.map((room, i) => (
+          <div key={i} className={styles.roomBlock}>
+            <div className={styles.roomHead}>
+              <span className={styles.roomTitle}>{t('filters.room', { number: i + 1, defaultValue: 'Room {{number}}' })}</span>
+              {roomsConfig.length > 1 && (
+                <button type="button" className={styles.roomRemove} onClick={() => removeRoom(i)}>{t('filters.removeRoom', 'Remove')}</button>
+              )}
+            </div>
+            <div className={styles.guestRow}>
+              <span className={styles.guestLabel}>{t('filters.adults', 'Adults')}</span>
+              <div className={styles.guestCounter}>
+                <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, -1)} aria-label={t('filters.fewerAdults', 'Fewer adults')}>−</button>
+                <span className={styles.guestNum}>{room.adults}</span>
+                <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, +1)} aria-label={t('filters.moreAdults', 'More adults')}>+</button>
+              </div>
+            </div>
+            <div className={styles.guestRow}>
+              <span className={styles.guestLabel}>{t('filters.children', 'Children')}</span>
+              <div className={styles.guestCounter}>
+                <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, -1)} aria-label={t('filters.fewerChildren', 'Fewer children')}>−</button>
+                <span className={styles.guestNum}>{room.children}</span>
+                <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, +1)} aria-label={t('filters.moreChildren', 'More children')}>+</button>
+              </div>
+            </div>
+
+            {/* One block per child under the Children selector (§10.2, §10.3), sliced to the
+                count so fewer children take their pickers away with them (§12). */}
+            {room.children > 0 && (
+              <div className={styles.dobList}>
+                {room.dobs.slice(0, room.children).map((dob, ci) => (
+                  <DobPicker
+                    key={ci}
+                    id={`dob-r${i}-c${ci}`}
+                    label={t('filters.childDobLabel', { number: ci + 1, defaultValue: 'Date of birth, child {{number}}' })}
+                    value={dob}
+                    onChange={(iso) => setChildDob(i, ci, iso)}
+                    travelDate={localCheckIn}
+                    showError={saveAttempted}
+                  />
+                ))}
+              </div>
+            )}
+          </div>
+        ))}
+
+        {roomsConfig.length < 5 && (
+          <button type="button" className={styles.addRoomBtn} onClick={addRoom}>{t('filters.addRoom', '+ Add room')}</button>
+        )}
+
+        <button
+          className={styles.applyBtn}
+          onClick={() => { if (dobsValid) setBarOpen(null); saveTravellers(); }}
+          disabled={pendingSearch || !travellersDirty}
+        >
+          {pendingSearch ? (
+            <>
+              <span className={styles.applySpinner} aria-hidden="true" />
+              {t('filters.searchingResults', 'Searching results…')}
+            </>
+          ) : t('filters.saveChanges', 'Save changes')}
+        </button>
+        {saveAttempted && !dobsValid && (
+          <p className={styles.saveBlocked} role="alert">
+            {t('filters.fixDobs', 'Please complete every date of birth above.')}
+          </p>
+        )}
+      </>
+    ),
+
+    // TRANSPORT type.
+    transport: (
+      <Segmented
+        options={transportOptions}
+        value={filters.transport}
+        onChange={(v) => { setFilter('transport', v); setBarOpen(null); }}
+        ariaLabel={t('transport.aria', 'Transport type')}
+      />
+    ),
+
+    // DEPARTURE AIRPORTS — where the fare is priced FROM; not a filter on the hotels. Nothing
+    // ticked is No preference, every active airport (spec 3.2); several ticked are compared, and
+    // each card names the airport that prices it cheapest. An airport with no flight to the one
+    // arrival picked stays listed, greyed out with the reason (spec 3.7).
+    origins: (
+      <>
+        <div role="group" aria-label={t('filters.departureAirport', 'Departure airport')}>
+          <label className={`${styles.apRow} ${noOriginPreference ? styles.apRowOn : ''}`}>
+            <input type="checkbox" checked={noOriginPreference} onChange={() => setFilter('origins', [])} />
+            <span className={styles.apText}>
+              <span className={styles.apCity}>{t('filters.noPreference', 'No preference')}</span>
+              <span className={styles.apName}>{t('filters.allDepartureAirports', 'All departure airports')}</span>
+            </span>
+          </label>
+          <AirportList
+            rows={departureRows}
+            selected={activeOrigins}
+            onPick={toggleOriginFilter}
+            multiple
+            name="originAirport"
+            language={i18nInstance.language}
+            unavailableNote={departureNoFlightNote}
+          />
+        </div>
+        {departureValidity === 'checking' && (
+          <p className={styles.originNote}>{t('filters.airportsChecking', 'Checking which airports fly there…')}</p>
+        )}
+        {departureValidity === 'error' && (
+          <p className={styles.originNote}>{t('filters.airportsCheckFailed', 'We couldn’t check which airports fly there just now, so every airport stays selectable.')}</p>
+        )}
+        <p className={styles.originNote}>
+          {noOriginPreference
+            ? t('filters.originNoteAny', 'Each hotel shows the departure airport that prices it cheapest. Tick airports to compare only those.')
+            : t(
+              'filters.originNote',
+              'Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.'
+            )}
+        </p>
+      </>
+    ),
+  };
+
   const sidebar = (
     <>
-      {/* Transport type. The two airport lists below it only appear once a flight is actually
-          wanted — asking "flying from" next to "own transport" is asking a question that has no
-          bearing on anything the traveller will be shown. */}
-      <FilterSection title={t('filters.transport', 'Transport')} defaultOpen>
-        <Segmented options={transportOptions} value={filters.transport} onChange={(v) => setFilter('transport', v)} ariaLabel={t('transport.aria', 'Transport type')} />
-      </FilterSection>
-
-      {/* DEPARTURE AIRPORTS — where the fare is priced FROM; not a filter on the hotels. Nothing
-          ticked is No preference, every active airport (spec 3.2); several ticked are compared,
-          and each card names the airport that prices it cheapest. An airport with no flight to
-          the one arrival picked stays listed, greyed out with the reason (spec 3.7). */}
-      {filters.transport === 'package' && (
-        <FilterSection title={t('filters.departureAirport', 'Departure airport')} defaultOpen>
-          <div role="group" aria-label={t('filters.departureAirport', 'Departure airport')}>
-            <label className={`${styles.apRow} ${noOriginPreference ? styles.apRowOn : ''}`}>
-              <input type="checkbox" checked={noOriginPreference} onChange={() => setFilter('origins', [])} />
-              <span className={styles.apText}>
-                <span className={styles.apCity}>{t('filters.noPreference', 'No preference')}</span>
-                <span className={styles.apName}>{t('filters.allDepartureAirports', 'All departure airports')}</span>
-              </span>
-            </label>
-            <AirportList
-              rows={departureRows}
-              selected={activeOrigins}
-              onPick={toggleOriginFilter}
-              multiple
-              name="originAirport"
-              language={i18nInstance.language}
-              unavailableNote={departureNoFlightNote}
-            />
-          </div>
-          {departureValidity === 'checking' && (
-            <p className={styles.originNote}>{t('filters.airportsChecking', 'Checking which airports fly there…')}</p>
-          )}
-          {departureValidity === 'error' && (
-            <p className={styles.originNote}>{t('filters.airportsCheckFailed', 'We couldn’t check which airports fly there just now, so every airport stays selectable.')}</p>
-          )}
-          <p className={styles.originNote}>
-            {noOriginPreference
-              ? t('filters.originNoteAny', 'Each hotel shows the departure airport that prices it cheapest. Tick airports to compare only those.')
-              : t(
-                'filters.originNote',
-                'Flights are priced on the hotel page, from this airport first. If a route isn’t flown from here, we’ll show you the nearest airports that do.'
-              )}
-          </p>
-        </FilterSection>
-      )}
-
       {/* ARRIVAL AIRPORTS — several, because each one carries the destinations it serves and
           "Rhodes or Kos" is a real answer. Nothing ticked means any airport, so the list needs
           no row for that. Rendered only when the scope HAS linked airports, so it never appears
@@ -3213,8 +3391,7 @@ export default function Results() {
       {filters.transport === 'package' && (filters.nonstop || allHotels.some((h) => (h.pkg?.flight?.stops || 0) > 0)) && (
         <FilterSection title={t('filters.connections', 'Connections')} defaultOpen>
           {/* The same two states as the hotel page's flight list (UI-12, §12B.9): untouched is
-              every route the destination allows, ticked is direct both ways. One wording in both
-              places, so the traveller meets the same question twice rather than two. */}
+              every route the destination allows, ticked is direct both ways. */}
           <FilterCheck
             label={t('filters.nonstopBothWays', 'Direct outbound and return only')}
             checked={filters.nonstop}
@@ -3223,217 +3400,6 @@ export default function Results() {
           <p className={styles.originNote}>{t('filters.nonstopNote', 'Leave this off for every route the destination allows, which may include one connection. Tick it to price direct flights out and back only.')}</p>
         </FilterSection>
       )}
-
-      {/* WHERE — multi-country / multi-destination scope. Pick whole countries and/or
-          individual destinations, then Apply. */}
-      <FilterSection title={t('filters.where', 'Where')} defaultOpen>
-        <ScopePicker
-          countries={countryOptions}
-          status={countriesStatus}
-          value={pickerValue}
-          popular={POPULAR_SCOPE}
-          counts={pickerCounts}
-          onApply={pickScope}
-        />
-        {/* UI-06: right under the picker that raised it. The departure airports it names are in
-            the section above, and changing them there answers it too. */}
-        <AirportClashPanel
-          className={styles.clashPanel}
-          verdict={scopeClash.verdict}
-          checking={scopeClash.checking}
-          destinations={scopeClash.pending?.names || []}
-          onRemove={removeClashingAirports}
-          onKeep={scopeClash.settle}
-        />
-      </FilterSection>
-
-      {/* ═══════════ FILTER 1 — DATE & TRAVELLERS ═══════════
-          One section, four parts, in the order the specification fixes (§1, §16): when you
-          leave, how long for, exactly how long, and who is going. They used to be two separate
-          panels with the room cards sitting between the dates and the trip length.
-
-          The split that matters is §15. The first three apply themselves the moment they are
-          touched; the fourth is edited as a whole and applied by its own button, because
-          nobody wants a fresh search fired on every press of a plus sign. */}
-      <FilterSection title={t('filters.dateTravellers', 'Date & travellers')} defaultOpen>
-
-        {/* ── 1. DEPARTURE DATE ──
-            One date. The return is derived from this plus the exact duration below, and is
-            never separately selectable (§2, §7): a date on a calendar is not proof that a
-            flight can be built back from it. */}
-        <div className={styles.f1Block}>
-          <span className={styles.f1Label}>{t('filters.departureDate', 'Departure date')}</span>
-          <button
-            type="button"
-            className={styles.dateField}
-            onClick={() => setCalOpen((o) => !o)}
-            aria-expanded={calOpen}
-            aria-haspopup="dialog"
-          >
-            <Icon d="M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z" size={15} sw={1.8} />
-            <span className={styles.dateFieldValue}>
-              {localCheckIn && !(undatedSearch && localCheckIn === fetchParams.checkIn)
-                ? new Date(`${localCheckIn}T00:00:00`).toLocaleDateString(i18nInstance.language, { day: '2-digit', month: '2-digit', year: 'numeric' })
-                : t('filters.pickDate', 'Pick a date')}
-            </span>
-          </button>
-          {calOpen && (
-            <>
-              {/* Click-away. A transparent sheet behind the panel rather than a document
-                  listener, so it cannot fight the other popovers in this sidebar. */}
-              <button
-                type="button"
-                className={styles.calScrim}
-                aria-label={t('filters.closeCalendar', 'Close calendar')}
-                onClick={() => setCalOpen(false)}
-              />
-              <div className={styles.calPop} role="dialog" aria-label={t('filters.departureDate', 'Departure date')}>
-                <DateCalendar
-                  value={localCheckIn}
-                  onChange={(iso) => { applyDeparture(iso); setCalOpen(false); }}
-                  min={earliestCheckInISO()}
-                  months={1}
-                  legend
-                  isUnavailable={departureUnavailable}
-                  earliestAvailable={pkgSummary?.earliest ?? null}
-                  availableCount={pkgSummary?.count ?? null}
-                />
-              </div>
-            </>
-          )}
-        </div>
-
-        {/* ── 2. TRAVEL DURATION ── the five SUNSKY categories, one active (§5). */}
-        <div className={styles.f1Block}>
-          <span className={styles.f1Label}>{t('filters.travelDuration', 'Travel duration')}</span>
-          <div className={styles.bandGrid} role="radiogroup" aria-label={t('filters.travelDuration', 'Travel duration')}>
-            {DURATION_BANDS.map((b) => {
-              const on = b.key === selectedBand.key && (!undatedSearch || !!urlDuration);
-              return (
-                <button
-                  key={b.key}
-                  type="button"
-                  role="radio"
-                  aria-checked={on}
-                  className={`${styles.bandBtn} ${on ? styles.bandBtnOn : ''}`}
-                  onClick={() => applyBand(b)}
-                >
-                  {t(`home:hero.durations.${b.key}`, b.label)}
-                </button>
-              );
-            })}
-          </div>
-        </div>
-
-        {/* ── 3. EXACT TRAVEL DURATION ──
-            A refinement of the category above, never an independent filter (§6): only lengths
-            inside the chosen band are listed. The counts are for the current search. */}
-        {dayOptions.length > 0 && (
-          <div className={styles.f1Block}>
-            <span className={styles.f1Label}>
-              {t('filters.exactDuration', 'Exact travel duration')}
-              <em className={styles.f1LabelNote}>{t(`home:hero.durations.${selectedBand.key}`, selectedBand.label)}</em>
-            </span>
-            {dayOptions.map((n) => (
-              <FilterCheck
-                key={n}
-                label={`${daysLabel(nightsToDays(n))}${durationCounts[n] != null ? ` (${durationCounts[n].toLocaleString(numberLocale)})` : ''}`}
-                checked={!undatedSearch && searchedNights === n}
-                onChange={() => applyDuration(n)}
-              />
-            ))}
-          </div>
-        )}
-
-        {/* ── 4. TRAVELLERS & ROOMS ──
-            Each room keeps its own occupancy, and a child's date of birth stays with the room
-            it was entered in (§8, §12). */}
-        <div className={styles.f1Block}>
-          <span className={styles.f1Label}>{t('filters.travellersRooms', 'Travellers & rooms')}</span>
-
-          {roomsConfig.map((room, i) => (
-            <div key={i} className={styles.roomBlock}>
-              <div className={styles.roomHead}>
-                <span className={styles.roomTitle}>{t('filters.room', { number: i + 1, defaultValue: 'Room {{number}}' })}</span>
-                {roomsConfig.length > 1 && (
-                  <button type="button" className={styles.roomRemove} onClick={() => removeRoom(i)}>{t('filters.removeRoom', 'Remove')}</button>
-                )}
-              </div>
-              <div className={styles.guestRow}>
-                <span className={styles.guestLabel}>{t('filters.adults', 'Adults')}</span>
-                <div className={styles.guestCounter}>
-                  <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, -1)} aria-label={t('filters.fewerAdults', 'Fewer adults')}>−</button>
-                  <span className={styles.guestNum}>{room.adults}</span>
-                  <button className={styles.guestBtn} onClick={() => changeRoomAdults(i, +1)} aria-label={t('filters.moreAdults', 'More adults')}>+</button>
-                </div>
-              </div>
-              <div className={styles.guestRow}>
-                <span className={styles.guestLabel}>{t('filters.children', 'Children')}</span>
-                <div className={styles.guestCounter}>
-                  <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, -1)} aria-label={t('filters.fewerChildren', 'Fewer children')}>−</button>
-                  <span className={styles.guestNum}>{room.children}</span>
-                  <button className={styles.guestBtn} onClick={() => changeRoomChildren(i, +1)} aria-label={t('filters.moreChildren', 'More children')}>+</button>
-                </div>
-              </div>
-
-              {/* Underneath the Children selector, one clearly separated block per child
-                  (§10.2, §10.3). Sliced to the count, so reducing the children in a room takes
-                  its pickers away with it rather than leaving orphans behind (§12). */}
-              {room.children > 0 && (
-                <div className={styles.dobList}>
-                  {room.dobs.slice(0, room.children).map((dob, ci) => (
-                    <DobPicker
-                      key={ci}
-                      id={`dob-r${i}-c${ci}`}
-                      label={t('filters.childDobLabel', { number: ci + 1, defaultValue: 'Date of birth — child {{number}}' })}
-                      value={dob}
-                      onChange={(iso) => setChildDob(i, ci, iso)}
-                      travelDate={localCheckIn}
-                      showError={saveAttempted}
-                    />
-                  ))}
-                </div>
-              )}
-            </div>
-          ))}
-
-          {roomsConfig.length < 5 && (
-            <button type="button" className={styles.addRoomBtn} onClick={addRoom}>{t('filters.addRoom', '+ Add room')}</button>
-          )}
-
-          {/* §13: after the room cards, the dates of birth and Add room — and belonging to this
-              section alone, not to the bottom of the whole sidebar. */}
-          <button
-            className={styles.applyBtn}
-            onClick={saveTravellers}
-            disabled={pendingSearch || !travellersDirty}
-          >
-            {pendingSearch ? (
-              <>
-                <span className={styles.applySpinner} aria-hidden="true" />
-                {t('filters.searchingResults', 'Searching results…')}
-              </>
-            ) : t('filters.saveChanges', 'Save changes')}
-          </button>
-          {saveAttempted && !dobsValid && (
-            <p className={styles.saveBlocked} role="alert">
-              {t('filters.fixDobs', 'Please complete every date of birth above.')}
-            </p>
-          )}
-        </div>
-      </FilterSection>
-
-      {/* The line between the two halves of this sidebar: everything above re-runs the
-          SEARCH, everything below refines what came back. The Save button that used to live
-          here has moved into Travellers & Rooms, where §13 puts it — the dates and the two
-          duration controls no longer need it, because they commit themselves. */}
-
-      <div className={styles.refineHead}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true">
-          <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />
-        </svg>
-        <h3>{t('filters.refine', 'Refine results')}</h3>
-      </div>
 
       {/* Price Range */}
       <FilterSection title={t('filters.priceRange', 'Price Range')} defaultOpen>
@@ -3780,6 +3746,70 @@ export default function Results() {
     custom: customHeading(cmsConfig?.sectionHeaders?.resultsHeadings, { type: headingType, placeKeys: headingPlace.keys, lang: headingLang }),
   });
 
+  // The search bar's fields. Dates in the house format (dd/mm/yyyy), never the browser's.
+  const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
+  const barFields = [
+    {
+      key: 'scope', wide: true, chevron: false,
+      icon: 'M12 21s-7-6.2-7-11.5a7 7 0 0114 0C19 14.8 12 21 12 21zM12 12a2.5 2.5 0 100-5 2.5 2.5 0 000 5z',
+      label: t('bar.destination', 'Destination'),
+      value: scopeLabel || t('bar.chooseDestination', 'Choose a destination'),
+    },
+    {
+      key: 'date',
+      icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2z',
+      label: t('bar.departureDate', 'Departure date'),
+      value: undatedSearch ? t('hero.anyDate', 'Any date') : dmy(fetchParams.checkIn),
+    },
+    {
+      key: 'duration',
+      icon: 'M8 2v4M16 2v4M3 10h18M5 4h14a2 2 0 012 2v14a2 2 0 01-2 2H5a2 2 0 01-2-2V6a2 2 0 012-2zM8 14h.01M12 14h.01M16 14h.01',
+      label: t('bar.duration', 'Travel duration'),
+      value: undatedSearch && !urlDuration
+        ? t('bar.anyDuration', 'No preference')
+        : t(`home:hero.durations.${selectedBand.key}`, selectedBand.label),
+    },
+    {
+      key: 'travellers',
+      icon: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 11a4 4 0 100-8 4 4 0 000 8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
+      label: t('bar.travellers', 'Travellers & rooms'),
+      value: `${guestSummary} · ${t('bar.rooms', { count: Number(fetchParams.rooms) || 1, defaultValue_one: '{{count}} room', defaultValue_other: '{{count}} rooms' })}`,
+    },
+    {
+      key: 'transport',
+      icon: 'M17.8 19.2L16 11l3.5-3.5C21 6 21.5 4 21 3c-1-.5-3 0-4.5 1.5L13 8 4.8 6.2c-.5-.1-1 .1-1.1.6l-.1.5c-.1.4.1.9.5 1.1L9 11l-4 4H2l-1 2 4 1 1 4 2-1v-3l4-4 2.7 4.8c.2.4.7.6 1.1.5l.5-.1c.5-.1.7-.6.6-1.1z',
+      label: t('bar.transport', 'Transport'),
+      value: transportOptions.find((o) => o.value === filters.transport)?.label || '',
+    },
+    {
+      key: 'origins',
+      icon: 'M12 2v3M8 5h8l-1.5 5h-5zM10 10l-1 11M14 10l1 11M6 21h12M9.5 15h5',
+      label: t('bar.origins', 'Departure airports'),
+      // Hotel only flies nobody anywhere, so there is nothing to choose here.
+      disabled: filters.transport !== 'package',
+      value: filters.transport !== 'package'
+        ? t('bar.noFlight', 'No flight')
+        : noOriginPreference
+          ? t('bar.anyAirport', 'From any airport')
+          : activeOrigins.length === 1
+            ? t('bar.fromCity', { city: airportCity(activeOrigins[0]), defaultValue: 'From {{city}}' })
+            : t('bar.fromAirports', { count: activeOrigins.length, defaultValue: 'From {{count}} airports' }),
+    },
+  ];
+
+  // "Search holidays": apply what is still pending (only the travellers ever are, §15) and go
+  // to the list. A date of birth still missing opens the travellers panel to say so.
+  const searchFromBar = () => {
+    if (travellersDirty) {
+      if (!dobsValid) { setBarOpen('travellers'); saveTravellers(); return; }
+      saveTravellers();
+    }
+    setBarOpen(null);
+    mainRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  };
+
+  const doorChips = heroChips.filter((c) => c.door);
+
   return (
     <div className={styles.page}>
       {/* Hero header */}
@@ -3795,13 +3825,58 @@ export default function Results() {
           <h1 className={styles.heroTitle}>
             {heading.before}<em>{heading.em}</em>{heading.after}
           </h1>
-          <div className={styles.heroChips}>
-            {heroChips.map((c) => (
-              <span key={c.text} className={styles.heroChip}>
-                <Icon d={c.icon} size={13} sw={1.8} />
-                {c.text}
-              </span>
-            ))}
+          {barOpen && (
+            // Click-away. A transparent sheet behind the open panel rather than a document
+            // listener, so it cannot fight the popovers inside the panel.
+            <button
+              type="button"
+              className={styles.barScrim}
+              aria-label={t('bar.close', 'Close')}
+              onClick={() => setBarOpen(null)}
+            />
+          )}
+          <div className={styles.searchBar} role="search" aria-label={t('bar.aria', 'Change your search')}>
+            {barFields.map((f) => {
+              const open = barOpen === f.key;
+              return (
+                <div
+                  key={f.key}
+                  className={`${styles.barField} ${f.wide ? styles.barFieldWide : ''} ${open ? styles.barFieldOn : ''}`}
+                  data-bar={f.key}
+                >
+                  <button
+                    type="button"
+                    className={styles.barBtn}
+                    onClick={() => setBarOpen((o) => (o === f.key ? null : f.key))}
+                    aria-expanded={open}
+                    aria-haspopup="dialog"
+                    disabled={f.disabled}
+                  >
+                    <span className={styles.barIcon}><Icon d={f.icon} size={20} sw={1.8} /></span>
+                    <span className={styles.barText}>
+                      <span className={styles.barLabel}>{f.label}</span>
+                      <span className={styles.barValue}>{f.value}</span>
+                    </span>
+                    {f.chevron !== false && (
+                      <span className={`${styles.barChev} ${open ? styles.barChevOpen : ''}`}>
+                        <Icon d="M6 9l6 6 6-6" size={16} sw={2.2} />
+                      </span>
+                    )}
+                  </button>
+                  {open && (
+                    <div className={`${styles.barPop} ${styles[`barPop_${f.key}`] || ''}`} role="dialog" aria-label={f.label}>
+                      {barPanels[f.key]}
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+            <button type="button" className={styles.barSearch} onClick={searchFromBar} disabled={pendingSearch}>
+              {pendingSearch
+                ? <span className={styles.applySpinner} aria-hidden="true" />
+                : <Icon d="M11 19a8 8 0 100-16 8 8 0 000 16zM21 21l-4.35-4.35" size={18} sw={2.2} />}
+              {t('bar.search', 'Search holidays')}
+            </button>
           </div>
         </div>
       </header>
@@ -3831,15 +3906,18 @@ export default function Results() {
               <span className={styles.countText}>{!searchError && countPhrase}</span>
             )}
           </div>
-          {/* The trip the list is for: dates, length and party, as one quiet line */}
-          <div className={styles.tripStrip}>
-            {heroChips.map((c) => (
-              <span key={c.text} className={styles.tripStop}>
-                <Icon d={c.icon} size={13} sw={1.8} />
-                {c.text}
-              </span>
-            ))}
-          </div>
+          {/* The trip the list is for is the search bar above; repeating it here as a line only
+              crowded the count. What a homepage door applied stays, as it is not in the bar. */}
+          {doorChips.length > 0 && (
+            <div className={styles.tripStrip}>
+              {doorChips.map((c) => (
+                <span key={c.text} className={styles.tripStop}>
+                  <Icon d={c.icon} size={13} sw={1.8} />
+                  {c.text}
+                </span>
+              ))}
+            </div>
+          )}
           <div className={styles.toolbarRight}>
             <div className={styles.sortWrap}>
               <span className={styles.sortLabel}>
@@ -3864,7 +3942,7 @@ export default function Results() {
       </div>
 
       {/* Main layout */}
-      <div className={styles.main}>
+      <div className={styles.main} ref={mainRef}>
         <aside className={styles.sidebar}>
           <div className={styles.filterCard}>
             <div className={styles.filterCardHead}>

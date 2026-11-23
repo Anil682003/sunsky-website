@@ -212,7 +212,7 @@
   },
   "empty": {
     "chooseTitle": "Select where you want to go",
-    "chooseText": "Pick one or more countries or destinations in the “Where” filter.",
+    "chooseText": "Choose one or more countries or destinations under “Destination” at the top.",
     "noneTitle": "No results found",
     "noneFiltered": "No stays match your filters. Try relaxing them or widening your price range.",
     "noneWiden": "Try different dates or a wider area.",
@@ -303,5 +303,25 @@
   "roomFeature": {
     "PRIVATE_POOL": "Private pool",
     "HOT_TUB": "In-room hot tub"
+  },
+  "bar": {
+    "aria": "Change your search",
+    "destination": "Destination",
+    "chooseDestination": "Choose a destination",
+    "departureDate": "Departure date",
+    "duration": "Travel duration",
+    "anyDuration": "No preference",
+    "travellers": "Travellers & rooms",
+    "rooms_one": "{{count}} room",
+    "rooms_other": "{{count}} rooms",
+    "transport": "Transport",
+    "origins": "Departure airports",
+    "noFlight": "No flight",
+    "anyAirport": "From any airport",
+    "fromCity": "From {{city}}",
+    "fromAirports_one": "From {{count}} airport",
+    "fromAirports_other": "From {{count}} airports",
+    "search": "Search holidays",
+    "close": "Close"
   }
 }
