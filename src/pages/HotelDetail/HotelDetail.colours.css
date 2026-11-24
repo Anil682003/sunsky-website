@@ -1,0 +1,738 @@
+/* ═══════════════════════════════════════════════════════════════════════════════════════════
+   SUNSKY DESIGN 3.0 · HOTEL DETAIL PAGE · COLOUR MASTER
+   Source: "SUNSKY Hotel Detail Page, Complete UI Colour Master" (client spec, Nov 2026).
+   SCOPE: COLOUR ONLY. Loaded after HotelDetail.css, so these rules win at equal specificity.
+   Nothing here changes content, layout, spacing, typography, prices, dates or booking logic.
+
+   One palette, the homepage's own (CMS > Homepage > Website Colours holds the same values):
+     Azure Blue #0A97F3       active tabs, selections, cached date bars, icons
+     Cloud Blue #C7E3F8       soft transitions, progress tracks
+     Coral Red #E85D55        primary action buttons only
+     Dark Ink #18344F         hotel names, headings, prices
+     Sunshine Yellow #F6C445  stars and the lowest-price marker only
+     Secondary Text #526987   support copy
+     SUNSKY Turquoise #01BEA9 brand identity
+     Deep Turquoise #008C82   links and accent headings
+     White #FFFFFF / Soft White #FAFCFF (page) / Soft Border #DCE7F0 (outlines)
+     Success Green #147D4B + Soft Success #E8F7EF   ONLY a verified available / included state
+     Light Blue #E8F3FE       information, pending checks
+     Unavailable #E6EBF2 bg + #66768B text           disabled / unavailable
+
+   STATE RULE (spec p.2): pending or selected = Azure; live verified and available = Success
+   Green; unavailable = gray; lowest-price promotional marker = Sunshine Yellow; primary
+   actions = Coral Red. The same component keeps the same meaning wherever it appears.
+   ═══════════════════════════════════════════════════════════════════════════════════════════ */
+
+/* ── 01 · Locked colour tokens ─────────────────────────────────────────────────────────────
+   Declared on the page AND on the portalled flight-details dialog, which has no .sd ancestor.
+   The page's legacy token names are pointed at the locked palette, so every rule written
+   against them (several hundred) follows without being touched. */
+.sd,
+.modal-overlay.fdm-overlay {
+  --ss-azure:#0A97F3;
+  --ss-azure-hover:#0886D8;          /* hover shade of Azure, never a separate colour */
+  --ss-cloud:#C7E3F8;
+  --ss-coral:#E85D55;
+  --ss-coral-hover:#D94B43;          /* hover shade of Coral */
+  --ss-coral-shadow:rgba(232,93,85,.34);
+  --ss-ink:#18344F;
+  --ss-sun:#F6C445;
+  --ss-ink-2:#526987;
+  --ss-turquoise:#01BEA9;
+  --ss-turquoise-deep:#008C82;
+  --ss-white:#FFFFFF;
+  --ss-soft-white:#FAFCFF;
+  --ss-success:#147D4B;
+  --ss-border:#DCE7F0;
+  --ss-success-soft:#E8F7EF;
+  --ss-na-bg:#E6EBF2;
+  --ss-info:#E8F3FE;
+  --ss-na-ink:#66768B;
+  --ss-hairline:#EAF1F7;             /* the Soft Border at reduced weight, for inner dividers */
+
+  /* legacy names → locked palette */
+  --blue:var(--ss-azure);
+  --blue-mid:var(--ss-azure);        /* every blue→blue-mid gradient becomes flat Azure */
+  --blue-light:var(--ss-cloud);
+  --blue-soft:var(--ss-cloud);
+  --blue-bg:var(--ss-info);
+  --blue-pale:var(--ss-info);
+  --page-bg:var(--ss-soft-white);
+  --sun:var(--ss-sun);
+  --gold:var(--ss-sun);
+  --sun-warm:var(--ss-info);         /* the warm "warning" grounds become neutral information */
+  --coral:var(--ss-coral);
+  --green:var(--ss-success);
+  --green-light:var(--ss-success-soft);
+  --dark:var(--ss-ink);
+  --dark2:var(--ss-ink);
+  --text:var(--ss-ink);
+  --text-sec:var(--ss-ink-2);
+  --text-light:var(--ss-na-ink);
+  --white:var(--ss-white);
+  --border:var(--ss-border);
+  --border-light:var(--ss-hairline);
+  --cta-grad:var(--ss-coral);
+  --cta-grad-deep:var(--ss-coral);
+  --cta-ink:var(--ss-white);
+  --cta-ink-shadow:none;
+  --shadow-glow:0 6px 18px rgba(232,93,85,.28);
+}
+.sd *::selection { background:rgba(10,151,243,.18); }
+
+/* Page and section ground: Soft White, with the soft blue only behind the hero area. */
+.sd {
+  background:linear-gradient(180deg, var(--ss-info) 0px, var(--ss-soft-white) 560px);
+}
+
+/* ── Shared action recipes ─────────────────────────────────────────────────────────────── */
+/* PRIMARY ACTION = Coral Red, white text, one hover and one disabled logic everywhere. */
+.sd .fc-cta,
+.sd .overview-book-btn,
+.sd .bkc,
+.sd .mbc,
+.sd .modal-foot-save {
+  background:var(--ss-coral); color:var(--ss-white); text-shadow:none;
+  box-shadow:0 6px 16px rgba(232,93,85,.28);
+}
+.sd .fc-cta:hover,
+.sd .overview-book-btn:hover,
+.sd .bkc:hover,
+.sd .mbc:hover,
+.sd .modal-foot-save:not(:disabled):hover {
+  background:var(--ss-coral-hover); filter:none; box-shadow:0 10px 22px rgba(232,93,85,.34);
+}
+/* Disabled: Unavailable gray, and ONLY when the control really is disabled. */
+.sd .fc-cta:disabled,
+.sd .fc-cta[aria-disabled="true"],
+.sd .bkc:disabled,
+.sd .overview-book-btn:disabled,
+.sd .mbc:disabled,
+.sd .modal-foot-save:disabled {
+  background:var(--ss-na-bg); color:var(--ss-na-ink); box-shadow:none; opacity:1;
+}
+
+/* Secondary (blue) actions: flat Azure, white text. */
+.sd .flight-select-btn,
+.sd .meal-action.select-btn,
+.sd .mb,
+.sd .fc-blank-btn,
+.sd .mf-apply {
+  background:var(--ss-azure); color:var(--ss-white); box-shadow:none;
+}
+.sd .flight-select-btn:hover,
+.sd .meal-action.select-btn:hover,
+.sd .mb:hover,
+.sd .fc-blank-btn:hover { background:var(--ss-azure-hover); box-shadow:0 4px 12px rgba(10,151,243,.25); }
+.sd :is(button, select, [role="button"]):focus-visible { outline:2px solid var(--ss-azure); outline-offset:2px; }
+
+/* ═══ SHOT 01 · Header and hero, before the live check ═════════════════════════════════════ */
+/* Hero background: keep a soft blue gradient, in the palette's Light Blue → Cloud Blue. */
+.sd .sd-hero {
+  box-shadow:0 46px 90px -42px rgba(10,151,243,.32), 0 18px 40px -24px rgba(24,52,79,.18), inset 0 -1px 0 rgba(255,255,255,.45);
+  background:
+    linear-gradient(180deg, transparent 0 calc(100% - 182px), rgba(255,255,255,.55) calc(100% - 178px), rgba(255,255,255,0) calc(100% - 164px), transparent 100%),
+    radial-gradient(ellipse 46% 44% at 5% -6%, rgba(246,196,69,.24), rgba(246,196,69,0) 62%),
+    radial-gradient(ellipse 40% 46% at 18% 30%, rgba(255,255,255,.55), transparent 66%),
+    radial-gradient(ellipse 70% 92% at 96% -8%, rgba(10,151,243,.14), transparent 64%),
+    linear-gradient(180deg, var(--ss-soft-white) 0%, var(--ss-info) 42%, var(--ss-cloud) 100%);
+}
+.sd .sd-hero-glow2 { background:radial-gradient(circle, rgba(246,196,69,.32), rgba(246,196,69,.1) 46%, transparent 68%); }
+.sd .hhn { color:var(--ss-ink); }
+/* Hotel stars: Sunshine Yellow. */
+.sd .hhs { color:var(--ss-sun); filter:none; }
+.sd .overview-stars { color:var(--ss-sun); }
+/* Top price pill: Azure with white text (replaces the deep orange). */
+.sd .sd-chip-price,
+.sd-chip-price {
+  background:var(--ss-azure); border-color:var(--ss-azure); color:var(--ss-white);
+  box-shadow:0 10px 24px -8px rgba(10,151,243,.5);
+}
+.sd .sd-chip-price svg,
+.sd-chip-price svg { color:var(--ss-white); }
+.sd .sd-chip svg { color:var(--ss-azure); }
+/* Benefit checks under the name: Success Green (a positive, true statement). */
+.sd .sd-hc-item svg,
+.sd .sd-hero-trust .sd-hc-item svg { color:var(--ss-success); filter:none; }
+.sd .bkc-note { color:var(--ss-success); }
+.sd .sd-hero-eyebrow,
+.sd-hero-eyebrow { color:var(--ss-azure); background:var(--ss-info); border-color:rgba(10,151,243,.2); }
+.sd-hero-rule { background:linear-gradient(90deg, var(--ss-sun), rgba(246,196,69,0)); box-shadow:none; }
+/* The guest-score chip is a fact, not an action: Dark Ink rather than the CTA colour. */
+.sd .sd-hc-score,
+.sd-hc-score,
+.sd .bks,
+.sd .rb { background:var(--ss-ink); color:var(--ss-white); text-shadow:none; }
+.sd-hc-item svg { color:var(--ss-success); }
+.sd .sd-rating-high { --rb:var(--ss-success); --rt:#fff; }
+.sd .sd-rating-mid  { --rb:var(--ss-sun); --rt:var(--ss-ink); }
+.sd .sd-rating-low  { --rb:var(--ss-na-ink); --rt:#fff; }
+/* Share / Save: white pills with Secondary Text. Saved is a selected state, so it takes the
+   selected recipe (Light Blue, Azure outline, Azure heart, Dark Ink text); Coral stays for the
+   primary action only. */
+.sd .hhb {
+  background:linear-gradient(180deg, var(--ss-white), var(--ss-soft-white)); color:var(--ss-ink-2);
+  box-shadow:0 10px 24px -8px rgba(24,52,79,.24), inset 0 1px 0 #fff;
+}
+.sd .hhb:hover { border-color:var(--ss-azure); color:var(--ss-azure); box-shadow:0 12px 28px -8px rgba(10,151,243,.3), inset 0 1px 0 #fff; }
+.sd .hhb.saved,
+.sd .hhb.saved:hover { background:var(--ss-info); border-color:var(--ss-azure); color:var(--ss-ink); }
+.sd .hhb.saved svg { color:var(--ss-azure); }
+.sd .bc a:hover { color:var(--ss-azure); }
+.sd .bc .bc-sep, .sd .hhl-dot, .sd .sd-rating-src, .sd .sd-rating-count, .sd .sd-rating-count::before { color:var(--ss-ink-2); }
+.sd .gi { background:linear-gradient(135deg, var(--ss-info), var(--ss-cloud)); }
+.sd .gi-empty { background:var(--ss-info); }
+.sd .gi-skel, .sd .hhn-skel { background:linear-gradient(100deg, var(--ss-cloud) 18%, var(--ss-info) 42%, var(--ss-cloud) 66%); background-size:220% 100%; }
+/* "All photos" pill on the photography: white on a Soft Border ring, Dark Ink label, Azure icon. */
+.sd .ga {
+  background:linear-gradient(180deg, var(--ss-white), var(--ss-soft-white)); color:var(--ss-ink);
+  border-color:var(--ss-border); box-shadow:0 10px 26px -8px rgba(24,52,79,.36), 0 0 0 4px rgba(255,255,255,.3);
+}
+.sd .ga:hover { background:var(--ss-white); box-shadow:0 16px 36px -10px rgba(24,52,79,.44), 0 0 0 4px rgba(255,255,255,.45); }
+.sd .ga svg { color:var(--ss-azure); }
+/* Separator between the stacked Prices / Information / Facilities panels: Soft Border. */
+.sd .tp.act + .tp.act { border-top-color:var(--ss-border); }
+/* Active tab: Azure with white text (selected navigation). */
+.sd .tb.act { background:var(--ss-azure); color:var(--ss-white); box-shadow:0 6px 16px rgba(10,151,243,.28); }
+.sd .tb:hover { color:var(--ss-azure); background:var(--ss-info); }
+.sd .tb.act:hover { color:var(--ss-white); background:var(--ss-azure); }
+.sd .dur-chip.act { background:var(--ss-azure); border-color:var(--ss-azure); color:var(--ss-white); }
+.sd .st-step { background:var(--ss-ink); color:var(--ss-white); }
+
+/* Booking card (where it is still drawn): white price panel, Coral CTA. */
+.sd .bkr { background:linear-gradient(135deg, var(--ss-info), var(--ss-cloud)); border-bottom-color:var(--ss-border); }
+.sd .bkp { background:var(--ss-white); }
+.sd .bkp-total { border-color:var(--ss-border); }
+.sd .bkdk { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-azure); }
+
+/* ═══ SHOT 02 / 06 / 08 / 13 · The date matrix ═════════════════════════════════════════════
+   Cached price tile ......... Azure, white text
+   Selected (not yet live) ... Azure, white text; the column's band and ribbon carry it
+   Check-required tile ....... Light Blue, Dark Ink (never orange, yellow or green)
+   Selected check-required ... Light Blue with an Azure outline and dot
+   Live confirmed ............ Soft Success with Success Green
+   Not available ............. Unavailable gray
+   Lowest-price marker ....... Sunshine Yellow with Dark Ink (the only yellow)            */
+.sd .fc-barzone { border-bottom-color:var(--ss-border); }
+.sd .fc-bar { background:var(--ss-azure); }
+.sd .fc-col:hover .fc-bar { background:var(--ss-azure-hover); }
+.sd .fc-col.sel .fc-bar { background:var(--ss-azure); box-shadow:0 10px 24px rgba(10,151,243,.32); }
+.sd .fc-col.sel .fc-under::before,
+.sd .fc-col.sel .fc-tail { background:var(--ss-azure); }
+.sd .fc-col.sel .fc-barzone { border-bottom-color:var(--ss-azure); }
+.sd .fc-col.sel .fc-dot {
+  border-color:#fff; background-color:#fff;
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%230A97F3' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
+}
+.sd .fc-dot { border-color:var(--ss-border); }
+.sd .fc-col:hover .fc-dot { border-color:var(--ss-azure); }
+/* Date labels: readable day and date in Dark Ink on white. */
+.sd .fc-wk, .sd .fc-date { color:var(--ss-ink); }
+.sd .fc-col.sel .fc-wk, .sd .fc-col.sel .fc-date { color:var(--ss-white); }
+.sd .fc-col.sel .fc-from { color:var(--ss-azure); }
+/* Lowest-price marker. */
+.sd .fc-lowtag { background:var(--ss-sun); color:var(--ss-ink); }
+/* How a checked price moved: a rise is information (Light Blue), a drop is a saving that was
+   verified live (Soft Success). Never yellow: yellow means only "lowest price". */
+.sd .fc-movetag.up   { background:var(--ss-info); color:var(--ss-ink); }
+.sd .fc-movetag.down { background:var(--ss-success-soft); color:var(--ss-success); }
+
+/* Check-required (no cached price): Light Blue + Dark Ink, Azure icon. */
+.sd .fc-col.fc-nopr .fc-bar { background:var(--ss-info); }
+.sd .fc-col.fc-nopr:hover .fc-bar { background:#DCEDFD; }
+.sd .fc-col.fc-nopr .fc-check { color:var(--ss-ink); }
+.sd .fc-col.fc-nopr .fc-nts { color:var(--ss-ink-2); }
+.sd .fc-nopr-ico { color:var(--ss-azure); }
+/* Selected check-required: the same Light Blue, an Azure outline and an Azure dot. */
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-bar {
+  background:var(--ss-info);
+  box-shadow:inset 1.5px 0 0 var(--ss-azure), inset -1.5px 0 0 var(--ss-azure), inset 0 1.5px 0 var(--ss-azure);
+}
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-under::before {
+  background:var(--ss-info);
+  box-shadow:inset 1.5px 0 0 var(--ss-azure), inset -1.5px 0 0 var(--ss-azure);
+}
+.sd .fc-col.fc-nopr.sel .fc-barzone { border-bottom-color:var(--ss-info); }
+.sd .fc-col.fc-nopr.sel .fc-tail { background:var(--ss-azure); }
+.sd .fc-col.fc-nopr.sel .fc-tail::after { background:var(--ss-info); }
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-check,
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-amt,
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-date { color:var(--ss-ink); }
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-from,
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-nts,
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-wk { color:var(--ss-ink-2); }
+.sd .fc-col.fc-nopr.sel:not(.fc-ok) .fc-dot { border-color:var(--ss-azure); background-color:var(--ss-azure); }
+
+/* Live confirmed available: Soft Success + Success Green, with a small green marker. */
+.sd .fc-col.sel.fc-ok .fc-bar,
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-bar {
+  background:var(--ss-success-soft);
+  box-shadow:inset 1.5px 0 0 var(--ss-success), inset -1.5px 0 0 var(--ss-success), inset 0 1.5px 0 var(--ss-success);
+}
+.sd .fc-col.sel.fc-ok .fc-under::before,
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-under::before {
+  background:var(--ss-success-soft);
+  box-shadow:inset 1.5px 0 0 var(--ss-success), inset -1.5px 0 0 var(--ss-success);
+}
+.sd .fc-col.sel.fc-ok .fc-tail,
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-tail { background:var(--ss-success); }
+.sd .fc-col.sel.fc-ok .fc-tail::after,
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-tail::after { background:var(--ss-success-soft); }
+.sd .fc-col.sel.fc-ok .fc-barzone,
+.sd .fc-col.sel.fc-ok.fc-nopr .fc-barzone { border-bottom-color:var(--ss-success-soft); }
+.sd .fc-col.sel.fc-ok .fc-from,
+.sd .fc-col.sel.fc-ok .fc-nts,
+.sd .fc-col.sel.fc-ok .fc-pp,
+.sd .fc-col.sel.fc-ok .fc-wk,
+.sd .fc-col.sel.fc-ok .fc-was { color:var(--ss-success); }
+.sd .fc-col.sel.fc-ok .fc-amt,
+.sd .fc-col.sel.fc-ok .fc-check,
+.sd .fc-col.sel.fc-ok .fc-date,
+.sd .fc-col.sel.fc-ok .fc-nopr-ico { color:var(--ss-success); }
+.sd .fc-col.sel.fc-ok .fc-amt { background:var(--ss-white); }
+.sd .fc-livetag { background:var(--ss-success); color:var(--ss-white); }
+.sd .fc-col.sel.fc-ok .fc-dot {
+  border-color:var(--ss-success); background-color:var(--ss-success);
+  background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23FFFFFF' stroke-width='4' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6L9 17l-5-5'/%3E%3C/svg%3E");
+}
+
+/* Not available (live-checked empty): gray, never blue or green. */
+.sd .fc-col.fc-empty .fc-bar { background:var(--ss-na-bg); }
+.sd .fc-col.fc-empty .fc-amt,
+.sd .fc-col.fc-empty .fc-check,
+.sd .fc-col.fc-empty .fc-from,
+.sd .fc-col.fc-empty .fc-nts,
+.sd .fc-col.fc-empty .fc-pp { color:var(--ss-na-ink); }
+
+/* Legend swatches use the same values as the bars they explain. */
+.sd .fc-legend { background:var(--ss-soft-white); border-color:var(--ss-border); }
+.sd .fc-legend-nopr { background:var(--ss-info); box-shadow:inset 0 0 0 1px var(--ss-azure); }
+.sd .fc-legend-low  { background:var(--ss-sun); }
+.sd .fc-legend-sel  { background:var(--ss-azure); }
+.sd .fc-legend-out  { background:var(--ss-na-bg); box-shadow:inset 0 0 0 1px var(--ss-na-ink); opacity:1; }
+/* The "prices are indicative" notice: quiet information. */
+.sd .fc-estimate { background:var(--ss-info); border-color:var(--ss-border); border-left-color:var(--ss-azure); }
+.sd .fc-estimate-text { color:var(--ss-ink-2); }
+.sd .fc-estimate-text b { color:var(--ss-ink); }
+.sd .fc-estimate-ico { color:var(--ss-azure); }
+/* Paging arrows. */
+.sd .fc-arrow { color:var(--ss-azure); background:var(--ss-white); border-color:var(--ss-border); box-shadow:0 6px 18px rgba(24,52,79,.08); }
+.sd .fc-arrow:hover:not(:disabled) { background:var(--ss-info); border-color:var(--ss-azure); }
+/* The action card under the strip. */
+.sd .fc-pop { border-color:var(--ss-border); }
+.sd .fc-act-off { border-top-color:var(--ss-border); }
+.sd .fc-blank-ico { background:var(--ss-info); color:var(--ss-azure); }
+.sd .fc-skel .fc-bar,
+.sd .fc-line { background:linear-gradient(90deg, var(--ss-info) 25%, var(--ss-soft-white) 50%, var(--ss-info) 75%); background-size:200% 100%; }
+@media (max-width:1100px) {
+  .sd .fc-pop { border-top-color:var(--ss-azure); }
+  .sd .fc-pop.fc-pop-unavail { border-top-color:var(--ss-na-ink); }
+}
+
+/* ═══ SHOT 03 / 16 · Holiday overview, before and after the live check ════════════════════ */
+.sd .overview-card { background:var(--ss-white); border-color:var(--ss-border); }
+.sd .overview-head { border-color:var(--ss-border); }
+.sd .overview-hotel,
+.sd .overview-trip-v,
+.sd .overview-trip-v b,
+.sd .overview-body-title,
+.sd .overview-row-val,
+.sd .overview-total-label { color:var(--ss-ink); }
+.sd .overview-score b { color:var(--ss-sun); }
+.sd .overview-row-label svg { color:var(--ss-ink-2); }
+.sd .overview-loc svg, .sd .overview-pax svg, .sd .overview-dates svg { color:var(--ss-azure); }
+/* Price total strip: Light Blue, Dark Ink total. */
+.sd .overview-total { background:var(--ss-info); }
+.sd .overview-total-val { color:var(--ss-ink); }
+.sd .overview-deposit { background:var(--ss-info); color:var(--ss-ink-2); }
+.sd .overview-deposit svg { color:var(--ss-azure); }
+/* Included services: Success Green text and ticks, no panel. */
+.sd .overview-extras { background:none; }
+.sd .overview-extra { color:var(--ss-success); }
+.sd .overview-extra svg { color:var(--ss-success); }
+.sd .overview-extra .mf-hint { color:var(--ss-success); }
+/* Information notice: Light Blue, quiet Secondary Text. */
+.sd .overview-note { background:var(--ss-info); color:var(--ss-ink-2); }
+.sd .overview-note-ico { color:var(--ss-azure); }
+.sd .overview-note-text b { color:var(--ss-ink); }
+.sd .overview-spot-cost { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-ink); }
+/* A date the supplier confirmed empty: neutral gray, no success surface. */
+.sd .overview-unavail { background:var(--ss-na-bg); }
+.sd .overview-unavail-mark { color:var(--ss-na-ink); }
+.sd .overview-unavail-title { color:var(--ss-ink); }
+/* Mobile bar. */
+.sd .mbar { border-top-color:var(--ss-border); }
+.sd .mbp { color:var(--ss-ink); }
+.sd .mbp .mbp-dep { color:var(--ss-ink-2); }
+
+/* ═══ SHOT 04 · During the live check: blue, never green ═══════════════════════════════════ */
+.sd .fc-res.checking .av-card {
+  background:var(--ss-info); border-color:var(--ss-border);
+}
+.sd .fc-res.checking .av-card .avail-text { color:var(--ss-ink); }
+.sd .fc-res.checking .av-confirm,
+.sd .av-confirm.busy { background:var(--ss-white); color:var(--ss-ink-2); }
+.sd .fc-res.checking .av-price-label,
+.sd .fc-res.checking .avail-you-low,
+.sd .fc-res.checking .avail-price-val,
+.sd .fc-res.checking .av-price-total,
+.sd .fc-res.checking .av-price-total b { color:var(--ss-ink-2); }
+.sd .fc-res.checking .av-note { background:var(--ss-white); border-color:var(--ss-border); color:var(--ss-ink-2); }
+.sd .fc-res-mark-busy,
+.sd .live-spin { border-color:var(--ss-cloud); border-top-color:var(--ss-azure); }
+.sd .avail-spin { border-color:var(--ss-cloud); border-top-color:var(--ss-azure); }
+.sd .live-loading { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-ink-2); }
+/* Rooms being searched: Azure progress on a Cloud Blue track. */
+.sd .rooms-loading { background:var(--ss-white); border-color:var(--ss-border); }
+.sd .rl-badge { background:var(--ss-info); color:var(--ss-azure); }
+.sd .rl-title { color:var(--ss-ink); }
+.sd .rl-dot { background:var(--ss-azure); }
+.sd .rl-lines span,
+.sd .rl-door { background:var(--ss-cloud); }
+.sd .rl-door::after { background:var(--ss-azure); }
+
+/* ═══ SHOT 05 · After the check: unavailable / could not be checked = neutral gray ════════ */
+.sd .fc-res.failed .av-card {
+  background:var(--ss-na-bg); border-color:var(--ss-border);
+}
+.sd .fc-res.failed .av-card .avail-text,
+.sd .fc-res.failed .avail-price-val,
+.sd .fc-res.failed .av-price-label { color:var(--ss-ink); }
+.sd .fc-res.failed .av-note { background:var(--ss-white); border-color:var(--ss-border); color:var(--ss-ink); }
+.sd .av-confirm.warn { background:var(--ss-white); color:var(--ss-na-ink); }
+.sd .av-card.av-card-error { background:var(--ss-na-bg); border-color:var(--ss-border); }
+.sd .av-mark-warn { color:var(--ss-na-ink); }
+.sd .av-error-text { color:var(--ss-ink); }
+.sd .av-retry { background:var(--ss-ink); color:var(--ss-white); }
+.sd .av-retry:hover { background:#10263B; }
+.sd .fc-pop.fc-pop-unavail { background:var(--ss-na-bg); border-color:var(--ss-border); }
+.sd .fc-unavail-mark { color:var(--ss-na-ink); }
+.sd .fc-unavail-title { color:var(--ss-ink); }
+.sd .fc-unavail-sub { color:var(--ss-ink); }
+.sd .fcu-k svg { color:var(--ss-na-ink); }
+.sd .live-error { background:var(--ss-na-bg); border-color:var(--ss-border); color:var(--ss-ink); }
+.sd .live-error svg { color:var(--ss-na-ink); }
+.sd .live-retry { background:var(--ss-ink); color:var(--ss-white); }
+.sd .live-retry:hover { background:#10263B; }
+.sd .live-empty { color:var(--ss-ink-2); border-color:var(--ss-border); }
+
+/* ═══ SHOT 07 · Live checked and available ═════════════════════════════════════════════════ */
+.sd .av-card { background:var(--ss-success-soft); border-color:#CFE9DB; }
+.sd .av-card .avail-text { color:var(--ss-success); }
+.sd .av-confirm { background:var(--ss-success); color:var(--ss-white); }
+.sd .av-fact { color:var(--ss-ink); }
+.sd .av-fact svg { color:var(--ss-azure); }
+/* Available result: dark prices, green status. */
+.sd .av-price-label { color:var(--ss-ink-2); }
+.sd .av-price-val,
+.sd .avail-price-val,
+.sd .av-price-confirmed .av-price-total-amt b { color:var(--ss-ink); }
+.sd .av-price-total b { color:var(--ss-ink); }
+.sd .avail-move.down { background:var(--ss-success-soft); color:var(--ss-success); }
+.sd .avail-move.up { background:var(--ss-info); color:var(--ss-ink); }
+.sd .avail-moved-down .avail-price-val,
+.sd .avail-moved-down .avail-price-label { color:var(--ss-ink); }
+.sd .avail-you-low { color:var(--ss-success); }
+.sd .avail-updated { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-ink); }
+.sd .avail-updated.down { background:var(--ss-success-soft); border-color:#CFE9DB; color:var(--ss-success); }
+.sd .avail-banner { background:var(--ss-success-soft); border-color:#CFE9DB; box-shadow:none; }
+.sd .avail-text { color:var(--ss-ink); }
+.sd .avail-sub,
+.sd .avail-forpax { color:var(--ss-ink-2); }
+/* Travel facts card: white, Dark Ink, Azure informational icons, green only for "Included". */
+.sd .fc-facts { background:var(--ss-white); border-color:var(--ss-border); }
+.sd .fc-facts .fcu-item + .fcu-item { border-left-color:var(--ss-hairline); }
+.sd .fc-facts .fcu-ico { background:var(--ss-info); color:var(--ss-azure); }
+.sd .fc-facts .fcu-k { color:var(--ss-azure); }
+.sd .fcu-v,
+.sd .fc-facts .fcu-v { color:var(--ss-ink); }
+.sd .fc-facts .fcu-arrow,
+.sd .fc-facts .fcu-bag svg { color:var(--ss-azure); }
+.sd .fc-facts .fcu-bag-ok { color:var(--ss-success); }
+.sd .fc-facts .fcu-bag-off { color:var(--ss-na-ink); }
+
+/* ═══ SHOT 09 / 10 / 14 / 15 · Flights and rooms ═══════════════════════════════════════════ */
+/* Flight cards: white with a soft blue outline; the selected one is Light Blue + Azure. */
+.sd .flight-card { background:var(--ss-white); border-color:var(--ss-border); }
+.sd .flight-card:hover { border-color:var(--ss-cloud); }
+.sd .flight-card.bannered { border-color:var(--ss-cloud); }
+.sd .flight-card.bannered:hover { border-color:var(--ss-azure); }
+.sd .flight-card.selected,
+.sd .flight-card.option.selected {
+  border:1.5px solid var(--ss-azure); background:var(--ss-info);
+  box-shadow:0 0 0 3px rgba(10,151,243,.14);
+}
+.sd .flight-card.selected:hover { border-color:var(--ss-azure); }
+.sd .flight-card.cheapest,
+.sd .flight-card.option.cheapest { border-color:var(--ss-cloud); background:var(--ss-white); box-shadow:none; }
+.sd .flight-card.expanded { border-color:var(--ss-azure); box-shadow:0 4px 20px rgba(10,151,243,.12); }
+/* "Selected" on a flight is a choice, not a confirmation: Azure. */
+.sd .flight-selected-badge,
+.sd .fc-rail .flight-selected-badge { color:var(--ss-azure); background:var(--ss-white); border-color:var(--ss-azure); }
+.sd .flight-selected-badge svg,
+.sd .fc-rail .flight-selected-badge svg { background:var(--ss-azure); stroke:#fff; }
+.sd .flight-card.selected .flight-selected-badge { background:transparent; border-color:transparent; }
+/* Direct flight / included in the fare: verified attributes, Success Green. */
+.sd .bp-stops,
+.sd .flight-incl { color:var(--ss-success); }
+.sd .bp-stops.has,
+.sd .bp-via { color:var(--ss-ink-2); }
+.sd .bp-chip-inc { color:var(--ss-success); background:var(--ss-success-soft); border-color:#CFE9DB; }
+.sd .bp-chip-inc svg { color:var(--ss-success); }
+.sd .bp-chip { border-color:var(--ss-border); }
+.sd .bp-chip svg { color:var(--ss-azure); }
+/* Flight iconography and the route: Azure on a Cloud Blue track. */
+.sd .bp-track { background-image:linear-gradient(90deg, var(--ss-cloud), var(--ss-cloud)); }
+.sd .bp-track::before, .sd .bp-track::after, .sd .bp-plane { color:var(--ss-azure); }
+.sd .bp-track::after, .sd .bp-track::before { background:var(--ss-azure); }
+.sd .bp-plane { background:transparent; }
+.sd .bp-airmark,
+.sd .fd-seg-mark { background:var(--ss-azure); }
+.sd .bp-flno { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-azure); }
+.sd .bp-dir, .sd .fc-banner-pill { background:var(--ss-info); color:var(--ss-azure); }
+.sd .fc-banner-pill svg { fill:var(--ss-azure); }
+.sd .flight-bottom { background:var(--ss-soft-white); border-top-color:var(--ss-border); }
+.sd .flight-details-btn { color:var(--ss-azure); border-color:var(--ss-cloud); }
+.sd .flight-details-btn:hover { background:var(--ss-azure); border-color:var(--ss-azure); color:var(--ss-white); }
+.sd .flight-warning { background:var(--ss-info); border-top-color:var(--ss-border); color:var(--ss-ink); }
+.sd .fd-layover { color:var(--ss-ink-2); }
+.sd .fd-line { background:linear-gradient(180deg, var(--ss-azure) 0%, var(--ss-cloud) 100%); }
+.sd .fd-panel { background:var(--ss-soft-white); }
+.sd .show-more-flights { border-color:var(--ss-cloud); color:var(--ss-azure); }
+.sd .show-more-flights:hover { background:var(--ss-info); border-color:var(--ss-azure); color:var(--ss-azure); box-shadow:none; }
+/* The cheapest fare in a set: the yellow lowest-price marker, Dark Ink. */
+.sd .fc-best { background:var(--ss-sun); border-color:var(--ss-sun); color:var(--ss-ink); }
+.sd .fc-best svg { fill:var(--ss-ink); }
+.sd .bp-delta-best { background:var(--ss-sun); color:var(--ss-ink); text-shadow:none; box-shadow:none; }
+/* What switching flights costs: extra costs in Dark Ink on Light Blue; never green. */
+.sd .fc-rail { border-left-color:var(--ss-border); }
+.sd .fc-pick { background:var(--ss-info); border-color:var(--ss-border); }
+.sd .fc-pick:hover { background:#DCEDFD; border-color:var(--ss-cloud); }
+.sd .fc-radio { border-color:var(--ss-cloud); }
+.sd .fc-pick:hover .fc-radio { border-color:var(--ss-azure); box-shadow:inset 0 0 0 4px rgba(10,151,243,.18); }
+.sd .fc-swing b,
+.sd .fc-swing.down b { color:var(--ss-ink); }
+.sd .fc-swing-cap { color:var(--ss-ink-2); }
+.sd .alt-chip-delta.down { color:var(--ss-ink); }
+.sd .own-transport { background:var(--ss-info); border-color:var(--ss-border); }
+@container fcard (max-width: 620px) {
+  .sd .flight-card.option.selected .fc-rail { border-top-color:var(--ss-cloud); }
+}
+@media (max-width:760px) {
+  .sd .flight-card.option.selected .fc-rail { border-top-color:var(--ss-cloud); }
+  .sd .flight-card.option.cheapest .fc-rail { border-top-color:var(--ss-border); }
+}
+
+/* Room type headers: one Azure for every room band. */
+.sd .room-group-head { background:var(--ss-azure); }
+.sd .room-group { border-color:var(--ss-border); }
+/* Room option panels: white with subtle borders; the chosen rate is Light Blue + Azure. */
+.sd .room-option { background:var(--ss-white); border-color:var(--ss-border); }
+.sd .room-option:hover { border-color:var(--ss-cloud); }
+.sd .room-option.selected {
+  border:1.5px solid var(--ss-azure); background:var(--ss-info);
+  box-shadow:0 0 0 3px rgba(10,151,243,.14);
+}
+.sd .room-radio { border-color:var(--ss-cloud); }
+.sd .room-option.cheapest .room-radio { border-color:var(--ss-azure); }
+.sd .room-option.selected .room-radio { border-color:var(--ss-azure); background:var(--ss-azure); box-shadow:0 3px 10px rgba(10,151,243,.3); }
+.sd .room-select-btn { background:var(--ss-azure); color:var(--ss-white); box-shadow:0 6px 18px rgba(10,151,243,.28); }
+.sd .room-option.selected .room-price { color:var(--ss-ink); background:var(--ss-white); border-color:var(--ss-azure); }
+/* Price supplements: Dark Ink on Light Blue, including a cheaper board (a price, not a status). */
+.sd .room-delta-pill,
+.sd .room-delta-pill.cheaper { background:var(--ss-info); color:var(--ss-ink); }
+.sd .room-delta-pill em,
+.sd .room-delta-pill.cheaper em { color:var(--ss-ink-2); opacity:1; }
+.sd .room-price-pill,
+.sd .room-price { background:var(--ss-info); color:var(--ss-ink); border-color:var(--ss-border); }
+/* Included meal plan: green only because it is really included. */
+.sd .room-price.included { color:var(--ss-success); background:var(--ss-success-soft); border-color:#CFE9DB; }
+/* The lowest price in the hotel: the yellow marker. "Selected" is a choice: Azure. */
+.sd .room-flag { background:var(--ss-sun); color:var(--ss-ink); text-shadow:none; box-shadow:none; }
+.sd .room-flag.room-flag-sel { background:var(--ss-white); color:var(--ss-azure); border-color:var(--ss-azure); }
+.sd .room-best-note { background:var(--ss-info); border-bottom-color:var(--ss-border); }
+.sd .rbn-ico { background:var(--ss-white); color:var(--ss-azure); }
+.sd .rbn-title { color:var(--ss-ink); }
+.sd .room-group-foot { background:var(--ss-soft-white); border-color:var(--ss-border); }
+/* Rate terms: free cancellation is a verified fact (green); a fee or a restriction is neutral. */
+.sd .rchip-free { background:var(--ss-success-soft); color:var(--ss-success); border-color:#CFE9DB; }
+.sd .rchip-warn { background:var(--ss-info); color:var(--ss-ink); border-color:var(--ss-border); }
+.sd .rchip-nr { background:var(--ss-na-bg); color:var(--ss-ink); border-color:var(--ss-na-ink); box-shadow:none; }
+.sd .rchip-mute { color:var(--ss-na-ink); border-color:var(--ss-border); }
+.sd .room-cancel-free { color:var(--ss-success); }
+.sd .room-cancel-nr { color:var(--ss-ink); }
+.sd .room-avail { color:var(--ss-ink); background:none; }
+.sd .room-low-avail { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-ink); }
+.sd .room-more { color:var(--ss-azure); border-color:var(--ss-cloud); }
+.sd .room-more:hover { border-color:var(--ss-azure); background:var(--ss-info); }
+.sd .room-meals { background:var(--ss-soft-white); border-color:var(--ss-border); }
+.sd .meal-row.meal-selected { border-color:var(--ss-azure); box-shadow:0 4px 14px rgba(10,151,243,.1); }
+.sd .meal-row.meal-selected .meal-radio { border-color:var(--ss-azure); background:var(--ss-azure); }
+.sd .meal-action.selected-badge { color:var(--ss-azure); }
+.sd .stay-icon { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-azure); }
+
+/* ── The change-flight dialog (filters open or closed: identical semantics) ── */
+.sd .modal-head-mark,
+.sd .modal-filter-opt:hover,
+.sd .mf-hint:hover,
+.sd .mf-range-value.on { color:var(--ss-azure); }
+.sd .modal-title, .sd .modal-filter-title, .sd .modal-filter-count { color:var(--ss-ink); }
+.sd .modal-body,
+.sd .modal-main > .modal-held { background:var(--ss-soft-white); }
+.sd .modal-filters { background:var(--ss-white); border-color:var(--ss-border); }
+.sd .modal-filter-cb { border-color:var(--ss-border); }
+.sd .modal-filter-opt.checked .modal-filter-cb { border-color:var(--ss-azure); background:var(--ss-azure); }
+.sd .modal-filter-opt.checked .mfo-count { background:var(--ss-azure); color:var(--ss-white); }
+.sd .modal-filter-opt.checked { color:var(--ss-azure); }
+.sd .modal-filter-toggle.on { border-color:var(--ss-azure); color:var(--ss-azure); background:var(--ss-info); }
+.sd .mf-range-fill,
+.sd .mf-range-track-on { background:var(--ss-azure); }
+.sd .mf-reset { border-color:var(--ss-cloud); color:var(--ss-azure); }
+.sd .modal-price-note { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-ink-2); }
+.sd .modal-price-note svg { color:var(--ss-azure); }
+.sd .modal-price-note b { color:var(--ss-ink); }
+.sd .modal-filter-clear, .sd .mf-link, .sd .mf-more { color:var(--ss-azure); }
+.sd .modal-close:hover { background:var(--ss-info); color:var(--ss-azure); border-color:var(--ss-cloud); }
+.sd .modal-foot-cancel:hover { border-color:var(--ss-cloud); background:var(--ss-info); }
+.sd .modal-held { border-bottom-color:var(--ss-border); }
+.sd .modal-held-label { color:var(--ss-ink-2); }
+
+/* ═══ SHOT 11 / 12 · Flight details and baggage dialog (portalled, outside .sd) ═══════════ */
+.fdm { background:var(--ss-white); }
+.fdm-title, .fdm .modal-title { color:var(--ss-ink); }
+.fdm .modal-close { color:var(--ss-ink); }
+.fdm .modal-close:hover { background:var(--ss-info); }
+.fdm-tab.on { color:var(--ss-azure); }
+.fdm-tab.on::after { background:var(--ss-azure); }
+.fdm-tabs { border-bottom-color:var(--ss-border); }
+/* Trip panels: Light Blue, white leg cards inside them. */
+.fdm-journey, .fdm-bagblock { background:var(--ss-info); border-color:var(--ss-border); }
+.fdm .bp-dir { background:var(--ss-white); color:var(--ss-azure); }
+.fdm-jsep { background:var(--ss-border); }
+.fdm-legrow { background:var(--ss-white); border-color:var(--ss-border); }
+.fdm-jdate, .fdm-time { color:var(--ss-ink); }
+/* Direct-flight status: green for the verified attribute. */
+.fdm-flag { color:var(--ss-success); }
+.fdm .bp-chip { border-color:#CFE9DB; color:var(--ss-success); }
+.fdm .bp-chip svg { color:var(--ss-success); }
+/* Flight icons and the route: Azure on a Cloud Blue line. */
+.fdm .bp-track { background-image:linear-gradient(90deg, var(--ss-cloud), var(--ss-cloud)); }
+.fdm .bp-track::before, .fdm .bp-track::after { background:var(--ss-azure); }
+.fdm .bp-plane { color:var(--ss-azure); background:var(--ss-white); }
+.fdm .bp-flno, .fdm .fdm-carrier-head .bp-flno { background:var(--ss-info); color:var(--ss-azure); }
+/* Secondary captions. */
+.fdm-sub, .fdm-code, .fdm-place, .fdm-dur { color:var(--ss-ink-2); }
+.fdm .bp-nextday { background:var(--ss-info); color:var(--ss-ink); }
+.fdm-layover { background:var(--ss-info); color:var(--ss-ink-2); }
+.fdm-layover svg { color:var(--ss-azure); }
+.fdm-layover b { color:var(--ss-ink); }
+.fdm-layover em { color:var(--ss-ink-2); }
+.fdm-carrier { border-top-color:var(--ss-border); }
+/* Baggage table: Light Blue headings in Secondary Text, Soft Border dividers, green "included". */
+.fdm-tablewrap, .fdm-table { border-color:var(--ss-border); }
+.fdm-th svg { color:var(--ss-azure); }
+.fdm-table th, .fdm-table thead td { background:var(--ss-info); color:var(--ss-ink-2); border-color:var(--ss-border); }
+.fdm-table td { border-color:var(--ss-border); }
+.fdm-allow-inc .fdm-allow-main,
+.fdm-allow-inc .fdm-allow-main svg,
+.fdm-allow-weight .fdm-allow-sub { color:var(--ss-success); }
+.fdm-allow-weight .fdm-allow-main { color:var(--ss-ink); }
+.fdm-note { background:var(--ss-info); color:var(--ss-ink-2); }
+.fdm-note svg { color:var(--ss-azure); }
+.fdm-close-btn { color:var(--ss-ink); border-color:var(--ss-border); background:var(--ss-white); }
+.fdm-close-btn:hover { background:var(--ss-info); color:var(--ss-azure); border-color:var(--ss-azure); }
+
+/* ═══ SHOT 17 · Information ════════════════════════════════════════════════════════════════
+   Soft White section, white cards with Dark Ink headings, Light Blue information subpanels,
+   Deep Turquoise links, Azure icons, Soft Border outlines. */
+.sd .hi-card, .sd .hf-card, .sd .inf-card, .sd .fac-card, .sd .hf-pop-tile { background:var(--ss-white); border-color:var(--ss-border); }
+.sd .hi-card:hover, .sd .hf-card:hover, .sd .inf-card:hover, .sd .fac-card:hover, .sd .hf-pop-tile:hover { border-color:var(--ss-cloud); }
+.sd .hi-card-title, .sd .hf-card-title, .sd .hf-title, .sd .inf-card-title, .sd .fac-card-name { color:var(--ss-ink); }
+.sd .hi-card-icon,
+.sd .hi-card-icon--loc,
+.sd .hi-card-icon--contact,
+.sd .hi-card-icon--room,
+.sd .hi-card-icon--wx,
+.sd .hf-card-icon,
+.sd .hf-card--entertainment .hf-card-icon,
+.sd .hf-card--sustainability .hf-card-icon,
+.sd .inf-card-icon,
+.sd .inf-card-icon--loc,
+.sd .inf-card-icon--contact,
+.sd .inf-card-icon--room,
+.sd .inf-loc-icon,
+.sd .inf-stat-icon,
+.sd .fk { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-azure); }
+.sd .hi-glance-tile, .sd .hi-nearby, .sd .hi-contact, .sd .hi-wx-now, .sd .hi-wx-day, .sd .hi-wx-panel, .sd .hf-note,
+.sd .inf-contact-card, .sd .hi-room { background:var(--ss-info); border-color:var(--ss-border); }
+.sd .hi-glance-label, .sd .hi-nearby-dist, .sd .hf-note-text { color:var(--ss-ink-2); }
+.sd .hi-glance-icon, .sd .hi-nearby-icon, .sd .hf-note-icon, .sd .hi-wx-fact-icon,
+.sd .hi-contact-icon, .sd .inf-contact-icon, .sd .hi-row-icon, .sd .map-address svg, .sd .mpin { color:var(--ss-azure); }
+.sd .hf-head-icon { background:var(--ss-info); color:var(--ss-azure); }
+/* Links and text accents: Deep Turquoise. */
+.sd .hi-link, .sd .inf-read-more, .sd .rm, .sd .fm,
+.sd .hi-roomsall, .sd .hf-toggle, .sd .hf-more { color:var(--ss-turquoise-deep); }
+.sd .hi-link:hover, .sd .inf-read-more:hover, .sd .rm:hover, .sd .fm:hover, .sd .hf-more:hover { color:var(--ss-ink); }
+.sd .hi-roomsall:hover, .sd .hf-toggle:hover { border-color:var(--ss-turquoise-deep); background:var(--ss-info); }
+.sd .hi-maplink { background:var(--ss-info); color:var(--ss-turquoise-deep); }
+.sd .hi-maplink:hover { background:var(--ss-turquoise-deep); color:var(--ss-white); }
+.sd .hi-copy:hover { border-color:var(--ss-azure); color:var(--ss-azure); }
+.sd .hi-contact-number:hover { color:var(--ss-turquoise-deep); }
+.sd .hi-room-photo { background:var(--ss-info); }
+.sd .hi-room-nophoto { color:var(--ss-cloud); }
+.sd .hi-rail-nav:hover { color:var(--ss-azure); border-color:var(--ss-azure); }
+.sd .hi-map { background:var(--ss-info); border-color:var(--ss-border); }
+.sd .inf-card-count, .sd .fac-card-count, .sd .hi-card-count, .sd .hf-card-count { background:var(--ss-info); color:var(--ss-ink-2); }
+.sd .inf-room-tile { background:var(--ss-info); border-color:var(--ss-border); }
+.sd .inf-room-badge { background:var(--ss-white); color:var(--ss-azure); }
+.sd .inf-room-guests svg { color:var(--ss-azure); }
+.sd .ds h3 svg:first-child { background:var(--ss-info); border-color:var(--ss-border); color:var(--ss-azure); }
+.sd .rooms-scroll, .sd .hi-rooms { scrollbar-color:var(--ss-cloud) transparent; }
+.sd .hi-rooms::-webkit-scrollbar-thumb, .sd .ws::-webkit-scrollbar-thumb { background:var(--ss-cloud); }
+/* Weather: the card chrome follows the Information rules; the sun pictograms stay Sunshine. */
+.sd .hi-wx-now-icon, .sd .hi-wx-day-icon { color:var(--ss-sun); }
+.sd .hi-wx-day-max, .sd .hi-wx-now-temp { color:var(--ss-ink); }
+.sd .wc.hl { background:var(--ss-info); border-color:var(--ss-sun); }
+
+/* ═══ SHOT 18 · Facilities ═════════════════════════════════════════════════════════════════
+   White category cards, Azure iconography, Light Blue + Azure for a selected category,
+   Success Green only for a facility that is positively present, and Secondary Text (never
+   green) for a surcharge or restriction. */
+.sd .hf-pop-icon, .sd .hf-card-icon { color:var(--ss-azure); }
+.sd .hf-item-tick { color:var(--ss-success); }
+.sd .hf-chip--paid,
+.sd .fac-item-badge { background:var(--ss-na-bg); color:var(--ss-ink-2); }
+.sd .fac-item { background:var(--ss-info); }
+.sd .fac-item:hover { background:#DCEDFD; }
+.sd .fac-item--paid { background:var(--ss-soft-white); }
+.sd .fac-item--paid:hover { background:var(--ss-info); }
+.sd .fac-item--paid .fac-item-icon { color:var(--ss-ink-2); }
+.sd .fac-item-icon { color:var(--ss-azure); border-color:var(--ss-border); }
+.sd .fac-card-dot { background:var(--ss-azure); }
+.sd .fac-show-all:hover { border-color:var(--ss-azure); background:var(--ss-info); }
+.sd .hf-empty-icon { background:var(--ss-info); color:var(--ss-cloud); }
+
+/* Reviews block (kept for when it returns): Azure bars, Dark Ink score chip. */
+.sd .rrt { background:var(--ss-info); }
+.sd .rrf { background:var(--ss-azure); }
+.sd .rva { background:var(--ss-info); color:var(--ss-azure); }
+.sd .rvs { background:var(--ss-azure); color:var(--ss-white); }
+
+/* Hero ornaments: the decorative gold threads and the card's warm wash take the palette's
+   Sunshine Yellow and White, so no orange is left in the hero. */
+.sd .sd-hero-grid {
+  background:
+    repeating-linear-gradient(112deg, transparent 0 138px, rgba(246,196,69,.22) 138px 139px),
+    repeating-linear-gradient(112deg, transparent 0 46px, rgba(255,255,255,.20) 46px 47px);
+}
+.sd .sd-hero-left {
+  background:
+    radial-gradient(ellipse 70% 80% at 88% 96%, rgba(232,243,254,.6), transparent 62%),
+    linear-gradient(180deg, rgba(255,255,255,.97), rgba(255,255,255,.93));
+  box-shadow:22px 40px 80px -30px rgba(10,151,243,.28), 0 16px 34px -18px rgba(24,52,79,.2), 0 2px 6px rgba(24,52,79,.06), inset 0 1px 0 #fff;
+}
+.sd .sd-hero-left::before { background:linear-gradient(90deg, transparent, rgba(246,196,69,.55) 18%, var(--ss-sun) 50%, rgba(246,196,69,.55) 82%, transparent); }
+
+/* Every facility category icon in Azure on Light Blue: one iconography colour (spec 18). The
+   attribute selector out-ranks the per-category accents above it in HotelDetail.css. */
+.sd .hf-card[class*="hf-card--"] .hf-card-icon { background:var(--ss-info); color:var(--ss-azure); }

@@ -72,6 +72,8 @@ import { usePackageMatrix, sevenColumns } from './usePackageMatrix';
 import { usePackageAirports } from '../../hooks/usePackageAirports';
 import { usePackageDepartureDates, makeIsUnavailable, makeDurationUnavailable, departureSummary } from '../../hooks/usePackageDepartureDates';
 import './HotelDetail.css';
+// SUNSKY Design 3.0 colour master: colour only, loaded after the page styles so it wins.
+import './HotelDetail.colours.css';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 
@@ -509,7 +511,7 @@ const ICON = {
       <path d="M8 3v3M16 3v3" />
       <circle cx="8" cy="14" r="1" fill="currentColor" stroke="none" />
       <circle cx="12" cy="14" r="1" fill="currentColor" stroke="none" />
-      <circle cx="17.5" cy="17.5" r="4.5" fill="#FFF0D6" />
+      <circle cx="17.5" cy="17.5" r="4.5" fill="#FFFFFF" />
       <path d="M17.5 15.4v2.3l1.5 1" />
     </svg>
   ),
@@ -4937,9 +4939,9 @@ export default function HotelDetail() {
                               {liveBusy ? (
                                 <span className="fc-res-mark fc-res-mark-busy" aria-hidden="true" />
                               ) : (roomsUnsettled || packageNoFlight) ? (
-                                <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#f59e0b" /><path d="M12 7.4v5.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="16.4" r="1.35" fill="#fff" /></svg>
+                                <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#66768B" /><path d="M12 7.4v5.2" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" /><circle cx="12" cy="16.4" r="1.35" fill="#fff" /></svg>
                               ) : (
-                                <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#10b981" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
+                                <svg className="fc-res-mark" width="26" height="26" viewBox="0 0 24 24" fill="none" aria-hidden="true"><circle cx="12" cy="12" r="10" fill="#147D4B" /><path d="M8 12l3 3 5-5" stroke="#fff" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" /></svg>
                               )}
                               <div className="av-head">
                                 <div className="avail-text">
