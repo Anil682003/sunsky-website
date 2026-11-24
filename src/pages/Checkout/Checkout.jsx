@@ -35,6 +35,7 @@ import { localCostOfRate } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
 import { remarksOfRate, hasRemarks } from '../../utils/supplierRemarks';
+import { bookerUnderage } from '../../utils/bookerAge';
 import { roundStayTotal } from '../../utils/priceRounding';
 import { splitFareTypes } from '../../utils/fareTypes';
 import {
@@ -2162,7 +2163,12 @@ function CheckoutContent({ stripe, elements }) {
     if (!priv.postalCode.trim()) e['priv.postalCode'] = t('checkout:validation.postalCodeRequired', 'Postal code is required');
     if (!priv.city.trim()) e['priv.city'] = t('checkout:validation.cityRequired', 'City is required');
     if (!priv.country) e['priv.country'] = t('checkout:validation.countryRequired', 'Country is required');
-    if (priv.dateOfBirth && new Date(priv.dateOfBirth) >= new Date()) e['priv.dateOfBirth'] = t('checkout:validation.dobPast', 'Date of birth must be in the past');
+    // The main booker: date of birth required, and at least 18 today (Levent, 24 Nov 2026).
+    // Travellers under 18 can still travel; they cannot be the one booking. The server refuses
+    // the same (BOOKER_UNDER_18), so this is the friendly half of the rule, not the only one.
+    if (!priv.dateOfBirth) e['priv.dateOfBirth'] = t('checkout:validation.bookerDobRequired', "The main booker's date of birth is required");
+    else if (new Date(priv.dateOfBirth) >= new Date()) e['priv.dateOfBirth'] = t('checkout:validation.dobPast', 'Date of birth must be in the past');
+    else if (bookerUnderage(priv.dateOfBirth)) e['priv.dateOfBirth'] = t('checkout:validation.bookerUnder18', 'The main booker must be at least 18 years old. Travellers under 18 can travel with you, but cannot make the booking.');
     if (isCompany) {
       // Two facts a company can always give: the name it is registered under and its VAT
       // number. No trading name (it is the same string for almost every SME) and no industry.
@@ -2297,6 +2303,8 @@ function CheckoutContent({ stripe, elements }) {
             address,
             primaryContact: {
               firstName: priv.firstName, lastName: priv.lastName,
+              // The company's contact person is the main booker: 18 or older (server-checked).
+              dateOfBirth: priv.dateOfBirth || undefined,
               phone: priv.phone,
               contactEmail: priv.hasEmail ? priv.email : undefined,
               hasContactEmail: priv.hasEmail,
@@ -2920,7 +2928,7 @@ function CheckoutContent({ stripe, elements }) {
                             {GENDERS_CUSTOMER.map((g) => <option key={g.v} value={g.v}>{g.l()}</option>)}
                           </select>
                         </Field>
-                        <Field label={t('checkout:fields.dateOfBirth', 'Date of birth')} err={errors['priv.dateOfBirth']} ok={!!priv.dateOfBirth}
+                        <Field label={t('checkout:fields.dateOfBirth', 'Date of birth')} req err={errors['priv.dateOfBirth']} ok={!!priv.dateOfBirth && !bookerUnderage(priv.dateOfBirth)}
                           hint={leadIsBooker ? t('checkout:fields.sharedWithTraveller1', 'Shared with traveller 1') : undefined}>
                           <input className="ck-input" type="date" value={priv.dateOfBirth} max={TODAY_ISO}
                             onChange={(e) => setShared('dateOfBirth')(e.target.value)} />

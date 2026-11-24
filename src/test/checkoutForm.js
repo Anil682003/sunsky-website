@@ -63,6 +63,8 @@ export const fillContact = ({
   phone = '+32475123456', emergencyPhone = '+32476987654',
   street = 'Rue de la Loi', houseNumber = '42', postalCode = '1000', city = 'Brussels',
   country = true, nationality = true,
+  // The main booker must be 18 or older (Levent, 24 Nov 2026), so the date is now required.
+  dateOfBirth = '1985-06-15',
 } = {}) => {
   // Names and nationality are SCOPED to the contact card — the traveller cards carry labels
   // with the same words. The address and the ways to reach the booker live in their own card
@@ -71,6 +73,7 @@ export const fillContact = ({
   fill('voornaam', firstName, card);
   fill('achternaam', lastName, card);
   fill('nationaliteit', nationality, card);
+  if (dateOfBirth) setDob(card, dateOfBirth);
 
   fill('straatnaam', street);
   fill('huisnr', houseNumber);

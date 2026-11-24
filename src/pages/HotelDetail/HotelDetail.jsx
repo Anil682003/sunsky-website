@@ -2461,6 +2461,14 @@ export default function HotelDetail() {
   // traveller MOVES that date; judging only the fortnight they are already on would grey every
   // day they might move to.
   const stayDateFrom = earliestCheckInISO();
+  // The quarter AROUND the searched date, not from today (Levent, 24 Nov 2026): Karpathos flies
+  // Tuesdays from May, and a June search asked only today + 92 days, so every June day was
+  // "never judged" and stayed selectable. A month before the searched date (the calendar opens
+  // on it and the traveller moves from there) and two after; never before the first bookable day.
+  const calFrom = (() => {
+    const around = addDaysISO(matrixBase || stayDateFrom, -31);
+    return around > stayDateFrom ? around : stayDateFrom;
+  })();
   const stayDates = usePackageDepartureDates({
     // Asked with this hotel's destination rather than the airports the question above returns,
     // so it no longer waits on that answer. `hotelCode` keeps it about THIS hotel: the server
@@ -2468,8 +2476,8 @@ export default function HotelDetail() {
     enabled: pkgMode && !!destination,
     destinations: destination ? [destination] : [],
     hotelCode,
-    from: stayDateFrom,
-    to: addDaysISO(stayDateFrom, DEPARTURE_LOOKAHEAD_DAYS),
+    from: calFrom,
+    to: addDaysISO(calFrom, DEPARTURE_LOOKAHEAD_DAYS),
     travelDays: matrixTravelDays,
     adults: sAdults, children: sChildren, childAges: sChildAges,
   });

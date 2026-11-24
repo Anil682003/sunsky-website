@@ -201,7 +201,9 @@
     "cvcInvalidShort": "Ongeldige CVC",
     "chooseBank": "Kies je bank",
     "acceptConditions": "Accepteer de boekingsvoorwaarden om door te gaan",
-    "confirmNrAccept": "Bevestig dat je de annuleringskosten voor de niet-terugbetaalbare accommodatie accepteert"
+    "confirmNrAccept": "Bevestig dat je de annuleringskosten voor de niet-terugbetaalbare accommodatie accepteert",
+    "bookerDobRequired": "De geboortedatum van de hoofdboeker is verplicht",
+    "bookerUnder18": "De hoofdboeker moet minstens 18 jaar zijn. Reizigers jonger dan 18 kunnen meereizen, maar kunnen de boeking niet zelf maken."
   },
   "reprice": {
     "unavailableTitle": "Deze reis is niet beschikbaar voor de bijgewerkte reizigersgegevens.",

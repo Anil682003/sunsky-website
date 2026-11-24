@@ -201,7 +201,9 @@
     "cvcInvalidShort": "Invalid CVC",
     "chooseBank": "Please choose your bank",
     "acceptConditions": "Please accept the booking conditions to continue",
-    "confirmNrAccept": "Please confirm you accept the cancellation costs for the non-refundable accommodation"
+    "confirmNrAccept": "Please confirm you accept the cancellation costs for the non-refundable accommodation",
+    "bookerDobRequired": "The main booker's date of birth is required",
+    "bookerUnder18": "The main booker must be at least 18 years old. Travellers under 18 can travel with you, but cannot make the booking."
   },
   "reprice": {
     "unavailableTitle": "This trip is not available for the updated traveller details.",

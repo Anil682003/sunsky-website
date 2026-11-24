@@ -29,6 +29,12 @@ export function bookingErrorMessage(err, t) {
   if (data.errorCode === 'PROMOTION_CHANGED') {
     return t('checkout:errors.promotionChanged', 'The discount on this trip has changed. You have not been charged. Check the new total and confirm again.');
   }
+  if (data.errorCode === 'BOOKER_UNDER_18') {
+    return t('checkout:validation.bookerUnder18', 'The main booker must be at least 18 years old. Travellers under 18 can travel with you, but cannot make the booking.');
+  }
+  if (data.errorCode === 'BOOKER_DOB_REQUIRED') {
+    return t('checkout:validation.bookerDobRequired', "The main booker's date of birth is required");
+  }
   if (data.errorCode === 'REMARKS_CHANGED') {
     return t('checkout:errors.remarksChanged', "The hotel's information for this room has changed. You have not been charged. Please read it below and confirm again.");
   }
