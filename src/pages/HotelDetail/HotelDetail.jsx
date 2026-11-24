@@ -38,7 +38,7 @@ import { airportName, airlineName, flightNumber } from '../../utils/flightNames'
 // here (spec 3.6). `useDepartureAirports` is what loads it on a hotel page opened in a new tab.
 import { DEFAULT_ORIGIN, normaliseOrigin, getDepartureAirports } from '../../utils/airports';
 import { useDepartureAirports } from '../../hooks/useDepartureAirports';
-import { pickPriorityIndex } from '../../utils/flightPriority';
+import { pickPriorityIndex, pickPriorityFlight } from '../../utils/flightPriority';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import RatingMarks from '../../components/RatingMarks/RatingMarks';
 import ShareSheet from '../../components/ShareSheet/ShareSheet';
@@ -3307,7 +3307,15 @@ export default function HotelDetail() {
     if (!allFlights.length) return -1;
     if (pkgSig) {
       const at = allFlights.findIndex((f) => flightSig(f) === pkgSig);
-      if (at >= 0 && (!filtersOn || passingIdx.has(at))) return at;
+      // Only while it is still the cheapest (Levent, 24 Nov 2026): the card's flight was the
+      // cheapest when the night priced it, and fares move during the day. A cheaper flight for
+      // the same stay is the one a traveller who chose nothing should get ("€64 more than the
+      // cheapest option" on an automatic choice, Cologne → Antalya 18 Apr 2027).
+      const cheapest = pickPriorityIndex(allFlights);
+      const pkgFare = Number(allFlights[at]?.totalPrice);
+      const lowest = Number(allFlights[cheapest]?.totalPrice);
+      const stillCheapest = at >= 0 && !(Number.isFinite(pkgFare) && Number.isFinite(lowest) && lowest < pkgFare);
+      if (stillCheapest && (!filtersOn || passingIdx.has(at))) return at;
     }
     if (filtersOn) {
       const pool = allFlights.map((f, idx) => ({ f, idx })).filter(({ idx }) => passingIdx.has(idx));
@@ -3745,7 +3753,7 @@ export default function HotelDetail() {
         flights, cheapest: data?.results?.cheapest || null, from,
         checkin, checkout, probing: true, alternatives: null, ...pkgInfo,
       });
-      probeAlternatives(from, checkin, checkout, seq);
+      probeAlternatives(from, checkin, checkout, seq, { hereBest: pickPriorityFlight(flights)?.totalPrice ?? null });
     }).catch((e) => {
       // NO alternative probe on error: a supplier that's down is down for every airport,
       // and multiplying a failing call by four would only hammer it. Retry is offered.
@@ -3765,7 +3773,7 @@ export default function HotelDetail() {
   // ── the smart fallback: price the popular alternatives in parallel ──
   // Bounded (3-4 calls), allSettled so one dead airport can't sink the rest, seq-guarded so
   // a probe for abandoned dates can never paint, and cached so applying a result is free.
-  const probeAlternatives = (from, checkin, checkout, seq, { noFlightHere = false } = {}) => {
+  const probeAlternatives = (from, checkin, checkout, seq, { noFlightHere = false, hereBest = null } = {}) => {
     // The live registry, read at the moment of probing: once the dashboard's master list has
     // loaded, an airport the team deactivated is not asked about at all.
     // Only airports with a package to this hotel, when that is known (usePackageAirports).
@@ -3816,9 +3824,14 @@ export default function HotelDetail() {
       // of THOSE, never one they excluded.
       const ticked = new Set(String(qp('origins') || '').split(',').map((s) => s.trim().toUpperCase()).filter(Boolean));
       const autoPick = alternatives.find((a) => !ticked.size || ticked.has(a.code));
-      // Only when THIS airport has no flight: an airport that flies (the package's own above all)
-      // is kept, and the probe only shows what the others would cost.
-      if (autoAirportRef.current && noFlightHere && autoPick) {
+      // When THIS airport has no flight, or (Levent, 24 Nov 2026) another airport flies the same
+      // dates for less: with no airport named, the cheapest is what the traveller gets. The
+      // package card's airport was the cheapest when the night priced it; fares move during the
+      // day (Antalya 18 Apr 2027: the card's Cologne, Düsseldorf €35 p.p. cheaper live).
+      // Same dates, so the same hotel price: the cheapest flight is the cheapest package.
+      const hereFare = Number(hereBest);
+      const cheaperElsewhere = !!autoPick && Number.isFinite(hereFare) && autoPick.total < hereFare - 0.5;
+      if (autoAirportRef.current && (noFlightHere || cheaperElsewhere) && autoPick) {
         autoAirportRef.current = false;
         setOvr((p) => ({ ...p, origin: autoPick.code }));
         fetchFlights(checkin, checkout, autoPick.code);

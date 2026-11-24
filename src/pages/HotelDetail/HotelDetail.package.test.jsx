@@ -43,6 +43,9 @@ const fare = (totalPrice, out, back, key) => ({
 });
 const PKG_FARE = fare(1000, PKG_OUT, PKG_BACK, 'k-pkg');
 const TK_FARE = fare(900, TK_OUT, TK_BACK, 'k-tk');
+// The same other flight when it costs MORE than the package's: the package flight is then still
+// the cheapest and is held (Levent, 24 Nov 2026: with no choice made, the cheapest is held).
+const TK_DEAR = fare(1100, TK_OUT, TK_BACK, 'k-tk');
 
 const ROOMS = [{ roomName: 'Double Room', roomCode: 'DBL', boardName: 'ROOM ONLY', boardCode: 'RO', sellingRate: 500, currency: 'EUR', rateKey: 'r1', cancellationPolicies: [] }];
 
@@ -72,7 +75,7 @@ beforeEach(() => {
     { ...cell(DEP, CHECK_IN, 1400, [PKG_OUT], [PKG_BACK]), cheapest: true },
     cell(iso(31), iso(31), 1600, [{ ...TK_OUT, departure: `${iso(31)}T06:00:00` }], [TK_BACK]),
   ] };
-  SEARCH = [TK_FARE, PKG_FARE];
+  SEARCH = [PKG_FARE, TK_DEAR];
   LIVE_ROOMS = ROOMS;
   CONFIRM = { status: 200, data: { success: true, status: 'CONFIRMED', flight: PKG_FARE } };
   CAL = null;
@@ -286,7 +289,7 @@ describe('the live check asks about the package the card priced', () => {
     expect(pay).toHaveTextContent('€ 900');
   });
 
-  it('holds the package flight, not the cheaper other one: room €500 + flight €1,000', async () => {
+  it('holds the package flight while it is still the cheapest: room €500 + flight €1,000', async () => {
     const user = userEvent.setup();
     renderPage();
     await runCheck(user);
@@ -295,8 +298,17 @@ describe('the live check asks about the package the card priced', () => {
     expect(screen.queryByText(/niet meer te koop/i)).toBeNull();
   });
 
+  it('a flight cheaper than the package\'s since the night is the one held (Levent, 24 Nov 2026)', async () => {
+    SEARCH = [TK_FARE, PKG_FARE];
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,400'));   // 500 + 900
+    expect(screen.queryByText(/meer dan de goedkoopste/i)).toBeNull();
+  });
+
   it('a package flight beyond the capped list is added from the confirm and held', async () => {
-    SEARCH = [TK_FARE];
+    SEARCH = [TK_DEAR];
     const user = userEvent.setup();
     renderPage();
     await runCheck(user);
@@ -604,6 +616,39 @@ describe('a package’s live price waits for its flight', () => {
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
     await waitFor(() => expect(screen.getAllByText(/€500/).length).toBeGreaterThan(0));
     expect(flightSearches()).toHaveLength(0);
+  });
+});
+
+describe('no airport chosen: a cheaper airport for the same dates is taken (Levent, 24 Nov 2026)', () => {
+  it('the card\'s FRA flies for €1,000, AMS for €700: the page moves to AMS', async () => {
+    const AMS_FARE = fare(700, { ...PKG_OUT, from: 'AMS', airline: 'PC', flightNumber: 'PC1' }, { ...PKG_BACK, to: 'AMS', airline: 'PC', flightNumber: 'PC2' }, 'k-ams');
+    get.mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('package-matrix')) return Promise.resolve({ data: MATRIX });
+      if (u.includes('/feasibility')) return Promise.resolve({ data: { success: true, origins: ['FRA', 'AMS'], arrivals: { AYT: { status: 'FEASIBLE', trips: 3 } } } });
+      return Promise.resolve({ data: {} });
+    });
+    const base = post.getMockImplementation();
+    post.mockImplementation((url, body) => (String(url).includes('flight-availability/search') && body?.from === 'AMS'
+      ? Promise.resolve({ data: { results: { airtuerk: { flights: [AMS_FARE] } } } })
+      : base(url, body)));
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,200'));   // 500 + 700
+    expect(flightSearches().some(([, b]) => b.from === 'AMS')).toBe(true);
+  });
+
+  it('an airport the traveller chose is kept, cheaper airports are only shown', async () => {
+    const AMS_FARE = fare(700, { ...PKG_OUT, from: 'AMS' }, { ...PKG_BACK, to: 'AMS' }, 'k-ams');
+    const base = post.getMockImplementation();
+    post.mockImplementation((url, body) => (String(url).includes('flight-availability/search') && body?.from === 'AMS'
+      ? Promise.resolve({ data: { results: { airtuerk: { flights: [AMS_FARE] } } } })
+      : base(url, body)));
+    const user = userEvent.setup();
+    const { container } = renderPage(`&${PKG_QS}&origins=FRA`);
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
   });
 });
 
