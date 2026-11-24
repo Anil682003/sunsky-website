@@ -10,6 +10,7 @@ import { ToastProvider } from './context/ToastContext';
 import ToastContainer from './components/Toast/ToastContainer';
 import { ConsentProvider } from './context/ConsentContext';
 import CookieBanner from './components/CookieBanner/CookieBanner';
+import SiteSwitch from './components/SiteSwitch/SiteSwitch';
 import { Analytics } from './analytics';
 import SiteTheme from './components/SiteTheme/SiteTheme';
 
@@ -33,6 +34,9 @@ export default function App() {
                 buttons come early in the tab order instead of after the whole page. It is
                 position:fixed, so DOM order changes nothing visually. */}
             <CookieBanner />
+            {/* "Belgian or Dutch website?": only on www.sunsky.be / www.sunsky.nl, only once the
+                cookie notice is answered, never in checkout (SiteSwitch.jsx). */}
+            <SiteSwitch />
             <AppRouter />
           </BrowserRouter>
         </ConsentProvider>

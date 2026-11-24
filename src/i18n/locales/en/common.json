@@ -339,5 +339,11 @@
   "themePreview": {
     "label": "Colour preview: not saved yet",
     "close": "Close preview"
+  },
+  "siteSwitch": {
+    "toBe": "It looks like you are in Belgium. Would you like to go to our Belgian website?",
+    "toNl": "It looks like you are in the Netherlands. Would you like to go to our Dutch website?",
+    "go": "Go to {{site}}",
+    "stay": "Stay on {{site}}"
   }
 }

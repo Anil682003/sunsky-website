@@ -35,6 +35,7 @@ import {
   resolveSeoPage, seoHeadTags, seoSitemapPaths, canonicalForHotel, organizationScript, siteVerificationTag,
   siteForHost, hreflangTags,
 } from './seo.js';
+import { countryOfIp, clientIp } from './geo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
@@ -401,6 +402,16 @@ const server = http.createServer(async (req, res) => {
     } catch {
       res.writeHead(400, { 'Content-Type': 'text/plain', 'Cache-Control': 'no-store' });
       res.end('Bad Request');
+      return;
+    }
+
+    /* The visitor's country, for the "Belgian / Dutch website?" question (SiteSwitch.jsx):
+       BE, NL or null, from a local IP list (geo.js). Nothing is stored or logged, and it is
+       never cached, so it is always this visitor's own answer. */
+    if (pathname === '/__site/country') {
+      const body = JSON.stringify({ country: countryOfIp(clientIp(req)), market: site.market });
+      res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store', 'X-Robots-Tag': 'noindex' });
+      res.end(req.method === 'HEAD' ? undefined : body);
       return;
     }
 

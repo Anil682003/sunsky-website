@@ -1,0 +1,54 @@
+/* The "Belgian / Dutch website?" question. The cookie notice's look (same card, same buttons),
+   in the same bottom-centre place: it only appears once the cookie notice has been answered,
+   so the two never stack. Above the pages' bottom bars like the notice (--cookie-notice-lift). */
+.card {
+  position: fixed;
+  left: 50%;
+  bottom: calc(clamp(16px, 3vw, 28px) + var(--cookie-notice-lift, 0px));
+  transform: translateX(-50%);
+  width: min(480px, calc(100vw - 32px));
+  z-index: 10040;
+  background: var(--white, #fff);
+  border: 1px solid var(--blue-light, #E8F1FF);
+  border-radius: var(--r-lg, 24px);
+  box-shadow: var(--shadow-lg, 0 24px 64px rgba(15, 40, 100, 0.12));
+  padding: clamp(16px, 3vw, 22px);
+  animation: siteSwitchIn 0.4s var(--ease, cubic-bezier(.22,1,.36,1)) both;
+}
+@keyframes siteSwitchIn { from { opacity: 0; transform: translate(-50%, 14px); } }
+
+.text {
+  margin: 0 0 14px;
+  font-size: var(--fs-body, 15px);
+  line-height: 1.5;
+  color: var(--text, #0f1d3d);
+}
+
+.buttons { display: flex; gap: 10px; flex-wrap: wrap; }
+
+.primary, .secondary {
+  flex: 1 1 160px;
+  min-height: 44px;
+  padding: 11px 16px;
+  border-radius: var(--r-full, 9999px);
+  font-family: 'Sora', sans-serif;
+  font-size: var(--fs-control, 14px);
+  font-weight: 600;
+  line-height: 1.25;
+  cursor: pointer;
+}
+.primary {
+  border: 0;
+  background: var(--cta-grad, linear-gradient(135deg, #C2540A, #EE8A12));
+  color: var(--cta-ink, #fff);
+  text-shadow: var(--cta-ink-shadow, 0 1px 1px rgba(90, 38, 0, .35));
+}
+.secondary {
+  border: 1.5px solid var(--blue-soft, #A3CCFF);
+  background: var(--white, #fff);
+  color: var(--blue-deep, #1F4FD8);
+}
+.secondary:hover { background: var(--blue-light, #E8F1FF); }
+.primary:focus-visible, .secondary:focus-visible { outline: 3px solid var(--blue-deep, #1F4FD8); outline-offset: 2px; }
+
+@media (prefers-reduced-motion: reduce) { .card { animation: none; } }

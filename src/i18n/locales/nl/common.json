@@ -339,5 +339,11 @@
   "themePreview": {
     "label": "Kleurvoorbeeld: nog niet opgeslagen",
     "close": "Voorbeeld sluiten"
+  },
+  "siteSwitch": {
+    "toBe": "Het lijkt erop dat je in België bent. Wil je naar onze Belgische website gaan?",
+    "toNl": "Het lijkt erop dat je in Nederland bent. Wil je naar onze Nederlandse website gaan?",
+    "go": "Ga naar {{site}}",
+    "stay": "Blijf op {{site}}"
   }
 }
