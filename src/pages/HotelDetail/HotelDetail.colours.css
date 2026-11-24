@@ -157,8 +157,11 @@
 .sd .sd-hc-item svg,
 .sd .sd-hero-trust .sd-hc-item svg { color:var(--ss-success); filter:none; }
 .sd .bkc-note { color:var(--ss-success); }
-.sd .sd-hero-eyebrow,
-.sd-hero-eyebrow { color:var(--ss-azure); background:var(--ss-info); border-color:rgba(10,151,243,.2); }
+/* Hero kicker: Azure seal (icon), Dark Ink "Verified stay", category in Secondary Text. */
+.sd .sd-eb-seal { color:var(--ss-azure); }
+.sd .sd-eb-verified { color:var(--ss-ink); }
+.sd .sd-eb-cat { color:var(--ss-ink-2); }
+.sd .sd-eb-cat::before { background:var(--ss-border); }
 .sd-hero-rule { background:linear-gradient(90deg, var(--ss-sun), rgba(246,196,69,0)); box-shadow:none; }
 /* The guest-score chip is a fact, not an action: Dark Ink rather than the CTA colour. */
 .sd .sd-hc-score,

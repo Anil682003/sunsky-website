@@ -465,6 +465,13 @@ const ICON = {
   check: <S sw={2.5}><path d="M20 6L9 17l-5-5" /></S>,
   share: <S><path d="M4 12v8a2 2 0 002 2h12a2 2 0 002-2v-8" /><polyline points="16 6 12 2 8 6" /><line x1="12" y1="2" x2="12" y2="15" /></S>,
   heart: <S><path d="M20.84 4.61a5.5 5.5 0 00-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 00-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 000-7.78z" /></S>,
+  // A rosette seal with a check: the one mark for "verified" (the shield read as security).
+  seal: (
+    <svg className="sd-eb-seal" width="18" height="18" viewBox="0 0 24 24" aria-hidden="true">
+      <path fill="currentColor" d="M23 12l-2.44-2.79.34-3.69-3.61-.82-1.89-3.2L12 2.96 8.6 1.5 6.71 4.69 3.1 5.5l.34 3.7L1 12l2.44 2.79-.34 3.7 3.61.82L8.6 22.5l3.4-1.47 3.4 1.46 1.89-3.19 3.61-.82-.34-3.69L23 12z" />
+      <path className="sd-eb-tick" d="M8 12.4l2.6 2.6L16 9.6" fill="none" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  ),
   gallery: <S><rect x="3" y="3" width="18" height="18" rx="2" /><circle cx="8.5" cy="8.5" r="1.5" /><path d="M21 15l-5-5L5 21" /></S>,
   bed:   <S><path d="M2 20v-8a2 2 0 012-2h16a2 2 0 012 2v8" /><path d="M4 10V6a2 2 0 012-2h12a2 2 0 012 2v4" /><line x1="2" y1="20" x2="22" y2="20" /></S>,
   shield:<S><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" /></S>,
@@ -4418,7 +4425,10 @@ export default function HotelDetail() {
 
           <div className="sd-hero-main">
             <div className="sd-hero-left">
-              <div className="sd-hero-eyebrow">{ICON.shield} {t('verifiedStay', 'Verified stay')}{ratingLabel(dispRating) ? ` · ${ratingLabel(dispRating)}` : ''}</div>
+              <div className="sd-hero-eyebrow">
+                <span className="sd-eb-verified">{ICON.seal}{t('verifiedStay', 'Verified stay')}</span>
+                {ratingLabel(dispRating) && <span className="sd-eb-cat">{ratingLabel(dispRating)}</span>}
+              </div>
               <h1 className="hhn">{nameLoading
                 ? <span className="hhn-skel" role="status" aria-label={t('loadingHotelName', 'Loading hotel name')} />
                 : hotelName}</h1>
