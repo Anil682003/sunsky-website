@@ -874,6 +874,8 @@ export default function Results() {
   // is not an error until something has asked for it.
   // Which search-bar field has its panel open (key of barPanels), or null.
   const [barOpen, setBarOpen] = useState(null);
+  // Phones only (CSS): whether the folded search bar has been opened to its fields.
+  const [barExpanded, setBarExpanded] = useState(false);
   useEffect(() => {
     if (!barOpen) return undefined;
     const onKey = (e) => { if (e.key === 'Escape') setBarOpen(null); };
@@ -3805,6 +3807,7 @@ export default function Results() {
       saveTravellers();
     }
     setBarOpen(null);
+    setBarExpanded(false);
     mainRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
   };
 
@@ -3835,7 +3838,29 @@ export default function Results() {
               onClick={() => setBarOpen(null)}
             />
           )}
-          <div className={styles.searchBar} role="search" aria-label={t('bar.aria', 'Change your search')}>
+          <div
+            className={`${styles.searchBar} ${barExpanded ? styles.barExpanded : ''}`}
+            role="search"
+            aria-label={t('bar.aria', 'Change your search')}
+          >
+            {/* Phones: the six fields would fill the first screen before a single result, so
+                the bar folds into one line saying what is being searched, and "Change" opens
+                the fields. Hidden from 641px, where the bar is always open. */}
+            <button
+              type="button"
+              className={styles.barSummary}
+              onClick={() => setBarExpanded(true)}
+              aria-expanded={barExpanded}
+            >
+              <span className={styles.barIcon}><Icon d={barFields[0].icon} size={20} sw={1.8} /></span>
+              <span className={styles.barText}>
+                <span className={styles.barSumPlace}>{barFields[0].value}</span>
+                <span className={styles.barSumMeta}>
+                  {barFields.filter((f) => ['date', 'duration', 'travellers', 'transport'].includes(f.key)).map((f) => f.value).join(' · ')}
+                </span>
+              </span>
+              <span className={styles.barSumEdit}>{t('bar.edit', 'Change')}</span>
+            </button>
             {barFields.map((f) => {
               const open = barOpen === f.key;
               return (

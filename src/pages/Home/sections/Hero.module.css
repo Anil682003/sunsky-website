@@ -68,6 +68,11 @@
      the badge is not pushed up under the bar that the strip moved down. */
   text-align:center; padding:calc(80px + var(--announce-h, 0px)) 24px 0; width:100%;
 }
+/* Up to 900px the header is the full 88px bar, not the floating card, so the headline has to
+   clear the whole of it (--nav-h): at 80px it slid 8px under the bar on every phone. */
+@media (max-width: 900px) {
+  .content { padding-top: calc(var(--nav-h) + 20px); }
+}
 .badge {
   display:inline-flex; align-items:center; gap:10px;
   padding:9px 24px;
