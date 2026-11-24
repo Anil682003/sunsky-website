@@ -325,10 +325,12 @@ img.fl-leg-logo { background:#fff; border:1px solid var(--border-light); padding
 .fl-confirm-msg.gone { color: #6b7280; }
 
 /* The price-change dialog. Shares the drawer's overlay, so it dims the page the
-   same way the filters do. */
+   same way the filters do. Above that overlay (z-index 200) and the drawer (201): at 60 it sat
+   UNDER the overlay, blurred, and every click hit the overlay, which closed it — "Continue at
+   this price" could never be pressed (AYT→DUS, 5 adults, €495 → €500, 24 Nov 2026). */
 .fl-pricechg {
   position: fixed;
-  z-index: 60;
+  z-index: 202;
   top: 50%;
   left: 50%;
   transform: translate(-50%, -50%);
