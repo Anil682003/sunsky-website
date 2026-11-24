@@ -100,7 +100,8 @@
     "priceUnverified": "De leverancier kan de prijs op dit moment niet bevestigen. Er is niets afgeschreven. Probeer het over een paar minuten opnieuw.",
     "priceChanged": "De prijs van deze reis is gewijzigd. Er is niets afgeschreven. Vernieuw de pagina om de actuele prijs te zien.",
     "depositUnavailable": "Een aanbetaling is voor deze reis niet meer mogelijk. Er is niets afgeschreven. Betaal het volledige bedrag om te boeken.",
-    "promotionChanged": "De korting op deze reis is gewijzigd. Er is niets afgeschreven. Bekijk het nieuwe totaal en bevestig opnieuw."
+    "promotionChanged": "De korting op deze reis is gewijzigd. Er is niets afgeschreven. Bekijk het nieuwe totaal en bevestig opnieuw.",
+    "remarksChanged": "De informatie van het hotel voor deze kamer is gewijzigd. Er is niets afgeschreven. Lees ze hieronder en bevestig opnieuw."
   },
   "baggage": {
     "add": "Toevoegen",

@@ -29,6 +29,9 @@ export function bookingErrorMessage(err, t) {
   if (data.errorCode === 'PROMOTION_CHANGED') {
     return t('checkout:errors.promotionChanged', 'The discount on this trip has changed. You have not been charged. Check the new total and confirm again.');
   }
+  if (data.errorCode === 'REMARKS_CHANGED') {
+    return t('checkout:errors.remarksChanged', "The hotel's information for this room has changed. You have not been charged. Please read it below and confirm again.");
+  }
   if (data.errorCode === 'DEPOSIT_UNAVAILABLE') {
     return t('checkout:errors.depositUnavailable', 'A deposit is no longer possible for this trip. You have not been charged. Please pay the full amount to book it.');
   }

@@ -2336,6 +2336,9 @@ function CheckoutContent({ stripe, elements }) {
             roomCode: quote.roomCode ?? api.hotel.roomCode,
             boardCode: quote.boardCode ?? api.hotel.boardCode,
             price: quote.hotel || api.hotel.price,
+            // The hotel's remarks as this page shows them ('' = none shown): the server refuses
+            // with REMARKS_CHANGED when its final check found other ones (tracker r16).
+            remarks: quote.remarks?.text || '',
             // What the customer was SHOWN about this rate. The server refuses to create the
             // booking when this is true and the matching consent is absent, so the record can
             // never disagree with the screen.
@@ -2641,6 +2644,13 @@ function CheckoutContent({ stripe, elements }) {
       // balance date passed): nothing was booked or charged. Put the choice on "Pay in full"
       // so the next click is a deliberate full payment, not a second refusal.
       if (err?.response?.data?.errorCode === 'DEPOSIT_UNAVAILABLE') setPayPlan('full');
+      // The hotel's remarks changed at the final check: show the new text (the review and payment
+      // sections print it) so the next click books on what the customer has now seen. Nothing was
+      // booked or charged.
+      if (err?.response?.data?.errorCode === 'REMARKS_CHANGED') {
+        const text = err.response.data.errors?.[0]?.remarks?.text || null;
+        setQuote((q) => ({ ...q, remarks: text ? { rateKey: q.rateKey || null, text } : null }));
+      }
       // SUNSKY would grant a different discount than this page showed: show its answer (the
       // total moves with it) so the next click pays exactly that. Nothing was booked or charged.
       if (err?.response?.data?.errorCode === 'PROMOTION_CHANGED') {

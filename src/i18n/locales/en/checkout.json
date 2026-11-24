@@ -100,7 +100,8 @@
     "priceUnverified": "The supplier can't confirm the price right now. You have not been charged. Please try again in a few minutes.",
     "priceChanged": "The price of this trip has changed. You have not been charged. Refresh the page to see the current price.",
     "depositUnavailable": "A deposit is no longer possible for this trip. You have not been charged. Please pay the full amount to book it.",
-    "promotionChanged": "The discount on this trip has changed. You have not been charged. Check the new total and confirm again."
+    "promotionChanged": "The discount on this trip has changed. You have not been charged. Check the new total and confirm again.",
+    "remarksChanged": "The hotel's information for this room has changed. You have not been charged. Please read it below and confirm again."
   },
   "baggage": {
     "add": "Add",
