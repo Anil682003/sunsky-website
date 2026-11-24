@@ -273,6 +273,38 @@ export async function canonicalForHotel(apiBase, hotelCode, timeoutMs = 2000) {
  * preview path owns that, and duplicating it would mean two places deciding what a share
  * card says.
  */
+/* ────────────────────────── the two SUNSKY domains ────────────────────────── */
+
+/**
+ * The website runs on www.sunsky.be and www.sunsky.nl, the same site on the same server
+ * (Levent, 24 Nov 2026). Every address the server writes for crawlers and shares (canonical,
+ * robots.txt, sitemap, og:url, the Organization data) is the domain the request came in on, so
+ * each market is indexed under its own domain. holidaybooking.be, which is being retired, names
+ * www.sunsky.be, so its rankings move over before it is redirected. Any other host (the server's
+ * IP, localhost, a staging name) keeps the configured SITE_ORIGIN.
+ */
+export const SITE_DOMAINS = Object.freeze({ BE: 'https://www.sunsky.be', NL: 'https://www.sunsky.nl' });
+export function siteForHost(host, fallback) {
+  const h = String(host || '').trim().toLowerCase().replace(/:\d+$/, '').replace(/^www\./, '');
+  if (h === 'sunsky.nl') return { origin: SITE_DOMAINS.NL, market: 'NL', locale: 'nl_NL' };
+  if (h === 'sunsky.be' || h === 'holidaybooking.be') return { origin: SITE_DOMAINS.BE, market: 'BE', locale: 'nl_BE' };
+  return { origin: String(fallback || SITE_DOMAINS.BE).replace(/\/+$/, ''), market: 'BE', locale: 'nl_BE' };
+}
+
+/**
+ * The same page on both domains (hreflang), so Google shows Belgian searchers www.sunsky.be and
+ * Dutch searchers www.sunsky.nl instead of treating the two as duplicates. `path` is the page's
+ * canonical path (no query). Belgium is the default (x-default).
+ */
+export function hreflangTags(path, esc) {
+  const p = String(path || '/').startsWith('/') ? String(path || '/') : `/${path}`;
+  return [
+    `    <link rel="alternate" hreflang="nl-BE" href="${esc(SITE_DOMAINS.BE + p)}">`,
+    `    <link rel="alternate" hreflang="nl-NL" href="${esc(SITE_DOMAINS.NL + p)}">`,
+    `    <link rel="alternate" hreflang="x-default" href="${esc(SITE_DOMAINS.BE + p)}">`,
+  ].join('\n');
+}
+
 export function seoHeadTags(page, origin, esc) {
   const out = [];
   if (page.metaDescription) {
@@ -280,6 +312,8 @@ export function seoHeadTags(page, origin, esc) {
   }
   if (page.canonicalPath) {
     out.push(`    <link rel="canonical" href="${esc(origin + page.canonicalPath)}">`);
+    // Only for an indexable page: a noindex page has no twin to point Google at.
+    if (!/noindex/i.test(String(page.robots || ''))) out.push(hreflangTags(page.canonicalPath, esc));
   }
   // Only when it is NOT the default. An explicit index,follow on every page is noise, and
   // its absence already means the same thing.

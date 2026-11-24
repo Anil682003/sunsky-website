@@ -327,3 +327,23 @@ describe('siteVerificationTag', () => {
     expect(siteVerificationTag('x'.repeat(200))).toBe('');
   });
 });
+
+// The two SUNSKY domains (24 Nov 2026): every address written is the request's own domain.
+import { siteForHost, hreflangTags, SITE_DOMAINS } from './seo.js';
+describe('siteForHost / hreflangTags', () => {
+  it('each domain names itself; the old domain names www.sunsky.be; anything else the configured origin', () => {
+    expect(siteForHost('www.sunsky.nl').origin).toBe('https://www.sunsky.nl');
+    expect(siteForHost('sunsky.nl:443').market).toBe('NL');
+    expect(siteForHost('www.sunsky.be').origin).toBe('https://www.sunsky.be');
+    expect(siteForHost('holidaybooking.be').origin).toBe(SITE_DOMAINS.BE);
+    expect(siteForHost('www.holidaybooking.be').locale).toBe('nl_BE');
+    expect(siteForHost('localhost:8080', 'https://staging.example/').origin).toBe('https://staging.example');
+  });
+  it('names the page on both domains, Belgium as the default', () => {
+    const esc = (s) => s;
+    const t = hreflangTags('/hotel/turkije/antalya/x', esc);
+    expect(t).toContain('hreflang="nl-BE" href="https://www.sunsky.be/hotel/turkije/antalya/x"');
+    expect(t).toContain('hreflang="nl-NL" href="https://www.sunsky.nl/hotel/turkije/antalya/x"');
+    expect(t).toContain('hreflang="x-default" href="https://www.sunsky.be/hotel/turkije/antalya/x"');
+  });
+});

@@ -33,6 +33,7 @@ import { localizedDescription } from '../src/utils/hotelContentLanguage.js';
 import {
   robotsTxt, sitemapXml, isKnownRoute, STATIC_SITEMAP_PATHS,
   resolveSeoPage, seoHeadTags, seoSitemapPaths, canonicalForHotel, organizationScript, siteVerificationTag,
+  siteForHost, hreflangTags,
 } from './seo.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
@@ -115,10 +116,12 @@ const esc = (s) => String(s)
   .replace(/"/g, '&quot;').replace(/'/g, '&#39;');
 
 /* ── the built shell, re-read when a new build lands ── */
-let shellCache = { mtime: 0, html: '' };
-async function shell() {
+// One shell per domain (the addresses inside it are the domain's own, see siteForHost).
+const shellCaches = new Map();   // origin → { mtime, html }
+async function shell(origin = SITE_ORIGIN) {
   const file = path.join(DIST, 'index.html');
   const st = await fsp.stat(file);
+  let shellCache = shellCaches.get(origin) || { mtime: 0, html: '' };
   if (st.mtimeMs !== shellCache.mtime) {
     const raw = await fsp.readFile(file, 'utf8');
     /* Organization structured data (SEO Master §15) goes in HERE, once per build rather than
@@ -131,10 +134,14 @@ async function shell() {
        about third-party tags in index.html does not apply either way. */
     const head = [
       siteVerificationTag(process.env.GOOGLE_SITE_VERIFICATION),
-      organizationScript(SITE_ORIGIN, { trustpilotDomain: TRUSTPILOT_DOMAIN }),
+      organizationScript(origin, { trustpilotDomain: TRUSTPILOT_DOMAIN }),
     ].filter(Boolean).join('\n');
-    const html = raw.replace(/[ \t]*<\/head>/i, `${head}\n  </head>`);
+    // The built page names the old domain in its default share tags (og:url, og:image).
+    const html = raw
+      .replace(/https:\/\/(www\.)?holidaybooking\.be/g, origin)
+      .replace(/[ \t]*<\/head>/i, `${head}\n  </head>`);
     shellCache = { mtime: st.mtimeMs, html };
+    shellCaches.set(origin, shellCache);
   }
   return shellCache.html;
 }
@@ -240,7 +247,7 @@ function hotelPreview(code, rec, qs) {
   };
 }
 
-function metaBlock({ title, description, image, imageSize, url, canonical }) {
+function metaBlock({ title, description, image, imageSize, url, canonical, locale = 'nl_BE', canonicalPath = null }) {
   const out = [];
   const prop = (p, c) => { if (c) out.push(`    <meta property="${p}" content="${esc(c)}" />`); };
   const name = (n, c) => { if (c) out.push(`    <meta name="${n}" content="${esc(c)}" />`); };
@@ -249,9 +256,10 @@ function metaBlock({ title, description, image, imageSize, url, canonical }) {
   // canonical per date permutation would split a hotel's ranking across thousands of URLs —
   // while the preview card still needs the dated link it was actually shared with.
   out.push(`    <link rel="canonical" href="${esc(canonical || url)}" />`);
+  if (canonicalPath) out.push(hreflangTags(canonicalPath, esc));
   prop('og:type', 'website');
   prop('og:site_name', 'Sunsky');
-  prop('og:locale', 'nl_BE');
+  prop('og:locale', locale);
   prop('og:title', title);
   prop('og:description', description);
   prop('og:url', url);
@@ -276,12 +284,12 @@ const CANONICAL_RE = /[ \t]*<link\b[^>]*\brel="canonical"[^>]*>\r?\n?/gi;
 /** Just the description, leaving the Open Graph tags alone. Used on SEO pages. */
 const DESCRIPTION_RE = /[ \t]*<meta\b[^>]*\bname="description"[^>]*>\r?\n?/gi;
 
-function stamp(html, preview, url, canonical) {
+function stamp(html, preview, url, canonical, extra = {}) {
   return html
     .replace(DEFAULT_META_RE, '')
     .replace(CANONICAL_RE, '')
     .replace(/<title>[\s\S]*?<\/title>/i, `<title>${esc(preview.title)}</title>`)
-    .replace(/[ \t]*<\/head>/i, `${metaBlock({ ...preview, url, canonical })}\n  </head>`);
+    .replace(/[ \t]*<\/head>/i, `${metaBlock({ ...preview, url, canonical, ...extra })}\n  </head>`);
 }
 
 /* ── responses ── */
@@ -379,6 +387,8 @@ const server = http.createServer(async (req, res) => {
       return;
     }
     const url = new URL(req.url, `http://${req.headers.host || 'localhost'}`);
+    // The domain this request came in on (www.sunsky.be / www.sunsky.nl): every address below.
+    const site = siteForHost(req.headers.host, SITE_ORIGIN);
 
     // A path like /% or /%zz is not a valid percent-escape, and decodeURIComponent throws
     // URIError on it. That landed in the handler's catch, so every scanner probing malformed
@@ -401,7 +411,7 @@ const server = http.createServer(async (req, res) => {
        Both of these previously fell through to the SPA fallback, so a crawler asking for
        /robots.txt got 200 with a React page as text/html. */
     if (pathname === '/robots.txt') {
-      sendText(res, robotsTxt(SITE_ORIGIN, SITE_INDEXABLE), req.method,
+      sendText(res, robotsTxt(site.origin, SITE_INDEXABLE), req.method,
         'text/plain; charset=utf-8', 3600);
       return;
     }
@@ -410,12 +420,12 @@ const server = http.createServer(async (req, res) => {
       // actually serve. §12: only PUBLISHED + INDEX + HTTP 200 canonical pages, which is
       // what /seo/urls already filters for, so nothing here can list a 404.
       const seoPaths = await seoSitemapPaths(ADMIN_API);
-      sendText(res, sitemapXml(SITE_ORIGIN, [...STATIC_SITEMAP_PATHS, ...seoPaths]),
+      sendText(res, sitemapXml(site.origin, [...STATIC_SITEMAP_PATHS, ...seoPaths]),
         req.method, 'application/xml; charset=utf-8', 3600);
       return;
     }
 
-    const html = await shell();
+    const html = await shell(site.origin);
     const hotel = /^\/hotel\/([^/]+)\/?$/.exec(pathname);
     if (hotel) {
       const code = hotel[1];
@@ -426,7 +436,7 @@ const server = http.createServer(async (req, res) => {
       // the same record on mount anyway, so nothing is lost but the tab title.
       const usable = rec || (cached && Date.now() - cached.at < TTL_MS ? cached.rec : null);
       if (usable || isCrawler) {
-        const shared = `${SITE_ORIGIN}${pathname}${url.search}`;
+        const shared = `${site.origin}${pathname}${url.search}`;
         /* The canonical points at the READABLE URL when the hotel has one.
            §8 allows one canonical page per Hotelbeds code, and
            /hotel/turkije/antalya/monart-city now serves the same page as /hotel/1672. This
@@ -434,9 +444,9 @@ const server = http.createServer(async (req, res) => {
            sitting in shares, favourites and emails. Falls back to self-canonical whenever
            the readable URL cannot be built or the admin API has no answer. */
         const readable = await canonicalForHotel(ADMIN_API, code);
-        const canonical = `${SITE_ORIGIN}${readable || pathname}`;
+        const canonical = `${site.origin}${readable || pathname}`;
         const preview = hotelPreview(code, usable, url.searchParams);
-        await sendHtml(req, res, stamp(html, preview, shared, canonical), req.method);
+        await sendHtml(req, res, stamp(html, preview, shared, canonical, { locale: site.locale, canonicalPath: readable || pathname }), req.method);
         return;
       }
     }
@@ -475,7 +485,7 @@ const server = http.createServer(async (req, res) => {
           )
           .replace(DESCRIPTION_RE, '')
           .replace(CANONICAL_RE, '')
-          .replace(/[ \t]*<\/head>/i, `${seoHeadTags(page, SITE_ORIGIN, esc)}\n  </head>`);
+          .replace(/[ \t]*<\/head>/i, `${seoHeadTags(page, site.origin, esc)}\n  </head>`);
         await sendHtml(req, res, stamped, req.method, 200);
         return;
       }
@@ -489,6 +499,13 @@ const server = http.createServer(async (req, res) => {
     }
 
     /* ── SPA fallback for the app's own routes ── */
+    // The homepage: its twin on the other domain (hreflang) and its own canonical address.
+    if (pathname === '/') {
+      const home = html.replace(CANONICAL_RE, '').replace(/[ \t]*<\/head>/i,
+        `    <link rel="canonical" href="${esc(`${site.origin}/`)}" />\n${hreflangTags('/', esc)}\n  </head>`);
+      await sendHtml(req, res, home, req.method, 200);
+      return;
+    }
     await sendHtml(req, res, html, req.method, 200);
   } catch (err) {
     console.error('[server]', req.method, req.url, err);
