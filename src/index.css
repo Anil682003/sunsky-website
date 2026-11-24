@@ -45,6 +45,27 @@
   --hero-ink-faint: #8C9BB0;
   --hero-accent: #B4761A;
 
+  /* ── SUNSKY Design 3.0 palette (client's Checkout & Account Colour Master, 24/11/2026) ──
+     One token set for the checkout and account pages. Meaning, not decoration:
+     azure = active / selected / checking, coral = the main action, green = completed /
+     verified / included only, sunshine = hotel stars and genuine promotions, deep turquoise =
+     secondary links and accent words, dark ink = headings, amounts and essentials. */
+  --d3-azure: #0A97F3;
+  --d3-azure-dark: #0A7CC8;      /* hover / pressed */
+  --d3-coral: #E85D55;
+  --d3-coral-dark: #D44C44;      /* hover / pressed */
+  --d3-turquoise: #01BEA9;
+  --d3-teal-deep: #008C82;
+  --d3-sunshine: #F6C445;
+  --d3-ink: #18344F;
+  --d3-text-sec: #526987;
+  --d3-soft-white: #FAFCFF;
+  --d3-light-blue: #E8F3FE;
+  --d3-cloud-blue: #C7E3F8;
+  --d3-border: #DCE7F0;
+  --d3-green: #147D4B;
+  --d3-green-soft: #E8F7EF;
+
   --dark: #070E1F;
   --dark2: #0D1A33;
   --text: #1A2744;

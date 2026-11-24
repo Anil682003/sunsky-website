@@ -7,10 +7,12 @@
    and styles treat as the passport-name review.
    ════════════════════════════════════════════════════════ */
 .ck-si-overlay {
-  --blue:#1f4fd8; --blue-mid:#3a6fe8; --blue-soft:#a3ccff; --blue-bg:#e8f1ff; --blue-pale:#f0f5ff;
-  --coral:#ff6b6b; --green:#10b981; --green-light:#d1fae5;
-  --text:#1a2744; --text-sec:#5e7291; --text-light:#94a3bf;
-  --white:#fff; --border:#e2eaf5; --border-light:#eef3fb;
+  /* Design 3.0 (client's Colour Master, 24/11/2026); --coral stays the error red. */
+  --blue:var(--d3-azure); --blue-mid:var(--d3-azure-dark); --blue-soft:var(--d3-cloud-blue); --blue-bg:var(--d3-light-blue); --blue-pale:var(--d3-soft-white);
+  --coral:#ff6b6b; --green:var(--d3-green); --green-light:var(--d3-green-soft);
+  --text:var(--d3-ink); --text-sec:var(--d3-text-sec); --text-light:#94a3bf;
+  --white:#fff; --border:var(--d3-border); --border-light:#eef3fb;
+  --cta-grad:var(--d3-coral); --cta-ink:#fff; --cta-ink-shadow:none;
   --r-sm:12px; --r-md:16px; --r-xl:28px; --r-full:9999px;
   --ease:cubic-bezier(.22,1,.36,1); --ease-spring:cubic-bezier(.175,.885,.32,1.275);
   /* Above the fixed site header (1000) so it cannot be clicked through the wash; below the
@@ -28,7 +30,7 @@
 /* ── head ── */
 .ck-si-head { display:flex; align-items:center; gap:12px; padding:20px 22px 6px; }
 .ck-si-badge { flex:none; width:40px; height:40px; border-radius:13px; display:flex; align-items:center; justify-content:center;
-  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; box-shadow:0 5px 14px rgba(31,79,216,.3); }
+  background:linear-gradient(135deg,var(--blue),var(--blue-mid)); color:#fff; box-shadow:0 5px 14px rgba(10,151,243,.3); }
 .ck-si-badge svg { width:18px; height:18px; }
 .ck-si-title { flex:1; min-width:0; font-family:'Sora',sans-serif; font-size:var(--fs-section); font-weight:var(--fw-section); line-height:1.25;
   color:var(--blue); letter-spacing:-.3px; }
@@ -43,7 +45,7 @@
 .ck-si-reassure { display:flex; align-items:flex-start; gap:10px; padding:11px 14px; border-radius:var(--r-md);
   background:var(--blue-pale); border:1px solid var(--blue-bg); font-size:var(--fs-small); color:var(--text-sec); line-height:1.55; }
 .ck-si-tick { flex:none; width:20px; height:20px; margin-top:1px; border-radius:50%; display:flex; align-items:center; justify-content:center;
-  background:var(--green-light); color:#047857; }
+  background:var(--green-light); color:var(--green); }
 .ck-si-tick svg { width:11px; height:11px; }
 .ck-si-lede { font-size:var(--fs-body); color:var(--text-sec); line-height:1.6; }
 .ck-si-lede strong { color:var(--text); word-break:break-all; }
@@ -60,7 +62,7 @@
   transition:border-color .25s var(--ease), box-shadow .25s var(--ease), background .25s; font-weight:var(--fw-control); }
 .ck-si-input::placeholder { color:var(--text-light); }
 .ck-si-input:hover { border-color:var(--blue-soft); }
-.ck-si-input:focus { border-color:var(--blue); background:#fff; box-shadow:0 0 0 4px rgba(31,79,216,.1); }
+.ck-si-input:focus { border-color:var(--blue); background:#fff; box-shadow:0 0 0 4px rgba(10,151,243,.1); }
 .ck-si-pw { position:relative; }
 .ck-si-pw .ck-si-input { padding-right:48px; }
 .ck-si-eye { position:absolute; right:6px; top:50%; transform:translateY(-50%); width:36px; height:36px; border-radius:10px;
@@ -74,7 +76,7 @@
   font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--text); }
 .ck-si-remember input { width:18px; height:18px; margin:0; accent-color:var(--blue); cursor:pointer; }
 
-.ck-si-link { display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-small); font-weight:600; color:var(--blue);
+.ck-si-link { display:inline-flex; align-items:center; gap:6px; font-size:var(--fs-small); font-weight:600; color:var(--d3-teal-deep);
   text-underline-offset:2px; }
 .ck-si-link:hover:not(:disabled) { text-decoration:underline; }
 .ck-si-link:disabled { color:var(--text-light); cursor:not-allowed; }
@@ -96,7 +98,7 @@
 /* ── password reset ── */
 .ck-si-rules { list-style:none; display:grid; grid-template-columns:1fr 1fr; gap:6px 12px; margin-top:-4px; }
 .ck-si-rules li { display:flex; align-items:center; gap:7px; font-size:var(--fs-small); color:var(--text-sec); }
-.ck-si-rules li.ok { color:#047857; }
+.ck-si-rules li.ok { color:var(--green); }
 .ck-si-rule-dot { flex:none; width:16px; height:16px; border-radius:50%; display:flex; align-items:center; justify-content:center;
   border:1.5px solid var(--border); background:#fff; }
 .ck-si-rules li.ok .ck-si-rule-dot { border-color:transparent; background:var(--green); color:#fff; }

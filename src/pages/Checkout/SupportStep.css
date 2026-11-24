@@ -6,8 +6,9 @@
    Class names the checkout tests read (ck-sup-card, ck-sup-row.included/paid/not_included,
    .act) are kept. */
 
-.ck-sup { --sup-blue:#1f5bd8; --sup-blue-bg:#eef4ff; --sup-blue-line:#bcd2fb; --sup-green:#16a34a;
-  --sup-orange:#f59e0b; --sup-ink:#0f1f3d; --sup-muted:#5b6b86; --sup-line:#e3e9f3; }
+/* Design 3.0 (client's Colour Master, 24/11/2026). */
+.ck-sup { --sup-blue:var(--d3-azure); --sup-blue-bg:var(--d3-light-blue); --sup-blue-line:var(--d3-cloud-blue); --sup-green:var(--d3-green);
+  --sup-orange:var(--d3-sunshine); --sup-ink:var(--d3-ink); --sup-muted:var(--d3-text-sec); --sup-line:var(--d3-border); }
 
 /* ── headers ── */
 .ck-sup-head1 { display:flex; align-items:flex-start; justify-content:space-between; gap:16px; margin-bottom:18px; }
@@ -42,12 +43,12 @@
   padding:18px 16px 14px; border-radius:14px; border:1.5px solid var(--sup-line); background:#fff; font:inherit; color:inherit;
   transition:border-color .2s ease, background .2s ease, box-shadow .2s ease; }
 .ck-sup-card:hover { border-color:var(--sup-blue-line); }
-.ck-sup-card.act { border-color:var(--sup-blue); background:var(--sup-blue-bg); box-shadow:0 6px 18px rgba(31,91,216,.10); }
+.ck-sup-card.act { border-color:var(--sup-blue); background:var(--sup-blue-bg); box-shadow:0 6px 18px rgba(10,151,243,.12); }
 .v-wide .ck-sup-card { padding:20px 20px 18px; gap:12px; }
 
 /* badge: on the border, centred (Flight Only); beside the title (Flight + Hotel) */
 .ck-sup-badge { padding:3px 11px; border-radius:999px; font-size:var(--fs-micro); font-weight:700; letter-spacing:.01em; white-space:nowrap; color:#fff; }
-.ck-sup-badge.hot { background:var(--sup-orange); }
+.ck-sup-badge.hot { background:var(--sup-orange); color:var(--sup-ink); }
 .ck-sup-badge.best { background:var(--sup-blue); }
 .v-compact .ck-sup-badge { position:absolute; top:-11px; left:50%; transform:translateX(-50%); }
 .v-wide .ck-sup-badge { margin-left:auto; }
@@ -57,7 +58,7 @@
   background:var(--sup-blue-bg); color:var(--sup-blue); }
 .ck-sup-card.act .ck-sup-ico { background:#fff; }
 .ck-sup-ico svg { width:19px; height:19px; }
-.ck-sup-card.tone-3 .ck-sup-ico { color:var(--sup-orange); }
+.ck-sup-card.tone-3 .ck-sup-ico { color:var(--d3-teal-deep); }
 .ck-sup-name { font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--sup-ink); line-height:1.2; }
 .v-wide .ck-sup-name { font-size:var(--fs-card-title); }
 
@@ -74,7 +75,7 @@
 .v-wide .ck-sup-price strong { font-size:var(--fs-price); }
 .ck-sup-total { font-size:var(--fs-small); color:var(--sup-muted); margin-top:-5px; }
 .ck-sup-desc { font-size:var(--fs-small); line-height:1.45; color:var(--sup-muted); }
-.v-wide .ck-sup-desc { font-size:var(--fs-small); color:#33415c; }
+.v-wide .ck-sup-desc { font-size:var(--fs-small); color:var(--sup-muted); }
 
 /* ── service lines ── */
 .ck-sup-list { display:flex; flex-direction:column; padding-top:6px; border-top:1px solid var(--sup-line); }
@@ -86,10 +87,10 @@
 .ck-sup-row.included .ck-sup-mark { color:var(--sup-green); }
 .ck-sup-row.paid .ck-sup-mark { color:#64748b; }
 .ck-sup-row.not_included .ck-sup-mark { color:#94a3b8; }
-.ck-sup-text { flex:1; min-width:0; color:#1e293b; overflow-wrap:anywhere; }
+.ck-sup-text { flex:1; min-width:0; color:var(--sup-ink); overflow-wrap:anywhere; }
 .ck-sup-val { flex:none; display:flex; flex-direction:column; align-items:flex-end; gap:0; font-size:var(--fs-small); font-weight:600;
   text-align:right; white-space:nowrap; }
-.ck-sup-val b { font-weight:700; color:#1e293b; }
+.ck-sup-val b { font-weight:700; color:var(--sup-ink); }
 .ck-sup-val small { font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--sup-muted); }
 .v-wide .ck-sup-val { flex-direction:row; align-items:baseline; gap:4px; font-size:var(--fs-small); }
 .v-wide .ck-sup-val small { font-size:var(--fs-small); }
@@ -122,7 +123,7 @@
 .ck-sup-compare:hover b { text-decoration:underline; }
 
 .ck-sup-note { display:flex; align-items:flex-start; gap:10px; margin-top:10px; padding:11px 14px; border-radius:12px;
-  background:var(--sup-blue-bg); color:#1e293b; font-size:var(--fs-small); font-weight:var(--fw-small); line-height:1.5; }
+  background:var(--sup-blue-bg); color:var(--sup-ink); font-size:var(--fs-small); font-weight:var(--fw-small); line-height:1.5; }
 .ck-sup-note svg { flex:none; width:18px; height:18px; margin-top:1px; color:#fff; fill:var(--sup-blue); stroke:#fff; }
 
 .ck-sup-important { display:flex; align-items:flex-start; gap:12px; margin-top:16px; padding:14px 16px; border-radius:12px;
@@ -130,7 +131,7 @@
 .ck-sup-important-ico { flex:none; display:flex; margin-top:1px; }
 .ck-sup-important-ico svg { width:20px; height:20px; color:#fff; fill:var(--sup-blue); stroke:#fff; }
 .ck-sup-important b { display:block; font-size:var(--fs-body); font-weight:600; color:var(--sup-blue); }
-.ck-sup-important p { margin-top:3px; font-size:var(--fs-small); line-height:1.55; color:#33415c; }
+.ck-sup-important p { margin-top:3px; font-size:var(--fs-small); line-height:1.55; color:var(--sup-muted); }
 
 /* ── compare dialog ── */
 .ck-sup-cmp-overlay { position:fixed; inset:0; z-index:1000; display:flex; align-items:center; justify-content:center;
@@ -148,7 +149,7 @@
   border-bottom:2px solid var(--sup-line); vertical-align:bottom; }
 .ck-sup-cmp th span { display:block; font-size:var(--fs-body); }
 .ck-sup-cmp th small { display:block; margin-top:2px; font-size:var(--fs-small); font-weight:var(--fw-small); color:var(--sup-muted); }
-.ck-sup-cmp td { padding:10px; border-bottom:1px solid #eef2f8; color:#1e293b; vertical-align:middle; }
+.ck-sup-cmp td { padding:10px; border-bottom:1px solid #eef2f8; color:var(--sup-ink); vertical-align:middle; }
 .ck-sup-cmp-cell { display:inline-flex; align-items:center; gap:6px; font-weight:600; white-space:nowrap; }
 .ck-sup-cmp-cell svg { width:16px; height:16px; flex:none; }
 .ck-sup-cmp td.included .ck-sup-cmp-cell { color:var(--sup-green); }

@@ -16,10 +16,22 @@
 
 .page {
   --s: min(calc(100vw / 1774), calc(100vh / 887), 1.12px);
-  --ink: #0B1535;
-  --label: #3E4D5F;
-  --muted: #59677E;
-  --line: #E1E6EE;
+  --ink: var(--d3-ink);
+  --label: var(--d3-ink);
+  --muted: var(--d3-text-sec);
+  --line: var(--d3-border);
+  /* Design 3.0 (client's Checkout & Account Colour Master, 24/11/2026): azure for selected and
+     active (checkbox, focus, progress), coral for the main button, deep turquoise for links and
+     the handwritten accent word, dark ink for text, soft border on fields. Photo and logo stay. */
+  --blue-deep: var(--d3-azure);
+  --blue-mid: var(--d3-azure);
+  --blue-soft: var(--d3-cloud-blue);
+  --blue-bg: var(--d3-light-blue);
+  --blue-light: var(--d3-light-blue);
+  --dark: var(--d3-ink);
+  --text: var(--d3-ink);
+  --text-sec: var(--d3-text-sec);
+  --cta-ink-shadow: none;
   height: 100vh;
   display: flex;
   position: relative;
@@ -89,7 +101,7 @@
   margin-left: calc(-15 * var(--s));
   border-radius: 8px;
 }
-.logo:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: 4px; }
+.logo:focus-visible { outline: 3px solid rgba(10, 151, 243, 0.35); outline-offset: 4px; }
 .logoWordmark {
   height: max(40px, calc(67 * var(--s)));
   width: auto;
@@ -128,7 +140,7 @@
   font-weight: 700;
   line-height: 0.8;
   letter-spacing: 0;
-  color: #D5620F;
+  color: var(--d3-teal-deep);
 }
 
 .brandSub {
@@ -163,7 +175,7 @@
   border-radius: calc(12 * var(--s));
   border: 1px solid rgba(255, 255, 255, 0.9);
   background: linear-gradient(145deg, #F5F9FF 0%, #E5EEFD 100%);
-  color: #1D4ED8;
+  color: var(--d3-azure);
   box-shadow: 0 2px 8px rgba(30, 70, 150, 0.07);
 }
 .trustIcon svg { width: calc(26 * var(--s)); height: calc(26 * var(--s)); stroke-width: 2; }
@@ -203,7 +215,7 @@
   width: calc(116 * var(--s));
   height: calc(14.5 * var(--s));
   margin: calc(3 * var(--s)) 0 0 calc(19 * var(--s));
-  color: #D5620F;
+  color: var(--d3-teal-deep);
 }
 
 /* ══ Right column — the registration card ══ */
@@ -258,7 +270,7 @@
   line-height: 1.4;
   color: var(--muted);
 }
-.cardSub a { color: var(--blue-deep); font-weight: 700; }
+.cardSub a { color: var(--d3-teal-deep); font-weight: 700; }
 .cardSub a:hover { text-decoration: underline; }
 
 .cardBody {
@@ -288,11 +300,11 @@
   align-items: center;
   justify-content: center;
   border-radius: calc(9 * var(--s));
-  background: #E4EFFE;
+  background: var(--d3-light-blue);
   font-family: 'Sora', sans-serif;
   font-size: var(--fs-micro);
   font-weight: 700;
-  color: #1D44CF;
+  color: var(--d3-azure);
 }
 .sectionTitle {
   margin-left: calc(13 * var(--s));
@@ -415,7 +427,7 @@
   /* a long select placeholder ("Selecteer nationaliteit") ends in an ellipsis, not mid-word */
   text-overflow: ellipsis;
 }
-.input::placeholder { color: #A9B2C7; opacity: 1; }
+.input::placeholder { color: var(--d3-text-sec); opacity: 1; }
 .input:-webkit-autofill,
 .input:-webkit-autofill:hover,
 .input:-webkit-autofill:focus {
@@ -477,7 +489,7 @@
 }
 .calendarBtn svg { width: max(12px, calc(15 * var(--s))); height: max(12px, calc(15 * var(--s))); }
 .calendarBtn:hover { color: var(--blue-deep); }
-.calendarBtn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: -3px; }
+.calendarBtn:focus-visible { outline: 3px solid rgba(10, 151, 243, 0.35); outline-offset: -3px; }
 .nativeDate {
   position: absolute;
   right: 0;
@@ -507,7 +519,7 @@
   white-space: nowrap;
 }
 .phoneCodeBtn:hover { background: #F1F5FD; }
-.phoneCodeBtn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: -3px; }
+.phoneCodeBtn:focus-visible { outline: 3px solid rgba(10, 151, 243, 0.35); outline-offset: -3px; }
 .phoneChevron { width: max(14px, calc(20 * var(--s))); height: max(14px, calc(20 * var(--s))); color: #5A667C; stroke-width: 1.9; margin-left: calc(-7 * var(--s)); }
 .flag {
   width: max(16px, calc(20 * var(--s)));
@@ -556,7 +568,7 @@
   font-family: 'DM Sans', sans-serif;
   caret-color: var(--blue-deep);
 }
-.phoneSearch::placeholder { color: #A9B2C7; }
+.phoneSearch::placeholder { color: var(--d3-text-sec); }
 .phoneList {
   max-height: 220px;
   overflow-y: auto;
@@ -594,7 +606,7 @@
 }
 .eyeBtn svg { width: max(15px, calc(19 * var(--s))); height: max(15px, calc(19 * var(--s))); stroke-width: 1.8; }
 .eyeBtn:hover { color: var(--blue-deep); }
-.eyeBtn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.35); outline-offset: -3px; }
+.eyeBtn:focus-visible { outline: 3px solid rgba(10, 151, 243, 0.35); outline-offset: -3px; }
 
 .strengthBar {
   display: flex;
@@ -650,7 +662,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 1.5px solid #C6D5EE;
+  border: 1.5px solid var(--d3-border);
   border-radius: 6px;
   background: #FFFFFF;
   color: transparent;
@@ -659,9 +671,9 @@
 .companyToggle:hover .checkbox,
 .terms:hover .checkbox { border-color: var(--blue-mid); }
 .checkInput:checked + .checkbox { background: var(--blue-deep); border-color: var(--blue-deep); color: #FFFFFF; }
-.checkInput:focus-visible + .checkbox { box-shadow: 0 0 0 3px rgba(31, 79, 216, 0.25); }
+.checkInput:focus-visible + .checkbox { box-shadow: 0 0 0 3px rgba(10, 151, 243, 0.25); }
 .termsText { font-size: var(--fs-small); line-height: 1.45; color: var(--muted); }
-.termsText a { color: var(--blue-deep); font-weight: 600; }
+.termsText a { color: var(--d3-teal-deep); font-weight: 600; }
 .termsText a:hover { text-decoration: underline; }
 
 /* ══ Footer: guest (or back) on the left, the one orange action on the right ══ */
@@ -692,7 +704,7 @@
 .guestBtn:hover { border-color: var(--blue-soft); background: var(--blue-bg); color: var(--blue-deep); }
 .guestBtn:hover svg { color: var(--blue-deep); }
 .guestBtn:focus-visible,
-.submitBtn:focus-visible { outline: 3px solid rgba(31, 79, 216, 0.45); outline-offset: 3px; }
+.submitBtn:focus-visible { outline: 3px solid rgba(10, 151, 243, 0.45); outline-offset: 3px; }
 
 .submitBtn {
   display: inline-flex;
@@ -704,18 +716,18 @@
   padding: 0 calc(40 * var(--s));
   margin-left: auto;
   border-radius: var(--r-full);
-  background: linear-gradient(90deg, #CB5203 0%, #DD5F02 38%, #EE7201 72%, #F98201 100%);
+  background: var(--d3-coral);
   color: #FFFFFF;
   text-shadow: var(--cta-ink-shadow);
   font-family: 'Sora', sans-serif;
   font-size: var(--fs-control);
   font-weight: var(--fw-button);
   white-space: nowrap;
-  box-shadow: 0 10px 24px rgba(214, 100, 12, 0.24);
+  box-shadow: 0 10px 24px rgba(232, 93, 85, 0.24);
   transition: filter 0.2s var(--ease), box-shadow 0.2s var(--ease);
 }
 .submitBtn svg { width: max(14px, calc(17 * var(--s))); height: max(14px, calc(17 * var(--s))); stroke-width: 2.2; transition: transform 0.2s var(--ease); }
-.submitBtn:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 12px 28px rgba(214, 100, 12, 0.3); }
+.submitBtn:hover:not(:disabled) { filter: brightness(1.05); box-shadow: 0 12px 28px rgba(232, 93, 85, 0.3); }
 .submitBtn:hover:not(:disabled) svg { transform: translateX(3px); }
 .submitBtn:disabled { opacity: 0.55; cursor: not-allowed; box-shadow: none; }
 

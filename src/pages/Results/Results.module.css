@@ -46,7 +46,8 @@
   letter-spacing: -0.5px; line-height: 1.15;
   margin-bottom: 18px;
 }
-.heroTitle em { font-style: normal; color: var(--hero-accent); }
+/* The searched place in Deep Turquoise (client, 24/11/2026). */
+.heroTitle em { font-style: normal; color: var(--d3-teal-deep); }
 
 /* ════════ Search bar (client mock, 23/11/2026) ════════
    One line under the title: six fields, each a white rounded box with a blue icon, a small
