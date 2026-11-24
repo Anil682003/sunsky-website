@@ -7,6 +7,7 @@ import styles from './SeoLanding.module.css';
 import { SeoHotelCodeContext } from './seoHotelCode';
 import HotelDetail from '../HotelDetail/HotelDetail';
 import SeoOffers from './SeoOffers';
+import { SITE_DOMAINS, siteForHost } from '../../utils/siteDomain';
 
 /**
  * A permanent SEO page: /zonvakanties/turkije/antalya and the rest of the §5 architecture.
@@ -23,9 +24,10 @@ import SeoOffers from './SeoOffers';
  * work (§38: "These components must reuse the existing commercial engine").
  */
 /**
- * The site's ONE canonical origin.
+ * The site's canonical origin: the domain's own (www.sunsky.be / www.sunsky.nl, siteDomain.js),
+ * the same rule the server renders with (24 Nov 2026), so the two never disagree.
  *
- * NEVER `window.location.origin`, which is whatever hostname the visitor happened to use.
+ * NEVER `window.location.origin` as such, which is whatever hostname the visitor happened to use.
  * www.holidaybooking.be currently serves the same site as the apex, and building the
  * canonical from the current origin made every www page declare ITSELF canonical: the exact
  * duplicate-content split a canonical exists to resolve, and it silently overwrote the
@@ -34,8 +36,10 @@ import SeoOffers from './SeoOffers';
  * Mirrors SITE_ORIGIN in server/index.js. Both are this site's own configuration and belong
  * in the same .env, so they move together.
  */
-const SITE_ORIGIN = (import.meta.env?.VITE_SITE_ORIGIN || 'https://holidaybooking.be')
-  .replace(/\/+$/, '');
+const SITE_ORIGIN = siteForHost(
+  typeof window !== 'undefined' ? window.location.hostname : '',
+  import.meta.env?.VITE_SITE_ORIGIN || SITE_DOMAINS.BE,
+).origin;
 
 export default function SeoLanding() {
   const { pathname } = useLocation();

@@ -18,6 +18,7 @@
  * following one puts attacker-authored markup on an origin the user just came from.
  */
 
+import { SITE_DOMAINS, OWN_HOSTS } from './siteDomain';
 /** Schemes that merely go somewhere. Everything absolute that is not one of these is refused. */
 const SAFE_SCHEMES = new Set(['http:', 'https:', 'mailto:', 'tel:']);
 
@@ -46,7 +47,7 @@ export function resolveCmsLink(raw) {
 
   let url;
   try {
-    url = new URL(candidate, 'https://holidaybooking.be');
+    url = new URL(candidate, SITE_DOMAINS.BE);
   } catch {
     return null;
   }
@@ -55,7 +56,7 @@ export function resolveCmsLink(raw) {
   // Same-origin absolute URLs still belong to the router: someone pasting the live URL of one
   // of the agency's own pages should not trigger a full page load.
   if ((url.protocol === 'https:' || url.protocol === 'http:')
-      && url.hostname === 'holidaybooking.be') {
+      && OWN_HOSTS.includes(url.hostname.toLowerCase())) {
     return { href: url.pathname + url.search + url.hash, external: false };
   }
 

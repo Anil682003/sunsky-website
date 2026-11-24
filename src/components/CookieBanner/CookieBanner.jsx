@@ -231,7 +231,7 @@ function CookieBannerCard() {
               <p className={styles.controller}>
                 Cookies worden geplaatst door {CONTROLLER.name}
                 {CONTROLLER.enterpriseNumber ? ` (${CONTROLLER.enterpriseNumber})` : ''}, de
-                uitbater van holidaybooking.be. In het Cookiebeleid staat elke dienst die de
+                uitbater van sunsky.be en sunsky.nl. In het Cookiebeleid staat elke dienst die de
                 website gebruikt.
               </p>
             )}

@@ -283,13 +283,9 @@ export async function canonicalForHotel(apiBase, hotelCode, timeoutMs = 2000) {
  * www.sunsky.be, so its rankings move over before it is redirected. Any other host (the server's
  * IP, localhost, a staging name) keeps the configured SITE_ORIGIN.
  */
-export const SITE_DOMAINS = Object.freeze({ BE: 'https://www.sunsky.be', NL: 'https://www.sunsky.nl' });
-export function siteForHost(host, fallback) {
-  const h = String(host || '').trim().toLowerCase().replace(/:\d+$/, '').replace(/^www\./, '');
-  if (h === 'sunsky.nl') return { origin: SITE_DOMAINS.NL, market: 'NL', locale: 'nl_NL' };
-  if (h === 'sunsky.be' || h === 'holidaybooking.be') return { origin: SITE_DOMAINS.BE, market: 'BE', locale: 'nl_BE' };
-  return { origin: String(fallback || SITE_DOMAINS.BE).replace(/\/+$/, ''), market: 'BE', locale: 'nl_BE' };
-}
+// One rule for the server and the browser (src/utils/siteDomain.js).
+import { SITE_DOMAINS, siteForHost } from '../src/utils/siteDomain.js';
+export { SITE_DOMAINS, siteForHost };
 
 /**
  * The same page on both domains (hreflang), so Google shows Belgian searchers www.sunsky.be and
