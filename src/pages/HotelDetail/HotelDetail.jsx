@@ -3070,7 +3070,31 @@ export default function HotelDetail() {
     return () => { alive = false; };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selRateKey]);
-  const checkedRate = selRateKey ? checkedRates[selRateKey] : null;
+  // World2Meet sends a rate's remarks only with its booking-rules check (never with availability):
+  // the selected W2M rate is checked once, as the Hotelbeds one above (tracker r10, 24 Nov 2026).
+  const selW2m = liveRoom && String(liveRoom.supplier || '').toLowerCase() === 'w2m' && liveRoom.bookingCode && liveRoom.w2mHotelCode && liveRoom.stayCheckin
+    ? liveRoom : null;
+  const selW2mKey = selW2m ? `w2m|${selW2m.w2mHotelCode}|${selW2m.bookingCode}|${selW2m.stayCheckin}|${selW2m.stayCheckout}|${sAdults}|${sChildAges}|${sRooms}` : null;
+  useEffect(() => {
+    if (!selW2mKey || selW2mKey in checkedRates) return;
+    let alive = true;
+    setCheckedRates((m) => ({ ...m, [selW2mKey]: null }));
+    axiosInstance.post('/hotel-availability/w2m-remarks', {
+      bookingCode: selW2m.bookingCode, w2mHotelCode: selW2m.w2mHotelCode,
+      checkin: selW2m.stayCheckin, checkout: selW2m.stayCheckout,
+      adults: Number(sAdults) || 2,
+      children: sChildAges ? sChildAges.split(',').length : 0,
+      childAges: sChildAges ? sChildAges.split(',').map(Number) : [],
+      rooms: Number(sRooms) || 1,
+    }, { timeout: SUPPLIER_TIMEOUT })
+      .then(({ data }) => {
+        if (alive) setCheckedRates((m) => ({ ...m, [selW2mKey]: { localCost: null, remarks: data?.rateComments ?? null } }));
+      })
+      .catch(() => {});
+    return () => { alive = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selW2mKey]);
+  const checkedRate = selRateKey ? checkedRates[selRateKey] : selW2mKey ? checkedRates[selW2mKey] : null;
   const liveLocalCost = liveRoom?.localCost || checkedRate?.localCost || null;
   // The supplier's remarks for THIS rate, in full; they follow the traveller's room choice.
   const liveRemarks = remarksOfRate(liveRoom, checkedRate?.remarks);
@@ -3928,6 +3952,8 @@ export default function HotelDetail() {
         net: r.net ?? null, dianaHotelId: r.dianaHotelId || null,
         // World2Meet bookable identity — carried into the checkout hand-off.
         bookingCode: r.bookingCode || null, w2mHotelCode: r.w2mHotelCode || null,
+        // The stay this rate was priced for: W2M's remarks check (below) must ask about this one.
+        ...(r.supplier === 'w2m' ? { stayCheckin: checkin, stayCheckout: checkout } : {}),
         // Taxes payable at the hotel, from the supplier's own `taxes` on THIS rate (UI-09): only
         // Hotelbeds sends them, and only those not included are local. Never added to `price`.
         localCost: localCostOfRate(r),
