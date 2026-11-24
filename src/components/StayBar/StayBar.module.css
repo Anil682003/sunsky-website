@@ -194,7 +194,7 @@
   box-shadow: 0 6px 16px rgba(232, 93, 85, .28); transition: all .2s var(--ease, ease);
 }
 .saveBtn:hover:not(:disabled) {
-  transform: translateY(-1px); background: var(--ss-coral-hover, #D94B43); box-shadow: 0 10px 22px rgba(232, 93, 85, .34);
+  transform: translateY(-1px); background: var(--ss-coral-hover, #D44C44); box-shadow: 0 10px 22px rgba(232, 93, 85, .34);
 }
 .saveBtn:disabled {
   background: var(--ss-na-bg, #E6EBF2); color: var(--ss-na-ink, #66768B); cursor: not-allowed; box-shadow: none;
@@ -204,7 +204,7 @@
   background: var(--ss-azure, #0A97F3); border: none; border-radius: 999px; padding: 9px 20px; cursor: pointer;
   transition: background-color .2s var(--ease, ease);
 }
-.doneBtn:hover { background: var(--ss-azure-hover, #0886D8); }
+.doneBtn:hover { background: var(--ss-azure-hover, #0A7CC8); }
 
 /* footer: exact-duration chips + reset */
 .foot {

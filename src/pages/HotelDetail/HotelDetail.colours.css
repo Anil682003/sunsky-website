@@ -29,25 +29,27 @@
    against them (several hundred) follows without being touched. */
 .sd,
 .modal-overlay.fdm-overlay {
-  --ss-azure:#0A97F3;
-  --ss-azure-hover:#0886D8;          /* hover shade of Azure, never a separate colour */
-  --ss-cloud:#C7E3F8;
-  --ss-coral:#E85D55;
-  --ss-coral-hover:#D94B43;          /* hover shade of Coral */
+  /* The shared Design 3.0 palette lives in index.css (--d3-*, also used by checkout and
+     account); the hotel page reads it from there. The fallbacks are the same locked values. */
+  --ss-azure:var(--d3-azure, #0A97F3);
+  --ss-azure-hover:var(--d3-azure-dark, #0A7CC8);    /* hover shade of Azure, never a separate colour */
+  --ss-cloud:var(--d3-cloud-blue, #C7E3F8);
+  --ss-coral:var(--d3-coral, #E85D55);
+  --ss-coral-hover:var(--d3-coral-dark, #D44C44);    /* hover shade of Coral */
   --ss-coral-shadow:rgba(232,93,85,.34);
-  --ss-ink:#18344F;
-  --ss-sun:#F6C445;
-  --ss-ink-2:#526987;
-  --ss-turquoise:#01BEA9;
-  --ss-turquoise-deep:#008C82;
+  --ss-ink:var(--d3-ink, #18344F);
+  --ss-sun:var(--d3-sunshine, #F6C445);
+  --ss-ink-2:var(--d3-text-sec, #526987);
+  --ss-turquoise:var(--d3-turquoise, #01BEA9);
+  --ss-turquoise-deep:var(--d3-teal-deep, #008C82);
   --ss-white:#FFFFFF;
-  --ss-soft-white:#FAFCFF;
-  --ss-success:#147D4B;
-  --ss-border:#DCE7F0;
-  --ss-success-soft:#E8F7EF;
-  --ss-na-bg:#E6EBF2;
-  --ss-info:#E8F3FE;
-  --ss-na-ink:#66768B;
+  --ss-soft-white:var(--d3-soft-white, #FAFCFF);
+  --ss-success:var(--d3-green, #147D4B);
+  --ss-border:var(--d3-border, #DCE7F0);
+  --ss-success-soft:var(--d3-green-soft, #E8F7EF);
+  --ss-na-bg:#E6EBF2;                /* Unavailable background (hotel page spec) */
+  --ss-info:var(--d3-light-blue, #E8F3FE);
+  --ss-na-ink:#66768B;               /* Unavailable text (hotel page spec) */
   --ss-hairline:#EAF1F7;             /* the Soft Border at reduced weight, for inner dividers */
 
   /* legacy names → locked palette */
