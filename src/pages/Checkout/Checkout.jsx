@@ -447,7 +447,9 @@ function useCountUp(value, dur = 650) {
  * that appears on every keystroke of a half-typed name is noise.
  */
 const Field = ({ label, req, err, hint, ok, children, span }) => (
-  <div className={`ck-field${err ? ' ck-err' : ''}${ok ? ' ck-done' : ''}${span ? ` ck-span-${span}` : ''}`}>
+  // ck-long-label: a label too long for one line on a phone ("Telefoonnummer contactpersoon bij
+  // noodgevallen"), so the CSS can let it wrap and move the value down instead of over it.
+  <div className={`ck-field${err ? ' ck-err' : ''}${ok ? ' ck-done' : ''}${span ? ` ck-span-${span}` : ''}${typeof label === 'string' && label.length > 28 ? ' ck-long-label' : ''}`}>
     <label className="ck-label">{label}{req && <span className="ck-req"> *</span>}</label>
     {children}
     {ok && <span className="ck-tick">{ICON.check}</span>}

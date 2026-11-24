@@ -175,6 +175,40 @@
   .barScrim { z-index: 1050; background: rgba(26, 39, 68, 0.38); }
   /* Docked at the top instead, so the picker's lists drop down into the screen. */
   .barPop_scope { top: 12px; bottom: auto; max-height: none; overflow: visible; }
+  /* A value wraps to a second line rather than being cut ("Geen voorkeur" in a half cell). */
+  .barValue { white-space: normal; }
+
+  /* Folded: one line saying what is searched, "Change" opens the fields. */
+  .searchBar .barSummary { display: flex; }
+  .searchBar:not(.barExpanded) .barField,
+  .searchBar:not(.barExpanded) .barSearch { display: none; }
+  .barExpanded .barSummary { display: none; }
+}
+
+/* The folded bar (phones only; see the 640px block above). */
+.barSummary {
+  display: none;
+  width: 100%; align-items: center; gap: 10px;
+  padding: 10px 12px;
+  border: 1px solid #E6ECF5; border-radius: 13px;
+  background: var(--white);
+  font-family: inherit; text-align: left; color: var(--text);
+  cursor: pointer;
+}
+.barSummary:focus-visible { outline: 2px solid var(--blue-deep); outline-offset: 2px; }
+.barSumPlace {
+  font-family: 'Sora', sans-serif; font-size: var(--fs-body); font-weight: 700; line-height: 1.25;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.barSumMeta {
+  font-size: var(--fs-small); color: var(--text-sec); line-height: 1.35;
+  overflow-wrap: anywhere;
+}
+.barSumEdit {
+  flex-shrink: 0; align-self: center;
+  padding: 8px 14px; border-radius: var(--r-full);
+  background: var(--blue-deep); color: #fff;
+  font-family: 'Sora', sans-serif; font-size: var(--fs-small); font-weight: 700;
 }
 
 /* ════════ Toolbar ════════
@@ -1389,6 +1423,11 @@
   .heroTitle { margin-bottom: 16px; }
   .toolbar { padding: 0 16px; top: calc(var(--nav-h) + 10px); }
   .toolbarInner { padding: 10px 12px 10px 16px; }
+  /* "135 vakanties in Gran Canaria, Spanje" is wider than a 320px phone: it wraps here instead
+     of pushing the whole page sideways. */
+  .resultCount { min-width: 0; max-width: 100%; font-size: var(--fs-small); }
+  .resultCount strong { font-size: var(--fs-body); }
+  .countText { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
   .sortLabel { display: none; }
   /* At the control size the longest sort option no longer leaves the Filters button room on a
      phone: the sort box takes what is left of the row and the select shrinks inside it. */

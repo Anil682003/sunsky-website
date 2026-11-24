@@ -322,6 +322,7 @@
     "fromAirports_one": "From {{count}} airport",
     "fromAirports_other": "From {{count}} airports",
     "search": "Search holidays",
-    "close": "Close"
+    "close": "Close",
+    "edit": "Change"
   }
 }

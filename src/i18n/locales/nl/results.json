@@ -322,6 +322,7 @@
     "fromAirports_one": "Vanaf {{count}} luchthaven",
     "fromAirports_other": "Vanaf {{count}} luchthavens",
     "search": "Zoek vakanties",
-    "close": "Sluiten"
+    "close": "Sluiten",
+    "edit": "Wijzig"
   }
 }
