@@ -2887,6 +2887,11 @@
   .sd .fc-strip{display:flex;overflow-x:auto;-webkit-overflow-scrolling:touch;scrollbar-width:none;padding-bottom:4px}
   .sd .fc-col{flex:0 0 96px}
   .sd .fc-barzone{height:168px}
+  /* "LAAGSTE PRIJS" on one line is ~118px, wider than a 96px phone column, so it ran across
+     the dates either side of the cheapest one (Levent, 26 Nov 2026). On a phone it stays inside
+     its own column and wraps to two short lines over its bar, as it sits over one date on a
+     desktop. The cheapest bar is the shortest, so the second line always has room above it. */
+  .sd .fc-lowtag{white-space:normal;max-width:calc(100% - 8px);text-align:center;line-height:1.15;letter-spacing:.04em;padding:3px 7px;border-radius:9px;margin-bottom:6px}
   .sd .fc-tail{height:20px}
   /* Narrower arrows so the swipeable strip keeps as much width as possible; still a 40px
      target, which is the smallest a thumb hits reliably. */
