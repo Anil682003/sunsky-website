@@ -260,7 +260,6 @@ const ROOM_FEATURE_CODES = ['PRIVATE_POOL', 'HOT_TUB'];
 const ROOM_FEATURE_LABELS = { PRIVATE_POOL: 'Private pool', HOT_TUB: 'In-room hot tub' };
 const roomFeatureLabel = (code) => i18n.t(`results:roomFeature.${code}`, ROOM_FEATURE_LABELS[code] || code);
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
-
 const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
 
 // How many filters the user has actively changed — drives the sidebar count pill. Transport is
