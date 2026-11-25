@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
+import { facetName } from '../../utils/facetName';
 import { useSelector } from 'react-redux';
 import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import useApi from '../../hooks/useApi';
@@ -259,6 +260,7 @@ const ROOM_FEATURE_CODES = ['PRIVATE_POOL', 'HOT_TUB'];
 const ROOM_FEATURE_LABELS = { PRIVATE_POOL: 'Private pool', HOT_TUB: 'In-room hot tub' };
 const roomFeatureLabel = (code) => i18n.t(`results:roomFeature.${code}`, ROOM_FEATURE_LABELS[code] || code);
 const cap = (s) => (s ? String(s).charAt(0).toUpperCase() + String(s).slice(1) : s);
+
 const metresLabel = (m) => (m >= 1000 ? `≤ ${m / 1000} km` : `≤ ${m} m`);
 
 // How many filters the user has actively changed — drives the sidebar count pill. Transport is
@@ -2781,7 +2783,7 @@ export default function Results() {
   // code once the facets have resolved, so the summary fills in rather than blocking.
   const cardSummary = useMemo(() => {
     if (!seededKeys.length) return null;
-    const named = (list, code) => list.find((x) => x.code === code)?.name;
+    const named = (list, code) => facetName(list.find((x) => x.code === code));
     const given = (params.get('filterLabels') || '').split('|').map((s) => s.trim()).filter(Boolean);
     const labels = given.length ? given : seededKeys.flatMap((k) => {
       const v = seeded[k];
@@ -2795,10 +2797,10 @@ export default function Results() {
         case 'facilities':    return v.map((c) => named(facets.facilities, c));
         case 'accommodation': return v.map((c) => cap(named(facets.accommodation, c)));
         case 'kids':          return v.map((c) => named(facets.kids, c));
-        case 'activities':    return v.map((a) => facets.activities.find((x) => actMatches(a, x))?.name);
+        case 'activities':    return v.map((a) => facetName(facets.activities.find((x) => actMatches(a, x))));
         case 'adultsOnly':    return [t('filters.adultsOnly', 'Adults only')];
-        case 'maxBeach':      return [`Beach ${metresLabel(v)}`];
-        case 'maxCentre':     return [`Centre ${metresLabel(v)}`];
+        case 'maxBeach':      return [`${t('filters.toBeach', 'To the beach')} ${metresLabel(v)}`];
+        case 'maxCentre':     return [`${t('filters.toCentre', 'To the city centre')} ${metresLabel(v)}`];
         default:              return [];
       }
     }).filter(Boolean);
@@ -3556,7 +3558,7 @@ export default function Results() {
             items={facets.accommodation}
             isChecked={(a) => filters.accommodation.includes(a.code)}
             render={(a) => (
-              <FilterCheck key={a.code} label={`${cap(a.name)} (${a.hotels})`} checked={filters.accommodation.includes(a.code)} onChange={() => toggleCode('accommodation', a.code)} />
+              <FilterCheck key={a.code} label={`${cap(facetName(a))} (${a.hotels})`} checked={filters.accommodation.includes(a.code)} onChange={() => toggleCode('accommodation', a.code)} />
             )}
           />
         )}
@@ -3655,7 +3657,7 @@ export default function Results() {
             items={facets.facilities}
             isChecked={(f) => filters.facilities.includes(f.code)}
             render={(f) => (
-              <FilterCheck key={f.code} label={`${f.name} (${f.hotels})`} checked={filters.facilities.includes(f.code)} onChange={() => toggleCode('facilities', f.code)} />
+              <FilterCheck key={f.code} label={`${facetName(f)} (${f.hotels})`} checked={filters.facilities.includes(f.code)} onChange={() => toggleCode('facilities', f.code)} />
             )}
           />
         )}
@@ -3668,7 +3670,7 @@ export default function Results() {
             items={facets.kids}
             isChecked={(k) => filters.kids.includes(k.code)}
             render={(k) => (
-              <FilterCheck key={k.code} label={`${k.name} (${k.hotels})`} checked={filters.kids.includes(k.code)} onChange={() => toggleCode('kids', k.code)} />
+              <FilterCheck key={k.code} label={`${facetName(k)} (${k.hotels})`} checked={filters.kids.includes(k.code)} onChange={() => toggleCode('kids', k.code)} />
             )}
           />
         </FilterSection>
@@ -3685,7 +3687,7 @@ export default function Results() {
             items={facets.activities}
             isChecked={(a) => filters.activities.some((x) => actMatches(x, a))}
             render={(a) => (
-              <FilterCheck key={`${a.groupCode ?? ''}:${a.code}`} label={`${a.name} (${a.hotels})`} checked={filters.activities.some((x) => actMatches(x, a))} onChange={() => toggleActivity(a)} />
+              <FilterCheck key={`${a.groupCode ?? ''}:${a.code}`} label={`${facetName(a)} (${a.hotels})`} checked={filters.activities.some((x) => actMatches(x, a))} onChange={() => toggleActivity(a)} />
             )}
           />
         )}
