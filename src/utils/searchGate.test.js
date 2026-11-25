@@ -23,6 +23,16 @@ describe('searchGate', () => {
   it('a failed check never blocks', () => {
     expect(searchGate({ ...base, chosenOrigins: ['BRU'], reachable: null, state: 'error' })).toBe('ok');
   });
+  // Levent, 25 Nov 2026: Lille ticked, "Where to?" empty -> Search inactive (Package only).
+  it('every ticked airport proven to have no package at all: blocked, also without a destination', () => {
+    const lil = { transport: 'package', destinationCodes: [], state: 'idle', reachable: null };
+    expect(searchGate({ ...lil, chosenOrigins: ['LIL'], originsWithoutPackage: new Set(['LIL']) })).toBe('none');
+    expect(searchGate({ ...lil, chosenOrigins: ['LIL', 'BRU'], originsWithoutPackage: new Set(['LIL']) })).toBe('ok');
+    expect(searchGate({ ...lil, chosenOrigins: [], originsWithoutPackage: new Set(['LIL']) })).toBe('ok');
+    expect(searchGate({ ...lil, chosenOrigins: ['LIL'], originsWithoutPackage: null })).toBe('ok');
+    expect(searchGate({ ...lil, transport: 'hotel_only', chosenOrigins: ['LIL'], originsWithoutPackage: new Set(['LIL']) })).toBe('ok');
+    expect(searchGate({ ...base, chosenOrigins: ['LIL'], reachable: null, state: 'loading', originsWithoutPackage: new Set(['LIL']) })).toBe('none');
+  });
   it('a country pick (nothing checkable) and Hotel Only never block', () => {
     expect(searchGate({ ...base, destinationCodes: [], chosenOrigins: ['ANR'], reachable: new Set() })).toBe('ok');
     expect(searchGate({ ...base, transport: 'hotel', chosenOrigins: ['ANR'], reachable: new Set() })).toBe('ok');

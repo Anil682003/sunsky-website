@@ -22,6 +22,7 @@ import {
 import AirportClashPanel from '../../../components/AirportClashPanel/AirportClashPanel';
 import { usePackageDepartureDates, makeIsUnavailable, departureSummary } from '../../../hooks/usePackageDepartureDates';
 import { usePackageAirports } from '../../../hooks/usePackageAirports';
+import { useOriginPackages } from '../../../hooks/useOriginPackages';
 import { searchGate } from '../../../utils/searchGate';
 
 // Ticked airports checked one by one for destination greying; more than this greys nothing.
@@ -861,6 +862,15 @@ export default function Hero() {
     return qs;
   };
 
+  // Ticked airports with no package at all in the next 12 months (Levent, 25 Nov 2026: Lille).
+  // Asked whatever the destination; only a proven NONE blocks, a running or failed check never does.
+  const { noPackage: originsWithoutPackage } = useOriginPackages({
+    enabled: transport === 'package' && !noPreference && chosenOrigins.length > 0 && chosenOrigins.length <= MAX_FEASIBILITY_ORIGINS,
+    origins: chosenOrigins,
+    adults: totalAdults,
+    children: totalChildren,
+  });
+
   // Search only for a combination that can fly (Levent, 4 Nov 2026): proven "no package" disables
   // it with the reason, the check still running holds it briefly, a failed check never blocks.
   // Choices are left exactly as they are.
@@ -870,6 +880,7 @@ export default function Hero() {
     destinationCodes,
     reachable: reachableOrigins,
     state: reachableState,
+    originsWithoutPackage,
   });
 
   // PACKAGE search — destination chosen via the country → destination modal (unchanged behaviour).

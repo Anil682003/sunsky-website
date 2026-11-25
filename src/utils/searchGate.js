@@ -17,10 +17,18 @@
  * @param {string[]} q.destinationCodes   city destination codes the check was asked about
  * @param {Set<string>|null} q.reachable  airports serving at least one of them (null = no answer)
  * @param {'idle'|'loading'|'ok'|'error'} q.state
+ * @param {Set<string>|null} q.originsWithoutPackage  ticked airports PROVEN to have no package at all
+ *        in the next 12 months (useOriginPackages; null = not known). Levent, 25 Nov 2026: Lille
+ *        ticked with no destination must not search. Blocks only when EVERY ticked airport is in it.
  * @returns {'ok'|'checking'|'none'}
  */
-export function searchGate({ transport, chosenOrigins = [], destinationCodes = [], reachable = null, state = 'idle' }) {
-  if (transport !== 'package' || destinationCodes.length === 0) return 'ok';
+export function searchGate({ transport, chosenOrigins = [], destinationCodes = [], reachable = null, state = 'idle', originsWithoutPackage = null }) {
+  if (transport !== 'package') return 'ok';
+  // No package from any ticked airport, wherever and whenever: nothing to search, with or
+  // without a destination. A check still running or failed is null here and blocks nothing.
+  if (chosenOrigins.length > 0 && originsWithoutPackage
+    && chosenOrigins.every((o) => originsWithoutPackage.has(String(o).toUpperCase()))) return 'none';
+  if (destinationCodes.length === 0) return 'ok';
   if (state === 'loading') return 'checking';
   if (state !== 'ok' || !reachable) return 'ok';
   if (chosenOrigins.length === 0) return reachable.size > 0 ? 'ok' : 'none';
