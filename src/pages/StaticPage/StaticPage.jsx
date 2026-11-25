@@ -8,6 +8,7 @@ import { navHeightPx } from '../../utils/navHeight';
 import { slugifyHeading, resolveStaticPage, resolveAnchor } from './staticPageRouting';
 import RichText from '../../components/RichText/RichText';
 import DocumentCard from '../../components/DocumentCard/DocumentCard';
+import { sectionDocuments } from './sectionDocuments';
 
 // The CMS stores body/intro/bullets as PLAIN TEXT — blank lines separate
 // paragraphs, and a few markers add bullets, bold and highlight. RichText turns
@@ -503,14 +504,9 @@ export default function StaticPage() {
                     {bullets.map((b, j) => <li key={j}>{b}</li>)}
                   </ul>
                 )}
-                {section?.documentUrl && (
-                  <DocumentCard
-                    url={section.documentUrl}
-                    name={section.documentName}
-                    size={section.documentSize}
-                    label={section.documentLabel}
-                  />
-                )}
+                {sectionDocuments(section).map((doc, j) => (
+                  <DocumentCard key={j} url={doc.url} name={doc.name} size={doc.size} label={doc.label} />
+                ))}
                 {faqItems.length > 0 && (
                   <Faq items={faqItems} sectionId={headingId ?? `faq-${i}`} />
                 )}
