@@ -16,7 +16,8 @@ import { moneyCompact, moneyFull, formatAmount, NBSP } from '../../utils/money';
 import { rememberDestCode } from '../../utils/favDest';
 import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/priceRounding';
 import { roundSelling } from '../../utils/pricingRounding';
-import { NO_MARGINS, fetchMargins, withRoomMargins } from '../../utils/margins';
+import { NO_MARGINS, fetchMargins, withRoomMargins, packageMarginOf } from '../../utils/margins';
+import { round2 } from '../../utils/marginRules';
 import { localCostOfRate, localCost } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
@@ -3500,6 +3501,16 @@ export default function HotelDetail() {
     ? roundStayTotal(liveRoom.price || 0, liveFlight?.totalPrice || 0, roomsCount)
     : null;
   const displayTotal = liveTotal != null ? liveTotal : stayFrom;
+  // The package total this same room would make with another flight: its package margin follows
+  // the flight (withRoomMargins), so a difference in fares is not the difference in price. The
+  // other-airport chips compare THIS with the confirmed total (Levent, 26 Nov 2026: the saving
+  // against the confirmed price for the same dates, travellers and hotel option).
+  const packageTotalWith = (flightTotal) => {
+    if (!liveRoom || !(Number(flightTotal) > 0)) return null;
+    const net = Number(liveRoom.supplierPrice ?? liveRoom.price) || 0;
+    const margin = margins?.apply ? packageMarginOf(margins, { flightNet: Number(flightTotal), hotelNet: net }) : 0;
+    return roundStayTotal(margin > 0 ? round2(net + margin) : net, Number(flightTotal), roomsCount);
+  };
 
   /* Does Hotelbeds sell a transfer between this airport and this hotel? Asked once per
      airport+hotel+date, only for a package (hotel-only has no arrival to meet), and only
@@ -5347,14 +5358,16 @@ export default function HotelDetail() {
                           <div className="alt-airports-label">{t('flights.orFlyFromAnother', 'Or fly from another airport?')}</div>
                           <div className="alt-airport-chips">
                             {shownAlternatives.map((alt) => {
-                              // Per person, against the CONFIRMED fare of the airport searched:
-                              // the flight held above, the one in the total (Levent, 26 Nov 2026).
-                              // Same dates, travellers and room, so the flights' difference is the
-                              // packages' difference; to the cent, rounded like the selling price.
+                              // Per person, against the CONFIRMED package price (Levent, 26 Nov
+                              // 2026): the same room with that airport's flight, margin and
+                              // rounding included, minus the total shown. Before the room is in,
+                              // the fares' difference stands in.
                               const altPax = Math.max(1, (Number(sAdults) || 2) + (Number(sChildren) || 0));
+                              const altTotal = packageTotalWith(alt.total);
                               const heldFare = Number(liveFlights.flights[selectedFlight]?.totalPrice ?? cheapestFare);
-                              const delta = !(heldFare > 0) ? null
-                                : Math.round(((roundSelling(alt.total) - roundSelling(heldFare)) / altPax) * 100) / 100;
+                              const diff = (altTotal != null && liveTotal != null) ? altTotal - liveTotal
+                                : heldFare > 0 ? roundSelling(alt.total) - roundSelling(heldFare) : null;
+                              const delta = diff == null ? null : Math.round((diff / altPax) * 100) / 100;
                               return (
                                 <button type="button" key={alt.code} className="alt-chip alt-chip-priced"
                                   onClick={() => applyAlternative(alt.code)}>

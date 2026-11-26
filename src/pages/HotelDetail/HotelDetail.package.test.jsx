@@ -938,6 +938,32 @@ describe('package margin on the live check (Margin Menu → Dynamic Package)', (
     expect(handed.api.hotel.price).toBe(640);
     expect(handed.ppPrice).toBe(820);
   });
+
+  it('another airport\'s saving is the package price difference, margin included (Levent, 26 Nov 2026)', async () => {
+    // FRA: 500 + 1000 + margin (50 + 6% of 1500 = 140) = 1640. AMS: 500 + 700 + (50 + 6% of
+    // 1200 = 122) = 1322. The saving is 318, € 159 p.p., not the fares' 300 (€ 150 p.p.).
+    const AMS_FARE = fare(700, { ...PKG_OUT, from: 'AMS' }, { ...PKG_BACK, to: 'AMS' }, 'k-ams');
+    get.mockImplementation((url) => {
+      const u = String(url);
+      if (u.includes('package-matrix')) return Promise.resolve({ data: MATRIX });
+      if (u.includes('/website/margins')) return Promise.resolve({ data: { success: true, data: MARGINS } });
+      if (u.includes('/feasibility')) return Promise.resolve({ data: { success: true, origins: ['FRA', 'AMS'], arrivals: { AYT: { status: 'FEASIBLE', trips: 3 } } } });
+      return Promise.resolve({ data: {} });
+    });
+    const base = post.getMockImplementation();
+    post.mockImplementation((url, body) => (String(url).includes('flight-availability/search') && body?.from === 'AMS'
+      ? Promise.resolve({ data: { results: { airtuerk: { flights: [AMS_FARE] } } } })
+      : base(url, body)));
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.640,00'));
+    const chip = () => [...container.querySelectorAll('.alt-chip')].find((b) => /AMS/.test(b.textContent));
+    await waitFor(() => expect(chip()).toBeTruthy());
+    expect(chip().textContent).toMatch(/−€\u00A0159 p\.p\./);
+    await user.click(chip());
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.322,00'));
+  });
 });
 
 // Promotions & Discounts (spec v1.2 §5): an automatic promotion is ONE extra line in the
