@@ -222,16 +222,15 @@
 .cardInner .langMenu { position: absolute; top: calc(30 * var(--s)); right: calc(32 * var(--s)); }
 
 .cardHead { text-align: center; margin-bottom: calc(30 * var(--s)); }
-.avatarRing {
-  width: calc(82 * var(--s)); height: calc(82 * var(--s));
-  border-radius: calc(22 * var(--s));
-  display: flex; align-items: center; justify-content: center;
-  margin: 0 auto calc(14 * var(--s));
-  background: linear-gradient(180deg, #F4F8FE 0%, #E9F0FC 100%);
-  border: 1px solid #E5ECF7;
-  box-shadow: 0 6px 16px rgba(26, 52, 110, 0.08);
+.cardLogo {
+  display: block; width: auto; max-width: 70%;
+  height: calc(54 * var(--s)); min-height: 40px;
+  margin: 0 auto calc(16 * var(--s));
+  object-fit: contain;
 }
-.avatarLogo { width: calc(46 * var(--s)); height: calc(46 * var(--s)); object-fit: contain; }
+/* On a narrower card (about 900-1320px wide windows) the logo, centred, reaches under the
+   language menu in the top-right corner, so it starts below it there. */
+@media (max-width: 1320px) { .cardLogo { margin-top: calc(46 * var(--s)); } }
 .cardTitle {
   margin-bottom: calc(4 * var(--s));
   font-family: 'Sora', sans-serif;
@@ -424,8 +423,7 @@
 /* Short windows (a 1366×768 laptop leaves ~625px): the text keeps its readable floor, so
    the logo tile and the outer spacing give way instead, and the card still fits. */
 @media (max-height: 660px) {
-  .avatarRing { width: calc(62 * var(--s)); height: calc(62 * var(--s)); }
-  .avatarLogo { width: calc(36 * var(--s)); height: calc(36 * var(--s)); }
+  .cardLogo { height: calc(42 * var(--s)); min-height: 34px; margin-bottom: calc(10 * var(--s)); }
   .formPanel { padding-top: calc(80 * var(--s)); padding-bottom: calc(10 * var(--s)); }
 }
 @media (max-width: 1200px) { .statDivider { display: none; } }

@@ -4,7 +4,6 @@ import { useTranslation, Trans } from 'react-i18next';
 import { useBrandLogo } from '../../hooks/useBrandLogo';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
 // it, so it keeps the square mark — the same one the browser tab shows.
-import logoIcon from '../../assets/logo-icon.png';
 import styles from './Login.module.css';
 import LanguageMenu from './LanguageMenu';
 import { useLogin, resumeTarget, guestTarget, prefillEmail } from '../../api';
@@ -131,9 +130,8 @@ export default function Login() {
             <LanguageMenu className={styles.langMenu} />
 
             <div className={styles.cardHead}>
-              <div className={styles.avatarRing}>
-                <img src={logoIcon} alt="" className={styles.avatarLogo} />
-              </div>
+              {/* The site logo the CMS sets, the one the homepage header draws (it was the old "S" tile). */}
+              <img src={brandLogo.src} alt="" onError={brandLogo.onError} className={styles.cardLogo} />
               <h1 className={styles.cardTitle}>{t('auth:login.title', 'Sign in to SunSky')}</h1>
               {/* Sent here by the checkout: say that signing in carries on with the booking,
                   so it does not read as starting over somewhere else. */}

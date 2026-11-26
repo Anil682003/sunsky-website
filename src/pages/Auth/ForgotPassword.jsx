@@ -4,7 +4,6 @@ import { useTranslation, Trans } from 'react-i18next';
 import { useBrandLogo } from '../../hooks/useBrandLogo';
 // The round chip inside the card is a circular slot; the wide wordmark would be a sliver in
 // it, so it keeps the square mark — the same one the browser tab shows.
-import logoIcon from '../../assets/logo-icon.png';
 import styles from './Login.module.css';   // shared auth shell (brand column, card, fields)
 import fp from './ForgotPassword.module.css';
 import CodeInput, { CODE_LENGTH } from './CodeInput';
@@ -156,9 +155,8 @@ export default function ForgotPassword() {
         <div className={styles.card}>
           <div className={styles.cardInner}>
             <div className={styles.cardHead}>
-              <div className={styles.avatarRing}>
-                <img src={logoIcon} alt="" className={styles.avatarLogo} />
-              </div>
+              {/* The site logo the CMS sets, the one the homepage header draws (it was the old "S" tile). */}
+              <img src={brandLogo.src} alt="" onError={brandLogo.onError} className={styles.cardLogo} />
 
               {step === 1 && <>
                 <h1 className={styles.cardTitle}>{t('auth:forgot.step1Title', 'Forgot your password?')}</h1>
