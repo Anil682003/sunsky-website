@@ -3172,7 +3172,9 @@ export default function HotelDetail() {
       rooms: Number(sRooms) || 1,
     }, { timeout: SUPPLIER_TIMEOUT })
       .then(({ data }) => {
-        if (alive) setCheckedRates((m) => ({ ...m, [selW2mKey]: { localCost: null, remarks: data?.rateComments ?? null } }));
+        // W2M's DirectPayment supplements (city tax, resort fee), as the admin reads them from the
+        // same check that brings the remarks (Ana y Jose Holbox, 26 Nov 2026: 2.179,92 MXN).
+        if (alive) setCheckedRates((m) => ({ ...m, [selW2mKey]: { localCost: localCost(data?.localCosts), remarks: data?.rateComments ?? null } }));
       })
       .catch(() => {});
     return () => { alive = false; };
