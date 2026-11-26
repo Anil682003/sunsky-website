@@ -230,6 +230,7 @@
     "hotelOnlyTitle": "Hotel only — no flights included",
     "liveFaresFrom": "Live fares from {{airport}} for your selected travel dates.",
     "noFlightsFrom": "No flights from {{airport}} for these dates.",
+    "cardAirportGone": "The offer from {{airport}} is no longer available for these dates. Choose another airport below.",
     "noLiveFlights": "No live flights found for these dates.",
     "noneFlyThisRoute": "None of our departure airports fly this route on these dates. Try different dates — or continue with the hotel only.",
     "orFlyFromAnother": "Or fly from another airport?",

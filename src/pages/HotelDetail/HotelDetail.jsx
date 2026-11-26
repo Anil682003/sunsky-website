@@ -15,6 +15,7 @@ import { usePromotionQuote, promotionInput, formatDiscount, cents } from '../../
 import { moneyCompact, moneyFull, formatAmount, NBSP } from '../../utils/money';
 import { rememberDestCode } from '../../utils/favDest';
 import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/priceRounding';
+import { roundSelling } from '../../utils/pricingRounding';
 import { NO_MARGINS, fetchMargins, withRoomMargins } from '../../utils/margins';
 import { localCostOfRate, localCost } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
@@ -1988,6 +1989,18 @@ export default function HotelDetail() {
   const urlPkg = useMemo(() => packageFromParams((k) => searchParams.get(k)), [searchParams]);
   const [pkgPick, setPkgPick] = useState(null);
   const pkgMode = transport === 'package';
+  // The airport on the results card the traveller opened (Levent, 26 Nov 2026). With no airport
+  // chosen, Results may pick the cheapest one; once a card is opened, ITS airport is the offer.
+  // The live check prices that airport on every date; a cheaper airport is only offered, with the
+  // saving against the confirmed price, and taken only when the traveller picks it; an airport
+  // that no longer flies is said so, and the traveller chooses. Replaces the automatic switches
+  // of 25 Oct (the day's winner) and 24 Nov (a cheaper airport live) for a card's package.
+  // Let go only by the traveller: an airport picked here, or "No preference" in the bar.
+  // `fromCard` keeps it through a refresh once a new date has taken the card's package out of
+  // the link (the address-bar sync below writes it).
+  const cardFromRaw = urlPkg?.from || String(qp('fromCard') || '').trim().toUpperCase();
+  const cardFrom = pkgMode && cardFromRaw ? normaliseOrigin(cardFromRaw) : '';
+  const holdCardAirport = !!cardFrom && ovr.originPicked === undefined;
   // (`pkgOffer`, the package of the day on screen, is read below the matrix.)
 
   /**
@@ -2420,7 +2433,8 @@ export default function HotelDetail() {
   const matrixOrigins = ovr.originPicked && ovr.origin ? [ovr.origin] : qp('origins');
   // "No preference" in the bar: no airport named here and none ticked on Results — every active
   // airport competes (the default for a hotel opened from an all-airports search).
-  const originAny = !(ovr.originPicked && ovr.origin) && !String(qp('origins') || '').trim();
+  // The card's airport, while it is held, is shown as the airport, not as "No preference".
+  const originAny = !holdCardAirport && !(ovr.originPicked && ovr.origin) && !String(qp('origins') || '').trim();
   const matrix = usePackageMatrix({
     enabled: pkgMode && !!matrixDate, hotelCode, destination, date: matrixDate, travelDays: matrixTravelDays,
     origins: matrixOrigins, adults: sAdults, children: sChildren, childAges: sChildAges, rooms: sRooms,
@@ -2998,6 +3012,9 @@ export default function HotelDetail() {
     set('rooms', sRooms);         set('childAges', sChildAges);
     set('nights', nights);
     set('transport', transport);  set('origin', origin);
+    // The results card's airport, held while the traveller has not chosen another (see cardFrom).
+    if (holdCardAirport) url.searchParams.set('fromCard', cardFrom);
+    else url.searchParams.delete('fromCard');
     // The birthdays survive a refresh with everything else, and LEAVE the URL the moment they
     // stop matching the ages being priced — a stale date is worse than none (see childDob.js).
     if (sChildDobs) url.searchParams.set('childDobs', sChildDobs);
@@ -3012,7 +3029,7 @@ export default function HotelDetail() {
     // price for a date the card never priced.
     if (urlCheckIn !== paramCheckIn || urlCheckOut !== paramCheckOut) url.searchParams.delete('total');
     if (url.toString() !== window.location.href) window.history.replaceState(window.history.state, '', url);
-  }, [filtersTouched, selectedISO, urlCheckIn, urlCheckOut, paramCheckIn, paramCheckOut, sAdults, sChildren, sRooms, sChildAges, sChildDobs, nights, transport, origin, urlPkg]);
+  }, [filtersTouched, selectedISO, urlCheckIn, urlCheckOut, paramCheckIn, paramCheckOut, sAdults, sChildren, sRooms, sChildAges, sChildDobs, nights, transport, origin, urlPkg, holdCardAirport, cardFrom]);
 
   // Only a REAL "from" figure goes in the message; `stayFrom` already refuses the €0 the price
   // cache returns for an uncosted day and the total of a search that has since been edited.
@@ -3867,7 +3884,9 @@ export default function HotelDetail() {
           else unknown.push(code);
           return;
         }
-        const best = flights[0];
+        // The flight this airport would be held with (the same default as the airport searched),
+        // so the difference shown is the difference the traveller gets on picking it.
+        const best = pickPriorityFlight(flights) || flights[0];
         alternatives.push({
           code,
           total: best.totalPrice,
@@ -3941,7 +3960,8 @@ export default function HotelDetail() {
       // that priced the card, and the offer below has to be that package, not a rebuild of it
       // from the old airport. The traveller can still change it afterwards; this only follows
       // the date they chose.
-      const dayFrom = own ? urlPkg.from : entry?.from;
+      // A card's airport is held (Levent, 26 Nov 2026): the date changes, the airport does not.
+      const dayFrom = holdCardAirport ? cardFrom : (own ? urlPkg.from : entry?.from);
       if (dayFrom && dayFrom !== origin) setOvr((p) => ({ ...p, origin: dayFrom }));
       // The strip re-centres on the picked day — three dates before it, three after — as the
       // hotel calendar does (Levent, 27 Oct 2026): the day chosen is the one everything follows.
@@ -4111,13 +4131,16 @@ export default function HotelDetail() {
       // ITS airport, so its flight is confirmed as it is; with no package, the strip's winner.
       // Selva Arenal 13 Nov: package from CGN (21 flights live), searched from BRU (none, 25 Oct).
       const ownPkg = packageApplies(pkgOffer, checkin, checkout) ? pkgOffer : null;
-      const dayFrom = ovr.originPicked ? null : (ownPkg?.from || pickedEntry?.from || matrixByDate[checkin]?.from || null);
+      const dayFrom = ovr.originPicked ? null
+        : holdCardAirport ? cardFrom
+          : (ownPkg?.from || pickedEntry?.from || matrixByDate[checkin]?.from || null);
       if (dayFrom && dayFrom !== origin) setOvr((p) => ({ ...p, origin: dayFrom }));
       // No airport named by the traveller: whatever airport this day started from (its package's
       // own included), if it has no flight live, the cheapest airport that does is taken. Levent,
       // 5 Nov 2026: Best Nobel 23 Nov, package from CRL, CRL had no flight live and the page
       // stopped at "no flights from Charleroi" while DUS flew at €112.
-      autoAirportRef.current = !ovr.originPicked;
+      // Never for a card's airport (Levent, 26 Nov 2026): cheaper or flying, the others are offered.
+      autoAirportRef.current = !ovr.originPicked && !holdCardAirport;
       fetchFlights(checkin, checkout, dayFrom);
     }
   };
@@ -5324,11 +5347,14 @@ export default function HotelDetail() {
                           <div className="alt-airports-label">{t('flights.orFlyFromAnother', 'Or fly from another airport?')}</div>
                           <div className="alt-airport-chips">
                             {shownAlternatives.map((alt) => {
-                              // Per person, against the cheapest fare on offer from the
-                              // airport currently searched — the figure the card above shows.
-                              const herePax = cheapestFare == null ? null
-                                : Math.max(1, Math.round(cheapestFare / Math.max(1, (Number(sAdults) || 2) + (Number(sChildren) || 0))));
-                              const delta = herePax == null ? null : alt.perPax - herePax;
+                              // Per person, against the CONFIRMED fare of the airport searched:
+                              // the flight held above, the one in the total (Levent, 26 Nov 2026).
+                              // Same dates, travellers and room, so the flights' difference is the
+                              // packages' difference; to the cent, rounded like the selling price.
+                              const altPax = Math.max(1, (Number(sAdults) || 2) + (Number(sChildren) || 0));
+                              const heldFare = Number(liveFlights.flights[selectedFlight]?.totalPrice ?? cheapestFare);
+                              const delta = !(heldFare > 0) ? null
+                                : Math.round(((roundSelling(alt.total) - roundSelling(heldFare)) / altPax) * 100) / 100;
                               return (
                                 <button type="button" key={alt.code} className="alt-chip alt-chip-priced"
                                   onClick={() => applyAlternative(alt.code)}>
@@ -5363,7 +5389,9 @@ export default function HotelDetail() {
                       <div className="live-empty">
                         {ICON.plane} {flightsPriceUnknown
                           ? t('flights.faresWithoutPrice', { airport: airportName(liveFlights.from || origin), defaultValue: `Flights from ${airportName(liveFlights.from || origin)} came back without a price. Try the check again, or compare another airport.` })
-                          : t('flights.noFlightsFrom', { airport: airportName(liveFlights.from || origin), defaultValue: `No flights from ${airportName(liveFlights.from || origin)} for these dates.` })}
+                          : (holdCardAirport && (liveFlights.from || origin) === cardFrom)
+                            ? t('flights.cardAirportGone', { airport: airportName(cardFrom), defaultValue: `The offer from ${airportName(cardFrom)} is no longer available for these dates. Choose another airport below.` })
+                            : t('flights.noFlightsFrom', { airport: airportName(liveFlights.from || origin), defaultValue: `No flights from ${airportName(liveFlights.from || origin)} for these dates.` })}
                       </div>
                       {liveFlights.probing ? (
                         <div className="live-loading"><span className="live-spin" /> {t('flights.checkingNearbyAirports', 'Checking nearby departure airports…')}</div>

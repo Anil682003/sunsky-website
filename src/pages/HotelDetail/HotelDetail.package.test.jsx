@@ -623,9 +623,14 @@ describe('a package’s live price waits for its flight', () => {
   });
 });
 
-describe('no airport chosen: a cheaper airport for the same dates is taken (Levent, 24 Nov 2026)', () => {
-  it('the card\'s FRA flies for €1,000, AMS for €700: the page moves to AMS', async () => {
-    const AMS_FARE = fare(700, { ...PKG_OUT, from: 'AMS', airline: 'PC', flightNumber: 'PC1' }, { ...PKG_BACK, to: 'AMS', airline: 'PC', flightNumber: 'PC2' }, 'k-ams');
+// Levent, 26 Nov 2026 (Taksim Maxwell, card from CRL, live check moved to CGN): once a results
+// card is opened, ITS airport is the offer. A cheaper airport is offered with the saving against
+// the confirmed fare, and taken only when the traveller picks it; an airport that no longer
+// flies is said so and the traveller chooses. Without a card (no package in the link), the
+// cheapest airport is still taken (24 Nov 2026).
+describe('the results card\'s airport is kept for the live check (Levent, 26 Nov 2026)', () => {
+  const AMS_FARE = fare(700, { ...PKG_OUT, from: 'AMS', airline: 'PC', flightNumber: 'PC1' }, { ...PKG_BACK, to: 'AMS', airline: 'PC', flightNumber: 'PC2' }, 'k-ams');
+  const withAms = () => {
     get.mockImplementation((url) => {
       const u = String(url);
       if (u.includes('package-matrix')) return Promise.resolve({ data: MATRIX });
@@ -636,18 +641,67 @@ describe('no airport chosen: a cheaper airport for the same dates is taken (Leve
     post.mockImplementation((url, body) => (String(url).includes('flight-availability/search') && body?.from === 'AMS'
       ? Promise.resolve({ data: { results: { airtuerk: { flights: [AMS_FARE] } } } })
       : base(url, body)));
+  };
+  const total = (c) => c.querySelector('.overview-total-val')?.textContent;
+  const amsChip = (c) => [...c.querySelectorAll('.alt-chip')].find((b) => /AMS/.test(b.textContent));
+
+  it('the card\'s FRA €1,000, AMS €700: FRA stays, AMS is offered at −€ 150 p.p., taken only when picked', async () => {
+    withAms();
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.200,00'));   // 500 + 700
+    await waitFor(() => expect(total(container)).toBe('€\u00A01.500,00'));   // 500 + the card's 1000
+    await waitFor(() => expect(amsChip(container)).toBeTruthy());
+    expect(amsChip(container).textContent).toMatch(/−€\u00A0150 p\.p\./);    // (700 − 1000) / 2
+    await new Promise((r) => setTimeout(r, 100));
+    expect(total(container)).toBe('€\u00A01.500,00');                        // never switched on its own
+    await user.click(amsChip(container));
+    await waitFor(() => expect(total(container)).toBe('€\u00A01.200,00'));   // the traveller's pick
+  });
+
+  it('the card\'s FRA has no flight any more: says so, keeps FRA, offers AMS to choose', async () => {
+    withAms();
+    SEARCH = [];
+    CONFIRM = { status: 200, data: { success: true, status: 'NOT_FOUND' } };
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(document.body.textContent).toMatch(/Het aanbod vanaf .+ is niet meer beschikbaar voor deze data/));
+    await waitFor(() => expect(amsChip(container)).toBeTruthy());
+    await new Promise((r) => setTimeout(r, 100));
+    expect(total(container)).not.toBe('€\u00A01.200,00');
+    await user.click(amsChip(container));
+    await waitFor(() => expect(total(container)).toBe('€\u00A01.200,00'));
+  });
+
+  it('another date whose cheapest package leaves from AMS: the live check still asks the card\'s FRA', async () => {
+    withAms();
+    MATRIX.cells[1] = { ...MATRIX.cells[1], departureAirport: 'AMS' };
+    const user = userEvent.setup();
+    renderPage();
+    const days = await priceDays();
+    await user.click(days[1]);
+    await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
+    await waitFor(() => expect(flightSearches().length).toBeGreaterThan(0));
+    expect(flightSearches()[0][1].from).toBe('FRA');
+    await new Promise((r) => setTimeout(r, 150));
+    expect(document.body.textContent).toMatch(/Live tarieven vanaf .*Frankfurt|vanaf Frankfurt/i);
+  });
+
+  it('without a card (no package in the link), a cheaper airport for the same dates is still taken (24 Nov 2026)', async () => {
+    withAms();
+    const user = userEvent.setup();
+    const { container } = renderPage('');
+    await runCheck(user);
+    await waitFor(() => expect(total(container)).toBe('€\u00A01.200,00'));   // 500 + 700
     expect(flightSearches().some(([, b]) => b.from === 'AMS')).toBe(true);
   });
 
   it('an airport the traveller chose is kept, cheaper airports are only shown', async () => {
-    const AMS_FARE = fare(700, { ...PKG_OUT, from: 'AMS' }, { ...PKG_BACK, to: 'AMS' }, 'k-ams');
+    const AMS_CHEAP = fare(700, { ...PKG_OUT, from: 'AMS' }, { ...PKG_BACK, to: 'AMS' }, 'k-ams');
     const base = post.getMockImplementation();
     post.mockImplementation((url, body) => (String(url).includes('flight-availability/search') && body?.from === 'AMS'
-      ? Promise.resolve({ data: { results: { airtuerk: { flights: [AMS_FARE] } } } })
+      ? Promise.resolve({ data: { results: { airtuerk: { flights: [AMS_CHEAP] } } } })
       : base(url, body)));
     const user = userEvent.setup();
     const { container } = renderPage(`&${PKG_QS}&origins=FRA`);

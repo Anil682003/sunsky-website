@@ -204,7 +204,9 @@ describe('clicking a matrix date moves the window with it and keeps the mode (Ch
     expect(after).toEqual({ ...before, date: alt });
   });
 
-  it('the picked date brings its own airport: the live check asks THAT package, not the card airport on a new day', async () => {
+  // Levent, 26 Nov 2026: the results card's airport is held on every date; the date's own
+  // package from another airport is only an alternative (it used to be taken: 25 Oct 2026).
+  it('a picked date whose package leaves from another airport: the live check still asks the card\'s airport', async () => {
     const user = userEvent.setup();
     renderPage();
     await waitFor(() => expect(stripDates()).toEqual(around(START)));
@@ -221,13 +223,13 @@ describe('clicking a matrix date moves the window with it and keeps the mode (Ch
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
     await waitFor(() => expect(flightSearches().length).toBeGreaterThan(0));
 
-    // From DUS, on that date, and that date's package confirmed: the offer is the cell clicked.
-    // Asked from FRA instead, it priced a flight nobody had quoted on that date, and the
-    // package behind the bar was never confirmed at all.
-    // (The first search: an empty answer sends the page probing other airports afterwards.)
-    expect(flightSearches()[0]).toMatchObject({ from: 'DUS', depdate: alt });
-    await waitFor(() => expect(confirms().length).toBeGreaterThan(0));
-    expect(confirms()[0]).toMatchObject({ from: 'DUS', depdate: alt });
+    // From the card's FRA, for that date's trip; DUS's package is not confirmed in its place.
+    // (The first search: other airports are probed afterwards, as alternatives.)
+    expect(flightSearches()[0]).toMatchObject({ from: 'FRA', depdate: alt });
+    await new Promise((r) => setTimeout(r, 100));
+    expect(confirms().some((b) => b?.from === 'DUS')).toBe(false);
+    // A refresh keeps it: the card's package has left the link, its airport has not.
+    expect(new URLSearchParams(window.location.search).get('fromCard')).toBe('FRA');
   });
 
   it('after the click the SearchContext names the clicked trip, with the flexibility it was searched with', async () => {

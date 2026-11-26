@@ -230,6 +230,7 @@
     "hotelOnlyTitle": "Alleen hotel — geen vluchten inbegrepen",
     "liveFaresFrom": "Live tarieven vanaf {{airport}} voor jouw gekozen reisdata.",
     "noFlightsFrom": "Geen vluchten vanaf {{airport}} voor deze data.",
+    "cardAirportGone": "Het aanbod vanaf {{airport}} is niet meer beschikbaar voor deze data. Kies hieronder een andere luchthaven.",
     "noLiveFlights": "Geen live vluchten gevonden voor deze data.",
     "noneFlyThisRoute": "Geen van onze vertrekluchthavens vliegt deze route op deze data. Probeer andere data — of ga verder met alleen het hotel.",
     "orFlyFromAnother": "Vanaf een andere luchthaven vliegen?",
