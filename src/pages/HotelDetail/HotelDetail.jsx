@@ -5996,7 +5996,24 @@ export default function HotelDetail() {
                       rate without a known amount gets the general line instead (client design,
                       Nov 2026): the charge is named as possible, never as a figure. */}
                   {ovBase != null && (liveLocalCost
-                    ? <LocalCosts cost={liveLocalCost} className="overview-local-costs" />
+                    ? (liveLocalCost.kind === 'known' ? (
+                      // A known amount sits in a row like the others, label left and amount right
+                      // (26 Nov 2026: printed right-aligned under the average, it read as a footnote
+                      // of that line). Another currency is named after the amount, never converted.
+                      <div className="overview-pay overview-pay-local overview-local-row" data-local-costs="known">
+                        <div className="overview-row overview-row-pay">
+                          <span className="overview-row-label overview-row-label-stack">
+                            <b>
+                              {t('localCosts.mandatoryLocal', { ns: 'common', defaultValue: 'Mandatory payment locally' })}
+                              <FilterHint text={t('overview.localTaxesHint', 'Some destinations charge a tourist tax that you pay to the hotel on the spot. It is not part of the trip price.')} />
+                            </b>
+                          </span>
+                          <span className="overview-row-val overview-row-val-plain">
+                            {liveLocalCost.currency === 'EUR' ? pf(liveLocalCost.amount) : `${formatAmount(liveLocalCost.amount, 'full')}${NBSP}${liveLocalCost.currency}`}
+                          </span>
+                        </div>
+                      </div>
+                    ) : <LocalCosts cost={liveLocalCost} className="overview-local-costs" />)
                     : (
                       <div className="overview-pay overview-pay-local">
                         <div className="overview-row overview-row-pay">

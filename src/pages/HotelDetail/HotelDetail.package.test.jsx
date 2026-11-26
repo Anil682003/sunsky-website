@@ -452,8 +452,10 @@ describe('mandatory local costs after the live check (UI-09)', () => {
     await runCheck(user);
     await waitFor(() => expect(container.querySelector('.av-local-costs')).not.toBeNull());
     expect(container.querySelector('.av-local-costs').textContent.replace(/\u00A0/g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
-    const ov = container.querySelector('.overview-local-costs');
-    expect(ov.textContent.replace(/\u00A0/g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    // In the overview a row like the others: the label left, the amount right (26 Nov 2026).
+    const ov = container.querySelector('.overview-local-row');
+    expect(ov.querySelector('.overview-row-label').textContent).toMatch(/^Verplicht ter plaatse te betalen/);
+    expect(ov.querySelector('.overview-row-val').textContent.replace(/\u00A0/g, ' ')).toBe('€ 12,40');
     // Under the figure, before the button.
     expect(container.querySelector('.overview-total').compareDocumentPosition(ov) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(ov.compareDocumentPosition(container.querySelector('.overview-book-btn')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
@@ -493,12 +495,12 @@ describe('mandatory local costs after the live check (UI-09)', () => {
     await priceDays();
     expect(container.querySelector('[data-local-costs]')).toBeNull();
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
-    await waitFor(() => expect(container.querySelector('.overview-local-costs')).not.toBeNull());
+    await waitFor(() => expect(container.querySelector('.overview-local-row')).not.toBeNull());
     // One availability search. The selected Hotelbeds rate is also rate-checked once, for its
     // remarks (Levent, 20 Nov 2026), even though its local tax was already known.
     expect(hotelChecks().filter(([u]) => String(u).includes('/search'))).toHaveLength(1);
     await waitFor(() => expect(hotelChecks().filter(([u]) => String(u).includes('/checkrate'))).toHaveLength(1));
-    expect(container.querySelector('.overview-local-costs').textContent.replace(/\u00A0/g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    expect(container.querySelector('.overview-local-row .overview-row-val').textContent.replace(/\u00A0/g, ' ')).toBe('€ 12,40');
     expect(container.querySelector('.av-local-costs').textContent.replace(/\u00A0/g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
     expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A0500,00');
   });
