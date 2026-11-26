@@ -1803,6 +1803,13 @@ export default function HotelDetail() {
   // Formatting only: the amounts are what they were.
   const pc = (n, opts) => moneyCompact(n, { currency: ccy, ...opts });
   const pf = (n, opts) => moneyFull(n, { currency: ccy, ...opts });
+  // A date card's price with its cents a step smaller ('€ 2.559' then ',18'): the figure is
+  // unchanged, but at full size the cents made it wider than a phone card (26 Nov 2026).
+  const pcCard = (n) => {
+    const text = pc(n);
+    const m = /^(.*\d)(,\d{2})$/.exec(text || '');
+    return m ? <>{m[1]}<span className="fc-cents">{m[2]}</span></> : text;
+  };
   // ── the "Compare the lowest prices" bar edits the search IN PLACE ───────────
   // Every field starts at what the traveller searched (router state → URL param) and
   // an entry in `ovr` overrides it. Keeping the override separate means an untouched
@@ -4872,14 +4879,14 @@ export default function HotelDetail() {
                                         also what buys the two extra rows their space without
                                         putting a floor under the bar and flattening the chart. */}
                                     {ppMoved != null && <span className="fc-was">{pc(wasPP)}</span>}
-                                    <span className="fc-amt fc-amt-live">{pc(nowPP)}</span>
+                                    <span className="fc-amt fc-amt-live">{pcCard(nowPP)}</span>
                                     <span className="fc-livetag">{t('prices.livePrice', 'Live price')}</span>
                                     <span className="fc-nts">{cellDayLabel(p)}</span>
                                   </>
                                 ) : hasPrice ? (
                                   <>
                                     <span className="fc-from">{t('prices.from', 'from')}</span>
-                                    <span className="fc-amt">{pc(pp)}</span>
+                                    <span className="fc-amt">{pcCard(pp)}</span>
                                     <span className="fc-pp">p.p.</span>
                                     <span className="fc-nts">{cellDayLabel(p)}</span>
                                   </>
