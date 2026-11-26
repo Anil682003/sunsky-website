@@ -106,7 +106,7 @@ describe('Garantie en voorwaarden', () => {
 
     expect(payBtn()).toBeDisabled();
     // The amount payable now, from the page's own total (a €600 stay paid in full).
-    expect(payBtn().textContent.trim()).toBe('Boek en betaal €600');
+    expect(payBtn().textContent.trim()).toBe('Boek en betaal € 600,00');
     const final = document.querySelector('.ck-final');
     expect(final).toHaveTextContent('Definitieve boeking');
     expect(final).toHaveTextContent('Door je boeking te bevestigen, ga je een betalingsverplichting aan voor het volledige boekingsbedrag.');

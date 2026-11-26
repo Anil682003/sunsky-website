@@ -154,7 +154,7 @@ describe('the airport transfer, bought at the extras step', () => {
 
     // Per VEHICLE: €48 for the party of two, not €48 each.
     const line = [...document.querySelectorAll('.ck-sum-row')].find((r) => /luchthaventransfer/i.test(r.textContent));
-    expect(line).toHaveTextContent('€48');
+    expect(line).toHaveTextContent('€ 48,00');
   });
 
   it('sends the chosen transfer with the flight it has to meet', async () => {
@@ -210,9 +210,9 @@ describe('a transfer from the airport the plane lands at', () => {
     expect(body.transfer).toMatchObject({ fromType: 'IATA', fromCode: 'SAW', toCode: '86556', flightNumber: '26', companyName: 'VF' });
   });
 
-  it('writes amounts the house way: €1.384, never the US €1,384', async () => {
+  it('writes amounts the house way: € 1.384,00, never the US €1,384', async () => {
     renderCheckout(ISTANBUL);
-    await waitFor(() => expect(document.body.textContent).toMatch(/€1\.384/));
+    await waitFor(() => expect(document.body.textContent).toMatch(/€\s1\.384,00/));
     expect(document.body.textContent).not.toMatch(/€1,384/);
   });
 

@@ -17,10 +17,10 @@ describe('promotions on the website', () => {
   });
 
   it('writes the discount as −€ XX,XX and a total with cents only when it has them', () => {
-    expect(formatDiscount(123.4)).toBe('−€ 123,40');
-    expect(formatDiscount(-50)).toBe('−€ 50,00');
-    expect(formatTotal(1110.6)).toBe('€1.110,60');
-    expect(formatTotal(1110)).toBe('€1.110');
+    expect(formatDiscount(123.4)).toBe('−€ 123,40');
+    expect(formatDiscount(-50)).toBe('−€ 50,00');
+    expect(formatTotal(1110.6)).toBe('€ 1.110,60');
+    expect(formatTotal(1110)).toBe('€ 1.110');
     expect(cents(0.1 + 0.2)).toBe(0.3);
   });
 });

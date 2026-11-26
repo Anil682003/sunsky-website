@@ -7,6 +7,7 @@ import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFa
 import i18n from '../../i18n';
 import './Confirmation.css';
 import { formatDiscount } from '../../utils/promotions';
+import { moneyFull } from '../../utils/money';
 
 /* ── tiny SVG helper (same pattern as Checkout) ── */
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -104,11 +105,8 @@ export default function Confirmation({
   const isTransfer = booking.kind === 'transfer';
   // This is a record of what was CHARGED, so it shows the exact amount: cents only when the
   // charge had any. Rounding here (as it used to, to the nearest euro) misstated the payment.
-  // Written the house way whatever the browser: dot for thousands, comma for cents (€1.012,60).
-  const money = (n) => {
-    const v = Math.round((Number(n) || 0) * 100) / 100;
-    return `${ccy}${v.toLocaleString('nl-BE', Number.isInteger(v) ? {} : { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
-  };
+  // The booking summary: always two decimals in the SUNSKY notation (utils/money.js), € 1.012,60.
+  const money = (n) => moneyFull(Math.round((Number(n) || 0) * 100) / 100, { currency: ccy });
   // A deposit booking has paid its deposit; the balance follows from My Bookings.
   const isDeposit = payment?.plan === 'deposit' && Number(payment.amount) > 0;
   const paidNow = isDeposit ? Number(payment.amount) : pricing.total;

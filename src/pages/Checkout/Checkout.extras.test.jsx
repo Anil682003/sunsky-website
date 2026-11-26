@@ -128,7 +128,7 @@ describe('baggage on the extras step', () => {
       expect(timesIncluded(r)).toBe(1);
     });
     expect([...cabin.querySelectorAll('.ck-bag-add')].map((b) => b.textContent))
-      .toEqual(expect.arrayContaining([expect.stringMatching(/extra handbagage · €25/i)]));
+      .toEqual(expect.arrayContaining([expect.stringMatching(/extra handbagage · €\s25,00/i)]));
   });
 
   it('shows a second cabin bag on a leg that already includes one', async () => {
@@ -145,7 +145,7 @@ describe('baggage on the extras step', () => {
     expect(first).toHaveTextContent('2 stuks handbagage');
     expect(first.querySelector('.ck-chip-inc')).toHaveTextContent(/^inbegrepen \+ 1 extra$/i);
     expect(timesIncluded(first)).toBe(1);
-    expect(first.querySelector('.ck-chip-added')).toHaveTextContent('+ €25');
+    expect(first.querySelector('.ck-chip-added')).toHaveTextContent('+ € 25,00');
     expect(first.querySelector('.ck-bag-remove')).toHaveTextContent(/verwijderen/i);
     expect(first.querySelector('.ck-bag-add')).toBeNull();
     others.forEach((r) => {
@@ -168,13 +168,13 @@ describe('baggage on the extras step', () => {
 
     const [first] = [...card('Cabin baggage').querySelectorAll('.ck-bagrow')];
     expect(first).toHaveTextContent(/niet inbegrepen/i);
-    expect(first.querySelector('.ck-bag-add')).toHaveTextContent(/handbagage toevoegen · €25/i);
+    expect(first.querySelector('.ck-bag-add')).toHaveTextContent(/handbagage toevoegen · €\s25,00/i);
 
     await user.click(first.querySelector('.ck-bag-add'));
     expect(first).toHaveTextContent('1 stuk handbagage');
     expect(first).toHaveTextContent(/extra/i);
     expect(first).not.toHaveTextContent(/inbegrepen/i);
-    expect(first.querySelector('.ck-chip-added')).toHaveTextContent('+ €25');
+    expect(first.querySelector('.ck-chip-added')).toHaveTextContent('+ € 25,00');
   });
 
   it('lists only the hold baggage the airline sells, weight left and price right, and totals the pick', async () => {
@@ -191,7 +191,7 @@ describe('baggage on the extras step', () => {
     await user.click(btn);
     expect(btn).toHaveAttribute('aria-expanded', 'true');
     // The dashboard's four rows and nothing else; each one is its weight and its price.
-    expect(menuOf(row).map((o) => o.textContent)).toEqual(['15 kg€25', '20 kg€35', '25 kg€45', '30 kg€55']);
+    expect(menuOf(row).map((o) => o.textContent)).toEqual(['15 kg€ 25,00', '20 kg€ 35,00', '25 kg€ 45,00', '30 kg€ 55,00']);
 
     await user.click(menuOf(row)[1]);
     // Picked: the menu is gone, the row totals the allowance, and the price sits beside the
@@ -201,9 +201,9 @@ describe('baggage on the extras step', () => {
     expect(row).toHaveTextContent('40 kg ruimbagage');
     expect(row.querySelector('.ck-chip-inc')).toHaveTextContent(/^inbegrepen \+ 20 kg extra$/i);
     expect(timesIncluded(row)).toBe(1);
-    expect(row.querySelector('.ck-chip-added')).toHaveTextContent('+ €35');
+    expect(row.querySelector('.ck-chip-added')).toHaveTextContent('+ € 35,00');
     expect(row.querySelector('.ck-bag-remove')).toHaveTextContent(/verwijderen/i);
-    await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€35'));
+    await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€ 35,00'));
 
     // Removing it puts the menu back and takes the line out of the total.
     await user.click(row.querySelector('.ck-bag-remove'));
@@ -225,13 +225,13 @@ describe('baggage on the extras step', () => {
     expect(row).toHaveTextContent(/niet inbegrepen/i);
     expect(row.querySelector('.ck-bagmenu-btn')).toHaveTextContent(/ruimbagage toevoegen/i);
     await user.click(row.querySelector('.ck-bagmenu-btn'));
-    expect(menuOf(row).map((o) => o.textContent)).toEqual(['23 kg€40']);
+    expect(menuOf(row).map((o) => o.textContent)).toEqual(['23 kg€ 40,00']);
 
     await user.click(menuOf(row)[0]);
     expect(row).toHaveTextContent('23 kg ruimbagage');
     expect(row).toHaveTextContent(/extra/i);
     expect(row.querySelector('.ck-chip-inc')).toBeNull();
-    expect(row.querySelector('.ck-chip-added')).toHaveTextContent('+ €40');
+    expect(row.querySelector('.ck-chip-added')).toHaveTextContent('+ € 40,00');
   });
 
   it('keeps a piece allowance in pieces when kilos are added on top', async () => {
@@ -281,7 +281,7 @@ describe('baggage on the extras step', () => {
     await user.keyboard('{Enter}');
     expect(row.querySelector('[role="listbox"]')).toBeNull();
     expect(row).toHaveTextContent('40 kg ruimbagage');
-    expect(row.querySelector('.ck-chip-added')).toHaveTextContent('+ €35');
+    expect(row.querySelector('.ck-chip-added')).toHaveTextContent('+ € 35,00');
   });
 
   it('follows the checked allowance for the cabin bag, even when the airline reports none', async () => {
@@ -325,13 +325,13 @@ describe('baggage on the extras step', () => {
     // indistinguishable otherwise, and the traveller is checking what they are paying for.
     await pickBag(user, rows[1], 20);
     await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toBeTruthy());
-    expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€35');
+    expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€ 35,00');
 
     // A second, DIFFERENT bag is its own line, not merged into a count.
     await pickBag(user, rows[2], 15);
     await waitFor(() => expect(sumRow('ruimbagage 15 kg')).toBeTruthy());
-    expect(sumRow('ruimbagage 15 kg')).toHaveTextContent('€25');
-    expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€35');
+    expect(sumRow('ruimbagage 15 kg')).toHaveTextContent('€ 25,00');
+    expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€ 35,00');
   });
 
   it('keeps the same bag on one line, with a count', async () => {
@@ -345,7 +345,7 @@ describe('baggage on the extras step', () => {
     await pickBag(user, rows[1], 20);
 
     await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('× 2'));
-    expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€70');
+    expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€ 70,00');
   });
 });
 
@@ -369,7 +369,7 @@ describe('the two insurance decisions', () => {
 
     // €4 per traveller per day × 7 days × ONE traveller.
     await waitFor(() => expect(sumRow('travel insurance')).toBeTruthy());
-    expect(sumRow('travel insurance')).toHaveTextContent('€28');
+    expect(sumRow('travel insurance')).toHaveTextContent('€ 28,00');
 
     // "Controleer je boeking" sits between the extras and the payment sheet, so the
     // way out of the extras leads there first.
@@ -405,7 +405,7 @@ describe('cancellation cover and the bags added on top', () => {
     // A 20 kg bag for traveller 1 on the way out: €35 on top of the €600 stay.
     const [row] = [...card('Ruimbagage').querySelectorAll('.ck-bagrow')];
     await pickBag(user, row, 20);
-    await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€35'));
+    await waitFor(() => expect(sumRow('ruimbagage 20 kg')).toHaveTextContent('€ 35,00'));
 
     // Cancellation cover for the party; nobody takes travel cover.
     await user.click([...card('Bescherm je reis').querySelectorAll('.ck-tr')][0]);

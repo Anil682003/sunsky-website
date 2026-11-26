@@ -7,6 +7,7 @@
 // and shows the new price before anyone pays.
 import { useEffect, useRef, useState } from 'react';
 import axiosInstance from '../services/axiosInstance';
+import { moneyDiscount, moneyCompact } from './money';
 
 export const PROMOTION_QUOTE_URL = '/website/promotions/quote';
 
@@ -78,17 +79,12 @@ export function promotionInput({
   };
 }
 
-const EUR = new Intl.NumberFormat('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-
-/** "−€ 123,40": the discount line's amount, always with cents (spec §5 "−€XX.XX"). */
-export const formatDiscount = (amount) => `−€ ${EUR.format(Math.abs(Number(amount) || 0))}`;
+/** "−€ 123,40": the discount line's amount, always with cents (spec §5; utils/money.js notation). */
+export const formatDiscount = (amount) => moneyDiscount(Number(amount) || 0);
 
 /** A total after a discount: whole euros stay whole, a total with cents shows them. */
-export const formatTotal = (amount, { locale = 'nl-BE', symbol = '€' } = {}) => {
-  const n = Math.round((Number(amount) || 0) * 100) / 100;
-  const whole = Number.isInteger(n);
-  return `${symbol}${new Intl.NumberFormat(locale, { minimumFractionDigits: whole ? 0 : 2, maximumFractionDigits: 2 }).format(n)}`;
-};
+export const formatTotal = (amount, { symbol = '€' } = {}) =>
+  moneyCompact(Math.round((Number(amount) || 0) * 100) / 100, { currency: symbol });
 
 /** Round to cents. */
 export const cents = (n) => Math.round((Number(n) || 0) * 100) / 100;

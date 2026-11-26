@@ -5,14 +5,16 @@ import axiosInstance from '../../services/axiosInstance';
 import { bookingTokenFor } from '../../services/bookingAccess';
 import { trackPurchase, readPurchaseContext, clearPurchaseContext } from '../../analytics';
 import { clearDraft } from '../../utils/checkoutDraft';
-import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { sellingEuros } from '../../utils/tripPrice';
+import { moneyFull } from '../../utils/money';
 
 // "2027-01-27" → "27/01/2027".
 const dmy = (iso) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(iso || ''));
   return m ? `${m[3]}/${m[2]}/${m[1]}` : '';
 };
-const euros = (n) => `€${formatEuros(Number(n) || 0, PRICE_KIND.SELLING) ?? '0'}`;
+// Two decimals, the SUNSKY notation (utils/money.js); the amount is the whole euro rounded up as before.
+const euros = (n) => moneyFull(sellingEuros(Number(n) || 0) ?? 0);
 
 /**
  * Redirect-payment return page  (route: /checkout/return)

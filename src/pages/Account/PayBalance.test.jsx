@@ -36,7 +36,7 @@ describe('PayBalance', () => {
   it('says what is due and by when, in the house formats', () => {
     render(<PayBalance booking={BOOKING} />);
     expect(screen.getByText('Balance due by 21/07/2099')).toBeInTheDocument();
-    expect(screen.getByText('€616,04')).toBeInTheDocument();
+    expect(screen.getByText(/^€\s616,04$/)).toBeInTheDocument();
   });
 
   it('an overdue balance says so', () => {
@@ -56,7 +56,7 @@ describe('PayBalance', () => {
     render(<PayBalance booking={BOOKING} onPaid={onPaid} />);
 
     await userEvent.click(screen.getByRole('button', { name: /Pay balance/ }));
-    await userEvent.click(screen.getByRole('button', { name: 'Pay €616,04' }));
+    await userEvent.click(screen.getByRole('button', { name: /^Pay €\s616,04$/ }));
 
     await waitFor(() => expect(onPaid).toHaveBeenCalled());
     expect(post).toHaveBeenNthCalledWith(1, '/website/online-bookings/77/create-payment-intent');
@@ -68,7 +68,7 @@ describe('PayBalance', () => {
     post.mockRejectedValue({ response: { data: { message: 'Nothing is left to pay on this booking', errorCode: 'NOTHING_DUE' } } });
     render(<PayBalance booking={BOOKING} />);
     await userEvent.click(screen.getByRole('button', { name: /Pay balance/ }));
-    await userEvent.click(screen.getByRole('button', { name: 'Pay €616,04' }));
+    await userEvent.click(screen.getByRole('button', { name: /^Pay €\s616,04$/ }));
 
     expect(await screen.findByRole('alert')).toHaveTextContent('Nothing is left to pay on this booking');
     expect(showToast).toHaveBeenCalledWith('Nothing is left to pay on this booking', 'error');

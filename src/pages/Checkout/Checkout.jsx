@@ -27,8 +27,9 @@ import AirlineMark from '../../components/AirlineMark/AirlineMark';
 // Both, and they do different jobs: roundStayTotal rounds a whole package once (rule 10),
 // sellingEuros is the display rounding every SUNSKY price on screen goes through; formatEuros
 // writes it the house way (€1.013, never the US €1,013).
-import { sellingEuros, formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { sellingEuros } from '../../utils/tripPrice';
 import { usePromotionQuote, promotionInput, promotionProduct, formatDiscount, cents } from '../../utils/promotions';
+import { moneyFull } from '../../utils/money';
 import { transferAirport } from './transferAirport';
 import { localCostOfRate } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
@@ -1977,12 +1978,13 @@ function CheckoutContent({ stripe, elements }) {
   // SUNSKY prices are whole euros, rounded UP (spec 2.3). Rounding to the NEAREST euro, as this
   // did, could show less than the amount then charged (€501.40 read as €501); rounding up never
   // does. The exact whole-euro charge itself comes with the API's own rounding.
-  const money = (n) => `${ccy}${formatEuros(n ?? 0, PRICE_KIND.SELLING) ?? '0'}`;
-  // A total a percentage discount gave cents shows them exactly (the server charges to the cent);
-  // a whole-euro total reads as it always did.
+  // Checkout shows every amount with two decimals (Price Display brief, 26 Nov 2026): € 1.211,00.
+  // The amount is unchanged: a selling price is still the whole euro rounded up (sellingEuros).
+  const money = (n) => moneyFull(sellingEuros(n ?? 0) ?? 0, { currency: ccy });
+  // A total a percentage discount gave cents shows them exactly (the server charges to the cent).
   const moneyTotal = (n) => (Math.abs((Number(n) || 0) - Math.round(Number(n) || 0)) < 0.005
     ? money(Math.round(Number(n) || 0))
-    : `${ccy}${new Intl.NumberFormat('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 }).format(Number(n))}`);
+    : moneyFull(Number(n), { currency: ccy }));
   const totalShown = Math.abs(animTotal - total) < 0.01 ? moneyTotal(total) : money(animTotal);
 
   /* ── scroll to top on step change + reveal anims ── */

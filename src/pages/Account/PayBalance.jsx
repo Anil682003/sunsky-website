@@ -7,6 +7,7 @@ import axiosInstance from '../../services/axiosInstance';
 import { useToast } from '../../context/ToastContext';
 import i18n from '../../i18n';
 import styles from './PayBalance.module.css';
+import { moneyFull } from '../../utils/money';
 
 /**
  * "Pay balance" on a deposit booking (My Bookings → booking).
@@ -41,8 +42,8 @@ const STRIPE_STYLE = {
   invalid: { color: '#ef4444', iconColor: '#ef4444' },
 };
 
-// House format whatever the browser: €1.012,60.
-const fmt = (n) => `€${Number(n || 0).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// The SUNSKY price notation, always two decimals here (utils/money.js): € 1.012,60.
+const fmt = (n) => moneyFull(Number(n) || 0);
 // dd/mm/yyyy from the YYYY-MM-DD text, so no time zone can move the day.
 const fmtDmy = (ymd) => {
   const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(String(ymd || ''));

@@ -7,9 +7,10 @@ import { useToast } from '../../context/ToastContext';
 import i18n from '../../i18n';
 import PayBalance from './PayBalance';
 import styles from './BookingDetail.module.css';
+import { moneyFull } from '../../utils/money';
 
-// House format whatever the browser: €1.012,60.
-const fmt = (n) => `€${Number(n || 0).toLocaleString('nl-BE', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
+// The SUNSKY price notation, always two decimals here (utils/money.js): € 1.012,60.
+const fmt = (n) => moneyFull(Number(n) || 0);
 // Dates are read by the browser, so they need the reader's locale rather than a hard-coded en-GB.
 const dateLocale = () => (i18n.language === 'nl' ? 'nl-BE' : 'en-GB');
 const fmtDate = (d) => (d ? new Date(d).toLocaleDateString(dateLocale(), { day: 'numeric', month: 'short', year: 'numeric' }) : '—');
