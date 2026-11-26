@@ -77,7 +77,7 @@ const renderPage = () => render(
 
 const checkFirstDay = async (user) => {
   const days = await waitFor(() => {
-    const f = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const f = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(f.length).toBeGreaterThan(0);
     return f;
   });

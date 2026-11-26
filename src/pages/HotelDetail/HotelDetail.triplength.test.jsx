@@ -70,7 +70,7 @@ const renderPage = () => render(
 );
 
 const stripDays = async () => waitFor(() => {
-  const bars = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+  const bars = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
   expect(bars.length).toBeGreaterThan(0);
   return bars;
 });

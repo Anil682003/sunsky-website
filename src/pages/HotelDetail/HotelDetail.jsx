@@ -12,6 +12,7 @@ import { fetchFavouriteCodes, addFavourite, removeFavourite } from '../../api';
 import { ENDPOINTS } from '../../api/endpoints';
 import { DEFAULT_PRICING, computeDeposit } from '../../utils/checkoutPricing';
 import { usePromotionQuote, promotionInput, formatDiscount, cents } from '../../utils/promotions';
+import { moneyCompact, moneyFull, formatAmount, NBSP } from '../../utils/money';
 import { rememberDestCode } from '../../utils/favDest';
 import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/priceRounding';
 import { NO_MARGINS, fetchMargins, withRoomMargins } from '../../utils/margins';
@@ -1503,9 +1504,9 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
   // fine print, so nothing is hidden and nothing shouts twice.
   if (option) {
     const { perPerson } = option;   // € each, against the flight currently held
-    // Two decimals: a per-head share of a party total is rarely a round number, and
-    // rounding it to €78 would not add up against the package figure printed below it.
-    const money = (n) => Math.abs(n).toLocaleString('en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+    // Compact (Price Display brief): a per-head share keeps its cents when it has them (€ 2,25),
+    // a whole euro shows none (€ 2); never rounded to the euro, so it adds up against the package.
+    const money = (n) => moneyCompact(Math.abs(n));
     return (
       <div className={`flight-card option${selected ? ' selected' : ''}${cheapest && !selected ? ' cheapest' : ''}${expanded ? ' expanded' : ''}`}>
         <div className="fc-split">
@@ -1534,14 +1535,14 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
                 onClick={onSelect}
                 aria-label={perPerson == null || perPerson === 0
                   ? i18n.t('hotelDetail:flightCard.selectThisFlight', 'Select this flight')
-                  : i18n.t('hotelDetail:flightCard.selectThisFlightDelta', { sign: perPerson > 0 ? i18n.t('hotelDetail:flightCard.plus', 'plus') : i18n.t('hotelDetail:flightCard.minus', 'minus'), amount: money(perPerson), defaultValue: `Select this flight, ${perPerson > 0 ? 'plus' : 'minus'} €${money(perPerson)} per person` })}
+                  : i18n.t('hotelDetail:flightCard.selectThisFlightDelta', { sign: perPerson > 0 ? i18n.t('hotelDetail:flightCard.plus', 'plus') : i18n.t('hotelDetail:flightCard.minus', 'minus'), amount: money(perPerson), defaultValue: `Select this flight, ${perPerson > 0 ? 'plus' : 'minus'} ${money(perPerson)} per person` })}
               >
                 {f.delta === 0 && <span className="fc-best">{ICON.spark} {i18n.t('hotelDetail:flightCard.lowestFare', 'Lowest fare')}</span>}
                 {perPerson != null && (
                   <span className={`fc-swing${perPerson === 0 ? ' same' : perPerson > 0 ? ' up' : ' down'}`}>
                     {perPerson === 0
                       ? <b>{i18n.t('hotelDetail:flightCard.samePrice', 'Same price')}</b>
-                      : <b>{perPerson > 0 ? '+' : '−'} €{money(perPerson)}</b>}
+                      : <b>{moneyCompact(perPerson, { sign: true })}</b>}
                   </span>
                 )}
                 <span className="fc-swing-cap">{i18n.t('hotelDetail:flightCard.perPerson', 'per person')}</span>
@@ -1615,7 +1616,7 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
         </button>
         <div className="bp-buy">
           <div className="bp-price">
-            {f.price != null && <b className="live-price">€{f.price.toLocaleString('en-GB')}</b>}
+            {f.price != null && <b className="live-price">{moneyCompact(f.price)}</b>}
             {/* WHO the figure covers. A fare this size is read as per person by anyone who
                 doesn't ask, and being wrong about that on the way into a checkout is the
                 expensive kind of wrong. */}
@@ -1625,7 +1626,7 @@ function FlightCard({ f, selected, cheapest, banner, option, onSelect, onChange,
                 the traveller is actually deciding on. `delta === 0` is the cheapest itself.
                 Suppressed under a banner, which already names the fare in words. */}
             {!banner && f.delta === 0 && <span className="bp-delta bp-delta-best">{ICON.spark} {i18n.t('hotelDetail:flightCard.lowestFare', 'Lowest fare')}</span>}
-            {f.delta > 0 && <span className="bp-delta">+€{Math.round(f.delta).toLocaleString('en-GB')}</span>}
+            {f.delta > 0 && <span className="bp-delta">{moneyCompact(Math.round(f.delta), { sign: true })}</span>}
           </div>
           <span className="flight-incl">{ICON.check} {i18n.t('hotelDetail:flightCard.allInFare', 'All-in fare')}</span>
           {selected
@@ -1796,6 +1797,12 @@ export default function HotelDetail() {
     : '';
   const currency = hotel?.currency || '€';
   const ccy = currency === 'EUR' ? '€' : currency;
+  // The SUNSKY price notation (utils/money.js, Price Display brief): compact on the headline,
+  // chips, calendar, date strip, flight and room options (€ 647 / € 647,50); full, always two
+  // decimals, in the overview breakdown and the live confirmation's totals (€ 2.587,00).
+  // Formatting only: the amounts are what they were.
+  const pc = (n, opts) => moneyCompact(n, { currency: ccy, ...opts });
+  const pf = (n, opts) => moneyFull(n, { currency: ccy, ...opts });
   // ── the "Compare the lowest prices" bar edits the search IN PLACE ───────────
   // Every field starts at what the traveller searched (router state → URL param) and
   // an entry in `ovr` overrides it. Keeping the override separate means an untouched
@@ -3011,7 +3018,7 @@ export default function HotelDetail() {
   const shareText = [
     `${hotelName} — ${locLabel}`,
     shareMeta,
-    shareFrom != null ? `from ${ccy}${shareFrom} p.p.` : '',
+    shareFrom != null ? `from ${pc(shareFrom)} p.p.` : '',
   ].filter(Boolean).join('\n');
 
   // Live rates as "room type → its board options". Selection still addresses the flat
@@ -3210,7 +3217,7 @@ export default function HotelDetail() {
     return [
       { id: '', label: boardPrefLabel('', 'No preference') },
       ...offered.filter((b) => b.price != null)
-        .map((b) => ({ id: b.id, label: boardPrefLabel(b.id, b.label), note: t('stayBar.fromPrice', { ccy, amount: roundHotelStay(b.price, roomsCount), defaultValue: `from ${ccy}${roundHotelStay(b.price, roomsCount)}` }) })),
+        .map((b) => ({ id: b.id, label: boardPrefLabel(b.id, b.label), note: t('stayBar.fromPrice', { amount: moneyCompact(roundHotelStay(b.price, roomsCount), { currency: ccy }), defaultValue: `from ${moneyCompact(roundHotelStay(b.price, roomsCount), { currency: ccy })}` }) })),
       // A board the traveller has chosen that these dates don't offer stays visible and
       // labelled, so the list never silently drops the option they are looking at.
       ...offered.filter((b) => b.price == null && b.id === boardPref)
@@ -3639,7 +3646,6 @@ export default function HotelDetail() {
     ? ovPromoQuote.applied : null;
   const ovTotal = ovBase != null ? cents(ovBase - (ovPromo ? ovPromo.amount : 0)) : null;
   // A total with cents (a percentage discount) shows them; whole euros stay as they always were.
-  const fmtTotal = (n) => Number(n).toLocaleString('en-GB', { minimumFractionDigits: Number.isInteger(n) ? 0 : 2, maximumFractionDigits: 2 });
   // The deposit the checkout will ask for on this total, under the same rule and the same
   // arithmetic (utils/checkoutPricing mirrors the server). Null when deposits are off or the
   // rule yields none, and then the overview says nothing about a split rather than guess one.
@@ -4386,7 +4392,7 @@ export default function HotelDetail() {
   // line inside the card when that choice no longer fits; no price gap is quoted beside it.
   const renderHeldFlight = (f, { explicit, isCheapest, notice = null, canChange = false }) => {
     const gap = !notice && isCheapest === false && cheapestFare != null && Number(f?.totalPrice) > cheapestFare
-      ? Math.round(f.totalPrice - cheapestFare).toLocaleString('en-GB')
+      ? pc(Math.round(f.totalPrice - cheapestFare))
       : null;
     const count = liveFlights?.flights?.length || 0;
     return (
@@ -4400,7 +4406,7 @@ export default function HotelDetail() {
             : isCheapest === false ? t('flights.banner.pickedOverCheapest', 'You picked this one over the cheapest fare.')
               : t('flights.banner.pickedByYou', 'You chose this flight yourself.'),
           note: gap == null ? null
-            : t('flights.banner.moreThanCheapest', { amount: gap, defaultValue: `€${gap} more than the cheapest option for these dates.` }),
+            : t('flights.banner.moreThanCheapest', { amount: gap, defaultValue: `${gap} more than the cheapest option for these dates.` }),
         }}
         onSelect={() => {}}
         {...(canChange && count > 0 ? {
@@ -4492,7 +4498,7 @@ export default function HotelDetail() {
                 {shownBoard && <span className="sd-chip">{ICON.board} {shownBoard}</span>}
                 <span className="sd-chip">{ICON.moon} {tripDayLabel}</span>
                 <span className="sd-chip">{ICON.users} {t('chips.adults', { count: Number(sAdults) || 2, defaultValue: `${Number(sAdults) || 2} adult${(Number(sAdults) || 2) > 1 ? 's' : ''}` })}{Number(sChildren) > 0 ? t('chips.childrenSuffix', { count: Number(sChildren), defaultValue: `, ${sChildren} child${Number(sChildren) > 1 ? 'ren' : ''}` }) : ''}</span>
-                {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} {t('chips.fromPP', { currency: ccy, amount: fromPP, defaultValue: `from ${ccy}${fromPP} p.p.` })}</span>}
+                {fromPP != null && <span className="sd-chip sd-chip-price">{ICON.tag} {t('chips.fromPP', { amount: pc(fromPP), defaultValue: `from ${pc(fromPP)} p.p.` })}</span>}
               </div>
               <div className="sd-hero-trust">
                 <span className="sd-hc-item">{ICON.check} {t('trust.securePayment', 'Secure online payment')}</span>
@@ -4821,8 +4827,8 @@ export default function HotelDetail() {
                           aria-label={(isEmpty ? (notForSelection
                               ? t('prices.dayNotForSelection', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available for your selection` })
                               : t('prices.dayNotAvailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, not available` }))
-                            : liveHere ? t('prices.dayLivePriceLabel', { day: p.day, date: p.date, currency: ccy, amount: nowPP, moveNote: ppMoved != null ? t('prices.dayMoveNote', { currency: ccy, delta: Math.abs(ppMoved), direction: ppMoved < 0 ? t('prices.lower', 'lower') : t('prices.higher', 'higher'), wasAmount: wasPP, defaultValue: `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` }) : '', nights: cellDayLabel(p), defaultValue: `${p.day} ${p.date}, live price ${ccy}${nowPP} per person${ppMoved != null ? `, ${ccy}${Math.abs(ppMoved)} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${ccy}${wasPP}` : ''}, ${cellDayLabel(p)}` })
-                            : hasPrice ? t('prices.dayFromPriceLabel', { day: p.day, date: p.date, currency: ccy, amount: pp, nights: cellDayLabel(p), defaultValue: `${p.day} ${p.date}, from ${ccy}${pp} per person, ${cellDayLabel(p)}` })
+                            : liveHere ? t('prices.dayLivePriceLabel', { day: p.day, date: p.date, amount: pc(nowPP), moveNote: ppMoved != null ? t('prices.dayMoveNote', { delta: pc(Math.abs(ppMoved)), direction: ppMoved < 0 ? t('prices.lower', 'lower') : t('prices.higher', 'higher'), wasAmount: pc(wasPP), defaultValue: `, ${pc(Math.abs(ppMoved))} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${pc(wasPP)}` }) : '', nights: cellDayLabel(p), defaultValue: `${p.day} ${p.date}, live price ${pc(nowPP)} per person${ppMoved != null ? `, ${pc(Math.abs(ppMoved))} ${ppMoved < 0 ? 'lower' : 'higher'} than the earlier price of ${pc(wasPP)}` : ''}, ${cellDayLabel(p)}` })
+                            : hasPrice ? t('prices.dayFromPriceLabel', { day: p.day, date: p.date, amount: pc(pp), nights: cellDayLabel(p), defaultValue: `${p.day} ${p.date}, from ${pc(pp)} per person, ${cellDayLabel(p)}` })
                             : priceFailed ? t('prices.dayPriceUnavailable', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, price temporarily unavailable` })
                             : p.state === 'PRICE_UNKNOWN' ? `${p.day} ${p.date}, ${t('actions.checkPriceAvailability', 'Check price & availability')}`
                             : t('prices.dayCheckLivePrice', { day: p.day, date: p.date, defaultValue: `${p.day} ${p.date}, check live price` }))
@@ -4837,7 +4843,7 @@ export default function HotelDetail() {
                             {liveHere && ppMoved != null ? (
                               <span className={`fc-movetag${ppMoved < 0 ? ' down' : ' up'}`}>
                                 {ppMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
-                                {ccy}{Math.abs(ppMoved)}
+                                {pc(Math.abs(ppMoved))}
                                 {/* Dropped on a phone, where a column is 78px wide and the
                                     whole pill will not fit inside one. The arrow already
                                     carries the direction; the card below spells it out in
@@ -4865,15 +4871,15 @@ export default function HotelDetail() {
                                         quoting a starting price any more. Dropping the label is
                                         also what buys the two extra rows their space without
                                         putting a floor under the bar and flattening the chart. */}
-                                    {ppMoved != null && <span className="fc-was">{ccy}{wasPP}</span>}
-                                    <span className="fc-amt fc-amt-live">{ccy}{nowPP}</span>
+                                    {ppMoved != null && <span className="fc-was">{pc(wasPP)}</span>}
+                                    <span className="fc-amt fc-amt-live">{pc(nowPP)}</span>
                                     <span className="fc-livetag">{t('prices.livePrice', 'Live price')}</span>
                                     <span className="fc-nts">{cellDayLabel(p)}</span>
                                   </>
                                 ) : hasPrice ? (
                                   <>
                                     <span className="fc-from">{t('prices.from', 'from')}</span>
-                                    <span className="fc-amt">{ccy}{pp}</span>
+                                    <span className="fc-amt">{pc(pp)}</span>
                                     <span className="fc-pp">p.p.</span>
                                     <span className="fc-nts">{cellDayLabel(p)}</span>
                                   </>
@@ -5038,7 +5044,7 @@ export default function HotelDetail() {
                                   {liveBusy
                                     ? <span className="avail-spin" />
                                     : (boxNow != null || pdEstimate)
-                                      ? <><small>€</small>{ppOf(boxNow != null ? boxNow : Number(pd.price))}<em>p.p.</em></>
+                                      ? <><small>{ccy}</small>{NBSP}{formatAmount(ppOf(boxNow != null ? boxNow : Number(pd.price)), 'compact')}<em>p.p.</em></>
                                       : <span className="avail-price-none">—</span>}
                                 </span>
                               </div>
@@ -5049,7 +5055,7 @@ export default function HotelDetail() {
                               {boxPPMoved != null && (
                                 <div className={`avail-move${boxPPMoved < 0 ? ' down' : ' up'}`}>
                                   {boxPPMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
-                                  <span><b>€{Math.abs(boxPPMoved)} p.p.</b> {boxPPMoved < 0 ? t('prices.lowerAfterCheck', 'lower after live check') : t('prices.higherAfterCheck', 'higher after live check')}</span>
+                                  <span><b>{pc(Math.abs(boxPPMoved))} p.p.</b> {boxPPMoved < 0 ? t('prices.lowerAfterCheck', 'lower after live check') : t('prices.higherAfterCheck', 'higher after live check')}</span>
                                 </div>
                               )}
                               {(liveRoom || pdEstimate) && (() => {
@@ -5081,8 +5087,8 @@ export default function HotelDetail() {
                                       {/* The estimate stays on screen struck through: the traveller
                                           chose this day off that number and is owed an account of
                                           where it went. */}
-                                      {boxMoved != null && <span className="avail-price-old">€{cacheWas}</span>}
-                                      <b>€{(boxNow != null ? boxNow : Number(pd.price)).toLocaleString('en-GB')}</b>
+                                      {boxMoved != null && <span className="avail-price-old">{pf(cacheWas)}</span>}
+                                      <b>{pf(boxNow != null ? boxNow : Number(pd.price))}</b>
                                     </span>
                                   </div>
                                 );
@@ -5322,9 +5328,9 @@ export default function HotelDetail() {
                                   <span className="alt-chip-name">{airportName(alt.code)}</span>
                                   <span className="alt-chip-code">{alt.code}</span>
                                   <span className={`alt-chip-delta${delta != null && delta < 0 ? ' down' : ''}`}>
-                                    {delta == null ? t('flights.ppPrice', { currency: ccy, amount: alt.perPax, defaultValue: `${ccy}${alt.perPax} p.p.` })
+                                    {delta == null ? t('flights.ppPrice', { amount: pc(alt.perPax), defaultValue: `${pc(alt.perPax)} p.p.` })
                                       : delta === 0 ? t('flights.samePricePP', 'same price p.p.')
-                                      : t('flights.deltaPP', { sign: delta > 0 ? '+' : '−', currency: ccy, amount: Math.abs(delta), defaultValue: `${delta > 0 ? '+' : '−'} ${ccy}${Math.abs(delta)} p.p.` })}
+                                      : t('flights.deltaPP', { amount: pc(delta, { sign: true }), defaultValue: `${pc(delta, { sign: true })} p.p.` })}
                                   </span>
                                 </button>
                               );
@@ -5363,7 +5369,7 @@ export default function HotelDetail() {
                                 onClick={() => applyAlternative(alt.code)}>
                                 <span className="alt-chip-name">{airportName(alt.code)}</span>
                                 <span className="alt-chip-code">{alt.code}</span>
-                                <span className="alt-chip-price">{t('flights.fromPP', { currency: ccy, amount: alt.perPax, defaultValue: `from ${ccy}${alt.perPax} p.p.` })}</span>
+                                <span className="alt-chip-price">{t('flights.fromPP', { amount: pc(alt.perPax), defaultValue: `from ${pc(alt.perPax)} p.p.` })}</span>
                               </button>
                             ))}
                           </div>
@@ -5623,7 +5629,7 @@ export default function HotelDetail() {
                                     </button>
                                   ) : perPerson == null ? (
                                     <div className="room-price-pill">
-                                      {ccy}{rowTotal.toLocaleString('en-GB')}
+                                      {pc(rowTotal)}
                                     </div>
                                   ) : perPerson === 0 ? (
                                     <div className="room-delta-vs">{t('common:offer.samePrice', 'Same price')}</div>
@@ -5632,7 +5638,7 @@ export default function HotelDetail() {
                                        offer.diffUp / offer.diffDown: those strings assume euros and
                                        a hotel priced in another currency would be mislabelled. */
                                     <div className={`room-delta-pill${diff < 0 ? ' cheaper' : ''}`}>
-                                      {diff < 0 ? '−' : '+'}{ccy}{perPerson.toLocaleString('en-GB')}
+                                      {pc(diff < 0 ? -Math.abs(perPerson) : Math.abs(perPerson), { sign: true })}
                                       <em>p.p.</em>
                                     </div>
                                   )}
@@ -5804,7 +5810,7 @@ export default function HotelDetail() {
                             <FilterHint text={t('overview.pricePerPersonHint', 'The price of this holiday per traveller, including taxes and airline fees.')} />
                           </span>
                           <span className="overview-leader" />
-                          <span className="overview-row-val overview-row-val-plain">{ccy} {Math.round(ovBase / ovPax).toLocaleString('en-GB')} p.p.</span>
+                          <span className="overview-row-val overview-row-val-plain">{pf(Math.round(ovBase / ovPax))} p.p.</span>
                         </div>
                         <div className="overview-row overview-row-tight">
                           <span className="overview-row-label">{t('overview.travellersCount', 'Number of travellers')}</span>
@@ -5814,7 +5820,7 @@ export default function HotelDetail() {
                         <div className="overview-row overview-row-tight">
                           <span className="overview-row-label">{t('overview.tripPrice', 'Trip price')}</span>
                           <span className="overview-leader" />
-                          <span className="overview-row-val overview-row-val-plain">{ccy} {ovBase.toLocaleString('en-GB')}</span>
+                          <span className="overview-row-val overview-row-val-plain">{pf(ovBase)}</span>
                         </div>
                         {ovPromo && (
                           <div className="overview-row overview-row-tight overview-row-promo" data-testid="promotion-line">
@@ -5882,7 +5888,7 @@ export default function HotelDetail() {
                     </span>
                     <span className="overview-total-val">
                       {ovTotal != null
-                        ? `${ccy}${fmtTotal(ovTotal)}`
+                        ? pf(ovTotal)
                         : '—'}
                     </span>
                   </div>
@@ -5903,7 +5909,7 @@ export default function HotelDetail() {
                           </b>
                           <em>{t('overview.depositSub', 'When completing your booking')}</em>
                         </span>
-                        <span className="overview-row-val overview-row-val-plain">{ccy} {ovDeposit.amount.toLocaleString('en-GB')}</span>
+                        <span className="overview-row-val overview-row-val-plain">{pf(ovDeposit.amount)}</span>
                       </div>
                       <div className="overview-row overview-row-pay">
                         <span className="overview-row-label overview-row-label-stack">
@@ -5915,7 +5921,7 @@ export default function HotelDetail() {
                             ? t('overview.balanceDueBy', { date: ovDueDate, defaultValue: 'Payable by {{date}}' })
                             : t('overview.balanceSub', 'Payable under the payment terms')}</em>
                         </span>
-                        <span className="overview-row-val overview-row-val-plain">{ccy} {ovDeposit.balance.toLocaleString('en-GB')}</span>
+                        <span className="overview-row-val overview-row-val-plain">{pf(ovDeposit.balance)}</span>
                       </div>
                     </div>
                   )}
@@ -6606,11 +6612,11 @@ export default function HotelDetail() {
       <div className="mbar">
         <div className="mbi">
           <div className="mbp"><small>{liveTotal != null ? t('sidebar.liveTotal', 'live total') : fromPP != null ? t('sidebar.perPersonFrom', 'per person from') : t('sidebar.noPriceYet', 'no price yet')}</small>{liveTotal != null
-            ? `${ccy}${fmtTotal(ovTotal ?? liveTotal)}` : fromPP != null ? `${ccy}${fromPP}` : '—'}
+            ? pf(ovTotal ?? liveTotal) : fromPP != null ? pc(fromPP) : '—'}
             {/* The deposit, when the live total can be paid with one: the smaller number a
                 traveller weighing the trip on a phone most wants to see. */}
             {liveTotal != null && ovDeposit && (
-              <span className="mbp-dep">{t('sidebar.orDeposit', { amount: `${ccy}${ovDeposit.amount.toLocaleString('en-GB')}`, defaultValue: 'or {{amount}} deposit' })}</span>
+              <span className="mbp-dep">{t('sidebar.orDeposit', { amount: pf(ovDeposit.amount), defaultValue: 'or {{amount}} deposit' })}</span>
             )}
           </div>
           <button className="mbc" onClick={goCheckout} disabled={flightsChecking || dayUnavailable}>

@@ -86,7 +86,7 @@ const roomsRow = (container) => [...container.querySelectorAll('.overview-trip-r
 // Pick the first priced day in the strip and run the live check.
 const checkFirstDay = async (user) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
@@ -175,8 +175,8 @@ describe('the availability card spells the trip out', () => {
 
     // Opens on the cheapest rate.
     await waitFor(() => expect(stayRow()).toHaveTextContent('All inclusive'));
-    expect(quoted()).toBe('€192p.p.');
-    expect(container.querySelector('.av-price-total').textContent).toContain('€384');
+    expect(quoted()).toBe('€\u00A0192p.p.');
+    expect(container.querySelector('.av-price-total').textContent).toContain('€\u00A0384,00');
 
     // Upgrading to half board re-prices the card AND renames the board with it — the recap
     // is a statement about the rate that is selected, so the two can never disagree.
@@ -189,8 +189,8 @@ describe('the availability card spells the trip out', () => {
 
     await waitFor(() => expect(stayRow()).toHaveTextContent('Halfpension'));
     expect(stayRow()).not.toHaveTextContent('All inclusive');
-    expect(quoted()).toBe('€221p.p.');
-    expect(container.querySelector('.av-price-total').textContent).toContain('€441');
+    expect(quoted()).toBe('€\u00A0221p.p.');
+    expect(container.querySelector('.av-price-total').textContent).toContain('€\u00A0441,00');
   });
 
   it('quotes the board of the rate it quotes the price of', async () => {

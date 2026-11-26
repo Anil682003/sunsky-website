@@ -140,7 +140,7 @@ const renderPage = ({ transport = 'package' } = {}) => render(
 /** Pick the first priced day in the strip and run the live check. */
 const runCheck = async (user) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
@@ -341,9 +341,9 @@ describe('a room that came back without a rate', () => {
 
     // Clicking it changes nothing: the card still quotes the priced room.
     await user.click(row);
-    expect(container.querySelector('.av-price-total').textContent).toContain('€1,180');
+    expect(container.querySelector('.av-price-total').textContent).toContain('€ 1.180');
     expect(container.querySelector('.room-option.selected').textContent).not.toMatch(/prijs controleren/i);
-    expect(screen.queryByText(/€\s?0\b/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/€\s0\b/)).not.toBeInTheDocument();
   });
 
   it('keeps every room on the list when none came back with a rate, and nothing is sold out', async () => {

@@ -11,6 +11,8 @@
  * fails. They mirror the server's own defaults — if you change one, change both.
  */
 
+import { moneyFull } from './money';
+
 export const DEFAULT_PRICING = {
   insurance: {
     cancellation: { id: 'cancel', enabled: true, provider: 'Allianz', label: 'Allianz cancellation insurance', description: 'Cancellation insurance for all travellers', mode: 'percent', value: 6, scope: 'party' },
@@ -69,14 +71,14 @@ export const priceInsurance = (option, { pax = 1, nights = 1, baseSubtotal = 0 }
   }
 };
 
-/** How an option's price reads under its name: "€4.00 per traveller per day", "6% of your trip". */
+/** How an option's price reads under its name: "€ 4,00 per traveller per day", "6% of your trip". */
 export const priceBasisLabel = (option, ccy = '€') => {
   if (!option) return '';
   const v = Number(option.value) || 0;
   switch (option.mode) {
-    case 'perPersonPerDay': return `${ccy}${v.toFixed(2)} per traveller, per day`;
-    case 'perPerson':       return `${ccy}${v.toFixed(2)} per traveller`;
-    case 'fixed':           return `${ccy}${Math.round(v)} for the whole booking`;
+    case 'perPersonPerDay': return `${moneyFull(v, { currency: ccy })} per traveller, per day`;
+    case 'perPerson':       return `${moneyFull(v, { currency: ccy })} per traveller`;
+    case 'fixed':           return `${moneyFull(Math.round(v), { currency: ccy })} for the whole booking`;
     case 'percent':
     default:                return `${v}% of your trip`;
   }

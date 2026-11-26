@@ -121,7 +121,7 @@ const renderPage = (extra = '') => render(
 // Price a day, which is what sends both the room and the flight search.
 const runCheck = async (user) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
@@ -175,7 +175,7 @@ describe('the change-flight modal lists flights, not fare classes', () => {
     // is +€19.00 each for two adults. Had the dedupe kept the €1,120 twin it would read
     // +€15.00, so this asserts the cheapest of the collapsed group is the one held.
     expect(modalCards(container)[0].textContent).toContain('17:40');
-    expect(modalCards(container)[1].querySelector('.fc-swing').textContent).toContain('19.00');
+    expect(modalCards(container)[1].querySelector('.fc-swing').textContent).toContain('€ 19');
   });
 
   it('counts the real options in the "Choose another flight" control', async () => {
@@ -260,7 +260,7 @@ describe('a card says what switching to it costs, and offers the switch', () => 
     const [held, alt] = modalCards(container);
     // €1,112 held, €1,150 alternative — €38 the party, two adults.
     expect(held.querySelector('.fc-swing')).toBeNull();      // it is the one you have
-    expect(alt.querySelector('.fc-swing').textContent).toContain('19.00');
+    expect(alt.querySelector('.fc-swing').textContent).toContain('€ 19');
     expect(alt.querySelector('.fc-swing').className).toContain('up');
     expect(alt.querySelector('.fc-swing-cap').textContent).toMatch(/per persoon/i);
   });
@@ -279,7 +279,7 @@ describe('a card says what switching to it costs, and offers the switch', () => 
       // The dearer flight is now the baseline, so the cheaper one is a SAVING, not a cost.
       expect(heldCard(container).querySelector('.fc-pick')).toBeNull();
       expect(cheaper.querySelector('.fc-swing').className).toContain('down');
-      expect(cheaper.querySelector('.fc-swing').textContent).toContain('19.00');
+      expect(cheaper.querySelector('.fc-swing').textContent).toContain('€ 19');
     });
   });
 

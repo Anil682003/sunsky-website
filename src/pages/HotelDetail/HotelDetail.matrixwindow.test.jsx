@@ -129,13 +129,13 @@ const renderPage = () => (window.history.replaceState(null, '', ENTRY), render(
 ));
 
 /** The strip's dates in order, read back from the per-person price each bar prints. */
-const stripDates = () => screen.getAllByRole('button', { name: /vanaf €\d+/i })
-  .map((b) => iso((Number(/vanaf €(\d+)/i.exec(b.getAttribute('aria-label'))[1]) - 500) / 10));
-const barOn = (date) => screen.getAllByRole('button', { name: /vanaf €\d+/i })
-  .find((b) => new RegExp(`vanaf €${ppOn(date)}\\b`).test(b.getAttribute('aria-label')));
+const stripDates = () => screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i })
+  .map((b) => iso((Number(/vanaf €\s([\d.]+)/i.exec(b.getAttribute('aria-label'))[1]) - 500) / 10));
+const barOn = (date) => screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i })
+  .find((b) => new RegExp(`vanaf €\\s${ppOn(date)}\\b`).test(b.getAttribute('aria-label')));
 const pressed = () => {
-  const b = screen.getAllByRole('button', { name: /vanaf €\d+/i }).find((x) => x.getAttribute('aria-pressed') === 'true');
-  return b ? iso((Number(/vanaf €(\d+)/i.exec(b.getAttribute('aria-label'))[1]) - 500) / 10) : null;
+  const b = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i }).find((x) => x.getAttribute('aria-pressed') === 'true');
+  return b ? iso((Number(/vanaf €\s([\d.]+)/i.exec(b.getAttribute('aria-label'))[1]) - 500) / 10) : null;
 };
 const around = (date) => [-3, -2, -1, 0, 1, 2, 3].map((d) => addDays(date, d));
 
@@ -210,7 +210,7 @@ describe('clicking a matrix date moves the window with it and keeps the mode (Ch
     await waitFor(() => expect(stripDates()).toEqual(around(START)));
     // The week leaves from two airports, so each column names its own (UI-03), in its
     // aria-label as well, since that replaces the button's inner text for a screen reader.
-    const airportsOnStrip = () => screen.getAllByRole('button', { name: /vanaf €\d+/i })
+    const airportsOnStrip = () => screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i })
       .map((b) => (/vertrek vanaf ([A-Z]{3})/.exec(b.getAttribute('aria-label')) || [])[1] || null);
     await waitFor(() => expect(airportsOnStrip()).toEqual(around(START).map(fromOn)));
 

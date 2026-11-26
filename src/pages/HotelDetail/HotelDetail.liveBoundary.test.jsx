@@ -110,7 +110,7 @@ const renderPage = (extra = '') => {
 /** The page is "settled" once the cache-fed price strip has painted. */
 const settled = async () => {
   await waitFor(() => {
-    expect(screen.getAllByRole('button', { name: /vanaf €\d+/i }).length).toBeGreaterThan(0);
+    expect(screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i }).length).toBeGreaterThan(0);
   });
   // Give any effect that was going to fire a chance to fire, so "nothing happened" means it.
   await new Promise((r) => { setTimeout(r, 250); });
@@ -140,7 +140,7 @@ describe('no supplier is called before the traveller asks', () => {
     renderPage();
     await settled();
 
-    const days = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const days = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     await user.click(days[0]);
     if (days[1]) await user.click(days[1]);
     await new Promise((r) => { setTimeout(r, 250); });
@@ -156,7 +156,7 @@ describe('no supplier is called before the traveller asks', () => {
     await settled();
     expect(livePosts()).toHaveLength(0);
 
-    await user.click(screen.getAllByRole('button', { name: /vanaf €\d+/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i })[0]);
     await user.click(await checkButton());
 
     await waitFor(() => expect(livePosts().length).toBeGreaterThan(0));

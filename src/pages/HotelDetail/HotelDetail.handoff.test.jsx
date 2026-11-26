@@ -152,8 +152,8 @@ const postsTo = (part) => post.mock.calls.filter(([u]) => String(u).includes(par
 // `pick`: Flight + Hotel needs the traveller to PICK the date on the strip first (Levent, 17 Nov
 // 2026); the card's own package is the first priced date.
 const checkLive = async (user, { pick = false } = {}) => {
-  await waitFor(() => expect(screen.getAllByRole('button', { name: /vanaf €\d+/i }).length).toBeGreaterThan(0));
-  if (pick) await user.click(screen.getAllByRole('button', { name: /vanaf €\d+/i })[0]);
+  await waitFor(() => expect(screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i }).length).toBeGreaterThan(0));
+  if (pick) await user.click(screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i })[0]);
   await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
   await waitFor(() => expect(postsTo('hotel-availability').length).toBeGreaterThan(0));
 };
@@ -188,8 +188,8 @@ describe('Flight + Hotel: the card opens the hotel page on its own package and t
     });
     // The winner's date is the one selected, at the price the card showed (EUR 700 p.p.).
     await waitFor(() => {
-      const sel = screen.getAllByRole('button', { name: /vanaf €\d+/i }).find((b) => b.getAttribute('aria-pressed') === 'true');
-      expect(sel?.getAttribute('aria-label')).toMatch(/vanaf €700\b/);
+      const sel = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i }).find((b) => b.getAttribute('aria-pressed') === 'true');
+      expect(sel?.getAttribute('aria-label')).toMatch(/vanaf €\s700\b/);
     });
   });
 

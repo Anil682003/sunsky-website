@@ -75,7 +75,7 @@ const renderPage = () => render(
 
 const checkFirstDay = async (user) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
@@ -94,19 +94,19 @@ describe('the matrix is priced per person', () => {
   it('divides the cached party total by the party and says so on the bar', async () => {
     renderPage();
     const days = await waitFor(() => {
-      const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+      const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
       expect(found.length).toBeGreaterThan(0);
       return found;
     });
     // Day 1 of the mock is a €430 party total for 2 adults → €215 each; day 2 is €609 → €305
     // (304.5, rounded). Whole euros on the strip: a bar is a few characters wide.
-    expect(days[0]).toHaveAccessibleName(/vanaf €215 per persoon/i);
-    expect(days[1]).toHaveAccessibleName(/vanaf €305 per persoon/i);
+    expect(days[0]).toHaveAccessibleName(/vanaf €\s215 per persoon/i);
+    expect(days[1]).toHaveAccessibleName(/vanaf €\s305 per persoon/i);
   });
 
   it('states the basis above the chart', async () => {
     renderPage();
-    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     // The client's wording (Nov 2026): indicative prices, checked live on the chosen date.
     const note = screen.getByText(/vanafprijzen per persoon/i).closest('.fc-estimate');
     expect(note).toHaveTextContent(/de getoonde prijzen zijn indicatief en kunnen wijzigen/i);
@@ -115,7 +115,7 @@ describe('the matrix is priced per person', () => {
 
   it('names the four colours of the strip, and nothing else (client design, Nov 2026)', async () => {
     const { container } = renderPage();
-    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     const labels = [...container.querySelectorAll('.fc-legend-item')].map((el) => el.textContent.trim());
     expect(labels).toEqual(['Prijs controleren', 'Laagste prijs', 'Geselecteerde datum', 'Niet beschikbaar']);
     expect(container.querySelector('.fc-legend-title')).toBeNull();
@@ -145,9 +145,9 @@ describe('the live price came back LOWER', () => {
     await priced(container);
 
     // €384 for 2 adults → €192 each, the figure the card leads with.
-    expect(container.querySelector('.avail-price-val').textContent).toBe('€192p.p.');
-    expect(container.querySelector('.av-price-total').textContent).toContain(`€${LIVE_TOTAL}`);
-    expect(container.querySelector('.avail-price-old').textContent).toBe('€430');
+    expect(container.querySelector('.avail-price-val').textContent).toBe('€\u00A0192p.p.');
+    expect(container.querySelector('.av-price-total').textContent).toContain(`€\u00A0${LIVE_TOTAL},00`);
+    expect(container.querySelector('.avail-price-old').textContent).toBe('€\u00A0430,00');
   });
 
   it('names the difference in green, and the arithmetic adds up on screen', async () => {
@@ -161,7 +161,7 @@ describe('the live price came back LOWER', () => {
     expect(move.className).toContain('down');
     expect(move.className).not.toContain('up');
     // Stated on the card's own basis: €215 each was estimated, €192 each came back.
-    expect(move.textContent).toMatch(/€23 p\.p\. lager na live controle/i);
+    expect(move.textContent).toMatch(/€\s23 p\.p\. lager na live controle/i);
   });
 
   it('shows one traveller\'s share of the LIVE total, not of the estimate', async () => {
@@ -184,9 +184,9 @@ describe('the live price came back HIGHER', () => {
     await checkFirstDay(user);
     await priced(container);
 
-    expect(container.querySelector('.avail-price-val').textContent).toBe('€192p.p.');
-    expect(container.querySelector('.av-price-total').textContent).toContain(`€${LIVE_TOTAL}`);
-    expect(container.querySelector('.avail-price-old').textContent).toBe('€346');
+    expect(container.querySelector('.avail-price-val').textContent).toBe('€\u00A0192p.p.');
+    expect(container.querySelector('.av-price-total').textContent).toContain(`€\u00A0${LIVE_TOTAL},00`);
+    expect(container.querySelector('.avail-price-old').textContent).toBe('€\u00A0346,00');
   });
 
   it('reports the rise in AMBER, never red', async () => {
@@ -199,7 +199,7 @@ describe('the live price came back HIGHER', () => {
     expect(move.className).toContain('up');
     // €173 each estimated, €192 each live: the card reports its own basis, not the €38
     // difference between the party totals.
-    expect(move.textContent).toMatch(/€19 p\.p\. hoger na live controle/i);
+    expect(move.textContent).toMatch(/€\s19 p\.p\. hoger na live controle/i);
     // The amber treatment is the `up` modifier; nothing here may borrow the page's
     // unavailable-day styling.
     expect(move.className).not.toMatch(/danger|error|red|unavail/i);
@@ -249,12 +249,12 @@ describe('basis is never crossed', () => {
       expect(el).toBeTruthy();
       return el;
     });
-    expect(tag.textContent).toMatch(/€23 lager/i);
+    expect(tag.textContent).toMatch(/€\s23 lager/i);
     expect(tag.textContent).not.toMatch(/46/);
 
     // And the bar itself carries the two per-person figures, not the totals.
-    expect(container.querySelector('.fc-was').textContent).toBe('€215');
-    expect(container.querySelector('.fc-amt-live').textContent).toBe('€192');
+    expect(container.querySelector('.fc-was').textContent).toBe('€\u00A0215');
+    expect(container.querySelector('.fc-amt-live').textContent).toBe('€\u00A0192');
   });
 
   it('compares per-person against per-person on the card too', async () => {
@@ -267,12 +267,12 @@ describe('basis is never crossed', () => {
     // €215 each → €192 each, €23. Quoting €46 beside a €192 headline would be the same
     // basis-crossing bug in the other direction.
     expect(container.querySelector('.avail-price-val').textContent).toContain('192');
-    expect(container.querySelector('.avail-move').textContent).toMatch(/€23/);
-    expect(container.querySelector('.avail-move').textContent).not.toMatch(/€46/);
+    expect(container.querySelector('.avail-move').textContent).toMatch(/€\s23/);
+    expect(container.querySelector('.avail-move').textContent).not.toMatch(/€\s46/);
 
     // The party total is still on the card, in words, with the estimate it replaced.
-    expect(container.querySelector('.av-price-total').textContent).toMatch(/€384/);
-    expect(container.querySelector('.avail-price-old').textContent).toBe('€430');
+    expect(container.querySelector('.av-price-total').textContent).toMatch(/€\s384/);
+    expect(container.querySelector('.avail-price-old').textContent).toBe('€\u00A0430,00');
   });
 });
 

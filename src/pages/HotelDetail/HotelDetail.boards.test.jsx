@@ -92,7 +92,7 @@ describe('Care (meals) offers what the hotel sells', () => {
 
     // pick a day, then run the availability check
     const days = await waitFor(() => {
-      const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+      const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
       expect(found.length).toBeGreaterThan(0);
       return found;
     });

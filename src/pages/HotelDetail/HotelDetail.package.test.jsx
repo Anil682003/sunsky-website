@@ -126,7 +126,7 @@ const renderPage = (extra = `&${PKG_QS}`, transport = 'package') => render(
 const flightSearches = () => post.mock.calls.filter(([u]) => String(u).includes('flight-availability/search'));
 const confirms = () => post.mock.calls.filter(([u]) => String(u).includes('cached-search/confirm'));
 const priceDays = async () => waitFor(() => {
-  const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+  const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
   expect(found.length).toBeGreaterThan(0);
   return found;
 });
@@ -152,7 +152,7 @@ describe('the strip of a Flight + Hotel package is the package matrix', () => {
     }));
     expect(globalThis.fetch.mock.calls.some(([u]) => String(u).includes('hotel-price-calendar'))).toBe(false);
     // Per person, flight + hotel: €1,400 for two is €700 p.p.
-    expect(days[0].getAttribute('aria-label')).toMatch(/€700/);
+    expect(days[0].getAttribute('aria-label')).toMatch(/€\s700/);
     // No hotel-only note on a package strip.
     expect(screen.queryByText(/dit zijn hotelprijzen/i)).toBeNull();
   });
@@ -230,7 +230,7 @@ describe('the live check asks about the package the card priced', () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.500,00'));
 
     const row = (label) => [...container.querySelectorAll('.overview-trip-row')]
       .find((el) => el.querySelector('.overview-trip-k')?.textContent.trim().toLowerCase() === label);
@@ -247,7 +247,7 @@ describe('the live check asks about the package the card priced', () => {
     // Price details: per head, the party, the total, and the total band naming the party.
     const body = container.querySelector('.overview-body:not(.overview-trip)');
     expect(body).toHaveTextContent(/reisprijs per persoon/i);
-    expect(body).toHaveTextContent('€ 750 p.p.');
+    expect(body).toHaveTextContent('€ 750,00 p.p.');
     expect(body).toHaveTextContent(/aantal reizigers\s*2/i);
     expect(container.querySelector('.overview-total')).toHaveTextContent(/voor 2 volwassenen/i);
     // No deposit rule in the config: no split is invented.
@@ -275,7 +275,7 @@ describe('the live check asks about the package the card priced', () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.500,00'));
 
     // 40% of €1,500 under the checkout's own arithmetic; what is left is the balance.
     const pay = await waitFor(() => {
@@ -293,8 +293,8 @@ describe('the live check asks about the package the card priced', () => {
     const user = userEvent.setup();
     renderPage();
     await runCheck(user);
-    await waitFor(() => expect(screen.getAllByText(/€1,500/).length).toBeGreaterThan(0));
-    expect(screen.queryAllByText(/€1,?400/).length).toBeGreaterThan(0);  // the estimate, struck through
+    await waitFor(() => expect(screen.getAllByText(/€\s1\.500/).length).toBeGreaterThan(0));
+    expect(screen.queryAllByText(/€\s1\.?400/).length).toBeGreaterThan(0);  // the estimate, struck through
     expect(screen.queryByText(/niet meer te koop/i)).toBeNull();
   });
 
@@ -303,7 +303,7 @@ describe('the live check asks about the package the card priced', () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,400'));   // 500 + 900
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.400,00'));   // 500 + 900
     expect(screen.queryByText(/meer dan de goedkoopste/i)).toBeNull();
   });
 
@@ -312,7 +312,7 @@ describe('the live check asks about the package the card priced', () => {
     const user = userEvent.setup();
     renderPage();
     await runCheck(user);
-    await waitFor(() => expect(screen.getAllByText(/€1,500/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/€\s1\.500/).length).toBeGreaterThan(0));
   });
 
   it('the search failed but the confirm found the flight: still a package to book', async () => {
@@ -326,7 +326,7 @@ describe('the live check asks about the package the card priced', () => {
     const user = userEvent.setup();
     renderPage();
     await runCheck(user);
-    await waitFor(() => expect(screen.getAllByText(/€1,500/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/€\s1\.500/).length).toBeGreaterThan(0));
   });
 
   it('gone: the best alternative is held at its live price, and the page says why', async () => {
@@ -336,7 +336,7 @@ describe('the live check asks about the package the card priced', () => {
     renderPage();
     await runCheck(user);
     expect(await screen.findByText(/niet meer te koop/i)).toBeInTheDocument();
-    await waitFor(() => expect(screen.getAllByText(/€1,400/).length).toBeGreaterThan(0));     // 500 + 900
+    await waitFor(() => expect(screen.getAllByText(/€\s1\.400/).length).toBeGreaterThan(0));     // 500 + 900
   });
 
   it('a confirm that failed is never "sold out"', async () => {
@@ -386,8 +386,8 @@ describe('the live check asks about the package the card priced', () => {
     MATRIX = { success: false };
     renderPage('');
     await priceDays();
-    await user.click(screen.getAllByRole('button', { name: /vanaf €\d+/i }).find((b) => b.getAttribute('aria-pressed') === 'true')
-      || screen.getAllByRole('button', { name: /vanaf €\d+/i })[0]);
+    await user.click(screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i }).find((b) => b.getAttribute('aria-pressed') === 'true')
+      || screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i })[0]);
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
     await waitFor(() => expect(flightSearches().length).toBeGreaterThan(0));
     expect(flightSearches()[0][1].to).toBe('TRAYT');
@@ -414,7 +414,7 @@ describe('the live check asks about the package the card priced', () => {
     const user = userEvent.setup();
     renderPage();
     await runCheck(user);
-    await waitFor(() => expect(screen.getAllByText(/€1,500/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/€\s1\.500/).length).toBeGreaterThan(0));
     // The sticky sidebar card (and its 'Book now') is gone; the overview block's
     // 'Continue to checkout' is the one desktop CTA now.
     const book = screen.getAllByRole('button').find((b) => /doorgaan naar afrekenen|continue to checkout|nu boeken|boek nu|book now/i.test(b.textContent) && !b.disabled);
@@ -447,15 +447,15 @@ describe('mandatory local costs after the live check (UI-09)', () => {
     expect(container.querySelector('[data-local-costs]')).toBeNull();
     await runCheck(user);
     await waitFor(() => expect(container.querySelector('.av-local-costs')).not.toBeNull());
-    expect(container.querySelector('.av-local-costs').textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    expect(container.querySelector('.av-local-costs').textContent.replace(/\u00A0/g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
     const ov = container.querySelector('.overview-local-costs');
-    expect(ov.textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    expect(ov.textContent.replace(/\u00A0/g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
     // Under the figure, before the button.
     expect(container.querySelector('.overview-total').compareDocumentPosition(ov) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(ov.compareDocumentPosition(container.querySelector('.overview-book-btn')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     // Not added: room €500 + flight €1,000.
-    expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500');
-    expect(container.textContent).not.toMatch(/1,512|1\.512|€1,513/);
+    expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.500,00');
+    expect(container.textContent).not.toMatch(/1\.512|1\.512|€\s1\.513/);
     // The general note is not back beside the real amount.
     expect(container.textContent).not.toMatch(/lokale belastingen en kosten/i);
 
@@ -477,7 +477,7 @@ describe('mandatory local costs after the live check (UI-09)', () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.500,00'));
     expect(container.querySelector('[data-local-costs]')).toBeNull();
     expect(container.textContent).not.toMatch(/verplicht ter plaatse|€ 0,00/i);
   });
@@ -494,9 +494,9 @@ describe('mandatory local costs after the live check (UI-09)', () => {
     // remarks (Levent, 20 Nov 2026), even though its local tax was already known.
     expect(hotelChecks().filter(([u]) => String(u).includes('/search'))).toHaveLength(1);
     await waitFor(() => expect(hotelChecks().filter(([u]) => String(u).includes('/checkrate'))).toHaveLength(1));
-    expect(container.querySelector('.overview-local-costs').textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
-    expect(container.querySelector('.av-local-costs').textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
-    expect(container.querySelector('.overview-total-val').textContent).toBe('€500');
+    expect(container.querySelector('.overview-local-costs').textContent.replace(/\u00A0/g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    expect(container.querySelector('.av-local-costs').textContent.replace(/\u00A0/g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A0500,00');
   });
 });
 
@@ -544,7 +544,7 @@ describe('the hotel remarks of the checked rate (Levent, 20 Nov 2026)', () => {
     await priceDays();
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
     await waitFor(() => expect(post.mock.calls.some(([u]) => String(u).includes('/checkrate'))).toBe(true));
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€500'));
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A0500,00'));
     expect(container.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
     expect(container.textContent).not.toMatch(/belangrijke informatie van het hotel/i);
   });
@@ -569,7 +569,7 @@ describe('the strip scales on the price it prints', () => {
     CAL = Array.from({ length: 7 }, (_, i) => ({ date: iso(27 + i), price: i === 6 ? 110.4 : 111.54, currency: 'EUR' }));
     const { container } = renderPage('', 'hotel_only');
     const days = await priceDays();
-    expect(days.every((b) => /€56/.test(b.getAttribute('aria-label')))).toBe(true);
+    expect(days.every((b) => /€\s56/.test(b.getAttribute('aria-label')))).toBe(true);
     expect(container.querySelector('.fc-strip.fc-flat')).not.toBeNull();
     expect(container.querySelector('.fc-lowtag')).toBeNull();
   });
@@ -581,7 +581,7 @@ describe('the strip scales on the price it prints', () => {
     expect(container.querySelector('.fc-strip.fc-flat')).toBeNull();
     const low = container.querySelector('.fc-lowtag');
     expect(low).not.toBeNull();
-    expect(low.closest('.fc-col').getAttribute('aria-label')).toMatch(/€45/);
+    expect(low.closest('.fc-col').getAttribute('aria-label')).toMatch(/€\s45/);
   });
 });
 
@@ -603,10 +603,10 @@ describe('a package’s live price waits for its flight', () => {
     // The room (€500) is in; the flight is not. No €250 p.p. or €500 total as a live price anywhere.
     await waitFor(() => expect(post.mock.calls.some(([u]) => String(u).includes('hotel-availability'))).toBe(true));
     await new Promise((r) => setTimeout(r, 50));
-    expect(screen.queryAllByText(/€\s?500/).length).toBe(0);
+    expect(screen.queryAllByText(/€\s500/).length).toBe(0);
     expect(container.querySelector('.fc-amt-live')).toBeNull();
     release();
-    await waitFor(() => expect(screen.getAllByText(/€1,500/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/€\s1\.500/).length).toBeGreaterThan(0));
   });
 
   it('Hotel only still shows the room’s live price as soon as it is in', async () => {
@@ -614,7 +614,7 @@ describe('a package’s live price waits for its flight', () => {
     renderPage('', 'hotel_only');
     await priceDays();
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
-    await waitFor(() => expect(screen.getAllByText(/€500/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/€\s500/).length).toBeGreaterThan(0));
     expect(flightSearches()).toHaveLength(0);
   });
 });
@@ -635,7 +635,7 @@ describe('no airport chosen: a cheaper airport for the same dates is taken (Leve
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,200'));   // 500 + 700
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.200,00'));   // 500 + 700
     expect(flightSearches().some(([, b]) => b.from === 'AMS')).toBe(true);
   });
 
@@ -648,7 +648,7 @@ describe('no airport chosen: a cheaper airport for the same dates is taken (Leve
     const user = userEvent.setup();
     const { container } = renderPage(`&${PKG_QS}&origins=FRA`);
     await runCheck(user);
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.500,00'));
   });
 });
 
@@ -870,7 +870,7 @@ describe('package margin on the live check (Margin Menu → Dynamic Package)', (
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,640'));
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.640,00'));
     const book = screen.getAllByRole('button').find((b) => /doorgaan naar afrekenen/i.test(b.textContent) && !b.disabled);
     await user.click(book);
     await screen.findByTestId('checkout');
@@ -904,8 +904,8 @@ describe('an automatic promotion on the hotel page', () => {
     await waitFor(() => expect(container.querySelector('[data-testid="promotion-line"]')).not.toBeNull());
     const line = container.querySelector('[data-testid="promotion-line"]');
     expect(line.textContent).toMatch(/Zomeractie 2027/);
-    expect(line.textContent).toMatch(/−€ 150,00/);
-    expect(container.querySelector('.overview-total-val').textContent).toBe('€1,350');
+    expect(line.textContent).toMatch(/−€\s150,00/);
+    expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.350,00');
     // Asked with the package's travel price and its cost (supplier prices before any margin).
     const [, body] = quotes().at(-1);
     expect(body).toMatchObject({ product: 'package', hotelCode: '592205', eligiblePrice: 1500, eligibleCost: 1500, travellers: 2 });
@@ -916,7 +916,7 @@ describe('an automatic promotion on the hotel page', () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await runCheck(user);
-    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€1,500'));
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A01.500,00'));
     await waitFor(() => expect(quotes().length).toBeGreaterThan(0));
     expect(container.querySelector('[data-testid="promotion-line"]')).toBeNull();
   });

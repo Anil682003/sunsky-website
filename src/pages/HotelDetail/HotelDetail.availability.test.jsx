@@ -118,7 +118,7 @@ const renderPage = ({ transport = 'hotel_only' } = {}) => render(
 /** Pick a day in the fare strip and ask for the live check. */
 const runCheck = async (user, dayIndex = 0) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
@@ -175,7 +175,7 @@ describe('rooms the supplier could not price', () => {
     await waitFor(() => expect(screen.getAllByText(/er kwam geen prijs terug/i).length).toBeGreaterThan(0));
     expect(screen.queryByRole('button', { name: /doorgaan naar afrekenen/i })).not.toBeInTheDocument();
     // A room with no rate must not be sorted to the top of the list as a free one either.
-    expect(screen.queryByText(/€\s?0\b/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/€\s0\b/)).not.toBeInTheDocument();
   });
 
   it('prices the rooms that DO have a rate and ignores the ones that do not', async () => {
@@ -362,13 +362,13 @@ describe('while a check is running', () => {
     const { container } = renderPage();
     await runCheck(user, 0);
     // The first day was quoted: €1,180 for the party. The card and the sidebar both say so.
-    await waitFor(() => expect(screen.getAllByText(/1,180/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/1\.180/).length).toBeGreaterThan(0));
 
     // A different day is a different question.
     // The strip re-centres on the day that was checked, so only the days it still has cache
     // prices for carry a "from" label. Take the last of those: it is certainly not the one
     // already quoted.
-    const days = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const days = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(days.length).toBeGreaterThan(1);
     await user.click(days[days.length - 1]);
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
@@ -376,7 +376,7 @@ describe('while a check is running', () => {
     await screen.findByText(/live beschikbaarheid wordt gecontroleerd/i);
     // The confirmed price belonged to the day they moved off. Carrying it under the new
     // selection would quote a figure nobody has been given for these dates.
-    expect(screen.queryAllByText(/1,180/)).toHaveLength(0);
+    expect(screen.queryAllByText(/1\.180/)).toHaveLength(0);
     // And their choices are all still on screen: the day, the party and the stay length.
     expect(container.querySelector('.fc-col.sel')).toBeTruthy();
     expect(screen.getAllByText(/2 volwassenen/i).length).toBeGreaterThan(0);
@@ -438,7 +438,7 @@ describe('flights nobody could price', () => {
     // plus the fare that actually has a price (620), and the flight card itself must be the
     // priced one. The page card deliberately prints no fare of its own, so the total is where
     // this shows: 1,180 would mean the free phantom had been chosen.
-    await waitFor(() => expect(screen.getAllByText(/1,800/).length).toBeGreaterThan(0));
+    await waitFor(() => expect(screen.getAllByText(/1\.800/).length).toBeGreaterThan(0));
     // On this (non-matrix, hotel-price) strip the green box quotes the HOLIDAY once the flight is
     // priced, the same total as the Book card, captioned as the package price (Levent, 11 Nov
     // 2026: the room alone in that box read as the holiday price, €66 p.p. against €190 p.p.).

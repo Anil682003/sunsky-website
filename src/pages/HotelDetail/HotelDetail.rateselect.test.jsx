@@ -54,7 +54,7 @@ const renderPage = () => render(
 
 const checkFirstDay = async (user) => {
   const days = await waitFor(() => {
-    const f = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const f = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(f.length).toBeGreaterThan(0);
     return f;
   });
@@ -74,8 +74,9 @@ const cardBoard = (container) => [...container.querySelectorAll('.overview-trip-
 // is the like-for-like figure to read.
 const cardPrice = (container) => {
   const total = container.querySelector('.av-price-total b')?.textContent || '';
-  const m = total.match(/€[\d,]+/);
-  return m ? m[0].replace(/,/g, '') : undefined;
+  const m = total.match(/€\s[\d.,]+/);
+  // The SUNSKY notation (€ 1.020,00): read as printed, nothing stripped.
+  return m ? m[0] : undefined;
 };
 
 /** The room row the list shows as chosen. */
@@ -91,7 +92,7 @@ describe('the card and the room list name the same rate', () => {
     const { container } = renderPage();
     await checkFirstDay(user);
 
-    await waitFor(() => expect(cardPrice(container)).toBe('€1020'));
+    await waitFor(() => expect(cardPrice(container)).toBe('€\u00A01.020,00'));
     expect(cardBoard(container)).toMatch(/all inclusive/i);
     await waitFor(() => expect(selectedRow(container)).toBeTruthy());
     expect(selectedRow(container).textContent).toMatch(/all inclusive/i);
@@ -104,7 +105,7 @@ describe('the card and the room list name the same rate', () => {
     const user = userEvent.setup();
     const { container } = renderPage();
     await checkFirstDay(user);
-    await waitFor(() => expect(cardPrice(container)).toBe('€1020'));
+    await waitFor(() => expect(cardPrice(container)).toBe('€\u00A01.020,00'));
 
     // Ask for Bed & Breakfast. That hides the €1020 All Inclusive rate the card is quoting.
     await user.click(screen.getByRole('button', { name: /verzorging \(maaltijden\)/i }));
@@ -112,7 +113,7 @@ describe('the card and the room list name the same rate', () => {
 
     // The card must move to the cheapest rate STILL ON SCREEN. Before this fix it kept
     // quoting €1020 / All inclusive, which the list no longer offered anywhere.
-    await waitFor(() => expect(cardPrice(container)).toBe('€1200'));
+    await waitFor(() => expect(cardPrice(container)).toBe('€\u00A01.200,00'));
     expect(cardBoard(container)).toMatch(/logies & ontbijt/i);
     expect(cardBoard(container)).not.toMatch(/all inclusive/i);
 
@@ -139,14 +140,14 @@ describe('the card and the room list name the same rate', () => {
       return el;
     });
     await user.click(seaView);
-    await waitFor(() => expect(cardPrice(container)).toBe('€1333'));
+    await waitFor(() => expect(cardPrice(container)).toBe('€\u00A01.333,00'));
 
     // Filtering to Bed & Breakfast leaves that rate on screen, so the pick stands rather than
     // snapping back to the cheapest.
     await user.click(screen.getByRole('button', { name: /verzorging \(maaltijden\)/i }));
     await user.click(await screen.findByRole('button', { name: /^logies & ontbijt/i }));
 
-    await waitFor(() => expect(cardPrice(container)).toBe('€1333'));
+    await waitFor(() => expect(cardPrice(container)).toBe('€\u00A01.333,00'));
     expect(selectedRow(container).textContent).toMatch(/geselecteerd/i);
   });
 });

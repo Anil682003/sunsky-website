@@ -102,7 +102,7 @@ const renderPage = ({ withDates = true } = {}) => {
 
 const runCheck = async (user) => {
   const days = await waitFor(() => {
-    const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(found.length).toBeGreaterThan(0);
     return found;
   });
@@ -141,7 +141,7 @@ describe('a sold-out day replaces the check button with the grey card', () => {
     await screen.findByText(/deze reis is niet beschikbaar/i);
 
     // A different day in the matrix is a different question, so the button is live again.
-    const days = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+    const days = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     await user.click(days[1]);
 
     expect(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i })).toBeEnabled();
@@ -154,7 +154,7 @@ describe('the fare strip never invents a week', () => {
   it('asks for dates instead of quoting a demo week when the search carries none', async () => {
     renderPage({ withDates: false });
     expect(await screen.findByText(/kies je data om live prijzen te zien/i)).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /vanaf €\d+/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /vanaf €\s[\d.]+/i })).not.toBeInTheDocument();
   });
 
   it('reports an outage as an outage, and offers a retry', async () => {
@@ -162,7 +162,7 @@ describe('the fare strip never invents a week', () => {
     renderPage();
     expect(await screen.findByText(/we konden geen live prijzen laden/i)).toBeInTheDocument();
     expect(screen.getByRole('button', { name: /opnieuw proberen/i })).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /vanaf €\d+/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /vanaf €\s[\d.]+/i })).not.toBeInTheDocument();
   });
 
   // A 5xx that answers with an HTML error page used to land in .catch() looking exactly like
@@ -185,7 +185,7 @@ describe('the fare strip never invents a week', () => {
   it('renders the live fares it was given', async () => {
     renderPage();
     const days = await waitFor(() => {
-      const found = screen.getAllByRole('button', { name: /vanaf €\d+/i });
+      const found = screen.getAllByRole('button', { name: /vanaf €\s[\d.]+/i });
       expect(found.length).toBe(7);
       return found;
     });
@@ -193,14 +193,14 @@ describe('the fare strip never invents a week', () => {
     // for the whole party (€260 for the two adults searched), and the strip divides it so a
     // family is not comparing a party total against the per-person prices quoted everywhere
     // else. Still the supplier's own number — nothing here is invented.
-    expect(days[0]).toHaveAccessibleName(/vanaf €130 per persoon/i);
+    expect(days[0]).toHaveAccessibleName(/vanaf €\s130 per persoon/i);
   });
 });
 
 describe('flights and rooms are live-only', () => {
   it('does not claim to have picked a cheapest flight before one is searched', async () => {
     renderPage();
-    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(screen.queryByText(/selected the cheapest flight for you/i)).not.toBeInTheDocument();
     // the demo itineraries' flight numbers must appear nowhere
     expect(screen.queryByText(/TB\s?1742|HV\s?6035/)).not.toBeInTheDocument();
@@ -208,7 +208,7 @@ describe('flights and rooms are live-only', () => {
 
   it('never shows invented scarcity for rooms nobody has searched', async () => {
     renderPage();
-    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     expect(screen.queryByText(/only \d+ (rooms? )?available/i)).not.toBeInTheDocument();
     expect(screen.queryByText(/double room design room/i)).not.toBeInTheDocument();
   });
@@ -283,7 +283,7 @@ describe('checkout is only reachable with a real quote', () => {
   it('sends an unpriced booking to the availability check instead of to payment', async () => {
     const user = userEvent.setup();
     renderPage();
-    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\s[\d.]+/i });
 
     // Both the overview card and the sticky sidebar carry the button; either must refuse.
     const [book] = await screen.findAllByRole('button', { name: /^beschikbaarheid controleren$/i });
@@ -323,9 +323,9 @@ describe('checkout is only reachable with a real quote', () => {
 
   it('quotes no total until the stay has been priced', async () => {
     renderPage();
-    await screen.findAllByRole('button', { name: /vanaf €\d+/i });
+    await screen.findAllByRole('button', { name: /vanaf €\s[\d.]+/i });
     // the old card printed a flat "4 × €361 p.p." / "€1,424" for every unpriced hotel
-    expect(screen.queryByText(/1,?444|1,?424|€\s?361/)).not.toBeInTheDocument();
+    expect(screen.queryByText(/1\.?444|1\.?424|€\s361/)).not.toBeInTheDocument();
     expect(screen.getByText(/nog niet geprijsd/i)).toBeInTheDocument();
   });
 });
