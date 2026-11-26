@@ -90,13 +90,25 @@ export function remarksBlocks(raw) {
       if (rest) out.push({ type: 'para', text: unglue(rest) });
       continue;
     }
+    // A title line with no colon over the lines it introduces ("Fees to be paid at destination",
+    // "MEXICAN GENERAL TOURISM LAW"): short, two words or more, no closing punctuation, and more
+    // lines follow in the same paragraph.
+    if (lines.length >= 2 && isTitleLine(first) && lines.slice(1).join('').trim()) {
+      out.push({ type: 'heading', text: first });
+      out.push({ type: 'para', text: unglue(lines.slice(1).join('\n').trim()) });
+      continue;
+    }
     out.push({ type: 'para', text: unglue(p) });
   }
   return out;
 }
 
 const isHeading = (line) => line.length >= 3 && line.length <= 60 && /:\s*$/.test(line) && !/^\d/.test(line);
-const isShortValue = (p) => !p.includes('\n') && p.trim().length <= 40 && !/:\s*$/.test(p.trim());
+const isTitleLine = (line) => line.length >= 6 && line.length <= 50 && /\s/.test(line) && /^[A-Za-zÀ-ÿ]/.test(line)
+  && !/[.,;:!?)\]]\s*$/.test(line) && !/\d{2,}/.test(line);
+// A value is a few words ("3:00 PM", "18", "1 King Bed"): a line ending in "." (or "!" / "?") is
+// a sentence under a heading, not a value ("Checkin Instructions:" / "Bring photo ID.").
+const isShortValue = (p) => !p.includes('\n') && p.trim().length <= 40 && !/[:.!?]\s*$/.test(p.trim());
 
 // Three lower-case letters (or a closing bracket) straight into a capitalised word: two list items
 // run together ("per personAirport shuttle", "(roundtrip)Airport"). Fewer than three (iPad,

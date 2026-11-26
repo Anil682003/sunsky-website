@@ -60,6 +60,26 @@ describe('SupplierRemarks', () => {
     for (const w of W2M.replace(/[:.\n]/g, ' ').split(/\s+/).filter(Boolean)) expect(container.textContent).toContain(w.replace(/personAirport/, 'person').replace(/\(roundtrip\)Airport/, '(roundtrip)'));
   });
 
+  it('option A (26 Nov 2026): facts on top, every section open and foldable, lists as tags, money marked', () => {
+    const TXT = 'Resort fee: USD 24 per night.\n\nFees:\n\nThe resort fee includes:Beach accessBeach loungersBeach towelsPool access\n\n'
+      + 'Checkin Time:\n\n3:00 PM\n\nCheckin Instructions:\n\nBring photo ID.';
+    const { container } = render(<SupplierRemarks text={TXT} />);
+    const body = container.querySelector('[id]');
+    // The label/value pair first, before the text and the sections.
+    expect(body.firstElementChild.tagName).toBe('DL');
+    expect(container.querySelector('dt').textContent).toBe('Checkin Time');
+    // One section per heading, all open to start with.
+    const secs = [...container.querySelectorAll('details')];
+    expect(secs.map((d) => d.querySelector('h4').textContent)).toEqual(['Fees', 'Checkin Instructions']);
+    expect(secs.every((d) => d.open)).toBe(true);
+    // The glued list as tags; never a bulleted list.
+    expect([...container.querySelectorAll('details span')].map((s) => s.textContent)).toEqual(expect.arrayContaining(['Beach loungers', 'Beach towels', 'Pool access']));
+    expect(container.querySelector('ul, ol, li')).toBeNull();
+    // The amount marked, the words unchanged.
+    expect([...container.querySelectorAll('p span')].map((s) => s.textContent)).toContain('USD 24');
+    for (const w of ['Resort', 'fee', 'USD', '24', 'night', 'includes', 'Beach', 'access', '3:00', 'PM', 'Bring', 'photo', 'ID']) expect(container.textContent).toContain(w);
+  });
+
   it('renders nothing at all when the supplier sent no remarks', () => {
     const { container } = render(<SupplierRemarks text="  " />);
     expect(container.innerHTML).toBe('');
