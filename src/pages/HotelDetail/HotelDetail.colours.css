@@ -234,7 +234,12 @@
 /* Date labels: readable day and date in Dark Ink on white. */
 .sd .fc-wk, .sd .fc-date { color:var(--ss-ink); }
 .sd .fc-col.sel .fc-wk, .sd .fc-col.sel .fc-date { color:var(--ss-white); }
-.sd .fc-col.sel .fc-from { color:var(--ss-azure); }
+/* "vanaf" in the card and the departure airport under the date. Azure on the picked column was
+   azure on azure (26 Nov 2026: the picked card showed no "vanaf" at all), and the airport under
+   an unpicked date was white on white. A live-confirmed (green) column keeps its own dark ink. */
+.sd .fc-under .fc-from { color:var(--ss-ink-2); }
+.sd .fc-col.sel:not(.fc-ok) .fc-bar .fc-from,
+.sd .fc-col.sel:not(.fc-ok) .fc-under .fc-from { color:rgba(255,255,255,.86); }
 /* Lowest-price marker. */
 .sd .fc-lowtag { background:var(--ss-sun); color:var(--ss-ink); }
 /* How a checked price moved: a rise is information (Light Blue), a drop is a saving that was

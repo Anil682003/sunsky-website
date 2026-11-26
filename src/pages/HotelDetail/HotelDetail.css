@@ -3991,3 +3991,49 @@
   .sd .mbp small { white-space: nowrap; font-size: var(--fs-micro); margin-bottom: 2px; }
   .sd .mbc { padding: 12px 16px; white-space: nowrap; }
 }
+
+/* ═══ The date matrix on a phone: three equal cards between the arrows ═══════════════════════
+   Client reference, 26 Nov 2026: on a phone the bar chart squeezed a fourth column under the
+   arrow and cut the picked day in half. Here every day is a card of the same height (the price
+   is the reading; bar heights were a chart a phone has no room for), three fit exactly between
+   the arrows, a swipe snaps to whole cards and the picked day is scrolled to the middle (see
+   fcStripRef in HotelDetail.jsx). Below each card: the weekday, the date and the radio. Colours
+   are the palette's own (HotelDetail.colours.css); this block is layout only. Placed last so it
+   wins over the earlier 900 / 768 / 560 / 380px column widths. */
+@media (max-width:640px) {
+  .sd .fc-week { gap:6px; }
+  .sd .fc-arrow { width:34px; height:34px; }
+  .sd .fc-arrow svg { width:16px; height:16px; }
+  .sd .fc-strip {
+    display:grid; grid-template-columns:none; grid-auto-flow:column;
+    grid-auto-columns:calc((100% - 16px) / 3); gap:8px;
+    overflow-x:auto; scroll-snap-type:x mandatory;
+    -webkit-overflow-scrolling:touch; scrollbar-width:none; padding:2px 0 4px;
+  }
+  .sd .fc-col { flex:none; scroll-snap-align:start; border-radius:14px; }
+  /* A band above every card holds the "Lowest price" or price-move tag, so the cards line up
+     whether or not a day carries one. A flat week has no tags and no band. */
+  .sd .fc-barzone { height:auto; position:relative; padding-top:24px; border-bottom:none; transition:none; }
+  .sd .fc-strip.fc-flat .fc-barzone { height:auto; padding-top:2px; }
+  .sd .fc-lowtag, .sd .fc-movetag {
+    position:absolute; left:50%; bottom:calc(100% - 26px); transform:translateX(-50%); z-index:2;
+    max-width:calc(100% - 6px); margin:0; padding:2px 7px; border-radius:8px;
+    font-size:9px; line-height:1.15; letter-spacing:.03em; text-align:center; white-space:normal;
+  }
+  /* Same height for every card: the inline height drew the price profile. */
+  .sd .fc-bar, .sd .fc-skel .fc-bar {
+    width:100%; height:108px !important; min-height:0; border-radius:14px;
+    padding:12px 4px 9px; justify-content:center;
+  }
+  .sd .fc-barin { justify-content:center; }
+  .sd .fc-nts { margin-top:6px; font-size:12px; }
+  .sd .fc-from { font-size:10px; }
+  /* The picked day is one block: the card and its date band join into a single column. */
+  .sd .fc-col.sel .fc-bar { border-radius:14px 14px 0 0; }
+  .sd .fc-col.sel .fc-under::before { inset:0; border-radius:0 0 14px 14px; }
+  .sd .fc-under { padding:8px 0 10px; gap:0; }
+  .sd .fc-wk { font-size:11px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; }
+  .sd .fc-date { font-size:var(--fs-body); }
+  .sd .fc-dot { width:18px; height:18px; margin-top:6px; }
+  .sd .fc-tail { display:none; }
+}

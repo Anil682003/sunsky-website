@@ -2776,6 +2776,41 @@ export default function HotelDetail() {
   const pickedIdx = (selectedISO && selectedDep && useMatrix)
     ? priceDays.findIndex((p) => p.departure === selectedDep)
     : mustPickDay ? -1 : priceDays.findIndex((p) => p.iso === pickedISO);
+
+  // On a phone the strip shows three cards at a time and scrolls sideways (26 Nov 2026: the
+  // picked day, usually the middle of seven, sat half off-screen behind the arrow). Whenever the
+  // picked day or the dates on the strip change, the picked card is brought to the middle. On a
+  // wide screen the strip does not scroll, so this does nothing there.
+  // The strip element arrives through a callback ref (state), not useRef: it mounts in whatever
+  // render the prices land in, which need not change any other value this effect watches.
+  const [fcStripEl, setFcStripEl] = useState(null);
+  const fcStripDays = priceDays.map((p) => p.iso).join(',');
+  // Once per change, as soon as the strip has been laid out: a ResizeObserver waits for a real
+  // width when the price section is not measured yet.
+  useEffect(() => {
+    const strip = fcStripEl;
+    if (!strip) return undefined;
+    let done = false;
+    const align = () => {
+      if (done || strip.clientWidth < 40 || strip.scrollWidth <= strip.clientWidth + 1) return;
+      const col = strip.children[pickedIdx >= 0 ? pickedIdx : 0];
+      if (!col) return;
+      done = true;
+      const s = strip.getBoundingClientRect();
+      const c = col.getBoundingClientRect();
+      const left = strip.scrollLeft + (c.left - s.left) - (strip.clientWidth - c.width) / 2;
+      // Instant, not smooth: the cards are still filling in with prices at this point, and a
+      // layout change mid-animation made the snap points pull a smooth scroll back to the start.
+      strip.scrollTo({ left: Math.max(0, left), behavior: 'instant' });
+    };
+    // Right away (layout is measurable after the render); the frame and the observer only
+    // matter when the section had no width yet, and do nothing once aligned.
+    align();
+    const frame = requestAnimationFrame(align);
+    const ro = typeof ResizeObserver === 'function' ? new ResizeObserver(align) : null;
+    ro?.observe(strip);
+    return () => { cancelAnimationFrame(frame); ro?.disconnect(); };
+  }, [fcStripEl, pickedIdx, fcStripDays]);
   // The picked day itself is read from the whole cache, NOT the visible week, so paging never
   // silently drops the traveller's chosen date out of the action card and the checkout hand-off.
   const pickedEntry = (selectedISO && selectedDep && useMatrix && matrix.days.find((d) => d.departure === selectedDep && d.iso === selectedISO))
@@ -4707,7 +4742,7 @@ export default function HotelDetail() {
                       profile is 70px of dead air between the estimate notice and the bars — the
                       chart looked like it had failed to draw. Nothing is lost: there is no
                       profile to show and no "Lowest price" tag to leave room for. */}
-                  <div className={`fc-strip${priceVaries ? '' : ' fc-flat'}`}>
+                  <div className={`fc-strip${priceVaries ? '' : ' fc-flat'}`} ref={setFcStripEl}>
                     {priceDays.map((p, i) => {
                       // Which airport this date leaves from, shown only when the week actually
                       // holds more than one (UI-03). Printing the same code under all seven
