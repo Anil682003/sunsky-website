@@ -9,6 +9,7 @@ import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import { buildContext, fmtDate, fmtDateShort, fareBreakdown, paxLabel, cabinLabel } from '../Flights/flightData';
 import { useCheckoutConfig } from '../../api';
 import { DEFAULT_PRICING, computeDeposit } from '../../utils/checkoutPricing';
+import { baseForParty } from '../../utils/partyRounding';
 
 // "2027-01-27" → "27/01/2027".
 const dmy = (iso) => (iso ? String(iso).slice(0, 10).split('-').reverse().join('/') : '');
@@ -195,7 +196,12 @@ export default function FlightDetail() {
   const nights = isRound ? Math.max(1, dayDiff(flight.out.depDateISO, flight.ret.depDateISO)) : 0;
   // A flight on its own may be paid with a deposit only when SUNSKY switched that on for flights.
   // The travellers who pay a share are the adults and children: a lap infant pays no share.
-  const deposit = computeDeposit(pricingCfg || DEFAULT_PRICING, fb.total, flight.out?.depDateISO, {
+  // Whole-euro rules (Levent, 26 Nov 2026; utils/partyRounding), when on: the flight's total up to
+  // the smallest whole euro that divides by the travellers, infants included, as the checkout and
+  // the server charge it. The euros added sit in "Taxes & surcharges" so the rows still add up.
+  const fareTotal = baseForParty(fb.total, pax);
+  const fareUplift = fareTotal - fb.total;
+  const deposit = computeDeposit(pricingCfg || DEFAULT_PRICING, fareTotal, flight.out?.depDateISO, {
     kind: 'flight',
     pax: (Number(ctx.adults) || 0) + (Number(ctx.children) || 0) || pax,
   });
@@ -536,13 +542,13 @@ export default function FlightDetail() {
                     <div className="fd-fare-row"><span>{ICON.user} {t('flightDetail:fare.baseFare', { count: pax, defaultValue_one: 'Base fare ({{count}} traveller)', defaultValue_other: 'Base fare ({{count}} travellers)' })}</span><b>{money(fb.baseFare)}</b></div>
                   )}
                   {fb.taxes != null && (
-                    <div className="fd-fare-row"><span>{ICON.receipt} {t('flightDetail:fare.taxes', 'Taxes & surcharges')}</span><b>{money(fb.taxes)}</b></div>
+                    <div className="fd-fare-row"><span>{ICON.receipt} {t('flightDetail:fare.taxes', 'Taxes & surcharges')}</span><b>{money(fb.taxes + fareUplift)}</b></div>
                   )}
                   {fb.perAdult != null && fb.pax > 1 && (
                     <div className="fd-fare-row"><span>{ICON.user} {t('flightDetail:fare.perAdult', 'Fare per adult')}</span><b>{money(fb.perAdult)}</b></div>
                   )}
                   {fb.discount > 0 && <div className="fd-fare-row disc"><span>{ICON.check} {t('flightDetail:fare.instantDiscount', 'Instant discount')}</span><b>{moneyDiscount(sellingEuros(fb.discount))}</b></div>}
-                  <div className="fd-fare-row total"><span>{t('flightDetail:fare.totalAmount', 'Total amount')}</span><b>{money(fb.total)}</b></div>
+                  <div className="fd-fare-row total"><span>{t('flightDetail:fare.totalAmount', 'Total amount')}</span><b>{money(fareTotal)}</b></div>
                   {deposit && (
                     <div className="fd-fare-dep">
                       <div className="fd-fare-row dep"><span>{ICON.cal} {t('flightDetail:fare.depositNow', 'Or pay a deposit when you book')}</span><b>{money(deposit.amount)}</b></div>
@@ -566,7 +572,7 @@ export default function FlightDetail() {
           <div className="fd-book">
             <div className="fd-book-price">
               <div className="fd-book-label">{pax > 1 ? t('flightDetail:book.totalFor', { count: pax, defaultValue: 'Total for {{count}}' }) : t('flightDetail:book.totalPrice', 'Total price')}</div>
-              <div className="fd-book-amt">{money(fb.total)}</div>
+              <div className="fd-book-amt">{money(fareTotal)}</div>
               {flight.origPrice > flight.price && (
                 <div className="fd-book-sub"><s>{money(flight.origPrice * pax)}</s><span className="fd-save">{t('flightDetail:book.save', { amount: money((flight.origPrice - flight.price) * pax), defaultValue: 'Save {{amount}}' })}</span></div>
               )}
@@ -611,7 +617,7 @@ export default function FlightDetail() {
       {/* mobile sticky bar */}
       <div className="fd-mbar">
         <div className="fd-mbar-price">
-          <small>{t('flightDetail:book.total', 'total')}</small>{money(fb.total)}
+          <small>{t('flightDetail:book.total', 'total')}</small>{money(fareTotal)}
           {deposit && <span className="fd-mbar-dep">{t('flightDetail:book.orDepositShort', { amount: money(deposit.amount), defaultValue: 'or {{amount}} deposit' })}</span>}
         </div>
         <button className="fd-mbar-btn" onClick={goCheckout}>{t('flightDetail:book.bookNow', 'Book now')} {ICON.arrow}</button>

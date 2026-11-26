@@ -29,6 +29,7 @@ import AirlineMark from '../../components/AirlineMark/AirlineMark';
 // writes it the house way (€1.013, never the US €1,013).
 import { sellingEuros } from '../../utils/tripPrice';
 import { usePromotionQuote, promotionInput, promotionProduct, formatDiscount, cents } from '../../utils/promotions';
+import { partyRoundingActive, baseForParty, extraLine } from '../../utils/partyRounding';
 import { moneyFull } from '../../utils/money';
 import { transferAirport } from './transferAirport';
 import { localCostOfRate } from '../../utils/localCosts';
@@ -599,7 +600,7 @@ const BagMenu = ({ label, ariaLabel, options, onPick, money }) => {
               aria-selected={idx === active} className={`ck-bagmenu-opt${idx === active ? ' act' : ''}`}
               onMouseEnter={() => setActive(idx)} onClick={() => pick(row)}>
               <span>{row.kg} kg</span>
-              <span>{money(row.price)}</span>
+              <span>{money(extraLine(Number(row.price) || 0))}</span>
             </button>
           ))}
         </span>
@@ -1510,8 +1511,10 @@ function CheckoutContent({ stripe, elements }) {
   // so it is never multiplied by the traveller count. A transfer-only booking has it in
   // `base` already. `booking.api.transfer` is the legacy path — hand-offs from before the
   // transfer moved to this page can still carry one.
+  // Whole-euro rules (Levent, 26 Nov 2026; utils/partyRounding), when on: the transfer is a paid
+  // extra, its line up to a whole euro, exactly as the server charges it.
   const transferTotal = !isTransfer && pickedOption
-    ? Math.round(Number(pickedOption.price) || 0)
+    ? (partyRoundingActive() ? extraLine(Number(pickedOption.price) || 0) : Math.round(Number(pickedOption.price) || 0))
     : (!isTransfer && booking.api?.transfer ? Math.round(Number(booking.api.transfer.price) || 0) : 0);
 
   /* ── promotion (Promotions & Discounts, spec v1.2) ──
@@ -1800,14 +1803,14 @@ function CheckoutContent({ stripe, elements }) {
           out.push({ code: 'baggage.cabin', travellerIndex: Number(idx), direction,
             kg: row.kg ? Number(row.kg) : undefined,
             label: row.kg ? t('checkout:baggage.cabinBaggageKg', { kg: row.kg, defaultValue: 'Cabin baggage {{kg}} kg' }) : (bagRates?.cabin?.label || t('checkout:baggage.cabinBaggage', 'Cabin baggage')),
-            price: Number(row.price) || 0 });
+            price: extraLine(Number(row.price) || 0) });
         }
       }
       if (sel?.checked) {
         const row = checkedAddOns.find((r) => Number(r.kg) === Number(sel.checked));
         if (row) {
           out.push({ code: 'baggage.checked', travellerIndex: Number(idx), direction, kg: Number(row.kg),
-            label: t('checkout:baggage.checkedBaggageKg', { kg: row.kg, defaultValue: 'Checked baggage {{kg}} kg' }), price: Number(row.price) || 0 });
+            label: t('checkout:baggage.checkedBaggageKg', { kg: row.kg, defaultValue: 'Checked baggage {{kg}} kg' }), price: extraLine(Number(row.price) || 0) });
         }
       }
     });
@@ -1847,10 +1850,12 @@ function CheckoutContent({ stripe, elements }) {
   const cancelOption = insurances.find((i) => i.id === 'cancel')?.option || null;
   const travelOption = insurances.find((i) => i.id === 'travel')?.option || null;
   const travelCount = travellers.filter((_, i) => travelIns[i]).length;
+  // Each policy is one paid line (after its traveller count): up to a whole euro when the
+  // whole-euro rules are on, as the server charges it.
   const cancelAmount = (cancelIns && cancelOption)
-    ? priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: insuranceBase }) : 0;
+    ? extraLine(priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: insuranceBase })) : 0;
   const travelAmount = (travelCount && travelOption)
-    ? priceInsurance(travelOption, { pax: travelCount, nights: booking.nights, baseSubtotal: insuranceBase }) : 0;
+    ? extraLine(priceInsurance(travelOption, { pax: travelCount, nights: booking.nights, baseSubtotal: insuranceBase })) : 0;
   const insAmount = cancelAmount + travelAmount;
 
   /* ── Garantie en voorwaarden (checkout T&C spec V1.3) ──
@@ -1909,7 +1914,14 @@ function CheckoutContent({ stripe, elements }) {
   // subtotal rather than inside it: insurance is priced FROM the subtotal (see priceInsurance
   // above), and folding the package in would quietly inflate those premiums.
   // The promotion comes off the travel price; every other line stays as it is.
-  const total = cents(subtotal + insAmount + supportCharge.amount - promoAmount);
+  // Whole-euro rules (Levent, 26 Nov 2026), when on: the base offer (the travel price, room choice
+  // included) after its discount goes up to the smallest whole euro that divides by the
+  // travellers, infants included; the extras were rounded line by line above. The euros added are
+  // shown in the travel price line, so the lines still add up. Off: as before.
+  const travelAfterPromo = base + roomExtraTotal - promoAmount;
+  const baseUplift = partyRoundingActive() && !isTransfer
+    ? cents(baseForParty(travelAfterPromo, pax) - travelAfterPromo) : 0;
+  const total = cents(subtotal + insAmount + supportCharge.amount - promoAmount + baseUplift);
   const animTotal = useCountUp(total);
 
   /* ── deposit ──
@@ -3815,7 +3827,7 @@ function CheckoutContent({ stripe, elements }) {
                             </span>
                           </span>
                           <span className="ck-tr-price">
-                            <small>{opt.roundTrip ? t('checkout:transfer.returnTotal', 'return, total') : t('checkout:transfer.total', 'total')}</small>{money(opt.price)}
+                            <small>{opt.roundTrip ? t('checkout:transfer.returnTotal', 'return, total') : t('checkout:transfer.total', 'total')}</small>{money(extraLine(Number(opt.price) || 0))}
                           </span>
                         </button>
                       ))}
@@ -3869,7 +3881,7 @@ function CheckoutContent({ stripe, elements }) {
                       </span>
                       <span className="ck-tr-price">
                         <small>{t('checkout:transfer.total', 'total')}</small>
-                        {money(priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: insuranceBase }))}
+                        {money(extraLine(priceInsurance(cancelOption, { pax, nights: booking.nights, baseSubtotal: insuranceBase })))}
                       </span>
                     </button>
                     <button type="button" className={`ck-tr${cancelIns === false ? ' act' : ''}`}
@@ -4587,7 +4599,7 @@ function CheckoutContent({ stripe, elements }) {
                 <div className="ck-sum-rows">
                   {isTransfer
                     ? <div className="ck-sum-row"><span>{t('checkout:summary.transferUpToPax', { count: booking.maxPax || pax, defaultValue: 'Transfer (per vehicle, up to {{count}} pax)' })}</span><b>{money(base)}</b></div>
-                    : <div className="ck-sum-row"><span>{t('checkout:summary.paxTimesPrice', { count: pax, price: money(booking.ppPrice), defaultValue: '{{count}} × {{price}} p.p.' })}</span><b>{money(base)}</b></div>}
+                    : <div className="ck-sum-row"><span>{t('checkout:summary.paxTimesPrice', { count: pax, price: money(baseUplift ? cents((base + baseUplift) / Math.max(1, pax)) : booking.ppPrice), defaultValue: '{{count}} × {{price}} p.p.' })}</span><b>{money(base + baseUplift)}</b></div>}
                   {roomExtraTotal > 0 && <div className="ck-sum-row"><span>{t('checkout:summary.roomUpgrade', 'Room upgrade')}</span><b>{money(roomExtraTotal)}</b></div>}
                   {transferTotal > 0 && <div className="ck-sum-row"><span>{t('checkout:summary.airportTransfer', 'Airport transfer (per vehicle)')}</span><b>{money(transferTotal)}</b></div>}
                   {baggageRows.map((g) => (

@@ -714,6 +714,25 @@ describe('the results card\'s airport is kept for the live check (Levent, 26 Nov
   });
 });
 
+describe('whole-euro rules (Levent, 26 Nov 2026), switched on', () => {
+  afterEach(async () => { (await import('../../utils/partyRounding')).setPartyRoundingForTest(null); });
+
+  it('500 + 1000,50 = 1501 for 2 becomes 1502: trip price, total, average and the green box agree', async () => {
+    (await import('../../utils/partyRounding')).setPartyRoundingForTest(true);
+    const ODD = fare(1000.5, PKG_OUT, PKG_BACK, 'k-pkg');
+    SEARCH = [ODD, TK_DEAR];
+    CONFIRM = { status: 200, data: { success: true, status: 'CONFIRMED', flight: ODD } };
+    const user = userEvent.setup();
+    const { container } = renderPage();
+    await runCheck(user);
+    await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€ 1.502,00'));
+    const text = container.textContent.replace(/ /g, ' ');
+    expect(text).toMatch(/€ 751,00 p\.p\./);                  // the average: 1502 / 2
+    expect(text).not.toMatch(/1\.501/);                       // the unrounded total is nowhere
+    expect(container.querySelector('.av-price-total-amt b').textContent).toBe('€ 1.502,00');
+  });
+});
+
 describe('the hotel page offers only departure airports with a package to this hotel', () => {
   it('asks for this hotel and its dates; the other-airport check probes only those airports', async () => {
     get.mockImplementation((url) => {

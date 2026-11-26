@@ -16,6 +16,7 @@ import { moneyCompact, moneyFull, formatAmount, NBSP } from '../../utils/money';
 import { rememberDestCode } from '../../utils/favDest';
 import { roundHotelStay, roundStayTotal, perPersonFrom } from '../../utils/priceRounding';
 import { roundSelling } from '../../utils/pricingRounding';
+import { partyRoundingActive, baseForParty } from '../../utils/partyRounding';
 import { NO_MARGINS, fetchMargins, withRoomMargins, packageMarginOf } from '../../utils/margins';
 import { round2 } from '../../utils/marginRules';
 import { localCostOfRate, localCost } from '../../utils/localCosts';
@@ -3681,7 +3682,22 @@ export default function HotelDetail() {
   }) : null);
   const ovPromo = ovBase != null && ovPromoQuote.applied?.amount > 0 && ovPromoQuote.applied.amount < ovBase
     ? ovPromoQuote.applied : null;
-  const ovTotal = ovBase != null ? cents(ovBase - (ovPromo ? ovPromo.amount : 0)) : null;
+  // Whole-euro rules (Levent, 26 Nov 2026; utils/partyRounding), when on: the base offer after its
+  // discount up to the smallest whole euro that divides by the travellers, infants included
+  // (€ 409,61 for 2 -> € 410, € 205 p.p.), exactly as the server charges it. The trip price line
+  // then shows that amount plus the discount, so the lines still add up to the total.
+  const partyOn = partyRoundingActive();
+  const ovPromoAmt = ovPromo ? ovPromo.amount : 0;
+  const ovTotal = ovBase != null ? (partyOn ? baseForParty(ovBase - ovPromoAmt, ovPax) : cents(ovBase - ovPromoAmt)) : null;
+  const ovTrip = ovBase == null ? null : partyOn ? cents(ovTotal + ovPromoAmt) : ovBase;
+  // The green box quotes the same trip price (before the discount, as it always has), per person
+  // over every traveller, so its figure and the overview's agree. Its "lower/higher after the live
+  // check" note is measured on what it shows.
+  const boxShown = partyOn && boxNow != null && boxNow === liveTotal && ovTrip != null ? ovTrip : boxNow;
+  const boxShownPP = boxShown == null ? null
+    : (boxShown !== boxNow ? Math.round((boxShown / Math.max(1, ovPax)) * 100) / 100 : ppOf(boxShown));
+  const boxMovedShown = boxMoved == null ? null : (boxShown - cacheWas || null);
+  const boxPPMovedShown = boxPPMoved == null ? null : (Math.round((boxShownPP - wasPP) * 100) / 100 || null);
   // A total with cents (a percentage discount) shows them; whole euros stay as they always were.
   // The deposit the checkout will ask for on this total, under the same rule and the same
   // arithmetic (utils/checkoutPricing mirrors the server). Null when deposits are off or the
@@ -5068,7 +5084,7 @@ export default function HotelDetail() {
                               </div>
                             </div>
 
-                            <div className={`av-price${boxMoved != null ? (boxMoved < 0 ? ' avail-moved-down' : ' avail-moved-up') : ''}`}>
+                            <div className={`av-price${boxMovedShown != null ? (boxMovedShown < 0 ? ' avail-moved-down' : ' avail-moved-up') : ''}`}>
                               {/* A lavender day has no estimate — €0 is not a price and must
                                   never be printed as one. A quiet dash says "nothing to quote". */}
                               {/* While the live check runs, the figure under it is the last known (cached,
@@ -5087,7 +5103,7 @@ export default function HotelDetail() {
                                   {liveBusy
                                     ? <span className="avail-spin" />
                                     : (boxNow != null || pdEstimate)
-                                      ? <><small>{ccy}</small>{NBSP}{formatAmount(ppOf(boxNow != null ? boxNow : Number(pd.price)), 'compact')}<em>p.p.</em></>
+                                      ? <><small>{ccy}</small>{NBSP}{formatAmount(boxShown != null ? boxShownPP : ppOf(Number(pd.price)), 'compact')}<em>p.p.</em></>
                                       : <span className="avail-price-none">—</span>}
                                 </span>
                               </div>
@@ -5095,10 +5111,10 @@ export default function HotelDetail() {
                               {/* Amber, not red, when it rises. The holiday IS available — that is
                                   what the tick says — and the only thing that changed is the price.
                                   Stated per person, to match the figure above it. */}
-                              {boxPPMoved != null && (
-                                <div className={`avail-move${boxPPMoved < 0 ? ' down' : ' up'}`}>
-                                  {boxPPMoved < 0 ? ICON.arrowDown : ICON.arrowUp}
-                                  <span><b>{pc(Math.abs(boxPPMoved))} p.p.</b> {boxPPMoved < 0 ? t('prices.lowerAfterCheck', 'lower after live check') : t('prices.higherAfterCheck', 'higher after live check')}</span>
+                              {boxPPMovedShown != null && (
+                                <div className={`avail-move${boxPPMovedShown < 0 ? ' down' : ' up'}`}>
+                                  {boxPPMovedShown < 0 ? ICON.arrowDown : ICON.arrowUp}
+                                  <span><b>{pc(Math.abs(boxPPMovedShown))} p.p.</b> {boxPPMovedShown < 0 ? t('prices.lowerAfterCheck', 'lower after live check') : t('prices.higherAfterCheck', 'higher after live check')}</span>
                                 </div>
                               )}
                               {(liveRoom || pdEstimate) && (() => {
@@ -5130,8 +5146,8 @@ export default function HotelDetail() {
                                       {/* The estimate stays on screen struck through: the traveller
                                           chose this day off that number and is owed an account of
                                           where it went. */}
-                                      {boxMoved != null && <span className="avail-price-old">{pf(cacheWas)}</span>}
-                                      <b>{pf(boxNow != null ? boxNow : Number(pd.price))}</b>
+                                      {boxMovedShown != null && <span className="avail-price-old">{pf(cacheWas)}</span>}
+                                      <b>{pf(boxShown != null ? boxShown : Number(pd.price))}</b>
                                     </span>
                                   </div>
                                 );
@@ -5367,7 +5383,9 @@ export default function HotelDetail() {
                               const altPax = Math.max(1, (Number(sAdults) || 2) + (Number(sChildren) || 0));
                               const altTotal = packageTotalWith(alt.total);
                               const heldFare = Number(liveFlights.flights[selectedFlight]?.totalPrice ?? cheapestFare);
-                              const diff = (altTotal != null && liveTotal != null) ? altTotal - liveTotal
+                              // With the whole-euro rules on, as charged: each total rounded for the party.
+                              const diff = (altTotal != null && liveTotal != null)
+                                ? (partyOn && ovTotal != null ? baseForParty(altTotal - ovPromoAmt, ovPax) - ovTotal : altTotal - liveTotal)
                                 : heldFare > 0 ? roundSelling(alt.total) - roundSelling(heldFare) : null;
                               const delta = diff == null ? null : Math.round((diff / altPax) * 100) / 100;
                               return (
@@ -5421,7 +5439,7 @@ export default function HotelDetail() {
                               // Maxwell 5 Dec, 26 Nov 2026). The fare stands in until the room is in.
                               const altTotal = packageTotalWith(alt.total);
                               const altPP = altTotal != null
-                                ? Math.round((altTotal / Math.max(1, (Number(sAdults) || 2) + (Number(sChildren) || 0))) * 100) / 100
+                                ? Math.round((baseForParty(altTotal, ovPax) / Math.max(1, (Number(sAdults) || 2) + (Number(sChildren) || 0))) * 100) / 100
                                 : alt.perPax;
                               return (
                                 <button type="button" key={alt.code} className="alt-chip alt-chip-priced"
@@ -5872,7 +5890,7 @@ export default function HotelDetail() {
                         <div className="overview-row overview-row-tight">
                           <span className="overview-row-label">{t('overview.tripPrice', 'Trip price')}</span>
                           <span className="overview-leader" />
-                          <span className="overview-row-val overview-row-val-plain">{pf(ovBase)}</span>
+                          <span className="overview-row-val overview-row-val-plain">{pf(ovTrip)}</span>
                         </div>
                         {ovPromo && (
                           <div className="overview-row overview-row-tight overview-row-promo" data-testid="promotion-line">

@@ -430,3 +430,41 @@ describe('cancellation cover and the bags added on top', () => {
     expect(body.extrasTotal).toBe(35);
   });
 });
+
+// Levent's whole-euro rules (26 Nov 2026), switched on: the base offer for the party, each paid
+// extra's line up to a whole euro, the sum is the total.
+describe('whole-euro rules at checkout (switched on)', () => {
+  afterEach(async () => { (await import('../../utils/partyRounding')).setPartyRoundingForTest(null); });
+  const totalVal = () => document.querySelector('.ck-sum-total-val')?.textContent.replace(/ /g, ' ');
+
+  it('€ 964 base + € 29,99 baggage = € 994; the bag shows as € 30,00', async () => {
+    (await import('../../utils/partyRounding')).setPartyRoundingForTest(true);
+    const user = userEvent.setup();
+    renderCheckout({ ...bookingWith({ checkedKg: 0, checkedPieces: 0, handKg: 8, infantKg: 0,
+      addOns: { checked: [{ kg: 23, price: 29.99 }], cabin: [] } }), ppPrice: 482 });
+    await toExtras(user);
+    await waitFor(() => expect(totalVal()).toBe('€ 964,00'));
+    const [row] = [...card('Ruimbagage').querySelectorAll('.ck-bagrow')];
+    await user.click(row.querySelector('.ck-bagmenu-btn'));
+    expect(menuOf(row).map((o) => o.textContent.replace(/ /g, ' '))).toEqual(['23 kg€ 30,00']);
+    await user.click(menuOf(row)[0]);
+    await waitFor(() => expect(sumRow('ruimbagage 23 kg').textContent.replace(/ /g, ' ')).toContain('€ 30,00'));
+    await waitFor(() => expect(totalVal()).toBe('€ 994,00'));
+  });
+
+  it('€ 409,61 for two travellers: the travel price and the total are € 410', async () => {
+    (await import('../../utils/partyRounding')).setPartyRoundingForTest(true);
+    const user = userEvent.setup();
+    renderCheckout({ ...bookingWith({ checkedKg: 20, checkedPieces: 0, handKg: 8, infantKg: 0 }), ppPrice: 204.805 });
+    await toExtras(user);
+    await waitFor(() => expect(totalVal()).toBe('€ 410,00'));
+    expect(sumRow('2 ×').textContent.replace(/ /g, ' ')).toMatch(/2 × € 205,00 p\.p\..*€ 410,00/);
+  });
+
+  it('switched off: the same booking is € 409,61, as before', async () => {
+    const user = userEvent.setup();
+    renderCheckout({ ...bookingWith({ checkedKg: 20, checkedPieces: 0, handKg: 8, infantKg: 0 }), ppPrice: 204.805 });
+    await toExtras(user);
+    await waitFor(() => expect(totalVal()).toBe('€ 409,61'));
+  });
+});
