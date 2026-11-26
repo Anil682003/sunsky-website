@@ -195,7 +195,7 @@ describe('Garantie en voorwaarden', () => {
 
     await user.click(within(section()).getByRole('button', { name: 'belangrijke reisinformatie' }));
     const info = await screen.findByRole('dialog', { name: 'Belangrijke reisinformatie' });
-    expect(info).toHaveTextContent('Verkoper van een afzonderlijke reisdienst');
+    expect(info).toHaveTextContent('SUNSKY op als verkoper van een afzonderlijke reisdienst');
     expect(info).toHaveTextContent(/paspoort/i);
   });
 

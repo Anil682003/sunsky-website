@@ -3029,7 +3029,7 @@ function CheckoutContent({ stripe, elements }) {
       {terms?.legalRoleLabel && (
         <section>
           <h3 className="hd">{t('checkout:terms.roleTitle', 'De rol van SUNSKY')}</h3>
-          <p>{t('checkout:terms.roleText', { role: terms.legalRoleLabel, defaultValue: 'Voor deze boeking treedt SUNSKY op als {{role}}.' })}</p>
+          <p>{t('checkout:terms.roleText', { role: terms.legalRoleLabel.charAt(0).toLowerCase() + terms.legalRoleLabel.slice(1), defaultValue: 'Voor deze boeking treedt SUNSKY op als {{role}}.' })}</p>
         </section>
       )}
       {nonRefundable && (
@@ -3895,8 +3895,8 @@ function CheckoutContent({ stripe, elements }) {
                             </a>
                           </>
                         )}
-                        {(insuranceDocs.CANCELLATION || []).map((d) => (
-                          <Fragment key={d.versionId || d.documentId}>{' '}<DocLink doc={d} /></Fragment>
+                        {(insuranceDocs.CANCELLATION || []).map((d, i) => (
+                          <Fragment key={d.versionId || d.documentId}>{i ? ' · ' : ' '}<DocLink doc={d} /></Fragment>
                         ))}
                       </p>
                     </div>
@@ -3981,8 +3981,8 @@ function CheckoutContent({ stripe, elements }) {
                             </a>
                           </>
                         )}
-                        {(insuranceDocs.ASSISTANCE || []).map((d) => (
-                          <Fragment key={d.versionId || d.documentId}>{' '}<DocLink doc={d} /></Fragment>
+                        {(insuranceDocs.ASSISTANCE || []).map((d, i) => (
+                          <Fragment key={d.versionId || d.documentId}>{i ? ' · ' : ' '}<DocLink doc={d} /></Fragment>
                         ))}
                       </p>
                     </div>
@@ -4387,14 +4387,14 @@ function CheckoutContent({ stripe, elements }) {
                           {IDEAL_BANKS.map((b) => <option key={b} value={b}>{b}</option>)}
                         </select>
                       </Field>
-                      <div className="ck-redirect-note">{ICON.bank} <Trans i18nKey="checkout:payment.redirectToBank" t={t}>After clicking <b>Pay</b> you'll be securely redirected to your bank to confirm the payment.</Trans></div>
+                      <div className="ck-redirect-note">{ICON.bank} <span><Trans i18nKey="checkout:payment.redirectToBank" t={t}>After clicking <b>Book and pay</b> you'll be securely redirected to your bank to confirm the payment.</Trans></span></div>
                     </div>
                   )}
 
                   {(payMethod === 'bancontact' || payMethod === 'paypal') && (
                     <div className="ck-alt-pay">
                       <div className="ck-redirect-note">
-                        {ICON.lock} {t('checkout:payment.afterClicking', 'After clicking')} <b>{t('checkout:payment.payWord', 'Pay')}</b> {t('checkout:payment.redirectedToProvider', { provider: payMethod === 'paypal' ? 'PayPal' : 'Bancontact', defaultValue: 'you\'ll be securely redirected to {{provider}} to complete your payment.' })}
+                        {ICON.lock} <span>{t('checkout:payment.afterClicking', 'After clicking')} <b>{t('checkout:payment.payWord', 'Book and pay')}</b> {t('checkout:payment.redirectedToProvider', { provider: payMethod === 'paypal' ? 'PayPal' : 'Bancontact', defaultValue: 'you\'ll be securely redirected to {{provider}} to complete your payment.' })}</span>
                       </div>
                     </div>
                   )}

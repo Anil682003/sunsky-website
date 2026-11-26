@@ -366,12 +366,12 @@
     "bancontact": "Bancontact",
     "paypal": "PayPal",
     "afterClicking": "After clicking",
-    "payWord": "Pay",
+    "payWord": "Book and pay",
     "redirectedToProvider": "you'll be securely redirected to {{provider}} to complete your payment.",
     "billingAddressSame": "Billing address is the same as my customer details",
     "poweredBy": "Powered by",
     "pciCompliant": "PCI-DSS compliant",
-    "redirectToBank": "After clicking <1>Pay</1> you'll be securely redirected to your bank to confirm the payment."
+    "redirectToBank": "After clicking <1>Book and pay</1> you'll be securely redirected to your bank to confirm the payment."
   },
   "card": {
     "cardHolder": "Card holder",

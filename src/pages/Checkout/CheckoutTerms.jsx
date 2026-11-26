@@ -168,7 +168,7 @@ export function TermsDialog({ open, title, onClose, children }) {
   }, [open, onClose]);
   if (!open) return null;
   return (
-    <div className="ck-modal-wrap" onClick={onClose}>
+    <div className="ck-modal-wrap ck-terms-wrap" onClick={onClose}>
       <div className="ck-modal ck-terms-modal" role="dialog" aria-modal="true" aria-labelledby="ck-terms-dialog-title" onClick={(e) => e.stopPropagation()}>
         <div className="ck-modal-head">
           <h2 className="ck-modal-title hd" id="ck-terms-dialog-title">{title}</h2>

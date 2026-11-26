@@ -366,12 +366,12 @@
     "bancontact": "Bancontact",
     "paypal": "PayPal",
     "afterClicking": "Na het klikken op",
-    "payWord": "Betaal",
+    "payWord": "Boek en betaal",
     "redirectedToProvider": "word je veilig doorgestuurd naar {{provider}} om je betaling af te ronden.",
     "billingAddressSame": "Factuuradres is hetzelfde als mijn klantgegevens",
     "poweredBy": "Mogelijk gemaakt door",
     "pciCompliant": "PCI-DSS-conform",
-    "redirectToBank": "Na het klikken op <1>Betaal</1> word je veilig doorgestuurd naar je bank om de betaling te bevestigen."
+    "redirectToBank": "Na het klikken op <1>Boek en betaal</1> word je veilig doorgestuurd naar je bank om de betaling te bevestigen."
   },
   "card": {
     "cardHolder": "Kaarthouder",

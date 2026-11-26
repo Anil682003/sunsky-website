@@ -885,6 +885,10 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 
 /* The trip description and important information dialogs. */
 .ck-terms-modal { max-width:760px; }
+.ck-terms-modal .ck-modal-body { padding:6px 24px 24px; }
+/* Opened from the payment step, where the site header is sticky (z-index 1000): above it, so
+   the title and the close button are never hidden under the header. */
+.ck-modal-wrap.ck-terms-wrap { z-index:1100; }
 .ck-terms-important section + section { margin-top:14px; padding-top:12px; border-top:1px solid var(--border-light); }
 .ck-terms-important h3 { font-size:var(--fs-body); font-weight:700; color:var(--text); margin:0 0 6px; }
 .ck-terms-important p { font-size:var(--fs-small); line-height:1.6; color:var(--text-sec); margin:0 0 6px; }
