@@ -4043,3 +4043,26 @@
   .sd .fc-dot { width:18px; height:18px; margin-top:6px; }
   .sd .fc-tail { display:none; }
 }
+
+/* ═══ The "available" card on a phone ═════════════════════════════════════════════════════════
+   Client screenshot, 26 Nov 2026: the desktop stack (a 34px tick on its own line, the 20px
+   heading under it, then the pill) took most of a phone screen, and the pill wrapped to two
+   lines with its dot left behind on the first. On a phone the tick sits beside the heading on
+   one line, and the pill is a step smaller so "Live beschikbaarheid en prijs bevestigd" fits on
+   one line under them. The checking and failed states use the same markup and follow suit. */
+@media (max-width:640px) {
+  .sd .av-card { padding:16px 12px; gap:12px; border-radius:16px; }
+  .sd .av-main {
+    display:grid; grid-template-columns:auto auto; justify-content:center; align-items:center;
+    column-gap:10px; row-gap:10px;
+  }
+  .sd .av-card .av-head { display:contents; }
+  .sd .av-card .fc-res-mark { width:26px; height:26px; }
+  .sd .av-card .avail-text { font-size:1.125rem; text-align:left; }
+  .sd .av-confirm {
+    grid-column:1 / -1; justify-self:center; margin-top:0;
+    /* 13px is what fits the sentence on one line on a 360px phone (284px of text); on a
+       narrower one it wraps into a rounded box, the dot centred against both lines. */
+    padding:6px 10px; gap:6px; font-size:13px; line-height:1.3; text-align:center; border-radius:15px;
+  }
+}
