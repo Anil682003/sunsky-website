@@ -671,8 +671,10 @@ export default function Navbar() {
             }
           }}
         />
-        {/* Hidden only for a wordmark logo, which already prints the name. */}
-        {brandKnown && !isWordmark && (wordmarkSrc && !wordmarkFailed ? (
+        {/* Hidden only for a wordmark logo, which already prints the name. It waits until the
+            logo has loaded and its shape is known: before that every logo counts as not a wordmark,
+            so on a refresh the old "SunSky" text flashed beside the wordmark (26 Nov 2026). */}
+        {brandKnown && logoAspect !== null && !isWordmark && (wordmarkSrc && !wordmarkFailed ? (
           <img
             src={wordmarkSrc}
             alt={header.wordmark?.alt || logoAlt}

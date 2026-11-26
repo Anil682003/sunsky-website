@@ -660,9 +660,20 @@ describe('a version 1 payload (production today)', () => {
   });
 });
 
+// jsdom never loads an image, and the bar only decides whether to print the name beside the
+// logo once the logo has loaded and its shape is known. This loads it with the shape given:
+// square by default (an icon, so the name goes beside it), or wide for a wordmark.
+const loadLogo = (w = 64, h = 64) => {
+  const img = document.querySelector(`.${styles.logo} img`);
+  Object.defineProperty(img, 'naturalWidth', { value: w, configurable: true });
+  Object.defineProperty(img, 'naturalHeight', { value: h, configurable: true });
+  act(() => { img.dispatchEvent(new Event('load')); });
+};
+
 describe('the wordmark beside the logo (CMS → Layout → Header)', () => {
   it('without an uploaded wordmark the bar keeps the "SunSky" text', () => {
     renderNavbar();
+    loadLogo();
     expect(screen.getAllByText(/Sky/).length).toBeGreaterThan(0);
     expect(screen.queryByAltText('SunSky wordmark')).toBeNull();
   });
@@ -670,6 +681,7 @@ describe('the wordmark beside the logo (CMS → Layout → Header)', () => {
   it('an uploaded wordmark replaces the text; a broken one falls back to it', async () => {
     headerConfig = { siteHeader: { ...v2(), wordmark: { url: '/uploads/header/wordmark.png', alt: 'SunSky wordmark' } } };
     renderNavbar();
+    loadLogo();
     const img = screen.getByAltText('SunSky wordmark');
     expect(img.getAttribute('src')).toMatch(/\/uploads\/header\/wordmark\.png$/);
     expect(screen.queryByText('Sky')).toBeNull();
@@ -683,14 +695,17 @@ describe('the wordmark size', () => {
   it('uses the CMS height, clamped to 20–64px, 46px by default', () => {
     headerConfig = { siteHeader: { ...v2(), wordmark: { url: '/uploads/header/w.png', alt: 'WM', height: 52 } } };
     const { unmount } = renderNavbar();
+    loadLogo();
     expect(screen.getByAltText('WM').style.getPropertyValue('--wordmark-h')).toBe('52px');
     unmount();
     headerConfig = { siteHeader: { ...v2(), wordmark: { url: '/uploads/header/w.png', alt: 'WM', height: 500 } } };
     const r2 = renderNavbar();
+    loadLogo();
     expect(screen.getByAltText('WM').style.getPropertyValue('--wordmark-h')).toBe('64px');
     r2.unmount();
     headerConfig = { siteHeader: { ...v2(), wordmark: { url: '/uploads/header/w.png', alt: 'WM' } } };
     renderNavbar();
+    loadLogo();
     expect(screen.getByAltText('WM').style.getPropertyValue('--wordmark-h')).toBe('46px');
   });
 });
@@ -725,7 +740,17 @@ describe('no flash of the old logo on refresh (Levent 24 Oct)', () => {
     headerConfig = null;   // the live answer has not arrived
     renderNavbar();
     expect(logoImg().getAttribute('src')).toMatch(/new-logo.png$/);
+    loadLogo();
     expect(screen.getByAltText('WM')).toBeInTheDocument();
+  });
+
+  it('refresh: no "SunSky" text beside the logo while it loads, none once it is a wordmark (26 Nov 2026)', () => {
+    localStorage.setItem('sunsky.headerConfig.v1', JSON.stringify({ logoUrl: '/uploads/header/logo.svg', siteHeader: v2() }));
+    headerConfig = null;
+    renderNavbar();
+    expect(screen.queryByText('Sky')).toBeNull();
+    loadLogo(1343, 531);
+    expect(screen.queryByText('Sky')).toBeNull();
   });
 
   it('settings cannot be loaded at all: the bundled logo, never an empty bar', () => {
