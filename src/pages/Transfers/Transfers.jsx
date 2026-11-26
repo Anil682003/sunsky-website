@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import i18n from '../../i18n';
+import { moneyCompact } from '../../utils/money';
 import axiosInstance from '../../services/axiosInstance';
 import './Transfers.css';
 
@@ -45,7 +46,8 @@ const sortOptions = () => [
   { v: 'pax', l: i18n.t('transfers:sort.capacity', 'Capacity: Largest') },
 ];
 
-const money = (n) => `€${Math.round(Number(n) || 0).toLocaleString('en-GB')}`;
+// The compact SUNSKY notation (utils/money.js): € 48; amounts as before (to the nearest euro).
+const money = (n) => moneyCompact(Math.round(Number(n) || 0));
 const vehicleIcon = (type) => (type === 'SHARED' ? ICON.van : ICON.car);
 // Dates are read by the browser, so they need the reader's locale rather than a hard-coded en-GB.
 const dateLocale = () => (i18n.language === 'nl' ? 'nl-BE' : 'en-GB');

@@ -2,6 +2,7 @@ import { useState, useMemo } from 'react';
 import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import i18n from '../../i18n';
+import { moneyCompact, moneyFull, moneyDiscount } from '../../utils/money';
 import './FlightDetail.css';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import { buildContext, fmtDate, fmtDateShort, fareBreakdown, paxLabel, cabinLabel } from '../Flights/flightData';
@@ -145,7 +146,10 @@ export default function FlightDetail() {
   const { data: pricingCfg } = useCheckoutConfig();
 
   const fb = useMemo(() => (flight ? fareBreakdown(flight) : null), [flight]);
-  const money = (n) => `€${Math.round(n).toLocaleString('en-GB')}`;
+  // The SUNSKY notation (utils/money.js): the breakdown, deposit and totals always with two
+  // decimals (€ 458,00); the headline chip compact. Amounts as before (to the nearest euro).
+  const money = (n) => moneyFull(Math.round(n));
+  const moneyChip = (n) => moneyCompact(Math.round(n));
 
   // Reloading this URL, or opening it from a bookmark, used to fall back to
   // generateFlights() — a fabricated itinerary on a default LON→DXB route, at a fabricated
@@ -422,7 +426,7 @@ export default function FlightDetail() {
             {flight.cabin && <span className="fd-hchip">{ICON.board} {cabinLabel(flight.cabin)}</span>}
             {flight.fareName && <span className="fd-hchip">{ICON.doc} {flight.fareName}</span>}
             <span className="fd-hchip">{ICON.clock} {t('flightDetail:hero.totalTime', { total: totalLabel, defaultValue: '{{total}} total' })}</span>
-            <span className="fd-hchip fd-hchip-price">{t('flightDetail:hero.fromPp', { price: money(flight.price), defaultValue: 'from {{price}} pp' })}</span>
+            <span className="fd-hchip fd-hchip-price">{t('flightDetail:hero.fromPp', { price: moneyChip(flight.price), defaultValue: 'from {{price}} pp' })}</span>
           </div>
         </div>
       </header>
@@ -535,7 +539,7 @@ export default function FlightDetail() {
                   {fb.perAdult != null && fb.pax > 1 && (
                     <div className="fd-fare-row"><span>{ICON.user} {t('flightDetail:fare.perAdult', 'Fare per adult')}</span><b>{money(fb.perAdult)}</b></div>
                   )}
-                  {fb.discount > 0 && <div className="fd-fare-row disc"><span>{ICON.check} {t('flightDetail:fare.instantDiscount', 'Instant discount')}</span><b>− {money(fb.discount)}</b></div>}
+                  {fb.discount > 0 && <div className="fd-fare-row disc"><span>{ICON.check} {t('flightDetail:fare.instantDiscount', 'Instant discount')}</span><b>{moneyDiscount(Math.round(fb.discount))}</b></div>}
                   <div className="fd-fare-row total"><span>{t('flightDetail:fare.totalAmount', 'Total amount')}</span><b>{money(fb.total)}</b></div>
                   {deposit && (
                     <div className="fd-fare-dep">

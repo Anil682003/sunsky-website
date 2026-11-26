@@ -59,11 +59,11 @@ describe('FlightDetail — the price it shows', () => {
   it('prices the headline per ADULT and the booking at the party total', () => {
     renderPage({ flight, ctx });
     // Hero: the fare one adult pays for the whole trip.
-    expect(screen.getByText(/vanaf €740 pp/i)).toBeInTheDocument();
+    expect(screen.getByText(/vanaf €\s740 pp/i)).toBeInTheDocument();
     // Sidebar: what the party is actually charged — not €740, and not €2,960.
     expect(screen.getByText(/Totaal voor 2/i)).toBeInTheDocument();
-    expect(screen.getAllByText('€1,480').length).toBeGreaterThan(0);
-    expect(screen.queryByText('€2,960')).not.toBeInTheDocument();
+    expect(screen.getAllByText(/^€\s1\.480,00$/).length).toBeGreaterThan(0);
+    expect(screen.queryByText(/^€\s2\.960,00$/)).not.toBeInTheDocument();
   });
 
   it('hands the checkout the exact supplier total and a per-person figure', async () => {
@@ -80,8 +80,8 @@ describe('FlightDetail — the price it shows', () => {
     renderPage({ flight, ctx });
     await userEvent.click(screen.getByRole('button', { name: /tariefoverzicht/i }));
     expect(screen.getByText(/Basistarief \(2 reizigers\)/i)).toBeInTheDocument();
-    expect(screen.getByText('€1,184')).toBeInTheDocument();   // 370 × 0.8 × 2 × 2
-    expect(screen.getByText('€296')).toBeInTheDocument();     // the remainder, as tax
+    expect(screen.getByText(/^€\s1\.184,00$/)).toBeInTheDocument();   // 370 × 0.8 × 2 × 2
+    expect(screen.getByText(/^€\s296,00$/)).toBeInTheDocument();     // the remainder, as tax
     expect(screen.queryByText(/fuel surcharge/i)).not.toBeInTheDocument();
   });
 });

@@ -302,10 +302,10 @@
     "samePrice": "Zelfde prijs"
   },
   "localCosts": {
-    "payableToSunsky": "Te betalen aan SUNSKY € {{amount}}",
+    "payableToSunsky": "Te betalen aan SUNSKY {{amount}}",
     "mandatoryLocal": "Verplicht ter plaatse te betalen",
-    "totalKnown": "Totale bekende reiskosten € {{amount}}",
-    "uncertainRange": "{{cost}}, lokaal tarief ca. € {{min}}-€ {{max}} p.p. per nacht; het exacte bedrag wordt ter plaatse bepaald",
+    "totalKnown": "Totale bekende reiskosten {{amount}}",
+    "uncertainRange": "{{cost}}, lokaal tarief ca. {{min}}-{{max}} p.p. per nacht; het exacte bedrag wordt ter plaatse bepaald",
     "cost": {
       "touristTax": "toeristenbelasting",
       "other": "lokale belasting"

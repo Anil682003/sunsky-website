@@ -88,7 +88,7 @@ describe('a CMS-picked hotel card', () => {
     const card = cardFor('Rixos Premium Belek');
     expect(within(card).getByText('🇹🇷 Antalya, Turkey')).toBeInTheDocument();
     expect(within(card).getByText('9.2')).toBeInTheDocument();
-    await waitFor(() => expect(card.textContent).toMatch(/€551/));
+    await waitFor(() => expect(card.textContent).toMatch(/€\s551/));
     expect(card.textContent).not.toMatch(/€899/);
     expect(within(card).getByRole('img')).toHaveAttribute('src', HOTEL.imageUrl);
   });

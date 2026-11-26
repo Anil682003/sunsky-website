@@ -61,7 +61,7 @@ describe('the summary under the total', () => {
   it('a known €12.40 shows as € 12,40 and the total stays €600', async () => {
     renderCheckout(booking());
     await waitFor(() => expect(total()).toBe('€ 600,00'));
-    expect(local().textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    expect(local().textContent.replace(/ /g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
     // Right under the total, before anything else in the summary.
     expect(document.querySelector('.ck-sum-total').nextElementSibling).toBe(local());
     expect(document.querySelector('.ck-mbar-price').textContent).toMatch(/€\s600,00$/);
@@ -97,10 +97,10 @@ describe('a re-priced rate brings its own local costs', () => {
     const user = userEvent.setup();
     renderCheckout(childBooking());
     await waitFor(() => expect(childCard()).toBeTruthy());
-    expect(local().textContent).toBe('Verplicht ter plaatse te betalen: € 12,40');
+    expect(local().textContent.replace(/ /g, ' ')).toBe('Verplicht ter plaatse te betalen: € 12,40');
     setDob(childCard(), '1996-01-01');
     await user.click(await screen.findByRole('button', { name: /nieuwe prijs accepteren/i }, { timeout: 4000 }));
-    await waitFor(() => expect(local().textContent).toBe('Verplicht ter plaatse te betalen: € 15,60'));
+    await waitFor(() => expect(local().textContent.replace(/ /g, ' ')).toBe('Verplicht ter plaatse te betalen: € 15,60'));
     await waitFor(() => expect(total()).toBe('€ 980,00'));
   });
 

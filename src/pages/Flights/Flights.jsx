@@ -2,6 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
+import { moneyCompact, moneyFull } from '../../utils/money';
 import './Flights.css';
 import axiosInstance from '../../services/axiosInstance';
 import { buildContext, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal, legContexts, combineTrip, cabinLabel } from './flightData';
@@ -348,7 +349,10 @@ export default function Flights() {
     return data;
   }, [allFlights, selAirlines, selStops, selSlots, maxPrice, sort]);
 
-  const money = (n) => `€${Math.round(n).toLocaleString('en-GB')}`;
+  // The SUNSKY notation (utils/money.js): compact on cards and the trip bar, € 458; the live
+  // confirmation's two totals in full, € 2.580,00. Amounts as before (to the nearest euro).
+  const money = (n) => moneyCompact(Math.round(n));
+  const moneyTotal = (n) => moneyFull(Math.round(n));
 
   // On a plain trip, choosing a fare IS the choice and the detail page opens. On a multi-city
   // trip it answers one flight of several, so it stays on this page and moves to the next
@@ -708,11 +712,11 @@ export default function Flights() {
             <div className="fl-pricechg-rows">
               <div className="fl-pricechg-row">
                 <span>{t('flights:confirm.priceWas', 'Price shown')}</span>
-                <s>{money(flightTotal(confirmState.cached))}</s>
+                <s>{moneyTotal(flightTotal(confirmState.cached))}</s>
               </div>
               <div className="fl-pricechg-row now">
                 <span>{t('flights:confirm.priceNow', 'Price now')}</span>
-                <b>{money(confirmState.livePrice ?? flightTotal(confirmState.flight))}</b>
+                <b>{moneyTotal(confirmState.livePrice ?? flightTotal(confirmState.flight))}</b>
               </div>
             </div>
             <div className="fl-pricechg-btns">

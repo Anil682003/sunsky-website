@@ -4,7 +4,8 @@ import { useTranslation } from 'react-i18next';
 import axiosInstance from '../../services/axiosInstance';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
-import { mainPrice, formatEuros, PRICE_KIND, PRODUCT } from '../../utils/tripPrice';
+import { mainPrice, sellingEuros, PRODUCT } from '../../utils/tripPrice';
+import { moneyCompact } from '../../utils/money';
 import { formatReview } from '../../utils/reviewBadge';
 import { defaultSearchContext } from '../../utils/searchDefaults';
 import styles from './SeoOffers.module.css';
@@ -45,7 +46,7 @@ const CARDS = 8;
 const PARTY = Object.freeze({ adults: 2, children: 0, rooms: 1, childAges: [] });
 
 export default function SeoOffers({ scope, heading }) {
-  const { t, i18n } = useTranslation('common');
+  const { t } = useTranslation('common');
   /**
    * The cache keys on DESTINATION codes, not country codes: `destinations=TR` returns
    * nothing at all, while `destinations=AYT` returns hotels. The resolver therefore hands a
@@ -190,7 +191,7 @@ export default function SeoOffers({ scope, heading }) {
                 {c.price && (
                   <span className={styles.price}>
                     <small>{t(`${c.price.i18nKey}`, c.price.variant === 'FROM_PER_PERSON' ? 'Vanaf' : 'Totaal')}</small>
-                    {formatEuros(c.price.amount, PRICE_KIND.SELLING, { locale: i18n.language === 'en' ? 'en-GB' : 'nl-BE' })}
+                    {moneyCompact(sellingEuros(c.price.amount))}
                     {c.price.variant === 'FROM_PER_PERSON' && <small> p.p.</small>}
                   </span>
                 )}

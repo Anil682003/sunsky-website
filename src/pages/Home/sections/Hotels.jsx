@@ -8,6 +8,7 @@ import HotelPhotoFallback from '../../../components/HotelPhotoFallback/HotelPhot
 import styles from './Hotels.module.css';
 import SectionHead from './SectionHead';
 import { useTranslation } from 'react-i18next';
+import { moneyCompact } from '../../../utils/money';
 
 // The CMS-picked cards carry the hotel's real identity (hotelCode + destinationCode), so each
 // one links to that hotel's own live-priced detail page.
@@ -106,7 +107,7 @@ function usePackageFromPrices(cards) {
 }
 
 export default function Hotels({ cms }) {
-  const { t, i18n } = useTranslation('home');
+  const { t } = useTranslation('home');
   const sh = cms?.sectionHeaders?.hotels;
   const tag      = sh?.tag      || t('hotels.tag', 'Top Rated');
   const title    = sh?.title    || t('hotels.title', 'Popular with our holidaymakers');
@@ -114,7 +115,8 @@ export default function Hotels({ cms }) {
 
   const picked = cms?.popularHotels?.length > 0 ? cms.popularHotels : [];
   const packages = usePackageFromPrices(picked);
-  const euros = (n) => `€${new Intl.NumberFormat(i18n.language === 'nl' ? 'nl-BE' : 'en-GB', { maximumFractionDigits: 0 }).format(n)}`;
+  // Card price: the compact SUNSKY notation (utils/money.js), € 647; same amount as before.
+  const euros = (n) => moneyCompact(Math.round(Number(n)));
   const hotels = picked.length > 0
     ? picked.map((h) => {
         // The real stored TripAdvisor rating (/10) wins over the manual marketing "score" — the

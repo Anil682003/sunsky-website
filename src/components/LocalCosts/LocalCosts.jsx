@@ -1,5 +1,6 @@
 import { useTranslation } from 'react-i18next';
-import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { sellingEuros } from '../../utils/tripPrice';
+import { moneyFull, formatAmount } from '../../utils/money';
 import { LOCAL_COST } from '../../utils/localCosts';
 import styles from './LocalCosts.module.css';
 
@@ -13,28 +14,28 @@ import styles from './LocalCosts.module.css';
  * amounts, and the local one keeps its cents.
  */
 export default function LocalCosts({ cost, payable = null, className = '' }) {
-  const { t, i18n } = useTranslation('common');
+  const { t } = useTranslation('common');
   if (!cost) return null;
-  const locale = String(i18n.language || '').startsWith('en') ? 'en-GB' : 'nl-BE';
-  const local = (n) => formatEuros(n, PRICE_KIND.LOCAL, { locale });
+  // A local cost keeps its cents, always two decimals, in the SUNSKY notation (utils/money.js).
+  const local = (n) => moneyFull(n);
   const value = cost.kind === LOCAL_COST.RANGE
     ? t('localCosts.uncertainRange', {
       cost: t(`localCosts.cost.${cost.cost}`, cost.cost === 'touristTax' ? 'tourist tax' : 'local tax'),
       min: local(cost.min),
       max: local(cost.max),
     })
-    // The locale strings put the euro sign before the amount; another currency is named after it,
-    // as the hotel will charge it, never converted here.
-    : cost.currency === 'EUR' ? `€ ${local(cost.amount)}` : `${local(cost.amount)} ${cost.currency}`;
+    // Another currency is named after the amount, as the hotel will charge it, never converted here.
+    : cost.currency === 'EUR' ? local(cost.amount) : `${formatAmount(cost.amount, 'full')} ${cost.currency}`;
   const known = cost.kind === LOCAL_COST.KNOWN;
+  // The SUNSKY total: the same amount as before (whole euros, rounded up), now with two decimals.
   const ours = payable != null && Number.isFinite(Number(payable))
-    ? formatEuros(payable, PRICE_KIND.SELLING, { locale })
+    ? moneyFull(sellingEuros(payable))
     : null;
   return (
     <div className={`${styles.block} ${className}`.trim()} data-local-costs={cost.kind}>
       {ours != null && (
         <div className={styles.payable}>
-          {keepTogether(t('localCosts.payableToSunsky', { amount: ours }), `€ ${ours}`)}
+          {keepTogether(t('localCosts.payableToSunsky', { amount: ours }), ours)}
         </div>
       )}
       <div className={styles.local}>
@@ -46,7 +47,7 @@ export default function LocalCosts({ cost, payable = null, className = '' }) {
   );
 }
 
-/** The sentence with its money ("€ 1.101") in one unbreakable piece; the text stays the same. */
+/** The sentence with its money ("€ 1.101,00") in one unbreakable piece; the text stays the same. */
 function keepTogether(line, money) {
   const at = line.lastIndexOf(money);
   if (at < 0) return line;
