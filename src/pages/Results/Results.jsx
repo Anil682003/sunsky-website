@@ -35,7 +35,8 @@ import {
   stayNights, stayCheckOut, withinStayNightLimit, MAX_TRAVEL_DAYS, stayDays, packageTravelDays,
 } from '../../utils/durations';
 import { trackSearch, searchSignature } from '../../analytics';
-import { formatEuros, PRICE_KIND } from '../../utils/tripPrice';
+import { sellingEuros } from '../../utils/tripPrice';
+import { moneyCompact, formatAmount } from '../../utils/money';
 import { localCostOfCacheRow } from '../../utils/localCosts';
 import { extrasOf } from '../../utils/promoExtras';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
@@ -2846,7 +2847,8 @@ export default function Results() {
   const activeCount = countActiveFilters(filters);
   const currency    = allHotels[0]?.currency || 'EUR';
   // House format, not the browser's: an English-language browser wrote "€ 1,200".
-  const priceLabel  = (n) => `${currency} ${Math.round(n).toLocaleString('nl-BE')}`;
+  // The compact SUNSKY notation (utils/money.js): € 500, not the currency code "EUR 500".
+  const priceLabel  = (n) => moneyCompact(Math.round(n), { currency });
 
   // The prices this search actually returned, in the basis being shown. It is read off the
   // loaded results rather than the slider's bounds, which are a round-numbered ceiling that
@@ -4246,7 +4248,9 @@ export default function Results() {
                 // Whole euros, rounded UP (spec 2.3): a SUNSKY price never shows cents, and never
                 // shows less than the fare it stands for.
                 const ppMajor = Number.isFinite(shownPerPerson)
-                  ? formatEuros(shownPerPerson, PRICE_KIND.SELLING, { locale: numberLocale })
+                  // The digits in the SUNSKY notation on every language (Price Display brief); the
+                  // card sets the € itself. Same amount: the whole euro rounded up.
+                  ? formatAmount(sellingEuros(shownPerPerson), 'compact')
                   : '—';
                 // TripAdvisor rating (/10), from the harvested store on the bulk info record.
                 const rev = formatReview(info?.review);

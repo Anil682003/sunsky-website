@@ -606,8 +606,8 @@ describe('price box', () => {
     renderResults();
     await settled();
     const min = slider('Minimumprijs');
-    expect(screen.getAllByText(`EUR ${Number(min.dataset.ceiling).toLocaleString('nl-BE')}`)[0]).toBeInTheDocument();
-    expect(screen.getAllByText(`EUR ${Number(min.dataset.floor).toLocaleString('nl-BE')}`)[0]).toBeInTheDocument();
+    expect(screen.getAllByText((_, el) => el?.textContent === `€ ${Number(min.dataset.ceiling).toLocaleString('nl-BE')}`)[0]).toBeInTheDocument();
+    expect(screen.getAllByText((_, el) => el?.textContent === `€ ${Number(min.dataset.floor).toLocaleString('nl-BE')}`)[0]).toBeInTheDocument();
     expect(screen.queryByText(/Beschikbare prijzen:/)).toBeNull();
   });
 });
@@ -763,18 +763,18 @@ describe('price range', () => {
     const min = slider('Minimumprijs');
     const box = () => slider('Minimumprijs').closest('[class*="priceSliderWrap"]');
     expect(Number(min.dataset.floor)).toBeGreaterThan(0);
-    expect(box().textContent).not.toMatch(/EUR 0(?![\d.])/);
+    expect(box().textContent).not.toMatch(/€\s0(?![\d.,])/);
     expect(box().textContent).not.toMatch(/\+/);
     expect(box().textContent).not.toMatch(/–/);             // no chosen window without a bound
     dragSlider('Maximumprijs', 150);
     await waitFor(() => expect(lastCall().get('maxPrice')).toBe('150'));
-    await waitFor(() => expect(within(box()).getByText('tot EUR 150')).toBeInTheDocument());
+    await waitFor(() => expect(within(box()).getByText(/^tot €\s150$/)).toBeInTheDocument());
 
     // A minimum keeps the track's left end where it was, so the handle can come back down.
     const floorBefore = Number(min.dataset.floor);
     dragSlider('Minimumprijs', 120);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('120'));
-    await waitFor(() => expect(within(box()).getByText('EUR 120 – EUR 150')).toBeInTheDocument());
+    await waitFor(() => expect(within(box()).getByText(/^€\s120 – €\s150$/)).toBeInTheDocument());
     expect(Number(slider('Minimumprijs').dataset.floor)).toBe(floorBefore);
   });
 });

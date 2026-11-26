@@ -90,7 +90,7 @@ describe('Hotel only: the cache row\'s taxExcluded under the price', () => {
     const card = await cardOf('201');
     const block = card.querySelector('[data-local-costs]');
     expect(block).not.toBeNull();
-    expect(block.textContent).toBe('Te betalen aan SUNSKY € 501Verplicht ter plaatse te betalen: € 12,40');
+    expect(block.textContent.replace(/ /g, ' ')).toBe('Te betalen aan SUNSKY € 501,00Verplicht ter plaatse te betalen: € 12,40');
     // 501 for two is 251 p.p.; with the tax added it would have been 257 (or a total of 514).
     expect(card.textContent).toMatch(/251/);
     expect(card.textContent).not.toMatch(/257|513|514/);
@@ -119,7 +119,7 @@ describe('Flight + Hotel: the package\'s localCosts under the price', () => {
     renderAt(PACKAGE);
     const card = await cardOf('301');
     const block = card.querySelector('[data-local-costs]');
-    expect(block.textContent).toBe('Te betalen aan SUNSKY € 1.101Verplicht ter plaatse te betalen: € 12,40');
+    expect(block.textContent.replace(/ /g, ' ')).toBe('Te betalen aan SUNSKY € 1.101,00Verplicht ter plaatse te betalen: € 12,40');
     expect(card.textContent).toMatch(/551/);
     expect(card.textContent).not.toMatch(/1\.113|1\.114|557/);
     expect(liveCalls()).toHaveLength(0);
