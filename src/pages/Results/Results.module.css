@@ -390,7 +390,6 @@
 }
 .priceInput input:focus { outline: none; border-color: var(--blue-ocean); background: #fff; }
 /* What the search actually returned, as opposed to where the handles can travel. */
-.priceAvailable { margin: 8px 0 0; font-size: var(--fs-small); color: var(--text-light); }
 .priceSliderWrap { padding: 6px 0 2px; }
 .filterRange {
   appearance: none; -webkit-appearance: none;
@@ -417,9 +416,11 @@
   font-size: var(--fs-small); font-weight: 600; color: var(--text-light); margin-top: 8px;
 }
 .priceSliderCurrent {
-  font-size: var(--fs-key); font-weight: var(--fw-key); color: var(--blue-deep);
+  font-size: var(--fs-small); font-weight: 700; color: var(--blue-deep);
   background: var(--blue-light); padding: 4px 12px; border-radius: var(--r-full);
 }
+/* The chosen window, on its own line under the two ends, only while a bound is set. */
+.priceSliderChosen { display: flex; justify-content: center; margin-top: 8px; }
 
 /* Dual price range (min + max) — reuses the .filterRange thumb styling */
 .priceDual { position: relative; height: 22px; margin: 12px 0 4px; }

@@ -3,6 +3,7 @@ import { render, screen, waitFor, within, fireEvent } from '@testing-library/rea
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Results from './Results';
+import { priceScale } from './priceScale';
 
 // ── Module mocks ──────────────────────────────────────────────────────────────
 const navigateSpy = vi.fn();
@@ -267,9 +268,18 @@ const openBar = (user, label) => user.click(barField(label));
 // Setting .value + firing change is the supported way to exercise a range input.
 const slider = (label) =>
   screen.getAllByRole('slider').find((s) => s.getAttribute('aria-label') === label);
-const dragSlider = (label, value) => {
+// The handles move in positions on a price scale (priceScale.js); these tests think in euros,
+// so a price is turned into the position that stands for it on the slider's own scale.
+const scaleOf = (el) => priceScale(Number(el.dataset.floor), Number(el.dataset.ceiling));
+const ceilingOf = (label) => Number(slider(label).dataset.ceiling);
+const dragSlider = (label, euros) => {
   const el = slider(label);
-  fireEvent.change(el, { target: { value: String(value) } });
+  fireEvent.change(el, { target: { value: String(scaleOf(el).toPos(euros)) } });
+  return el;
+};
+const dragSliderTo = (label, position) => {
+  const el = slider(label);
+  fireEvent.change(el, { target: { value: String(position) } });
   return el;
 };
 
@@ -590,12 +600,15 @@ describe('price box', () => {
     expect(screen.queryByRole('radio', { name: 'Per persoon' })).not.toBeInTheDocument();
   });
 
-  // The slider's ceiling is a round number that only grows; what the search returned is a
-  // different fact, and the one that tells a traveller whether a bound is worth setting.
-  it('states the prices the search actually returned', async () => {
+  // The track's two ends ARE the prices the search returned (cheapest rounded down, dearest
+  // rounded up), so they are stated there rather than in a second "available prices" line.
+  it('labels the ends of the track with the prices the search returned', async () => {
     renderResults();
     await settled();
-    expect(screen.getAllByText(/Beschikbare prijzen:/)[0]).toBeInTheDocument();
+    const min = slider('Minimumprijs');
+    expect(screen.getAllByText(`EUR ${Number(min.dataset.ceiling).toLocaleString('nl-BE')}`)[0]).toBeInTheDocument();
+    expect(screen.getAllByText(`EUR ${Number(min.dataset.floor).toLocaleString('nl-BE')}`)[0]).toBeInTheDocument();
+    expect(screen.queryByText(/Beschikbare prijzen:/)).toBeNull();
   });
 });
 
@@ -658,7 +671,7 @@ describe('price range', () => {
     // Explicitly park the max at the ceiling: it must STILL be omitted, otherwise
     // the cap would silently exclude the pricier hotels on pages 2+.
     const max = slider('Maximumprijs');
-    dragSlider('Maximumprijs', max.max);
+    dragSliderTo('Maximumprijs', max.max);
     await new Promise((r) => setTimeout(r, 400));
     expect(lastCall().get('maxPrice')).toBeNull();
   });
@@ -692,7 +705,7 @@ describe('price range', () => {
   it('never lets the min handle cross the max', async () => {
     renderResults();
     await settled();
-    const ceil = Number(slider('Maximumprijs').max);
+    const ceil = ceilingOf('Maximumprijs');
 
     dragSlider('Maximumprijs', ceil - 100);
     await waitFor(() => expect(lastCall().get('maxPrice')).toBe(String(ceil - 100)));
@@ -712,12 +725,12 @@ describe('price range', () => {
   it('never lets the max handle cross the min', async () => {
     renderResults();
     await settled();
-    const ceil = Number(slider('Maximumprijs').max);
+    const ceil = ceilingOf('Maximumprijs');
 
     dragSlider('Minimumprijs', ceil - 100);
     await waitFor(() => expect(lastCall().get('minPrice')).toBe(String(ceil - 100)));
 
-    dragSlider('Maximumprijs', 0);
+    dragSliderTo('Maximumprijs', 0);
     await waitFor(() => {
       expect(Number(slider('Maximumprijs').value)).toBeGreaterThan(Number(slider('Minimumprijs').value));
     });
@@ -726,11 +739,11 @@ describe('price range', () => {
   it('clamps a max dragged past the ceiling and treats it as unbounded', async () => {
     renderResults();
     await settled();
-    const ceil = Number(slider('Maximumprijs').max);
+    const end = Number(slider('Maximumprijs').max);
 
-    dragSlider('Maximumprijs', ceil * 10);
+    dragSliderTo('Maximumprijs', end * 10);
     await new Promise((r) => setTimeout(r, 400));
-    expect(Number(slider('Maximumprijs').value)).toBe(ceil);
+    expect(Number(slider('Maximumprijs').value)).toBe(end);
     expect(lastCall().get('maxPrice')).toBeNull();
   });
 
@@ -739,7 +752,30 @@ describe('price range', () => {
     await settled();
     // Page 1 tops out at 250 (cheap hotels 60..250 in 10s), so the track must end there,
     // not at some arbitrary constant that squashes the useful range into a corner.
-    expect(Number(slider('Maximumprijs').max)).toBe(250);
+    expect(ceilingOf('Maximumprijs')).toBe(250);
+  });
+
+  // Client remark (26 Nov 2026): the track starts at the cheapest result, not at EUR 0, its two
+  // ends are labelled once, and the chosen window appears only once a bound is set.
+  it('runs from the cheapest result to the dearest and names the chosen window once', async () => {
+    renderResults();
+    await settled();
+    const min = slider('Minimumprijs');
+    const box = () => slider('Minimumprijs').closest('[class*="priceSliderWrap"]');
+    expect(Number(min.dataset.floor)).toBeGreaterThan(0);
+    expect(box().textContent).not.toMatch(/EUR 0(?![\d.])/);
+    expect(box().textContent).not.toMatch(/\+/);
+    expect(box().textContent).not.toMatch(/–/);             // no chosen window without a bound
+    dragSlider('Maximumprijs', 150);
+    await waitFor(() => expect(lastCall().get('maxPrice')).toBe('150'));
+    await waitFor(() => expect(within(box()).getByText('tot EUR 150')).toBeInTheDocument());
+
+    // A minimum keeps the track's left end where it was, so the handle can come back down.
+    const floorBefore = Number(min.dataset.floor);
+    dragSlider('Minimumprijs', 120);
+    await waitFor(() => expect(lastCall().get('minPrice')).toBe('120'));
+    await waitFor(() => expect(within(box()).getByText('EUR 120 – EUR 150')).toBeInTheDocument());
+    expect(Number(slider('Minimumprijs').dataset.floor)).toBe(floorBefore);
   });
 });
 
@@ -871,8 +907,9 @@ describe('show more (+20 per click, no infinite scroll)', () => {
     // A filter that changes the request without shrinking the result set below one page
     // (`boards=AI` matches only four hotels in the mock, leaving no page 2 to assert on).
     // A minimum of €1 changes the request but keeps every hotel, so there is still a page 2.
-    void user;
-    dragSlider('Minimumprijs', 1);
+    // Typed: the slider starts at the cheapest result, so EUR 1 is only reachable in the box.
+    await user.type(screen.getAllByRole('spinbutton', { name: 'Minimumprijs' })[0], '1');
+    await user.tab();
     await waitFor(() => expect(lastCall().get('minPrice')).toBe('1'));
     await waitFor(() => expect(cards().length).toBeGreaterThan(0));
 

@@ -3,6 +3,7 @@ import { render, screen, waitFor, fireEvent } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { MemoryRouter } from 'react-router-dom';
 import Results from './Results';
+import { priceScale } from './priceScale';
 
 /**
  * "Please verify" (backlog): the two rules about hotels the results page cannot put a price on.
@@ -127,6 +128,11 @@ const order = () => screen.queryAllByRole('article').map((card) => {
 const sortBy = (user, value) => user.selectOptions(screen.getByRole('combobox', { name: 'Resultaten sorteren' }), value);
 const slider = (label) => screen.getAllByRole('slider').find((s) => s.getAttribute('aria-label') === label);
 
+// The handles move in positions on a price scale (priceScale.js); a price becomes its position.
+const posOf = (label, euros) => {
+  const el = slider(label);
+  return String(priceScale(Number(el.dataset.floor), Number(el.dataset.ceiling)).toPos(euros));
+};
 describe('"Check price" hotels sort after every priced hotel, in both price directions (Ch2 §4)', () => {
   it('price low to high: the priced hotels cheapest first, then the unpriced one', async () => {
     const user = userEvent.setup();
@@ -153,7 +159,7 @@ describe('an active price filter leaves out the "Check price" hotels (Ch1 §2)',
     await waitFor(() => expect(order()).toContain('ask'));
     const asked = unpricedCalls.length;
 
-    fireEvent.change(slider('Minimumprijs'), { target: { value: '200' } });
+    fireEvent.change(slider('Minimumprijs'), { target: { value: posOf('Minimumprijs', 200) } });
     await waitFor(() => expect(cacheCalls.at(-1).get('minPrice')).toBe('200'));
     await waitFor(() => expect(order()).toEqual(['102', '103']));
     // Not merely hidden: a hotel with no price cannot be held against a bound, so the sweep
@@ -166,7 +172,7 @@ describe('an active price filter leaves out the "Check price" hotels (Ch1 §2)',
     await waitFor(() => expect(order()).toContain('ask'));
     const asked = unpricedCalls.length;
 
-    fireEvent.change(slider('Maximumprijs'), { target: { value: '300' } });
+    fireEvent.change(slider('Maximumprijs'), { target: { value: posOf('Maximumprijs', 300) } });
     await waitFor(() => expect(cacheCalls.at(-1).get('maxPrice')).toBe('300'));
     await waitFor(() => expect(order()).toEqual(['101', '102']));
     // Still so once everything has settled: the list is briefly right between the new priced
@@ -180,7 +186,7 @@ describe('an active price filter leaves out the "Check price" hotels (Ch1 §2)',
     renderPage();
     await waitFor(() => expect(order()).toContain('ask'));
 
-    fireEvent.change(slider('Minimumprijs'), { target: { value: '200' } });
+    fireEvent.change(slider('Minimumprijs'), { target: { value: posOf('Minimumprijs', 200) } });
     await waitFor(() => expect(order()).toEqual(['102', '103']));
 
     fireEvent.change(slider('Minimumprijs'), { target: { value: '0' } });

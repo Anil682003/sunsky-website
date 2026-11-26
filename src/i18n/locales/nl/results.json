@@ -183,7 +183,9 @@
     "airportChoiceGone": "Niet beschikbaar voor deze zoekopdracht. Vink hem uit of kies een andere luchthaven.",
     "nonstopBothWays": "Alleen rechtstreeks heen en terug",
     "promos": "Aanbiedingen",
-    "roomFeatures": "Kamer"
+    "roomFeatures": "Kamer",
+    "priceAtLeast": "vanaf {{amount}}",
+    "priceAtMost": "tot {{amount}}"
   },
   "hero": {
     "home": "Home",

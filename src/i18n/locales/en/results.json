@@ -183,7 +183,9 @@
     "airportChoiceGone": "Not available for this search. Untick it or choose another airport.",
     "nonstopBothWays": "Direct outbound and return only",
     "promos": "Offers",
-    "roomFeatures": "Room"
+    "roomFeatures": "Room",
+    "priceAtLeast": "from {{amount}}",
+    "priceAtMost": "up to {{amount}}"
   },
   "hero": {
     "home": "Home",

@@ -68,6 +68,7 @@ import { countState, CALCULATING } from './resultCount';
 import { entryOf, appliedSummary, LAST_MINUTE, ALL_INCLUSIVE } from '../../utils/entryRules';
 import { resultsHeading, customHeading } from '../../utils/resultsHeading';
 import { resultSeed } from '../../utils/resultSeed';
+import { priceScale, priceFloorOf } from './priceScale';
 
 const CONTRACTS_API = import.meta.env.VITE_CACHE_API_URL || 'https://cache.holidaybooking.be';
 const PAGE_SIZE = 20;
@@ -2828,16 +2829,6 @@ export default function Results() {
   // built HERE, below the filter state it reads, not at the top of the component.
 
   const ceiling = priceCeiling ?? PRICE_CEILING_FALLBACK;
-  const sliderMin = filters.minPrice === '' ? 0 : Math.min(Number(filters.minPrice), ceiling);
-  const sliderMax = filters.maxPrice === '' ? ceiling : Math.min(Number(filters.maxPrice), ceiling);
-  const onMinPrice = (raw) => {
-    const v = Math.max(0, Math.min(Number(raw), sliderMax - PRICE_STEP));
-    setFilter('minPrice', v <= 0 ? '' : String(v));
-  };
-  const onMaxPrice = (raw) => {
-    const v = Math.min(ceiling, Math.max(Number(raw), sliderMin + PRICE_STEP));
-    setFilter('maxPrice', v >= ceiling ? '' : String(v));
-  };
   // Typed bounds are NOT clamped to the slider's ceiling: that ceiling only grows as results
   // arrive, so clamping "3000" down to it on an early page would quietly change what was
   // asked for. An empty box means no bound, which is how the filter clears itself.
@@ -2871,7 +2862,43 @@ export default function Results() {
     return { min: Math.min(...amounts), max: Math.max(...amounts) };
   }, [allHotels, shownBasis, applied.transport, pkgPriceRange]);
 
+  /* The slider (client remark, 26 Nov 2026): from the cheapest result to the dearest, not from
+     EUR 0, and logarithmic over a wide spread (priceScale.js), so one EUR 38.800 villa no longer
+     squeezes every other holiday into the first few percent of the track. The handles move in
+     positions; the filters still hold prices. */
+  // The left end is read only while no minimum is set: under a minimum the results start at
+  // that minimum, and a floor taken from them would pin the handle there for good. (A maximum
+  // never removes the cheapest result, so it does not matter here.)
+  const floorRef = useRef(0);
+  if (filters.minPrice === '') floorRef.current = priceFloorOf(availablePrices, ceiling, PRICE_STEP);
+  const floorPrice = Math.min(floorRef.current, Math.max(0, ceiling - PRICE_STEP));
+  const scale = priceScale(floorPrice, ceiling);
+  const minValue = filters.minPrice === '' ? floorPrice : Math.min(Math.max(Number(filters.minPrice), floorPrice), ceiling);
+  const maxValue = filters.maxPrice === '' ? ceiling : Math.min(Math.max(Number(filters.maxPrice), floorPrice), ceiling);
+  const minPos = scale.toPos(minValue);
+  const maxPos = scale.toPos(maxValue);
+  const onMinPrice = (raw) => {
+    const pos = Math.max(0, Math.min(Number(raw), maxPos - 1));
+    let v = scale.toValue(pos);
+    if (v >= maxValue) v = maxValue - PRICE_STEP;
+    setFilter('minPrice', pos <= 0 || v <= floorPrice ? '' : String(v));
+  };
+  const onMaxPrice = (raw) => {
+    const pos = Math.min(scale.steps, Math.max(Number(raw), minPos + 1));
+    let v = scale.toValue(pos);
+    if (v <= minValue) v = minValue + PRICE_STEP;
+    setFilter('maxPrice', pos >= scale.steps || v >= ceiling ? '' : String(v));
+  };
+
   const priceBounded = filters.minPrice !== '' || filters.maxPrice !== '';
+  // The chosen window, said once: both ends, or "vanaf" / "tot" for one.
+  const chosenRange = filters.minPrice !== '' && filters.maxPrice !== ''
+    ? `${priceLabel(minValue)} – ${priceLabel(maxValue)}`
+    : filters.minPrice !== ''
+      ? t('filters.priceAtLeast', { amount: priceLabel(minValue), defaultValue: 'from {{amount}}' })
+      : filters.maxPrice !== ''
+        ? t('filters.priceAtMost', { amount: priceLabel(maxValue), defaultValue: 'up to {{amount}}' })
+        : '';
   const clearPrice = () => setFilters((f) => ({ ...f, minPrice: '', maxPrice: '' }));
 
   const applySearch = () => {
@@ -3414,10 +3441,10 @@ export default function Results() {
           <label className={styles.priceInput}>
             <span>{t('filters.priceFrom', 'From')}</span>
             <input
-              type="number" inputMode="numeric" min={0} max={ceiling} step={PRICE_STEP}
-              defaultValue={filters.minPrice === '' ? '' : sliderMin}
+              type="number" inputMode="numeric" min={0} step={PRICE_STEP}
+              defaultValue={filters.minPrice === '' ? '' : minValue}
               key={`min-${filters.minPrice}`}
-              placeholder={String(0)}
+              placeholder={Math.round(floorPrice).toLocaleString('nl-BE')}
               onBlur={(e) => onTypedMin(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
               aria-label={t('filters.minPrice', 'Minimum price')}
@@ -3426,10 +3453,10 @@ export default function Results() {
           <label className={styles.priceInput}>
             <span>{t('filters.priceTo', 'To')}</span>
             <input
-              type="number" inputMode="numeric" min={0} max={ceiling} step={PRICE_STEP}
-              defaultValue={filters.maxPrice === '' ? '' : sliderMax}
+              type="number" inputMode="numeric" min={0} step={PRICE_STEP}
+              defaultValue={filters.maxPrice === '' ? '' : maxValue}
               key={`max-${filters.maxPrice}`}
-              placeholder={String(Math.round(ceiling))}
+              placeholder={Math.round(ceiling).toLocaleString('nl-BE')}
               onBlur={(e) => onTypedMax(e.target.value)}
               onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur(); }}
               aria-label={t('filters.maxPrice', 'Maximum price')}
@@ -3439,26 +3466,19 @@ export default function Results() {
         <div className={styles.priceSliderWrap}>
           <div className={styles.priceDual}>
             <div className={styles.priceDualTrack}>
-              <div className={styles.priceDualFill} style={{ left: `${(sliderMin / ceiling) * 100}%`, right: `${100 - (sliderMax / ceiling) * 100}%` }} />
+              <div className={styles.priceDualFill} style={{ left: `${(minPos / scale.steps) * 100}%`, right: `${100 - (maxPos / scale.steps) * 100}%` }} />
             </div>
-            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={ceiling} step={PRICE_STEP} value={sliderMin} onChange={(e) => onMinPrice(e.target.value)} aria-label={t('filters.minPrice', 'Minimum price')} />
-            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={ceiling} step={PRICE_STEP} value={sliderMax} onChange={(e) => onMaxPrice(e.target.value)} aria-label={t('filters.maxPrice', 'Maximum price')} />
+            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={scale.steps} step={1} value={minPos} onChange={(e) => onMinPrice(e.target.value)} aria-label={t('filters.minPrice', 'Minimum price')} aria-valuetext={priceLabel(minValue)} data-floor={floorPrice} data-ceiling={ceiling} />
+            <input type="range" className={`${styles.filterRange} ${styles.rangeDual}`} min={0} max={scale.steps} step={1} value={maxPos} onChange={(e) => onMaxPrice(e.target.value)} aria-label={t('filters.maxPrice', 'Maximum price')} aria-valuetext={priceLabel(maxValue)} data-floor={floorPrice} data-ceiling={ceiling} />
           </div>
+          {/* The two ends are the prices this search returned (cheapest, dearest); the chosen
+              window shows only once a bound is set. */}
           <div className={styles.priceSliderLabels}>
-            <span>{priceLabel(0)}</span>
-            <span className={styles.priceSliderCurrent}>{priceLabel(sliderMin)} – {priceLabel(sliderMax)}{filters.maxPrice === '' ? '+' : ''}</span>
+            <span>{priceLabel(floorPrice)}</span>
             <span>{priceLabel(ceiling)}</span>
           </div>
+          {chosenRange && <div className={styles.priceSliderChosen}><span className={styles.priceSliderCurrent}>{chosenRange}</span></div>}
         </div>
-        {availablePrices && (
-          <p className={styles.priceAvailable}>
-            {t('filters.availablePrices', {
-              from: priceLabel(availablePrices.min),
-              to: priceLabel(availablePrices.max),
-              defaultValue: 'Available prices: {{from}} – {{to}}',
-            })}
-          </p>
-        )}
         {priceBounded && (
           <button type="button" className={styles.filterClearLink} onClick={clearPrice}>
             {t('filters.clearPrice', 'Clear price range')}
