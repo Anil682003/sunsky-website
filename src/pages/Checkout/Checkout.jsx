@@ -428,7 +428,9 @@ function useCountUp(value, dur = 650) {
     raf = requestAnimationFrame(tick);
     return () => cancelAnimationFrame(raf);
   }, [value, dur]);
-  return Math.round(disp);
+  // To the cent, so it lands ON the total (€ 359,61), not on a whole euro beside it (€ 360,00):
+  // prices keep their cents under Pricing Logic's rounding (26 Nov 2026).
+  return Math.round(disp * 100) / 100;
 }
 
 /* ════════ small building blocks ════════ */

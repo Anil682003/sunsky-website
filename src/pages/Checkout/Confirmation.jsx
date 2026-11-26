@@ -67,7 +67,8 @@ function useCountUp(target, dur = 1100, delay = 600) {
     const tick = (t) => {
       if (t < t0) { raf = requestAnimationFrame(tick); return; }
       const p = Math.min(1, (t - t0) / dur);
-      setV(Math.round(target * (1 - Math.pow(1 - p, 3))));
+      // To the cent: the amount paid can have cents (Pricing Logic's rounding, 26 Nov 2026).
+      setV(Math.round(target * (1 - Math.pow(1 - p, 3)) * 100) / 100);
       if (p < 1) raf = requestAnimationFrame(tick);
     };
     raf = requestAnimationFrame(tick);
