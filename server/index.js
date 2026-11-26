@@ -36,6 +36,7 @@ import {
   siteForHost, hreflangTags,
 } from './seo.js';
 import { countryOfIp, clientIp } from './geo.js';
+import { startPricingRounding, withRoundingMeta } from './pricingRounding.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DIST = path.resolve(__dirname, '..', 'dist');
@@ -144,7 +145,8 @@ async function shell(origin = SITE_ORIGIN) {
     shellCache = { mtime: st.mtimeMs, html };
     shellCaches.set(origin, shellCache);
   }
-  return shellCache.html;
+  // Pricing Logic's rounding rule, per request so a change shows within a minute (26 Nov 2026).
+  return withRoundingMeta(shellCache.html);
 }
 
 /* ── hotel records: 6h TTL, bounded LRU-ish ── */
@@ -527,4 +529,6 @@ const server = http.createServer(async (req, res) => {
 
 server.listen(PORT, () => {
   console.log(`[server] sunsky-website on :${PORT} — dist=${DIST}, og=${SITE_ORIGIN}, cache=${CACHE_API}`);
+  // The admin's rounding rule, re-read every minute and written into each page (pricingRounding.js).
+  startPricingRounding(ADMIN_API);
 });

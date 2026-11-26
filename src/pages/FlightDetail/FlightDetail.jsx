@@ -3,6 +3,7 @@ import { useLocation, useNavigate, Link } from 'react-router-dom';
 import { useTranslation, Trans } from 'react-i18next';
 import i18n from '../../i18n';
 import { moneyCompact, moneyFull, moneyDiscount } from '../../utils/money';
+import { sellingEuros } from '../../utils/tripPrice';
 import './FlightDetail.css';
 import AirlineMark from '../../components/AirlineMark/AirlineMark';
 import { buildContext, fmtDate, fmtDateShort, fareBreakdown, paxLabel, cabinLabel } from '../Flights/flightData';
@@ -147,9 +148,10 @@ export default function FlightDetail() {
 
   const fb = useMemo(() => (flight ? fareBreakdown(flight) : null), [flight]);
   // The SUNSKY notation (utils/money.js): the breakdown, deposit and totals always with two
-  // decimals (€ 458,00); the headline chip compact. Amounts as before (to the nearest euro).
-  const money = (n) => moneyFull(Math.round(n));
-  const moneyChip = (n) => moneyCompact(Math.round(n));
+  // decimals (€ 458,00); the headline chip compact. Rounded as checkout rounds them (sellingEuros:
+  // Pricing Logic's rule, else up to a whole euro), no longer to the nearest euro.
+  const money = (n) => moneyFull(sellingEuros(n));
+  const moneyChip = (n) => moneyCompact(sellingEuros(n));
 
   // Reloading this URL, or opening it from a bookmark, used to fall back to
   // generateFlights() — a fabricated itinerary on a default LON→DXB route, at a fabricated
@@ -539,7 +541,7 @@ export default function FlightDetail() {
                   {fb.perAdult != null && fb.pax > 1 && (
                     <div className="fd-fare-row"><span>{ICON.user} {t('flightDetail:fare.perAdult', 'Fare per adult')}</span><b>{money(fb.perAdult)}</b></div>
                   )}
-                  {fb.discount > 0 && <div className="fd-fare-row disc"><span>{ICON.check} {t('flightDetail:fare.instantDiscount', 'Instant discount')}</span><b>{moneyDiscount(Math.round(fb.discount))}</b></div>}
+                  {fb.discount > 0 && <div className="fd-fare-row disc"><span>{ICON.check} {t('flightDetail:fare.instantDiscount', 'Instant discount')}</span><b>{moneyDiscount(sellingEuros(fb.discount))}</b></div>}
                   <div className="fd-fare-row total"><span>{t('flightDetail:fare.totalAmount', 'Total amount')}</span><b>{money(fb.total)}</b></div>
                   {deposit && (
                     <div className="fd-fare-dep">

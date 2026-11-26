@@ -1,3 +1,5 @@
+import { roundSelling } from './pricingRounding';
+
 /**
  * WHAT A PRICE SAYS, AND WHO IT IS DIVIDED BY.
  *
@@ -113,7 +115,8 @@ const int = (v, fallback = 0) => {
 export function sellingEuros(amount) {
   const n = num(amount);
   if (n == null) return null;
-  return Math.ceil(Math.round(n * 100) / 100);
+  // Pricing Logic's rule when switched on (utils/pricingRounding.js), else whole euros, up.
+  return roundSelling(n);
 }
 
 /**

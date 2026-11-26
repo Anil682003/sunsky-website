@@ -3,6 +3,7 @@ import { useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import i18n from '../../i18n';
 import { moneyCompact, moneyFull } from '../../utils/money';
+import { sellingEuros } from '../../utils/tripPrice';
 import './Flights.css';
 import axiosInstance from '../../services/axiosInstance';
 import { buildContext, paxLabel, fmtDateShort, mapAirtuerkFlight, badgeFlights, flightTotal, legContexts, combineTrip, cabinLabel } from './flightData';
@@ -350,9 +351,11 @@ export default function Flights() {
   }, [allFlights, selAirlines, selStops, selSlots, maxPrice, sort]);
 
   // The SUNSKY notation (utils/money.js): compact on cards and the trip bar, € 458; the live
-  // confirmation's two totals in full, € 2.580,00. Amounts as before (to the nearest euro).
-  const money = (n) => moneyCompact(Math.round(n));
-  const moneyTotal = (n) => moneyFull(Math.round(n));
+  // confirmation's two totals in full, € 2.580,00. Rounded like checkout rounds the same fare
+  // (sellingEuros: Pricing Logic's rule, else up to a whole euro), so search and payment agree;
+  // it used to be the NEAREST euro here and up at checkout (€ 458 here, € 459 there).
+  const money = (n) => moneyCompact(sellingEuros(n));
+  const moneyTotal = (n) => moneyFull(sellingEuros(n));
 
   // On a plain trip, choosing a fare IS the choice and the detail page opens. On a multi-city
   // trip it answers one flight of several, so it stays on this page and moves to the next
