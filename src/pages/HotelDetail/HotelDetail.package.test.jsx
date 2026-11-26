@@ -668,6 +668,8 @@ describe('the results card\'s airport is kept for the live check (Levent, 26 Nov
     await runCheck(user);
     await waitFor(() => expect(document.body.textContent).toMatch(/Het aanbod vanaf .+ is niet meer beschikbaar voor deze data/));
     await waitFor(() => expect(amsChip(container)).toBeTruthy());
+    // The holiday p.p. from AMS (500 + 700) / 2, not the flight's € 350.
+    await waitFor(() => expect(amsChip(container).textContent).toMatch(/€\u00A0600 p\.p\./));
     await new Promise((r) => setTimeout(r, 100));
     expect(total(container)).not.toBe('€\u00A01.200,00');
     await user.click(amsChip(container));

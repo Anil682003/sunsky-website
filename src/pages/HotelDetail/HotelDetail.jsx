@@ -5412,14 +5412,24 @@ export default function HotelDetail() {
                         <div className="alt-airports">
                           <div className="alt-airports-label">{t('flights.theseAirportsFly', 'These airports do fly this route — cheapest first:')}</div>
                           <div className="alt-airport-chips">
-                            {shownAlternatives.map((alt) => (
-                              <button type="button" key={alt.code} className="alt-chip alt-chip-priced"
-                                onClick={() => applyAlternative(alt.code)}>
-                                <span className="alt-chip-name">{airportName(alt.code)}</span>
-                                <span className="alt-chip-code">{alt.code}</span>
-                                <span className="alt-chip-price">{t('flights.fromPP', { amount: pc(alt.perPax), defaultValue: `from ${pc(alt.perPax)} p.p.` })}</span>
-                              </button>
-                            ))}
+                            {shownAlternatives.map((alt) => {
+                              // The holiday's price p.p. from that airport (the room on screen with
+                              // that flight, as the total would be), not the flight's alone: "from
+                              // € 129 p.p." for Cologne became € 210,40 p.p. once picked (Taksim
+                              // Maxwell 5 Dec, 26 Nov 2026). The fare stands in until the room is in.
+                              const altTotal = packageTotalWith(alt.total);
+                              const altPP = altTotal != null
+                                ? Math.round((altTotal / Math.max(1, (Number(sAdults) || 2) + (Number(sChildren) || 0))) * 100) / 100
+                                : alt.perPax;
+                              return (
+                                <button type="button" key={alt.code} className="alt-chip alt-chip-priced"
+                                  onClick={() => applyAlternative(alt.code)}>
+                                  <span className="alt-chip-name">{airportName(alt.code)}</span>
+                                  <span className="alt-chip-code">{alt.code}</span>
+                                  <span className="alt-chip-price">{t('flights.fromPP', { amount: pc(altPP), defaultValue: `from ${pc(altPP)} p.p.` })}</span>
+                                </button>
+                              );
+                            })}
                           </div>
                         </div>
                       ) : (flightsNone && liveFlights.alternatives && !liveFlights.probeUnknown?.length) ? (
