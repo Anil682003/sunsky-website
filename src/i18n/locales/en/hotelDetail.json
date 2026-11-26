@@ -404,6 +404,8 @@
     "pricePerPersonHint": "The price of this holiday per traveller, including taxes and airline fees.",
     "travellersCount": "Number of travellers",
     "tripPrice": "Trip price",
+    "averagePerPerson": "Average per person",
+    "averagePerPersonHint": "The total above divided by the number of travellers, discounts included.",
     "totalToPay": "Total trip price to pay to SUNSKY",
     "totalToPayHint": "The full amount of this holiday for all travellers, including taxes. Costs you pay locally are not included.",
     "forParty": "For {{party}}",

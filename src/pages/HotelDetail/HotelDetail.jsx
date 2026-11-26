@@ -5805,14 +5805,6 @@ export default function HotelDetail() {
                     {ovBase != null ? (
                       <>
                         <div className="overview-row overview-row-tight">
-                          <span className="overview-row-label">
-                            {t('overview.pricePerPerson', 'Trip price per person')}
-                            <FilterHint text={t('overview.pricePerPersonHint', 'The price of this holiday per traveller, including taxes and airline fees.')} />
-                          </span>
-                          <span className="overview-leader" />
-                          <span className="overview-row-val overview-row-val-plain">{pf(Math.round(ovBase / ovPax))} p.p.</span>
-                        </div>
-                        <div className="overview-row overview-row-tight">
                           <span className="overview-row-label">{t('overview.travellersCount', 'Number of travellers')}</span>
                           <span className="overview-leader" />
                           <span className="overview-row-val overview-row-val-plain">{ovPax}</span>
@@ -5892,6 +5884,20 @@ export default function HotelDetail() {
                         : '—'}
                     </span>
                   </div>
+                  {/* The average per person directly under the total, after any discount (Price
+                      Display brief, 26 Nov 2026): the total ÷ the travellers, to the cent. */}
+                  {ovTotal != null && ovPax > 0 && (
+                    <div className="overview-pay overview-pay-avg">
+                      <div className="overview-row overview-row-tight overview-row-avg" data-testid="average-per-person">
+                        <span className="overview-row-label">
+                          {t('overview.averagePerPerson', 'Average per person')}
+                          <FilterHint text={t('overview.averagePerPersonHint', 'The total above divided by the number of travellers, discounts included.')} />
+                        </span>
+                        <span className="overview-leader" />
+                        <span className="overview-row-val overview-row-val-plain">{pf(Math.round((ovTotal / ovPax) * 100) / 100)} p.p.</span>
+                      </div>
+                    </div>
+                  )}
                   {/* How the total is paid, only when the deposit rule splits it: the deposit
                       the checkout will take now and the balance it leaves. Both computed by the
                       checkout's own arithmetic, so the two pages can never disagree. */}

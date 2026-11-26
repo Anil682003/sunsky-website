@@ -242,6 +242,8 @@
 .ckc-kv-row { display:flex; align-items:baseline; justify-content:space-between; gap:16px; padding:8px 0;
   border-bottom:1px dashed var(--border-light); font-size:var(--fs-small); }
 .ckc-kv-row:last-child { border-bottom:none; }
+/* Price Display brief: amounts with digits of equal width, so the column lines up. */
+.ckc-kv-row b { font-variant-numeric:tabular-nums lining-nums; }
 .ckc-kv-row span { color:var(--text-sec); flex-shrink:0; }
 .ckc-kv-row b { font-weight:700; color:var(--text); text-align:right; overflow-wrap:anywhere; }
 .ckc-kv-row.total { margin-top:4px; padding-top:11px; border-top:1.5px solid var(--border); border-bottom:none; }

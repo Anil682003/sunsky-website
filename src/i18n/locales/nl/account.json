@@ -123,15 +123,15 @@
         "debit_notes": "Debetnota"
       }
     },
-    "deposit": "Aanbetaling:"
+    "deposit": "Voorschot:"
   },
   "payBalance": {
     "title": "Saldo te betalen",
     "dueTitle": "Saldo te betalen uiterlijk {{date}}",
     "overdueTitle": "Je saldo moest betaald zijn op {{date}}",
-    "sub": "Je aanbetaling is ontvangen. Betaal de rest veilig online, op elk moment vóór die datum.",
-    "subNoDate": "Je aanbetaling is ontvangen. Betaal de rest veilig online vóór je vertrekt.",
-    "subOverdue": "Je aanbetaling is ontvangen. Betaal de rest zo snel mogelijk.",
+    "sub": "Je voorschot is ontvangen. Betaal de rest veilig online, op elk moment vóór die datum.",
+    "subNoDate": "Je voorschot is ontvangen. Betaal de rest veilig online vóór je vertrekt.",
+    "subOverdue": "Je voorschot is ontvangen. Betaal de rest zo snel mogelijk.",
     "open": "Saldo betalen",
     "methodTitle": "Betaalmethode",
     "method": {

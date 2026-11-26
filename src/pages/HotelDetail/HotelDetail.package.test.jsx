@@ -244,14 +244,18 @@ describe('the live check asks about the package the card priced', () => {
     expect(row('bagage')).toHaveTextContent(/handbagage: 8 kg/i);
     expect(row('bagage')).toHaveTextContent(/ruimbagage: 20 kg/i);
 
-    // Price details: per head, the party, the total, and the total band naming the party.
+    // Price details: the party and the trip price; the total band naming the party; and the
+    // average per person DIRECTLY UNDER the total (Price Display brief, 26 Nov 2026).
     const body = container.querySelector('.overview-body:not(.overview-trip)');
-    expect(body).toHaveTextContent(/reisprijs per persoon/i);
-    expect(body).toHaveTextContent('€ 750,00 p.p.');
+    expect(body).not.toHaveTextContent(/reisprijs per persoon/i);
     expect(body).toHaveTextContent(/aantal reizigers\s*2/i);
     expect(container.querySelector('.overview-total')).toHaveTextContent(/voor 2 volwassenen/i);
+    const avg = container.querySelector('[data-testid="average-per-person"]');
+    expect(avg).toHaveTextContent(/gemiddeld per persoon/i);
+    expect(avg).toHaveTextContent('€ 750,00 p.p.');
+    expect(container.querySelector('.overview-total').nextElementSibling.contains(avg)).toBe(true);
     // No deposit rule in the config: no split is invented.
-    expect(container.textContent).not.toMatch(/aanbetaling|resterend saldo/i);
+    expect(container.textContent).not.toMatch(/voorschot|resterend saldo/i);
 
     // The baggage tile under the green card says the same three things, each "Inbegrepen".
     const bags = container.querySelector('.fc-facts .fcu-bags');
@@ -279,11 +283,11 @@ describe('the live check asks about the package the card priced', () => {
 
     // 40% of €1,500 under the checkout's own arithmetic; what is left is the balance.
     const pay = await waitFor(() => {
-      const el = container.querySelector('.overview-pay');
+      const el = container.querySelector('.overview-pay:not(.overview-pay-avg)');
       expect(el).toBeTruthy();
       return el;
     });
-    expect(pay).toHaveTextContent(/aanbetaling/i);
+    expect(pay).toHaveTextContent(/voorschot/i);
     expect(pay).toHaveTextContent('€ 600');
     expect(pay).toHaveTextContent(/resterend saldo aan sunsky/i);
     expect(pay).toHaveTextContent('€ 900');

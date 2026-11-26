@@ -2103,6 +2103,12 @@
 /* The price rows above the band share one quiet rhythm: no rule under each, plain figures. */
 .sd .overview-row.overview-row-tight { padding:8px 0; border-bottom:none; }
 .sd .overview-row-val-plain { font-size:var(--fs-body); font-weight:700; }
+/* Price Display brief (26 Nov 2026): every amount on the card ends on ONE right edge. The total
+   band and the payment rows sit 18px inside the card padding, so the price rows do too; the
+   average per person sits directly under the band, on that same edge. */
+.sd .overview-body .overview-row.overview-row-tight { padding-left:18px; padding-right:18px; }
+.sd .overview-pay-avg .overview-row.overview-row-avg { padding:8px 18px 4px; }
+.sd .overview-total-val { white-space:nowrap; }
 /* How the total is paid, and what is paid elsewhere: the rows under the band. */
 .sd .overview-pay { padding:0 24px; }
 .sd .overview-row.overview-row-pay { align-items:center; padding:13px 18px; border-bottom:1px solid var(--border-light); }

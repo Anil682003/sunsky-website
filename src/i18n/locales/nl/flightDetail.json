@@ -90,7 +90,7 @@
     "instantDiscount": "Directe korting",
     "totalAmount": "Totaalbedrag",
     "note": "Alle tarieven in EUR, per boeking, incl. toepasselijke belastingen. De definitieve prijs wordt bevestigd bij het afrekenen.",
-    "depositNow": "Of betaal een aanbetaling bij het boeken",
+    "depositNow": "Of betaal een voorschot bij het boeken",
     "balanceBy": "en het saldo uiterlijk {{date}}",
     "balanceLater": "en het saldo vóór vertrek"
   },
@@ -106,9 +106,9 @@
     "fareConditions": "Tariefvoorwaarden getoond voor betaling",
     "instantETicket": "Directe e-ticket per e-mail",
     "total": "totaal",
-    "orDeposit": "of boek nu met {{amount}} aanbetaling",
+    "orDeposit": "of boek nu met {{amount}} voorschot",
     "depositRest": "{{amount}} later, uiterlijk {{date}}",
     "depositRestNoDate": "{{amount}} later, vóór vertrek",
-    "orDepositShort": "of {{amount}} aanbetaling"
+    "orDepositShort": "of {{amount}} voorschot"
   }
 }
