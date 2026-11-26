@@ -98,16 +98,40 @@ export function remarksBlocks(raw) {
 const isHeading = (line) => line.length >= 3 && line.length <= 60 && /:\s*$/.test(line) && !/^\d/.test(line);
 const isShortValue = (p) => !p.includes('\n') && p.trim().length <= 40 && !/:\s*$/.test(p.trim());
 
-// Three lower-case letters straight into a capitalised word: two items run together. Fewer than
-// three (iPad, McDonald's, PayPal) is a name, left alone.
-// A closing bracket straight into a capitalised word likewise ("(roundtrip)Airport shuttle"). A
-// colon with no space before a capital gets one ("includes:Beach access"); times (3:00) do not.
+// Three lower-case letters (or a closing bracket) straight into a capitalised word: two list items
+// run together ("per personAirport shuttle", "(roundtrip)Airport"). Fewer than three (iPad,
+// McDonald's, PayPal) is a name. Split ONLY where a paragraph has two or more such joins: a list
+// the supplier glued has many ("Beach accessBeach loungersBeach towels…"), a brand written as one
+// word (WhatsApp, PortAventura) appears once. Names in NEVER_SPLIT are never split either way.
+// A colon or full stop with no space before a capital gets one ("includes:Beach", "arrival.Parties");
+// times (3:00) and links (https://) do not. Only whitespace is ever added: no character changes.
+const WORD = '[A-Z][a-z](?:[a-z]|-[a-z])';   // "Beach", "In-room"
+const JOIN = new RegExp(`([a-z]{3,}|\\))(${WORD})`, 'g');
+export const NEVER_SPLIT = Object.freeze([
+  'WhatsApp', 'PortAventura', 'MasterCard', 'PlayStation', 'TripAdvisor', 'FaceTime', 'SeaWorld',
+  'YouTube', 'LinkedIn', 'PayPal', 'DoubleTree', 'AccorHotels', 'SmartTV', 'SkyDrive', 'BlackBerry',
+  'GoPro', 'SpongeBob', 'WiFi', 'eDreams', 'TikTok', 'FlixBus', 'LastMinute',
+]);
+
+/** Whether position `at` falls inside one of the protected names. */
+function inProtectedName(text, at) {
+  for (const name of NEVER_SPLIT) {
+    let i = text.indexOf(name);
+    while (i >= 0) {
+      if (at > i && at < i + name.length) return true;
+      i = text.indexOf(name, i + 1);
+    }
+  }
+  return false;
+}
+
 function unglue(s) {
-  const word = '[A-Z][a-z](?:[a-z]|-[a-z])';   // "Beach", "In-room"
-  return s
-    .replace(new RegExp(`([a-z]{3,}|\\))(${word})`, 'g'), '$1\n$2')
+  const spaced = s
     .replace(/([a-z]{2,})\.([A-Z][a-z])/g, '$1. $2')
     .replace(/([a-z]{2,}):([A-Z])/g, '$1: $2');
+  const joins = [...spaced.matchAll(JOIN)].filter((m) => !inProtectedName(spaced, m.index + m[1].length));
+  if (joins.length < 2) return spaced;
+  return spaced.replace(JOIN, (all, a, b, offset) => (inProtectedName(spaced, offset + a.length) ? all : `${a}\n${b}`));
 }
 
 /** Whether there is anything to show: the section is hidden, not empty, when there is not. */
