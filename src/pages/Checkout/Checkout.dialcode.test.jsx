@@ -66,59 +66,8 @@ const reachPayment = async (user) => {
   await waitFor(() => expect(document.querySelector('.ck-step.act')).toHaveTextContent(/betaling/i));
 };
 
-describe('the booking conditions', () => {
-  // Each condition carries its own box: a single "I agree to the above" lets someone accept a
-  // cancellation policy and an insurance policy with one tick they read as being about
-  // neither. The links were also dead — invented slugs like /p/cancellation-costs that were
-  // never CMS pages — so they now resolve against the same footer config the site publishes.
-  const conditions = () => [...document.querySelectorAll('.ck-cond-item')];
-
-  it('gives every condition its own checkbox', async () => {
-    const user = userEvent.setup();
-    renderCheckout();
-    await reachPayment(user);
-    expect(conditions().length).toBeGreaterThanOrEqual(3);
-    conditions().forEach((c) => expect(c.querySelector('input[type="checkbox"]')).toBeTruthy());
-    // The old single catch-all tick is gone.
-    expect(document.body.textContent).not.toMatch(/i agree to the above conditions/i);
-  });
-
-  it('counts how many are still outstanding', async () => {
-    const user = userEvent.setup();
-    renderCheckout();
-    await reachPayment(user);
-    const total = conditions().length;
-    expect(document.querySelector('.ck-cond-count').textContent).toBe(`0/${total}`);
-
-    await user.click(conditions()[0]);
-    expect(document.querySelector('.ck-cond-count').textContent).toBe(`1/${total}`);
-  });
-
-  it('keeps each sentence in ONE grid cell, so a link cannot stack it a word at a time', async () => {
-    const user = userEvent.setup();
-    renderCheckout();
-    await reachPayment(user);
-    // The row is a two-column grid (box, sentence). Any extra child would become its own
-    // cell and wrap — which is exactly how the links used to break the layout.
-    conditions().forEach((row) => {
-      const cells = [...row.children].filter((el) => el.tagName !== 'INPUT');
-      expect(cells).toHaveLength(2);
-      expect(cells[1]).toHaveClass('ck-cond-text');
-    });
-  });
-
-  it('points the links at real pages, not invented slugs', async () => {
-    const user = userEvent.setup();
-    renderCheckout();
-    await reachPayment(user);
-    const hrefs = [...document.querySelectorAll('.ck-cond-text a')].map((a) => a.getAttribute('href'));
-    expect(hrefs.length).toBeGreaterThan(0);
-    for (const dead of ['/p/terms-and-conditions', '/p/package-travel-information',
-                        '/p/insurance-conditions', '/p/cancellation-costs']) {
-      expect(hrefs).not.toContain(dead);
-    }
-  });
-});
+// The booking conditions moved to "Garantie en voorwaarden" (checkout T&C spec V1.3); their
+// tests are in Checkout.terms.test.jsx.
 
 describe('the summary names the hotel', () => {
   // It always rendered, but the photo carried z-index:1 while the caption was left on

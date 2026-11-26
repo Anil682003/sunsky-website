@@ -76,7 +76,7 @@ const reachPayment = async (user) => {
 };
 
 const warning = () => document.querySelector('.ck-nr');
-const payBtn = () => screen.getByRole('button', { name: /^betaal /i });
+const payBtn = () => screen.getByRole('button', { name: /^boek en betaal /i });
 
 // Filling a form field is not what these tests are about, and user-event types one character
 // at a time — across a dozen fields that is most of the test's wall clock. Set the value the
@@ -126,8 +126,10 @@ describe('a non-refundable room at the payment step', () => {
     expect(nr.scope).toMatchObject({ product: 'hotel', rateKey: 'RATE-1' });
     // And the flag the server enforces against.
     expect(body.hotel.nonRefundable).toBe(true);
-    // The general conditions are recorded too, as their own consent.
-    expect(body.consents.some((c) => c.code === 'BOOKING_CONDITIONS')).toBe(true);
+    // The general conditions travel as the customer's acceptance (checkout T&C spec V1.3),
+    // not as a consent line any more.
+    expect(body.acceptance).toMatchObject({ travelAccepted: true, termsKey: expect.any(String) });
+    expect(body.consents.some((c) => c.code === 'BOOKING_CONDITIONS')).toBe(false);
   });
 
   it('says nothing when the rate can still be cancelled for free', async () => {

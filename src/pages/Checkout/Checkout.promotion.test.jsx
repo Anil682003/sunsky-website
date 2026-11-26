@@ -115,7 +115,7 @@ describe('promotions at checkout', () => {
     await user.click(await screen.findByRole('button', { name: /doorgaan naar betaling/i }));
     await user.click(await screen.findByRole('button', { name: /bancontact/i }));
     acceptConditions();
-    await user.click(screen.getByRole('button', { name: /^betaal /i }));
+    await user.click(screen.getByRole('button', { name: /^boek en betaal /i }));
     await waitFor(() => expect(post.mock.calls.some(([url]) => String(url).includes('online-bookings'))).toBe(true));
     const [, body] = post.mock.calls.find(([url]) => String(url).includes('online-bookings'));
     expect(body.promotion).toEqual({ promotionId: 3, amount: 30 });

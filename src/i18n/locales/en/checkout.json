@@ -81,8 +81,7 @@
   },
   "consent": {
     "nonRefundableNotice": "This accommodation has a non-refundable rate. If you cancel the booking, 100% cancellation costs apply to this accommodation from the moment the booking is confirmed.",
-    "nonRefundableAccept": "I understand and accept that 100% cancellation costs apply to the selected non-refundable accommodation.",
-    "termsAccept": "I agree to the booking conditions, the privacy policy and the terms of the travel providers."
+    "nonRefundableAccept": "I understand and accept that 100% cancellation costs apply to the selected non-refundable accommodation."
   },
   "errors": {
     "supplierTimedOut": "The supplier took too long to answer.",
@@ -101,7 +100,10 @@
     "priceChanged": "The price of this trip has changed. You have not been charged. Refresh the page to see the current price.",
     "depositUnavailable": "A deposit is no longer possible for this trip. You have not been charged. Please pay the full amount to book it.",
     "promotionChanged": "The discount on this trip has changed. You have not been charged. Check the new total and confirm again.",
-    "remarksChanged": "The hotel's information for this room has changed. You have not been charged. Please read it below and confirm again."
+    "remarksChanged": "The hotel's information for this room has changed. You have not been charged. Please read it below and confirm again.",
+    "termsChanged": "The conditions for this booking have changed. Nothing was booked or charged. Please read them and confirm again.",
+    "acceptanceRequired": "Please accept the conditions first. Nothing was booked or charged.",
+    "termsUnavailable": "Not every mandatory document for this booking is available. Nothing was booked or charged. Please contact us."
   },
   "baggage": {
     "add": "Add",
@@ -164,17 +166,6 @@
     "outbound": "Outbound",
     "return": "Return"
   },
-  "conditions": {
-    "holiday": "I have read the information relating to this holiday.",
-    "terms": "I agree to the general travel conditions and the package travel information.",
-    "insurance": "I accept the insurance conditions for the cover I selected.",
-    "obligation": "I am making a definite booking with an obligation to pay. It can only be cancelled against payment of cancellation costs, which depend on how close to departure the cancellation is made.",
-    "headingTitle": "Conditions & booking",
-    "cannotConfirmUnless": "You cannot confirm your booking unless you accept all applicable conditions.",
-    "termsNode": "I agree to the <1>general travel conditions</1> and the <3>package travel information</3>.",
-    "insuranceNode": "I accept the <1>insurance conditions</1> for the cover I selected.",
-    "obligationNode": "I am making a definite booking with an obligation to pay. It can only be cancelled against payment of <1>cancellation costs</1>, which depend on how close to departure the cancellation is made."
-  },
   "validation": {
     "firstNameRequired": "First name is required",
     "lastNameRequired": "Last name is required",
@@ -200,10 +191,12 @@
     "expiryInvalidShort": "Invalid expiry",
     "cvcInvalidShort": "Invalid CVC",
     "chooseBank": "Please choose your bank",
-    "acceptConditions": "Please accept the booking conditions to continue",
     "confirmNrAccept": "Please confirm you accept the cancellation costs for the non-refundable accommodation",
     "bookerDobRequired": "The main booker's date of birth is required",
-    "bookerUnder18": "The main booker must be at least 18 years old. Travellers under 18 can travel with you, but cannot make the booking."
+    "bookerUnder18": "The main booker must be at least 18 years old. Travellers under 18 can travel with you, but cannot make the booking.",
+    "termsNotLoaded": "The booking conditions have not loaded yet",
+    "acceptTravel": "Please accept the travel conditions to book",
+    "acceptInsurance": "Please accept the conditions of your chosen insurance"
   },
   "reprice": {
     "unavailableTitle": "This trip is not available for the updated traveller details.",
@@ -230,10 +223,9 @@
     "rechecking": "Re-checking your price…",
     "continueToAddons": "Continue to add-ons",
     "continueToPayment": "Continue to payment",
-    "pay": "Pay {{amount}}",
     "continueToSupport": "Continue to support package",
     "continueToReview": "Continue to overview",
-    "payDeposit": "Pay {{amount}} deposit"
+    "bookAndPay": "Book and pay {amount}"
   },
   "gone": {
     "title": "There’s no booking to pay for",
@@ -250,7 +242,6 @@
     "momentsAway": "You're moments away from",
     "yourFlight": "your flight",
     "yourTransfer": "your transfer",
-    "sgrGuaranteed": "SGR guaranteed",
     "ssl": "256-bit SSL",
     "instantConfirmation": "Instant confirmation",
     "ssl256": "256-bit SSL encrypted"
@@ -499,7 +490,6 @@
     "pricesLive": "Prices are live and are only final once your payment completes",
     "trustStripe": "Secure Stripe payment",
     "trustEmail": "Instant confirmation by email",
-    "trustSgr": "SGR & travel guarantee protected",
     "transferPerVehicle": "Transfer (per vehicle)"
   },
   "review": {
@@ -755,5 +745,25 @@
       "margin": "This code cannot be combined with the price of this trip.",
       "no_price": "This code cannot be checked for this trip yet."
     }
+  },
+  "terms": {
+    "title": "Guarantee and conditions",
+    "loading": "Loading the conditions that apply to your booking…",
+    "loadFailed": "The booking conditions could not be loaded. You cannot book without them.",
+    "retry": "Try again",
+    "blocked": "Not every mandatory document for this booking is available right now, so it cannot be booked online at the moment. Please contact us.",
+    "changedNotice": "Something in your booking changed. Please read the conditions and confirm them again.",
+    "acceptHint": "Tick the mandatory conditions above to book.",
+    "insuranceDocsPending": "The insurer documents will follow",
+    "descriptionTitle": "Description of your trip",
+    "importantTitle": "Important travel information",
+    "roleTitle": "SUNSKY's role",
+    "roleText": "For this booking SUNSKY acts as {{role}}.",
+    "supplierTitle": "Conditions and remarks of the accommodation",
+    "localCostsTitle": "Payable locally",
+    "documentsTitle": "Passport, visa and health",
+    "documentsText": "Check in good time which travel documents, visas and vaccinations you need for your destination. Every traveller needs a valid passport or identity card.",
+    "travelAdvice": "Current travel advice",
+    "standardInfoBefore": "For this trip:"
   }
 }

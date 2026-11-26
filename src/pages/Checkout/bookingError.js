@@ -38,6 +38,17 @@ export function bookingErrorMessage(err, t) {
   if (data.errorCode === 'REMARKS_CHANGED') {
     return t('checkout:errors.remarksChanged', "The hotel's information for this room has changed. You have not been charged. Please read it below and confirm again.");
   }
+  // Checkout T&C spec V1.3: the conditions changed, or an acceptance was missing. The page shows
+  // the terms that apply now and unticks the boxes; nothing was booked or charged.
+  if (data.errorCode === 'TERMS_CHANGED') {
+    return t('checkout:errors.termsChanged', 'The conditions for this booking have changed. Nothing was booked or charged. Please read them and confirm again.');
+  }
+  if (data.errorCode === 'ACCEPTANCE_REQUIRED' || data.errorCode === 'INSURANCE_ACCEPTANCE_REQUIRED') {
+    return t('checkout:errors.acceptanceRequired', 'Please accept the conditions first. Nothing was booked or charged.');
+  }
+  if (data.errorCode === 'TERMS_UNAVAILABLE') {
+    return t('checkout:errors.termsUnavailable', 'Not every mandatory document for this booking is available. Nothing was booked or charged. Please contact us.');
+  }
   if (data.errorCode === 'DEPOSIT_UNAVAILABLE') {
     return t('checkout:errors.depositUnavailable', 'A deposit is no longer possible for this trip. You have not been charged. Please pay the full amount to book it.');
   }

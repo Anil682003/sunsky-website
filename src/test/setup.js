@@ -56,3 +56,12 @@ afterEach(() => {
   // test's names, bags and insurance.
   try { window.sessionStorage.clear(); } catch { /* storage unavailable: nothing to clear */ }
 });
+
+// Checkout T&C spec V1.3: the checkout asks the server which conditions apply. Every checkout
+// test gets a realistic answer built from the booking it sends (one travel checkbox, plus the
+// Allianz one when cover was chosen); the terms tests override it.
+vi.mock('../pages/Checkout/termsApi', async (importOriginal) => {
+  const real = await importOriginal();
+  const { termsViewFor } = await import('./checkoutTermsFixture');
+  return { ...real, fetchCheckoutTerms: vi.fn((body) => Promise.resolve(termsViewFor(body))) };
+});

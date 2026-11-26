@@ -15,8 +15,7 @@ import { ENDPOINTS } from '../../api/endpoints';
 import { ageAtCheckIn } from '../../utils/childDob';
 import { cancellationState, parseRateKey, boardInfo } from '../../utils/rateDetails';
 import { DEFAULT_PRICING, priceInsurance, priceBasisLabel, insuredDays, computeDeposit, depositKind, tripStartDate } from '../../utils/checkoutPricing';
-import { useCheckoutConfig, useFooterConfig } from '../../api';
-import { checkoutLegalLinks } from '../../utils/legalLinks';
+import { useCheckoutConfig } from '../../api';
 import { countryName } from '../../utils/countryName';
 import i18n from '../../i18n';
 import Confirmation from './Confirmation';
@@ -33,6 +32,10 @@ import { usePromotionQuote, promotionInput, promotionProduct, formatDiscount, ce
 import { transferAirport } from './transferAirport';
 import { localCostOfRate } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
+import { TermsSection, FinalDeclaration, TermsDialog, DocLink } from './CheckoutTerms';
+import {
+  fetchCheckoutTerms, termsRequestBody, checkoutSessionId, payButtonText, TERMS_ERROR_CODES,
+} from './termsApi';
 import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
 import { remarksOfRate, hasRemarks } from '../../utils/supplierRemarks';
 import { bookerUnderage } from '../../utils/bookerAge';
@@ -187,13 +190,7 @@ const DIAL_CODES = {
  */
 const isUntouchedPhone = (v) => /^\s*(\+\d{1,4})?\s*$/.test(String(v ?? ''));
 
-/* A policy link inside a booking condition. Module scope, not defined in the component:
-   a component created during render is a NEW type every render, so React unmounts and
-   remounts the anchor each time — and it is what the "Cannot create components during
-   render" rule is there to catch. */
-const A = ({ to, children }) => (
-  <Link className="ck-a" to={to} target="_blank" rel="noreferrer">{children}</Link>
-);
+
 
 const IDEAL_BANKS = ['ING', 'ABN AMRO', 'Rabobank', 'ASN Bank', 'SNS', 'Bunq', 'Knab', 'Revolut', 'N26'];
 
@@ -294,11 +291,6 @@ const NR_CONSENT = {
   version: 'v1',
   notice: () => i18n.t('checkout:consent.nonRefundableNotice', 'This accommodation has a non-refundable rate. If you cancel the booking, 100% cancellation costs apply to this accommodation from the moment the booking is confirmed.'),
   accept: () => i18n.t('checkout:consent.nonRefundableAccept', 'I understand and accept that 100% cancellation costs apply to the selected non-refundable accommodation.'),
-};
-const TERMS_CONSENT = {
-  code: 'BOOKING_CONDITIONS',
-  version: 'v1',
-  accept: () => i18n.t('checkout:consent.termsAccept', 'I agree to the booking conditions, the privacy policy and the terms of the travel providers.'),
 };
 
 /**
@@ -1230,7 +1222,6 @@ function CheckoutContent({ stripe, elements }) {
   // the deposit rule. Falls back to the shipped defaults (which mirror the server's) so a
   // failed config call quotes the right numbers rather than none.
   const { data: pricingCfg } = useCheckoutConfig();
-  const { data: footerCfg } = useFooterConfig();
   const pricing = pricingCfg || DEFAULT_PRICING;
   // `t` in the deps even though buildInsurances doesn't take it: NO_INSURANCE and
   // INSURANCE_PRESENTATION read i18n.t() through getters, invisibly to the linter, and t's
@@ -1461,15 +1452,22 @@ function CheckoutContent({ stripe, elements }) {
   const [stripeReady, setStripeReady] = useState({ number: false, expiry: false, cvc: false });
   const [idealBank, setIdealBank] = useState(() => draft?.idealBank || '');
   const [billingSame, setBillingSame] = useState(true);
-  /* Conditions are accepted ONE BY ONE. A single "I agree to the above" is technically the
-     same consent and practically a different one — it lets someone accept a cancellation
-     policy and an insurance policy with a tick they read as being about neither. Each line
-     carries its own box, and `agree` below is simply "all of them", so every existing check
-     and the consent record keep working unchanged. */
-  const [conds, setConds] = useState({});
-  const tickCond = (id) => (v) => {
-    setConds((c) => ({ ...c, [id]: v }));
-    setErrors((er) => ({ ...er, agree: undefined }));
+  /* Garantie en voorwaarden (checkout T&C spec V1.3 §4-§5): ONE mandatory travel acceptance,
+     plus one for the Allianz cover when any was chosen. Never preselected, and reset whenever
+     what was accepted changes (§16), with a note saying so. */
+  const [travelAccepted, setTravelAccepted] = useState(false);
+  const [insuranceAccepted, setInsuranceAccepted] = useState(false);
+  const [termsNotice, setTermsNotice] = useState('');
+  const [termsDialog, setTermsDialog] = useState(null);
+  const acceptTravel = (v) => {
+    setTravelAccepted(v);
+    setTermsNotice('');
+    setErrors((er) => ({ ...er, terms: undefined }));
+  };
+  const acceptInsurance = (v) => {
+    setInsuranceAccepted(v);
+    setTermsNotice('');
+    setErrors((er) => ({ ...er, termsInsurance: undefined }));
   };
   // Unticked by default, always — a pre-ticked acceptance of a 100% cancellation cost is not
   // an acceptance. Only asked for when a selected rate really is non-refundable.
@@ -1852,47 +1850,57 @@ function CheckoutContent({ stripe, elements }) {
     ? priceInsurance(travelOption, { pax: travelCount, nights: booking.nights, baseSubtotal: insuranceBase }) : 0;
   const insAmount = cancelAmount + travelAmount;
 
-  /* The conditions of THIS booking, each with its own tick. The insurance line appears only
-     when cover was actually bought — asking someone to accept insurance conditions they
-     declined is asking them to agree to nothing.
-     `text` is the plain-English record kept with the consent: a tick in a database column is
-     not evidence, the wording the traveller was shown is. */
-  // The legal pages come from the SAME CMS config the footer renders from, so a policy the
-  // client renames or moves in the dashboard is followed here without a release.
-  const legal = checkoutLegalLinks(footerCfg);
-  const CONDITIONS = useMemo(() => {
-    const rows = [
-      { id: 'holiday', text: t('checkout:conditions.holiday', 'I have read the information relating to this holiday.'),
-        node: <>{t('checkout:conditions.holiday', 'I have read the information relating to this holiday.')}</> },
-      { id: 'terms',
-        text: t('checkout:conditions.terms', 'I agree to the general travel conditions and the package travel information.'),
-        node: (
-          <Trans i18nKey="checkout:conditions.termsNode" t={t}>
-            I agree to the <A to={legal.terms}>general travel conditions</A> and the <A to={legal.packageInfo}>package travel information</A>.
-          </Trans>
-        ) },
-    ];
-    if (insAmount > 0) {
-      rows.push({ id: 'insurance',
-        text: t('checkout:conditions.insurance', 'I accept the insurance conditions for the cover I selected.'),
-        node: (
-          <Trans i18nKey="checkout:conditions.insuranceNode" t={t}>
-            I accept the <A to={legal.insurance}>insurance conditions</A> for the cover I selected.
-          </Trans>
-        ) });
-    }
-    rows.push({ id: 'obligation',
-      text: t('checkout:conditions.obligation', 'I am making a definite booking with an obligation to pay. It can only be cancelled against payment of cancellation costs, which depend on how close to departure the cancellation is made.'),
-      node: (
-        <Trans i18nKey="checkout:conditions.obligationNode" t={t}>
-          I am making a definite booking with an obligation to pay. It can only be cancelled against payment of <A to={legal.cancellation}>cancellation costs</A>, which depend on how close to departure the cancellation is made.
-        </Trans>
-      ) });
-    return rows;
-  }, [insAmount, legal.terms, legal.packageInfo, legal.insurance, legal.cancellation, t]);
+  /* ── Garantie en voorwaarden (checkout T&C spec V1.3) ──
+     The server decides which conditions apply to THIS booking (legal booking type, airlines,
+     extras, Allianz products, market, language) and in which approved words. Asked again
+     whenever something that decides them changes; prices do not, so a re-check of the price
+     does not reload the section. */
+  const termsLanguage = String(i18n.language || 'nl').slice(0, 2);
+  const termsBodyKey = JSON.stringify(termsRequestBody({
+    flight: booking.api?.flight || null,
+    hotel: booking.api?.hotel || null,
+    transfer: pickedTransfer || null,
+    insurances: [cancelAmount > 0 && { type: 'cancel' }, travelAmount > 0 && { type: 'travel' }].filter(Boolean),
+    extras: extraLines,
+    supportPackage: supportLevel ? { code: supportLevel.code } : null,
+    language: termsLanguage,
+  }));
+  const [terms, setTerms] = useState(null);
+  const [termsState, setTermsState] = useState({ loading: false, failed: false });
+  const [termsRetry, setTermsRetry] = useState(0);
+  const needsTerms = step >= STEP.REVIEW;
+  useEffect(() => {
+    if (!needsTerms) return undefined;
+    let live = true;
+    setTermsState({ loading: true, failed: false });
+    fetchCheckoutTerms(JSON.parse(termsBodyKey))
+      .then((view) => {
+        if (!live) return;
+        if (view) setTerms(view);
+        setTermsState({ loading: false, failed: !view });
+      })
+      .catch(() => { if (live) setTermsState({ loading: false, failed: true }); });
+    return () => { live = false; };
+  }, [needsTerms, termsBodyKey, termsRetry]);
 
-  // "Agreed" is every condition ticked — nothing else in the file has to know it changed shape.
-  const agree = CONDITIONS.every((c) => conds[c.id]);
+  // §5.5: the Allianz documents are already there while the cover is being chosen. Asked once
+  // per booking with both products, so each option can show its own.
+  const [insuranceDocs, setInsuranceDocs] = useState({});
+  const wantsInsuranceDocs = step === STEP.ADDONS && (!!cancelOption || !!travelOption);
+  useEffect(() => {
+    if (!wantsInsuranceDocs) return undefined;
+    let live = true;
+    fetchCheckoutTerms({ ...JSON.parse(termsBodyKey), insurances: [{ type: 'cancel' }, { type: 'travel' }] })
+      .then((view) => {
+        if (!live || !view?.insurance) return;
+        setInsuranceDocs(Object.fromEntries(view.insurance.products.map((p) => [p.product, p.documents])));
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [wantsInsuranceDocs, termsBodyKey]);
+
+  // Every mandatory acceptance given, on terms that may be booked (§10.3).
+  const agree = !!terms && !terms.blocked && travelAccepted && (!terms.insurance || insuranceAccepted);
 
   // The support package is a SUNSKY service charge, so it sits beside insurance on top of the
   // subtotal rather than inside it: insurance is priced FROM the subtotal (see priceInsurance
@@ -1918,6 +1926,27 @@ function CheckoutContent({ stripe, elements }) {
     ? computeDeposit(pricing, total, tripStart, { kind: tripKind, pax: payingPax })
     : null;
   const usingDeposit = payPlan === 'deposit' && !!depositOffer;
+  // What is payable immediately: the deposit, or the whole price (§10).
+  const amountNow = usingDeposit ? depositOffer.amount : total;
+
+  /* §16: the customer accepted THESE travellers, products, extras, insurance, price, payment
+     option and document versions. When any of them changes afterwards, the ticks go and a
+     note asks for a fresh acceptance; the server checks the same thing again at booking. */
+  const acceptedFingerprint = JSON.stringify([
+    terms?.termsKey || null, termsBodyKey,
+    travellers.map((tr) => [tr.firstName, tr.lastName, tr.dateOfBirth, tr.gender]),
+    total, usingDeposit, amountNow, quote.rateKey || null, quote.flightKeys || null,
+  ]);
+  const lastFingerprint = useRef(acceptedFingerprint);
+  useEffect(() => {
+    if (lastFingerprint.current === acceptedFingerprint) return;
+    lastFingerprint.current = acceptedFingerprint;
+    if (travelAccepted || insuranceAccepted) {
+      setTravelAccepted(false);
+      setInsuranceAccepted(false);
+      setTermsNotice(t('checkout:terms.changedNotice', 'Something in your booking changed. Please read the conditions and confirm them again.'));
+    }
+  }, [acceptedFingerprint]); // eslint-disable-line react-hooks/exhaustive-deps
   // What the server answered when the booking was created: the plan it holds and what it will
   // charge now. The confirmation prints this, not the estimate above.
   const [paidPlan, setPaidPlan] = useState(null);
@@ -2203,7 +2232,9 @@ function CheckoutContent({ stripe, elements }) {
       }
     }
     if (payMethod === 'ideal' && !idealBank) e.idealBank = t('checkout:validation.chooseBank', 'Please choose your bank');
-    if (!agree) e.agree = t('checkout:validation.acceptConditions', 'Please accept the booking conditions to continue');
+    if (!terms) e.terms = t('checkout:validation.termsNotLoaded', 'The booking conditions are not loaded yet');
+    else if (!travelAccepted) e.terms = t('checkout:validation.acceptTravel', 'Please accept the travel conditions to book');
+    if (terms?.insurance && !insuranceAccepted) e.termsInsurance = t('checkout:validation.acceptInsurance', 'Please accept the conditions of your chosen insurance');
     // A separate, explicit tick — the general conditions checkbox does not stand in for it.
     if (nonRefundable && !nrAccept) e.nrAccept = t('checkout:validation.confirmNrAccept', 'Please confirm you accept the cancellation costs for the non-refundable accommodation');
     return e;
@@ -2430,7 +2461,6 @@ function CheckoutContent({ stripe, elements }) {
       // agreed. A tick in a database column is not evidence; the text is.
       const acceptedAt = new Date().toISOString();
       const consents = [
-        { code: TERMS_CONSENT.code, version: TERMS_CONSENT.version, text: TERMS_CONSENT.accept(), acceptedAt },
         ...(nonRefundable ? [{
           code: NR_CONSENT.code,
           version: NR_CONSENT.version,
@@ -2498,6 +2528,18 @@ function CheckoutContent({ stripe, elements }) {
         // The promotion this page showed (null: none) and the code typed, if any. SUNSKY decides
         // again from its own prices and refuses with PROMOTION_CHANGED if it would differ.
         promoCode: promoCode || undefined,
+        // Checkout T&C spec V1.3 §13: what the customer accepted. The server works the terms out
+        // again, refuses when they are no longer the ones shown (TERMS_CHANGED) and stores the
+        // record with its own time, texts and amounts.
+        acceptance: {
+          checkoutSessionId: checkoutSessionId(),
+          termsKey: terms?.termsKey || null,
+          travelAccepted,
+          insuranceAccepted: terms?.insurance ? insuranceAccepted : false,
+          language: termsLanguage,
+          paymentMethod: payMethod,
+          payButtonText: payLabel,
+        },
         promotion: promo ? { promotionId: promo.promotionId, amount: promo.amount } : null,
       });
 
@@ -2654,6 +2696,15 @@ function CheckoutContent({ stripe, elements }) {
       // balance date passed): nothing was booked or charged. Put the choice on "Pay in full"
       // so the next click is a deliberate full payment, not a second refusal.
       if (err?.response?.data?.errorCode === 'DEPOSIT_UNAVAILABLE') setPayPlan('full');
+      // The conditions changed, or an acceptance was missing: show the terms that apply now and
+      // ask again. Nothing was booked or charged.
+      if (TERMS_ERROR_CODES.includes(err?.response?.data?.errorCode)) {
+        const fresh = err.response.data.errors?.[0]?.terms || null;
+        if (fresh) setTerms(fresh);
+        setTravelAccepted(false);
+        setInsuranceAccepted(false);
+        setTermsNotice(msg);
+      }
       // The hotel's remarks changed at the final check: show the new text (the review and payment
       // sections print it) so the next click books on what the customer has now seen. Nothing was
       // booked or charged.
@@ -2693,19 +2744,25 @@ function CheckoutContent({ stripe, elements }) {
       }
     : null;
 
+  /* The payment button says what it does and what it charges now (§10.1), in the server's
+     approved words ("Boek en betaal {amount}"); the same text is stored with the acceptance. */
+  const payLabel = payButtonText(
+    terms?.payButtonTemplate || t('checkout:cta.bookAndPay', 'Boek en betaal {amount}'),
+    usingDeposit ? money(depositOffer.amount) : moneyTotal(total),
+  );
+
   /* primary CTA per step (shared by bottom bar + mobile bar) */
   const ctaLabel = repriceBlocks && reprice.status === 'checking' ? t('checkout:cta.rechecking', 'Re-checking your price…')
     : step === STEP.INFO ? t('checkout:cta.continueToAddons', 'Continue to add-ons')
     : step === STEP.ADDONS ? (showSupportStep ? t('checkout:cta.continueToSupport', 'Continue to support package') : t('checkout:cta.continueToReview', 'Continue to overview'))
     : step === STEP.SUPPORT ? t('checkout:cta.continueToReview', 'Continue to overview')
     : step === STEP.REVIEW ? t('checkout:cta.continueToPayment', 'Continue to payment')
-    : usingDeposit ? t('checkout:cta.payDeposit', { amount: money(depositOffer.amount), defaultValue: 'Pay {{amount}} deposit' })
-    : t('checkout:cta.pay', { amount: moneyTotal(total), defaultValue: 'Pay {{amount}}' });
+    : payLabel;
   const ctaAction = step === STEP.PAYMENT ? pay : next;
   // One rule for every way forward (button, mobile bar): an outstanding re-check, an
   // unaccepted new price or an unavailable party stops the traveller here, at the panel that
   // explains why, rather than at the payment sheet.
-  const ctaBlocked = paying || repriceBlocks;
+  const ctaBlocked = paying || repriceBlocks || (step === STEP.PAYMENT && !agree);
 
   /* ═══ full-page confirmation after payment ═══ */
   if (paid) {
@@ -2774,6 +2831,238 @@ function CheckoutContent({ stripe, elements }) {
   ].filter(Boolean);
   const reviewN = (id) => reviewSections.indexOf(id) + 1;
 
+  /* The description of the trip (checkout T&C spec V1.3 §3.1): dates, flights and baggage,
+     accommodation, room and board, transfers, insurance and the travellers. The review step
+     shows it, and "beschrijving van mijn reis" opens the very same block, so the two can
+     never disagree. */
+  const tripDescription = (
+    <>
+                  {/* the trip itself */}
+                  <div className="ck-rv-sec">
+                    <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('trip')}</span>{ICON.bed}
+                      <h3 className="ck-rv-t hd">{t('checkout:review.tripOverview', 'Travel overview')}</h3></div>
+                    <div className="ck-rv-rows">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:overview.accommodation', 'Accommodation')}</span>
+                        <span className="ck-rv-v">{booking.hotelName}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:overview.destination', 'Destination')}</span>
+                        <span className="ck-rv-v">{booking.loc || '—'}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.travelPeriod', 'Travel period')}</span>
+                        <span className="ck-rv-v">{tripPeriod}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.travelDuration', 'Travel duration')}</span>
+                        <span className="ck-rv-v">{t('checkout:duration.days', { count: travelDays, defaultValue_one: '{{count}} day', defaultValue_other: '{{count}} days' })}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.party', 'Travel party')}</span>
+                        <span className="ck-rv-v">{t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:overview.rooms', 'Rooms')}</span>
+                        <span className="ck-rv-v">{t('checkout:review.roomsCount', { count: Number(srch.rooms) || 1, defaultValue_one: '{{count}} room', defaultValue_other: '{{count}} rooms' })}</span>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* flights, one block per direction */}
+                  {booking.flight && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('flights')}</span>{ICON.plane}
+                        <h3 className="ck-rv-t hd">{t('checkout:summary.flights', 'Flights')}</h3></div>
+                      {reviewFlights.map((f) => (
+                        <div className="ck-rv-leg" key={f.key}>
+                          <div className="ck-rv-leg-head">
+                            <span className={`ck-rv-dir${f.key === 'ret' ? ' ret' : ''}`}>{f.label}</span>
+                            <span className="ck-rv-date">{f.date}</span>
+                          </div>
+                          <div className="ck-rv-leg-body">
+                            <div className="ck-rv-end">
+                              <span className="ck-rv-time">{f.dep}</span>
+                              <span className="ck-rv-place">{f.fromLabel}</span>
+                            </div>
+                            <div className="ck-rv-mid">
+                              <span className="ck-rv-rule" />
+                              <span className="ck-rv-stops">{f.stopsLabel}{f.dur ? ` · ${f.dur}` : null}</span>
+                            </div>
+                            <div className="ck-rv-end ck-rv-end-r">
+                              {/* A flight that lands the next day says so here, where the
+                                  time is read, rather than in a footnote under it. */}
+                              <span className="ck-rv-time">{f.arr}{f.plusDays ? <sup className="ck-rv-plus">+{f.plusDays}</sup> : null}</span>
+                              <span className="ck-rv-place">{f.toLabel}</span>
+                            </div>
+                            <div className="ck-rv-facts">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.airline', 'Airline')}</span>
+                        <span className="ck-rv-v">{f.airlineCode ? <AirlineMark code={f.airlineCode} className="ck-air-mark" nameClassName="ck-air-name" /> : (f.airline || '—')}</span>
+                      </div>
+                              {f.flightNumber && (
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.flightNumber', 'Flight number')}</span>
+                        <span className="ck-rv-v">{f.flightNumber}</span>
+                      </div>
+                              )}
+                            </div>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+
+                  {/* room and board */}
+                  {booking.room && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('room')}</span>{ICON.bed}
+                        <h3 className="ck-rv-t hd">{t('checkout:review.roomAndBoard', 'Room & board')}</h3></div>
+                      <div className="ck-rv-rows">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.roomType', 'Room type')}</span>
+                        <span className="ck-rv-v">{<span className="ck-caps">{booking.room}</span>}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.occupancy', 'Occupancy')}</span>
+                        <span className="ck-rv-v">{`${t('checkout:review.roomsCount', { count: Number(srch.rooms) || 1, defaultValue_one: '{{count}} room', defaultValue_other: '{{count}} rooms' })} · ${t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}`}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:overview.board', 'Board')}</span>
+                        <span className="ck-rv-v">{<span className="ck-caps">{boardInfo(booking.api?.hotel?.boardCode, booking.board || booking.meal).label}</span>}</span>
+                      </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* transfer, only when one was taken */}
+                  {pickedOption && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('transfer')}</span>{ICON.van}
+                        <h3 className="ck-rv-t hd">{t('checkout:summary.transfer', 'Transfer')}</h3></div>
+                      <div className="ck-rv-rows">
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.transferType', 'Transfer type')}</span>
+                        <span className="ck-rv-v">{[pickedOption.lead.vehicle, pickedOption.lead.category].filter(Boolean).join(' · ') || t('checkout:transfer.transfer', 'Transfer')}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.route', 'Route')}</span>
+                        <span className="ck-rv-v">{`${pickedOption.lead.pickup?.from || transferFrom} → ${pickedOption.lead.pickup?.to || booking.hotelName}`}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.direction', 'Direction')}</span>
+                        <span className="ck-rv-v">{pickedOption.roundTrip ? t('checkout:review.bothWays', 'Arrival and return') : t('checkout:review.arrivalOnly', 'Arrival only')}</span>
+                      </div>
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:review.passengers', 'Passengers')}</span>
+                        <span className="ck-rv-v">{t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}</span>
+                      </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* insurance: a status per traveller, and one line for the booking */}
+                  {(travelOption || cancelOption) && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('insurance')}</span>{ICON.shield}
+                        <h3 className="ck-rv-t hd">{t('checkout:review.insurance', 'Insurance')}</h3></div>
+                      <div className="ck-rv-rows">
+                        {travelOption && (
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:insurance.travelTitle', 'Travel insurance')}</span>
+                        <span className="ck-rv-v">{travelCount ? `${travelOption.label} (${t('checkout:duration.travellers', { count: travelCount, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })})` : t('checkout:insurance.noTravel', 'Not selected')}</span>
+                      </div>
+                        )}
+                        {cancelOption && (
+                      <div className="ck-rv-row">
+                        <span className="ck-rv-k">{t('checkout:insurance.cancellationTitle', 'Cancellation insurance')}</span>
+                        <span className="ck-rv-v">{cancelIns ? cancelOption.label : t('checkout:insurance.noTravel', 'Not selected')}</span>
+                      </div>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* extra baggage, only what was actually bought */}
+                  {baggageRows.length > 0 && (
+                    <div className="ck-rv-sec">
+                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('baggage')}</span>{ICON.checkedBag}
+                        <h3 className="ck-rv-t hd">{t('checkout:review.extraBaggage', 'Extra baggage')}</h3></div>
+                      <div className="ck-rv-rows">
+                        {baggageRows.map((b) => (
+                          <div className="ck-rv-row" key={b.label}>
+                            <span className="ck-rv-k">{b.label}</span>
+                            <span className="ck-rv-v">{t('checkout:baggage.pieces', { count: b.count, defaultValue_one: '{{count}} piece', defaultValue_other: '{{count}} pieces' })}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* who is travelling, as the ticket will read */}
+                  <div className="ck-rv-sec">
+                    <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('travellers')}</span>{ICON.users}
+                      <h3 className="ck-rv-t hd">{t('checkout:review.travellers', 'Travellers')}</h3></div>
+                    <div className="ck-rv-pax">
+                      {travellers.map((trav, i) => (
+                        <div className="ck-rv-person" key={i}>
+                          <span className="ck-rv-pn">{i + 1}</span>
+                          <span className="ck-rv-pbody">
+                            <b>
+                              {[trav.firstName, trav.lastName].filter(Boolean).join(' ') || t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' })}
+                              {i === 0 && <em>({t('checkout:travellers.lead', 'Lead traveller')})</em>}
+                            </b>
+                            <span>{trav.dateOfBirth ? dmy(trav.dateOfBirth) : '—'}</span>
+                          </span>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+    </>
+  );
+
+  /* "Belangrijke reisinformatie" (§3.1, §8): only what applies to this booking. Essential
+     supplier conditions, local charges and the non-refundable rate stay reachable here even
+     when full supplier remarks are not shown elsewhere. */
+  const importantInfo = (
+    <div className="ck-terms-important">
+      {terms?.legalRoleLabel && (
+        <section>
+          <h3 className="hd">{t('checkout:terms.roleTitle', 'De rol van SUNSKY')}</h3>
+          <p>{t('checkout:terms.roleText', { role: terms.legalRoleLabel, defaultValue: 'Voor deze boeking treedt SUNSKY op als {{role}}.' })}</p>
+        </section>
+      )}
+      {nonRefundable && (
+        <section>
+          <h3 className="hd">{t('checkout:nonRefundable.title', 'Non-refundable accommodation')}</h3>
+          <p>{NR_CONSENT.notice()}</p>
+        </section>
+      )}
+      {hotelRemarks && (
+        <section>
+          <h3 className="hd">{t('checkout:terms.supplierTitle', 'Voorwaarden en opmerkingen van de accommodatie')}</h3>
+          <SupplierRemarks text={hotelRemarks} />
+        </section>
+      )}
+      {!isFlight && !isTransfer && quote.localCost && (
+        <section>
+          <h3 className="hd">{t('checkout:terms.localCostsTitle', 'Ter plaatse te betalen')}</h3>
+          <LocalCosts cost={quote.localCost} />
+        </section>
+      )}
+      <section>
+        <h3 className="hd">{t('checkout:terms.documentsTitle', 'Paspoort, visum en gezondheid')}</h3>
+        <p>{t('checkout:terms.documentsText', 'Controleer op tijd welke reisdocumenten, visa en vaccinaties je voor je bestemming nodig hebt. Iedere reiziger heeft een geldig paspoort of een geldige identiteitskaart nodig.')}</p>
+        {terms?.links?.TRAVEL_ADVICE?.url && (
+          <p><DocLink doc={terms.links.TRAVEL_ADVICE}>{t('checkout:terms.travelAdvice', 'Actueel reisadvies')}</DocLink></p>
+        )}
+        {(terms?.links?.IMPORTANT_TRAVEL_INFO_DOCS || []).map((d) => (
+          <p key={d.versionId || d.documentId}><DocLink doc={d} /></p>
+        ))}
+      </section>
+    </div>
+  );
+
   return (
     <div className="ck">
       {/* ═══ HERO ═══ */}
@@ -2794,7 +3083,6 @@ function CheckoutContent({ stripe, elements }) {
               </p>
             </div>
             <div className="ck-hero-badges">
-              <span className="ck-hbadge">{ICON.shieldCheck} {t('checkout:hero.sgrGuaranteed', 'SGR guaranteed')}</span>
               <span className="ck-hbadge">{ICON.lock} {t('checkout:hero.ssl', '256-bit SSL')}</span>
               <span className="ck-hbadge">{ICON.check} {t('checkout:hero.instantConfirmation', 'Instant confirmation')}</span>
             </div>
@@ -3607,6 +3895,9 @@ function CheckoutContent({ stripe, elements }) {
                             </a>
                           </>
                         )}
+                        {(insuranceDocs.CANCELLATION || []).map((d) => (
+                          <Fragment key={d.versionId || d.documentId}>{' '}<DocLink doc={d} /></Fragment>
+                        ))}
                       </p>
                     </div>
                   )}
@@ -3690,6 +3981,9 @@ function CheckoutContent({ stripe, elements }) {
                             </a>
                           </>
                         )}
+                        {(insuranceDocs.ASSISTANCE || []).map((d) => (
+                          <Fragment key={d.versionId || d.documentId}>{' '}<DocLink doc={d} /></Fragment>
+                        ))}
                       </p>
                     </div>
                   )}
@@ -3845,187 +4139,17 @@ function CheckoutContent({ stripe, elements }) {
                     </div>
                   </div>
 
-                  {/* the trip itself */}
-                  <div className="ck-rv-sec">
-                    <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('trip')}</span>{ICON.bed}
-                      <h3 className="ck-rv-t hd">{t('checkout:review.tripOverview', 'Travel overview')}</h3></div>
-                    <div className="ck-rv-rows">
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:overview.accommodation', 'Accommodation')}</span>
-                        <span className="ck-rv-v">{booking.hotelName}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:overview.destination', 'Destination')}</span>
-                        <span className="ck-rv-v">{booking.loc || '—'}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.travelPeriod', 'Travel period')}</span>
-                        <span className="ck-rv-v">{tripPeriod}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.travelDuration', 'Travel duration')}</span>
-                        <span className="ck-rv-v">{t('checkout:duration.days', { count: travelDays, defaultValue_one: '{{count}} day', defaultValue_other: '{{count}} days' })}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.party', 'Travel party')}</span>
-                        <span className="ck-rv-v">{t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:overview.rooms', 'Rooms')}</span>
-                        <span className="ck-rv-v">{t('checkout:review.roomsCount', { count: Number(srch.rooms) || 1, defaultValue_one: '{{count}} room', defaultValue_other: '{{count}} rooms' })}</span>
-                      </div>
-                    </div>
-                  </div>
+                  {tripDescription}
 
-                  {/* flights, one block per direction */}
-                  {booking.flight && (
-                    <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('flights')}</span>{ICON.plane}
-                        <h3 className="ck-rv-t hd">{t('checkout:summary.flights', 'Flights')}</h3></div>
-                      {reviewFlights.map((f) => (
-                        <div className="ck-rv-leg" key={f.key}>
-                          <div className="ck-rv-leg-head">
-                            <span className={`ck-rv-dir${f.key === 'ret' ? ' ret' : ''}`}>{f.label}</span>
-                            <span className="ck-rv-date">{f.date}</span>
-                          </div>
-                          <div className="ck-rv-leg-body">
-                            <div className="ck-rv-end">
-                              <span className="ck-rv-time">{f.dep}</span>
-                              <span className="ck-rv-place">{f.fromLabel}</span>
-                            </div>
-                            <div className="ck-rv-mid">
-                              <span className="ck-rv-rule" />
-                              <span className="ck-rv-stops">{f.stopsLabel}{f.dur ? ` · ${f.dur}` : null}</span>
-                            </div>
-                            <div className="ck-rv-end ck-rv-end-r">
-                              {/* A flight that lands the next day says so here, where the
-                                  time is read, rather than in a footnote under it. */}
-                              <span className="ck-rv-time">{f.arr}{f.plusDays ? <sup className="ck-rv-plus">+{f.plusDays}</sup> : null}</span>
-                              <span className="ck-rv-place">{f.toLabel}</span>
-                            </div>
-                            <div className="ck-rv-facts">
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.airline', 'Airline')}</span>
-                        <span className="ck-rv-v">{f.airlineCode ? <AirlineMark code={f.airlineCode} className="ck-air-mark" nameClassName="ck-air-name" /> : (f.airline || '—')}</span>
-                      </div>
-                              {f.flightNumber && (
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.flightNumber', 'Flight number')}</span>
-                        <span className="ck-rv-v">{f.flightNumber}</span>
-                      </div>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                  {/* §3.5: the official form is in reach before the payment page, not only on it. */}
+                  {terms?.travelDocuments?.some((d) => d.documentType === 'STANDARD_INFO_FORM') && (
+                    <p className="ck-terms-precontract">
+                      {t('checkout:terms.standardInfoBefore', 'Voor deze reis geldt:')}{' '}
+                      {terms.travelDocuments.filter((d) => d.documentType === 'STANDARD_INFO_FORM').map((d, i) => (
+                        <Fragment key={d.versionId || i}>{i > 0 && ', '}<DocLink doc={d}>{d.label}</DocLink></Fragment>
                       ))}
-                    </div>
+                    </p>
                   )}
-
-                  {/* room and board */}
-                  {booking.room && (
-                    <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('room')}</span>{ICON.bed}
-                        <h3 className="ck-rv-t hd">{t('checkout:review.roomAndBoard', 'Room & board')}</h3></div>
-                      <div className="ck-rv-rows">
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.roomType', 'Room type')}</span>
-                        <span className="ck-rv-v">{<span className="ck-caps">{booking.room}</span>}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.occupancy', 'Occupancy')}</span>
-                        <span className="ck-rv-v">{`${t('checkout:review.roomsCount', { count: Number(srch.rooms) || 1, defaultValue_one: '{{count}} room', defaultValue_other: '{{count}} rooms' })} · ${t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}`}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:overview.board', 'Board')}</span>
-                        <span className="ck-rv-v">{<span className="ck-caps">{boardInfo(booking.api?.hotel?.boardCode, booking.board || booking.meal).label}</span>}</span>
-                      </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* transfer, only when one was taken */}
-                  {pickedOption && (
-                    <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('transfer')}</span>{ICON.van}
-                        <h3 className="ck-rv-t hd">{t('checkout:summary.transfer', 'Transfer')}</h3></div>
-                      <div className="ck-rv-rows">
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.transferType', 'Transfer type')}</span>
-                        <span className="ck-rv-v">{[pickedOption.lead.vehicle, pickedOption.lead.category].filter(Boolean).join(' · ') || t('checkout:transfer.transfer', 'Transfer')}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.route', 'Route')}</span>
-                        <span className="ck-rv-v">{`${pickedOption.lead.pickup?.from || transferFrom} → ${pickedOption.lead.pickup?.to || booking.hotelName}`}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.direction', 'Direction')}</span>
-                        <span className="ck-rv-v">{pickedOption.roundTrip ? t('checkout:review.bothWays', 'Arrival and return') : t('checkout:review.arrivalOnly', 'Arrival only')}</span>
-                      </div>
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:review.passengers', 'Passengers')}</span>
-                        <span className="ck-rv-v">{t('checkout:duration.travellers', { count: pax, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })}</span>
-                      </div>
-                      </div>
-                    </div>
-                  )}
-
-                  {/* insurance: a status per traveller, and one line for the booking */}
-                  {(travelOption || cancelOption) && (
-                    <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('insurance')}</span>{ICON.shield}
-                        <h3 className="ck-rv-t hd">{t('checkout:review.insurance', 'Insurance')}</h3></div>
-                      <div className="ck-rv-rows">
-                        {travelOption && (
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:insurance.travelTitle', 'Travel insurance')}</span>
-                        <span className="ck-rv-v">{travelCount ? `${travelOption.label} (${t('checkout:duration.travellers', { count: travelCount, defaultValue_one: '{{count}} traveller', defaultValue_other: '{{count}} travellers' })})` : t('checkout:insurance.noTravel', 'Not selected')}</span>
-                      </div>
-                        )}
-                        {cancelOption && (
-                      <div className="ck-rv-row">
-                        <span className="ck-rv-k">{t('checkout:insurance.cancellationTitle', 'Cancellation insurance')}</span>
-                        <span className="ck-rv-v">{cancelIns ? cancelOption.label : t('checkout:insurance.noTravel', 'Not selected')}</span>
-                      </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* extra baggage, only what was actually bought */}
-                  {baggageRows.length > 0 && (
-                    <div className="ck-rv-sec">
-                      <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('baggage')}</span>{ICON.checkedBag}
-                        <h3 className="ck-rv-t hd">{t('checkout:review.extraBaggage', 'Extra baggage')}</h3></div>
-                      <div className="ck-rv-rows">
-                        {baggageRows.map((b) => (
-                          <div className="ck-rv-row" key={b.label}>
-                            <span className="ck-rv-k">{b.label}</span>
-                            <span className="ck-rv-v">{t('checkout:baggage.pieces', { count: b.count, defaultValue_one: '{{count}} piece', defaultValue_other: '{{count}} pieces' })}</span>
-                          </div>
-                        ))}
-                      </div>
-                    </div>
-                  )}
-
-                  {/* who is travelling, as the ticket will read */}
-                  <div className="ck-rv-sec">
-                    <div className="ck-rv-head"><span className="ck-rv-n">{reviewN('travellers')}</span>{ICON.users}
-                      <h3 className="ck-rv-t hd">{t('checkout:review.travellers', 'Travellers')}</h3></div>
-                    <div className="ck-rv-pax">
-                      {travellers.map((trav, i) => (
-                        <div className="ck-rv-person" key={i}>
-                          <span className="ck-rv-pn">{i + 1}</span>
-                          <span className="ck-rv-pbody">
-                            <b>
-                              {[trav.firstName, trav.lastName].filter(Boolean).join(' ') || t('checkout:travellers.traveller', { number: i + 1, defaultValue: 'Traveller {{number}}' })}
-                              {i === 0 && <em>({t('checkout:travellers.lead', 'Lead traveller')})</em>}
-                            </b>
-                            <span>{trav.dateOfBirth ? dmy(trav.dateOfBirth) : '—'}</span>
-                          </span>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
 
                   {/* who we contact about it */}
                   <div className="ck-rv-sec">
@@ -4311,37 +4435,25 @@ function CheckoutContent({ stripe, elements }) {
                       for this rate; no new supplier call. */}
                   <SupplierRemarks text={hotelRemarks} className="ck-pay-remarks" />
 
-                  {/* ── Conditions & booking ──
-                      What accepting actually commits the traveller to, itemised, above the one
-                      tick that accepts all of it. A single "I agree to the conditions" line is
-                      technically the same consent and practically a different one: nobody reads
-                      a link, and this at least says what is behind them. */}
-                  <div className={`ck-cond${errors.agree ? ' ck-cond-err' : ''}`}>
-                    <div className="ck-cond-head">
-                      <div className="ck-cond-title hd">{t('checkout:conditions.headingTitle', 'Conditions & booking')}</div>
-                      <span className="ck-cond-count">{CONDITIONS.filter((c) => conds[c.id]).length}/{CONDITIONS.length}</span>
-                    </div>
-                    <ul className="ck-cond-list">
-                      {CONDITIONS.map((c) => (
-                        <li key={c.id}>
-                          <label className={`ck-cond-item${conds[c.id] ? ' on' : ''}`}>
-                            <input type="checkbox" checked={!!conds[c.id]}
-                              onChange={(e) => tickCond(c.id)(e.target.checked)} />
-                            <span className="ck-cond-box" aria-hidden="true">{ICON.check}</span>
-                            {/* ONE element after the box. Each of these lines mixes text with
-                                links, and the row is a two-column grid — every inline child
-                                became its own cell, so a sentence with two links stacked one
-                                word per line. Wrapping the sentence keeps it a single cell. */}
-                            <span className="ck-cond-text">{c.node}</span>
-                          </label>
-                        </li>
-                      ))}
-                    </ul>
-                    <div className="ck-cond-foot">
-                      {t('checkout:conditions.cannotConfirmUnless', 'You cannot confirm your booking unless you accept all applicable conditions.')}
-                    </div>
-                    {errors.agree && <div className="ck-errmsg ck-cond-errmsg">{errors.agree}</div>}
-                  </div>
+                  {/* ── Garantie en voorwaarden (checkout T&C spec V1.3) ──
+                      Travel information and the documents behind it, ONE mandatory travel
+                      acceptance, the Allianz section only when cover was chosen, then privacy and
+                      insolvency information. All of it from the server, for this booking. */}
+                  <TermsSection
+                    terms={terms}
+                    loading={termsState.loading}
+                    failed={termsState.failed}
+                    onRetry={() => setTermsRetry((n) => n + 1)}
+                    travelAccepted={travelAccepted}
+                    insuranceAccepted={insuranceAccepted}
+                    onTravel={acceptTravel}
+                    onInsurance={acceptInsurance}
+                    errors={{ travel: errors.terms, insurance: errors.termsInsurance }}
+                    notice={termsNotice}
+                    onOpen={setTermsDialog}
+                  />
+
+
 
                   {errors.submit && (
                     <div className="ck-submit-err">{ICON.ban} {errors.submit}</div>
@@ -4353,6 +4465,12 @@ function CheckoutContent({ stripe, elements }) {
                     <span className="ck-ssl">{ICON.shieldCheck} {t('checkout:payment.pciCompliant', 'PCI-DSS compliant')}</span>
                   </div>
                 </section>
+              )}
+
+              {/* §10.2: the final booking declaration sits directly above the payment button. */}
+              {step === STEP.PAYMENT && <FinalDeclaration terms={terms} onOpen={setTermsDialog} />}
+              {step === STEP.PAYMENT && !agree && !paying && terms && !terms.blocked && (
+                <p className="ck-terms-hint">{t('checkout:terms.acceptHint', 'Tick the mandatory conditions above to book.')}</p>
               )}
 
               {/* ──────── NAV BUTTONS ──────── */}
@@ -4581,7 +4699,6 @@ function CheckoutContent({ stripe, elements }) {
                 <div className="ck-trust">
                   <span className="ck-trust-item">{ICON.check} {t('checkout:summary.trustStripe', 'Secure Stripe payment')}</span>
                   <span className="ck-trust-item">{ICON.check} {t('checkout:summary.trustEmail', 'Instant confirmation by email')}</span>
-                  <span className="ck-trust-item">{ICON.check} {t('checkout:summary.trustSgr', 'SGR & travel guarantee protected')}</span>
                 </div>
               </div>
             </div>
@@ -4612,6 +4729,21 @@ function CheckoutContent({ stripe, elements }) {
         onSignedIn={handleSignedIn}
         onCreateAccount={createAccount}
       />
+
+      <TermsDialog
+        open={termsDialog === 'TRAVEL_DESCRIPTION'}
+        title={t('checkout:terms.descriptionTitle', 'Beschrijving van je reis')}
+        onClose={() => setTermsDialog(null)}
+      >
+        <div className="ck-rv ck-terms-trip">{tripDescription}</div>
+      </TermsDialog>
+      <TermsDialog
+        open={termsDialog === 'IMPORTANT_TRAVEL_INFO'}
+        title={t('checkout:terms.importantTitle', 'Belangrijke reisinformatie')}
+        onClose={() => setTermsDialog(null)}
+      >
+        {importantInfo}
+      </TermsDialog>
 
       {/* ═══ REVIEW YOUR DETAILS — the gate out of step 1 ═══
           Deliberately a modal and not another card: the traveller has just spent five

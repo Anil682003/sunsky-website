@@ -854,17 +854,40 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 .ck-ov-flight { display:flex; flex-direction:column; gap:2px; }
 .ck-ov-dir { font-size:var(--fs-micro); font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:var(--text-light); }
 
-/* ════ CONDITIONS & BOOKING ════ */
-.ck-cond { margin:6px 0 14px; padding:16px 18px 14px; border-radius:var(--r-md); background:var(--blue-pale); border:1px solid var(--border-light); }
-.ck-cond-err { border-color:#f5b5bb; background:#fff7f8; }
-.ck-cond-head { display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:4px; }
-.ck-cond-title { font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--blue); }
-/* How many are still outstanding, so nobody hunts for the one box they missed. */
-.ck-cond-count { font-size:var(--fs-micro); font-weight:700; color:var(--blue); background:rgba(10,151,243,.09);
-  padding:3px 9px; border-radius:999px; letter-spacing:.02em; flex-shrink:0; }
-.ck-cond-list { display:flex; flex-direction:column; list-style:none; margin:0; padding:0; }
-.ck-cond-list li { margin:0; }
-.ck-cond-list li + li { border-top:1px solid rgba(10,151,243,.08); }
+/* ════ GARANTIE EN VOORWAARDEN (checkout T&C spec V1.3) ════
+   One frame in the existing conditions look. Document links are neutral (§3.7): plain blue
+   links, no ticks or green marks until the customer ticks a box themselves. */
+.ck-terms { margin:6px 0 14px; padding:16px 18px 14px; border-radius:var(--r-md); background:var(--blue-pale); border:1px solid var(--border-light); }
+.ck-terms-title { font-size:var(--fs-card-title); font-weight:var(--fw-card-title); color:var(--blue); margin:0 0 8px; }
+.ck-terms-sub { font-size:var(--fs-body); font-weight:700; color:var(--text); margin:0 0 6px; }
+.ck-terms-block + .ck-terms-block { margin-top:12px; padding-top:12px; border-top:1px solid rgba(10,151,243,.08); }
+.ck-terms-info { font-size:var(--fs-small); line-height:1.62; color:var(--text-sec); margin:0 0 6px; }
+.ck-terms-docs { list-style:none; margin:4px 0 6px; padding:0; display:flex; flex-direction:column; gap:3px; }
+.ck-terms-docs li { font-size:var(--fs-small); line-height:1.5; color:var(--text-sec); padding-left:14px; position:relative; }
+.ck-terms-docs li::before { content:''; position:absolute; left:2px; top:.62em; width:5px; height:5px; border-radius:50%; background:var(--border-light, #d7e3f5); }
+.ck-terms-link { color:var(--blue); font-weight:700; text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.ck-terms-linkbtn { background:none; border:0; padding:0; font:inherit; color:var(--blue); font-weight:700; text-decoration:underline; text-underline-offset:2px; cursor:pointer; }
+.ck-terms-insprod { margin-top:6px; font-size:var(--fs-small); color:var(--text); }
+.ck-terms-legal { margin-top:10px; padding-top:10px; border-top:1px solid rgba(10,151,243,.08); }
+.ck-terms-legal p { font-size:var(--fs-small); line-height:1.55; color:var(--text-light); margin:0 0 4px; }
+.ck-terms-muted { font-size:var(--fs-small); color:var(--text-light); margin:0; }
+.ck-terms-notice { font-size:var(--fs-small); line-height:1.5; color:#7a4b00; background:#fff8e6; border:1px solid #f3d48a; border-radius:var(--r-sm, 8px); padding:9px 12px; margin:0 0 10px; }
+.ck-terms-alert { font-size:var(--fs-small); line-height:1.5; color:#9b1c2a; background:#fff7f8; border:1px solid #f5b5bb; border-radius:var(--r-sm, 8px); padding:9px 12px; margin:0 0 10px; }
+.ck-terms-accept { margin-top:2px; }
+.ck-terms-accept.ck-err .ck-cond-box { border-color:#e5484d; }
+.ck-terms-precontract { font-size:var(--fs-small); line-height:1.55; color:var(--text-sec); margin:12px 0 0; }
+
+/* "Definitieve boeking", directly above the payment button (§10.2). */
+.ck-final { margin:4px 0 12px; padding:12px 16px; border-radius:var(--r-md); background:#fff; border:1px solid var(--border-light); }
+.ck-final-title { font-size:var(--fs-body); font-weight:700; color:var(--text); margin-bottom:4px; }
+.ck-final p { font-size:var(--fs-small); line-height:1.55; color:var(--text-sec); margin:0 0 3px; }
+.ck-terms-hint { font-size:var(--fs-small); color:var(--text-light); text-align:right; margin:0 0 8px; }
+
+/* The trip description and important information dialogs. */
+.ck-terms-modal { max-width:760px; }
+.ck-terms-important section + section { margin-top:14px; padding-top:12px; border-top:1px solid var(--border-light); }
+.ck-terms-important h3 { font-size:var(--fs-body); font-weight:700; color:var(--text); margin:0 0 6px; }
+.ck-terms-important p { font-size:var(--fs-small); line-height:1.6; color:var(--text-sec); margin:0 0 6px; }
 
 /* Each condition is its own control. The row is a 2-column grid — box, then the sentence —
    and the sentence MUST be a single element: an inline mix of text and links would otherwise
@@ -886,13 +909,13 @@ img.ck-air-mark { background:#fff; border:1px solid var(--border-light); padding
 /* Links inside a condition must not break mid-phrase — "general travel conditions" reads as
    one thing, and the underline made a mid-phrase wrap look like a strikethrough. */
 .ck-cond-text .ck-a { white-space:nowrap; }
-.ck-cond-foot { font-size:var(--fs-small); line-height:1.5; color:var(--text-light); margin-top:10px;
-  padding-top:10px; border-top:1px solid rgba(10,151,243,.08); }
 .ck-cond-errmsg { margin-top:8px; }
 
 @media(max-width:520px){
   /* A long policy name would push the row wider than the phone; let it wrap there instead. */
   .ck-cond-text .ck-a { white-space:normal; }
+  .ck-terms { padding:14px 14px 12px; }
+  .ck-terms-hint { text-align:left; }
 }
 .ck-ins-legal { display:flex; align-items:flex-start; gap:11px; margin-top:18px; padding:14px 16px; border-radius:var(--r-md);
   background:var(--blue-pale); border:1px solid var(--border-light); }

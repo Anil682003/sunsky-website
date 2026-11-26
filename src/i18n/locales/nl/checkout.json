@@ -81,8 +81,7 @@
   },
   "consent": {
     "nonRefundableNotice": "Deze accommodatie heeft een niet-terugbetaalbaar tarief. Als je de boeking annuleert, geldt vanaf het moment van bevestiging 100% annuleringskosten voor deze accommodatie.",
-    "nonRefundableAccept": "Ik begrijp en accepteer dat er 100% annuleringskosten gelden voor de geselecteerde niet-terugbetaalbare accommodatie.",
-    "termsAccept": "Ik ga akkoord met de boekingsvoorwaarden, het privacybeleid en de voorwaarden van de reisaanbieders."
+    "nonRefundableAccept": "Ik begrijp en accepteer dat er 100% annuleringskosten gelden voor de geselecteerde niet-terugbetaalbare accommodatie."
   },
   "errors": {
     "supplierTimedOut": "De leverancier deed er te lang over om te antwoorden.",
@@ -101,7 +100,10 @@
     "priceChanged": "De prijs van deze reis is gewijzigd. Er is niets afgeschreven. Vernieuw de pagina om de actuele prijs te zien.",
     "depositUnavailable": "Een aanbetaling is voor deze reis niet meer mogelijk. Er is niets afgeschreven. Betaal het volledige bedrag om te boeken.",
     "promotionChanged": "De korting op deze reis is gewijzigd. Er is niets afgeschreven. Bekijk het nieuwe totaal en bevestig opnieuw.",
-    "remarksChanged": "De informatie van het hotel voor deze kamer is gewijzigd. Er is niets afgeschreven. Lees ze hieronder en bevestig opnieuw."
+    "remarksChanged": "De informatie van het hotel voor deze kamer is gewijzigd. Er is niets afgeschreven. Lees ze hieronder en bevestig opnieuw.",
+    "termsChanged": "De voorwaarden voor deze boeking zijn gewijzigd. Er is niets geboekt of betaald. Lees ze opnieuw en bevestig ze nog eens.",
+    "acceptanceRequired": "Ga eerst akkoord met de voorwaarden. Er is niets geboekt of betaald.",
+    "termsUnavailable": "Niet alle verplichte documenten voor deze boeking zijn beschikbaar. Er is niets geboekt of betaald. Neem contact met ons op."
   },
   "baggage": {
     "add": "Toevoegen",
@@ -164,17 +166,6 @@
     "outbound": "Heenreis",
     "return": "Terugreis"
   },
-  "conditions": {
-    "holiday": "Ik heb de informatie over deze vakantie gelezen.",
-    "terms": "Ik ga akkoord met de algemene reisvoorwaarden en de pakketreisinformatie.",
-    "insurance": "Ik accepteer de verzekeringsvoorwaarden voor de dekking die ik heb gekozen.",
-    "obligation": "Ik ga een definitieve, betalingsverplichte boeking aan. Deze kan alleen worden geannuleerd tegen betaling van annuleringskosten, afhankelijk van hoe dicht bij het vertrek de annulering plaatsvindt.",
-    "headingTitle": "Voorwaarden & boeking",
-    "cannotConfirmUnless": "Je kunt je boeking pas bevestigen als je alle toepasselijke voorwaarden accepteert.",
-    "termsNode": "Ik ga akkoord met de <1>algemene reisvoorwaarden</1> en de <3>pakketreisinformatie</3>.",
-    "insuranceNode": "Ik accepteer de <1>verzekeringsvoorwaarden</1> voor de dekking die ik heb gekozen.",
-    "obligationNode": "Ik ga een definitieve, betalingsverplichte boeking aan. Deze kan alleen worden geannuleerd tegen betaling van <1>annuleringskosten</1>, afhankelijk van hoe dicht bij het vertrek de annulering plaatsvindt."
-  },
   "validation": {
     "firstNameRequired": "Voornaam is verplicht",
     "lastNameRequired": "Achternaam is verplicht",
@@ -200,10 +191,12 @@
     "expiryInvalidShort": "Ongeldige vervaldatum",
     "cvcInvalidShort": "Ongeldige CVC",
     "chooseBank": "Kies je bank",
-    "acceptConditions": "Accepteer de boekingsvoorwaarden om door te gaan",
     "confirmNrAccept": "Bevestig dat je de annuleringskosten voor de niet-terugbetaalbare accommodatie accepteert",
     "bookerDobRequired": "De geboortedatum van de hoofdboeker is verplicht",
-    "bookerUnder18": "De hoofdboeker moet minstens 18 jaar zijn. Reizigers jonger dan 18 kunnen meereizen, maar kunnen de boeking niet zelf maken."
+    "bookerUnder18": "De hoofdboeker moet minstens 18 jaar zijn. Reizigers jonger dan 18 kunnen meereizen, maar kunnen de boeking niet zelf maken.",
+    "termsNotLoaded": "De boekingsvoorwaarden zijn nog niet geladen",
+    "acceptTravel": "Ga akkoord met de reisvoorwaarden om te boeken",
+    "acceptInsurance": "Ga akkoord met de voorwaarden van je gekozen verzekering"
   },
   "reprice": {
     "unavailableTitle": "Deze reis is niet beschikbaar voor de bijgewerkte reizigersgegevens.",
@@ -230,10 +223,9 @@
     "rechecking": "Je prijs wordt opnieuw gecontroleerd…",
     "continueToAddons": "Doorgaan naar extra's",
     "continueToPayment": "Doorgaan naar betaling",
-    "pay": "Betaal {{amount}}",
     "continueToSupport": "Doorgaan naar supportpakket",
     "continueToReview": "Verder naar overzicht",
-    "payDeposit": "Betaal {{amount}} aanbetaling"
+    "bookAndPay": "Boek en betaal {amount}"
   },
   "gone": {
     "title": "Er is geen boeking om te betalen",
@@ -250,7 +242,6 @@
     "momentsAway": "Je bent bijna bij",
     "yourFlight": "je vlucht",
     "yourTransfer": "je transfer",
-    "sgrGuaranteed": "SGR gegarandeerd",
     "ssl": "256-bit SSL",
     "instantConfirmation": "Directe bevestiging",
     "ssl256": "256-bit SSL-versleuteling"
@@ -499,7 +490,6 @@
     "pricesLive": "Prijzen zijn live en pas definitief zodra je betaling is voltooid",
     "trustStripe": "Veilige betaling via Stripe",
     "trustEmail": "Directe bevestiging per e-mail",
-    "trustSgr": "SGR & reisgarantie beschermd",
     "transferPerVehicle": "Transfer (per voertuig)"
   },
   "review": {
@@ -755,5 +745,25 @@
       "margin": "Deze code kan niet gecombineerd worden met de prijs van deze reis.",
       "no_price": "Deze code kan nog niet gecontroleerd worden voor deze reis."
     }
+  },
+  "terms": {
+    "title": "Garantie en voorwaarden",
+    "loading": "De voorwaarden voor je boeking worden geladen…",
+    "loadFailed": "De boekingsvoorwaarden konden niet worden geladen. Zonder deze voorwaarden kun je niet boeken.",
+    "retry": "Opnieuw proberen",
+    "blocked": "Niet alle verplichte documenten voor deze boeking zijn op dit moment beschikbaar, daarom kan ze nu niet online worden geboekt. Neem contact met ons op.",
+    "changedNotice": "Er is iets aan je boeking gewijzigd. Lees de voorwaarden opnieuw en bevestig ze nog eens.",
+    "acceptHint": "Vink de verplichte voorwaarden hierboven aan om te boeken.",
+    "insuranceDocsPending": "De documenten van de verzekeraar volgen",
+    "descriptionTitle": "Beschrijving van je reis",
+    "importantTitle": "Belangrijke reisinformatie",
+    "roleTitle": "De rol van SUNSKY",
+    "roleText": "Voor deze boeking treedt SUNSKY op als {{role}}.",
+    "supplierTitle": "Voorwaarden en opmerkingen van de accommodatie",
+    "localCostsTitle": "Ter plaatse te betalen",
+    "documentsTitle": "Paspoort, visum en gezondheid",
+    "documentsText": "Controleer op tijd welke reisdocumenten, visa en vaccinaties je voor je bestemming nodig hebt. Iedere reiziger heeft een geldig paspoort of een geldige identiteitskaart nodig.",
+    "travelAdvice": "Actueel reisadvies",
+    "standardInfoBefore": "Voor deze reis geldt:"
   }
 }

@@ -91,12 +91,12 @@ describe('the hotel remarks in the checkout', () => {
     renderCheckout();
     await toReview(user);
     await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
-    await waitFor(() => expect(document.querySelector('.ck-cond')).toBeTruthy());
+    await waitFor(() => expect(document.querySelector('.ck-terms')).toBeTruthy());
 
     const box = document.querySelector('[data-testid="supplier-remarks"]');
     expect(box).toBeTruthy();
     expect(box.textContent).toContain('Cancellations follow the conditions of the booked rate.');
-    expect(box.compareDocumentPosition(document.querySelector('.ck-cond')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(box.compareDocumentPosition(document.querySelector('.ck-terms')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
   it('are absent, with no section number spent, when the supplier sent none', async () => {
