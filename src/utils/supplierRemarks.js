@@ -56,6 +56,60 @@ function clean(s) {
     .trim();
 }
 
+/**
+ * The same remarks as blocks to LAY OUT (Levent, 26 Nov 2026: the full text read "like a
+ * newspaper", Ana y Jose Holbox via World2Meet). Every word stays, in the supplier's order; only
+ * the layout uses what the text already says:
+ *   - a short line of its own ending in ":" ("Fees:", "Checkin Instructions:") is the supplier's
+ *     own heading, printed as one;
+ *   - such a heading whose next paragraph is one short line ("Checkin Time:" / "3:00 PM") is a
+ *     label and its value, printed side by side ({ type: 'fact' });
+ *   - list items the supplier ran together with no space or stop ("per personAirport shuttle fee",
+ *     "accessBeach loungers") start on their own line, and a full stop with no space after it
+ *     gets one ("arrival.Parties" -> "arrival. Parties").
+ *
+ * @returns {Array<{type:'heading', text:string}|{type:'fact', label:string, value:string}|{type:'para', text:string}>}
+ */
+export function remarksBlocks(raw) {
+  const paras = remarksParagraphs(raw);
+  const out = [];
+  for (let i = 0; i < paras.length; i += 1) {
+    const p = paras[i];
+    const lines = p.split('\n');
+    const first = lines[0].trim();
+    if (isHeading(first)) {
+      const label = first.replace(/:\s*$/, '');
+      const rest = lines.slice(1).join('\n').trim();
+      const next = paras[i + 1];
+      if (!rest && label.length <= 40 && next && isShortValue(next)) {
+        out.push({ type: 'fact', label, value: next.trim() });
+        i += 1;
+        continue;
+      }
+      out.push({ type: 'heading', text: label });
+      if (rest) out.push({ type: 'para', text: unglue(rest) });
+      continue;
+    }
+    out.push({ type: 'para', text: unglue(p) });
+  }
+  return out;
+}
+
+const isHeading = (line) => line.length >= 3 && line.length <= 60 && /:\s*$/.test(line) && !/^\d/.test(line);
+const isShortValue = (p) => !p.includes('\n') && p.trim().length <= 40 && !/:\s*$/.test(p.trim());
+
+// Three lower-case letters straight into a capitalised word: two items run together. Fewer than
+// three (iPad, McDonald's, PayPal) is a name, left alone.
+// A closing bracket straight into a capitalised word likewise ("(roundtrip)Airport shuttle"). A
+// colon with no space before a capital gets one ("includes:Beach access"); times (3:00) do not.
+function unglue(s) {
+  const word = '[A-Z][a-z](?:[a-z]|-[a-z])';   // "Beach", "In-room"
+  return s
+    .replace(new RegExp(`([a-z]{3,}|\\))(${word})`, 'g'), '$1\n$2')
+    .replace(/([a-z]{2,})\.([A-Z][a-z])/g, '$1. $2')
+    .replace(/([a-z]{2,}):([A-Z])/g, '$1: $2');
+}
+
 /** Whether there is anything to show: the section is hidden, not empty, when there is not. */
 export const hasRemarks = (raw) => remarksParagraphs(raw).length > 0;
 

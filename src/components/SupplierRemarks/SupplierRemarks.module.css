@@ -38,6 +38,28 @@
   white-space: pre-line; overflow-wrap: anywhere;
 }
 .para + .para { margin-top: 10px; }
+/* The supplier's own headings ("Fees:", "Checkin Instructions:"): a step darker, a little air above. */
+.sub {
+  margin: 14px 0 4px;
+  font-size: var(--fs-small); font-weight: 700; line-height: 1.35;
+  color: var(--text, #1a2744);
+}
+.body > .sub:first-child { margin-top: 0; }
+.sub + .para { margin-top: 0; }
+.para + .facts, .facts + .para, .facts + .sub { margin-top: 12px; }
+/* Its "label:" / value pairs (check-in time, minimum age …) side by side; stacked on a phone. */
+.facts {
+  margin: 0; display: grid; grid-template-columns: minmax(0, max-content) minmax(0, 1fr);
+  gap: 4px 16px;
+  font-size: var(--fs-small); line-height: 1.45;
+}
+.fact { display: contents; }
+.fact dt { color: var(--text-sec, #5e7291); }
+.fact dd { margin: 0; color: var(--text, #1a2744); font-weight: 600; overflow-wrap: anywhere; }
+@media (max-width: 480px) {
+  .facts { grid-template-columns: minmax(0, 1fr); gap: 0; }
+  .fact dd { margin-bottom: 6px; }
+}
 
 @media (prefers-reduced-motion: reduce) {
   .chev svg { transition: none; }

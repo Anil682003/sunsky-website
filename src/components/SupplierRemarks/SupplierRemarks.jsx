@@ -1,14 +1,16 @@
 import { useId, useState } from 'react';
 import { useTranslation } from 'react-i18next';
-import { remarksParagraphs } from '../../utils/supplierRemarks';
+import { remarksParagraphs, remarksBlocks } from '../../utils/supplierRemarks';
 import styles from './SupplierRemarks.module.css';
 
 /**
  * "Important information from the hotel": the supplier's remarks for the exact rate being booked,
  * in full (Levent, 20 Nov 2026). Open by default; the traveller may fold it away and back.
  *
- * Deliberately plain: the supplier's own paragraphs and line breaks, no bullets, no counts, no
- * headings of ours, no "show more". Renders nothing when the supplier said nothing.
+ * The supplier's own words, all of them, no bullets, no counts, no "show more"; laid out by what
+ * the text itself says (utils/supplierRemarks remarksBlocks, 26 Nov 2026): its own headings as
+ * headings, its "label:" / value pairs side by side, run-together list items on their own lines.
+ * Renders nothing when the supplier said nothing.
  *
  * `lead` goes before the info mark inside the toggle (the checkout review puts its section
  * number there, so the whole heading row folds the section).
@@ -16,6 +18,19 @@ import styles from './SupplierRemarks.module.css';
  * A new text (the rate changed and its remarks with it) opens the section again, so a traveller
  * who folded the old remarks away is not left unaware that they changed.
  */
+// Consecutive label/value pairs share one list, so they line up as one block.
+function groupFacts(blocks) {
+  const out = [];
+  for (const b of blocks) {
+    const last = out[out.length - 1];
+    if (b.type === 'fact') {
+      if (last?.type === 'facts') last.items.push(b);
+      else out.push({ type: 'facts', items: [b] });
+    } else out.push(b);
+  }
+  return out;
+}
+
 export default function SupplierRemarks({ text, className = '', as: Heading = 'h3', lead = null }) {
   const { t } = useTranslation('common');
   const paragraphs = remarksParagraphs(text);
@@ -60,7 +75,19 @@ export default function SupplierRemarks({ text, className = '', as: Heading = 'h
         </button>
       </Heading>
       <div id={bodyId} className={styles.body} hidden={!open}>
-        {paragraphs.map((p, i) => <p key={i} className={styles.para}>{p}</p>)}
+        {groupFacts(remarksBlocks(text)).map((b, i) => (
+          b.type === 'facts' ? (
+            <dl key={i} className={styles.facts}>
+              {b.items.map((f, k) => (
+                <div key={k} className={styles.fact}><dt>{f.label}</dt><dd>{f.value}</dd></div>
+              ))}
+            </dl>
+          ) : b.type === 'heading' ? (
+            <h4 key={i} className={styles.sub}>{b.text}</h4>
+          ) : (
+            <p key={i} className={styles.para}>{b.text}</p>
+          )
+        ))}
       </div>
     </section>
   );

@@ -46,6 +46,20 @@ describe('SupplierRemarks', () => {
     expect(container.textContent).not.toContain('Minimum age 18');
   });
 
+  it('lays out W2M remarks by what they say: headings, label/value pairs, run-together items (26 Nov 2026)', () => {
+    const W2M = 'Fees:\n\nFee for continental breakfast: approximately USD 25 per personAirport shuttle fee: USD 200 per person (roundtrip)\n\n'
+      + 'Checkin Time:\n\n3:00 PM\n\nCheckout Time:\n\n12:00 PM\n\nSpecial Checkin Instructions:\n\nCall ahead.Front desk staff will greet guests.';
+    const { container } = render(<SupplierRemarks text={W2M} />);
+    expect([...container.querySelectorAll('h4')].map((h) => h.textContent)).toEqual(['Fees', 'Special Checkin Instructions']);
+    expect([...container.querySelectorAll('dt')].map((d) => d.textContent)).toEqual(['Checkin Time', 'Checkout Time']);
+    expect([...container.querySelectorAll('dd')].map((d) => d.textContent)).toEqual(['3:00 PM', '12:00 PM']);
+    const paras = [...container.querySelectorAll('p')].map((p) => p.textContent);
+    expect(paras[0]).toBe('Fee for continental breakfast: approximately USD 25 per person\nAirport shuttle fee: USD 200 per person (roundtrip)');
+    expect(paras[1]).toBe('Call ahead. Front desk staff will greet guests.');
+    // Every word of the supplier's text is still there.
+    for (const w of W2M.replace(/[:.\n]/g, ' ').split(/\s+/).filter(Boolean)) expect(container.textContent).toContain(w.replace(/personAirport/, 'person'));
+  });
+
   it('renders nothing at all when the supplier sent no remarks', () => {
     const { container } = render(<SupplierRemarks text="  " />);
     expect(container.innerHTML).toBe('');
