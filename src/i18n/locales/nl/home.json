@@ -245,6 +245,7 @@
       "searchingEvery": "We zoeken op elke vertrekluchthaven",
       "canSelectMore": "Je kunt meer luchthavens kiezen",
       "save": "Opslaan",
+      "noneForSearch": "Geen vertrekluchthaven heeft vluchten voor deze selectie. Kies een andere bestemming of reisdatum.",
       "clearAll": "Alles wissen"
     },
     "rooms": {

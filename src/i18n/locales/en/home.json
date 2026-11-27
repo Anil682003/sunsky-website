@@ -245,6 +245,7 @@
       "searchingEvery": "Searching every departure airport",
       "canSelectMore": "You can select more airports",
       "save": "Save",
+      "noneForSearch": "No departure airport has flights for this selection. Choose another destination or travel date.",
       "clearAll": "Clear all"
     },
     "rooms": {
