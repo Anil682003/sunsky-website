@@ -59,6 +59,25 @@ describe('hotelInfoSections', () => {
   });
 });
 
+describe('Adults Only (V2.2 §04)', () => {
+  it('order: local charges, transfer, age, deposit; the age line has no invented number', () => {
+    const s = hotelInfoSections({
+      localCharges: { state: 'confirmed', totals: [{ amount: 84, currency: 'EUR' }] },
+      notice: NOTICE, adultsOnly: true, deposit: { required: true, onArrival: true, creditCard: false },
+    });
+    expect(s.map((x) => x.key)).toEqual(['local', 'notice', 'age', 'deposit']);
+    expect(s[2].lines).toEqual([{ key: 'hotelInfo.adultsOnly' }]);
+  });
+
+  it('a party with children gets the warning line in the box', () => {
+    const { container } = render(<HotelInfoBox info={{ live: true, adultsOnly: true }} partyHasChildren />);
+    const s = text(container);
+    expect(s).toContain('Leeftijdsbeperking');
+    expect(s).toContain('Adults Only: deze accommodatie accepteert uitsluitend volwassen gasten.');
+    expect(container.querySelector('[role="alert"]')).toHaveTextContent(/niet geboekt worden met kinderen/i);
+  });
+});
+
 describe('HotelInfoBox', () => {
   afterEach(async () => { await act(async () => { await i18n.changeLanguage('nl'); }); });
 

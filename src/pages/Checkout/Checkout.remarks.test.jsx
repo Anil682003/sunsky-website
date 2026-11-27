@@ -5,7 +5,7 @@ import { MemoryRouter, Routes, Route } from 'react-router-dom';
 import { Provider } from 'react-redux';
 import { configureStore, createSlice } from '@reduxjs/toolkit';
 import Checkout from './Checkout';
-import { fillContact, fillTraveller, setDob } from '../../test/checkoutForm';
+import { fillContact, fillTraveller } from '../../test/checkoutForm';
 
 // The hotel's remarks for the rate being booked (Supplier Remarks Frontend Implementation,
 // Levent 20 Nov 2026): in full and open in "Controleer je boeking", directly after the booking
@@ -64,39 +64,29 @@ const reviewHeads = () => [...document.querySelectorAll('.ck-rv .ck-rv-sec')]
 
 beforeEach(() => { post.mockReset(); post.mockResolvedValue({ data: {} }); });
 
+// Levent, 27 Nov 2026: the supplier's original remarks are kept internally and never shown to the
+// customer, in the cart, the review or the payment step; the information box carries what is needed.
 describe('the hotel remarks in the checkout', () => {
-  it('follow the booking contact in "Controleer je boeking", numbered next, open and in full', async () => {
+  it('are not shown in "Controleer je boeking", even when the supplier sent them; no section number spent', async () => {
     const user = userEvent.setup();
     renderCheckout();
     await toReview(user);
 
+    expect(document.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Minimum age 18 years');
     const heads = reviewHeads();
-    const contact = heads.findIndex((h) => /contactgegevens boeking/i.test(h));
-    expect(heads[contact + 1]).toMatch(/opmerkingen van het hotel/i);
-    // Numbered straight after the contact, with no gaps for sections that are absent.
+    expect(heads.some((h) => /opmerkingen van het hotel/i.test(h))).toBe(false);
     expect(heads.map((h) => Number(h.split(' ')[0]))).toEqual(heads.map((_, i) => i + 1));
-
-    const box = document.querySelector('.ck-rv [data-testid="supplier-remarks"]');
-    expect(box.querySelector('[aria-expanded]')).toHaveAttribute('aria-expanded', 'true');
-    expect([...box.querySelectorAll('p')].map((p) => p.textContent).join('\n\n')).toBe(REMARKS);
-    expect(box.textContent).not.toMatch(/punten|toon alle/i);
-    // Not repeated in the summary beside it.
-    expect(document.querySelector('.ck-aside [data-testid="supplier-remarks"]')).toBeNull();
-    // Verified on the hotel page: the checkout asks no supplier for them.
-    expect(post.mock.calls.filter(([url]) => String(url).includes('checkrate'))).toHaveLength(0);
   });
 
-  it('stay in reach on the payment step, above the conditions that make the booking binding', async () => {
+  it('are not shown on the payment step either', async () => {
     const user = userEvent.setup();
     renderCheckout();
     await toReview(user);
     await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
     await waitFor(() => expect(document.querySelector('.ck-terms')).toBeTruthy());
-
-    const box = document.querySelector('[data-testid="supplier-remarks"]');
-    expect(box).toBeTruthy();
-    expect(box.textContent).toContain('Cancellations follow the conditions of the booked rate.');
-    expect(box.compareDocumentPosition(document.querySelector('.ck-terms')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(document.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Cancellations follow the conditions of the booked rate.');
   });
 
   it('are absent, with no section number spent, when the supplier sent none', async () => {
@@ -107,41 +97,5 @@ describe('the hotel remarks in the checkout', () => {
     expect(document.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
     const heads = reviewHeads();
     expect(heads.map((h) => Number(h.split(' ')[0]))).toEqual(heads.map((_, i) => i + 1));
-  });
-
-  it('a re-priced rate brings its own remarks from the rate check', async () => {
-    const user = userEvent.setup();
-    const CHILD = {
-      ...BOOKING,
-      adults: 3,
-      search: { ...BOOKING.search, adults: 2, children: 1, childAges: '10', childDobs: '2016-09-07', roomCode: 'DBL', boardCode: 'AI' },
-      api: { hotel: { ...BOOKING.api.hotel, roomCode: 'DBL', boardCode: 'AI' } },
-    };
-    post.mockImplementation((url, body) => {
-      if (String(url).includes('checkrate')) {
-        return Promise.resolve({ data: { success: true, rateComments: `Remarks for ${body.rateKey}.` } });
-      }
-      if (String(url).includes('hotel-availability/search')) {
-        return Promise.resolve({ data: { results: { hotelbeds: { rooms: [{
-          roomName: 'Double Room', roomCode: 'DBL', boardName: 'All Inclusive', boardCode: 'AI',
-          sellingRate: 600, currency: 'EUR', rateKey: 'R2', cancellationPolicies: [],
-        }] } } } });
-      }
-      return Promise.resolve({ data: {} });
-    });
-    renderCheckout(CHILD);
-    await waitFor(() => expect(document.querySelectorAll('.ck-dob-lock')).toHaveLength(1));
-
-    // The child turns out to be 13: a different party, so the supplier is asked again.
-    await user.click(screen.getByRole('button', { name: /^wijzigen$/i }));
-    await user.click(screen.getByRole('button', { name: /geboortedatum wijzigen/i }));
-    expect(setDob([...document.querySelectorAll('.ck-trav')][2], '2013-09-07')).toBe(true);
-    await waitFor(() => expect(post.mock.calls.some(([url, b]) => String(url).includes('checkrate') && b.rateKey === 'R2')).toBe(true), { timeout: 3000 });
-    await waitFor(() => expect(document.querySelector('.ck-rp')).toHaveTextContent(/opnieuw gecontroleerd|ongewijzigd|zelfde/i), { timeout: 3000 });
-
-    await toReview(user);
-    const box = document.querySelector('.ck-rv [data-testid="supplier-remarks"]');
-    expect(box).toHaveTextContent('Remarks for R2.');
-    expect(box).not.toHaveTextContent('Minimum age 18');
   });
 });

@@ -40,3 +40,4 @@
 .amount { color: #00386D; font-weight: 600; }
 .note { color: #5b6b7b; font-size: 0.85rem; }
 .box a { color: #00386D; text-decoration: underline; }
+.warn { margin: 6px 0 0; color: #b42318; font-weight: 600; font-size: 0.92rem; line-height: 1.5; }

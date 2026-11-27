@@ -103,7 +103,8 @@
     "remarksChanged": "De informatie van het hotel voor deze kamer is gewijzigd. Er is niets afgeschreven. Lees ze hieronder en bevestig opnieuw.",
     "termsChanged": "De voorwaarden voor deze boeking zijn gewijzigd. Er is niets geboekt of betaald. Lees ze opnieuw en bevestig ze nog eens.",
     "acceptanceRequired": "Ga eerst akkoord met de voorwaarden. Er is niets geboekt of betaald.",
-    "termsUnavailable": "Niet alle verplichte documenten voor deze boeking zijn beschikbaar. Er is niets geboekt of betaald. Neem contact met ons op."
+    "termsUnavailable": "Niet alle verplichte documenten voor deze boeking zijn beschikbaar. Er is niets geboekt of betaald. Neem contact met ons op.",
+    "adultsOnly": "Deze accommodatie accepteert uitsluitend volwassen gasten. Reizigers jonger dan 18 jaar kunnen hier niet geboekt worden. Er is niets aangerekend."
   },
   "baggage": {
     "add": "Toevoegen",

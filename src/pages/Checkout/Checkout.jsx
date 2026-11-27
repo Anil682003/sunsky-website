@@ -2404,9 +2404,8 @@ function CheckoutContent({ stripe, elements }) {
             roomCode: quote.roomCode ?? api.hotel.roomCode,
             boardCode: quote.boardCode ?? api.hotel.boardCode,
             price: quote.hotel || api.hotel.price,
-            // The hotel's remarks as this page shows them ('' = none shown): the server refuses
-            // with REMARKS_CHANGED when its final check found other ones (tracker r16).
-            remarks: quote.remarks?.text || '',
+            // No remarks are shown, so none are sent: the server's REMARKS_CHANGED check only runs
+            // for a page that says what it showed.
             // What the customer was SHOWN about this rate. The server refuses to create the
             // booking when this is true and the matching consent is absent, so the record can
             // never disagree with the screen.
@@ -2853,7 +2852,9 @@ function CheckoutContent({ stripe, elements }) {
   }
 
   // The supplier's remarks for the hotel rate being booked, in full (Levent, 20 Nov 2026).
-  const hotelRemarks = (!isFlight && !isTransfer) ? (quote.remarks?.text || null) : null;
+  // The supplier's original remarks are internal only (Levent, 27 Nov 2026): never shown in the
+  // cart, the review or the payment step. The information box carries what the customer needs.
+  const hotelRemarks = null;
   // "Check your booking" numbers the sections it SHOWS, in order: an optional section that is
   // absent leaves no gap ("6 Travellers" after insurance when no bag was bought). The list
   // below carries the same conditions as the sections themselves, in the order they are drawn.
@@ -4210,7 +4211,7 @@ function CheckoutContent({ stripe, elements }) {
 
                   {/* the hotel's own remarks for this rate, in full and open, before payment
                       (Levent, 20 Nov 2026); absent when the supplier sent none */}
-                  {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} className="ck-rv-hotel-info" />}
+                  {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} partyHasChildren={(Number(srch.children) || 0) > 0} className="ck-rv-hotel-info" />}
                   {hasRemarks(hotelRemarks) && (
                     <div className="ck-rv-sec ck-rv-remarks">
                       <SupplierRemarks text={hotelRemarks}
@@ -4475,7 +4476,7 @@ function CheckoutContent({ stripe, elements }) {
                       binding ("I have read the information relating to this holiday"), so they
                       are in reach before the final step (Levent, 20 Nov 2026). The text verified
                       for this rate; no new supplier call. */}
-                  {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} className="ck-pay-hotel-info" />}
+                  {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} partyHasChildren={(Number(srch.children) || 0) > 0} className="ck-pay-hotel-info" />}
                   <SupplierRemarks text={hotelRemarks} className="ck-pay-remarks" />
 
                   {/* ── Garantie en voorwaarden (checkout T&C spec V1.3) ──

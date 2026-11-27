@@ -103,7 +103,8 @@
     "remarksChanged": "The hotel's information for this room has changed. You have not been charged. Please read it below and confirm again.",
     "termsChanged": "The conditions for this booking have changed. Nothing was booked or charged. Please read them and confirm again.",
     "acceptanceRequired": "Please accept the conditions first. Nothing was booked or charged.",
-    "termsUnavailable": "Not every mandatory document for this booking is available. Nothing was booked or charged. Please contact us."
+    "termsUnavailable": "Not every mandatory document for this booking is available. Nothing was booked or charged. Please contact us.",
+    "adultsOnly": "This accommodation accepts adult guests only. Travellers under 18 cannot be booked here. You have not been charged."
   },
   "baggage": {
     "add": "Add",

@@ -35,6 +35,9 @@ export function bookingErrorMessage(err, t) {
   if (data.errorCode === 'BOOKER_DOB_REQUIRED') {
     return t('checkout:validation.bookerDobRequired', "The main booker's date of birth is required");
   }
+  if (data.errorCode === 'ADULTS_ONLY') {
+    return t('checkout:errors.adultsOnly', 'This accommodation accepts adult guests only. Travellers under 18 cannot be booked here. You have not been charged.');
+  }
   if (data.errorCode === 'REMARKS_CHANGED') {
     return t('checkout:errors.remarksChanged', "The hotel's information for this room has changed. You have not been charged. Please read it below and confirm again.");
   }

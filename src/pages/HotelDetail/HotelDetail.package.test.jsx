@@ -515,32 +515,18 @@ describe('the hotel remarks of the checked rate (Levent, 20 Nov 2026)', () => {
       : base(url, body)));
   };
 
-  it('sit between the price details and the total, open, in full, and travel to the checkout', async () => {
+  // Levent, 27 Nov 2026: the supplier's original remarks are internal; the page never shows them.
+  // The rate check still runs (it brings the local charges for the information box).
+  it('are checked but never shown to the customer', async () => {
     withCheckrate(() => ({ rateComments: REMARKS }));
     const user = userEvent.setup();
     const { container } = renderPage(`&${PKG_QS}`, 'hotel_only');
     await priceDays();
-    expect(container.querySelector('[data-testid="supplier-remarks"]')).toBeNull();   // no rate yet
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
-    const box = await waitFor(() => {
-      const b = container.querySelector('[data-testid="supplier-remarks"]');
-      expect(b).not.toBeNull();
-      return b;
-    });
-    expect(post.mock.calls.find(([u]) => String(u).includes('/checkrate'))[1]).toEqual({ rateKey: 'r1' });
-    expect(box.querySelector('[aria-expanded]')).toHaveAttribute('aria-expanded', 'true');
-    expect([...box.querySelectorAll('p')].map((p) => p.textContent).join('\n\n')).toBe(REMARKS);
-    expect(box.textContent).not.toMatch(/punten|toon alle/i);
-    expect(box.querySelector('ul, li')).toBeNull();
-    // After the price details, before the total and the button.
-    const details = [...container.querySelectorAll('.overview-body-title')].find((el) => /prijsdetails/i.test(el.textContent));
-    expect(details.compareDocumentPosition(box) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(box.compareDocumentPosition(container.querySelector('.overview-total')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-
-    const book = screen.getAllByRole('button').find((b) => /doorgaan naar afrekenen/i.test(b.textContent) && !b.disabled);
-    await user.click(book);
-    await screen.findByTestId('checkout');
-    expect(seen.mock.calls.at(-1)[0].remarks).toEqual({ rateKey: 'r1', text: REMARKS });
+    await waitFor(() => expect(post.mock.calls.some(([u]) => String(u).includes('/checkrate'))).toBe(true));
+    await waitFor(() => expect(container.querySelector('.overview-total')).not.toBeNull());
+    expect(container.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
+    expect(container.textContent).not.toContain('Deposit on arrival.');
   });
 
   it('are not there at all when the supplier sent none', async () => {

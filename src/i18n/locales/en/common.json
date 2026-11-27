@@ -361,6 +361,9 @@
     "depositCard": "A credit card is required as a security deposit on arrival.",
     "depositBoth": "A credit card is required as a security deposit on arrival. The exact amount is not available.",
     "depositBothAmount": "A credit card is required as a security deposit on arrival: {{amount}}. Payable directly to the accommodation.",
-    "noticeTitle": "Important information about hotel transfers"
+    "noticeTitle": "Important information about hotel transfers",
+    "ageTitle": "Age restriction",
+    "adultsOnly": "Adults Only: this accommodation accepts adult guests only.",
+    "adultsOnlyChildren": "This accommodation cannot be booked with children or travellers under 18. Choose another accommodation or change your party."
   }
 }

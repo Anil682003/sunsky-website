@@ -361,6 +361,9 @@
     "depositCard": "Een creditcard is verplicht als waarborg bij aankomst.",
     "depositBoth": "Bij aankomst is een creditcard vereist als waarborg. Het exacte bedrag is niet beschikbaar.",
     "depositBothAmount": "Bij aankomst is een creditcard vereist als waarborg: {{amount}}. Rechtstreeks te voldoen aan de accommodatie.",
-    "noticeTitle": "Belangrijke informatie over hoteltransfers"
+    "noticeTitle": "Belangrijke informatie over hoteltransfers",
+    "ageTitle": "Leeftijdsbeperking",
+    "adultsOnly": "Adults Only: deze accommodatie accepteert uitsluitend volwassen gasten.",
+    "adultsOnlyChildren": "Deze accommodatie kan niet geboekt worden met kinderen of reizigers jonger dan 18 jaar. Kies een andere accommodatie of pas je reisgezelschap aan."
   }
 }

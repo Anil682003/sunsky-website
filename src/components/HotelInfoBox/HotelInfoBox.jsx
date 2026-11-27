@@ -11,7 +11,7 @@ import styles from './HotelInfoBox.module.css';
  * `info` is what useHotelInfo answers ({ live, notice, deposit }); `localCharges` comes from the
  * selected rate's live check; `snapshot` (confirmation page) is the booking's saved box instead.
  */
-export default function HotelInfoBox({ info = null, localCharges = null, snapshot = null, className = '' }) {
+export default function HotelInfoBox({ info = null, localCharges = null, snapshot = null, partyHasChildren = false, className = '' }) {
   const { t, i18n } = useTranslation('common');
   const lang = String(i18n.language || 'nl').toLowerCase().startsWith('en') ? 'en' : 'nl';
   const live = snapshot ? !!snapshot.shown : !!info?.live;
@@ -20,6 +20,8 @@ export default function HotelInfoBox({ info = null, localCharges = null, snapsho
     localCharges: snapshot ? snapshot.localCharges : localCharges,
     deposit: snapshot ? snapshot.deposit : info?.deposit,
     notice: snapshot ? snapshot.notice : info?.notice,
+    adultsOnly: snapshot ? !!snapshot.adultsOnly : !!info?.adultsOnly,
+    partyHasChildren: !snapshot && partyHasChildren,
     lang,
   });
   if (!sections.length) return null;
@@ -28,6 +30,7 @@ export default function HotelInfoBox({ info = null, localCharges = null, snapsho
     local: t('hotelInfo.localTitle', 'Local taxes and charges'),
     deposit: t('hotelInfo.depositTitle', 'Security deposit'),
     notice: t('hotelInfo.noticeTitle', 'Important information about hotel transfers'),
+    age: t('hotelInfo.ageTitle', 'Age restriction'),
   };
   const line = (l) => {
     if (l.text != null) {
@@ -46,7 +49,7 @@ export default function HotelInfoBox({ info = null, localCharges = null, snapsho
         <div key={s.key} className={`${styles.section} ${styles[s.key] || ''}`}>
           <h4 className={styles.title}>{TITLES[s.key]}</h4>
           {s.lines.map((l, i) => (
-            <p key={i} className={l.money ? styles.amount : styles.text}>{line(l)}</p>
+            <p key={i} className={l.warn ? styles.warn : l.money ? styles.amount : styles.text} role={l.warn ? 'alert' : undefined}>{line(l)}</p>
           ))}
           {s.note && <p className={styles.note}>{t(s.note, 'Not included in the amount you pay to SUNSKY.')}</p>}
         </div>

@@ -36,7 +36,7 @@ const validTotals = (lc) => (Array.isArray(lc?.totals) ? lc.totals : [])
  * the admin's own notice text. An empty array means no box (V1.1 05 "hide box if empty").
  * @param {{ localCharges?: object, deposit?: object, notice?: {nl:string,en:string}, lang?: 'nl'|'en' }} info
  */
-export function hotelInfoSections({ localCharges = null, deposit = null, notice = null, lang = 'nl' } = {}) {
+export function hotelInfoSections({ localCharges = null, deposit = null, notice = null, adultsOnly = false, partyHasChildren = false, lang = 'nl' } = {}) {
   const out = [];
   const lc = localCharges;
   if (lc) {
@@ -51,6 +51,14 @@ export function hotelInfoSections({ localCharges = null, deposit = null, notice 
       out.push({ key: 'local', lines: [{ key: 'hotelInfo.generic' }] });
     }
   }
+  // Order as Levent's examples (V1.1 page 3, V2.2 page 5): local charges, transfer, age, deposit.
+  const text = notice ? (lang === 'en' ? notice.en : notice.nl) : null;
+  if (typeof text === 'string' && text.trim()) {
+    out.push({ key: 'notice', lines: text.trim().split(/\n{2,}/).map((p) => p.trim()).filter(Boolean).map((p) => ({ text: p })) });
+  }
+  if (adultsOnly) {
+    out.push({ key: 'age', lines: [{ key: 'hotelInfo.adultsOnly' }, ...(partyHasChildren ? [{ key: 'hotelInfo.adultsOnlyChildren', warn: true }] : [])] });
+  }
   if (deposit?.required) {
     const money = Number(deposit.amount) > 0 && deposit.currency ? { amount: Number(deposit.amount), currency: deposit.currency } : null;
     const both = deposit.creditCard && deposit.onArrival !== false;
@@ -58,10 +66,6 @@ export function hotelInfoSections({ localCharges = null, deposit = null, notice 
       ? (money ? 'hotelInfo.depositBothAmount' : (both ? 'hotelInfo.depositBoth' : 'hotelInfo.depositCard'))
       : (money ? 'hotelInfo.depositAmount' : 'hotelInfo.depositUnknown');
     out.push({ key: 'deposit', lines: [{ key, money }] });
-  }
-  const text = notice ? (lang === 'en' ? notice.en : notice.nl) : null;
-  if (typeof text === 'string' && text.trim()) {
-    out.push({ key: 'notice', lines: text.trim().split(/\n{2,}/).map((p) => p.trim()).filter(Boolean).map((p) => ({ text: p })) });
   }
   return out;
 }

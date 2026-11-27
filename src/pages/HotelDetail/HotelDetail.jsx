@@ -24,7 +24,6 @@ import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import HotelInfoBox from '../../components/HotelInfoBox/HotelInfoBox';
 import { useHotelInfo } from '../../hooks/useHotelInfo';
 import { chargesOfRate } from '../../utils/hotelInfo';
-import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
 import { remarksOfRate } from '../../utils/supplierRemarks';
 import HotelImg from '../../components/HotelImg/HotelImg';
 import HotelPhotoFallback from '../../components/HotelPhotoFallback/HotelPhotoFallback';
@@ -3193,6 +3192,9 @@ export default function HotelDetail() {
   const hotelInfo = useHotelInfo({
     hotelCode, supplier: liveRoom?.supplier || null, destination, country: info?.countryIso || null,
   });
+  // Adults Only (V2.2 §04): no age threshold is known, so a party with a child cannot book it.
+  const partyHasChildren = (Number(sChildren) || 0) > 0;
+  const adultsOnlyBlocked = !!hotelInfo?.adultsOnly && partyHasChildren;
   // The supplier's remarks for THIS rate, in full; they follow the traveller's room choice.
   const liveRemarks = remarksOfRate(liveRoom, checkedRate?.remarks);
   // The board of THAT rate, named exactly as the room rows name it — the availability recap
@@ -4210,6 +4212,12 @@ export default function HotelDetail() {
   // hand the full selection over to the checkout screen
   const goCheckout = () => {
     const useLive = liveTotal != null;
+    // An Adults Only hotel with a child in the party: the information box says why; the server
+    // refuses the booking too.
+    if (adultsOnlyBlocked) {
+      document.querySelector('.overview-hotel-info')?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      return;
+    }
     // Never hand off while flight/transfer availability is still loading — the
     // package contents (and the total) aren't final yet. The Book button is also
     // disabled in this state; this is the belt-and-braces guard.
@@ -5965,13 +5973,10 @@ export default function HotelDetail() {
                   {/* The supplier's remarks for the checked rate, in full, between the price
                       details and the total (Levent, 20 Nov 2026). Only after a live check: before
                       it there is no rate for them to belong to. */}
-                  {/* "Belangrijke informatie van het hotel" first (mandatory amounts, deposit, transfer
-                      notice), then the supplier's own remarks in full (27 Nov 2026). */}
+                  {/* "Belangrijke informatie van het hotel": the agreed specific information only. The
+                      supplier's original remarks are internal (Levent, 27 Nov 2026). */}
                   {ovBase != null && liveRoom && !liveBusy && (
-                    <HotelInfoBox info={hotelInfo} localCharges={liveCharges} className="overview-hotel-info" />
-                  )}
-                  {ovBase != null && liveRoom && !liveBusy && (
-                    <SupplierRemarks text={liveRemarks} className="overview-remarks" />
+                    <HotelInfoBox info={hotelInfo} localCharges={liveCharges} partyHasChildren={partyHasChildren} className="overview-hotel-info" />
                   )}
                   <div className="overview-total">
                     <span className="overview-total-label">
