@@ -626,13 +626,23 @@ export default function Hero() {
     ? chosenOrigins
     : [];
   const feasibilityOrigin = feasibilityOrigins.length === 1 ? feasibilityOrigins[0] : '';
+  // No date chosen: every flight check below looks at the whole 12 months (`span: 'year'`, the
+  // admin's route check). Before 27 Nov 2026 it looked at the next 31 days only, which greyed
+  // every summer-only route in winter (Brussels: Bodrum, Marmaris, Fethiye…).
+  const checkSpan = date ? undefined : 'year';
+  // A trip length the traveller chose counts for the Search check (Levent, 27 Nov 2026); "Geen
+  // voorkeur" asks about every length.
+  const durationBand = duration ? findBand(duration) : null;
+  const checkTravelDays = durationBand
+    ? Array.from({ length: durationBand.maxDays - durationBand.minDays + 1 }, (_, i) => durationBand.minDays + i).join(',')
+    : undefined;
   const { unreachable: unreachableDests } = useDestinationFeasibility({
     enabled: feasibilityOrigins.length > 0,
     origins: feasibilityOrigins,
-    // Only a date the traveller actually chose narrows the window; otherwise the endpoint's
-    // own default (the next 31 days) stands.
+    // Only a date the traveller actually chose narrows the window; otherwise the whole year.
     from: date || undefined,
     to: date ? isoAddDays(date, Math.max(0, Number(flexDays) || 0)) : undefined,
+    span: checkSpan,
     adults: totalAdults,
     children: totalChildren,
   });
@@ -689,11 +699,23 @@ export default function Hero() {
     [heroDates.dates, heroDates.range, flexDays]
   );
 
+  // A whole country (no place inside it ticked) is checked too since 27 Nov 2026 (Levent: Cologne
+  // + Barbados): the admin expands it to its destinations, and an airport serves it when it
+  // reaches ANY of them, which is case 20 above. A region still cannot be checked, so a pick with
+  // a region in it is not judged at all (unknown is not impossible).
+  const pickedCountryIdsNow = new Set(destSelection.places.map((p) => String(p.countryId)));
+  const wholeCountryCodes = destSelection.countries
+    .filter((c) => c?.code && !pickedCountryIdsNow.has(String(c.id)))
+    .map((c) => String(c.code));
+  const regionPicked = destSelection.places.some((p) => p.type === 'region');
   const { origins: reachableOrigins, state: reachableState } = usePackageAirports({
-    enabled: transport === 'package' && destinationCodes.length > 0,
+    enabled: transport === 'package' && !regionPicked && (destinationCodes.length > 0 || wholeCountryCodes.length > 0),
     destinations: destinationCodes,
+    countries: wholeCountryCodes,
     from: date || undefined,
     to: date ? isoAddDays(date, Math.max(0, Number(flexDays) || 0)) : undefined,
+    span: checkSpan,
+    travelDays: checkTravelDays,
     adults: totalAdults,
     children: totalChildren,
   });
@@ -714,6 +736,8 @@ export default function Hero() {
     query: {
       from: date || undefined,
       to: date ? isoAddDays(date, Math.max(0, Number(flexDays) || 0)) : undefined,
+      span: checkSpan,
+      travelDays: checkTravelDays,
       adults: totalAdults,
       children: totalChildren,
     },
@@ -873,11 +897,12 @@ export default function Hero() {
 
   // Search only for a combination that can fly (Levent, 4 Nov 2026): proven "no package" disables
   // it with the reason, the check still running holds it briefly, a failed check never blocks.
-  // Choices are left exactly as they are.
+  // Choices are left exactly as they are. Whole countries count as asked-about destinations
+  // (27 Nov 2026); with a region in the pick nothing was asked, so nothing blocks.
   const gate = searchGate({
     transport,
     chosenOrigins: noPreference ? [] : chosenOrigins,
-    destinationCodes,
+    destinationCodes: [...destinationCodes, ...wholeCountryCodes],
     reachable: reachableOrigins,
     state: reachableState,
     originsWithoutPackage,
@@ -1906,7 +1931,7 @@ export default function Hero() {
           </div>
           {gate === 'none' && !openField && (
             <p id="hero-no-package" className={styles.noPackage} role="status">
-              {t('hero.noPackage', 'No package holiday available for this combination. Change your airport, destination or travel details.')}
+              {t('hero.noPackage', 'No flights found for this selection. Choose another departure airport, destination or travel date.')}
             </p>
           )}
           {/* UI-06: "Antwerpen (ANR) vliegt niet naar Antalya". Under the bar, where a field's

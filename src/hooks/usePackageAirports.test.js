@@ -39,4 +39,33 @@ describe('package airports over many destinations', () => {
     await waitFor(() => expect(result.current.state).toBe('error'));
     expect(result.current.origins).toBeNull();
   });
+
+  // Homepage Search gate (Levent, 27 Nov 2026): Cologne + Barbados as a whole country, no date.
+  it('a whole country is asked as countries=, with span=year when no date is chosen', async () => {
+    get.mockResolvedValue({ data: { success: true, origins: [], arrivals: {} } });
+    const { result } = renderHook(() => usePackageAirports({ enabled: true, destinations: [], countries: ['BB'], span: 'year', adults: 2, children: 0 }));
+    await waitFor(() => expect(result.current.state).toBe('ok'));
+    expect(get).toHaveBeenCalledTimes(1);
+    const params = get.mock.calls[0][1].params;
+    expect(params).toMatchObject({ countries: 'BB', span: 'year' });
+    expect(params.destinations).toBeUndefined();
+    expect(result.current.origins.size).toBe(0);
+  });
+
+  it('countries ride with the first batch only; the trip length is sent when chosen', async () => {
+    const dests = Array.from({ length: FEASIBILITY_BATCH + 1 }, (_, i) => `D${i}`);
+    get.mockResolvedValue({ data: { success: true, origins: ['BRU'], arrivals: {} } });
+    const { result } = renderHook(() => usePackageAirports({ enabled: true, destinations: dests, countries: ['TR'], travelDays: '6,7,8', adults: 2, children: 0 }));
+    await waitFor(() => expect(result.current.state).toBe('ok'));
+    const asked = get.mock.calls.map(([, o]) => o.params);
+    expect(asked).toHaveLength(2);
+    expect(asked.filter((p) => p.countries === 'TR')).toHaveLength(1);
+    expect(asked.every((p) => p.travelDays === '6,7,8' && p.span === undefined)).toBe(true);
+  });
+
+  it('nothing to ask without destinations or countries', () => {
+    const { result } = renderHook(() => usePackageAirports({ enabled: true, destinations: [], countries: [], adults: 2, children: 0 }));
+    expect(result.current.state).toBe('idle');
+    expect(get).not.toHaveBeenCalled();
+  });
 });

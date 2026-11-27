@@ -118,7 +118,8 @@ export function visibleAirportGroups(groups, reachable, isChosen = () => false) 
 }
 
 /**
- * @param q  enabled, origin, from?, to?, travelDays?, adults, children, childAges?
+ * @param q  enabled, origin, from?, to?, travelDays?, span?, adults, children, childAges?
+ *   span: 'year' = no date chosen, judge the whole 12 months (27 Nov 2026)
  * @returns {{ unreachable: Set<string>|null, state: 'idle'|'loading'|'ok'|'error' }}
  *          `unreachable` is null in every state except a trustworthy 'ok'.
  */
@@ -131,7 +132,7 @@ export function useDestinationFeasibility(q = {}) {
   const origin = originList.join(',');
   // One string naming every input, so a changed question cannot be answered by a stale reply.
   const key = origin
-    ? [origin, q.from || '', q.to || '', q.travelDays || '', q.adults ?? '', q.children ?? '', q.childAges || ''].join('|')
+    ? [origin, q.from || '', q.to || '', q.travelDays || '', q.span || '', q.adults ?? '', q.children ?? '', q.childAges || ''].join('|')
     : '';
 
   const [answer, setAnswer] = useState({ key: '', unreachable: null, state: 'idle' });
@@ -144,6 +145,7 @@ export function useDestinationFeasibility(q = {}) {
     if (q.from) params.from = q.from;
     if (q.to) params.to = q.to;
     if (q.travelDays) params.travelDays = String(q.travelDays);
+    if (q.span) params.span = q.span;
     if (q.adults != null) params.adults = q.adults;
     if (q.children != null) params.children = q.children;
     if (q.childAges) params.childAges = q.childAges;

@@ -25,13 +25,16 @@ export function mergeFeasibility(answers) {
 }
 
 /**
- * @param {object} q  enabled, destinations[], hotelCode?, from?, to?, travelDays?, adults, children, childAges
+ * @param {object} q  enabled, destinations[], countries[]?, hotelCode?, from?, to?, travelDays?, span?, adults, children, childAges
+ *   countries: whole countries (Country.code) the admin expands to their destinations; span: 'year'
+ *   to judge the whole 12 months when no date is chosen (homepage, 27 Nov 2026).
  * @returns {{ origins: Set<string>|null, arrivals: Object<string, {status, trips}>|null, state: 'idle'|'loading'|'ok'|'error' }}
  */
 export function usePackageAirports(q) {
   const dests = (q.destinations || []).filter(Boolean);
-  const key = q.enabled && dests.length
-    ? [dests.join(','), q.hotelCode || '', q.from || '', q.to || '', q.travelDays || '', q.adults, q.children, q.childAges || ''].join('|')
+  const countries = (q.countries || []).filter(Boolean);
+  const key = q.enabled && (dests.length || countries.length)
+    ? [dests.join(','), countries.join(','), q.hotelCode || '', q.from || '', q.to || '', q.travelDays || '', q.span || '', q.adults, q.children, q.childAges || ''].join('|')
     : '';
   const [answer, setAnswer] = useState({ key: '', origins: null, arrivals: null, state: 'idle' });
 
@@ -43,11 +46,20 @@ export function usePackageAirports(q) {
     if (q.from) base.from = q.from;
     if (q.to) base.to = q.to;
     if (q.travelDays) base.travelDays = String(q.travelDays);
+    if (q.span) base.span = q.span;
     if (q.childAges) base.childAges = q.childAges;
     const batches = [];
     for (let i = 0; i < dests.length; i += FEASIBILITY_BATCH) batches.push(dests.slice(i, i + FEASIBILITY_BATCH));
+    if (!batches.length) batches.push([]);
+    // Whole countries ride with the first batch: the answer is a union, so once is enough.
+    const paramsFor = (b, i) => {
+      const p = { ...base };
+      if (b.length) p.destinations = b.join(',');
+      if (i === 0 && countries.length) p.countries = countries.join(',');
+      return p;
+    };
     // One failed batch fails the whole answer: a partial list would hide real airports.
-    Promise.all(batches.map((b) => axiosInstance.get('/flight-availability/feasibility', { params: { ...base, destinations: b.join(',') }, signal: ctrl.signal })
+    Promise.all(batches.map((b, i) => axiosInstance.get('/flight-availability/feasibility', { params: paramsFor(b, i), signal: ctrl.signal })
       .then(({ data }) => {
         if (!data?.success || !Array.isArray(data.origins)) throw new Error('feasibility answered without origins');
         return data;

@@ -323,7 +323,7 @@
       "Morocco": "Morocco",
       "Portugal": "Portugal"
     },
-    "noPackage": "No package holiday available for this combination. Change your airport, destination or travel details.",
+    "noPackage": "No flights found for this selection. Choose another departure airport, destination or travel date.",
     "searchChecking": "Checking…"
   },
   "sections": {
