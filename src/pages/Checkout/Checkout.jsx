@@ -4211,7 +4211,8 @@ function CheckoutContent({ stripe, elements }) {
 
                   {/* the hotel's own remarks for this rate, in full and open, before payment
                       (Levent, 20 Nov 2026); absent when the supplier sent none */}
-                  {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} partyHasChildren={(Number(srch.children) || 0) > 0} className="ck-rv-hotel-info" />}
+                  {/* No information box in the shopping cart ("Controleer je boeking"): Levent, 27 Nov
+                      2026, superseding V1.1/V1.2. It is shown on the payment step, before booking. */}
                   {hasRemarks(hotelRemarks) && (
                     <div className="ck-rv-sec ck-rv-remarks">
                       <SupplierRemarks text={hotelRemarks}
