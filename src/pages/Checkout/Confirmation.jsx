@@ -8,6 +8,7 @@ import i18n from '../../i18n';
 import './Confirmation.css';
 import { formatDiscount } from '../../utils/promotions';
 import { moneyFull } from '../../utils/money';
+import HotelInfoBox from '../../components/HotelInfoBox/HotelInfoBox';
 
 /* ── tiny SVG helper (same pattern as Checkout) ── */
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -94,6 +95,8 @@ export default function Confirmation({
   // Decided at the checkout (it owns the live rate) and passed in, so this page never has to
   // re-derive refundability from a rateKey and risk disagreeing with what was accepted.
   nonRefundable = false,
+  // The information box as saved with the booking (server answer; null when it was not shown).
+  hotelInfo = null,
 }) {
   const { t } = useTranslation('checkout');
   const navigate = useNavigate();
@@ -512,6 +515,10 @@ export default function Confirmation({
               <div className="ckc-card-foot">{t('checkout:confirmation.acceptedThisCondition', 'You accepted this condition when you paid.')}</div>
             </section>
           )}
+
+          {/* "Belangrijke informatie van het hotel" exactly as saved with this booking: the same
+              data the travel confirmation and the accommodation voucher print. */}
+          {!isFlight && !isTransfer && hotelInfo && <HotelInfoBox snapshot={hotelInfo} className="ckc-reveal" />}
         </div>
 
         {/* ═══ WHAT HAPPENS NEXT ═══ */}

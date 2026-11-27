@@ -34,6 +34,9 @@ import { moneyFull } from '../../utils/money';
 import { transferAirport } from './transferAirport';
 import { localCostOfRate } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
+import HotelInfoBox from '../../components/HotelInfoBox/HotelInfoBox';
+import { useHotelInfo } from '../../hooks/useHotelInfo';
+import { chargesOfRate } from '../../utils/hotelInfo';
 import { TermsSection, FinalDeclaration, TermsDialog, DocLink } from './CheckoutTerms';
 import {
   fetchCheckoutTerms, termsRequestBody, checkoutSessionId, payButtonText, TERMS_ERROR_CODES,
@@ -1016,6 +1019,8 @@ function CheckoutContent({ stripe, elements }) {
     // The rate's mandatory local costs (UI-09), shown under the total and never part of it. A
     // property of the RATE as well, so a re-priced room brings its own.
     localCost: booking.localCost || null,
+    // The same rate's local charges for the information box (V1.1, 27 Nov 2026). Display only.
+    localCharges: booking.localCharges || null,
     // The supplier's remarks for THIS rate (Levent, 20 Nov 2026), as the hotel page verified
     // them: { rateKey, text }. Reused as they are; a re-priced rate brings its own.
     remarks: booking.remarks || null,
@@ -1164,6 +1169,8 @@ function CheckoutContent({ stripe, elements }) {
         cancellation: match.cancellation,
         flightKeys: flight.keys,
         localCost: match.localCost,
+        // The same rate keeps its checked charges; another rate's are not final until checked.
+        localCharges: match.rateKey && match.rateKey === quote.rateKey ? quote.localCharges : null,
         remarks: await remarksForRepricedRate(match),
       };
       if (seq !== repriceSeq.current) return;
@@ -1967,6 +1974,8 @@ function CheckoutContent({ stripe, elements }) {
   // What the server answered when the booking was created: the plan it holds and what it will
   // charge now. The confirmation prints this, not the estimate above.
   const [paidPlan, setPaidPlan] = useState(null);
+  // The information box as the server saved it with the booking, for the confirmation screen.
+  const [bookedHotelInfo, setBookedHotelInfo] = useState(null);
 
   /**
    * GA4 `begin_checkout` (Tracking Master §11): the traveller arrived at checkout with a
@@ -2563,6 +2572,7 @@ function CheckoutContent({ stripe, elements }) {
 
       const created = createRes.data?.data || createRes.data || {};
       const bookingId = created.bookingId;
+      setBookedHotelInfo(created.hotelInfo || null);
       const ref = created.bookingReference;
       setPaidPlan(created.paymentPlan === 'deposit' && created.deposit
         ? {
@@ -2782,6 +2792,18 @@ function CheckoutContent({ stripe, elements }) {
   // explains why, rather than at the payment sheet.
   const ctaBlocked = paying || repriceBlocks || (step === STEP.PAYMENT && !agree);
 
+  // "Belangrijke informatie van het hotel" (V1.1 + V1.2, 27 Nov 2026): this rate's local charges,
+  // the hotel's transfer notice and deposit. Shown only when the admin has switched the box on.
+  const hotelApi = booking.api?.hotel || null;
+  const hotelInfo = useHotelInfo({
+    enabled: !isFlight && !isTransfer && !!hotelApi,
+    hotelCode: hotelApi?.hotelCode || booking.hotelCode,
+    supplier: hotelApi?.supplier || null,
+    destination: hotelApi?.destinationCode || srch.destination || null,
+    country: hotelApi?.countryCode || booking.countryIso || null,
+  });
+  const hotelCharges = hotelApi ? chargesOfRate({ supplier: hotelApi.supplier, checked: quote.localCharges }) : null;
+
   /* ═══ full-page confirmation after payment ═══ */
   if (paid) {
     return (
@@ -2804,6 +2826,7 @@ function CheckoutContent({ stripe, elements }) {
         ccy={ccy}
         reservationPending={reservationPending}
         nonRefundable={nonRefundable}
+        hotelInfo={bookedHotelInfo}
       />
     );
   }
@@ -4193,6 +4216,7 @@ function CheckoutContent({ stripe, elements }) {
                         lead={<span className="ck-rv-n">{reviewN('remarks')}</span>} />
                     </div>
                   )}
+                  {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} className="ck-rv-hotel-info" />}
 
                   {/* the stay request, only when there is one */}
                   {hotelWish.trim() && (
@@ -4452,6 +4476,7 @@ function CheckoutContent({ stripe, elements }) {
                       are in reach before the final step (Levent, 20 Nov 2026). The text verified
                       for this rate; no new supplier call. */}
                   <SupplierRemarks text={hotelRemarks} className="ck-pay-remarks" />
+                  {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} className="ck-pay-hotel-info" />}
 
                   {/* ── Garantie en voorwaarden (checkout T&C spec V1.3) ──
                       Travel information and the documents behind it, ONE mandatory travel

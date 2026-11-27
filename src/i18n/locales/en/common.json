@@ -345,5 +345,22 @@
     "toNl": "It looks like you are in the Netherlands. Would you like to go to our Dutch website?",
     "go": "Go to {{site}}",
     "stay": "Stay on {{site}}"
+  },
+  "hotelInfo": {
+    "title": "Important hotel information",
+    "localTitle": "Local taxes and charges",
+    "total": "Total payable locally: {{amount}}",
+    "known": "Known charges payable locally: {{amount}}",
+    "notIncluded": "Not included in the amount you pay to SUNSKY.",
+    "generic": "Any applicable local taxes and charges are payable locally.",
+    "unknown": "Additional local taxes and charges apply. The exact amount is not available.",
+    "furtherUnknown": "Additional mandatory local charges apply. Their exact amount is not available.",
+    "depositTitle": "Security deposit",
+    "depositAmount": "Security deposit on arrival: {{amount}}. Payable directly to the accommodation.",
+    "depositUnknown": "A security deposit is required on arrival. The amount is determined by the accommodation.",
+    "depositCard": "A credit card is required as a security deposit on arrival.",
+    "depositBoth": "A credit card is required as a security deposit on arrival. The exact amount is not available.",
+    "depositBothAmount": "A credit card is required as a security deposit on arrival: {{amount}}. Payable directly to the accommodation.",
+    "noticeTitle": "Important information about hotel transfers"
   }
 }

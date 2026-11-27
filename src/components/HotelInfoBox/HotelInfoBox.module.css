@@ -1,0 +1,42 @@
+/* Colours from Mandatory Local Taxes V1.1 page 5: title background #E7F2FC, headings and amounts
+   #00386D, dividers #DFE8F1, body #FFFFFF. Existing typography and spacing; stacks on mobile. */
+.box {
+  border: 1px solid #DFE8F1;
+  border-radius: 12px;
+  overflow: hidden;
+  background: #FFFFFF;
+  margin: 16px 0;
+  max-width: 100%;
+  min-width: 0;
+}
+.head {
+  margin: 0;
+  padding: 10px 16px;
+  background: #E7F2FC;
+  color: #00386D;
+  font-size: 1rem;
+  font-weight: 700;
+  line-height: 1.3;
+}
+.section {
+  padding: 12px 16px;
+  border-top: 1px solid #DFE8F1;
+  overflow-wrap: anywhere;
+}
+.section:first-of-type { border-top: 0; }
+.title {
+  margin: 0 0 4px;
+  color: #00386D;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.text, .amount, .note {
+  margin: 0 0 6px;
+  line-height: 1.5;
+  font-size: 0.92rem;
+  color: #1f2d3d;
+}
+.text:last-child, .amount:last-child, .note:last-child { margin-bottom: 0; }
+.amount { color: #00386D; font-weight: 600; }
+.note { color: #5b6b7b; font-size: 0.85rem; }
+.box a { color: #00386D; text-decoration: underline; }

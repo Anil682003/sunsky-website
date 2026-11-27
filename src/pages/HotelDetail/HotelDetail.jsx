@@ -21,6 +21,9 @@ import { NO_MARGINS, fetchMargins, withRoomMargins, packageMarginOf } from '../.
 import { round2 } from '../../utils/marginRules';
 import { localCostOfRate, localCost } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
+import HotelInfoBox from '../../components/HotelInfoBox/HotelInfoBox';
+import { useHotelInfo } from '../../hooks/useHotelInfo';
+import { chargesOfRate } from '../../utils/hotelInfo';
 import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
 import { remarksOfRate } from '../../utils/supplierRemarks';
 import HotelImg from '../../components/HotelImg/HotelImg';
@@ -3149,7 +3152,7 @@ export default function HotelDetail() {
     setCheckedRates((m) => ({ ...m, [selRateKey]: null }));
     axiosInstance.post('/hotel-availability/checkrate', { rateKey: selRateKey }, { timeout: SUPPLIER_TIMEOUT })
       .then(({ data }) => {
-        if (alive) setCheckedRates((m) => ({ ...m, [selRateKey]: { localCost: localCost(data?.localCosts), remarks: data?.rateComments ?? null } }));
+        if (alive) setCheckedRates((m) => ({ ...m, [selRateKey]: { localCost: localCost(data?.localCosts), localCharges: data?.localCharges ?? null, remarks: data?.rateComments ?? null } }));
       })
       .catch(() => {});
     return () => { alive = false; };
@@ -3175,7 +3178,7 @@ export default function HotelDetail() {
       .then(({ data }) => {
         // W2M's DirectPayment supplements (city tax, resort fee), as the admin reads them from the
         // same check that brings the remarks (Ana y Jose Holbox, 26 Nov 2026: 2.179,92 MXN).
-        if (alive) setCheckedRates((m) => ({ ...m, [selW2mKey]: { localCost: localCost(data?.localCosts), remarks: data?.rateComments ?? null } }));
+        if (alive) setCheckedRates((m) => ({ ...m, [selW2mKey]: { localCost: localCost(data?.localCosts), localCharges: data?.localCharges ?? null, remarks: data?.rateComments ?? null } }));
       })
       .catch(() => {});
     return () => { alive = false; };
@@ -3183,6 +3186,13 @@ export default function HotelDetail() {
   }, [selW2mKey]);
   const checkedRate = selRateKey ? checkedRates[selRateKey] : selW2mKey ? checkedRates[selW2mKey] : null;
   const liveLocalCost = liveRoom?.localCost || checkedRate?.localCost || null;
+  // "Belangrijke informatie van het hotel" (V1.1 + V1.2, 27 Nov 2026): the selected rate's local
+  // charges as its live check states them (pending until it answers; Diana: no information), and
+  // the hotel's transfer notice and deposit. Shown only when the admin has switched the box on.
+  const liveCharges = liveRoom ? chargesOfRate({ supplier: liveRoom.supplier, checked: checkedRate?.localCharges }) : null;
+  const hotelInfo = useHotelInfo({
+    hotelCode, supplier: liveRoom?.supplier || null, destination, country: info?.countryIso || null,
+  });
   // The supplier's remarks for THIS rate, in full; they follow the traveller's room choice.
   const liveRemarks = remarksOfRate(liveRoom, checkedRate?.remarks);
   // The board of THAT rate, named exactly as the room rows name it — the availability recap
@@ -4333,6 +4343,8 @@ export default function HotelDetail() {
           // The rate's mandatory local costs, for the checkout to show under its total (UI-09).
           // Display only: outside `api`, so it can never reach the amount charged.
           localCost: useLive ? liveLocalCost : null,
+          // The same rate's local charges for the information box (display only, like localCost).
+          localCharges: useLive ? liveCharges : null,
           // The supplier's remarks for this rate, as verified here, with the rateKey they belong
           // to: the checkout shows them in full and asks the supplier again only if the rate
           // itself changes there (a re-price).
@@ -4372,6 +4384,9 @@ export default function HotelDetail() {
               refundable: useLive ? (liveRoom.refundable ?? null) : null,
               cancellation: useLive ? (liveRoom.cancellation || []) : [],
               room: roomName, supplier: useLive ? (liveRoom.supplier || 'hotelbeds') : 'hotelbeds',
+              // Where the hotel is, so the booking saves the right transfer notice (V1.2).
+              destinationCode: destination || null,
+              countryCode: info?.countryIso || null,
               // For the admin's booking screens (Itinerary): the board booked and where the hotel is.
               board: board || null,
               city: info?.cityName || info?.city || null,
@@ -5952,6 +5967,9 @@ export default function HotelDetail() {
                       it there is no rate for them to belong to. */}
                   {ovBase != null && liveRoom && !liveBusy && (
                     <SupplierRemarks text={liveRemarks} className="overview-remarks" />
+                  )}
+                  {ovBase != null && liveRoom && !liveBusy && (
+                    <HotelInfoBox info={hotelInfo} localCharges={liveCharges} className="overview-hotel-info" />
                   )}
                   <div className="overview-total">
                     <span className="overview-total-label">

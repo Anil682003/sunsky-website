@@ -345,5 +345,22 @@
     "toNl": "Het lijkt erop dat je in Nederland bent. Wil je naar onze Nederlandse website gaan?",
     "go": "Ga naar {{site}}",
     "stay": "Blijf op {{site}}"
+  },
+  "hotelInfo": {
+    "title": "Belangrijke informatie van het hotel",
+    "localTitle": "Lokale belastingen en kosten",
+    "total": "Totaal ter plaatse te betalen: {{amount}}",
+    "known": "Bekende lokaal te betalen kosten: {{amount}}",
+    "notIncluded": "Niet inbegrepen in het bedrag dat je aan SUNSKY betaalt.",
+    "generic": "Eventuele lokale belastingen en kosten zijn ter plaatse te betalen.",
+    "unknown": "Bijkomende lokale belastingen en kosten zijn van toepassing. Het exacte bedrag is niet beschikbaar.",
+    "furtherUnknown": "Bijkomende verplichte lokale kosten zijn van toepassing. Het exacte bedrag hiervan is niet beschikbaar.",
+    "depositTitle": "Waarborg",
+    "depositAmount": "Waarborg bij aankomst: {{amount}}. Rechtstreeks te voldoen aan de accommodatie.",
+    "depositUnknown": "Bij aankomst is een waarborg vereist. Het bedrag wordt bepaald door de accommodatie.",
+    "depositCard": "Een creditcard is verplicht als waarborg bij aankomst.",
+    "depositBoth": "Bij aankomst is een creditcard vereist als waarborg. Het exacte bedrag is niet beschikbaar.",
+    "depositBothAmount": "Bij aankomst is een creditcard vereist als waarborg: {{amount}}. Rechtstreeks te voldoen aan de accommodatie.",
+    "noticeTitle": "Belangrijke informatie over hoteltransfers"
   }
 }
