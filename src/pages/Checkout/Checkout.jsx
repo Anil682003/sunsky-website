@@ -1515,7 +1515,9 @@ function CheckoutContent({ stripe, elements }) {
   // extra, its line up to a whole euro, exactly as the server charges it.
   const transferTotal = !isTransfer && pickedOption
     ? (partyRoundingActive() ? extraLine(Number(pickedOption.price) || 0) : Math.round(Number(pickedOption.price) || 0))
-    : (!isTransfer && booking.api?.transfer ? Math.round(Number(booking.api.transfer.price) || 0) : 0);
+    : (!isTransfer && booking.api?.transfer
+      ? (partyRoundingActive() ? extraLine(Number(booking.api.transfer.price) || 0) : Math.round(Number(booking.api.transfer.price) || 0))
+      : 0);
 
   /* ── promotion (Promotions & Discounts, spec v1.2) ──
      The ONE discount this booking gets, as the admin's central calculation answers it
