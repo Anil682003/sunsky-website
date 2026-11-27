@@ -552,7 +552,7 @@ describe('the hotel remarks of the checked rate (Levent, 20 Nov 2026)', () => {
     await waitFor(() => expect(post.mock.calls.some(([u]) => String(u).includes('/checkrate'))).toBe(true));
     await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A0500,00'));
     expect(container.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
-    expect(container.textContent).not.toMatch(/belangrijke informatie van het hotel/i);
+    expect(container.textContent).not.toMatch(/opmerkingen van het hotel/i);
   });
 });
 

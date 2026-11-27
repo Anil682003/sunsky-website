@@ -5965,11 +5965,13 @@ export default function HotelDetail() {
                   {/* The supplier's remarks for the checked rate, in full, between the price
                       details and the total (Levent, 20 Nov 2026). Only after a live check: before
                       it there is no rate for them to belong to. */}
-                  {ovBase != null && liveRoom && !liveBusy && (
-                    <SupplierRemarks text={liveRemarks} className="overview-remarks" />
-                  )}
+                  {/* "Belangrijke informatie van het hotel" first (mandatory amounts, deposit, transfer
+                      notice), then the supplier's own remarks in full (27 Nov 2026). */}
                   {ovBase != null && liveRoom && !liveBusy && (
                     <HotelInfoBox info={hotelInfo} localCharges={liveCharges} className="overview-hotel-info" />
+                  )}
+                  {ovBase != null && liveRoom && !liveBusy && (
+                    <SupplierRemarks text={liveRemarks} className="overview-remarks" />
                   )}
                   <div className="overview-total">
                     <span className="overview-total-label">

@@ -83,7 +83,7 @@ export default function SupplierRemarks({ text, className = '', as: Heading = 'h
 
   if (!paragraphs.length) return null;
 
-  const title = t('supplierRemarks.title', 'Important information from the hotel');
+  const title = t('supplierRemarks.title', 'Hotel remarks');
   return (
     <section className={`${styles.box}${className ? ` ${className}` : ''}`} data-testid="supplier-remarks">
       <Heading className={styles.heading}>

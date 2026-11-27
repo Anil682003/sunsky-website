@@ -4210,13 +4210,13 @@ function CheckoutContent({ stripe, elements }) {
 
                   {/* the hotel's own remarks for this rate, in full and open, before payment
                       (Levent, 20 Nov 2026); absent when the supplier sent none */}
+                  {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} className="ck-rv-hotel-info" />}
                   {hasRemarks(hotelRemarks) && (
                     <div className="ck-rv-sec ck-rv-remarks">
                       <SupplierRemarks text={hotelRemarks}
                         lead={<span className="ck-rv-n">{reviewN('remarks')}</span>} />
                     </div>
                   )}
-                  {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} className="ck-rv-hotel-info" />}
 
                   {/* the stay request, only when there is one */}
                   {hotelWish.trim() && (
@@ -4475,8 +4475,8 @@ function CheckoutContent({ stripe, elements }) {
                       binding ("I have read the information relating to this holiday"), so they
                       are in reach before the final step (Levent, 20 Nov 2026). The text verified
                       for this rate; no new supplier call. */}
-                  <SupplierRemarks text={hotelRemarks} className="ck-pay-remarks" />
                   {!isFlight && !isTransfer && <HotelInfoBox info={hotelInfo} localCharges={hotelCharges} className="ck-pay-hotel-info" />}
+                  <SupplierRemarks text={hotelRemarks} className="ck-pay-remarks" />
 
                   {/* ── Garantie en voorwaarden (checkout T&C spec V1.3) ──
                       Travel information and the documents behind it, ONE mandatory travel

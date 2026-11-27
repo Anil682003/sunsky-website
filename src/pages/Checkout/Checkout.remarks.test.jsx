@@ -72,7 +72,7 @@ describe('the hotel remarks in the checkout', () => {
 
     const heads = reviewHeads();
     const contact = heads.findIndex((h) => /contactgegevens boeking/i.test(h));
-    expect(heads[contact + 1]).toMatch(/belangrijke informatie van het hotel/i);
+    expect(heads[contact + 1]).toMatch(/opmerkingen van het hotel/i);
     // Numbered straight after the contact, with no gaps for sections that are absent.
     expect(heads.map((h) => Number(h.split(' ')[0]))).toEqual(heads.map((_, i) => i + 1));
 
