@@ -10,6 +10,7 @@
  *
  * Pure: no React, no network.
  */
+import { moneyFull } from './money';
 
 export const LC_STATE = Object.freeze({
   CONFIRMED: 'confirmed', PARTIAL: 'partial', UNKNOWN: 'unknown', NONE: 'none', NO_INFO: 'noInfo', PENDING: 'pending',
@@ -65,20 +66,12 @@ export function hotelInfoSections({ localCharges = null, deposit = null, notice 
   return out;
 }
 
-// A no-break space and the euro sign, written as char codes so no editor or tool can alter them:
-// "€ 84,00" never breaks across lines.
-const NBSP = String.fromCharCode(160);
-const EURO = String.fromCharCode(8364);
-
-/** PURE. "€ 84,00" / "USD 168,00" (nl), "€84.00" / "USD 168.00" (en). Kept to the cent, never rounded. */
-export function localMoney(amount, currency, lang = 'nl') {
-  const n = Number(amount);
-  if (!Number.isFinite(n)) return '';
-  const nl = lang !== 'en';
-  const s = n.toLocaleString(nl ? 'nl-BE' : 'en-GB', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
-  const c = String(currency || 'EUR').toUpperCase();
-  if (c === 'EUR') return nl ? `${EURO}${NBSP}${s}` : `${EURO}${s}`;
-  return `${c}${NBSP}${s}`;
+/**
+ * PURE. The SUNSKY notation in both languages, as every other price on the site (Price Display
+ * brief; utils/money.js): "€ 84,00", "USD 168,00". Kept to the cent, never rounded or converted.
+ */
+export function localMoney(amount, currency) {
+  return moneyFull(amount, { currency: String(currency || 'EUR').toUpperCase() }) || '';
 }
 
 /** PURE. Splits text into plain parts and e-mail addresses, so a notice's address can be a link. */

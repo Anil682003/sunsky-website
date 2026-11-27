@@ -5,7 +5,9 @@ import i18n from '../../i18n';
 import HotelInfoBox from './HotelInfoBox';
 import { hotelInfoSections, chargesOfRate, localMoney, withEmailLinks, LC_STATE } from '../../utils/hotelInfo';
 
-const text = (el) => el.textContent.replace(/ /g, ' ');
+// The amounts use a no-break space (utils/money.js); compared here as a plain one.
+const NBSP_RE = new RegExp(String.fromCharCode(160), 'g');
+const text = (el) => el.textContent.replace(NBSP_RE, ' ');
 const NOTICE = { nl: 'Alinea een.\n\nNeem contact op via info@sunsky.be.', en: 'Paragraph one.\n\nContact info@sunsky.be.' };
 const LIVE = { live: true, notice: NOTICE, deposit: null };
 
@@ -50,9 +52,9 @@ describe('hotelInfoSections', () => {
   });
 
   it('money keeps the cents and the currency; e-mail addresses are found', () => {
-    expect(localMoney(1068, 'USD', 'nl').replace(/ /g, ' ')).toBe('USD 1.068,00');
-    expect(localMoney(84, 'EUR', 'nl').replace(/ /g, ' ')).toBe('€ 84,00');
-    expect(localMoney(84, 'EUR', 'en')).toBe('€84.00');
+    // The SUNSKY notation in both languages, as the rest of the page ("Mandatory payment locally: € 66,00").
+    expect(localMoney(1068, 'USD').replace(NBSP_RE, ' ')).toBe('USD 1.068,00');
+    expect(localMoney(84, 'EUR').replace(NBSP_RE, ' ')).toBe('€ 84,00');
     expect(withEmailLinks('mail info@sunsky.be nu')).toEqual([{ text: 'mail ' }, { email: 'info@sunsky.be' }, { text: ' nu' }]);
   });
 });

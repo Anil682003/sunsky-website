@@ -35,7 +35,7 @@ export default function HotelInfoBox({ info = null, localCharges = null, snapsho
         ? <a key={i} href={`mailto:${p.email}`}>{p.email}</a>
         : <span key={i}>{p.text}</span>));
     }
-    const amount = l.money ? localMoney(l.money.amount, l.money.currency, lang) : undefined;
+    const amount = l.money ? localMoney(l.money.amount, l.money.currency) : undefined;
     return t(l.key, { amount, defaultValue: '' });
   };
 
