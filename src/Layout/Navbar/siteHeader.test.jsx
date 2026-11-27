@@ -671,14 +671,22 @@ const loadLogo = (w = 64, h = 64) => {
 };
 
 describe('the wordmark beside the logo (CMS → Layout → Header)', () => {
-  it('without an uploaded wordmark the bar keeps the "SunSky" text', () => {
+  it('without an uploaded wordmark nothing is printed beside the logo, square or wide (27 Nov 2026)', () => {
     renderNavbar();
     loadLogo();
-    expect(screen.getAllByText(/Sky/).length).toBeGreaterThan(0);
+    expect(screen.queryByText('Sky')).toBeNull();
     expect(screen.queryByAltText('SunSky wordmark')).toBeNull();
   });
 
-  it('an uploaded wordmark replaces the text; a broken one falls back to it', async () => {
+  it('iPhone Safari measured the wide SVG logo as square: still sized by height, no "SunSky" text', () => {
+    headerConfig = { logoUrl: '/uploads/header/logo.svg', siteHeader: v2() };
+    renderNavbar();
+    loadLogo(150, 150);
+    expect(document.querySelector(`.${styles.logo} img`).className).toContain(styles.logoImgCms);
+    expect(screen.queryByText('Sky')).toBeNull();
+  });
+
+  it('an uploaded wordmark sits beside a square logo; a broken one leaves the logo alone', async () => {
     headerConfig = { siteHeader: { ...v2(), wordmark: { url: '/uploads/header/wordmark.png', alt: 'SunSky wordmark' } } };
     renderNavbar();
     loadLogo();
@@ -687,7 +695,7 @@ describe('the wordmark beside the logo (CMS → Layout → Header)', () => {
     expect(screen.queryByText('Sky')).toBeNull();
     act(() => { img.dispatchEvent(new Event('error')); });
     await waitFor(() => expect(screen.queryByAltText('SunSky wordmark')).toBeNull());
-    expect(screen.getByText('Sky')).toBeInTheDocument();
+    expect(screen.queryByText('Sky')).toBeNull();
   });
 });
 

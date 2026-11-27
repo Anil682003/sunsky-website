@@ -231,16 +231,14 @@ export default function Navbar() {
   const [wordmarkFailed, setWordmarkFailed] = useState(false);
   useEffect(() => { setWordmarkFailed(false); }, [wordmarkSrc]);
 
-  // Whether the logo is a wide wordmark or a square icon decides how it is sized AND whether
-  // the "SunSky" text sits beside it: a wordmark already carries the name, a square icon does
-  // not. Measured from the image itself on load rather than assumed.
-  //
-  // This deliberately no longer asks WHERE the logo came from. It used to require a CMS
-  // upload before it would believe a wordmark, so the bundled wordmark would have rendered
-  // squashed into a 32px square with the words "SunSky" printed beside it: "Sunsky Vakanties
-  // SunSky". The shape of the picture is the only thing that matters here.
+  // The CMS logo is the whole brand mark: nothing is printed beside it except a wordmark IMAGE
+  // the CMS supplies for a square icon. The hardcoded "SunSky" text is gone (27 Nov 2026):
+  // iPhone Safari measured the wide SVG logo as square, so the bar drew it as a 40px icon with
+  // "SunSky" beside it. The logo is always sized by height with its own width, which suits a
+  // wordmark and a square icon alike, so its measured shape decides nothing but whether the
+  // CMS wordmark image belongs beside it.
   const [logoAspect, setLogoAspect] = useState(null);
-  const isWordmark = logoAspect !== null && logoAspect > 1.6;
+  const isWordmark = logoAspect === null || logoAspect > 1.6;
 
   const isHome = location.pathname === '/';
   // The homepage's floating header (HomeTopStrip + the bar as a card over the hero photo).
@@ -655,7 +653,7 @@ export default function Navbar() {
           src={brandKnown ? mainLogo : undefined}
           alt={brandKnown ? logoAlt : ''}
           aria-hidden={brandKnown ? undefined : true}
-          className={`${styles.logoImg} ${isWordmark ? styles.logoImgCms : ''} ${header.logo?.height ? styles.logoSized : ''}`}
+          className={`${styles.logoImg} ${styles.logoImgCms} ${header.logo?.height ? styles.logoSized : ''}`}
           style={{
             ...(header.logo?.height ? { '--logo-h': `${header.logo.height}px` } : {}),
             ...(brandKnown ? {} : { visibility: 'hidden' }),
@@ -671,10 +669,9 @@ export default function Navbar() {
             }
           }}
         />
-        {/* Hidden only for a wordmark logo, which already prints the name. It waits until the
-            logo has loaded and its shape is known: before that every logo counts as not a wordmark,
-            so on a refresh the old "SunSky" text flashed beside the wordmark (26 Nov 2026). */}
-        {brandKnown && logoAspect !== null && !isWordmark && (wordmarkSrc && !wordmarkFailed ? (
+        {/* The CMS wordmark image, beside a logo measured as a square icon only. Nothing else
+            is ever printed here: no "SunSky" text, on any load or refresh (client, 27 Nov 2026). */}
+        {brandKnown && !isWordmark && wordmarkSrc && !wordmarkFailed && (
           <img
             src={wordmarkSrc}
             alt={header.wordmark?.alt || logoAlt}
@@ -682,11 +679,7 @@ export default function Navbar() {
             style={{ '--wordmark-h': `${header.wordmark.height}px` }}
             onError={() => setWordmarkFailed(true)}
           />
-        ) : (
-          <span className={`${styles.logoText} ${dark ? styles.logoDark : styles.logoLight}`}>
-            Sun<span className={styles.logoAccent}>Sky</span>
-          </span>
-        ))}
+        )}
       </Link>
       {/* The browse menus, in the dashboard's order. Every panel drops from the left of its
           button, so all of them draw their golden thread the same way; "right" belonged to the

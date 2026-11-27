@@ -764,6 +764,22 @@
   .sd .fc-movetag { padding:3px 6px; gap:3px; }
   .sd .fc-movetag-w { display:none; }
 }
+/* A cell label with a phone wording: the long one everywhere but a phone (see the 560px block). */
+.sd .fc-short { display:none; }
+/* A day being checked: a spinner in the text's colour, the word under it never hyphenated.
+   Phones drop the word (see the JSX). */
+.sd .fc-checking { display:flex; flex-direction:column; align-items:center; gap:7px; hyphens:manual; -webkit-hyphens:manual; }
+.sd .fc-spin {
+  width:22px; height:22px; border-radius:50%; flex-shrink:0;
+  border:3px solid currentColor; border-top-color:transparent; opacity:.85;
+  animation:sdSpin .8s linear infinite;
+}
+@media (max-width: 700px) {
+  .sd .fc-checking-w { display:none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .sd .fc-spin { animation-duration:2.4s; }
+}
 .sd .fc-col.sel .fc-amt { background:rgba(255,255,255,.22); padding:1px 9px; border-radius:6px; }
 .sd .fc-under { padding:11px 0 4px; display:flex; flex-direction:column; align-items:center; gap:1px; position:relative; }
 /* The picked day's label band carries the BAR's own navy down past the date and into
@@ -3373,6 +3389,13 @@
   .sd .fc-nopr-ico { margin-bottom:5px; }
   .sd .fc-nopr-ico svg { width:24px; height:24px; }
   .sd .fc-col.fc-nopr .fc-check { font-size:var(--fs-small); letter-spacing:0; }
+  /* Words in a cell never split on a phone (client, 27 Nov 2026: "controle-ren…",
+     "beschikba / arheid"). The column leaves ~77px for text: 12px type fits "beschikbaar",
+     and the one phrase with a longer word has its own short wording (.fc-short). */
+  .sd .fc-check { font-size:0.75rem; letter-spacing:0; hyphens:manual; -webkit-hyphens:manual; overflow-wrap:normal; word-break:normal; }
+  .sd .fc-col.fc-nopr .fc-check { font-size:0.75rem; }
+  .sd .fc-long { display:none; }
+  .sd .fc-short { display:inline; }
 
   /* Boarding-pass journey: the three-column route needs the middle rail to give way
      first, otherwise the times and city names lose their space. */

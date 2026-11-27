@@ -534,6 +534,7 @@
     "dayPriceUnavailable": "{{day}} {{date}}, price temporarily unavailable",
     "priceUnavailableShort": "Price unavailable",
     "checkAvailabilityCell": "Check availability",
+    "checkAvailabilityCellShort": "Check price",
     "totalLivePackagePriceFor": "Total live package price for {{party}}",
     "totalLivePriceFor": "Total live price for {{party}}",
     "totalLiveRoomPriceFor": "Total live room price for {{party}}",

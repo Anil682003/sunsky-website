@@ -534,6 +534,7 @@
     "dayPriceUnavailable": "{{day}} {{date}}, prijs tijdelijk niet beschikbaar",
     "priceUnavailableShort": "Prijs niet beschikbaar",
     "checkAvailabilityCell": "Controleer beschikbaarheid",
+    "checkAvailabilityCellShort": "Controleer prijs",
     "totalLivePackagePriceFor": "Totale live pakketprijs voor {{party}}",
     "totalLivePriceFor": "Totale live prijs voor {{party}}",
     "totalLiveRoomPriceFor": "Totale live kamerprijs voor {{party}}",

@@ -4918,7 +4918,14 @@ export default function HotelDetail() {
                                 {isEmpty ? (
                                   <span className="fc-check">{t('prices.notAvailable', 'Not available')}</span>
                                 ) : isLoading ? (
-                                  <span className="fc-check">{t('prices.checking', 'Checking…')}</span>
+                                  /* A spinner, with the word beside it only where the column is wide
+                                     enough. On a phone the column is ~78px and "Bezig met
+                                     controleren…" was hyphenated as "controle-ren…" (client, 27 Nov
+                                     2026); the card under the strip already says the check is running. */
+                                  <span className="fc-check fc-checking">
+                                    <span className="fc-spin" aria-hidden="true" />
+                                    <span className="fc-checking-w">{t('prices.checking', 'Checking…')}</span>
+                                  </span>
                                 ) : liveHere ? (
                                   /* Checked. The live figure is the authoritative one for this
                                      day and takes the price slot; the estimate it replaced stays
@@ -4954,7 +4961,11 @@ export default function HotelDetail() {
                                     <span className="fc-nopr-ico" aria-hidden="true">{ICON.calClock}</span>
                                     <span className="fc-check">{priceFailed
                                       ? t('prices.priceUnavailableShort', 'Price unavailable')
-                                      : t('prices.checkAvailabilityCell', 'Check availability')}</span>
+                                      : <>
+                                        <span className="fc-long">{t('prices.checkAvailabilityCell', 'Check availability')}</span>
+                                        {/* "beschikbaarheid" is wider than a phone column at any readable size. */}
+                                        <span className="fc-short">{t('prices.checkAvailabilityCellShort', 'Check price')}</span>
+                                      </>}</span>
                                     <span className="fc-nts">{cellDayLabel(p)}</span>
                                   </>
                                 )}
