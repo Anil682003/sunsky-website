@@ -9,6 +9,7 @@ import './Confirmation.css';
 import { formatDiscount } from '../../utils/promotions';
 import { moneyFull } from '../../utils/money';
 import HotelInfoBox from '../../components/HotelInfoBox/HotelInfoBox';
+import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
 
 /* ── tiny SVG helper (same pattern as Checkout) ── */
 const S = ({ children, size = 16, sw = 2, fill = 'none', ...rest }) => (
@@ -97,6 +98,8 @@ export default function Confirmation({
   nonRefundable = false,
   // The information box as saved with the booking (server answer; null when it was not shown).
   hotelInfo = null,
+  // The Hotelbeds rate comments the customer accepted before booking (null for other suppliers).
+  rateComments = null,
 }) {
   const { t } = useTranslation('checkout');
   const navigate = useNavigate();
@@ -519,6 +522,8 @@ export default function Confirmation({
           {/* "Belangrijke informatie van het hotel" exactly as saved with this booking: the same
               data the travel confirmation and the accommodation voucher print. */}
           {!isFlight && !isTransfer && hotelInfo && <HotelInfoBox snapshot={hotelInfo} className="ckc-reveal" />}
+          {/* The specific conditions of the booked rate, as accepted before booking (Rate Comments V1.2). */}
+          {!isFlight && !isTransfer && rateComments && <SupplierRemarks text={rateComments} className="ckc-reveal" />}
         </div>
 
         {/* ═══ WHAT HAPPENS NEXT ═══ */}

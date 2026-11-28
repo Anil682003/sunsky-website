@@ -2837,6 +2837,8 @@ function CheckoutContent({ stripe, elements }) {
         reservationPending={reservationPending}
         nonRefundable={nonRefundable}
         hotelInfo={bookedHotelInfo}
+        // The Hotelbeds rate comments accepted before booking (Rate Comments V1.2); other suppliers: none.
+        rateComments={(!isFlight && !isTransfer && String(booking.api?.hotel?.supplier || 'hotelbeds').toLowerCase() === 'hotelbeds') ? (quote.remarks?.text || null) : null}
       />
     );
   }
