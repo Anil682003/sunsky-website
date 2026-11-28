@@ -42,7 +42,7 @@ import {
   fetchCheckoutTerms, termsRequestBody, checkoutSessionId, payButtonText, TERMS_ERROR_CODES,
 } from './termsApi';
 import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
-import { remarksOfRate, hasRemarks } from '../../utils/supplierRemarks';
+import { remarksOfRate } from '../../utils/supplierRemarks';
 import { bookerUnderage } from '../../utils/bookerAge';
 import { roundStayTotal } from '../../utils/priceRounding';
 import { splitFareTypes } from '../../utils/fareTypes';
@@ -2404,8 +2404,10 @@ function CheckoutContent({ stripe, elements }) {
             roomCode: quote.roomCode ?? api.hotel.roomCode,
             boardCode: quote.boardCode ?? api.hotel.boardCode,
             price: quote.hotel || api.hotel.price,
-            // No remarks are shown, so none are sent: the server's REMARKS_CHANGED check only runs
-            // for a page that says what it showed.
+            // The Hotelbeds rate comments this page shows ('' = none): the server refuses with
+            // REMARKS_CHANGED when its final check found other ones. Other suppliers: nothing shown,
+            // nothing sent.
+            ...(hotelIsHotelbeds ? { remarks: quote.remarks?.text || '' } : {}),
             // The local charges the information box showed (V1.1 §6): the server refuses with
             // LOCAL_CHARGES_CHANGED when its final check finds others. Only when the box was shown.
             ...(hotelInfo?.live && hotelCharges ? { localChargesShown: { state: hotelCharges.state, totals: hotelCharges.totals || [], source: hotelCharges.source || null } } : {}),
@@ -2861,9 +2863,12 @@ function CheckoutContent({ stripe, elements }) {
   }
 
   // The supplier's remarks for the hotel rate being booked, in full (Levent, 20 Nov 2026).
-  // The supplier's original remarks are internal only (Levent, 27 Nov 2026): never shown in the
-  // cart, the review or the payment step. The information box carries what the customer needs.
-  const hotelRemarks = null;
+  // Hotelbeds rate comments of the selected rate (certification 3.9; Levent, 28 Nov 2026): the full
+  // text Hotelbeds combines at the live check, in English as received. Shown before final booking
+  // (payment step, important travel information), never in the cart ("Controleer je boeking").
+  // Other suppliers' remarks stay internal.
+  const hotelIsHotelbeds = String(booking.api?.hotel?.supplier || 'hotelbeds').toLowerCase() === 'hotelbeds';
+  const hotelRemarks = (!isFlight && !isTransfer && hotelIsHotelbeds) ? (quote.remarks?.text || null) : null;
   // "Check your booking" numbers the sections it SHOWS, in order: an optional section that is
   // absent leaves no gap ("6 Travellers" after insurance when no bag was bought). The list
   // below carries the same conditions as the sections themselves, in the order they are drawn.
@@ -2876,7 +2881,6 @@ function CheckoutContent({ stripe, elements }) {
     baggageRows.length > 0 && 'baggage',
     'travellers',
     'contact',
-    hasRemarks(hotelRemarks) && 'remarks',
     hotelWish.trim() && 'wish',
     noteText.trim() && 'note',
   ].filter(Boolean);
@@ -4222,12 +4226,8 @@ function CheckoutContent({ stripe, elements }) {
                       (Levent, 20 Nov 2026); absent when the supplier sent none */}
                   {/* No information box in the shopping cart ("Controleer je boeking"): Levent, 27 Nov
                       2026, superseding V1.1/V1.2. It is shown on the payment step, before booking. */}
-                  {hasRemarks(hotelRemarks) && (
-                    <div className="ck-rv-sec ck-rv-remarks">
-                      <SupplierRemarks text={hotelRemarks}
-                        lead={<span className="ck-rv-n">{reviewN('remarks')}</span>} />
-                    </div>
-                  )}
+                  {/* No rate comments in the cart either (Levent, 27-28 Nov 2026): they are shown on
+                      the payment step, before final booking. */}
 
                   {/* the stay request, only when there is one */}
                   {hotelWish.trim() && (

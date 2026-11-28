@@ -22,6 +22,7 @@ import { round2 } from '../../utils/marginRules';
 import { localCostOfRate, localCost } from '../../utils/localCosts';
 import LocalCosts from '../../components/LocalCosts/LocalCosts';
 import HotelInfoBox from '../../components/HotelInfoBox/HotelInfoBox';
+import SupplierRemarks from '../../components/SupplierRemarks/SupplierRemarks';
 import { useHotelInfo } from '../../hooks/useHotelInfo';
 import { chargesOfRate } from '../../utils/hotelInfo';
 import { remarksOfRate } from '../../utils/supplierRemarks';
@@ -5978,6 +5979,11 @@ export default function HotelDetail() {
                       supplier's original remarks are internal (Levent, 27 Nov 2026). */}
                   {ovBase != null && liveRoom && !liveBusy && (
                     <HotelInfoBox info={hotelInfo} localCharges={liveCharges} partyHasChildren={partyHasChildren} className="overview-hotel-info" />
+                  )}
+                  {/* Hotelbeds rate comments of the checked rate (certification 3.9; Levent 28 Nov
+                      2026), in English as received; other suppliers' remarks stay internal. */}
+                  {ovBase != null && liveRoom && !liveBusy && String(liveRoom.supplier || 'hotelbeds').toLowerCase() === 'hotelbeds' && (
+                    <SupplierRemarks text={liveRemarks} className="overview-remarks" />
                   )}
                   <div className="overview-total">
                     <span className="overview-total-label">

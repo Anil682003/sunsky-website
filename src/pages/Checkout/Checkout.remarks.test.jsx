@@ -64,38 +64,40 @@ const reviewHeads = () => [...document.querySelectorAll('.ck-rv .ck-rv-sec')]
 
 beforeEach(() => { post.mockReset(); post.mockResolvedValue({ data: {} }); });
 
-// Levent, 27 Nov 2026: the supplier's original remarks are kept internally and never shown to the
-// customer, in the cart, the review or the payment step; the information box carries what is needed.
+// Levent, 27-28 Nov 2026: no remarks in the cart ("Controleer je boeking"). Hotelbeds rate comments
+// (certification 3.9) are shown on the payment step, before final booking; other suppliers' remarks
+// stay internal.
 describe('the hotel remarks in the checkout', () => {
-  it('are not shown in "Controleer je boeking", even when the supplier sent them; no section number spent', async () => {
+  it('are not shown in the cart, even when the supplier sent them; no section number spent', async () => {
     const user = userEvent.setup();
     renderCheckout();
     await toReview(user);
 
-    expect(document.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
-    expect(document.body.textContent).not.toContain('Minimum age 18 years');
+    expect(document.querySelector('.ck-rv [data-testid="supplier-remarks"]')).toBeNull();
     const heads = reviewHeads();
-    expect(heads.some((h) => /opmerkingen van het hotel/i.test(h))).toBe(false);
+    expect(heads.some((h) => /specifieke voorwaarden van het geselecteerde tarief/i.test(h))).toBe(false);
     expect(heads.map((h) => Number(h.split(' ')[0]))).toEqual(heads.map((_, i) => i + 1));
   });
 
-  it('are not shown on the payment step either', async () => {
+  it('Hotelbeds rate comments are shown on the payment step, above the binding conditions', async () => {
     const user = userEvent.setup();
     renderCheckout();
     await toReview(user);
     await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
     await waitFor(() => expect(document.querySelector('.ck-terms')).toBeTruthy());
-    expect(document.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
-    expect(document.body.textContent).not.toContain('Cancellations follow the conditions of the booked rate.');
+
+    const box = document.querySelector('.ck-pay-remarks');
+    expect(box).toBeTruthy();
+    expect(box.textContent).toContain('Cancellations follow the conditions of the booked rate.');
+    expect(box.compareDocumentPosition(document.querySelector('.ck-terms')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
-  it('are absent, with no section number spent, when the supplier sent none', async () => {
+  it('a W2M rate shows no remarks at all', async () => {
     const user = userEvent.setup();
-    renderCheckout({ ...BOOKING, remarks: null });
+    renderCheckout({ ...BOOKING, api: { hotel: { ...BOOKING.api.hotel, supplier: 'w2m' } } });
     await toReview(user);
-
+    await user.click(screen.getByRole('button', { name: /doorgaan naar betaling/i }));
+    await waitFor(() => expect(document.querySelector('.ck-terms')).toBeTruthy());
     expect(document.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
-    const heads = reviewHeads();
-    expect(heads.map((h) => Number(h.split(' ')[0]))).toEqual(heads.map((_, i) => i + 1));
   });
 });

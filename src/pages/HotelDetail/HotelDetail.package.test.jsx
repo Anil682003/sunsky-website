@@ -516,7 +516,9 @@ describe('the hotel remarks of the checked rate (Levent, 20 Nov 2026)', () => {
 
   // Levent, 27 Nov 2026: the supplier's original remarks are internal; the page never shows them.
   // The rate check still runs (it brings the local charges for the information box).
-  it('are checked but never shown to the customer', async () => {
+  // Hotelbeds rate comments of the checked rate are shown, after the information box (certification
+  // 3.9; Levent, 28 Nov 2026), in English as received.
+  it('a Hotelbeds rate shows its rate comments after the live check', async () => {
     withCheckrate(() => ({ rateComments: REMARKS }));
     const user = userEvent.setup();
     const { container } = renderPage(`&${PKG_QS}`, 'hotel_only');
@@ -524,8 +526,9 @@ describe('the hotel remarks of the checked rate (Levent, 20 Nov 2026)', () => {
     await user.click(await screen.findByRole('button', { name: /prijs & beschikbaarheid controleren/i }));
     await waitFor(() => expect(post.mock.calls.some(([u]) => String(u).includes('/checkrate'))).toBe(true));
     await waitFor(() => expect(container.querySelector('.overview-total')).not.toBeNull());
-    expect(container.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
-    expect(container.textContent).not.toContain('Deposit on arrival.');
+    const box = await waitFor(() => { const b = container.querySelector('[data-testid="supplier-remarks"]'); expect(b).not.toBeNull(); return b; });
+    expect(box.textContent).toContain('Deposit on arrival.');
+    expect(box.textContent).toMatch(/specifieke voorwaarden van het geselecteerde tarief/i);
   });
 
   it('are not there at all when the supplier sent none', async () => {
@@ -537,7 +540,7 @@ describe('the hotel remarks of the checked rate (Levent, 20 Nov 2026)', () => {
     await waitFor(() => expect(post.mock.calls.some(([u]) => String(u).includes('/checkrate'))).toBe(true));
     await waitFor(() => expect(container.querySelector('.overview-total-val').textContent).toBe('€\u00A0500,00'));
     expect(container.querySelector('[data-testid="supplier-remarks"]')).toBeNull();
-    expect(container.textContent).not.toMatch(/opmerkingen van het hotel/i);
+    expect(container.textContent).not.toMatch(/specifieke voorwaarden van het geselecteerde tarief/i);
   });
 });
 

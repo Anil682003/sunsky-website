@@ -6,7 +6,7 @@ import SupplierRemarks from './SupplierRemarks';
 const TEXT = 'Minimum age 18 years (Adults only).\nCheck-in from 14:00, check-out until 12:00.\n\n'
   + 'Cancellations and changes follow the conditions of the booked rate.';
 
-const toggle = () => screen.getByRole('button', { name: /opmerkingen van het hotel/i });
+const toggle = () => screen.getByRole('button', { name: /specifieke voorwaarden van het geselecteerde tarief/i });
 
 describe('SupplierRemarks', () => {
   it('is titled in Dutch, open by default, and shows the whole text in the supplier paragraphs', () => {
