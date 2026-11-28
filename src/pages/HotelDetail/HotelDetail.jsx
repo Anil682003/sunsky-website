@@ -2434,7 +2434,11 @@ export default function HotelDetail() {
    * follows that date's winner; letting that narrow the strip would re-price the other six from
    * it and move the prices the traveller was comparing.
    */
-  const matrixOrigins = ovr.originPicked && ovr.origin ? [ovr.origin] : qp('origins');
+  // While the bar shows the clicked card's airport (held, nothing ticked on Results), the strip
+  // prices from that airport too: the bar said Münster while 21 Feb showed a Cologne price
+  // (Suncanarias La Chocita, Levent 28 Nov 2026). "No preference" in the bar still compares all.
+  const holdOnly = holdCardAirport && !String(qp('origins') || '').trim();
+  const matrixOrigins = ovr.originPicked && ovr.origin ? [ovr.origin] : (holdOnly ? [cardFrom] : qp('origins'));
   // "No preference" in the bar: no airport named here and none ticked on Results — every active
   // airport competes (the default for a hotel opened from an all-airports search).
   // The card's airport, while it is held, is shown as the airport, not as "No preference".
@@ -4464,7 +4468,6 @@ export default function HotelDetail() {
   // What the other-airport probe found, read against the CURRENT registry: the master list can
   // land after a probe has run, and an airport it has since switched off is not offered again.
   const shownAlternatives = (liveFlights?.alternatives || []).filter((a) => activeAirports.has(a.code));
-  const shownUnprobed = (liveFlights?.unprobed || []).filter((c) => activeAirports.has(c));
 
   // The page's ONE headline flight card, for whichever flight the page is holding. The banner
   // says whose choice it is: the page's own default says it was picked automatically, and only
@@ -5512,20 +5515,8 @@ export default function HotelDetail() {
                           </button>
                         </div>
                       ) : null}
-                      {!liveFlights.probing && shownUnprobed.length > 0 && (
-                        <div className="alt-airports alt-airports-muted">
-                          <div className="alt-airports-label">{t('flights.orSearchAnother', 'Or search another airport:')}</div>
-                          <div className="alt-airport-chips">
-                            {shownUnprobed.map((code) => (
-                              <button type="button" key={code} className="alt-chip"
-                                onClick={() => applyFilter({ origin: code })}>
-                                <span className="alt-chip-name">{airportName(code)}</span>
-                                <span className="alt-chip-code">{code}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
-                      )}
+                      {/* No list of airports that were never asked ("Of zoek een andere luchthaven"):
+                          only airports proven to fly this route are offered (Levent, 28 Nov 2026). */}
                     </>
                   ) : (
                     <div className="live-empty">{ICON.plane} {t('flights.noLiveFlights', 'No live flights found for these dates.')}</div>

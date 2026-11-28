@@ -435,9 +435,10 @@ describe('the other airports', () => {
     expect(await screen.findByText(/geen vluchten vanaf/i)).toBeInTheDocument();
     await waitFor(() => expect(container.querySelector('.flight-section .live-loading')).toBeNull());
     expect(screen.queryByText(/geen van onze vertrekluchthavens/i)).not.toBeInTheDocument();
-    // The airport we could not settle is still offered; the one that answered "none" is not.
+    // Neither is offered: only airports proven to fly the route are (Levent, 28 Nov 2026). The one
+    // we could not settle is not claimed as "none" either (the sentence above).
     const offered = [...container.querySelectorAll('.flight-section .alt-chip-code')].map((el) => el.textContent);
-    expect(offered).toContain('AMS');
+    expect(offered).not.toContain('AMS');
     expect(offered).not.toContain('EIN');
   });
 
@@ -452,9 +453,10 @@ describe('the other airports', () => {
     // Charleroi is popular in the seed but switched off in the dashboard.
     expect(flightFroms()).toEqual(expect.arrayContaining(['BRU', 'AMS', 'EIN']));
     expect(flightFroms()).not.toContain('CRL');
+    // No list of airports that were never asked (Levent, 28 Nov 2026): only proven ones are offered.
     const offered = [...container.querySelectorAll('.flight-section .alt-chip-code')].map((el) => el.textContent);
-    expect(offered).toContain('OST');
+    expect(offered).not.toContain('OST');
     expect(offered).not.toContain('CRL');
-    within(container.querySelector('.flight-section')).getByText(/of zoek een andere luchthaven/i);
+    expect(within(container.querySelector('.flight-section')).queryByText(/of zoek een andere luchthaven/i)).toBeNull();
   });
 });
