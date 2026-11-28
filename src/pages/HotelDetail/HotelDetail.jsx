@@ -4838,7 +4838,11 @@ export default function HotelDetail() {
                       // that Tuesday is cheaper because it goes from Amsterdam.
                       const showFrom = airportsVary && p.from;
                       const hasPrice = Number(p.price) > 0;
-                      const isEmpty = checkedEmpty.has(emptyKey(p.iso)) || p.state === 'NO_VALID_COMBINATION';
+                      // Flight + Hotel checked with no flight: the selected day is "Not available" in
+                      // the same grey as a sold-out day, not left in the selection blue (Levent,
+                      // 28 Nov 2026). Same rule as the "This trip is not available" card.
+                      const tripGone = pickedIdx === i && transport === 'package' && packageNoFlight;
+                      const isEmpty = checkedEmpty.has(emptyKey(p.iso)) || p.state === 'NO_VALID_COMBINATION' || tripGone;
                       /* UI-11: one vocabulary for the three ways a bar can carry no price, which
                          the strip used to say with two words between them.
 

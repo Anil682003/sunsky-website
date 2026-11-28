@@ -463,5 +463,9 @@ describe('Flight + Hotel: room available, no flight', () => {
 
     await screen.findByText(/deze reis is niet beschikbaar/i);
     expect(container.querySelector('.fc-col.sel.fc-ok')).toBeNull();
+    // Grey and "Not available", as a sold-out day (Levent: "not available is grey").
+    const day = container.querySelector('.fc-col.sel');
+    expect(day).toHaveClass('fc-empty');
+    expect(day).toHaveTextContent(/niet beschikbaar/i);
   });
 });
