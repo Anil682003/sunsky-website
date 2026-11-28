@@ -4870,7 +4870,13 @@ export default function HotelDetail() {
                       // only from rates that came back with a real price, so a check still
                       // running, a failure, a room with no rate and an empty answer are all
                       // excluded by construction rather than by remembering to list them.
-                      const isLiveOk = sel && liveChecked && roomsAv?.state === AVAILABILITY.AVAILABLE;
+                      // Flight + Hotel: green only when the TRIP is available, i.e. a flight was found
+                      // too. The room alone turned the day green above "This trip is not available"
+                      // (Suncanarias La Chocita 21 Feb, cached CGN price, no live flight; Levent
+                      // 28 Nov 2026). Same rule as the "not available" card below, so the two can
+                      // never disagree.
+                      const tripLive = !packageNoFlight;
+                      const isLiveOk = sel && liveChecked && roomsAv?.state === AVAILABILITY.AVAILABLE && tripLive;
                       const frac = hasPrice && priceVaries ? (shownPP(p) - pMin) / (pMax - pMin) : 0.55;
                       // A flat week fills its (shorter) canvas: with no profile to draw, a bar
                       // stopping two-thirds up is just a gap, not a reading.

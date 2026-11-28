@@ -446,3 +446,22 @@ describe('flights nobody could price', () => {
     expect(screen.queryByText(/totale live kamerprijs/i)).not.toBeInTheDocument();
   });
 });
+
+// Levent, 28 Nov 2026 (Suncanarias La Chocita, 21 Feb): the room came back available but the live
+// flight search found no flight. The page said "This trip is not available" while the day turned
+// green. In Flight + Hotel the day is green only when the trip is.
+describe('Flight + Hotel: room available, no flight', () => {
+  it('says the trip is not available and does not paint the day green', async () => {
+    const user = userEvent.setup();
+    serve({
+      hotel: { data: { results: { hotelbeds: { rooms: [PRICED_ROOM] } } } },
+      // Airtürk answered with an empty list: a real "no flight", not an outage.
+      flight: { data: { results: { airtuerk: { flights: [] } } } },
+    });
+    const { container } = renderPage({ transport: 'package' });
+    await runCheck(user);
+
+    await screen.findByText(/deze reis is niet beschikbaar/i);
+    expect(container.querySelector('.fc-col.sel.fc-ok')).toBeNull();
+  });
+});
