@@ -2406,6 +2406,9 @@ function CheckoutContent({ stripe, elements }) {
             price: quote.hotel || api.hotel.price,
             // No remarks are shown, so none are sent: the server's REMARKS_CHANGED check only runs
             // for a page that says what it showed.
+            // The local charges the information box showed (V1.1 §6): the server refuses with
+            // LOCAL_CHARGES_CHANGED when its final check finds others. Only when the box was shown.
+            ...(hotelInfo?.live && hotelCharges ? { localChargesShown: { state: hotelCharges.state, totals: hotelCharges.totals || [], source: hotelCharges.source || null } } : {}),
             // What the customer was SHOWN about this rate. The server refuses to create the
             // booking when this is true and the matching consent is absent, so the record can
             // never disagree with the screen.
@@ -2735,6 +2738,12 @@ function CheckoutContent({ stripe, elements }) {
       // The hotel's remarks changed at the final check: show the new text (the review and payment
       // sections print it) so the next click books on what the customer has now seen. Nothing was
       // booked or charged.
+      // The charges payable locally changed at the final check: the box shows the new ones, and the
+      // next click books on what the customer has now seen. Nothing was booked or charged.
+      if (err?.response?.data?.errorCode === 'LOCAL_CHARGES_CHANGED') {
+        const fresh = err.response.data.errors?.[0]?.localCharges || null;
+        setQuote((q) => ({ ...q, localCharges: fresh }));
+      }
       if (err?.response?.data?.errorCode === 'REMARKS_CHANGED') {
         const text = err.response.data.errors?.[0]?.remarks?.text || null;
         setQuote((q) => ({ ...q, remarks: text ? { rateKey: q.rateKey || null, text } : null }));
