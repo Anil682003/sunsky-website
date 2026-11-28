@@ -5030,7 +5030,7 @@ export default function HotelDetail() {
               )}
 
               {(usingLive || liveOnly) && (pd ? (
-                    <div className={`fc-pop${dayUnavailable ? ' fc-pop-unavail' : ''}`}>
+                    <div className={`fc-pop${(dayUnavailable || packageNoFlight) ? ' fc-pop-unavail' : ''}`}>
                       {(dayUnavailable || packageNoFlight) ? (
                         /* The honest counterpart of the green card: the supplier was asked and
                            said no. Grey, not red (client design, Nov 2026): nothing went

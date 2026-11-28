@@ -467,5 +467,7 @@ describe('Flight + Hotel: room available, no flight', () => {
     const day = container.querySelector('.fc-col.sel');
     expect(day).toHaveClass('fc-empty');
     expect(day).toHaveTextContent(/niet beschikbaar/i);
+    // and the card under the strip in the same grey as for a sold-out day
+    expect(document.querySelector(".fc-pop.fc-pop-unavail")).toBeTruthy();
   });
 });
